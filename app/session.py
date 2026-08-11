@@ -33,8 +33,10 @@ from app.runtime_registry import (
 from app.runtime_history import (
     CLAUDE_CLI_HISTORY_VERSION,
     CLAUDE_HISTORY_SOURCE,
+    CODEX_CLI_HISTORY_VERSION,
     NativeHistoryImportError,
     NativeHistoryRejected,
+    render_codex_history,
     render_claude_history,
 )
 from app.session_cost import CostTracker
@@ -1153,6 +1155,28 @@ class AgentSession:
                 cwd=self.cwd,
                 model=target_model,
                 branch=self.branch or "",
+                exclude_user_messages=exclude_user_messages,
+            ),
+        )
+
+    async def _build_codex_history_import(
+        self,
+        target_thread_id: str,
+        exclude_user_messages: tuple[str, ...] = (),
+    ):
+        if self._log_futures:
+            await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
+        loop = asyncio.get_running_loop()
+        snapshot_id, rows = await loop.run_in_executor(
+            _db_executor(), partial(get_history_logs, self.id)
+        )
+        return await loop.run_in_executor(
+            _db_executor(),
+            partial(
+                render_codex_history,
+                rows,
+                snapshot_id=snapshot_id,
+                thread_id=target_thread_id,
                 exclude_user_messages=exclude_user_messages,
             ),
         )
@@ -2408,6 +2432,152 @@ class AgentSession:
             "changed": True,
         }
 
+    async def _change_to_codex_with_history_locked(
+        self,
+        new_model: str,
+        old_model: str,
+        old_runtime: str,
+    ) -> dict:
+        await self._drain_persist()
+        seed_thread_id = str(uuid.uuid4())
+        history = await self._build_codex_history_import(seed_thread_id)
+        try:
+            fallback = (
+                _bounded_summary(self.last_summary)
+                if self.last_summary
+                else await self._build_runtime_handoff()
+            )
+        except Exception as error:
+            self._log("error", f"model change failed: {err_text(error)}")
+            return {"ok": False, "error": err_text(error)}
+        old_state = {
+            "model": self.model,
+            "backend_type": self.backend_type,
+            "session_id": self.session_id,
+            "session_id_history": [dict(item) for item in self.session_id_history],
+            "runtime_handoff": self.runtime_handoff,
+            "history_import_source": self.history_import_source,
+            "last_context": dict(self._last_context),
+            "prompt_injected": self._prompt_injected,
+            "hibernated": self._hibernated,
+        }
+
+        def restore_old_state() -> None:
+            self.model = old_state["model"]
+            self.backend_type = old_state["backend_type"]
+            self.session_id = old_state["session_id"]
+            self.session_id_history = old_state["session_id_history"]
+            self.runtime_handoff = old_state["runtime_handoff"]
+            self.history_import_source = old_state["history_import_source"]
+            self._last_context = old_state["last_context"]
+            self._prompt_injected = old_state["prompt_injected"]
+            self._hibernated = old_state["hibernated"]
+
+        await self._disconnect_backend()
+        self.model = new_model
+        self.backend_type = "codex"
+        self.session_id = seed_thread_id
+        self.runtime_handoff = ""
+        self.history_import_source = None
+        self._last_context = {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
+        self._prompt_injected = False
+        self._hibernated = False
+
+        transfer: dict
+        try:
+            backend = await self._ensure_backend(
+                history_import=history,
+                activate=False,
+            )
+            returned_thread_id = backend.session_id
+            if not returned_thread_id or returned_thread_id == seed_thread_id:
+                raise NativeHistoryRejected(
+                    "Codex history import did not return a fresh thread id"
+                )
+            self.session_id = returned_thread_id
+            self._prompt_injected = True
+            transfer = {
+                "mode": "native",
+                "runtime": "codex",
+                "version": CODEX_CLI_HISTORY_VERSION,
+                **history.report.as_dict(),
+            }
+        except NativeHistoryImportError as error:
+            self.session_id = None
+            self.runtime_handoff = fallback
+            self._prompt_injected = False
+            try:
+                backend = await self._ensure_backend(
+                    force_fresh=True,
+                    activate=False,
+                )
+                if backend.session_id:
+                    self.session_id = backend.session_id
+            except Exception as fresh_error:
+                restore_old_state()
+                self._log("error", f"model change failed: {err_text(fresh_error)}")
+                return {"ok": False, "error": err_text(fresh_error)}
+            transfer = {
+                "mode": "summary",
+                "runtime": "codex",
+                "reason": err_text(error),
+            }
+        except Exception as error:
+            restore_old_state()
+            self._log("error", f"model change failed: {err_text(error)}")
+            return {"ok": False, "error": err_text(error)}
+
+        for entry in self.session_id_history:
+            entry.setdefault("runtime", old_runtime)
+            entry.setdefault("model", old_model)
+        if old_state["session_id"]:
+            self.session_id_history.append({
+                "session_id": old_state["session_id"],
+                "runtime": old_runtime,
+                "model": old_model,
+                "switched_at": datetime.now(timezone.utc).isoformat(),
+            })
+            self.session_id_history = self.session_id_history[-10:]
+
+        try:
+            snapshot = self._to_db_dict()
+            await asyncio.get_running_loop().run_in_executor(
+                _db_executor(), save_session, snapshot
+            )
+        except Exception as error:
+            await self._disconnect_backend()
+            restore_old_state()
+            self._log("error", f"model change persistence failed: {err_text(error)}")
+            return {"ok": False, "error": err_text(error)}
+
+        self._activate_backend_tasks()
+        self._log(
+            "status",
+            f"model change: {old_model} ({old_runtime}) → {new_model} (codex)",
+        )
+        if transfer["mode"] == "native":
+            self._log(
+                "status",
+                history.report.status_text("codex", CODEX_CLI_HISTORY_VERSION),
+            )
+        else:
+            self._log(
+                "warning",
+                f"native history import unavailable: {transfer['reason']}; "
+                "summary fallback active",
+            )
+        return {
+            "ok": True,
+            "model": new_model,
+            "old_model": old_model,
+            "runtime": "codex",
+            "old_runtime": old_runtime,
+            "runtime_changed": True,
+            "native_session_reset": True,
+            "history_transfer": transfer,
+            "changed": True,
+        }
+
     async def _change_model_locked(self, new_model: str) -> dict:
         old_model = self.model
         if old_model == new_model:
@@ -2420,6 +2590,12 @@ class AgentSession:
         runtime_changed = old_runtime != new_runtime
         if old_runtime == "codex" and new_runtime == "claude":
             return await self._change_to_claude_with_history_locked(
+                new_model,
+                old_model,
+                old_runtime,
+            )
+        if old_runtime == "claude" and new_runtime == "codex":
+            return await self._change_to_codex_with_history_locked(
                 new_model,
                 old_model,
                 old_runtime,

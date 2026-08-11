@@ -4,13 +4,15 @@
 > независимо, поэтому номера версий 2.31.0-2.33.0 использованы ДВАЖДЫ для разного
 > содержания: ниже сперва блок VPS, затем блок ноутбука. Формат чинится задачей #52.
 
-## v2.38.0 — 2026-08-11 — #174 native history import, Claude slice
+## v2.38.0 — 2026-08-11 — #174 native history import, Claude ↔ Codex
 
 ### Added
 - **Codex→Claude переносит полный диалог из `logs`, а не bounded summary** (`app/runtime_history.py`, `AgentSession._change_to_claude_with_history_locked`, `ClaudeBackend`). User/assistant records и завершённые tool call/result рендерятся в target-native transcript через `SessionStore.load()`; reasoning не синтезируется. Tool history имеет жёсткий потолок 256 000 сериализованных model-visible символов, а payload и metadata очищаются от известных секретов, включая wrapped/URL-safe base64. Несовместимая версия или отвергнутая схема явно включает прежний summary fallback; reconnect освобождает старый SDK client и при version preflight failure. *Triggered case:* при смене рантайма рабочий механизм отдавал новой модели максимум 120 последних записей / 32 000 символов и вообще терял tool results — в измеренной длинной сессии осталось 0,86% текста; первый вариант импорта, напротив, воспроизвёл 680 548 tool-символов при заявленном бюджете 256 000.
+- **Claude→Codex использует только `thread/resume.history`** (`render_codex_history`, `CodexBackend`, `AgentSession._change_to_codex_with_history_locked`). Experimental capability включается только для импортного connect; свежий thread ID из ответа становится durable native ID, а обычный resume по-прежнему падает при подмене ID. Оба адаптера делят один normalizer, sanitizer и hard cap tool history; historical tool calls завершены и помечены как уже исполненные. *Triggered case:* app-server 0.146.0 намеренно игнорирует переданный seed ID при history import, поэтому прежний общий resume-guard отвергал рабочий импорт как чужой thread.
 
 ### Known tradeoff
 - **`claude-agent-sdk` намеренно закреплён на `0.2.114`.** Native transcript contract проверен только с Claude CLI 2.1.197 / SDK 0.2.114. Обновление `claude-agent-sdk` теперь намеренно ломает импорт истории через version tripwire и требует прогона isolated native canary; снимать пин без canary нельзя. SDK принимает opaque provider entries, а совместимость их схемы не обещана публичным типом.
+- **Codex history import закреплён на CLI `0.146.0` и experimental API.** Другая версия намеренно включает summary fallback до запуска app-server; обновление CLI требует isolated native canary. `thread/resume.history` помечен upstream как unstable / cloud-only, поэтому бесшовный импорт нельзя считать гарантированным контрактом следующей версии.
 
 ## v2.37.0 — 2026-08-11 — #185 навигация по чату
 

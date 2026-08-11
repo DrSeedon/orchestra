@@ -285,3 +285,39 @@ roles:
 
     assert backend.system_prompt == "BASE"
     assert "Available skills" not in backend.system_prompt
+
+
+def test_codex_factory_passes_native_history_import(tmp_path):
+    from app.runtime_history import render_codex_history
+
+    history = render_codex_history(
+        [{
+            "id": 1,
+            "ts": "2026-08-11T10:00:00+00:00",
+            "type": "user_message",
+            "content": "remember",
+        }],
+        snapshot_id=1,
+        thread_id="11111111-2222-4333-8444-555555555555",
+    )
+    ctx = BackendBuildContext(
+        model="gpt-5.6-sol",
+        provider="openai",
+        cwd=str(tmp_path),
+        system_prompt="BASE",
+        resume_session_id=history.thread_id,
+        mcp_servers={},
+        is_orchestrator=False,
+        scope=str(tmp_path),
+        pipeline="default",
+        role="worker",
+        profile="",
+        effort="high",
+        context_limit=258_400,
+        history_import=history,
+    )
+
+    backend = build_backend("codex", ctx)
+
+    assert backend.session_id == history.thread_id
+    assert backend._history_import is history

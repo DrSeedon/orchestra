@@ -12,6 +12,12 @@ from typing import AsyncIterator, Optional
 
 from app.backend_jsonrpc import JsonRpcStdioTransport, bounded_tool_arguments
 from app.events import AgentEvent
+from app.runtime_history import (
+    CODEX_CLI_HISTORY_VERSION,
+    HISTORICAL_TOOL_INSTRUCTION,
+    CodexHistoryImport,
+    NativeHistoryUnsupported,
+)
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
 logger = logging.getLogger(__name__)
@@ -280,7 +286,8 @@ class CodexBackend(JsonRpcStdioTransport):
                  mcp_env: dict[str, str] | None = None,
                  mcp_servers: dict | None = None,
                  reasoning_effort: str = "high",
-                 is_orchestrator: bool = False):
+                 is_orchestrator: bool = False,
+                 history_import: object | None = None):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
@@ -288,6 +295,9 @@ class CodexBackend(JsonRpcStdioTransport):
         self._mcp_env: dict[str, str] = mcp_env or {}
         self._mcp_servers: dict = mcp_servers or {}
         self._is_orchestrator = is_orchestrator
+        if history_import is not None and not isinstance(history_import, CodexHistoryImport):
+            raise TypeError("history_import must be CodexHistoryImport")
+        self._history_import = history_import
         self.reasoning_effort = (
             reasoning_effort if reasoning_effort in CODEX_REASONING_EFFORTS else "high"
         )
@@ -335,12 +345,35 @@ class CodexBackend(JsonRpcStdioTransport):
     def has_owned_processes(self) -> bool:
         return self._proc is not None or self._scope_unit is not None
 
+    async def _verify_history_version(self) -> None:
+        if not self._history_import:
+            return
+        try:
+            returncode, stdout, stderr = await _run_process(
+                CODEX_BIN,
+                "--version",
+                timeout=10,
+            )
+        except (OSError, asyncio.TimeoutError) as error:
+            raise NativeHistoryUnsupported(
+                f"cannot verify Codex CLI history version: {type(error).__name__}: {error}"
+            ) from error
+        version_text = stdout or stderr
+        parts = version_text.split()
+        actual_version = parts[1] if len(parts) >= 2 and parts[0] == "codex-cli" else ""
+        if returncode != 0 or actual_version != CODEX_CLI_HISTORY_VERSION:
+            actual = version_text or f"exit {returncode}"
+            raise NativeHistoryUnsupported(
+                f"native Codex history requires CLI {CODEX_CLI_HISTORY_VERSION}, got {actual}"
+            )
+
     async def connect(self) -> None:
         if self.is_alive and not self._teardown_error:
             return
 
         if self.has_owned_processes:
             await self.disconnect()
+        await self._verify_history_version()
         self._notifications = asyncio.Queue()
         self._disconnecting = False
         self._last_stderr = ""
@@ -389,13 +422,16 @@ class CodexBackend(JsonRpcStdioTransport):
             )
             self._reader_task = asyncio.create_task(self._read_stdout())
             self._stderr_task = asyncio.create_task(self._drain_stderr())
-            await self._request("initialize", {
+            initialize_params = {
                 "clientInfo": {
                     "name": "orchestra",
                     "title": "Orchestra",
                     "version": "1",
                 },
-            })
+            }
+            if self._history_import:
+                initialize_params["capabilities"] = {"experimentalApi": True}
+            await self._request("initialize", initialize_params)
             await self._notify("initialized", {})
             params = {
                 "cwd": self.cwd,
@@ -403,10 +439,21 @@ class CodexBackend(JsonRpcStdioTransport):
                 "approvalPolicy": "never",
                 "sandbox": "danger-full-access",
             }
-            if self.system_prompt:
-                params["developerInstructions"] = self.system_prompt
+            history_import = self._history_import
+            developer_instructions = self.system_prompt
+            if history_import:
+                developer_instructions = "\n\n".join(filter(None, (
+                    developer_instructions,
+                    HISTORICAL_TOOL_INSTRUCTION,
+                )))
+            if developer_instructions:
+                params["developerInstructions"] = developer_instructions
             requested_thread_id = self._thread_id
-            if requested_thread_id:
+            if history_import:
+                params["threadId"] = history_import.thread_id
+                params["history"] = list(history_import.history)
+                result = await self._request("thread/resume", params)
+            elif requested_thread_id:
                 params["threadId"] = requested_thread_id
                 result = await self._request("thread/resume", params)
             else:
@@ -414,12 +461,13 @@ class CodexBackend(JsonRpcStdioTransport):
             thread_id = ((result.get("thread") or {}).get("id"))
             if not thread_id:
                 raise RuntimeError("Codex app-server returned no thread id")
-            if requested_thread_id and thread_id != requested_thread_id:
+            if requested_thread_id and not history_import and thread_id != requested_thread_id:
                 raise RuntimeError(
                     "Codex app-server resumed a different thread: "
                     f"requested={requested_thread_id}, returned={thread_id}"
                 )
             self._thread_id = thread_id
+            self._history_import = None
             self._rollout_path = None
             self._teardown_error = None
         except BaseException:

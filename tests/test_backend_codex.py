@@ -8,6 +8,8 @@ Regression net for the three bugs found in the codex-integration audit:
 
 import asyncio
 import json
+import shutil
+import subprocess
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -15,12 +17,19 @@ import pytest
 
 from app.backend_codex import (
     CodexBackend,
+    CodexProtocolError,
     CODEX_CONTEXT_LIMITS,
     CODEX_TOKEN_PRICES,
     CODEX_REASONING_EFFORTS,
     _codex_cost,
     _read_rollout_context,
     _usage_delta,
+)
+from app.runtime_history import (
+    CODEX_CLI_HISTORY_VERSION,
+    HISTORICAL_TOOL_INSTRUCTION,
+    NativeHistoryUnsupported,
+    render_codex_history,
 )
 
 
@@ -39,6 +48,29 @@ class _FakeProcess:
     async def _wait(self):
         self.returncode = 0
         return 0
+
+
+def _history_import():
+    return render_codex_history(
+        [{
+            "id": 1,
+            "ts": "2026-08-11T10:00:00+00:00",
+            "type": "user_message",
+            "content": "remember",
+        }],
+        snapshot_id=1,
+        thread_id="11111111-2222-4333-8444-555555555555",
+    )
+
+
+def test_installed_codex_history_version_matches_pin():
+    cli = shutil.which("codex")
+    if cli is None:
+        pytest.skip("Codex CLI is not installed")
+    result = subprocess.run(
+        [cli, "--version"], capture_output=True, text=True, check=True, timeout=10
+    )
+    assert result.stdout.strip() == f"codex-cli {CODEX_CLI_HISTORY_VERSION}"
 
 
 # ── BUG 1: GPT-5.6 models registered in backend dicts ──
@@ -348,6 +380,259 @@ async def test_resume_rejects_substituted_thread_before_turn(monkeypatch):
         await backend.connect()
 
     assert backend.session_id == "thread-requested"
+    backend.disconnect.assert_awaited_once()
+    initialize_params = backend._request.await_args_list[0].args[1]
+    resume_params = backend._request.await_args_list[1].args[1]
+    assert "capabilities" not in initialize_params
+    assert "history" not in resume_params
+
+
+def test_wrong_codex_history_import_type_fails_loud():
+    with pytest.raises(TypeError, match="CodexHistoryImport"):
+        CodexBackend(
+            model="gpt-5.6-sol",
+            cwd="/tmp",
+            history_import={"history": []},
+        )
+
+
+@pytest.mark.asyncio
+async def test_history_import_requires_exact_codex_version(monkeypatch):
+    import app.backend_codex as module
+
+    backend = CodexBackend(
+        model="gpt-5.6-sol",
+        cwd="/tmp",
+        history_import=_history_import(),
+    )
+    monkeypatch.setattr(
+        module,
+        "_run_process",
+        AsyncMock(return_value=(0, "codex-cli 0.146.00", "")),
+    )
+
+    with pytest.raises(NativeHistoryUnsupported, match="0.146.00"):
+        await backend._verify_history_version()
+
+
+@pytest.mark.asyncio
+async def test_history_connect_fails_before_spawn_on_version_mismatch(monkeypatch):
+    import app.backend_codex as module
+
+    monkeypatch.setattr(
+        module,
+        "_codex_scope_support",
+        AsyncMock(return_value=(False, {}, "unsupported")),
+    )
+    backend = CodexBackend(
+        model="gpt-5.6-sol",
+        cwd="/tmp",
+        history_import=_history_import(),
+    )
+    monkeypatch.setattr(
+        module,
+        "_run_process",
+        AsyncMock(return_value=(0, "codex-cli 0.147.0", "")),
+    )
+    spawn = AsyncMock(return_value=_FakeProcess())
+    monkeypatch.setattr(module.asyncio, "create_subprocess_exec", spawn)
+    backend._read_stdout = AsyncMock()
+    backend._drain_stderr = AsyncMock()
+    backend._request = AsyncMock(side_effect=AssertionError("app-server started"))
+
+    with pytest.raises(NativeHistoryUnsupported, match="0.147.0"):
+        await backend.connect()
+
+    spawn.assert_not_awaited()
+    assert backend.has_owned_processes is False
+
+
+@pytest.mark.asyncio
+async def test_history_import_uses_experimental_resume_and_accepts_fresh_id(monkeypatch):
+    import app.backend_codex as module
+
+    history = _history_import()
+    monkeypatch.setattr(
+        module,
+        "_codex_scope_support",
+        AsyncMock(return_value=(False, {}, "unsupported")),
+    )
+    monkeypatch.setattr(
+        module.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=_FakeProcess()),
+    )
+    backend = CodexBackend(
+        model="gpt-5.6-sol",
+        cwd="/tmp",
+        system_prompt="CURRENT ROLE",
+        resume_thread_id=history.thread_id,
+        history_import=history,
+    )
+    backend._verify_history_version = AsyncMock()
+    backend._read_stdout = AsyncMock()
+    backend._drain_stderr = AsyncMock()
+    backend._notify = AsyncMock()
+    requests = []
+
+    async def request(method, params):
+        requests.append((method, params))
+        if method == "thread/resume":
+            return {"thread": {"id": "fresh-thread-id"}}
+        return {}
+
+    backend._request = AsyncMock(side_effect=request)
+
+    await backend.connect()
+
+    assert requests[0] == (
+        "initialize",
+        {
+            "clientInfo": {
+                "name": "orchestra",
+                "title": "Orchestra",
+                "version": "1",
+            },
+            "capabilities": {"experimentalApi": True},
+        },
+    )
+    method, params = requests[1]
+    assert method == "thread/resume"
+    assert params["threadId"] == history.thread_id
+    assert params["history"] == list(history.history)
+    assert params["developerInstructions"] == (
+        "CURRENT ROLE\n\n" + HISTORICAL_TOOL_INSTRUCTION
+    )
+    assert "path" not in params
+    assert backend.session_id == "fresh-thread-id"
+    assert backend._history_import is None
+
+    backend._proc = None
+    requests.clear()
+    await backend.connect()
+
+    assert "capabilities" not in requests[0][1]
+    assert requests[1][0] == "thread/resume"
+    assert requests[1][1]["threadId"] == "fresh-thread-id"
+    assert "history" not in requests[1][1]
+    assert requests[1][1]["developerInstructions"] == "CURRENT ROLE"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("protocol_code", "protocol_message"), [
+    (-32600, "thread/resume.history requires experimentalApi capability"),
+    (-32600, "invalid params: invalid type for history item"),
+    (-32600, "failed to deserialize ResponseItem variant"),
+    (-32602, "invalid params: unknown model gpt-bad"),
+    (-32602, "invalid params: cwd does not exist"),
+    (-32602, "invalid params: invalid threadId"),
+    (-32602, "failed to parse approval policy"),
+    (-32601, "method not found"),
+    (-32602, "invalid params: cwd '/srv/history' does not exist"),
+    (-32602, "invalid params: unknown model 'history-large'"),
+    (-32602, "failed to parse developerInstructions: history must be preserved"),
+    (-32602, "invalid params: invalid threadId history-legacy"),
+])
+async def test_resume_protocol_error_without_structured_field_is_not_summary_eligible(
+    monkeypatch, protocol_code, protocol_message,
+):
+    import app.backend_codex as module
+
+    monkeypatch.setattr(
+        module,
+        "_codex_scope_support",
+        AsyncMock(return_value=(False, {}, "unsupported")),
+    )
+    monkeypatch.setattr(
+        module.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=_FakeProcess()),
+    )
+    backend = CodexBackend(
+        model="gpt-5.6-sol",
+        cwd="/tmp",
+        history_import=_history_import(),
+    )
+    backend._verify_history_version = AsyncMock()
+    backend._read_stdout = AsyncMock()
+    backend._drain_stderr = AsyncMock()
+    backend._notify = AsyncMock()
+    protocol_error = CodexProtocolError(
+        "request",
+        {"code": protocol_code, "message": protocol_message},
+    )
+    backend._request = AsyncMock(side_effect=[{}, protocol_error])
+    backend.disconnect = AsyncMock()
+
+    with pytest.raises(CodexProtocolError, match=protocol_message):
+        await backend.connect()
+
+    backend.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_history_initialize_protocol_error_is_not_summary_eligible(monkeypatch):
+    import app.backend_codex as module
+
+    monkeypatch.setattr(
+        module,
+        "_codex_scope_support",
+        AsyncMock(return_value=(False, {}, "unsupported")),
+    )
+    monkeypatch.setattr(
+        module.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=_FakeProcess()),
+    )
+    backend = CodexBackend(
+        model="gpt-5.6-sol",
+        cwd="/tmp",
+        history_import=_history_import(),
+    )
+    backend._verify_history_version = AsyncMock()
+    backend._read_stdout = AsyncMock()
+    backend._drain_stderr = AsyncMock()
+    backend._request = AsyncMock(side_effect=CodexProtocolError(
+        "request",
+        {"code": -32602, "message": "invalid params: initialize schema changed"},
+    ))
+    backend.disconnect = AsyncMock()
+
+    with pytest.raises(CodexProtocolError, match="initialize schema changed"):
+        await backend.connect()
+
+    backend.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_history_connect_auth_failure_is_not_summary_eligible(monkeypatch):
+    import app.backend_codex as module
+
+    monkeypatch.setattr(
+        module,
+        "_codex_scope_support",
+        AsyncMock(return_value=(False, {}, "unsupported")),
+    )
+    monkeypatch.setattr(
+        module.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(return_value=_FakeProcess()),
+    )
+    backend = CodexBackend(
+        model="gpt-5.6-sol",
+        cwd="/tmp",
+        history_import=_history_import(),
+    )
+    backend._verify_history_version = AsyncMock()
+    backend._read_stdout = AsyncMock()
+    backend._drain_stderr = AsyncMock()
+    backend._notify = AsyncMock()
+    backend._request = AsyncMock(side_effect=RuntimeError("authentication required"))
+    backend.disconnect = AsyncMock()
+
+    with pytest.raises(RuntimeError, match="authentication required"):
+        await backend.connect()
+
     backend.disconnect.assert_awaited_once()
 
 

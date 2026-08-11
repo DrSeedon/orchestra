@@ -14,6 +14,7 @@ from app.runtime_history import (
     CLAUDE_CLI_HISTORY_VERSION,
     CLAUDE_SDK_HISTORY_VERSION,
     ClaudeLogSessionStore,
+    render_codex_history,
     render_claude_history,
 )
 
@@ -223,6 +224,120 @@ def test_full_serialized_tool_history_obeys_hard_cap():
     assert calls == results
     assert len(calls) < 3_000
     assert history.report.truncated > 0
+
+
+def test_render_codex_history_uses_response_items_and_completed_custom_tools():
+    rows = [
+        _row(1, "user_message", "Question"),
+        _row(
+            2,
+            "tool",
+            'Read: {"token":"secret-value"}',
+            tool_use_id="tool-1",
+            tool_name="Read",
+        ),
+        _row(
+            3,
+            "tool_result",
+            "marker from tool",
+            tool_use_id="tool-1",
+            tool_name="Read",
+        ),
+        _row(4, "text", "Answer"),
+        _row(5, "tool", "orphan call"),
+    ]
+
+    rendered = render_codex_history(
+        rows,
+        snapshot_id=5,
+        thread_id="11111111-2222-4333-8444-555555555555",
+    )
+
+    assert [item["type"] for item in rendered.history] == [
+        "message",
+        "custom_tool_call",
+        "custom_tool_call_output",
+        "message",
+        "custom_tool_call",
+        "custom_tool_call_output",
+    ]
+    assert rendered.history[0] == {
+        "type": "message",
+        "role": "user",
+        "content": [{"type": "input_text", "text": "Question"}],
+    }
+    assert rendered.history[3] == {
+        "type": "message",
+        "role": "assistant",
+        "content": [{"type": "output_text", "text": "Answer"}],
+    }
+    first_call = rendered.history[1]
+    first_output = rendered.history[2]
+    assert first_output["call_id"] == first_call["call_id"]
+    assert json.loads(first_call["input"]) == {
+        "recorded_call": 'Read: {"token":[redacted]}',
+        "source_tool_name": "Read",
+        "source_log_id": 2,
+        "already_executed": True,
+        "synthetic": False,
+    }
+    assert "marker from tool" in first_output["output"]
+    assert "secret-value" not in repr(rendered.history)
+    assert rendered.history[-1]["type"] == "custom_tool_call_output"
+    assert rendered.report.tool_calls == 2
+    assert rendered.report.tool_results == 1
+
+
+def test_codex_uses_shared_tool_cap_and_wrapped_base64_sanitizer():
+    import app.runtime_history as history_module
+
+    encoded = base64.urlsafe_b64encode(bytes(range(256)) * 4).decode()
+    wrapped = " \n".join(
+        encoded[index:index + 76]
+        for index in range(0, len(encoded), 76)
+    )
+    rows = [
+        _row(
+            index,
+            "tool",
+            wrapped if index == 3_000 else f"call-{index}",
+            tool_use_id=f"tool-{index}",
+            tool_name="Read",
+        )
+        for index in range(1, 3_001)
+    ]
+
+    rendered = render_codex_history(
+        rows,
+        snapshot_id=3_000,
+        thread_id="11111111-2222-4333-8444-555555555555",
+    )
+    tool_items = [
+        item for item in rendered.history
+        if item["type"] in {"custom_tool_call", "custom_tool_call_output"}
+    ]
+    visible_chars = sum(len(json.dumps(
+        item, ensure_ascii=False, separators=(",", ":")
+    )) for item in tool_items)
+    calls = {
+        item["call_id"]
+        for item in tool_items
+        if item["type"] == "custom_tool_call"
+    }
+    outputs = {
+        item["call_id"]
+        for item in tool_items
+        if item["type"] == "custom_tool_call_output"
+    }
+    serialized = repr(tool_items)
+
+    assert visible_chars <= history_module.TOOL_VISIBLE_BUDGET
+    assert calls == outputs
+    assert len(calls) < 3_000
+    assert wrapped not in serialized
+    assert "binary/base64 omitted" in serialized
+    assert rendered.report.secrets_redacted >= 1
+    assert rendered.report.truncated > 0
 
 
 def test_render_is_idempotent_and_excludes_only_latest_matching_user():

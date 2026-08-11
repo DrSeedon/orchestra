@@ -241,6 +241,7 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
         mcp_servers=context.mcp_servers,
         reasoning_effort=context.effort or "high",
         is_orchestrator=context.is_orchestrator,
+        history_import=context.history_import,
     )
 
 

@@ -10,12 +10,13 @@ import uuid
 from collections import Counter, deque
 from copy import deepcopy
 from dataclasses import asdict, dataclass, replace
-from typing import Any, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 
 CLAUDE_CLI_HISTORY_VERSION = "2.1.197"
 CLAUDE_SDK_HISTORY_VERSION = "0.2.114"
 CLAUDE_HISTORY_SOURCE = "logs:claude"
+CODEX_CLI_HISTORY_VERSION = "0.146.0"
 
 TOOL_CALL_LIMIT = 8_000
 TOOL_RESULT_LIMIT = 20_000
@@ -73,6 +74,25 @@ class ClaudeHistoryImport:
     session_id: str
     entries: tuple[dict[str, Any], ...]
     report: HistoryImportReport
+
+
+@dataclass(frozen=True)
+class CodexHistoryImport:
+    thread_id: str
+    history: tuple[dict[str, Any], ...]
+    report: HistoryImportReport
+
+
+@dataclass(frozen=True)
+class _HistoryRecord:
+    kind: str
+    log_id: int
+    timestamp: str
+    content: str
+    call_id: str = ""
+    tool_name: str = ""
+    is_error: bool = False
+    synthetic: bool = False
 
 
 class ClaudeLogSessionStore:
@@ -135,6 +155,44 @@ def _sanitize(value: str, *, binary: bool = False) -> tuple[str, int]:
     return text, count
 
 
+def _cap_model_visible_tools(
+    items: list[dict[str, Any]],
+    *,
+    identity: Callable[[dict[str, Any]], str | None],
+    visible: Callable[[dict[str, Any]], Any],
+    report: HistoryImportReport,
+) -> tuple[list[dict[str, Any]], HistoryImportReport]:
+    groups: dict[str, list[int]] = {}
+    for index, item in enumerate(items):
+        call_id = identity(item)
+        if call_id:
+            groups.setdefault(call_id, []).append(index)
+
+    kept_indices: set[int] = set()
+    used = 0
+    for _call_id, indices in sorted(
+        groups.items(), key=lambda pair: pair[1][-1], reverse=True
+    ):
+        cost = sum(len(json.dumps(
+            visible(items[index]), ensure_ascii=False, separators=(",", ":")
+        )) for index in indices)
+        if used + cost > TOOL_VISIBLE_BUDGET:
+            continue
+        kept_indices.update(indices)
+        used += cost
+
+    tool_indices = {index for indices in groups.values() for index in indices}
+    filtered = [
+        item
+        for index, item in enumerate(items)
+        if index not in tool_indices or index in kept_indices
+    ]
+    dropped = len(tool_indices - kept_indices)
+    if dropped:
+        report = replace(report, truncated=report.truncated + dropped)
+    return filtered, report
+
+
 def _claude_tool_identity(entry: dict[str, Any]) -> str | None:
     content = (entry.get("message") or {}).get("content")
     if not isinstance(content, list):
@@ -147,41 +205,10 @@ def _claude_tool_identity(entry: dict[str, Any]) -> str | None:
     return None
 
 
-def _cap_claude_tool_entries(
-    entries: list[dict[str, Any]],
-    report: HistoryImportReport,
-) -> tuple[list[dict[str, Any]], HistoryImportReport]:
-    groups: dict[str, list[int]] = {}
-    for index, entry in enumerate(entries):
-        call_id = _claude_tool_identity(entry)
-        if call_id:
-            groups.setdefault(call_id, []).append(index)
-
-    kept_indices: set[int] = set()
-    used = 0
-    for _call_id, indices in sorted(
-        groups.items(), key=lambda pair: pair[1][-1], reverse=True
-    ):
-        cost = sum(len(json.dumps(
-            entries[index]["message"],
-            ensure_ascii=False,
-            separators=(",", ":"),
-        )) for index in indices)
-        if used + cost > TOOL_VISIBLE_BUDGET:
-            continue
-        kept_indices.update(indices)
-        used += cost
-
-    tool_indices = {index for indices in groups.values() for index in indices}
-    filtered = [
-        entry
-        for index, entry in enumerate(entries)
-        if index not in tool_indices or index in kept_indices
-    ]
-    dropped = len(tool_indices - kept_indices)
-    if dropped:
-        report = replace(report, truncated=report.truncated + dropped)
-    return filtered, report
+def _codex_tool_identity(item: dict[str, Any]) -> str | None:
+    if item.get("type") not in {"custom_tool_call", "custom_tool_call_output"}:
+        return None
+    return str(item.get("call_id") or "") or None
 
 
 def _bounded_tool_text(
@@ -226,18 +253,13 @@ def _excluded_user_ids(rows: Sequence[dict[str, Any]], messages: Iterable[str]) 
     return excluded
 
 
-def render_claude_history(
+def _normalize_history(
     rows: Sequence[dict[str, Any]],
     *,
     snapshot_id: int,
-    session_id: str,
-    cwd: str,
-    model: str,
-    branch: str = "",
+    identity: str,
     exclude_user_messages: Iterable[str] = (),
-) -> ClaudeHistoryImport:
-    """Render one stable DB snapshot into Claude 2.1.197 transcript entries."""
-    namespace = uuid.UUID(session_id)
+) -> tuple[list[_HistoryRecord], HistoryImportReport]:
     excluded_user_ids = _excluded_user_ids(rows, exclude_user_messages)
     tool_payloads: dict[int, str] = {}
     tool_names: dict[int, str] = {}
@@ -280,103 +302,56 @@ def render_claude_history(
         tool_payloads[log_id] = bounded
         tool_truncated[log_id] = name_truncated or truncated
 
-    entries: list[dict[str, Any]] = []
-    parent_uuid: str | None = None
+    records: list[_HistoryRecord] = []
     pending_by_source: dict[str, deque[tuple[str, int]]] = {}
     pending_legacy: deque[tuple[str, int]] = deque()
     pending_order: deque[tuple[str, int]] = deque()
-    sequence = 0
+    call_sequence = 0
 
     users = assistants = reasoning_omitted = 0
     source_tool_calls = sum(row.get("type") == "tool" for row in rows)
     source_tool_results = sum(row.get("type") == "tool_result" for row in rows)
 
-    def next_uuid(log_id: int, kind: str) -> str:
-        nonlocal sequence
-        sequence += 1
-        return str(uuid.uuid5(namespace, f"{log_id}:{kind}:{sequence}"))
-
-    def append_entry(row: dict[str, Any], kind: str, message: dict[str, Any]) -> str:
-        nonlocal parent_uuid
-        entry_uuid = next_uuid(int(row["id"]), kind)
-        entry = {
-            "parentUuid": parent_uuid,
-            "isSidechain": False,
-            "userType": "external",
-            "cwd": cwd,
-            "sessionId": session_id,
-            "version": CLAUDE_CLI_HISTORY_VERSION,
-            "gitBranch": branch,
-            "type": kind,
-            "message": message,
-            "uuid": entry_uuid,
-            "timestamp": str(row.get("ts") or "1970-01-01T00:00:00.000Z"),
-        }
-        if kind == "assistant":
-            entry["requestId"] = f"orchestra-{row['id']}"
-        entries.append(entry)
-        parent_uuid = entry_uuid
-        return entry_uuid
-
-    def assistant_message(row: dict[str, Any], content: list[dict[str, Any]], stop: str) -> None:
-        append_entry(
-            row,
-            "assistant",
-            {
-                "id": f"msg_orchestra_{row['id']}",
-                "type": "message",
-                "role": "assistant",
-                "model": model,
-                "content": content,
-                "stop_reason": stop,
-                "stop_sequence": None,
-                "usage": {
-                    "input_tokens": 0,
-                    "cache_creation_input_tokens": 0,
-                    "cache_read_input_tokens": 0,
-                    "output_tokens": 0,
-                },
-            },
+    def append_record(row: dict[str, Any], kind: str, content: str, **metadata) -> None:
+        records.append(
+            _HistoryRecord(
+                kind=kind,
+                log_id=int(row["id"]),
+                timestamp=str(row.get("ts") or "1970-01-01T00:00:00.000Z"),
+                content=content,
+                **metadata,
+            )
         )
 
     def tool_call(row: dict[str, Any], *, synthetic: bool = False) -> tuple[str, int]:
+        nonlocal call_sequence
         log_id = int(row["id"])
-        native_id = "toolu_orchestra_" + hashlib.sha256(
-            f"{session_id}:{log_id}:{sequence}".encode()
+        call_sequence += 1
+        call_id = "orchestra_" + hashlib.sha256(
+            f"{identity}:{log_id}:{call_sequence}".encode()
         ).hexdigest()[:24]
         recorded = (
             "[historical tool call unavailable]"
             if synthetic
             else tool_payloads.get(log_id, "[historical tool call unavailable]")
         )
-        assistant_message(
+        append_record(
             row,
-            [{
-                "type": "tool_use",
-                "id": native_id,
-                "name": "OrchestraHistory",
-                "input": {
-                    "recorded_call": recorded,
-                    "source_tool_name": tool_names.get(log_id, ""),
-                    "source_log_id": log_id,
-                    "already_executed": True,
-                    "synthetic": synthetic,
-                },
-            }],
-            "tool_use",
+            "tool_call",
+            recorded,
+            call_id=call_id,
+            tool_name=tool_names.get(log_id, ""),
+            synthetic=synthetic,
         )
-        return native_id, log_id
+        return call_id, log_id
 
-    def tool_result(row: dict[str, Any], native_id: str, content: str) -> None:
-        append_entry(
+    def tool_result(row: dict[str, Any], call_id: str, content: str) -> None:
+        append_record(
             row,
-            "user",
-            {"role": "user", "content": [{
-                "tool_use_id": native_id,
-                "type": "tool_result",
-                "content": content,
-                "is_error": bool(row.get("tool_is_error") or 0),
-            }]},
+            "tool_result",
+            content,
+            call_id=call_id,
+            is_error=bool(row.get("tool_is_error") or 0),
         )
 
     def close_pending(boundary_row: dict[str, Any]) -> None:
@@ -404,7 +379,7 @@ def render_claude_history(
                 continue
             cleaned, found = _sanitize(content)
             redactions += found
-            append_entry(row, "user", {"role": "user", "content": cleaned})
+            append_record(row, "user", cleaned)
             users += 1
             last_row = row
             continue
@@ -412,7 +387,7 @@ def render_claude_history(
             close_pending(row)
             cleaned, found = _sanitize(content)
             redactions += found
-            assistant_message(row, [{"type": "text", "text": cleaned}], "end_turn")
+            append_record(row, "assistant", cleaned)
             assistants += 1
             last_row = row
             continue
@@ -448,7 +423,7 @@ def render_claude_history(
     if last_row is not None:
         close_pending(last_row)
 
-    report = HistoryImportReport(
+    return records, HistoryImportReport(
         source_rows=len(rows),
         snapshot_id=snapshot_id,
         users=users,
@@ -460,9 +435,190 @@ def render_claude_history(
         secrets_redacted=redactions,
         reasoning_omitted=reasoning_omitted,
     )
-    entries, report = _cap_claude_tool_entries(entries, report)
+
+
+def render_claude_history(
+    rows: Sequence[dict[str, Any]],
+    *,
+    snapshot_id: int,
+    session_id: str,
+    cwd: str,
+    model: str,
+    branch: str = "",
+    exclude_user_messages: Iterable[str] = (),
+) -> ClaudeHistoryImport:
+    """Render one stable DB snapshot into Claude 2.1.197 transcript entries."""
+    namespace = uuid.UUID(session_id)
+    records, report = _normalize_history(
+        rows,
+        snapshot_id=snapshot_id,
+        identity=session_id,
+        exclude_user_messages=exclude_user_messages,
+    )
+    entries: list[dict[str, Any]] = []
+    parent_uuid: str | None = None
+
+    def append_entry(record: _HistoryRecord, kind: str, message: dict[str, Any]) -> None:
+        nonlocal parent_uuid
+        entry_uuid = str(uuid.uuid5(
+            namespace,
+            f"{record.log_id}:{record.kind}:{len(entries) + 1}",
+        ))
+        entry = {
+            "parentUuid": parent_uuid,
+            "isSidechain": False,
+            "userType": "external",
+            "cwd": cwd,
+            "sessionId": session_id,
+            "version": CLAUDE_CLI_HISTORY_VERSION,
+            "gitBranch": branch,
+            "type": kind,
+            "message": message,
+            "uuid": entry_uuid,
+            "timestamp": record.timestamp,
+        }
+        if kind == "assistant":
+            entry["requestId"] = f"orchestra-{record.log_id}"
+        entries.append(entry)
+        parent_uuid = entry_uuid
+
+    def assistant_message(
+        record: _HistoryRecord,
+        content: list[dict[str, Any]],
+        stop: str,
+    ) -> None:
+        append_entry(
+            record,
+            "assistant",
+            {
+                "id": f"msg_orchestra_{record.log_id}",
+                "type": "message",
+                "role": "assistant",
+                "model": model,
+                "content": content,
+                "stop_reason": stop,
+                "stop_sequence": None,
+                "usage": {
+                    "input_tokens": 0,
+                    "cache_creation_input_tokens": 0,
+                    "cache_read_input_tokens": 0,
+                    "output_tokens": 0,
+                },
+            },
+        )
+
+    for record in records:
+        if record.kind == "user":
+            append_entry(record, "user", {"role": "user", "content": record.content})
+        elif record.kind == "assistant":
+            assistant_message(
+                record,
+                [{"type": "text", "text": record.content}],
+                "end_turn",
+            )
+        elif record.kind == "tool_call":
+            assistant_message(
+                record,
+                [{
+                    "type": "tool_use",
+                    "id": "toolu_" + record.call_id,
+                    "name": "OrchestraHistory",
+                    "input": {
+                        "recorded_call": record.content,
+                        "source_tool_name": record.tool_name,
+                        "source_log_id": record.log_id,
+                        "already_executed": True,
+                        "synthetic": record.synthetic,
+                    },
+                }],
+                "tool_use",
+            )
+        elif record.kind == "tool_result":
+            append_entry(
+                record,
+                "user",
+                {"role": "user", "content": [{
+                    "tool_use_id": "toolu_" + record.call_id,
+                    "type": "tool_result",
+                    "content": record.content,
+                    "is_error": record.is_error,
+                }]},
+            )
+
+    entries, report = _cap_model_visible_tools(
+        entries,
+        identity=_claude_tool_identity,
+        visible=lambda entry: entry["message"],
+        report=report,
+    )
     parent_uuid = None
     for entry in entries:
         entry["parentUuid"] = parent_uuid
         parent_uuid = entry["uuid"]
+
     return ClaudeHistoryImport(session_id=session_id, entries=tuple(entries), report=report)
+
+
+def render_codex_history(
+    rows: Sequence[dict[str, Any]],
+    *,
+    snapshot_id: int,
+    thread_id: str,
+    exclude_user_messages: Iterable[str] = (),
+) -> CodexHistoryImport:
+    """Render one stable DB snapshot into Codex 0.146.0 ResponseItems."""
+    records, report = _normalize_history(
+        rows,
+        snapshot_id=snapshot_id,
+        identity=thread_id,
+        exclude_user_messages=exclude_user_messages,
+    )
+    history: list[dict[str, Any]] = []
+    for record in records:
+        if record.kind == "user":
+            history.append({
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": record.content}],
+            })
+        elif record.kind == "assistant":
+            history.append({
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": record.content}],
+            })
+        elif record.kind == "tool_call":
+            history.append({
+                "type": "custom_tool_call",
+                "name": "OrchestraHistory",
+                "input": json.dumps({
+                    "recorded_call": record.content,
+                    "source_tool_name": record.tool_name,
+                    "source_log_id": record.log_id,
+                    "already_executed": True,
+                    "synthetic": record.synthetic,
+                }, ensure_ascii=False, separators=(",", ":")),
+                "call_id": record.call_id,
+            })
+        elif record.kind == "tool_result":
+            history.append({
+                "type": "custom_tool_call_output",
+                "call_id": record.call_id,
+                "output": (
+                    f"[Orchestra historical tool result; source_log_id={record.log_id}; "
+                    f"is_error={str(record.is_error).lower()}]\n{record.content}"
+                ),
+            })
+
+    history, report = _cap_model_visible_tools(
+        history,
+        identity=_codex_tool_identity,
+        visible=lambda item: item,
+        report=report,
+    )
+
+    return CodexHistoryImport(
+        thread_id=thread_id,
+        history=tuple(history),
+        report=report,
+    )
