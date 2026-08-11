@@ -30,6 +30,14 @@ def _resolve_db_path() -> Path:
 DB_PATH = _resolve_db_path()
 
 
+class RoutingPolicyRevisionMismatch(RuntimeError):
+    """The routing policy changed after the caller evaluated its decision."""
+
+
+class RoutingLatchSnapshotMismatch(RuntimeError):
+    """The durable latch set changed after the caller evaluated its decision."""
+
+
 def _conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
@@ -445,6 +453,63 @@ def init_db() -> None:
                 silence_since TEXT,
                 notified_at   TEXT
             );
+
+            -- Инертный до подключения workload callers audit-контур runtime router (#187).
+            -- Policy остаётся в узком kv-документе; решения и недельный храповик имеют
+            -- отдельные таблицы, чтобы admission мог зафиксировать их одной транзакцией.
+            CREATE TABLE IF NOT EXISTS runtime_routing_decisions (
+                decision_id       TEXT PRIMARY KEY CHECK (decision_id <> ''),
+                created_at        TEXT NOT NULL CHECK (created_at <> ''),
+                process_started_at TEXT NOT NULL CHECK (process_started_at <> ''),
+                policy_revision   INTEGER NOT NULL CHECK (policy_revision >= 0),
+                policy_mode       TEXT NOT NULL
+                    CHECK (policy_mode IN ('manifest_default', 'quota')),
+                task_class        TEXT NOT NULL CHECK (task_class IN (
+                    'worker_general', 'orchestrator_free_text', 'review', 'continuation'
+                )),
+                logical_work_id   TEXT NOT NULL,
+                request_json      TEXT NOT NULL CHECK (json_valid(request_json)),
+                decision_json     TEXT NOT NULL CHECK (json_valid(decision_json))
+            );
+            CREATE INDEX IF NOT EXISTS idx_runtime_routing_decisions_created
+                ON runtime_routing_decisions(created_at DESC);
+
+            -- Наличие строки означает reserve_only до смены window_id. Строка
+            -- неизменяема: UPDATE ключа или DELETE были бы тем же откатом храповика.
+            CREATE TABLE IF NOT EXISTS runtime_routing_latches (
+                provider          TEXT NOT NULL CHECK (provider <> ''),
+                window_id         TEXT NOT NULL CHECK (window_id <> ''),
+                state             TEXT NOT NULL CHECK (state = 'reserve_only'),
+                first_decision_id TEXT NOT NULL
+                    REFERENCES runtime_routing_decisions(decision_id),
+                latched_at        TEXT NOT NULL CHECK (latched_at <> ''),
+                PRIMARY KEY (provider, window_id)
+            );
+            CREATE TRIGGER IF NOT EXISTS runtime_routing_latch_no_update
+            BEFORE UPDATE ON runtime_routing_latches
+            BEGIN
+                SELECT RAISE(ABORT, 'runtime routing latch is immutable');
+            END;
+            CREATE TRIGGER IF NOT EXISTS runtime_routing_latch_no_delete
+            BEFORE DELETE ON runtime_routing_latches
+            BEGIN
+                SELECT RAISE(ABORT, 'runtime routing latch cannot be deleted');
+            END;
+            -- INSERT OR REPLACE не вызывает delete-trigger при стандартном
+            -- recursive_triggers=OFF. Не даём ему сменить immutable payload. Обычный
+            -- ON CONFLICT DO NOTHING передаёт сохранённый payload и остаётся допустим.
+            CREATE TRIGGER IF NOT EXISTS runtime_routing_latch_no_replace
+            BEFORE INSERT ON runtime_routing_latches
+            WHEN EXISTS (
+                SELECT 1 FROM runtime_routing_latches
+                WHERE provider = NEW.provider AND window_id = NEW.window_id
+                  AND (state <> NEW.state
+                    OR first_decision_id <> NEW.first_decision_id
+                    OR latched_at <> NEW.latched_at)
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'runtime routing latch cannot be replaced');
+            END;
         """)
         _migrate(c)
 
@@ -453,6 +518,161 @@ def kv_get(key: str, default: str = "") -> str:
     with _conn() as c:
         row = c.execute("SELECT value FROM kv WHERE key=?", (key,)).fetchone()
         return row["value"] if row else default
+
+
+_RUNTIME_ROUTING_POLICY_KEY = "runtime_routing_policy_v1"
+
+
+def _routing_policy_revision(document: str | None) -> int:
+    if document is None:
+        return 0
+    try:
+        payload = json.loads(document)
+    except (json.JSONDecodeError, TypeError) as error:
+        raise ValueError("runtime routing policy document is not valid JSON") from error
+    if not isinstance(payload, dict):
+        raise ValueError("runtime routing policy document must be an object")
+    revision = payload.get("revision")
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
+        raise ValueError("runtime routing policy revision must be a non-negative integer")
+    return revision
+
+
+def routing_policy_document() -> str | None:
+    """Return the one persisted routing policy, or None for manifest revision zero."""
+    with _conn() as c:
+        row = c.execute(
+            "SELECT value FROM kv WHERE key = ?",
+            (_RUNTIME_ROUTING_POLICY_KEY,),
+        ).fetchone()
+        return row["value"] if row else None
+
+
+def replace_routing_policy_document(*, expected_revision: int, document: str) -> None:
+    """Atomically compare-and-swap the narrow runtime routing policy document."""
+    candidate_revision = _routing_policy_revision(document)
+    if candidate_revision != expected_revision + 1:
+        raise ValueError(
+            "runtime routing policy document revision must advance by exactly one"
+        )
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute(
+            "SELECT value FROM kv WHERE key = ?",
+            (_RUNTIME_ROUTING_POLICY_KEY,),
+        ).fetchone()
+        current_revision = _routing_policy_revision(row["value"] if row else None)
+        if current_revision != expected_revision:
+            raise RoutingPolicyRevisionMismatch(
+                f"runtime routing policy revision changed: expected "
+                f"{expected_revision}, found {current_revision}"
+            )
+        c.execute(
+            "INSERT INTO kv (key, value) VALUES (?, ?)"
+            " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (_RUNTIME_ROUTING_POLICY_KEY, document),
+        )
+
+
+def routing_latched_window_ids(provider: str) -> frozenset[str]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT window_id FROM runtime_routing_latches"
+            " WHERE provider = ? AND state = 'reserve_only'",
+            (provider,),
+        ).fetchall()
+        return frozenset(row["window_id"] for row in rows)
+
+
+def commit_runtime_routing_decision(
+    *,
+    expected_policy_revision: int,
+    decision_id: str,
+    created_at: str,
+    process_started_at: str,
+    policy_mode: str,
+    task_class: str,
+    logical_work_id: str,
+    request_json: str,
+    decision_json: str,
+    expected_latch_window_ids: tuple[str, ...],
+    latch_window_ids: tuple[str, ...],
+) -> None:
+    """Persist one admission decision and any new latches before its side effect."""
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute(
+            "SELECT value FROM kv WHERE key = ?",
+            (_RUNTIME_ROUTING_POLICY_KEY,),
+        ).fetchone()
+        current_revision = _routing_policy_revision(row["value"] if row else None)
+        if current_revision != expected_policy_revision:
+            raise RoutingPolicyRevisionMismatch(
+                f"runtime routing policy revision changed: expected "
+                f"{expected_policy_revision}, found {current_revision}"
+            )
+        current_latches = frozenset(
+            row["window_id"]
+            for row in c.execute(
+                "SELECT window_id FROM runtime_routing_latches"
+                " WHERE provider = 'anthropic' AND state = 'reserve_only'"
+            ).fetchall()
+        )
+        expected_latches = frozenset(expected_latch_window_ids)
+        if current_latches != expected_latches:
+            raise RoutingLatchSnapshotMismatch(
+                "runtime routing latch snapshot changed before decision commit"
+            )
+        c.execute(
+            "INSERT INTO runtime_routing_decisions "
+            "(decision_id, created_at, process_started_at, policy_revision, policy_mode,"
+            " task_class, logical_work_id, request_json, decision_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                decision_id,
+                created_at,
+                process_started_at,
+                expected_policy_revision,
+                policy_mode,
+                task_class,
+                logical_work_id,
+                request_json,
+                decision_json,
+            ),
+        )
+        for window_id in latch_window_ids:
+            existing = c.execute(
+                "SELECT first_decision_id, latched_at FROM runtime_routing_latches"
+                " WHERE provider = 'anthropic' AND window_id = ?",
+                (window_id,),
+            ).fetchone()
+            first_decision_id = existing["first_decision_id"] if existing else decision_id
+            latched_at = existing["latched_at"] if existing else created_at
+            c.execute(
+                "INSERT INTO runtime_routing_latches "
+                "(provider, window_id, state, first_decision_id, latched_at) "
+                "VALUES ('anthropic', ?, 'reserve_only', ?, ?) "
+                "ON CONFLICT(provider, window_id) DO NOTHING",
+                (window_id, first_decision_id, latched_at),
+            )
+
+
+def routing_last_decision() -> dict | None:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT * FROM runtime_routing_decisions"
+            " ORDER BY created_at DESC, rowid DESC LIMIT 1"
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def routing_latches() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT provider, window_id, state, first_decision_id, latched_at"
+            " FROM runtime_routing_latches ORDER BY provider, window_id"
+        ).fetchall()
+        return [dict(row) for row in rows]
 
 
 def _reconstruct_costs(c) -> None:

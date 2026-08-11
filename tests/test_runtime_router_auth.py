@@ -40,3 +40,20 @@ def test_internal_token_without_cookie_is_not_operator_authority(monkeypatch):
         require_operator_session(_request(authorization="Bearer agent-token"))
 
     assert caught.value.status_code == 403
+
+
+@pytest.mark.parametrize(
+    ("username", "password"),
+    [("operator", ""), ("", "secret")],
+)
+def test_partial_dashboard_credentials_cannot_authorize_operator_mutation(
+    monkeypatch, username, password,
+):
+    monkeypatch.setenv("DASHBOARD_USER", username)
+    monkeypatch.setenv("DASHBOARD_PASSWORD", password)
+    forged = create_session(username or "operator")
+
+    with pytest.raises(HTTPException) as caught:
+        require_operator_session(_request(cookie=forged))
+
+    assert caught.value.status_code == 403

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
@@ -8,6 +9,8 @@ from pydantic import ValidationError
 from app import runtime_router
 from app.quota_runway import RunwayVerdict
 from app.runtime_router import (
+    PolicyRevisionError,
+    RoutingStateChangedError,
     RuntimeRouter,
     RoutingInput,
     RoutingPolicyV1,
@@ -417,6 +420,8 @@ class _Store:
     def commit_decision(self, **kwargs):
         current = RoutingPolicyV1.model_validate_json(self.raw).revision if self.raw else 0
         assert current == kwargs["expected_policy_revision"]
+        if frozenset(kwargs["expected_latch_window_ids"]) != self._latches:
+            raise RoutingStateChangedError("latch snapshot changed")
         self.commits.append(kwargs)
         self._latches |= frozenset(kwargs["latch_window_ids"])
 
@@ -486,6 +491,107 @@ async def test_admission_reads_policy_each_time_and_commits_before_yield():
 
 
 @pytest.mark.asyncio
+async def test_admission_recomputes_after_cross_process_policy_revision_change():
+    initial = _policy(access="off")
+    updated = RoutingPolicyV1.model_validate(_next_policy_payload(initial))
+    store = _Store(initial)
+    original_commit = store.commit_decision
+    attempts = 0
+
+    def commit_with_one_revision_race(**kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            store.raw = updated.model_dump_json()
+            raise PolicyRevisionError("policy changed before decision commit")
+        original_commit(**kwargs)
+
+    store.commit_decision = commit_with_one_revision_race
+    observation_calls = []
+
+    async def load_observation(*, required_provider):
+        observation_calls.append(required_provider)
+        return _live_observation()
+
+    router = RuntimeRouter(
+        store=store,
+        observation_loader=load_observation,
+        baseline_loader=lambda _reset: (
+            0,
+            (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(),
+        ),
+    )
+
+    async with router.admission(RoutingInput(task_class="worker_general")) as admission:
+        assert admission.decision.policy_revision == 2
+
+    assert attempts == 2
+    assert observation_calls == ["anthropic", "anthropic"]
+    assert len(store.commits) == 1
+    assert store.commits[0]["expected_policy_revision"] == 2
+
+
+@pytest.mark.asyncio
+async def test_admission_recomputes_when_latch_snapshot_changes_before_commit(
+    monkeypatch,
+):
+    window_id = "2030-01-14T07:00:00+00:00"
+
+    def runway(**_kwargs):
+        return RunwayVerdict(
+            state="data",
+            deficit=1,
+            pace=1,
+            runway_hours=20,
+            work_hours_left=21,
+            window_id=window_id,
+            window_end=window_id,
+            reason="measured",
+        )
+
+    monkeypatch.setattr(runtime_router, "weekly_runway", runway)
+    store = _Store(_policy(access="off"))
+    original_commit = store.commit_decision
+    attempted_states = []
+
+    def commit_with_one_latch_race(**kwargs):
+        attempted_states.append(json.loads(kwargs["decision_json"])["state"])
+        if len(attempted_states) == 1:
+            store._latches = frozenset({window_id})
+            raise RoutingStateChangedError("latch snapshot changed")
+        original_commit(**kwargs)
+
+    store.commit_decision = commit_with_one_latch_race
+
+    async def load_observation(*, required_provider):
+        assert required_provider == "anthropic"
+        observation = _live_observation()
+        observed_at = datetime.now(timezone.utc).timestamp() - 1
+        observation["observed_at_by_provider"] = {
+            "anthropic": observed_at,
+            "codex": observed_at,
+        }
+        return observation
+
+    router = RuntimeRouter(
+        store=store,
+        observation_loader=load_observation,
+        baseline_loader=lambda _reset: (
+            0,
+            (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(),
+        ),
+    )
+
+    async with router.admission(RoutingInput(task_class="worker_general")) as admission:
+        assert admission.decision.state == "queued"
+        assert admission.decision.reason == "no quota-eligible runtime"
+
+    assert attempted_states == ["selected", "queued"]
+    assert len(store.commits) == 1
+    assert store.commits[0]["expected_latch_window_ids"] == (window_id,)
+
+
+@pytest.mark.asyncio
 async def test_policy_put_waits_until_admission_submit_or_queue_boundary():
     policy = _policy(access="off")
     store = _Store(policy)
@@ -518,6 +624,47 @@ async def test_policy_put_waits_until_admission_submit_or_queue_boundary():
     result = await task
     assert result.revision == 2
     assert len(store.replace_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_simultaneous_local_admissions_are_serialized_through_submit_boundary():
+    store = _Store(_policy(access="off"))
+    first_inside = asyncio.Event()
+    release_first = asyncio.Event()
+    entered = []
+
+    async def load_observation(*, required_provider):
+        assert required_provider == "anthropic"
+        return _live_observation()
+
+    router = RuntimeRouter(
+        store=store,
+        observation_loader=load_observation,
+        baseline_loader=lambda _reset: (
+            0,
+            (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(),
+        ),
+    )
+
+    async def admit(name, *, hold=False):
+        async with router.admission(
+            RoutingInput(task_class="worker_general", logical_work_id=name)
+        ):
+            entered.append(name)
+            if hold:
+                first_inside.set()
+                await release_first.wait()
+
+    first = asyncio.create_task(admit("first", hold=True))
+    await first_inside.wait()
+    second = asyncio.create_task(admit("second"))
+    await asyncio.sleep(0)
+    assert entered == ["first"]
+
+    release_first.set()
+    await asyncio.gather(first, second)
+    assert entered == ["first", "second"]
+    assert len(store.commits) == 2
 
 
 @pytest.mark.asyncio

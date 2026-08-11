@@ -49,7 +49,8 @@ def validate_session(token: str) -> bool:
     if not token:
         return False
     user = os.environ.get("DASHBOARD_USER", "")
-    if not user:
+    password = os.environ.get("DASHBOARD_PASSWORD", "")
+    if not user or not password:
         return False
     return hmac.compare_digest(token, _make_token(user))
 

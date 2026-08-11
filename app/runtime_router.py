@@ -231,6 +231,7 @@ class RoutingStore(Protocol):
         logical_work_id: str,
         request_json: str,
         decision_json: str,
+        expected_latch_window_ids: tuple[str, ...],
         latch_window_ids: tuple[str, ...],
     ) -> None: ...
 
@@ -247,6 +248,10 @@ class PolicyRevisionError(RuntimeError):
     pass
 
 
+class RoutingStateChangedError(RuntimeError):
+    pass
+
+
 class DatabaseRoutingStore:
     """Narrow adapter over the DB-owned routing transaction helpers."""
 
@@ -256,9 +261,15 @@ class DatabaseRoutingStore:
         return routing_policy_document()
 
     def replace_policy_document(self, **kwargs) -> None:
-        from app.db import replace_routing_policy_document
+        from app.db import (
+            RoutingPolicyRevisionMismatch,
+            replace_routing_policy_document,
+        )
 
-        replace_routing_policy_document(**kwargs)
+        try:
+            replace_routing_policy_document(**kwargs)
+        except RoutingPolicyRevisionMismatch as error:
+            raise PolicyRevisionError(str(error)) from error
 
     def latched_window_ids(self, provider: str) -> frozenset[str]:
         from app.db import routing_latched_window_ids
@@ -266,9 +277,18 @@ class DatabaseRoutingStore:
         return routing_latched_window_ids(provider)
 
     def commit_decision(self, **kwargs) -> None:
-        from app.db import commit_runtime_routing_decision
+        from app.db import (
+            RoutingLatchSnapshotMismatch,
+            RoutingPolicyRevisionMismatch,
+            commit_runtime_routing_decision,
+        )
 
-        commit_runtime_routing_decision(**kwargs)
+        try:
+            commit_runtime_routing_decision(**kwargs)
+        except RoutingPolicyRevisionMismatch as error:
+            raise PolicyRevisionError(str(error)) from error
+        except RoutingLatchSnapshotMismatch as error:
+            raise RoutingStateChangedError(str(error)) from error
 
     def last_decision(self) -> dict | None:
         from app.db import routing_last_decision
@@ -353,33 +373,43 @@ class RuntimeRouter:
     async def admission(self, request: RoutingInput) -> AsyncIterator[RoutingAdmission]:
         """Hold the policy lock until the caller durably queues or submits work."""
         async with self._policy_lock:
-            policy = self.policy()
-            now = datetime.now(timezone.utc)
-            observation = await self._load_observation(policy, request)
-            baseline = self._load_baseline(policy, observation, now)
-            latches = self._store.latched_window_ids("anthropic")
-            decision = evaluate_routing(
-                policy,
-                request,
-                observation,
-                claude_baseline=baseline,
-                latched_window_ids=latches,
-                now=now,
-            )
-            decision_id = str(uuid.uuid4())
-            created_at = now.isoformat()
-            self._store.commit_decision(
-                expected_policy_revision=policy.revision,
-                decision_id=decision_id,
-                created_at=created_at,
-                process_started_at=self._process_started_at,
-                policy_mode=policy.mode,
-                task_class=request.task_class,
-                logical_work_id=request.logical_work_id,
-                request_json=json.dumps(_request_dict(request), sort_keys=True),
-                decision_json=json.dumps(decision.to_dict(), sort_keys=True),
-                latch_window_ids=decision.latch_window_ids,
-            )
+            for _attempt in range(3):
+                policy = self.policy()
+                now = datetime.now(timezone.utc)
+                observation = await self._load_observation(policy, request)
+                baseline = self._load_baseline(policy, observation, now)
+                latches = self._store.latched_window_ids("anthropic")
+                decision = evaluate_routing(
+                    policy,
+                    request,
+                    observation,
+                    claude_baseline=baseline,
+                    latched_window_ids=latches,
+                    now=now,
+                )
+                decision_id = str(uuid.uuid4())
+                created_at = now.isoformat()
+                try:
+                    self._store.commit_decision(
+                        expected_policy_revision=policy.revision,
+                        decision_id=decision_id,
+                        created_at=created_at,
+                        process_started_at=self._process_started_at,
+                        policy_mode=policy.mode,
+                        task_class=request.task_class,
+                        logical_work_id=request.logical_work_id,
+                        request_json=json.dumps(_request_dict(request), sort_keys=True),
+                        decision_json=json.dumps(decision.to_dict(), sort_keys=True),
+                        expected_latch_window_ids=tuple(sorted(latches)),
+                        latch_window_ids=decision.latch_window_ids,
+                    )
+                except (PolicyRevisionError, RoutingStateChangedError):
+                    continue
+                break
+            else:
+                raise RoutingStateChangedError(
+                    "runtime routing state changed during three admission attempts"
+                )
             yield RoutingAdmission(decision_id, request, decision)
 
     async def _load_observation(
