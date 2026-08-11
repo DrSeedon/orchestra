@@ -33,6 +33,20 @@ def test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox():
     assert "allow-same-origin" not in match.group(1)
 
 
+def test_model_picker_surfaces_native_history_result_and_fallback():
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    helper = source.split("function _historyTransferMessage", 1)[1].split(
+        "async function _showModelPicker", 1,
+    )[0]
+    picker = source.split("async function _showModelPicker", 1)[1].split(
+        "function updateAgentInfo", 1,
+    )[0]
+
+    assert "reasoning omitted=${transfer.reasoning_omitted}" in helper
+    assert "summary fallback active" in helper
+    assert "_showHistoryTransfer(resp.history_transfer);" in picker
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("suffix", [".html", ".HTM"])
 async def test_raw_html_response_has_sandbox_csp(tmp_path, monkeypatch, suffix):

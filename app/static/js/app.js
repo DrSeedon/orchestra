@@ -2155,6 +2155,34 @@ function _updateProxyStatus(connected) {
         el.title = 'Proxy offline — no models available';
     }
 }
+
+function _historyTransferMessage(transfer) {
+    if (!transfer || !transfer.mode) return null;
+    if (transfer.mode === 'summary') {
+        return {
+            type: 'warning',
+            text: `native history import unavailable: ${transfer.reason || 'unknown reason'}; summary fallback active`,
+        };
+    }
+    if (transfer.mode !== 'native') return null;
+    return {
+        type: 'status',
+        text: `history imported to ${transfer.runtime} ${transfer.version}: ` +
+            `users=${transfer.users}, assistants=${transfer.assistants}, ` +
+            `tools=${transfer.tool_calls}/${transfer.tool_results}, ` +
+            `tool chars detailed=${transfer.tool_detailed_chars}, truncated=${transfer.truncated}, ` +
+            `secrets redacted=${transfer.secrets_redacted}, reasoning omitted=${transfer.reasoning_omitted}`,
+    };
+}
+
+function _showHistoryTransfer(transfer) {
+    const rendered = _historyTransferMessage(transfer);
+    if (!rendered) return;
+    const chat = $('#chat');
+    if (chat && Array.from(chat.children).some(node => node.textContent.includes(rendered.text))) return;
+    addChatEntry(rendered.type, rendered.text);
+}
+
 async function _showModelPicker(agentName, currentModel, anchor) {
     const existing = document.getElementById('model-picker-dd');
     if (existing) { existing.remove(); return; }
@@ -2179,6 +2207,7 @@ async function _showModelPicker(agentName, currentModel, anchor) {
                     const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope }) });
                     if (resp && !resp.error) {
                         $('#ai-model').textContent = m.id;
+                        _showHistoryTransfer(resp.history_transfer);
                         loadSessions();
                     }
                 } catch (e) { console.warn('Change model failed:', e); }
