@@ -63,7 +63,7 @@ class RunwayVerdict:
     reason: str
 
 
-def _as_utc(value: datetime, name: str) -> datetime:
+def as_utc(value: datetime, name: str) -> datetime:
     """Привести к UTC; наивный datetime — ошибка, а не догадка о таймзоне.
 
     Вся календарная арифметика ниже (полоса суток, вторник 07:00) осмысленна только в UTC.
@@ -100,7 +100,7 @@ def next_weekly_reset(now: datetime) -> datetime:
     `resets_at` отсутствует (381 снимок из 8804, а 10.08 — 191 подряд), считать по
     календарю лучше, чем не считать вовсе.
     """
-    now = _as_utc(now, "now")
+    now = as_utc(now, "now")
     candidate = now.replace(hour=_WEEKLY_RESET_HOUR, minute=0, second=0, microsecond=0)
     days_ahead = (_WEEKLY_RESET_WEEKDAY - candidate.weekday()) % 7
     candidate += timedelta(days=days_ahead)
@@ -117,14 +117,14 @@ def window_id_for(reset_at: datetime) -> str:
     (например, окно 11.08 встречается 734 и 925 раз соответственно). Латч на сыром значении
     сбрасывался бы примерно каждый второй опрос.
     """
-    reset_at = _as_utc(reset_at, "reset_at")
+    reset_at = as_utc(reset_at, "reset_at")
     rounded = (reset_at + timedelta(seconds=30)).replace(second=0, microsecond=0)
     return rounded.isoformat()
 
 
 def working_hours_between(start: datetime, end: datetime) -> float:
     """Часы из интервала [start, end), попадающие в рабочую полосу суток."""
-    start, end = _as_utc(start, "start"), _as_utc(end, "end")
+    start, end = as_utc(start, "start"), as_utc(end, "end")
     if end <= start:
         return 0.0
     total = 0.0
@@ -162,9 +162,9 @@ def weekly_runway(
     не имеет, поэтому «переякорюсь сам» означало бы сдвиг базы на каждом опросе и вечный
     `pace = None`.
     """
-    now = _as_utc(now, "now")
+    now = as_utc(now, "now")
     fallback = reset_at is None
-    reset = next_weekly_reset(now) if fallback else _as_utc(reset_at, "reset_at")
+    reset = next_weekly_reset(now) if fallback else as_utc(reset_at, "reset_at")
     window_id = window_id_for(reset)
     window_end = reset.isoformat()
     note = "reset_at отсутствует, календарный fallback" if fallback else ""
@@ -177,7 +177,7 @@ def weekly_runway(
     # Проценты валидируем ДО сравнений: `NaN` прошёл бы каждое из них молча.
     utilization = _checked_pct(utilization, "utilization")
     window_start_pct = _checked_pct(window_start_pct, "window_start_pct")
-    window_start_at = _as_utc(window_start_at, "window_start_at")
+    window_start_at = as_utc(window_start_at, "window_start_at")
 
     if utilization < window_start_pct:
         # Счётчик упал ниже базы — обнуление в середине окна (4 раза за 38 суток).
