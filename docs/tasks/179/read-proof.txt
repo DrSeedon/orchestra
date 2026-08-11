@@ -1,0 +1,3 @@
+Line 1: Codex sandbox acceptance fixture.
+Line 2: ORCHESTRA-179-READ-PROOF-68427.
+Line 3: The reviewer must quote line 2 exactly.

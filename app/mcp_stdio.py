@@ -1979,6 +1979,12 @@ _REVIEW_RUBRIC = (
     "Review calibration: blocking = crash/corrupt/security; "
     "suggestion = real improvement; nit = skip."
 )
+_CODEX_EXECUTION_FAILURE_PATTERN = (
+    r"bwrap:|failed rtm_newaddr|setting up uid map: permission denied|"
+    r"sandbox.{0,80}(fail|reject)|no files were read|"
+    r"(every|all) (local )?commands? failed|"
+    r"(could not|unable to) (read|inspect|execute|review).{0,120}(sandbox|file)"
+)
 
 
 def _codex_sessions_path(output_abs: str) -> str:
@@ -2075,12 +2081,13 @@ async def codex_review(
         # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
         # (so the stale-session recovery is APPENDED as a round, never overwrites prior rounds).
         fresh_review = (
-            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} exec review"
-            f" --uncommitted --skip-git-repo-check --full-auto --json"
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)}"
+            f" -s danger-full-access -a never exec review"
+            f" --uncommitted --skip-git-repo-check --json"
             f" -o {q(codex_out)} - < {q(prompt_file)}"
         )
         if is_resume:
-            # resume inherits sandbox from original session — do NOT pass -s. Re-review the diff.
+            # Override the original session policy: old reviews may have stored workspace-write.
             resume_prompt = (
                 f"{review_context}\n\n"
                 "Re-review the current uncommitted diff (run git diff yourself). "
@@ -2090,8 +2097,9 @@ async def codex_review(
             # Stale/invalid UUID → resume fails → fall back to a fresh review (recovery).
             codex = (
                 f"printf '%s' {q(resume_prompt)} > {q(prompt_file)}; "
-                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} exec resume {q(prev_uuid)}"
-                f" --skip-git-repo-check --full-auto --json"
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)}"
+                f" -s danger-full-access -a never exec resume {q(prev_uuid)}"
+                f" --skip-git-repo-check --json"
                 f" -o {q(codex_out)} - < {q(prompt_file)}"
                 f" || {{ echo '[resume failed — stale session, starting fresh review]'; {fresh_review}; }}"
             )
@@ -2117,13 +2125,12 @@ async def codex_review(
         prompt_parts_exec.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict")
         exec_prompt = "\n".join(prompt_parts_exec)
 
-        # resume inherits sandbox — do NOT pass -s; fresh exec writes with workspace-write.
-        sandbox = "" if is_resume else " -s workspace-write"
         subcmd = f"exec resume {prev_uuid}" if is_resume else "exec"
         codex = (
             f"printf '%s' {q(exec_prompt)} > {q(prompt_file)}; "
-            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} {subcmd}"
-            f"{sandbox} --skip-git-repo-check --full-auto --json"
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)}"
+            f" -s danger-full-access -a never {subcmd}"
+            f" --skip-git-repo-check --json"
             f" -o {q(codex_out)} - < {q(prompt_file)}"
         )
         if is_resume and target:
@@ -2131,8 +2138,9 @@ async def codex_review(
             # without one the prompt has nothing concrete to review, so let resume fail loud.
             # Writes to codex_out (=round_tmp) so the recovery is appended, not overwriting history.
             fresh_exec = (
-                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)} exec"
-                f" -s workspace-write --skip-git-repo-check --full-auto --json"
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)}"
+                f" -s danger-full-access -a never exec"
+                f" --skip-git-repo-check --json"
                 f" -o {q(codex_out)} - < {q(prompt_file)}"
             )
             codex += f" || {{ echo '[resume failed — stale session, starting fresh]'; {fresh_exec}; }}"
@@ -2181,6 +2189,10 @@ async def codex_review(
         f"{{ {codex} ; echo $? > {q(rc_file)} ; }} | tee {q(jsonl_file)}; "
         f"RC=$(cat {q(rc_file)} 2>/dev/null || echo 1); "
         f"[ \"$RC\" -eq 0 ] || exit \"$RC\"; "
+        f"if grep -Eiq {q(_CODEX_EXECUTION_FAILURE_PATTERN)}"
+        f" {q(jsonl_file)} {q(round_tmp)}; then "
+        f"echo 'codex_review failed: Codex could not execute workspace commands' >&2; "
+        f"exit 70; fi; "
         f"{finalize}"
     )
 
