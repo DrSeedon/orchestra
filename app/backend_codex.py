@@ -37,10 +37,18 @@ CODEX_CONTEXT_LIMITS = {
     "gpt-5.4-mini": 258400,
 }
 
+# Standard-tier API list prices per 1M tokens, verified 11.08.2026 against
+# https://platform.openai.com/docs/pricing (fetched through https://r.jina.ai/ — the page
+# itself answers 403 to curl/WebFetch). Cached input is exactly 10% of the input rate for
+# every model here; `tests/test_backend_codex.py` pins that ratio so a typo cannot pass silently.
+# Terra and Luna list prices dropped below what we had (Luna 5×: was 1.0/6.0) — rows already
+# in `turn_usage` keep the price of their own day and are deliberately not rewritten.
+# Not modelled here: the long-context tier (higher rates above a token threshold) and the
+# separate "cache writes" rate — `_codex_cost` charges cache writes as fresh input.
 CODEX_TOKEN_PRICES = {
     "gpt-5.6-sol":   {"input": 5.0, "cached": 0.5, "output": 30.0},
-    "gpt-5.6-terra": {"input": 2.5, "cached": 0.25, "output": 15.0},
-    "gpt-5.6-luna":  {"input": 1.0, "cached": 0.1, "output": 6.0},
+    "gpt-5.6-terra": {"input": 2.0, "cached": 0.2, "output": 12.0},
+    "gpt-5.6-luna":  {"input": 0.2, "cached": 0.02, "output": 1.2},
     "gpt-5.5":      {"input": 5.0, "cached": 0.5, "output": 30.0},
     "gpt-5.4":      {"input": 2.5, "cached": 0.25, "output": 15.0},
     "gpt-5.4-mini": {"input": 0.3, "cached": 0.03, "output": 1.25},

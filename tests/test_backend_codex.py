@@ -88,9 +88,17 @@ def test_spark_context_limit_matches_local_codex_metadata():
 
 
 def test_gpt56_prices_present():
+    # Standard-tier list prices, https://platform.openai.com/docs/pricing, verified 11.08.2026.
     assert CODEX_TOKEN_PRICES["gpt-5.6-sol"] == {"input": 5.0, "cached": 0.5, "output": 30.0}
-    assert CODEX_TOKEN_PRICES["gpt-5.6-terra"] == {"input": 2.5, "cached": 0.25, "output": 15.0}
-    assert CODEX_TOKEN_PRICES["gpt-5.6-luna"] == {"input": 1.0, "cached": 0.1, "output": 6.0}
+    assert CODEX_TOKEN_PRICES["gpt-5.6-terra"] == {"input": 2.0, "cached": 0.2, "output": 12.0}
+    assert CODEX_TOKEN_PRICES["gpt-5.6-luna"] == {"input": 0.2, "cached": 0.02, "output": 1.2}
+
+
+def test_cached_input_is_a_tenth_of_fresh_input_for_every_model():
+    """OpenAI prices cached input at 10% of the input rate — a typo in one row is
+    otherwise invisible: the dashboard keeps rendering a plausible number."""
+    for model, price in CODEX_TOKEN_PRICES.items():
+        assert price["cached"] == pytest.approx(price["input"] / 10), model
 
 
 def test_legacy_gpt_models_unchanged():
