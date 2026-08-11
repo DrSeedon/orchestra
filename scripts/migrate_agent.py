@@ -18,7 +18,7 @@ target's orchestra root / scope root.
         --to-scope   /home/kesha/projects/Parsing
 
 Two path encodings are handled (matching the app):
-  - CLI transcript dir : cwd.replace('/', '-')                      (leading '-' kept)
+  - CLI transcript dir : cwd.replace('/', '-').replace('.', '-')    (leading '-' kept)
   - worktree subdir    : <root>/worktrees/<slugify(scope)>/<name>   (lowercased)
 
 Everything is created over ssh as root, but Orchestra and the Claude CLI run as the
@@ -35,18 +35,17 @@ import sys
 import tempfile
 from pathlib import PurePosixPath
 
-# ── path encodings (mirror app/manager.py:_migrate_cli_session and app/workspace.py) ──
+# ── path encodings ──
 
 def enc_cli_dir(cwd: str) -> str:
-    """~/.claude/projects/<this> — cwd with '/'→'-'. Case preserved.
+    """~/.claude/projects/<this> — cwd with '/' and '.' mapped to '-'. Case preserved.
 
     The leading '-' (from the leading '/') is part of the name and must stay:
     stripping it produced a directory the CLI never reads, so transcripts were
     written beside the real ones and every migrated agent silently resumed with
-    no history. Verified against 23 real (cwd → dirname) pairs read out of the
-    transcripts themselves: with the strip 0/23 matched, without it 23/23.
+    no history. The CLI also maps dots in temporary paths to '-'.
     """
-    return cwd.replace("/", "-")
+    return cwd.replace("/", "-").replace(".", "-")
 
 
 def slugify_repo(repo_root: str) -> str:

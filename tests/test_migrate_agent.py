@@ -34,6 +34,10 @@ def test_nested_path_encodes_every_separator():
     ) == "-home-kesha-orchestra-worktrees-home-kesha-orchestra-back"
 
 
+def test_dot_in_path_encodes_as_dash():
+    assert migrate_agent.enc_cli_dir("/tmp/tmp.2YpeKWs1py") == "-tmp-tmp-2YpeKWs1py"
+
+
 def test_encoding_matches_real_cli_directories():
     """Сверка с ЖИВЫМИ парами (cwd → имя каталога), взятыми из самих транскриптов.
 
