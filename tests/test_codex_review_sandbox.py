@@ -73,6 +73,7 @@ while [ \"$#\" -gt 0 ]; do
 done
 printf '%s\\n' '## Summary' 'Unable to review: bwrap: setting up uid map: Permission denied' '## Verdict' 'PASS' > \"$out\"
 printf '%s\\n' '{\"type\":\"thread.started\",\"thread_id\":\"blind-thread\"}'
+printf '%s\\n' '{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"Unable to review: bwrap: setting up uid map: Permission denied\"}}'
 exit 0
 """)
     os.chmod(fake_codex, 0o755)
@@ -94,4 +95,111 @@ exit 0
 
     assert result.returncode == 70
     assert "could not execute workspace commands" in result.stderr
-    assert not (tmp_path / "review.md").exists()
+    review = (tmp_path / "review.md").read_text()
+    assert "Unable to review: bwrap: setting up uid map: Permission denied" in review
+    assert "Execution guard failed" in review
+
+
+def test_codex_review_failure_check_skips_scalar_jsonl_rows(tmp_path):
+    import app.mcp_stdio as mcp
+
+    jsonl = tmp_path / "review.jsonl"
+    jsonl.write_text(
+        '[]\n'
+        '{"type":"item.completed","item":{"type":"agent_message",'
+        '"text":"Unable to review: bwrap: permission denied"}}\n'
+    )
+
+    result = subprocess.run([
+        mcp.sys.executable, "-c", mcp._CODEX_EXECUTION_FAILURE_JSONL_CHECK,
+        str(jsonl), mcp._CODEX_EXECUTION_FAILURE_PATTERN,
+    ], capture_output=True, text=True)
+
+    assert result.returncode == 0
+
+
+def test_codex_review_ignores_failure_marker_in_command_output(tmp_path, monkeypatch):
+    import app.mcp_stdio as mcp
+
+    fake_codex = tmp_path / "fake-codex"
+    fake_codex.write_text("""#!/bin/sh
+out=
+while [ \"$#\" -gt 0 ]; do
+    if [ \"$1\" = \"-o\" ]; then
+        shift
+        out=$1
+    fi
+    shift
+done
+printf '%s\\n' '## Summary' 'Reviewed the requested file successfully.' '## Verdict' 'PASS' > \"$out\"
+printf '%s\\n' '{\"type\":\"thread.started\",\"thread_id\":\"evidence-thread\"}'
+printf '%s\\n' '{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\",\"aggregated_output\":\"bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\"}}'
+printf '%s\\n' '{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"Review completed with evidence.\"}}'
+exit 0
+""")
+    os.chmod(fake_codex, 0o755)
+
+    captured = {}
+    monkeypatch.setattr(mcp, "_api", _fake_api(tmp_path, captured))
+    monkeypatch.setattr(mcp, "_codex_bin", lambda: str(fake_codex))
+    monkeypatch.setattr(mcp, "WORKER_NAME", "sandbox-test")
+    monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+
+    asyncio.run(mcp.codex_review(
+        context=PROJECT_CONTEXT, target="artifact.txt",
+        output="review.md", mode="exec",
+    ))
+    result = subprocess.run(
+        ["dash", "-c", captured["config"]["command"]],
+        capture_output=True, text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Reviewed the requested file successfully." in (tmp_path / "review.md").read_text()
+
+
+def test_codex_review_quotes_exec_resume_uuid(tmp_path, monkeypatch):
+    import app.mcp_stdio as mcp
+
+    injected = tmp_path / "injected"
+    resume_uuid = f"thread$(touch {injected})"
+    (tmp_path / "codex_sessions.json").write_text(json.dumps({
+        "sessions": {"resume-review": {"uuid": resume_uuid}},
+    }))
+    args_file = tmp_path / "args.txt"
+    fake_codex = tmp_path / "fake-codex"
+    fake_codex.write_text(f"""#!/bin/sh
+printf '%s\\n' "$@" > "{args_file}"
+out=
+while [ "$#" -gt 0 ]; do
+    if [ "$1" = "-o" ]; then
+        shift
+        out=$1
+    fi
+    shift
+done
+printf '%s\\n' '## Summary' 'Resume completed.' '## Verdict' 'PASS' > "$out"
+printf '%s\\n' '{{"type":"thread.started","thread_id":"resumed-thread"}}'
+printf '%s\\n' '{{"type":"item.completed","item":{{"type":"agent_message","text":"Resume completed."}}}}'
+exit 0
+""")
+    os.chmod(fake_codex, 0o755)
+
+    captured = {}
+    monkeypatch.setattr(mcp, "_api", _fake_api(tmp_path, captured))
+    monkeypatch.setattr(mcp, "_codex_bin", lambda: str(fake_codex))
+    monkeypatch.setattr(mcp, "WORKER_NAME", "sandbox-test")
+    monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+
+    asyncio.run(mcp.codex_review(
+        context=PROJECT_CONTEXT, target="artifact.txt",
+        output="resume-review.md", mode="exec", resume=True,
+    ))
+    result = subprocess.run(
+        ["dash", "-c", captured["config"]["command"]],
+        capture_output=True, text=True,
+    )
+
+    assert result.returncode == 0
+    assert resume_uuid in args_file.read_text().splitlines()
+    assert not injected.exists()

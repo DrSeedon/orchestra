@@ -63,6 +63,7 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
     command = config["command"]
     assert f"-o {output}.round" in command
     assert "codex_review_artifact.py" in command
+    assert '[ "$FINALIZE_RC" -eq 0 ] || exit "$FINALIZE_RC"' in command
     assert ("--require-verdict" in command) is (mode == "exec")
     assert command.index("rm -f") < command.index(" | tee ")
     assert "high-load multi-project orchestration" in command

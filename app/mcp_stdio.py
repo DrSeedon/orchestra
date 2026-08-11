@@ -1985,6 +1985,30 @@ _CODEX_EXECUTION_FAILURE_PATTERN = (
     r"(every|all) (local )?commands? failed|"
     r"(could not|unable to) (read|inspect|execute|review).{0,120}(sandbox|file)"
 )
+_CODEX_EXECUTION_FAILURE_JSONL_CHECK = """\
+import json
+import re
+import sys
+
+pattern = re.compile(sys.argv[2], re.IGNORECASE)
+with open(sys.argv[1], encoding="utf-8", errors="replace") as source:
+    for line in source:
+        try:
+            event = json.loads(line)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(event, dict):
+            continue
+        item = event.get("item")
+        if (isinstance(item, dict) and item.get("type") == "agent_message"
+                and pattern.search(str(item.get("text", "")))):
+            raise SystemExit(0)
+raise SystemExit(1)
+"""
+_CODEX_EXECUTION_FAILURE_NOTE = (
+    "\n\n> **Execution guard failed:** Codex reported that it could not execute "
+    "workspace commands. The review above is preserved for diagnosis.\n"
+)
 
 
 def _codex_sessions_path(output_abs: str) -> str:
@@ -2125,7 +2149,7 @@ async def codex_review(
         prompt_parts_exec.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict")
         exec_prompt = "\n".join(prompt_parts_exec)
 
-        subcmd = f"exec resume {prev_uuid}" if is_resume else "exec"
+        subcmd = f"exec resume {q(prev_uuid)}" if is_resume else "exec"
         codex = (
             f"printf '%s' {q(exec_prompt)} > {q(prompt_file)}; "
             f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)}"
@@ -2178,6 +2202,10 @@ async def codex_review(
     if mode == "exec":
         finalize_args.append("--require-verdict")
     finalize = " ".join(finalize_args)
+    failure_check = " ".join([
+        q(sys.executable), "-c", q(_CODEX_EXECUTION_FAILURE_JSONL_CHECK),
+        q(jsonl_file), q(_CODEX_EXECUTION_FAILURE_PATTERN),
+    ])
 
     # Remove stale temp state before each attempt. A service restart can kill the shell after
     # an old .rc=0 was written but before the artifact was persisted; reusing that file caused
@@ -2189,11 +2217,12 @@ async def codex_review(
         f"{{ {codex} ; echo $? > {q(rc_file)} ; }} | tee {q(jsonl_file)}; "
         f"RC=$(cat {q(rc_file)} 2>/dev/null || echo 1); "
         f"[ \"$RC\" -eq 0 ] || exit \"$RC\"; "
-        f"if grep -Eiq {q(_CODEX_EXECUTION_FAILURE_PATTERN)}"
-        f" {q(jsonl_file)} {q(round_tmp)}; then "
+        f"{finalize}; FINALIZE_RC=$?; "
+        f"[ \"$FINALIZE_RC\" -eq 0 ] || exit \"$FINALIZE_RC\"; "
+        f"if {failure_check}; then "
+        f"printf '%s' {q(_CODEX_EXECUTION_FAILURE_NOTE)} >> {q(output_abs)}; "
         f"echo 'codex_review failed: Codex could not execute workspace commands' >&2; "
-        f"exit 70; fi; "
-        f"{finalize}"
+        f"exit 70; fi"
     )
 
     action = "resume" if is_resume else mode
