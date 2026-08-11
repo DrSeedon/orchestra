@@ -14,7 +14,7 @@ from typing import AsyncIterator, Awaitable, Callable, Literal, Mapping, Protoco
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models import get_model_spec, resolve_model
-from app.quota_runway import RunwayVerdict, next_weekly_reset, weekly_runway
+from app.quota_runway import RunwayVerdict, as_utc, next_weekly_reset, weekly_runway
 
 
 ROUTING_CONTRACT_VERSION = "routing-v1"
@@ -426,9 +426,7 @@ class RuntimeRouter:
             return None
         pct, timestamp = baseline
         parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-        if parsed.tzinfo is None:
-            raise ValueError("runway baseline timestamp must be timezone-aware")
-        return pct, parsed.astimezone(timezone.utc)
+        return pct, as_utc(parsed, "runway baseline timestamp")
 
 
 _runtime_router: RuntimeRouter | None = None
@@ -859,11 +857,9 @@ def _future_datetime(value: object, now: datetime) -> datetime | None:
         return None
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = as_utc(parsed, "reset_at")
     except ValueError:
         return None
-    if parsed.tzinfo is None:
-        return None
-    parsed = parsed.astimezone(timezone.utc)
     return parsed if parsed > now else None
 
 
@@ -895,9 +891,7 @@ def _iso_datetime(value: object, name: str) -> datetime:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as error:
         raise ValueError(f"{name} must be an ISO datetime") from error
-    if parsed.tzinfo is None:
-        raise ValueError(f"{name} must be timezone-aware")
-    return parsed.astimezone(timezone.utc)
+    return as_utc(parsed, name)
 
 
 def _finite_number(value: object) -> float | None:
@@ -909,9 +903,7 @@ def _finite_number(value: object) -> float | None:
 
 def _utc_now(value: datetime | None) -> datetime:
     result = value or datetime.now(timezone.utc)
-    if result.tzinfo is None:
-        raise ValueError("now must be timezone-aware")
-    return result.astimezone(timezone.utc)
+    return as_utc(result, "now")
 
 
 def _request_dict(request: RoutingInput) -> dict:

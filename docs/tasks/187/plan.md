@@ -102,6 +102,13 @@ single-runtime не превращается в bypass.
 stale/unknown observation. Для 5h нужен текущий `resets_at`; при его отсутствии candidate
 unknown, а не «примерно свободен».
 
+Policy пишет только узкий `replace_routing_policy_document`, общего `kv_set` не появляется.
+`runtime_routing_latches` выражает храповик наличием `(provider, window_id)`: `CHECK` запрещает
+иное состояние, а `BEFORE DELETE ... RAISE(ABORT)` закрывает настоящий rollback. Колонка
+`first_decision_id` намеренно остаётся ссылкой на первое решение, взведшее окно; последующие
+решения делают только `ON CONFLICT(provider, window_id) DO NOTHING`. Широкий `INSERT OR IGNORE`
+запрещён, чтобы не проглотить CHECK и другие ошибки схемы.
+
 ### Одна матрица решения
 
 Порядок constraints фиксирован и не меняется по entrypoint:

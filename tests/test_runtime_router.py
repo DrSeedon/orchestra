@@ -1,4 +1,5 @@
 import asyncio
+import sqlite3
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -547,3 +548,44 @@ async def test_invalid_put_and_explain_do_not_mutate_store():
     assert explained.state == "selected"
     assert store.replace_calls == []
     assert store.commits == []
+
+
+@pytest.mark.asyncio
+async def test_admission_uses_db_owned_baseline_and_accepts_honest_zero(
+    tmp_path, monkeypatch,
+):
+    from app import db
+
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "router-baseline.db")
+    db.init_db()
+    observation = _live_observation()
+    weekly = observation["providers"]["anthropic"]["windows"][1]
+    reset_at = datetime.fromisoformat(weekly["resets_at"])
+    baseline_at = datetime.now(timezone.utc) - timedelta(hours=20)
+    with sqlite3.connect(str(db.DB_PATH)) as connection:
+        connection.execute(
+            "INSERT INTO usage_snapshots "
+            "(ts, five_hour_pct, seven_day_pct, five_hour_resets_at, "
+            "seven_day_resets_at, total_cost_usd, active_agents) "
+            "VALUES (?, 0, 0, '', ?, 0, 0)",
+            (baseline_at.isoformat(), reset_at.isoformat()),
+        )
+
+    store = _Store(_policy(access="off"))
+
+    async def load_observation(*, required_provider):
+        assert required_provider == "anthropic"
+        return observation
+
+    router = RuntimeRouter(
+        store=store,
+        observation_loader=load_observation,
+        baseline_loader=db.runway_window_start_pct,
+    )
+    async with router.admission(RoutingInput(task_class="worker_general")) as admission:
+        candidate = next(
+            item for item in admission.decision.candidates if item.runtime == "claude"
+        )
+
+    assert candidate.state == "normal"
+    assert candidate.detail
