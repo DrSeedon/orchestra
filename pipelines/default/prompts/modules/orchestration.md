@@ -150,9 +150,18 @@ send_message("backend", "Continue #192")
 - Among idle workers, prefer a related 🔥/🟡 system worker (<1h since last turn). Do not send
   keepalive work to a cooling worker; a cold start is acceptable when no idle match exists.
 
-### Pre-send gate — one active task per worker
-**Immediately before every `send_message(to=worker)`, run `list_agents` and check that worker's
-status and `task_id`.** Then follow exactly one branch:
+### Pre-send gate — content first, then one active task per worker
+**Check 1 — content. Before every `send_message(to=worker)`, name in one phrase the action the
+worker performs on receipt ("he will X"). Cannot name one → end your turn without sending.**
+Waking an agent costs a whole turn (≈$1.92 measured): he is obliged to answer, and "Новых задач
+пока нет" / "good job" / "stay idle" buys you "idle, tree clean". Absence of a task is
+communicated by silence — never by a message saying there is none.
+A required `RULE TRIAGE` verdict, a gate decision, an answer, or a correction IS such an action:
+send it, and do not append "and there are no new tasks" to it. Praise only when it changes the
+worker's FUTURE behaviour ("keep doing X" — naming X), in one sentence.
+
+**Check 2 — status. Run `list_agents` and check that worker's status and `task_id`.** Then follow
+exactly one branch:
 - **`idle`** → a new task or required `RULE TRIAGE` reply may be sent (merge work first).
 - **`running` or `waiting`** → send only a message beginning `Current #<active-task-id>:` that
   clarifies, corrects, answers, approves a gate, or stops that SAME task.
@@ -221,8 +230,8 @@ Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your mem
 ## Critical rules
 - NEVER touch prod (SSH, git pull, deploy) while a worker is actively fixing an issue. Wait for DONE
 - NEVER debug/fix code yourself unless every condition in the Step 0.5 DIY gate passes
-- NEVER send empty/acknowledgment messages to workers ("good job", "stay idle"). Use
-  `send_message` only for a message allowed by the pre-send gate above
+- Put every message to a worker through the pre-send gate above — name the action it triggers,
+  check status, then send. Nothing to name → stay silent
 - NEVER reuse a worker for a different project/stack than their role and overlay. Worker = specialist
 - NEVER type tool calls as text. If you write `<invoke>`, `<parameter>`, `course`, or XML-like tool call syntax in your output — that is BROKEN. Tool calls are made through the tool use mechanism, not by printing XML. If a tool call fails — retry the REAL tool call, don't simulate it with text
 </rules>
