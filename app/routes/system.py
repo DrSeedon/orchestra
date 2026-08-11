@@ -1116,6 +1116,12 @@ async def _collect_usage_snapshot() -> None:
         fh.get("resets_at", ""), sd.get("resets_at", ""),
         round(cost, 4), active, providers=providers,
     )
+    # Строго ПОСЛЕ записи снимка и намеренно без `await`: оценка недельной квоты (#186)
+    # уходит в фон и не может задержать сбор — на снимках висят дашборд, `quota_headroom`
+    # и вход #187. Планирование не делает ни одного запроса и возвращается мгновенно.
+    from app.quota_alert import schedule_evaluation
+
+    schedule_evaluation(anthropic_data)
 
 
 async def _usage_snapshot_loop():

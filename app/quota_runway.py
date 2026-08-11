@@ -139,6 +139,38 @@ def working_hours_between(start: datetime, end: datetime) -> float:
     return total
 
 
+def moment_after_working_hours(start: datetime, hours: float) -> datetime | None:
+    """Когда наступит момент, отстоящий от `start` на `hours` РАБОЧИХ часов.
+
+    Нужен только для человекочитаемого прогноза («упрёмся в субботу утром»): остаток в
+    рабочих часах сам по себе никому ничего не говорит. `None`, если столько рабочих часов
+    впереди нет в обозримом окне — тогда и прогноз не нужен.
+
+    Идём по СУТКАМ и границам рабочей полосы, а не по часовой сетке с интерполяцией.
+    Интерполяция внутри часа, пересекающего границу полосы, врёт: из 02:30 час до 03:30
+    содержит 0.5 рабочего часа, и запрос 0.1 давал 02:42 — момент ВНЕ полосы, до которого
+    не прошло ни минуты рабочего времени.
+    """
+    start = as_utc(start, "start")
+    if hours <= 0:
+        return start
+    if not math.isfinite(hours):
+        return None
+    remaining = hours
+    cursor = start
+    for _ in range(15):  # горизонт две недели: недельное окно всегда короче
+        day = cursor.replace(hour=0, minute=0, second=0, microsecond=0)
+        band_start = max(cursor, day.replace(hour=WORK_HOURS_UTC[0]))
+        band_end = day.replace(hour=WORK_HOURS_UTC[1])
+        available = (band_end - band_start).total_seconds() / 3600.0
+        if available >= remaining:
+            return band_start + timedelta(hours=remaining)
+        if available > 0:
+            remaining -= available
+        cursor = day + timedelta(days=1)
+    return None
+
+
 def _no_data(reason: str, window_id: str, window_end: str) -> RunwayVerdict:
     return RunwayVerdict(
         state="no_data", deficit=None, pace=None, runway_hours=None,

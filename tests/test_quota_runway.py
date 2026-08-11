@@ -400,3 +400,46 @@ def test_min_work_hours_constant_is_the_one_the_code_uses():
     )
     assert just_under.pace is None
     assert just_over.pace is not None
+
+
+# --- прогноз момента упора: границы рабочей полосы (по ревью T4) ----------------------
+
+def test_forecast_from_before_the_band_starts_counting_at_the_band(db=None):
+    """Из 02:30 первые полчаса — не рабочие. 0.1 рабочего часа наступает в 03:06, не в 02:42."""
+    from app.quota_runway import moment_after_working_hours
+
+    moment = moment_after_working_hours(_utc("2026-08-04T02:30"), 0.1)
+    assert moment == _utc("2026-08-04T03:06")
+
+
+def test_forecast_from_after_the_band_moves_to_the_next_day():
+    from app.quota_runway import moment_after_working_hours
+
+    moment = moment_after_working_hours(_utc("2026-08-04T18:00"), 2.0)
+    assert moment == _utc("2026-08-05T05:00")
+
+
+def test_forecast_never_lands_outside_the_working_band():
+    from app.quota_runway import moment_after_working_hours
+
+    starts = ["2026-08-04T00:00", "2026-08-04T02:59", "2026-08-04T03:00",
+              "2026-08-04T16:59", "2026-08-04T17:00", "2026-08-04T23:30"]
+    for start in starts:
+        for hours in (0.05, 1.0, 13.9, 20.0, 40.0):
+            moment = moment_after_working_hours(_utc(start), hours)
+            assert moment is not None, (start, hours)
+            assert 3 <= moment.hour < 17 or (moment.hour == 17 and moment.minute == 0), \
+                f"{start} + {hours} раб.ч → {moment}, вне рабочей полосы"
+
+
+def test_forecast_spanning_several_days_accumulates_exactly():
+    """20 рабочих часов от начала полосы = 14 сегодня + 6 завтра → завтра 09:00."""
+    from app.quota_runway import moment_after_working_hours
+
+    assert moment_after_working_hours(_utc("2026-08-04T03:00"), 20.0) == _utc("2026-08-05T09:00")
+
+
+def test_forecast_of_infinite_runway_is_none_not_a_crash():
+    from app.quota_runway import moment_after_working_hours
+
+    assert moment_after_working_hours(_utc("2026-08-04T03:00"), float("inf")) is None

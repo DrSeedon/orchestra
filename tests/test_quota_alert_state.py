@@ -185,7 +185,7 @@ def test_delivery_record_cannot_be_reset_to_null(db, column):
     if column == "delivered_at":
         alert_mark_delivered(WINDOW, _iso(30))
     else:
-        alert_discard_stale(NEXT_WINDOW, _iso(30))
+        alert_discard_stale(NEXT_WINDOW, _iso(30), 120.0)
 
     conn = sqlite3.connect(str(db))
     with pytest.raises(sqlite3.IntegrityError, match="durable"):
@@ -320,7 +320,7 @@ def test_stale_undelivered_alert_of_a_past_window_is_discarded_loudly(db):
     from app.db import alert_discard_stale, alert_pending, alert_state_advance
 
     alert_state_advance(WINDOW, _iso())
-    discarded = alert_discard_stale(NEXT_WINDOW, _iso(86400))
+    discarded = alert_discard_stale(NEXT_WINDOW, _iso(86400), 120.0)
     assert discarded == [WINDOW], "отброшенное окно обязано попасть в журнал"
     assert alert_pending(WINDOW) is False
 
@@ -329,7 +329,7 @@ def test_discard_does_not_touch_the_current_window(db):
     from app.db import alert_discard_stale, alert_pending, alert_state_advance
 
     alert_state_advance(WINDOW, _iso())
-    assert alert_discard_stale(WINDOW, _iso(60)) == []
+    assert alert_discard_stale(WINDOW, _iso(60), 120.0) == []
     assert alert_pending(WINDOW) is True
 
 
@@ -338,7 +338,7 @@ def test_discard_ignores_already_delivered_rows(db):
 
     alert_state_advance(WINDOW, _iso())
     alert_mark_delivered(WINDOW, _iso(30))
-    assert alert_discard_stale(NEXT_WINDOW, _iso(86400)) == []
+    assert alert_discard_stale(NEXT_WINDOW, _iso(86400), 120.0) == []
 
 
 # --- AC-5, AC-6: молчание источника ---------------------------------------------------
@@ -351,13 +351,30 @@ def test_single_missed_poll_does_not_announce_silence(db):
     assert silence_observe(has_data=False, now=_iso(300), grace_seconds=GRACE) is False
 
 
-def test_silence_is_announced_once_after_the_grace_period(db):
+def test_silence_claim_is_taken_once_and_then_confirmed_forever(db):
+    """Заявка берётся один раз; после ДОКАЗАННОЙ доставки не берётся уже никогда."""
+    from app.db import silence_mark_announced, silence_observe
+
+    silence_observe(has_data=False, now=_iso(), grace_seconds=GRACE)
+    assert silence_observe(has_data=False, now=_iso(GRACE + 1), grace_seconds=GRACE) is True
+    assert silence_observe(has_data=False, now=_iso(GRACE + 30), grace_seconds=GRACE) is False
+    silence_mark_announced(_iso(GRACE + 40))
+    assert silence_observe(has_data=False, now=_iso(GRACE + 9000), grace_seconds=GRACE) is False
+
+
+def test_silence_claim_expires_if_delivery_never_confirmed(db):
+    """Процесс умер между заявкой и отправкой — сообщение обязано прозвучать позже.
+
+    Смерть процесса ничего не возвращает, поэтому `silence_release` тут бессилен: спасает
+    только истечение аренды. Без него молчание считалось бы объявленным навсегда.
+    """
     from app.db import silence_observe
 
     silence_observe(has_data=False, now=_iso(), grace_seconds=GRACE)
     assert silence_observe(has_data=False, now=_iso(GRACE + 1), grace_seconds=GRACE) is True
-    assert silence_observe(has_data=False, now=_iso(GRACE + 300), grace_seconds=GRACE) is False
-    assert silence_observe(has_data=False, now=_iso(GRACE + 9000), grace_seconds=GRACE) is False
+    # «процесс умер»: ни подтверждения, ни освобождения
+    assert silence_observe(has_data=False, now=_iso(GRACE + 60), grace_seconds=GRACE) is False
+    assert silence_observe(has_data=False, now=_iso(GRACE + 400), grace_seconds=GRACE) is True
 
 
 def test_exact_grace_boundary_fires(db):
@@ -408,8 +425,11 @@ def test_grace_comparison_survives_MIXED_offsets(db):
 def test_data_returning_clears_the_state_without_a_message(db):
     from app.db import silence_observe
 
+    from app.db import silence_mark_announced
+
     silence_observe(has_data=False, now=_iso(), grace_seconds=GRACE)
     silence_observe(has_data=False, now=_iso(GRACE + 1), grace_seconds=GRACE)
+    silence_mark_announced(_iso(GRACE + 2))
     assert silence_observe(has_data=True, now=_iso(GRACE + 60), grace_seconds=GRACE) is False
     # новое молчание — новый отсчёт, а не продолжение прежнего
     assert silence_observe(has_data=False, now=_iso(GRACE + 120), grace_seconds=GRACE) is False
@@ -445,3 +465,34 @@ def test_alert_survives_a_silence_episode_and_does_not_fire_twice(db):
 
     assert alert_state_advance(WINDOW, _iso(GRACE + 180)) is False, "второе предупреждение"
     assert alert_pending(WINDOW) is False
+
+
+def test_live_claim_is_not_discarded_as_stale(db):
+    """Отправка по старому окну в полёте — отбрасывать её нельзя.
+
+    Иначе строка получит и `discarded_at` от нового цикла, и `delivered_at` от
+    вернувшегося старого — то есть будет утверждать обе судьбы разом.
+    """
+    from app.db import alert_claim_delivery, alert_discard_stale, alert_state_advance
+
+    alert_state_advance(WINDOW, _iso())
+    assert alert_claim_delivery(WINDOW, _iso(1), 120.0) is True
+    assert alert_discard_stale(NEXT_WINDOW, _iso(5), 120.0) == [], "отброшено с живой арендой"
+    # аренда истекла — теперь отбросить можно
+    assert alert_discard_stale(NEXT_WINDOW, _iso(300), 120.0) == [WINDOW]
+
+
+def test_discarded_row_cannot_become_delivered(db):
+    """Сообщение уже ушло, но врать в базе об этом всё равно нельзя."""
+    from app.db import alert_discard_stale, alert_mark_delivered, alert_state_advance
+
+    alert_state_advance(WINDOW, _iso())
+    assert alert_discard_stale(NEXT_WINDOW, _iso(300), 120.0) == [WINDOW]
+    alert_mark_delivered(WINDOW, _iso(310))
+    conn = sqlite3.connect(str(db))
+    row = conn.execute(
+        "SELECT delivered_at, discarded_at FROM quota_alert_state WHERE window_id = ?",
+        (WINDOW,),
+    ).fetchone()
+    conn.close()
+    assert row[0] is None and row[1] is not None, "строка утверждает обе судьбы"

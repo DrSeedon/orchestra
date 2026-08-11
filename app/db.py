@@ -370,7 +370,10 @@ def init_db() -> None:
                 state        TEXT NOT NULL CHECK (state IN ('ok', 'alert')),
                 changed_at   TEXT NOT NULL,
                 delivered_at TEXT,
-                discarded_at TEXT
+                discarded_at TEXT,
+                -- Заявка на отправку с арендой: см. `alert_claim_delivery`. Не признак
+                -- доставки — только право её попробовать.
+                delivery_claimed_at TEXT
             );
             CREATE TRIGGER IF NOT EXISTS quota_alert_no_downgrade
             BEFORE UPDATE ON quota_alert_state
@@ -451,7 +454,10 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS quota_silence (
                 id            INTEGER PRIMARY KEY CHECK (id = 1),
                 silence_since TEXT,
-                notified_at   TEXT
+                -- заявка на отправку с арендой, НЕ факт доставки
+                notified_at   TEXT,
+                -- доказанная доставка; переживает смерть процесса
+                announced_at  TEXT
             );
 
             -- Инертный до подключения workload callers audit-контур runtime router (#187).
@@ -939,6 +945,14 @@ def _migrate(c) -> None:
     usage_cols = {row[1] for row in c.execute("PRAGMA table_info(usage_snapshots)").fetchall()}
     if usage_cols and "provider_usage" not in usage_cols:
         c.execute("ALTER TABLE usage_snapshots ADD COLUMN provider_usage TEXT NOT NULL DEFAULT '{}'")
+    # `CREATE TABLE IF NOT EXISTS` не добавляет колонку в уже существующую таблицу, а
+    # `quota_alert_state` появилась раньше самой заявки на отправку (#186 T3 → T4).
+    alert_cols = {row[1] for row in c.execute("PRAGMA table_info(quota_alert_state)").fetchall()}
+    if alert_cols and "delivery_claimed_at" not in alert_cols:
+        c.execute("ALTER TABLE quota_alert_state ADD COLUMN delivery_claimed_at TEXT")
+    silence_cols = {row[1] for row in c.execute("PRAGMA table_info(quota_silence)").fetchall()}
+    if silence_cols and "announced_at" not in silence_cols:
+        c.execute("ALTER TABLE quota_silence ADD COLUMN announced_at TEXT")
     tool_error_cols = {
         row[1] for row in c.execute("PRAGMA table_info(tool_errors)").fetchall()
     }
@@ -2306,14 +2320,43 @@ def alert_mark_delivered(window_id: str, now: str) -> None:
     падение до отправки повторится следующим циклом через 300 с. Обратный порядок терял
     бы предупреждение навсегда, а оно за неделю случается один раз.
     """
+    # `discarded_at IS NULL` обязателен: отброшенную строку нельзя объявить доставленной,
+    # иначе она утверждала бы разом обе судьбы. Сообщение в этот момент уже ушло — врать
+    # об этом в базе всё равно нельзя.
     with _conn() as c:
         c.execute(
-            "UPDATE quota_alert_state SET delivered_at = ? WHERE window_id = ?",
+            "UPDATE quota_alert_state SET delivered_at = ?"
+            " WHERE window_id = ? AND discarded_at IS NULL",
             (now, window_id),
         )
 
 
-def alert_discard_stale(current_window_id: str, now: str) -> list[str]:
+def alert_claim_delivery(window_id: str, now: str, lease_seconds: float) -> bool:
+    """Взять право отправить сообщение. True — право твоё, False — уже у другого.
+
+    Без явной заявки «строка ещё не доставлена» правом не является: два одновременных
+    прохода оба увидели бы непустой pending и оба отправили. Единственный победитель
+    `alert_state_advance` этого не спасает — проигравший видит ровно ту же строку.
+
+    Заявка с ПРОСРОЧЕННОЙ арендой перехватывается: процесс, упавший между заявкой и
+    отправкой, иначе заблокировал бы повтор навсегда — то есть потерял бы предупреждение,
+    что здесь дороже лишней копии.
+    """
+    from datetime import datetime as _dt
+
+    expiry = (_dt.fromisoformat(now) - timedelta(seconds=lease_seconds)).isoformat()
+    with _conn() as c:
+        cursor = c.execute(
+            "UPDATE quota_alert_state SET delivery_claimed_at = ?"
+            " WHERE window_id = ? AND state = 'alert'"
+            " AND delivered_at IS NULL AND discarded_at IS NULL"
+            " AND (delivery_claimed_at IS NULL OR delivery_claimed_at <= ?)",
+            (now, window_id, expiry),
+        )
+        return cursor.rowcount == 1
+
+
+def alert_discard_stale(current_window_id: str, now: str, lease_seconds: float) -> list[str]:
     """Отбросить недоставленные переходы ПРОШЛЫХ окон. Возвращает их id — для журнала.
 
     Сервис мог пролежать через недельный сброс: тогда строка старого окна осталась бы
@@ -2325,30 +2368,41 @@ def alert_discard_stale(current_window_id: str, now: str) -> list[str]:
     # Одним запросом с RETURNING, а не «выбрал, потом обновил»: между двумя запросами
     # доставка могла состояться, и тогда мы пометили бы её же как отброшенную и написали
     # бы об этом в журнал. Ложное свидетельство хуже отсутствующего.
+    # Строки с ЖИВОЙ арендой не трогаем: отправка по ним прямо сейчас в полёте. Иначе
+    # окно, захваченное перед самым сбросом, было бы помечено отброшенным, а вернувшийся
+    # из отправки проход поставил бы ему же `delivered_at` — и строка утверждала бы разом
+    # и то, и другое. Аренда истечёт, и следующий проход отбросит её честно.
+    expiry = (datetime.fromisoformat(now) - timedelta(seconds=lease_seconds)).isoformat()
     with _conn() as c:
         rows = c.execute(
             "UPDATE quota_alert_state SET discarded_at = ?"
             " WHERE window_id != ? AND state = 'alert'"
             " AND delivered_at IS NULL AND discarded_at IS NULL"
+            " AND (delivery_claimed_at IS NULL OR delivery_claimed_at <= ?)"
             " RETURNING window_id",
-            (now, current_window_id),
+            (now, current_window_id, expiry),
         ).fetchall()
         return [row["window_id"] for row in rows]
 
 
-def silence_observe(*, has_data: bool, now: str, grace_seconds: float) -> bool:
-    """Учесть очередной опрос. True — ровно один раз за период молчания, когда пора сказать.
+def silence_observe(*, has_data: bool, now: str, grace_seconds: float,
+                    lease_seconds: float = 120.0) -> bool:
+    """Учесть очередной опрос. True — право сказать о молчании взято именно этим вызовом.
 
     Молчание объявляется не с первого пропуска: источник не отвечал 381 раз из 8804, и
     почти всегда это одиночные пропуски. Говорим, только когда молчание длится дольше
-    `grace_seconds` — и один раз, `notified_at` гасит повтор.
+    `grace_seconds`.
 
-    Возврат данных просто очищает состояние, сообщением не сопровождается: «снова
-    работает» — не новость, ради которой стоит будить человека.
+    `notified_at` — ЗАЯВКА с арендой, а не факт доставки; факт — `announced_at`. Разделение
+    обязательно: процесс, умерший между заявкой и отправкой, иначе оставил бы молчание
+    «уже объявленным» навсегда, и сообщение не прозвучало бы НИ РАЗУ. Аренда истекает —
+    право берёт следующий проход. `silence_release` тем же занимается для отказов, которые
+    вернулись штатно; смерть процесса штатно ничего не возвращает.
 
-    Каждый шаг — условная запись, а не «прочитал и записал»: иначе два вызова, увидевших
-    `notified_at IS NULL`, оба вернули бы True и сказали бы дважды, а на старте эпизода
-    оба попытались бы вставить строку и один получил бы ошибку уникальности.
+    Возврат данных очищает состояние без сообщения: «снова работает» — не новость.
+
+    Каждый шаг — условная запись, а не «прочитал и записал»: два вызова, увидевших
+    `notified_at IS NULL`, оба сказали бы об одном и том же.
     """
     from app.quota_runway import as_utc
 
@@ -2359,23 +2413,39 @@ def silence_observe(*, has_data: bool, now: str, grace_seconds: float) -> bool:
     # на целый опрос. Строки в UTC сравниваются точно и лексикографически совпадают с
     # временным порядком; заодно исчезает зависимость от версии SQLite.
     deadline = (moment - timedelta(seconds=grace_seconds)).isoformat()
+    expiry = (moment - timedelta(seconds=lease_seconds)).isoformat()
     with _conn() as c:
         if has_data:
             c.execute("DELETE FROM quota_silence WHERE id = 1")
             return False
-        # Начало эпизода: вставка выигрывает ровно у одного, остальные молча проходят мимо.
         c.execute(
-            "INSERT INTO quota_silence (id, silence_since, notified_at) VALUES (1, ?, NULL)"
-            " ON CONFLICT(id) DO NOTHING",
+            "INSERT INTO quota_silence (id, silence_since, notified_at, announced_at)"
+            " VALUES (1, ?, NULL, NULL) ON CONFLICT(id) DO NOTHING",
             (stamp,),
         )
-        # Право сказать берётся тем же условным UPDATE: победитель ровно один.
         cursor = c.execute(
             "UPDATE quota_silence SET notified_at = ?"
-            " WHERE id = 1 AND notified_at IS NULL AND silence_since <= ?",
-            (stamp, deadline),
+            " WHERE id = 1 AND announced_at IS NULL AND silence_since <= ?"
+            " AND (notified_at IS NULL OR notified_at <= ?)",
+            (stamp, deadline, expiry),
         )
         return cursor.rowcount == 1
+
+
+def silence_mark_announced(now: str) -> None:
+    """Зафиксировать ДОКАЗАННУЮ доставку сообщения о молчании."""
+    with _conn() as c:
+        c.execute("UPDATE quota_silence SET announced_at = ? WHERE id = 1", (now,))
+
+
+def silence_release(now: str) -> None:
+    """Отпустить заявку — доставка не состоялась и вернула отказ штатно.
+
+    Быстрый путь: не ждать истечения аренды, когда мы точно знаем, что не отправили.
+    `silence_since` не трогаем — эпизод продолжается, grace-период уже отсчитан.
+    """
+    with _conn() as c:
+        c.execute("UPDATE quota_silence SET notified_at = NULL WHERE id = 1")
 
 
 def usage_history_oldest_ts() -> str:

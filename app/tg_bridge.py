@@ -2602,6 +2602,43 @@ async def _mirror_send_file(orch_name: str, path: str, caption: str, is_photo: b
     )
 
 
+def _resolve_topic(scope: str, sender: str) -> tuple[str | None, int | None]:
+    """Куда слать: собственный топик отправителя, иначе топик оркестратора скоупа.
+
+    Вынесено из `send_file_to_tg`, чтобы у правила был один владелец: текстовые
+    уведомления о квоте (#186) адресуются точно так же, а вторая копия этой логики
+    разошлась бы с первой при ближайшей правке топиков.
+    """
+    topics = config.get("topics", {})
+    sender_thread = topics.get(sender) if sender else None
+    if sender_thread:
+        return sender, sender_thread
+    orch_name = _find_orch_for_scope(scope)
+    return orch_name, (topics.get(orch_name) if orch_name else None)
+
+
+async def send_text_to_tg(text: str, *, scope: str, sender: str) -> dict:
+    """Отправить текст в TG. Успех — ТОЛЬКО `{"ok": True, ...}`, всё иное — отказ.
+
+    Признак успеха обязан быть явным: сосед `send_file_to_tg` сообщает об операционных
+    сбоях обычным возвратом `{"error": ...}`, а не исключением. Если вызывающий сочтёт
+    успехом сам факт завершившегося `await`, то при выключенном мосте или отсутствующем
+    топике предупреждение о квоте будет помечено доставленным и потеряно навсегда —
+    а оно случается раз в неделю (#186).
+    """
+    if not bot or not config["group_id"]:
+        return {"error": "TG bridge not active"}
+    if not text.strip():
+        return {"error": "empty text"}
+    orch_name, thread_id = _resolve_topic(scope, sender)
+    if not thread_id:
+        return {"error": f"no TG topic for scope: {scope}"}
+    msg = await _tg_send_safe(config["group_id"], text[:4096], thread_id, important=True)
+    if msg is None:
+        return {"error": "TG text delivery failed; see tg-bridge logs"}
+    return {"ok": True, "message_id": msg.message_id, "chat_id": msg.chat.id}
+
+
 async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_document: bool = False) -> dict:
     if not bot or not config["group_id"]:
         return {"error": "TG bridge not active"}
@@ -2614,14 +2651,7 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
         return {"error": f"file is empty (0 bytes): {path}"}
     if file_size > 50 * 1024 * 1024:
         return {"error": "file too large (max 50MB)"}
-    topics = config.get("topics", {})
-    sender_thread = topics.get(sender) if sender else None
-    if sender_thread:
-        orch_name = sender
-        thread_id = sender_thread
-    else:
-        orch_name = _find_orch_for_scope(scope)
-        thread_id = topics.get(orch_name) if orch_name else None
+    orch_name, thread_id = _resolve_topic(scope, sender)
     logger.info(f"send_file: path={path} size={file_size} scope={scope!r} sender={sender!r} orch={orch_name!r} group_id={config['group_id']} thread_id={thread_id}")
     if not thread_id:
         return {"error": f"no TG topic for scope: {scope}"}
