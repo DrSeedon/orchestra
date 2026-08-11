@@ -1,0 +1,6 @@
+{
+ "text": "BLOCKING | После `SIGKILL` не вызывается `job.proc.wait()`: дочерний процесс останется зомби; добавьте `wait()` в `finally`.\nSUGGESTION | `os.getpgid(proc.pid)` лишний: при `start_new_session=True` PGID гарантированно равен `proc.pid`, сохраните его напрямую и уберите syscall с гонкой.",
+ "wall": 18.448820114135742,
+ "raw_tail": "BLOCKING | После `SIGKILL` не вызывается `job.proc.wait()`: дочерний процесс останется зомби; добавьте `wait()` в `finally`.\nSUGGESTION | `os.getpgid(proc.pid)` лишний: при `start_new_session=True` PGID гарантированно равен `proc.pid`, сохраните его напрямую и уберите syscall с гонкой.\n",
+ "tag": "sol_lazy_C7_r1"
+}
