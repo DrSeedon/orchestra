@@ -351,6 +351,101 @@ def init_db() -> None:
                 value TEXT NOT NULL
             )
         """)
+        c.executescript("""
+            -- Храповик предупреждения о недельной квоте (#186). Одна строка на окно.
+            -- Откат alert → ok запрещён СХЕМОЙ, а не дисциплиной кода: порог проверен как
+            -- детектор аварии (2 из 2), но как признак безопасности не проверен вовсе —
+            -- недель без стены на текущем тарифе в истории нет. Значит «метрика упала,
+            -- снова можно» не имеет под собой ничего.
+            CREATE TABLE IF NOT EXISTS quota_alert_state (
+                window_id    TEXT PRIMARY KEY,
+                state        TEXT NOT NULL CHECK (state IN ('ok', 'alert')),
+                changed_at   TEXT NOT NULL,
+                delivered_at TEXT,
+                discarded_at TEXT
+            );
+            CREATE TRIGGER IF NOT EXISTS quota_alert_no_downgrade
+            BEFORE UPDATE ON quota_alert_state
+            WHEN old.state = 'alert' AND new.state = 'ok'
+            BEGIN
+                SELECT RAISE(ABORT, 'quota alert latch cannot downgrade');
+            END;
+            -- Одного триггера мало. Прямой DELETE снимает храповик и вдобавок уносит
+            -- отметку о доставке: повтор перестанет распознаваться как повтор, а история
+            -- окна начнёт утверждать, что тревоги не было.
+            CREATE TRIGGER IF NOT EXISTS quota_alert_no_delete
+            BEFORE DELETE ON quota_alert_state
+            WHEN old.state = 'alert'
+            BEGIN
+                SELECT RAISE(ABORT, 'quota alert latch cannot be deleted');
+            END;
+            -- И двух мало. `INSERT OR REPLACE` удаляет строку сам, но delete-триггеры на
+            -- этом пути НЕ выполняются, пока выключен `PRAGMA recursive_triggers` — а он
+            -- выключен по умолчанию, и включать его глобально ради одной таблицы нельзя:
+            -- в схеме есть чужие триггеры. Ловим на BEFORE INSERT, где старая строка ещё
+            -- видна. Условие узкое, только `NEW.state = 'ok'`: иначе триггер сорвал бы наш
+            -- же upsert, который тоже начинается с попытки INSERT.
+            CREATE TRIGGER IF NOT EXISTS quota_alert_no_replace_downgrade
+            BEFORE INSERT ON quota_alert_state
+            WHEN NEW.state = 'ok' AND EXISTS (
+                SELECT 1 FROM quota_alert_state
+                WHERE window_id = NEW.window_id AND state = 'alert'
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'quota alert latch cannot downgrade');
+            END;
+            -- Трёх тоже мало, и это не фигура речи. Строку можно расцепить с окном, не
+            -- трогая ни state, ни саму строку: `UPDATE ... SET window_id = 'другое'`
+            -- оставляет state='alert', ни один триггер выше не срабатывает — а исходное
+            -- окно остаётся без записи, и предупреждение по нему пройдёт заново.
+            CREATE TRIGGER IF NOT EXISTS quota_alert_window_id_immutable
+            BEFORE UPDATE ON quota_alert_state
+            WHEN old.state = 'alert' AND new.window_id <> old.window_id
+            BEGIN
+                SELECT RAISE(ABORT, 'quota alert latch window_id is immutable');
+            END;
+            -- И отдельно — долговечность отметок доставки: `UPDATE ... SET
+            -- delivered_at = NULL` воскрешает уже доставленное предупреждение, и оно
+            -- уходит второй раз. Обратный путь (NULL → значение) разрешён — это и есть
+            -- нормальная работа `alert_mark_delivered` и `alert_discard_stale`.
+            CREATE TRIGGER IF NOT EXISTS quota_alert_delivery_is_durable
+            BEFORE UPDATE ON quota_alert_state
+            WHEN (old.delivered_at IS NOT NULL AND new.delivered_at IS NULL)
+              OR (old.discarded_at IS NOT NULL AND new.discarded_at IS NULL)
+            BEGIN
+                SELECT RAISE(ABORT, 'quota alert delivery record is durable');
+            END;
+            -- Пятый, и он закрывает самый неочевидный обход. Предыдущий триггер смотрит на
+            -- ИСХОДНУЮ строку, поэтому `UPDATE OR REPLACE ... SET window_id='A'`, сделанный
+            -- из строки со state='ok', его не будит: разрешение конфликта молча удаляет
+            -- строку 'A' вместе с её отметкой о доставке (delete-триггеры на этом пути
+            -- снова не выполняются), и переименованная строка занимает окно уже в
+            -- состоянии `ok`. Поэтому проверяем не источник, а НАЗНАЧЕНИЕ переименования.
+            CREATE TRIGGER IF NOT EXISTS quota_alert_no_replace_over_alert
+            BEFORE UPDATE ON quota_alert_state
+            WHEN new.window_id <> old.window_id AND EXISTS (
+                SELECT 1 FROM quota_alert_state
+                WHERE window_id = new.window_id AND state = 'alert'
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'quota alert latch cannot be replaced');
+            END;
+            -- Что остаётся ВНЕ гарантии — сказано, а не подразумевается:
+            -- `INSERT OR REPLACE ... 'alert'` пройдёт и обнулит `delivered_at`, то есть
+            -- приведёт к ПОВТОРНОМУ сообщению. Отказ громкий, и ни один путь в коде так не
+            -- пишет. Административные DROP TABLE, перестройка таблицы и
+            -- `PRAGMA ignore_check_constraints` не защищаются ничем и нигде.
+
+            -- Молчание источника — про здоровье телеметрии, а не про недельное окно, и
+            -- спокойно переживает его границу. Поэтому отдельная таблица, а не значение
+            -- в поле state: одна колонка не удержала бы разом латч бюджета, момент начала
+            -- молчания и признак «про это уже сказали».
+            CREATE TABLE IF NOT EXISTS quota_silence (
+                id            INTEGER PRIMARY KEY CHECK (id = 1),
+                silence_since TEXT,
+                notified_at   TEXT
+            );
+        """)
         _migrate(c)
 
 
@@ -1949,6 +2044,118 @@ def runway_window_start_pct(reset_at: datetime) -> tuple[float, str] | None:
     # выведенный бэктестом, оно сдвинуть не может.
     lowest = min(pct for pct, _ in segment)
     return next((pct, ts) for pct, ts in reversed(segment) if pct == lowest)
+
+
+def alert_state_advance(window_id: str, now: str) -> bool:
+    """Перевести окно в `alert`. True — переход СОСТОЯЛСЯ, False — уже был.
+
+    Одним условным запросом, без read-modify-write: два одновременных вызова обязаны
+    дать ровно одного победителя, иначе сообщение уйдёт дважды. `WHERE state = 'ok'`
+    внутри `ON CONFLICT` и делает эту атомарность.
+
+    Строку не удаляем нигде и никогда: удаление вернуло бы окно в `ok` и разрешило
+    повторное предупреждение. Это отказ ГРОМКИЙ (лишнее сообщение), поэтому триггером
+    его не запрещаю — в отличие от отката состояния, который отказ молчаливый.
+    """
+    with _conn() as c:
+        cursor = c.execute(
+            "INSERT INTO quota_alert_state (window_id, state, changed_at, delivered_at,"
+            " discarded_at) VALUES (?, 'alert', ?, NULL, NULL)"
+            " ON CONFLICT(window_id) DO UPDATE SET state = 'alert', changed_at = excluded.changed_at"
+            " WHERE quota_alert_state.state = 'ok'",
+            (window_id, now),
+        )
+        return cursor.rowcount == 1
+
+
+def alert_pending(window_id: str) -> bool:
+    """Переход есть, а сообщение ещё не доставлено и не отброшено."""
+    with _conn() as c:
+        row = c.execute(
+            "SELECT 1 FROM quota_alert_state WHERE window_id = ? AND state = 'alert'"
+            " AND delivered_at IS NULL AND discarded_at IS NULL",
+            (window_id,),
+        ).fetchone()
+        return row is not None
+
+
+def alert_mark_delivered(window_id: str, now: str) -> None:
+    """Проставить факт доставки. Зовётся ТОЛЬКО после доказанной отправки.
+
+    Порядок «сначала переход, потом отправка, потом эта отметка» даёт at-least-once:
+    падение до отправки повторится следующим циклом через 300 с. Обратный порядок терял
+    бы предупреждение навсегда, а оно за неделю случается один раз.
+    """
+    with _conn() as c:
+        c.execute(
+            "UPDATE quota_alert_state SET delivered_at = ? WHERE window_id = ?",
+            (now, window_id),
+        )
+
+
+def alert_discard_stale(current_window_id: str, now: str) -> list[str]:
+    """Отбросить недоставленные переходы ПРОШЛЫХ окон. Возвращает их id — для журнала.
+
+    Сервис мог пролежать через недельный сброс: тогда строка старого окна осталась бы
+    недоставленной навсегда, потому что проверка смотрит только текущее окно. Доставлять
+    такое поздно вредно — предупреждение о неделе, которая уже кончилась, дезинформирует.
+    Поэтому отбрасываем явно и громко, а гарантию честно называем «at-least-once В
+    ПРЕДЕЛАХ ОКНА», а не вообще.
+    """
+    # Одним запросом с RETURNING, а не «выбрал, потом обновил»: между двумя запросами
+    # доставка могла состояться, и тогда мы пометили бы её же как отброшенную и написали
+    # бы об этом в журнал. Ложное свидетельство хуже отсутствующего.
+    with _conn() as c:
+        rows = c.execute(
+            "UPDATE quota_alert_state SET discarded_at = ?"
+            " WHERE window_id != ? AND state = 'alert'"
+            " AND delivered_at IS NULL AND discarded_at IS NULL"
+            " RETURNING window_id",
+            (now, current_window_id),
+        ).fetchall()
+        return [row["window_id"] for row in rows]
+
+
+def silence_observe(*, has_data: bool, now: str, grace_seconds: float) -> bool:
+    """Учесть очередной опрос. True — ровно один раз за период молчания, когда пора сказать.
+
+    Молчание объявляется не с первого пропуска: источник не отвечал 381 раз из 8804, и
+    почти всегда это одиночные пропуски. Говорим, только когда молчание длится дольше
+    `grace_seconds` — и один раз, `notified_at` гасит повтор.
+
+    Возврат данных просто очищает состояние, сообщением не сопровождается: «снова
+    работает» — не новость, ради которой стоит будить человека.
+
+    Каждый шаг — условная запись, а не «прочитал и записал»: иначе два вызова, увидевших
+    `notified_at IS NULL`, оба вернули бы True и сказали бы дважды, а на старте эпизода
+    оба попытались бы вставить строку и один получил бы ошибку уникальности.
+    """
+    from app.quota_runway import as_utc
+
+    moment = as_utc(datetime.fromisoformat(now), "now")
+    stamp = moment.isoformat()
+    # Порог считаем в Python и сравниваем строки. `julianday` дал бы для ровно 1800 секунд
+    # 1800.00001341105 — на границе это лотерея, и проиграв её, мы отложили бы сообщение
+    # на целый опрос. Строки в UTC сравниваются точно и лексикографически совпадают с
+    # временным порядком; заодно исчезает зависимость от версии SQLite.
+    deadline = (moment - timedelta(seconds=grace_seconds)).isoformat()
+    with _conn() as c:
+        if has_data:
+            c.execute("DELETE FROM quota_silence WHERE id = 1")
+            return False
+        # Начало эпизода: вставка выигрывает ровно у одного, остальные молча проходят мимо.
+        c.execute(
+            "INSERT INTO quota_silence (id, silence_since, notified_at) VALUES (1, ?, NULL)"
+            " ON CONFLICT(id) DO NOTHING",
+            (stamp,),
+        )
+        # Право сказать берётся тем же условным UPDATE: победитель ровно один.
+        cursor = c.execute(
+            "UPDATE quota_silence SET notified_at = ?"
+            " WHERE id = 1 AND notified_at IS NULL AND silence_since <= ?",
+            (stamp, deadline),
+        )
+        return cursor.rowcount == 1
 
 
 def usage_history_oldest_ts() -> str:
