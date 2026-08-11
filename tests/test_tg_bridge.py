@@ -388,526 +388,13 @@ class TestRenameOrchTopic:
         assert tb.config["mirrors"]["new"]["topic_id"] == 99
 
 
-# ── _diff_images_enabled ───────────────────────────────────────────────────
 
 
-class TestDiffImagesEnabled:
-    def test_default_true_without_env(self, tb, monkeypatch):
-        """`_diff_images_enabled()` без TG_DIFF_IMAGES = True (при наличии PIL)."""
-        tb._pil_available = True
-        monkeypatch.delenv("TG_DIFF_IMAGES", raising=False)
-        assert tb._diff_images_enabled() is True
-
-    def test_false_when_env_false(self, tb, monkeypatch):
-        """TG_DIFF_IMAGES=false → False."""
-        tb._pil_available = True
-        monkeypatch.setenv("TG_DIFF_IMAGES", "false")
-        assert tb._diff_images_enabled() is False
-
-    def test_false_when_env_zero(self, tb, monkeypatch):
-        """TG_DIFF_IMAGES=0 → False."""
-        tb._pil_available = True
-        monkeypatch.setenv("TG_DIFF_IMAGES", "0")
-        assert tb._diff_images_enabled() is False
-
-    def test_false_when_env_no(self, tb, monkeypatch):
-        """TG_DIFF_IMAGES=no → False."""
-        tb._pil_available = True
-        monkeypatch.setenv("TG_DIFF_IMAGES", "no")
-        assert tb._diff_images_enabled() is False
-
-    def test_true_when_env_true(self, tb, monkeypatch):
-        """TG_DIFF_IMAGES=true → True."""
-        tb._pil_available = True
-        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
-        assert tb._diff_images_enabled() is True
-
-    def test_false_when_pil_missing(self, tb, monkeypatch):
-        """Без Pillow → False даже при TG_DIFF_IMAGES=true."""
-        tb._pil_available = False
-        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
-        assert tb._diff_images_enabled() is False
-
-
-# ── _result_images_enabled ─────────────────────────────────────────────────
-
-
-class TestResultImagesEnabled:
-    def test_default_true_without_env(self, tb, monkeypatch):
-        """`_result_images_enabled()` без TG_RESULT_IMAGES = True (opt-out)."""
-        tb._pil_available = True
-        monkeypatch.delenv("TG_RESULT_IMAGES", raising=False)
-        assert tb._result_images_enabled() is True
-
-    def test_true_when_env_true(self, tb, monkeypatch):
-        """TG_RESULT_IMAGES=true → True."""
-        tb._pil_available = True
-        monkeypatch.setenv("TG_RESULT_IMAGES", "true")
-        assert tb._result_images_enabled() is True
-
-    def test_false_when_pil_missing(self, tb, monkeypatch):
-        """Без Pillow → False даже при TG_RESULT_IMAGES=true."""
-        tb._pil_available = False
-        monkeypatch.setenv("TG_RESULT_IMAGES", "true")
-        assert tb._result_images_enabled() is False
 
 
 # ── _check_pil ──────────────────────────────────────────────────────────────
 
 
-class TestCheckPil:
-    def test_caches_result(self, tb, monkeypatch):
-        """Повторный вызов не перепроверяет — кеш в _pil_available."""
-        tb._pil_available = None
-        first = tb._check_pil()
-        # принудительно ломаем — если бы перепроверял, упал бы
-        assert tb._check_pil() is first
-
-    def test_returns_false_and_warns_when_missing(self, tb, monkeypatch):
-        """ImportError → False + один warning, без исключения наружу."""
-        import builtins
-        tb._pil_available = None
-        real_import = builtins.__import__
-
-        def fake_import(name, *a, **kw):
-            if name == "PIL":
-                raise ImportError("No module named 'PIL'")
-            return real_import(name, *a, **kw)
-
-        monkeypatch.setattr(builtins, "__import__", fake_import)
-        assert tb._check_pil() is False
-
-
-# ── _send_diff_image ───────────────────────────────────────────────────────
-
-
-class TestSendDiffImage:
-    async def _run_bash_result_stream(self, tb, monkeypatch, submission):
-        log_calls = 0
-
-        class FakeConn:
-            def close(self):
-                pass
-
-        def get_logs(session_id, after_id=0, conn=None):
-            nonlocal log_calls
-            log_calls += 1
-            if log_calls == 1:
-                return []
-            if log_calls == 2:
-                return [
-                    {
-                        "id": 1,
-                        "type": "tool",
-                        "content": 'Bash: {"command":"lscpu"}',
-                    },
-                    {
-                        "id": 2,
-                        "type": "tool_result",
-                        "content": "CPU(s): 12\nModel name: Example\n" + "x" * 1000,
-                    },
-                ]
-            raise asyncio.CancelledError
-
-        async def no_sleep(_delay):
-            return None
-
-        command_message = object()
-        send_expandable = AsyncMock(return_value=command_message)
-        edit_tool = AsyncMock()
-        send_result_image = AsyncMock(return_value=submission)
-        mirror_send = AsyncMock()
-        monkeypatch.setattr(
-            "app.db.get_all_sessions",
-            lambda: [{"name": "orch", "scope": "/scope"}],
-        )
-        monkeypatch.setattr(
-            "app.db.get_session_by_name",
-            lambda name, scope: {"id": "sid"},
-        )
-        monkeypatch.setattr("app.db.get_logs", get_logs)
-        monkeypatch.setattr("app.db._conn", FakeConn)
-        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *args: None)
-        monkeypatch.setattr(tb, "_send_expandable", send_expandable)
-        monkeypatch.setattr(tb, "_edit_tool_with_result", edit_tool)
-        monkeypatch.setattr(tb, "_send_result_image", send_result_image)
-        monkeypatch.setattr(tb, "_mirror_send", mirror_send)
-        monkeypatch.setattr(tb.asyncio, "sleep", no_sleep)
-
-        with pytest.raises(asyncio.CancelledError):
-            await tb.stream_logs("orch", 42)
-
-        return send_expandable, edit_tool, send_result_image, mirror_send
-
-    @pytest.mark.asyncio
-    async def test_accepted_result_image_suppresses_text_duplicate(
-        self, tb, monkeypatch,
-    ):
-        send_expandable, edit_tool, send_result_image, mirror_send = (
-            await self._run_bash_result_stream(
-                tb,
-                monkeypatch,
-                tb._ImageSubmission(True),
-            )
-        )
-
-        send_result_image.assert_awaited_once()
-        send_expandable.assert_awaited_once()
-        edit_tool.assert_not_awaited()
-        assert mirror_send.await_count == 2
-
-    @pytest.mark.asyncio
-    async def test_rejected_result_image_falls_back_to_text(
-        self, tb, monkeypatch,
-    ):
-        send_expandable, edit_tool, send_result_image, mirror_send = (
-            await self._run_bash_result_stream(
-                tb,
-                monkeypatch,
-                tb._ImageSubmission(False),
-            )
-        )
-
-        send_result_image.assert_awaited_once()
-        send_expandable.assert_awaited_once()
-        edit_tool.assert_awaited_once()
-        assert mirror_send.await_count == 2
-
-    @pytest.mark.asyncio
-    async def test_parse_edit_calls_render(self, tb, monkeypatch):
-        """_send_diff_image парсит Edit JSON и вызывает render_edit_diff."""
-        import json
-        rendered = []
-
-        def fake_render(file_path, old_str, new_str):
-            rendered.append((file_path, old_str, new_str))
-            return b"\x89PNG..."
-
-        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
-        monkeypatch.setattr("app.diff_image.render_edit_diff", fake_render)
-        # Мокаем _send_png_to_tg чтобы не трогать TG API
-        sent_pngs = []
-        async def fake_send_png(png, chat_id, thread_id, label):
-            sent_pngs.append(png)
-        monkeypatch.setattr(tb, "_send_png_to_tg", fake_send_png)
-
-        params = {"file_path": "app/main.py", "old_string": "old", "new_string": "new"}
-        raw = f"Edit: {json.dumps(params)}"
-        await tb._send_diff_image("Edit", raw, -100, 42)
-
-        assert len(rendered) == 1
-        assert rendered[0] == ("app/main.py", "old", "new")
-        assert sent_pngs == [b"\x89PNG..."]
-
-    @pytest.mark.asyncio
-    async def test_disabled_env_skips_render(self, tb, monkeypatch):
-        """При TG_DIFF_IMAGES=false render не вызывается."""
-        import json
-        rendered = []
-        monkeypatch.setenv("TG_DIFF_IMAGES", "false")
-        monkeypatch.setattr("app.diff_image.render_edit_diff", lambda *a: rendered.append(a) or b"")
-
-        raw = f"Edit: {json.dumps({'file_path': 'f', 'old_string': '', 'new_string': ''})}"
-        await tb._send_diff_image("Edit", raw, -100, 42)
-        assert rendered == []  # не вызван
-
-    @pytest.mark.asyncio
-    async def test_invalid_json_does_not_raise(self, tb, monkeypatch):
-        """Невалидный JSON в raw_content → тихий return без исключения."""
-        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
-        # Не должно бросить исключение
-        await tb._send_diff_image("Edit", "Edit: not_json_at_all", -100, 42)
-
-    @pytest.mark.asyncio
-    async def test_failed_delivery_is_not_reported_as_image_success(
-        self, tb, monkeypatch,
-    ):
-        import json
-
-        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
-        monkeypatch.setattr(
-            "app.diff_image.render_edit_diff",
-            lambda *args: b"\x89PNG...",
-        )
-        monkeypatch.setattr(
-            tb,
-            "_send_png_to_tg",
-            AsyncMock(return_value=False),
-        )
-        raw = f"Edit: {json.dumps({
-            'file_path': 'app/main.py',
-            'old_string': 'old',
-            'new_string': 'new',
-        })}"
-
-        assert await tb._send_diff_image("Edit", raw, -100, 42) is False
-
-    @pytest.mark.asyncio
-    async def test_diff_preview_admission_overload_is_not_swallowed(
-        self, tb, monkeypatch,
-    ):
-        monkeypatch.setenv("TG_DIFF_IMAGES", "true")
-        monkeypatch.setattr(
-            "app.diff_image.render_edit_diff",
-            lambda *args: b"\x89PNG...",
-        )
-        monkeypatch.setattr(
-            tb,
-            "_send_png_to_tg",
-            AsyncMock(side_effect=tb._TgDeliveryOverloaded("full")),
-        )
-
-        with pytest.raises(tb._TgDeliveryOverloaded):
-            await tb._send_diff_image(
-                "Edit",
-                'Edit: {"file_path":"x","old_string":"a","new_string":"b"}',
-                -100,
-                42,
-            )
-
-    @pytest.mark.asyncio
-    async def test_truthy_image_submission_never_suppresses_tool_text(
-        self, tb, monkeypatch,
-    ):
-        expandable_sent = asyncio.Event()
-        log_calls = 0
-
-        class FakeConn:
-            def close(self):
-                pass
-
-        def get_logs(session_id, after_id=0, conn=None):
-            nonlocal log_calls
-            log_calls += 1
-            if log_calls == 1:
-                return []
-            if log_calls == 2:
-                return [{
-                    "id": 1,
-                    "type": "tool",
-                    "content": (
-                        'Edit: {"file_path":"x","old_string":"a",'
-                        '"new_string":"b"}'
-                    ),
-                }]
-            return []
-
-        monkeypatch.setattr(
-            "app.db.get_all_sessions",
-            lambda: [{"name": "orch", "scope": "/scope"}],
-        )
-        monkeypatch.setattr(
-            "app.db.get_session_by_name",
-            lambda name, scope: {"id": "sid"},
-        )
-        monkeypatch.setattr("app.db.get_logs", get_logs)
-        monkeypatch.setattr("app.db._conn", FakeConn)
-        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *args: None)
-        monkeypatch.setattr(
-            tb,
-            "_send_diff_image",
-            AsyncMock(return_value=object()),
-        )
-        monkeypatch.setattr(tb, "_mirror_send", AsyncMock())
-
-        async def send_expandable(*args, **kwargs):
-            expandable_sent.set()
-            return object()
-
-        monkeypatch.setattr(tb, "_send_expandable", send_expandable)
-
-        stream = asyncio.create_task(tb.stream_logs("orch", 42))
-        try:
-            await asyncio.wait_for(expandable_sent.wait(), timeout=0.05)
-        finally:
-            stream.cancel()
-            await asyncio.gather(stream, return_exceptions=True)
-
-    @pytest.mark.asyncio
-    async def test_send_message_tool_text_uses_cosmetic_lane(
-        self, tb, monkeypatch,
-    ):
-        sent = asyncio.Event()
-        calls = []
-        log_calls = 0
-
-        class FakeConn:
-            def close(self):
-                pass
-
-        def get_logs(session_id, after_id=0, conn=None):
-            nonlocal log_calls
-            log_calls += 1
-            if log_calls == 1:
-                return []
-            if log_calls == 2:
-                return [{
-                    "id": 1,
-                    "type": "tool",
-                    "content": (
-                        'mcp__orchestra__send_message: '
-                        '{"to":"worker","message":"hello"}'
-                    ),
-                }]
-            return []
-
-        async def send_safe(*args, **kwargs):
-            calls.append(kwargs)
-            sent.set()
-            return object()
-
-        monkeypatch.setattr(
-            "app.db.get_all_sessions",
-            lambda: [{"name": "orch", "scope": "/scope"}],
-        )
-        monkeypatch.setattr(
-            "app.db.get_session_by_name",
-            lambda name, scope: {"id": "sid"},
-        )
-        monkeypatch.setattr("app.db.get_logs", get_logs)
-        monkeypatch.setattr("app.db._conn", FakeConn)
-        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *args: None)
-        monkeypatch.setattr(tb, "_tg_send_safe", send_safe)
-        monkeypatch.setattr(tb, "_mirror_send", AsyncMock())
-
-        stream = asyncio.create_task(tb.stream_logs("orch", 42))
-        try:
-            await asyncio.wait_for(sent.wait(), timeout=5)
-        finally:
-            stream.cancel()
-            await asyncio.gather(stream, return_exceptions=True)
-
-        assert calls[0].get("important", False) is False
-        # #141: тулы одного топика делят ключ и уезжают одним батчем,
-        # поэтому chunk_index в ключе больше нет — содержимое копится в bucket
-        assert calls[0]["telemetry_key"] == ("tool", 42, "orch")
-        assert calls[0]["batch_bucket"] is not None
-
-    @pytest.mark.asyncio
-    async def test_read_image_uses_important_isolated_preview(
-        self, tb, tmp_path, monkeypatch,
-    ):
-        image = tmp_path / "read.png"
-        image.write_bytes(b"image")
-        sent = asyncio.Event()
-        captured = {}
-        log_calls = 0
-
-        class FakeConn:
-            def close(self):
-                pass
-
-        def get_logs(session_id, after_id=0, conn=None):
-            nonlocal log_calls
-            log_calls += 1
-            if log_calls == 1:
-                return []
-            if log_calls == 2:
-                return [
-                    {
-                        "id": 1,
-                        "type": "tool",
-                        "content": (
-                            f'Read: {{"file_path":"{image}"}}'
-                        ),
-                    },
-                    {
-                        "id": 2,
-                        "type": "tool_result",
-                        "content": '{"type": "image"}',
-                    },
-                ]
-            return []
-
-        async def send_file(*args, **kwargs):
-            captured.update(kwargs)
-            done = asyncio.get_running_loop().create_future()
-            done.set_result(object())
-            sent.set()
-            return done
-
-        monkeypatch.setattr(
-            "app.db.get_all_sessions",
-            lambda: [{"name": "orch", "scope": "/scope"}],
-        )
-        monkeypatch.setattr(
-            "app.db.get_session_by_name",
-            lambda name, scope: {"id": "sid"},
-        )
-        monkeypatch.setattr("app.db.get_logs", get_logs)
-        monkeypatch.setattr("app.db._conn", FakeConn)
-        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *args: None)
-        monkeypatch.setattr(tb, "_tg_send_file_safe", send_file)
-        monkeypatch.setattr(tb, "_send_expandable", AsyncMock(return_value=object()))
-        monkeypatch.setattr(tb, "_mirror_send", AsyncMock())
-
-        stream = asyncio.create_task(tb.stream_logs("orch", 42))
-        try:
-            await asyncio.wait_for(sent.wait(), timeout=5)
-        finally:
-            stream.cancel()
-            await asyncio.gather(stream, return_exceptions=True)
-
-        assert captured["important"] is True
-        assert captured["isolated_preview"] is True
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("content", "marked"),
-    [
-        ('câ{"cmd":"pwd"}</parameter>\n</invoke>', True),
-        ("The invoke helper receives a parameter and returns normally.", False),
-        (
-            "Documentation example:\n```xml\n<function_calls>\n"
-            '<invoke name="Bash"><parameter name="cmd">pwd</parameter></invoke>\n'
-            "```",
-            False,
-        ),
-    ],
-)
-async def test_text_tool_call_marker_reaches_topic_and_mirror(
-    tb, monkeypatch, content, marked,
-):
-    log_calls = 0
-
-    class FakeConn:
-        def close(self):
-            pass
-
-    def get_logs(session_id, after_id=0, conn=None):
-        nonlocal log_calls
-        log_calls += 1
-        if log_calls == 1:
-            return []
-        if log_calls == 2:
-            return [{"id": 1, "type": "text", "content": content}]
-        raise asyncio.CancelledError
-
-    send_safe = AsyncMock(return_value=object())
-    mirror_send = AsyncMock(return_value=True)
-    monkeypatch.setattr(
-        "app.db.get_all_sessions",
-        lambda: [{"name": "orch", "scope": "/scope"}],
-    )
-    monkeypatch.setattr(
-        "app.db.get_session_by_name",
-        lambda name, scope: {"id": "sid"},
-    )
-    monkeypatch.setattr("app.db.get_logs", get_logs)
-    monkeypatch.setattr("app.db._conn", FakeConn)
-    monkeypatch.setattr(tb, "_schedule_topic_status", lambda *args: None)
-    monkeypatch.setattr(tb, "_tg_send_safe", send_safe)
-    monkeypatch.setattr(tb, "_mirror_send", mirror_send)
-
-    with pytest.raises(asyncio.CancelledError):
-        await tb.stream_logs("orch", 42)
-
-    topic_text = send_safe.await_args.args[1]
-    mirror_text = mirror_send.await_args.args[1]
-    assert ("НЕ ВЫПОЛНЕНО" in topic_text) is marked
-    assert ("НЕ ВЫПОЛНЕНО" in mirror_text) is marked
-    assert topic_text == mirror_text
 
 
 class TestTgImageLane:
@@ -1763,61 +1250,6 @@ class TestTgImageLane:
         await asyncio.gather(first, text_result, second)
 
         assert calls == ["MARKER-1", "TEXT", "MARKER-2"]
-
-    @pytest.mark.asyncio
-    async def test_cancelled_png_admission_cleans_rendered_file(
-        self, tb, tmp_path, monkeypatch,
-    ):
-        import tempfile
-
-        admission_started = asyncio.Event()
-        hold_admission = asyncio.Event()
-        tb.bot = AsyncMock()
-
-        async def send_file(*_args, **_kwargs):
-            admission_started.set()
-            await hold_admission.wait()
-
-        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
-        monkeypatch.setattr(tb, "_tg_send_file_safe", send_file)
-
-        submission = asyncio.create_task(
-            tb._send_png_to_tg(b"png", -100, 42, "Edit"),
-        )
-        await asyncio.wait_for(admission_started.wait(), timeout=5)
-        assert list(tmp_path.glob("diff-*.png"))
-
-        submission.cancel()
-        await asyncio.gather(submission, return_exceptions=True)
-
-        assert not list(tmp_path.glob("diff-*.png"))
-
-    @pytest.mark.asyncio
-    async def test_generated_png_uses_important_isolated_preview(
-        self, tb, tmp_path, monkeypatch,
-    ):
-        import tempfile
-
-        captured = {}
-
-        async def send_file(*args, **kwargs):
-            captured.update(kwargs)
-            done = asyncio.get_running_loop().create_future()
-            done.set_result(object())
-            return done
-
-        tb.bot = object()
-        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
-        monkeypatch.setattr(tb, "_tg_send_file_safe", send_file)
-
-        submission = await tb._send_png_to_tg(
-            b"png", -100, 42, "Edit",
-        )
-
-        assert submission.accepted
-        assert captured["important"] is True
-        assert captured["isolated_preview"] is True
-
 
 class TestTgDeliveryStats:
     @pytest.mark.asyncio
@@ -4866,3 +4298,410 @@ class TestTurnEndMention:
             await tb.stream_logs("orch", 42)
 
         assert len([m for m in sent if "@DrSeedon" in m["text"]]) == 1, sent
+
+
+# ── #189: свёртка хода — строка на действие, ⚙️ и якорь ────────────────────
+# Тела тулов взяты ДОСЛОВНО из живого журнала (logs.id 54910, 54916 и правка из
+# сессии back): выдуманный пример здесь бесполезен — экранирование `\"` появляется
+# именно у настоящей обёртки `/bin/bash -lc "..."`, которую пишет Codex.
+LIVE_BASH_SED = (
+    'Bash: {"command": "/bin/bash -lc \\"sed -n \'1,260p\' '
+    '/home/kesha/orchestra/.codex/skills/vps-deploy/SKILL.md\\"", '
+    '"cwd": "/home/kesha/orchestra", "_codex_item_id": "exec-6e1a295f"}'
+)
+LIVE_BASH_RG = (
+    'Bash: {"command": "/bin/bash -lc \\"rg -n \\\\\\"def change_model\\\\\\" '
+    'app/manager.py\\"", "cwd": "/home/kesha/orchestra"}'
+)
+LIVE_FILE_CHANGE = (
+    'FileChange: {"changes": [{"path": "/home/kesha/orchestra/worktrees/'
+    'home-kesha-projects-kesha-tg-bot/fix-image-json-buffer/claude_session.py", '
+    '"kind": {"type": "update"}, "diff": "@@ -51,2 +51,5 @@\\n NORMAL = 1\\n'
+    '+# comment\\n+CLAUDE_MAX_BUFFER_SIZE = 64\\n-old line\\n"}], '
+    '"status": "inProgress"}'
+)
+LIVE_EDIT = (
+    'Edit: {"file_path": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/'
+    'back/app/auth.py", "old_string": "def a():\\n    return 1", '
+    '"new_string": "def a():\\n    return 2\\n    # tail"}'
+)
+
+
+class TestTurnFold:
+    def test_bash_line_shows_command_without_shell_escaping(self, tb):
+        name, body = LIVE_BASH_SED.split(":", 1)
+        line = tb._tool_line(name.strip(), body.strip())
+        assert line.startswith("🖥 ")
+        assert "sed -n '1,260p'" in line
+        assert "Bash" not in line          # в заголовке команда, а не имя тула
+        assert len(line) <= tb._ACTION_LINE_MAX
+
+        name, body = LIVE_BASH_RG.split(":", 1)
+        line = tb._tool_line(name.strip(), body.strip())
+        assert 'rg -n "def change_model"' in line
+        assert "\\" not in line            # экранирование оболочки снято
+
+    def test_file_change_and_edit_render_the_same_way(self, tb):
+        name, body = LIVE_FILE_CHANGE.split(":", 1)
+        codex = tb._tool_line(name.strip(), body.strip())
+        name, body = LIVE_EDIT.split(":", 1)
+        claude = tb._tool_line(name.strip(), body.strip())
+        assert codex.startswith("✏️ ") and claude.startswith("✏️ ")
+        assert "claude_session.py +2 −1" in codex, codex
+        assert "app/auth.py +2 −1" in claude, claude
+        assert "worktrees" not in codex and "worktrees" not in claude
+        assert "{" not in codex and "diff" not in codex   # не сырой патч
+
+    def test_anchor_stays_short_on_the_worst_turn(self, tb):
+        actions = [f"🖥 {'очень длинная команда ' * 4}{i}" for i in range(157)]
+        anchor = tb._turn_anchor(actions, 9999.0, "turn ended (…, $12.34 turn, …)")
+        assert anchor.startswith("━")
+        assert len(anchor) <= tb._ANCHOR_MAX_CHARS
+        assert "157 действий" in anchor
+        assert "$12.34" in anchor
+        # ключевое: якорь идёт по надёжной полосе и обязан быть ОДНИМ сообщением
+        assert len(tb._formatted_chunks(anchor)) == 1
+
+    def test_progress_body_stays_bounded(self, tb):
+        lines = [f"🖥 команда номер {i} {'x' * 50}" for i in range(157)]
+        text = tb._progress_text(lines, 157, 300.0)
+        assert len(text) <= tb._PROGRESS_MAX_CHARS + 64
+        assert "…ещё" in text
+        assert "157 действий" in text
+        assert "5 мин" in text
+
+    def test_result_mark_reports_size_and_error(self, tb):
+        assert tb._result_mark("x" * 2115, False) == "2.1 КБ ✓"
+        assert tb._result_mark("", None) == "0 б ✓"
+        assert tb._result_mark("SyntaxError: bad\nmore", True).startswith("✗ SyntaxError")
+
+    # ── состояние хода ────────────────────────────────────────────────────
+    def test_state_is_idempotent_on_replay(self, tb):
+        """Перегрузка очереди откатывает курсор и переигрывает строки журнала."""
+        state = tb._TurnState()
+        for _ in range(2):                      # вторая итерация = переигрывание
+            state.add(1, "🖥 first", "call-1")
+            state.add(2, "🖥 second", "call-2")
+            state.close(3, "call-2", "1 КБ ✓")
+            state.close(4, "call-1", "2 КБ ✓")
+        assert len(state.actions) == 2
+        assert state.all_lines() == ["🖥 first  2 КБ ✓", "🖥 second  1 КБ ✓"]
+
+    def test_result_finds_its_own_call_when_tools_run_in_parallel(self, tb):
+        state = tb._TurnState()
+        state.add(1, "🖥 first", "call-1")
+        state.add(2, "🖥 second", "call-2")
+        state.close(3, "call-2", "мой ✓")       # результат ВТОРОГО пришёл первым
+        assert state.line(2).endswith("мой ✓")
+        assert state.line(1) == "🖥 first"
+
+    def test_legacy_rows_without_tool_use_id_pair_fifo(self, tb):
+        state = tb._TurnState()
+        state.add(1, "🖥 first", "")
+        state.add(2, "🖥 second", "")
+        state.close(3, "", "A ✓")
+        state.close(4, "", "B ✓")
+        assert state.line(1).endswith("A ✓") and state.line(2).endswith("B ✓")
+
+    def test_result_without_any_open_call_is_ignored(self, tb):
+        state = tb._TurnState()
+        state.close(1, "orphan", "1 КБ ✓")
+        assert state.all_lines() == []
+
+
+class TestReadImagePreview:
+
+    @pytest.mark.asyncio
+    async def test_read_image_uses_important_isolated_preview(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        image = tmp_path / "read.png"
+        image.write_bytes(b"image")
+        sent = asyncio.Event()
+        captured = {}
+        log_calls = 0
+
+        class FakeConn:
+            def close(self):
+                pass
+
+        def get_logs(session_id, after_id=0, conn=None):
+            nonlocal log_calls
+            log_calls += 1
+            if log_calls == 1:
+                return []
+            if log_calls == 2:
+                return [
+                    {
+                        "id": 1,
+                        "type": "tool",
+                        "content": (
+                            f'Read: {{"file_path":"{image}"}}'
+                        ),
+                    },
+                    {
+                        "id": 2,
+                        "type": "tool_result",
+                        "content": '{"type": "image"}',
+                    },
+                ]
+            return []
+
+        async def send_file(*args, **kwargs):
+            captured.update(kwargs)
+            done = asyncio.get_running_loop().create_future()
+            done.set_result(object())
+            sent.set()
+            return done
+
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [{"name": "orch", "scope": "/scope"}],
+        )
+        monkeypatch.setattr(
+            "app.db.get_session_by_name",
+            lambda name, scope: {"id": "sid"},
+        )
+        monkeypatch.setattr("app.db.get_logs", get_logs)
+        monkeypatch.setattr("app.db._conn", FakeConn)
+        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *args: None)
+        monkeypatch.setattr(tb, "_tg_send_file_safe", send_file)
+        monkeypatch.setattr(tb, "_send_expandable", AsyncMock(return_value=object()))
+        async def mirror_send(orch, text, **kw):
+            # Зеркало отправляется ПОСЛЕ якоря в том же обходе строки: если перегрузка
+            # приходит здесь, якорь уже ушёл, а курсор всё равно откатится.
+            if overload_after_anchor and text.startswith("━") and calls["anchor"] == 1:
+                raise tb._TgDeliveryOverloaded("mirror full")
+        monkeypatch.setattr(tb, "_mirror_send", mirror_send)
+
+        stream = asyncio.create_task(tb.stream_logs("orch", 42))
+        try:
+            await asyncio.wait_for(sent.wait(), timeout=5)
+        finally:
+            stream.cancel()
+            await asyncio.gather(stream, return_exceptions=True)
+
+        assert captured["important"] is True
+        assert captured["isolated_preview"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("content", "marked"),
+    [
+        ('câ{"cmd":"pwd"}</parameter>\n</invoke>', True),
+        ("The invoke helper receives a parameter and returns normally.", False),
+        (
+            "Documentation example:\n```xml\n<function_calls>\n"
+            '<invoke name="Bash"><parameter name="cmd">pwd</parameter></invoke>\n'
+            "```",
+            False,
+        ),
+    ],
+)
+async def test_text_tool_call_marker_reaches_topic_and_mirror(
+    tb, monkeypatch, content, marked,
+):
+    log_calls = 0
+
+    class FakeConn:
+        def close(self):
+            pass
+
+
+
+class TestTurnFoldStream:
+    """Поток целиком: что мост РЕАЛЬНО отправляет за ход."""
+
+    async def _run(self, tb, monkeypatch, batches, overload_first_anchor=False,
+                   overload_after_anchor=False):
+        sent, expandables, edits = [], [], []
+        calls = {"n": 0, "anchor": 0}
+
+        def get_logs(session_id, after_id=0, conn=None):
+            # Первый вызов stream_logs делает ДО цикла — им он берёт стартовый курсор.
+            i = calls["n"] - 1
+            calls["n"] += 1
+            if i < 0:
+                return []
+            if i >= len(batches):
+                raise asyncio.CancelledError
+            return [dict(r) for r in batches[i]]
+
+        async def send_safe(chat_id, text, thread_id=None, **kw):
+            if text.startswith("━"):
+                calls["anchor"] += 1
+                if overload_first_anchor and calls["anchor"] == 1:
+                    raise tb._TgDeliveryOverloaded("full")
+            sent.append({"text": text, "important": kw.get("important", False)})
+            return SimpleNamespace(message_id=len(sent))
+
+        async def send_expandable(chat_id, thread_id, header, body, **kw):
+            expandables.append(f"{header}\n{body}")
+            return SimpleNamespace(message_id=100 + len(expandables))
+
+        async def edit_safe(chat_id, message, text, entities=None, **kw):
+            edits.append(text)
+            return True
+
+        monkeypatch.setattr("app.db.get_all_sessions",
+                            lambda: [{"name": "orch", "scope": "/s", "role": "orchestrator"}])
+        monkeypatch.setattr("app.db.get_session_by_name", lambda n, s: {"id": "sid"})
+        monkeypatch.setattr("app.db.get_logs", get_logs)
+        monkeypatch.setattr("app.db._conn", lambda: SimpleNamespace(close=lambda: None))
+        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *a: None)
+        monkeypatch.setattr(tb, "_any_running_in_scope", lambda scope: False)
+        monkeypatch.setattr(tb, "_tg_send_safe", send_safe)
+        monkeypatch.setattr(tb, "_send_expandable", send_expandable)
+        monkeypatch.setattr(tb, "_tg_edit_message_safe", edit_safe)
+        async def mirror_send(orch, text, **kw):
+            # Зеркало отправляется ПОСЛЕ якоря в том же обходе строки: если перегрузка
+            # приходит здесь, якорь уже ушёл, а курсор всё равно откатится.
+            if overload_after_anchor and text.startswith("━") and calls["anchor"] == 1:
+                raise tb._TgDeliveryOverloaded("mirror full")
+        monkeypatch.setattr(tb, "_mirror_send", mirror_send)
+        monkeypatch.setattr(tb.asyncio, "sleep", AsyncMock())
+        with pytest.raises(asyncio.CancelledError):
+            await tb.stream_logs("orch", 42)
+        return sent, expandables, edits
+
+    @pytest.mark.asyncio
+    async def test_tool_rows_never_send_their_own_message(self, tb, monkeypatch):
+        sent, expandables, edits = await self._run(tb, monkeypatch, [[
+            {"id": 1, "type": "tool", "content": LIVE_BASH_SED, "tool_use_id": "c1"},
+            {"id": 2, "type": "tool_result", "content": "x" * 2115, "tool_use_id": "c1"},
+        ]])
+        assert sent == []                      # ни одного сообщения на тул
+        assert len(expandables) == 1           # только ⚙️
+        assert expandables[0].startswith("⚙️ 1 действие")
+        assert "sed -n '1,260p'" in expandables[0]
+
+    @pytest.mark.asyncio
+    async def test_engine_status_dropped_user_status_becomes_action(self, tb, monkeypatch):
+        monkeypatch.setattr(tb, "_PROGRESS_MIN_INTERVAL", 0.0)
+        sent, expandables, edits = await self._run(tb, monkeypatch, [[
+            {"id": 1, "type": "status", "content": "codex turn=019f started"},
+            {"id": 2, "type": "status", "content": 'precompact timer scheduled: {"a": 1}'},
+            {"id": 3, "type": "status", "content": "message steered into active Codex turn"},
+        ]])
+        assert sent == []
+        assert len(expandables) == 1
+        assert "↪ сообщение вошло в текущий ход" in expandables[0]
+
+    @pytest.mark.asyncio
+    async def test_turn_end_sends_exactly_one_reliable_anchor(self, tb, monkeypatch):
+        sent, _, _ = await self._run(tb, monkeypatch, [[
+            {"id": 1, "type": "tool", "content": LIVE_BASH_SED, "tool_use_id": "c1"},
+            {"id": 2, "type": "status",
+             "content": "turn ended (end_turn, 0 turns, $1.60 turn, ctx:46%)"},
+        ]])
+        anchors = [m for m in sent if m["text"].startswith("━")]
+        assert len(anchors) == 1
+        assert anchors[0]["important"] is True      # надёжная полоса, иначе потеряется
+        assert "1 действие" in anchors[0]["text"] and "$1.60" in anchors[0]["text"]
+
+    @pytest.mark.asyncio
+    async def test_replayed_turn_end_does_not_duplicate_the_anchor(self, tb, monkeypatch):
+        """Перегрузка откатывает курсор — строки хода проигрываются ВТОРОЙ раз."""
+        batch = [
+            {"id": 1, "type": "tool", "content": LIVE_BASH_SED, "tool_use_id": "c1"},
+            {"id": 2, "type": "status",
+             "content": "turn ended (end_turn, 0 turns, $1.60 turn, ctx:46%)"},
+        ]
+        sent, expandables, _ = await self._run(
+            tb, monkeypatch, [batch, batch], overload_first_anchor=True,
+        )
+        anchors = [m for m in sent if m["text"].startswith("━")]
+        assert len(anchors) == 1, anchors
+        assert "1 действие" in anchors[0]["text"]   # действие не задвоилось
+
+    @pytest.mark.asyncio
+    async def test_anchor_is_not_resent_when_its_row_replays_after_delivery(
+        self, tb, monkeypatch,
+    ):
+        """Якорь УЖЕ ушёл, а строка переигрывается: падение случилось позже, на той же
+        строке журнала. Без отметки `_anchor_sent_for` юзер получил бы два якоря."""
+        batch = [
+            {"id": 1, "type": "tool", "content": LIVE_BASH_SED, "tool_use_id": "c1"},
+            {"id": 2, "type": "status",
+             "content": "turn ended (end_turn, 0 turns, $1.60 turn, ctx:46%)"},
+        ]
+        sent, _, _ = await self._run(
+            tb, monkeypatch, [batch, batch], overload_after_anchor=True,
+        )
+        anchors = [m for m in sent if m["text"].startswith("━")]
+        assert len(anchors) == 1, anchors
+
+    @pytest.mark.asyncio
+    async def test_progress_edit_is_throttled_and_skips_identical_text(self, tb, monkeypatch):
+        rows = [{"id": i, "type": "tool", "content": LIVE_BASH_SED,
+                 "tool_use_id": f"c{i}"} for i in range(1, 6)]
+        _, expandables, edits = await self._run(tb, monkeypatch, [rows])
+        assert len(expandables) == 1
+        assert edits == []          # пять действий за секунду — ни одной лишней правки
+
+    @pytest.mark.asyncio
+    async def test_parallel_results_land_on_their_own_calls(self, tb, monkeypatch):
+        """Живой порядок из журнала (logs.id 54877-54880): два вызова подряд, потом два
+        результата, причём ПЕРВЫЙ результат принадлежит ВТОРОМУ вызову. По соседству
+        такую пару не сшить — только по tool_use_id, который пишется с #174."""
+        monkeypatch.setattr(tb, "_PROGRESS_MIN_INTERVAL", 0.0)
+        _, expandables, edits = await self._run(tb, monkeypatch, [[
+            {"id": 54877, "type": "tool", "tool_use_id": "bash-1",
+             "content": 'Bash: {"command": "/bin/bash -lc \'codex mcp list\'"}'},
+            {"id": 54878, "type": "tool", "tool_use_id": "search-1",
+             "content": 'WebSearch: {"query": "GPT-5.6-Cyber"}'},
+            {"id": 54879, "type": "tool_result", "tool_use_id": "search-1",
+             "content": "x" * 3000},                       # 2.9 КБ — ответ поиска
+            {"id": 54880, "type": "tool_result", "tool_use_id": "bash-1",
+             "content": "Codex CLI\nUsage: codex"},        # 22 б — ответ баша
+        ]])
+        final = (edits or expandables)[-1]
+        assert "🖥 codex mcp list  22 б ✓" in final, final
+        assert "🌐 GPT-5.6-Cyber  2.9 КБ ✓" in final, final
+
+    @pytest.mark.asyncio
+    async def test_mention_survives_replay_of_an_already_sent_anchor(self, tb, monkeypatch):
+        """Якорь ушёл, зеркало упало, строка переигралась. Пропустить надо ТОЛЬКО
+        повтор якоря: тег владельца живёт дальше по той же строке журнала."""
+        monkeypatch.setattr(tb, "TG_USER_MENTION", "@DrSeedon")
+        batch = [
+            {"id": 1, "type": "text", "content": "готово, жду ответа"},
+            {"id": 2, "type": "status",
+             "content": "turn ended (end_turn, 0 turns, $1.60 turn)"},
+        ]
+        sent, _, _ = await self._run(
+            tb, monkeypatch, [batch, batch], overload_after_anchor=True,
+        )
+        anchors = [m for m in sent if m["text"].startswith("━")]
+        mentions = [m for m in sent if "@DrSeedon" in m["text"]]
+        assert len(anchors) == 1, anchors
+        assert len(mentions) == 1, sent          # тег не потерян и не задвоен
+        assert mentions[0]["important"] is True
+
+    def test_progress_body_respects_utf16_limit(self, tb):
+        """Telegram считает лимит в UTF-16: эмодзи вне BMP весит две единицы, и
+        формально короткое тело может не влезть в правку сообщения."""
+        lines = ["🖥 " + "🧨" * 60 for _ in range(40)]
+        text = tb._progress_text(lines, 40, 60.0)
+        assert tb._utf16_len(text) <= tb._PROGRESS_MAX_CHARS + 64
+        assert len(tb._formatted_chunks(text)) == 1
+
+    @pytest.mark.asyncio
+    async def test_late_message_id_does_not_leak_into_the_next_block(self, tb, monkeypatch):
+        """Отправка ⚙️ доехала уже после того, как текст юзеру начал новую пачку."""
+        state = tb._TurnState()
+        state.add(1, "🖥 first")
+        loop = asyncio.get_running_loop()
+        pending = loop.create_future()
+
+        async def send_expandable(chat_id, thread_id, header, body, **kw):
+            return pending
+
+        monkeypatch.setattr(tb, "_send_expandable", send_expandable)
+        monkeypatch.setattr(tb, "config", {"group_id": -100})
+        await tb._update_progress(state, 42, "orch", force=True)
+        state.new_block()                       # 💬 юзеру: пачка сменилась
+        pending.set_result(SimpleNamespace(message_id=777))
+        await asyncio.sleep(0)
+        assert state.msg_id is None, "message_id прошлой пачки утёк в новую"

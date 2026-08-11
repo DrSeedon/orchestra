@@ -509,47 +509,13 @@ def _md_entities(text: str, base_offset: int = 0):
 
 
 
-# Edit an existing tool message to append the result inline —
-# avoids a separate message and keeps tool+result visually grouped in TG
-async def _edit_tool_with_result(msg, chat_id: int, tool_text: str, result_header: str, result_body: str):
-    from aiogram.types import MessageEntity
-    from aiogram.enums import MessageEntityType
-    nl = tool_text.index("\n")
-    tool_header = tool_text[:nl]
-    tool_body = tool_text[nl + 1:].rstrip()
-    result_body = result_body.rstrip()
-    conv_tool, tool_ents = _md_entities(tool_body, 0)
-    conv_result, result_ents = _md_entities(result_body, 0)
-    parts = [tool_header, "\n", conv_tool, "\n\n", result_header, "\n", conv_result]
-    text = "".join(parts)
-    offsets = []
-    pos = 0
-    for p in parts:
-        offsets.append(pos)
-        pos += _utf16_len(p)
-    for e in tool_ents:
-        e.offset += offsets[2]
-    for e in result_ents:
-        e.offset += offsets[6]
-    entities = [
-        MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[2], length=_utf16_len(conv_tool)),
-        MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offsets[6], length=_utf16_len(conv_result)),
-    ] + tool_ents + result_ents
-    await _tg_edit_message_safe(chat_id, msg, text, entities)
-
-
-# ── Свёртка хода (#189) ────────────────────────────────────────────────────
-# Тул-вызовы не отправляются отдельными сообщениями: они складываются в одну строку
-# каждый и живут внутри правящегося на месте ⚙️, а ход закрывается коротким якорем.
-# Замер, из которого это выросло: 2905 порождённых отправок за сутки, 9% из них —
-# слова оркестратора (docs/tasks/189/research.md).
 _PROGRESS_MIN_INTERVAL = 5.0     # не чаще одной правки ⚙️ в 5 с: правки едят тот же
                                  # бюджет, что и отправки, ≈20 правок в минуту на группу
 _PROGRESS_MAX_LINES = 40         # сколько последних действий видно в свёртке
 _PROGRESS_MAX_CHARS = 3500
 _ANCHOR_MAX_CHARS = 300
 _ACTION_LINE_MAX = 70
-_BASH_WRAPPER = re.compile(r"""^/bin/bash\s+-lc\s+(['"])(.*)\1$""", re.S)
+_BASH_WRAPPER = re.compile(r"""^/bin/bash\s+-lc\s+""")
 
 
 def _shorten(text: str, limit: int) -> str:
@@ -557,9 +523,13 @@ def _shorten(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[:limit - 1] + "…"
 
 
+_WORKTREE_PREFIX = re.compile(r"^.*/worktrees/[^/]+/[^/]+/")
+
+
 def _tail_path(path: str, limit: int) -> str:
-    """Хвост пути важнее начала: видно файл, а не общий префикс worktree."""
-    path = path.strip()
+    """Хвост пути важнее начала: видно файл, а не общий префикс worktree.
+    Сам префикс срезается целиком — он одинаков у всех путей агента и съедает строку."""
+    path = _WORKTREE_PREFIX.sub("", path.strip())
     return path if len(path) <= limit else "…" + path[-(limit - 1):]
 
 
@@ -579,6 +549,39 @@ def _plural(n: int, one: str, few: str, many: str) -> str:
     return many
 
 
+def _line_delta(old: str, new: str) -> tuple[int, int]:
+    old_lines = str(old).splitlines()
+    new_lines = str(new).splitlines()
+    common = 0
+    for a, b in zip(old_lines, new_lines):
+        if a != b:
+            break
+        common += 1
+    return len(new_lines) - common, len(old_lines) - common
+
+
+def _file_change_target(params: dict) -> str:
+    """Codex пишет правку файла как `FileChange` с unified-diff внутри — Claude пишет
+    `Edit`/`Write`. Строка в ленте у них обязана быть одинаковой: замер показал 767
+    вызовов `FileChange` против 82 `Edit`/`Write`, и все 767 уезжали сырым патчем."""
+    changes = params.get("changes") or []
+    if not isinstance(changes, list) or not changes:
+        return ""
+    first = changes[0] if isinstance(changes[0], dict) else {}
+    plus = minus = 0
+    for change in changes:
+        if not isinstance(change, dict):
+            continue
+        for line in str(change.get("diff", "")).splitlines():
+            if line.startswith("+") and not line.startswith("+++"):
+                plus += 1
+            elif line.startswith("-") and not line.startswith("---"):
+                minus += 1
+    path = _tail_path(str(first.get("path", "")), _ACTION_LINE_MAX - 16)
+    more = f" +{len(changes) - 1} файл." if len(changes) > 1 else ""
+    return f"{path} +{plus} −{minus}{more}"
+
+
 def _tool_target(tool_name: str, body: str) -> str:
     """Что именно сделал тул — то, ради чего юзер и смотрит строку."""
     try:
@@ -591,9 +594,36 @@ def _tool_target(tool_name: str, body: str) -> str:
     if tool_name == "Bash":
         cmd = str(params.get("command", "")).strip()
         m = _BASH_WRAPPER.match(cmd)
-        return (m.group(2) if m else cmd) or short
+        if m:
+            cmd = cmd[m.end():].strip()
+            quote = cmd[:1]
+            if quote in ("'", '"'):
+                # Кавычки обёртки снимаем по краям, а не полным совпадением: у живых
+                # команд внутри своя мешанина кавычек (`curl -H "..." '"'url'`), и
+                # строгий разбор оставлял `/bin/bash -lc '` прямо в ленте.
+                cmd = cmd[1:]
+                if cmd.endswith(quote):
+                    cmd = cmd[:-1]
+                if quote == '"':
+                    # экранирование ДЛЯ ОБОЛОЧКИ json.loads не снимает
+                    cmd = cmd.replace('\\"', '"').replace("\\\\", "\\")
+        # Абсолютные пути внутри команды съедают строку целиком, а рабочий каталог
+        # агент и так сообщает отдельным полем — режем его префикс.
+        cwd = str(params.get("cwd", "")).rstrip("/")
+        if cwd:
+            cmd = cmd.replace(cwd + "/", "")
+        return _WORKTREE_PREFIX.sub("", cmd) or short
+    if tool_name == "FileChange":
+        return _file_change_target(params) or short
     if tool_name in ("Read", "Write", "Edit", "NotebookEdit"):
-        return _tail_path(str(params.get("file_path", "")), _ACTION_LINE_MAX - 4) or short
+        path = _tail_path(str(params.get("file_path", "")), _ACTION_LINE_MAX - 14)
+        if tool_name == "Edit":
+            plus, minus = _line_delta(params.get("old_string", ""),
+                                      params.get("new_string", ""))
+            return f"{path} +{plus} −{minus}"
+        if tool_name == "Write":
+            return f"{path} +{len(str(params.get('content', '')).splitlines())}"
+        return path or short
     if tool_name in ("Grep", "Glob"):
         return str(params.get("pattern", "")) or short
     if tool_name in ("WebSearch", "WebFetch"):
@@ -629,8 +659,12 @@ def _progress_text(lines: list[str], total: int, seconds: float) -> str:
     if len(lines) > len(shown):
         shown = [f"…ещё {len(lines) - len(shown)} выше"] + shown
     body = "\n".join(shown)
-    if len(body) > _PROGRESS_MAX_CHARS:
-        body = body[-_PROGRESS_MAX_CHARS:]
+    # Лимит Telegram считается в UTF-16, а не в символах: строка из эмодзи вдвое
+    # тяжелее на вид одинаковой. Правка сообщения не режется общим кодом, поэтому
+    # перебор потолка вернул бы `message is too long` вместо текста.
+    while _utf16_len(body) > _PROGRESS_MAX_CHARS:
+        cut = body.find("\n", 1)
+        body = body[cut + 1:] if cut > 0 else body[:_PROGRESS_MAX_CHARS // 2]
     return f"{head}\n{body}"
 
 
@@ -650,6 +684,142 @@ def _turn_anchor(actions: list[str], seconds: float, status: str) -> str:
         parts.append(cost.group(0).replace(" turn", ""))
     return _shorten("━━━━━━━━━━━━━━━━━━━━\n" + " · ".join(parts),
                     _ANCHOR_MAX_CHARS).replace("━ ", "━\n", 1)
+
+
+# Статусы движка. По умолчанию НИ ОДИН не уходит отдельным сообщением: за сутки их 190
+# из 275, и это внутренняя телеметрия. Понадобилось сделать статус надёжным — впиши его
+# строку в _STATUS_RELIABLE, больше менять нечего.
+_STATUS_RELIABLE: frozenset[str] = frozenset()
+_STATUS_AS_ACTION = {
+    "message steered into active Codex turn": "↪ сообщение вошло в текущий ход",
+    "waiting for bg jobs": "⏸ жду фоновые задачи",
+}
+
+
+@dataclass
+class _TurnState:
+    """Ход целиком. ИДЕМПОТЕНТНО ПО log.id — это не украшение: при перегрузке очереди
+    `stream_logs` ловит `_TgDeliveryOverloaded`, откатывает курсор и переигрывает уже
+    обработанные строки. Список, в который дописывают, дал бы дубли действий и второй
+    якорь; словари по id при повторе просто перезаписываются."""
+    actions: dict[int, str] = field(default_factory=dict)      # log.id вызова → строка
+    raw: dict[int, str] = field(default_factory=dict)          # log.id вызова → тело
+    names: dict[int, str] = field(default_factory=dict)        # log.id вызова → имя тула
+    marks: dict[int, str] = field(default_factory=dict)        # log.id вызова → хвост
+    result_of: dict[int, int] = field(default_factory=dict)    # log.id результата → вызова
+    by_tool_id: dict[str, int] = field(default_factory=dict)   # tool_use_id → log.id
+    open_ids: list[int] = field(default_factory=list)          # вызовы без результата
+    block: list[int] = field(default_factory=list)             # что показывает текущее ⚙️
+    started: float = 0.0
+    block_seq: int = 0
+    msg_id: int | None = None
+    last_edit: float = 0.0
+    last_text: str = ""
+    anchor_sent_for: int | None = None
+
+    def add(self, log_id: int, line: str, tool_use_id: str = "") -> None:
+        if not self.actions:
+            self.started = time.time()
+        if log_id not in self.actions:
+            self.block.append(log_id)
+            self.open_ids.append(log_id)
+        self.actions[log_id] = line
+        if tool_use_id:
+            self.by_tool_id[tool_use_id] = log_id
+
+    def resolve(self, result_id: int, tool_use_id: str) -> int | None:
+        """Какому вызову принадлежит этот результат."""
+        action_id = self.result_of.get(result_id)
+        if action_id is not None:
+            return action_id
+        if tool_use_id and tool_use_id in self.by_tool_id:
+            return self.by_tool_id[tool_use_id]
+        return self.open_ids[0] if self.open_ids else None
+
+    def close(self, result_id: int, tool_use_id: str, mark: str) -> None:
+        """Дописать итог к СВОЕЙ строке действия.
+
+        Пара берётся по `tool_use_id` (пишется с #174 для обеих строк). Пусто — старая
+        строка журнала: тогда к самому старому незакрытому вызову, FIFO. Это честная
+        деградация, а не догадка: при параллельных тулах порядок неизвестен, и лучше
+        детерминированная привязка, чем правдоподобная.
+        """
+        action_id = self.resolve(result_id, tool_use_id)
+        if action_id is None:
+            return
+        if result_id not in self.result_of:
+            self.result_of[result_id] = action_id
+            self.by_tool_id.pop(tool_use_id, None)
+            if action_id in self.open_ids:
+                self.open_ids.remove(action_id)
+        self.marks[action_id] = mark
+
+    def line(self, log_id: int) -> str:
+        mark = self.marks.get(log_id)
+        return f"{self.actions[log_id]}  {mark}" if mark else self.actions[log_id]
+
+    def lines(self) -> list[str]:
+        return [self.line(i) for i in self.block if i in self.actions]
+
+    def all_lines(self) -> list[str]:
+        return [self.line(i) for i in sorted(self.actions)]
+
+    def new_block(self) -> None:
+        """Текст юзеру закрывает ⚙️: следующая пачка действий заводит своё сообщение,
+        иначе счётчик застывает выше по ленте, вдалеке от свежего текста."""
+        self.block = []
+        self.block_seq += 1
+        self.msg_id = None
+        self.last_text = ""
+
+    def reset(self) -> None:
+        self.__init__()
+
+
+async def _update_progress(
+    state: _TurnState, thread_id: int, orch_name: str, *, force: bool = False,
+) -> None:
+    """Одно сообщение ⚙️ на пачку действий, дальше — правки на месте.
+
+    Правки тратят тот же бюджет Bot API, что и отправки (≈20 правок в минуту на группу),
+    поэтому: не чаще одной в _PROGRESS_MIN_INTERVAL, никогда с прежним текстом (иначе
+    `message is not modified`) и с собственным ключом коалесцирования — очередь схлопнет
+    пачку правок в одну, отдав самый свежий текст.
+    """
+    if not state.block:
+        return
+    text = _progress_text(state.lines(), len(state.actions),
+                          time.time() - state.started)
+    if text == state.last_text:
+        return
+    now = time.time()
+    if not force and now - state.last_edit < _PROGRESS_MIN_INTERVAL:
+        return
+    head, _, body = text.partition("\n")
+    if state.msg_id is None:
+        sent = await _send_expandable(
+            config["group_id"], thread_id, head, body,
+            telemetry_key=("progress", thread_id, orch_name, state.block_seq),
+        )
+        # message_id разрешаем БЕЗ ожидания в потоке: ждать доставки здесь — задержать
+        # весь журнал агента. Не разрешился (косметику выбросили) → правок не будет.
+        if isinstance(sent, asyncio.Future):
+            def _remember(f, s=state, seq=state.block_seq):
+                # Пачка могла смениться, пока сообщение ехало: чужой message_id заставил
+                # бы следующую пачку править предыдущее ⚙️ вместо своего.
+                if f.cancelled() or f.exception() is not None or s.block_seq != seq:
+                    return
+                s.msg_id = getattr(f.result(), "message_id", None)
+            sent.add_done_callback(_remember)
+        else:
+            state.msg_id = getattr(sent, "message_id", None)
+    else:
+        await _tg_edit_message_safe(
+            config["group_id"], state.msg_id, text,
+            telemetry_key=("progress-edit", thread_id, orch_name, state.block_seq),
+        )
+    state.last_edit = now
+    state.last_text = text
 
 
 # Expandable blockquote wraps the body so long tool outputs are collapsed by default in TG.
@@ -1875,7 +2045,14 @@ async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
     )
 
 
-async def _tg_edit_message_safe(chat_id: int, message, text: str, entities=None):
+async def _tg_edit_message_safe(chat_id: int, message, text: str, entities=None,
+                                telemetry_key=None):
+    """telemetry_key схлопывает пачку правок ОДНОГО сообщения в одну отправку.
+
+    Ключ обязан отличаться от ключа исходной отправки: очередь при совпадении ключа
+    подменяет `call_factory` уже стоящего элемента, и правка стала бы ждать `Future`
+    подменённого вызова.
+    """
     async def _message_id():
         resolved = await message if isinstance(message, asyncio.Future) else message
         if resolved is None:
@@ -1898,7 +2075,8 @@ async def _tg_edit_message_safe(chat_id: int, message, text: str, entities=None)
                 raise
             return _TG_ENTITY_REJECTED
 
-    result = await _tg_call_safe(chat_id, _edit, label="edit_message")
+    result = await _tg_call_safe(chat_id, _edit, label="edit_message",
+                                 telemetry_key=telemetry_key)
     if isinstance(result, asyncio.Future):
         async def _finish_edit():
             queued_result = await result
@@ -2176,6 +2354,9 @@ _TG_TOOL_ICONS = {
     'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️',
     'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
     'Agent': '🤖', 'ToolSearch': '🔍', 'AskUserQuestion': '❓',
+    # Одна правка файла — один значок, каким бы рантаймом она ни была сделана:
+    # Codex пишет её как FileChange, Claude как Edit/Write (767 против 82 за трое суток).
+    'FileChange': '✏️',
 }
 _TG_MCP_ICONS = {
     'orchestra': '🎼', 'websearch': '🌐', 'kesha': '🦜',
@@ -2205,49 +2386,6 @@ _MODEL_SHORT = {
     'claude-sonnet-5[1m]': 'sonnet-5-1M', 'claude-sonnet-4-6': 'sonnet-4.6', 'claude-haiku-4-5': 'haiku-4.5',
     'claude-haiku-4-6': 'haiku-4.6', 'gpt-5.5': 'gpt-5.5',
 }
-
-
-def _fmt_worker_info(data: dict) -> str | None:
-    """Pretty format get_worker_info result for TG."""
-    name = data.get("name")
-    if not name:
-        return None
-    model = _MODEL_SHORT.get(data.get("model", ""), data.get("model", "?"))
-    status = data.get("status", "?")
-    ctx = data.get("context_pct")
-    ctx_s = f" | ctx:{ctx}%" if ctx else ""
-    lines = [f"🤖 {name} ({model}) | {status}{ctx_s}"]
-    scope = data.get("scope", "")
-    if scope:
-        short_scope = scope.rsplit("/", 1)[-1] if "/" in scope else scope
-        lines.append(f"📁 {short_scope}")
-    branch = data.get("branch", "")
-    if branch:
-        lines.append(f"🌿 {branch}")
-    cost = data.get("cost_usd")
-    cached = data.get("cost_usd_cached")
-    if cost:
-        cost_s = f"💰 ${cost:.2f}"
-        if cached:
-            cost_s += f" (${cached:.2f} cached)"
-        lines.append(cost_s)
-    turns = data.get("total_turns", 0)
-    out_tokens = data.get("total_output_tokens", 0)
-    if turns or out_tokens:
-        parts = []
-        if turns:
-            parts.append(f"{turns} turn{'s' if turns != 1 else ''}")
-        if out_tokens:
-            tok = f"{out_tokens // 1000}k" if out_tokens >= 1000 else str(out_tokens)
-            parts.append(f"{tok} out tokens")
-        lines.append(f"📊 {', '.join(parts)}")
-    task_id = data.get("task_id", "")
-    if task_id:
-        lines.append(f"📋 task #{task_id}")
-    desc = data.get("description", "")
-    if desc:
-        lines.append(f"📝 {desc[:100]}")
-    return "\n".join(lines)
 
 
 def _short_name(name: str) -> str:
@@ -2899,204 +3037,6 @@ async def ensure_topics():
         await _ensure_mirror_topic(name, mirror)
 
 
-_pil_available: bool | None = None
-
-
-def _check_pil() -> bool:
-    global _pil_available
-    if _pil_available is None:
-        try:
-            from PIL import Image, ImageDraw, ImageFont  # noqa: F401
-            _pil_available = True
-        except Exception as e:
-            _pil_available = False
-            logger.warning(f"Pillow not installed — TG diff/result images disabled. Run `uv sync`. ({e})")
-    return _pil_available
-
-
-def _diff_images_enabled() -> bool:
-    return os.getenv("TG_DIFF_IMAGES", "true").lower() not in ("0", "false", "no") and _check_pil()
-
-
-def _result_images_enabled() -> bool:
-    return os.getenv("TG_RESULT_IMAGES", "true").lower() in ("1", "true", "yes") and _check_pil()
-
-
-@dataclass(frozen=True)
-class _ImageSubmission:
-    accepted: bool
-    completion: asyncio.Future | None = None
-
-    def __bool__(self) -> bool:
-        return self.accepted
-
-
-async def _send_png_to_tg(
-    png: bytes,
-    chat_id: int,
-    thread_id: int,
-    label: str,
-) -> _ImageSubmission:
-    """Hand a reliable preview snapshot to the isolated image lane."""
-    import uuid, tempfile
-    if not png or not bot:
-        return _ImageSubmission(False)
-    tmp = os.path.join(tempfile.gettempdir(), f"diff-{uuid.uuid4().hex}.png")
-    with open(tmp, "wb") as f:
-        f.write(png)
-
-    def _cleanup(_=None):
-        try:
-            os.unlink(tmp)
-        except FileNotFoundError:
-            pass
-        except Exception as e:
-            logger.warning(f"tmp diff image cleanup failed ({tmp}): {e}")
-
-    try:
-        delivery = await _tg_send_file_safe(
-            chat_id,
-            tmp,
-            None,
-            thread_id,
-            is_photo=True,
-            important=True,
-            placeholder_text=f"🖼 {label}",
-            isolated_preview=True,
-        )
-    except asyncio.CancelledError:
-        _cleanup()
-        raise
-    except Exception:
-        _cleanup()
-        raise
-    if not isinstance(delivery, asyncio.Future):
-        _cleanup()
-        return _ImageSubmission(False)
-    delivery.add_done_callback(_cleanup)
-    return _ImageSubmission(True, delivery)
-
-
-async def _send_diff_image(tool_name: str, raw_content: str, chat_id: int, thread_id: int):
-    """Parse an Edit/Write call and submit an optional diff preview."""
-    if not _diff_images_enabled():
-        logger.debug("diff images disabled")
-        return False
-    import json
-    try:
-        colon = raw_content.index(":")
-        params = json.loads(raw_content[colon + 1:].strip())
-    except Exception as e:
-        logger.debug(f"diff image parse failed for {tool_name}: {e}, raw[:100]={raw_content[:100]}")
-        return False
-    try:
-        from app.diff_image import render_edit_diff, render_write_diff
-        if tool_name == "Edit":
-            png = render_edit_diff(params.get("file_path", ""), params.get("old_string", ""), params.get("new_string", ""))
-        else:  # Write
-            png = render_write_diff(params.get("file_path", ""), params.get("content", ""))
-        return await _send_png_to_tg(png, chat_id, thread_id, tool_name)
-    except _TgDeliveryOverloaded:
-        raise
-    except Exception as e:
-        logger.warning(f"diff image send failed ({tool_name}): {e}")
-        return False
-
-
-async def _send_result_image(tool_name: str, tool_raw: str, result: str, chat_id: int, thread_id: int):
-    """Render and submit an optional tool-result preview."""
-    if not _result_images_enabled():
-        return False
-    try:
-        if tool_name == "Read":
-            import json
-            # tool_raw: "Read: {\"file_path\": ..., \"offset\": ...}"
-            try:
-                colon = tool_raw.index(":")
-                params = json.loads(tool_raw[colon + 1:].strip())
-                file_path = params.get("file_path", "")
-                offset = int(params.get("offset", 0))
-            except Exception as _e:
-                logger.debug(f"Read tool params unparsable: {type(_e).__name__}: {_e}")
-                file_path = ""
-                offset = 0
-            from app.diff_image import render_read
-            png = render_read(file_path, result, offset)
-            return await _send_png_to_tg(png, chat_id, thread_id, "Read")
-
-        elif tool_name == "Grep":
-            import json, re as _re
-            # Parse pattern from tool_raw
-            try:
-                colon = tool_raw.index(":")
-                params = json.loads(tool_raw[colon + 1:].strip())
-                pattern = params.get("pattern", "")
-            except Exception as _e:
-                logger.debug(f"Grep tool params unparsable: {type(_e).__name__}: {_e}")
-                pattern = ""
-
-            # result format: "path/file.py:42:matching line text\n..."
-            # or files_with_matches: just paths
-            parsed = []
-            for line in result.splitlines():
-                # expect "file:lineno:text" format
-                m = _re.match(r'^(.+?):(\d+):(.*)$', line)
-                if not m:
-                    continue  # files_with_matches or no match — skip
-                fpath, lineno, text = m.group(1), int(m.group(2)), m.group(3)
-                fpath = _re.sub(r'^.*/worktrees/[^/]+/[^/]+/', '', fpath)
-                # Find match position in text
-                ms, me = 0, len(text)
-                if pattern:
-                    try:
-                        pm = _re.search(pattern, text)
-                        if pm:
-                            ms, me = pm.start(), pm.end()
-                    except Exception as e:
-                        logger.debug(f"grep highlight pattern failed: {e}")
-                parsed.append((fpath, lineno, text, ms, me))
-
-            if not parsed:
-                return False
-
-            from app.diff_image import render_grep
-            png = render_grep(pattern, parsed)
-            return await _send_png_to_tg(png, chat_id, thread_id, "Grep")
-
-        elif tool_name == "Bash":
-            import json
-            try:
-                colon = tool_raw.index(":")
-                params = json.loads(tool_raw[colon + 1:].strip())
-                command = params.get("command", "")
-            except Exception as _e:
-                logger.debug(f"Bash tool params unparsable: {type(_e).__name__}: {_e}")
-                command = ""
-            from app.diff_image import render_bash
-            png = render_bash(command, result)
-            return await _send_png_to_tg(png, chat_id, thread_id, "Bash")
-
-        elif tool_name == "Glob":
-            import json
-            try:
-                colon = tool_raw.index(":")
-                params = json.loads(tool_raw[colon + 1:].strip())
-                pattern = params.get("pattern", "")
-            except Exception as _e:
-                logger.debug(f"Glob tool params unparsable: {type(_e).__name__}: {_e}")
-                pattern = ""
-            if not result.strip():
-                return False
-            from app.diff_image import render_glob
-            png = render_glob(pattern, result)
-            return await _send_png_to_tg(png, chat_id, thread_id, "Glob")
-        else:
-            return False
-    except _TgDeliveryOverloaded:
-        raise
-    except Exception as e:
-        logger.debug(f"result image send failed ({tool_name}): {e}")
-        return False
 
 
 async def stream_logs(orch_name: str, thread_id: int):
@@ -3125,10 +3065,10 @@ async def stream_logs(orch_name: str, thread_id: int):
     _poll_conn = _conn()
     logs = get_logs(session_id, after_id=0, conn=_poll_conn)
     last_id = logs[-1]["id"] if logs else 0
-    _last_tool_msg = None
-    _last_tool_text = ""
-    _last_tool_name = ""   # track last tool for result image rendering
-    _last_tool_raw = ""    # full raw content of last tool call
+    turn = _TurnState()
+    # Отметка «якорь по этой строке уже ушёл» живёт ВНЕ состояния хода: состояние
+    # обнуляется на границе, а откат курсора переигрывает саму строку `turn ended`.
+    _anchor_sent_for = None
     _spoke_this_turn = False          # был ли текст юзеру в текущем ходе
     _pending_turn_end_mention = False
     _idle_ticks = 0
@@ -3145,9 +3085,12 @@ async def stream_logs(orch_name: str, thread_id: int):
                     current_log_previous_id = last_id
                     last_id = log["id"]
                     t, c = log["type"], log["content"]
+                    is_anchor = False
                     if t in ("text", "tool"):
                         _schedule_topic_status(orch_name, True)
                     if t == "user_message":
+                        await _update_progress(turn, thread_id, orch_name, force=True)
+                        turn.new_block()
                         c = re.sub(r'^\[\d{2}:\d{2}\] ', '', c)
                         img_match = re.search(r'(/\S+\.(?:png|jpg|jpeg|gif|webp))', c, re.IGNORECASE)
                         if img_match and Path(img_match.group(1)).is_file():
@@ -3176,6 +3119,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                         from app.tool_call_guard import mark_unexecuted_tool_call
 
                         _spoke_this_turn = True
+                        await _update_progress(turn, thread_id, orch_name, force=True)
+                        turn.new_block()
                         raw_text = f"💬\n{mark_unexecuted_tool_call(c)}"
                         for converted, aio_ents in _formatted_chunks(raw_text):
                             await _tg_send_safe(
@@ -3188,152 +3133,39 @@ async def stream_logs(orch_name: str, thread_id: int):
                         continue
                     elif t == "tool":
                         tool_name = c.split(":")[0].strip() if ":" in c else "tool"
-                        tool_body = c[len(tool_name)+1:].strip()[:1200] if ":" in c else c[:1200]
-                        icon = _tg_tool_icon(tool_name)
-                        short = _tg_tool_short(tool_name)
-                        # spawn_worker: show name + model + role in header
-                        if "spawn_worker" in tool_name:
-                            try:
-                                import json as _json
-                                _sp = _json.loads(tool_body.strip())
-                                _sp_name = _sp.get("name", "?")
-                                _sp_model = _MODEL_SHORT.get(_sp.get("model", ""), _sp.get("model", ""))
-                                _sp_role = _sp.get("role", "")
-                                _role_part = f" · {_sp_role}" if _sp_role and _sp_role != "worker" else ""
-                                header = f"🚀 Spawning {_sp_name} ({_sp_model}{_role_part})"
-                            except Exception as _e:
-                                logger.debug(f"spawn_worker header format failed: {type(_e).__name__}: {_e}")
-                                header = f"{icon} {short}"
-                        else:
-                            header = f"{icon} {short}"
-                        _last_tool_text = f"{header}\n{tool_body}"
-                        _last_tool_name = tool_name
-                        _last_tool_raw = c
-                        # Images are optional previews; text remains the durable evidence.
-                        if tool_name in ("Edit", "Write"):
-                            await _send_diff_image(
-                                tool_name, c, config["group_id"], thread_id,
-                            )
-                        # Special formatting for send_message — render as pretty HTML
-                        # send_message tool: render as readable HTML instead of raw JSON expandable —
-                        # the recipient name and message body are the useful parts
-                        if "send_message" in tool_name:
-                            try:
-                                import json as _json
-                                colon_idx = c.index(":")
-                                sm_params = _json.loads(c[colon_idx + 1:].strip())
-                                sm_to = sm_params.get("to", "?")
-                                sm_msg = sm_params.get("message", "")
-                                sm_md = f"✉️ **→ {sm_to}**\n\n{sm_msg}"
-                                for chunk_index, (chunk, aio_ents) in enumerate(
-                                    _formatted_chunks(sm_md)
-                                ):
-                                    await _tg_send_safe(
-                                        config["group_id"], chunk, thread_id,
-                                        entities=aio_ents,
-                                        telemetry_key=("tool", thread_id, orch_name),
-                                        batch_bucket=_tg_tool_batch(
-                                            thread_id, orch_name,
-                                        ),
-                                    )
-                            except Exception as _e:
-                                logger.debug(f"send_message pretty format failed: {_e}")
-                                _last_tool_msg = await _send_expandable(
-                                    config["group_id"], thread_id, header, tool_body,
-                                    telemetry_key=("tool", thread_id, orch_name),
-                                batch_bucket=_tg_tool_batch(thread_id, orch_name),
-                                )
-                        else:
-                            _last_tool_msg = await _send_expandable(
-                                config["group_id"], thread_id, header, tool_body,
-                                telemetry_key=("tool", thread_id, orch_name),
-                                batch_bucket=_tg_tool_batch(thread_id, orch_name),
-                            )
-                        try:
-                            m_text, m_ents = md_convert(f"{header}\n{tool_body}")
-                            from aiogram.types import MessageEntity as AioEntity
-                            await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
-                        except Exception as _e:
-                            logger.debug(f"mirror tool format failed: {type(_e).__name__}: {_e}")
-                            await _mirror_send(orch_name, f"{header}\n{tool_body}")
+                        tool_body = c[len(tool_name) + 1:].strip() if ":" in c else c
+                        turn.add(log["id"], _tool_line(tool_name, tool_body),
+                                 log.get("tool_use_id") or "")
+                        turn.raw[log["id"]] = tool_body
+                        turn.names[log["id"]] = tool_name
+                        await _update_progress(turn, thread_id, orch_name)
                         continue
                     elif t == "tool_result":
-                        if "get_worker_info" in _last_tool_name:
+                        # Картинка настоящего файла, который агент СМОТРЕЛ, — это содержимое,
+                        # а не машинерия: она остаётся отдельным сообщением.
+                        _action_id = turn.resolve(log["id"], log.get("tool_use_id") or "")
+                        if turn.names.get(_action_id) == "Read" and (
+                            "'type': 'image'" in c or '"type": "image"' in c
+                            or "'type':'image'" in c
+                        ):
+                            raw = turn.raw.get(_action_id, "")
                             try:
-                                import json as _json
-                                _wi = _json.loads(c)
-                                if isinstance(_wi, dict) and _wi.get("result"):
-                                    _wi = _json.loads(_wi["result"]) if isinstance(_wi["result"], str) else _wi["result"]
-                                pretty = _fmt_worker_info(_wi) if isinstance(_wi, dict) else None
-                                if pretty:
-                                    await _tg_send_safe(config["group_id"], pretty, thread_id)
-                                    await _mirror_send(orch_name, pretty)
-                                    _last_tool_msg = None
-                                    _last_tool_text = ""
-                                    _last_tool_name = ""
-                                    _last_tool_raw = ""
-                                    continue
-                            except Exception as e:
-                                logger.debug(f"worker_info pretty-print failed, falling back to raw: {e}")
-                        # Read tool returned an image — send original file instead of base64 spam
-                        if _last_tool_name == "Read" and ("'type': 'image'" in c or '"type": "image"' in c or "'type':'image'" in c):
-                            try:
-                                import json as _json
-                                _colon = _last_tool_raw.index(":")
-                                _read_params = _json.loads(_last_tool_raw[_colon + 1:].strip())
+                                _read_params = json.loads(raw) if raw else {}
                                 _img_path = _read_params.get("file_path", "")
                                 if _img_path and Path(_img_path).is_file():
-                                    delivery = await _tg_send_file_safe(
+                                    await _tg_send_file_safe(
                                         config["group_id"], _img_path,
                                         f"📷 {Path(_img_path).name}", thread_id,
                                         is_photo=True, important=True,
                                         isolated_preview=True,
                                     )
-                                    if isinstance(delivery, asyncio.Future):
-                                        if _last_tool_msg:
-                                            _last_tool_msg = None
-                                            _last_tool_text = ""
-                                        _last_tool_name = ""
-                                        _last_tool_raw = ""
-                                        continue
                             except _TgDeliveryOverloaded:
                                 raise
                             except Exception as _e:
-                                logger.debug(f"Read image send failed, falling back: {_e}")
-                        result_preview = c[:80].replace("\n", " ").strip()
-                        result_body = c[:800]
-                        image_submission = False
-                        if _last_tool_name in ("Read", "Grep", "Bash", "Glob"):
-                            image_submission = await _send_result_image(
-                                _last_tool_name, _last_tool_raw, c,
-                                config["group_id"], thread_id,
-                            )
-                        if image_submission:
-                            _last_tool_msg = None
-                            _last_tool_text = ""
-                        elif _last_tool_msg:
-                            await _edit_tool_with_result(
-                                _last_tool_msg, config["group_id"],
-                                _last_tool_text, f"📎 {result_preview}", result_body,
-                            )
-                            _last_tool_msg = None
-                            _last_tool_text = ""
-                        else:
-                            await _send_expandable(
-                                config["group_id"], thread_id,
-                                f"📎 {result_preview}", result_body,
-                                telemetry_key=("tool", thread_id, orch_name),
-                                batch_bucket=_tg_tool_batch(thread_id, orch_name),
-                            )
-                        try:
-                            m_text, m_ents = md_convert(f"📎 {result_preview}\n{result_body}")
-                            from aiogram.types import MessageEntity as AioEntity
-                            await _mirror_send(orch_name, m_text, entities=[AioEntity(**e.to_dict()) for e in m_ents] if m_ents else None)
-                        except Exception as _e:
-                            logger.debug(f"mirror result format failed: {type(_e).__name__}: {_e}")
-                            await _mirror_send(orch_name, f"📎 {result_preview}\n{result_body}")
-                        _last_tool_name = ""
-                        _last_tool_raw = ""
+                                logger.debug(f"Read image send failed: {_e}")
+                        turn.close(log["id"], log.get("tool_use_id") or "",
+                                   _result_mark(c, log.get("tool_is_error")))
+                        await _update_progress(turn, thread_id, orch_name)
                         continue
                     elif t == "error":
                         text = f"❌ {c}"
@@ -3347,7 +3179,26 @@ async def stream_logs(orch_name: str, thread_id: int):
                             # момент отправки не знает, будет ли ещё текст (живой замер:
                             # 4777 из 6161 строк text — промежуточные).
                             _pending_turn_end_mention = is_orch and _spoke_this_turn
-                        text = f"⚡ {c}"
+                            await _update_progress(turn, thread_id, orch_name,
+                                                   force=True)
+                            if _anchor_sent_for == log["id"]:
+                                # Якорь по этой строке уже ушёл, а строка переигралась.
+                                # Пропускаем ТОЛЬКО повтор якоря: дальше по строке живёт
+                                # тег владельца, и `continue` здесь терял бы его молча.
+                                text = ""
+                            else:
+                                elapsed = (time.time() - turn.started
+                                           if turn.started else 0.0)
+                                text = _turn_anchor(turn.all_lines(), elapsed, c)
+                                is_anchor = True
+                        elif c in _STATUS_AS_ACTION:
+                            turn.add(log["id"], _STATUS_AS_ACTION[c])
+                            await _update_progress(turn, thread_id, orch_name)
+                            continue
+                        elif c in _STATUS_RELIABLE:
+                            text = f"⚡ {c}"
+                        else:
+                            continue    # телеметрия движка, юзеру не адресована
                     elif t == "subagent_end":
                         # Only the FINAL of a sub-agent (start/progress/stream = spam, dropped).
                         # Content: "desc | status=X | summary". Show desc + ok/fail.
@@ -3365,12 +3216,20 @@ async def stream_logs(orch_name: str, thread_id: int):
                         text = f"{'✅' if _ok else '❌'} Sub-agent {'done' if _ok else 'failed'}: {_desc}"
                     else:
                         continue
-                    is_important = t in ("text", "error", "user_message")
-                    for converted, aio_ents in _formatted_chunks(text):
+                    # Якорь идёт по НАДЁЖНОЙ полосе: это единственная отметка «ход
+                    # окончен», и потерять её значит вернуть исходную жалобу.
+                    is_important = is_anchor or t in ("text", "error", "user_message")
+                    for converted, aio_ents in (_formatted_chunks(text) if text else []):
                         await _tg_send_safe(
                             config["group_id"], converted, thread_id,
                             entities=aio_ents, important=is_important,
                         )
+                        if is_anchor:
+                            # Отмечаем СРАЗУ после доставки якоря, до зеркала: всё, что
+                            # идёт следом по этой же строке, может упасть и откатить
+                            # курсор — тогда строка переиграется с уже ушедшим якорем.
+                            _anchor_sent_for = log["id"]
+                            turn = _TurnState()
                         await _mirror_send(
                             orch_name, converted, entities=aio_ents,
                             important=is_important,

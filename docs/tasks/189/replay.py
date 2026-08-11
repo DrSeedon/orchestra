@@ -40,7 +40,9 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-REPO = Path("/home/kesha/orchestra")
+# Корень берётся ОТ САМОГО ФАЙЛА, а не из константы: стенд обязан мерить то дерево,
+# в котором лежит, иначе замерит чужой код. Наступал на это дважды за одну задачу.
+REPO = Path(__file__).resolve().parents[3]      # переопределяется флагом --repo
 
 # Живая карта топиков из data/tg_bridge.json — стримятся ТОЛЬКО эти агенты
 TOPICS = {
@@ -66,6 +68,7 @@ CLASSES = {
     "💬": "текст оркестратора", "👤": "юзер", "📨": "отчёт воркера",
     "✉️": "задание воркеру", "📎": "результат тулом", "⚡": "статус",
     "❌": "ошибка", "🖼": "картинка", "📷": "картинка", "✅": "sub-agent",
+    "⚙️": "⚙️ свёртка хода", "━": "━ якорь конца хода",
 }
 
 
@@ -77,18 +80,27 @@ def classify(text: str) -> str:
     return "прочее"
 
 
-def load_rows(snapshot: str, day: str):
+def load_rows(snapshot: str, day: str, ids: str = ""):
     conn = sqlite3.connect(f"file:{snapshot}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     q = ",".join("?" * len(TOPICS))
     nxt = f"{day[:8]}{int(day[8:]) + 1:02d}"
-    rows = conn.execute(
-        f"""SELECT l.id, l.ts, l.type, l.content, l.event_id, l.session_id, s.name agent
-            FROM logs l JOIN sessions s ON s.id = l.session_id
-            WHERE s.name IN ({q}) AND l.ts >= ? AND l.ts < ?
-            ORDER BY l.id""",
-        (*TOPICS, day, nxt),
-    ).fetchall()
+    if ids:
+        lo, _, hi = ids.partition("-")
+        rows = conn.execute(
+            f"""SELECT l.id, l.ts, l.type, l.content, l.event_id, l.session_id, s.name agent
+                FROM logs l JOIN sessions s ON s.id = l.session_id
+                WHERE s.name IN ({q}) AND l.id BETWEEN ? AND ? ORDER BY l.id""",
+            (*TOPICS, int(lo), int(hi or lo)),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            f"""SELECT l.id, l.ts, l.type, l.content, l.event_id, l.session_id, s.name agent
+                FROM logs l JOIN sessions s ON s.id = l.session_id
+                WHERE s.name IN ({q}) AND l.ts >= ? AND l.ts < ?
+                ORDER BY l.id""",
+            (*TOPICS, day, nxt),
+        ).fetchall()
     sessions = conn.execute(
         f"SELECT * FROM sessions WHERE name IN ({q})", tuple(TOPICS)
     ).fetchall()
@@ -110,6 +122,7 @@ def split_bursts(rows):
 
 
 def build_replay_db(path: Path, sessions):
+    global REPO
     if path.exists():
         path.unlink()
     for suffix in ("-wal", "-shm"):
@@ -118,6 +131,7 @@ def build_replay_db(path: Path, sessions):
             p.unlink()
     os.environ["ORCHESTRA_DB_PATH"] = str(path)
     sys.path.insert(0, str(REPO))
+    print(f"дерево под замером: {REPO}", flush=True)
     from app import db
 
     assert db.DB_PATH == path, f"БД не подменилась: {db.DB_PATH}"
@@ -199,6 +213,9 @@ def make_bot(stats, latency: float):
     async def send_message(chat_id, text, **kw):
         await asyncio.sleep(latency)
         counter["mid"] += 1
+        if os.getenv("REPLAY_DUMP"):
+            print(f"\n┌─ СООБЩЕНИЕ #{counter['mid']} ({len(text)} зн)\n"
+                  + "\n".join("│ " + ln for ln in text.splitlines()), flush=True)
         cls = classify(text)
         stats["delivered"][cls] += 1
         stats["chars"][cls] += len(text)
@@ -214,6 +231,10 @@ def make_bot(stats, latency: float):
     async def edit_message_text(*a, **kw):
         await asyncio.sleep(latency)
         stats["edits"]["text"] += 1
+        if os.getenv("REPLAY_DUMP"):
+            body = a[0] if a else kw.get("text", "")
+            print(f"\n┌─ ПРАВКА msg#{kw.get('message_id')} ({len(body)} зн)\n"
+                  + "\n".join("│ " + ln for ln in str(body).splitlines()), flush=True)
         return SimpleNamespace(message_id=0)
 
     async def edit_message_media(*a, **kw):
@@ -234,7 +255,7 @@ def make_bot(stats, latency: float):
 
 
 async def main_async(args):
-    rows, sessions = load_rows(args.snapshot, args.day)
+    rows, sessions = load_rows(args.snapshot, args.day, args.ids)
     if not rows:
         raise SystemExit("нет строк за этот день")
     bursts = split_bursts(rows)
@@ -294,6 +315,8 @@ def main():
                    help="номера пачек через запятую; пусто — все подряд")
     p.add_argument("--latency", type=float, default=0.13,
                    help="задержка Bot API, с (живой замер: reliable_last_latency 0.13)")
+    p.add_argument("--repo", default="", help="какое дерево мерить (для замера «до»)")
+    p.add_argument("--ids", default="", help="диапазон log.id вместо суток, напр. 54907-54956")
     p.add_argument("--list", action="store_true", help="только показать пачки")
     args = p.parse_args()
     if args.list:
@@ -303,6 +326,8 @@ def main():
                     - datetime.fromisoformat(b[0]["ts"]).timestamp())
             print(f"{i:3} {b[0]['ts'][11:19]} {len(b):5} строк {span/60:6.1f} мин")
         return
+    if args.repo:
+        globals()["REPO"] = Path(args.repo).resolve()
     asyncio.run(main_async(args))
 
 
