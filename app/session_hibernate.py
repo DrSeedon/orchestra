@@ -171,7 +171,7 @@ class HibernateManager:
                     logger.warning(f"[{s.name}] heartbeat: listener dead but status=RUNNING — reconnecting")
                     s._log("error", "heartbeat detected dead listener, reconnecting")
                     try:
-                        await s._backend.reconnect()
+                        await s._reconnect_backend()
                         s._listen_task = asyncio.create_task(s._persistent_event_loop())
                         s._listen_task.add_done_callback(s._on_task_done)
                         await s._backend.send("[system] Connection was restored after interruption. Continue your work.")

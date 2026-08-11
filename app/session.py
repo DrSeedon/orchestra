@@ -1,11 +1,13 @@
 """AgentSession — backend-agnostic wrapper with persistent event loop."""
 
 import asyncio
+from collections import Counter
 import json
 import logging
 import os
 import re
 import time
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from functools import partial
@@ -28,6 +30,13 @@ from app.runtime_registry import (
     build_backend,
     get_runtime,
 )
+from app.runtime_history import (
+    CLAUDE_CLI_HISTORY_VERSION,
+    CLAUDE_HISTORY_SOURCE,
+    NativeHistoryImportError,
+    NativeHistoryRejected,
+    render_claude_history,
+)
 from app.session_cost import CostTracker
 from app.session_hibernate import HibernateManager
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
@@ -39,7 +48,7 @@ from app.usage_contract import KnownContext, current_context
 if TYPE_CHECKING:
     from app.backend_protocol import BackendLike
     from app.quota_gate import QuotaDecision
-from app.db import add_log, get_logs, save_session, tool_error_add
+from app.db import add_log, get_history_logs, get_logs, save_session, tool_error_add
 from app.errtext import err_text
 
 
@@ -306,6 +315,7 @@ class AgentSession:
     backend_type: str = "claude"
     effort: str | None = None
     runtime_handoff: str = ""
+    history_import_source: str | None = None
     last_summary: str = ""
     task_id: str = ""
     description: str = ""
@@ -683,7 +693,7 @@ class AgentSession:
     def is_orchestrator(self, value: bool) -> None:
         self._is_orchestrator = value
 
-    def _make_backend(self, force_fresh: bool = False):
+    def _make_backend(self, force_fresh: bool = False, history_import=None):
         spec = get_model_spec(self.model)
         system_prompt = self.system_prompt
         project_doc_instruction = getattr(self, "_codex_project_doc_instruction", "")
@@ -707,6 +717,7 @@ class AgentSession:
                 self.backend_type == "codex"
                 and getattr(self, "_codex_skill_index_fallback", False)
             ),
+            history_import=history_import,
         )
         return build_backend(self.backend_type, context)
 
@@ -942,7 +953,15 @@ class AgentSession:
                 asyncio.create_task(self._notify_scope_running())
 
             try:
-                backend = await self._ensure_backend()
+                try:
+                    backend = await self._ensure_backend(
+                        exclude_history_users=(original_user_message,),
+                    )
+                except NativeHistoryImportError as error:
+                    backend = await self._fallback_db_backed_claude(
+                        error,
+                        (original_user_message,),
+                    )
             except Exception:
                 self.status = AgentStatus.IDLE
                 self._persist()
@@ -1112,7 +1131,39 @@ class AgentSession:
         await self._disconnect_backend()
         return True
 
-    async def _ensure_backend(self, force_fresh: bool = False):
+    async def _build_claude_history_import(
+        self,
+        target_session_id: str,
+        target_model: str,
+        exclude_user_messages: tuple[str, ...] = (),
+    ):
+        if self._log_futures:
+            await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
+        loop = asyncio.get_running_loop()
+        snapshot_id, rows = await loop.run_in_executor(
+            _db_executor(), partial(get_history_logs, self.id)
+        )
+        return await loop.run_in_executor(
+            _db_executor(),
+            partial(
+                render_claude_history,
+                rows,
+                snapshot_id=snapshot_id,
+                session_id=target_session_id,
+                cwd=self.cwd,
+                model=target_model,
+                branch=self.branch or "",
+                exclude_user_messages=exclude_user_messages,
+            ),
+        )
+
+    async def _ensure_backend(
+        self,
+        force_fresh: bool = False,
+        history_import=None,
+        exclude_history_users: tuple[str, ...] = (),
+        activate: bool = True,
+    ):
         if self._backend is not None:
             if not force_fresh:
                 return self._backend
@@ -1127,27 +1178,105 @@ class AgentSession:
                 logger.warning(f"[{self.name}] AGENTS.md mirror refresh failed: {e}")
         await self._refresh_skills()
         await self._refresh_codex_project_doc()
-        self._backend = self._make_backend(force_fresh=force_fresh)
+        if (
+            history_import is None
+            and not force_fresh
+            and self.backend_type == "claude"
+            and self.history_import_source == CLAUDE_HISTORY_SOURCE
+            and self.session_id
+        ):
+            history_import = await self._build_claude_history_import(
+                self.session_id,
+                self.model,
+                exclude_history_users,
+            )
+        if history_import is None:
+            self._backend = self._make_backend(force_fresh=force_fresh)
+        else:
+            self._backend = self._make_backend(
+                force_fresh=force_fresh,
+                history_import=history_import,
+            )
         candidate = self._backend
         try:
             await candidate.connect()
+        except NativeHistoryImportError:
+            logger.warning("[%s] native history import failed", self.name)
+            if not getattr(candidate, "has_owned_processes", False):
+                self._backend = None
+            raise
         except Exception as e:
             logger.error(f"[{self.name}] backend connect failed: {err_text(e)}")
             self._log("error", f"connect failed: {err_text(e)}")
             if not getattr(candidate, "has_owned_processes", False):
                 self._backend = None
             raise
+        if activate:
+            self._activate_backend_tasks()
+        return self._backend
+
+    def _activate_backend_tasks(self) -> None:
         capabilities = get_runtime(self.backend_type).capabilities
         if capabilities.event_stream == "persistent":
-            self._listen_task = asyncio.create_task(self._persistent_event_loop())
-            self._listen_task.add_done_callback(self._on_task_done)
+            if self._listen_task is None or self._listen_task.done():
+                self._listen_task = asyncio.create_task(self._persistent_event_loop())
+                self._listen_task.add_done_callback(self._on_task_done)
         if self._heartbeat_task is None or self._heartbeat_task.done():
             self._heartbeat_task = asyncio.create_task(self._hibernate.heartbeat_loop())
-        return self._backend
+
+    async def _fallback_db_backed_claude(
+        self,
+        error: NativeHistoryImportError,
+        exclude_user_messages: tuple[str, ...],
+    ):
+        if self.history_import_source != CLAUDE_HISTORY_SOURCE:
+            raise error
+        handoff = await self._build_runtime_handoff(
+            exclude_user_messages=exclude_user_messages,
+        )
+        stale_session_id = self.session_id
+        if stale_session_id:
+            self.session_id_history.append({
+                "session_id": stale_session_id,
+                "runtime": "claude",
+                "model": self.model,
+                "history_import_failed_at": datetime.now(timezone.utc).isoformat(),
+            })
+            self.session_id_history = self.session_id_history[-10:]
+        self.session_id = None
+        self.history_import_source = None
+        self.runtime_handoff = handoff
+        self._last_context = {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
+        self._log(
+            "warning",
+            f"native history import unavailable: {err_text(error)}; summary fallback active",
+        )
+        self._persist()
+        return await self._ensure_backend(force_fresh=True)
 
     # ── Event loops ──
 
     MAX_CONSECUTIVE_FAILURES = 5
+
+    async def _reconnect_backend(self) -> None:
+        backend = self._backend
+        if backend is None:
+            raise RuntimeError("backend is unavailable for reconnect")
+        if (
+            self.backend_type == "claude"
+            and self.history_import_source == CLAUDE_HISTORY_SOURCE
+        ):
+            if not self.session_id:
+                raise RuntimeError("DB-backed Claude reconnect has no session id")
+            history = await self._build_claude_history_import(
+                self.session_id,
+                self.model,
+            )
+            replace_history = getattr(backend, "replace_history_import", None)
+            if not callable(replace_history):
+                raise RuntimeError("Claude backend cannot refresh DB-backed history")
+            replace_history(history)
+        await backend.reconnect()
 
     async def _persistent_event_loop(self) -> None:
         logger.info(f"[{self.name}] {self.backend_type} persistent event loop started")
@@ -1193,7 +1322,7 @@ class AgentSession:
             try:
                 if self._backend is None:
                     return
-                await self._backend.reconnect()
+                await self._reconnect_backend()
                 logger.info(f"[{self.name}] listener reconnected after error")
                 self._log("status", "listener reconnected")
                 if self.status == AgentStatus.RUNNING:
@@ -1264,6 +1393,7 @@ class AgentSession:
             broker.publish(self.id, payload)
             return
         tool_use_id = str(event.metadata.get("tool_use_id") or "")
+        tool_name_for_log = str(event.metadata.get("tool_name") or "")
         if event.type == "tool_use" and tool_use_id:
             self._tool_names_by_id[tool_use_id] = (
                 event.metadata.get("tool_name") or "unknown"
@@ -1271,6 +1401,7 @@ class AgentSession:
         elif event.type == "tool_result" and tool_use_id:
             remembered_name = self._tool_names_by_id.pop(tool_use_id, "unknown")
             tool_name = event.metadata.get("tool_name") or remembered_name
+            tool_name_for_log = str(tool_name)
             if event.metadata.get("is_error"):
                 self._submit_db_write(
                     tool_error_add,
@@ -1308,7 +1439,13 @@ class AgentSession:
             self._log("thinking", event.content)
         elif event.type == "tool_use":
             self.total_tool_calls += 1
-            self._log("tool", event.content)
+            self._log(
+                "tool",
+                event.content,
+                tool_use_id=tool_use_id or None,
+                tool_name=tool_name_for_log or None,
+                tool_is_error=False,
+            )
             short = event.content[:80]
             self._turn_logs.append(f"[tool] {short}")
             tool_name = event.metadata.get("tool_name", event.content)
@@ -1319,7 +1456,13 @@ class AgentSession:
             # знает типа `blob`, и первая же картинка перестала бы показываться. Хранилище
             # и чтение (`app/blobs.py`, `GET /api/blobs/...`) оставлены инертными до
             # разморозки #78; включать запись только вместе с фронтом.
-            self._log("tool_result", event.content)
+            self._log(
+                "tool_result",
+                event.content,
+                tool_use_id=tool_use_id or None,
+                tool_name=tool_name_for_log or None,
+                tool_is_error=bool(event.metadata.get("is_error")),
+            )
         elif event.type == "file_change":
             self._log("tool", f"file: {event.content}")
             self._turn_logs.append(f"[tool] file: {event.content[:60]}")
@@ -1449,7 +1592,15 @@ class AgentSession:
                 self.status = AgentStatus.RUNNING
                 self._persist()
                 self._hibernated = False
-                backend = await self._ensure_backend()
+                try:
+                    backend = await self._ensure_backend(
+                        exclude_history_users=tuple(msgs),
+                    )
+                except NativeHistoryImportError as error:
+                    backend = await self._fallback_db_backed_claude(
+                        error,
+                        tuple(msgs),
+                    )
                 combined, fact_keys = self._attach_pending_facts(combined)
                 await backend.send(combined)
                 self._ack_pending_facts(fact_keys)
@@ -1752,9 +1903,15 @@ class AgentSession:
                 if permit[2] != compact_stop_gen:
                     return abort_compact("compaction cancelled by stop", flush_pending=False)
             summary_parts = []
-            backend = self._backend or self._make_backend()
+            backend = self._backend
             need_connect = self._backend is None
             try:
+                if need_connect and self.history_import_source == CLAUDE_HISTORY_SOURCE:
+                    backend = await self._ensure_backend(activate=False)
+                    need_connect = False
+                elif backend is None:
+                    backend = self._make_backend()
+
                 async def start_summary_turn():
                     if need_connect:
                         await backend.connect()
@@ -1792,10 +1949,11 @@ class AgentSession:
                     continue
                 return abort_compact(last_error)
             finally:
-                try:
-                    await backend.disconnect()
-                except Exception:
-                    pass
+                if backend is not None:
+                    try:
+                        await backend.disconnect()
+                    except Exception:
+                        pass
                 self._backend = None
 
             if self._turn_start_cancel_gen != compact_stop_gen:
@@ -1916,6 +2074,7 @@ class AgentSession:
                 self._spawn_bg(self._flush_pending())
 
         self.last_summary = _bounded_summary(summary)
+        self.history_import_source = None
         # compact() hands the session a NEW native session_id, and every later
         # reconnect resumes it — a resumed CLI is never given system_prompt, so the
         # role would only survive in whatever the summary happened to mention.
@@ -2053,7 +2212,11 @@ class AgentSession:
         except Exception as e:
             logger.warning(f"[{self.name}] auto-compact failed: {e}")
 
-    async def _build_runtime_handoff(self, exclude_latest_user: str = "") -> str:
+    async def _build_runtime_handoff(
+        self,
+        exclude_latest_user: str = "",
+        exclude_user_messages: tuple[str, ...] = (),
+    ) -> str:
         """Build a bounded provider-neutral transcript for a new native runtime."""
         if self._log_futures:
             await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
@@ -2065,19 +2228,16 @@ class AgentSession:
         blocks: list[str] = []
         total = 0
         max_chars = 32_000
-        skipped_latest_user = False
+        excluded = Counter(message.strip() for message in exclude_user_messages)
+        if exclude_latest_user:
+            excluded[exclude_latest_user] += 1
         for entry in reversed(logs):
             label = labels.get(entry.get("type"))
             content = str(entry.get("content") or "").strip()
             if not label or not content:
                 continue
-            if (
-                exclude_latest_user
-                and not skipped_latest_user
-                and label == "User"
-                and content == exclude_latest_user.strip()
-            ):
-                skipped_latest_user = True
+            if label == "User" and excluded[content] > 0:
+                excluded[content] -= 1
                 continue
             if content.startswith("[Orchestra platform note:"):
                 continue
@@ -2098,6 +2258,156 @@ class AgentSession:
                 return {"ok": False, "error": "cannot change model while compacting"}
             return await self._change_model_locked(new_model)
 
+    async def _change_to_claude_with_history_locked(
+        self,
+        new_model: str,
+        old_model: str,
+        old_runtime: str,
+    ) -> dict:
+        await self._drain_persist()
+        target_session_id = str(uuid.uuid4())
+        history = await self._build_claude_history_import(
+            target_session_id,
+            new_model,
+        )
+        try:
+            fallback = (
+                _bounded_summary(self.last_summary)
+                if self.last_summary
+                else await self._build_runtime_handoff()
+            )
+        except Exception as error:
+            self._log("error", f"model change failed: {err_text(error)}")
+            return {"ok": False, "error": err_text(error)}
+        old_state = {
+            "model": self.model,
+            "backend_type": self.backend_type,
+            "session_id": self.session_id,
+            "session_id_history": [dict(item) for item in self.session_id_history],
+            "runtime_handoff": self.runtime_handoff,
+            "history_import_source": self.history_import_source,
+            "last_context": dict(self._last_context),
+            "prompt_injected": self._prompt_injected,
+            "hibernated": self._hibernated,
+        }
+
+        def restore_old_state() -> None:
+            self.model = old_state["model"]
+            self.backend_type = old_state["backend_type"]
+            self.session_id = old_state["session_id"]
+            self.session_id_history = old_state["session_id_history"]
+            self.runtime_handoff = old_state["runtime_handoff"]
+            self.history_import_source = old_state["history_import_source"]
+            self._last_context = old_state["last_context"]
+            self._prompt_injected = old_state["prompt_injected"]
+            self._hibernated = old_state["hibernated"]
+
+        await self._disconnect_backend()
+        self.model = new_model
+        self.backend_type = "claude"
+        self.session_id = target_session_id
+        self.runtime_handoff = ""
+        self.history_import_source = None
+        self._last_context = {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
+        self._prompt_injected = False
+        self._hibernated = False
+
+        transfer: dict
+        try:
+            backend = await self._ensure_backend(
+                history_import=history,
+                activate=False,
+            )
+            if backend.session_id != target_session_id:
+                raise NativeHistoryRejected(
+                    "Claude history import returned a different session id"
+                )
+            self.history_import_source = CLAUDE_HISTORY_SOURCE
+            self._prompt_injected = True
+            transfer = {
+                "mode": "native",
+                "runtime": "claude",
+                "version": CLAUDE_CLI_HISTORY_VERSION,
+                **history.report.as_dict(),
+            }
+        except NativeHistoryImportError as error:
+            self.session_id = None
+            self.history_import_source = None
+            self.runtime_handoff = fallback
+            self._prompt_injected = False
+            try:
+                backend = await self._ensure_backend(
+                    force_fresh=True,
+                    activate=False,
+                )
+            except Exception as fresh_error:
+                restore_old_state()
+                self._log(
+                    "error",
+                    f"model change failed: {err_text(fresh_error)}",
+                )
+                return {"ok": False, "error": err_text(fresh_error)}
+            transfer = {
+                "mode": "summary",
+                "runtime": "claude",
+                "reason": err_text(error),
+            }
+        except Exception as error:
+            restore_old_state()
+            self._log("error", f"model change failed: {err_text(error)}")
+            return {"ok": False, "error": err_text(error)}
+
+        for entry in self.session_id_history:
+            entry.setdefault("runtime", old_runtime)
+            entry.setdefault("model", old_model)
+        if old_state["session_id"]:
+            self.session_id_history.append({
+                "session_id": old_state["session_id"],
+                "runtime": old_runtime,
+                "model": old_model,
+                "switched_at": datetime.now(timezone.utc).isoformat(),
+            })
+            self.session_id_history = self.session_id_history[-10:]
+
+        try:
+            snapshot = self._to_db_dict()
+            await asyncio.get_running_loop().run_in_executor(
+                _db_executor(), save_session, snapshot
+            )
+        except Exception as error:
+            await self._disconnect_backend()
+            restore_old_state()
+            self._log("error", f"model change persistence failed: {err_text(error)}")
+            return {"ok": False, "error": err_text(error)}
+
+        self._activate_backend_tasks()
+        self._log(
+            "status",
+            f"model change: {old_model} ({old_runtime}) → {new_model} (claude)",
+        )
+        if transfer["mode"] == "native":
+            self._log(
+                "status",
+                history.report.status_text("claude", CLAUDE_CLI_HISTORY_VERSION),
+            )
+        else:
+            self._log(
+                "warning",
+                f"native history import unavailable: {transfer['reason']}; "
+                "summary fallback active",
+            )
+        return {
+            "ok": True,
+            "model": new_model,
+            "old_model": old_model,
+            "runtime": "claude",
+            "old_runtime": old_runtime,
+            "runtime_changed": True,
+            "native_session_reset": True,
+            "history_transfer": transfer,
+            "changed": True,
+        }
+
     async def _change_model_locked(self, new_model: str) -> dict:
         old_model = self.model
         if old_model == new_model:
@@ -2108,6 +2418,12 @@ class AgentSession:
         old_runtime = self.backend_type or backend_for_model(old_model)
         new_runtime = get_model_spec(new_model).runtime
         runtime_changed = old_runtime != new_runtime
+        if old_runtime == "codex" and new_runtime == "claude":
+            return await self._change_to_claude_with_history_locked(
+                new_model,
+                old_model,
+                old_runtime,
+            )
         native_session_reset = (
             runtime_changed
             or not get_runtime(new_runtime).capabilities.resume_across_models
@@ -2141,6 +2457,8 @@ class AgentSession:
             self._last_context = {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
         self.model = new_model
         self.backend_type = new_runtime
+        if runtime_changed:
+            self.history_import_source = None
         self._prompt_injected = False
         self._hibernated = False
         self._persist()
@@ -2248,17 +2566,29 @@ class AgentSession:
 
         future.add_done_callback(completed)
 
-    def _log(self, type: str, content: str, *, event_id: str = "") -> None:
+    def _log(
+        self,
+        type: str,
+        content: str,
+        *,
+        event_id: str = "",
+        tool_use_id: str | None = None,
+        tool_name: str | None = None,
+        tool_is_error: bool | None = None,
+    ) -> None:
         # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
-        future = asyncio.get_event_loop().run_in_executor(
-            _db_executor(),
-            add_log,
-            self.id,
-            datetime.now(timezone.utc),
-            type,
-            content,
-            event_id,
-        )
+        args = (self.id, datetime.now(timezone.utc), type, content, event_id)
+        if tool_use_id is None and tool_name is None and tool_is_error is None:
+            operation = partial(add_log, *args)
+        else:
+            operation = partial(
+                add_log,
+                *args,
+                tool_use_id=tool_use_id,
+                tool_name=tool_name,
+                tool_is_error=tool_is_error,
+            )
+        future = asyncio.get_event_loop().run_in_executor(_db_executor(), operation)
         self._log_futures.add(future)
 
         def completed(done) -> None:
@@ -2328,6 +2658,7 @@ class AgentSession:
             "backend_type": self.backend_type,
             "effort": self.effort or "",
             "runtime_handoff": self.runtime_handoff,
+            "history_import_source": self.history_import_source,
             "last_summary": self.last_summary,
             "task_id": self.task_id,
             "description": self.description,

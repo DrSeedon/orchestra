@@ -66,6 +66,7 @@ class BackendBuildContext:
     effort: str | None
     context_limit: int
     codex_skill_index_fallback: bool = False
+    history_import: object | None = None
 
 
 @dataclass(frozen=True)
@@ -186,6 +187,7 @@ def _claude_factory(context: BackendBuildContext) -> BackendLike:
         inherit_claude_md=inherit,
         user_mcp_servers=user_mcp,
         effort=context.effort,
+        history_import=context.history_import,
     )
 
 

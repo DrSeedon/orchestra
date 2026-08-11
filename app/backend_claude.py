@@ -1,6 +1,7 @@
 """ClaudeBackend — wraps claude-agent-sdk for persistent agent sessions."""
 
 import asyncio
+import importlib.metadata
 import json as _json
 import logging
 import os
@@ -30,6 +31,15 @@ from claude_agent_sdk.types import (
 
 from app.errtext import err_text
 from app.events import AgentEvent
+from app.runtime_history import (
+    CLAUDE_CLI_HISTORY_VERSION,
+    CLAUDE_SDK_HISTORY_VERSION,
+    HISTORICAL_TOOL_INSTRUCTION,
+    ClaudeHistoryImport,
+    ClaudeLogSessionStore,
+    NativeHistoryRejected,
+    NativeHistoryUnsupported,
+)
 from app.usage_contract import AggregateUsage, TurnUsage, deferred_context
 
 logger = logging.getLogger(__name__)
@@ -122,7 +132,8 @@ class ClaudeBackend:
                  config_dir: str = "",
                  inherit_claude_md: bool = True,
                  user_mcp_servers: dict | None = None,
-                 effort: str | None = None):
+                 effort: str | None = None,
+                 history_import: object | None = None):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
@@ -138,6 +149,9 @@ class ClaudeBackend:
         # F2: user-MCP из профильного .claude.json (базовый слой merge).
         self._user_mcp_servers = user_mcp_servers or {}
         self._effort = effort
+        if history_import is not None and not isinstance(history_import, ClaudeHistoryImport):
+            raise TypeError("history_import must be ClaudeHistoryImport")
+        self._history_import = history_import
         self._client: Optional[ClaudeSDKClient] = None
         self._session_id: str | None = resume_session_id
         self.resume_failed = False
@@ -153,6 +167,16 @@ class ClaudeBackend:
     @property
     def session_id(self) -> Optional[str]:
         return self._session_id
+
+    def replace_history_import(self, history_import: ClaudeHistoryImport) -> None:
+        if not isinstance(history_import, ClaudeHistoryImport):
+            raise TypeError("history_import must be ClaudeHistoryImport")
+        expected_session_id = self._session_id or self._resume_id
+        if expected_session_id and history_import.session_id != expected_session_id:
+            raise ValueError(
+                "replacement history must keep the current Claude session id"
+            )
+        self._history_import = history_import
 
     def _make_client(self) -> ClaudeSDKClient:
         cli = shutil.which("claude") or os.environ.get("CLAUDE_CLI_PATH", "claude")
@@ -186,7 +210,15 @@ class ClaudeBackend:
             if eff == "xhigh" and "claude" in (self.model or ""):
                 eff = "high"
             options.effort = eff
-        if resume_id:
+        if self._history_import:
+            options.resume = self._history_import.session_id
+            options.session_store = ClaudeLogSessionStore(self._history_import)
+            options.system_prompt = {
+                "type": "preset",
+                "preset": "claude_code",
+                "append": f"{self.system_prompt}\n\n{HISTORICAL_TOOL_INSTRUCTION}",
+            }
+        elif resume_id:
             options.resume = resume_id
         else:
             options.system_prompt = {"type": "preset", "preset": "claude_code", "append": self.system_prompt}
@@ -211,6 +243,59 @@ class ClaudeBackend:
         # в manager.create_session при skills=="all".
         return ClaudeSDKClient(options=options)
 
+    async def _verify_history_versions(self) -> None:
+        if not self._history_import:
+            return
+        sdk_version = importlib.metadata.version("claude-agent-sdk")
+        if sdk_version != CLAUDE_SDK_HISTORY_VERSION:
+            raise NativeHistoryUnsupported(
+                "native Claude history requires claude-agent-sdk "
+                f"{CLAUDE_SDK_HISTORY_VERSION}, got {sdk_version}"
+            )
+        cli = shutil.which("claude") or os.environ.get("CLAUDE_CLI_PATH", "claude")
+        try:
+            process = await asyncio.create_subprocess_exec(
+                cli,
+                "--version",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except OSError as error:
+            raise NativeHistoryUnsupported(
+                f"cannot verify Claude CLI history version: {err_text(error)}"
+            ) from error
+        try:
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10)
+        except asyncio.TimeoutError as error:
+            process.kill()
+            await process.wait()
+            raise NativeHistoryUnsupported(
+                f"cannot verify Claude CLI history version: {err_text(error)}"
+            ) from error
+        version_text = (stdout or stderr).decode(errors="replace").strip()
+        actual_version = version_text.split(maxsplit=1)[0] if version_text else ""
+        if process.returncode != 0 or actual_version != CLAUDE_CLI_HISTORY_VERSION:
+            actual = version_text or f"exit {process.returncode}"
+            raise NativeHistoryUnsupported(
+                f"native Claude history requires CLI {CLAUDE_CLI_HISTORY_VERSION}, got {actual}"
+            )
+
+    def _history_rejection(self, error: BaseException) -> NativeHistoryRejected | None:
+        if not self._history_import:
+            return None
+        detail = f"{err_text(error)}\n{self._stderr_tail}".lower()
+        markers = (
+            "no conversation found with session id",
+            "invalid transcript",
+            "failed to parse transcript",
+            "malformed transcript",
+        )
+        if not any(marker in detail for marker in markers):
+            return None
+        return NativeHistoryRejected(
+            "Claude 2.1.197 rejected Orchestra-rendered SessionStore history"
+        )
+
     async def _cleanup_failed_client(self) -> None:
         if self._client:
             try:
@@ -222,11 +307,22 @@ class ClaudeBackend:
     async def connect(self) -> None:
         self.resume_failed = False
         self._stderr_tail = ""
+        await self._verify_history_versions()
         self._client = self._make_client()
         try:
             await asyncio.wait_for(self._client.connect(), timeout=60)
         except BaseException as e:
             await self._cleanup_failed_client()
+            history_rejection = self._history_rejection(e)
+            if history_rejection:
+                raise history_rejection from e
+            if self._history_import:
+                logger.error(
+                    "ClaudeBackend history connect failed: %s%s",
+                    err_text(e),
+                    f" | stderr: {self._stderr_tail[-1000:]}" if self._stderr_tail else "",
+                )
+                raise
             if (
                 not isinstance(e, asyncio.CancelledError)
                 and (self._session_id or self._resume_id)
@@ -345,7 +441,10 @@ class ClaudeBackend:
             return None
 
     async def reconnect(self) -> None:
-        await self.disconnect()
+        try:
+            await self._verify_history_versions()
+        finally:
+            await self.disconnect()
         await asyncio.sleep(2)
         self._client = self._make_client()
         try:

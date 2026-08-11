@@ -15,10 +15,169 @@ from claude_agent_sdk.types import ToolResultBlock, UserMessage
 
 import app.backend_claude as backend_claude
 from app.backend_claude import ClaudeBackend
+from app.runtime_history import (
+    HISTORICAL_TOOL_INSTRUCTION,
+    NativeHistoryRejected,
+    NativeHistoryUnsupported,
+    render_claude_history,
+)
 
 
 def _backend():
     return ClaudeBackend(model="claude-sonnet-5[1m]", cwd="/tmp")
+
+
+def _history():
+    return render_claude_history(
+        [{
+            "id": 1,
+            "ts": "2026-08-11T10:00:00+00:00",
+            "type": "user_message",
+            "content": "remember",
+        }],
+        snapshot_id=1,
+        session_id="11111111-2222-4333-8444-555555555555",
+        cwd="/tmp",
+        model="claude-sonnet-5[1m]",
+    )
+
+
+def test_imported_resume_uses_session_store_and_current_system_prompt():
+    history = _history()
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]",
+        cwd="/tmp",
+        system_prompt="CURRENT ROLE",
+        resume_session_id=history.session_id,
+        history_import=history,
+    )
+
+    options = backend._make_client().options
+
+    assert options.resume == history.session_id
+    assert options.session_store is not None
+    assert options.system_prompt["append"] == (
+        "CURRENT ROLE\n\n" + HISTORICAL_TOOL_INSTRUCTION
+    )
+
+
+def test_ordinary_resume_options_are_unchanged_without_import_marker():
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]",
+        cwd="/tmp",
+        system_prompt="CURRENT ROLE",
+        resume_session_id="ordinary-session",
+    )
+
+    options = backend._make_client().options
+
+    assert options.resume == "ordinary-session"
+    assert options.session_store is None
+    assert options.system_prompt is None
+
+
+def test_wrong_history_import_type_fails_loud():
+    with pytest.raises(TypeError, match="ClaudeHistoryImport"):
+        ClaudeBackend(
+            model="claude-sonnet-5[1m]",
+            cwd="/tmp",
+            history_import={"entries": []},
+        )
+
+
+@pytest.mark.asyncio
+async def test_history_import_rejects_unpinned_sdk_before_cli_spawn():
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]",
+        cwd="/tmp",
+        resume_session_id=_history().session_id,
+        history_import=_history(),
+    )
+
+    with (
+        patch("app.backend_claude.importlib.metadata.version", return_value="0.2.999"),
+        patch("app.backend_claude.asyncio.create_subprocess_exec") as spawn,
+        pytest.raises(NativeHistoryUnsupported, match="0.2.999"),
+    ):
+        await backend._verify_history_versions()
+
+    spawn.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_history_import_requires_exact_cli_version():
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]",
+        cwd="/tmp",
+        resume_session_id=_history().session_id,
+        history_import=_history(),
+    )
+    process = AsyncMock()
+    process.communicate = AsyncMock(return_value=(b"2.1.1970 (Claude Code)\n", b""))
+    process.returncode = 0
+
+    with (
+        patch("app.backend_claude.importlib.metadata.version", return_value="0.2.114"),
+        patch(
+            "app.backend_claude.asyncio.create_subprocess_exec",
+            new=AsyncMock(return_value=process),
+        ),
+        pytest.raises(NativeHistoryUnsupported, match="2.1.1970"),
+    ):
+        await backend._verify_history_versions()
+
+
+@pytest.mark.asyncio
+async def test_history_schema_rejection_does_not_take_stale_resume_fallback():
+    failed = AsyncMock()
+    failed.connect = AsyncMock(side_effect=RuntimeError("CLI exited"))
+    failed.disconnect = AsyncMock()
+    history = _history()
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]",
+        cwd="/tmp",
+        resume_session_id=history.session_id,
+        history_import=history,
+    )
+
+    def capture_stderr():
+        backend._stderr_tail = "No conversation found with session ID: imported"
+        return failed
+
+    with (
+        patch.object(backend, "_verify_history_versions", new=AsyncMock()),
+        patch.object(backend, "_make_client", side_effect=capture_stderr),
+        patch.object(backend, "_resume_transcript_exists") as exists,
+        pytest.raises(NativeHistoryRejected),
+    ):
+        await backend.connect()
+
+    exists.assert_not_called()
+    assert backend.resume_failed is False
+
+
+@pytest.mark.asyncio
+async def test_history_auth_failure_is_not_misreported_as_schema_fallback():
+    failed = AsyncMock()
+    failed.connect = AsyncMock(side_effect=RuntimeError("authentication required"))
+    failed.disconnect = AsyncMock()
+    history = _history()
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]",
+        cwd="/tmp",
+        resume_session_id=history.session_id,
+        history_import=history,
+    )
+
+    with (
+        patch.object(backend, "_verify_history_versions", new=AsyncMock()),
+        patch.object(backend, "_make_client", return_value=failed),
+        patch.object(backend, "_resume_transcript_exists") as exists,
+        pytest.raises(RuntimeError, match="authentication required"),
+    ):
+        await backend.connect()
+
+    exists.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -105,6 +264,83 @@ async def test_reconnect_timeout_disconnects_client():
         with pytest.raises(TimeoutError):
             await b.reconnect()
     assert b._client is None
+
+
+@pytest.mark.asyncio
+async def test_reconnect_version_failure_disconnects_owned_client():
+    history = _history()
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]",
+        cwd="/tmp",
+        resume_session_id=history.session_id,
+        history_import=history,
+    )
+    old_client = AsyncMock()
+    backend._client = old_client
+    backend._verify_history_versions = AsyncMock(
+        side_effect=NativeHistoryUnsupported("version changed")
+    )
+
+    with pytest.raises(NativeHistoryUnsupported, match="version changed"):
+        await backend.reconnect()
+
+    old_client.disconnect.assert_awaited_once()
+    assert backend._client is None
+
+
+@pytest.mark.asyncio
+async def test_reconnect_materializes_replaced_db_history_store(monkeypatch):
+    initial = _history()
+    refreshed = render_claude_history(
+        [
+            {
+                "id": 1,
+                "ts": "2026-08-11T10:00:00+00:00",
+                "type": "user_message",
+                "content": "remember",
+            },
+            {
+                "id": 2,
+                "ts": "2026-08-11T10:01:00+00:00",
+                "type": "text",
+                "content": "new durable answer",
+            },
+        ],
+        snapshot_id=2,
+        session_id=initial.session_id,
+        cwd="/tmp",
+        model="claude-sonnet-5[1m]",
+    )
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]",
+        cwd="/tmp",
+        resume_session_id=initial.session_id,
+        history_import=initial,
+    )
+    old_client = AsyncMock()
+    backend._client = old_client
+    fresh_client = AsyncMock()
+    captured = {}
+
+    def make_client(*, options):
+        captured["options"] = options
+        return fresh_client
+
+    backend.replace_history_import(refreshed)
+    backend._verify_history_versions = AsyncMock()
+    monkeypatch.setattr(backend_claude, "ClaudeSDKClient", make_client)
+    monkeypatch.setattr(backend_claude.asyncio, "sleep", AsyncMock())
+
+    await backend.reconnect()
+
+    loaded = await captured["options"].session_store.load({
+        "session_id": refreshed.session_id,
+    })
+    assert loaded == list(refreshed.entries)
+    assert "new durable answer" in repr(loaded)
+    backend._verify_history_versions.assert_awaited_once()
+    old_client.disconnect.assert_awaited_once()
+    fresh_client.connect.assert_awaited_once()
 
 
 @pytest.mark.asyncio

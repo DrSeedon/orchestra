@@ -2,7 +2,7 @@
 
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -178,3 +178,33 @@ async def test_fake_idle_timer_uses_shared_verified_hibernate(
     session._disconnect_backend.assert_awaited_once_with()
     assert session._hibernated is True
     assert session.session_id == "thread-1"
+
+
+@pytest.mark.asyncio
+async def test_dead_listener_heartbeat_uses_session_reconnect_path(monkeypatch):
+    import app.session_hibernate as module
+
+    monkeypatch.setattr(
+        module.asyncio,
+        "sleep",
+        AsyncMock(side_effect=[None, asyncio.CancelledError()]),
+    )
+    backend = SimpleNamespace(reconnect=AsyncMock(), send=AsyncMock())
+    session = SimpleNamespace(
+        name="worker",
+        backend_type="claude",
+        status=AgentStatus.RUNNING,
+        _last_msg_time=0,
+        _backend=backend,
+        _listen_task=SimpleNamespace(done=lambda: True),
+        _reconnect_backend=AsyncMock(),
+        _persistent_event_loop=AsyncMock(),
+        _on_task_done=MagicMock(),
+        _log=MagicMock(),
+    )
+
+    await HibernateManager(session).heartbeat_loop()
+
+    session._reconnect_backend.assert_awaited_once_with()
+    backend.reconnect.assert_not_awaited()
+    backend.send.assert_awaited_once()

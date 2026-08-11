@@ -1284,7 +1284,7 @@ dev = [
 requires-dist = [
     { name = "aiogram", specifier = ">=3.28,<4.0" },
     { name = "aiohttp", specifier = ">=3.9,<4.0" },
-    { name = "claude-agent-sdk", specifier = ">=0.2.111" },
+    { name = "claude-agent-sdk", specifier = "==0.2.114" },
     { name = "croniter", specifier = ">=2.0,<7.0" },
     { name = "fastapi", specifier = ">=0.115,<1.0" },
     { name = "fastembed", marker = "extra == 'rag'", specifier = ">=0.8.0" },

@@ -67,6 +67,7 @@ def init_db() -> None:
                 mcp_servers_custom TEXT DEFAULT '',
                 profile TEXT DEFAULT '',
                 runtime_handoff TEXT DEFAULT '',
+                history_import_source TEXT,
                 last_summary TEXT DEFAULT '',
                 created_at TEXT NOT NULL,
                 finished_at TEXT,
@@ -91,7 +92,10 @@ def init_db() -> None:
                 ts TEXT NOT NULL,
                 type TEXT NOT NULL,
                 content TEXT NOT NULL,
-                event_id TEXT NOT NULL DEFAULT ''
+                event_id TEXT NOT NULL DEFAULT '',
+                tool_use_id TEXT,
+                tool_name TEXT,
+                tool_is_error INTEGER
             );
             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
             -- get_last_turn_map() runs on every /api/sessions; without this it scans
@@ -591,6 +595,8 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN effort TEXT DEFAULT ''")
     if "runtime_handoff" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN runtime_handoff TEXT DEFAULT ''")
+    if "history_import_source" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN history_import_source TEXT")
     if "last_summary" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN last_summary TEXT DEFAULT ''")
     if "base_branch" not in cols:
@@ -604,6 +610,12 @@ def _migrate(c) -> None:
     log_cols = {row[1] for row in c.execute("PRAGMA table_info(logs)").fetchall()}
     if log_cols and "event_id" not in log_cols:
         c.execute("ALTER TABLE logs ADD COLUMN event_id TEXT NOT NULL DEFAULT ''")
+    if log_cols and "tool_use_id" not in log_cols:
+        c.execute("ALTER TABLE logs ADD COLUMN tool_use_id TEXT")
+    if log_cols and "tool_name" not in log_cols:
+        c.execute("ALTER TABLE logs ADD COLUMN tool_name TEXT")
+    if log_cols and "tool_is_error" not in log_cols:
+        c.execute("ALTER TABLE logs ADD COLUMN tool_is_error INTEGER")
     c.execute(
         """CREATE INDEX IF NOT EXISTS idx_logs_event_id
            ON logs(event_id)
@@ -702,6 +714,7 @@ def save_session(
     s.setdefault("session_id_history", "[]")
     s.setdefault("effort", "")
     s.setdefault("runtime_handoff", "")
+    s.setdefault("history_import_source", None)
     s.setdefault("last_summary", "")
     s.setdefault("base_branch", "")
     s.setdefault("needs_switch", 0)
@@ -721,7 +734,7 @@ def save_session(
                 total_cache_read_tokens, total_cache_create_tokens, total_tool_calls,
                 template_hash, role, parent_id, parent_name, mcp_servers_custom, pipeline,
                 profile, owned_dirs, tg_topic, session_id_history, effort, runtime_handoff,
-                last_summary)
+                history_import_source, last_summary)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt, :prompt_overlay,
                 :status, :session_id, :cost_usd, :worktree_path, :branch, :base_branch,
                 :needs_switch, :is_orchestrator,
@@ -732,7 +745,7 @@ def save_session(
                 :total_cache_read_tokens, :total_cache_create_tokens, :total_tool_calls,
                 :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :pipeline,
                 :profile, :owned_dirs, :tg_topic, :session_id_history, :effort,
-                :runtime_handoff, :last_summary)
+                :runtime_handoff, :history_import_source, :last_summary)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 model=excluded.model,
@@ -775,6 +788,7 @@ def save_session(
                 session_id_history=excluded.session_id_history,
                 effort=excluded.effort,
                 runtime_handoff=excluded.runtime_handoff,
+                history_import_source=excluded.history_import_source,
                 last_summary=excluded.last_summary
         """, s)
 
@@ -1013,6 +1027,9 @@ def add_log(
     type: str,
     content: str,
     event_id: str = "",
+    tool_use_id: str | None = None,
+    tool_name: str | None = None,
+    tool_is_error: bool | None = None,
 ) -> int:
     """ИНВАРИАНТ: строки logs неизменяемы — только этот INSERT и оптовый DELETE по
     возрасту в cleanup_old_logs. Ни одного UPDATE. На этом стоит зеркало журнала в
@@ -1022,11 +1039,37 @@ def add_log(
     """
     with _conn() as c:
         cur = c.execute(
-            """INSERT INTO logs (session_id, ts, type, content, event_id)
-               VALUES (?, ?, ?, ?, ?)""",
-            (session_id, ts.isoformat(), type, content, event_id),
+            """INSERT INTO logs (
+                   session_id, ts, type, content, event_id,
+                   tool_use_id, tool_name, tool_is_error
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                session_id, ts.isoformat(), type, content, event_id,
+                tool_use_id, tool_name,
+                None if tool_is_error is None else int(tool_is_error),
+            ),
         )
         return cur.lastrowid
+
+
+def get_history_logs(session_id: str, conn=None) -> tuple[int, list[dict]]:
+    """Return one immutable log boundary without the dashboard's 5k row cap."""
+    c = conn or _conn()
+    try:
+        max_id = int(c.execute(
+            "SELECT COALESCE(MAX(id), 0) FROM logs WHERE session_id = :session_id",
+            {"session_id": session_id},
+        ).fetchone()[0])
+        rows = c.execute(
+            """SELECT * FROM logs
+               WHERE session_id = :session_id AND id <= :max_id
+               ORDER BY id ASC""",
+            {"session_id": session_id, "max_id": max_id},
+        ).fetchall()
+        return max_id, [dict(row) for row in rows]
+    finally:
+        if conn is None:
+            c.close()
 
 
 # Sub-agent telemetry columns that upsert may set. Text cols use NULLIF-COALESCE
