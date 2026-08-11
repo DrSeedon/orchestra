@@ -4705,3 +4705,10 @@ class TestTurnFoldStream:
         pending.set_result(SimpleNamespace(message_id=777))
         await asyncio.sleep(0)
         assert state.msg_id is None, "message_id прошлой пачки утёк в новую"
+
+    def test_anchor_bar_is_one_line_wide(self, tb):
+        """Ширина полосы — 19 знаков: на 20 пузырь переносил её на вторую строку."""
+        anchor = tb._turn_anchor(["🖥 a"] * 3, 300.0, "turn ended ($0.10 turn)")
+        bar = anchor.splitlines()[0]
+        assert bar == "━" * 19
+        assert len(bar) == tb._ANCHOR_BAR_WIDTH == 19

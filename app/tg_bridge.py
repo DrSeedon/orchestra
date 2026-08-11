@@ -515,6 +515,11 @@ _PROGRESS_MAX_LINES = 40         # сколько последних дейст�
 _PROGRESS_MAX_CHARS = 3500
 _ANCHOR_MAX_CHARS = 300
 _ACTION_LINE_MAX = 70
+# Ширина полосы якоря — в ЗНАКАХ ЭКРАНА телефона, а не в свободном выборе: на 20 знаках
+# `━` пузырь переносил её на вторую строку (замерено юзером на живом боте 11.08.2026).
+# Единственный владелец числа: правится здесь, нигде больше не дублируется.
+_ANCHOR_BAR_WIDTH = 19
+_ANCHOR_BAR = "━" * _ANCHOR_BAR_WIDTH
 _BASH_WRAPPER = re.compile(r"""^/bin/bash\s+-lc\s+""")
 
 
@@ -682,7 +687,7 @@ def _turn_anchor(actions: list[str], seconds: float, status: str) -> str:
     cost = re.search(r"\$[\d.]+ turn", status)
     if cost:
         parts.append(cost.group(0).replace(" turn", ""))
-    return _shorten("━━━━━━━━━━━━━━━━━━━━\n" + " · ".join(parts),
+    return _shorten(_ANCHOR_BAR + "\n" + " · ".join(parts),
                     _ANCHOR_MAX_CHARS).replace("━ ", "━\n", 1)
 
 

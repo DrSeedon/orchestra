@@ -139,6 +139,11 @@ def build_replay_db(path: Path, sessions):
     with db._conn() as c:
         cols = [r[1] for r in c.execute("PRAGMA table_info(sessions)")]
         for s in sessions:
+            # В проигрываемые сутки агент был жив; сегодня он может быть архивирован, а
+            # `get_all_sessions()` архивных НЕ отдаёт — `stream_logs` тогда выходит сразу,
+            # и все строки такого агента молча не доезжают. На 10.08 это три воркера и
+            # 767 строк из 3339 (23%). Воспроизводим день, а не сегодняшний реестр.
+            s = {**s, "status": "idle"}
             vals = [s.get(col) for col in cols]
             c.execute(
                 f"INSERT OR REPLACE INTO sessions ({','.join(cols)}) "
@@ -149,10 +154,26 @@ def build_replay_db(path: Path, sessions):
 
 
 async def run_burst(db, tg, rows, stats):
-    """Скармливает пачку в реальном темпе и ждёт, пока очереди опустеют."""
+    """Скармливает пачку в реальном темпе и ждёт, пока поток ДОЧИТАЕТ журнал.
+
+    Ждать одного лишь опустошения очереди недостаточно: `stream_logs` опрашивает журнал
+    раз в 2-5 с, и в момент проверки хвост пачки может быть ещё не прочитан — очередь
+    пуста просто потому, что работа не началась. Так первый суточный прогон недосчитал
+    58 из 254 надёжных сообщений (23%), по хвосту на каждую из 24 пачек. Поэтому сначала
+    ждём, что курсор каждого потока прошёл последнюю поданную ему строку, и только потом
+    проверяем очередь.
+    """
     t0 = datetime.fromisoformat(rows[0]["ts"]).timestamp()
     started = time.monotonic()
 
+    cursors: dict[str, int] = {}
+    original_get_logs = db.get_logs
+
+    def watched_get_logs(session_id, after_id=0, limit=5000, conn=None):
+        cursors[session_id] = max(cursors.get(session_id, 0), after_id)
+        return original_get_logs(session_id, after_id, limit, conn)
+
+    db.get_logs = watched_get_logs
     streams = [
         asyncio.create_task(tg.stream_logs(name, thread))
         for name, thread in TOPICS.items()
@@ -174,6 +195,22 @@ async def run_burst(db, tg, rows, stats):
         conn.commit()
     stats["fed"] += len(rows)
 
+    # 1) поток обязан ДОЧИТАТЬ журнал: курсор прошёл последнюю поданную строку
+    last_by_session: dict[str, int] = {}
+    for r in rows:
+        last_by_session[r["session_id"]] = max(
+            last_by_session.get(r["session_id"], 0), r["id"])
+    deadline = time.monotonic() + DRAIN_TIMEOUT
+    while time.monotonic() < deadline:
+        behind = {sid: last for sid, last in last_by_session.items()
+                  if cursors.get(sid, 0) < last}
+        if not behind:
+            break
+        await asyncio.sleep(1)
+    else:
+        raise RuntimeError(f"поток не дочитал журнал за {DRAIN_TIMEOUT} с: {behind}")
+
+    # 2) и только теперь ждём, пока очередь доставит прочитанное
     deadline = time.monotonic() + DRAIN_TIMEOUT
     while time.monotonic() < deadline:
         await asyncio.sleep(3)
@@ -193,6 +230,7 @@ async def run_burst(db, tg, rows, stats):
     # research.md), поэтому bucket между пачками НЕ чистится — в проде он тоже не чистится.
     stats["stuck_in_bucket"] = sum(len(b) for b in tg._tg_tool_batches.values())
 
+    db.get_logs = original_get_logs
     for t in streams:
         t.cancel()
     await asyncio.gather(*streams, return_exceptions=True)
