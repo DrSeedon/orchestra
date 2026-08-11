@@ -374,3 +374,51 @@ class TestSubOrchestratorGetsMemorySearch:
         assert "/api/sessions/" in prompt, (
             "the own-transcript recipe added to this module must reach the role too"
         )
+
+
+class TestPremortemReachesWorkingRolesOnly:
+    """#198 T1: шаг премортема доставляется РАБОЧИМ ролям и не течёт к оркестраторам.
+
+    Инвариант структурный (кто получает шаг), а не текстовый (как он сформулирован):
+    переписывать формулировку шага можно свободно, тест это переживёт.
+    """
+
+    # Якорь намеренно короткий и устойчивый — заголовок шага, не предложение.
+    # Меняешь заголовок в roles/full-cycle.md и roles/worker.md — меняй и здесь.
+    ANCHOR = "Pre-mortem"
+
+    WORKING_ROLES = ("worker", "full-cycle")
+    ORCHESTRATOR_ROLES = ("orchestrator", "sub-orchestrator")
+
+    def test_step_is_owned_by_the_working_role_files(self):
+        """Якорь общий, поэтому одной проверки собранного промпта мало: она прошла бы
+        и в случае, когда шаг из роли исчез, а слово приехало из base.md или модуля.
+        Поэтому источник проверяется отдельно от доставки."""
+        for role in self.WORKING_ROLES:
+            src = P.prompt_path(PIPELINE, f"roles/{role}.md").read_text(encoding="utf-8")
+            assert self.ANCHOR in src, (
+                f"roles/{role}.md: шаг должен жить в файле САМОЙ роли, а не приезжать "
+                "из общего слоя — иначе роль потеряет его при перекомпоновке слоёв"
+            )
+
+    def test_working_roles_receive_the_step(self):
+        for role in self.WORKING_ROLES:
+            out = P.build_system_prompt(PIPELINE, role)
+            assert self.ANCHOR in out, (
+                f"{role}: премортем должен доехать до СОБРАННОГО промпта; "
+                "наличия строки в roles/*.md недостаточно"
+            )
+
+    def test_orchestrator_roles_do_not_receive_the_step(self):
+        """Односторонняя проверка «есть» пропустила бы утечку в промпты
+        оркестраторов, а она опаснее пропажи: премортем — шаг исполнителя.
+
+        Побочный эффект: пока якорь общий, это ещё и запрет слова в промптах
+        оркестраторов. Если оркестратору однажды понадобится говорить о премортеме
+        законно — не ослаблять проверку, а сделать якорь уникальным (свой тег/ID)
+        в обоих рабочих файлах и здесь."""
+        for role in self.ORCHESTRATOR_ROLES:
+            out = P.build_system_prompt(PIPELINE, role)
+            assert self.ANCHOR not in out, (
+                f"{role}: шаг исполнителя протёк в промпт оркестратора"
+            )

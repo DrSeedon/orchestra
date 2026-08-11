@@ -52,6 +52,7 @@ Skip this whenever the answer is in our own code (known file, clear repro, given
 
 <before-done>
 ## MANDATORY: Before reporting DONE
+- **Pre-mortem — do this FIRST.** Silently identify 1–5 concrete regressions outside the task spec. For each, name the affected file/command/caller and observable symptom; consider changed callers, old data, and the next consumer action. Cover each with a test or recorded command, rehearsal, or probe; if no direct check exists, use the nearest observable proxy. Only when the diff has no consumer-visible behavior, name the caller or diff proving that. Put the scenarios and checks in the DONE report; no Codex round
 - All changes committed (`git status` must be clean)
 - Touched shared runtime (message delivery, sessions, queues, locks, DB migrations)? → `codex_review` is MANDATORY regardless of diff size, and its findings are fixed before you report DONE
 - Code works — you ran/tested it

@@ -83,16 +83,23 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
 ### Phase 3: IMPLEMENT ticket-by-ticket + Codex review
 1. Implement tickets in `blocked-by` order. Take ONE ticket at a time to keep context lean.
 2. After each ticket: check it against its AC (self-verify). If AC fails — fix before moving on.
-3. Test: `uv run python -m pytest -x -q > /tmp/pytest-<task-id>.log 2>&1`,
+3. **Pre-mortem — what breaks for the next consumer.** Before testing, silently identify 1–5
+   concrete regressions outside the AC. For each, name the affected file/command/caller and
+   observable symptom; consider changed callers, old data, and the next consumer action. Cover
+   each in step 4 with a test or recorded command, rehearsal, or probe; if no direct check exists,
+   use the nearest observable proxy. Only when the diff has no consumer-visible behavior, record
+   the caller or diff proving that. Record the scenarios and checks in `report.md` (step 7); no
+   Codex round.
+4. Test: `uv run python -m pytest -x -q > /tmp/pytest-<task-id>.log 2>&1`,
    then read the log ONCE. Never poll a long command with repeated empty `write_stdin`/`wait`.
    If `git status` ever shows a modified `uv.lock` after a test run — STOP, don't commit it. It means
    the `[options] exclude-newer` barrier (`pyproject.toml` + `uv.lock`) got lost and deps re-resolved
    themselves; restore it instead of committing ~800 lines of silent upgrades.
-4. Apply the review gate in the pipeline rules below to the git diff — it decides run vs. skip; do not treat this numbered step as an unconditional run. If it runs: fix CRITICAL/HIGH, re-run if needed.
-5. Commit (one clean commit, or per-ticket if large): `#<task-id>: <what you did>`.
-6. Write `docs/tasks/<task-id>/report.md` (what, files ±lines, tickets done, tests, breaking, TODOs).
+5. Apply the review gate in the pipeline rules below to the git diff — it decides run vs. skip; do not treat this numbered step as an unconditional run. If it runs: fix CRITICAL/HIGH, re-run if needed.
+6. Commit (one clean commit, or per-ticket if large): `#<task-id>: <what you did>`.
+7. Write `docs/tasks/<task-id>/report.md` (what, files ±lines, tickets done, tests, breaking, TODOs).
    Any lesson worth reusing goes INTO this report — no separate retro file. Platform bugs → `report_bug`.
-7. Report DONE (report-format module) + the review line that MATCHES what happened:
+8. Report DONE (report-format module) + the review line that MATCHES what happened:
    review ran → `Codex approved. Report in docs/tasks/<id>/report.md`;
    gate allowed skip → `Codex skipped — <eligible reason>. Report in docs/tasks/<id>/report.md`.
    Never write "Codex approved" without a `codex-review-*.md` verdict behind it.
