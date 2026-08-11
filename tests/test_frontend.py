@@ -1062,6 +1062,107 @@ def test_chat_restores_last_read_boundary_only_when_unread(
     page.close()
 
 
+def test_chat_timeline_navigates_events_and_cycles_user_messages(
+    dashboard_browser: Browser,
+):
+    root = Path(__file__).parent.parent
+    source = (root / "app/static/js/app.js").read_text()
+    timeline_code = (
+        "let _chatTimelineObserver"
+        + source.split("let _chatTimelineObserver", 1)[1].split(
+            "function _prepareChatAnchorRestore", 1,
+        )[0]
+    )
+    page = dashboard_browser.new_page(viewport={"width": 900, "height": 700})
+    page.set_content(
+        """
+        <div style="position:relative;width:520px;height:260px">
+          <div id="chat" style="height:100%;overflow-y:auto"></div>
+          <aside id="chat-timeline" class="chat-timeline">
+            <div class="chat-timeline-user-nav">
+              <button id="chat-user-prev">↑</button><span id="chat-user-count"></span>
+              <button id="chat-user-next">↓</button>
+            </div>
+            <div id="chat-timeline-track" class="chat-timeline-track"></div>
+          </aside>
+          <button id="chat-jump-latest"></button>
+        </div>
+        """
+    )
+    page.add_style_tag(path=str(root / "app/static/css/style.css"))
+    page.add_script_tag(
+        content="""
+        const $ = selector => document.querySelector(selector);
+        let _chatFollow = true;
+        let scrollAfterLoad = true;
+        let _pendingChatRestore = null;
+        const _syncChatJumpButton = () => {};
+        """
+        + timeline_code
+        + """
+        window.addTimelineEntry = (type, label, from = '') => {
+            const node = document.createElement('div');
+            node.style.height = '90px';
+            node.style.flex = '0 0 90px';
+            node.dataset.testLabel = label;
+            if (from) node.dataset.from = from;
+            node.textContent = label;
+            _tagChatTimelineNode(node, type, '2026-08-11T10:00:00Z');
+            $('#chat').appendChild(node);
+            return node;
+        };
+        addTimelineEntry('assistant', 'agent-1');
+        addTimelineEntry('user_message', 'mine-1');
+        addTimelineEntry('tool', 'tool-1');
+        addTimelineEntry('user_message', 'worker-1', 'worker');
+        addTimelineEntry('assistant', 'agent-2');
+        addTimelineEntry('user_message', 'mine-2');
+        initChatTimeline();
+        """,
+    )
+
+    expect(page.locator("#chat-timeline-track .chat-timeline-marker")).to_have_count(6)
+    expect(page.locator("#chat-timeline-track .is-user")).to_have_count(2)
+    expect(page.locator("#chat-timeline-track .is-worker")).to_have_count(1)
+    expect(page.locator("#chat-user-count")).to_have_text("Я 2")
+
+    page.locator("#chat-timeline-track .is-tool").click()
+    page.wait_for_timeout(400)
+    assert page.evaluate(
+        """() => {
+            const chat = $('#chat');
+            const node = chat.querySelector('[data-test-label="tool-1"]');
+            const chatCenter = chat.getBoundingClientRect().top + chat.clientHeight / 2;
+            const nodeCenter = node.getBoundingClientRect().top + node.offsetHeight / 2;
+            return Math.abs(chatCenter - nodeCenter) < 3;
+        }"""
+    )
+
+    page.locator("#chat-user-prev").click()
+    page.wait_for_timeout(400)
+    assert page.evaluate(
+        """() => {
+            const users = [...document.querySelectorAll('#chat-timeline-track .is-user')];
+            return $('#chat-timeline-track .is-active') === users.at(-1);
+        }"""
+    )
+    page.locator("#chat-user-prev").click()
+    page.wait_for_timeout(400)
+    assert page.evaluate(
+        """() => {
+            const users = [...document.querySelectorAll('#chat-timeline-track .is-user')];
+            return $('#chat-timeline-track .is-active') === users[0];
+        }"""
+    )
+
+    page.evaluate("() => addTimelineEntry('user_message', 'mine-3')")
+    expect(page.locator("#chat-user-count")).to_have_text("Я 3")
+    page.evaluate("() => $('#chat [data-test-label=\"mine-3\"]').remove()")
+    expect(page.locator("#chat-user-count")).to_have_text("Я 2")
+    assert "_tagChatTimelineNode(el, type, ts);" in source
+    page.close()
+
+
 def test_codex_successful_mcp_startup_status_is_hidden(
     dashboard_browser: Browser,
 ):

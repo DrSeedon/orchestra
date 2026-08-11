@@ -34,7 +34,42 @@ code, pre, kbd, samp, .font-mono,
 .log-status { color: #a78bfa; font-style: italic; }
 .log-user_message { color: #818cf8; }
 .log-notification { color: #fbbf24; }
-#chat { user-select: text; -webkit-user-select: text; }
+#chat { user-select: text; -webkit-user-select: text; padding-right: 4rem; }
+.chat-timeline {
+  position: absolute; top: 8px; right: 7px; bottom: 8px; z-index: 15;
+  width: 42px; display: flex; flex-direction: column; gap: 5px;
+  user-select: none; -webkit-user-select: none;
+}
+.chat-timeline-user-nav {
+  display: grid; grid-template-columns: 13px 1fr 13px; align-items: center;
+  padding: 2px 3px; border: 1px solid rgba(100,116,139,0.45); border-radius: 999px;
+  background: rgba(15,23,42,0.92); color: #94a3b8; font-size: 9px; line-height: 14px;
+  backdrop-filter: blur(8px);
+}
+.chat-timeline-user-nav button {
+  border: 0; padding: 0; background: transparent; color: #a5b4fc;
+  cursor: pointer; font-size: 11px; line-height: 14px;
+}
+.chat-timeline-user-nav button:disabled { color: #475569; cursor: default; }
+.chat-timeline-user-nav button:focus-visible { outline: 1px solid #818cf8; border-radius: 3px; }
+.chat-timeline-user-nav span { text-align: center; white-space: nowrap; }
+.chat-timeline-track {
+  min-height: 0; flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: space-around; overflow: hidden;
+  padding: 2px 0; border-radius: 5px; background: rgba(15,23,42,0.38);
+}
+.chat-timeline-marker {
+  flex: 1 1 1px; min-height: 1px; max-height: 7px; width: 8px;
+  border: 0; border-radius: 2px; padding: 0; cursor: pointer;
+  background: #64748b; opacity: 0.72; transition: width 0.1s, opacity 0.1s;
+}
+.chat-timeline-marker:hover { width: 18px; opacity: 1; }
+.chat-timeline-marker.is-active { width: 18px; opacity: 1; outline: 1px solid #e2e8f0; }
+.chat-timeline-marker.is-user { width: 15px; background: #818cf8; opacity: 1; }
+.chat-timeline-marker.is-tool { width: 6px; background: #38bdf8; }
+.chat-timeline-marker.is-worker { width: 11px; background: #c084fc; }
+.chat-timeline-marker.is-status { width: 7px; background: #fbbf24; }
+.chat-timeline-marker.is-error { width: 13px; background: #f87171; opacity: 1; }
 .chat-jump-latest {
   position: absolute; left: 50%; bottom: 12px; z-index: 20;
   transform: translateX(-50%); padding: 5px 11px;
