@@ -387,8 +387,9 @@ Phase 3 потребует расширить текущий ownership за `doc
   - Latch upsert и decision insert коммитятся одной DB-транзакцией до side effect. Crash до
     commit оставляет их оба отсутствующими и следующий admission пересчитывает D; crash после
     commit видит durable latch. Process cache состояния нет.
-  - `/api/usage/readiness?model=` и MCP exact-model preflight удалены; route-surface snapshot и
-    tests доказывают отсутствие второго owner. `limit_wake` не возвращает model decision.
+  - T1 мержится инертно: существующие callers продолжают использовать старый quota gate, а
+    новый router не подключён ни к одному workload path. Удаление старого owner переносится в
+    атомарный T3, чтобы новый MCP из main не разошёлся со старым server process до rollout-окна.
 - blocked-by: none.
 
 External integration prerequisite для начала T1: merged final #186 с
@@ -436,6 +437,9 @@ External integration prerequisite для начала T1: merged final #186 с
     выбирает Codex/Claude согласно T1 и сохраняет `decision_id`.
   - Exact model в public agent path отклоняется; dashboard/admin change-model требует operator
     cookie и audit-ится как operator override; MCP `change_worker_model` удалён.
+  - `/api/usage/readiness?model=`, MCP exact-model preflight и самостоятельный `quota_gate`
+    удаляются в этом же коммите после миграции всех callers; route/import snapshot доказывает,
+    что второго owner не осталось. `limit_wake` не возвращает model decision.
   - TG, bg fire и pending flush используют T2 delivery rows/natural ids. Batch queued messages
     делает один backend submit и атомарно переводит все rows; старый `_pending_messages`
     reinsertion path удалён.

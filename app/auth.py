@@ -4,6 +4,8 @@ import hashlib
 import hmac
 import os
 
+from fastapi import HTTPException, Request
+
 
 def is_auth_enabled() -> bool:
     return bool(os.environ.get("DASHBOARD_USER") or os.environ.get("DASHBOARD_PASSWORD"))
@@ -50,6 +52,17 @@ def validate_session(token: str) -> bool:
     if not user:
         return False
     return hmac.compare_digest(token, _make_token(user))
+
+
+def require_operator_session(request: Request) -> None:
+    """Require a real dashboard login for quota/control-plane mutations."""
+    if not is_auth_enabled():
+        raise HTTPException(
+            status_code=403,
+            detail="operator mutation requires dashboard authentication",
+        )
+    if not validate_session(request.cookies.get("session", "")):
+        raise HTTPException(status_code=403, detail="operator session required")
 
 
 def check_internal_token(auth_header: str) -> bool:

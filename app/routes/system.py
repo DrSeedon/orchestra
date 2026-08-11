@@ -21,9 +21,9 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
-from app.auth import is_auth_enabled, is_owner_mode
+from app.auth import is_auth_enabled, is_owner_mode, require_operator_session
 from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
 from app.deps import build_id, manager, templates
 from app.errtext import err_text
@@ -37,6 +37,12 @@ from app.models import (
 )
 from app.pipeline import list_pipelines
 from app.runtime_registry import get_runtime
+from app.runtime_router import (
+    PolicyRevisionError,
+    ROUTING_CONTRACT_VERSION,
+    explain_inputs_from_dict,
+    get_runtime_router,
+)
 
 logger = logging.getLogger("orchestra.system")
 
@@ -1204,6 +1210,48 @@ async def usage_readiness(model: str):
         observation_loader=current_quota_observation,
     )
     return worker_readiness_envelope(decision)
+
+
+@router.get("/api/usage/routing-policy")
+async def routing_policy_status():
+    return await get_runtime_router().status()
+
+
+@router.put("/api/usage/routing-policy")
+async def replace_routing_policy(request: Request, payload: dict):
+    require_operator_session(request)
+    try:
+        policy = await get_runtime_router().replace_policy(payload)
+    except ValidationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except PolicyRevisionError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    return {
+        "contract_version": ROUTING_CONTRACT_VERSION,
+        "policy": policy.model_dump(mode="json", exclude_none=True),
+    }
+
+
+@router.post("/api/usage/routing-policy/explain")
+async def explain_routing_policy(payload: dict):
+    try:
+        request, observation, baseline, latches, terminal, now = (
+            explain_inputs_from_dict(payload)
+        )
+        decision = await get_runtime_router().explain(
+            request,
+            observation,
+            claude_baseline=baseline,
+            latched_window_ids=latches,
+            terminal_limited_runtimes=terminal,
+            now=now,
+        )
+    except (TypeError, ValueError, ValidationError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return {
+        "contract_version": ROUTING_CONTRACT_VERSION,
+        "decision": decision.to_dict(),
+    }
 
 
 # ── Misc ──
