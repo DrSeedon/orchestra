@@ -998,7 +998,8 @@ class AgentSession:
                     # A full prompt set by the operator has no component boundary —
                     # rebuilding it would silently drop the authority they gave.
                     self._current_prompt = refresh_worker_memory(
-                        self._current_prompt, self.name, self.role, self.scope
+                        self._current_prompt, self.name, self.role, self.scope,
+                        self.worktree_path or "",
                     )
                 else:
                     from app.deps import manager
@@ -1010,6 +1011,7 @@ class AgentSession:
                             branch=self.branch or self.base_branch or "",
                             stored_overlay=self.prompt_overlay,
                             old_prompt=self._current_prompt,
+                            repository_path=self.worktree_path or "",
                         )
                     except Exception as error:
                         # Пересборка читает pipelines/** на ГОРЯЧЕМ пути, а
@@ -1024,7 +1026,8 @@ class AgentSession:
                         logger.error(f"[{self.name}] prompt rebuild failed: "
                                      f"{err_text(error)}")
                         self._current_prompt = refresh_worker_memory(
-                            self._current_prompt, self.name, self.role, self.scope
+                            self._current_prompt, self.name, self.role, self.scope,
+                            self.worktree_path or "",
                         )
                 message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
                 did_inject = True

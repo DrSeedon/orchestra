@@ -257,6 +257,50 @@ class TestCreateSession:
         assert session._spawn_git_common_dir == str((repo / ".git").resolve())
 
     @pytest.mark.asyncio
+    async def test_subrepo_worktree_memory_is_in_assembled_prompt(self, mgr, tmp_path):
+        import subprocess
+
+        repo = _git_repo(tmp_path)
+        memory_dir = repo / "docs" / "workers"
+        memory_dir.mkdir(parents=True)
+        marker = "SUBREPO MEMORY: loaded from the worker's repository"
+        (memory_dir / "w1.md").write_text(marker)
+        subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "memory"],
+            cwd=repo, capture_output=True, check=True,
+        )
+
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="w1", scope=str(tmp_path), cwd=str(repo),
+                model="claude-sonnet-5[1m]", use_worktree=True,
+                repo_path=str(repo),
+            )
+
+        assert marker in session.system_prompt
+        assert session.system_prompt.count("<worker-memory>") == 1
+
+    @pytest.mark.asyncio
+    async def test_scope_root_memory_stays_in_assembled_prompt(self, mgr, tmp_path):
+        scope = tmp_path / "root-repository"
+        memory_dir = scope / "docs" / "workers"
+        memory_dir.mkdir(parents=True)
+        marker = "ROOT MEMORY: existing scope behavior"
+        (memory_dir / "root-worker.md").write_text(marker)
+
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="root-worker", scope=str(scope), cwd=str(scope),
+                model="claude-sonnet-5[1m]",
+            )
+
+        assert marker in session.system_prompt
+        assert session.system_prompt.count("<worker-memory>") == 1
+
+    @pytest.mark.asyncio
     async def test_repo_preflight_runs_before_spawn_side_effects(self, mgr, tmp_path):
         repo = _git_repo(tmp_path)
         nested = repo / "nested"
@@ -2020,6 +2064,32 @@ class TestAutoResume:
         # is empty» и агент работал без ВСЕХ скиллов своей роли.
         assert session.pipeline == DEFAULT_PIPELINE
         assert get_role(session.pipeline, session.role) is not None
+
+    @pytest.mark.asyncio
+    async def test_resume_prefers_worktree_memory_over_parent_scope(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        parent_scope = tmp_path / "parent"
+        worktree = tmp_path / "subrepo-worktree"
+        for root, content in (
+            (parent_scope, "STALE: copied into parent scope"),
+            (worktree, "FRESH: canonical worktree memory"),
+        ):
+            memory_dir = root / "docs" / "workers"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "w1.md").write_text(content)
+
+        row = self._reload_row(
+            parent_scope, system_prompt="OLD BASE", prompt_overlay="",
+        )
+        row["cwd"] = str(worktree)
+        row["worktree_path"] = str(worktree)
+        monkeypatch.setattr("app.session.AgentSession.start", AsyncMock())
+
+        session = await mgr._load_from_db(row)
+
+        assert "FRESH: canonical worktree memory" in session.system_prompt
+        assert "STALE: copied into parent scope" not in session.system_prompt
 
     @staticmethod
     def _reload_row(tmp_path, *, system_prompt, prompt_overlay):

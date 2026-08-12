@@ -56,13 +56,16 @@ def safe_format_prompt(template: str, **kwargs: str) -> str:
     return _IDENTITY_PLACEHOLDERS.sub(lambda m: kwargs.get(m.group(1), m.group(0)), template)
 
 
-def load_worker_memory(name: str, role: str, scope: str) -> str:
+def load_worker_memory(
+    name: str, role: str, scope: str, repository_path: str = "",
+) -> str:
     """Load persistent memory from docs/workers/{name}.md or docs/workers/{role}.md.
 
     Workers write their learned rules here; the file survives kill/respawn/compact
-    and is re-read whenever the prompt is (re)assembled.
+    and is re-read whenever the prompt is (re)assembled. A worker can belong to a
+    repository below its parent's scope, so its repository checkout takes precedence.
     """
-    base = Path(scope)
+    base = Path(repository_path or scope)
     for filename in (f"{name}.md", f"{role}.md" if role else None):
         if not filename:
             continue
@@ -78,7 +81,9 @@ def load_worker_memory(name: str, role: str, scope: str) -> str:
     return ""
 
 
-def refresh_worker_memory(prompt: str, name: str, role: str, scope: str) -> str:
+def refresh_worker_memory(
+    prompt: str, name: str, role: str, scope: str, repository_path: str = "",
+) -> str:
     """Re-read personal memory from disk and swap it into an already-assembled prompt.
 
     The prompt is assembled once (spawn / _load_from_db) but re-injected on every
@@ -87,7 +92,7 @@ def refresh_worker_memory(prompt: str, name: str, role: str, scope: str) -> str:
     carrying a stale block, the worst missing 61% of its own file.
     """
     prompt_without_memory = strip_worker_memory(prompt)
-    mem = load_worker_memory(name, role, scope)
+    mem = load_worker_memory(name, role, scope, repository_path)
     block = f"<worker-memory>\n{mem}\n</worker-memory>" if mem else ""
     return f"{prompt_without_memory}\n\n{block}" if block else prompt_without_memory
 

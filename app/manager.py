@@ -631,7 +631,8 @@ class SessionManager:
 
         # Worker persistent memory: docs/workers/{name}.md or docs/workers/{role}.md
         # Survives kill/respawn/compact — worker writes rules here, they auto-inject next time
-        worker_memory = load_worker_memory(name, role, scope)
+        memory_repository = repo_path if use_worktree and repo_path else ""
+        worker_memory = load_worker_memory(name, role, scope, memory_repository)
         if worker_memory:
             prompt += f"\n\n<worker-memory>\n{worker_memory}\n</worker-memory>"
 
@@ -1444,6 +1445,7 @@ class SessionManager:
     def assemble_prompt(
         self, *, pipeline: str, role: str, scope: str, is_orch: bool, name: str,
         owned_dirs, branch: str, stored_overlay: str | None, old_prompt: str,
+        repository_path: str = "",
     ) -> tuple[str, str | None]:
         """Собрать системный промпт из файлов ролей — один владелец на двух вызывающих.
 
@@ -1482,7 +1484,7 @@ class SessionManager:
             prompt_overlay = strip_worker_memory(stored_overlay)
             prompt_without_memory = current_base + prompt_overlay
         return refresh_worker_memory(
-            prompt_without_memory, name, role, scope,
+            prompt_without_memory, name, role, scope, repository_path,
         ), prompt_overlay
 
     async def _load_from_db(self, db_row: dict) -> AgentSession:
@@ -1533,6 +1535,7 @@ class SessionManager:
             name=db_row["name"], owned_dirs=db_row.get("owned_dirs"),
             branch=db_row.get("branch") or db_row.get("base_branch") or "",
             stored_overlay=db_row.get("prompt_overlay"), old_prompt=old_prompt,
+            repository_path=wt_path if wt_path and Path(wt_path).is_dir() else "",
         )
 
         custom_mcp = _parse_custom_mcp(db_row.get("mcp_servers_custom"))

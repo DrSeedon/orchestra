@@ -2899,6 +2899,56 @@ class TestCompactReArmsPromptInjection:
             "the superseded memory block must be replaced, not appended to"
         )
 
+    @pytest.mark.asyncio
+    async def test_prompt_reinjection_reads_worktree_memory_not_parent_copy(
+        self, session, monkeypatch, tmp_path
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        parent_scope = tmp_path / "parent"
+        worktree = tmp_path / "subrepo-worktree"
+        for root, content in (
+            (parent_scope, "STALE: copied into parent scope"),
+            (worktree, "FRESH: canonical worktree memory"),
+        ):
+            memory_dir = root / "docs" / "workers"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / f"{session.name}.md").write_text(content)
+
+        session.scope = str(parent_scope)
+        session.worktree_path = str(worktree)
+        session.role = "worker"
+        session.session_id = "resumed-session"
+        session._prompt_injected = False
+        session.prompt_overlay = None
+        session._current_prompt = (
+            "ROLE: worker.\n\n<worker-memory>\nOLD\n</worker-memory>"
+        )
+
+        sent = []
+        resumed = AsyncMock()
+        resumed.send = AsyncMock(side_effect=lambda message: sent.append(message))
+
+        async def events():
+            yield AgentEvent(
+                type="turn_end", content="",
+                metadata={"ok": True, "session_id": "resumed-session"},
+            )
+
+        resumed.events = lambda: events()
+        session._backend = resumed
+        session.status = AgentStatus.IDLE
+        session._log = MagicMock()
+        session._persist = MagicMock()
+        monkeypatch.setattr("app.session.get_logs", lambda *_a, **_kw: [])
+
+        with patch.object(session, "_ensure_backend", AsyncMock(return_value=resumed)):
+            await session.send("next task")
+
+        assert "FRESH: canonical worktree memory" in sent[0]
+        assert "STALE: copied into parent scope" not in sent[0]
+
 
 class TestCompactPromptContract:
     """#106 Q6: properties the measured GO rests on. Changing these invalidates the experiment."""
