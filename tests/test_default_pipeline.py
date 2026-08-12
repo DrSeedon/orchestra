@@ -635,3 +635,37 @@ class TestOracleGate:
             assert self.EXEC_ANCHOR not in out, (
                 f"{role}: контрправило исполнителя протекло в промпт оркестратора"
             )
+
+POOL_PRIORITY_ANCHORS = (
+    "Luna is the DEFAULT",
+    "Sol when the task is complex and Luna will not manage it",
+    "Opus only for special complex tasks",
+    "the Codex pool is meant to be burned",
+    "cost of exhaustion, not the cost of spend",
+)
+OBSOLETE_PRIORITY_ANCHOR = "— DEFAULT worker"
+
+
+def _roles_receiving_model_routing():
+    from app.pipeline import build_system_prompt
+    roles = []
+    for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle"):
+        if "model-routing" in build_system_prompt("default", role) or "Spark" in build_system_prompt("default", role):
+            roles.append(role)
+    assert roles, "ни одна роль не получает model-routing — проверка выродилась"
+    return roles
+
+
+def test_pool_priority_rule_reaches_roles_that_receive_model_routing():
+    from app.pipeline import build_system_prompt
+    for role in _roles_receiving_model_routing():
+        out = build_system_prompt("default", role)
+        for anchor in POOL_PRIORITY_ANCHORS:
+            assert anchor in out, f"{role}: нет якоря {anchor!r}"
+
+
+def test_obsolete_priority_formulation_is_gone_everywhere():
+    from app.pipeline import build_system_prompt
+    for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle"):
+        out = build_system_prompt("default", role)
+        assert OBSOLETE_PRIORITY_ANCHOR not in out, f"{role}: осталась старая формулировка приоритета"
