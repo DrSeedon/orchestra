@@ -942,6 +942,7 @@ class AgentSession:
                 did_inject = True
 
             await self._apply_pending_identity_restart()
+            await self._apply_manifest_effort()
 
             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
                 self._manually_interrupted = False
@@ -1131,6 +1132,41 @@ class AgentSession:
         self._identity_stale = False
         self._log("status", "identity changed — restarting MCP subprocess")
         await self._disconnect_backend()
+        return True
+
+    async def _apply_manifest_effort(self) -> bool:
+        """Перечитать эффорт роли из манифеста — на ГРАНИЦЕ хода, как и рестарт identity.
+
+        Эффорт попадает в бэкенд один раз, при сборке (`BackendBuildContext.effort`), и
+        `_ensure_backend` готовый бэкенд не пересобирает. Поэтому новое значение вступает
+        в силу только через дисконнект: текущий ход не трогаем, следующий соберёт бэкенд
+        с новым значением (сессия/контекст сохраняются — `resume` по `session_id`).
+
+        Расхождения нет → ноль действий и ноль дисконнектов. Любой сбой резолва (битый
+        `pipeline.yaml`, нет роли, нет значения для этой модели) → остаёмся на текущем
+        значении: сломанный манифест не должен веером пересобирать бэкенды всем живым
+        агентам. Legacy-сессии без роли/пайплайна живут на значении из БД.
+        """
+        if self.status == AgentStatus.RUNNING or not self.pipeline or not self.role:
+            return False
+        try:
+            from app.pipeline import get_role, resolve_effort
+            rr = get_role(self.pipeline, self.role)
+            desired = resolve_effort(rr.effort, self.model, self.backend_type) if rr else None
+        except Exception as e:
+            logger.warning(f"[{self.name}] manifest effort re-read failed: {err_text(e)}")
+            return False
+        if desired is None or desired == self.effort:
+            return False
+        old = self.effort
+        # Сперва дисконнект, только потом фиксация значения. Обратный порядок делает сбой
+        # дисконнекта НЕВОССТАНОВИМЫМ: значение уже равно манифестному, расхождения на
+        # следующем ходе нет, повтора не будет — и агент навсегда остаётся на бэкенде со
+        # старой ступенью. Здесь падение оставляет расхождение, и следующий ход повторит.
+        await self._disconnect_backend()
+        self.effort = desired
+        self._persist()
+        self._log("status", f"effort {old or '(none)'} → {desired} (pipeline manifest)")
         return True
 
     async def _build_claude_history_import(

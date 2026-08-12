@@ -14,21 +14,31 @@ defaults:
     copies:   [CLAUDE.md, .mcp.json, .env, .worktreeinclude]
   base_branch_strategy: main
   docs_scaffold: false
-# Про `effort` у РАБОЧИХ ролей (`worker`, `full-cycle`), #213. Оркестраторских `medium` ниже это
-# не касается: их эффорт этой правкой не рассматривался (#208 Q2 — отдельной аномалии у них нет).
-# Поле скалярное, одно на роль, а модель роли переопределяется при спавне — поэтому `high` у
-# рабочих ролей верен для их дефолтного Opus и НЕ подходит остальным. Замер #208: перегиб отдачи
-# у Opus на `high` (дальше +1.0 пункта за +47% цены), у Sol перегиба в пределах лестницы нет
-# (+1.7/+1.7/+1.9) — ему нужен `xhigh`, у Luna хватает `high`. Развести нельзя ни здесь, ни по
-# рантайму: Sol и Luna — оба `codex` (`backend_for_model`), ключом должна быть МОДЕЛЬ.
-# Ждёт правки в коде; до неё Sol-воркеры недополучают ступень. Это запись ограничения, не задание.
+# `effort` у ВСЕХ четырёх ролей задан одной и той же КАРТОЙ модель→ступень (#214): роль одна, а
+# модель выбирается при спавне, и оптимум у моделей разный. Ключом обязана быть МОДЕЛЬ, а не
+# рантайм: Sol и Luna оба `codex` (`backend_for_model`) и требуют разных ступеней.
+# Разрешение (`pipeline.resolve_effort`): точный id модели → рантайм → `default` → нет эффорта.
+# Скаляр остаётся валидным — просто здесь он больше не используется.
+# Оркестраторы подняты с `medium` до `high` по прямому указанию юзера (#214): #208 меряло только
+# рабочие роли, но medium→high — САМЫЙ крупный шаг лестницы Opus (+2.9 пункта), и переносить его
+# на оркестраторов дешевле, чем оставлять их на ступени, выбранной до этого замера. Откат — правка
+# одного ключа `claude-opus-5[1m]` в двух ролях ниже; живые агенты подхватят её на следующем ходе.
+# Основания значений:
+#   claude-opus-5[1m] → high  — #208: перегиб отдачи на `high` (medium→high +2.9, дальше high→xhigh
+#                               всего +1.0 пункта при +47% цены)
+#   gpt-5.6-sol       → xhigh — #208: перегиба в пределах лестницы НЕТ, +1.7/+1.7/+1.9 на каждый шаг;
+#                               дешёвого оптимума у Sol не существует, ступень честно окупается
+#   gpt-5.6-luna      → high  — #204, AA-LCR low 0.653 / medium 0.720 / high 0.740 / xhigh 0.733 /
+#                               max 0.783: `high` и `xhigh` неразличимы, `max` даёт +2 пункта за
+#                               +45% цены. Колено на `high`
+#   default           → high  — остальные модели (Spark, Terra, Grok) не мерились
 roles:
   orchestrator:
     kind: orchestrator
     label: Orchestrator
     order: 0
     model: claude-opus-5[1m]
-    effort: medium
+    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
     skills: [html-artifacts, vps-deploy, codex-debate, grill-me, orchestra-agents]
     modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
     can_spawn: ["*"]
@@ -44,7 +54,7 @@ roles:
     label: Sub-Orchestrator
     order: 1
     model: claude-opus-5[1m]
-    effort: medium
+    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
     skills: [orchestra-agents]
     modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
     can_spawn: ["*"]
@@ -60,7 +70,7 @@ roles:
     label: Worker
     order: 2
     model: claude-opus-5[1m]
-    effort: high
+    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
     skills: [html-artifacts, codex-debate]
     modules: [git-workflow, report-format, self-improvement, memory-search]
     can_spawn: []
@@ -81,8 +91,9 @@ roles:
     # high→xhigh даёт +47% цены без значимого прироста, наш #199 на Sol — ×2.04 при том же вердикте.
     # НЕ ЗАКРЫТО: вендор оправдывает xhigh длиной горизонта задачи, а все опубликованные замеры
     # короче наших сессий. Правка обратимая и наблюдаемая: пошли разваливающиеся длинные ходы →
-    # вернуть xhigh, и это будет данными, а не спором.
-    effort: high
+    # вернуть xhigh, и это будет данными, а не спором. Относится к ключу Opus; у Sol ступень
+    # своя (#214, основания — в комментарии над `roles:`).
+    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
     skills: [html-artifacts, codex-debate]
     modules: [model-routing, research-method, git-workflow, worker-lifecycle, report-format, self-improvement, memory-search]
     can_spawn: ["*"]

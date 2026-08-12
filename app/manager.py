@@ -47,6 +47,7 @@ from app.pipeline import (
     get_role,
     get_worktree_config,
     load_pipeline,
+    resolve_effort,
     resolve_role,
     template_path,
     validate_spawn,
@@ -659,7 +660,7 @@ class SessionManager:
         bt = backend_for_model(model)
         _rr_effort = get_role(pipeline, role)
         raw_effort = getattr(_rr_effort, "effort", None) if _rr_effort else None
-        effort = raw_effort if isinstance(raw_effort, str) and raw_effort else None
+        effort = resolve_effort(raw_effort, model, bt)
         session_id = str(uuid.uuid4())
         session = AgentSession(
             id=session_id, name=name, scope=scope, cwd=cwd, model=model,

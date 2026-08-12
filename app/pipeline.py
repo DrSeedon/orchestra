@@ -29,6 +29,11 @@ DEFAULT_PIPELINE = "default"
 # Спецзначение "all" для skills/mcp_servers (строка) vs явный список.
 AllOrList = Union[Literal["all"], list[str]]
 
+# Эффорт роли: скаляр (одно значение на всех) либо карта «ключ → ступень», где ключ —
+# id модели, имя рантайма или "default". Модель, а не рантайм, потому что Sol и Luna
+# живут в одном рантайме codex и требуют разных ступеней (#213).
+EffortSpec = Union[str, dict[str, str]]
+
 Kind = Literal["orchestrator", "worker"]
 ValidationMode = Literal["fail-closed", "fail-open"]
 BranchStrategy = Literal["parent", "main"]
@@ -38,6 +43,22 @@ def _model_is_known(model: str) -> bool:
     """Модель валидна, если её ID или alias явно присутствует в реестре."""
     normalized = model.lower().strip()
     return normalized in ALIASES or normalized in MODELS
+
+
+def _canon_model(model: str) -> str:
+    """Alias → canonical id. Незнакомое возвращаем как есть (валидация — отдельно)."""
+    key = model.lower().strip()
+    return ALIASES.get(key, key)
+
+
+def _is_runtime(name: str) -> bool:
+    """True, если ``name`` — зарегистрированный рантайм (claude/codex/grok/...)."""
+    from app.runtime_registry import get_runtime  # локально: тяжёлый импорт бэкендов
+    try:
+        get_runtime(name)
+        return True
+    except ValueError:
+        return False
 
 
 def _is_safe_rel(p: str) -> bool:
@@ -198,7 +219,7 @@ class RoleSpec(BaseModel):
     modules: list[str] = Field(default_factory=list)
     # Переопределения defaults (None → наследуем):
     model: str | None = None
-    effort: str | None = None
+    effort: EffortSpec | None = None
     skills: AllOrList | None = None
     mcp_servers: AllOrList | None = None
     base_branch_strategy: BranchStrategy | None = None
@@ -217,6 +238,56 @@ class RoleSpec(BaseModel):
         if v is not None and not _model_is_known(v):
             raise ValueError(f"unknown model '{v}'")
         return v
+
+    @field_validator("effort")
+    @classmethod
+    def _effort_keys(cls, v: EffortSpec | None) -> EffortSpec | None:
+        """Карта эффорта: нормализовать ключи-модели; неизвестная СТУПЕНЬ — отказ.
+
+        Два разных исхода у двух разных ошибок, и разница не косметическая:
+
+        * **Неизвестная ступень → `ValueError`** (манифест не грузится). Пропуск такой
+          строки не «оставляет как было», а ТИХО МЕНЯЕТ МАРШРУТ: опечатка в ключе Sol
+          роняет его на `default`, то есть с `xhigh` на `high`, — и с перечитыванием на
+          границе хода это уезжает живым агентам само. Список ступеней замкнут и известен
+          на момент загрузки, гонки инициализации здесь нет, поэтому опечатка однозначна.
+          Цена принята осознанно: спавн новых агентов падает, пока не починят; живые при
+          этом работают — `AgentSession._apply_manifest_effort` на сбой резолва оставляет
+          текущее значение и НЕ пересобирает бэкенды.
+        * **Неизвестный ключ модели → warning, ключ сохраняем.** Реестр моделей
+          досоздаётся на старте (`models.fetch_models_from_proxy`), манифест мог быть
+          разобран раньше него — отказ или выброс потеряли бы валидную строку из-за
+          порядка инициализации.
+
+        Скаляр не трогаем вовсе — обратная совместимость.
+        """
+        if not isinstance(v, dict):
+            return v
+        from app.backend_codex import CODEX_REASONING_EFFORTS  # владелец набора ступеней
+        out: dict[str, str] = {}
+        for key, val in v.items():
+            if val not in CODEX_REASONING_EFFORTS:
+                raise ValueError(
+                    f"effort['{key}']: unknown level '{val}'; "
+                    f"known={sorted(CODEX_REASONING_EFFORTS)}")
+            # Порядок проверок: рантайм раньше модели, иначе ключи "codex"/"grok" (они же
+            # алиасы моделей gpt-5.6-sol и grok-4.5) читались бы как модель — и ключ
+            # "codex" не покрывал бы Luna. Имена рантаймов здесь ЗАРЕЗЕРВИРОВАНЫ: выбрать
+            # ими конкретную модель нельзя, для этого есть полный id.
+            if key == "default" or _is_runtime(key):
+                out[key] = val
+            elif _model_is_known(key):
+                out[_canon_model(key)] = val
+            else:
+                # Незнакомый ключ НЕ выбрасываем: реестр моделей досоздаётся на старте
+                # (`fetch_models_from_proxy`), и манифест мог быть разобран раньше него —
+                # выброс сделал бы валидную строку невосстановимо потерянной. Ключ просто
+                # не совпадёт ни с одной моделью, пока она не появится.
+                logger.warning(
+                    f"effort: key '{key}' — не известная модель и не рантайм; "
+                    f"сработает только если такая модель появится в реестре")
+                out[key] = val
+        return out
 
     @field_validator("modules")
     @classmethod
@@ -271,7 +342,7 @@ class ResolvedRole(BaseModel):
     allow_unrouted_workers: bool
     modules: list[str]
     model: str
-    effort: str | None
+    effort: EffortSpec | None
     skills: AllOrList
     mcp_servers: AllOrList
     base_branch_strategy: BranchStrategy
@@ -291,14 +362,48 @@ class ResolvedRole(BaseModel):
 
 # ── Загрузка манифеста ─────────────────────────────────────────────────────
 
-@lru_cache(maxsize=None)
+class _ManifestUnstable(OSError):
+    """Файл сменился между stat и чтением — прочитанное невалидно, нужен повтор."""
+
+
+@lru_cache(maxsize=64)
+def _load_pipeline_cached(name: str, path: Path, stamp: tuple[int, int]) -> PipelineConfig:
+    """Разбор манифеста. Ключ кэша включает (mtime_ns, размер) — правка даёт промах.
+
+    Размер в ключе не избыточен: пара «та же секунда + тот же размер» уже давала
+    ложное попадание в кеше байткода CPython, и стоила полутора часов отладки (#214).
+    """
+    text = path.read_text()
+    after = path.stat()
+    if (after.st_mtime_ns, after.st_size) != stamp:
+        # Файл писали, пока мы читали. Проверки схемы тут не защищают: НЕДОПИСАННЫЙ YAML
+        # бывает синтаксически валидным, и роль молча получила бы неполную карту эффорта —
+        # а с #214 такая карта уезжает живым агентам на их следующем ходе.
+        # lru_cache исключения не кеширует, поэтому отравленной записи не остаётся.
+        raise _ManifestUnstable(f"pipeline '{name}' changed while being read")
+    data = yaml.safe_load(text) or {}
+    cfg = PipelineConfig(**data)  # pydantic: схема + граф can_spawn
+    if cfg.name != name:
+        raise ValueError(f"pipeline name '{cfg.name}' != dir '{name}'")
+    return cfg
+
+
 def load_pipeline(name: str) -> PipelineConfig:
     """Прочитать ``pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+
+    Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+    сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+    Один ``stat`` на вызов, разбор — только на изменившемся файле.
+
+    Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+    попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+    деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
 
     :raises FileNotFoundError: если папки/файла нет.
     :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
     :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
         граф can_spawn.
+    :raises OSError: если файл менялся в течение всех трёх попыток чтения.
     """
     # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
     # so callers' FileNotFoundError branch handles it (role=None), not a crash.
@@ -309,11 +414,20 @@ def load_pipeline(name: str) -> PipelineConfig:
     path = PIPELINES_DIR / name / "pipeline.yaml"
     if not path.is_file():
         raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
-    data = yaml.safe_load(path.read_text()) or {}
-    cfg = PipelineConfig(**data)  # pydantic: схема + граф can_spawn
-    if cfg.name != name:
-        raise ValueError(f"pipeline name '{cfg.name}' != dir '{name}'")
-    return cfg
+    unstable: _ManifestUnstable | None = None
+    for _ in range(3):
+        st = path.stat()
+        try:
+            return _load_pipeline_cached(name, path, (st.st_mtime_ns, st.st_size))
+        except _ManifestUnstable as e:
+            unstable = e
+    raise unstable
+
+
+# Вызывающие (и ~23 теста) чистят кэш через load_pipeline.cache_clear() — адрес
+# сохраняем, чтобы разбиение на «stat + разбор» не расползлось по коду.
+load_pipeline.cache_clear = _load_pipeline_cached.cache_clear
+load_pipeline.cache_info = _load_pipeline_cached.cache_info
 
 
 def get_worktree_config(pipeline_name: str) -> Worktree:
@@ -395,6 +509,23 @@ def resolve_role(pipeline: PipelineConfig, role: str) -> ResolvedRole:
         when=spec.when, not_for=spec.not_for, description=spec.description,
         prompt_layers=[p.replace("{role}", role) for p in layers_tmpl],
     )
+
+
+def resolve_effort(effort: EffortSpec | None, model: str, runtime: str) -> str | None:
+    """Ступень эффорта под конкретную модель спавна.
+
+    Скаляр — как раньше. Карта — точный id модели → рантайм → ``default`` → None.
+    ``model`` ожидается уже канонизованным (``resolve_model``), но alias тоже переживёт.
+    """
+    if isinstance(effort, str):
+        return effort or None
+    if not isinstance(effort, dict):
+        return None
+    for key in (_canon_model(model), runtime, "default"):
+        val = effort.get(key)
+        if val:
+            return val
+    return None
 
 
 def get_role(pipeline_name: str, role: str) -> ResolvedRole | None:

@@ -186,6 +186,28 @@ class TestCreateSession:
         assert s1.id != s2.id
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("role,model,expected", [
+        # Карта модель→ступень реального манифеста (#214): роль одна, ступень разная.
+        ("worker", "claude-opus-5[1m]", "high"),
+        ("worker", "gpt-5.6-sol", "xhigh"),
+        ("worker", "gpt-5.6-luna", "high"),
+        ("full-cycle", "gpt-5.6-sol", "xhigh"),
+        # alias на входе — модель канонизуется до резолва эффорта
+        ("worker", "gpt5.6sol", "xhigh"),
+        # оркестраторы несут ту же карту (#214: подняты с medium до high на Opus)
+        ("orchestrator", "claude-opus-5[1m]", "high"),
+        ("orchestrator", "gpt-5.6-sol", "xhigh"),
+    ])
+    async def test_spawn_effort_picked_by_model(self, mgr, role, model, expected):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="w-eff", scope="/s", cwd="/tmp", model=model, role=role,
+                is_orchestrator=(role == "orchestrator"), planned_initial_turn=False,
+            )
+        assert session.effort == expected
+
+    @pytest.mark.asyncio
     async def test_validates_cwd(self, mgr):
         with pytest.raises(ValueError, match="does not exist"):
             await mgr.create_session(

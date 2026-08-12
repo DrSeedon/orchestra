@@ -85,13 +85,64 @@ class TestLoadPipeline:
         with pytest.raises(ValueError, match="name"):
             P.load_pipeline("demo")
 
-    def test_is_cached(self, pipelines_root):
+    def test_is_cached_while_file_unchanged(self, pipelines_root):
+        _write_pipeline(pipelines_root, "demo", _MINIMAL.format(name="demo"))
+        first = P.load_pipeline("demo")
+        assert P.load_pipeline("demo") is first  # нетронутый файл не перечитывается
+
+    def test_cache_invalidated_when_file_changes(self, pipelines_root):
+        """#214: правка манифеста при живом сервере видна БЕЗ рестарта.
+
+        Контракт сменился намеренно: раньше кеш держал первый разбор до
+        ``cache_clear()``, теперь ключ включает mtime+размер файла. Это цена за то,
+        чтобы «всем Opus поставить high» делалось одной правкой yaml, а живые агенты
+        подхватывали её на своём следующем ходе (`AgentSession._apply_manifest_effort`).
+        """
         d = _write_pipeline(pipelines_root, "demo", _MINIMAL.format(name="demo"))
         first = P.load_pipeline("demo")
-        # перезаписываем файл — кеш должен вернуть прежний объект
-        (d / "pipeline.yaml").write_text("garbage: [")
+        assert first.roles["hand"].effort is None
+
+        (d / "pipeline.yaml").write_text(
+            _MINIMAL.format(name="demo").replace(
+                "        can_spawn: []\n", "        can_spawn: []\n        effort: high\n", 1))
         second = P.load_pipeline("demo")
-        assert first is second
+        assert second is not first
+        assert second.roles["hand"].effort == "high"
+
+    def test_file_changed_during_read_is_not_cached(self, pipelines_root, monkeypatch):
+        """Неатомарная запись извне: содержимое не должно попасть в кеш и наружу.
+
+        Опасен не битый YAML (его отвергнет схема), а НЕДОПИСАННЫЙ, но синтаксически
+        валидный: роль получила бы неполную карту эффорта, и та уехала бы живым агентам.
+        """
+        d = _write_pipeline(pipelines_root, "demo", _MINIMAL.format(name="demo"))
+        target = d / "pipeline.yaml"
+        full = _MINIMAL.format(name="demo").replace(
+            "        can_spawn: []\n", "        can_spawn: []\n        effort: high\n", 1)
+        real_read = P.Path.read_text
+        torn = {"n": 0}
+
+        def read_then_grow(self, *a, **kw):
+            text = real_read(self, *a, **kw)
+            if self == target and torn["n"] == 0:
+                torn["n"] += 1
+                target.write_text(full)  # «дописали» файл ровно между read и stat
+            return text
+
+        monkeypatch.setattr(P.Path, "read_text", read_then_grow)
+        cfg = P.load_pipeline("demo")
+
+        assert torn["n"] == 1                       # торн-рид действительно случился
+        assert cfg.roles["hand"].effort == "high"   # отдана дописанная версия, не обрывок
+        assert P.load_pipeline("demo") is cfg       # в кеше лежит она же
+
+    def test_broken_manifest_after_edit_fails_loud(self, pipelines_root):
+        """Обратная сторона инвалидации: битый файл больше не прячется за кешем."""
+        d = _write_pipeline(pipelines_root, "demo", _MINIMAL.format(name="demo"))
+        P.load_pipeline("demo")
+        (d / "pipeline.yaml").write_text("garbage: [")
+        with pytest.raises(Exception):
+            P.load_pipeline("demo")
 
 
 # ── Валидация схемы (extra=forbid, kind, model, can_spawn-граф) ─────────────
@@ -523,6 +574,117 @@ class TestResolveRole:
         """)
         cfg = P.load_pipeline("aa")
         assert P.resolve_role(cfg, "r").skills == "all"
+
+
+# ── effort: скаляр или карта модель→ступень (#214) ─────────────────────────
+
+class TestEffortByModel:
+    def _role(self, root, effort_yaml: str):
+        _write_pipeline(root, "eff", f"""\
+            name: eff
+            roles:
+              hand: {{kind: worker, label: Hand, effort: {effort_yaml}}}
+        """)
+        return P.resolve_role(P.load_pipeline("eff"), "hand").effort
+
+    def test_scalar_applies_to_every_model(self, pipelines_root):
+        eff = self._role(pipelines_root, "medium")
+        assert eff == "medium"
+        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "medium"
+        assert P.resolve_effort(eff, "gpt-5.6-sol", "codex") == "medium"
+
+    def test_map_resolves_by_exact_model_id(self, pipelines_root):
+        eff = self._role(
+            pipelines_root,
+            '{"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: low}')
+        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "high"
+        assert P.resolve_effort(eff, "gpt-5.6-sol", "codex") == "xhigh"
+        # Sol и Luna — один рантайм codex, но ступени разные: ключ именно модель
+        assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "low"
+
+    def test_unknown_model_falls_back_to_default(self, pipelines_root):
+        eff = self._role(pipelines_root, "{gpt-5.6-sol: xhigh, default: medium}")
+        assert P.resolve_effort(eff, "claude-haiku-4-5", "claude") == "medium"
+
+    def test_no_default_and_no_match_gives_none(self, pipelines_root):
+        eff = self._role(pipelines_root, "{gpt-5.6-sol: xhigh}")
+        assert P.resolve_effort(eff, "claude-haiku-4-5", "claude") is None
+
+    def test_runtime_key_covers_whole_runtime(self, pipelines_root):
+        eff = self._role(pipelines_root, "{codex: max, default: low}")
+        assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "max"
+        assert P.resolve_effort(eff, "gpt-5.4-mini", "codex") == "max"
+        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "low"
+
+    def test_exact_model_beats_runtime_and_default(self, pipelines_root):
+        eff = self._role(pipelines_root, "{gpt-5.6-sol: xhigh, codex: low, default: medium}")
+        assert P.resolve_effort(eff, "gpt-5.6-sol", "codex") == "xhigh"
+        assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "low"
+
+    def test_alias_key_normalized_to_model_id(self, pipelines_root):
+        eff = self._role(pipelines_root, "{opus: low}")
+        assert eff == {"claude-opus-5[1m]": "low"}
+        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "low"
+
+    def test_unknown_key_kept_but_never_matches(self, pipelines_root, caplog):
+        """Незнакомый ключ переживает валидацию, но ни с чем не совпадает.
+
+        Выбрасывать нельзя: реестр моделей досоздаётся на старте
+        (`models.fetch_models_from_proxy`), и манифест мог быть разобран раньше —
+        выброс терял бы валидную строку навсегда из-за порядка инициализации.
+        """
+        with caplog.at_level("WARNING"):
+            eff = self._role(pipelines_root, "{gpt-9-nope: high, default: medium}")
+        assert eff == {"gpt-9-nope": "high", "default": "medium"}
+        assert "gpt-9-nope" in caplog.text
+        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "medium"
+
+    def test_key_matches_once_model_appears_in_registry(self, pipelines_root, monkeypatch):
+        """Тот же ключ начинает работать, как только модель появилась в реестре."""
+        from app.models import MODELS
+        eff = self._role(pipelines_root, "{gpt-9-nope: high, default: medium}")
+        monkeypatch.setitem(MODELS, "gpt-9-nope", "GPT-9 Nope")
+        assert P.resolve_effort(eff, "gpt-9-nope", "codex") == "high"
+
+    def test_grok_key_is_a_runtime_key_not_a_model(self, pipelines_root):
+        """`grok` — и id рантайма, и alias модели `grok-4.5`; рантайм выигрывает.
+
+        Следствие, которое надо знать при правке манифеста: выбрать ключом `grok`
+        конкретную модель нельзя — для этого есть полный id `grok-4.5`.
+        """
+        eff = self._role(pipelines_root, "{grok: high, grok-4.5: low, default: medium}")
+        assert eff == {"grok": "high", "grok-4.5": "low", "default": "medium"}
+        # точный id модели сильнее рантайма
+        assert P.resolve_effort(eff, "grok-4.5", "grok") == "low"
+        eff2 = self._role(pipelines_root, "{grok: high, default: medium}")
+        assert P.resolve_effort(eff2, "grok-4.5", "grok") == "high"
+
+    def test_unknown_level_rejects_the_manifest(self, pipelines_root):
+        """Опечатка в СТУПЕНИ роняет манифест, а не «пропускается».
+
+        Пропуск не сохранял бы статус-кво: `{gpt-5.6-sol: hgih, default: high}` тихо
+        перевёл бы Sol с `xhigh` на `high` — то есть сменил маршрут, а не оставил как
+        было. Список ступеней замкнут и известен при загрузке, гонки с досозданием
+        реестра здесь нет (в отличие от ключей-моделей), поэтому опечатка однозначна.
+        """
+        with pytest.raises(Exception) as e:
+            self._role(pipelines_root, "{gpt-5.6-sol: hgih, default: medium}")
+        assert "hgih" in str(e.value)
+
+    def test_unknown_level_rejects_even_when_default_would_cover_it(self, pipelines_root):
+        """Именно этот случай и опасен: `default` рядом маскирует опечатку молчанием."""
+        with pytest.raises(Exception):
+            self._role(pipelines_root, "{gpt-5.6-sol: xhihg, default: high}")
+
+    def test_absent_effort_stays_none(self, pipelines_root):
+        _write_pipeline(pipelines_root, "noeff", """\
+            name: noeff
+            roles:
+              hand: {kind: worker, label: Hand}
+        """)
+        rr = P.resolve_role(P.load_pipeline("noeff"), "hand")
+        assert rr.effort is None
+        assert P.resolve_effort(rr.effort, "claude-opus-5[1m]", "claude") is None
 
 
 # ── build_system_prompt: композиция слоёв + ИЗОЛЯЦИЯ ───────────────────────

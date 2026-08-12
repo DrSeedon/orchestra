@@ -2995,6 +2995,275 @@ class TestFlushPendingDefersDuringCompact:
         assert session._pending_messages == ["m1"]
 
 
+class TestManifestEffortAtTurnBoundary:
+    """#214: эффорт перечитывается из манифеста на границе КАЖДОГО хода.
+
+    Правка `pipeline.yaml` при живом сервере доезжает до уже работающих агентов на их
+    следующем ходе — без рестарта, без `UPDATE` в БД и без обрыва текущего хода.
+    Файл манифеста в тестах правится НА ДИСКЕ: кэш инвалидируется по mtime, поэтому
+    подмена кеша изнутри доказывала бы не тот механизм.
+    """
+
+    @pytest.fixture
+    def manifest(self, tmp_path, monkeypatch):
+        """Реальный манифест на диске + writer, меняющий значение эффорта."""
+        import app.pipeline as P
+        root = tmp_path / "pipelines"
+        (root / "eff").mkdir(parents=True)
+        monkeypatch.setattr(P, "PIPELINES_DIR", root)
+        P.load_pipeline.cache_clear()
+        path = root / "eff" / "pipeline.yaml"
+
+        def write(body: str):
+            path.write_text(body)
+            # mtime_ns различает правки внутри одной секунды, но одинаковое содержимое
+            # с тем же mtime кэш обязан переиспользовать — поэтому пишем как есть.
+            return path
+
+        write(
+            "name: eff\n"
+            "roles:\n"
+            "  hand: {kind: worker, label: Hand, "
+            "effort: {\"claude-sonnet-5[1m]\": medium, gpt-5.6-sol: xhigh, default: low}}\n"
+        )
+        yield write
+        P.load_pipeline.cache_clear()
+
+    def _session(self, effort="medium", role="hand", model="claude-sonnet-5[1m]"):
+        from app.session import AgentSession
+        s = AgentSession(
+            id="eff-001", name="w-eff", scope="/test", cwd="/tmp",
+            model=model, system_prompt="test", pipeline="eff", role=role,
+            effort=effort, created_at=datetime.now(timezone.utc),
+        )
+        s._admission_service = AsyncMock(return_value=_quota_decision())
+        return s
+
+    async def _turn(self, session, backend, message):
+        send_task = asyncio.create_task(session.send(message))
+        for _ in range(200):
+            await asyncio.sleep(0.01)
+            if backend.sent and message in backend.sent[-1]:
+                break
+        backend.finish()
+        await send_task
+        await asyncio.sleep(0.05)
+
+    @pytest.mark.asyncio
+    async def test_unchanged_manifest_rebuilds_nothing(self, mock_db, manifest):
+        """Требование: одинаковое значение → ноль дисконнектов, ноль пересборок."""
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        builds = 0
+
+        def build(*a, **kw):
+            nonlocal builds
+            builds += 1
+            return backend
+
+        disconnects = 0
+        orig_disconnect = session._disconnect_backend
+
+        async def counting_disconnect():
+            nonlocal disconnects
+            disconnects += 1
+            await orig_disconnect()
+
+        session._disconnect_backend = counting_disconnect
+        with patch.object(session, "_make_backend", side_effect=build):
+            await self._turn(session, backend, "first")
+            await self._turn(session, backend, "second")
+
+        assert session.effort == "medium"
+        assert disconnects == 0
+        assert builds == 1  # бэкенд собран один раз на два хода
+
+    @pytest.mark.asyncio
+    async def test_manifest_edit_applies_on_next_turn(self, mock_db, manifest):
+        """Правка файла между ходами → следующий ход идёт на новом эффорте."""
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        builds = 0
+
+        def build(*a, **kw):
+            nonlocal builds
+            builds += 1
+            return backend
+
+        with patch.object(session, "_make_backend", side_effect=build):
+            await self._turn(session, backend, "first")
+            assert session.effort == "medium" and builds == 1
+
+            manifest(
+                "name: eff\n"
+                "roles:\n"
+                "  hand: {kind: worker, label: Hand, "
+                "effort: {\"claude-sonnet-5[1m]\": high, default: low}}\n"
+            )
+
+            await self._turn(session, backend, "second")
+
+        assert session.effort == "high"
+        assert builds == 2  # бэкенд пересобран → новое значение уехало в рантайм
+
+    @pytest.mark.asyncio
+    async def test_running_turn_is_not_interrupted(self, mock_db, manifest):
+        """Требование юзера: значение принимается, но живой ход не прерывается."""
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        disconnects = 0
+        orig_disconnect = session._disconnect_backend
+
+        async def counting_disconnect():
+            nonlocal disconnects
+            disconnects += 1
+            await orig_disconnect()
+
+        session._disconnect_backend = counting_disconnect
+        with patch.object(session, "_make_backend", return_value=backend):
+            from app.session import AgentStatus
+            send_task = asyncio.create_task(session.send("first"))
+            for _ in range(200):
+                await asyncio.sleep(0.01)
+                if session.status == AgentStatus.RUNNING:
+                    break
+            assert session.status == AgentStatus.RUNNING
+
+            manifest(
+                "name: eff\n"
+                "roles:\n"
+                "  hand: {kind: worker, label: Hand, "
+                "effort: {\"claude-sonnet-5[1m]\": high, default: low}}\n"
+            )
+            # сообщение в живой ход: инжект, а не смена эффорта и не дисконнект
+            await session.send("steer")
+            assert session.effort == "medium"
+            assert disconnects == 0
+
+            backend.finish()
+            await send_task
+            await asyncio.sleep(0.05)
+
+            # ход закончился — новое значение вступает в силу со следующего
+            await self._turn(session, backend, "second")
+
+        assert session.effort == "high"
+
+    @pytest.mark.asyncio
+    async def test_broken_manifest_keeps_current_effort(self, mock_db, manifest):
+        """Требование: отказ тихий и безопасный — битый yaml ничего не пересобирает."""
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        disconnects = 0
+        orig_disconnect = session._disconnect_backend
+
+        async def counting_disconnect():
+            nonlocal disconnects
+            disconnects += 1
+            await orig_disconnect()
+
+        session._disconnect_backend = counting_disconnect
+        manifest("name: eff\nroles: {hand: {kind: worker, label: Hand, bogus_field: 1}}\n")
+        with patch.object(session, "_make_backend", return_value=backend):
+            await self._turn(session, backend, "first")
+
+        assert session.effort == "medium"
+        assert disconnects == 0
+
+    @pytest.mark.asyncio
+    async def test_typo_in_level_keeps_live_agent_on_current_effort(self, mock_db, manifest):
+        """Отказ манифеста по опечатке в ступени НЕ трогает живого агента.
+
+        Манифест с неизвестной ступенью теперь отвергается целиком (fail-closed), и цена
+        этого — падающий спавн. Живые агенты платить не должны: сбой резолва оставляет
+        текущее значение и не пересобирает бэкенд. Проверяем именно ветку `raise`, а не
+        только ветку с warning.
+        """
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        disconnects = 0
+        orig_disconnect = session._disconnect_backend
+
+        async def counting_disconnect():
+            nonlocal disconnects
+            disconnects += 1
+            await orig_disconnect()
+
+        session._disconnect_backend = counting_disconnect
+        manifest(
+            "name: eff\nroles:\n  hand: {kind: worker, label: Hand, "
+            "effort: {\"claude-sonnet-5[1m]\": hgih, default: high}}\n"
+        )
+        with patch.object(session, "_make_backend", return_value=backend):
+            await self._turn(session, backend, "first")
+
+        assert session.effort == "medium"  # не сползли на default: high
+        assert disconnects == 0
+
+    @pytest.mark.asyncio
+    async def test_role_without_effort_keeps_db_value(self, mock_db, manifest):
+        """Роль без эффорта → остаёмся на значении из БД, а не обнуляем его."""
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        manifest("name: eff\nroles: {hand: {kind: worker, label: Hand}}\n")
+        with patch.object(session, "_make_backend", return_value=backend):
+            await self._turn(session, backend, "first")
+        assert session.effort == "medium"
+
+    @pytest.mark.asyncio
+    async def test_legacy_session_without_role_is_untouched(self, mock_db, manifest):
+        """Legacy-сессия (role='') манифеста не имеет — живёт на значении из БД."""
+        session = self._session(effort="xhigh", role="")
+        backend = _MockBackend()
+        with patch.object(session, "_make_backend", return_value=backend):
+            await self._turn(session, backend, "first")
+        assert session.effort == "xhigh"
+
+    @pytest.mark.asyncio
+    async def test_failed_disconnect_leaves_change_pending(self, mock_db, manifest):
+        """Сбой дисконнекта НЕ должен съедать смену: следующий ход обязан повторить.
+
+        Порядок «зафиксировать значение → дисконнект» делает такой сбой невосстановимым:
+        расхождения с манифестом больше нет, повторять нечего, и агент навсегда остаётся
+        на бэкенде со старой ступенью. Поэтому дисконнект идёт ПЕРВЫМ.
+        """
+        session = self._session(effort="medium")
+        backend = _MockBackend()
+        manifest(
+            "name: eff\nroles:\n  hand: {kind: worker, label: Hand, "
+            "effort: {\"claude-sonnet-5[1m]\": high, default: low}}\n"
+        )
+        attempts = 0
+        orig_disconnect = session._disconnect_backend
+
+        async def flaky_disconnect():
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise RuntimeError("disconnect failed")
+            await orig_disconnect()
+
+        session._disconnect_backend = flaky_disconnect
+        with patch.object(session, "_make_backend", return_value=backend):
+            with pytest.raises(RuntimeError):
+                await session._apply_manifest_effort()
+            assert session.effort == "medium"  # не зафиксировано — расхождение живо
+
+            assert await session._apply_manifest_effort() is True
+        assert session.effort == "high"
+        assert attempts == 2
+
+    @pytest.mark.asyncio
+    async def test_effort_follows_model_switch_without_manifest_edit(self, mock_db, manifest):
+        """Тот же манифест, другая модель сессии → другая ступень (ключ — модель)."""
+        session = self._session(effort="medium", model="gpt-5.6-sol")
+        session.backend_type = "codex"
+        backend = _MockBackend()
+        with patch.object(session, "_make_backend", return_value=backend):
+            await self._turn(session, backend, "first")
+        assert session.effort == "xhigh"
+
+
 class TestEnsureBackendForceFresh:
     @pytest.mark.asyncio
     async def test_codex_preflights_finish_before_backend_is_built_and_connected(
