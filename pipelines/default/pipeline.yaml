@@ -107,3 +107,17 @@ roles:
       pipeline, 2 orchestrator approval gates, Codex review at plan + impl. For a
       research-only task the orchestrator simply stops after Phase 1. All artifacts
       in docs/tasks/<id>/.
+  reducer:
+    kind: worker
+    label: Reducer
+    order: 4
+    model: gpt-5.6-luna
+    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
+    modules: []
+    can_spawn: []
+    tg: {emoji: "🧾"}
+    when: Collecting fan-out child reports into one lossless handoff for the parent
+    not_for: Selecting, summarizing, deciding, implementing, or managing agents
+    description: >
+      Cheap fan-out report collector. Receives child reports, preserves every report,
+      and sends one combined handoff to the parent without selecting or interpreting it.

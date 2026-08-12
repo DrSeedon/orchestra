@@ -65,6 +65,13 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "search_memory",
 })
 
+REDUCER_MCP_TOOLS = frozenset({
+    "send_message",
+    "update_progress",
+    "list_agents",
+    "search_memory",
+})
+
 
 @dataclass
 class ApiToolError(RuntimeError):
@@ -271,6 +278,8 @@ def _tool_names_for_access_mode(names: set[str], mode: str) -> set[str]:
     normalized = mode.strip().lower()
     if normalized in {"read-only", "readonly", "read"}:
         return names & READ_ONLY_MCP_TOOLS
+    if normalized == "reducer":
+        return names & REDUCER_MCP_TOOLS
     if normalized == "full":
         return set(names)
     raise ValueError(f"Unknown ORCHESTRA_ACCESS_MODE: {mode!r}")

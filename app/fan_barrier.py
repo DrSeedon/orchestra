@@ -15,15 +15,16 @@ def open_fan(
     scope: str,
     children: list[str],
     deadline_seconds: float,
+    reducer: str = "",
 ) -> None:
     now = time.time()
     members = list(dict.fromkeys(children))
     with db._conn() as conn:
         conn.execute(
             """INSERT INTO fan_barriers
-               (fan_id, parent_name, scope, created_at, deadline_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (fan_id, parent_name, scope, now, now + deadline_seconds),
+               (fan_id, parent_name, scope, created_at, deadline_at, reducer)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (fan_id, parent_name, scope, now, now + deadline_seconds, reducer or ""),
         )
         conn.executemany(
             "INSERT INTO fan_members (fan_id, child) VALUES (?, ?)",
@@ -55,11 +56,28 @@ def record_terminal(
     state: str,
     report_path: str | None = None,
     summary: str | None = None,
+    require_drained_scope: str | None = None,
 ) -> bool:
+    """`require_drained_scope` — #231: не считать ребёнка терминальным, пока у него
+    есть невыданный вход в ящике.
+
+    Проверка живёт ВНУТРИ той же транзакции, что и фиксация: между раздельными
+    «посмотреть, что ящик пуст» и «записать терминал» успевает лечь `wake=False`,
+    и веер отпустится по ребёнку, который своего сообщения ещё не видел.
+    """
     del summary
     if state not in _TERMINAL_STATES:
         return False
     with db._conn() as conn:
+        if require_drained_scope is not None:
+            undelivered = conn.execute(
+                """SELECT 1 FROM mailbox
+                   WHERE recipient = ? AND scope = ? AND delivered_at IS NULL
+                   LIMIT 1""",
+                (child, require_drained_scope),
+            ).fetchone()
+            if undelivered is not None:
+                return False
         row = conn.execute(
             """SELECT m.fan_id, m.state, f.released
                FROM fan_members m
@@ -189,3 +207,50 @@ def parent_of(fan_id: str) -> tuple[str, str] | None:
             (fan_id,),
         ).fetchone()
     return (row[0], row[1]) if row else None
+
+
+def reducer_of(fan_id: str) -> str:
+    """#231 T6: кому адресован релиз. Пусто → родителю, как было до редьюсера."""
+    with db._conn() as conn:
+        row = conn.execute(
+            "SELECT reducer FROM fan_barriers WHERE fan_id = ?", (fan_id,)
+        ).fetchone()
+    return (row[0] if row else "") or ""
+
+
+def peek_summary(name: str, scope: str) -> str | None:
+    """Веер, сводку которого этот агент ещё не отдавал. ЧИСТОЕ чтение.
+
+    Первая редакция гасила признак прямо здесь, и ревью реализации справедливо
+    назвало это потерей: любой сбой между «пометили» и «доставили» уничтожал манифест
+    навсегда. Это ровно грабля #158, и я закрыл её в ящике, но не здесь.
+    Гасит теперь `mark_summarised`, и только после успешной доставки.
+    """
+    with db._conn() as conn:
+        row = conn.execute(
+            """SELECT fan_id FROM fan_barriers
+               WHERE reducer = ? AND scope = ? AND released = 1 AND summarised = 0
+               ORDER BY created_at DESC LIMIT 1""",
+            (name, scope),
+        ).fetchone()
+    return row[0] if row else None
+
+
+def mark_summarised(fan_id: str) -> None:
+    with db._conn() as conn:
+        conn.execute(
+            "UPDATE fan_barriers SET summarised = 1 WHERE fan_id = ?", (fan_id,)
+        )
+
+
+def fan_id_for_reducer(name: str, scope: str) -> str | None:
+    """Веер, чью сводку собирает этот агент. Нужен, чтобы приклеить манифест к его
+    собственному сообщению родителю: полнота обязана держаться на коде, а не на том,
+    что редьюсер ничего не забыл (#231, blocking 8 ревью плана)."""
+    with db._conn() as conn:
+        row = conn.execute(
+            """SELECT fan_id FROM fan_barriers
+               WHERE reducer = ? AND scope = ? ORDER BY created_at DESC LIMIT 1""",
+            (name, scope),
+        ).fetchone()
+    return row[0] if row else None

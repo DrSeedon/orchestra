@@ -280,17 +280,28 @@ class TurnManager:
         # родителя мимо барьера.
         from app import fan_barrier
         if fan_barrier.should_buffer(s.name):
-            if fan_barrier.record_terminal(s.name, "done"):
+            # #231: осушение проверяется В ТОЙ ЖЕ транзакции, что и фиксация терминала.
+            # Раздельные «посмотреть» и «записать» пропускают `wake=False`, легший
+            # между ними, — и веер отпустится по ребёнку, не видевшему своего входа.
+            if fan_barrier.record_terminal(
+                s.name, "done", require_drained_scope=s.scope
+            ):
                 fan_id = fan_barrier.fan_id_for_child(s.name, include_released=True)
                 target = fan_barrier.parent_of(fan_id) if fan_id else None
                 if target:
-                    async def _deliver_manifest(parent_name=target[0],
-                                                scope=target[1], fid=fan_id):
+                    # #231 T6: адресат тот же, что и на явном пути. Иначе поведение
+                    # зависело бы от того, позвал ребёнок `send_message` или промолчал,
+                    # и молчаливый ребёнок будил бы дорогого родителя мимо редьюсера.
+                    reducer = fan_barrier.reducer_of(fan_id)
+                    recipient = reducer or target[0]
+
+                    async def _deliver_manifest(name=recipient, scope=target[1],
+                                                fid=fan_id):
                         from app.deps import manager
-                        parent = await manager.ensure_loaded(parent_name, scope)
-                        if parent:
+                        dest = await manager.ensure_loaded(name, scope)
+                        if dest:
                             await manager.send(
-                                parent.id, fan_barrier.manifest_text(fid)
+                                dest.id, fan_barrier.manifest_text(fid)
                             )
                     s._auto_report_task = asyncio.create_task(_deliver_manifest())
             return
@@ -507,6 +518,36 @@ class TurnManager:
             self.schedule_context_compaction(live_pct)
         s._spawn_bg(s._notify_scope_idle())
 
+        # #231 T3: накопленное в ящике выдаётся в КОНЦЕ уже оплаченного хода, поэтому
+        # активация за него не платится второй раз (пробуждение стоит ~$0.15 плюс весь
+        # развёрнутый ход — docs/tasks/231/research.md §3.1).
+        # Идёт СТРОГО ДО `fire_auto_report`: под включённым барьером авто-отчёт фиксирует
+        # терминальное состояние ребёнка и может отпустить веер, пока у этого же ребёнка
+        # лежит невыданный вход, — родитель получит сводку по недоработавшему ребёнку.
+        from app import mailbox
+        try:
+            queued = mailbox.claim(s.name, s.scope)
+        except Exception as exc:
+            # Ящик — побочная услуга, жизненный цикл хода важнее. Недоступная таблица
+            # (не мигрированная БД, урезанный тестовый стенд) не имеет права ронять
+            # завершение хода У ВСЕХ агентов: громко в журнал и обычным путём дальше.
+            from app.errtext import err_text as _err
+            s._log("error", f"mailbox недоступен, ход завершается обычным путём: {_err(exc)}")
+            queued = []
+        if queued:
+            s._log("status", f"mailbox: {len(queued)} — продолжаю ход вместо пробуждения")
+            s._spawn_bg(self._deliver_mailbox(
+                queued, live_pct,
+                allow_auto_report=allow_auto_report,
+            ))
+            return
+
+        self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
+
+    def _idle_tail(self, live_pct: int, *, allow_auto_report: bool = True) -> None:
+        """Обычное завершение простоя. Вынесено, чтобы его можно было доиграть после
+        неудачной выдачи из ящика: иначе сессия зависает без авто-отчёта и гибернации."""
+        s = self.s
         # Don't auto-report mid-flight: WAITING means a bg job (e.g. codex_review) is
         # still running and will wake the worker with its result — the turn isn't
         # really "done", so reporting now spams a half-status to the orchestrator.
@@ -518,6 +559,51 @@ class TurnManager:
             return
 
         s._hibernate.schedule()
+
+    async def _deliver_mailbox(self, queued: list[dict], live_pct: int = 0, *,
+                               allow_auto_report: bool = True) -> None:
+        """Гасить ПОСЛЕ фактической выдачи, а не при обнаружении (грабля #158).
+
+        Цикл умеет переигрывать вход; флаг, погашенный в момент обнаружения, теряет
+        сообщение именно на повторе — то есть под нагрузкой, когда оно нужнее всего.
+        Поэтому `mark_delivered` стоит строго после успешного `send`, а на любом сбое
+        строки остаются в ящике и выдадутся в конце следующего хода.
+        """
+        from app import mailbox
+        from app.errtext import err_text
+        s = self.s
+        text = "\n\n".join(f"[from:{m['sender']}] {m['body']}" for m in queued)
+        ids = [m["id"] for m in queued]
+        try:
+            await s.send(text)
+        except asyncio.CancelledError:
+            # `CancelledError` НЕ наследует `Exception` (3.8+): без отдельной ветки
+            # отмена задачи оставляла бы строки под арендой до её протухания
+            # (находка раунда 3 ревью реализации).
+            mailbox.release_claim(ids)
+            raise
+        except Exception as exc:
+            # Возвращаем строки в ящик и ДОИГРЫВАЕМ обычный хвост простоя. Без этого
+            # сессия оставалась бы без авто-отчёта и без гибернации, а сообщения —
+            # без следующего конца хода, который мог бы их выдать: `wake=False`
+            # будущего пробуждения не создаёт по построению.
+            mailbox.release_claim(ids)
+            s._log("error", f"mailbox: выдача не удалась, {len(queued)} возвращены "
+                            f"в ящик: {err_text(exc)}")
+            # Эскалация: продолжить ход не вышло, поэтому доставляем обычным путём —
+            # он загружает сессию и будит её. Без этого следующего конца хода может
+            # не случиться никогда, и сообщения залягут (F3 ревью реализации).
+            try:
+                from app.deps import manager as _mgr
+                await _mgr.send(s.id, text)
+            except Exception as esc:
+                s._log("error", f"mailbox: эскалация тоже не удалась, {len(queued)} "
+                                f"ждут в ящике: {err_text(esc)}")
+                self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
+                return
+            mailbox.mark_delivered(ids)
+            return
+        mailbox.mark_delivered(ids)
 
     def schedule_context_compaction(self, live_pct: int) -> None:
         """Run both automatic compaction decisions from one validated context."""

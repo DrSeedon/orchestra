@@ -35,12 +35,18 @@ class TestDefaultManifestLoads:
         assert cfg.name == "default"
         assert cfg.validation == "fail-open"  # дух апстрима — мягкая валидация
 
-    def test_has_four_upstream_roles(self):
-        """4 роли апстрима v2.18."""
+    def test_role_set_is_exactly_this(self):
+        """4 роли апстрима v2.18 + `reducer` (#231 T5).
+
+        Набор ТОЧНЫЙ, а не «не меньше»: тест затем и существует, чтобы роль нельзя
+        было добавить незаметно. `reducer` добавлен осознанно — дешёвый сборщик
+        отчётов веера, `can_spawn: []`, права отняты отсутствием тулов (#231 T4).
+        Обновляется РУКАМИ вместе с каждой новой ролью; ослаблять до `>=` нельзя.
+        """
         cfg = P.load_pipeline(PIPELINE)
         assert set(cfg.roles) == {
             "orchestrator", "sub-orchestrator", "worker",
-            "full-cycle"}
+            "full-cycle", "reducer"}
 
     def test_kinds_match_upstream(self):
         """orchestrator и sub-orchestrator — kind:orchestrator; worker/full-cycle — kind:worker."""

@@ -139,6 +139,8 @@ def init_db() -> None:
                 scope TEXT NOT NULL,
                 created_at REAL NOT NULL,
                 deadline_at REAL NOT NULL,
+                reducer TEXT NOT NULL DEFAULT '',
+                summarised INTEGER NOT NULL DEFAULT 0,
                 released INTEGER NOT NULL DEFAULT 0,
                 complete INTEGER,
                 partial_reason TEXT
@@ -152,6 +154,19 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_fan_members_child
                 ON fan_members(child, fan_id);
+
+            CREATE TABLE IF NOT EXISTS mailbox (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recipient TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                sender TEXT NOT NULL,
+                body TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                delivered_at REAL,
+                claimed_at REAL
+            );
+            CREATE INDEX IF NOT EXISTS idx_mailbox_pending
+                ON mailbox(recipient, scope) WHERE delivered_at IS NULL;
 
             CREATE TABLE IF NOT EXISTS test_lock (
                 scope TEXT PRIMARY KEY,
@@ -756,6 +771,14 @@ def _migrate(c) -> None:
     # Additive ALTER TABLE migrations — safe to re-run (IF NOT EXISTS / column check).
     # Never drop columns: old Orchestra versions reading the same DB must still work.
     _guard_session_id(c)
+    mb_cols = {row[1] for row in c.execute("PRAGMA table_info(mailbox)").fetchall()}
+    if "claimed_at" not in mb_cols:
+        c.execute("ALTER TABLE mailbox ADD COLUMN claimed_at REAL")
+    fan_cols = {row[1] for row in c.execute("PRAGMA table_info(fan_barriers)").fetchall()}
+    if "reducer" not in fan_cols:
+        c.execute("ALTER TABLE fan_barriers ADD COLUMN reducer TEXT NOT NULL DEFAULT ''")
+    if "summarised" not in fan_cols:
+        c.execute("ALTER TABLE fan_barriers ADD COLUMN summarised INTEGER NOT NULL DEFAULT 0")
     lock_cols = {row[1] for row in c.execute("PRAGMA table_info(test_lock)").fetchall()}
     if lock_cols and "holder_session_id" not in lock_cols:
         c.execute("ALTER TABLE test_lock ADD COLUMN holder_session_id TEXT NOT NULL DEFAULT ''")

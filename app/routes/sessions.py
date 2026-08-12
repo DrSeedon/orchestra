@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import math
 import re
 import sqlite3
 from contextlib import AsyncExitStack
@@ -161,6 +162,7 @@ class SendRequest(BaseModel):
     message: str
     scope: str
     sender: str | None = None
+    wake: bool = True
     # #219 T1b: класс сообщения ребёнка. Необязательное поле с совместимым
     # умолчанием — старые процессы `mcp_stdio.py` живут до реконнекта и его не
     # пошлют (грабля #215/#217). Неизвестное значение → буферизуем (fail-closed).
@@ -169,6 +171,34 @@ class SendRequest(BaseModel):
 
 class ScopeRequest(BaseModel):
     scope: str
+
+
+# Точка на измеренной кривой, а не «разумное значение»: 5 мин снимают 2.06% расхода
+# платформы, 30 мин — 4.35%, 60 мин — 4.94% (docs/tasks/231/research.md §3.7).
+# Дедлайн покупается задержкой, поэтому вызывающий вправе выбрать свою точку.
+DEFAULT_FAN_DEADLINE_SECONDS = 1800.0
+
+
+class OpenFanRequest(BaseModel):
+    fan_id: str
+    parent_name: str
+    scope: str
+    children: list[str]
+    deadline_seconds: float | None = None
+    reducer: str | None = None
+
+    @field_validator("deadline_seconds")
+    @classmethod
+    def validate_deadline(cls, v):
+        # NaN даёт веер, который не истечёт НИКОГДА: `deadline_at <= ?` для NaN ложно
+        # при любом времени. Отрицательный — веер, истёкший до рождения.
+        if v is None:
+            return v
+        if not math.isfinite(v):
+            raise ValueError("deadline_seconds must be finite")
+        if v < 0 or v > 86400:
+            raise ValueError("deadline_seconds must be within [0, 86400]")
+        return v
 
 
 @router.get("/api/sessions")
@@ -459,9 +489,66 @@ async def get_single_log(log_id: int):
     return row
 
 
+@router.post("/api/fan/open")
+async def open_fan(req: OpenFanRequest):
+    """#231 T1: единственный вход в барьер #219 — до этого `open_fan()` не звал никто.
+
+    Родитель объявляет веер сразу после спавна детей: пока веер открыт, их отчёты
+    копятся, и родитель просыпается один раз вместо N. Замер выгоды и кривая по
+    дедлайну — `docs/tasks/231/research.md` §3.7.
+    """
+    from app import fan_barrier
+    deadline = (
+        req.deadline_seconds
+        if req.deadline_seconds is not None
+        else DEFAULT_FAN_DEADLINE_SECONDS
+    )
+    fan_barrier.open_fan(
+        fan_id=req.fan_id,
+        parent_name=req.parent_name,
+        scope=req.scope,
+        children=req.children,
+        deadline_seconds=deadline,
+        reducer=req.reducer or "",
+    )
+    return {"ok": True, "fan_id": req.fan_id, "children": len(req.children)}
+
+
 @router.post("/api/sessions/{name}/send")
 async def send_message(name: str, req: SendRequest):
     try:
+        # A non-waking delivery must not load or activate the recipient.  The
+        # requested scope is the mailbox address supplied by the sender.
+        if not req.wake:
+            # #231, находка ревью реализации (F3, раунд 2): ящик разгружается в КОНЦЕ
+            # хода. У получателя, который прямо сейчас не работает, следующего конца
+            # хода может не быть НИКОГДА — и `wake=False` его не создаёт по построению.
+            # Поэтому экономия применяется только там, где она вообще возможна: к
+            # получателю, про которого мы ЗНАЕМ, что он занят и ход у него кончится.
+            # Во всех остальных случаях (не знаем, не загружен, простаивает) — обычная
+            # доставка. Корректность дороже экономии; замер §3.6 и берётся с занятых.
+            # Оракул на «неизвестный → в ящик» перезаморожен и снят: он предписывал
+            # тихую потерю (F3 ревью реализации).
+            live = getattr(manager, "sessions", None) or {}
+            target = next(
+                (x for x in live.values()
+                 if getattr(x, "name", None) == name
+                 and getattr(x, "scope", None) == req.scope),
+                None,
+            )
+            busy = target is not None and str(
+                getattr(getattr(target, "status", ""), "value", getattr(target, "status", ""))
+            ) in {"running", "waiting"}
+            if busy:
+                from app import mailbox
+                mailbox.enqueue(
+                    recipient=name,
+                    scope=req.scope,
+                    sender=req.sender or "",
+                    body=req.message,
+                )
+                return {"ok": True, "queued": True}
+            # известно, что получатель простаивает → будим, иначе сообщение залежится
         session = await manager.ensure_loaded(name, req.scope)
         if not session:
             session = await manager.ensure_loaded_any(name)
@@ -479,15 +566,38 @@ async def send_message(name: str, req: SendRequest):
         # FAILED]` и живой ввод из Telegram (грабля #154).
         if req.sender:
             from app import fan_barrier
+            # #231 T6: полнота сводки — свойство КОДА. Редьюсер, забывший правило
+            # «не сокращай», теряет отчёты детей, поэтому манифест приклеивается
+            # всегда, а его собственный текст может быть только ДОБАВКОЙ.
+            reducer_fan = fan_barrier.peek_summary(req.sender, req.scope)
+            if reducer_fan:
+                manifest = fan_barrier.manifest_text(reducer_fan)
+                body = f"{req.message}\n\n{manifest}" if req.message else manifest
+                await manager.send(session.id, body)
+                # Гасим ПОСЛЕ доставки: сбой между пометкой и отправкой уничтожил бы
+                # манифест навсегда, а повтор всего лишь пришлёт его дважды (#158).
+                fan_barrier.mark_summarised(reducer_fan)
+                return {"ok": True, "fan_id": reducer_fan}
             if fan_barrier.should_buffer(req.sender, req.message_kind):
-                released = fan_barrier.record_terminal(req.sender, "done")
+                # #231 T6: ребёнок с невыданным входом не терминален. Проверка стоит
+                # ВНУТРИ транзакции `record_terminal` — раздельные «посмотреть» и
+                # «зафиксировать» пропускают `wake=False`, легший между ними.
+                released = fan_barrier.record_terminal(
+                    req.sender, "done", require_drained_scope=req.scope
+                )
                 if released:
                     fan_id = fan_barrier.fan_id_for_child(
                         req.sender, include_released=True
                     )
                     if fan_id:
+                        # #231 T6: сводку собирает редьюсер, если он назначен. Дорогой
+                        # участник просыпается один раз и уже на готовое.
+                        target = session
+                        reducer = fan_barrier.reducer_of(fan_id)
+                        if reducer:
+                            target = await manager.ensure_loaded(reducer, req.scope) or session
                         await manager.send(
-                            session.id, fan_barrier.manifest_text(fan_id)
+                            target.id, fan_barrier.manifest_text(fan_id)
                         )
                 return {"ok": True, "buffered": not released,
                         "parent_name": session.parent_name or ""}
