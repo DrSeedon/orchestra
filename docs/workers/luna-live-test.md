@@ -1,0 +1,1 @@
+- When testing an async MCP tool, patch its module-level `_api` seam with explicit GET/POST responses; stale helper mocks plus swallowed exceptions can leave the test green without exercising the current path.

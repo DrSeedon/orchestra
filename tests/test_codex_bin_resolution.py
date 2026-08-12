@@ -64,6 +64,13 @@ def test_missing_binary_gives_actionable_text_instead_of_exit_127(mcp, monkeypat
     monkeypatch.setattr(mcp, "WORKER_NAME", "perf")
     monkeypatch.setattr(mcp, "SCOPE", "/home/kesha/orchestra")
 
+    async def fake_api(method, path, **kwargs):
+        assert method == "GET"
+        assert path == "/api/sessions/perf"
+        return {"id": "test-session", "worktree_path": "/home/kesha/orchestra"}
+
+    monkeypatch.setattr(mcp, "_api", fake_api)
+
     out = asyncio.run(mcp.codex_review(
         context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
     ))
@@ -77,22 +84,23 @@ def test_resolved_binary_reaches_the_shell_command(mcp, monkeypatch, tmp_path):
     """Позитивный случай: в команду уходит именно разрешённый путь, а не константа."""
     started = {}
 
-    def fake_bg(command=None, **kw):
-        started["command"] = command
-        return {"job_id": "bg-test"}
+    async def fake_api(method, path, **kwargs):
+        if method == "GET":
+            return {"id": "test-session", "worktree_path": str(tmp_path)}
+        assert method == "POST"
+        assert path == "/api/bg/jobs"
+        started["command"] = kwargs["json"]["config"]["command"]
+        return {"id": "bg-test"}
 
     monkeypatch.setattr(mcp.shutil, "which", lambda _: "/usr/bin/codex")
     monkeypatch.setattr(mcp, "WORKER_NAME", "perf")
     monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
-    monkeypatch.setattr(mcp, "_start_codex_job", fake_bg, raising=False)
+    monkeypatch.setattr(mcp, "_api", fake_api)
 
-    try:
-        asyncio.run(mcp.codex_review(
-            context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
-        ))
-    except Exception:
-        pass  # до фонового запуска может не дойти в тестовом окружении — важна команда
+    result = asyncio.run(mcp.codex_review(
+        context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
+    ))
 
-    if "command" in started:
-        assert "/usr/bin/codex" in started["command"]
-        assert "/home/maxim" not in started["command"]
+    assert "bg-test" in result
+    assert "/usr/bin/codex" in started["command"]
+    assert "/home/maxim" not in started["command"]
