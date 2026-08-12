@@ -3416,9 +3416,16 @@ async def handle_restart(msg: types.Message):
     if member.status not in ("administrator", "creator"):
         await msg.reply("⛔ Only admins can restart.")
         return
-    await msg.reply("🔄 Перезапуск Orchestra...")
-    import subprocess
-    subprocess.Popen(["sudo", "systemctl", "restart", "orchestra"])
+    # Прямой `systemctl` отсюда убивал живые ходы мимо дренажа: мост живёт в ТОМ ЖЕ
+    # процессе, поэтому зовём тот же серверный workflow, что и кнопка дашборда (#220 T4).
+    # Второго пути рестарта не оставляем — именно из-за него дренаж и обходили бы.
+    from app.routes import system
+
+    await msg.reply(
+        "🔄 Перезапуск Orchestra: дренаж запущен, ждём живые ходы. "
+        "Кого всё-таки разорвало — узнает из своего журнала после старта."
+    )
+    await system.restart_server()
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.voice)

@@ -1696,13 +1696,69 @@ async def release_lock_endpoint(req: TestLockRequest):
 
 _restart_tasks: set[asyncio.Task] = set()
 
+# 15 минут: замер #220 — дренаж сходится за это время в 80% случаев (p50 1.2 мин).
+# Дедлайн БЕЗУСЛОВНЫЙ: гарантии сходимости нет вовсе, потому что ходы порождаются
+# изнутри контура (send_message между агентами, автоотчёт родителю).
+_DRAIN_DEADLINE_S = 900
 
-async def _restart_service_after_response() -> None:
-    """Let the response flush, then exit cleanly; systemd Restart=always revives us."""
+
+def _drain_sessions() -> list:
+    """Живые сессии одним местом — тест подменяет именно её."""
+    return list(manager.sessions.values())
+
+
+def _record_restart_outcome(outcome: dict) -> None:
+    """Записать итог дренажа ДО сигнала: после него отчитываться уже некому.
+
+    Процесс умирает внутри workflow, поэтому ни HTTP-ответ, ни живой TG-канал итог
+    не донесут — переживает рестарт только запись на диск. Потребитель — существующий
+    журнал сессии в дашборде; нового эндпоинта и таблицы не заводим (#220 T3).
+    """
+    from app.db import add_log
+
+    ts = datetime.now(timezone.utc)
+    summary = (
+        f"[system] рестарт: дренаж {outcome['waited_s']:.1f} с, "
+        f"разорвано ходов: {outcome['cut_turns']}"
+    )
+    logger.warning(summary)
+    for session_id in outcome["cut_ids"]:
+        add_log(session_id, ts, "system",
+                f"{summary}. Твой ход разорван — автоматического повтора нет.")
+
+
+async def _restart_service_after_response() -> dict:
+    """Дренаж → запись итога → SIGINT; systemd Restart=always поднимает нас обратно.
+
+    Порядок обязателен: дренаж идёт ДО сигнала, а `shutdown_merge_operations()`,
+    `bg_manager.shutdown()` и `manager.shutdown_all()` — уже ПОСЛЕ него, внутри
+    lifespan (`app/main.py:114,126,127`).
+    """
     await asyncio.sleep(0.5)
+    manager.begin_drain()
+    started = time.monotonic()
+    while time.monotonic() - started < _DRAIN_DEADLINE_S:
+        if not [s for s in _drain_sessions() if s.is_busy]:
+            break
+        await asyncio.sleep(1)
+    cut = [s for s in _drain_sessions() if s.is_busy]
+    outcome = {
+        "waited_s": time.monotonic() - started,
+        "cut_turns": len(cut),
+        "cut_names": [s.name for s in cut],
+        "cut_ids": [s.id for s in cut],
+    }
+    try:
+        _record_restart_outcome(outcome)
+    except Exception as error:
+        # Побочный учёт не имеет права отменить основное действие: дедлайн назван
+        # безусловным, и сбой записи не делает рестарт менее обязательным (класс #215).
+        logger.warning("could not record restart outcome: %s: %s",
+                       type(error).__name__, error)
     from app.live_broker import broker
     broker.close_subscribers()
     os.kill(os.getpid(), signal.SIGINT)
+    return outcome
 
 
 @router.post("/api/restart")

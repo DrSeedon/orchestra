@@ -50,11 +50,40 @@ from app.usage_contract import KnownContext, current_context
 if TYPE_CHECKING:
     from app.backend_protocol import BackendLike
     from app.quota_gate import QuotaDecision
-from app.db import add_log, get_history_logs, get_logs, save_session, tool_error_add
+from app.db import (
+    add_log, enqueue_fact, get_history_logs, get_logs, save_session, tool_error_add,
+)
 from app.errtext import err_text
 
 
 logger = logging.getLogger(__name__)
+
+
+class DrainingRefused(RuntimeError):
+    """Ход не начат: идёт дренаж перед рестартом (#220 T2).
+
+    Отказ громкий намеренно. Durable-очереди СООБЩЕНИЙ в проекте нет: `enqueue_fact`
+    хранит ФАКТ недоставки, а не само сообщение (`_attach_pending_facts` ниже), поэтому
+    «тихо положить и доставить потом» было бы обещанием, которого система не выполняет.
+    Внешний отправитель — агент, человек в TG, дашборд — видит ошибку и повторяет сам.
+    """
+
+
+def _refuse_if_draining(session: "AgentSession") -> None:
+    """Гейт допуска. СИНХРОННЫЙ и вызывается вплотную к присвоению RUNNING.
+
+    Ни здесь, ни между этим вызовом и `status = RUNNING` не должно быть ни одного
+    `await`: `send()` держит `_lifecycle_lock` через несколько await'ов
+    (`_apply_pending_identity_restart`, `_apply_manifest_effort`), и ранняя проверка
+    позволила бы ходу стартовать ПОСЛЕ того, как дренаж снял снимок живых ходов.
+    """
+    from app.deps import manager
+
+    if manager.draining:
+        raise DrainingRefused(
+            f"[{session.name}] Orchestra перезапускается: идёт дренаж, новый ход не "
+            f"начинается. Повтори через минуту."
+        )
 
 
 def _subscription_limit_kind(text: str) -> str | None:
@@ -723,6 +752,33 @@ class AgentSession:
         )
         return build_backend(self.backend_type, context)
 
+    @property
+    def is_busy(self) -> bool:
+        """Идёт ли работа, которую рестарт разорвёт (#220 T3).
+
+        Одного `status == RUNNING` мало: компактификация генерирует summary при
+        `_compacting = True`, а `RUNNING` присваивается только на ack-ходе в самом
+        конце. Дренаж по одному статусу срезал бы оплаченную сводку, не заметив её.
+        """
+        return self.status == AgentStatus.RUNNING or self._compacting
+
+    def _queue_drain_fact(self, kind: str, what: str) -> None:
+        """Оставить агенту факт о продолжении, срезанном дренажом (#220 T2).
+
+        Только для внутренних стартеров хода: у них нет отправителя, которому можно
+        отказать громко, поэтому единственный способ не потерять событие молча — тот
+        же механизм недоставки (#50). Ключ дедупа один на вид продолжения: за окно
+        дренажа повтор схлопывается в одну строку.
+        """
+        try:
+            enqueue_fact(
+                self.id, f"drain:{kind}",
+                f"{what}; Orchestra перезапускалась, автоматического повтора нет",
+            )
+        except Exception as error:
+            logger.warning(f"[{self.name}] could not queue drain fact {kind}: "
+                           f"{type(error).__name__}: {error}")
+
     def _attach_pending_facts(self, message: str) -> tuple[str, list[str]]:
         """Приписать к сообщению ФАКТЫ о недоставке, накопленные для этой сессии (#50).
 
@@ -935,9 +991,41 @@ class AgentSession:
                 # Personal memory is re-read here, not reused from the assembled string:
                 # the prompt is built at spawn / _load_from_db, so anything the agent
                 # wrote to its own memory since then would otherwise wait for a restart.
-                self._current_prompt = refresh_worker_memory(
-                    self._current_prompt, self.name, self.role, self.scope
-                )
+                # The same argument applies to the ROLE text itself (#220 T1): rebuild it
+                # from pipelines/** instead of replaying the string assembled at startup,
+                # otherwise a rule edit waits for a restart (median 3.3h, p75 22.9h).
+                if self.prompt_overlay is None:
+                    # A full prompt set by the operator has no component boundary —
+                    # rebuilding it would silently drop the authority they gave.
+                    self._current_prompt = refresh_worker_memory(
+                        self._current_prompt, self.name, self.role, self.scope
+                    )
+                else:
+                    from app.deps import manager
+                    try:
+                        self._current_prompt, _ = manager.assemble_prompt(
+                            pipeline=self.pipeline, role=self.role, scope=self.scope,
+                            is_orch=self.is_orchestrator, name=self.name,
+                            owned_dirs=self.owned_dirs,
+                            branch=self.branch or self.base_branch or "",
+                            stored_overlay=self.prompt_overlay,
+                            old_prompt=self._current_prompt,
+                        )
+                    except Exception as error:
+                        # Пересборка читает pipelines/** на ГОРЯЧЕМ пути, а
+                        # ROLE_SYSTEM_PROMPT падает громко (ValueError) на битом
+                        # манифесте. До T1 этого вызова здесь не было вовсе, поэтому
+                        # опечатка в роли теперь убивала бы следующий ход У ВСЕХ
+                        # агентов сразу. Откат к прежнему поведению — со старым
+                        # промптом, но вслух: горячее применение не имеет права быть
+                        # хуже своего отсутствия.
+                        self._log("error", f"prompt rebuild failed, using the prompt "
+                                           f"from startup: {err_text(error)}")
+                        logger.error(f"[{self.name}] prompt rebuild failed: "
+                                     f"{err_text(error)}")
+                        self._current_prompt = refresh_worker_memory(
+                            self._current_prompt, self.name, self.role, self.scope
+                        )
                 message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
                 did_inject = True
 
@@ -945,6 +1033,7 @@ class AgentSession:
             await self._apply_manifest_effort()
 
             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
+                _refuse_if_draining(self)  # no await between here and RUNNING below
                 self._manually_interrupted = False
                 self._did_report = False
                 self._turns.bump_turn_gen()
@@ -1643,6 +1732,7 @@ class AgentSession:
                 )
             self._log("status", f"delivering {len(msgs)} queued message(s)")
             try:
+                _refuse_if_draining(self)  # no await between here and RUNNING below
                 self._manually_interrupted = False
                 self._did_report = False
                 self._turns.bump_turn_gen()
@@ -1668,6 +1758,19 @@ class AgentSession:
                     self._listen_task = asyncio.create_task(self._turn_event_loop())
                     self._listen_task.add_done_callback(self._on_task_done)
                 self._quota_block_notice_signature = ""
+            except DrainingRefused as refusal:
+                # Отправителя, которому можно отказать, здесь нет — ход начинал сам
+                # `_flush_pending`. Сообщения возвращаются в память (умрут с процессом),
+                # поэтому агенту остаётся ФАКТ: после рестарта он узнает, что до него
+                # не доехало, вместо тишины (#220 T2).
+                self._log("status", f"drain: {refusal}")
+                self._pending_messages[0:0] = msgs
+                self.status = AgentStatus.IDLE
+                self._persist()
+                self._turns.publish_turn_finished()
+                self._queue_drain_fact(
+                    "flush", f"не доехало отложенных сообщений: {len(msgs)}",
+                )
             except Exception as e:
                 logger.error(f"[{self.name}] flush pending failed: {e}")
                 self._pending_messages[0:0] = msgs
@@ -2078,6 +2181,7 @@ class AgentSession:
         ack_deferred = False
         try:
             async def start_ack_turn():
+                _refuse_if_draining(self)  # no await between here and RUNNING below
                 self._manually_interrupted = False
                 self._did_report = False
                 self._turns.bump_turn_gen()
@@ -2181,6 +2285,12 @@ class AgentSession:
         try:
             await self.send("[system] Retrying after rate limit. Continue where you left off.")
             logger.info(f"[{self.name}] rate-limit retry after {delay}s")
+        except DrainingRefused as refusal:
+            self._log("status", f"drain: {refusal}")
+            self.status = AgentStatus.IDLE
+            self._persist()
+            self._turns.publish_turn_finished()
+            self._queue_drain_fact("rate-limit-retry", "повтор после rate limit срезан")
         except Exception as e:
             logger.warning(f"[{self.name}] rate-limit retry failed: {e}")
             self.status = AgentStatus.IDLE
@@ -2203,6 +2313,14 @@ class AgentSession:
                 "deliverable now."
             )
             logger.info(f"[{self.name}] server-error retry after {delay}s")
+        except DrainingRefused as refusal:
+            self._log("status", f"drain: {refusal}")
+            self.status = AgentStatus.IDLE
+            self._persist()
+            self._turns.publish_turn_finished()
+            self._queue_drain_fact(
+                "server-error-retry", "повтор после сбоя апстрима срезан",
+            )
         except Exception as e:
             logger.warning(f"[{self.name}] server-error retry failed: {e}")
             self.status = AgentStatus.IDLE
@@ -2214,6 +2332,14 @@ class AgentSession:
         try:
             await self.send("[system] Turn limit reached. Continue where you left off.")
             logger.info(f"[{self.name}] auto-continue after max_turns")
+        except DrainingRefused as refusal:
+            self._log("status", f"drain: {refusal}")
+            self.status = AgentStatus.IDLE
+            self._persist()
+            self._turns.publish_turn_finished()
+            self._queue_drain_fact(
+                "auto-continue", "автопродолжение после лимита ходов срезано",
+            )
         except Exception as e:
             logger.warning(f"[{self.name}] auto-continue failed: {e}")
             self.status = AgentStatus.IDLE

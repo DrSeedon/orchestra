@@ -437,6 +437,22 @@ class SessionManager:
         self._spawn_locks: dict[tuple[str, str], asyncio.Lock] = {}
         # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
         self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
+        # #220 T2: рестарт закрывает приём новых ходов, пока дренажит уже идущие
+        self.draining = False
+
+    def begin_drain(self) -> None:
+        """Закрыть приём новых ходов. СИНХРОННО — в этом весь смысл.
+
+        Ни одного `await` здесь быть не должно: флаг обязан встать раньше, чем цикл
+        событий отдаст управление кому-то ещё. Иначе ход, уже прошедший проверку
+        гейта, успеет присвоить себе RUNNING после того, как дренаж снял снимок
+        живых ходов, и попадёт под сигнал как раз тот, кого дренаж защищал.
+        """
+        self.draining = True
+
+    def end_drain(self) -> None:
+        """Открыть приём обратно. Нужен тестам и отменённому рестарту."""
+        self.draining = False
 
     def get_session_lock(self, session_id: str) -> asyncio.Lock:
         if session_id not in self._session_locks:
@@ -1417,6 +1433,50 @@ class SessionManager:
                 return await self._load_from_db(row)
         return None
 
+    def assemble_prompt(
+        self, *, pipeline: str, role: str, scope: str, is_orch: bool, name: str,
+        owned_dirs, branch: str, stored_overlay: str | None, old_prompt: str,
+    ) -> tuple[str, str | None]:
+        """Собрать системный промпт из файлов ролей — один владелец на двух вызывающих.
+
+        Зовётся из `_load_from_db` (восстановление сессии при старте) и из переинжекта
+        в `session.py`: без второго вызывающего правка `pipelines/**` доезжала до живого
+        агента только рестартом (#220 T1, медиана задержки выката 3.3 ч).
+
+        Возвращает (собранный промпт, восстановленный overlay). `overlay is None` на
+        выходе означает полную замену промпта оператором — у неё нет границы
+        компонентов, и пересобирать её нельзя.
+        """
+        current_base = ROLE_SYSTEM_PROMPT(
+            pipeline, role, scope
+        ) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role)
+        if not is_orch:
+            orch_name = self._find_orchestrator_name(scope)
+            current_base = safe_format_prompt(
+                current_base,
+                worker_name=name, orchestrator_name=orch_name or "orchestrator",
+                scope=scope, branch=branch,
+            )
+        if stored_overlay is None:
+            old_without_memory = strip_worker_memory(old_prompt)
+            if not old_without_memory:
+                prompt_overlay = self._ownership_prompt(parse_owned_dirs(owned_dirs))
+                prompt_without_memory = current_base + prompt_overlay
+            elif old_without_memory.startswith(current_base):
+                prompt_overlay = old_without_memory[len(current_base):]
+                prompt_without_memory = current_base + prompt_overlay
+            else:
+                # A legacy/full-prompt override has no component boundary to recover.
+                # Preserve it byte-for-byte instead of guessing and dropping authority.
+                prompt_overlay = None
+                prompt_without_memory = old_without_memory
+        else:
+            prompt_overlay = strip_worker_memory(stored_overlay)
+            prompt_without_memory = current_base + prompt_overlay
+        return refresh_worker_memory(
+            prompt_without_memory, name, role, scope,
+        ), prompt_overlay
+
     async def _load_from_db(self, db_row: dict) -> AgentSession:
         role = db_row.get("role") or ("orchestrator" if db_row.get("is_orchestrator") else "worker")
         # Old rows (migrated) store pipeline='' → normalize to DEFAULT_PIPELINE.
@@ -1436,9 +1496,6 @@ class SessionManager:
         except FileNotFoundError:
             is_orch = bool(db_row.get("is_orchestrator")) or is_orchestrator_role(role)
         old_prompt = db_row.get("system_prompt", "")
-        current_base = ROLE_SYSTEM_PROMPT(
-            pipeline, role, db_row["scope"]
-        ) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role)
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
@@ -1463,36 +1520,11 @@ class SessionManager:
                     m = _TASK_BRANCH_RE.match(actual_branch)
                     db_task_id = m.group(1) if m else ""
 
-        orch_name = self._find_orchestrator_name(db_row["scope"]) if not is_orch else None
-        if not is_orch:
-            current_base = safe_format_prompt(
-                current_base,
-                worker_name=db_row["name"], orchestrator_name=orch_name or "orchestrator",
-                scope=db_row["scope"],
-                branch=db_row.get("branch") or db_row.get("base_branch") or "",
-            )
-        stored_overlay = db_row.get("prompt_overlay")
-        if stored_overlay is None:
-            old_without_memory = strip_worker_memory(old_prompt)
-            if not old_without_memory:
-                prompt_overlay = self._ownership_prompt(
-                    parse_owned_dirs(db_row.get("owned_dirs"))
-                )
-                prompt_without_memory = current_base + prompt_overlay
-            elif old_without_memory.startswith(current_base):
-                prompt_overlay = old_without_memory[len(current_base):]
-                prompt_without_memory = current_base + prompt_overlay
-            else:
-                # A legacy/full-prompt override has no component boundary to recover.
-                # Preserve it byte-for-byte instead of guessing and dropping authority.
-                prompt_overlay = None
-                prompt_without_memory = old_without_memory
-        else:
-            prompt_overlay = strip_worker_memory(stored_overlay)
-            prompt_without_memory = current_base + prompt_overlay
-        current_prompt = refresh_worker_memory(
-            prompt_without_memory,
-            db_row["name"], role, db_row["scope"],
+        current_prompt, prompt_overlay = self.assemble_prompt(
+            pipeline=pipeline, role=role, scope=db_row["scope"], is_orch=is_orch,
+            name=db_row["name"], owned_dirs=db_row.get("owned_dirs"),
+            branch=db_row.get("branch") or db_row.get("base_branch") or "",
+            stored_overlay=db_row.get("prompt_overlay"), old_prompt=old_prompt,
         )
 
         custom_mcp = _parse_custom_mcp(db_row.get("mcp_servers_custom"))
