@@ -133,6 +133,26 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_subagents_session ON subagents(session_id);
 
+            CREATE TABLE IF NOT EXISTS fan_barriers (
+                fan_id TEXT PRIMARY KEY,
+                parent_name TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                deadline_at REAL NOT NULL,
+                released INTEGER NOT NULL DEFAULT 0,
+                complete INTEGER,
+                partial_reason TEXT
+            );
+            CREATE TABLE IF NOT EXISTS fan_members (
+                fan_id TEXT NOT NULL REFERENCES fan_barriers(fan_id) ON DELETE CASCADE,
+                child TEXT NOT NULL,
+                state TEXT,
+                report_path TEXT,
+                PRIMARY KEY (fan_id, child)
+            );
+            CREATE INDEX IF NOT EXISTS idx_fan_members_child
+                ON fan_members(child, fan_id);
+
             CREATE TABLE IF NOT EXISTS test_lock (
                 scope TEXT PRIMARY KEY,
                 holder TEXT NOT NULL,

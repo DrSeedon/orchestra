@@ -814,3 +814,99 @@ def test_obsolete_priority_formulation_is_gone_everywhere():
     for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle"):
         out = build_system_prompt("default", role)
         assert OBSOLETE_PRIORITY_ANCHOR not in out, f"{role}: осталась старая формулировка приоритета"
+
+
+# --- #219: контракт делегирования «таблица, а не область» -------------------
+# Якоря — ЦЕЛЬНЫЕ фразы, выписанные вручную из файла-владельца
+# (pipelines/default/prompts/modules/worker-lifecycle.md). Не извлекать их из
+# источника программно: клауза, извлечённая из уже переформатированного файла,
+# находится в сборке всегда и делает тест слепым к переносу строки (#210).
+FAN_CONTRACT_ANCHORS = (
+    "Order a **schema** — the exact columns — not a subject area.",
+    "Give the **counting rule verbatim**",
+    "Numbers from different\nchildren are not addable unless you defined the count.",
+    "**Forbid conclusions and recommendations.**",
+    "**The join and the verdict are yours.**",
+    "Choosing which two columns to compare IS the",
+)
+
+# Роль, которая НЕ умеет спавнить, не должна получать контракт: лишний текст в
+# промпте терминальной роли — это плата без применения.
+FAN_CONTRACT_SPAWNERS = ("orchestrator", "sub-orchestrator", "full-cycle")
+FAN_CONTRACT_TERMINAL = ("worker",)
+
+
+def _spawn_capable_roles_from_config():
+    """Список берётся из КОНФИГА, а не из константы выше: если появится новая
+    спавнящая роль, тест обязан покраснеть, а не молча её пропустить."""
+    from app.pipeline import load_pipeline
+    cfg = load_pipeline("default")
+    roles = [n for n, r in cfg.roles.items() if r.can_spawn]
+    assert roles, "ни одна роль не умеет спавнить — проверка выродилась"
+    return roles
+
+
+def _norm(text: str) -> str:
+    """Схлопывает переносы и отступы. Якорь остаётся ЦЕЛЬНОЙ фразой (ловит удаление),
+    но переживает переформатирование файла — подгонять литерал под текущую вёрстку
+    нельзя, он сломается на следующем же реflow (#210)."""
+    import re
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def test_fan_contract_reaches_every_spawn_capable_role():
+    from app.pipeline import build_system_prompt
+    for role in _spawn_capable_roles_from_config():
+        out = _norm(build_system_prompt("default", role))
+        for anchor in FAN_CONTRACT_ANCHORS:
+            assert _norm(anchor) in out, f"{role}: нет якоря контракта веера {anchor!r}"
+
+
+def test_fan_contract_absent_from_terminal_roles():
+    from app.pipeline import build_system_prompt
+    for role in FAN_CONTRACT_TERMINAL:
+        out = build_system_prompt("default", role)
+        assert "Order a **schema**" not in _norm(out), (
+            f"{role}: не умеет спавнить, но получил контракт делегирования"
+        )
+
+
+FAN_CONTRACT_OWNER = "modules/worker-lifecycle.md"
+
+
+def test_fan_contract_comes_from_its_owner_module_and_nowhere_else():
+    """AC-3, автоматизируемая половина — проверяется ПРОИСХОЖДЕНИЕ, а не наличие.
+
+    Первая редакция этого теста грепала собранный промпт и была ЛОЖНО-ЗЕЛЁНОЙ:
+    составная мутация «пункт удалён из роли + фраза внедрена в base.md» её
+    проходила (замер #219, воспроизведён дефект #198). Инструкция при этом
+    материально теряется — она уезжает в общий слой, где достаётся и терминальным
+    ролям, и теряет свой контекст. Поэтому каждый якорь обязан иметь РОВНО ОДНОГО
+    владельца, и владелец — именно модуль ниже.
+
+    Вторую половину AC-3 — «нет ли той же мысли, сформулированной иначе» — греп не
+    закрывает по построению; она остаётся ручной проверкой артефакта.
+    """
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1] / "pipelines" / "default" / "prompts"
+    files = {p: _norm(p.read_text(encoding="utf-8")) for p in root.rglob("*.md")}
+    for anchor in FAN_CONTRACT_ANCHORS:
+        owners = [p for p, text in files.items() if _norm(anchor) in text]
+        assert len(owners) == 1, (
+            f"якорь {anchor!r}: владельцев должно быть ровно 1, найдено {len(owners)}: "
+            f"{[str(p) for p in owners]}"
+        )
+        assert str(owners[0]).endswith(FAN_CONTRACT_OWNER), (
+            f"якорь {anchor!r} уехал из {FAN_CONTRACT_OWNER} в {owners[0]}"
+        )
+
+
+def test_child_is_not_told_to_self_terminate_on_exhaustion():
+    """M1: ребёнок останавливается по собственной оценке полноты, и она слепа.
+    Формулировка «продолжай, пока вопрос не исчерпан» не должна вернуться."""
+    from app.pipeline import build_system_prompt
+    for role in _spawn_capable_roles_from_config():
+        out = build_system_prompt("default", role)
+        assert "until the question is exhausted" not in out.replace(
+            'continue "until the question is exhausted"', ""
+        ), f"{role}: вернулась формулировка про самостоятельное исчерпание"
