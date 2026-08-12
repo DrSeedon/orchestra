@@ -115,16 +115,6 @@ def finalize_review_artifact(*, output: Path, round_file: Path, sessions_file: P
     thread_id = _last_thread_id(jsonl_file) or previous.get("uuid", "")
     if not thread_id:
         raise ValueError(f"Codex thread UUID is missing from {jsonl_file}")
-    if usage_event_id:
-        _record_usage(
-            jsonl_file=jsonl_file,
-            event_id=usage_event_id,
-            session_id=usage_session_id,
-            scope=usage_scope,
-            task_id=usage_task_id,
-            model=usage_model,
-        )
-
     output.parent.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     if resume and output.exists():
@@ -152,6 +142,27 @@ def finalize_review_artifact(*, output: Path, round_file: Path, sessions_file: P
     except FileNotFoundError:
         pass
 
+    usage_error = ""
+    if not usage_event_id:
+        usage_error = "caller did not provide usage attribution"
+    else:
+        try:
+            _record_usage(
+                jsonl_file=jsonl_file,
+                event_id=usage_event_id,
+                session_id=usage_session_id,
+                scope=usage_scope,
+                task_id=usage_task_id,
+                model=usage_model,
+            )
+        except Exception as error:
+            usage_error = f"{type(error).__name__}: {error}"
+    if usage_error:
+        warning = f"Codex usage unaccounted: {usage_error}"
+        with output.open("a", encoding="utf-8") as fh:
+            fh.write(f"\n> ⚠ {warning}\n")
+        print(warning, file=sys.stderr)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -162,11 +173,11 @@ def main() -> int:
     parser.add_argument("--jsonl-file", type=Path, required=True)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--require-verdict", action="store_true")
-    parser.add_argument("--usage-event-id", required=True)
-    parser.add_argument("--usage-session-id", required=True)
+    parser.add_argument("--usage-event-id", default="")
+    parser.add_argument("--usage-session-id", default="")
     parser.add_argument("--usage-scope", default="")
     parser.add_argument("--usage-task-id", default="")
-    parser.add_argument("--usage-model", required=True)
+    parser.add_argument("--usage-model", default="")
     args = parser.parse_args()
     try:
         finalize_review_artifact(

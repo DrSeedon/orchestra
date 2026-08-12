@@ -1,5 +1,8 @@
 import json
 import sqlite3
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -131,3 +134,60 @@ def test_review_usage_is_persisted_once_for_requesting_agent(tmp_path, monkeypat
     assert row["cache_read_tokens"] == 60
     assert row["cache_create_tokens"] == 10
     assert row["cost_usd"] > 0
+
+
+def test_old_cli_without_usage_arguments_preserves_review_and_exits_zero(tmp_path):
+    output = tmp_path / "review.md"
+    round_file = tmp_path / "review.md.round"
+    sessions = tmp_path / "sessions.json"
+    jsonl = tmp_path / "review.jsonl"
+    round_file.write_text("## Summary\nRecovered result\n\n## Verdict\nAPPROVED\n")
+    _jsonl(jsonl, "old-mcp-thread")
+
+    result = subprocess.run([
+        sys.executable,
+        str(Path(__file__).parents[1] / "app" / "codex_review_artifact.py"),
+        "--output", str(output),
+        "--round-file", str(round_file),
+        "--sessions-file", str(sessions),
+        "--slug", "review",
+        "--jsonl-file", str(jsonl),
+        "--require-verdict",
+    ], capture_output=True, text=True)
+
+    assert result.returncode == 0
+    assert "Recovered result" in output.read_text()
+    assert "Codex usage unaccounted" in output.read_text()
+    assert "Codex usage unaccounted" in result.stderr
+
+
+def test_usage_failure_is_nonfatal_after_review_is_persisted(tmp_path, monkeypatch):
+    import app.db as db
+
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "usage.db")
+    db.init_db()
+    output = tmp_path / "review.md"
+    round_file = tmp_path / "review.md.round"
+    round_file.write_text("## Verdict\nAPPROVED\n")
+    jsonl = tmp_path / "review.jsonl"
+    jsonl.write_text("\n".join([
+        json.dumps({"type": "thread.started", "thread_id": "zero-thread"}),
+        json.dumps({"type": "turn.completed", "usage": {
+            "input_tokens": 0, "output_tokens": 0,
+        }}),
+    ]) + "\n")
+
+    finalize_review_artifact(
+        output=output, round_file=round_file,
+        sessions_file=tmp_path / "sessions.json", slug="review",
+        jsonl_file=jsonl, resume=False, require_verdict=True,
+        usage_event_id="codex-review:zero",
+        usage_session_id="requester",
+        usage_model="gpt-5.6-sol",
+    )
+
+    content = output.read_text()
+    assert "## Verdict\nAPPROVED" in content
+    assert "Codex usage unaccounted" in content
+    with sqlite3.connect(db.DB_PATH) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM turn_usage").fetchone()[0] == 0
