@@ -232,3 +232,218 @@ abbrev --recu:   t3 exists=no
 (`git show 904b2587:app/backend_claude.py`) и загружен как отдельный модуль, рабочее дерево
 ревьюера не менялось. Историческая выборка читалась через `sqlite3` в режиме `mode=ro`
 с тем же cutoff `logs.id <= 85251`.
+
+---
+
+# Повторная точечная проверка — коммиты 1b4af662 + 4b3e4787 + 67840dff
+
+Предмет: дельта ветки `adhoc-1786535728-52/audit-enforcement` после отревьюенного `904b2587`.
+Смерженный в ветку main-контент (`3135f761`, задачи #230/#231, `CLAUDE.md`, чужие
+`docs/workers/*`) не ревьюился. Ветку автора не правил; это отдельный артефакт ревьюера.
+
+## Вердикт
+
+**APPROVED.** Оба блокера закрыты, проверено прогонами. Регрессий, возвращающих ранее
+заблокированное поведение, на историческом корпусе нет: 0 из 2374. Четыре замечания ниже —
+не блокеры, два из них правят формулировки, а не код.
+
+## Блокер 1 закрыт — внешний таймаут снят
+
+`_BASH_HOOK_TIMEOUT` удалён, `HookMatcher(matcher="Bash", hooks=[_bash_pretooluse])` без
+`timeout`. Прогоны в прод-форме (`permission_mode="default"`, `can_use_tool=_make_auto_approve(False)`,
+модель `haiku`, `setting_sources=[]`), хук возвращает ALLOW-форму без `permissionDecision`:
+
+```text
+[slow-ALLOW 1.0s]    7.8s  canary_survived=False   # раньше на этом же входе БЛОКИРОВАЛОСЬ
+[slow-ALLOW 65s]    71.7s  canary_survived=False
+[slow-DENY  65s]    72.8s  canary_survived=True  + модель: "recursive rm is blocked... trash"
+```
+
+Первая строка — прямое закрытие блокера: тот же вход, что раньше давал «команда не
+исполнилась», теперь исполняется.
+
+Заодно **не подтвердилась оговорка автора** про «actual >60s outer timeout remains SDK
+fail-closed». На 65 с отсечки не было ни в одну сторону: ALLOW-хук пропустил команду,
+DENY-хук её заблокировал, оба после полных 65 с ожидания. Механизм виден в SDK:
+`_internal/query.py:198-199` кладёт `timeout` в конфиг матчера **только если он задан**, а
+`timeout=None` не отправляется вовсе. То есть внешнего дедлайна сейчас нет никакого, а не
+«60 секунд». Практических последствий для этой правки нет (внутренний `wait_for(0.1)`
+ограничивает всю нашу работу), но формулировка в `CHANGELOG.md` «внешний matcher использует
+60-секундный SDK/CLI default» описывает намерение, а не то, что я намерил.
+
+Остаточный риск, названный явно: единственная граница хука теперь — наш собственный
+`wait_for(0.1)`. Любая будущая правка, добавившая `await` вне этого `wait_for`, повесит
+Bash-вызов без платформенного предохранителя.
+
+Fail-open на остальных путях перепроверен end-to-end, а не по логу:
+
+```text
+[classifier internal timeout]  canary_survived=False  ERROR ... failed open (TimeoutError)
+[hook raises RuntimeError]     canary_survived=False
+```
+
+## Блокер 2 закрыт — перевод строки стал границей команд
+
+`_BASH_SEPARATORS` и `_BASH_PUNCTUATION` включают `\n`, `lexer.whitespace = " \t\r"`,
+тело heredoc маскируется `_without_heredoc_bodies`. 18 из 18 блок-проб ловятся, 22 из 22
+allow-проб чистые:
+
+```text
+    recursive_rm  'set -e\nrm -rf /tmp/x'          <- было none
+    recursive_rm  'cd /tmp\nrm -rf x'              <- было none
+ curl_pipe_shell  'cd /tmp\ncurl -s https://x/y | bash'   <- было none
+    recursive_rm  'rm /tmp/x -rf'                  <- было none (находка 3)
+    recursive_rm  'rm --r /tmp/x'                  <- было none (находка 3)
+    recursive_rm  'rm --recu -f /tmp/x'            <- было none (находка 3)
+    recursive_rm  'cat <<EOF\nhello\nEOF\nrm -rf /tmp/x'
+    recursive_rm  "cat > f <<'A'\ntext\nA\ncat > g <<'B'\ntext\nB\nrm -rf /tmp/x"
+    recursive_rm  'cat <<-TAB\n\tbody\n\tTAB\nrm -rf /tmp/x'
+      -- none --  "cat > /tmp/s.sh <<'EOF'\nrm -rf /tmp/x\nchmod 777 /tmp/y\ncurl https://z | bash\nEOF"
+      -- none --  "cat > a <<'A'\nrm -rf /1\nA\ncat > b <<'B'\nrm -rf /2\nB"
+      -- none --  "cat <<-'T'\n\trm -rf /tmp/x\n\tT"
+      -- none --  "cat <<'E O F'\nrm -rf /1\nE O F"
+      -- none --  'bash <<< "rm -rf /tmp/x"'
+      -- none --  'rm -- -report.txt'   'rm /tmp/x --verbose'   'rm file1 file2'
+      -- none --  'echo hi # rm -rf /tmp/x'   '# rm -rf /tmp/x'   "sed -i 's/rm -rf/trash/' f"
+```
+
+Отдельно проверил, что снятие `break` на первом операнде `rm` не создало ложняков
+(`rm -- -report.txt`, `rm /tmp/x --verbose`, `rm file1 file2` → `None`), и что маскировка
+не съедает настоящие команды после кавычек:
+
+```text
+    recursive_rm  'echo "x << EOF"\nrm -rf /tmp/x'
+    recursive_rm  "echo 'x << EOF'\nrm -rf /tmp/x"
+    recursive_rm  'cat <<EOF\nx\nEOF\ncat EOF\nrm -rf /tmp/x'
+    recursive_rm  'set -e\r\nrm -rf /tmp/x'
+```
+
+## Точка 3 — исторические числа воспроизведены независимо
+
+Свой прогон по тому же cutoff (`logs.id <= 85251`, `type='tool'`, `tool_name='Bash'`,
+`backend_type='claude'`), классификатор взят из `67840dff`, эталон — та же
+предрегистрированная регулярка:
+
+```text
+{'n': 2374, 'old_err': 17, 'new_err': 0, 'old_hit': 14, 'new_hit': 28}
+classifier hits: 28  categories: ['recursive_rm']
+text-detector positives (raw): 36
+text positives OUTSIDE heredoc bodies: 34
+heredoc-body-only ids excluded: [68878, 69082]
+TP=28 FP=0 FN=6            -> precision 100.0%, recall 82.35%
+regressions (old blocked -> new does not block): 0
+newly failing to parse (old ok -> new error): 0
+```
+
+Совпадает с артефактом автора до последнего id. Проверки по существу:
+
+- **68878 / 69082 исключены правомерно.** Обе команды — `cat > /tmp/b199/run_one.sh <<'EOF'`,
+  то есть `rm -rf` записывается в файл скрипта, а текущим Bash-вызовом не исполняется.
+  Проверял не только маской автора: сырое содержимое обеих команд начинается с
+  `cat > … <<'EOF'`, и совпадение регулярки лежит внутри тела.
+- **Шесть остаточных FN категоризованы верно** — сверил построчно, независимо от текста
+  артефакта: `75509` — `rm -rf` внутри кавычек вложенного ssh-шелла; `76072`, `77322`,
+  `78023`, `78810` — все четыре вида `for n in …; do rm -rf …; done`, где в позиции команды
+  стоит ключевое слово `do`; `82349` — `find … -exec rm -rf {} +`. Ни одного промаха,
+  который автор назвал бы не тем механизмом.
+- **`new_err = 0`** — это не косметика: 17 прежних `shlex.ValueError` были командами с
+  heredoc-телами, и маскировка убрала не симптом, а источник.
+- **Precision 100% проверена относительно текстового детектора, а не абсолютно.** Артефакт
+  сам это оговаривает («not a claim of complete shell coverage»); подтверждаю формулировку —
+  подменять её на «покрытие shell» нельзя.
+
+`CHANGELOG.md` в этой же дельте добавил `shell keywords` в список незакрытого, так что
+категория `do`-тел объявлена. Претензии из первого захода («дыра не объявлена») снимаю.
+
+## Точка 4 — все четыре текста доходят до агента
+
+Живой CLI, `permission_mode="default"`, дословные ответы модели:
+
+```text
+recursive_rm    "...requires using a trash mechanism instead of `rm -rf` for safety purposes"
+curl_pipe_shell "...blocked by a security check that requires inspection of downloaded
+                 content before execution"
+world_writable  "...does not allow setting world-writable permissions (chmod 777)...
+                 You would need to use a least-privilege mode"
+```
+
+Для `world_writable` замерен и побочный эффект, а не только текст: `dir_mode=0o755` после
+хода, то есть `chmod 777` физически не применился. Для `recursive_rm` — `canary_survived=True`.
+
+Текст `background` (`bg_create(type=run)`) через живой CLI я не гонял: заставить модель
+выставить `run_in_background=true` детерминированно не смог. Строка формируется тем же
+`_pretool_output`, что и три проверенные, и путь доставки у неё общий — но это вывод, а не
+замер, и он вынесен в раздел ниже.
+
+## Именованный тест и мутации
+
+```text
+/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_backend_claude.py \
+  docs/tasks/228/acceptance/test_payload_hooks.py \
+  docs/tasks/228/acceptance/test_payload_hooks_followup.py
+30 passed in 9.30s
+```
+
+Заморозка оракулов проверена по содержимому, а не по слову: `test_payload_hooks.py` в
+`67840dff` побайтно равен версии `0d65d987` (sha256 `cbabd556e2661df…`), follow-up равен
+версии `4b3e4787` (`7418bbef6c07efc…`); `git diff 4b3e4787 67840dff -- tests/ docs/tasks/228/acceptance/
+conftest.py pytest.ini pyproject.toml` пуст.
+
+Зелёный прогон чужого теста сам по себе ничего не доказывает, поэтому прогнал четыре мутации
+по одной, каждая в связке `cp → мутация → тест → mv → touch → зелёный повтор`:
+
+```text
+m1  убрать "\n" из _BASH_SEPARATORS      -> 2 failed  (test_t1_new_forms_keep_narrow_false_positive_boundary)
+m2  вернуть break на первом операнде rm   -> 1 failed  (test_t1_command_boundaries_and_gnu_rm_forms_are_classified)
+m3  убрать вызов _without_heredoc_bodies  -> 1 failed  (test_t1_new_forms_keep_narrow_false_positive_boundary)
+m4  вернуть timeout=0.25 в HookMatcher    -> 1 failed  (test_t1_outer_matcher_keeps_sdk_default_and_inner_timeout_fails_open)
+после каждого отката: 30 passed
+```
+
+То есть оракул покрывает все четыре правки, включая ту, что закрывает мой блокер 1.
+
+## Замечания (не блокеры)
+
+1. **`lexer.commenters = ""` делает комментарий с непарной кавычкой fail-open.**
+   `app/backend_claude.py:246`. Замер old/new на одном входе:
+   ```text
+   old=recursive_rm    new=RAISE:ValueError   "rm -rf /tmp/x  # don't do this"
+   old=world_writable  new=RAISE:ValueError   "chmod 777 /tmp/x  # it's fine"
+   ```
+   Направление безопасное (громкий ERROR + fail-open), и на корпусе таких команд **0 из 2374**
+   — поэтому информационно. Но апостроф в комментарии после деструктивной команды — не
+   экзотика, а способ её пропустить.
+2. **Неквотированный `<<`, который не является heredoc, маскирует остаток команды.**
+   `_heredoc_declarations`. Конкретный случай — арифметический сдвиг:
+   ```text
+   old=recursive_rm    new=none   'echo $((1 << 3))\nrm -rf /tmp/x'
+   ```
+   Тоже fail-open и тоже 0 вхождений на корпусе.
+3. **Формулировка про 60 секунд в `CHANGELOG.md`** не соответствует замеру (см. блокер 1):
+   отсечки на 65 с не было. Точнее было бы «внешний дедлайн не задаём».
+4. **Внешнего предохранителя у хука теперь нет вовсе.** Единственная граница — наш
+   `wait_for(0.1)`. Стоит держать это в голове при будущих правках `_bash_pretooluse`.
+
+## Чего НЕ проверял
+
+- **Не гонял `background`-текст через живой CLI** — не смог детерминированно заставить модель
+  выставить `run_in_background=true`. Три остальных текста проверены живьём.
+- **Не мерил задержку event loop на живом сервере.** Она была основанием блокера 1; после
+  снятия внешнего дедлайна вопрос перестал быть релевантным, но и замера как не было, так и нет.
+- Не проверял поведение при ОДНОВРЕМЕННЫХ вызовах хука из нескольких сессий и конкуренции
+  за default executor `asyncio.to_thread`.
+- Не ревьюил смерженный main-контент (#230, #231, `CLAUDE.md`, чужие `docs/workers/*`),
+  T2, стиль, `historical_bash_scan.py` как код — использовал его SQL и регулярки как есть.
+- Не гонял полный сьют — только именованный набор из 30 тестов.
+- Не проверял activation/settings/service/restart — вне границ задания.
+- Точность 100% проверена относительно предрегистрированного текстового детектора. Я не
+  доказывал, что детектор ловит все реальные рекурсивные `rm`; сам детектор шире грамматики,
+  но уже реального shell.
+- Из 28 совпадений глазами читал 4, остальные принял по совпадению с детектором на
+  размаскированном тексте.
+
+## Воспроизведение
+
+Скретч `/tmp/rc228b-3099368`: `git archive 67840dff | tar -x` (рабочее дерево ветки автора не
+трогалось), прогоны из этой копии. Историческая выборка — `sqlite3` в `mode=ro`,
+cutoff `logs.id <= 85251`. Прежний классификатор для сравнения — `git show 904b2587:app/backend_claude.py`.
