@@ -68,7 +68,13 @@ roles:
     label: Full-Cycle
     order: 3
     model: claude-opus-5[1m]
-    effort: xhigh
+    # xhigh → high (#207). Anthropic для Opus 5 велит начинать с high и НЕ переносить настройки
+    # прошлого поколения — унаследованный xhigh оттуда и пришёл; на девяти чужих бенчмарках
+    # high→xhigh даёт +47% цены без значимого прироста, наш #199 на Sol — ×2.04 при том же вердикте.
+    # НЕ ЗАКРЫТО: вендор оправдывает xhigh длиной горизонта задачи, а все опубликованные замеры
+    # короче наших сессий. Правка обратимая и наблюдаемая: пошли разваливающиеся длинные ходы →
+    # вернуть xhigh, и это будет данными, а не спором.
+    effort: high
     skills: [html-artifacts, codex-debate]
     modules: [model-routing, research-method, git-workflow, worker-lifecycle, report-format, self-improvement, memory-search]
     can_spawn: ["*"]
