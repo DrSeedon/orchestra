@@ -23,6 +23,7 @@ from app.backend_codex import (
     CODEX_REASONING_EFFORTS,
     _codex_cost,
     _read_rollout_context,
+    _read_rollout_totals,
     _usage_delta,
 )
 from app.runtime_history import (
@@ -89,15 +90,23 @@ def test_spark_context_limit_matches_local_codex_metadata():
 
 def test_gpt56_prices_present():
     # Standard-tier list prices, https://platform.openai.com/docs/pricing, verified 11.08.2026.
-    assert CODEX_TOKEN_PRICES["gpt-5.6-sol"] == {"input": 5.0, "cached": 0.5, "output": 30.0}
-    assert CODEX_TOKEN_PRICES["gpt-5.6-terra"] == {"input": 2.0, "cached": 0.2, "output": 12.0}
-    assert CODEX_TOKEN_PRICES["gpt-5.6-luna"] == {"input": 0.2, "cached": 0.02, "output": 1.2}
+    assert CODEX_TOKEN_PRICES["gpt-5.6-sol"] == {
+        "input": 5.0, "cached": 0.5, "write": 6.25, "output": 30.0,
+    }
+    assert CODEX_TOKEN_PRICES["gpt-5.6-terra"] == {
+        "input": 2.0, "cached": 0.2, "write": 2.5, "output": 12.0,
+    }
+    assert CODEX_TOKEN_PRICES["gpt-5.6-luna"] == {
+        "input": 0.2, "cached": 0.02, "write": 0.25, "output": 1.2,
+    }
 
 
 def test_cached_input_is_a_tenth_of_fresh_input_for_every_model():
     """OpenAI prices cached input at 10% of the input rate — a typo in one row is
     otherwise invisible: the dashboard keeps rendering a plausible number."""
     for model, price in CODEX_TOKEN_PRICES.items():
+        if price is None:
+            continue
         assert price["cached"] == pytest.approx(price["input"] / 10), model
 
 
@@ -115,14 +124,32 @@ def test_sol_price_and_ctx_not_zero_fallback():
 
 def test_codex_cost_applies_cached_input_discount():
     # 100 fresh × $5/M + 900 cached × $0.5/M + 10 output × $30/M.
-    assert _codex_cost("gpt-5.6-sol", 1000, 900, 10) == pytest.approx(0.00125)
+    assert _codex_cost("gpt-5.6-sol", 1000, 900, 0, 10) == pytest.approx(0.00125)
+
+
+def test_codex_cost_charges_cache_writes_once_at_their_own_rate():
+    # 100 fresh × $5/M + 700 cached × $0.5/M + 200 writes × $6.25/M + output.
+    assert _codex_cost("gpt-5.6-sol", 1000, 700, 200, 10) == pytest.approx(0.0024)
+
+
+def test_spark_cost_fails_loud_without_a_published_price():
+    assert CODEX_TOKEN_PRICES["gpt-5.3-codex-spark"] is None
+    with pytest.raises(ValueError, match="No published token price"):
+        _codex_cost("gpt-5.3-codex-spark", 1000, 0, 0, 10)
 
 
 def test_usage_delta_survives_resume_and_counter_reset():
-    current = {"input_tokens": 130, "cached_input_tokens": 90, "output_tokens": 20}
-    baseline = {"input_tokens": 100, "cached_input_tokens": 80, "output_tokens": 5}
+    current = {
+        "input_tokens": 130, "cached_input_tokens": 90,
+        "cache_write_input_tokens": 12, "output_tokens": 20,
+    }
+    baseline = {
+        "input_tokens": 100, "cached_input_tokens": 80,
+        "cache_write_input_tokens": 5, "output_tokens": 5,
+    }
     assert _usage_delta(current, baseline) == {
-        "input_tokens": 30, "cached_input_tokens": 10, "output_tokens": 15,
+        "input_tokens": 30, "cached_input_tokens": 10,
+        "cache_write_input_tokens": 7, "output_tokens": 15,
     }
     # A Codex-side compact may reset counters. Treat the new value as this turn rather
     # than producing negative usage or zeroing a real call.
@@ -134,12 +161,18 @@ def test_rollout_context_uses_last_call_not_accumulated_usage(tmp_path):
     rows = [
         {"type": "event_msg", "payload": {"type": "token_count", "info": {
             "total_token_usage": {"input_tokens": 760838},
-            "last_token_usage": {"input_tokens": 95489, "cached_input_tokens": 92928},
+            "last_token_usage": {
+                "input_tokens": 95489, "cached_input_tokens": 92928,
+                "cache_write_input_tokens": 1024,
+            },
             "model_context_window": 258400,
         }}},
         {"type": "event_msg", "payload": {"type": "token_count", "info": {
             "total_token_usage": {"input_tokens": 2042411},
-            "last_token_usage": {"input_tokens": 142165, "cached_input_tokens": 141056},
+            "last_token_usage": {
+                "input_tokens": 142165, "cached_input_tokens": 141056,
+                "cache_write_input_tokens": 512,
+            },
             "model_context_window": 258400,
         }}},
     ]
@@ -148,8 +181,38 @@ def test_rollout_context_uses_last_call_not_accumulated_usage(tmp_path):
     assert _read_rollout_context(rollout) == {
         "input_tokens": 142165,
         "cached_input_tokens": 141056,
+        "cache_write_input_tokens": 512,
         "model_context_window": 258400,
     }
+
+
+def test_usage_breakdown_reads_cache_write_tokens():
+    assert CodexBackend._usage_breakdown({
+        "inputTokens": 1000,
+        "cachedInputTokens": 700,
+        "cacheWriteInputTokens": 200,
+        "outputTokens": 10,
+    }) == {
+        "input_tokens": 1000,
+        "cached_input_tokens": 700,
+        "cache_write_input_tokens": 200,
+        "output_tokens": 10,
+    }
+
+
+def test_rollout_totals_read_cache_write_tokens(tmp_path):
+    rollout = tmp_path / "rollout.jsonl"
+    rollout.write_text(json.dumps({
+        "type": "event_msg",
+        "payload": {"type": "token_count", "info": {"total_token_usage": {
+            "input_tokens": 1000,
+            "cached_input_tokens": 700,
+            "cache_write_input_tokens": 200,
+            "output_tokens": 10,
+        }}},
+    }) + "\n")
+
+    assert _read_rollout_totals(rollout)["cache_write_input_tokens"] == 200
 
 
 def test_rollout_context_fails_soft_on_missing_or_corrupt_data(tmp_path):
@@ -1158,11 +1221,13 @@ def test_turn_usage_keeps_codex_delta_and_last_call_context_distinct():
     backend._thread_usage_total = {
         "input_tokens": 100_000,
         "cached_input_tokens": 80_000,
+        "cache_write_input_tokens": 5_000,
         "output_tokens": 2_000,
     }
     backend._usage_baseline = {
         "input_tokens": 40_000,
         "cached_input_tokens": 30_000,
+        "cache_write_input_tokens": 2_000,
         "output_tokens": 500,
     }
     backend._last_call_usage = {
@@ -1176,6 +1241,8 @@ def test_turn_usage_keeps_codex_delta_and_last_call_context_distinct():
     })[-1]
 
     assert end.usage.aggregate.input_tokens == 60_000
+    assert end.usage.aggregate.cache_create_tokens == 3_000
+    assert end.metadata["cost_usd"] == pytest.approx(0.12375)
     assert isinstance(end.usage.current, KnownContext)
     assert end.metadata["context_tokens"] == 33_124
     assert end.metadata["context_known"] is True

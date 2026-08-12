@@ -40,18 +40,20 @@ CODEX_CONTEXT_LIMITS = {
 # Standard-tier API list prices per 1M tokens, verified 11.08.2026 against
 # https://platform.openai.com/docs/pricing (fetched through https://r.jina.ai/ — the page
 # itself answers 403 to curl/WebFetch). Cached input is exactly 10% of the input rate for
-# every model here; `tests/test_backend_codex.py` pins that ratio so a typo cannot pass silently.
+# every priced model here; `tests/test_backend_codex.py` pins that ratio so a typo cannot
+# pass silently.
 # Terra and Luna list prices dropped below what we had (Luna 5×: was 1.0/6.0) — rows already
 # in `turn_usage` keep the price of their own day and are deliberately not rewritten.
-# Not modelled here: the long-context tier (higher rates above a token threshold) and the
-# separate "cache writes" rate — `_codex_cost` charges cache writes as fresh input.
+# The long-context tier is per request, while Codex's measured 258,400-token request window
+# is below its 272K threshold. Spark is listed explicitly but has no published final price.
 CODEX_TOKEN_PRICES = {
-    "gpt-5.6-sol":   {"input": 5.0, "cached": 0.5, "output": 30.0},
-    "gpt-5.6-terra": {"input": 2.0, "cached": 0.2, "output": 12.0},
-    "gpt-5.6-luna":  {"input": 0.2, "cached": 0.02, "output": 1.2},
+    "gpt-5.6-sol":   {"input": 5.0, "cached": 0.5, "write": 6.25, "output": 30.0},
+    "gpt-5.6-terra": {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 12.0},
+    "gpt-5.6-luna":  {"input": 0.2, "cached": 0.02, "write": 0.25, "output": 1.2},
     "gpt-5.5":      {"input": 5.0, "cached": 0.5, "output": 30.0},
     "gpt-5.4":      {"input": 2.5, "cached": 0.25, "output": 15.0},
     "gpt-5.4-mini": {"input": 0.3, "cached": 0.03, "output": 1.25},
+    "gpt-5.3-codex-spark": None,
 }
 
 
@@ -167,14 +169,18 @@ async def _codex_scope_support() -> tuple[bool, dict[str, str], str]:
 
 
 def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
-                output_tokens: int) -> float:
+                cache_write_input_tokens: int, output_tokens: int) -> float:
     """API-equivalent cost with cached input charged at its actual lower rate."""
-    prices = CODEX_TOKEN_PRICES.get(model)
-    if not prices:
+    if model not in CODEX_TOKEN_PRICES:
         return 0.0
+    prices = CODEX_TOKEN_PRICES[model]
+    if prices is None:
+        raise ValueError(f"No published token price for {model}")
     cached = min(max(0, cached_input_tokens), max(0, input_tokens))
-    fresh = max(0, input_tokens - cached)
+    cache_write = min(max(0, cache_write_input_tokens), max(0, input_tokens - cached))
+    fresh = max(0, input_tokens - cached - cache_write)
     return (fresh * prices["input"] + cached * prices["cached"]
+            + cache_write * prices.get("write", prices["input"])
             + max(0, output_tokens) * prices["output"]) / 1_000_000
 
 
@@ -205,9 +211,13 @@ def _read_rollout_context(path: Path) -> dict[str, int] | None:
                 if not isinstance(input_tokens, int) or input_tokens < 0:
                     continue
                 cached = usage.get("cached_input_tokens", 0)
+                cache_write = usage.get("cache_write_input_tokens", 0)
                 latest = {
                     "input_tokens": input_tokens,
                     "cached_input_tokens": cached if isinstance(cached, int) else 0,
+                    "cache_write_input_tokens": (
+                        cache_write if isinstance(cache_write, int) else 0
+                    ),
                     "model_context_window": window,
                 }
     except (FileNotFoundError, OSError):
@@ -234,6 +244,9 @@ def _read_rollout_totals(path: Path) -> dict[str, int] | None:
                 latest = {
                     "input_tokens": input_tokens,
                     "cached_input_tokens": max(0, int(total.get("cached_input_tokens") or 0)),
+                    "cache_write_input_tokens": max(
+                        0, int(total.get("cache_write_input_tokens") or 0)
+                    ),
                     "output_tokens": max(0, int(total.get("output_tokens") or 0)),
                 }
     except (FileNotFoundError, OSError, ValueError, TypeError):
@@ -244,7 +257,9 @@ def _read_rollout_totals(path: Path) -> dict[str, int] | None:
 def _usage_delta(current: dict[str, int], baseline: dict[str, int] | None) -> dict[str, int]:
     baseline = baseline or {}
     result = {}
-    for key in ("input_tokens", "cached_input_tokens", "output_tokens"):
+    for key in (
+        "input_tokens", "cached_input_tokens", "cache_write_input_tokens", "output_tokens"
+    ):
         value = max(0, int(current.get(key) or 0))
         before = max(0, int(baseline.get(key) or 0))
         result[key] = value - before if value >= before else value
@@ -1384,6 +1399,7 @@ class CodexBackend(JsonRpcStdioTransport):
         delta = _usage_delta(totals, self._usage_baseline)
         turn_input = delta["input_tokens"]
         turn_cached = delta["cached_input_tokens"]
+        turn_cache_write = delta["cache_write_input_tokens"]
         turn_output = delta["output_tokens"]
         context = self._last_call_usage or self._runtime_context()
         if context:
@@ -1399,6 +1415,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 input_tokens=turn_input,
                 output_tokens=turn_output,
                 cache_read_tokens=turn_cached,
+                cache_create_tokens=turn_cache_write,
             ),
             current_context(
                 ctx_tokens,
@@ -1407,7 +1424,9 @@ class CodexBackend(JsonRpcStdioTransport):
                 unknown_reason="Codex did not report last-call context",
             ),
         )
-        cost = _codex_cost(self.model, turn_input, turn_cached, turn_output)
+        cost = _codex_cost(
+            self.model, turn_input, turn_cached, turn_cache_write, turn_output
+        )
         metadata = {
             "event_id": str(turn.get("id") or ""),
             "session_id": self._thread_id,
@@ -1438,6 +1457,7 @@ class CodexBackend(JsonRpcStdioTransport):
         return {
             "input_tokens": max(0, int(data.get("inputTokens") or 0)),
             "cached_input_tokens": max(0, int(data.get("cachedInputTokens") or 0)),
+            "cache_write_input_tokens": max(0, int(data.get("cacheWriteInputTokens") or 0)),
             "output_tokens": max(0, int(data.get("outputTokens") or 0)),
         }
 
