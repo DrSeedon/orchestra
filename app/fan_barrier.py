@@ -164,3 +164,28 @@ def manifest_text(fan_id: str) -> str:
         state = member["state"] or "pending"
         lines.append(f"{member['child']}={state} path={path}")
     return "\n".join(lines)
+
+
+def fan_id_for_child(child: str, *, include_released: bool = False) -> str | None:
+    """Веер ребёнка. `include_released` нужен гейтам: манифест забирается уже
+    ПОСЛЕ снятия барьера, когда `released = 1`."""
+    where = "" if include_released else " AND f.released = 0"
+    with db._conn() as conn:
+        row = conn.execute(
+            f"""SELECT m.fan_id FROM fan_members m
+                JOIN fan_barriers f ON f.fan_id = m.fan_id
+                WHERE m.child = ?{where}
+                ORDER BY f.created_at DESC LIMIT 1""",
+            (child,),
+        ).fetchone()
+    return row[0] if row else None
+
+
+def parent_of(fan_id: str) -> tuple[str, str] | None:
+    """(parent_name, scope) — кого будить манифестом."""
+    with db._conn() as conn:
+        row = conn.execute(
+            "SELECT parent_name, scope FROM fan_barriers WHERE fan_id = ?",
+            (fan_id,),
+        ).fetchone()
+    return (row[0], row[1]) if row else None

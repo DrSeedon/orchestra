@@ -161,6 +161,10 @@ class SendRequest(BaseModel):
     message: str
     scope: str
     sender: str | None = None
+    # #219 T1b: класс сообщения ребёнка. Необязательное поле с совместимым
+    # умолчанием — старые процессы `mcp_stdio.py` живут до реконнекта и его не
+    # пошлют (грабля #215/#217). Неизвестное значение → буферизуем (fail-closed).
+    message_kind: str | None = None
 
 
 class ScopeRequest(BaseModel):
@@ -469,6 +473,24 @@ async def send_message(name: str, req: SendRequest):
             similar = [n for n in all_names if name.lower() in n.lower() or n.lower() in name.lower()]
             hint = f" Similar: {', '.join(similar[:5])}" if similar else f" Available: {', '.join(all_names[:10])}"
             return JSONResponse({"error": f"agent '{name}' not found.{hint}"}, status_code=404)
+        # #219 T1b, ГЕЙТ 1 из 2: явный отчёт ребёнка родителю. Второй гейт —
+        # `session_turns.fire_auto_report` (молчаливое завершение хода). Прочие
+        # девять вызовов `manager.send` не трогаем: среди них `[Background job
+        # FAILED]` и живой ввод из Telegram (грабля #154).
+        if req.sender:
+            from app import fan_barrier
+            if fan_barrier.should_buffer(req.sender, req.message_kind):
+                released = fan_barrier.record_terminal(req.sender, "done")
+                if released:
+                    fan_id = fan_barrier.fan_id_for_child(
+                        req.sender, include_released=True
+                    )
+                    if fan_id:
+                        await manager.send(
+                            session.id, fan_barrier.manifest_text(fan_id)
+                        )
+                return {"ok": True, "buffered": not released,
+                        "parent_name": session.parent_name or ""}
         msg = f"[from:{req.sender}] {req.message}" if req.sender else req.message
         if req.sender:
             msg += manager._context_warning(req.sender)

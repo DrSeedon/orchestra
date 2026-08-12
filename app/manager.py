@@ -980,6 +980,14 @@ class SessionManager:
         from app.bg_jobs import bg_manager
         await bg_manager.cancel_by_session(session_id)
         session = self.sessions.get(session_id)
+        # #219 T1b, AC-2: убитый ребёнок обязан породить ПОЛОЖИТЕЛЬНЫЙ терминальный
+        # токен. Гейт на `fire_auto_report` его породить не может — тот выходит
+        # раньше `on_idle` для `_manually_interrupted` (`session_turns.py:266`).
+        # Без этого веер висит до дедлайна при уже известном исходе.
+        _killed_name = session.name if session else (get_session(session_id) or {}).get("name")
+        if _killed_name:
+            from app import fan_barrier
+            fan_barrier.on_child_killed(_killed_name)
         if session is None:
             row = get_session(session_id)
             if row is None:

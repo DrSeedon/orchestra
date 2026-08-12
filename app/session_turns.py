@@ -274,6 +274,27 @@ class TurnManager:
         # even when the transient last_task_sender metadata does not.
         if not s.last_task_sender and not s.parent_name:
             return
+        # #219 T1b, ГЕЙТ 2 из 2: молчаливое завершение хода. Через
+        # `send_message` этот путь НЕ идёт, поэтому гейт в роуте его не ловит,
+        # а случай типичный: ребёнок, не позвавший `send_message`, разбудил бы
+        # родителя мимо барьера.
+        from app import fan_barrier
+        if fan_barrier.should_buffer(s.name):
+            if fan_barrier.record_terminal(s.name, "done"):
+                fan_id = fan_barrier.fan_id_for_child(s.name, include_released=True)
+                target = fan_barrier.parent_of(fan_id) if fan_id else None
+                if target:
+                    async def _deliver_manifest(parent_name=target[0],
+                                                scope=target[1], fid=fan_id):
+                        from app.deps import manager
+                        parent = await manager.ensure_loaded(parent_name, scope)
+                        if parent:
+                            await manager.send(
+                                parent.id, fan_barrier.manifest_text(fid)
+                            )
+                    s._auto_report_task = asyncio.create_task(_deliver_manifest())
+            return
+
         last_texts = s._turn_logs[-5:] if s._turn_logs else []
         stop_reason = s._last_stop_reason
 
