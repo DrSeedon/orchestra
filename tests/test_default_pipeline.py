@@ -442,3 +442,143 @@ class TestPremortemReachesWorkingRolesOnly:
             assert self.ANCHOR not in out, (
                 f"{role}: шаг исполнителя протёк в промпт оркестратора"
             )
+
+
+class TestOracleGate:
+    """#210: фаза плана заканчивается КРАСНЫМ тестом, а исполнитель не пишет себе оракул сам.
+
+    Форма проверки скопирована с `TestPremortemReachesWorkingRolesOnly` (#198) намеренно:
+    один способ решения одной задачи. Тройка «источник / доставка / не-утечка» и ловит
+    составную мутацию «шаг удалён из роли + слова посажены в base.md» — доставка её
+    переживает, источник и не-утечка нет.
+    """
+
+    # Шаг нарезки тикетов есть только у full-cycle: worker планов не режет.
+    PLAN_ANCHOR = "commit it FAILING"
+    PLAN_ROLES = ("full-cycle",)
+    # Контрправило нужно ОБЕИМ рабочим ролям: дешёвый исполнитель — это роль worker.
+    EXEC_ANCHOR = "Never author the acceptance test"
+    EXEC_ROLES = ("worker", "full-cycle")
+    ORCHESTRATOR_ROLES = ("orchestrator", "sub-orchestrator")
+
+    def _src(self, role: str) -> str:
+        return P.prompt_path(PIPELINE, f"roles/{role}.md").read_text(encoding="utf-8")
+
+    # ── источник ───────────────────────────────────────────────────────────
+    def test_plan_step_is_owned_by_the_full_cycle_file(self):
+        for role in self.PLAN_ROLES:
+            assert self.PLAN_ANCHOR in self._src(role), (
+                f"roles/{role}.md: шаг «план заканчивается красным тестом» должен жить в "
+                "файле САМОЙ роли, иначе он потеряется при перекомпоновке слоёв"
+            )
+
+    def test_executor_rule_is_owned_by_both_working_role_files(self):
+        for role in self.EXEC_ROLES:
+            assert self.EXEC_ANCHOR in self._src(role), (
+                f"roles/{role}.md: без этой строки исполнитель напишет оракул себе сам "
+                "(замер #210: 2 прогона из 2)"
+            )
+
+    # ── полнота шага: якоря берутся ИЗ ИСТОЧНИКА, а не выписаны руками (#203) ──
+    def test_every_clause_of_the_plan_step_survives_assembly(self):
+        src = self._src("full-cycle")
+        start = src.find(self.PLAN_ANCHOR)
+        assert start != -1, "шага нет в roles/full-cycle.md — проверять нечего"
+        block_start = src.rfind("\n3. ", 0, start)
+        block_end = src.find("\n4. ", start)
+        assert block_start != -1 and block_end != -1, (
+            "блок шага не ограничен соседними пунктами 3 и 4 — нумерация фазы 2 разъехалась"
+        )
+        clauses = [ln.strip() for ln in src[block_start:block_end].splitlines() if ln.strip()]
+        assert len(clauses) >= 8, f"блок подозрительно короткий: {len(clauses)} строк"
+        out = P.build_system_prompt(PIPELINE, "full-cycle")
+        for clause in clauses:
+            assert clause in out, f"пункт шага не доехал до собранного промпта: {clause[:70]!r}"
+
+    def test_ticket_template_carries_the_test_field_and_a_REASONED_none_marker(self):
+        out = P.build_system_prompt(PIPELINE, "full-cycle")
+        assert "- Test: <path>::<test name> — committed RED in <commit>" in out, (
+            "шаблон тикета обязан называть поле Test целиком, вместе с требованием RED"
+        )
+        # Метка проверяется В САМОМ ШАБЛОНЕ, а не «где-то в промпте»: ассерт на голую строку
+        # проходил бы, пока причина упомянута в соседнем абзаце, а шаблон показывал бы
+        # безпричинную форму — её агент и скопирует (blocking раунда 2 Codex-ревью плана).
+        assert "| oracle: none — <why" in out, (
+            "шаблон обязан показывать метку ТОЛЬКО с причиной; голая `oracle: none` — "
+            "невалидный тикет и в шаблоне встречаться не должна"
+        )
+
+    def test_phase_3_selects_the_ticket_before_it_implements(self):
+        """Шаг 1 фазы 3 обязан ВЫБИРАТЬ тикет, а не начинать реализацию: иначе буквальный
+        исполнитель начнёт править код на шаге 1 и дойдёт до гейта уже после
+        (blocking Codex-ревью реализации). Порядок шагов и есть здесь предохранитель."""
+        out = P.build_system_prompt(PIPELINE, "full-cycle")
+        assert "implementation starts only after step 2 passes" in out, (
+            "шаг 1 фазы 3 обязан явно откладывать реализацию до прохождения гейта"
+        )
+
+    def test_own_phase_2_test_may_not_be_weakened(self):
+        """Клауза без якоря удаляется молча: до этого теста её можно было вырезать, и все
+        девять оставались зелёными (blocking Codex-ревью реализации). Опаснее прочего именно
+        она — это единственный запрет подгонять СВОЙ красный тест под написанный код."""
+        out = P.build_system_prompt(PIPELINE, "full-cycle")
+        assert "never weaken it to fit the code you wrote" in out, (
+            "запрет ослаблять собственный тест фазы 2 обязан быть в промпте full-cycle"
+        )
+        assert "never weaken it to fit the code you wrote" not in P.build_system_prompt(
+            PIPELINE, "worker"
+        ), "клауза про СВОЙ тест фазы 2 относится только к full-cycle: worker планов не пишет"
+
+    def test_phase_3_names_the_only_exception_for_oracle_none(self):
+        """Без исключения шаг «увидеть красным ДО правки» делает тикеты `oracle: none`
+        невыполнимыми: команды у них нет, значит «missing» → вечный STOP
+        (blocking раунда 2 Codex-ревью плана)."""
+        out = P.build_system_prompt(PIPELINE, "full-cycle")
+        assert "The only exception:" in out and "verify it against its AC by hand" in out, (
+            "фаза 3 обязана назвать единственное исключение для `oracle: none`"
+        )
+
+    def test_the_step_has_teeth_in_phase_3_and_in_the_codex_gate(self):
+        """Потребители шага обязаны быть В ТЕКСТЕ РОЛИ, а не в прозе плана.
+
+        Без этих двух строк исполнителю достаточно один раз запустить финальную зелёную
+        команду, и он формально соблюдёт правило — красный артефакт станет церемонией
+        (blocking раунда 1 Codex-ревью плана)."""
+        out = P.build_system_prompt(PIPELINE, "full-cycle")
+        assert "see it red before you change" in out, (
+            "фаза 3 обязана требовать увидеть тест красным ДО правки"
+        )
+        assert "already green at review time is a blocking finding" in out, (
+            "Codex-ревью плана обязано ревьюить сам тест, иначе у шага нет проверяющего"
+        )
+
+    def test_plan_ready_report_quotes_the_failing_run(self):
+        out = P.build_system_prompt(PIPELINE, "full-cycle")
+        assert "→ exit 1:" in out, (
+            "отчёт PLAN READY обязан цитировать ненулевой exit и падающую строку — "
+            "это потребитель шага, без него он станет ритуалом"
+        )
+
+    # ── доставка ───────────────────────────────────────────────────────────
+    def test_working_roles_receive_their_anchors(self):
+        for role in self.PLAN_ROLES:
+            assert self.PLAN_ANCHOR in P.build_system_prompt(PIPELINE, role), (
+                f"{role}: наличия строки в roles/*.md недостаточно, шаг обязан доехать "
+                "до СОБРАННОГО промпта"
+            )
+        for role in self.EXEC_ROLES:
+            assert self.EXEC_ANCHOR in P.build_system_prompt(PIPELINE, role), (
+                f"{role}: контрправило не доехало до собранного промпта"
+            )
+
+    # ── не-утечка (она же ловушка на составную мутацию) ────────────────────
+    def test_orchestrator_roles_receive_neither(self):
+        for role in self.ORCHESTRATOR_ROLES:
+            out = P.build_system_prompt(PIPELINE, role)
+            assert self.PLAN_ANCHOR not in out, (
+                f"{role}: шаг исполнителя протёк в промпт оркестратора — либо утечка, "
+                "либо слова посажены в общий слой вместо роли"
+            )
+            assert self.EXEC_ANCHOR not in out, (
+                f"{role}: контрправило исполнителя протекло в промпт оркестратора"
+            )

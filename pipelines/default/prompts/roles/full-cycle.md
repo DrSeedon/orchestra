@@ -59,14 +59,43 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
    ```
    ### T1 — <short title>
    - Files: <files touched>
-   - AC: <checkable criteria>
+   - Test: <path>::<test name> — committed RED in <commit>
+           | oracle: none — <why neither a behavioural nor a delivery check is possible>
+   - AC: <command> is green + <anything the test cannot express, verbatim>
    - blocked-by: none
    ### T2 — <short title>
+   - Test: ...
    - AC: ...
    - blocked-by: T1
    ```
    (These are plan-internal slices, not GitHub issues — Orchestra has its own Task Manager.)
-3. Codex review the plan + tickets (codex-debate skill Quick Review). Fix issues, document disagreements.
+3. **The plan ends with a red test, not with AC prose.** For every ticket whose outcome is
+   behaviour, write the check NOW and commit it FAILING, before any implementation exists.
+   - The check lives in the test file the ticket names and is named after the ticket
+     (`test_t1_*`), so criterion → assertion is a lookup, not a reconstruction.
+   - **"Red" means:** the ticket's command exits non-zero AND the failure is the missing
+     behaviour — an ImportError or a collection error is NOT red, it is broken. Paste the
+     failing assertion line into the ticket.
+   - Anything the test cannot express — a constant, a formula, a signature — goes into the
+     ticket VERBATIM. A named-but-unvalued symbol in a ticket means the implementer invents
+     the value.
+   - The ticket's AC then reads `AC: <command> is green`, and it can be handed to any
+     executor, including a cheap one: the escalation rule ("the named test command stays red
+     → escalate, never retry") finally has something to observe.
+
+   **When the ticket's outcome is TEXT, not behaviour** — prompt/rule/doc edits, research
+   write-ups, anything whose result a human reads — do NOT invent a test for prose. Write a
+   one-line DELIVERY check instead: a command proving the text reaches its consumer (for a
+   role prompt: `build_system_prompt` for that role contains the anchors AND a role without
+   the step does not). If not even a delivery check exists, mark the ticket
+   `oracle: none — <why neither a behavioural nor a delivery check is possible>`. The reason is
+   part of the mark: a bare `oracle: none` is not a valid ticket.
+   **A ticket marked `oracle: none` stays on the expensive side and is never handed to a
+   cheap executor** — that mark is the whole point, not an escape hatch.
+4. Codex review the plan + tickets (codex-debate skill Quick Review). Fix issues, document disagreements.
+   Codex reviews the plan, the tickets AND the committed test. A test that is
+   already green at review time is a blocking finding, and so is an `oracle: none`
+   whose stated reason Codex can refute by naming a viable check.
    **On disagreement, debate — don't just record.** If Codex flags a blocking issue and you
    disagree after checking the code, RESUME the same Codex session with your counter-argument
    (same output file + `resume=True`, or codex-debate resume-by-UUID) and iterate to consensus.
@@ -77,12 +106,19 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
    **Research/architecture exception:** for open-ended design decisions (not bug fixes), preserve
    first-round dissent as a section in codex-review-*.md even after reaching consensus. The
    minority opinion may turn out correct — don't erase it from the record.
-4. Report: `PLAN READY #<id>: <approach>, N tickets. Plan + Codex in docs/tasks/<id>/. Awaiting approval.`
-5. **STOP. Wait for approval.**
+5. Report: `PLAN READY #<id>: <approach>, N tickets, M with a red test (K `oracle: none`).
+   <command> → exit 1: <first failing line>. Plan + Codex in docs/tasks/<id>/. Awaiting approval.`
+6. **STOP. Wait for approval.**
 
 ### Phase 3: IMPLEMENT ticket-by-ticket + Codex review
-1. Implement tickets in `blocked-by` order. Take ONE ticket at a time to keep context lean.
-2. After each ticket: check it against its AC (self-verify). If AC fails — fix before moving on.
+1. TAKE tickets in `blocked-by` order, ONE at a time to keep context lean. This step selects
+   the ticket; implementation starts only after step 2 passes.
+2. Before touching code, run the ticket's named test and **see it red before you change
+   anything**. Already green, or missing → the test is not about this ticket: STOP and say so,
+   do not implement around it. After the ticket: the same command must be green, and no other
+   test may have gone red. **The only exception:** a ticket whose Test field is a reviewed
+   `oracle: none — <reason>` has no such command — verify it against its AC by hand and name
+   in the report the check you could not run.
 3. **Pre-mortem — what breaks for the next consumer.** Before testing, silently identify 1–5
    concrete regressions outside the AC. For each, name the affected file/command/caller and
    observable symptom; consider changed callers, old data, and the next consumer action. Cover
@@ -140,6 +176,12 @@ docs/tasks/<task-id>/
   blindly (verify via code first) and never dismiss one silently. If Codex disagrees on a
   blocking finding → debate (resume the session) until consensus, or escalate to the
   orchestrator. "Recorded and moved on" is a failure — resolve it or hand it up.
+- **Never author the acceptance test for a ticket someone else wrote.** If the ticket names a
+  command, run it FIRST and confirm it is red; if it is green or missing, say so and stop —
+  do not write the check yourself. A green run of a test you wrote is not evidence: measured
+  in #210, two workers did exactly that, one of them with six unmet AC. Your OWN Phase 2 test
+  is bound by the same rule from the other side: in Phase 3 you may make it green, but
+  never weaken it to fit the code you wrote.
 - All findings → files (docs/tasks/<id>/), not just chat.
 - If research reveals the task is wrong/unnecessary — say so, don't proceed blindly.
 </rules>
