@@ -111,31 +111,47 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
 6. **STOP. Wait for approval.**
 
 ### Phase 3: IMPLEMENT ticket-by-ticket + Codex review
-1. TAKE tickets in `blocked-by` order, ONE at a time to keep context lean. This step selects
-   the ticket; implementation starts only after step 2 passes.
+1. TAKE tickets in `blocked-by` order, ONE at a time inside each dependency chain to keep
+   context lean. Independent tickets whose files and lines do not overlap may run concurrently; serialize only dependency chains and overlapping changes. This step selects the ticket;
+   implementation starts only after step 2 passes.
 2. Before touching code, run the ticket's named test and **see it red before you change
    anything**. Already green, or missing → the test is not about this ticket: STOP and say so,
    do not implement around it. After the ticket: the same command must be green, and no other
    test may have gone red. **The only exception:** a ticket whose Test field is a reviewed
    `oracle: none — <reason>` has no such command — verify it against its AC by hand and name
    in the report the check you could not run.
-3. **Pre-mortem — what breaks for the next consumer.** Before testing, silently identify 1–5
+3. **DISPATCH a delegable ticket to one executor.**
+   - Only a ticket with a reviewed, committed RED command that just failed for the missing behavior is delegable.
+   - A ticket marked `oracle: none` is NEVER delegated; implement it yourself on the expensive side.
+   - Otherwise use the model selected by `<model-routing>`: Luna remains the default, and the existing Sol complexity exception still applies. Spawn one `worker` for the whole ticket. Send `Files`, `Test`, `AC`, `blocked-by`, the RED commit, the exact command, its non-zero exit and failing assertion, plus these sentences verbatim:
+     `The received acceptance test is immutable: NEVER edit, delete, rename, skip, xfail, or weaken it.`
+     Do not modify any test, fixture, test helper, `conftest.py`, test configuration, marker, or test-selection setting; if the implementation requires one, report `WIP/STOP`.
+   - The worker sends exactly one message: its terminal `DONE` report, or one terminal exception report instead. Normal progress stays silent. An early exception report is allowed only for leaving/cannot obey scope, finding a false premise, or being blocked.
+   - The terminal report contains the executor commit, the exact test command and output, and evidence for every remaining AC.
+4. **ACCEPT OR ESCALATE; never coach or retry the same executor.**
+   - Inspect the executor's committed diff and clean WIP before merge. Before merge, compare every oracle path byte-for-byte with the RED commit.
+   - Reject any executor diff that changes a test, fixture, test helper, `conftest.py`, test configuration, marker, or test-selection setting relative to the RED commit.
+   - A clarification request, a `WIP/STOP` report, or any oracle mutation is a failed executor attempt. A still-red named command or an unproven AC is the same failure.
+   - Luna gets exactly one attempt. On failure, send the same unchanged ticket once to a Sol `worker`; do not answer Luna's question, rewrite its oracle, or return the ticket to Luna.
+   - A Sol `worker` gets exactly one attempt. If Sol fails, whether selected first or after Luna, take the ticket back and implement it yourself on the expensive side. If the premise, scope, Test, or AC must change, take it back immediately and re-close it before any future delegation.
+   - A child's green report is evidence, not acceptance. Merge only a clean committed result, then rerun the exact command and the ticket's focused regression check yourself.
+5. **Pre-mortem — what breaks for the next consumer.** Before testing, silently identify 1–5
    concrete regressions outside the AC. For each, name the affected file/command/caller and
    observable symptom; consider changed callers, old data, and the next consumer action. Cover
-   each in step 4 with a test or recorded command, rehearsal, or probe; if no direct check exists,
+   each in step 6 with a test or recorded command, rehearsal, or probe; if no direct check exists,
    use the nearest observable proxy. Only when the diff has no consumer-visible behavior, record
-   the caller or diff proving that. Record the scenarios and checks in `report.md` (step 7); no
+   the caller or diff proving that. Record the scenarios and checks in `report.md` (step 9); no
    Codex round.
-4. Test: `uv run python -m pytest -x -q > /tmp/pytest-<task-id>.log 2>&1`,
+6. Test: `uv run python -m pytest -x -q > /tmp/pytest-<task-id>.log 2>&1`,
    then read the log ONCE. Never poll a long command with repeated empty `write_stdin`/`wait`.
    If `git status` ever shows a modified `uv.lock` after a test run — STOP, don't commit it. It means
    the `[options] exclude-newer` barrier (`pyproject.toml` + `uv.lock`) got lost and deps re-resolved
    themselves; restore it instead of committing ~800 lines of silent upgrades.
-5. Apply the review gate in the pipeline rules below to the git diff — it decides run vs. skip; do not treat this numbered step as an unconditional run. If it runs: fix CRITICAL/HIGH, re-run if needed.
-6. Commit (one clean commit, or per-ticket if large): `#<task-id>: <what you did>`.
-7. Write `docs/tasks/<task-id>/report.md` (what, files ±lines, tickets done, tests, breaking, TODOs).
+7. Apply the review gate in the pipeline rules below to the git diff — it decides run vs. skip; do not treat this numbered step as an unconditional run. If it runs: fix CRITICAL/HIGH, re-run if needed.
+8. Commit (one clean commit, or per-ticket if large): `#<task-id>: <what you did>`.
+9. Write `docs/tasks/<task-id>/report.md` (what, files ±lines, tickets done, tests, breaking, TODOs).
    Any lesson worth reusing goes INTO this report — no separate retro file. Platform bugs → `report_bug`.
-8. Report DONE (report-format module) + the review line that MATCHES what happened:
+10. Report DONE (report-format module) + the review line that MATCHES what happened:
    review ran → `Codex approved. Report in docs/tasks/<id>/report.md`;
    gate allowed skip → `Codex skipped — <eligible reason>. Report in docs/tasks/<id>/report.md`.
    Never write "Codex approved" without a `codex-review-*.md` verdict behind it.
@@ -213,7 +229,7 @@ docs/tasks/<task-id>/
 <parallelism>
 ## Parallelism
 - Phase 1 research with natural splits (by region, source type, sub-question) → `spawn_worker` 2-3 `worker`-role agents, one slice each, then synthesize their findings into one research.md. Independent exploration prevents groupthink.
-- Research/data gathering only — never split code implementation this way.
+- Never split one implementation ticket across agents. Phase 3 may delegate the whole ticket to one worker under its red-oracle contract.
 - You own every worker you spawn; finish its merge/kill lifecycle under the worker-lifecycle
   gate before reporting DONE (finishing with live children is blocked).
 </parallelism>

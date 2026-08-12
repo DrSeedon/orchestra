@@ -636,6 +636,121 @@ class TestOracleGate:
                 f"{role}: контрправило исполнителя протекло в промпт оркестратора"
             )
 
+class TestTicketDelegationGate:
+    """#223: закрытый тикет уходит исполнителю, а оракул остаётся у full-cycle."""
+
+    IMMUTABLE_ANCHOR = (
+        "The received acceptance test is immutable: NEVER edit, delete, rename, skip, "
+        "xfail, or weaken it."
+    )
+    WORKER_FAILURE_ANCHOR = (
+        "If the command cannot be made green without changing that test, report `WIP/STOP`; "
+        "do not replace it or create a different check."
+    )
+    TEST_INFRA_ANCHOR = (
+        "Do not modify any test, fixture, test helper, `conftest.py`, test configuration, "
+        "marker, or test-selection setting; if the implementation requires one, report "
+        "`WIP/STOP`."
+    )
+    FULL_CYCLE_ANCHORS = (
+        "Only a ticket with a reviewed, committed RED command that just failed for the "
+        "missing behavior is delegable.",
+        "A ticket marked `oracle: none` is NEVER delegated; implement it yourself on the "
+        "expensive side.",
+        "Send `Files`, `Test`, `AC`, `blocked-by`, the RED commit, the exact command, its "
+        "non-zero exit and failing assertion, plus these sentences verbatim:",
+        "The worker sends exactly one message: its terminal `DONE` report, or one terminal "
+        "exception report instead.",
+        "The terminal report contains the executor commit, the exact test command and output, "
+        "and evidence for every remaining AC.",
+        "Before merge, compare every oracle path byte-for-byte with the RED commit.",
+        "Reject any executor diff that changes a test, fixture, test helper, `conftest.py`, "
+        "test configuration, marker, or test-selection setting relative to the RED commit.",
+        "A clarification request, a `WIP/STOP` report, or any oracle mutation is a failed "
+        "executor attempt.",
+        "Luna gets exactly one attempt.",
+        "On failure, send the same unchanged ticket once to a Sol `worker`; do not answer "
+        "Luna's question, rewrite its oracle, or return the ticket to Luna.",
+        "A Sol `worker` gets exactly one attempt.",
+        "If the premise, scope, Test, or AC must change, take it back immediately and re-close "
+        "it before any future delegation.",
+        "A child's green report is evidence, not acceptance. Merge only a clean committed "
+        "result, then rerun the exact command and the ticket's focused regression check "
+        "yourself.",
+        "Independent tickets whose files and lines do not overlap may run concurrently; "
+        "serialize only dependency chains and overlapping changes.",
+        "Never split one implementation ticket across agents.",
+    )
+    ORCHESTRATOR_ROLES = ("orchestrator", "sub-orchestrator")
+
+    def _src(self, role: str) -> str:
+        return P.prompt_path(PIPELINE, f"roles/{role}.md").read_text(encoding="utf-8")
+
+    def test_t1_delegation_full_cycle_source_owns_the_complete_contract(self):
+        src = self._src("full-cycle")
+        missing = [anchor for anchor in self.FULL_CYCLE_ANCHORS if anchor not in src]
+        assert not missing, f"roles/full-cycle.md is missing delegation clauses: {missing}"
+
+    def test_t1_delegation_immutable_rule_is_owned_by_both_sources(self):
+        for role in ("full-cycle", "worker"):
+            assert self.IMMUTABLE_ANCHOR in self._src(role), (
+                f"roles/{role}.md must own the immutable-oracle rule"
+            )
+            assert self.TEST_INFRA_ANCHOR in self._src(role), (
+                f"roles/{role}.md must own the oracle-infrastructure rule"
+            )
+        assert self.WORKER_FAILURE_ANCHOR in self._src("worker"), (
+            "roles/worker.md must turn an oracle-dependent implementation into WIP/STOP"
+        )
+
+    def test_t1_delegation_contract_reaches_working_roles(self):
+        full_cycle = P.build_system_prompt(PIPELINE, "full-cycle")
+        for anchor in (
+            *self.FULL_CYCLE_ANCHORS,
+            self.IMMUTABLE_ANCHOR,
+            self.TEST_INFRA_ANCHOR,
+        ):
+            assert anchor in full_cycle, f"full-cycle prompt lost clause: {anchor!r}"
+        assert self.IMMUTABLE_ANCHOR in P.build_system_prompt(PIPELINE, "worker"), (
+            "worker prompt lost the immutable-oracle rule"
+        )
+        assert self.WORKER_FAILURE_ANCHOR in P.build_system_prompt(PIPELINE, "worker"), (
+            "worker prompt lost the WIP/STOP consequence of oracle immutability"
+        )
+        assert self.TEST_INFRA_ANCHOR in P.build_system_prompt(PIPELINE, "worker"), (
+            "worker prompt lost the oracle-infrastructure rule"
+        )
+
+    def test_t1_delegation_does_not_leak_into_orchestrators(self):
+        anchors = (
+            *self.FULL_CYCLE_ANCHORS,
+            self.IMMUTABLE_ANCHOR,
+            self.WORKER_FAILURE_ANCHOR,
+            self.TEST_INFRA_ANCHOR,
+        )
+        for role in self.ORCHESTRATOR_ROLES:
+            out = P.build_system_prompt(PIPELINE, role)
+            leaked = [anchor for anchor in anchors if anchor in out]
+            assert not leaked, f"{role} received executor-only delegation clauses: {leaked}"
+
+    def test_t1_delegation_worker_does_not_receive_parent_policy(self):
+        out = P.build_system_prompt(PIPELINE, "worker")
+        leaked = [anchor for anchor in self.FULL_CYCLE_ANCHORS if anchor in out]
+        assert not leaked, f"worker received parent-only routing policy: {leaked}"
+        assert self.WORKER_FAILURE_ANCHOR not in P.build_system_prompt(
+            PIPELINE, "full-cycle"
+        ), "full-cycle received the worker-only WIP/STOP instruction"
+
+    def test_t1_delegation_gate_precedes_implementation_work(self):
+        out = P.build_system_prompt(PIPELINE, "full-cycle")
+        phase_3 = out.find("### Phase 3: IMPLEMENT")
+        gate = out.find(self.FULL_CYCLE_ANCHORS[0], phase_3)
+        premortem = out.find("**Pre-mortem — what breaks for the next consumer.**", phase_3)
+        assert -1 not in (phase_3, gate, premortem) and phase_3 < gate < premortem, (
+            "the delegation gate must run after Phase 3 starts and before implementation work"
+        )
+
+
 POOL_PRIORITY_ANCHORS = (
     "Luna is the DEFAULT",
     "Sol when the task is complex and Luna will not manage it",
