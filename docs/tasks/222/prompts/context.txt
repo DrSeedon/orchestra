@@ -1,0 +1,4 @@
+Below is one uninterrupted corpus of real repository code. Extract the values of ALL lines of the
+form `# BENCH-NEEDLE: control value = <4 digits>` in order of appearance. Reply with exactly the
+five numbers separated by commas and nothing else. Do not use tools: the corpus exists only in
+this prompt.

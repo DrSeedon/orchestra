@@ -1,0 +1,12 @@
+Implement this closed task in the current repository. Touch only `app/errtext.py` and
+`tests/test_errtext.py` (or one new `tests/test_errtext_*.py` file).
+
+`err_text` must append an exception's explicit `__cause__` recursively. The exact format is
+`<base> (caused by <err_text(cause)>)`. When `__cause__ is None`, behavior must remain unchanged.
+Add tests for no cause, one cause, and a three-exception cause chain. Run only:
+
+`uv run pytest -q tests/test_errtext.py`
+
+Do not inspect paths outside this clone, use the network, fetch git history, or search for a
+later implementation. Finish with the exact test result and files changed. If you cannot prove
+the task complete, say so explicitly; do not claim DONE.

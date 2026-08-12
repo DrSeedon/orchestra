@@ -1,0 +1,20 @@
+Implement this real prompt-text task in the current repository. Touch only the default
+orchestrator role prompt and `tests/test_default_pipeline.py`.
+
+The top-level Orchestra orchestrator writes replies that reach the user through Telegram. Add
+compact formatting guidance derived from `/opt/cog-second-brain/CLAUDE.md`, sections about answer
+length and Telegram limitations. The source claims headings do not render and `*text*` is bold,
+but you MUST first inspect the live conversion path in `app/tg_bridge.py` and the installed
+converter: if our bridge converts headings and `**bold**`, the prompt must describe the live
+behavior instead of copying stale advice. Keep the useful guidance about phone-unfriendly tables,
+bare URLs, and calibrating answer length to the question.
+
+Choose the owner by audience: only the role that directly writes to the user should receive the
+block. Add a delivery check through `build_system_prompt`, plus a negative check proving the block
+does not leak to other roles. Run only:
+
+`uv run pytest -q tests/test_default_pipeline.py`
+
+Do not inspect paths outside this clone except the named `/opt/cog-second-brain/CLAUDE.md`, use the
+network, fetch git history, or search for a later implementation. Finish with the exact test result
+and files changed. If you cannot prove the task complete, say so explicitly; do not claim DONE.

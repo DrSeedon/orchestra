@@ -1,0 +1,32 @@
+The specification below is the entire specification. If it is insufficient for any
+correctness-critical choice, STOP without editing and ask exactly one concrete question instead
+of inventing a value or formula. Otherwise implement it and run only focused tests you create.
+Do not inspect paths outside this clone, use the network, fetch git history, or search for a later
+implementation.
+
+Create `app/quota_runway.py` and `tests/test_quota_runway.py`.
+
+Implement a frozen `RunwayVerdict` and
+`weekly_runway(*, utilization, window_start_pct, window_start_at, now, reset_at)`.
+Working hours are 03:00–17:00 UTC. Verdict fields: `state` (`data|no_data`), `deficit`, `pace`,
+`runway_hours`, `work_hours_left`, `window_id`, `window_start`, `window_end`, `reason`.
+Export `DEFAULT_ALERT_DEFICIT_HOURS = 14.0`. No IO, no `db`/`tg_bridge`, and no threshold
+comparison inside the function.
+
+Acceptance criteria:
+1. Historical replay at hour 24 yields D within ±2 of +48, -18, -24, +54 for four supplied weeks.
+2. At hour 12, D > 14 for the two emergency weeks and <= 14 for the two calm weeks.
+3. Missing utilization or window_start_pct => no_data and deficit None.
+4. Before `MIN_WORK_HOURS_FOR_PACE`, state=data but pace and deficit are None.
+5. pace==0 => infinite runway and negative deficit, without division by zero.
+6. Missing reset_at falls back to the nearest Tuesday 07:00 UTC and says so in reason.
+7. reset timestamps 06:59:59.9 and 07:00:00.1 produce the same window_id.
+8. Metamorphic properties: faster spend strictly raises deficit; shifting all timestamps by whole
+   weeks leaves the verdict identical; moving reset by N working hours raises work_hours_left by N;
+   analytic case start=0%, pace=2.0 pp/working-hour, 40 working-hours left gives runway=50,
+   deficit=-10.
+9. reset_at <= now => no_data.
+10. utilization < window_start_pct => no_data with an explicit reason; negative pace is impossible.
+
+Finish either with the single blocking question, or with exact focused test results and files
+changed. Never report DONE merely because tests you authored are green.

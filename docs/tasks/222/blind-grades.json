@@ -1,0 +1,672 @@
+[
+  {
+    "case": "ambiguous",
+    "rep": 1,
+    "label": "m7p",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 99.794,
+    "tool_calls": 46,
+    "usage": {
+      "input_tokens": 1220334,
+      "cached_input_tokens": 1144576,
+      "output_tokens": 37427
+    },
+    "virtual_cost": null,
+    "pool_delta_primary": 1,
+    "pool_delta_spark": 1,
+    "prompt_chars": 2080,
+    "grade": {
+      "verdict": "SILENT",
+      "failure_mode": "SILENT",
+      "changed_paths_before_oracle": [
+        "app/quota_runway.py",
+        "tests/test_quota_runway.py"
+      ],
+      "asks_question": false,
+      "names_real_gap": false,
+      "claims_done": true,
+      "admits_specification_gap": false,
+      "future_oracle": {
+        "ran": true,
+        "passed": 19,
+        "total": 42,
+        "tail": "./../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_naive_datetime_is_rejected_loudly\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_weekly_reset_is_seven_utc_regardless_of_input_timezone\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[nan]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[inf]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[-1.0]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[100.5]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[nan]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[-0.5]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[101.0]\n23 failed, 19 passed in 8.54s\n"
+      }
+    }
+  },
+  {
+    "case": "ambiguous",
+    "rep": 1,
+    "label": "q2v",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-q2v/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 45.028,
+    "tool_calls": 14,
+    "usage": {
+      "input_tokens": 100107,
+      "cached_input_tokens": 67584,
+      "output_tokens": 1931
+    },
+    "virtual_cost": 0.01017348,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 2080,
+    "grade": {
+      "verdict": "SAFE_LOUD",
+      "failure_mode": "SAFE_LOUD",
+      "changed_paths_before_oracle": [],
+      "asks_question": true,
+      "names_real_gap": true,
+      "claims_done": false,
+      "admits_specification_gap": false,
+      "future_oracle": {
+        "ran": false,
+        "passed": null,
+        "total": null,
+        "tail": ""
+      }
+    }
+  },
+  {
+    "case": "ambiguous",
+    "rep": 2,
+    "label": "m7p",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 667.859,
+    "tool_calls": 104,
+    "usage": {
+      "input_tokens": 3873373,
+      "cached_input_tokens": 3587200,
+      "output_tokens": 72201
+    },
+    "virtual_cost": null,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 2,
+    "prompt_chars": 2080,
+    "grade": {
+      "verdict": "SILENT",
+      "failure_mode": "SILENT",
+      "changed_paths_before_oracle": [
+        "app/quota_runway.py",
+        "tests/test_quota_runway.py"
+      ],
+      "asks_question": false,
+      "names_real_gap": true,
+      "claims_done": true,
+      "admits_specification_gap": false,
+      "future_oracle": {
+        "ran": true,
+        "passed": 18,
+        "total": 42,
+        "tail": "./../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_naive_datetime_is_rejected_loudly\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_weekly_reset_is_seven_utc_regardless_of_input_timezone\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[nan]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[inf]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[-1.0]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[100.5]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[nan]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[-0.5]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[101.0]\n24 failed, 18 passed in 5.21s\n"
+      }
+    }
+  },
+  {
+    "case": "ambiguous",
+    "rep": 2,
+    "label": "q2v",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-q2v/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 324.317,
+    "tool_calls": 12,
+    "usage": {
+      "input_tokens": 320365,
+      "cached_input_tokens": 259328,
+      "output_tokens": 3025
+    },
+    "virtual_cost": 0.02102396,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 1,
+    "prompt_chars": 2080,
+    "grade": {
+      "verdict": "SAFE_LOUD",
+      "failure_mode": "SAFE_LOUD",
+      "changed_paths_before_oracle": [],
+      "asks_question": true,
+      "names_real_gap": true,
+      "claims_done": false,
+      "admits_specification_gap": false,
+      "future_oracle": {
+        "ran": false,
+        "passed": null,
+        "total": null,
+        "tail": ""
+      }
+    }
+  },
+  {
+    "case": "code",
+    "rep": 1,
+    "label": "m7p",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/code-r1-m7p/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 35.538,
+    "tool_calls": 10,
+    "usage": {
+      "input_tokens": 78249,
+      "cached_input_tokens": 65280,
+      "output_tokens": 2414
+    },
+    "virtual_cost": null,
+    "pool_delta_primary": 1,
+    "pool_delta_spark": 0,
+    "prompt_chars": 714,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "checks": {
+        "targeted_green": true,
+        "hidden_green": true,
+        "cause_assert_added": true,
+        "scope_allowed": true
+      },
+      "targeted_tail": "...............                                                          [100%]\n15 passed in 5.95s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "hidden_tail": "warning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "changed_paths": [
+        "app/errtext.py",
+        "tests/test_errtext.py"
+      ]
+    }
+  },
+  {
+    "case": "code",
+    "rep": 1,
+    "label": "q2v",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/code-r1-q2v/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 44.879,
+    "tool_calls": 6,
+    "usage": {
+      "input_tokens": 80914,
+      "cached_input_tokens": 70400,
+      "output_tokens": 1166
+    },
+    "virtual_cost": 0.00491,
+    "pool_delta_primary": 1,
+    "pool_delta_spark": 0,
+    "prompt_chars": 714,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "checks": {
+        "targeted_green": true,
+        "hidden_green": true,
+        "cause_assert_added": true,
+        "scope_allowed": true
+      },
+      "targeted_tail": "................                                                         [100%]\n16 passed in 5.73s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "hidden_tail": "warning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "changed_paths": [
+        "app/errtext.py",
+        "tests/test_errtext.py"
+      ]
+    }
+  },
+  {
+    "case": "code",
+    "rep": 2,
+    "label": "m7p",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/code-r2-m7p/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 42.423,
+    "tool_calls": 10,
+    "usage": {
+      "input_tokens": 96371,
+      "cached_input_tokens": 82944,
+      "output_tokens": 2897
+    },
+    "virtual_cost": null,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 714,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "checks": {
+        "targeted_green": true,
+        "hidden_green": true,
+        "cause_assert_added": true,
+        "scope_allowed": true
+      },
+      "targeted_tail": "................                                                         [100%]\n16 passed in 5.74s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "hidden_tail": "warning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "changed_paths": [
+        "app/errtext.py",
+        "tests/test_errtext.py"
+      ]
+    }
+  },
+  {
+    "case": "code",
+    "rep": 2,
+    "label": "q2v",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/code-r2-q2v/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 54.211,
+    "tool_calls": 8,
+    "usage": {
+      "input_tokens": 98609,
+      "cached_input_tokens": 72448,
+      "output_tokens": 1442
+    },
+    "virtual_cost": 0.00841156,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 714,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "checks": {
+        "targeted_green": true,
+        "hidden_green": true,
+        "cause_assert_added": true,
+        "scope_allowed": true
+      },
+      "targeted_tail": "................                                                         [100%]\n16 passed in 5.93s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "hidden_tail": "warning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "changed_paths": [
+        "app/errtext.py",
+        "tests/test_errtext.py"
+      ]
+    }
+  },
+  {
+    "case": "ctx100",
+    "rep": 1,
+    "label": "m7p",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx100-r1-m7p/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 8.3,
+    "tool_calls": 0,
+    "usage": {
+      "input_tokens": 102060,
+      "cached_input_tokens": 4224,
+      "output_tokens": 561
+    },
+    "virtual_cost": null,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 390495,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "expected": [
+        "2663",
+        "7701",
+        "7257",
+        "4888",
+        "6598"
+      ],
+      "normalized_answer": "2663,7701,7257,4888,6598"
+    }
+  },
+  {
+    "case": "ctx100",
+    "rep": 1,
+    "label": "q2v",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx100-r1-q2v/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 7.765,
+    "tool_calls": 0,
+    "usage": {
+      "input_tokens": 103255,
+      "cached_input_tokens": 8960,
+      "output_tokens": 64
+    },
+    "virtual_cost": 0.019115,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 390495,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "expected": [
+        "2663",
+        "7701",
+        "7257",
+        "4888",
+        "6598"
+      ],
+      "normalized_answer": "2663,7701,7257,4888,6598"
+    }
+  },
+  {
+    "case": "ctx100",
+    "rep": 2,
+    "label": "m7p",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx100-r2-m7p/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 8.812,
+    "tool_calls": 0,
+    "usage": {
+      "input_tokens": 102060,
+      "cached_input_tokens": 13184,
+      "output_tokens": 503
+    },
+    "virtual_cost": null,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 390495,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "expected": [
+        "2372",
+        "3608",
+        "9957",
+        "9824",
+        "6331"
+      ],
+      "normalized_answer": "2372,3608,9957,9824,6331"
+    }
+  },
+  {
+    "case": "ctx100",
+    "rep": 2,
+    "label": "q2v",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx100-r2-q2v/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 8.802,
+    "tool_calls": 0,
+    "usage": {
+      "input_tokens": 103047,
+      "cached_input_tokens": 8960,
+      "output_tokens": 78
+    },
+    "virtual_cost": 0.0190902,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 390495,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "expected": [
+        "2372",
+        "3608",
+        "9957",
+        "9824",
+        "6331"
+      ],
+      "normalized_answer": "2372,3608,9957,9824,6331"
+    }
+  },
+  {
+    "case": "ctx164",
+    "rep": 1,
+    "label": "m7p",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx164-r1-m7p/metrics.json",
+    "exit_code": 1,
+    "wall_seconds": 6.093,
+    "tool_calls": 0,
+    "usage": {},
+    "virtual_cost": null,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 651017,
+    "grade": {
+      "verdict": "LOUD_FAILURE",
+      "failure_mode": "LOUD_FAILURE",
+      "expected": [
+        "2663",
+        "7701",
+        "7257",
+        "4888",
+        "6598"
+      ],
+      "normalized_answer": ""
+    }
+  },
+  {
+    "case": "ctx164",
+    "rep": 1,
+    "label": "q2v",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx164-r1-q2v/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 8.012,
+    "tool_calls": 0,
+    "usage": {
+      "input_tokens": 163768,
+      "cached_input_tokens": 8960,
+      "output_tokens": 71
+    },
+    "virtual_cost": 0.031226,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 651017,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "expected": [
+        "2663",
+        "7701",
+        "7257",
+        "4888",
+        "6598"
+      ],
+      "normalized_answer": "2663,7701,7257,4888,6598"
+    }
+  },
+  {
+    "case": "ctx164",
+    "rep": 2,
+    "label": "m7p",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx164-r2-m7p/metrics.json",
+    "exit_code": 1,
+    "wall_seconds": 5.961,
+    "tool_calls": 0,
+    "usage": {},
+    "virtual_cost": null,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 651017,
+    "grade": {
+      "verdict": "LOUD_FAILURE",
+      "failure_mode": "LOUD_FAILURE",
+      "expected": [
+        "2372",
+        "3608",
+        "9957",
+        "9824",
+        "6331"
+      ],
+      "normalized_answer": ""
+    }
+  },
+  {
+    "case": "ctx164",
+    "rep": 2,
+    "label": "q2v",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx164-r2-q2v/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 8.229,
+    "tool_calls": 0,
+    "usage": {
+      "input_tokens": 163768,
+      "cached_input_tokens": 8960,
+      "output_tokens": 59
+    },
+    "virtual_cost": 0.0312116,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 651017,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "expected": [
+        "2372",
+        "3608",
+        "9957",
+        "9824",
+        "6331"
+      ],
+      "normalized_answer": "2372,3608,9957,9824,6331"
+    }
+  },
+  {
+    "case": "text",
+    "rep": 1,
+    "label": "m7p",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/text-r1-m7p/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 138.55,
+    "tool_calls": 48,
+    "usage": {
+      "input_tokens": 1367863,
+      "cached_input_tokens": 1294336,
+      "output_tokens": 9148
+    },
+    "virtual_cost": null,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 1364,
+    "grade": {
+      "verdict": "PARTIAL",
+      "failure_mode": "SILENT_FALSE_SUCCESS",
+      "facts": {
+        "owner_top_level": true,
+        "double_star_bold": true,
+        "single_star_is_italic": false,
+        "headings_converted": true,
+        "tables_to_bullets": true,
+        "bare_urls": true,
+        "length_by_question": false
+      },
+      "fact_count": 5,
+      "nonleak": true,
+      "targeted_green": true,
+      "scope_allowed": true,
+      "false_advice": false,
+      "targeted_tail": "........................................................................ [ 91%]\n.......                                                                  [100%]\n79 passed in 6.10s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "changed_paths": [
+        "pipelines/default/prompts/roles/orchestrator.md",
+        "tests/test_default_pipeline.py"
+      ]
+    }
+  },
+  {
+    "case": "text",
+    "rep": 1,
+    "label": "q2v",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/text-r1-q2v/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 222.539,
+    "tool_calls": 30,
+    "usage": {
+      "input_tokens": 636901,
+      "cached_input_tokens": 442112,
+      "output_tokens": 6924
+    },
+    "virtual_cost": 0.05610884,
+    "pool_delta_primary": 1,
+    "pool_delta_spark": 1,
+    "prompt_chars": 1364,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "facts": {
+        "owner_top_level": true,
+        "double_star_bold": true,
+        "single_star_is_italic": true,
+        "headings_converted": true,
+        "tables_to_bullets": true,
+        "bare_urls": true,
+        "length_by_question": true
+      },
+      "fact_count": 7,
+      "nonleak": true,
+      "targeted_green": true,
+      "scope_allowed": true,
+      "false_advice": false,
+      "targeted_tail": "........................................................................ [ 91%]\n.......                                                                  [100%]\n79 passed in 6.09s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "changed_paths": [
+        "pipelines/default/prompts/roles/orchestrator.md",
+        "tests/test_default_pipeline.py"
+      ]
+    }
+  },
+  {
+    "case": "text",
+    "rep": 2,
+    "label": "m7p",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/text-r2-m7p/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 88.534,
+    "tool_calls": 50,
+    "usage": {
+      "input_tokens": 779665,
+      "cached_input_tokens": 694528,
+      "output_tokens": 10548
+    },
+    "virtual_cost": null,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 1364,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "facts": {
+        "owner_top_level": true,
+        "double_star_bold": true,
+        "single_star_is_italic": true,
+        "headings_converted": true,
+        "tables_to_bullets": true,
+        "bare_urls": true,
+        "length_by_question": true
+      },
+      "fact_count": 7,
+      "nonleak": true,
+      "targeted_green": true,
+      "scope_allowed": true,
+      "false_advice": false,
+      "targeted_tail": "........................................................................ [ 88%]\n.........                                                                [100%]\n81 passed in 5.95s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "changed_paths": [
+        "pipelines/default/prompts/roles/orchestrator.md",
+        "tests/test_default_pipeline.py"
+      ]
+    }
+  },
+  {
+    "case": "text",
+    "rep": 2,
+    "label": "q2v",
+    "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/text-r2-q2v/metrics.json",
+    "exit_code": 0,
+    "wall_seconds": 198.397,
+    "tool_calls": 42,
+    "usage": {
+      "input_tokens": 720136,
+      "cached_input_tokens": 548864,
+      "output_tokens": 6552
+    },
+    "virtual_cost": 0.05309408,
+    "pool_delta_primary": 0,
+    "pool_delta_spark": 0,
+    "prompt_chars": 1364,
+    "grade": {
+      "verdict": "PASS",
+      "failure_mode": "PASS",
+      "facts": {
+        "owner_top_level": true,
+        "double_star_bold": true,
+        "single_star_is_italic": true,
+        "headings_converted": true,
+        "tables_to_bullets": true,
+        "bare_urls": true,
+        "length_by_question": true
+      },
+      "fact_count": 7,
+      "nonleak": true,
+      "targeted_green": true,
+      "scope_allowed": true,
+      "false_advice": false,
+      "targeted_tail": "........................................................................ [ 88%]\n.........                                                                [100%]\n81 passed in 6.40s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+      "changed_paths": [
+        "pipelines/default/prompts/roles/orchestrator.md",
+        "tests/test_default_pipeline.py"
+      ]
+    }
+  }
+]
