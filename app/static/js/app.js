@@ -97,6 +97,48 @@ function _fmtKb(bytes) {
     return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} МБ` : `${Math.round(bytes / 1024)} КБ`;
 }
 
+function _toolResultImageSrc(content) {
+    const data = content.match(/['"]?data['"]?\s*[:=]\s*['"]([A-Za-z0-9+/=\s]{100,})['"]/);
+    if (!data) return '';
+    const media = content.match(/['"]?media_type['"]?\s*[:=]\s*['"]([^'"]+)['"]/);
+    return `data:${media?.[1] || 'image/png'};base64,${data[1].replace(/\s/g, '')}`;
+}
+
+function _loadImageSrc(img, src) {
+    if (!src) return Promise.resolve(false);
+    return new Promise(resolve => {
+        const done = ok => {
+            img.onload = null;
+            img.onerror = null;
+            resolve(ok);
+        };
+        img.onload = () => done(true);
+        img.onerror = () => done(false);
+        img.src = src;
+    });
+}
+
+async function _restoreToolResultImage(img, payload) {
+    if (!payload?.id) return false;
+    try {
+        const full = await api(`/api/logs/${payload.id}`);
+        const src = _toolResultImageSrc(full.content || '');
+        return _loadImageSrc(img, src);
+    } catch (e) {
+        console.warn(`Image result ${payload.id} unavailable: ${e.name}: ${e.message}`);
+        return false;
+    }
+}
+
+async function _loadToolResultImage(img, origPath, inlineSrc, payload) {
+    if (origPath) {
+        const rawSrc = `/api/files/raw?path=${encodeURIComponent(origPath)}&t=${Date.now()}`;
+        if (await _loadImageSrc(img, rawSrc)) return true;
+    }
+    if (await _loadImageSrc(img, inlineSrc)) return true;
+    return _restoreToolResultImage(img, payload);
+}
+
 function _attachTruncNotice(node, row, type, ts) {
     const shown = new TextEncoder().encode(row.content || '').length;
     const notice = document.createElement('div');
@@ -4810,23 +4852,25 @@ function addChatEntry(type, content, ts, anchor, payload) {
             }
         }
         if (_isBase64Image) {
-            const b64Match = content.match(/data['":\s]+['"]([A-Za-z0-9+/=\s]{100,})['"]/);
+            const inlineSrc = _toolResultImageSrc(content);
             if (lastTool) {
                 delete lastTool.dataset.lastTool;
                 const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
                 if (skeleton) skeleton.remove();
             }
             const target = lastTool || div;
-            if (b64Match) {
+            const origPath = lastTool && lastTool.dataset.filePath;
+            if (inlineSrc || origPath || payload?.id) {
                 const img = document.createElement('img');
-                // Use original file via API if Read tool has file_path — SDK compresses base64
-                const origPath = lastTool && lastTool.dataset.filePath;
-                const thumbSrc = 'data:image/png;base64,' + b64Match[1].replace(/\s/g, '');
-                img.src = origPath ? `/api/files/raw?path=${encodeURIComponent(origPath)}&t=${Date.now()}` : thumbSrc;
-                img.onerror = () => { img.src = thumbSrc; };
                 img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin-top:6px;cursor:pointer';
-                img.addEventListener('click', () => _showImageOverlay(origPath ? img.src : thumbSrc));
+                img.style.display = 'none';
+                img.addEventListener('click', () => _showImageOverlay(img.src));
                 target.appendChild(img);
+                // Use original file via API if Read tool has file_path — SDK compresses base64
+                _loadToolResultImage(img, origPath, inlineSrc, payload).then(ok => {
+                    if (ok) img.style.display = '';
+                    else img.replaceWith(Object.assign(document.createElement('div'), {textContent: '🖼 Image unavailable'}));
+                });
             } else {
                 const placeholder = document.createElement('div');
                 placeholder.className = 'text-xs';

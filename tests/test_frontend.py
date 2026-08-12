@@ -1384,3 +1384,127 @@ def test_codex_view_image_loads_eagerly(
     assert requests == 2
     expect(image).not_to_have_class("codex-tool-image-error")
     page.close()
+
+
+def test_truncated_read_image_restores_full_log_when_source_file_is_gone(
+    dashboard_browser: Browser,
+):
+    root = Path(__file__).parent.parent
+    source = (root / "app/static/js/app.js").read_text()
+    page = dashboard_browser.new_page()
+    png = (
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+        "+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    )
+    requests = {"file": 0, "log": []}
+
+    def missing_source(route):
+        requests["file"] += 1
+        route.fulfill(status=404)
+
+    def full_log(route):
+        log_id = int(route.request.url.rsplit("/", 1)[-1])
+        requests["log"].append(log_id)
+        image_data = png + " " * 20 if log_id == 42 else "A" * 120
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            json={
+                "id": log_id,
+                "type": "tool_result",
+                "content": (
+                    "{'type': 'image', 'source': {'type': 'base64', 'data': '"
+                    + image_data
+                    + "', 'media_type': 'image/png'}}"
+                ),
+            },
+        )
+
+    page.route("**/api/files/raw?**", missing_source)
+    page.route(re.compile(r".*/api/logs/\d+$"), full_log)
+    page.route(
+        "**/static/js/app.js*",
+        lambda route: route.fulfill(
+            status=200, content_type="text/javascript", body=source,
+        ),
+    )
+    _goto_dashboard_or_skip(page)
+    page.wait_for_function("() => typeof _restoreToolResultImage === 'function'")
+    page.wait_for_function(
+        "() => typeof selectedAgent !== 'undefined' && selectedAgent !== null"
+    )
+    page.evaluate(
+        """() => {
+            selectedAgent = null;
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            window.compactMode = false;
+            document.querySelector('#chat').innerHTML = '';
+            addChatEntry(
+                'tool',
+                'Read: {"file_path":"/tmp/already-gone.png"}',
+                null, null, {tool_use_id: 'read-1'}
+            );
+            addChatEntry(
+                'tool_result',
+                "{'type': 'image', 'source': {'type': 'base64', 'data': 'cut",
+                null, null,
+                {id: 42, trunc: 50000, tool_use_id: 'read-1'}
+            );
+        }"""
+    )
+
+    page.wait_for_timeout(1000)
+    state = page.evaluate(
+        """() => ({
+            html: $('#chat').innerHTML,
+            src: $('#chat img')?.src,
+            width: $('#chat img')?.naturalWidth,
+        })"""
+    )
+    image = page.locator("#chat img")
+    assert state["width"] == 1, (state, requests)
+    assert image.evaluate("img => [img.naturalWidth, img.naturalHeight]") == [1, 1]
+    expect(page.locator("#chat")).not_to_contain_text("[Image result]")
+    assert requests == {"file": 1, "log": [42]}
+
+    page.evaluate(
+        """() => {
+            document.querySelector('#chat').innerHTML = '';
+            addChatEntry(
+                'tool',
+                'Read: {"file_path":"/tmp/already-gone.png"}',
+                null, null, {tool_use_id: 'read-2'}
+            );
+            addChatEntry(
+                'tool_result',
+                "{'type': 'image', 'source': {'type': 'base64', 'data': '"
+                    + 'A'.repeat(120) + "', 'media_type': 'image/png'}}",
+                null, null, {id: 42, tool_use_id: 'read-2'}
+            );
+        }"""
+    )
+    page.wait_for_function("() => $('#chat img')?.naturalWidth === 1")
+    assert requests == {"file": 2, "log": [42, 42]}
+
+    page.evaluate(
+        """() => {
+            document.querySelector('#chat').innerHTML = '';
+            addChatEntry(
+                'tool',
+                'Read: {"file_path":"/tmp/already-gone.png"}',
+                null, null, {tool_use_id: 'read-3'}
+            );
+            addChatEntry(
+                'tool_result',
+                "{'type': 'image', 'source': {'type': 'base64', 'data': 'cut",
+                null, null, {id: 43, trunc: 50000, tool_use_id: 'read-3'}
+            );
+        }"""
+    )
+    expect(page.locator("#chat")).to_contain_text("Image unavailable")
+    assert page.locator("#chat img").count() == 0
+    assert requests == {"file": 3, "log": [42, 42, 43]}
+    page.close()
