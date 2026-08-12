@@ -94,6 +94,49 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
 
 
 @pytest.mark.asyncio
+async def test_codex_review_resume_command_passes_usage_arguments(tmp_path, monkeypatch):
+    import app.mcp_stdio as mcp
+
+    captured = {}
+    output = tmp_path / "review.md"
+    sessions = output.parent / "codex_sessions.json"
+    sessions.write_text('{"sessions": {"review": {"uuid": "stored-uuid"}}}')
+
+    async def fake_api(method, path, **kwargs):
+        if path == "/api/usage/readiness":
+            return {
+                "policy": "worker-weekly-v1", "state": "available",
+                "model": "gpt-5.6-sol", "provider": "codex",
+                "provider_label": "Codex", "weekly_utilization": 1,
+                "threshold": 95, "observed_at": 2_000_000_000,
+                "valid_until": 2_000_000_300, "alternatives": [], "reason": "test",
+            }
+        if method == "GET":
+            return {
+                "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+                "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
+            }
+        captured.update(kwargs["json"])
+        return {"id": "bg-test"}
+
+    monkeypatch.setattr(mcp, "_api", fake_api)
+    monkeypatch.setattr(mcp, "WORKER_NAME", "sol-pilot")
+    monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+    monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+
+    await mcp.codex_review(
+        context=PROJECT_CONTEXT, target="research.md", output="review.md",
+        mode="exec", resume=True,
+    )
+
+    command = captured["config"]["command"]
+    assert "exec resume stored-uuid" in command
+    assert "--usage-event-id codex-review:" in command
+    assert "--usage-session-id requester-id" in command
+    assert "--usage-model gpt-5.6-sol" in command
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("context", ["", "review this diff without authority"])
 async def test_codex_review_rejects_missing_project_context_before_any_api_call(
     monkeypatch, context,
