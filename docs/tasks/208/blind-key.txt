@@ -1,0 +1,2 @@
+bench201-x = gpt-5.6-luna
+bench201-y = gpt-5.6-sol

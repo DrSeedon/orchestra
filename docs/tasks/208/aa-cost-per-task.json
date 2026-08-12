@@ -1,0 +1,167 @@
+{
+ "GPT-5.6 Luna (low)": {
+  "index": 33.8545605251116,
+  "indexCostUSD": 13.73935755422428,
+  "costPerTask": 0.008794987674524354
+ },
+ "GPT-5.6 Luna (medium)": {
+  "index": 38.9050733396755,
+  "indexCostUSD": 21.147427152184804,
+  "costPerTask": 0.011269349861463487
+ },
+ "GPT-5.6 Luna (Non-reasoning)": {
+  "index": 26.8448952225882,
+  "indexCostUSD": 10.20561391716117,
+  "costPerTask": 0.011731427324057237
+ },
+ "GPT-5.6 Luna (high)": {
+  "index": 46.9604170473195,
+  "indexCostUSD": 55.02438404016263,
+  "costPerTask": 0.021586508695259323
+ },
+ "GPT-5.6 Luna (xhigh)": {
+  "index": 50.0587027429536,
+  "indexCostUSD": 95.13028581718562,
+  "costPerTask": 0.03163714141003623
+ },
+ "GPT-5.6 Luna (max)": {
+  "index": 52.3180827840984,
+  "indexCostUSD": 172.16869708656338,
+  "costPerTask": 0.047127533600050245
+ },
+ "GPT-5.6 Terra (low)": {
+  "index": 41.2961239729374,
+  "indexCostUSD": 130.4050258821386,
+  "costPerTask": 0.09394666975942793
+ },
+ "GPT-5.6 Terra (Non-reasoning)": {
+  "index": 34.6188674546024,
+  "indexCostUSD": 98.52488553732582,
+  "costPerTask": 0.10253908741173154
+ },
+ "GPT-5.6 Terra (medium)": {
+  "index": 46.7558953879266,
+  "indexCostUSD": 192.05655705435612,
+  "costPerTask": 0.11902405207946289
+ },
+ "GPT-5.6 Terra (high)": {
+  "index": 50.1131352273405,
+  "indexCostUSD": 395.3786189954867,
+  "costPerTask": 0.2182820129982924
+ },
+ "GPT-5.6 Sol (low)": {
+  "index": 50.7315181713702,
+  "indexCostUSD": 343.86763828531195,
+  "costPerTask": 0.2311009469900179
+ },
+ "GPT-5.6 Sol (Non-reasoning)": {
+  "index": 41.8779730605066,
+  "indexCostUSD": 239.6633760235481,
+  "costPerTask": 0.23655299915860634
+ },
+ "GPT-5.6 Terra (xhigh)": {
+  "index": 52.7732451128074,
+  "indexCostUSD": 589.6533166278462,
+  "costPerTask": 0.30502229139154546
+ },
+ "GPT-5.6 Sol (medium)": {
+  "index": 55.5729051710609,
+  "indexCostUSD": 580.1729881470743,
+  "costPerTask": 0.3716708124374881
+ },
+ "Claude Sonnet 5 (Non-reasoning)": {
+  "index": 42.5707970639646,
+  "indexCostUSD": 415.7461462036607,
+  "costPerTask": 0.4169463665330755
+ },
+ "Claude Opus 5 (low)": {
+  "index": 52.4569136808453,
+  "indexCostUSD": 555.252412245871,
+  "costPerTask": 0.4251600668384285
+ },
+ "GPT-5.6 Terra (max)": {
+  "index": 56.5755675890213,
+  "indexCostUSD": 1389.6617268165041,
+  "costPerTask": 0.5080188911299259
+ },
+ "GPT-5.6 Sol (high)": {
+  "index": 57.3317210962224,
+  "indexCostUSD": 954.9460911120115,
+  "costPerTask": 0.5477303914853746
+ },
+ "Claude Opus 5 (medium)": {
+  "index": 58.6354597438038,
+  "indexCostUSD": 1116.2418238428252,
+  "costPerTask": 0.7242784395479823
+ },
+ "GPT-5.6 Sol (xhigh)": {
+  "index": 59.0090363705536,
+  "indexCostUSD": 1525.0027653162272,
+  "costPerTask": 0.8071812433530292
+ },
+ "Claude Opus 5 (high)": {
+  "index": 61.4751191473465,
+  "indexCostUSD": 1974.3543863277582,
+  "costPerTask": 1.2267615279355861
+ },
+ "GPT-5.6 Sol (max)": {
+  "index": 60.9298701329203,
+  "indexCostUSD": 2823.2538670927206,
+  "costPerTask": 1.2312110558767355
+ },
+ "Claude Sonnet 5 (max)": {
+  "index": 55.261211717405,
+  "indexCostUSD": 4010.5097587296013,
+  "costPerTask": 1.717266743264445
+ },
+ "Claude Opus 5 (xhigh)": {
+  "index": 62.52047429879,
+  "indexCostUSD": 2909.2957867966024,
+  "costPerTask": 1.8011966745825487
+ },
+ "Claude Opus 5 (max)": {
+  "index": 63.0532452071291,
+  "indexCostUSD": 3836.05454152768,
+  "costPerTask": 2.3368592081245625
+ },
+ "Claude Fable 5 (max)": {
+  "index": 62.0726622017462,
+  "indexCostUSD": 5455.2180576804685,
+  "costPerTask": null
+ },
+ "GPT-5.5 (xhigh)": {
+  "index": 56.3066851860359,
+  "indexCostUSD": 2778.1294310245776,
+  "costPerTask": null
+ },
+ "GPT-5.5 (high)": {
+  "index": 54.6668082793663,
+  "indexCostUSD": 1721.1692051947016,
+  "costPerTask": null
+ },
+ "GPT-5.5 (medium)": {
+  "index": 51.4222518389803,
+  "indexCostUSD": 939.0747348803063,
+  "costPerTask": null
+ },
+ "GPT-5.5 (low)": {
+  "index": 44.4981124676717,
+  "indexCostUSD": 374.4472007149697,
+  "costPerTask": null
+ },
+ "GPT-5.5 (Non-reasoning)": {
+  "index": 35.7537595975886,
+  "indexCostUSD": 211.75470280721356,
+  "costPerTask": null
+ },
+ "GPT-5.5 Instant (May 2026)": {
+  "index": 34.335069719912724,
+  "indexCostUSD": null,
+  "costPerTask": null
+ },
+ "GPT-5.5 Instant (June 2026)": {
+  "index": 29.2327786347204,
+  "indexCostUSD": 423.1144959243727,
+  "costPerTask": null
+ }
+}
