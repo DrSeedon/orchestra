@@ -17,7 +17,7 @@ from app.models import get_model_spec, resolve_model
 from app.quota_runway import RunwayVerdict, as_utc, next_weekly_reset, weekly_runway
 
 
-ROUTING_CONTRACT_VERSION = "routing-v1"
+ROUTING_CONTRACT_VERSION = "routing-v2"
 ROUTING_POLICY_SCHEMA_VERSION = 1
 QUOTA_OBSERVATION_MAX_AGE_SECONDS = 300.0
 FIVE_HOUR_WINDOW_MINUTES = 300
@@ -32,6 +32,18 @@ TaskClass = Literal[
 CandidateState = Literal["normal", "reserve_only", "unavailable", "excluded"]
 PROCESS_STARTED_AT = datetime.now(timezone.utc).isoformat()
 
+# A lane is (quota bucket, runtime, model). Runtime alone cannot key selection: Spark shares the
+# `codex` runtime with Sol but spends a different bucket, so one field would answer "which pool"
+# and "which reviewer is independent" differently. Independence stays a runtime question, quota
+# stays a bucket question, and selection is keyed by lane.
+LANE_CLAUDE = "claude"
+LANE_CODEX = "codex"
+LANE_CODEX_SPARK = "codex_spark"
+LANE_PREFERENCE = (LANE_CODEX_SPARK, LANE_CODEX, LANE_CLAUDE)
+LANE_RUNTIMES = {LANE_CLAUDE: "claude", LANE_CODEX: "codex", LANE_CODEX_SPARK: "codex"}
+LANE_BUCKETS = {LANE_CLAUDE: "anthropic", LANE_CODEX: "codex", LANE_CODEX_SPARK: "codex_spark"}
+QUOTA_BUCKETS = frozenset(LANE_BUCKETS.values())
+
 
 class _StrictPolicyModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -40,6 +52,7 @@ class _StrictPolicyModel(BaseModel):
 class RoutingModelsV1(_StrictPolicyModel):
     claude: str
     codex: str | None = None
+    spark: str | None = None
 
     @model_validator(mode="after")
     def validate_runtimes(self) -> "RoutingModelsV1":
@@ -51,10 +64,24 @@ class RoutingModelsV1(_StrictPolicyModel):
             codex = resolve_model(self.codex)
             if get_model_spec(codex).runtime != "codex":
                 raise ValueError("models.codex must resolve to the Codex runtime")
-            if codex == "gpt-5.3-codex-spark":
-                raise ValueError("Spark is not eligible for quota routing")
+            if _bucket_for_model(codex) != LANE_BUCKETS[LANE_CODEX]:
+                raise ValueError("Spark spends its own bucket — configure it as models.spark")
             object.__setattr__(self, "codex", codex)
+        if self.spark is not None:
+            spark = resolve_model(self.spark)
+            if get_model_spec(spark).runtime != "codex":
+                raise ValueError("models.spark must resolve to the Codex runtime")
+            if _bucket_for_model(spark) != LANE_BUCKETS[LANE_CODEX_SPARK]:
+                raise ValueError("models.spark must resolve to a model on the codex_spark bucket")
+            object.__setattr__(self, "spark", spark)
         return self
+
+    def model_for_lane(self, lane: str) -> str | None:
+        return {
+            LANE_CLAUDE: self.claude,
+            LANE_CODEX: self.codex,
+            LANE_CODEX_SPARK: self.spark,
+        }[lane]
 
 
 class ClaudeQuotaPolicyV1(_StrictPolicyModel):
@@ -161,7 +188,9 @@ class RoutingInput:
 
 @dataclass(frozen=True)
 class CandidateVerdict:
+    lane: str
     runtime: str
+    bucket: str
     model: str
     state: CandidateState
     reason: str
@@ -172,12 +201,32 @@ class CandidateVerdict:
     detail: str = ""
 
 
+def _candidate(
+    lane: str,
+    model: str,
+    state: CandidateState,
+    reason: str,
+    **fields: object,
+) -> CandidateVerdict:
+    """Build a verdict whose runtime and bucket always come from the lane, never by hand."""
+    return CandidateVerdict(
+        lane=lane,
+        runtime=LANE_RUNTIMES[lane],
+        bucket=LANE_BUCKETS[lane],
+        model=model,
+        state=state,
+        reason=reason,
+        **fields,  # type: ignore[arg-type]
+    )
+
+
 @dataclass(frozen=True)
 class RoutingDecision:
     policy_revision: int
     policy_mode: str
     task_class: str
     state: Literal["selected", "queued"]
+    selected_lane: str | None
     selected_runtime: str | None
     selected_model: str | None
     reason: str
@@ -355,7 +404,7 @@ class RuntimeRouter:
         *,
         claude_baseline: tuple[float, datetime] | None = None,
         latched_window_ids: frozenset[str] = frozenset(),
-        terminal_limited_runtimes: frozenset[str] = frozenset(),
+        terminal_limited_buckets: frozenset[str] = frozenset(),
         now: datetime | None = None,
     ) -> RoutingDecision:
         async with self._policy_lock:
@@ -365,7 +414,7 @@ class RuntimeRouter:
                 observation,
                 claude_baseline=claude_baseline,
                 latched_window_ids=latched_window_ids,
-                terminal_limited_runtimes=terminal_limited_runtimes,
+                terminal_limited_buckets=terminal_limited_buckets,
                 now=now,
             )
 
@@ -426,6 +475,8 @@ class RuntimeRouter:
             policy.codex_access == "review_only" and request.task_class == "review"
         ):
             required.append("codex")
+            if policy.models is not None and policy.models.spark is not None:
+                required.append(LANE_BUCKETS[LANE_CODEX_SPARK])
         for provider_id in required:
             snapshot = await self._observation_loader(required_provider=provider_id)
             snapshot_providers, snapshot_timestamps = _observation_parts(snapshot)
@@ -515,7 +566,7 @@ def explain_inputs_from_dict(payload: object) -> tuple[
         "observation",
         "claude_baseline",
         "latched_window_ids",
-        "terminal_limited_runtimes",
+        "terminal_limited_buckets",
         "now",
     }
     extra = set(payload) - allowed
@@ -528,11 +579,11 @@ def explain_inputs_from_dict(payload: object) -> tuple[
     baseline = _baseline_from_dict(payload.get("claude_baseline"))
     latches = _string_set(payload.get("latched_window_ids"), "latched_window_ids")
     terminal = _string_set(
-        payload.get("terminal_limited_runtimes"),
-        "terminal_limited_runtimes",
+        payload.get("terminal_limited_buckets"),
+        "terminal_limited_buckets",
     )
-    if any(runtime not in {"claude", "codex"} for runtime in terminal):
-        raise ValueError("terminal_limited_runtimes contains an unsupported runtime")
+    if any(bucket not in QUOTA_BUCKETS for bucket in terminal):
+        raise ValueError("terminal_limited_buckets contains an unsupported quota bucket")
     now = _iso_datetime(payload.get("now"), "now") if payload.get("now") else None
     return request, observation, baseline, latches, terminal, now
 
@@ -544,7 +595,7 @@ def evaluate_routing(
     *,
     claude_baseline: tuple[float, datetime] | None = None,
     latched_window_ids: frozenset[str] = frozenset(),
-    terminal_limited_runtimes: frozenset[str] = frozenset(),
+    terminal_limited_buckets: frozenset[str] = frozenset(),
     now: datetime | None = None,
 ) -> RoutingDecision:
     """Evaluate one decision without IO or mutation."""
@@ -554,14 +605,18 @@ def evaluate_routing(
     assert policy.models is not None and policy.claude is not None
     checked_at = _utc_now(now)
     providers, observed_at = _observation_parts(observation)
+
+    def bucket_of(lane: str) -> str:
+        return LANE_BUCKETS[lane]
+
     candidates: dict[str, CandidateVerdict] = {
-        "claude": _claude_candidate(
+        LANE_CLAUDE: _claude_candidate(
             policy,
-            providers.get("anthropic"),
-            observed_at.get("anthropic"),
+            providers.get(bucket_of(LANE_CLAUDE)),
+            observed_at.get(bucket_of(LANE_CLAUDE)),
             claude_baseline,
             latched_window_ids,
-            "claude" in terminal_limited_runtimes,
+            bucket_of(LANE_CLAUDE) in terminal_limited_buckets,
             checked_at,
         )
     }
@@ -569,28 +624,42 @@ def evaluate_routing(
     codex_allowed = policy.codex_access == "all" or (
         policy.codex_access == "review_only" and request.task_class == "review"
     )
+    access_reason = f"codex_access={policy.codex_access} excludes {request.task_class}"
     if codex_allowed:
-        candidates["codex"] = _codex_candidate(
+        candidates[LANE_CODEX] = _codex_candidate(
             policy,
-            providers.get("codex"),
-            observed_at.get("codex"),
-            "codex" in terminal_limited_runtimes,
+            providers.get(bucket_of(LANE_CODEX)),
+            observed_at.get(bucket_of(LANE_CODEX)),
+            bucket_of(LANE_CODEX) in terminal_limited_buckets,
             checked_at,
         )
     else:
-        candidates["codex"] = CandidateVerdict(
-            runtime="codex",
-            model=policy.models.codex or "",
-            state="excluded",
-            reason=f"codex_access={policy.codex_access} excludes {request.task_class}",
+        candidates[LANE_CODEX] = _candidate(
+            LANE_CODEX,
+            policy.models.codex or "",
+            "excluded",
+            access_reason,
         )
 
-    ordered = tuple(candidates[runtime] for runtime in ("codex", "claude"))
+    if policy.models.spark is not None:
+        candidates[LANE_CODEX_SPARK] = _spark_candidate(
+            policy,
+            providers.get(bucket_of(LANE_CODEX_SPARK)),
+            observed_at.get(bucket_of(LANE_CODEX_SPARK)),
+            bucket_of(LANE_CODEX_SPARK) in terminal_limited_buckets,
+            codex_allowed,
+            access_reason,
+            checked_at,
+        )
+
+    ordered = tuple(
+        candidates[lane] for lane in LANE_PREFERENCE if lane in candidates
+    )
     chosen, degraded = _choose_candidate(request, candidates)
     latches = tuple(
         candidate.window_id
         for candidate in ordered
-        if candidate.runtime == "claude"
+        if candidate.lane == LANE_CLAUDE
         and candidate.state == "reserve_only"
         and candidate.window_id is not None
         and candidate.window_id not in latched_window_ids
@@ -601,6 +670,7 @@ def evaluate_routing(
             policy_mode=policy.mode,
             task_class=request.task_class,
             state="queued",
+            selected_lane=None,
             selected_runtime=None,
             selected_model=None,
             reason="no quota-eligible runtime",
@@ -614,9 +684,10 @@ def evaluate_routing(
         policy_mode=policy.mode,
         task_class=request.task_class,
         state="selected",
+        selected_lane=chosen.lane,
         selected_runtime=chosen.runtime,
         selected_model=chosen.model,
-        reason=f"selected {chosen.runtime}: {chosen.reason}",
+        reason=f"selected {chosen.lane}: {chosen.reason}",
         candidates=ordered,
         latch_window_ids=latches,
         degraded_review_independence=degraded,
@@ -643,19 +714,20 @@ def _manifest_decision(
     if not model:
         raise ValueError(f"manifest_default requires {source} model for {request.task_class}")
     resolved = resolve_model(model) if selectable else get_model_spec(model).id
-    runtime = get_model_spec(resolved).runtime
-    candidate = CandidateVerdict(
-        runtime=runtime,
-        model=resolved,
-        state="normal",
-        reason=f"manifest_default keeps {source}",
+    lane = _lane_for_model(resolved)
+    candidate = _candidate(
+        lane,
+        resolved,
+        "normal",
+        f"manifest_default keeps {source}",
     )
     return RoutingDecision(
         policy_revision=policy.revision,
         policy_mode=policy.mode,
         task_class=request.task_class,
         state="selected",
-        selected_runtime=runtime,
+        selected_lane=lane,
+        selected_runtime=candidate.runtime,
         selected_model=resolved,
         reason=candidate.reason,
         candidates=(candidate,),
@@ -667,8 +739,9 @@ def _choose_candidate(
     candidates: Mapping[str, CandidateVerdict],
 ) -> tuple[CandidateVerdict | None, str | None]:
     if request.task_class == "continuation" and request.current_model:
-        current = get_model_spec(request.current_model).runtime
-        candidate = candidates.get(current)
+        # By lane, not by runtime: with Sol and Spark both configured, a runtime lookup cannot
+        # say which of the two codex lanes this session is actually running on.
+        candidate = candidates.get(_lane_for_model(request.current_model))
         if candidate and candidate.state in {"normal", "reserve_only"}:
             return candidate, None
 
@@ -676,9 +749,9 @@ def _choose_candidate(
     if request.reserve_reason == "emergency":
         usable_states.add("reserve_only")
     usable = [
-        candidates[runtime]
-        for runtime in ("codex", "claude")
-        if candidates[runtime].state in usable_states
+        candidates[lane]
+        for lane in LANE_PREFERENCE
+        if lane in candidates and candidates[lane].state in usable_states
     ]
     if request.task_class != "review":
         return (usable[0], None) if usable else (None, None)
@@ -714,40 +787,40 @@ def _claude_candidate(
     assert policy.models is not None and policy.claude is not None
     model = policy.models.claude
     if terminal_limited:
-        return CandidateVerdict("claude", model, "unavailable", "claude_terminal_limit")
+        return _candidate(LANE_CLAUDE, model, "unavailable", "claude_terminal_limit")
     fresh, timestamp, reason = _fresh_provider(provider, observed_at, now)
     if not fresh:
-        return CandidateVerdict("claude", model, "unavailable", reason, observed_at=timestamp)
+        return _candidate(LANE_CLAUDE, model, "unavailable", reason, observed_at=timestamp)
     five, error = _quota_window(provider, FIVE_HOUR_WINDOW_MINUTES)
     if error:
-        return CandidateVerdict("claude", model, "unavailable", f"claude_five_hour_{error}", observed_at=timestamp)
+        return _candidate(LANE_CLAUDE, model, "unavailable", f"claude_five_hour_{error}", observed_at=timestamp)
     weekly, error = _quota_window(provider, WEEKLY_WINDOW_MINUTES)
     if error:
-        return CandidateVerdict("claude", model, "unavailable", f"claude_weekly_{error}", observed_at=timestamp)
+        return _candidate(LANE_CLAUDE, model, "unavailable", f"claude_weekly_{error}", observed_at=timestamp)
     assert five is not None and weekly is not None
     five_reset = _future_datetime(five.get("resets_at"), now)
     if five_reset is None:
-        return CandidateVerdict(
-            "claude", model, "unavailable", "claude_five_hour_reset_missing",
+        return _candidate(
+            LANE_CLAUDE, model, "unavailable", "claude_five_hour_reset_missing",
             utilization=weekly["utilization"], observed_at=timestamp,
         )
     weekly_pct = weekly["utilization"]
     weekly_reset = _future_datetime(weekly.get("resets_at"), now)
     reset_at = weekly_reset.isoformat() if weekly_reset is not None else None
     if weekly_pct >= policy.claude.weekly_unavailable_pct:
-        return CandidateVerdict(
-            "claude", model, "unavailable", "claude_weekly_hard_stop",
-            weekly_pct, timestamp, reset_at,
+        return _candidate(
+            LANE_CLAUDE, model, "unavailable", "claude_weekly_hard_stop",
+            utilization=weekly_pct, observed_at=timestamp, reset_at=reset_at,
         )
     if 100.0 - weekly_pct < policy.claude.weekly_min_remaining_pp:
-        return CandidateVerdict(
-            "claude", model, "unavailable", "claude_weekly_remaining_below_minimum",
-            weekly_pct, timestamp, reset_at,
+        return _candidate(
+            LANE_CLAUDE, model, "unavailable", "claude_weekly_remaining_below_minimum",
+            utilization=weekly_pct, observed_at=timestamp, reset_at=reset_at,
         )
     if five["utilization"] >= policy.claude.five_hour_unavailable_pct:
-        return CandidateVerdict(
-            "claude", model, "unavailable", "claude_five_hour_hard_stop",
-            weekly_pct, timestamp, reset_at,
+        return _candidate(
+            LANE_CLAUDE, model, "unavailable", "claude_five_hour_hard_stop",
+            utilization=weekly_pct, observed_at=timestamp, reset_at=reset_at,
         )
 
     start_pct, start_at = baseline if baseline is not None else (None, None)
@@ -782,11 +855,11 @@ def _claude_runway_verdict(
     observed_at: float | None,
     reason: str | None = None,
 ) -> CandidateVerdict:
-    return CandidateVerdict(
-        runtime="claude",
-        model=model,
-        state=state,
-        reason=reason or f"claude_runway_{runway.reason}",
+    return _candidate(
+        LANE_CLAUDE,
+        model,
+        state,
+        reason or f"claude_runway_{runway.reason}",
         utilization=utilization,
         observed_at=observed_at,
         reset_at=runway.window_end,
@@ -805,13 +878,13 @@ def _codex_candidate(
     assert policy.models is not None and policy.models.codex is not None and policy.codex is not None
     model = policy.models.codex
     if terminal_limited:
-        return CandidateVerdict("codex", model, "unavailable", "codex_terminal_limit")
+        return _candidate(LANE_CODEX, model, "unavailable", "codex_terminal_limit")
     fresh, timestamp, reason = _fresh_provider(provider, observed_at, now)
     if not fresh:
-        return CandidateVerdict("codex", model, "unavailable", reason, observed_at=timestamp)
+        return _candidate(LANE_CODEX, model, "unavailable", reason, observed_at=timestamp)
     weekly, error = _quota_window(provider, WEEKLY_WINDOW_MINUTES)
     if error:
-        return CandidateVerdict("codex", model, "unavailable", f"codex_weekly_{error}", observed_at=timestamp)
+        return _candidate(LANE_CODEX, model, "unavailable", f"codex_weekly_{error}", observed_at=timestamp)
     assert weekly is not None
     utilization = weekly["utilization"]
     reset = _future_datetime(weekly.get("resets_at"), now)
@@ -825,9 +898,78 @@ def _codex_candidate(
     else:
         state = "normal"
         reason = "codex_quota_normal"
-    return CandidateVerdict(
-        "codex", model, state, reason, utilization, timestamp, reset_at,
+    return _candidate(
+        LANE_CODEX, model, state, reason,
+        utilization=utilization, observed_at=timestamp, reset_at=reset_at,
     )
+
+
+def _spark_candidate(
+    policy: RoutingPolicyV1,
+    provider: object,
+    observed_at: object,
+    terminal_limited: bool,
+    codex_allowed: bool,
+    access_reason: str,
+    now: datetime,
+) -> CandidateVerdict:
+    """Never select Spark; observe it exactly as widely as the Sol lane, never wider.
+
+    Eligibility needs preconditions (file count, explicit AC, a test command) that no
+    server-owned task class expresses, so the lane stays excluded until an operator opts in.
+    When telemetry is read it is real and comes from `codex_spark`, never from `codex`.
+
+    Access gating comes first and suppresses the observation, mirroring the Sol lane: under
+    `codex_access=off`, or `review_only` outside a review, neither Codex lane is consulted and
+    both report the access reason without telemetry. Observing one Codex lane while the other is
+    access-excluded would make the candidate shape depend on the task class, which is exactly the
+    non-determinism this router exists to remove.
+    """
+    assert policy.models is not None and policy.models.spark is not None
+    model = policy.models.spark
+    if not codex_allowed:
+        return _candidate(LANE_CODEX_SPARK, model, "excluded", access_reason)
+    if terminal_limited:
+        return _candidate(LANE_CODEX_SPARK, model, "unavailable", "spark_terminal_limit")
+    fresh, timestamp, reason = _fresh_provider(provider, observed_at, now)
+    if not fresh:
+        return _candidate(LANE_CODEX_SPARK, model, "unavailable", reason, observed_at=timestamp)
+    weekly, error = _quota_window(provider, WEEKLY_WINDOW_MINUTES)
+    if error:
+        return _candidate(
+            LANE_CODEX_SPARK, model, "unavailable", f"spark_weekly_{error}",
+            observed_at=timestamp,
+        )
+    assert weekly is not None
+    reset = _future_datetime(weekly.get("resets_at"), now)
+    return _candidate(
+        LANE_CODEX_SPARK,
+        model,
+        "excluded",
+        "spark_not_eligible",
+        utilization=weekly["utilization"],
+        observed_at=timestamp,
+        reset_at=reset.isoformat() if reset is not None else None,
+    )
+
+
+def _bucket_for_model(model: str) -> str | None:
+    """Model to quota bucket, resolved by the single existing owner of that mapping.
+
+    `quota_gate` is scheduled for deletion in #187 T3; this mapping must MOVE with it rather
+    than be deleted, otherwise the router loses the only definition of which pool a model spends.
+    """
+    from app.quota_gate import quota_bucket_for_model
+
+    return quota_bucket_for_model(model)
+
+
+def _lane_for_model(model: str) -> str:
+    bucket = _bucket_for_model(model)
+    for lane, lane_bucket in LANE_BUCKETS.items():
+        if lane_bucket == bucket:
+            return lane
+    raise ValueError(f"model {model!r} has no routable quota lane")
 
 
 def _observation_parts(

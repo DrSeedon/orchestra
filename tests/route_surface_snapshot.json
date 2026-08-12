@@ -510,7 +510,7 @@
   ]
  ],
  [
- "/api/usage/history",
+  "/api/usage/history",
   [
    "GET"
   ]
@@ -519,6 +519,24 @@
   "/api/usage/readiness",
   [
    "GET"
+  ]
+ ],
+ [
+  "/api/usage/routing-policy",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/usage/routing-policy",
+  [
+   "PUT"
+  ]
+ ],
+ [
+  "/api/usage/routing-policy/explain",
+  [
+   "POST"
   ]
  ],
  [

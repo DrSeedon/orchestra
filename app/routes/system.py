@@ -1249,7 +1249,7 @@ async def explain_routing_policy(payload: dict):
             observation,
             claude_baseline=baseline,
             latched_window_ids=latches,
-            terminal_limited_runtimes=terminal,
+            terminal_limited_buckets=terminal,
             now=now,
         )
     except (TypeError, ValueError, ValidationError) as error:

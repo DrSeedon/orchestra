@@ -24,7 +24,7 @@ class _Router:
         self.explanations = []
 
     async def status(self):
-        return {"contract_version": "routing-v1", "policy": {"revision": 4}}
+        return {"contract_version": "routing-v2", "policy": {"revision": 4}}
 
     async def replace_policy(self, payload):
         self.replacements.append(payload)
@@ -37,6 +37,7 @@ class _Router:
             policy_mode="quota",
             task_class=request.task_class,
             state="queued",
+            selected_lane=None,
             selected_runtime=None,
             selected_model=None,
             reason="synthetic",
@@ -55,7 +56,7 @@ def api_router(monkeypatch):
 async def test_policy_status_is_read_only_projection(api_router):
     result = await system.routing_policy_status()
 
-    assert result == {"contract_version": "routing-v1", "policy": {"revision": 4}}
+    assert result == {"contract_version": "routing-v2", "policy": {"revision": 4}}
     assert api_router.replacements == []
     assert api_router.explanations == []
 
@@ -78,7 +79,7 @@ async def test_policy_put_requires_cookie_and_returns_active_document(
         payload,
     )
 
-    assert result["contract_version"] == "routing-v1"
+    assert result["contract_version"] == "routing-v2"
     assert result["policy"] == payload
     assert api_router.replacements == [payload]
 
@@ -115,7 +116,7 @@ async def test_explain_uses_only_synthetic_inputs_and_does_not_admit(api_router)
         },
         "claude_baseline": {"pct": 0, "ts": now.isoformat()},
         "latched_window_ids": ["window-1"],
-        "terminal_limited_runtimes": ["codex"],
+        "terminal_limited_buckets": ["codex"],
         "now": now.isoformat(),
     })
 
@@ -125,7 +126,7 @@ async def test_explain_uses_only_synthetic_inputs_and_does_not_admit(api_router)
     assert request.implementation_runtimes == frozenset({"claude"})
     assert observation == {"providers": {}, "observed_at_by_provider": {}}
     assert kwargs["latched_window_ids"] == frozenset({"window-1"})
-    assert kwargs["terminal_limited_runtimes"] == frozenset({"codex"})
+    assert kwargs["terminal_limited_buckets"] == frozenset({"codex"})
     assert api_router.replacements == []
 
 
