@@ -526,7 +526,9 @@ class ClaudeBackend:
         if self._config_dir:
             env["CLAUDE_CONFIG_DIR"] = os.path.expanduser(self._config_dir)
         agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
-        pretooluse_hooks = _make_pretooluse_hooks(_classify_bash_payload)
+        pretooluse_hooks = None
+        if os.environ.get("CLAUDE_BASH_HOOK_ENABLED") == "1":
+            pretooluse_hooks = _make_pretooluse_hooks(_classify_bash_payload)
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
