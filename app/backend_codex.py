@@ -4,8 +4,10 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import sys
+import tomllib
 import uuid
 from pathlib import Path
 from typing import AsyncIterator, Optional
@@ -273,6 +275,53 @@ def _tool_arguments_json(arguments) -> str:
     )
 
 
+_SAFE_HOME_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$")
+_CODEX_HOME_ROOT = Path.home() / ".orchestra" / "codex-home"
+# Из базового конфига переносим ТОЛЬКО это. Расширять список осознанно: каждая строка
+# здесь — копия, которая начинает расходиться с оригиналом.
+_CARRIED_BASE_KEYS = ("project_doc_max_bytes",)
+
+
+def _write_private(path: Path, text: str) -> None:
+    """Атомарная запись файла 0600: сначала временный сосед, потом os.replace.
+
+    Права ставятся ДО первой записи (окно 0644 между созданием и chmod — ровно тот зазор,
+    через который эта задача и текла), а os.replace не даёт прочитать полуфайл.
+    """
+    tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(text)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def _base_codex_home() -> Path:
+    return Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
+
+
+def _carried_base_scalars() -> str:
+    """Разрешённые скаляры из базового config.toml (потолок обрезки AGENTS.md и т.п.)."""
+    base = _base_codex_home() / "config.toml"
+    if not base.is_file():
+        return ""
+    try:
+        data = tomllib.loads(base.read_text())
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        logger.warning("could not read base codex config %s: %s", base, exc)
+        return ""
+    lines = [
+        f"{key} = {json.dumps(data[key])}"
+        for key in _CARRIED_BASE_KEYS
+        if isinstance(data.get(key), (int, float, bool, str))
+    ]
+    return "\n".join(lines)
+
+
 ORCHESTRA_FULL_MCP_TOOLS = (
     "spawn_worker", "acquire_test_lock", "release_test_lock", "test_lock_status",
     "send_message", "list_agents", "list_orchestrators", "get_worker_logs",
@@ -317,6 +366,9 @@ class CodexBackend(JsonRpcStdioTransport):
         self._thread_id: str | None = resume_thread_id
         self._mcp_env: dict[str, str] = mcp_env or {}
         self._mcp_servers: dict = mcp_servers or {}
+        # #224: приватный CODEX_HOME этого агента; готовится лениво в _prepare_codex_home,
+        # чтобы конструктор оставался безопасным для вызова без session id.
+        self._codex_home: Path | None = None
         self._is_orchestrator = is_orchestrator
         if history_import is not None and not isinstance(history_import, CodexHistoryImport):
             raise TypeError("history_import must be CodexHistoryImport")
@@ -400,17 +452,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self._notifications = asyncio.Queue()
         self._disconnecting = False
         self._last_stderr = ""
-        codex_cmd = [CODEX_BIN]
-        codex_cmd += ["-c", f"model_reasoning_effort={self._toml_str(self.reasoning_effort)}"]
-        # Every CodexBackend here is Orchestra-managed. Delegation must use the tracked
-        # Orchestra spawn_worker path, never invisible native agents in this checkout.
-        codex_cmd += ["-c", "features.multi_agent=false"]
-        # Managed workers are research/implementation agents, so expose current web
-        # results explicitly instead of inheriting a user's cached/disabled setting.
-        codex_cmd += ["-c", 'web_search="live"']
-        for arg in self._mcp_config_args():
-            codex_cmd += ["-c", arg]
-        codex_cmd += ["app-server", "--stdio"]
+        codex_cmd = self._codex_command()
 
         scope_ok, scope_env, scope_reason = await _codex_scope_support()
         env = self._build_env()
@@ -1531,7 +1573,11 @@ class CodexBackend(JsonRpcStdioTransport):
         if not self._thread_id:
             return None
         if self._rollout_path is None or not self._rollout_path.exists():
-            root = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
+            # #224: os.environ здесь — окружение РОДИТЕЛЬСКОГО процесса Orchestra, а
+            # дочерний env отдаётся только в create_subprocess_exec. Спрашивать надо
+            # собственный каталог бэкенда, иначе rollout не находится и учёт токенов с
+            # context% ломаются МОЛЧА (None неотличим от «данных ещё нет»).
+            root = Path(self._codex_home or _base_codex_home()).expanduser()
             sessions = root / "sessions"
             try:
                 matches = list(sessions.glob(f"**/*{self._thread_id}.jsonl"))
@@ -1551,51 +1597,182 @@ class CodexBackend(JsonRpcStdioTransport):
 
     @staticmethod
     def _toml_str(s: str) -> str:
-        # TOML basic string: escape backslash and double-quote (control chars unlikely in
-        # command/args/env values here). Keeps the -c inline table parseable.
-        return '"' + s.replace('\\', '\\\\').replace('"', '\\"') + '"'
+        """TOML basic string. Управляющие символы экранируем ЯВНО: значения и имена
+        приходят из данных (`mcp_servers_custom` со спавна), а сырой перевод строки
+        внутри строки делает config.toml неразбираемым — то есть роняет старт Codex."""
+        out = s.replace("\\", "\\\\").replace('"', '\\"')
+        out = out.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+        # `>= " "` мало: U+007F (DEL) эту проверку проходит, но TOML его запрещает, и
+        # tomllib отвергает файл целиком — Codex не стартует. Проверено прогоном:
+        # NUL/BEL/US разбираются после \u-экранирования, DEL — нет.
+        out = "".join(
+            ch if " " <= ch < "\x7f" else f"\\u{ord(ch):04x}" if ch < "\xa0" else ch
+            for ch in out
+        )
+        return '"' + out + '"'
+
+    @classmethod
+    def _toml_key(cls, s: str) -> str:
+        if any("\ud800" <= ch <= "\udfff" for ch in s):
+            # UTF-8 такие точки не кодирует: без явного отказа падала бы запись файла
+            # где-то ниже, без имени виновника.
+            raise ValueError(f"TOML key contains a lone surrogate: {s!r}")
+        """Ключ таблицы TOML — ВСЕГДА в кавычках: bare key допускает только [A-Za-z0-9_-],
+        а имена серверов и переменных мы не контролируем."""
+        return cls._toml_str(s)
+
+    def _codex_command(self) -> list[str]:
+        """Полная командная строка Codex — отдельным методом, чтобы её можно было
+        проверить тестом целиком (#224). argv публичен: `/proc/<pid>/cmdline` читает
+        процесс любого uid, поэтому «в нём нет значений» должно быть утверждением о
+        ВСЕЙ строке, а не о той её части, которую мы помним."""
+        cmd = [CODEX_BIN]
+        cmd += ["-c", f"model_reasoning_effort={self._toml_str(self.reasoning_effort)}"]
+        # Every CodexBackend here is Orchestra-managed. Delegation must use the tracked
+        # Orchestra spawn_worker path, never invisible native agents in this checkout.
+        cmd += ["-c", "features.multi_agent=false"]
+        # Managed workers are research/implementation agents, so expose current web
+        # results explicitly instead of inheriting a user's cached/disabled setting.
+        cmd += ["-c", 'web_search="live"']
+        for arg in self._mcp_config_args():
+            cmd += ["-c", arg]
+        cmd += ["app-server", "--stdio"]
+        return cmd
 
     def _mcp_config_args(self) -> list[str]:
-        """Translate per-worker MCP into Codex dotted config overrides.
+        """Больше НИЧЕГО не кладём в argv (#224).
 
-        Explicit `enabled=true` prevents a globally disabled/read-only native Orchestra
-        entry from leaking into managed workers. The worker tool allowlist overrides the
-        native read-only list while the MCP process also enforces its access mode.
+        Раньше отсюда уходили `-c mcp_servers.<name>.env={...}` со ЗНАЧЕНИЯМИ секретов —
+        а argv читает процесс любого uid. Весь конфиг, включая env, теперь собирается в
+        `$CODEX_HOME/config.toml` с правами 600 (`_prepare_codex_home`). Держать вторую
+        копию в argv нельзя: два владельца одной настройки молча разъезжаются.
         """
-        args = []
+        return []
+
+    def _mcp_servers_toml(self) -> str:
+        """Секции `[mcp_servers.*]` для config.toml — единственный носитель конфига MCP."""
+        blocks: list[str] = []
         for name, cfg in self._mcp_servers.items():
             command = cfg.get("command")
             url = cfg.get("url")
             if not command and not url:
                 continue
-            args.append(f"mcp_servers.{name}.enabled=true")
+            # Имя сервера и ключи env приходят ИЗ ДАННЫХ (`mcp_servers_custom` со спавна),
+            # поэтому идут в TOML как КЛЮЧИ В КАВЫЧКАХ. Сырая подстановка позволяла закрыть
+            # секцию и открыть свою — либо, как минимум, сделать конфиг неразбираемым,
+            # то есть уронить старт Codex.
+            key = self._toml_key(str(name))
+            lines = [f"[mcp_servers.{key}]", "enabled = true"]
             if command:
-                args.append(f"mcp_servers.{name}.command={self._toml_str(str(command))}")
+                lines.append(f"command = {self._toml_str(str(command))}")
                 srv_args = cfg.get("args") or []
-                args.append(f"mcp_servers.{name}.args=[" +
-                            ", ".join(self._toml_str(str(a)) for a in srv_args) + "]")
-                env = cfg.get("env") or {}
-                if env:
-                    env_inline = ", ".join(
-                        f"{k}={self._toml_str(str(v))}" for k, v in env.items()
-                    )
-                    args.append(f"mcp_servers.{name}.env={{" + env_inline + "}")
+                lines.append(
+                    "args = [" + ", ".join(self._toml_str(str(a)) for a in srv_args) + "]"
+                )
             else:
-                args.append(f"mcp_servers.{name}.url={self._toml_str(str(url))}")
+                lines.append(f"url = {self._toml_str(str(url))}")
             enabled_tools = cfg.get("enabled_tools")
             if name == "orchestra" and enabled_tools is None:
                 enabled_tools = ORCHESTRA_FULL_MCP_TOOLS
             if enabled_tools is not None:
-                args.append(
-                    f"mcp_servers.{name}.enabled_tools=["
-                    + ", ".join(self._toml_str(str(tool)) for tool in enabled_tools)
+                lines.append(
+                    "enabled_tools = ["
+                    + ", ".join(self._toml_str(str(t)) for t in enabled_tools)
                     + "]"
                 )
-        return args
+            env = cfg.get("env") or {}
+            if command and env:
+                lines.append("")
+                lines.append(f"[mcp_servers.{key}.env]")
+                lines.extend(
+                    f"{self._toml_key(str(k))} = {self._toml_str(str(v))}"
+                    for k, v in env.items()
+                )
+            blocks.append("\n".join(lines))
+        return "\n\n".join(blocks)
+
+    def _prepare_codex_home(self) -> Path:
+        """Собрать приватный `CODEX_HOME` этого агента и вернуть путь.
+
+        СОБРАТЬ, а не скопировать базовый: копия затащила бы глобальные MCP-серверы
+        (со своими токенами) и `[projects.*]` в конфиг каждого воркера, в обход отбора
+        в `runtime_registry`. Переносим из базового только разрешённые скаляры.
+        """
+        if not self._mcp_servers:
+            # Нечего изолировать: без MCP-серверов нет ни конфига, ни секретов в argv,
+            # и подменить идентичность нечем — env-блока не существует.
+            # ОСТАТОЧНЫЙ РИСК, названный явно: такой бэкенд работает на ОБЩЕМ home и видит
+            # глобальные серверы из ~/.codex/config.toml. Managed-путь сюда не приходит —
+            # `_make_mcp_config` всегда кладёт сервер `orchestra`, — поэтому ветка
+            # достижима только при конструировании бэкенда в обход менеджера.
+            self._codex_home = _base_codex_home()
+            return self._codex_home
+        session_id = (self._mcp_servers.get("orchestra", {}).get("env") or {}).get(
+            "ORCHESTRA_SESSION_ID"
+        )
+        # Fail loud: анонимный запасной путь давал бы на каждом коннекте НОВЫЙ каталог,
+        # то есть тихо терял thread-id и ломал resume.
+        if not session_id or not _SAFE_HOME_KEY.match(session_id):
+            raise ValueError(
+                "CodexBackend requires a well-formed ORCHESTRA_SESSION_ID in the trusted "
+                f"'orchestra' MCP server env; got {session_id!r}"
+            )
+        home = _CODEX_HOME_ROOT / session_id
+        home.mkdir(parents=True, exist_ok=True)
+        os.chmod(_CODEX_HOME_ROOT, 0o700)
+        os.chmod(home, 0o700)
+
+        # `sessions/` — СИМЛИНК на общий каталог, а не свой пустой.
+        # Rollout'ы адресуются thread-id, а не агентом, и в них же лежит учёт токенов.
+        # Свой пустой каталог означал бы: у всех живых тредов (336 файлов на момент
+        # правки) пропадает `thread/resume` и молча обнуляется context% — то есть
+        # изоляция конфига оплачивалась бы потерей истории. Секреты живут в config.toml,
+        # он приватный; журналы ходов секретами не являются и делятся как раньше.
+        sessions = home / "sessions"
+        base_sessions = _base_codex_home() / "sessions"
+        base_sessions.mkdir(parents=True, exist_ok=True)
+        if sessions.is_symlink():
+            # Протухшую или битую ссылку ЧИНИМ, а не оставляем: она указывает в никуда
+            # молча, и симптомом будет «resume перестал работать», а не ошибка здесь.
+            try:
+                stale = sessions.resolve(strict=True) != base_sessions.resolve()
+            except OSError:
+                stale = True
+            if stale:
+                sessions.unlink()
+        elif sessions.is_dir() and not any(sessions.iterdir()):
+            sessions.rmdir()
+        if not sessions.exists() and not sessions.is_symlink():
+            sessions.symlink_to(base_sessions)
+
+        # Подписочная авторизация: СИМЛИНК на боевой auth.json. Копия протухнет при
+        # перелогине, а без него app-server не авторизуется вовсе (проверено прогоном).
+        auth = home / "auth.json"
+        base_auth = _base_codex_home() / "auth.json"
+        if not auth.is_symlink() and base_auth.exists():
+            auth.unlink(missing_ok=True)
+            auth.symlink_to(base_auth)
+
+        parts = []
+        carried = _carried_base_scalars()
+        if carried:
+            parts.append(carried)
+        servers = self._mcp_servers_toml()
+        if servers:
+            parts.append(servers)
+        # Через временный файл + os.replace: коннект, попавший на середину записи,
+        # прочитал бы ОБРЕЗАННЫЙ config.toml и стартовал без части серверов — тихий отказ.
+        _write_private(home / "config.toml", "\n\n".join(parts) + "\n")
+
+        self._codex_home = home
+        return home
 
     def _build_env(self) -> dict:
         env = dict(os.environ)
         env.update(self._mcp_env)
+        # #224: процесс обязан стартовать в ТОМ ЖЕ home, для которого собран config.toml.
+        # Иначе argv чист, конфиг верен, а воркер работает на общем каталоге — тихий отказ.
+        env["CODEX_HOME"] = str(self._codex_home or self._prepare_codex_home())
         # Codex, Claude, Cursor, and Orchestra intentionally share the proxy selected in
         # Orchestra's .env. The launcher wrapper also reloads that file, but preserving the
         # inherited values keeps direct CODEX_BIN deployments consistent and testable.

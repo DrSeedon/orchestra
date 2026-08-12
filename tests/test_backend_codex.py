@@ -235,34 +235,44 @@ def test_effort_passthrough_and_fallback():
     assert CodexBackend(model="gpt-5.6-sol", cwd="/tmp", reasoning_effort="bogus").reasoning_effort == "high"
 
 
-# ── Per-worker MCP config (dotted-leaf -c overrides) ──
+# ── Per-worker MCP config ──
+# КОНТРАКТ СМЕНИЛСЯ в #224: раньше конфиг ехал в argv как `-c mcp_servers.<n>.env={...}`
+# со ЗНАЧЕНИЯМИ секретов, а `/proc/<pid>/cmdline` читает процесс ЛЮБОГО uid. Теперь он
+# целиком лежит в `$CODEX_HOME/config.toml` с правами 600. Утверждения ниже переписаны на
+# новый носитель: проверяется то же самое (command/args/env/enabled_tools/url), но там,
+# где оно теперь находится.
 
-def test_mcp_config_args_dotted_leaves():
+def test_mcp_config_rendered_into_config_toml_not_argv():
+    import tomllib
     b = CodexBackend(model="gpt-5.6-sol", cwd="/tmp", mcp_servers={
         "orchestra": {
             "command": "python",
             "args": ["/x/mcp_stdio.py"],
-            "env": {"WORKER_NAME": "w1"},
+            "env": {"WORKER_NAME": "w1", "ORCHESTRA_SESSION_ID": "sess-codexcfg"},
         },
     })
-    args = b._mcp_config_args()
-    # dotted-leaf form — Codex rejects a whole-table value as a string
-    assert 'mcp_servers.orchestra.command="python"' in args
-    assert 'mcp_servers.orchestra.args=["/x/mcp_stdio.py"]' in args
-    assert 'mcp_servers.orchestra.env={WORKER_NAME="w1"}' in args
-    assert "mcp_servers.orchestra.enabled=true" in args
-    enabled_tools = next(a for a in args if a.startswith("mcp_servers.orchestra.enabled_tools="))
-    assert '"send_message"' in enabled_tools
-    assert '"spawn_worker"' in enabled_tools
+    assert b._mcp_config_args() == [], "конфиг снова уезжает в argv"
+
+    data = tomllib.loads((b._prepare_codex_home() / "config.toml").read_text())
+    srv = data["mcp_servers"]["orchestra"]
+    assert srv["command"] == "python"
+    assert srv["args"] == ["/x/mcp_stdio.py"]
+    assert srv["enabled"] is True
+    assert srv["env"]["WORKER_NAME"] == "w1"
+    assert "send_message" in srv["enabled_tools"]
+    assert "spawn_worker" in srv["enabled_tools"]
 
 
 def test_mcp_config_supports_url_only_servers():
+    import tomllib
     b = CodexBackend(model="gpt-5.6-sol", cwd="/tmp", mcp_servers={
+        "orchestra": {"command": "python", "args": [],
+                      "env": {"ORCHESTRA_SESSION_ID": "sess-urlonly"}},
         "remote": {"url": "https://example/sse"},
     })
-    args = b._mcp_config_args()
-    assert "mcp_servers.remote.enabled=true" in args
-    assert 'mcp_servers.remote.url="https://example/sse"' in args
+    data = tomllib.loads((b._prepare_codex_home() / "config.toml").read_text())
+    assert data["mcp_servers"]["remote"]["enabled"] is True
+    assert data["mcp_servers"]["remote"]["url"] == "https://example/sse"
 
 
 def test_mcp_config_empty_when_no_servers():

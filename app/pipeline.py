@@ -183,7 +183,10 @@ class Defaults(BaseModel):
     model_config = ConfigDict(extra="forbid")
     model: str = "opus"
     skills: AllOrList = "all"
-    mcp_servers: AllOrList = "all"
+    # Fail-CLOSED (#224): `"all"` в `_merge_list` ПОГЛОЩАЕТ любой список, поэтому пайплайн,
+    # забывший строку `mcp_servers:`, раздавал бы каждой роли все user-level MCP-серверы
+    # вместе с их секретами. Раздача остаётся возможной — но только когда её попросили явно.
+    mcp_servers: AllOrList = []
     inherit_claude_md: bool = True
     prompt_layers: PromptLayers = Field(default_factory=PromptLayers)
     worktree: Worktree = Field(default_factory=Worktree)

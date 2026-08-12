@@ -1,0 +1,19 @@
+# Подготовлено в #224. НЕ УСТАНОВЛЕНО — установку выполняет владелец, см. INSTALL.md.
+#
+# Отличие от текущего юнита: креды больше не стоят в ExecStart. Бинарник читает их из
+# TELEGRAM_API_ID / TELEGRAM_API_HASH сам (см. его --help, цитата в INSTALL.md), поэтому
+# флаги убраны ЦЕЛИКОМ, а не заменены подстановкой ${...}: подстановку systemd развернул бы
+# обратно в argv, и значения снова читались бы любым `ps`.
+[Unit]
+Description=Telegram Bot API Server
+After=network.target
+
+[Service]
+EnvironmentFile=/etc/telegram-bot-api.env
+ExecStart=/usr/local/bin/telegram-bot-api --local --http-port=8081 --dir=/home/kesha/orchestra/data/tg-bot-api
+Restart=always
+User=kesha
+WorkingDirectory=/home/kesha/orchestra/data/tg-bot-api
+
+[Install]
+WantedBy=multi-user.target

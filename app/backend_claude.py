@@ -5,7 +5,10 @@ import importlib.metadata
 import json as _json
 import logging
 import os
+import re
 import shutil
+import time
+import uuid
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
@@ -55,6 +58,20 @@ _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
 _ORCH_DISALLOWED_TOOLS = ["Task", "Agent"]
 # ScheduleWakeup/Cron* removed for all agents — Orchestra manages scheduling via bg_jobs
 _ALWAYS_DISALLOWED = ["ScheduleWakeup", "CronCreate", "CronDelete", "CronList", "Workflow"]
+
+
+_SAFE_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$")
+
+
+def _safe_config_key(session_id: str | None) -> str:
+    """Имя файла конфига из session id, либо случайное — но НИКОГДА из чужой строки.
+
+    Значение приходит из env MCP-сервера, то есть из данных. Пропустив `../..`, мы дали бы
+    запись за пределы каталога; пустое значение — общий файл на всех агентов сразу.
+    """
+    if session_id and _SAFE_KEY.match(session_id):
+        return session_id
+    return f"anon-{uuid.uuid4().hex}"
 
 
 def _make_auto_approve(is_orchestrator: bool = False):
@@ -163,10 +180,70 @@ class ClaudeBackend:
         self._subagent_tool_to_task: dict[str, str] = {}
         self._subagent_descriptions: dict[str, str] = {}
         self._subagent_types: dict[str, str] = {}
+        # #224: имя файла конфига. Идентичность берём ТОЛЬКО из доверенного сервера
+        # `orchestra` — плоский merge сюда пускать нельзя: кастомный сервер со спавна
+        # перетирает чужие ключи и может подсунуть `../..` (см. CodexBackend).
+        # Суффикс на ЭКЗЕМПЛЯР обязателен: при реконнекте создаётся новый бэкенд той же
+        # сессии, и при общем имени файла `disconnect()` старого уносил бы конфиг живого —
+        # перезапуск MCP-сервера остался бы без конфигурации.
+        self._mcp_config_key = (
+            _safe_config_key(
+                (self._mcp_servers.get("orchestra", {}).get("env") or {}).get("ORCHESTRA_SESSION_ID")
+            )
+            + "-" + uuid.uuid4().hex[:8]
+        )
+        self._mcp_config_path: Path | None = None
 
     @property
     def session_id(self) -> Optional[str]:
         return self._session_id
+
+    def _write_mcp_config(self, servers: dict) -> Path:
+        """Записать конфиг MCP в приватный файл и вернуть путь.
+
+        Каталог держим вне любого чекаута: worktree удаляются вместе с воркерами, а
+        конфиг обязан пережить весь коннект. `/tmp` тоже не годится — там tmpfs (RAM).
+        """
+        for name, cfg in servers.items():
+            # Одинокие суррогатные кодовые точки из caller-supplied JSON не кодируются в
+            # UTF-8 и уронили бы саму запись файла — отказываем ЯВНО, называя сервер.
+            if any("\ud800" <= ch <= "\udfff" for ch in str(name)):
+                raise ValueError(f"MCP server name contains a lone surrogate: {name!r}")
+            kind = cfg.get("type") if isinstance(cfg, dict) else None
+            if kind is not None and kind not in ("stdio", "http", "sse"):
+                # in-process sdk-сервер — объект в памяти, файлом его не объявить.
+                # Молча потерять его тулы нельзя: падаем громко (#224 T7).
+                raise ValueError(
+                    f"MCP server '{name}' has type={kind!r}: such a server cannot be "
+                    f"declared in a config file and its tools would be silently lost"
+                )
+        root = Path.home() / ".orchestra" / "mcp-config"
+        root.mkdir(parents=True, exist_ok=True)
+        os.chmod(root, 0o700)
+        path = root / f"{self._mcp_config_key}.json"
+        # Сразу 0600 и атомарно: окно 0644 между созданием и chmod — тот самый зазор,
+        # через который эта задача и текла; а os.replace не даёт прочитать полуфайл.
+        tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, "w") as fh:
+                fh.write(_json.dumps({"mcpServers": servers}))
+            os.chmod(tmp, 0o600)
+            os.replace(tmp, path)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
+        self._mcp_config_path = path
+        return path
+
+    def _remove_mcp_config(self) -> None:
+        if self._mcp_config_path is None:
+            return
+        try:
+            self._mcp_config_path.unlink(missing_ok=True)
+        except OSError as exc:
+            logger.warning("could not remove MCP config %s: %s", self._mcp_config_path, exc)
+        self._mcp_config_path = None
 
     def replace_history_import(self, history_import: ClaudeHistoryImport) -> None:
         if not isinstance(history_import, ClaudeHistoryImport):
@@ -230,7 +307,10 @@ class ClaudeBackend:
             **self._mcp_servers,
         }
         if merged_mcp:
-            options.mcp_servers = merged_mcp
+            # #224: dict SDK сериализует прямо в argv (subprocess_cli.py:384-390), а str/Path
+            # отдаёт как путь (391-393). Значения секретов в argv читает процесс ЛЮБОГО uid —
+            # hidepid не включён. Отдаём путь к файлу 600.
+            options.mcp_servers = str(self._write_mcp_config(merged_mcp))
         # F4: inherit_claude_md=False → только local-слой (нет user/project
         # CLAUDE.md и настроек); иначе — полный набор, как в upstream.
         options.setting_sources = (
@@ -420,6 +500,9 @@ class ClaudeBackend:
             except Exception as e:
                 logger.warning(f"ClaudeBackend disconnect failed: {e}")
             self._client = None
+        # Владелец жизненного цикла конфига — сам бэкенд: файл обязан жить весь коннект
+        # (рантайм может перезапустить MCP-сервер позже) и исчезнуть вместе с ним.
+        self._remove_mcp_config()
 
     async def context_usage(self) -> dict | None:
         if not self._client:
