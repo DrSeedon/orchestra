@@ -77,3 +77,93 @@ full-cycle        True    False False     True         True        True         
 этой ролью 75 из 121 (62%, свежий счёт по `sessions`, read-only). Эти 75 платят +877 Б за блок,
 которым не могут воспользоваться, и платили за него и раньше — 2126 Б. Кандидат на переезд блока
 из `base.md` в модуль `orchestration` + роль `full-cycle`; это решение оркестратора, не моё.
+
+---
+
+# Продолжение #203: эскалация Luna + переезд блока к исполнителям
+
+Коммит второй. Файлы: `pipelines/default/prompts/modules/model-routing.md` (новый),
+`pipelines/default/prompts/base.md` (−12 строк), `pipelines/default/pipeline.yaml` (3 роли),
+`tests/test_default_pipeline.py` (+1 тест, обновлены списки модулей).
+
+## Правка A — путь эскалации у Luna
+
+Было: у Spark путь провала прописан, у Luna нет — агент мог законно переспросить Luna на той же
+задаче и потратить экономию 20× на круги. Стало (в пункте Luna):
+
+> **On failure escalate, never retry: the named test command stays red, or an acceptance criterion
+> is not shown met by the output of a command → hand that ticket to Sol, do not send it back to
+> Luna.** A criterion nobody can check by running something is not an AC, and its task was never
+> closed. A second Luna pass on the same failure is what turns a 20× saving into three rounds at
+> Sol's price.
+
+Вторая фраза появилась после ревью: Codex показал дыру — «критерий приёмки не выполнен» решается
+на глаз, если сам критерий вида «формулировка ясная». Теперь такой критерий выводит задачу из
+класса закрытых, то есть до Luna не доходит вовсе.
+
+**Сверх мандата, называю явно:** у Spark триггер `scope grows` страдал тем же — заменён на
+`the ticket needs a file outside the ones you named → Sol`. Одна фраза, тот же дефект, тот же
+блок; если считаешь это лишним — откатывается одной строкой.
+
+## Правка B — блок переехал к тем, кто может его исполнить
+
+Новый модуль `modules/model-routing.md`, подключён в `pipeline.yaml` первым в списке `modules`
+у `orchestrator`, `sub-orchestrator`, `full-cycle` (все `can_spawn: ["*"]`), из `base.md` удалён.
+
+**Отступление от буквы поручения, обоснование.** Было сказано «`orchestration` + роль
+`full-cycle`». Это две копии одного правила: `orchestration` не грузится ролью `full-cycle`
+(`pipeline.yaml:73`), поэтому пришлось бы дублировать текст в `roles/full-cycle.md` — ровно тот
+дрейф, который мы вычищаем. Отдельный модуль отдаёт блок тем же трём ролям одной копией.
+Первым в списке — потому что `modules/orchestration.md:175` говорит «Use the single
+`<model-routing>` block above»; порядок проверен на собранном промпте.
+
+`pipeline.yaml` правится руками: генератор `scripts/extract-manifest.py` мёртв — его источник
+`app/prompts/` удалён, `--check` не гоняет ни один тест и ни один workflow.
+
+## Приёмка
+
+```
+role              routing escalate above_ok bytes
+orchestrator      yes     True     True     42739 → +258 к #203
+sub-orchestrator  yes     True     True     43090
+full-cycle        yes     True     True     41751
+worker            NO      False    True     23083  (−2128 Б, блок ушёл)
+```
+
+Тесты: `tests/test_default_pipeline.py tests/test_pipeline.py tests/test_manager.py` — **288
+passed** (`/tmp/pytest-203c.log`).
+
+Новый тест `test_model_routing_reaches_only_spawn_capable_roles` держит обе стороны: блок ровно
+один раз у каждой спавн-способной роли (`out.count(module) == 1`) и ни одного дословного пункта
+у `worker`. Якоря берутся ИЗ модуля (`ln.startswith("- **")`), а не выписаны руками.
+
+Мутации — 6, все красные:
+1. `model-routing` добавлен воркеру;
+2. убран у `full-cycle`;
+3. **составная**: убран у `full-cycle` И блок возвращён в `base.md`;
+4. модуль указан дважды у оркестратора (проверяет `count == 1`);
+5. пункт **Luna** скопирован в `base.md` без тегов;
+6. пункт **Opus** скопирован в `base.md` без тегов (это контрпример Codex к первой версии теста —
+   она была на нём зелёной).
+
+Предел теста записан в докстринге честно: дословную копию пункта он ловит, переписанную своими
+словами — нет.
+
+## Codex — 3 раунда (исполняемый артефакт), `docs/tasks/203/codex-review-move.md`
+
+- Р1: два P2 — (а) ветка «AC не выполнен» не машинная; (б) тест зелен на копии без тегов. Приняты.
+- Р2: обе исправленными не признаны до конца — нашёл, что немашинный триггер остался у Spark, и
+  привёл рабочий контрпример к тесту (копия пункта Opus). Обе приняты и закрыты.
+- Р3: **APPROVED**, дословные цитаты текущего файла в вердикте, новых находок нет.
+
+## Что ещё в `base.md` воркер исполнить не может (перечислил, не трогал)
+
+- `:10` `**Auto-report.**` — половина абзаца про то, что у оркестраторов авто-репорта нет.
+- `:16` `**Cross-project.**` — «если ты оркестратор, можешь писать чужим оркестраторам».
+- `:23` `list_orchestrators()` в списке тулов — с оговоркой «workers should NOT use this».
+- `:39` критическое правило про `Agent tool` — ветка «Spawn-capable roles use `spawn_worker`».
+- `:53` context economy — ветка «spawn-capable roles may delegate a bounded slice».
+
+Общая форма у всех одна: правило с развилкой «ты оркестратор → …; ты воркер → …». В отличие от
+`<model-routing>`, у каждого есть и вторая половина, адресованная воркеру, поэтому механический
+перенос их сломает — нужно резать надвое. Не трогаю без твоего слова.

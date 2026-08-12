@@ -122,20 +122,40 @@ class TestDefaultRolesResolve:
     def test_modules_resolve_from_manifest(self):
         """modules пробрасываются из манифеста в ResolvedRole без слияния с defaults."""
         assert P.get_role(PIPELINE, "orchestrator").modules == [
-            "git-workflow", "orchestration", "worker-lifecycle", "background-jobs",
-            "task-management", "self-improvement", "memory-search",
+            "model-routing", "git-workflow", "orchestration", "worker-lifecycle",
+            "background-jobs", "task-management", "self-improvement", "memory-search",
         ]
         assert P.get_role(PIPELINE, "sub-orchestrator").modules == [
-            "git-workflow", "orchestration", "worker-lifecycle", "background-jobs",
-            "task-management", "self-improvement", "memory-search",
+            "model-routing", "git-workflow", "orchestration", "worker-lifecycle",
+            "background-jobs", "task-management", "self-improvement", "memory-search",
         ]
         assert P.get_role(PIPELINE, "worker").modules == [
             "git-workflow", "report-format", "self-improvement", "memory-search",
         ]
         assert P.get_role(PIPELINE, "full-cycle").modules == [
-            "research-method", "git-workflow", "worker-lifecycle",
+            "model-routing", "research-method", "git-workflow", "worker-lifecycle",
             "report-format", "self-improvement", "memory-search",
         ]
+
+    def test_model_routing_reaches_only_spawn_capable_roles(self):
+        """Маршрутизация инлайнится ровно тем, кто умеет спавнить, и ровно из модуля (#203).
+
+        Якоря берутся ИЗ САМОГО модуля, а не выписаны руками: проверка по тегу-обёртке
+        и по паре фраз про Luna оставалась зелёной, когда в `base.md` копировали пункт
+        про Opus без тегов (Codex, раунд 2). Предел честно: дословную копию любого
+        пункта тест ловит, переписанную своими словами — нет.
+        """
+        module = P.prompt_path(PIPELINE, "modules/model-routing.md").read_text().strip()
+        bullets = [ln.strip() for ln in module.splitlines() if ln.startswith("- **")]
+        assert len(bullets) >= 5, "модуль потерял пункты — якоря стали слабее"
+        for role in ("orchestrator", "sub-orchestrator", "full-cycle"):
+            out = P.build_system_prompt(PIPELINE, role)
+            assert P.get_role(PIPELINE, role).can_spawn == ["*"]
+            assert out.count(module) == 1, f"{role}: маршрутизация должна прийти ровно из модуля"
+        worker_out = P.build_system_prompt(PIPELINE, "worker")
+        assert P.get_role(PIPELINE, "worker").can_spawn == []
+        for anchor in ["<model-routing>", *bullets]:
+            assert anchor not in worker_out, f"маршрутизация протекла воркеру: {anchor[:40]}"
 
     def test_tg_emoji_for_v216_roles(self):
         assert P.get_role(PIPELINE, "sub-orchestrator").tg.emoji == "🎯"
