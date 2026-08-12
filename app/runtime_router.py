@@ -30,6 +30,14 @@ TaskClass = Literal[
     "continuation",
 ]
 CandidateState = Literal["normal", "reserve_only", "unavailable", "excluded"]
+TASK_CLASSES = frozenset(
+    {"worker_general", "orchestrator_free_text", "review", "continuation"}
+)
+# Not policy, not configurable. `review`: a cheap model missed a real double-count that Sol
+# caught, so final review never routes to the weak lane. `continuation`: switching models inside
+# the codex runtime resets the native session (`resume_across_models=False`), so moving running
+# work onto Spark would end the thing it claims to continue.
+SPARK_FORBIDDEN_CLASSES = frozenset({"review", "continuation"})
 PROCESS_STARTED_AT = datetime.now(timezone.utc).isoformat()
 
 # A lane is (quota bucket, runtime, model). Runtime alone cannot key selection: Spark shares the
@@ -39,7 +47,11 @@ PROCESS_STARTED_AT = datetime.now(timezone.utc).isoformat()
 LANE_CLAUDE = "claude"
 LANE_CODEX = "codex"
 LANE_CODEX_SPARK = "codex_spark"
-LANE_PREFERENCE = (LANE_CODEX_SPARK, LANE_CODEX, LANE_CLAUDE)
+# Order is quality-first inside Codex: Sol takes the work while its bucket is healthy, and the
+# weaker Spark lane is reached only when Sol is not selectable. Spark-first would downgrade every
+# eligible task even on an idle pool — a silent quality loss, which is the one thing this feature
+# is forbidden to do. Claude stays last so Codex-first survives.
+LANE_PREFERENCE = (LANE_CODEX, LANE_CODEX_SPARK, LANE_CLAUDE)
 LANE_RUNTIMES = {LANE_CLAUDE: "claude", LANE_CODEX: "codex", LANE_CODEX_SPARK: "codex"}
 LANE_BUCKETS = {LANE_CLAUDE: "anthropic", LANE_CODEX: "codex", LANE_CODEX_SPARK: "codex_spark"}
 QUOTA_BUCKETS = frozenset(LANE_BUCKETS.values())
@@ -120,6 +132,38 @@ class CodexQuotaPolicyV1(_StrictPolicyModel):
         return self
 
 
+class SparkQuotaPolicyV1(_StrictPolicyModel):
+    normal_below_pct: float = Field(ge=0, le=100)
+    unavailable_at_pct: float = Field(ge=0, le=100)
+    # Empty by default on purpose: Spark's real preconditions (file count, explicit AC, a test
+    # command) are not expressible by any server-owned task class, and asking the agent would put
+    # the decision back where this feature took it from. The lane stays visible and unused until
+    # an operator states which classes may use it.
+    eligible_classes: tuple[str, ...] = ()
+
+    @field_validator("normal_below_pct", "unavailable_at_pct", mode="before")
+    @classmethod
+    def validate_number(cls, value: object) -> object:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError("quota threshold must be numeric")
+        if not math.isfinite(float(value)):
+            raise ValueError("quota threshold must be finite")
+        return value
+
+    @model_validator(mode="after")
+    def validate_order_and_classes(self) -> "SparkQuotaPolicyV1":
+        if self.normal_below_pct >= self.unavailable_at_pct:
+            raise ValueError("spark.normal_below_pct must be below unavailable_at_pct")
+        for task_class in self.eligible_classes:
+            if task_class not in TASK_CLASSES:
+                raise ValueError(f"unknown task class {task_class!r} in spark.eligible_classes")
+            if task_class in SPARK_FORBIDDEN_CLASSES:
+                raise ValueError(
+                    f"spark.eligible_classes must not contain {task_class!r}"
+                )
+        return self
+
+
 class RoutingPolicyV1(_StrictPolicyModel):
     schema_version: Literal[1]
     revision: int = Field(ge=0)
@@ -128,6 +172,7 @@ class RoutingPolicyV1(_StrictPolicyModel):
     models: RoutingModelsV1 | None = None
     claude: ClaudeQuotaPolicyV1 | None = None
     codex: CodexQuotaPolicyV1 | None = None
+    spark: SparkQuotaPolicyV1 | None = None
 
     @field_validator("schema_version", "revision", mode="before")
     @classmethod
@@ -138,6 +183,11 @@ class RoutingPolicyV1(_StrictPolicyModel):
 
     @model_validator(mode="after")
     def validate_activation(self) -> "RoutingPolicyV1":
+        # Document consistency is checked in every mode: thresholds for a lane that has no model
+        # are meaningless whether or not quota routing is active, and letting them sit in a
+        # manifest_default document would make switching modes fail later instead of at write.
+        if self.spark is not None and (self.models is None or self.models.spark is None):
+            raise ValueError("spark thresholds require models.spark")
         if self.mode == "manifest_default":
             return self
         if self.models is None or self.claude is None:
@@ -644,6 +694,7 @@ def evaluate_routing(
     if policy.models.spark is not None:
         candidates[LANE_CODEX_SPARK] = _spark_candidate(
             policy,
+            request,
             providers.get(bucket_of(LANE_CODEX_SPARK)),
             observed_at.get(bucket_of(LANE_CODEX_SPARK)),
             bucket_of(LANE_CODEX_SPARK) in terminal_limited_buckets,
@@ -906,6 +957,7 @@ def _codex_candidate(
 
 def _spark_candidate(
     policy: RoutingPolicyV1,
+    request: RoutingInput,
     provider: object,
     observed_at: object,
     terminal_limited: bool,
@@ -942,15 +994,39 @@ def _spark_candidate(
         )
     assert weekly is not None
     reset = _future_datetime(weekly.get("resets_at"), now)
-    return _candidate(
-        LANE_CODEX_SPARK,
-        model,
-        "excluded",
-        "spark_not_eligible",
-        utilization=weekly["utilization"],
-        observed_at=timestamp,
-        reset_at=reset.isoformat() if reset is not None else None,
+    utilization = weekly["utilization"]
+    shared = {
+        "utilization": utilization,
+        "observed_at": timestamp,
+        "reset_at": reset.isoformat() if reset is not None else None,
+        "detail": request.task_class,
+    }
+
+    def verdict(state: CandidateState, reason: str) -> CandidateVerdict:
+        return _candidate(LANE_CODEX_SPARK, model, state, reason, **shared)
+
+    if policy.spark is None:
+        return verdict("excluded", "spark_not_eligible")
+
+    # A session already running on Spark keeps its lane: eligibility governs where NEW work may
+    # be placed, never where running work lives. Evicting it would be the very session reset the
+    # `continuation` prohibition exists to prevent.
+    staying = (
+        request.task_class == "continuation"
+        and request.current_model is not None
+        and _lane_for_model(request.current_model) == LANE_CODEX_SPARK
     )
+    # No second runtime check for the forbidden classes: policy validation rejects them and every
+    # policy is read through it, so such a branch would be unreachable by construction. The rule
+    # has one owner — `SparkQuotaPolicyV1.validate_order_and_classes`.
+    if not staying and request.task_class not in policy.spark.eligible_classes:
+        return verdict("excluded", f"spark_not_eligible_for_{request.task_class}")
+
+    if utilization >= policy.spark.unavailable_at_pct:
+        return verdict("unavailable", "spark_weekly_hard_stop")
+    if utilization >= policy.spark.normal_below_pct:
+        return verdict("reserve_only", "spark_weekly_reserve")
+    return verdict("normal", "spark_quota_normal")
 
 
 def _bucket_for_model(model: str) -> str | None:

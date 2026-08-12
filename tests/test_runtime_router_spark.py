@@ -300,3 +300,219 @@ class _PolicyOnlyStore:
 
     def policy_document(self):
         return self._policy.model_dump_json(exclude_none=True)
+
+
+# --- T2: Spark becomes selectable, but only by explicit operator opt-in -------------------
+
+def _spark_policy(*, eligible=("worker_general",), normal=90, stop=95, access="all"):
+    payload = {
+        "schema_version": 1,
+        "revision": 1,
+        "mode": "quota",
+        "codex_access": access,
+        "models": {
+            "claude": "claude-opus-5[1m]",
+            "codex": "gpt-5.6-sol",
+            "spark": SPARK_MODEL,
+        },
+        "claude": {
+            "alert_deficit_hours": 14,
+            "weekly_unavailable_pct": 95,
+            "weekly_min_remaining_pp": 0.3,
+            "five_hour_unavailable_pct": 95,
+        },
+        "codex": {"normal_below_pct": 90, "unavailable_at_pct": 95},
+        "spark": {
+            "normal_below_pct": normal,
+            "unavailable_at_pct": stop,
+            "eligible_classes": list(eligible),
+        },
+    }
+    return RoutingPolicyV1.model_validate(payload)
+
+
+@pytest.mark.parametrize("forbidden", ["review", "continuation"])
+def test_forbidden_classes_are_rejected_when_the_policy_is_written(forbidden):
+    with pytest.raises(ValidationError, match=f"must not contain '{forbidden}'"):
+        _spark_policy(eligible=(forbidden,))
+
+
+def test_unknown_eligible_class_is_rejected_rather_than_ignored():
+    with pytest.raises(ValidationError, match="unknown task class"):
+        _spark_policy(eligible=("worker_genral",))
+
+
+def test_spark_thresholds_without_a_spark_model_are_rejected():
+    with pytest.raises(ValidationError, match="spark thresholds require models.spark"):
+        RoutingPolicyV1.model_validate(
+            {
+                "schema_version": 1,
+                "revision": 1,
+                "mode": "quota",
+                "models": {"claude": "claude-opus-5[1m]", "codex": "gpt-5.6-sol"},
+                "claude": {
+                    "alert_deficit_hours": 14,
+                    "weekly_unavailable_pct": 95,
+                    "weekly_min_remaining_pp": 0.3,
+                    "five_hour_unavailable_pct": 95,
+                },
+                "codex": {"normal_below_pct": 90, "unavailable_at_pct": 95},
+                "spark": {"normal_below_pct": 90, "unavailable_at_pct": 95},
+            }
+        )
+
+
+def test_spark_threshold_order_is_validated():
+    with pytest.raises(ValidationError, match="normal_below_pct must be below"):
+        _spark_policy(normal=95, stop=90)
+
+
+def test_empty_eligible_classes_keeps_spark_unselectable():
+    decision = _decide(_spark_policy(eligible=()))
+    spark = _lane(decision, LANE_CODEX_SPARK)
+
+    assert spark.state == "excluded"
+    assert spark.reason == "spark_not_eligible_for_worker_general"
+    assert decision.selected_lane == LANE_CODEX
+
+
+def test_healthy_sol_keeps_the_work_even_when_spark_is_eligible_and_free():
+    """The invariant that stops this feature from being a silent downgrade.
+
+    Spark is the weaker lane. It exists to add capacity when the Sol bucket is burning, not to
+    become a cheaper default: with both lanes normal the work stays on Sol.
+    """
+    decision = _decide(_spark_policy(), _observation(codex=10, spark=0))
+
+    assert decision.selected_lane == LANE_CODEX
+    assert _lane(decision, LANE_CODEX_SPARK).state == "normal"
+
+
+def test_spark_takes_eligible_work_once_the_sol_bucket_is_reserved():
+    decision = _decide(_spark_policy(), _observation(codex=91, spark=0))
+    spark = _lane(decision, LANE_CODEX_SPARK)
+
+    assert _lane(decision, LANE_CODEX).state == "reserve_only"
+    assert decision.selected_lane == LANE_CODEX_SPARK
+    assert decision.selected_model == SPARK_MODEL
+    assert spark.reason == "spark_quota_normal"
+    assert spark.bucket == "codex_spark"
+    assert spark.detail == "worker_general"
+
+
+@pytest.mark.parametrize(
+    "provenance",
+    [frozenset({"claude"}), frozenset({"codex"}), frozenset({"claude", "codex"}), frozenset()],
+)
+def test_review_never_reaches_spark_whatever_wrote_the_code(provenance):
+    decision = _decide(
+        _spark_policy(),
+        _observation(codex=91, spark=0),
+        request=RoutingInput(task_class="review", implementation_runtimes=provenance),
+    )
+    spark = _lane(decision, LANE_CODEX_SPARK)
+
+    assert spark.state == "excluded"
+    assert spark.reason == "spark_not_eligible_for_review"
+    assert decision.selected_lane != LANE_CODEX_SPARK
+
+
+def test_a_session_already_on_spark_keeps_its_lane():
+    """Eligibility places NEW work; it never evicts running work.
+
+    `continuation` can never be opted in, so a naive reading would move a live Spark session onto
+    another model — which resets the native session, the exact harm the prohibition prevents.
+    """
+    decision = _decide(
+        _spark_policy(),
+        _observation(codex=10, spark=0),
+        request=RoutingInput(task_class="continuation", current_model=SPARK_MODEL),
+    )
+
+    assert decision.selected_lane == LANE_CODEX_SPARK
+    assert decision.selected_model == SPARK_MODEL
+    assert _lane(decision, LANE_CODEX_SPARK).reason == "spark_quota_normal"
+
+
+def test_a_sol_session_is_never_moved_onto_spark_when_its_own_bucket_dies():
+    decision = _decide(
+        _spark_policy(),
+        _observation(codex=99, spark=0),
+        request=RoutingInput(task_class="continuation", current_model="gpt-5.6-sol"),
+    )
+
+    assert _lane(decision, LANE_CODEX).state == "unavailable"
+    assert _lane(decision, LANE_CODEX_SPARK).state == "excluded"
+    assert decision.selected_lane != LANE_CODEX_SPARK
+
+
+@pytest.mark.parametrize(
+    ("utilization", "state", "reason"),
+    [(10, "normal", "spark_quota_normal"),
+     (60, "reserve_only", "spark_weekly_reserve"),
+     (80, "unavailable", "spark_weekly_hard_stop")],
+)
+def test_spark_reads_its_own_thresholds(utilization, state, reason):
+    """Spark thresholds are deliberately unlike Sol's (50/70 against 90/95).
+
+    With both set to the same numbers the assertion cannot tell which policy block was read, and
+    a mutation swapping `policy.spark` for `policy.codex` survives — measured, not assumed.
+    """
+    decision = _decide(
+        _spark_policy(normal=50, stop=70),
+        _observation(codex=91, spark=utilization),
+    )
+    spark = _lane(decision, LANE_CODEX_SPARK)
+
+    assert (spark.state, spark.reason) == (state, reason)
+
+
+def test_spark_thresholds_require_a_model_in_manifest_mode_too():
+    """The invariant is about document consistency, so it cannot depend on the active mode."""
+    with pytest.raises(ValidationError, match="spark thresholds require models.spark"):
+        RoutingPolicyV1.model_validate(
+            {
+                "schema_version": 1,
+                "revision": 1,
+                "mode": "manifest_default",
+                "spark": {"normal_below_pct": 50, "unavailable_at_pct": 70},
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_state", "expected_reason"),
+    [
+        ("access_off", "excluded", "codex_access=off excludes continuation"),
+        ("terminal", "unavailable", "spark_terminal_limit"),
+        ("stale", "unavailable", None),
+        ("hard_stop", "unavailable", "spark_weekly_hard_stop"),
+    ],
+)
+def test_a_staying_spark_session_is_still_subject_to_every_guard(
+    case, expected_state, expected_reason
+):
+    """The carve-out must not become a bypass.
+
+    Ordering in the code puts access, terminal, freshness and thresholds ahead of `staying`.
+    Without these cases the continuation test would stay green if a guard were ever moved below
+    the carve-out, which would let a dead or unobserved bucket keep taking work.
+    """
+    policy = _spark_policy(normal=50, stop=70, access="off" if case == "access_off" else "all")
+    observation = _observation(codex=10, spark=80 if case == "hard_stop" else 0)
+    if case == "stale":
+        observation["observed_at_by_provider"]["codex_spark"] = NOW.timestamp() - 10_000
+    terminal = frozenset({"codex_spark"}) if case == "terminal" else frozenset()
+
+    decision = _decide(
+        policy,
+        observation,
+        request=RoutingInput(task_class="continuation", current_model=SPARK_MODEL),
+        terminal_limited_buckets=terminal,
+    )
+    spark = _lane(decision, LANE_CODEX_SPARK)
+
+    assert spark.state == expected_state
+    if expected_reason is not None:
+        assert spark.reason == expected_reason
+    assert decision.selected_lane != LANE_CODEX_SPARK
