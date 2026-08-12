@@ -91,11 +91,52 @@ Both reviews had Codex exit 0 and substantive output, but Orchestra's stale MCP 
 failed. The verbatim reviewer outputs were recovered into `codex-review-impl.md`; the platform
 failure was reported through `report_bug`. No third review was run.
 
+## T5 preparation — pending gate
+
+Tracked `CLAUDE_ENV_FILE` artifacts and an `install|rollback` manager are ready but have not been
+installed. Two controlled fresh Claude 2.1.197 probes used the same bounded command:
+
+- without the hook: `grep/find` were functions and plain `grep … tests` recursively found the
+  marker with exit 0;
+- with `CLAUDE_ENV_FILE` pointing at the tracked hook: both were files at `/usr/bin`, plain GNU
+  grep rejected the directory with exit 2, explicit `grep -r` found the marker with exit 0, and
+  versions were GNU grep 3.11 / findutils 4.9.0.
+
+`uv run python -m pytest tests/test_claude_env_hook.py -x -q` passes 6 tests. Mutations prove the
+suite rejects a missing `find` unset, a modified-file rollback bypass, forced overwrite of a
+concurrent destination, and force-overwrite of a retained claim collision.
+
+Codex used all three executable-review rounds. Rounds 1–2 found and drove fixes for post-install
+data loss and its TOCTOU race. Round 3 confirmed that race fixed, then found a retained-claim
+collision; no-clobber claim creation plus a deterministic collision test now fix it. The ceiling
+forbids a fourth round, so that last fix is self-verified but awaits an orchestrator decision.
+
+An independent Opus review then found two blocking failure paths. The partial-install path was
+reproduced before changing the manager: the second isolated `install` invocation exited 42;
+rollback then exited 2 at `awk` because `installed.sha256` did not exist. The fixed manager records
+expected hashes before the first atomic replacement and, after atomically claiming a destination,
+accepts only the recorded installed payload or the exact saved predecessor. Rollback can therefore
+restore both a completed replacement and an untouched destination after a mid-install failure.
+The same review measured that a malformed `CLAUDE_ENV_FILE` makes Claude's generated `bash -c`
+exit 2 before the requested command. Install now runs `bash -n` on the source before creating
+deploy state; rollback validates a saved hook before claiming any live file. Claim archival also
+uses no-clobber `mv -Tn` and fails loudly on a retained destination.
+
+Three additional mutation runs each failed as required and restored the manager with an mtime
+update plus an exact-line count: removing source validation made malformed-hook install succeed;
+removing saved-hook validation made rollback restore malformed Bash; and removing pre-install
+hash recording made the interrupted-install recovery test fail. The independent follow-up verdict
+on these changes remains pending.
+
+No system file, systemd manager state, Orchestra process, or agent connection was changed.
+
 ## Remaining gates
 
+- T5: obtain the focused independent follow-up verdict, then install the drop-in and obtain a
+  separately approved Orchestra restart window; install/rollback themselves never restart the
+  service.
 - T2: install observe-only and gather direct age/RSS distributions.
 - T3: controlled armed acceptance and only then decide on `MemoryHigh` removal.
 - T4: permanent OS notification/reporting path.
-- T5: documented rollback rehearsal and handoff.
 
 All remain untouched and require a new explicit user command.

@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import resource
 import secrets
 import signal
 import threading
@@ -441,6 +442,7 @@ class ProcessGuard:
         self.logger = logger or logging.getLogger("orchestra-process-guard")
         self.pidfd_open = pidfd_open
         self.pidfd_signal = pidfd_signal or signal.pidfd_send_signal
+        self.calibration_matches: dict[tuple[int, int], tuple[ProcessSnapshot, float]] = {}
 
     def _event(self, decision: Decision, action: str, **extra: object) -> dict[str, object]:
         snapshot = decision.snapshot
@@ -543,11 +545,88 @@ class ProcessGuard:
             os.close(pidfd)
 
     def run_once(self) -> list[str]:
+        started = time.monotonic()
         results = []
+        current_matches = {}
+        all_processes = {}
+        scanned = 0
+        cgroup_matches = 0
+        exe_mismatches = 0
+        argv0_mismatches = 0
         for snapshot in self.reader.snapshots():
+            scanned += 1
+            key = (snapshot.pid, snapshot.start_ticks)
+            all_processes[key] = snapshot
+            if snapshot.cgroup != self.policy.target_cgroup:
+                continue
+            cgroup_matches += 1
+            if snapshot.exe != self.policy.target_exe:
+                exe_mismatches += 1
+                continue
+            if snapshot.argv0 != self.policy.target_argv0:
+                argv0_mismatches += 1
+                continue
+
+            current_matches[key] = (snapshot, started)
+            if not self.policy.armed:
+                self._log(
+                    self._event(Decision(snapshot, (), False), "calibration_sample"),
+                )
             decision = decide(snapshot, self.policy)
             if decision is not None:
                 results.append(self.handle(decision))
+
+        if not self.policy.armed:
+            for key, (previous, observed_at) in self.calibration_matches.items():
+                if key in current_matches:
+                    continue
+                replacement = all_processes.get(key)
+                if replacement is None:
+                    try:
+                        replacement = self.reader.read(previous.pid)
+                    except (FileNotFoundError, ProcessLookupError):
+                        replacement = None
+                    except (PermissionError, OSError, ValueError):
+                        continue
+                action = "calibration_complete"
+                completion = "exited"
+                if replacement is not None and replacement.start_ticks == previous.start_ticks:
+                    if matches_identity(replacement, self.policy):
+                        current_matches[key] = (replacement, started)
+                        self._log(
+                            self._event(
+                                Decision(replacement, (), False), "calibration_sample",
+                            ),
+                        )
+                        continue
+                    action = "calibration_identity_changed"
+                    completion = "identity_changed"
+                self._log(
+                    self._event(
+                        Decision(previous, (), False),
+                        action,
+                        completion=completion,
+                        lifetime_lower_sec=round(previous.age_sec, 3),
+                        lifetime_upper_sec=round(
+                            previous.age_sec + max(0.0, started - observed_at), 3,
+                        ),
+                    ),
+                )
+            self.calibration_matches = current_matches
+
+        duration_ms = (time.monotonic() - started) * 1000
+        self._log({
+            "action": "scan_complete",
+            "duration_ms": round(duration_ms, 3),
+            "guard_maxrss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+            "scanned": scanned,
+            "target_cgroup": cgroup_matches,
+            "exact_matches": len(current_matches),
+            "exe_mismatches": exe_mismatches,
+            "argv0_mismatches": argv0_mismatches,
+            "enabled": self.policy.enabled,
+            "dry_run": self.policy.dry_run,
+        })
         return results
 
 

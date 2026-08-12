@@ -268,6 +268,20 @@ class FixedReader:
         return iter(())
 
 
+class ScanReader:
+    def __init__(self, snapshots):
+        self.current = list(snapshots)
+
+    def read(self, pid):
+        for current in self.current:
+            if current.pid == pid:
+                return current
+        raise ProcessLookupError(pid)
+
+    def snapshots(self):
+        return iter(self.current)
+
+
 @pytest.mark.parametrize(("enabled", "dry_run", "expected"), [
     (False, False, "disabled"),
     (False, True, "disabled"),
@@ -291,6 +305,51 @@ def test_kill_path_requires_explicit_enable_and_dry_run_off(
 
     assert guard.handle(Decision(candidate, ("age",), True)) == expected
     assert freezer.writes == []
+
+
+def test_observe_scan_logs_exact_samples_and_nonmatch_counters(tmp_path, caplog):
+    exact = snapshot(age_sec=100)
+    ordinary_claude = replace(exact, pid=1235, argv0=b"/usr/bin/claude")
+    uvicorn = replace(
+        exact,
+        pid=1236,
+        exe=str(Path("/usr/bin/python3").resolve()),
+        argv0=b"uvicorn",
+    )
+    outside = replace(exact, pid=1237, cgroup="/system.slice/other.service")
+    reader = ScanReader([exact, ordinary_claude, uvicorn, outside])
+    guard = ProcessGuard(policy(tmp_path), reader, ModelFreezer(tmp_path))
+
+    assert guard.run_once() == []
+
+    events = [json.loads(record.message) for record in caplog.records]
+    sample = next(event for event in events if event["action"] == "calibration_sample")
+    summary = next(event for event in events if event["action"] == "scan_complete")
+    assert (sample["pid"], sample["start_ticks"], sample["age_sec"]) == (1234, 10_000, 100)
+    assert (sample["rss_kib"], sample["hwm_kib"]) == (10_000, 12_000)
+    assert summary["scanned"] == 4
+    assert summary["target_cgroup"] == 3
+    assert summary["exact_matches"] == 1
+    assert summary["exe_mismatches"] == 1
+    assert summary["argv0_mismatches"] == 1
+    assert summary["duration_ms"] >= 0
+    assert summary["guard_maxrss_kib"] > 0
+
+
+def test_observe_scan_records_completed_exact_lifetime(tmp_path, caplog):
+    exact = snapshot(age_sec=100)
+    reader = ScanReader([exact])
+    guard = ProcessGuard(policy(tmp_path), reader, ModelFreezer(tmp_path))
+    guard.run_once()
+    reader.current = []
+
+    guard.run_once()
+
+    events = [json.loads(record.message) for record in caplog.records]
+    completed = next(event for event in events if event["action"] == "calibration_complete")
+    assert completed["completion"] == "exited"
+    assert completed["lifetime_lower_sec"] == 100
+    assert completed["lifetime_upper_sec"] >= completed["lifetime_lower_sec"]
 
 
 def test_error_after_freeze_always_thaws(tmp_path, caplog):
@@ -521,13 +580,30 @@ def test_manager_installs_disables_and_fully_rolls_back(tmp_path):
     manager = ROOT / "deploy/manage-process-guard.sh"
 
     subprocess.run(["bash", "-n", manager], check=True)
-    subprocess.run([manager, "install"], check=True, env=env)
+    subprocess.run([manager, "stage"], check=True, env=env)
 
     installed_script = destination / "usr/local/libexec/orchestra-process-guard"
     installed_unit = destination / "etc/systemd/system/orchestra-process-guard.service"
     assert installed_script.read_bytes() == (ROOT / "scripts/orchestra_process_guard.py").read_bytes()
     assert installed_unit.read_bytes() == (ROOT / "deploy/orchestra-process-guard.service").read_bytes()
     assert existing_config.read_bytes() == (ROOT / "deploy/orchestra-process-guard.conf").read_bytes()
+    staged_log = command_log.read_text()
+    assert "systemd-analyze" in staged_log
+    assert "systemctl daemon-reload" in staged_log
+    assert "enable --now" not in staged_log
+
+    subprocess.run([manager, "activate"], check=True, env=env)
+
+    existing_config.write_text("manual post-activation change\n")
+    refused = subprocess.run(
+        [manager, "rollback"], env=env, text=True, capture_output=True,
+    )
+    assert refused.returncode == 1
+    assert "changed since install" in refused.stderr
+    assert existing_config.read_text() == "manual post-activation change\n"
+    assert installed_script.exists()
+    assert installed_unit.exists()
+    existing_config.write_bytes((ROOT / "deploy/orchestra-process-guard.conf").read_bytes())
 
     subprocess.run([manager, "disable"], check=True, env=env)
     subprocess.run([manager, "rollback"], check=True, env=env)

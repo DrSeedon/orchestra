@@ -5,3 +5,6 @@
 - `cgroup.freeze` is a shared, non-reference-counted bit. A separate marker cannot prove ownership
   of a transition on somebody else's cgroup; use an exclusively created private child cgroup and
   never clear the parent's freeze bit.
+- For a reversible multi-file install, persist expected payload hashes before the first rename.
+  Rollback should atomically claim each current destination, accept only the recorded payload or
+  the exact saved predecessor, and validate any executable/config backup before claiming live files.
