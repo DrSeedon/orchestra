@@ -1,0 +1,81 @@
+Task #222 Spark pool capacity measurement
+Source: docs/tasks/222/blind-grades.json + /var/tmp/orchestra-bench-222-f74b5d6a9773/all-metrics.json
+Counter interval: codex_spark 0 -> 4 integer percentage points; official Spark credit/dollar rate unavailable.
+
+Per-run Spark trajectory (chronological):
+code	1	0	0	78249	65280	2414
+code	2	0	0	96371	82944	2897
+text	1	0	0	1367863	1294336	9148
+text	2	1	1	779665	694528	10548
+ambiguous	1	1	2	1220334	1144576	37427
+ambiguous	2	2	4	3873373	3587200	72201
+ctx100	1	4	4	102060	4224	561
+ctx100	2	4	4	102060	13184	503
+ctx164	1	4	4	0	0	0
+ctx164	2	4	4	0	0	0
+
+Aggregates and proxy costs:
+{
+  "attempts": 10,
+  "usage_bearing_runs": 8,
+  "strict_passes": 5,
+  "total": {
+    "input": 7619975,
+    "cached": 6886272,
+    "output": 135699,
+    "luna_equiv_cost": 0.44730484
+  },
+  "by_case": [
+    {
+      "case": "ambiguous",
+      "runs": 2,
+      "input": 5093707,
+      "cached": 4731776,
+      "output": 109628,
+      "luna_equiv_cost": 0.29857532
+    },
+    {
+      "case": "code",
+      "runs": 2,
+      "input": 174620,
+      "cached": 148224,
+      "output": 5311,
+      "luna_equiv_cost": 0.01461688
+    },
+    {
+      "case": "ctx100",
+      "runs": 2,
+      "input": 204120,
+      "cached": 17408,
+      "output": 1064,
+      "luna_equiv_cost": 0.03896736
+    },
+    {
+      "case": "ctx164",
+      "runs": 2,
+      "input": 0,
+      "cached": 0,
+      "output": 0,
+      "luna_equiv_cost": 0
+    },
+    {
+      "case": "text",
+      "runs": 2,
+      "input": 2147528,
+      "cached": 1988864,
+      "output": 19696,
+      "luna_equiv_cost": 0.09514528
+    }
+  ]
+}
+
+Capacity arithmetic:
+identical_mixed_batches_per_week=25
+identical_mix_attempts_per_week=250
+identical_mix_usage_bearing_runs_per_week=200
+identical_mix_strict_passes_per_week=125
+code_tasks_per_week_input_proxy=2181.9
+code_tasks_per_week_luna_weight_proxy=1530.1
+ctx100_tasks_per_week_input_proxy=1866.5
+ctx100_tasks_per_week_luna_weight_proxy=573.9
+luna_equivalent_virtual_dollars_per_spark_pp=0.11182621

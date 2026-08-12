@@ -4,6 +4,14 @@
 > независимо, поэтому номера версий 2.31.0-2.33.0 использованы ДВАЖДЫ для разного
 > содержания: ниже сперва блок VPS, затем блок ноутбука. Формат чинится задачей #52.
 
+## v2.38.2 — 2026-08-12 — #222 узкий допуск Spark
+
+### Changed
+- **Spark стал только узким fast/overflow route с внешним oracle** (`pipelines/default/prompts/modules/model-routing.md`). До спавна нужны ≤2 named files, ≤100K полного initial context, явно заданные решения и независимая механическая проверка каждого критерия; semantic prose/review/research запрещены, любой неуспешный Spark-run уходит на другую модель без retry. Отдельный Spark-бакет прямо назван маленьким, а его неизвестная research-preview цена делает денежные сводки неполными. *Triggered case:* в слепом replay Spark при недостающей константе молча выдумал её 2/2 раза и провалил future oracle (19/42 и 18/42), тогда как Luna 2/2 остановилась и спросила; при ~164K Spark, напротив, оба раза отказал громко до ответа.
+
+### Known tradeoff
+- **До #301 Spark не имеет надёжного completion/accounting path в Orchestra.** `CODEX_TOKEN_PRICES["gpt-5.3-codex-spark"] = None`, а `_codex_cost()` падает до создания `turn_end`; уже streamed text мог остаться видимым, но completion event и долларовый учёт теряются. Ставку не подменяем нулём: любые Codex-dollar totals с возможным Spark расходом занижены на неизвестную величину.
+
 ## v2.38.1 — 2026-08-12 — #212 картинки `Read` в истории чата
 
 ### Fixed
