@@ -1,0 +1,21 @@
+date=2026-08-12
+method=CLI stream timestamps from hook_started to matching hook_response
+model=claude-haiku-4-5
+command_per_tool=true
+requested_calls_per_run=24
+setting_sources=[]
+
+baseline-1: tool_uses=24 tool_results=24 hook_samples=0 tool_batch_ms=8259.757 result_is_error=false num_turns=25 returncode=0
+hook-1: tool_uses=24 tool_results=24 hook_samples=24 hook_min_ms=42.498 hook_p50_ms=54.806 hook_p95_ms=98.955 hook_max_ms=154.167 tool_batch_ms=7915.497 result_is_error=false num_turns=25 returncode=0
+hook-2: tool_uses=24 tool_results=24 hook_samples=24 hook_min_ms=47.352 hook_p50_ms=60.403 hook_p95_ms=111.988 hook_max_ms=276.882 tool_batch_ms=8547.431 result_is_error=false num_turns=25 returncode=0
+baseline-2 EXCLUDED: requested=24 tool_uses=23 tool_results=23 tool_batch_ms=8010.194; the model emitted the wrong count.
+
+Interpretation:
+- Coverage: the PreToolUse hook fired for 48/48 observed Bash calls across two valid hooked runs.
+- Per-hook observed interval: p50 54.806-60.403 ms; p95 98.955-111.988 ms.
+- End-to-end batch timings do not isolate incremental latency: the valid no-hook batch
+  was 8259.757 ms, while hooked batches bracketed it at 7915.497 and 8547.431 ms.
+  Model/tool-loop noise is larger than the aggregate difference in this sample.
+- The hook handler is a fresh Python command process. The measured interval describes
+  only this exact command-hook configuration. An in-process/equivalent guard may be
+  faster or slower; neither direction was measured.

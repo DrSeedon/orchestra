@@ -1,0 +1,42 @@
+{
+  "logged": [
+    {
+      "args": [
+        "tool",
+        "mcp__probe__ping: {}"
+      ],
+      "kwargs": {
+        "tool_use_id": "probe-tool-use",
+        "tool_name": "mcp__probe__ping",
+        "tool_is_error": false
+      }
+    },
+    {
+      "args": [
+        "tool_result",
+        "DENIED_BY_PROBE_EXACT_MCP_TOOL"
+      ],
+      "kwargs": {
+        "tool_use_id": "probe-tool-use",
+        "tool_name": "mcp__probe__ping",
+        "tool_is_error": true
+      }
+    }
+  ],
+  "submitted_db_writes": [
+    {
+      "callable": "tool_error_add",
+      "args": [
+        "probe-worker",
+        "/isolated/probe",
+        "mcp__probe__ping",
+        "DENIED_BY_PROBE_EXACT_MCP_TOOL"
+      ],
+      "kwargs": {
+        "runtime": "claude",
+        "tool_use_id": "probe-tool-use"
+      }
+    }
+  ],
+  "did_report_to_parent": false
+}

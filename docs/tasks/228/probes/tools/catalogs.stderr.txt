@@ -1,0 +1,13 @@
+warning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+INFO:orchestra-mcp:Orchestra MCP access=full tools=36/36
+INFO:orchestra-mcp:Orchestra MCP stdio (url=http://127.0.0.1:9, scope=/home/kesha/orchestra/worktrees/home-kesha-orchestra/audit228-tools)
+INFO:mcp.server.lowlevel.server:Processing request of type ListToolsRequest
+INFO:orchestra-mcp:Orchestra MCP access=read-only tools=12/36
+INFO:orchestra-mcp:Orchestra MCP stdio (url=http://127.0.0.1:9, scope=/home/kesha/orchestra/worktrees/home-kesha-orchestra/audit228-tools)
+INFO:mcp.server.lowlevel.server:Processing request of type ListToolsRequest
+INFO:orchestra-mcp:Orchestra MCP access=full tools=36/36
+INFO:orchestra-mcp:Orchestra MCP stdio (url=http://127.0.0.1:9, scope=/home/kesha/orchestra/worktrees/home-kesha-orchestra/audit228-tools)
+INFO:mcp.server.lowlevel.server:Processing request of type ListToolsRequest
+INFO:orchestra-mcp:Orchestra MCP access=read-only tools=12/36
+INFO:orchestra-mcp:Orchestra MCP stdio (url=http://127.0.0.1:9, scope=/home/kesha/orchestra/worktrees/home-kesha-orchestra/audit228-tools)
+INFO:mcp.server.lowlevel.server:Processing request of type ListToolsRequest

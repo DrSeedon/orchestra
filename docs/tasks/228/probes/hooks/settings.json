@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/docs/tasks/228/probes/hooks/pretooluse_probe.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

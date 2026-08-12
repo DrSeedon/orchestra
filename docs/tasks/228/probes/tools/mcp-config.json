@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "probe": {
+      "command": "/home/kesha/orchestra/.venv/bin/python",
+      "args": [
+        "/home/kesha/orchestra/worktrees/home-kesha-orchestra/audit228-tools/docs/tasks/228/probes/tools/probe_server.py"
+      ]
+    }
+  }
+}

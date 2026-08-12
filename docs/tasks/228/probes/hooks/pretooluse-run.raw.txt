@@ -1,0 +1,26 @@
+date=2026-08-12
+claude_version=2.1.197
+model=claude-haiku-4-5
+setting_sources=[]
+settings=docs/tasks/228/probes/hooks/settings.json
+settings_permission_allow=Bash(*)
+
+tool_use Bash
+tool_input={"command":"printf EXECUTED > docs/tasks/228/probes/hooks/blocked-command.marker","run_in_background":true}
+hook_started event=PreToolUse
+hook_response event=PreToolUse exit_code=2 outcome=error
+hook_output=HOOK_CALLED event=PreToolUse tool=Bash run_in_background=True
+hook_output=HOOK_DENY background Bash probe
+tool_result_is_error=true
+tool_result=PreToolUse:Bash hook error: HOOK_CALLED event=PreToolUse tool=Bash run_in_background=True / HOOK_DENY background Bash probe
+result_subtype=success
+result_is_error=false
+stop_reason=end_turn
+num_turns=2
+permission_denials=[{"tool_name":"Bash","tool_input":{"command":"printf EXECUTED > docs/tasks/228/probes/hooks/blocked-command.marker","run_in_background":true}}]
+pipeline_exit=0
+execution_marker_test_exit=1
+
+Interpretation: the turn itself succeeded, but the hook fired before the Bash action,
+returned a blocking decision, exposed a loud tool error to the agent, populated
+permission_denials, and prevented the command's marker from being created.

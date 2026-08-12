@@ -11,7 +11,7 @@ service, or task state was touched.
 The restrictions divide into three materially different classes:
 
 1. **Hard runtime guards:** known-role spawn topology, new-worker weekly quota,
-   Claude's blocked built-ins/background flag, root path admission, MCP
+   Claude's exact blocked built-ins, root path admission, MCP
    `read-only` mode when explicitly selected, MCP `orchestra` name protection,
    overlapping `owned_dirs` at spawn, Codex native multi-agent disablement in
    the constructed CLI launch, and non-force kill guards.
@@ -109,10 +109,12 @@ already sufficient for an unsafe verdict.
 list. `AskUserQuestion`, `Monitor`, and any tool input carrying
 `run_in_background=true` are denied by the permission callback.
 
-**Runtime guard actually executes?** **Yes for Claude SDK sessions.** The probe
-called the same callback passed to `ClaudeAgentOptions` and instantiated the
-options object. It is **not cross-runtime**: this callback does not govern Codex,
-Grok, or OpenCode.
+**Runtime guard actually executes?** **Yes for exact `disallowed_tools`; not for
+the background payload.** This inventory's original direct callback probe proved
+only what the Python function returns when called manually. A later real-backend
+counter-probe (`probes/local/runtime-probes.md` P4) observed
+`Bash(run_in_background=true)` execute with `is_error=false` and recorded zero
+callback invocations. The callback is also not cross-runtime.
 
 **Exact safe probe and raw output (excerpt).** Command:
 
@@ -148,19 +150,20 @@ The focused regression command was
 `python -m pytest tests/test_disallowed_tools.py -q`; it passed `2/2` as part of
 the 30-test batch.
 
-**Physical violation outcome.** Claude refuses blocked callback calls before
-tool execution; disallowed tools are absent from the CLI tool set. Counter-
-evidence: a **worker** is deliberately allowed the built-in `Agent` tool by
-runtime even though `base.md:39-40` says no agent may use it.
+**Physical violation outcome.** Exact disallowed tools are absent from the CLI
+tool set. `AskUserQuestion` produced a loud callback deny in a real control run,
+but background Bash physically executed because the callback was not called.
+Counter-evidence: a **worker** deliberately retains the native `Task` delegation
+tool even though `base.md:39-40` states a universal ban.
 
 **Visibility.** Callback denial returns explicit text to the agent and is
 visible in its tool result. A disallowed tool is instead absent from the model's
 tool catalog.
 
-**Two-sided prompt-safety verdict.** The hard-denied subset is **safe from prompt
-forgetting**. The universal built-in-Agent statement is **unsafe/inconsistent**
-because Claude workers physically retain it; over-broad removal could also
-remove worker behavior the code intentionally preserves.
+**Two-sided prompt-safety verdict.** The exact hard-denied subset is **safe from
+prompt forgetting**. The background claim is **REFUTED** as enforcement and needs
+`PreToolUse`; the universal built-in-Agent statement is **unsafe/inconsistent**
+because Claude workers physically retain native `Task` delegation.
 
 ### F3. Worktree and `owned_dirs` territory
 
@@ -669,7 +672,7 @@ over/under-application usually affects quality/cost rather than authority.
 | Family | Hard guard on physical action? | Counter-evidence / bypass | Agent-visible refusal? |
 |---|---|---|---|
 | Phase/oracle/test workflow | No | Writable files and no phase state | No |
-| Claude blocked built-ins/background | Yes, Claude only | Worker built-in `Agent` retained | Yes |
+| Claude blocked built-ins/background | Exact names yes; background no | Worker `Task` retained; background Bash executed with callback=0 | Name absent / hook gap |
 | `owned_dirs` | Spawn overlap only | Out-of-list write succeeded | Only overlap |
 | `can_spawn` | Yes for actual known-role manager path | narrow validator fail-open for unknown; root exempt | Yes, 409/tool error |
 | Model routing/Terra ban | Registry validation only | Terra schema accepted | No policy warning |
