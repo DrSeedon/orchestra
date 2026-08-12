@@ -53,7 +53,10 @@ def api(monkeypatch, tmp_path):
             return {"id": "bg-test"}
         if path.endswith("/change-model"):
             return {"changed": True, "old_model": "claude-opus-5[1m]", "model": "gpt-5.6-sol"}
-        return {"cwd": str(tmp_path), "worktree_path": str(tmp_path), "scope": str(tmp_path)}
+        return {
+            "id": "gate-requester", "cwd": str(tmp_path),
+            "worktree_path": str(tmp_path), "scope": str(tmp_path),
+        }
 
     monkeypatch.setattr(mcp, "_api", fake_api)
     monkeypatch.setattr(mcp, "WORKER_NAME", "gate-test")

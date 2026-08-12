@@ -539,10 +539,7 @@ def _spawn_delivery_error(
     )
 
 
-# `codex_review` собирает `codex exec` без `--model`, то есть берёт дефолт из
-# ~/.codex/config.toml. Ключа `model` там нет → семейство codex → лимит-id `codex`.
-# Проверено измерением: живой `codex exec` отказал по квоте, когда Spark был на 1% —
-# в Spark-бакет он не ходит. Этой же моделью тул представляется в докстринге.
+# `codex_review` пинит эту модель и в quota gate, и в самом CLI, и в телеметрии.
 _CODEX_REVIEW_MODEL = "gpt-5.6-sol"
 _READINESS_POLICY = "worker-weekly-v1"
 _READINESS_MAX_AGE_SECONDS = 300.0
@@ -2068,6 +2065,9 @@ async def codex_review(
     info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
     if isinstance(info, dict) and info.get("error"):
         return f"Error resolving worker cwd: {info['error']}"
+    requesting_session_id = str(info.get("id") or "").strip()
+    if not requesting_session_id:
+        return "Error resolving worker session id: respawn the worker"
     cwd = info.get("worktree_path") or info.get("cwd") or info.get("scope", SCOPE)
     output_abs = f"{cwd}/{output}" if not output.startswith("/") else output
 
@@ -2096,6 +2096,7 @@ async def codex_review(
     codex_bin = _codex_bin()
     if not codex_bin:
         return _CODEX_MISSING_HINT
+    codex_cli = f"{q(codex_bin)} -m {q(_CODEX_REVIEW_MODEL)}"
 
     if mode == "review":
         review_prompt = (
@@ -2106,7 +2107,7 @@ async def codex_review(
         # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
         # (so the stale-session recovery is APPENDED as a round, never overwrites prior rounds).
         fresh_review = (
-            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)}"
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
             f" -s danger-full-access -a never exec review"
             f" --skip-git-repo-check --json"
             f" -o {q(codex_out)} - < {q(prompt_file)}"
@@ -2122,7 +2123,7 @@ async def codex_review(
             # Stale/invalid UUID → resume fails → fall back to a fresh review (recovery).
             codex = (
                 f"printf '%s' {q(resume_prompt)} > {q(prompt_file)}; "
-                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)}"
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
                 f" -s danger-full-access -a never exec resume {q(prev_uuid)}"
                 f" --skip-git-repo-check --json"
                 f" -o {q(codex_out)} - < {q(prompt_file)}"
@@ -2153,7 +2154,7 @@ async def codex_review(
         subcmd = f"exec resume {q(prev_uuid)}" if is_resume else "exec"
         codex = (
             f"printf '%s' {q(exec_prompt)} > {q(prompt_file)}; "
-            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)}"
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
             f" -s danger-full-access -a never {subcmd}"
             f" --skip-git-repo-check --json"
             f" -o {q(codex_out)} - < {q(prompt_file)}"
@@ -2163,7 +2164,7 @@ async def codex_review(
             # without one the prompt has nothing concrete to review, so let resume fail loud.
             # Writes to codex_out (=round_tmp) so the recovery is appended, not overwriting history.
             fresh_exec = (
-                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {q(codex_bin)}"
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
                 f" -s danger-full-access -a never exec"
                 f" --skip-git-repo-check --json"
                 f" -o {q(codex_out)} - < {q(prompt_file)}"
@@ -2190,6 +2191,7 @@ async def codex_review(
 
     finalizer = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "codex_review_artifact.py")
+    usage_event_id = f"codex-review:{uuid.uuid4()}"
     finalize_args = [
         q(sys.executable), q(finalizer),
         "--output", q(output_abs),
@@ -2197,6 +2199,11 @@ async def codex_review(
         "--sessions-file", q(sessions_path),
         "--slug", q(slug),
         "--jsonl-file", q(jsonl_file),
+        "--usage-event-id", q(usage_event_id),
+        "--usage-session-id", q(requesting_session_id),
+        "--usage-scope", q(SCOPE),
+        "--usage-task-id", q(str(info.get("task_id") or "")),
+        "--usage-model", q(_CODEX_REVIEW_MODEL),
     ]
     if is_resume:
         finalize_args.append("--resume")
