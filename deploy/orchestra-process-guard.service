@@ -1,0 +1,32 @@
+[Unit]
+Description=Selective guard for Orchestra embedded search processes
+After=local-fs.target
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=/etc/orchestra-process-guard.conf
+ExecStartPre=/usr/local/libexec/orchestra-process-guard --check-config
+ExecStart=/usr/local/libexec/orchestra-process-guard
+ExecStopPost=/usr/local/libexec/orchestra-process-guard --thaw
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=orchestra-process-guard
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=restart
+StandardOutput=journal
+StandardError=journal
+UMask=0077
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=-/sys/fs/cgroup/system.slice/orchestra.service
+ReadWritePaths=/run/orchestra-process-guard
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=CAP_KILL CAP_SYS_PTRACE
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target
