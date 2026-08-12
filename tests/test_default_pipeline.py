@@ -282,6 +282,40 @@ class TestDefaultBuildSystemPrompt:
         assert "## Role: Full-Cycle Worker" not in out
 
 
+class TestTelegramFormattingOwnership:
+    """#221: Telegram presentation rules belong only to the user-facing role."""
+
+    OPEN = "<telegram-formatting>"
+    CLOSE = "</telegram-formatting>"
+    USER_ROLE = "orchestrator"
+    OTHER_ROLES = ("sub-orchestrator", "worker", "full-cycle")
+
+    def _source_block(self) -> tuple[str, list[str]]:
+        source = P.prompt_path(PIPELINE, "roles/orchestrator.md").read_text(encoding="utf-8")
+        start = source.find(self.OPEN)
+        end = source.find(self.CLOSE, start)
+        assert start != -1 and end != -1, "Telegram formatting section is missing from its owner"
+        block = source[start:end + len(self.CLOSE)]
+        clauses = [line.strip() for line in block.splitlines() if line.strip()]
+        assert len(clauses) >= 10, "Telegram formatting section is unexpectedly short"
+        return block, clauses
+
+    def test_every_source_clause_reaches_the_assembled_user_prompt(self):
+        """The source file, not hand-written test phrases, supplies the delivery anchors."""
+        _block, clauses = self._source_block()
+        assembled = P.build_system_prompt(PIPELINE, self.USER_ROLE)
+        for clause in clauses:
+            assert clause in assembled, f"Telegram formatting clause did not assemble: {clause!r}"
+
+    def test_telegram_formatting_does_not_leak_to_non_user_roles(self):
+        block, _clauses = self._source_block()
+        assert self.OPEN in P.build_system_prompt(PIPELINE, self.USER_ROLE)
+        for role in self.OTHER_ROLES:
+            assembled = P.build_system_prompt(PIPELINE, role)
+            assert self.OPEN not in assembled, f"Telegram rules leaked into {role}"
+            assert block not in assembled, f"Telegram rules leaked into {role}"
+
+
 # ── modules: инлайн переиспользуемых блоков после слоёв роли ────────────────
 
 class TestDefaultModulesInline:
