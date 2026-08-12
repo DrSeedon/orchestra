@@ -1036,6 +1036,28 @@ class TestClaudeBackendProfile:
         b = ClaudeBackend(model="opus", cwd="/tmp", system_prompt="x", **kw)
         return b._make_client().options
 
+    def _merged_servers(self, **kw):
+        """Слитый набор MCP-серверов — из ФАЙЛА конфига, куда он уезжает с #224.
+
+        Носитель сменился: `options.mcp_servers` теперь ПУТЬ, а не словарь, потому что dict
+        SDK сериализует прямо в argv, а `/proc/<pid>/cmdline` читает процесс любого uid.
+        Проверяемое свойство осталось прежним — порядок слияния user < scope < instance.
+        """
+        import json
+        import stat
+        from pathlib import Path
+
+        value = self._opts(**kw).mcp_servers
+        assert isinstance(value, (str, Path)), (
+            f"ожидался путь к файлу конфига, получен {type(value).__name__} — "
+            "значения секретов снова уедут в argv"
+        )
+        path = Path(value)
+        assert path.is_file(), f"файл конфига не создан: {path}"
+        mode = stat.S_IMODE(path.stat().st_mode)
+        assert mode == 0o600, f"права {oct(mode)}, ожидалось 0o600"
+        return json.loads(path.read_text())["mcpServers"]
+
     def test_config_dir_sets_env(self):
         opts = self._opts(config_dir="/tmp/x")
         assert opts.env["CLAUDE_CONFIG_DIR"] == "/tmp/x"
@@ -1072,24 +1094,27 @@ class TestClaudeBackendProfile:
         assert getattr(opts, "skills", None) is None
 
     def test_f2_user_mcp_merged(self):
-        opts = self._opts(user_mcp_servers={"foo": {"command": "x"}})
-        assert "foo" in opts.mcp_servers
+        servers = self._merged_servers(user_mcp_servers={"foo": {"command": "x"}})
+        assert "foo" in servers
+        assert servers["foo"]["command"] == "x"
 
     def test_f2_orchestra_not_overridden_by_user(self):
         # user-MCP — базовый слой; серверный orchestra (в mcp_servers) выигрывает.
-        opts = self._opts(
+        servers = self._merged_servers(
             user_mcp_servers={"orchestra": {"command": "USER"}},
             mcp_servers={"orchestra": {"command": "SERVER"}},
         )
-        assert opts.mcp_servers["orchestra"]["command"] == "SERVER"
+        assert servers["orchestra"]["command"] == "SERVER"
 
     def test_f2_user_and_server_coexist(self):
-        opts = self._opts(
+        servers = self._merged_servers(
             user_mcp_servers={"foo": {"command": "f"}},
             mcp_servers={"orchestra": {"command": "o"}},
         )
-        assert "foo" in opts.mcp_servers
-        assert "orchestra" in opts.mcp_servers
+        assert "foo" in servers
+        assert "orchestra" in servers
+        assert servers["foo"]["command"] == "f"
+        assert servers["orchestra"]["command"] == "o"
 
 
 class TestLoadUserMcpServers:
