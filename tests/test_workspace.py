@@ -489,6 +489,37 @@ class TestResolveBaseBranch:
         assert resolve_base_branch(str(git_repo), "trunk") == "trunk"
 
 
+class TestBranchWipStatus:
+    def test_diff_stats_ignore_base_changes_after_branch_point(self, git_repo, tmp_path):
+        from app.workspace import branch_wip_status
+
+        feature_path = tmp_path / "feature"
+        subprocess.run(
+            ["git", "worktree", "add", "-b", "feature", str(feature_path), "main"],
+            cwd=git_repo, capture_output=True, text=True, check=True,
+        )
+
+        (git_repo / "README.md").write_text("# test\nbase-only change\n")
+        subprocess.run(["git", "add", "README.md"], cwd=git_repo, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "advance main"],
+            cwd=git_repo, capture_output=True, check=True,
+        )
+
+        (feature_path / "worker-only.txt").write_text("worker line 1\nworker line 2\n")
+        subprocess.run(["git", "add", "worker-only.txt"], cwd=feature_path, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "worker changes"],
+            cwd=feature_path, capture_output=True, check=True,
+        )
+
+        result = branch_wip_status(str(feature_path), "main")
+        changed = {entry["path"]: entry for entry in result["changed_files"]}
+
+        assert changed.get("README.md", {}).get("deletions", 0) == 0
+        assert changed["worker-only.txt"]["insertions"] == 2
+
+
 class TestCreateWorktreeManifest:
     """worktree_cfg из манифеста: copies/symlinks вместо хардкода PROJECT_FILES."""
 

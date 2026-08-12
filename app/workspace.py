@@ -2324,7 +2324,7 @@ def branch_wip_status(worktree_path: str, base_ref: str = "") -> dict:
     unmerged = [l for l in log.stdout.strip().splitlines() if l.strip()]
 
     changed: dict[str, dict] = {}
-    for diff_range in (f"{base_ref}..HEAD", "HEAD"):
+    for diff_range in (f"{base_ref}...HEAD", "HEAD"):
         stat = _git_cmd(
             ["git", "diff", "--numstat", diff_range],
             cwd=str(wt), capture_output=True, text=True,
