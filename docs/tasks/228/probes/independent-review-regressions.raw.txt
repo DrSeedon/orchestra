@@ -1,0 +1,62 @@
+Task #228 independent-review regression mutations
+Date: 2026-08-12
+Oracle: docs/tasks/228/acceptance/test_payload_hooks_followup.py
+RED commits: 1b4af662 and 4b3e4787
+
+Each temporary mutation used `cp → mutate → pytest → mv → touch → grep → green
+repeat`. The details below retain the failing assertion and the restoration markers.
+
+=== Restore the rejected 0.25-second outer matcher timeout ===
+
+mutant_timeout_marker_count=1
+F..                                                                      [100%]
+AssertionError: The SDK/CLI default outer timeout must remain in force; the managed inner deadline owns fail-open latency
+E assert 0.25 is None
+1 failed, 2 passed in 1.21s
+mutation_exit=1
+restored_timeout_marker_count=0
+POST-ROLLBACK green repeat
+3 passed in 2.18s
+post_rollback_exit=0
+
+=== Consume newline as ordinary shlex whitespace ===
+
+mutant_newline_whitespace_marker_count=1
+.FF                                                                      [100%]
+E AssertionError: set -e\nrm -rf /tmp/x
+E assert None == 'recursive_rm'
+E assert None == 'recursive_rm' for the post-heredoc command
+2 failed, 1 passed in 2.20s
+mutation_exit=1
+restored_newline_whitespace_marker_count=0
+restored_preserve_newline_marker_count=1
+POST-ROLLBACK green repeat
+3 passed in 2.28s
+post_rollback_exit=0
+
+=== Restore both rejected GNU rm option rules ===
+
+Mutation: stop at the first operand and require exact `--recursive`.
+.F.                                                                      [100%]
+E AssertionError: cd /tmp\nrm /tmp/x -rf
+E assert None == 'recursive_rm'
+1 failed, 2 passed in 2.27s
+mutation_exit=1
+restored_exact_long_marker_count=0
+restored_abbrev_marker_count=1
+POST-ROLLBACK green repeat
+3 passed in 2.22s
+post_rollback_exit=0
+
+=== Restore exact-only long rm option independently ===
+
+Mutation: replace prefix recognition with `token == "--recursive"`.
+.F.                                                                      [100%]
+E AssertionError: true\nrm --r /tmp/x
+E assert None == 'recursive_rm'
+1 failed, 2 passed in 2.47s
+mutation_exit=1
+restored_abbrev_marker_count=1
+POST-ROLLBACK green repeat
+3 passed in 2.04s
+post_rollback_exit=0

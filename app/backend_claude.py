@@ -6,6 +6,7 @@ import json as _json
 import logging
 import os
 import re
+import shlex
 import shutil
 import time
 import uuid
@@ -15,6 +16,7 @@ from typing import AsyncIterator, Optional
 from claude_agent_sdk import (
     ClaudeSDKClient,
     ClaudeAgentOptions,
+    HookMatcher,
     AssistantMessage,
     ResultMessage,
     TextBlock,
@@ -48,6 +50,7 @@ from app.usage_contract import AggregateUsage, TurnUsage, deferred_context
 logger = logging.getLogger(__name__)
 
 CLAUDE_INTERRUPT_TIMEOUT = 5.0
+_BASH_CLASSIFIER_TIMEOUT = 0.1
 
 _BLOCKED_TOOLS = {"AskUserQuestion", "Monitor"}
 _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
@@ -80,12 +83,263 @@ def _make_auto_approve(is_orchestrator: bool = False):
         if tool_name in blocked:
             msg = f"{tool_name} is not available for orchestrators. Use spawn_worker instead." if tool_name == "Agent" else f"{tool_name} is not available in Orchestra."
             return PermissionResultDeny(message=msg)
-        if isinstance(tool_input, dict) and tool_input.get("run_in_background"):
-            # run_in_background spawns a detached process that dies when the CLI turn ends —
-            # use bg_create MCP tool instead for actual background work
-            return PermissionResultDeny(message="run_in_background is disabled in Orchestra — background processes are killed when your turn ends. Run synchronously instead.")
         return PermissionResultAllow(updated_input=tool_input)
     return _auto_approve
+
+
+_BASH_CLASSIFICATIONS = {"recursive_rm", "world_writable", "curl_pipe_shell"}
+_BASH_SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "\n"}
+_BASH_PUNCTUATION = set("();<>|&\n")
+
+
+class _InvalidBashClassification(Exception):
+    pass
+
+
+def _command_basename(segment: list[str]) -> str | None:
+    if not segment:
+        return None
+    command = segment[0]
+    if not command or command.startswith("-"):
+        return None
+    return os.path.basename(command)
+
+
+def _split_bash_punctuation(tokens: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for token in tokens:
+        if not token or any(char not in _BASH_PUNCTUATION for char in token):
+            normalized.append(token)
+            continue
+        index = 0
+        while index < len(token):
+            pair = token[index:index + 2]
+            if pair in {"&&", "||"}:
+                normalized.append(pair)
+                index += 2
+            else:
+                normalized.append(token[index])
+                index += 1
+    return normalized
+
+
+def _heredoc_declarations(
+    line: str, quote: str | None
+) -> tuple[list[tuple[str, bool]], str | None]:
+    declarations: list[tuple[str, bool]] = []
+    index = 0
+    while index < len(line):
+        char = line[index]
+        if quote is not None:
+            if quote == '"' and char == "\\":
+                index += 2
+                continue
+            if char == quote:
+                quote = None
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            index += 1
+            continue
+        if char == "\\":
+            index += 2
+            continue
+        if char == "#" and (
+            index == 0 or line[index - 1].isspace() or line[index - 1] in ";&|()"
+        ):
+            break
+        if not line.startswith("<<", index) or line.startswith("<<<", index):
+            index += 1
+            continue
+
+        cursor = index + 2
+        strip_tabs = cursor < len(line) and line[cursor] == "-"
+        cursor += strip_tabs
+        while cursor < len(line) and line[cursor] in " \t":
+            cursor += 1
+        delimiter: list[str] = []
+        word_quote: str | None = None
+        while cursor < len(line):
+            token_char = line[cursor]
+            if word_quote is not None:
+                if word_quote == '"' and token_char == "\\" and cursor + 1 < len(line):
+                    delimiter.append(line[cursor + 1])
+                    cursor += 2
+                    continue
+                if token_char == word_quote:
+                    word_quote = None
+                else:
+                    delimiter.append(token_char)
+                cursor += 1
+                continue
+            if token_char in {"'", '"'}:
+                word_quote = token_char
+                cursor += 1
+                continue
+            if token_char == "\\" and cursor + 1 < len(line):
+                delimiter.append(line[cursor + 1])
+                cursor += 2
+                continue
+            if token_char.isspace() or token_char in ";&|()<>":
+                break
+            delimiter.append(token_char)
+            cursor += 1
+        if delimiter:
+            declarations.append(("".join(delimiter), strip_tabs))
+        index = max(cursor, index + 2)
+    return declarations, quote
+
+
+def _without_heredoc_bodies(command: str) -> str:
+    pending: list[tuple[str, bool]] = []
+    quote: str | None = None
+    output: list[str] = []
+    for line in command.splitlines(keepends=True):
+        if pending:
+            candidate = line.rstrip("\r\n")
+            delimiter, strip_tabs = pending[0]
+            if strip_tabs:
+                candidate = candidate.lstrip("\t")
+            if candidate == delimiter:
+                pending.pop(0)
+            if line.endswith(("\n", "\r")):
+                output.append("\n")
+            continue
+        output.append(line)
+        declarations, quote = _heredoc_declarations(line, quote)
+        pending.extend(declarations)
+    return "".join(output)
+
+
+def _bash_segments(tokens: list[str]) -> tuple[list[list[str]], list[str | None]]:
+    segments: list[list[str]] = []
+    leading_separators: list[str | None] = []
+    current: list[str] = []
+    pending_separator: str | None = None
+    for token in tokens:
+        if token in _BASH_SEPARATORS:
+            if current:
+                segments.append(current)
+                leading_separators.append(pending_separator)
+                current = []
+                pending_separator = token
+            elif token not in {"(", ")"} and not (
+                token == "\n" and pending_separator is not None
+            ):
+                pending_separator = token
+        else:
+            current.append(token)
+    if current:
+        segments.append(current)
+        leading_separators.append(pending_separator)
+    return segments, leading_separators
+
+
+def _classify_bash_payload(tool_input: dict) -> str | None:
+    """Classify the small, deliberately conservative Bash grammar used by the pilot."""
+    if not isinstance(tool_input, dict):
+        return None
+    command = tool_input.get("command")
+    if not isinstance(command, str):
+        return None
+    command = _without_heredoc_bodies(command)
+    lexer = shlex.shlex(command, posix=True, punctuation_chars="();<>|&\n")
+    lexer.whitespace_split = True
+    lexer.whitespace = " \t\r"
+    lexer.commenters = ""
+    tokens = _split_bash_punctuation(list(lexer))
+    segments, leading_separators = _bash_segments(tokens)
+
+    for segment in segments:
+        name = _command_basename(segment)
+        if name == "rm":
+            for token in segment[1:]:
+                if token == "--":
+                    break
+                if token.startswith("--"):
+                    if len(token) >= 3 and "--recursive".startswith(token):
+                        return "recursive_rm"
+                    continue
+                if token.startswith("-") and "r" in token[1:].lower():
+                    return "recursive_rm"
+        elif name == "chmod":
+            options_done = False
+            for token in segment[1:]:
+                if not options_done and token == "--":
+                    options_done = True
+                    continue
+                if not options_done and token.startswith("--reference="):
+                    break
+                if not options_done and token.startswith("-"):
+                    continue
+                if token in {"777", "0777"}:
+                    return "world_writable"
+                break
+
+    for index in range(len(segments) - 1):
+        if leading_separators[index + 1] != "|":
+            continue
+        if _command_basename(segments[index]) != "curl":
+            continue
+        if _command_basename(segments[index + 1]) in {"sh", "bash"}:
+            return "curl_pipe_shell"
+    return None
+
+
+def _pretool_output(classification: str | None = None) -> dict:
+    decision: dict = {"hookEventName": "PreToolUse"}
+    reasons = {
+        "background": "run_in_background is blocked; use bg_create(type=run) instead.",
+        "recursive_rm": "Recursive rm is blocked; move targets to trash instead.",
+        "world_writable": "World-writable chmod is blocked; use a least-privilege mode.",
+        "curl_pipe_shell": "Direct curl-to-shell is blocked; inspect downloaded content first.",
+    }
+    if classification in reasons:
+        decision["permissionDecision"] = "deny"
+        decision["permissionDecisionReason"] = reasons[classification]
+    return {"hookSpecificOutput": decision}
+
+
+def _make_pretooluse_hooks(classifier):
+    if not callable(classifier):
+        logger.error("managed Bash PreToolUse hook unavailable; failed open: classifier is not callable")
+        return None
+
+    # Resolve the module-level classifier at call time so a live hook cannot retain a
+    # stale implementation after a controlled code reload, and tests can exercise failures.
+    uses_module_classifier = classifier is _classify_bash_payload
+
+    async def _bash_pretooluse(payload, _tool_use_id=None, _context=None):
+        tool_input = payload.get("tool_input") if isinstance(payload, dict) else {}
+        try:
+            if isinstance(tool_input, dict) and tool_input.get("run_in_background") is True:
+                return _pretool_output("background")
+            active_classifier = globals().get("_classify_bash_payload") if uses_module_classifier else classifier
+            result = await asyncio.wait_for(
+                asyncio.to_thread(active_classifier, tool_input),
+                timeout=_BASH_CLASSIFIER_TIMEOUT,
+            )
+            if result is not None and (
+                not isinstance(result, str) or result not in _BASH_CLASSIFICATIONS
+            ):
+                raise _InvalidBashClassification
+            return _pretool_output(result)
+        except asyncio.TimeoutError as exc:
+            logger.error(
+                "managed Bash PreToolUse failed open (%s): classifier deadline exceeded",
+                type(exc).__name__,
+            )
+        except _InvalidBashClassification:
+            logger.error("managed Bash PreToolUse failed open: invalid classifier result")
+        except Exception as exc:
+            logger.error(
+                "managed Bash PreToolUse failed open (%s): classifier failure",
+                type(exc).__name__,
+            )
+        return _pretool_output()
+
+    return [HookMatcher(matcher="Bash", hooks=[_bash_pretooluse])]
 
 
 def _disallowed_tools(is_orchestrator: bool) -> list[str]:
@@ -272,10 +526,12 @@ class ClaudeBackend:
         if self._config_dir:
             env["CLAUDE_CONFIG_DIR"] = os.path.expanduser(self._config_dir)
         agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
+        pretooluse_hooks = _make_pretooluse_hooks(_classify_bash_payload)
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
             disallowed_tools=_disallowed_tools(self._is_orchestrator),
+            hooks={"PreToolUse": pretooluse_hooks} if pretooluse_hooks is not None else None,
             include_partial_messages=True, max_turns=200,
             max_buffer_size=50 * 1024 * 1024,
             env=env,

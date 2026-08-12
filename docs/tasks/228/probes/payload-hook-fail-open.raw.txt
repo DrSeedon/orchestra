@@ -1,0 +1,19 @@
+Task #228 managed hook fail-open probe, 2026-08-12
+
+The probe invoked the installed callback with classifiers that raised, returned an
+unknown object, or exceeded the internal deadline, then invoked the factory with
+no classifier. Logging was configured at ERROR.
+
+ERROR app.backend_claude: managed Bash PreToolUse failed open (RuntimeError): classifier failure
+ERROR app.backend_claude: managed Bash PreToolUse failed open: invalid classifier result
+ERROR app.backend_claude: managed Bash PreToolUse failed open (TimeoutError): classifier deadline exceeded
+ERROR app.backend_claude: managed Bash PreToolUse hook unavailable; failed open: classifier is not callable
+exception: continued=True output={'hookEventName': 'PreToolUse'}
+invalid: continued=True output={'hookEventName': 'PreToolUse'}
+timeout: continued=True output={'hookEventName': 'PreToolUse'}
+missing: hooks=None continued=True
+
+`continued=True` means the hook output omitted `permissionDecision`, so the normal
+permission resolver continues. The frozen acceptance test additionally executed a
+harmless `bash -c` marker after every one of these outputs and asserted its contents;
+that test passed 3/3. No payload was present in the ERROR messages.

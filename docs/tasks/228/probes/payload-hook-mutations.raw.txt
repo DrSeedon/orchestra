@@ -1,0 +1,51 @@
+Task #228 post-implementation mutation checks
+Date: 2026-08-12
+Oracle: docs/tasks/228/acceptance/test_payload_hooks.py at 0d65d987
+
+Every mutation used one shell command with this lifecycle:
+  cp app/backend_claude.py app/backend_claude.py.bak
+  mutate
+  run frozen oracle
+  mv app/backend_claude.py.bak app/backend_claude.py
+  touch app/backend_claude.py
+  grep restored marker
+  repeat frozen oracle green
+
+=== Single mutation: remove _make_client hook wiring ===
+
+MUTATION single: remove _make_client hook wiring
+FF.                                                                      [100%]
+FAILED docs/tasks/228/acceptance/test_payload_hooks.py::test_t1_pretooluse_enforces_selected_bash_payloads
+FAILED docs/tasks/228/acceptance/test_payload_hooks.py::test_t1_hook_failures_are_loud_and_fail_open
+2 failed, 1 passed in 1.24s
+mutation_exit=1
+restored_wiring_marker_count=1
+POST-ROLLBACK green repeat
+...                                                                      [100%]
+3 passed in 1.67s
+post_rollback_exit=0
+
+Both failures stopped at the frozen wiring assertion:
+  AssertionError: ClaudeBackend must install exactly one mandatory PreToolUse matcher for Bash
+  assert 0 == 1
+
+=== Composite mutation: remove hook wiring + restore payload guard in can_use_tool ===
+
+MUTATION composite: remove hook wiring + restore payload guard in can_use_tool
+mutant_can_use_payload_marker_count=1
+FF.                                                                      [100%]
+FAILED docs/tasks/228/acceptance/test_payload_hooks.py::test_t1_pretooluse_enforces_selected_bash_payloads
+FAILED docs/tasks/228/acceptance/test_payload_hooks.py::test_t1_hook_failures_are_loud_and_fail_open
+2 failed, 1 passed in 1.27s
+mutation_exit=1
+restored_wiring_marker_count=1
+restored_can_use_payload_marker_count=0
+POST-ROLLBACK green repeat
+...                                                                      [100%]
+3 passed in 1.52s
+post_rollback_exit=0
+
+Both failures again stopped at the same frozen wiring assertion (`assert 0 == 1`).
+The restored `can_use_tool` payload branch therefore did not substitute for the missing
+mandatory `PreToolUse` seam. The rollback marker checks and final green repeats prove
+that neither mutant remained in the working file or CPython bytecode cache.
