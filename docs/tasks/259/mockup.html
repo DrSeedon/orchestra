@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>#259 — понятный дашборд</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --page: light-dark(#e9eef2, #071017);
+      --surface: light-dark(#ffffff, #0b151f);
+      --surface-2: light-dark(#f3f6f8, #101d28);
+      --surface-3: light-dark(#e8eef2, #152532);
+      --line: light-dark(#cdd7de, #233746);
+      --line-strong: light-dark(#9fb0bc, #385268);
+      --text: light-dark(#12212b, #e5f0f5);
+      --muted: light-dark(#5c6e78, #8296a4);
+      --quiet: light-dark(#7b8a93, #607685);
+      --cyan: light-dark(#087e8b, #56d8e6);
+      --green: light-dark(#08783f, #48d98b);
+      --amber: light-dark(#9a6500, #f0bd55);
+      --red: light-dark(#ad2e3f, #ff7382);
+      --blue: light-dark(#245da8, #70a7f5);
+      --purple: light-dark(#7051a8, #b79bf2);
+      --shadow: 0 18px 48px color-mix(in srgb, #000 18%, transparent);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body { background: var(--page); color: var(--text); }
+    button { font: inherit; }
+    code, .mono { font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+
+    .report-head {
+      height: 72px;
+      padding: 0 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .report-title { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .report-kicker {
+      padding: 5px 8px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 45%, var(--line));
+      border-radius: 6px;
+      color: var(--cyan);
+      font: 700 11px/1.2 "JetBrains Mono", Consolas, monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
+    .report-sub { color: var(--muted); font-size: 13px; }
+
+    .mode-switch {
+      display: flex;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+    .mode-switch button {
+      border: 0;
+      border-radius: 5px;
+      padding: 8px 16px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 650;
+      font-size: 13px;
+    }
+    .mode-switch button[aria-selected="true"] {
+      color: var(--text);
+      background: var(--surface);
+      box-shadow: 0 1px 4px color-mix(in srgb, #000 16%, transparent);
+    }
+
+    .canvas { padding: 20px 28px 34px; }
+    .change-strip {
+      max-width: 1864px;
+      margin: 0 auto 12px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .change {
+      min-height: 54px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+    }
+    .change b { display: block; font-size: 12px; margin-bottom: 3px; }
+    .change span { display: block; color: var(--muted); font-size: 11px; line-height: 1.35; }
+    .change .n { color: var(--cyan); margin-right: 5px; font-family: "JetBrains Mono", Consolas, monospace; }
+
+    .dashboard {
+      width: min(1864px, 100%);
+      height: 850px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-rows: 58px minmax(0, 1fr);
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .quota-bar {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-2);
+      white-space: nowrap;
+    }
+    .brand { font-weight: 800; letter-spacing: -.02em; margin-right: 4px; }
+    .quota {
+      min-width: 138px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 7px;
+      align-items: center;
+      font-size: 11px;
+    }
+    .quota-name { color: var(--muted); font-weight: 700; }
+    .meter { height: 4px; background: var(--surface-3); border-radius: 99px; overflow: hidden; }
+    .meter i { display: block; height: 100%; background: var(--green); }
+    .quota:nth-of-type(3) .meter i { background: var(--cyan); }
+    .quota:nth-of-type(4) .meter i { background: var(--amber); }
+    .unchanged {
+      margin-left: auto;
+      color: var(--green);
+      border: 1px solid color-mix(in srgb, var(--green) 35%, var(--line));
+      padding: 4px 7px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 224px minmax(540px, 1fr) 342px;
+    }
+    .file-panel, .agent-panel { min-height: 0; background: var(--surface); }
+    .file-panel { border-right: 1px solid var(--line); }
+    .agent-panel { border-left: 1px solid var(--line); display: flex; flex-direction: column; }
+    .panel-head {
+      min-height: 49px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-head strong { font-size: 13px; }
+    .small { font-size: 11px; color: var(--muted); }
+    .file-tree { padding: 10px 12px; font: 11px/1.8 "JetBrains Mono", Consolas, monospace; color: var(--muted); }
+    .file-tree .open { color: var(--text); }
+    .file-tree .selected { color: var(--cyan); background: var(--surface-2); border-radius: 4px; padding: 1px 4px; }
+
+    .chat-panel { min-width: 0; min-height: 0; display: grid; grid-template-rows: 49px minmax(0, 1fr) 64px; }
+    .chat-head {
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+    }
+    .chat-head strong { font-size: 13px; }
+    .chat-head .live { color: var(--green); font-size: 11px; }
+    .chat-scroll { min-height: 0; overflow: hidden; padding: 18px 24px; background: color-mix(in srgb, var(--surface) 92%, var(--page)); }
+    .composer { padding: 10px 14px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
+    .composer .input { flex: 1; border: 1px solid var(--line); background: var(--surface-2); color: var(--quiet); border-radius: 7px; padding: 10px 12px; font-size: 12px; }
+    .composer .send { border: 0; background: var(--cyan); color: #042026; border-radius: 7px; padding: 0 18px; font-weight: 800; }
+
+    .bubble { max-width: 82%; margin-bottom: 12px; border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.45; }
+    .bubble.user { margin-left: auto; border: 1px solid color-mix(in srgb, var(--cyan) 40%, var(--line)); background: color-mix(in srgb, var(--cyan) 10%, var(--surface)); }
+    .meta { color: var(--muted); font-size: 10px; margin-bottom: 4px; font-weight: 700; }
+
+    .sys-line { margin: 7px 0; text-align: center; color: var(--quiet); font: 10px/1.4 "JetBrains Mono", Consolas, monospace; }
+    .sys-rollup {
+      width: max-content;
+      max-width: 100%;
+      margin: 8px auto 12px;
+      padding: 5px 9px;
+      border: 1px solid var(--line);
+      border-radius: 99px;
+      color: var(--muted);
+      background: var(--surface-2);
+      font-size: 10px;
+    }
+
+    .tool-card {
+      margin: 10px 0;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--cyan);
+      border-radius: 7px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+    .tool-title { padding: 9px 11px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); font-size: 12px; }
+    .tool-title strong { color: var(--cyan); }
+    .tool-time { margin-left: auto; color: var(--quiet); font: 9px "JetBrains Mono", Consolas, monospace; }
+    .raw-json { margin: 0; padding: 12px; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; font: 10px/1.55 "JetBrains Mono", Consolas, monospace; }
+    .raw-grid { padding: 10px 12px; display: grid; grid-template-columns: 76px 1fr; gap: 5px 8px; font: 10px/1.45 "JetBrains Mono", Consolas, monospace; }
+    .raw-grid i { font-style: normal; color: var(--quiet); }
+    .raw-grid b { font-weight: 500; color: var(--text); }
+
+    .task-body { padding: 12px 13px 11px; }
+    .task-top { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+    .task-title { font-weight: 750; font-size: 13px; line-height: 1.35; }
+    .task-description { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .chip { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 99px; padding: 3px 7px; font-size: 9px; font-weight: 750; white-space: nowrap; }
+    .chip.red { border-color: color-mix(in srgb, var(--red) 48%, var(--line)); color: var(--red); background: color-mix(in srgb, var(--red) 8%, transparent); }
+    .chip.green { border-color: color-mix(in srgb, var(--green) 42%, var(--line)); color: var(--green); }
+    .chip.amber { border-color: color-mix(in srgb, var(--amber) 42%, var(--line)); color: var(--amber); }
+    .chip.blue { color: var(--blue); }
+    .details-link { margin-top: 9px; color: var(--quiet); font-size: 10px; }
+
+    .agents-result { padding: 11px 13px; }
+    .result-counts { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 9px; }
+    .attention-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 5px; background: color-mix(in srgb, var(--amber) 8%, var(--surface)); font-size: 11px; }
+    .attention-row b { color: var(--amber); }
+
+    .agent-summary { padding: 10px 11px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+    .summary-counts { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+    .filters { display: flex; gap: 4px; }
+    .filter { border: 1px solid var(--line); border-radius: 5px; padding: 5px 7px; color: var(--muted); background: var(--surface); font-size: 9px; }
+    .filter.active { border-color: color-mix(in srgb, var(--cyan) 45%, var(--line)); color: var(--cyan); }
+    .attention-box { margin-top: 9px; padding: 8px; border: 1px solid color-mix(in srgb, var(--amber) 36%, var(--line)); border-radius: 6px; background: color-mix(in srgb, var(--amber) 7%, transparent); }
+    .attention-box b { display: block; color: var(--amber); font-size: 10px; margin-bottom: 4px; }
+    .attention-box span { font-size: 10px; color: var(--text); }
+
+    .agents { min-height: 0; overflow: hidden; padding: 8px; }
+    .agent { position: relative; margin-bottom: 5px; padding: 8px 9px 7px 12px; border: 1px solid transparent; border-left: 3px solid var(--blue); border-radius: 6px; background: var(--surface-2); }
+    .agent.selected { border-color: color-mix(in srgb, var(--cyan) 42%, var(--line)); border-left-color: var(--cyan); }
+    .agent.child { margin-left: 18px; }
+    .agent-line { display: flex; gap: 6px; align-items: center; font-size: 11px; }
+    .agent-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+    .agent-status { margin-left: auto; font: 700 9px "JetBrains Mono", Consolas, monospace; }
+    .agent-status.run { color: var(--green); }
+    .agent-status.wait { color: var(--amber); }
+    .agent-status.idle { color: var(--quiet); }
+    .agent-detail { display: flex; align-items: center; gap: 5px; margin-top: 5px; color: var(--quiet); font-size: 9px; }
+    .agent-detail .cost { margin-left: auto; color: var(--green); }
+    .progress { height: 3px; margin-top: 6px; border-radius: 9px; background: var(--surface-3); overflow: hidden; }
+    .progress i { display: block; height: 100%; background: var(--green); }
+
+    .before-only, .after-only { display: block; }
+    body[data-mode="before"] .after-only { display: none !important; }
+    body[data-mode="after"] .before-only { display: none !important; }
+    body[data-mode="before"] .change-strip { opacity: .45; }
+    body[data-mode="before"] .dashboard { outline: 2px solid color-mix(in srgb, var(--red) 28%, transparent); }
+    body[data-mode="after"] .dashboard { outline: 2px solid color-mix(in srgb, var(--green) 28%, transparent); }
+
+    .notes {
+      max-width: 1180px;
+      margin: 36px auto 0;
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 18px;
+    }
+    .note-card { padding: 20px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+    .note-card h2 { margin: 0 0 10px; font-size: 16px; }
+    .note-card p, .note-card li { color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .note-card ul { margin: 8px 0 0; padding-left: 18px; }
+
+    @media (max-width: 1180px) {
+      .change-strip { grid-template-columns: repeat(2, 1fr); }
+      .workspace { grid-template-columns: 180px minmax(460px, 1fr) 300px; }
+      .quota { min-width: 115px; }
+    }
+    @media (max-width: 860px) {
+      .report-head { height: auto; padding: 14px; align-items: flex-start; }
+      .report-sub { display: none; }
+      .canvas { padding: 12px; overflow-x: auto; }
+      .change-strip, .dashboard { min-width: 980px; }
+      .notes { grid-template-columns: 1fr; }
+    }
+    @media print {
+      :root { color-scheme: light; }
+      .mode-switch { display: none; }
+      .canvas { padding: 10px 0; }
+      .dashboard { box-shadow: none; break-inside: avoid; }
+      .notes { break-before: page; }
+    }
+  </style>
+</head>
+<body data-mode="after">
+  <header class="report-head">
+    <div class="report-title">
+      <span class="report-kicker">UX proposal · #259</span>
+      <div>
+        <h1>Понятнее — значит показывать исход, а не внутренности</h1>
+        <div class="report-sub">Тот же дашборд, те же лимиты и статусы. Меняется иерархия информации.</div>
+      </div>
+    </div>
+    <div class="mode-switch" role="tablist" aria-label="Сравнение макета">
+      <button type="button" data-set-mode="before" role="tab" aria-selected="false">Сейчас</button>
+      <button type="button" data-set-mode="after" role="tab" aria-selected="true">Предлагаю</button>
+    </div>
+  </header>
+
+  <main class="canvas">
+    <section class="change-strip" aria-label="Четыре изменения">
+      <div class="change"><b><span class="n">01</span>Верные пары</b><span>Результат остаётся у своего tool_use_id</span></div>
+      <div class="change"><b><span class="n">02</span>Человеческие карточки</b><span>Действие и исход вместо par / id / price_rub</span></div>
+      <div class="change"><b><span class="n">03</span>Куда смотреть</b><span>Работают, ждут и сломаны — над деревом</span></div>
+      <div class="change"><b><span class="n">04</span>Тише фон</b><span>Штатный lifecycle свёрнут, аварии остаются громкими</span></div>
+    </section>
+
+    <section class="dashboard" aria-label="Макет дашборда">
+      <div class="quota-bar">
+        <div class="brand">Orchestra</div>
+        <div class="quota"><span class="quota-name">Claude 5h</span><span class="meter"><i style="width:51%"></i></span><b>51%</b></div>
+        <div class="quota"><span class="quota-name">Codex 5h</span><span class="meter"><i style="width:27%"></i></span><b>27%</b></div>
+        <div class="quota"><span class="quota-name">Grok window</span><span class="meter"><i style="width:64%"></i></span><b>64%</b></div>
+        <span class="unchanged">без изменений</span>
+      </div>
+
+      <div class="workspace">
+        <aside class="file-panel">
+          <div class="panel-head"><strong>FILES</strong><span class="small">⌕</span></div>
+          <div class="file-tree">
+            <div class="open">▾ app</div>
+            <div>　▸ routes</div>
+            <div>　▾ static</div>
+            <div class="selected">　　app.js</div>
+            <div>　▸ templates</div>
+            <div class="open">▾ docs</div>
+            <div>　▸ tasks</div>
+            <div>　AGENTS.md</div>
+            <div>　CHANGELOG.md</div>
+          </div>
+        </aside>
+
+        <section class="chat-panel">
+          <div class="chat-head">
+            <strong>Orchestra-orchestrator</strong>
+            <span class="live">● waiting</span>
+          </div>
+          <div class="chat-scroll">
+            <div class="bubble user">
+              <div class="meta">Вы · 10:00</div>
+              крч фронт покрасивее надо, по понятнее
+            </div>
+
+            <div class="before-only">
+              <div class="sys-line">⚡ turn ended (end_turn, 15 turns, $2.49 turn, $84.55 session, ctx:32%)</div>
+              <div class="sys-line">⚡ waiting for bg jobs</div>
+              <div class="tool-card">
+                <div class="tool-title"><strong>🎼 Agents</strong><span class="tool-time">10:00:12</span></div>
+                <pre class="raw-json">{"par":"257","id":341,"title":"Маркер тихого хода: агенту нечего сказать — юзер не должен видеть мусорный символ","project":"/home/kesha/orchestra","price_rub":0,"status":"new","description":"Идея юзера 13.08...","assignee":"","priority":2,"task_id":341}</pre>
+              </div>
+              <div class="tool-card">
+                <div class="tool-title"><strong>🎼 worker_wip</strong><span class="small">name　fix-grep-guard</span><span class="tool-time">10:00:55</span></div>
+                <div class="raw-grid">
+                  <i>par</i><b>258</b><i>id</i><b>342</b><i>title</i><b>orphan sweep убивает по устаревшему PID из БД без проверки личности процесса</b>
+                  <i>project</i><b>/home/kesha/orchestra</b><i>price_rub</i><b>0</b><i>status</i><b>new</b><i>priority</i><b>0</b><i>task_id</i><b>342</b>
+                </div>
+              </div>
+            </div>
+
+            <div class="after-only">
+              <div class="sys-rollup">✓ Ход завершён · ожидаются фоновые результаты　⌄</div>
+              <div class="tool-card">
+                <div class="tool-title"><strong>📋 Задача #258 создана</strong><span class="tool-time">10:00:55</span></div>
+                <div class="task-body">
+                  <div class="task-top"><span class="chip red">Critical</span><span class="chip blue">New</span><span class="small">orchestra</span></div>
+                  <div class="task-title">orphan sweep убивает по устаревшему PID без проверки личности процесса</div>
+                  <div class="task-description">Найдено при аудите cli_pid. Устаревший PID может быть переиспользован другим процессом…</div>
+                  <div class="details-link">Технические детали　⌄</div>
+                </div>
+              </div>
+              <div class="tool-card">
+                <div class="tool-title"><strong>🎼 Агенты</strong><span class="tool-time">10:00:56</span></div>
+                <div class="agents-result">
+                  <div class="result-counts"><span class="chip green">9 работают</span><span class="chip amber">1 ждёт</span><span class="chip">0 сломано</span><span class="chip">23 всего</span></div>
+                  <div class="attention-row"><b>Нужно внимание</b><span>Orchestra-orchestrator ждёт фоновые результаты</span></div>
+                  <div class="details-link">Показать всех агентов　⌄</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="composer"><div class="input">Сообщение агенту…</div><button class="send">Send</button></div>
+        </section>
+
+        <aside class="agent-panel">
+          <div class="panel-head"><strong>AGENTS</strong><span class="small">Orchestra · 23</span></div>
+          <div class="agent-summary after-only">
+            <div class="summary-counts"><span class="chip green">9 работают</span><span class="chip amber">1 ждёт</span><span class="chip">0 сломано</span></div>
+            <div class="filters"><button class="filter active">Все 23</button><button class="filter">Внимание 1</button><button class="filter">Работают 9</button></div>
+            <div class="attention-box"><b>ТРЕБУЕТ ВНИМАНИЯ</b><span>👑 Orchestra-orchestrator · waiting</span></div>
+          </div>
+          <div class="agents">
+            <div class="agent selected">
+              <div class="agent-line"><span>👑</span><span class="agent-name">Orchestra-orchestrator</span><span class="agent-status wait">waiting</span></div>
+              <div class="agent-detail"><span>Opus 5</span><span>ctx 35%</span><span class="cost">$795.33</span></div><div class="progress"><i style="width:35%"></i></div>
+            </div>
+            <div class="agent child">
+              <div class="agent-line"><span>⚙</span><span class="agent-name">back</span><span class="agent-status run">running</span></div>
+              <div class="agent-detail"><span>GPT-5.6 Sol</span><span>ctx 76%</span><span class="cost">$242.70</span></div><div class="progress"><i style="width:76%"></i></div>
+            </div>
+            <div class="agent child">
+              <div class="agent-line"><span>⚙</span><span class="agent-name">frontend</span><span class="agent-status run">running</span></div>
+              <div class="agent-detail"><span>GPT-5.6 Sol</span><span>ctx 61%</span><span class="cost">$204.82</span></div><div class="progress"><i style="width:61%"></i></div>
+            </div>
+            <div class="agent child">
+              <div class="agent-line"><span>↪</span><span class="agent-name">prompt-engineer</span><span class="agent-status run">running</span></div>
+              <div class="agent-detail"><span>GPT-5.6 Sol</span><span>ctx 84%</span><span class="cost">$105.67</span></div><div class="progress"><i style="width:84%"></i></div>
+            </div>
+            <div class="agent child">
+              <div class="agent-line"><span>↪</span><span class="agent-name">feat-runtime-switch</span><span class="agent-status idle">idle</span></div>
+              <div class="agent-detail"><span>GPT-5.6 Sol</span><span>cache +1h30m</span><span class="cost">$96.52</span></div><div class="progress"><i style="width:28%"></i></div>
+            </div>
+            <div class="agent child">
+              <div class="agent-line"><span>↪</span><span class="agent-name">feat-review-council</span><span class="agent-status run">running</span></div>
+              <div class="agent-detail"><span>GPT-5.6 Sol</span><span>ctx 18%</span><span class="cost">$63.73</span></div><div class="progress"><i style="width:18%"></i></div>
+            </div>
+            <div class="agent child before-only">
+              <div class="agent-line"><span>↪</span><span class="agent-name">quota-routing</span><span class="agent-status idle">idle</span></div>
+              <div class="agent-detail"><span>GPT-5.6 Sol</span><span>cache +2h23m</span><span class="cost">$81.16</span></div><div class="progress"><i style="width:57%"></i></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="notes">
+      <article class="note-card">
+        <h2>Порядок внедрения</h2>
+        <ul>
+          <li><b>P0:</b> сначала исправить связь result ↔ call. Иначе красивая карточка уверенно соврёт.</li>
+          <li><b>P1:</b> затем подключить существующий task formatter и отдельный summary для list_agents.</li>
+          <li><b>P2–P3:</b> после этого — фильтр внимания и узкий whitelist сворачиваемых lifecycle-строк.</li>
+        </ul>
+      </article>
+      <article class="note-card">
+        <h2>Что остаётся как есть</h2>
+        <p>Полоса лимитов, дерево родитель→воркер, статусы, модель, контекст, cache и стоимость. Сырые поля не удаляются: они доступны под «Технические детали».</p>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const modeButtons = [...document.querySelectorAll('[data-set-mode]')];
+      const setMode = (modeValue) => {
+        document.body.dataset.mode = modeValue;
+        for (const modeButton of modeButtons) {
+          modeButton.setAttribute('aria-selected', String(modeButton.dataset.setMode === modeValue));
+        }
+      };
+      for (const modeButton of modeButtons) {
+        modeButton.addEventListener('click', () => setMode(modeButton.dataset.setMode));
+      }
+      window.setDashboardMockupMode = setMode;
+    })();
+  </script>
+</body>
+</html>
