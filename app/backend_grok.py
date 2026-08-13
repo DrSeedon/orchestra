@@ -262,6 +262,7 @@ class GrokBackend(JsonRpcStdioTransport):
         self._ready_servers: set[str] = set()
         self._failed_servers: set[str] = set()
         self._mcp_tool_count: int | None = None
+        self._mcp_loaded_total: int | None = None
         self._mcp_ready: asyncio.Event | None = None
         self._mcp_status_changed: asyncio.Event | None = None
 
@@ -290,6 +291,7 @@ class GrokBackend(JsonRpcStdioTransport):
         self._ready_servers = set()
         self._failed_servers = set()
         self._mcp_tool_count = None
+        self._mcp_loaded_total = None
         self._mcp_ready = asyncio.Event()
         self._mcp_status_changed = asyncio.Event()
 
@@ -411,17 +413,26 @@ class GrokBackend(JsonRpcStdioTransport):
                 break
         missing = self._expected_servers - self._started_servers
         unexpected = self._started_servers - self._expected_servers
+        # Only servers whose identity the runtime actually echoed can be compared. Grok
+        # 1.0.3 sends an empty `servers_updated` (measured), so demanding an identity here
+        # failed every launch with "unexpected identity" while the real roster was correct.
         mismatched = {
             name
             for name in self._expected_servers & self._started_servers
             if self._started_server_identities.get(name)
+            and self._started_server_identities[name]
             != {self._expected_server_identities[name]}
         }
+        # With no per-server identity, the count is what keeps a foreign server out.
+        overloaded = (
+            self._mcp_loaded_total is not None
+            and self._mcp_loaded_total != len(self._expected_servers)
+        )
         unready = self._expected_servers - self._ready_servers
         no_tools = bool(self._expected_servers) and (
             self._mcp_tool_count is None or self._mcp_tool_count <= 0
         )
-        if missing or unexpected or mismatched or unready or no_tools:
+        if missing or unexpected or mismatched or overloaded or unready or no_tools:
             failures = []
             if missing:
                 failures.append(f"missing required servers {sorted(missing)}")
@@ -431,6 +442,11 @@ class GrokBackend(JsonRpcStdioTransport):
                 failures.append(
                     f"servers with unexpected identity {sorted(mismatched)}"
                 )
+            if overloaded:
+                failures.append(
+                    f"session loaded {self._mcp_loaded_total} MCP servers, "
+                    f"launch plan has {len(self._expected_servers)}"
+                )
             if unready:
                 failures.append(f"required servers not ready {sorted(unready)}")
             if no_tools:
@@ -438,8 +454,40 @@ class GrokBackend(JsonRpcStdioTransport):
             raise GrokMcpIsolationError(
                 "Grok MCP conformance failed: "
                 + "; ".join(failures)
+                + self._shadowing_hint(missing | unready)
                 + ". Refusing to run a worker without the exact Orchestra launch plan."
             )
+
+    def _shadowing_hint(self, absent: set[str]) -> str:
+        """Name the repo-local file that swallowed a server, when that is what happened.
+
+        Grok merges project scope over every other source BY NAME and only then drops the
+        project entry for an untrusted folder — so a repo `.mcp.json` naming `orchestra`
+        annihilates ours and the session starts with zero servers (measured on 1.0.3: the
+        launch plan, `config.toml` and an always-trusted `--plugin-dir` plugin all lost to
+        it). The roster we observe is empty either way, so without this the message is a
+        dead end.
+        """
+        if not absent:
+            return ""
+        shadowed: list[str] = []
+        for rel in (".mcp.json", ".grok/config.toml"):
+            path = Path(self.cwd) / rel
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                # This runs while reporting another failure; never mask it.
+                continue
+            for name in sorted(absent):
+                if f'"{name}"' in text or f"mcp_servers.{name}" in text:
+                    shadowed.append(f"{rel} declares '{name}'")
+        if not shadowed:
+            return ""
+        return (
+            f" — repo-local MCP config shadows the launch plan ({'; '.join(shadowed)}); "
+            "remove that entry or rename it, an untrusted folder makes Grok drop it "
+            "and Orchestra's server with it"
+        )
 
     async def send(self, message: str) -> None:
         if not self.is_alive:
@@ -625,6 +673,14 @@ class GrokBackend(JsonRpcStdioTransport):
                     self._started_server_identities.setdefault(
                         normalized_name, set()
                     ).add(_mcp_server_identity(server))
+        elif method == "_x.ai/mcp/init_progress":
+            # 1.0.3 stopped populating `servers_updated`, so this is the only remaining
+            # count of what the session actually loaded. It is the check that a foreign
+            # server cannot pass: an extra one makes `total` exceed the launch plan.
+            try:
+                self._mcp_loaded_total = int(params.get("total"))
+            except (TypeError, ValueError):
+                pass
         elif method == "_x.ai/mcp/server_status":
             name = params.get("name")
             status = params.get("status")
