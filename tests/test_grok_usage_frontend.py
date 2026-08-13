@@ -7,6 +7,7 @@ from playwright.sync_api import Browser, expect, sync_playwright
 ROOT = Path(__file__).parent.parent
 UTILS_JS = ROOT / "app/static/js/utils.js"
 USAGE_JS = ROOT / "app/static/js/usage.js"
+STYLE_CSS = ROOT / "app/static/css/style.css"
 
 
 @pytest.fixture(scope="module")
@@ -113,6 +114,39 @@ def test_compact_bar_replaces_spark_with_grok(browser):
     expect(page.locator("#usage-bar")).not_to_contain_text("Spark")
     expect(page.locator("#usage-bar")).to_contain_text("7d")
     page.close()
+
+
+def test_usage_controls_stay_visible_across_desktop_widths(browser):
+    for width in (1280, 1440, 1680, 1920):
+        page = _page(browser, True)
+        page.set_viewport_size({"width": width, "height": 900})
+        page.add_style_tag(path=str(STYLE_CSS))
+        page.evaluate(
+            """() => {
+                _usageData.orchestra = {total_cost_usd: 5687, agents_count: 197};
+                renderUsageBar();
+            }"""
+        )
+        measured = page.evaluate(
+            """() => {
+                const bar = document.querySelector('#usage-bar');
+                const info = document.querySelector('#usage-info-btn').getBoundingClientRect();
+                return {
+                    infoRight: info.right,
+                    viewport: innerWidth,
+                    scrollWidth: bar.scrollWidth,
+                    clientWidth: bar.clientWidth,
+                    providers: [...document.querySelectorAll('[data-usage-compact-provider]')]
+                        .map(node => node.dataset.usageCompactProvider),
+                };
+            }"""
+        )
+        assert measured["providers"] == ["claude", "codex", "grok"]
+        assert measured["infoRight"] <= measured["viewport"]
+        assert measured["scrollWidth"] == measured["clientWidth"]
+        expect(page.locator("#usage-bar")).not_to_contain_text("$5687")
+        expect(page.locator("#usage-bar")).not_to_contain_text("197 agents")
+        page.close()
 
 
 def test_usage_control_keeps_spark_and_adds_grok_third_column(browser):

@@ -125,6 +125,35 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
     margin-left: 6px;
     animation: ring-drain 2.5s linear forwards;
 }
+.usage-limits {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+}
+.usage-provider-group {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    gap: 14px;
+}
+.usage-actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+}
+#usage-info-btn {
+    flex: 0 0 auto;
+    padding: 1px 3px;
+    color: #64748b;
+    font-size: 14px;
+    line-height: 18px;
+    cursor: help;
+    transition: color 0.15s;
+}
 .voice-controls {
     align-self: flex-end;
     display: flex;
@@ -794,6 +823,11 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 }
 
 @media (max-width: 620px) {
+  #usage-bar { position: relative; }
+  .usage-limits { padding-right: 22px; }
+  .usage-provider-group { flex-wrap: wrap; gap: 4px 10px; }
+  .usage-actions { position: absolute; top: 4px; right: 12px; }
+  .usage-actions #usage-freshness { display: none; }
   #analytics-modal { padding: 10px; }
   .analytics-shell { border-radius: 8px; }
   .analytics-topbar { min-height: auto; padding: 10px; gap: 8px; }

@@ -133,6 +133,12 @@ function _usageFreshnessHtml() {
     return `<span id="usage-freshness" style="color:${stale ? '#eab308' : '#64748b'}">${stale ? 'устарело' : 'обновлено'} ${age}</span>`;
 }
 
+function _renderUsageBarShell(bar, groups) {
+    bar.innerHTML = `<div class="usage-limits">${groups.join('')}</div>`
+        + `<div class="usage-actions">${_usageFreshnessHtml()}`
+        + '<span id="usage-info-btn" title="Usage details and history">ⓘ</span></div>';
+}
+
 function renderUsageBar() {
     const bar = document.getElementById('usage-bar');
     if (!bar) return;
@@ -146,16 +152,16 @@ function renderUsageBar() {
         }
         return;
     }
-    bar.style.cssText = 'display:flex;align-items:center;gap:14px;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:hidden;white-space:nowrap;cursor:pointer';
+    bar.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:4px 12px;min-height:28px;height:auto;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:visible;white-space:nowrap;cursor:pointer';
     bar.title = 'Нажмите, чтобы обновить usage';
 
     const a = _usageData.anthropic || {};
     const cx = _usageData.codex || {};
     const gx = _usageData.grok || null;
-    const o = _usageData.orchestra || {};
-    const parts = [];
+    const groups = [];
+    const claudeParts = [];
 
-    if (_usageError) parts.push('<span style="color:#eab308" title="Using cached data">⚠️</span>');
+    if (_usageError) claudeParts.push('<span style="color:#eab308" title="Using cached data">⚠️</span>');
 
     const fh = a.five_hour;
     if (fh) {
@@ -173,7 +179,7 @@ function renderUsageBar() {
             const hint = `Недельный лимит: доступно ${cap.available_pct}% из показанных ${(100 - fh.utilization).toFixed(0)}% (курс ${cap.rate} за ${cap.window_hours} ч)`;
             capHtml = ` <span style="font-size:10px">·</span> <span data-quota-cap style="color:#f59e0b" title="${hint}">${label}</span>`;
         }
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c, cap ? cap.locked_pct : 0)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}${capHtml}</span>`);
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c, cap ? cap.locked_pct : 0)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}${capHtml}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
@@ -182,7 +188,10 @@ function renderUsageBar() {
         const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         const cd = _resetCountdown(sd.resets_at);
         const pace = _paceIndicator(sd.utilization, sd.resets_at, 7 * 86400000);
-        parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+    }
+    if (claudeParts.length) {
+        groups.push(`<span class="usage-provider-group" data-usage-compact-provider="claude">${claudeParts.join('')}</span>`);
     }
 
     const compactProviders = [
@@ -190,13 +199,16 @@ function renderUsageBar() {
         {id:'grok', windows:_usageProviderWindows('grok', gx), showUnavailable:true},
     ].filter(provider => provider.windows.length || provider.showUnavailable);
     if (compactProviders.length) {
-        parts.push('<span style="height:14px;border-left:1px solid rgba(71,85,105,0.6)"></span>');
         for (const provider of compactProviders) {
             const meta = _PROVIDER_META[provider.id];
             const color = _usageProviderAccent(provider.id);
-            parts.push(`<span style="color:${color};font-weight:600">${meta.compactTitle || meta.title}</span>`);
+            const providerParts = [
+                '<span style="height:14px;border-left:1px solid rgba(71,85,105,0.6)"></span>',
+                `<span style="color:${color};font-weight:600">${meta.compactTitle || meta.title}</span>`,
+            ];
             if (!provider.windows.length) {
-                parts.push('<span style="color:#64748b">: нет данных</span>');
+                providerParts.push('<span style="color:#64748b">: нет данных</span>');
+                groups.push(`<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">${providerParts.join('')}</span>`);
                 continue;
             }
             for (const item of provider.windows) {
@@ -208,24 +220,13 @@ function renderUsageBar() {
                 const cd = _resetCountdown(window.resets_at);
                 const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
                 const label = _codexWindowLabel(window.window_minutes);
-                parts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+                providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
             }
+            groups.push(`<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">${providerParts.join('')}</span>`);
         }
     }
 
-    parts.push('<span style="flex:1"></span>');
-
-    if (typeof o.total_cost_usd === 'number') {
-        parts.push(`<span style="color:#22c55e">${MODEL_COST_CURRENCY}${o.total_cost_usd.toFixed(0)}</span>`);
-    }
-    if (typeof o.agents_count === 'number') {
-        parts.push(`<span style="color:#64748b">${o.agents_count} agents</span>`);
-    }
-    const freshness = _usageFreshnessHtml();
-    if (freshness) parts.push(freshness);
-    parts.push('<span id="usage-info-btn" style="color:#475569;font-size:12px;cursor:help;transition:color 0.15s">ⓘ</span>');
-
-    bar.innerHTML = parts.join('');
+    _renderUsageBarShell(bar, groups);
 
     const infoBtn = document.getElementById('usage-info-btn');
     if (infoBtn) {
