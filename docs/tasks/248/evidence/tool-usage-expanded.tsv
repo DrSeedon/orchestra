@@ -1,0 +1,8 @@
+scope	orchestrator_name	task_create_count	task_update_count	task_list_count	task_get_count	total_task_calls	distinct_task_tool_days	first_task_tool_day	last_task_tool_day
+/home/kesha/orchestra	Orchestra-orchestrator	180	202	12	10	404	11	2026-08-03	2026-08-13
+/home/kesha/projects/University	University-orchestrator	0	0	0	0	0	0		
+/home/kesha/projects/dnd-game-master	Claude-Code-Game-Master-orchestrator	1	1	0	0	2	2	2026-08-03	2026-08-04
+/home/kesha/projects/kesha-tg-bot	kesha-tg-bot-orchestrator	10	7	1	0	18	4	2026-08-08	2026-08-12
+/home/kesha/projects/seedon	dev-lead	19	43	1	9	72	9	2026-08-03	2026-08-12
+/home/kesha/projects/seedon	seedon-orchestrator	121	95	6	6	228	11	2026-08-03	2026-08-13
+TOTAL		331	348	20	25	724			

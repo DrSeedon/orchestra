@@ -1,0 +1,40 @@
+main:app/manager.py:76:async def _worker_model_policy_usage() -> dict:
+main:app/manager.py:507:        self._worker_model_policy_latches: dict[
+main:app/manager.py:561:    async def _enforce_worker_model_policy(
+main:app/manager.py:572:        policy = cfg.worker_model_policy
+main:app/manager.py:587:        guarded = policy.quota_guarded
+main:app/manager.py:596:                usage = await _worker_model_policy_usage()
+main:app/manager.py:610:        pace_blocked, absolute_blocked = self._worker_model_policy_latches.get(
+main:app/manager.py:630:        self._worker_model_policy_latches[key] = pace_blocked, absolute_blocked
+main:app/manager.py:816:            await self._enforce_worker_model_policy(
+main:app/pipeline.py:219:    quota_guarded: QuotaGuardedModelPolicy
+main:app/pipeline.py:237:        if self.quota_guarded.model in self.always_allowed:
+main:app/pipeline.py:240:        if self.quota_guarded.model in self.denied:
+main:app/pipeline.py:241:            overlap.add(self.quota_guarded.model)
+main:app/pipeline.py:391:    worker_model_policy: WorkerModelPolicy | None = None
+main:app/runtime_router.py:17:from app.quota_runway import RunwayVerdict, as_utc, next_weekly_reset, weekly_runway
+main:app/runtime_router.py:563:_runtime_router: RuntimeRouter | None = None
+main:app/runtime_router.py:566:def get_runtime_router() -> RuntimeRouter:
+main:app/runtime_router.py:567:    global _runtime_router
+main:app/runtime_router.py:568:    if _runtime_router is None:
+main:app/runtime_router.py:572:        _runtime_router = RuntimeRouter(
+main:app/runtime_router.py:577:    return _runtime_router
+main:pipelines/default/pipeline.yaml:10:# worker_model_policy:
+main:pipelines/default/pipeline.yaml:13:#   quota_guarded:
+main:tests/test_worker_model_policy.py:26:        "quota_guarded": {
+main:tests/test_worker_model_policy.py:35:    config = load_pipeline("default").model_copy(update={"worker_model_policy": policy})
+main:tests/test_worker_model_policy.py:84:    await manager._worker_model_policy_usage()
+main:tests/test_worker_model_policy.py:221:        "app.manager._worker_model_policy_usage",
+main:tests/test_worker_model_policy.py:240:        "app.manager._worker_model_policy_usage",
+main:tests/test_worker_model_policy.py:256:        "app.manager._worker_model_policy_usage",
+main:tests/test_worker_model_policy.py:273:async def test_orchestrators_are_exempt_from_worker_model_policy(mgr, monkeypatch):
+main:tests/test_worker_model_policy.py:275:    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+main:tests/test_worker_model_policy.py:293:    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+main:tests/test_worker_model_policy.py:304:        "app.manager._worker_model_policy_usage",
+main:tests/test_worker_model_policy.py:316:        "app.manager._worker_model_policy_usage",
+main:tests/test_worker_model_policy.py:334:    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+main:tests/test_worker_model_policy.py:355:    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+main:tests/test_worker_model_policy.py:377:    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+main:tests/test_worker_model_policy.py:390:    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+main:tests/test_worker_model_policy.py:401:        "app.manager._worker_model_policy_usage",
+main:tests/test_worker_model_policy.py:422:    monkeypatch.setattr("app.manager._worker_model_policy_usage", stuck_usage)

@@ -1,0 +1,120 @@
+main:groom-demo-bot/README.md:50:`dashboard/index.html` is a dependency-free responsive console for `/demo/groom/`. It polls the
+main:groom-demo-bot/README.md:55:contract is in `dashboard/DEPLOY.md`.
+main:groom-demo-bot/dashboard/DEPLOY.md:9:- `dashboard/index.html` → `https://seedon.ru/demo/groom/`
+main:groom-demo-bot/dashboard/DEPLOY.md:10:- `dashboard/assets/bobik-groomer-avatar.png` → `/demo/groom/assets/bobik-groomer-avatar.png`
+main:groom-demo-bot/dashboard/DEPLOY.md:113:boundary in place. Never roll back to the former unprotected aggregate dashboard. Reload only after
+main:groom-demo-bot/groom_demo/booking.py:8:from typing import Callable
+main:groom-demo-bot/groom_demo/client.py:12:from typing import Callable
+main:groom-demo-bot/groom_demo/config.py:51:    dashboard_port: int = 8765
+main:groom-demo-bot/groom_demo/config.py:52:    typing_interval_seconds: float = 4.5
+main:groom-demo-bot/groom_demo/config.py:91:    dashboard_port = int(os.environ.get("DASHBOARD_PORT", "8765"))
+main:groom-demo-bot/groom_demo/config.py:92:    if not 1 <= dashboard_port <= 65_535:
+main:groom-demo-bot/groom_demo/config.py:112:        dashboard_port=dashboard_port,
+main:groom-demo-bot/groom_demo/dashboard_server.py:7:from typing import Any
+main:groom-demo-bot/groom_demo/dashboard_server.py:311:def create_dashboard_app(stats: StatsService, db: Database | None = None) -> web.Application:
+main:groom-demo-bot/groom_demo/dashboard_server.py:350:        self._app = create_dashboard_app(stats)
+main:groom-demo-bot/groom_demo/dashboard_server.py:356:            raise RuntimeError("dashboard server is already running")
+main:groom-demo-bot/groom_demo/db.py:11:from typing import Any, Callable, Iterator
+main:groom-demo-bot/groom_demo/domain.py:7:from typing import Any
+main:groom-demo-bot/groom_demo/guards.py:10:from typing import Callable
+main:groom-demo-bot/groom_demo/handlers.py:9:from typing import Any
+main:groom-demo-bot/groom_demo/handlers.py:51:    """Keep one Telegram typing action alive around every slow conversational update."""
+main:groom-demo-bot/groom_demo/handlers.py:62:        await bot.send_chat_action(event.chat.id, "typing")
+main:groom-demo-bot/groom_demo/handlers.py:63:        interval = data["services"].config.typing_interval_seconds
+main:groom-demo-bot/groom_demo/handlers.py:64:        async with ChatActionSender.typing(
+main:groom-demo-bot/groom_demo/llm.py:11:from typing import Any, Protocol
+main:groom-demo-bot/groom_demo/main.py:14:from .dashboard_server import DashboardServer
+main:groom-demo-bot/groom_demo/main.py:34:    dashboard = DashboardServer(dispatcher["services"].stats, config.dashboard_port)
+main:groom-demo-bot/groom_demo/main.py:42:        await dashboard.start()
+main:groom-demo-bot/groom_demo/main.py:52:            await dashboard.close()
+main:groom-demo-bot/groom_demo/media.py:6:from typing import Any
+main:groom-demo-bot/groom_demo/salon.py:9:from typing import Callable, Protocol
+main:groom-demo-bot/groom_demo/stats.py:8:from typing import Iterable, TYPE_CHECKING
+main:groom-demo-bot/groom_demo/stats.py:33:def _assert_dashboard_contract(value: dict[str, object]) -> None:
+main:groom-demo-bot/groom_demo/stats.py:44:        raise RuntimeError("dashboard response keys changed without an allowlist update")
+main:groom-demo-bot/groom_demo/stats.py:48:            raise RuntimeError(f"dashboard {key} keys changed without an allowlist update")
+main:groom-demo-bot/groom_demo/stats.py:51:        raise RuntimeError("dashboard booking keys changed without an allowlist update")
+main:groom-demo-bot/groom_demo/stats.py:58:            raise RuntimeError(f"dashboard booking {key} keys changed without an allowlist update")
+main:groom-demo-bot/groom_demo/stats.py:61:            raise RuntimeError("dashboard service keys changed without an allowlist update")
+main:groom-demo-bot/groom_demo/stats.py:64:            raise RuntimeError("dashboard master keys changed without an allowlist update")
+main:groom-demo-bot/groom_demo/stats.py:67:            raise RuntimeError("dashboard timeline keys changed without an allowlist update")
+main:groom-demo-bot/groom_demo/stats.py:84:        """Return the dashboard's entire public contract from current SQLite rows."""
+main:groom-demo-bot/groom_demo/stats.py:222:        _assert_dashboard_contract(result)
+main:groom-demo-bot/groom_demo/stats_cli.py:8:from typing import Sequence
+main:groom-demo-bot/groom_demo/telemetry.py:7:from typing import Any
+main:groom-demo-bot/groom_demo/tools.py:5:from typing import Any
+main:groom-demo-bot/tests/conftest.py:7:from typing import Any, AsyncGenerator, Callable
+main:groom-demo-bot/tests/test_conversation_memory.py:256:    fake = FakeLLM()
+main:groom-demo-bot/tests/test_conversation_memory.py:257:    app = Harness(tmp_path, llm=fake)
+main:groom-demo-bot/tests/test_conversation_memory.py:259:    fake.replies.extend([
+main:groom-demo-bot/tests/test_conversation_memory.py:269:    fake.replies.extend([
+main:groom-demo-bot/tests/test_conversation_memory.py:283:    fake.replies.extend([
+main:groom-demo-bot/tests/test_conversation_memory.py:291:    fake.replies.append(LLMReply(None, (ToolCall("create_demo_booking", {
+main:groom-demo-bot/tests/test_conversation_memory.py:306:    assert len(fake.calls) == 7
+main:groom-demo-bot/tests/test_conversation_memory.py:427:    fake = FakeLLM([LLMReply("**Комплекс — 2 900 ₽**\n\nПодобрать время?")])
+main:groom-demo-bot/tests/test_conversation_memory.py:428:    app = Harness(tmp_path, llm=fake)
+main:groom-demo-bot/tests/test_dashboard.py:15:from groom_demo.dashboard_server import (
+main:groom-demo-bot/tests/test_dashboard.py:19:    create_dashboard_app,
+main:groom-demo-bot/tests/test_dashboard.py:24:DASHBOARD = ROOT / "dashboard" / "index.html"
+main:groom-demo-bot/tests/test_dashboard.py:25:BOBIK = ROOT / "dashboard" / "assets" / "bobik-groomer-avatar.png"
+main:groom-demo-bot/tests/test_dashboard.py:27:DEPLOY = ROOT / "dashboard" / "DEPLOY.md"
+main:groom-demo-bot/tests/test_dashboard.py:63:    assert len(list((ROOT / "dashboard").glob("*.html"))) == 1
+main:groom-demo-bot/tests/test_dashboard.py:77:def test_no_synthetic_fallback_fake_people_or_secret_storage() -> None:
+main:groom-demo-bot/tests/test_dashboard.py:80:        "dashboardData", "timeline = [", "СИНТЕТИЧЕСКИЕ ДЕМО-ДАННЫЕ", "Алёна", "Мария",
+main:groom-demo-bot/tests/test_dashboard.py:133:    app = create_dashboard_app(harness.services.stats)
+main:groom-demo-bot/tests/test_dashboard.py:206:    app = create_dashboard_app(harness.services.stats)
+main:groom-demo-bot/tests/test_dashboard.py:304:                page.route("http://dashboard.test/**", route)
+main:groom-demo-bot/tests/test_dashboard.py:305:                page.goto("http://dashboard.test/demo/groom/", wait_until="networkidle")
+main:groom-demo-bot/tests/test_full_e2e.py:86:    fake = FakeLLM(replies)
+main:groom-demo-bot/tests/test_full_e2e.py:87:    app = Harness(tmp_path, llm=fake, rate_burst=20, rate_slow=40)
+main:groom-demo-bot/tests/test_full_e2e.py:94:    fake.replies.append(tool("create_demo_booking", {
+main:groom-demo-bot/tests/test_full_e2e.py:103:    fake.replies.append(tool("reschedule_demo_booking", {
+main:groom-demo-bot/tests/test_full_e2e.py:108:    fake.replies.append(tool("cancel_demo_booking", {"booking_id": booking_id}, "cancel"))
+main:groom-demo-bot/tests/test_legacy_media_optional.py:11:    """Read-only local regression: providers are fakes, so no transcript/OCR leaves the process."""
+main:groom-demo-bot/tests/test_public_safety.py:93:    fake = FakeLLM([
+main:groom-demo-bot/tests/test_public_safety.py:101:    app = Harness(tmp_path, llm=fake)
+main:groom-demo-bot/tests/test_read_journey.py:94:    fake = FakeLLM([LLMReply(None, (ToolCall("catalog_services", {}, f"c{i}"),)) for i in range(5)])
+main:groom-demo-bot/tests/test_read_journey.py:95:    app = Harness(tmp_path, llm=fake)
+main:groom-demo-bot/tests/test_read_journey.py:100:    assert len(fake.calls) == 6
+main:groom-demo-bot/tests/test_rendering_contract.py:101:    fake = FakeLLM([LLMReply(
+main:groom-demo-bot/tests/test_rendering_contract.py:104:    app = Harness(tmp_path, llm=fake)
+main:groom-demo-bot/tests/test_secret_surface.py:113:        ffmpeg = tmp_path / "fake-ffmpeg"
+main:groom-demo-bot/tests/test_typing_lifecycle.py:5:from typing import Any
+main:groom-demo-bot/tests/test_typing_lifecycle.py:60:def _typing_count(app: Harness) -> int:
+main:groom-demo-bot/tests/test_typing_lifecycle.py:64:def _live_typing_tasks() -> list[asyncio.Task[Any]]:
+main:groom-demo-bot/tests/test_typing_lifecycle.py:73:async def test_typing_precedes_slow_provider_repeats_and_stops_for_every_modality(
+main:groom-demo-bot/tests/test_typing_lifecycle.py:86:        typing_interval_seconds=0.01,
+main:groom-demo-bot/tests/test_typing_lifecycle.py:102:        app.session.files[modality] = make_video_note(tmp_path / "typing-note.mp4")
+main:groom-demo-bot/tests/test_typing_lifecycle.py:124:    assert _typing_count(app) >= 1
+main:groom-demo-bot/tests/test_typing_lifecycle.py:126:    assert _typing_count(app) >= 3
+main:groom-demo-bot/tests/test_typing_lifecycle.py:131:    stopped_at = _typing_count(app)
+main:groom-demo-bot/tests/test_typing_lifecycle.py:133:    assert _typing_count(app) == stopped_at
+main:groom-demo-bot/tests/test_typing_lifecycle.py:134:    assert _live_typing_tasks() == []
+main:groom-demo-bot/tests/test_typing_lifecycle.py:138:async def test_typing_stops_after_terminal_provider_error_and_cancel(tmp_path: Path) -> None:
+main:groom-demo-bot/tests/test_typing_lifecycle.py:141:    app = Harness(tmp_path / "error", llm=failing, typing_interval_seconds=0.01)
+main:groom-demo-bot/tests/test_typing_lifecycle.py:148:    stopped_at = _typing_count(app)
+main:groom-demo-bot/tests/test_typing_lifecycle.py:150:    assert _typing_count(app) == stopped_at and _live_typing_tasks() == []
+main:groom-demo-bot/tests/test_typing_lifecycle.py:155:    cancelled_app = Harness(tmp_path / "cancel", llm=pending, typing_interval_seconds=0.01)
+main:groom-demo-bot/tests/test_typing_lifecycle.py:162:    stopped_at = _typing_count(cancelled_app)
+main:groom-demo-bot/tests/test_typing_lifecycle.py:164:    assert _typing_count(cancelled_app) == stopped_at and _live_typing_tasks() == []
+main:groom-demo-bot/tests/test_typing_lifecycle.py:168:async def test_instant_commands_and_callbacks_do_not_start_typing(harness) -> None:
+main:groom-demo-bot/tests/test_typing_lifecycle.py:174:    assert _typing_count(harness) == 0
+main:groom-demo-bot/tests/test_voice_video.py:46:    harness.session.files["audio1"] = b"OggSfake"
+main:groom-demo-bot/tests/test_voice_video.py:72:    app.session.files["silence"] = b"OggSfake"
+main:groom-demo-bot/tests/test_voice_video.py:86:    app.session.files["broken"] = b"OggSfake"
+main:groom-demo-bot/uv.lock:27:    { name = "typing-extensions" },
+main:groom-demo-bot/uv.lock:54:    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+main:groom-demo-bot/uv.lock:162:    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+main:groom-demo-bot/uv.lock:184:    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+main:groom-demo-bot/uv.lock:776:    { name = "typing-extensions" },
+main:groom-demo-bot/uv.lock:777:    { name = "typing-inspection" },
+main:groom-demo-bot/uv.lock:789:    { name = "typing-extensions" },
+main:groom-demo-bot/uv.lock:864:    { name = "typing-extensions" },
+main:groom-demo-bot/uv.lock:902:    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+main:groom-demo-bot/uv.lock:919:name = "typing-extensions"
+main:groom-demo-bot/uv.lock:922:sdist = { url = "https://files.pythonhosted.org/packages/f6/cc/6253133b5bb138fc3306cebfbda2c520f545d36b5be2c7255cc528bb45d6/typing_extensions-4.16.0.tar.gz", hash = "sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5", size = 113555, upload-time = "2026-07-02T08:40:05.92Z" }
+main:groom-demo-bot/uv.lock:924:    { url = "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl", hash = "sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8", size = 45571, upload-time = "2026-07-02T08:40:04.659Z" },
+main:groom-demo-bot/uv.lock:928:name = "typing-inspection"
+main:groom-demo-bot/uv.lock:932:    { name = "typing-extensions" },
+main:groom-demo-bot/uv.lock:934:sdist = { url = "https://files.pythonhosted.org/packages/55/e3/70399cb7dd41c10ac53367ae42139cf4b1ca5f36bb3dc6c9d33acdb43655/typing_inspection-0.4.2.tar.gz", hash = "sha256:ba561c48a67c5958007083d386c3295464928b01faa735ab8547c5692e87f464", size = 75949, upload-time = "2025-10-01T02:14:41.687Z" }
+main:groom-demo-bot/uv.lock:936:    { url = "https://files.pythonhosted.org/packages/dc/9b/47798a6c91d8bdb567fe2698fe81e0c6b7cb7ef4d13da4114b41d239f65d/typing_inspection-0.4.2-py3-none-any.whl", hash = "sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7", size = 14611, upload-time = "2025-10-01T02:14:40.154Z" },

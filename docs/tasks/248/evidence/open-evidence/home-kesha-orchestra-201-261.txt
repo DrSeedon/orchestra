@@ -1,0 +1,45 @@
+main:app/backend_codex.py:33:    "gpt-5.3-codex-spark": 128000,
+main:app/backend_codex.py:51:CODEX_TOKEN_PRICES = {
+main:app/backend_codex.py:58:    "gpt-5.3-codex-spark": None,
+main:app/backend_codex.py:174:                cache_write_input_tokens: int, output_tokens: int) -> float:
+main:app/backend_codex.py:176:    if model not in CODEX_TOKEN_PRICES:
+main:app/backend_codex.py:178:    prices = CODEX_TOKEN_PRICES[model]
+main:app/backend_codex.py:182:    cache_write = min(max(0, cache_write_input_tokens), max(0, input_tokens - cached))
+main:app/backend_codex.py:216:                cache_write = usage.get("cache_write_input_tokens", 0)
+main:app/backend_codex.py:220:                    "cache_write_input_tokens": (
+main:app/backend_codex.py:249:                    "cache_write_input_tokens": max(
+main:app/backend_codex.py:250:                        0, int(total.get("cache_write_input_tokens") or 0)
+main:app/backend_codex.py:263:        "input_tokens", "cached_input_tokens", "cache_write_input_tokens", "output_tokens"
+main:app/backend_codex.py:1492:        turn_cache_write = delta["cache_write_input_tokens"]
+main:app/backend_codex.py:1564:            "cache_write_input_tokens": max(0, int(data.get("cacheWriteInputTokens") or 0)),
+main:app/models.py:48:    "gpt-5.3-codex-spark": "GPT-5.3 Codex Spark",
+main:app/models.py:65:    "gpt-5.3-codex-spark": 128000,
+main:app/models.py:98:    "spark": "gpt-5.3-codex-spark",
+main:app/models.py:99:    "codexspark": "gpt-5.3-codex-spark",
+main:app/models.py:100:    "gpt5.3spark": "gpt-5.3-codex-spark",
+main:app/models.py:120:    "gpt-5.3-codex-spark": "codex",
+main:app/models.py:135:    "gpt-5.3-codex-spark": "openai",
+main:tests/test_backend_codex.py:22:    CODEX_TOKEN_PRICES,
+main:tests/test_backend_codex.py:90:    assert CODEX_CONTEXT_LIMITS["gpt-5.3-codex-spark"] == 128000
+main:tests/test_backend_codex.py:95:    assert CODEX_TOKEN_PRICES["gpt-5.6-sol"] == {
+main:tests/test_backend_codex.py:98:    assert CODEX_TOKEN_PRICES["gpt-5.6-terra"] == {
+main:tests/test_backend_codex.py:101:    assert CODEX_TOKEN_PRICES["gpt-5.6-luna"] == {
+main:tests/test_backend_codex.py:109:    for model, price in CODEX_TOKEN_PRICES.items():
+main:tests/test_backend_codex.py:117:    assert CODEX_TOKEN_PRICES["gpt-5.4"] == {"input": 2.5, "cached": 0.25, "output": 15.0}
+main:tests/test_backend_codex.py:124:    assert CODEX_TOKEN_PRICES[b.model]["output"] == 30.0
+main:tests/test_backend_codex.py:138:    assert CODEX_TOKEN_PRICES["gpt-5.3-codex-spark"] is None
+main:tests/test_backend_codex.py:140:        _codex_cost("gpt-5.3-codex-spark", 1000, 0, 0, 10)
+main:tests/test_backend_codex.py:146:        "cache_write_input_tokens": 12, "output_tokens": 20,
+main:tests/test_backend_codex.py:150:        "cache_write_input_tokens": 5, "output_tokens": 5,
+main:tests/test_backend_codex.py:154:        "cache_write_input_tokens": 7, "output_tokens": 15,
+main:tests/test_backend_codex.py:168:                "cache_write_input_tokens": 1024,
+main:tests/test_backend_codex.py:176:                "cache_write_input_tokens": 512,
+main:tests/test_backend_codex.py:186:        "cache_write_input_tokens": 512,
+main:tests/test_backend_codex.py:200:        "cache_write_input_tokens": 200,
+main:tests/test_backend_codex.py:212:            "cache_write_input_tokens": 200,
+main:tests/test_backend_codex.py:217:    assert _read_rollout_totals(rollout)["cache_write_input_tokens"] == 200
+main:tests/test_backend_codex.py:1267:        "cache_write_input_tokens": 5_000,
+main:tests/test_backend_codex.py:1273:        "cache_write_input_tokens": 2_000,
+main:tests/test_backend_codex.py:1562:UNPRICED_MODEL = "gpt-5.3-codex-spark"
+main:tests/test_backend_codex.py:1581:    monkeypatch.setitem(bc.CODEX_TOKEN_PRICES, UNPRICED_MODEL, None)
+main:tests/test_backend_codex.py:1591:    monkeypatch.setitem(bc.CODEX_TOKEN_PRICES, UNPRICED_MODEL, None)

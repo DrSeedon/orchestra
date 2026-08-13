@@ -1,0 +1,12 @@
+Pinned ref: 4b74e70f07a6dc417369156606634838817fc2c8
+Source: docs/tasks/2/report.md
+
+Behavioral verification recorded in the delivered report:
+- browser round-trip: orchestrator 52 nodes on first visit and 52 on second visit; ids identical
+- duplicate ids inside chat: none
+- after simulated session-id replacement: after_id=['0'], 52 nodes, content matched the original
+- after a real tail message and leave/return: 59 nodes, DOM identical, duplicate ids none, lastId=878
+
+The report identifies the exact mechanism: cached DOM is keyed by scope/name and invalidated when
+the durable session id changes. This is completion evidence for the reported worker-switch reload,
+not merely the presence of IndexedDB symbols.

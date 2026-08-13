@@ -1,0 +1,8 @@
+repo_path	tracker_tasks	primary_commit_numbers_without_task	all_header_refs_without_task	tracker_tasks_without_primary_main_prefix	tracker_tasks_without_any_header_ref	new_with_main_prefix	done_with_empty_tracker_commits
+/home/kesha/orchestra	176	67	70	34	23	10	1
+/home/kesha/projects/University	0	1	1	0	0	0	0
+/home/kesha/projects/dnd-game-master	1	0	0	0	0	0	0
+/home/kesha/projects/kesha-tg-bot	9	16	16	2	2	0	4
+/home/kesha/projects/seedon	137	48	50	45	35	11	4
+CANONICAL_TOTAL	323	132	137	81	60	21	9
+UNSCOPED_GHOST_PROJECTS	8			8	8	0	0

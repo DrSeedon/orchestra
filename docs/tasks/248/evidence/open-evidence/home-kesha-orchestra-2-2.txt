@@ -1,0 +1,17 @@
+main:app/static/js/app.js:421:const _STORE_DB = 'orchestra';
+main:app/static/js/app.js:427:// (_storePut в _fetchHistory/_completeChatPage) и живёт между заходами — F5 по-прежнему
+main:app/static/js/app.js:451:        try { rq = indexedDB.open(_STORE_DB, 1); }
+main:app/static/js/app.js:452:        catch (e) { _storeDisable('indexedDB.open бросил исключение', e); return resolve(null); }
+main:app/static/js/app.js:591:function initStoreSync() {
+main:app/static/js/app.js:762:            _showChatFor(selectedAgent, currentScope);  // перерисовать всё в новом режиме
+main:app/static/js/app.js:780:    window.addEventListener('load', initStoreSync, {once: true});
+main:app/static/js/app.js:807:    _showChatFor(agent, currentScope);
+main:app/static/js/app.js:824:    // сам поток (_fetchHistory не смог). В обычной работе сюда приходят с lastId > 0.
+main:app/static/js/app.js:2009:async function _fetchHistory(name, scope) {
+main:app/static/js/app.js:2029:async function _showChatFor(name, scope) {
+main:app/static/js/app.js:2043:        if (!fromStore) rows = await _fetchHistory(name, scope);
+main:app/static/js/app.js:2058:            _completeChatPage(name, scope);   // и после промаха зеркала: _fetchHistory берёт одну порцию
+main:app/static/js/app.js:2099:    _showChatFor(selectedAgent, currentScope);
+main:app/static/js/app.js:2130:    await _showChatFor(name, currentScope);
+main:app/static/js/app.js:6262:        if (selectedAgent && currentScope) await _showChatFor(selectedAgent, currentScope);
+main:app/static/js/app.js:6374:    setInterval(_heartbeatProbe, 3000);   // разворот вкладки обрабатывает initStoreSync

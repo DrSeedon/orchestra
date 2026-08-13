@@ -1,0 +1,20 @@
+main:docs/tasks/235/report.md:12:Only `no such table` for `fan_barriers` or `fan_members` is neutralized. A direct
+main:docs/tasks/235/report.md:59:now passes without creating `data/orchestra.db`.
+main:docs/tasks/235/report.md:71:removing the temporary `DB_PATH` assignment produced marker count `1` and the
+main:docs/tasks/235/research.md:5:Command, run before any change with no `data/orchestra.db` in this worktree:
+main:docs/tasks/235/research.md:15:The failed run created a 4 KiB untracked `data/orchestra.db`; it was removed after
+main:docs/tasks/235/research.md:22:`db._conn()`; `_conn()` reads `db.DB_PATH` at call time.
+main:docs/tasks/235/research.md:27:  `app.db.DB_PATH`, and runs `init_db()`.
+main:docs/tasks/235/research.md:42:`rg` finds 62 `DB_PATH` monkeypatch sites in 48 test files. They are:
+main:docs/tasks/235/research.md:78:`app/fan_barrier.py` now treats absence of exactly `fan_barriers` or `fan_members`
+main:docs/tasks/235/research.md:91:- every test gets a unique temporary `app.db.DB_PATH` and matching
+main:docs/tasks/235/research.md:92:  `ORCHESTRA_DB_PATH`, including subprocesses that honor the environment;
+main:docs/tasks/235/research.md:94:  opening the checkout's resolved default `data/orchestra.db` path;
+main:docs/tasks/235/research.md:99:After it, the target passes and `data/orchestra.db` remains absent. A separate
+main:docs/tasks/235/research.md:102:`DB_PATH` assignment makes the unchanged target red on the guard before SQLite
+main:tests/conftest.py:52:    """A missing local patch must fail before SQLite can touch the production DB."""
+main:tests/conftest.py:55:    production_path = db._DEFAULT_DB_PATH.resolve()
+main:tests/conftest.py:56:    isolated_path = tmp_path / "orchestra.db"
+main:tests/conftest.py:58:        guard_patch.setattr(db, "DB_PATH", isolated_path)
+main:tests/conftest.py:59:        guard_patch.setenv("ORCHESTRA_DB_PATH", str(isolated_path))
+main:tests/test_api.py:21:    monkeypatch.setattr("app.db.DB_PATH", db_path)

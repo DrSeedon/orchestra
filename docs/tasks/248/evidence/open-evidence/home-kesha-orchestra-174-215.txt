@@ -1,0 +1,71 @@
+main:app/mcp_stdio.py:1262:async def change_worker_model(name: str, model: str) -> str:
+main:app/routes/sessions.py:672:        session.runtime_handoff = ""
+main:app/routes/sessions.py:741:async def change_model(name: str, req: dict):
+main:app/routes/sessions.py:752:    result = await found.change_model(new_model)
+main:app/session.py:348:    runtime_handoff: str = ""
+main:app/session.py:1139:                self.runtime_handoff = await self._build_runtime_handoff(
+main:app/session.py:1167:            pending_handoff = self.runtime_handoff
+main:app/session.py:1173:                    "<prior-conversation>\n"
+main:app/session.py:1175:                    "</prior-conversation>\n\n"
+main:app/session.py:1189:            if pending_handoff and self.runtime_handoff == pending_handoff:
+main:app/session.py:1190:                self.runtime_handoff = ""
+main:app/session.py:1454:        handoff = await self._build_runtime_handoff(
+main:app/session.py:1468:        self.runtime_handoff = handoff
+main:app/session.py:2012:                    summary = await self._build_runtime_handoff()
+main:app/session.py:2473:    async def _build_runtime_handoff(
+main:app/session.py:2513:    async def change_model(self, new_model: str) -> dict:
+main:app/session.py:2517:            return await self._change_model_locked(new_model)
+main:app/session.py:2535:                else await self._build_runtime_handoff()
+main:app/session.py:2545:            "runtime_handoff": self.runtime_handoff,
+main:app/session.py:2557:            self.runtime_handoff = old_state["runtime_handoff"]
+main:app/session.py:2567:        self.runtime_handoff = ""
+main:app/session.py:2594:            self.runtime_handoff = fallback
+main:app/session.py:2682:                else await self._build_runtime_handoff()
+main:app/session.py:2692:            "runtime_handoff": self.runtime_handoff,
+main:app/session.py:2704:            self.runtime_handoff = old_state["runtime_handoff"]
+main:app/session.py:2714:        self.runtime_handoff = ""
+main:app/session.py:2741:            self.runtime_handoff = fallback
+main:app/session.py:2815:    async def _change_model_locked(self, new_model: str) -> dict:
+main:app/session.py:2843:                self.runtime_handoff = _bounded_summary(self.last_summary)
+main:app/session.py:2845:                self.runtime_handoff = await self._build_runtime_handoff()
+main:app/session.py:3070:            "runtime_handoff": self.runtime_handoff,
+main:pipelines/default/prompts/modules/orchestration.md:72:- `merge_worker` / `change_worker_model` — worker must be **idle** (+ clean tree for merge). After merge, just `send_message` — auto-switches to fresh branch
+main:tests/test_session.py:514:        session._build_runtime_handoff = AsyncMock(return_value=(
+main:tests/test_session.py:522:        assert "<prior-conversation>" in sent
+main:tests/test_session.py:526:        session._build_runtime_handoff.assert_awaited_once_with(
+main:tests/test_session.py:529:        assert session.runtime_handoff == ""
+main:tests/test_session.py:3880:        result = await session.change_model("gpt-5.6-sol")
+main:tests/test_session.py:3886:        assert "Fix the parser" in session.runtime_handoff
+main:tests/test_session.py:3887:        assert "Parser fixed" in session.runtime_handoff
+main:tests/test_session.py:3906:            "_build_runtime_handoff",
+main:tests/test_session.py:3910:        result = await session.change_model("gpt-5.6-sol")
+main:tests/test_session.py:3915:        assert session.runtime_handoff == ""
+main:tests/test_session.py:3917:        session._build_runtime_handoff.assert_not_awaited()
+main:tests/test_session.py:3926:    async def test_runtime_handoff_is_one_shot_user_message_context(self, session):
+main:tests/test_session.py:3932:        session.runtime_handoff = "User:\nold request\n\nAssistant:\nold answer"
+main:tests/test_session.py:3936:            assert "<prior-conversation>" in backend.sent[0]
+main:tests/test_session.py:3939:            assert session.runtime_handoff == ""
+main:tests/test_session.py:4723:    result = await session.change_model("claude-sonnet-5[1m]")
+main:tests/test_session.py:4731:    assert session.runtime_handoff == ""
+main:tests/test_session.py:4767:    result = await session.change_model("gpt-5.6-sol")
+main:tests/test_session.py:4775:    assert session.runtime_handoff == ""
+main:tests/test_session.py:4819:    result = await session.change_model("gpt-5.6-sol")
+main:tests/test_session.py:4827:    assert session.runtime_handoff == "bounded fallback"
+main:tests/test_session.py:4851:    session.runtime_handoff = "old handoff"
+main:tests/test_session.py:4865:        "_build_runtime_handoff",
+main:tests/test_session.py:4869:    result = await session.change_model("gpt-5.6-sol")
+main:tests/test_session.py:4879:    assert session.runtime_handoff == "old handoff"
+main:tests/test_session.py:4909:    result = await session.change_model("gpt-5.6-sol")
+main:tests/test_session.py:4932:    session.runtime_handoff = "old handoff"
+main:tests/test_session.py:4948:    result = await session.change_model("gpt-5.6-sol")
+main:tests/test_session.py:4955:    assert session.runtime_handoff == "old handoff"
+main:tests/test_session.py:4994:    result = await session.change_model("gpt-5.6-sol")
+main:tests/test_session.py:5030:    result = await session.change_model("claude-sonnet-5[1m]")
+main:tests/test_session.py:5033:    assert session.runtime_handoff == "bounded fallback"
+main:tests/test_session.py:5050:    session.runtime_handoff = "old handoff"
+main:tests/test_session.py:5064:        "_build_runtime_handoff",
+main:tests/test_session.py:5068:    result = await session.change_model("claude-sonnet-5[1m]")
+main:tests/test_session.py:5078:    assert session.runtime_handoff == "old handoff"
+main:tests/test_session.py:5106:    result = await session.change_model("claude-sonnet-5[1m]")
+main:tests/test_session.py:5146:    result = await session.change_model("claude-sonnet-5[1m]")
+main:tests/test_session.py:5181:    result = await session.change_model("gpt-5.6-sol")

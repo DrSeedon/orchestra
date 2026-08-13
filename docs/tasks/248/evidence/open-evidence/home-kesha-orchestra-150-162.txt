@@ -1,0 +1,37 @@
+main:app/db.py:285:                seven_day_resets_at TEXT,
+main:app/db.py:288:                provider_usage TEXT NOT NULL DEFAULT '{}'
+main:app/db.py:1003:    if usage_cols and "provider_usage" not in usage_cols:
+main:app/db.py:1004:        c.execute("ALTER TABLE usage_snapshots ADD COLUMN provider_usage TEXT NOT NULL DEFAULT '{}'")
+main:app/db.py:2231:def usage_save_snapshot(five_hour_pct: float | None, seven_day_pct: float | None,
+main:app/db.py:2232:                        five_hour_resets_at: str, seven_day_resets_at: str,
+main:app/db.py:2239:                seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
+main:app/db.py:2243:             five_hour_resets_at or "", seven_day_resets_at or "",
+main:app/db.py:2250:    providers = json.loads(row.pop("provider_usage", "{}") or "{}")
+main:app/db.py:2264:    if sd_pct is not None and (row.get("seven_day_resets_at") or sd_pct):
+main:app/db.py:2269:            "resets_at": row.get("seven_day_resets_at") or None,
+main:app/db.py:2287:            "SELECT ts, five_hour_pct, seven_day_pct, five_hour_resets_at, seven_day_resets_at"
+main:app/db.py:2299:                and not (row["seven_day_resets_at"] or "")):
+main:app/db.py:2341:    от артефакта #150 не величина, а наличие `seven_day_resets_at`: у всех 70 артефактных
+main:app/db.py:2359:            " AND seven_day_resets_at != '' ORDER BY ts ASC, id ASC",
+main:app/routes/system.py:593:def _provider_usage_snapshot(
+main:app/routes/system.py:946:    # current_provider_usage, этот вывод не нужен, а он стоит запроса к истории.
+main:app/routes/system.py:950:async def current_provider_usage(
+main:app/routes/system.py:960:    return _provider_usage_snapshot(
+main:app/routes/system.py:969:        "providers": _provider_usage_snapshot(
+main:app/routes/system.py:1034:    from app.db import usage_save_snapshot
+main:app/routes/system.py:1084:    providers = _provider_usage_snapshot(anthropic_data, codex_data, grok_data)
+main:app/routes/system.py:1097:                "error": error or "no data",
+main:app/routes/system.py:1114:    usage_save_snapshot(
+main:app/static/js/usage.js:424:    if (sevenDay !== null && (row.seven_day_resets_at || sevenDay)) {
+main:app/static/js/usage.js:426:            window_minutes:10080, resets_at:row.seven_day_resets_at || null});
+main:tests/test_codex_usage.py:90:def test_provider_usage_snapshot_unifies_provider_windows():
+main:tests/test_codex_usage.py:124:    providers = system._provider_usage_snapshot(anthropic, codex, grok)
+main:tests/test_codex_usage.py:314:    from app.db import init_db, usage_get_history, usage_save_snapshot
+main:tests/test_codex_usage.py:329:    usage_save_snapshot(9, 67, "a", "b", 1.0, 0, providers=providers)
+main:tests/test_codex_usage.py:335:    assert "provider_usage" not in history[-1]
+main:tests/test_codex_usage.py:354:               (ts, five_hour_pct, seven_day_pct, provider_usage)
+main:tests/test_codex_usage.py:378:                seven_day_resets_at TEXT,
+main:tests/test_codex_usage.py:390:    assert "provider_usage" in columns
+main:tests/test_codex_usage.py:410:    monkeypatch.setattr("app.db.usage_save_snapshot", save_snapshot)
+main:tests/test_codex_usage.py:523:        await system.current_provider_usage(
+main:tests/test_codex_usage.py:558:    providers = await system.current_provider_usage(

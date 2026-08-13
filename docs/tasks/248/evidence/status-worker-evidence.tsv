@@ -1,0 +1,327 @@
+project_id	scope	par_number	status	worker_session_id	worker_row_exists	worker_name	worker_status	worker_task_id	matching_main_prefix_count	linked_git_commit_count	linked_sha_reachable_count
+/home/kesha/orchestra	/home/kesha/orchestra	1	in_progress	ef8437bb-7a51-4f5d-a2df-f9fa30c50474	1	verify-image-buffer	archived		1	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	2	in_progress	e6d1ec36-df6d-4cec-abdd-17fef2653fe8	1	verify-runtime-handoff	archived		2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	3	done	175224ef-c17e-46db-aabd-203ec50faed5	1	perf	archived		0	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	4	done		0				2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	5	done		0				4	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	6	done	aa852389-5c99-44c6-b14c-8fb872ccf6da	1	fix-reboot	archived		2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	7	done		0				1	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	8	in_progress	6b7dff38-15c2-4f71-896d-8763e09f8f7d	1	feat-instant	idle		2	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	9	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	10	done		0				1	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	11	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	12	done	79fcb2f7-de1c-4241-82fe-84e6320e56b8	1	fix-spawn	archived		1	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	13	done		0				1	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	14	done		0				0	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	15	done		0				6	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	16	done		0				1	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	17	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	18	done		0				0	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	19	done		0				0	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	20	done	ae9cb252-515f-42f9-bb98-d9faf2762049	1	feat-charts	idle		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	21	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	22	done		0				2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	23	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	27	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	28	done		0				3	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	29	done		0				2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	30	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	31	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	32	done		0				2	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	33	done		0				2	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	34	done		0				4	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	36	new		0				2	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	37	done		0				0	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	38	done		0				2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	44	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	47	done		0				4	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	49	done		0				2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	50	done		0				3	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	51	new		0				1	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	52	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	53	done		0				2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	54	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	55	done		0				2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	56	done		0				2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	57	done	514e0442-589c-4e20-a980-a7199e9068d5	1	audit-front	archived		0	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	58	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	59	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	60	done		0				4	4	0
+/home/kesha/orchestra	/home/kesha/orchestra	61	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	62	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	63	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	64	done		0				0	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	65	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	66	done		0				1	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	67	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	68	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	69	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	70	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	71	done		0				1	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	72	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	73	done		0				2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	74	done		0				2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	75	done		0				2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	76	done		0				1	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	77	done	4b72f653-b7e0-451b-b4e4-a9151a4b0107	1	prompt-engineer	running		4	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	78	new		0				1	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	79	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	80	done		0				2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	81	new		0				1	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	82	done		0				2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	84	done		0				4	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	86	done	b8048312-0382-42f2-8575-f3c9f4ee4bcc	1	feat-codemap	archived		4	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	94	done		0				2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	98	done	2efa3fbe-0da8-49db-af5c-b38d95c723bf	1	codemap-ui	archived		7	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	105	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	107	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	119	done	c25555bb-bd2e-48a0-b129-5d6a57672d1f	1	m119-c7	archived	119	3	4	0
+/home/kesha/orchestra	/home/kesha/orchestra	122	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	123	in_progress	25172ae7-8772-43d9-9aea-667831a50de2	1	demo-artifact	archived		0	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	124	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	127	done	2b2f953a-602e-45d4-8dc4-8b40df68aef5	1	research-opus5-migration	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	128	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	129	done		0				2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	130	done		0				4	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	136	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	137	done	670fad42-1a2f-49b9-b065-46eb5c3c6f63	1	research-prime-agent	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	140	done	3bd96ccd-237f-4a52-b5ab-ab923f68db5b	1	audit-agent-slop	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	144	in_progress		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	145	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	150	in_progress		0				3	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	154	done	28290b1e-99d9-4a74-9085-75277ee02135	1	feat-codex-gate	archived		3	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	155	done	139bcabb-ccfc-4ecc-abe1-1e3ab1f67e63	1	probe-safeguards	archived	155	2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	157	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	161	in_progress		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	162	done	efbc5959-114d-41cb-bfe7-42a25b06636a	1	feat-quota-math	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	163	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	164	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	168	done	fa68fa66-b2fe-4d87-9d47-c6c292750a9f	1	feat-quota-guard	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	169	done	7201e51d-3e6b-435e-a550-7b2dd1cf263c	1	fix-task-project-case	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	170	done	31eef8bf-ebb5-489d-8382-e79f484a0e14	1	perf-codex-seedon	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	171	done	6e5b1a6c-6782-4a6a-8f19-268027189bde	1	research-ouroboros	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	172	done		0				0	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	173	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	174	in_progress	5c0df2b5-581d-4cb7-941f-7f5f5858c570	1	review-t2-final	archived		11	12	0
+/home/kesha/orchestra	/home/kesha/orchestra	175	done	b83a0a7f-dbcc-4043-82d8-19a5262d46d6	1	audit-codex-era	archived		2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	176	done	996dbe25-9378-402f-af16-e2837c408631	1	audit-sol-usability	archived		2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	177	done	571f373a-15a0-4089-a04d-6d9c4660d5bb	1	audit-phase-overhead	archived		2	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	178	done	b123a23f-d9c9-4b8b-b72b-f6a0db36a477	1	audit-prompt-economy	archived		3	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	179	done	66a819ca-0680-49fb-81d4-33621a93e783	1	fix-codex-sandbox	archived		3	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	180	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	181	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	182	done	f8067789-3c0d-4776-8725-993860c12ef6	1	fix-review-guard	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	183	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	184	done	79199fb8-107f-40c4-a5fe-849e5e97b6d9	1	feat-review-council	idle		5	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	185	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	186	done	aa6fa31e-6105-43db-9bb8-6974c9f3fd35	1	quota-policy	idle		9	6	0
+/home/kesha/orchestra	/home/kesha/orchestra	187	in_progress	35aacaa7-1108-427e-a842-52806a5d242e	1	quota-routing	idle		5	5	0
+/home/kesha/orchestra	/home/kesha/orchestra	188	done	f7e0a04b-f97f-4961-81ec-270a148d7078	1	audit-rules-memory	archived		5	6	0
+/home/kesha/orchestra	/home/kesha/orchestra	189	done	e5d041f4-83de-4bb5-a7ca-6b2003d2687f	1	tg-readability	archived		9	5	0
+/home/kesha/orchestra	/home/kesha/orchestra	190	done	97c2982d-1721-425b-b9a0-8d7e430d5650	1	codex-pricing	archived		2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	191	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	192	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	193	done	2a25c64d-2925-41c5-b7cc-b78a4f7ad013	1	fix-memory-subrepo	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	194	done	3cc38566-d95c-496c-884f-5c30ba46d892	1	r194-science	archived		0	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	195	done	f982a967-534e-47d3-b96c-b0c954ce3559	1	pilot-luna	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	196	new		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	197	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	198	in_progress	21c3c781-e8d3-407a-a46a-9dec8a2eeb77	1	audit-codex-theses	archived		4	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	199	done	4d11ab0b-ebf4-40f2-ae11-5405469028c3	1	bench-models	archived		3	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	200	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	201	in_progress	6c3b028f-2fbd-4964-a1a8-2003c2bf2886	1	bench201-y	idle		1	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	202	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	203	done		0				3	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	204	done	86f3939b-a70c-4019-8c06-c1e19cb044b5	1	research-benchmarks	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	205	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	206	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	207	new		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	208	in_progress	bf1f42ae-e4ad-4b53-bcb7-879533e2b6ab	1	bench-effort	idle		0	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	209	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	210	done	68bec854-119d-4ff6-89b2-d6ba1519613e	1	phase-split-cheap	archived		4	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	211	in_progress	eca9d05a-db6f-43bd-897f-ead1a49505a0	1	fix-grep-guard	idle		5	5	0
+/home/kesha/orchestra	/home/kesha/orchestra	212	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	214	done	24e714aa-8076-48e2-8616-3aaf52ecd904	1	impl-effort-model	archived		2	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	215	done		0				1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	216	new		0				6	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	217	done	8b668cab-f9bf-4d01-8b1a-356a99975161	1	luna-resume-usage	archived		3	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	218	done	e7a5a782-7c42-418a-b2b7-6de437ffdb94	1	luna-live-test	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	219	in_progress	a2487afb-2b93-4abe-9a1b-78d0f5a4de6b	1	feat-fan-research	idle		8	6	0
+/home/kesha/orchestra	/home/kesha/orchestra	220	in_progress	f7d6e476-cf61-45b4-9b42-baaf0fb15f2b	1	feat-hot-reload	idle		4	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	221	in_progress	8e156105-f848-41ce-b94a-865a10d44883	1	luna-tg-format	archived		2	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	222	done	d178b4cf-1586-49ee-925f-7218812c515a	1	bench-spark-luna	idle		3	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	223	in_progress	bc39831e-8abd-44be-bab3-7d8cdd903cd3	1	impl223-test-layer-auth	archived		6	10	0
+/home/kesha/orchestra	/home/kesha/orchestra	224	done	bbcc2d11-de09-4bdd-aaa8-2806d49d324c	1	fix-secrets-argv	idle		5	3	0
+/home/kesha/orchestra	/home/kesha/orchestra	225	done	02ed84b8-148d-4433-b9bd-8e6aa2390722	1	luna-wip-diff	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	226	done	f1f54258-a5c5-454e-ba01-b712098ce93a	1	fix-codex-cost-turnend	archived		1	1	0
+/home/kesha/orchestra	/home/kesha/orchestra	227	done	d2bacb03-ba1a-467b-abf5-37dc212a3741	1	fix-model-gate	running		4	1	1
+/home/kesha/orchestra	/home/kesha/orchestra	228	done	b9885b82-ec70-4b65-94fd-147511b93a73	1	impl-enforcement-hook	archived		7	7	0
+/home/kesha/orchestra	/home/kesha/orchestra	229	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	230	new		0				14	7	0
+/home/kesha/orchestra	/home/kesha/orchestra	231	in_progress	a0429b13-9d78-4587-9463-56c5ed52a391	1	fan231-c	archived	231	6	9	1
+/home/kesha/orchestra	/home/kesha/orchestra	232	in_progress	30c0d20e-74ec-4307-aab2-dedddb4b1a1b	1	bench-grok	idle		3	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	233	done	c3a8cb10-4c2a-41a1-a20c-e8398234131d	1	impl-bash-hook-flag	archived		1	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	234	new		0				1	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	235	in_progress	6b8a30e1-35eb-4efb-8770-91c50006097b	1	fix-test-prod-db	archived		2	2	1
+/home/kesha/orchestra	/home/kesha/orchestra	236	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	237	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	238	in_progress	4b9edf36-4b30-4f57-aff1-adaec0ab28f2	1	loopx238-runtime	archived	238	3	2	0
+/home/kesha/orchestra	/home/kesha/orchestra	239	done		0				1	1	1
+/home/kesha/orchestra	/home/kesha/orchestra	240	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	241	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	242	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	245	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	246	new		0				2	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	247	new		0				0	0	0
+/home/kesha/orchestra	/home/kesha/orchestra	248	in_progress	a62aebd2-57d4-4737-83f7-a15e7adedc72	1	research-taskmanager	running	248	0	0	0
+Orchestra		1	in_progress		0					0	0
+Seedon		1	in_progress		0					0	0
+Seedon		2	in_progress		0					0	0
+dnd-game-master	/home/kesha/projects/dnd-game-master	1	done	bcbdfb07-cbdc-4cda-ba02-ffd14e7c5250	1	fix-ws-auth-tests	archived		1	1	1
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	1	done	f023957d-c7fc-4eed-b0c7-9296e9fbead7	1	fix-image-json-buffer	archived	1	1	0	0
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	2	in_progress	ba232b8a-f4ee-4efb-ac14-dde909e7e834	1	fix-runtime-handoff	archived	2	1	0	0
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	3	done		0				4	0	0
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	4	done		0				1	0	0
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	5	done		0				3	0	0
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	6	done	383aada1-f58c-49fd-9e22-ec6db32cce14	1	feat-quota-view	archived		3	1	0
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	18	new		0				0	0	0
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	19	done	d42c9f9a-8806-4220-a9ce-9ac9a955e8e9	1	fix-argv-secrets	archived		2	1	1
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	22	new		0				0	0	0
+orchestra		1	new		0					0	0
+orchestra		2	new		0					0	0
+seedon	/home/kesha/projects/seedon	1	done	520c5935-5174-4b53-aa3f-81d9a016501c	1	seo-cro	idle		0	1	0
+seedon	/home/kesha/projects/seedon	2	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	3	in_progress	35912f23-d03b-4a63-94d5-6fb678d0d672	1	accountant	idle		9	10	10
+seedon	/home/kesha/projects/seedon	4	done	62b74a48-2045-4959-b7e6-f2b3c1834767	1	tax-rsv	archived		1	1	1
+seedon	/home/kesha/projects/seedon	5	done	e5bda5b5-6c44-4bdb-bf73-266062090fd2	1	rsya-inventory	archived		2	2	2
+seedon	/home/kesha/projects/seedon	7	done		0				2	2	2
+seedon	/home/kesha/projects/seedon	8	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	9	done		0				2	2	2
+seedon	/home/kesha/projects/seedon	10	done		0				0	2	0
+seedon	/home/kesha/projects/seedon	11	done		0				3	2	2
+seedon	/home/kesha/projects/seedon	12	done		0				0	2	0
+seedon	/home/kesha/projects/seedon	13	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	14	new		0				1	1	1
+seedon	/home/kesha/projects/seedon	15	done		0				1	2	0
+seedon	/home/kesha/projects/seedon	16	done	d30ed58c-beee-43f3-846a-e017825b548f	1	repo-split	archived		1	6	2
+seedon	/home/kesha/projects/seedon	17	new		0				5	3	3
+seedon	/home/kesha/projects/seedon	19	new		0				2	4	4
+seedon	/home/kesha/projects/seedon	21	done		0				0	2	0
+seedon	/home/kesha/projects/seedon	22	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	23	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	24	new		0				1	4	4
+seedon	/home/kesha/projects/seedon	25	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	26	new		0				3	1	1
+seedon	/home/kesha/projects/seedon	28	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	29	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	30	done		0				2	2	2
+seedon	/home/kesha/projects/seedon	31	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	32	done	c566726e-175e-4b56-bfbf-9475d5e9f814	1	fix-rkn-wording	archived		1	1	1
+seedon	/home/kesha/projects/seedon	33	done		0				2	1	1
+seedon	/home/kesha/projects/seedon	35	done	b5abb33a-4567-4a47-8cff-df8520c29e04	1	purge-pd	archived		2	3	3
+seedon	/home/kesha/projects/seedon	36	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	37	done	53f9c361-1cb1-4d78-a186-532e84c2c003	1	inv-site	archived		2	1	1
+seedon	/home/kesha/projects/seedon	40	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	41	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	42	done	d98fc182-db9a-4b96-b092-269f22ee0e8f	1	restore-pd	archived		0	2	2
+seedon	/home/kesha/projects/seedon	43	new		0				0	1	0
+seedon	/home/kesha/projects/seedon	44	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	45	done		0				0	2	0
+seedon	/home/kesha/projects/seedon	46	new		0				0	3	0
+seedon	/home/kesha/projects/seedon	47	new		0				0	3	0
+seedon	/home/kesha/projects/seedon	48	done		0				0	1	1
+seedon	/home/kesha/projects/seedon	49	done		0				3	5	5
+seedon	/home/kesha/projects/seedon	50	done	9e1805f1-a66e-4e54-b22f-26470e195017	1	docs-audit	archived		3	3	3
+seedon	/home/kesha/projects/seedon	51	done		0				5	4	4
+seedon	/home/kesha/projects/seedon	52	done	ae56dc70-635e-4d38-a1a3-becc6f585830	1	offer-test	archived		2	3	3
+seedon	/home/kesha/projects/seedon	53	done		0				4	5	5
+seedon	/home/kesha/projects/seedon	54	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	56	done		0				1	2	0
+seedon	/home/kesha/projects/seedon	59	done		0				1	0	0
+seedon	/home/kesha/projects/seedon	61	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	62	done		0				4	2	2
+seedon	/home/kesha/projects/seedon	63	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	64	done		0				2	2	2
+seedon	/home/kesha/projects/seedon	66	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	67	done		0				2	2	2
+seedon	/home/kesha/projects/seedon	68	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	69	done		0				7	4	4
+seedon	/home/kesha/projects/seedon	70	new		0				0	1	0
+seedon	/home/kesha/projects/seedon	71	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	72	done		0				1	7	1
+seedon	/home/kesha/projects/seedon	74	done		0				2	1	1
+seedon	/home/kesha/projects/seedon	75	done		0				0	1	1
+seedon	/home/kesha/projects/seedon	77	done		0				5	4	4
+seedon	/home/kesha/projects/seedon	78	done		0				2	1	1
+seedon	/home/kesha/projects/seedon	79	done		0				1	2	0
+seedon	/home/kesha/projects/seedon	80	done	9c47aa71-ffac-4baa-ad07-f1827db72a18	1	fix-mcp-schema	archived		4	1	1
+seedon	/home/kesha/projects/seedon	81	done		0				3	2	2
+seedon	/home/kesha/projects/seedon	82	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	84	done		0				1	2	2
+seedon	/home/kesha/projects/seedon	85	done		0				1	3	3
+seedon	/home/kesha/projects/seedon	86	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	87	done		0				0	1	1
+seedon	/home/kesha/projects/seedon	88	done	5cfcf3f3-90e1-4281-96a2-6824b9de13a9	1	feat-direct-api	archived		6	2	2
+seedon	/home/kesha/projects/seedon	89	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	90	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	91	done		0				2	2	2
+seedon	/home/kesha/projects/seedon	92	done		0				2	2	2
+seedon	/home/kesha/projects/seedon	93	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	94	new		0				13	13	11
+seedon	/home/kesha/projects/seedon	96	new		0				4	3	0
+seedon	/home/kesha/projects/seedon	97	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	98	done		0				1	2	1
+seedon	/home/kesha/projects/seedon	99	done		0				2	2	2
+seedon	/home/kesha/projects/seedon	100	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	101	done	313c5206-05fe-4a02-b9ba-0928eed88a98	1	feat-groom-demo	archived		5	3	3
+seedon	/home/kesha/projects/seedon	102	done		0				2	2	2
+seedon	/home/kesha/projects/seedon	103	done		0				2	1	1
+seedon	/home/kesha/projects/seedon	104	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	106	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	107	done	c3b39cd4-ff3f-4ff0-9475-703643b81168	1	fix-groom-proxy	archived		1	1	1
+seedon	/home/kesha/projects/seedon	108	done	18af44c0-b070-4cf4-9115-2358eea56f79	1	fix-groom-live	archived		1	2	1
+seedon	/home/kesha/projects/seedon	109	done	d2e45a95-36d4-4bbd-bdc1-e12830504fdb	1	fix-groom-models	archived		1	1	1
+seedon	/home/kesha/projects/seedon	110	done	cf19e251-6030-45db-91ac-5f60e86ce961	1	fix-groom-conversation	archived		1	2	1
+seedon	/home/kesha/projects/seedon	111	done	2d9f1a45-0937-4a9c-980b-92b59c4678e0	1	fix-groom-render	archived		1	1	1
+seedon	/home/kesha/projects/seedon	112	in_progress	534ef80d-3c8a-46cf-9e3a-d7c984fdc6ed	1	fix-groom-operator	archived		5	2	1
+seedon	/home/kesha/projects/seedon	113	done		0				4	0	0
+seedon	/home/kesha/projects/seedon	115	done		0				2	0	0
+seedon	/home/kesha/projects/seedon	119	done		0				1	0	0
+seedon	/home/kesha/projects/seedon	120	done		0				0	1	1
+seedon	/home/kesha/projects/seedon	121	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	122	done		0				1	1	1
+seedon	/home/kesha/projects/seedon	123	in_progress	9034f97e-4d1f-4ece-a842-49da17654226	1	landing-choice	archived		9	6	6
+seedon	/home/kesha/projects/seedon	124	done		0				2	1	1
+seedon	/home/kesha/projects/seedon	125	done		0				1	3	1
+seedon	/home/kesha/projects/seedon	126	done		0				2	1	1
+seedon	/home/kesha/projects/seedon	127	done		0				3	1	1
+seedon	/home/kesha/projects/seedon	128	done		0				1	2	1
+seedon	/home/kesha/projects/seedon	129	new		0				1	1	1
+seedon	/home/kesha/projects/seedon	130	done		0				2	1	1
+seedon	/home/kesha/projects/seedon	132	done		0				2	2	1
+seedon	/home/kesha/projects/seedon	134	done		0				2	1	1
+seedon	/home/kesha/projects/seedon	135	done		0				0	2	1
+seedon	/home/kesha/projects/seedon	136	done		0				1	2	2
+seedon	/home/kesha/projects/seedon	137	done		0				1	1	0
+seedon	/home/kesha/projects/seedon	138	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	140	done		0				0	1	0
+seedon	/home/kesha/projects/seedon	141	done	4c3e98a1-a5d9-4aec-adc3-a0319cf45426	1	fix-bot-silence	archived		12	8	8
+seedon	/home/kesha/projects/seedon	142	new		0				1	1	1
+seedon	/home/kesha/projects/seedon	143	done	a9bf1e2b-70e4-4dee-ab17-774eaafc2bc1	1	audit-devlead	archived		4	3	3
+seedon	/home/kesha/projects/seedon	144	new		0				0	1	0
+seedon	/home/kesha/projects/seedon	146	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	149	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	150	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	151	new		0				0	1	0
+seedon	/home/kesha/projects/seedon	152	done		0				2	1	1
+seedon	/home/kesha/projects/seedon	153	new		0				0	1	0
+seedon	/home/kesha/projects/seedon	154	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	157	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	158	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	159	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	161	in_progress	8e997718-ac89-41e0-adbb-17101af130e1	1	research-armydelay	archived		2	1	1
+seedon	/home/kesha/projects/seedon	165	new		0				1	1	1
+seedon	/home/kesha/projects/seedon	166	new		0				3	2	2
+seedon	/home/kesha/projects/seedon	167	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	168	new		0				0	0	0
+seedon	/home/kesha/projects/seedon	169	in_progress	e349929e-8694-4c89-bf4f-fb0b403049b0	1	ads-retro	running	169	0	0	0

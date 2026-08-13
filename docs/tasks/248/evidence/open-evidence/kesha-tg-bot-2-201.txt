@@ -1,0 +1,34 @@
+main:chat_state.py:40:HANDOFF_TIMEOUT_SECONDS = 10
+main:chat_state.py:383:            handoff_note, handoff_status = await self._deliver_handoff(
+main:chat_state.py:385:                passive=runtime_definition.capabilities.passive_handoff,
+main:chat_state.py:545:    async def _deliver_handoff(
+main:chat_state.py:553:                self._handoff_transcript(), timeout=HANDOFF_TIMEOUT_SECONDS
+main:chat_state.py:557:                f"passive handoff history timed out after {HANDOFF_TIMEOUT_SECONDS}s"
+main:chat_state.py:561:        inject = getattr(new_session, "inject_context", None)
+main:chat_state.py:563:            raise RuntimeError("runtime declares passive handoff without inject_context")
+main:chat_state.py:566:                inject(transcript), timeout=HANDOFF_TIMEOUT_SECONDS
+main:chat_state.py:570:                f"passive handoff injection timed out after {HANDOFF_TIMEOUT_SECONDS}s"
+main:claude_session.py:140:        passive_handoff=False,
+main:codex_session.py:111:        passive_handoff=True,
+main:codex_session.py:620:    async def inject_context(self, text: str) -> None:
+main:docs/tasks/2/runtime-handoff-fix.md:6:   passed its quota probe and created a thread, but `ChatState._deliver_handoff()`
+main:docs/tasks/2/runtime-handoff-fix.md:41:- `RuntimeCapabilities.passive_handoff` declares whether a backend can carry
+main:docs/tasks/2/runtime-handoff-fix.md:43:  it but lacks `inject_context()`.
+main:docs/tasks/2/runtime-handoff-fix.md:44:- Codex implements `inject_context()` with `thread/inject_items`. Claude declares
+main:tests/test_codex_session.py:71:    assert caps.passive_handoff is True
+main:tests/test_codex_session.py:586:    asyncio.run(session.inject_context("old transcript"))
+main:tests/test_codex_session.py:612:        asyncio.run(session.inject_context("old transcript"))
+main:tests/test_runtime_protocol.py:66:        "passive_handoff",
+main:tests/test_runtime_protocol.py:68:    assert caps.passive_handoff is False
+main:tests/test_runtime_registry.py:90:def test_passive_handoff_capability_requires_non_agentic_ingress(tmp_path):
+main:tests/test_runtime_registry.py:92:    lying = replace(ClaudeSession.CAPABILITIES, passive_handoff=True)
+main:tests/test_runtime_registry.py:110:    with pytest.raises(TypeError, match="without inject_context"):
+main:tests/test_runtime_switch.py:52:    async def inject_context(self, text):
+main:tests/test_runtime_switch.py:288:    new.inject_context = broken_inject
+main:tests/test_runtime_switch.py:357:    new.inject_context = hanging_inject
+main:tests/test_runtime_switch.py:358:    monkeypatch.setattr("chat_state.HANDOFF_TIMEOUT_SECONDS", 0.01)
+main:tests/test_runtime_switch.py:392:    new.inject_context = hanging_inject
+main:tests/test_runtime_switch.py:434:    new.inject_context = broken_inject
+main:tests/test_runtime_switch.py:480:    new.inject_context = broken_inject
+main:tests/test_runtime_switch.py:517:    new.inject_context = hanging_inject
+main:tests/test_runtime_switch.py:626:    new.inject_context = broken_inject

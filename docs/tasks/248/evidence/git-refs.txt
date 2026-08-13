@@ -1,0 +1,9 @@
+Pinned repository refs used for every Git/SQLite reconciliation count:
+
+/home/kesha/orchestra	4b74e70f07a6dc417369156606634838817fc2c8
+/home/kesha/projects/seedon	b6a09930f66b06f34d9ba3f750f30afa4b320ede
+/home/kesha/projects/kesha-tg-bot	0f30f11c68548a3821a420df5cb690855212c9af
+/home/kesha/projects/University	b9fc310004ff586038e83324cc17e28c356c27f9
+/home/kesha/projects/dnd-game-master	9d7a47b7ae8c2c860392a30155960e67a323d43b
+
+Refs were captured once before parsing subjects. Counts do not follow a moving main branch.

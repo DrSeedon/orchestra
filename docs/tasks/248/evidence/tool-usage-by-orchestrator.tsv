@@ -1,0 +1,7 @@
+scope	orchestrator_name	session_id	session_status	created_at	finished_at	total_turns	total_tool_rows	task_create_count	task_update_count	task_list_count	task_get_count	first_task_tool_ts	last_task_tool_ts	distinct_task_tool_days	legacy_missing_tool_name_count
+/home/kesha/orchestra	Orchestra-orchestrator	75285d62-98bc-441c-9727-22c54bd8ab97	waiting	2026-07-07 06:04:52		3093	2871	50	28	3	3	2026-08-11T13:06:42.184531+00:00	2026-08-13T06:34:49.259820+00:00	3	320
+/home/kesha/projects/University	University-orchestrator	336d5d9c-6ca0-40ce-b5c7-76364d7d31a3	idle	2026-08-07T03:44:12.627517+00:00		31	33	0	0	0	0			0	0
+/home/kesha/projects/dnd-game-master	Claude-Code-Game-Master-orchestrator	206a85e3-c813-41c8-ac48-2bbebe9ec846	idle	2026-07-11T14:50:38.095503+00:00		742	197	0	0	0	0			0	2
+/home/kesha/projects/kesha-tg-bot	kesha-tg-bot-orchestrator	82c118ee-4811-4ccd-aa8d-29b52de3e63d	idle	2026-08-03T07:19:49.204658+00:00		109	616	4	2	0	0	2026-08-11T12:13:25.191223+00:00	2026-08-12T11:17:32.860616+00:00	2	12
+/home/kesha/projects/seedon	dev-lead	5c9748dc-488d-408d-8ebf-4d06e1638b78	idle	2026-08-03T08:24:38.690936+00:00		910	839	1	7	0	4	2026-08-12T04:02:16.887811+00:00	2026-08-12T09:41:20.707101+00:00	1	60
+/home/kesha/projects/seedon	seedon-orchestrator	09b75a6c-c93f-45ea-b2f4-6728851a1bbd	waiting	2026-08-03T07:19:00.656464		2249	2934	21	12	0	0	2026-08-11T12:53:19.144098+00:00	2026-08-13T06:28:49.817702+00:00	3	195

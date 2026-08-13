@@ -1,0 +1,20 @@
+Pinned ref: b6a09930f66b06f34d9ba3f750f30afa4b320ede
+Sources: groom-demo-bot/tests/test_dashboard.py, tests/test_typing_lifecycle.py,
+groom_demo/dashboard_server.py, groom_demo/handlers.py, dashboard/DEPLOY.md
+
+Full-dialog evidence:
+- test_real_sqlite_list_detail_search_pagination_isolation_booking_and_delete asserts that the
+  detail endpoint returns the saved user message and its semantic assistant response in sequence
+- the browser test supplies 50 messages and asserts `.bubble` count == 50
+- dashboard_server.py exposes list and detail routes under /demo/groom/api/conversations
+
+Typing evidence:
+- TypingMiddleware wraps slow conversational updates with ChatActionSender.typing
+- test_typing_precedes_slow_provider_repeats_and_stops_for_every_modality asserts the action starts,
+  repeats, and leaves no live typing task
+- test_typing_stops_after_terminal_provider_error_and_cancel covers both error and cancellation
+- test_instant_commands_and_callbacks_do_not_start_typing covers over-application
+
+The versioned deploy contract explicitly says source-only task #112 does not itself deploy or
+restart the VPS. Authentication is a mandatory Nginx boundary for a later separately approved
+deployment, so deployment is not used here as proof of this task's completion.

@@ -1,0 +1,4 @@
+main:pipelines/default/prompts/roles/orchestrator.md:11:## Telegram user-facing replies
+main:pipelines/default/prompts/roles/orchestrator.md:13:The Telegram bridge converts Markdown into Telegram entities before sending, so write Markdown
+main:pipelines/default/prompts/roles/orchestrator.md:20:- Write URLs bare, without Markdown link wrappers or backticks.
+main:pipelines/default/prompts/roles/orchestrator.md:21:- Calibrate length to the question, not to habit: a household question, fact, or two-choice

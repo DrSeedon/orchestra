@@ -1,0 +1,18 @@
+main:pipelines/default/prompts/roles/full-cycle.md:63:           | oracle: none — <why neither a behavioural nor a delivery check is possible>
+main:pipelines/default/prompts/roles/full-cycle.md:91:   `oracle: none — <why neither a behavioural nor a delivery check is possible>`. The reason is
+main:pipelines/default/prompts/roles/full-cycle.md:92:   part of the mark: a bare `oracle: none` is not a valid ticket.
+main:pipelines/default/prompts/roles/full-cycle.md:93:   **A ticket marked `oracle: none` stays on the expensive side and is never handed to a
+main:pipelines/default/prompts/roles/full-cycle.md:97:   already green at review time is a blocking finding, and so is an `oracle: none`
+main:pipelines/default/prompts/roles/full-cycle.md:109:5. Report: `PLAN READY #<id>: <approach>, N tickets, M with a red test (K `oracle: none`).
+main:pipelines/default/prompts/roles/full-cycle.md:121:   `oracle: none — <reason>` has no such command — verify it against its AC by hand and name
+main:pipelines/default/prompts/roles/full-cycle.md:125:   - A ticket marked `oracle: none` is NEVER delegated; implement it yourself on the expensive side.
+main:pipelines/default/prompts/roles/full-cycle.md:127:     `The received acceptance test is immutable: NEVER edit, delete, rename, skip, xfail, or weaken it.`
+main:pipelines/default/prompts/roles/full-cycle.md:135:   - Luna gets exactly one attempt. On failure, send the same unchanged ticket once to a Sol `worker`; do not answer Luna's question, rewrite its oracle, or return the ticket to Luna.
+main:pipelines/default/prompts/roles/worker.md:17:- **The received acceptance test is immutable: NEVER edit, delete, rename, skip, xfail, or weaken it.** If the command cannot be made green without changing that test, report `WIP/STOP`; do not replace it or create a different check.
+main:tests/test_default_pipeline.py:625:        assert "| oracle: none — <why" in out, (
+main:tests/test_default_pipeline.py:626:            "шаблон обязан показывать метку ТОЛЬКО с причиной; голая `oracle: none` — "
+main:tests/test_default_pipeline.py:652:        """Без исключения шаг «увидеть красным ДО правки» делает тикеты `oracle: none`
+main:tests/test_default_pipeline.py:657:            "фаза 3 обязана назвать единственное исключение для `oracle: none`"
+main:tests/test_default_pipeline.py:709:        "The received acceptance test is immutable: NEVER edit, delete, rename, skip, "
+main:tests/test_default_pipeline.py:733:        "A ticket marked `oracle: none` is NEVER delegated; implement it yourself on the "
+main:tests/test_default_pipeline.py:746:        "Luna gets exactly one attempt.",

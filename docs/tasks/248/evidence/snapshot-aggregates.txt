@@ -1,0 +1,58 @@
+Snapshot creation:
+source = sqlite3.connect("file:/home/kesha/orchestra/data/orchestra.db?mode=ro", uri=True)
+source.backup(destination)
+destination = /home/kesha/orchestra/data/task248-live-IpricQ.db
+
+Snapshot validation:
+sha256 = 416c7cfac741cf4c2f9966bcc5f3e014db7dddacb4c75bf18d025f5e0af92126
+size = 241143808
+mtime = 2026-08-13 08:37:45.386349172 +0200
+PRAGMA integrity_check = ok
+PRAGMA query_only = ON
+
+SELECT min(id), max(id), min(ts), max(ts) FROM logs;
+342	94131	2026-07-27T16:20:40.227730+00:00	2026-08-13T06:37:36.371388+00:00
+
+Table counts:
+logs	93787
+sessions	190
+tm_projects	7
+tm_tasks	331
+
+SELECT status,count(*) FROM tm_tasks GROUP BY status ORDER BY status;
+cancelled	5
+done	229
+in_progress	31
+new	66
+
+SELECT status,count(*) FROM sessions GROUP BY status ORDER BY status;
+archived	153
+idle	28
+running	6
+waiting	3
+
+SELECT p.id,p.scope,t.status,count(*)
+FROM tm_projects p JOIN tm_tasks t ON t.project_id=p.id
+GROUP BY p.id,p.scope,t.status ORDER BY p.id,t.status;
+/home/kesha/orchestra	/home/kesha/orchestra	cancelled	1
+/home/kesha/orchestra	/home/kesha/orchestra	done	122
+/home/kesha/orchestra	/home/kesha/orchestra	in_progress	22
+/home/kesha/orchestra	/home/kesha/orchestra	new	31
+Orchestra	NULL	in_progress	1
+Seedon	NULL	in_progress	2
+dnd-game-master	/home/kesha/projects/dnd-game-master	done	1
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	done	6
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	in_progress	1
+kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	new	2
+orchestra	NULL	cancelled	3
+orchestra	NULL	new	2
+seedon	/home/kesha/projects/seedon	cancelled	1
+seedon	/home/kesha/projects/seedon	done	100
+seedon	/home/kesha/projects/seedon	in_progress	5
+seedon	/home/kesha/projects/seedon	new	31
+
+Canonical in_progress query uses trim(coalesce(p.scope,'')) <> '': 28
+Ghost in_progress query uses trim(coalesce(p.scope,'')) = '': 3
+All tasks in ghost projects: 8
+
+No query in this validation selected logs.content.

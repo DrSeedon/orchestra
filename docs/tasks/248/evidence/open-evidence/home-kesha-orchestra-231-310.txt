@@ -1,0 +1,148 @@
+main:app/db.py:138:            CREATE TABLE IF NOT EXISTS fan_barriers (
+main:app/db.py:144:                reducer TEXT NOT NULL DEFAULT '',
+main:app/db.py:150:            CREATE TABLE IF NOT EXISTS fan_members (
+main:app/db.py:151:                fan_id TEXT NOT NULL REFERENCES fan_barriers(fan_id) ON DELETE CASCADE,
+main:app/db.py:157:            CREATE INDEX IF NOT EXISTS idx_fan_members_child
+main:app/db.py:158:                ON fan_members(child, fan_id);
+main:app/db.py:780:    fan_cols = {row[1] for row in c.execute("PRAGMA table_info(fan_barriers)").fetchall()}
+main:app/db.py:781:    if "reducer" not in fan_cols:
+main:app/db.py:782:        c.execute("ALTER TABLE fan_barriers ADD COLUMN reducer TEXT NOT NULL DEFAULT ''")
+main:app/db.py:784:        c.execute("ALTER TABLE fan_barriers ADD COLUMN summarised INTEGER NOT NULL DEFAULT 0")
+main:app/fan_barrier.py:19:    return table in {"fan_barriers", "fan_members"}
+main:app/fan_barrier.py:22:def open_fan(
+main:app/fan_barrier.py:28:    reducer: str = "",
+main:app/fan_barrier.py:34:            """INSERT INTO fan_barriers
+main:app/fan_barrier.py:35:               (fan_id, parent_name, scope, created_at, deadline_at, reducer)
+main:app/fan_barrier.py:37:            (fan_id, parent_name, scope, now, now + deadline_seconds, reducer or ""),
+main:app/fan_barrier.py:40:            "INSERT INTO fan_members (fan_id, child) VALUES (?, ?)",
+main:app/fan_barrier.py:45:                "UPDATE fan_barriers SET released = 1, complete = 1 WHERE fan_id = ?",
+main:app/fan_barrier.py:56:                """SELECT 1 FROM fan_members m
+main:app/fan_barrier.py:57:                   JOIN fan_barriers f ON f.fan_id = m.fan_id
+main:app/fan_barrier.py:98:               FROM fan_members m
+main:app/fan_barrier.py:99:               JOIN fan_barriers f ON f.fan_id = m.fan_id
+main:app/fan_barrier.py:108:            """UPDATE fan_members SET state = ?, report_path = ?
+main:app/fan_barrier.py:113:            "SELECT 1 FROM fan_members WHERE fan_id = ? AND state IS NULL LIMIT 1",
+main:app/fan_barrier.py:119:            """UPDATE fan_barriers
+main:app/fan_barrier.py:139:            "SELECT released FROM fan_barriers WHERE fan_id = ?", (fan_id,)
+main:app/fan_barrier.py:148:            "SELECT fan_id FROM fan_barriers WHERE released = 0 AND deadline_at <= ?",
+main:app/fan_barrier.py:154:                """UPDATE fan_members SET state = 'timeout'
+main:app/fan_barrier.py:159:                """UPDATE fan_barriers
+main:app/fan_barrier.py:171:               FROM fan_barriers WHERE fan_id = ?""",
+main:app/fan_barrier.py:177:            """SELECT child, state, report_path FROM fan_members
+main:app/fan_barrier.py:213:            f"""SELECT m.fan_id FROM fan_members m
+main:app/fan_barrier.py:214:                JOIN fan_barriers f ON f.fan_id = m.fan_id
+main:app/fan_barrier.py:226:            "SELECT parent_name, scope FROM fan_barriers WHERE fan_id = ?",
+main:app/fan_barrier.py:232:def reducer_of(fan_id: str) -> str:
+main:app/fan_barrier.py:236:            "SELECT reducer FROM fan_barriers WHERE fan_id = ?", (fan_id,)
+main:app/fan_barrier.py:252:                """SELECT fan_id FROM fan_barriers
+main:app/fan_barrier.py:253:                   WHERE reducer = ? AND scope = ? AND released = 1 AND summarised = 0
+main:app/fan_barrier.py:267:            "UPDATE fan_barriers SET summarised = 1 WHERE fan_id = ?", (fan_id,)
+main:app/fan_barrier.py:271:def fan_id_for_reducer(name: str, scope: str) -> str | None:
+main:app/fan_barrier.py:277:            """SELECT fan_id FROM fan_barriers
+main:app/fan_barrier.py:278:               WHERE reducer = ? AND scope = ? ORDER BY created_at DESC LIMIT 1""",
+main:app/manager.py:470:        "ORCHESTRA_ACCESS_MODE": "reducer" if role == "reducer" else "full",
+main:app/mcp_stdio.py:281:    if normalized == "reducer":
+main:app/mcp_stdio.py:920:async def open_fan(children: list[str], deadline_seconds: float = 1800.0,
+main:app/mcp_stdio.py:921:                   reducer: str = "") -> str:
+main:app/mcp_stdio.py:939:        return "open_fan needs at least 2 children; for one child just wait for its report."
+main:app/mcp_stdio.py:947:        "reducer": reducer,
+main:app/mcp_stdio.py:950:        return f"open_fan failed: {result['error']}"
+main:app/routes/sessions.py:189:    reducer: str | None = None
+main:app/routes/sessions.py:495:async def open_fan(req: OpenFanRequest):
+main:app/routes/sessions.py:496:    """#231 T1: единственный вход в барьер #219 — до этого `open_fan()` не звал никто.
+main:app/routes/sessions.py:508:    fan_barrier.open_fan(
+main:app/routes/sessions.py:514:        reducer=req.reducer or "",
+main:app/routes/sessions.py:574:            reducer_fan = fan_barrier.peek_summary(req.sender, req.scope)
+main:app/routes/sessions.py:575:            if reducer_fan:
+main:app/routes/sessions.py:576:                manifest = fan_barrier.manifest_text(reducer_fan)
+main:app/routes/sessions.py:581:                fan_barrier.mark_summarised(reducer_fan)
+main:app/routes/sessions.py:582:                return {"ok": True, "fan_id": reducer_fan}
+main:app/routes/sessions.py:598:                        reducer = fan_barrier.reducer_of(fan_id)
+main:app/routes/sessions.py:599:                        if reducer:
+main:app/routes/sessions.py:600:                            target = await manager.ensure_loaded(reducer, req.scope) or session
+main:app/session_turns.py:295:                    reducer = fan_barrier.reducer_of(fan_id)
+main:app/session_turns.py:296:                    recipient = reducer or target[0]
+main:docs/tasks/231/codex-review-impl.md:3:The implementation has several at-least-once delivery races that can duplicate work, plus two paths that can permanently suppress required delivery. The current tests cover sequential success/failure but not concurrent drains, ambiguous send outcomes, or the silent auto-report reducer path.
+main:docs/tasks/231/codex-review-impl.md:19:5. **blocking: Silent child completion still wakes the parent instead of the configured reducer.**  
+main:docs/tasks/231/codex-review-impl.md:20:   Evidence: the auto-report release branch uses `target = fan_barrier.parent_of(fan_id) if fan_id else None`. Reducer routing was added only to the explicit `send_message` route. A child that finishes silently therefore bypasses the reducer and wakes the expensive parent, violating T6 and producing different behavior based solely on whether the child explicitly reports.
+main:docs/tasks/231/codex-review-impl.md:23:   Evidence: `UPDATE fan_barriers SET summarised = 1 WHERE fan_id = ?` commits inside `claim_summary()` before the route executes `await manager.send(session.id, body)`. Any exception, cancellation, process crash, or ambiguous send outcome after the claim leaves `summarised=1`; later reducer messages will never attach that manifest. Claiming and successful delivery cannot be made atomic across SQLite and the session backend, so this needs a claim/ack state with retry and idempotency rather than a permanent boolean set on read.
+main:docs/tasks/231/codex-review-impl.md:44:3. **NEW BUG — suggestion: concurrent reducer messages can both attach the same manifest.**  
+main:docs/tasks/231/codex-review-impl.md:45:   Evidence: `reducer_fan = fan_barrier.peek_summary(req.sender, req.scope)` is a pure read followed by an awaited external send before `mark_summarised`. Two requests can both observe `summarised = 0`, both send the manifest, then both mark it. This matches the accepted at-least-once preference, so it is not message loss, but it defeats the stated exactly-once attachment during normal concurrency. Use a claim/lease analogous to the mailbox, with acknowledgement after send.
+main:docs/tasks/231/codex-review-impl.md:64:**Changes requested.** The remaining blocker is recovery after failed, cancelled, or interrupted mailbox delivery: reclaimability alone is insufficient when no event triggers the next claim. The ownership and reducer races are real improvements but non-blocking under the explicitly accepted at-least-once model.
+main:docs/tasks/231/codex-review-impl.md:84:- Prior lease-ownership, reducer concurrency, and broad claim exception findings: unchanged non-blocking decisions.
+main:docs/tasks/231/codex-review-plan.md:35:   > `assert m.access_mode_for_role("reducer") == "reducer"`
+main:docs/tasks/231/codex-review-plan.md:45:   Yet the test asserts only `send_message` and `update_progress`; `list_agents` and `search_memory` are placed in the synthetic input but never required in the output. It also tests only `payment_receive`, despite the plan prohibiting `payment_*`. A reducer with no reading tools, or with another payment tool exposed, passes.
+main:docs/tasks/231/codex-review-plan.md:53:   A deterministic integration check is viable without models: create a fan with parent, reducer, and three children; submit each child completion through the production route; assert all child reports target only the reducer; submit one reducer result; assert the parent’s `manager.send` count is exactly one and its payload contains every distinct child marker. A separate spawn/configuration check can assert the reducer role and access mode are delivered. The live model run remains useful for end-to-end validation, but it is not the only possible oracle.
+main:docs/tasks/231/codex-review-plan.md:69:   If the reducer forgets “do not select,” it can select, summarize, and omit reports—the exact data-loss behavior R6 forbids. That is not merely “отдаёт лишнее.” Conversely, applying the restriction too broadly may make it refuse transformation or output. Since at least one failure direction loses child reports, the stated benign-both-ways justification is invalid. Completeness needs code-enforced structured aggregation or a behavioral oracle, not delivery of prompt anchors alone.
+main:docs/tasks/231/codex-review-plan.md:117:2. **blocking: T6 — silent-reducer test does not verify that the single delivery targets the parent.**
+main:docs/tasks/231/codex-review-plan.md:141:   Therefore it cannot detect a registered mutating tool omitted from `FORBIDDEN`; a reducer implementation based on `names - FORBIDDEN` passes. For a “pure reducer,” the safe contract is a positive allowlist. Test with at least one unknown synthetic mutator and require it to be removed, or compare the reducer surface against an exact allowed set derived from the actual registered tool names.
+main:docs/tasks/231/plan.md:15:| `open_fan()` не зовёт ни один прод-путь | `app/fan_barrier.py:12`, грепом по `app/` | R1 — это ВКЛЮЧЕНИЕ существующего кода, а не новый барьер |
+main:docs/tasks/231/plan.md:41:### T1 — включить барьер: роут `open_fan` + дедлайн как параметр
+main:docs/tasks/231/plan.md:46:- **Test:** `tests/test_fan_enable.py::test_t1_open_fan_route_exists_and_buffers_children`,
+main:docs/tasks/231/plan.md:92:### T4 — роль `reducer`: права отняты ОТСУТСТВИЕМ тулов
+main:docs/tasks/231/plan.md:96:- **Test:** `tests/test_reducer_role.py::test_t4_reducer_mode_removes_lifecycle_tools`,
+main:docs/tasks/231/plan.md:97:  `::test_t4_spawn_path_sets_reducer_mode` — committed RED.
+main:docs/tasks/231/plan.md:98:  `uv run python -m pytest tests/test_reducer_role.py -q` → **exit 1**, первые падающие строки:
+main:docs/tasks/231/plan.md:99:  `Failed: режима доступа 'reducer' не существует: Unknown ORCHESTRA_ACCESS_MODE: 'reducer'` и
+main:docs/tasks/231/plan.md:106:### T5 — промпт роли `reducer` доезжает до модели
+main:docs/tasks/231/plan.md:107:- **Files:** `pipelines/default/prompts/roles/reducer.md`, `pipelines/default/pipeline.yaml`
+main:docs/tasks/231/plan.md:108:- **Test:** `tests/test_reducer_role.py::test_t5_reducer_prompt_delivers_anchors` — committed RED.
+main:docs/tasks/231/plan.md:109:  Первая падающая строка: `Failed: роль reducer не собирается: KeyError: 'reducer'`.
+main:docs/tasks/231/plan.md:110:  DELIVERY-проверка: `build_system_prompt("default", "reducer")` содержит цельные якоря
+main:docs/tasks/231/plan.md:118:- **Test:** `tests/test_fan_enable.py::test_t6_children_release_to_reducer_not_parent`,
+main:docs/tasks/231/plan.md:119:  `::test_t6_parent_payload_survives_a_silent_reducer` — committed RED.
+main:docs/tasks/231/plan.md:120:  Первая падающая строка: `AttributeError: module 'app.routes.sessions' has no attribute 'open_fan'`.
+main:docs/tasks/231/plan.md:170:`uv run python -m pytest tests/test_fan_enable.py tests/test_mailbox.py tests/test_reducer_role.py -q`
+main:docs/tasks/231/report.md:14:| T4 | режим доступа `reducer` — запрет отсутствием тулов | `mcp_stdio.py`, `manager.py` | `impl231-reducer-tools` (Luna) | **$0.048** |
+main:docs/tasks/231/report.md:15:| T5 | роль `reducer` в пайплайне | `pipelines/default/…` | `impl231-reducer-role` (Luna) | **$0.074** |
+main:docs/tasks/231/report.md:25:- `test_fan_enable.py`, `test_mailbox.py`, `test_reducer_role.py`, `test_fan_barrier.py`,
+main:docs/tasks/231/report.md:37:Миграция проверена на **снимке живой БД** (`Connection.backup`, не `cp`): колонки `reducer`,
+main:docs/tasks/231/report.md:101:- **Барьер по-прежнему ВЫКЛЮЧЕН.** T1 дал вход, но `open_fan` никто не зовёт из промптов:
+main:docs/tasks/231/report.md:103:- **MCP-тула `open_fan` нет** — только HTTP-роут. Тул добавлять после окна вместе с активацией:
+main:docs/tasks/231/research.md:251:| LangGraph Send API | **1** — отдельный узел-синтезатор читает накопленный ключ после барьера | параллельные узлы без reducer'а → `InvalidUpdateError` |
+main:docs/tasks/231/research.md:335:| барьер (BSP superstep) | **написан, выключен** (#219 T1) | инертен: `open_fan` не зовёт ни один прод-путь |
+main:docs/tasks/231/sources-llm.md:127:- shared_state: Worker-local states write outputs into a reducer-annotated key in the parent `StateGraph` state.
+main:docs/tasks/231/sources-llm.md:134:- failure_mode_named_in_source: Parallel nodes that overwrite the same state key without a compatible reducer raise `InvalidUpdateError`.
+main:tests/test_backend_codex.py:296:    assert "open_fan" in srv["enabled_tools"]
+main:tests/test_default_pipeline.py:40:        """4 роли апстрима v2.18 + `reducer` (#231 T5).
+main:tests/test_default_pipeline.py:43:        было добавить незаметно. `reducer` добавлен осознанно — дешёвый сборщик
+main:tests/test_default_pipeline.py:50:            "full-cycle", "reducer"}
+main:tests/test_fan_barrier.py:25:    fb.open_fan(
+main:tests/test_fan_barrier.py:90:    fb.open_fan(fan_id="f2", parent_name="p", scope="/r",
+main:tests/test_fan_barrier.py:142:    fb.open_fan(fan_id="f3", parent_name="p", scope="/r",
+main:tests/test_fan_barrier_gates.py:22:    fb.open_fan(fan_id="F", parent_name="parent", scope="/repo",
+main:tests/test_fan_enable.py:8:Барьер (`app/fan_barrier.py`) написан и смержен в #219, но `open_fan()` не зовёт ни один
+main:tests/test_fan_enable.py:74:def test_t1_open_fan_route_exists_and_buffers_children(db):
+main:tests/test_fan_enable.py:85:    assert hasattr(rs, "open_fan"), "роут open_fan не заведён"
+main:tests/test_fan_enable.py:88:    res = asyncio.run(rs.open_fan(rs.OpenFanRequest(
+main:tests/test_fan_enable.py:105:    asyncio.run(rs.open_fan(rs.OpenFanRequest(
+main:tests/test_fan_enable.py:109:    asyncio.run(rs.open_fan(rs.OpenFanRequest(
+main:tests/test_fan_enable.py:124:def test_t6_children_release_to_reducer_not_parent(db, spy):
+main:tests/test_fan_enable.py:128:    asyncio.run(rs.open_fan(rs.OpenFanRequest(
+main:tests/test_fan_enable.py:130:        children=["c1", "c2"], reducer="R",
+main:tests/test_fan_enable.py:145:def test_t6_parent_payload_survives_a_silent_reducer(db, spy):
+main:tests/test_fan_enable.py:156:    asyncio.run(rs.open_fan(rs.OpenFanRequest(
+main:tests/test_fan_enable.py:158:        children=["c1", "c2"], reducer="R",
+main:tests/test_fan_enable.py:192:    asyncio.run(rs.open_fan(rs.OpenFanRequest(
+main:tests/test_fan_enable.py:194:        children=["c1"], reducer="R",
+main:tests/test_fan_enable.py:214:    asyncio.run(rs.open_fan(rs.OpenFanRequest(
+main:tests/test_fan_enable.py:216:        children=["c1"], reducer="R",
+main:tests/test_fan_enable.py:263:    asyncio.run(rs.open_fan(rs.OpenFanRequest(
+main:tests/test_fan_enable.py:265:        children=["c9"], reducer="R",
+main:tests/test_fan_enable.py:275:def test_impl5_silent_completion_wakes_reducer_not_parent(db, monkeypatch):
+main:tests/test_fan_enable.py:280:    asyncio.run(rs.open_fan(rs.OpenFanRequest(
+main:tests/test_fan_enable.py:282:        children=["c8"], reducer="R",
+main:tests/test_fan_enable.py:312:    asyncio.run(rs.open_fan(rs.OpenFanRequest(
+main:tests/test_fan_enable.py:314:        children=["c7"], reducer="R",
+main:tests/test_reducer_role.py:1:"""#231 T4/T5 — роль `reducer`: права отняты ОТСУТСТВИЕМ тулов, а не текстом промпта.
+main:tests/test_reducer_role.py:38:def test_t4_reducer_mode_removes_lifecycle_tools():
+main:tests/test_reducer_role.py:48:        visible = m._tool_names_for_access_mode(everything, "reducer")
+main:tests/test_reducer_role.py:50:        pytest.fail(f"режима доступа 'reducer' не существует: {exc}")
+main:tests/test_reducer_role.py:67:def test_t4_spawn_path_sets_reducer_mode():
+main:tests/test_reducer_role.py:85:    red = _env(mgr._make_mcp_config("r1", "/repo", role="reducer"))
+main:tests/test_reducer_role.py:86:    assert red.get("ORCHESTRA_ACCESS_MODE") == "reducer", (
+main:tests/test_reducer_role.py:90:    assert red.get("ORCHESTRA_ROLE") == "reducer"
+main:tests/test_reducer_role.py:98:def test_t5_reducer_prompt_delivers_anchors():
+main:tests/test_reducer_role.py:104:    `tests/test_fan_enable.py::test_t6_parent_payload_survives_a_silent_reducer`.
+main:tests/test_reducer_role.py:115:        out = P.build_system_prompt("default", "reducer")
+main:tests/test_reducer_role.py:117:        pytest.fail(f"роль reducer не собирается: {type(exc).__name__}: {exc}")

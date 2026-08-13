@@ -1,0 +1,29 @@
+main:app/auth.py:14:def is_owner_mode() -> bool:
+main:app/auth.py:19:    с логином — клиентской. `OWNER_MODE` перебивает обе стороны: на нашем VPS
+main:app/auth.py:20:    логин включён, но данные наши → `OWNER_MODE=1`.
+main:app/auth.py:22:    explicit = os.environ.get("OWNER_MODE", "").strip().lower()
+main:app/routes/system.py:26:from app.auth import is_auth_enabled, is_owner_mode, require_operator_session
+main:app/routes/system.py:80:        "is_owner_mode": is_owner_mode(),
+main:app/routes/system.py:315:    if not is_owner_mode():
+main:app/routes/system.py:323:    if not is_owner_mode():
+main:app/routes/system.py:344:    if not is_owner_mode():
+main:app/routes/system.py:942:    if not is_owner_mode():
+main:app/routes/system.py:1168:    if not is_owner_mode():
+main:tests/test_owner_mode.py:1:"""OWNER_MODE — «это наша машина» отвязано от «требуй логин».
+main:tests/test_owner_mode.py:3:Клиентская инсталляция (логин настроен, OWNER_MODE не задан) не должна видеть
+main:tests/test_owner_mode.py:4:наши квоты, прокси и профили Claude. Наш VPS — логин настроен И OWNER_MODE=1.
+main:tests/test_owner_mode.py:8:from app.auth import is_owner_mode
+main:tests/test_owner_mode.py:15:    for key in ("OWNER_MODE", "DASHBOARD_USER", "DASHBOARD_PASSWORD"):
+main:tests/test_owner_mode.py:26:    assert is_owner_mode() is True
+main:tests/test_owner_mode.py:31:    assert is_owner_mode() is False
+main:tests/test_owner_mode.py:37:    monkeypatch.setenv("OWNER_MODE", "1")
+main:tests/test_owner_mode.py:38:    assert is_owner_mode() is True
+main:tests/test_owner_mode.py:44:    monkeypatch.setenv("OWNER_MODE", value)
+main:tests/test_owner_mode.py:45:    assert is_owner_mode() is True
+main:tests/test_owner_mode.py:49:    """Явный OWNER_MODE=0 перебивает отсутствие логина — иначе флаг врёт."""
+main:tests/test_owner_mode.py:50:    monkeypatch.setenv("OWNER_MODE", "0")
+main:tests/test_owner_mode.py:51:    assert is_owner_mode() is False
+main:tests/test_owner_mode.py:69:    monkeypatch.setenv("OWNER_MODE", "1")
+main:tests/test_owner_mode.py:90:    monkeypatch.setenv("OWNER_MODE", "1")
+main:tests/test_owner_mode.py:105:    """OWNER_MODE не должен открывать дашборд без пароля."""
+main:tests/test_owner_mode.py:109:    monkeypatch.setenv("OWNER_MODE", "1")

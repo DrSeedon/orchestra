@@ -1,0 +1,12 @@
+Pinned ref: b6a09930f66b06f34d9ba3f750f30afa4b320ede
+Source: docs/tasks/3/research.md
+
+Task-specific calculated outputs present in main:
+- June paid once on 2026-06-11: 30,642 RUB net; 35,220.90 - 4,579 = 30,641.90
+- July advance due: 16,844.78 gross - 2,190 NDFL = 14,654.78 RUB net
+- late-pay compensation on 2026-08-03: 137.27 RUB
+- no 2,190 RUB NDFL notice was due before an actual payment; the report gives the later filing windows
+- forms reconcile: 101,642.45 accrued in RSV, 35,220.90 paid in 6-NDFL; the difference is the March-May minimum EIO contribution base, not salary debt
+
+These are the calculations requested by the task. The evidence does not claim that a bank payment,
+which would require an external user action, was executed by the repository.

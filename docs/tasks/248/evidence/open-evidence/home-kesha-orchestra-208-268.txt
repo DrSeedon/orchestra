@@ -1,0 +1,6 @@
+docs/tasks/208/aa-cost-per-task.json
+docs/tasks/208/blind-key.txt
+docs/tasks/208/codex-review-research.md
+docs/tasks/208/grade.py
+docs/tasks/208/prereg.md
+docs/tasks/208/research.md

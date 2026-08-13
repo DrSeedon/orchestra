@@ -1,0 +1,7 @@
+docs/tasks/238/acceptance/test_write_scope_hook.py
+docs/tasks/238/codex-review-plan.md
+docs/tasks/238/codex-review-research.md
+docs/tasks/238/extraction/runtime.md
+docs/tasks/238/extraction/state.md
+docs/tasks/238/plan.md
+docs/tasks/238/research.md

@@ -1,0 +1,72 @@
+snapshot=/home/kesha/orchestra/data/task248-live-IpricQ.db
+snapshot_open=sqlite3.connect('file:/home/kesha/orchestra/data/task248-live-IpricQ.db?mode=ro&immutable=1', uri=True)
+snapshot_pragma=PRAGMA query_only=ON
+
+SQL project inventory:
+SELECT id, name, scope FROM tm_projects ORDER BY id;
+SELECT project_id, count(*) FROM tm_tasks GROUP BY project_id;
+SELECT DISTINCT scope FROM sessions WHERE is_orchestrator=1;
+
+SQL task reconciliation/status evidence:
+SELECT id, project_id, par_number, status, worker_session_id, git_commits FROM tm_tasks ORDER BY project_id, par_number, id;
+SELECT id, name, scope, cwd, status, branch, is_orchestrator, task_id FROM sessions ORDER BY id;
+
+Git commands (run with git -C <repo>; subprocess argv, no shell):
+git rev-parse --git-dir
+git rev-parse --verify refs/heads/main^{commit}
+git log <captured_main_hash> --format=%H%x09%s
+main subject selector: Python re ^#([0-9]+):
+all-header selector: Python re ^#([0-9]+(?:\s*,\s*#[0-9]+)*): then re.findall(#[0-9]+) inside the matched prefix
+git rev-list <captured_main_hash>
+printf '<linked_sha>^{commit}\n...' | git cat-file --batch-check=%(objectname) %(objecttype)
+linked reachability: resolved hash exact-membership in git rev-list <captured_main_hash> output
+git for-each-ref --format=%(refname)%09%(objectname) refs/heads
+git merge-base <captured_main_hash> <captured_session_branch_hash>
+git rev-list <merge_base>..<captured_session_branch_hash>
+git cherry <captured_main_hash> <captured_session_branch_hash>
+
+Repository universe candidates:
+path=/home/kesha/orchestra	path_exists=1	is_git_repo=1	canonical_realpath=/home/kesha/orchestra	main_ref=4b74e70f07a6dc417369156606634838817fc2c8
+path=/home/kesha/projects/dnd-game-master	path_exists=1	is_git_repo=1	canonical_realpath=/home/kesha/projects/dnd-game-master	main_ref=9d7a47b7ae8c2c860392a30155960e67a323d43b
+path=/home/kesha/projects/kesha-tg-bot	path_exists=1	is_git_repo=1	canonical_realpath=/home/kesha/projects/kesha-tg-bot	main_ref=0f30f11c68548a3821a420df5cb690855212c9af
+path=/home/kesha/projects/seedon	path_exists=1	is_git_repo=1	canonical_realpath=/home/kesha/projects/seedon	main_ref=b6a09930f66b06f34d9ba3f750f30afa4b320ede
+path=/home/kesha/projects/University	path_exists=1	is_git_repo=1	canonical_realpath=/home/kesha/projects/University	main_ref=b9fc310004ff586038e83324cc17e28c356c27f9
+
+Exact sessions.status values observed:
+status="archived"	count=153
+status="idle"	count=28
+status="running"	count=6
+status="waiting"	count=3
+
+Exact tm_tasks.status values observed:
+status="cancelled"	count=5
+status="done"	count=229
+status="in_progress"	count=31
+status="new"	count=66
+
+Row-count validations:
+tm_projects_snapshot_rows=7
+project_inventory_data_rows=8
+tm_tasks_snapshot_rows=331
+commit_task_reconciliation_data_rows=463
+commit_reconciliation_tracker_rows=331
+commit_reconciliation_commit_only_rows=132
+all_header_refs_without_task=137
+tracker_tasks_without_primary_main_prefix=81
+tracker_tasks_without_any_header_ref=60
+selected_status_task_rows=326
+taskless_non_orchestrator_session_rows=152
+repository_universe_git_repos=5
+tracker_union_check=331==331
+status_selection_check=326==326
+taskless_selection_check=152==152
+
+Representations:
+linked_sha_reachable_from_main is a compact JSON array preserving every tracker-linked hash with resolved_hash and reachable=true|false|null; null means repository/main was unavailable.
+main_prefix_commit_hashes, main_prefix_commit_subjects, and commit_hashes are compact JSON arrays in git output order.
+project-inventory includes one synthetic blank-project row for each exact named path not already represented by a tm_projects.scope, including absent paths.
+taskless branch/ref checks use the session.scope repository; unavailable repository/ref leaves merge/count/hash fields blank.
+taskless branch and main refs are captured once with for-each-ref; merge-base/rev-list/cherry use the captured commit hashes.
+
+Generator:
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/audit248-reconcile/data/task248-workers/generate_reconciliation.py

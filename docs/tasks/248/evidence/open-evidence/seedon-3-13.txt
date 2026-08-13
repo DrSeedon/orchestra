@@ -1,0 +1,4 @@
+docs/business/ACCOUNTING.md
+docs/business/TAX-OPTIMIZATION.md
+docs/tasks/3/facts-primary.md
+docs/tasks/3/research.md

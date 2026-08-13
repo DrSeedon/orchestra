@@ -1,0 +1,6 @@
+scope	orchestrator_sessions	total_turns	total_tool_rows	task_create_count	task_update_count	task_list_count	task_get_count	first_task_tool_ts	last_task_tool_ts	distinct_task_tool_days
+/home/kesha/orchestra	1	3093	2871	50	28	3	3	2026-08-11T13:06:42.184531+00:00	2026-08-13T06:34:49.259820+00:00	3
+/home/kesha/projects/University	1	31	33	0	0	0	0			0
+/home/kesha/projects/dnd-game-master	1	742	197	0	0	0	0			0
+/home/kesha/projects/kesha-tg-bot	1	109	616	4	2	0	0	2026-08-11T12:13:25.191223+00:00	2026-08-12T11:17:32.860616+00:00	2
+/home/kesha/projects/seedon	2	3159	3773	22	19	0	4	2026-08-11T12:53:19.144098+00:00	2026-08-13T06:28:49.817702+00:00	3

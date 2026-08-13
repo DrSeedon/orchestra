@@ -1,0 +1,24 @@
+main:app/backend_claude.py:379:        logger.error("managed Bash PreToolUse hook unavailable; failed open: classifier is not callable")
+main:app/backend_claude.py:403:                "managed Bash PreToolUse failed open (%s): classifier deadline exceeded",
+main:app/backend_claude.py:407:            logger.error("managed Bash PreToolUse failed open: invalid classifier result")
+main:app/backend_claude.py:410:                "managed Bash PreToolUse failed open (%s): classifier failure",
+main:app/backend_claude.py:603:        if os.environ.get("CLAUDE_BASH_HOOK_ENABLED") == "1":
+main:docs/tasks/211/codex-review-impl.md:14:>   `scripts/orchestra_process_guard.py:321-327`
+main:docs/tasks/211/codex-review-impl.md:36:Evidence verified locally: that exact line exists in `scripts/orchestra_process_guard.py`.
+main:docs/tasks/211/plan.md:24:TARGET_ARGV0=ugrep
+main:docs/tasks/211/plan.md:52:- Files: `scripts/orchestra_process_guard.py`, `deploy/orchestra-process-guard.service`,
+main:docs/tasks/211/plan.md:54:  `tests/test_process_guard.py`
+main:docs/tasks/211/plan.md:138:- Files: `app/process_guard_events.py`, `app/main.py`, `app/tg_bridge.py`,
+main:docs/tasks/211/plan.md:139:  `tests/test_process_guard_events.py`; object:
+main:docs/tasks/211/report.md:18:- `scripts/orchestra_process_guard.py` — policy parser, exact process reader/matcher,
+main:docs/tasks/211/report.md:29:- `tests/test_process_guard.py` — 41 parser, identity, race, error cleanup, unit, and reversible
+main:docs/tasks/211/report.md:37:- Targeted: `uv run python -m pytest tests/test_process_guard.py -x -q` →
+main:docs/tasks/211/report.md:39:- Python/shell syntax: `uv run python -m py_compile scripts/orchestra_process_guard.py` and
+main:docs/tasks/211/research.md:207:TARGET_ARGV0=ugrep
+main:docs/tasks/211/research.md:375:- tracked: `scripts/orchestra_process_guard.py`;
+main:docs/tasks/211/research.md:379:- tracked: `tests/test_process_guard.py`;
+main:docs/tasks/211/research.md:380:- tracked reporter: `app/process_guard_events.py`, `app/main.py`, `app/tg_bridge.py`,
+main:docs/tasks/211/research.md:381:  `tests/test_process_guard_events.py`;
+main:docs/tasks/211/t2-runbook.md:121:uv run python scripts/analyze_process_guard_calibration.py \
+main:tests/test_process_guard.py:11:from scripts.orchestra_process_guard import (
+main:tests/test_process_guard.py:587:    assert installed_script.read_bytes() == (ROOT / "scripts/orchestra_process_guard.py").read_bytes()

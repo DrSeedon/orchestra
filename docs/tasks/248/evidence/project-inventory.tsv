@@ -1,0 +1,9 @@
+project_id	project_name	scope	task_count	scope_nonempty	path_exists	is_git_repo	scope_matches_orchestrator_session	canonical_realpath
+/home/kesha/orchestra	/home/kesha/orchestra	/home/kesha/orchestra	176	1	1	1	0	/home/kesha/orchestra
+Orchestra	Orchestra		1	0	0	0	0	
+Seedon	Seedon		2	0	0	0	0	
+dnd-game-master	dnd-game-master	/home/kesha/projects/dnd-game-master	1	1	1	1	1	/home/kesha/projects/dnd-game-master
+kesha-tg-bot	kesha-tg-bot	/home/kesha/projects/kesha-tg-bot	9	1	1	1	1	/home/kesha/projects/kesha-tg-bot
+orchestra	orchestra		5	0	0	0	0	
+seedon	seedon	/home/kesha/projects/seedon	137	1	1	1	1	/home/kesha/projects/seedon
+		/home/kesha/projects/University		1	1	1	1	/home/kesha/projects/University

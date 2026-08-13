@@ -1,0 +1,14 @@
+main:app/session.py:167:def store_safeguard_refusal(session_name: str, text: str) -> str:
+main:app/session.py:174:    directory = Path.home() / ".local/state/orchestra/safeguard-refusals"
+main:app/session_turns.py:23:def _rewind_past_safeguard_refusal(s: "AgentSession") -> str:
+main:app/session_turns.py:422:                store_safeguard_refusal,
+main:app/session_turns.py:428:                dropped = _rewind_past_safeguard_refusal(s)
+main:app/session_turns.py:444:                dump_path = store_safeguard_refusal(s.name, verbatim)
+main:tests/test_session.py:4136:            "app.session_turns._rewind_past_safeguard_refusal", lambda _s: "4"
+main:tests/test_session.py:4162:        monkeypatch.setattr("app.session_turns._rewind_past_safeguard_refusal", _boom)
+main:tests/test_session.py:4179:            "app.session_turns._rewind_past_safeguard_refusal",
+main:tests/test_session.py:4232:        monkeypatch.setattr("app.session_turns._rewind_past_safeguard_refusal",
+main:tests/test_session.py:4253:        monkeypatch.setattr("app.session_turns._rewind_past_safeguard_refusal", lambda _s: "2")
+main:tests/test_session.py:4267:        assert "safeguard-refusals" in emitted
+main:tests/test_session.py:4276:        path = session_mod.store_safeguard_refusal("probe", self.VERBATIM)
+main:tests/test_session.py:4278:        assert ".local/state/orchestra/safeguard-refusals" in path

@@ -1,0 +1,52 @@
+main:app/routes/sessions.py:401:async def stream_session_logs(name: str, scope: str, request: Request, after_id: int = 0, limit: int = 500):
+main:app/routes/sessions.py:410:        last_id = after_id
+main:app/routes/sessions.py:420:            if after_id == 0:
+main:app/routes/sessions.py:440:                logs = get_logs(session_id, after_id=last_id, conn=c)
+main:app/routes/sessions.py:454:async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: int = 0,
+main:app/routes/sessions.py:464:    return get_logs(session_id, after_id=after_id)
+main:app/routes/sessions.py:468:async def logs_sync(after_id: int = 0, tail: int = 20, cap: int = 16384):
+main:app/routes/sessions.py:472:    ``tail=0`` — карта сессий без строк журнала; дашборд ходит именно так с #72, потому
+main:app/routes/sessions.py:474:    Инкремент (after_id > 0) tail игнорирует и весит единицы КБ.
+main:app/routes/sessions.py:476:    return get_logs_sync(after_id=max(after_id, 0),
+main:app/routes/sessions.py:477:                         tail=max(0, min(tail, 200)),
+main:app/static/js/app.js:422:// Холодная синхронизация НЕ тянет строки: tail=0 — только карта сессий и отметка.
+main:app/static/js/app.js:423:// Замер (#72, по проводу через домен): tail=20 на все сессии стоил 145.5 КБ, а рисовалось
+main:app/static/js/app.js:427:// (_storePut в _fetchHistory/_completeChatPage) и живёт между заходами — F5 по-прежнему
+main:app/static/js/app.js:491:    const url = `/api/logs/sync?after_id=${watermark}&tail=${_STORE_TAIL}&cap=${_STORE_CAP}`;
+main:app/static/js/app.js:591:function initStoreSync() {
+main:app/static/js/app.js:780:    window.addEventListener('load', initStoreSync, {once: true});
+main:app/static/js/app.js:812:// поток с after_id=0 — сервер выслал бы всю историю ещё раз, вторым несжатым потоком.
+main:app/static/js/app.js:824:    // сам поток (_fetchHistory не смог). В обычной работе сюда приходят с lastId > 0.
+main:app/static/js/app.js:826:    const url = `/api/sessions/${selectedAgent}/stream?scope=${encodeURIComponent(currentScope)}&after_id=${lastId}${limitParam}`;
+main:app/static/js/app.js:1929:// (after_id > 0) tail ИГНОРИРУЕТ, дозаполнить уже заведённое зеркало она не может, а
+main:app/static/js/app.js:2009:async function _fetchHistory(name, scope) {
+main:app/static/js/app.js:2021:        // Не молчим и не сдаёмся: пустой список → connectSSE пойдёт с after_id=0,
+main:app/static/js/app.js:2043:        if (!fromStore) rows = await _fetchHistory(name, scope);
+main:app/static/js/app.js:2058:            _completeChatPage(name, scope);   // и после промаха зеркала: _fetchHistory берёт одну порцию
+main:app/static/js/app.js:6374:    setInterval(_heartbeatProbe, 3000);   // разворот вкладки обрабатывает initStoreSync
+main:tests/test_logs_sync.py:47:        out = get_logs_sync(after_id=0, tail=20)
+main:tests/test_logs_sync.py:56:        got = [r["content"] for r in get_logs_sync(after_id=0, tail=3)["logs"]]
+main:tests/test_logs_sync.py:62:        ids = [r["id"] for r in get_logs_sync(after_id=0, tail=20)["logs"]]
+main:tests/test_logs_sync.py:67:        out = get_logs_sync(after_id=0, tail=20)
+main:tests/test_logs_sync.py:72:    def test_after_id_returns_only_newer_rows(self, db):
+main:tests/test_logs_sync.py:75:        watermark = get_logs_sync(after_id=0, tail=20)["max_log_id"]
+main:tests/test_logs_sync.py:77:        out = get_logs_sync(after_id=watermark)
+main:tests/test_logs_sync.py:84:        watermark = get_logs_sync(after_id=0, tail=20)["max_log_id"]
+main:tests/test_logs_sync.py:85:        assert get_logs_sync(after_id=watermark)["logs"] == []
+main:tests/test_logs_sync.py:91:        watermark = get_logs_sync(after_id=0, tail=20)["max_log_id"]
+main:tests/test_logs_sync.py:94:        out = get_logs_sync(after_id=watermark)
+main:tests/test_logs_sync.py:104:        row = get_logs_sync(after_id=0, tail=20, cap=100)["logs"][0]
+main:tests/test_logs_sync.py:112:        row = get_logs_sync(after_id=0, tail=20, cap=51)["logs"][0]  # срез рубит символ
+main:tests/test_logs_sync.py:120:        row = get_logs_sync(after_id=0, tail=20, cap=16384)["logs"][0]
+main:tests/test_logs_sync.py:128:        watermark = get_logs_sync(after_id=0)["max_log_id"]
+main:tests/test_logs_sync.py:130:        row = get_logs_sync(after_id=watermark, cap=100)["logs"][0]
+main:tests/test_logs_sync.py:141:        got = get_logs_sync(after_id=0)["live_sessions"]
+main:tests/test_logs_sync.py:148:        got = get_logs_sync(after_id=0)["live_sessions"]
+main:tests/test_logs_sync.py:156:        out = get_logs_sync(after_id=0, tail=20)
+main:tests/test_logs_sync.py:172:        def fake(after_id, tail, cap):
+main:tests/test_logs_sync.py:173:            seen.update(after_id=after_id, tail=tail, cap=cap)
+main:tests/test_logs_sync.py:183:            r = client.get("/api/logs/sync?after_id=-5&tail=99999&cap=1")
+main:tests/test_logs_sync.py:185:        assert seen == {"after_id": 0, "tail": 200, "cap": 256}
+main:tests/test_logs_sync.py:277:    """#72 — дашборд ходит с tail=0: карта сессий есть, строк журнала нет."""
+main:tests/test_logs_sync.py:282:        out = get_logs_sync(after_id=0, tail=0)
+main:tests/test_logs_sync.py:309:        resp = await stream_session_logs("back", "/proj", _Req(), after_id=0)

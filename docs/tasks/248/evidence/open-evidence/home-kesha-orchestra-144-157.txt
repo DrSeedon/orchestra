@@ -1,0 +1,11 @@
+main:tests/test_session.py:1542:class TestPrecompactTimer:
+main:tests/test_session.py:1547:        Иначе прогон читает `AUTO_COMPACT_ENABLED` из окружения машины — на VPS юнит подаёт
+main:tests/test_session.py:1552:        monkeypatch.setenv("AUTO_COMPACT_ENABLED", "1")
+main:tests/test_session.py:3987:    """`AUTO_COMPACT_ENABLED=0` — выключатель автокомпакта оркестратора (#122).
+main:tests/test_session.py:4012:        monkeypatch.setenv("AUTO_COMPACT_ENABLED", "0")
+main:tests/test_session.py:4014:        assert any("AUTO_COMPACT_ENABLED=0" in line for line in logs)
+main:tests/test_session.py:4021:        monkeypatch.setenv("AUTO_COMPACT_ENABLED", "0")
+main:tests/test_session.py:4027:        assert sum("AUTO_COMPACT_ENABLED=0" in line for line in logs) == 1, \
+main:tests/test_session.py:4036:        monkeypatch.delenv("AUTO_COMPACT_ENABLED", raising=False)
+main:tests/test_session.py:4046:        monkeypatch.setenv("AUTO_COMPACT_ENABLED", "0")
+main:tests/test_session.py:4056:        monkeypatch.setenv("AUTO_COMPACT_ENABLED", raw)

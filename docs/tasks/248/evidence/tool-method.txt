@@ -1,0 +1,283 @@
+snapshot	/home/kesha/orchestra/data/task248-live-IpricQ.db
+open_mode	readonly
+counting_unit	logs rows
+primary_task_tool_rule	logs.type='tool' AND logs.tool_name IN ('mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get')
+legacy_missing_tool_name_rule	logs.type='tool' AND empty/null logs.tool_name AND substr(logs.content,1,200) starts with one of the four prefixed task tool names; counted separately from primary
+event_export_rule	primary rows plus separately defined legacy missing-tool-name rows
+event_prefix_encoding	select only substr(logs.content,1,200), then encode CR, LF, and TAB as literal \r, \n, and \t so each SQLite row remains one TSV row
+universe_rule	is_orchestrator=1 OR role IN ('orchestrator','sub-orchestrator')
+universe_discrepancy	is_orchestrator=1 yields 4 sessions; the corrected role-inclusive rule yields 6 sessions because Orchestra-orchestrator and seedon-orchestrator have role='orchestrator' and is_orchestrator=0
+
+.headers on
+.mode tabs
+.once data/task248-workers/tool-usage-by-orchestrator.tsv
+WITH universe AS (
+    SELECT id, name, scope, status, created_at, finished_at, total_turns
+    FROM sessions
+    WHERE is_orchestrator = 1
+       OR role IN ('orchestrator', 'sub-orchestrator')
+),
+aggregated AS (
+    SELECT
+        u.id,
+        COUNT(l.id) AS total_tool_rows,
+        COALESCE(SUM(CASE WHEN l.tool_name = 'mcp__orchestra__task_create' THEN 1 ELSE 0 END), 0) AS task_create_count,
+        COALESCE(SUM(CASE WHEN l.tool_name = 'mcp__orchestra__task_update' THEN 1 ELSE 0 END), 0) AS task_update_count,
+        COALESCE(SUM(CASE WHEN l.tool_name = 'mcp__orchestra__task_list' THEN 1 ELSE 0 END), 0) AS task_list_count,
+        COALESCE(SUM(CASE WHEN l.tool_name = 'mcp__orchestra__task_get' THEN 1 ELSE 0 END), 0) AS task_get_count,
+        MIN(CASE WHEN l.tool_name IN ('mcp__orchestra__task_create', 'mcp__orchestra__task_update', 'mcp__orchestra__task_list', 'mcp__orchestra__task_get') THEN l.ts END) AS first_task_tool_ts,
+        MAX(CASE WHEN l.tool_name IN ('mcp__orchestra__task_create', 'mcp__orchestra__task_update', 'mcp__orchestra__task_list', 'mcp__orchestra__task_get') THEN l.ts END) AS last_task_tool_ts,
+        COUNT(DISTINCT CASE WHEN l.tool_name IN ('mcp__orchestra__task_create', 'mcp__orchestra__task_update', 'mcp__orchestra__task_list', 'mcp__orchestra__task_get') THEN substr(l.ts, 1, 10) END) AS distinct_task_tool_days,
+        COALESCE(SUM(CASE
+            WHEN (l.tool_name IS NULL OR l.tool_name = '')
+             AND (
+                    substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_create')) = 'mcp__orchestra__task_create'
+                 OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_update')) = 'mcp__orchestra__task_update'
+                 OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_list')) = 'mcp__orchestra__task_list'
+                 OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_get')) = 'mcp__orchestra__task_get'
+             )
+            THEN 1 ELSE 0
+        END), 0) AS legacy_missing_tool_name_count
+    FROM universe AS u
+    LEFT JOIN logs AS l
+      ON l.session_id = u.id
+     AND l.type = 'tool'
+    GROUP BY u.id
+)
+SELECT
+    u.scope AS scope,
+    u.name AS orchestrator_name,
+    u.id AS session_id,
+    u.status AS session_status,
+    u.created_at AS created_at,
+    u.finished_at AS finished_at,
+    u.total_turns AS total_turns,
+    a.total_tool_rows AS total_tool_rows,
+    a.task_create_count AS task_create_count,
+    a.task_update_count AS task_update_count,
+    a.task_list_count AS task_list_count,
+    a.task_get_count AS task_get_count,
+    a.first_task_tool_ts AS first_task_tool_ts,
+    a.last_task_tool_ts AS last_task_tool_ts,
+    a.distinct_task_tool_days AS distinct_task_tool_days,
+    a.legacy_missing_tool_name_count AS legacy_missing_tool_name_count
+FROM universe AS u
+JOIN aggregated AS a ON a.id = u.id
+ORDER BY u.scope, u.name, u.id;
+
+.once data/task248-workers/tool-usage-by-project.tsv
+WITH universe AS (
+    SELECT id, scope, total_turns
+    FROM sessions
+    WHERE is_orchestrator = 1
+       OR role IN ('orchestrator', 'sub-orchestrator')
+),
+named_scopes(scope) AS (
+    VALUES
+        ('/home/kesha/orchestra'),
+        ('/home/kesha/projects/seedon'),
+        ('/home/kesha/projects/kesha-tg-bot'),
+        ('/home/kesha/projects/University'),
+        ('/home/kesha/projects/dnd-game-master')
+),
+all_scopes AS (
+    SELECT scope FROM universe
+    UNION
+    SELECT scope FROM named_scopes
+),
+session_aggregated AS (
+    SELECT
+        scope,
+        COUNT(*) AS orchestrator_sessions,
+        COALESCE(SUM(total_turns), 0) AS total_turns
+    FROM universe
+    GROUP BY scope
+),
+log_aggregated AS (
+    SELECT
+        u.scope,
+        COUNT(l.id) AS total_tool_rows,
+        COALESCE(SUM(CASE WHEN l.tool_name = 'mcp__orchestra__task_create' THEN 1 ELSE 0 END), 0) AS task_create_count,
+        COALESCE(SUM(CASE WHEN l.tool_name = 'mcp__orchestra__task_update' THEN 1 ELSE 0 END), 0) AS task_update_count,
+        COALESCE(SUM(CASE WHEN l.tool_name = 'mcp__orchestra__task_list' THEN 1 ELSE 0 END), 0) AS task_list_count,
+        COALESCE(SUM(CASE WHEN l.tool_name = 'mcp__orchestra__task_get' THEN 1 ELSE 0 END), 0) AS task_get_count,
+        MIN(CASE WHEN l.tool_name IN ('mcp__orchestra__task_create', 'mcp__orchestra__task_update', 'mcp__orchestra__task_list', 'mcp__orchestra__task_get') THEN l.ts END) AS first_task_tool_ts,
+        MAX(CASE WHEN l.tool_name IN ('mcp__orchestra__task_create', 'mcp__orchestra__task_update', 'mcp__orchestra__task_list', 'mcp__orchestra__task_get') THEN l.ts END) AS last_task_tool_ts,
+        COUNT(DISTINCT CASE WHEN l.tool_name IN ('mcp__orchestra__task_create', 'mcp__orchestra__task_update', 'mcp__orchestra__task_list', 'mcp__orchestra__task_get') THEN substr(l.ts, 1, 10) END) AS distinct_task_tool_days
+    FROM universe AS u
+    LEFT JOIN logs AS l
+      ON l.session_id = u.id
+     AND l.type = 'tool'
+    GROUP BY u.scope
+)
+SELECT
+    s.scope AS scope,
+    COALESCE(sa.orchestrator_sessions, 0) AS orchestrator_sessions,
+    COALESCE(sa.total_turns, 0) AS total_turns,
+    COALESCE(la.total_tool_rows, 0) AS total_tool_rows,
+    COALESCE(la.task_create_count, 0) AS task_create_count,
+    COALESCE(la.task_update_count, 0) AS task_update_count,
+    COALESCE(la.task_list_count, 0) AS task_list_count,
+    COALESCE(la.task_get_count, 0) AS task_get_count,
+    la.first_task_tool_ts AS first_task_tool_ts,
+    la.last_task_tool_ts AS last_task_tool_ts,
+    COALESCE(la.distinct_task_tool_days, 0) AS distinct_task_tool_days
+FROM all_scopes AS s
+LEFT JOIN session_aggregated AS sa ON sa.scope = s.scope
+LEFT JOIN log_aggregated AS la ON la.scope = s.scope
+ORDER BY s.scope;
+
+.once data/task248-workers/tool-usage-events.tsv
+WITH universe AS (
+    SELECT id, name, scope
+    FROM sessions
+    WHERE is_orchestrator = 1
+       OR role IN ('orchestrator', 'sub-orchestrator')
+)
+SELECT
+    l.id AS log_id,
+    l.ts AS ts,
+    u.scope AS scope,
+    u.name AS orchestrator_name,
+    l.tool_name AS tool_name,
+    replace(
+        replace(
+            replace(substr(l.content, 1, 200), char(13), '\r'),
+            char(10), '\n'
+        ),
+        char(9), '\t'
+    ) AS content_prefix_200
+FROM universe AS u
+JOIN logs AS l ON l.session_id = u.id
+WHERE l.type = 'tool'
+  AND (
+        l.tool_name IN ('mcp__orchestra__task_create', 'mcp__orchestra__task_update', 'mcp__orchestra__task_list', 'mcp__orchestra__task_get')
+        OR (
+            (l.tool_name IS NULL OR l.tool_name = '')
+            AND (
+                   substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_create')) = 'mcp__orchestra__task_create'
+                OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_update')) = 'mcp__orchestra__task_update'
+                OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_list')) = 'mcp__orchestra__task_list'
+                OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_get')) = 'mcp__orchestra__task_get'
+            )
+        )
+  )
+ORDER BY l.id;
+.headers on
+.mode tabs
+SELECT 'snapshot_integrity_check' AS validation, integrity_check AS value
+FROM pragma_integrity_check;
+
+SELECT 'universe_sessions' AS validation, COUNT(*) AS value
+FROM sessions
+WHERE is_orchestrator = 1
+   OR role IN ('orchestrator', 'sub-orchestrator');
+
+SELECT 'universe_is_orchestrator_only' AS validation, COUNT(*) AS value
+FROM sessions
+WHERE is_orchestrator = 1;
+
+SELECT 'universe_role_only_not_flagged' AS validation, COUNT(*) AS value
+FROM sessions
+WHERE is_orchestrator = 0
+  AND role IN ('orchestrator', 'sub-orchestrator');
+
+WITH universe AS (
+    SELECT id
+    FROM sessions
+    WHERE is_orchestrator = 1
+       OR role IN ('orchestrator', 'sub-orchestrator')
+)
+SELECT 'primary_task_tool_rows' AS validation, COUNT(*) AS value
+FROM logs AS l
+JOIN universe AS u ON u.id = l.session_id
+WHERE l.type = 'tool'
+  AND l.tool_name IN ('mcp__orchestra__task_create', 'mcp__orchestra__task_update', 'mcp__orchestra__task_list', 'mcp__orchestra__task_get');
+
+WITH universe AS (
+    SELECT id
+    FROM sessions
+    WHERE is_orchestrator = 1
+       OR role IN ('orchestrator', 'sub-orchestrator')
+)
+SELECT 'legacy_missing_tool_name_rows' AS validation, COUNT(*) AS value
+FROM logs AS l
+JOIN universe AS u ON u.id = l.session_id
+WHERE l.type = 'tool'
+  AND (l.tool_name IS NULL OR l.tool_name = '')
+  AND (
+         substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_create')) = 'mcp__orchestra__task_create'
+      OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_update')) = 'mcp__orchestra__task_update'
+      OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_list')) = 'mcp__orchestra__task_list'
+      OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_get')) = 'mcp__orchestra__task_get'
+  );
+
+WITH universe AS (
+    SELECT id
+    FROM sessions
+    WHERE is_orchestrator = 1
+       OR role IN ('orchestrator', 'sub-orchestrator')
+)
+SELECT 'matching_event_rows_primary_plus_legacy' AS validation, COUNT(*) AS value
+FROM logs AS l
+JOIN universe AS u ON u.id = l.session_id
+WHERE l.type = 'tool'
+  AND (
+        l.tool_name IN ('mcp__orchestra__task_create', 'mcp__orchestra__task_update', 'mcp__orchestra__task_list', 'mcp__orchestra__task_get')
+        OR (
+            (l.tool_name IS NULL OR l.tool_name = '')
+            AND (
+                   substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_create')) = 'mcp__orchestra__task_create'
+                OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_update')) = 'mcp__orchestra__task_update'
+                OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_list')) = 'mcp__orchestra__task_list'
+                OR substr(substr(l.content, 1, 200), 1, length('mcp__orchestra__task_get')) = 'mcp__orchestra__task_get'
+            )
+        )
+  );
+
+SELECT 'orchestrator_tsv_data_rows' AS validation,
+       CAST((SELECT COUNT(*) FROM sessions WHERE is_orchestrator = 1 OR role IN ('orchestrator', 'sub-orchestrator')) AS TEXT) AS value;
+
+WITH universe AS (
+    SELECT DISTINCT scope
+    FROM sessions
+    WHERE is_orchestrator = 1
+       OR role IN ('orchestrator', 'sub-orchestrator')
+),
+named_scopes(scope) AS (
+    VALUES
+        ('/home/kesha/orchestra'),
+        ('/home/kesha/projects/seedon'),
+        ('/home/kesha/projects/kesha-tg-bot'),
+        ('/home/kesha/projects/University'),
+        ('/home/kesha/projects/dnd-game-master')
+),
+all_scopes AS (
+    SELECT scope FROM universe
+    UNION
+    SELECT scope FROM named_scopes
+)
+SELECT 'project_tsv_data_rows' AS validation, COUNT(*) AS value
+FROM all_scopes;
+validation	value
+snapshot_integrity_check	ok
+validation	value
+universe_sessions	6
+validation	value
+universe_is_orchestrator_only	4
+validation	value
+universe_role_only_not_flagged	2
+validation	value
+primary_task_tool_rows	135
+validation	value
+legacy_missing_tool_name_rows	589
+validation	value
+matching_event_rows_primary_plus_legacy	724
+validation	value
+orchestrator_tsv_data_rows	6
+validation	value
+project_tsv_data_rows	5
+     7 data/task248-workers/tool-usage-by-orchestrator.tsv
+     6 data/task248-workers/tool-usage-by-project.tsv
+   725 data/task248-workers/tool-usage-events.tsv
+   738 total

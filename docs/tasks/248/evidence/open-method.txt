@@ -1,0 +1,14 @@
+snapshot=/home/kesha/orchestra/data/task248-live-IpricQ.db
+snapshot_kind=sqlite3.Connection.backup from live WAL
+selection=tm_tasks.status='in_progress' joined to tm_projects with non-empty scope
+canonical_in_progress=28
+excluded_ghost_in_progress=3
+total_new=66
+title_and_description_read=28
+repository_ref=main
+allowed_evidence_commands=git grep on main; git ls-tree on main; git show main:path
+evidence_present=24
+evidence_absent=2
+evidence_ambiguous=2
+evidence_no_oracle=0
+logs_content_selected=no
