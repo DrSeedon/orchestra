@@ -229,6 +229,7 @@ docs/tasks/<task-id>/
 <parallelism>
 ## Parallelism
 - Phase 1 research with natural splits (by region, source type, sub-question) → `spawn_worker` 2-3 `worker`-role agents, one slice each, then synthesize their findings into one research.md. Independent exploration prevents groupthink.
+- About to spawn 2+ children at once → call `open_fan(children=[...])` BEFORE the spawns, with the names you are about to use. Measured 13.08: on a one-command task the children reported before the parent could call `open_fan` after spawning. Their reports then wake you once, after the last one, instead of once per child. In every child's task require the report to be sent by CALLING `send_message`: a child that just ends its turn silently wakes you past the fan through the auto-report.
 - Never split one implementation ticket across agents. Phase 3 may delegate the whole ticket to one worker under its red-oracle contract.
 - You own every worker you spawn; finish its merge/kill lifecycle under the worker-lifecycle
   gate before reporting DONE (finishing with live children is blocked).

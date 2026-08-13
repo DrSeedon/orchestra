@@ -912,6 +912,42 @@ async def send_message(to: str, message: str) -> str:
     return f"Message sent to '{to}'"
 
 
+@mcp.tool()
+async def open_fan(children: list[str], deadline_seconds: float = 1800.0,
+                   reducer: str = "") -> str:
+    """Открыть веер: копить отчёты перечисленных детей и разбудить тебя ОДИН раз.
+
+    Зови СРАЗУ после того, как заспавнил нескольких детей на независимые куски одной
+    работы. Пока веер открыт, их отчёты не будят тебя по одному — они копятся, и ты
+    просыпаешься один раз, когда отчитался последний (или когда истёк
+    `deadline_seconds`, по умолчанию 1800.0 = 30 минут). Замер: одно пробуждение
+    родителя стоит ≈$0.87 при 99% cache_read, то есть N детей без веера — N таких ходов.
+
+    ВАЖНО, иначе барьер протечёт: ребёнок, закончивший ход МОЛЧА, будит тебя мимо
+    веера через авто-репорт. В задании КАЖДОМУ ребёнку требуй отчитаться ВЫЗОВОМ
+    `send_message`, а не просто закончить ход.
+
+    Не для одного ребёнка и не «на всякий случай»: забытый открытый веер держит
+    отчёты до дедлайна. Срочное проходит мимо веера по `message_kind`.
+    """
+    kids = [c for c in (children or []) if isinstance(c, str) and c.strip()]
+    if len(kids) < 2:
+        return "open_fan needs at least 2 children; for one child just wait for its report."
+    fan_id = f"{WORKER_NAME or ROLE}-{uuid.uuid4().hex[:8]}"
+    result = await _api("POST", "/api/fan/open", json={
+        "fan_id": fan_id,
+        "parent_name": WORKER_NAME or ROLE,
+        "scope": SCOPE,
+        "children": kids,
+        "deadline_seconds": deadline_seconds,
+        "reducer": reducer,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"open_fan failed: {result['error']}"
+    return (f"Fan '{fan_id}' open for {len(kids)} children (deadline {deadline_seconds}s). "
+            f"END YOUR TURN NOW — you will be woken once, when the last child reports.")
+
+
 _ORCH_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 
 
