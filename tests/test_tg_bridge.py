@@ -71,6 +71,8 @@ async def test_polling_does_not_override_uvicorn_signal_handlers(tb):
 
 @pytest.mark.asyncio
 async def test_transcribe_audio_persists_voice_cost(tb, tmp_path, monkeypatch):
+    from app import transcription
+
     db_path = tmp_path / "voice-cost.db"
     monkeypatch.setattr("app.db.DB_PATH", db_path)
     from app.db import _conn, init_db
@@ -78,9 +80,9 @@ async def test_transcribe_audio_persists_voice_cost(tb, tmp_path, monkeypatch):
 
     audio_path = tmp_path / "voice.oga"
     audio_path.write_bytes(b"audio")
-    tb.DEEPGRAM_API_KEY = "test-key"
-    tb._transcription_cache = {}
-    monkeypatch.setattr(tb, "_save_transcription_cache", lambda cache: None)
+    monkeypatch.setenv("DEEPGRAM_API_KEY", "test-key")
+    transcription._transcription_cache = {}
+    monkeypatch.setattr(transcription, "_save_transcription_cache", lambda cache: None)
 
     payload = {
         "metadata": {"duration": 90.0},
@@ -88,6 +90,7 @@ async def test_transcribe_audio_persists_voice_cost(tb, tmp_path, monkeypatch):
     }
 
     class FakeResponse:
+        status_code = 200
         content = json.dumps(payload).encode()
 
     class FakeClient:
@@ -117,6 +120,7 @@ async def test_transcribe_audio_persists_voice_cost(tb, tmp_path, monkeypatch):
     assert row["session_name"] == "orch"
     assert row["scope"] == "/scope"
     assert row["file_id"] == "tg-file-1"
+    assert tb._transcribe_audio is transcription.transcribe_audio
 
 
 # ── _short_name ────────────────────────────────────────────────────────────

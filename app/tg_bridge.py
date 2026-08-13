@@ -26,6 +26,7 @@ from telegramify_markdown import convert as md_convert
 
 from app.errtext import err_text
 from app.tasks import spawn_supervised
+from app.transcription import transcribe_audio as _transcribe_audio
 
 logger = logging.getLogger("tg-bridge")
 logger.setLevel(logging.DEBUG)
@@ -36,7 +37,6 @@ CONFIG_PATH = Path(__file__).parent.parent / "data" / "tg_bridge.json"
 UPLOADS_DIR = Path(__file__).parent.parent / "data" / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 MEDIA_CACHE_PATH = UPLOADS_DIR / ".media_cache.json"
-TRANSCRIPTION_CACHE_PATH = UPLOADS_DIR / ".transcription_cache.json"
 
 config = {"group_id": 0, "topics": {}, "token": ""}
 bot = None
@@ -52,7 +52,6 @@ _mirror_outboxes: dict[str, asyncio.Queue] = {}
 _mirror_tasks: dict[str, asyncio.Task] = {}
 _mirror_dropped: dict[str, int] = {}
 _mirror_stopping: set[str] = set()
-DEEPGRAM_API_KEY = ""
 
 
 def save_config():
@@ -87,22 +86,6 @@ def _save_media_cache(cache: dict[str, str]):
 
 
 _media_cache: dict[str, str] = _load_media_cache()
-
-
-def _load_transcription_cache() -> dict[str, str]:
-    if TRANSCRIPTION_CACHE_PATH.exists():
-        try:
-            return json.loads(TRANSCRIPTION_CACHE_PATH.read_text())
-        except Exception as e:
-            logger.warning(f"transcription cache load failed: {e}")
-    return {}
-
-
-def _save_transcription_cache(cache: dict[str, str]):
-    TRANSCRIPTION_CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False))
-
-
-_transcription_cache: dict[str, str] = _load_transcription_cache()
 
 
 def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
@@ -176,64 +159,6 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
     except Exception as e:
         logger.warning(f"download_file failed for {filename}: {e}")
         return None
-
-
-async def _transcribe_audio(path: str, unique_id: str = "", *,
-                            session_name: str = "", scope: str = "") -> tuple[str, str | None]:
-    if unique_id and unique_id in _transcription_cache:
-        cached = _transcription_cache[unique_id]
-        logger.info(f"Transcription cache hit: {unique_id}")
-        return cached, None
-    if not DEEPGRAM_API_KEY:
-        return "", "no DEEPGRAM_API_KEY"
-    file_size = Path(path).stat().st_size
-    with open(path, "rb") as af:
-        audio_data = af.read()
-    last_err = ""
-    t0 = time.monotonic()
-    import httpx
-    for attempt in range(3):
-        try:
-            async with httpx.AsyncClient(timeout=120, verify=True) as client:
-                resp = await client.post(
-                    "https://api.deepgram.com/v1/listen?model=nova-3&language=multi&smart_format=true&profanity_filter=false",
-                    headers={"Authorization": f"Token {DEEPGRAM_API_KEY}", "Content-Type": "audio/ogg"},
-                    content=audio_data,
-                )
-                out = resp.content
-            break
-        except Exception as e:
-            last_err = str(e)
-            logger.warning(f"Deepgram attempt {attempt+1}/3 failed: {e}")
-            if attempt < 2:
-                await asyncio.sleep(1.5 * (attempt + 1))
-    else:
-        logger.error(f"Deepgram failed after 3 attempts: {last_err}")
-        return "", last_err
-    transcribe_ms = (time.monotonic() - t0) * 1000
-    try:
-        data = json.loads(out)
-        if "error" in data:
-            return "", data["error"]
-        text = data["results"]["channels"][0]["alternatives"][0]["transcript"]
-        duration = float(data.get("metadata", {}).get("duration") or 0)
-        logger.info(f"Deepgram: audio={duration:.1f}s size={file_size//1024}KB transcribe={transcribe_ms:.0f}ms")
-        from app.db import voice_cost_add
-        voice_cost_add(
-            session_name=session_name,
-            scope=scope,
-            duration_sec=duration,
-            cost_usd=duration / 60 * 0.0052,
-            file_id=unique_id,
-        )
-        if unique_id and text:
-            _transcription_cache[unique_id] = text
-            _save_transcription_cache(_transcription_cache)
-        return text, None
-    except (json.JSONDecodeError, KeyError, IndexError) as e:
-        raw = out.decode(errors="replace")[:200]
-        logger.error(f"Deepgram parse error: {e}, raw: {raw}")
-        return "", str(e)
 
 
 def _forward_meta(msg: types.Message) -> str:
@@ -3574,12 +3499,10 @@ async def topic_sync_loop():
 
 
 async def start_bridge(manager):
-    global bot, _manager, DEEPGRAM_API_KEY
+    global bot, _manager
     from dotenv import load_dotenv
     load_dotenv()
     await _reset_tg_delivery_state()
-
-    DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 
     # Wire callbacks regardless of bridge state: handlers no-op while _manager is
     # None, and remove_topics_for_orchs has its own bridge-inactive guard — this

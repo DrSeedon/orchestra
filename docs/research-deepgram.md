@@ -1,7 +1,7 @@
 # Deepgram Voice Transcription — Research
 
 **Date:** 2026-06-01
-**Status:** Working (current code in `app/tg_bridge.py:146-197`)
+**Status:** Working (shared client in `app/transcription.py`; callers: TG bridge and dashboard `/api/transcribe`)
 
 ---
 
@@ -16,7 +16,7 @@ aiogram handler `handle_voice()` (tg_bridge.py:987)
     ↓
 _download_file() → downloads OGA from TG Bot API
     ↓
-_transcribe_audio() → POST to Deepgram → returns text
+transcribe_audio() → POST to Deepgram → returns text
     ↓
 Text injected into agent session as [voice: path | transcription]
 ```
@@ -32,7 +32,7 @@ Text injected into agent session as [voice: path | transcription]
 Files saved to `data/uploads/` with naming pattern: `voice_YYYYMMDD_HHMMSS_NNNNN.oga`
 Media cache (`data/uploads/.media_cache.json`) deduplicates by `file_unique_id`.
 
-### Transcription (tg_bridge.py:146-197)
+### Transcription (`app/transcription.py`)
 
 **Request:**
 ```
@@ -63,7 +63,7 @@ Body: raw audio bytes
 Video notes (round videos) go through an extra step:
 1. Download `.mp4`
 2. `ffmpeg -i input.mp4 -vn -acodec libopus -y output.oga` (extract audio)
-3. Same `_transcribe_audio()` path
+3. Same shared `transcribe_audio()` path
 
 ---
 

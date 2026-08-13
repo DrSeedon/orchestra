@@ -729,6 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTabContextMenu();
     initHiddenTabsBtn();
     initChatDrop();
+    initVoiceInput();
     initChatPositionMemory();
     initChatTimeline();
     $('#restart-btn').addEventListener('click', restartServer);
@@ -2766,6 +2767,247 @@ function finalizePending() {
     pendingUserMsgs = [];
     uiDebounceTimer = null;
     showWaitingIndicator();
+}
+
+const _VOICE_MAX_MS = 5 * 60 * 1000;
+let _voiceRecorder = null;
+let _voiceStream = null;
+let _voiceAudioContext = null;
+let _voiceAnalyser = null;
+let _voiceFrame = 0;
+let _voiceLastFrame = 0;
+let _voiceSamples = null;
+let _voiceStartedAt = 0;
+let _voiceCancelled = false;
+let _voiceStarting = false;
+let _voiceStopping = false;
+
+function _voiceMimeType() {
+    const choices = [
+        'audio/webm;codecs=opus',
+        'audio/mp4;codecs=mp4a.40.2',
+        'audio/mp4',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+    ];
+    return choices.find(type => MediaRecorder.isTypeSupported(type)) || '';
+}
+
+function _voiceSetState(state) {
+    const controls = $('#voice-controls');
+    if (!controls) return;
+    controls.dataset.state = state;
+    $('#voice-btn').disabled = state === 'processing' || state === 'requesting' || state === 'stopping';
+    $('#voice-state-label').textContent = state === 'processing'
+        ? 'Распознаю…'
+        : (state === 'requesting' ? 'Микрофон…' : (state === 'stopping' ? 'Завершаю…' : 'Запись'));
+    $('#voice-cancel-btn').disabled = state !== 'recording';
+}
+
+function _showVoiceError(message) {
+    const error = $('#voice-error');
+    if (!error) return;
+    error.textContent = message;
+    error.classList.toggle('is-visible', Boolean(message));
+}
+
+function _voiceCaptureError(error) {
+    if (!window.isSecureContext) return 'Микрофон доступен только через HTTPS.';
+    if (error?.name === 'NotAllowedError') return 'Доступ к микрофону запрещён. Разрешите его в настройках браузера.';
+    if (error?.name === 'NotFoundError') return 'Микрофон не найден.';
+    if (error?.name === 'NotReadableError') return 'Микрофон занят другим приложением.';
+    return `Не удалось включить микрофон: ${error?.name || 'Error'}: ${error?.message || error}`;
+}
+
+function _stopVoiceCapture() {
+    cancelAnimationFrame(_voiceFrame);
+    _voiceFrame = 0;
+    _voiceAnalyser = null;
+    _voiceSamples = null;
+    if (_voiceAudioContext) _voiceAudioContext.close().catch(() => {});
+    _voiceAudioContext = null;
+    if (_voiceStream) _voiceStream.getTracks().forEach(track => track.stop());
+    _voiceStream = null;
+    $('#voice-level')?.style.setProperty('--voice-level', '1');
+}
+
+function _drawVoiceLevel(now) {
+    if (!_voiceAnalyser || !_voiceRecorder || _voiceRecorder.state !== 'recording') return;
+    if (now - _voiceLastFrame < 33) {
+        _voiceFrame = requestAnimationFrame(_drawVoiceLevel);
+        return;
+    }
+    _voiceLastFrame = now;
+    _voiceAnalyser.getByteTimeDomainData(_voiceSamples);
+    let energy = 0;
+    for (const sample of _voiceSamples) {
+        const centered = (sample - 128) / 128;
+        energy += centered * centered;
+    }
+    const level = Math.min(1, Math.sqrt(energy / _voiceSamples.length) * 4);
+    $('#voice-level')?.style.setProperty('--voice-level', (1 + level * 1.25).toFixed(2));
+    const elapsed = now - _voiceStartedAt;
+    const seconds = Math.floor(elapsed / 1000);
+    $('#voice-timer').textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    if (elapsed >= _VOICE_MAX_MS) {
+        stopVoiceInput();
+        return;
+    }
+    _voiceFrame = requestAnimationFrame(_drawVoiceLevel);
+}
+
+function _voiceExtension(mimeType) {
+    if (mimeType.startsWith('audio/mp4')) return 'm4a';
+    if (mimeType.startsWith('audio/ogg')) return 'ogg';
+    return 'webm';
+}
+
+async function _transcribeVoiceBlob(blob, mimeType) {
+    _voiceSetState('processing');
+    const body = new FormData();
+    body.append('audio', blob, `voice.${_voiceExtension(mimeType)}`);
+    body.append('session_name', selectedAgent || '');
+    body.append('scope', currentScope || '');
+    try {
+        const response = await fetch('/api/transcribe', {
+            method: 'POST',
+            body,
+            signal: AbortSignal.timeout(150000),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || result.detail || `HTTP ${response.status}`);
+        const text = (result.text || '').trim();
+        if (!text) throw new Error('Сервис не распознал речь.');
+        const input = $('#chat-input');
+        const separator = input.value && !/\s$/.test(input.value) ? ' ' : '';
+        input.value += separator + text;
+        input.dispatchEvent(new Event('input', {bubbles: true}));
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        saveDraft();
+        _showVoiceError('');
+    } catch (error) {
+        const detail = error.name === 'TimeoutError'
+            ? 'Распознавание не ответило за 150 секунд.'
+            : error.message;
+        _showVoiceError(`Голосовой ввод: ${detail}`);
+    } finally {
+        _voiceSetState('idle');
+    }
+}
+
+async function startVoiceInput() {
+    if (_voiceRecorder?.state === 'recording') {
+        stopVoiceInput();
+        return;
+    }
+    if (_voiceStarting || _voiceStopping) return;
+    _showVoiceError('');
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+        _showVoiceError(window.isSecureContext
+            ? 'Этот браузер не поддерживает запись с микрофона.'
+            : 'Микрофон доступен только через HTTPS.');
+        return;
+    }
+    _voiceStarting = true;
+    _voiceSetState('requesting');
+    try {
+        _voiceStream = await navigator.mediaDevices.getUserMedia({audio: true});
+        const mimeType = _voiceMimeType();
+        const recorder = mimeType
+            ? new MediaRecorder(_voiceStream, {mimeType, audioBitsPerSecond: 64000})
+            : new MediaRecorder(_voiceStream);
+        const chunks = [];
+        _voiceRecorder = recorder;
+        _voiceCancelled = false;
+        recorder.addEventListener('dataavailable', event => {
+            if (event.data.size) chunks.push(event.data);
+        });
+        recorder.addEventListener('error', event => {
+            _showVoiceError(_voiceCaptureError(event.error));
+            _voiceCancelled = true;
+            _voiceStopping = true;
+            if (recorder.state === 'recording') recorder.stop();
+        });
+        recorder.addEventListener('stop', () => {
+            const cancelled = _voiceCancelled;
+            const actualType = recorder.mimeType || mimeType || chunks[0]?.type || 'audio/webm';
+            const blob = new Blob(chunks, {type: actualType});
+            if (_voiceRecorder === recorder) _voiceRecorder = null;
+            _voiceStopping = false;
+            _stopVoiceCapture();
+            if (cancelled) {
+                _voiceSetState('idle');
+                return;
+            }
+            if (!blob.size) {
+                _showVoiceError('Голосовой ввод: браузер вернул пустую запись.');
+                _voiceSetState('idle');
+                return;
+            }
+            _transcribeVoiceBlob(blob, actualType);
+        }, {once: true});
+
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        _voiceAudioContext = new AudioContextClass();
+        const source = _voiceAudioContext.createMediaStreamSource(_voiceStream);
+        _voiceAnalyser = _voiceAudioContext.createAnalyser();
+        _voiceAnalyser.fftSize = 256;
+        _voiceSamples = new Uint8Array(_voiceAnalyser.fftSize);
+        source.connect(_voiceAnalyser);
+        _voiceStartedAt = performance.now();
+        _voiceLastFrame = 0;
+        $('#voice-timer').textContent = '0:00';
+        _voiceStarting = false;
+        _voiceSetState('recording');
+        recorder.start();
+        _voiceFrame = requestAnimationFrame(_drawVoiceLevel);
+    } catch (error) {
+        _voiceStarting = false;
+        _stopVoiceCapture();
+        _voiceRecorder = null;
+        _voiceSetState('idle');
+        _showVoiceError(_voiceCaptureError(error));
+    }
+}
+
+function stopVoiceInput(cancel = false) {
+    if (!_voiceRecorder || _voiceRecorder.state !== 'recording') return;
+    _voiceCancelled = cancel;
+    _voiceStopping = true;
+    _voiceSetState('stopping');
+    _voiceRecorder.stop();
+}
+
+function initVoiceInput() {
+    const input = $('#chat-input');
+    const actions = $('#send-btn')?.parentElement;
+    if (!input || !actions || $('#voice-controls')) return;
+    const controls = document.createElement('div');
+    controls.id = 'voice-controls';
+    controls.className = 'voice-controls';
+    controls.dataset.state = 'idle';
+    controls.innerHTML = `
+        <button id="voice-btn" type="button" class="voice-button" title="Голосовой ввод" aria-label="Начать или остановить голосовой ввод">
+            <span id="voice-level" class="voice-level"></span><span class="voice-icon">🎤</span>
+        </button>
+        <div class="voice-recording" aria-live="polite">
+            <span id="voice-timer" class="voice-timer">0:00</span>
+            <span id="voice-state-label">Запись</span>
+            <button id="voice-cancel-btn" type="button" class="voice-cancel" title="Отменить запись" aria-label="Отменить запись">×</button>
+        </div>`;
+    input.parentElement.insertBefore(controls, actions);
+    const error = document.createElement('div');
+    error.id = 'voice-error';
+    error.className = 'voice-error';
+    error.setAttribute('role', 'alert');
+    input.parentElement.after(error);
+    $('#voice-btn').addEventListener('click', startVoiceInput);
+    $('#voice-cancel-btn').addEventListener('click', () => stopVoiceInput(true));
+    window.addEventListener('pagehide', () => stopVoiceInput(true));
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && _voiceRecorder?.state === 'recording') stopVoiceInput(true);
+    });
 }
 
 function showWaitingIndicator() {

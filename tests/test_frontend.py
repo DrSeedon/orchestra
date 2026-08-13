@@ -1508,3 +1508,137 @@ def test_truncated_read_image_restores_full_log_when_source_file_is_gone(
     assert page.locator("#chat img").count() == 0
     assert requests == {"file": 3, "log": [42, 42, 43]}
     page.close()
+
+
+def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: Browser):
+    root = Path(__file__).parent.parent
+    app_source = (root / "app/static/js/app.js").read_text()
+    css_source = (root / "app/static/css/style.css").read_text()
+    context = dashboard_browser.new_context(
+        viewport={"width": 390, "height": 844},
+        is_mobile=True,
+        has_touch=True,
+        device_scale_factor=3,
+    )
+    page = context.new_page()
+    page_errors = []
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+    requests = {"transcribe": 0, "send": 0, "body": b"", "content_type": ""}
+    fake_media_script = """() => {
+            window.__voiceTrackStops = 0;
+            window.__voiceGetUserMediaCalls = 0;
+            Object.defineProperty(navigator, 'mediaDevices', {
+                configurable: true,
+                value: {getUserMedia: async () => {
+                    window.__voiceGetUserMediaCalls++;
+                    return {getTracks: () => [{stop: () => window.__voiceTrackStops++}]};
+                }},
+            });
+            class FakeRecorder {
+                static isTypeSupported(type) {
+                    return type === 'audio/mp4;codecs=mp4a.40.2';
+                }
+                constructor(_stream, options = {}) {
+                    this.mimeType = options.mimeType || 'audio/mp4';
+                    this.state = 'inactive';
+                    this.listeners = {};
+                    window.__voiceChosenMime = this.mimeType;
+                }
+                addEventListener(type, callback) { this.listeners[type] = callback; }
+                start() { this.state = 'recording'; }
+                stop() {
+                    this.state = 'inactive';
+                    setTimeout(() => {
+                        this.listeners.dataavailable?.({data: new Blob(['recorded'], {type: this.mimeType})});
+                        this.listeners.stop?.();
+                    }, 80);
+                }
+            }
+            class FakeAudioContext {
+                createMediaStreamSource() { return {connect: () => {}}; }
+                createAnalyser() {
+                    return {
+                        fftSize: 256,
+                        getByteTimeDomainData: values => {
+                            values.fill(128);
+                            values[0] = 255;
+                        },
+                    };
+                }
+                close() { return Promise.resolve(); }
+            }
+            Object.defineProperty(window, 'MediaRecorder', {configurable: true, value: FakeRecorder});
+            Object.defineProperty(window, 'AudioContext', {configurable: true, value: FakeAudioContext});
+        }"""
+
+    def transcribe(route):
+        requests["transcribe"] += 1
+        requests["body"] = route.request.post_data_buffer or b""
+        requests["content_type"] = route.request.headers.get("content-type", "")
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            json={"text": "Надиктованный текст"},
+        )
+
+    def unexpected_send(route):
+        requests["send"] += 1
+        route.fulfill(status=500, content_type="application/json", json={"error": "unexpected"})
+
+    page.route("**/api/transcribe", transcribe)
+    page.route("**/api/sessions/*/send", unexpected_send)
+    page.route(
+        "**/static/js/app.js*",
+        lambda route: route.fulfill(
+            status=200, content_type="text/javascript", body=app_source,
+        ),
+    )
+    page.route(
+        "**/static/css/style.css*",
+        lambda route: route.fulfill(
+            status=200, content_type="text/css", body=css_source,
+        ),
+    )
+    _goto_dashboard_or_skip(page)
+    page.wait_for_function("() => typeof initVoiceInput === 'function'")
+    page.evaluate(fake_media_script)
+    expect(page.locator("#voice-btn")).to_be_visible()
+
+    page.locator("#voice-btn").click()
+    page.wait_for_timeout(500)
+    state = page.locator("#voice-controls").get_attribute("data-state")
+    assert state == "recording", (state, page.locator("#voice-error").text_content(), page_errors)
+    page.wait_for_timeout(1100)
+    minutes, seconds = map(int, page.locator("#voice-timer").text_content().split(":"))
+    assert 1 <= minutes * 60 + seconds < 10
+    assert float(page.locator("#voice-level").evaluate(
+        "node => node.style.getPropertyValue('--voice-level')"
+    )) > 1
+    assert page.evaluate("window.__voiceChosenMime") == "audio/mp4;codecs=mp4a.40.2"
+
+    page.evaluate("() => { $('#voice-btn').click(); startVoiceInput(); }")
+    page.wait_for_function("() => $('#chat-input').value === 'Надиктованный текст'")
+    assert page.evaluate("window.__voiceGetUserMediaCalls") == 1
+    assert requests["transcribe"] == 1
+    assert requests["send"] == 0
+    assert "multipart/form-data; boundary=" in requests["content_type"]
+    assert b'filename="voice.m4a"' in requests["body"]
+    assert page.evaluate("window.__voiceTrackStops") == 1
+
+    page.locator("#voice-btn").click()
+    page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
+    page.locator("#voice-cancel-btn").click()
+    page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'idle'")
+    assert requests["transcribe"] == 1
+    assert page.locator("#chat-input").input_value() == "Надиктованный текст"
+    assert page.evaluate("window.__voiceTrackStops") == 2
+
+    page.evaluate(
+        """() => Object.defineProperty(navigator, 'mediaDevices', {
+            configurable: true,
+            value: {getUserMedia: async () => { throw new DOMException('denied', 'NotAllowedError'); }},
+        })"""
+    )
+    page.locator("#voice-btn").click()
+    expect(page.locator("#voice-error")).to_contain_text("Доступ к микрофону запрещён")
+    context.close()
