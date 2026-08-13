@@ -80,6 +80,8 @@ def test_daily_usage_applies_provider_cache_ttl(usage_db):
     assert row["providers"]["claude"] == {
         "turns": 3,
         "cost_usd": 3.0,
+        "priced_turns": 3,
+        "unaccounted_turns": 0,
         "comparable_turns": 2,
         "cold_starts": 1,
         "cache_hit_pct": 50,
@@ -89,6 +91,8 @@ def test_daily_usage_applies_provider_cache_ttl(usage_db):
     assert row["providers"]["codex"] == {
         "turns": 3,
         "cost_usd": 3.0,
+        "priced_turns": 3,
+        "unaccounted_turns": 0,
         "comparable_turns": 2,
         "cold_starts": 2,
         "cache_hit_pct": 0,
@@ -237,6 +241,7 @@ def test_analytics_snapshot_has_one_consistent_provider_breakdown(usage_db):
     assert payload["summary"]["completed_tasks"] == 1
     assert payload["summary"]["linked_completed_tasks"] == 1
     assert payload["summary"]["fully_observed_linked_tasks"] == 1
+    assert payload["summary"]["fully_costed_linked_tasks"] == 1
     assert payload["summary"]["task_cost_coverage_complete"] is True
     assert payload["summary"]["cost_per_linked_task"] == 6.0
     assert payload["providers"]["claude"]["cost_usd"] == 6.0
@@ -386,6 +391,7 @@ def test_task_cost_uses_event_time_task_linkage_not_cumulative_session(usage_db)
     assert summary["completed_tasks"] == 2
     assert summary["linked_completed_tasks"] == 2
     assert summary["fully_observed_linked_tasks"] == 2
+    assert summary["fully_costed_linked_tasks"] == 2
     assert summary["task_cost_coverage_complete"] is True
     assert summary["linked_task_cost_usd"] == 5.0
     assert summary["cost_per_linked_task"] == 2.5
@@ -430,6 +436,7 @@ def test_task_cost_is_hidden_when_task_predates_turn_collector(usage_db):
     assert summary["completed_tasks"] == 1
     assert summary["linked_completed_tasks"] == 1
     assert summary["fully_observed_linked_tasks"] == 0
+    assert summary["fully_costed_linked_tasks"] == 0
     assert summary["task_cost_coverage_complete"] is False
     assert summary["linked_task_cost_usd"] is None
     assert summary["cost_per_linked_task"] is None
@@ -486,6 +493,8 @@ def test_rollups_use_event_time_provider_and_model_after_runtime_switch(usage_db
         "model": "claude-opus-5[1m]",
         "provider": "claude",
         "turns": 1,
+        "priced_turns": 1,
+        "unaccounted_turns": 0,
         "cost_usd": 3.0,
         "cost_share_pct": 100.0,
     }]
@@ -512,6 +521,160 @@ def test_structured_auto_continue_segment_is_in_period_rollup(usage_db):
     assert payload["summary"]["observed_cost_usd"] == 7.0
     assert payload["summary"]["agent_turns"] == 1
     assert payload["providers"]["codex"]["cost_usd"] == 7.0
+
+
+def test_analytics_preserves_unknown_cost_in_every_rollup(usage_db):
+    from app.usage_analytics import build_usage_analytics
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    with sqlite3.connect(usage_db) as conn:
+        _seed_session(conn, "unpriced", "gpt-unpriced", "codex")
+        conn.execute(
+            """INSERT INTO turn_usage
+               (event_id, ts, session_id, scope, task_id, runtime, model, ok,
+                stop_reason, cost_usd, cost_unaccounted, input_tokens,
+                output_tokens, cache_read_tokens, cache_create_tokens)
+               VALUES ('unpriced-turn', ?, 'unpriced', '/scope', '', 'codex',
+                       'gpt-unpriced', 1, 'end_turn', NULL, 1, 10, 2, 0, 0)""",
+            (now.isoformat(),),
+        )
+
+    payload = build_usage_analytics(days=1, now=now)
+
+    assert payload["summary"]["observed_cost_usd"] is None
+    assert payload["summary"]["priced_turns"] == 0
+    assert payload["summary"]["unaccounted_turns"] == 1
+    for row in (
+        payload["providers"]["codex"],
+        payload["models"][0],
+        payload["agents"][0],
+        payload["daily"][0],
+        payload["daily"][0]["providers"]["codex"],
+    ):
+        assert row["cost_usd"] is None
+        assert row["priced_turns"] == 0
+        assert row["unaccounted_turns"] == 1
+    assert payload["agents"][0]["cost_per_turn"] is None
+    assert payload["agents"][0]["cost_per_priced_turn"] is None
+
+
+def test_measured_zero_cost_remains_zero_not_unknown(usage_db):
+    from app.usage_analytics import build_usage_analytics
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    with sqlite3.connect(usage_db) as conn:
+        _seed_session(conn, "measured-zero", "gpt-free", "codex")
+        conn.execute(
+            """INSERT INTO turn_usage
+               (event_id, ts, session_id, scope, task_id, runtime, model, ok,
+                stop_reason, cost_usd, cost_unaccounted, input_tokens,
+                output_tokens, cache_read_tokens, cache_create_tokens)
+               VALUES ('measured-zero', ?, 'measured-zero', '/scope', '',
+                       'codex', 'gpt-free', 1, 'end_turn', 0.0, 0,
+                       10, 2, 0, 0)""",
+            (now.isoformat(),),
+        )
+
+    payload = build_usage_analytics(days=1, now=now)
+
+    assert payload["summary"]["observed_cost_usd"] == 0.0
+    assert payload["summary"]["priced_turns"] == 1
+    assert payload["summary"]["unaccounted_turns"] == 0
+    for row in (
+        payload["providers"]["codex"],
+        payload["models"][0],
+        payload["agents"][0],
+        payload["daily"][0],
+    ):
+        assert row["cost_usd"] == 0.0
+        assert row["priced_turns"] == 1
+        assert row["unaccounted_turns"] == 0
+    assert payload["agents"][0]["cost_per_turn"] == 0.0
+    assert payload["agents"][0]["cost_per_priced_turn"] == 0.0
+
+
+def test_cost_average_uses_only_priced_turns_and_marks_partial_group(usage_db):
+    from app.usage_analytics import build_usage_analytics
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    with sqlite3.connect(usage_db) as conn:
+        _seed_session(conn, "mixed", "gpt-5.6-sol", "codex")
+        for event_id, cost, unaccounted in (
+            ("paid", 2.0, 0),
+            ("measured-zero", 0.0, 0),
+            ("unknown", None, 1),
+        ):
+            conn.execute(
+                """INSERT INTO turn_usage
+                   (event_id, ts, session_id, scope, task_id, runtime, model, ok,
+                    stop_reason, cost_usd, cost_unaccounted, input_tokens,
+                    output_tokens, cache_read_tokens, cache_create_tokens)
+                   VALUES (?, ?, 'mixed', '/scope', '', 'codex',
+                           'gpt-5.6-sol', 1, 'end_turn', ?, ?, 10, 2, 0, 0)""",
+                (event_id, now.isoformat(), cost, unaccounted),
+            )
+
+    payload = build_usage_analytics(days=1, now=now)
+    agent = payload["agents"][0]
+
+    assert agent["cost_usd"] == 2.0
+    assert agent["priced_turns"] == 2
+    assert agent["unaccounted_turns"] == 1
+    assert agent["cost_per_turn"] is None
+    assert agent["cost_per_priced_turn"] == 1.0
+    for row in (
+        payload["daily"][0],
+        payload["daily"][0]["providers"]["codex"],
+        payload["providers"]["codex"],
+        payload["models"][0],
+    ):
+        assert row["cost_usd"] == 2.0
+        assert row["priced_turns"] == 2
+        assert row["unaccounted_turns"] == 1
+    assert payload["summary"]["observed_cost_usd"] == 2.0
+    assert payload["summary"]["priced_turns"] == 2
+    assert payload["summary"]["unaccounted_turns"] == 1
+
+
+def test_unaccounted_linked_turn_hides_task_cost(usage_db):
+    from app.usage_analytics import build_usage_analytics
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    with sqlite3.connect(usage_db) as conn:
+        _set_turn_collector_start(conn, now - timedelta(days=1))
+        _seed_session(conn, "linked-unpriced", "gpt-unpriced", "codex")
+        conn.execute(
+            """INSERT INTO tm_projects (id, name, prefix, scope, created_at)
+               VALUES ('p-unpriced', 'Project', 'PRJ', '/scope', ?)""",
+            (now.isoformat(),),
+        )
+        conn.execute(
+            """INSERT INTO tm_tasks
+               (par_number, project_id, title, status, created_at,
+                updated_at, completed_at)
+               VALUES (239, 'p-unpriced', 'Unpriced', 'done', ?, ?, ?)""",
+            (now.isoformat(), now.isoformat(), now.isoformat()),
+        )
+        conn.execute(
+            """INSERT INTO turn_usage
+               (event_id, ts, session_id, scope, task_id, runtime, model, ok,
+                stop_reason, cost_usd, cost_unaccounted, input_tokens,
+                output_tokens, cache_read_tokens, cache_create_tokens)
+               VALUES ('linked-unpriced', ?, 'linked-unpriced', '/scope', '239',
+                       'codex', 'gpt-unpriced', 1, 'end_turn', NULL, 1,
+                       10, 2, 0, 0)""",
+            (now.isoformat(),),
+        )
+
+    summary = build_usage_analytics(days=1, now=now)["summary"]
+
+    assert summary["linked_priced_turns"] == 0
+    assert summary["linked_unaccounted_turns"] == 1
+    assert summary["fully_observed_linked_tasks"] == 1
+    assert summary["fully_costed_linked_tasks"] == 0
+    assert summary["task_cost_coverage_complete"] is False
+    assert summary["linked_task_cost_usd"] is None
+    assert summary["cost_per_linked_task"] is None
 
 
 @pytest.mark.asyncio

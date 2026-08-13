@@ -172,7 +172,9 @@ function _analyticsRenderOverview(body) {
     const routing = _analyticsRoutingSignal();
     const linkedTasks = Number(summary.linked_completed_tasks || 0);
     const observedTasks = Number(
-        summary.fully_observed_linked_tasks ?? linkedTasks
+        summary.fully_costed_linked_tasks
+        ?? summary.fully_observed_linked_tasks
+        ?? linkedTasks
     );
     const taskCostPartial = summary.task_cost_coverage_complete === false;
     const taskCost = taskCostPartial
@@ -182,8 +184,11 @@ function _analyticsRenderOverview(body) {
         : _analyticsMoney(summary.cost_per_linked_task);
     const linkageCoverage = `${_analyticsNumber(linkedTasks)} / ${_analyticsNumber(summary.completed_tasks)}`;
     const taskCostDetail = taskCostPartial
-        ? `точно измерено ${_analyticsNumber(observedTasks)} / ${_analyticsNumber(linkedTasks)} · связка ${linkageCoverage}`
+        ? `точно оценено ${_analyticsNumber(observedTasks)} / ${_analyticsNumber(linkedTasks)} · связка ${linkageCoverage}`
         : `покрытие связки ${linkageCoverage}`;
+    const pricedTurns = Number(summary.priced_turns ?? summary.agent_turns ?? 0);
+    const unaccountedTurns = Number(summary.unaccounted_turns || 0);
+    const observedCostDetail = `${_analyticsNumber(pricedTurns)} priced turns${unaccountedTurns ? ` · ${_analyticsNumber(unaccountedTurns)} unaccounted` : ''}`;
 
     body.innerHTML = `
         ${_analyticsWakePanel()}
@@ -196,7 +201,7 @@ function _analyticsRenderOverview(body) {
             <div class="analytics-provider-grid">${providerCards || '<div class="analytics-empty">Данные провайдеров пока не накоплены.</div>'}</div>
         </section>
         <section class="analytics-kpi-grid">
-            ${_analyticsKpi('За период', _analyticsMoney(summary.observed_cost_usd), `${_analyticsNumber(summary.agent_turns)} agent-turns`)}
+            ${_analyticsKpi('За период', _analyticsMoney(summary.observed_cost_usd), observedCostDetail)}
             ${_analyticsKpi('Цена задачи', taskCost, taskCostDetail)}
             ${_analyticsKpi('Активно сейчас', _analyticsNumber(lifetime.active_agents), `${_analyticsNumber(lifetime.agents)} агентов всего`)}
             ${_analyticsKpi('За всё время', _analyticsMoney(lifetime.cost_usd), `${_analyticsNumber(lifetime.turns)} turns`)}
@@ -317,7 +322,7 @@ function _analyticsProviderCard(provider, stats) {
     return `<article class="analytics-provider analytics-provider-${tone}" data-analytics-provider="${provider}">
         <div class="analytics-provider-head">
             <div><span class="analytics-provider-dot"></span><div><h3>${title}</h3><p>${runtime}</p></div></div>
-            <strong>${_analyticsMoney(stats.cost_usd)}</strong>
+            <strong>${_analyticsMoney(stats.cost_usd)}${stats.unaccounted_turns ? ` <small>· ${_analyticsNumber(stats.unaccounted_turns)} unaccounted</small>` : ''}</strong>
         </div>
         <div class="analytics-provider-metrics">
             <div><span>Turns</span><strong>${_analyticsNumber(stats.turns)}</strong></div>
@@ -365,7 +370,7 @@ function _analyticsSignalRows() {
         .sort((a, b) => (b[1].cold_starts || 0) - (a[1].cold_starts || 0))[0];
     const period = _analyticsPayload.period || {};
     return `
-        <div class="analytics-signal"><span class="${anomalies.length ? 'analytics-text-warn' : 'analytics-text-ok'}">${anomalies.length ? 'CHECK' : 'OK'}</span><div><strong>${anomalies.length} аномальных агентов</strong><p>Сигнал: cost/turn ≥ 4× медианы при ≥2 turns.</p></div></div>
+        <div class="analytics-signal"><span class="${anomalies.length ? 'analytics-text-warn' : 'analytics-text-ok'}">${anomalies.length ? 'CHECK' : 'OK'}</span><div><strong>${anomalies.length} аномальных агентов</strong><p>Сигнал: cost/priced turn ≥ 4× медианы при ≥2 priced turns.</p></div></div>
         <div class="analytics-signal"><span>${cold ? _analyticsEsc(cold[0].toUpperCase()) : '—'}</span><div><strong>${cold ? `${_analyticsNumber(cold[1].cold_starts)} cold starts` : 'Cache пока пуст'}</strong><p>TTL считается отдельно для каждого runtime.</p></div></div>
         <div class="analytics-signal"><span class="${period.complete ? 'analytics-text-ok' : 'analytics-text-warn'}">${period.complete ? 'FULL' : 'PART'}</span><div><strong>${period.complete ? 'Полное окно' : 'Частичная retention'}</strong><p>${period.observed_from ? `Наблюдаем с ${_analyticsDateTime(period.observed_from)}.` : 'За период нет наблюдений.'}</p></div></div>`;
 }
@@ -392,15 +397,15 @@ function _analyticsRenderAgents(body) {
             </div>
             <div class="analytics-table-wrap">
                 <table class="analytics-table">
-                    <thead><tr><th>Агент</th><th>Модель</th><th>Провайдер</th><th>Turns</th><th>Virtual cost</th><th>Cost / turn</th><th>Последний turn</th></tr></thead>
+                    <thead><tr><th>Агент</th><th>Модель</th><th>Провайдер</th><th>Turns</th><th>Observed cost</th><th>Cost / priced turn</th><th>Последний turn</th></tr></thead>
                     <tbody id="analytics-agent-table">${agents.map(agent => `
                         <tr data-analytics-agent="${_analyticsEsc(agent.id)}" class="${agent.anomaly ? 'analytics-row-anomaly' : ''}">
                             <td><strong>${_analyticsEsc(agent.name || 'unknown')}</strong>${agent.anomaly ? '<span class="analytics-badge analytics-badge-warn">4× signal</span>' : ''}<small>${_analyticsEsc(agent.scope || '')}</small></td>
                             <td>${_analyticsEsc(agent.model || 'unknown')}</td>
                             <td><span class="analytics-provider-tag analytics-provider-tag-${_analyticsEsc(agent.provider)}">${_analyticsEsc(agent.provider)}</span></td>
                             <td>${_analyticsNumber(agent.turns)}</td>
-                            <td>${_analyticsMoney(agent.cost_usd)}</td>
-                            <td>${_analyticsMoney(agent.cost_per_turn)}</td>
+                            <td>${_analyticsMoney(agent.cost_usd)}${agent.unaccounted_turns ? `<small>${_analyticsNumber(agent.unaccounted_turns)} unaccounted</small>` : ''}</td>
+                            <td>${_analyticsMoney(agent.cost_per_priced_turn ?? agent.cost_per_turn)}</td>
                             <td>${_analyticsDateTime(agent.last_turn)}</td>
                         </tr>`).join('')}</tbody>
                 </table>
@@ -429,11 +434,12 @@ function _analyticsAgentDetail(agent) {
             <div><dt>Модель</dt><dd>${_analyticsEsc(agent.model || 'unknown')}</dd></div>
             <div><dt>Провайдер</dt><dd>${_analyticsEsc(agent.provider || 'unknown')}</dd></div>
             <div><dt>Turns</dt><dd>${_analyticsNumber(agent.turns)}</dd></div>
-            <div><dt>Virtual cost</dt><dd>${_analyticsMoney(agent.cost_usd)}</dd></div>
-            <div><dt>Cost / turn</dt><dd>${_analyticsMoney(agent.cost_per_turn)}</dd></div>
+            <div><dt>Observed cost</dt><dd>${_analyticsMoney(agent.cost_usd)}</dd></div>
+            <div><dt>Priced / unaccounted</dt><dd>${_analyticsNumber(agent.priced_turns ?? agent.turns)} / ${_analyticsNumber(agent.unaccounted_turns)}</dd></div>
+            <div><dt>Cost / priced turn</dt><dd>${_analyticsMoney(agent.cost_per_priced_turn ?? agent.cost_per_turn)}</dd></div>
             <div><dt>Последний turn</dt><dd>${_analyticsDateTime(agent.last_turn)}</dd></div>
         </dl>
-        ${agent.anomaly ? '<p class="analytics-detail-note">Сигнал, не вердикт: cost/turn ≥ 4× медианы флота при минимум двух turns.</p>' : ''}`;
+        ${agent.anomaly ? '<p class="analytics-detail-note">Сигнал, не вердикт: cost/priced turn ≥ 4× медианы флота при минимум двух priced turns.</p>' : ''}`;
 }
 
 function _analyticsRenderEfficiency(body) {
@@ -454,11 +460,11 @@ function _analyticsRenderEfficiency(body) {
                 }).join('')}</div>
             </article>
             <article class="analytics-panel">
-                <div class="analytics-section-head"><div><span class="analytics-kicker">Model mix</span><h3>Куда ушла работа</h3></div><span>доли virtual cost</span></div>
+                <div class="analytics-section-head"><div><span class="analytics-kicker">Model mix</span><h3>Куда ушла работа</h3></div><span>доли observed cost</span></div>
                 <div class="analytics-model-list">${models.map(model => `
                     <div class="analytics-model-row">
-                        <div><strong>${_analyticsEsc(model.model || 'unknown')}</strong><span>${_analyticsEsc(model.provider)} · ${_analyticsNumber(model.turns)} turns</span></div>
-                        <div class="analytics-model-value"><b>${Number(model.cost_share_pct || 0).toFixed(1)}%</b><span>${_analyticsMoney(model.cost_usd)}</span></div>
+                        <div><strong>${_analyticsEsc(model.model || 'unknown')}</strong><span>${_analyticsEsc(model.provider)} · ${_analyticsNumber(model.priced_turns ?? model.turns)} priced${model.unaccounted_turns ? ` · ${_analyticsNumber(model.unaccounted_turns)} unaccounted` : ''}</span></div>
+                        <div class="analytics-model-value"><b>${model.cost_share_pct == null ? '—' : `${Number(model.cost_share_pct).toFixed(1)}%`}</b><span>${_analyticsMoney(model.cost_usd)}</span></div>
                         <div class="analytics-model-track"><i class="analytics-model-${_analyticsEsc(model.provider)}" style="width:${Math.max(0, Math.min(Number(model.cost_share_pct) || 0, 100))}%"></i></div>
                     </div>`).join('') || '<div class="analytics-empty">Нет model-mix данных.</div>'}</div>
             </article>
@@ -485,7 +491,7 @@ function _analyticsRenderReliability(body) {
         errorBlock = `<div class="analytics-collector-gap"><strong>частичное покрытие</strong><span>Collector работает с ${_analyticsDateTime(errors.collector_started_at)}; более ранние failures неизвестны.</span></div>`;
     }
     const turnBlock = turns.collector_ready
-        ? `<strong>${_analyticsNumber(turns.recorded_rows)} структурных turns</strong><span>${turns.coverage_complete ? 'полное окно' : 'частичное покрытие'} · с ${_analyticsDateTime(turns.collector_started_at || turns.observed_from)}</span>`
+        ? `<strong>${_analyticsNumber(turns.recorded_rows)} структурных turns</strong><span>${_analyticsNumber(turns.priced_rows ?? turns.recorded_rows)} priced · ${_analyticsNumber(turns.unaccounted_rows)} unaccounted · ${turns.coverage_complete ? 'полное окно' : 'частичное покрытие'} · с ${_analyticsDateTime(turns.collector_started_at || turns.observed_from)}</span>`
         : '<strong>нет collector</strong><span>Per-turn tokens/model/cache пока не собирались структурно.</span>';
     body.innerHTML = `
         <section class="analytics-reliability-grid">
@@ -545,14 +551,20 @@ async function _analyticsRenderChart(daily) {
             datasets: [
                 {
                     label: 'Claude',
-                    data: daily.map(day => Number((((day.providers || {}).claude || {}).cost_usd) || 0)),
+                    data: daily.map(day => {
+                        const value = (((day.providers || {}).claude || {}).cost_usd);
+                        return value == null ? null : Number(value);
+                    }),
                     backgroundColor: 'rgba(167, 139, 250, .72)',
                     borderColor: '#a78bfa',
                     borderWidth: 1,
                 },
                 {
                     label: 'Codex',
-                    data: daily.map(day => Number((((day.providers || {}).codex || {}).cost_usd) || 0)),
+                    data: daily.map(day => {
+                        const value = (((day.providers || {}).codex || {}).cost_usd);
+                        return value == null ? null : Number(value);
+                    }),
                     backgroundColor: 'rgba(34, 211, 238, .65)',
                     borderColor: '#22d3ee',
                     borderWidth: 1,

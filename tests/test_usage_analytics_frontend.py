@@ -101,9 +101,12 @@ def _payload():
         "summary": {
             "observed_cost_usd": 1156.25,
             "agent_turns": 716,
+            "priced_turns": 716,
+            "unaccounted_turns": 0,
             "completed_tasks": 17,
             "linked_completed_tasks": 12,
             "fully_observed_linked_tasks": 12,
+            "fully_costed_linked_tasks": 12,
             "task_cost_coverage_complete": True,
             "cost_per_linked_task": 21.62,
             "lifetime": {
@@ -117,6 +120,8 @@ def _payload():
         "providers": {
             "claude": {
                 "turns": 534,
+                "priced_turns": 534,
+                "unaccounted_turns": 0,
                 "cost_usd": 703.56,
                 "comparable_turns": 507,
                 "cold_starts": 68,
@@ -126,6 +131,8 @@ def _payload():
             },
             "codex": {
                 "turns": 182,
+                "priced_turns": 182,
+                "unaccounted_turns": 0,
                 "cost_usd": 452.69,
                 "comparable_turns": 133,
                 "cold_starts": 38,
@@ -135,6 +142,8 @@ def _payload():
             },
             "grok": {
                 "turns": 12,
+                "priced_turns": 12,
+                "unaccounted_turns": 0,
                 "cost_usd": 4.5,
                 "comparable_turns": 8,
                 "cold_starts": 2,
@@ -147,19 +156,23 @@ def _payload():
             {
                 "day": "2026-07-24",
                 "turns": 111,
+                "priced_turns": 111,
+                "unaccounted_turns": 0,
                 "cost_usd": 143.02,
                 "providers": {
-                    "claude": {"cost_usd": 39.17, "turns": 76},
-                    "codex": {"cost_usd": 103.85, "turns": 35},
+                    "claude": {"cost_usd": 39.17, "turns": 76, "priced_turns": 76, "unaccounted_turns": 0},
+                    "codex": {"cost_usd": 103.85, "turns": 35, "priced_turns": 35, "unaccounted_turns": 0},
                 },
             },
             {
                 "day": "2026-07-25",
                 "turns": 40,
+                "priced_turns": 40,
+                "unaccounted_turns": 0,
                 "cost_usd": 33.33,
                 "providers": {
-                    "claude": {"cost_usd": 8.34, "turns": 17},
-                    "codex": {"cost_usd": 24.99, "turns": 23},
+                    "claude": {"cost_usd": 8.34, "turns": 17, "priced_turns": 17, "unaccounted_turns": 0},
+                    "codex": {"cost_usd": 24.99, "turns": 23, "priced_turns": 23, "unaccounted_turns": 0},
                 },
             },
         ],
@@ -171,8 +184,11 @@ def _payload():
                 "model": "claude-opus-5[1m]",
                 "provider": "claude",
                 "turns": 151,
+                "priced_turns": 151,
+                "unaccounted_turns": 0,
                 "cost_usd": 263.36,
                 "cost_per_turn": 1.74,
+                "cost_per_priced_turn": 1.74,
                 "last_turn": "2026-07-25T07:52:00Z",
                 "anomaly": False,
             },
@@ -183,8 +199,11 @@ def _payload():
                 "model": "gpt-5.6-sol",
                 "provider": "codex",
                 "turns": 2,
+                "priced_turns": 2,
+                "unaccounted_turns": 0,
                 "cost_usd": 22.21,
                 "cost_per_turn": 11.11,
+                "cost_per_priced_turn": 11.11,
                 "last_turn": "2026-07-18T09:43:00Z",
                 "anomaly": True,
             },
@@ -194,6 +213,8 @@ def _payload():
                 "model": "claude-opus-5[1m]",
                 "provider": "claude",
                 "turns": 534,
+                "priced_turns": 534,
+                "unaccounted_turns": 0,
                 "cost_usd": 703.56,
                 "cost_share_pct": 60.8,
             },
@@ -201,6 +222,8 @@ def _payload():
                 "model": "gpt-5.6-sol",
                 "provider": "codex",
                 "turns": 182,
+                "priced_turns": 182,
+                "unaccounted_turns": 0,
                 "cost_usd": 452.69,
                 "cost_share_pct": 39.2,
             },
@@ -222,6 +245,8 @@ def _payload():
             "turn_usage": {
                 "collector_ready": False,
                 "recorded_rows": 0,
+                "priced_rows": 0,
+                "unaccounted_rows": 0,
                 "observed_from": None,
             },
         },
@@ -612,6 +637,7 @@ def test_partial_task_cost_coverage_does_not_show_exact_price(browser):
             const payload = await original(url);
             payload.summary.linked_completed_tasks = 1;
             payload.summary.fully_observed_linked_tasks = 0;
+            payload.summary.fully_costed_linked_tasks = 0;
             payload.summary.task_cost_coverage_complete = false;
             payload.summary.cost_per_linked_task = null;
             return payload;
@@ -620,7 +646,135 @@ def test_partial_task_cost_coverage_does_not_show_exact_price(browser):
     page.evaluate("openAnalyticsModal()")
 
     expect(page.locator("#analytics-body")).to_contain_text("частичные данные")
-    expect(page.locator("#analytics-body")).to_contain_text("точно измерено 0 / 1")
+    expect(page.locator("#analytics-body")).to_contain_text("точно оценено 0 / 1")
+    page.close()
+
+
+def test_unaccounted_cost_is_visible_and_never_rendered_as_zero(browser):
+    payload = _payload()
+    payload["summary"].update({
+        "observed_cost_usd": None,
+        "agent_turns": 1,
+        "priced_turns": 0,
+        "unaccounted_turns": 1,
+    })
+    payload["providers"] = {
+        "codex": {
+            "turns": 1,
+            "priced_turns": 0,
+            "unaccounted_turns": 1,
+            "cost_usd": None,
+        },
+    }
+    payload["daily"] = [{
+        "day": "2026-07-25",
+        "turns": 1,
+        "priced_turns": 0,
+        "unaccounted_turns": 1,
+        "cost_usd": None,
+        "providers": {
+            "codex": {
+                "turns": 1,
+                "priced_turns": 0,
+                "unaccounted_turns": 1,
+                "cost_usd": None,
+            },
+        },
+    }]
+    payload["agents"] = [{
+        "id": "unknown-cost",
+        "name": "unknown-cost",
+        "scope": "/scope",
+        "model": "gpt-unpriced",
+        "provider": "codex",
+        "turns": 1,
+        "priced_turns": 0,
+        "unaccounted_turns": 1,
+        "cost_usd": None,
+        "cost_per_turn": None,
+        "cost_per_priced_turn": None,
+        "last_turn": "2026-07-25T07:52:00Z",
+        "anomaly": False,
+    }]
+    payload["models"] = [{
+        "model": "gpt-unpriced",
+        "provider": "codex",
+        "turns": 1,
+        "priced_turns": 0,
+        "unaccounted_turns": 1,
+        "cost_usd": None,
+        "cost_share_pct": None,
+    }]
+    payload["reliability"]["turn_usage"].update({
+        "collector_ready": True,
+        "priced_rows": 0,
+        "unaccounted_rows": 1,
+        "recorded_rows": 1,
+    })
+    page = _page(browser)
+    page.evaluate(
+        """payload => {
+            window.api = async () => structuredClone(payload);
+        }""",
+        payload,
+    )
+
+    page.evaluate("openAnalyticsModal()")
+    expect(page.locator(".analytics-kpi-grid > article:first-child")).to_contain_text(
+        "1 unaccounted"
+    )
+    expect(page.locator('[data-analytics-provider="codex"]')).to_contain_text(
+        "— · 1 unaccounted"
+    )
+
+    page.locator('[data-analytics-view="agents"]').click()
+    expect(page.locator("#analytics-agent-table")).to_contain_text("1 unaccounted")
+    expect(page.locator("#analytics-agent-table")).not_to_contain_text("$0.00")
+
+    page.locator('[data-analytics-view="efficiency"]').click()
+    expect(page.locator(".analytics-model-list")).to_contain_text("1 unaccounted")
+    expect(page.locator(".analytics-model-list")).not_to_contain_text("0.0%")
+
+    page.locator('[data-analytics-view="reliability"]').click()
+    expect(page.locator("#analytics-body")).to_contain_text(
+        "0 priced · 1 unaccounted"
+    )
+    page.close()
+
+
+def test_new_frontend_remains_compatible_with_old_analytics_payload(browser):
+    payload = _payload()
+    for key in ("priced_turns", "unaccounted_turns"):
+        payload["summary"].pop(key)
+    payload["summary"].pop("fully_costed_linked_tasks")
+    for provider in payload["providers"].values():
+        provider.pop("priced_turns")
+        provider.pop("unaccounted_turns")
+    for agent in payload["agents"]:
+        agent.pop("priced_turns")
+        agent.pop("unaccounted_turns")
+        agent.pop("cost_per_priced_turn")
+    for model in payload["models"]:
+        model.pop("priced_turns")
+        model.pop("unaccounted_turns")
+    payload["reliability"]["turn_usage"].pop("priced_rows")
+    payload["reliability"]["turn_usage"].pop("unaccounted_rows")
+    page = _page(browser)
+    page.evaluate(
+        "payload => { window.api = async () => structuredClone(payload); }",
+        payload,
+    )
+
+    page.evaluate("openAnalyticsModal()")
+    expect(page.locator(".analytics-kpi-grid > article:first-child")).to_contain_text(
+        "716 priced turns"
+    )
+
+    page.locator('[data-analytics-view="agents"]').click()
+    expect(page.locator("#analytics-agent-table")).to_contain_text("$1,74")
+
+    page.locator('[data-analytics-view="efficiency"]').click()
+    expect(page.locator(".analytics-model-list")).to_contain_text("60.8%")
     page.close()
 
 

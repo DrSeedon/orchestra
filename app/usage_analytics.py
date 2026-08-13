@@ -139,6 +139,7 @@ def _daily_usage(conn: sqlite3.Connection, days: int) -> list[dict]:
         + """
         SELECT date(ts) AS day, provider,
                COUNT(*) AS turns,
+               COUNT(cost_usd) AS priced_turns,
                ROUND(SUM(cost_usd), 4) AS cost_usd
         FROM observed_turns
         GROUP BY day, provider
@@ -181,6 +182,8 @@ def _daily_usage(conn: sqlite3.Connection, days: int) -> list[dict]:
                 "day": day,
                 "turns": 0,
                 "cost_usd": 0.0,
+                "priced_turns": 0,
+                "unaccounted_turns": 0,
                 "cold_starts": 0,
                 "cache_hit_pct": None,
                 "providers": {},
@@ -188,15 +191,22 @@ def _daily_usage(conn: sqlite3.Connection, days: int) -> list[dict]:
             },
         )
         turns = int(row["turns"] or 0)
-        cost = float(row["cost_usd"] or 0)
+        priced_turns = int(row["priced_turns"] or 0)
+        unaccounted_turns = turns - priced_turns
+        cost = float(row["cost_usd"]) if priced_turns else None
         # Provider ids are runtime ids, so ask the registry instead of branching per
         # provider — a fourth runtime would otherwise inherit Claude's window again.
         policy = cache_policy_for_runtime(provider)
         entry["turns"] += turns
-        entry["cost_usd"] += cost
+        entry["priced_turns"] += priced_turns
+        entry["unaccounted_turns"] += unaccounted_turns
+        if cost is not None:
+            entry["cost_usd"] += cost
         entry["providers"][provider] = {
             "turns": turns,
             "cost_usd": cost,
+            "priced_turns": priced_turns,
+            "unaccounted_turns": unaccounted_turns,
             "comparable_turns": 0,
             "cold_starts": 0,
             "cache_hit_pct": None,
@@ -221,7 +231,9 @@ def _daily_usage(conn: sqlite3.Connection, days: int) -> list[dict]:
 
     result = []
     for entry in by_day.values():
-        entry["cost_usd"] = round(entry["cost_usd"], 4)
+        entry["cost_usd"] = (
+            round(entry["cost_usd"], 4) if entry["priced_turns"] else None
+        )
         entry["cache_hit_pct"] = _hit_pct(
             entry.pop("_comparable"),
             entry["cold_starts"],
@@ -248,6 +260,8 @@ def _provider_rollup(daily: list[dict]) -> dict:
                 {
                     "turns": 0,
                     "cost_usd": 0.0,
+                    "priced_turns": 0,
+                    "unaccounted_turns": 0,
                     "comparable_turns": 0,
                     "cold_starts": 0,
                     "cache_hit_pct": None,
@@ -256,11 +270,16 @@ def _provider_rollup(daily: list[dict]) -> dict:
                 },
             )
             item["turns"] += values["turns"]
-            item["cost_usd"] += values["cost_usd"]
+            item["priced_turns"] += values["priced_turns"]
+            item["unaccounted_turns"] += values["unaccounted_turns"]
+            if values["cost_usd"] is not None:
+                item["cost_usd"] += values["cost_usd"]
             item["comparable_turns"] += values["comparable_turns"]
             item["cold_starts"] += values["cold_starts"]
     for item in providers.values():
-        item["cost_usd"] = round(item["cost_usd"], 4)
+        item["cost_usd"] = (
+            round(item["cost_usd"], 4) if item["priced_turns"] else None
+        )
         item["cache_hit_pct"] = _hit_pct(
             item["comparable_turns"],
             item["cold_starts"],
@@ -274,6 +293,7 @@ def _agent_rows(conn: sqlite3.Connection, since: str) -> list[dict]:
         + """
         SELECT session_id AS id, name, scope, model, provider,
                COUNT(*) AS turns,
+               COUNT(cost_usd) AS priced_turns,
                ROUND(SUM(cost_usd), 4) AS cost_usd,
                MAX(ts) AS last_turn
         FROM observed_turns
@@ -286,10 +306,17 @@ def _agent_rows(conn: sqlite3.Connection, since: str) -> list[dict]:
     comparable_costs = []
     for row in rows:
         turns = int(row["turns"] or 0)
-        cost = float(row["cost_usd"] or 0)
-        cost_per_turn = round(cost / turns, 4) if turns else 0.0
-        if turns >= 2:
-            comparable_costs.append(cost_per_turn)
+        priced_turns = int(row["priced_turns"] or 0)
+        unaccounted_turns = turns - priced_turns
+        cost = float(row["cost_usd"]) if priced_turns else None
+        cost_per_priced_turn = (
+            round(cost / priced_turns, 4) if priced_turns else None
+        )
+        cost_per_turn = (
+            cost_per_priced_turn if turns and not unaccounted_turns else None
+        )
+        if priced_turns >= 2:
+            comparable_costs.append(cost_per_priced_turn)
         agents.append(
             {
                 "id": row["id"],
@@ -299,7 +326,10 @@ def _agent_rows(conn: sqlite3.Connection, since: str) -> list[dict]:
                 "provider": row["provider"],
                 "turns": turns,
                 "cost_usd": cost,
+                "priced_turns": priced_turns,
+                "unaccounted_turns": unaccounted_turns,
                 "cost_per_turn": cost_per_turn,
+                "cost_per_priced_turn": cost_per_priced_turn,
                 "last_turn": row["last_turn"],
                 "anomaly": False,
             }
@@ -308,8 +338,8 @@ def _agent_rows(conn: sqlite3.Connection, since: str) -> list[dict]:
     if fleet_median is not None:
         for agent in agents:
             agent["anomaly"] = (
-                agent["turns"] >= 2
-                and agent["cost_per_turn"] >= 4 * fleet_median
+                agent["priced_turns"] >= 2
+                and agent["cost_per_priced_turn"] >= 4 * fleet_median
             )
     return agents
 
@@ -320,6 +350,7 @@ def _model_rows(conn: sqlite3.Connection, since: str) -> list[dict]:
         + """
         SELECT model, provider,
                COUNT(*) AS turns,
+               COUNT(cost_usd) AS priced_turns,
                ROUND(SUM(cost_usd), 4) AS cost_usd
         FROM observed_turns
         GROUP BY model, provider
@@ -327,20 +358,30 @@ def _model_rows(conn: sqlite3.Connection, since: str) -> list[dict]:
         """,
         (since, since),
     ).fetchall()
-    total = sum(float(row["cost_usd"] or 0) for row in rows)
-    return [
-        {
+    total = sum(
+        float(row["cost_usd"])
+        for row in rows
+        if int(row["priced_turns"] or 0)
+    )
+    models = []
+    for row in rows:
+        turns = int(row["turns"] or 0)
+        priced_turns = int(row["priced_turns"] or 0)
+        cost = float(row["cost_usd"]) if priced_turns else None
+        models.append({
             "model": row["model"],
             "provider": row["provider"],
-            "turns": int(row["turns"] or 0),
-            "cost_usd": float(row["cost_usd"] or 0),
+            "turns": turns,
+            "priced_turns": priced_turns,
+            "unaccounted_turns": turns - priced_turns,
+            "cost_usd": cost,
             "cost_share_pct": (
-                round(float(row["cost_usd"] or 0) / total * 100, 1)
-                if total else 0.0
+                round(cost / total * 100, 1)
+                if cost is not None and total else
+                0.0 if cost is not None else None
             ),
-        }
-        for row in rows
-    ]
+        })
+    return models
 
 
 def _task_summary(conn: sqlite3.Connection, since: str) -> dict:
@@ -356,6 +397,8 @@ def _task_summary(conn: sqlite3.Connection, since: str) -> dict:
             SELECT t.id,
                    t.created_at,
                    SUM(u.cost_usd) AS cost_usd,
+                   COUNT(*) AS turns,
+                   COUNT(u.cost_usd) AS priced_turns,
                    datetime(t.created_at) >= datetime((
                        SELECT value FROM kv
                        WHERE key = 'turn_usage_collector_started_at'
@@ -371,25 +414,39 @@ def _task_summary(conn: sqlite3.Connection, since: str) -> dict:
         )
         SELECT COUNT(*) AS linked,
                COUNT(*) FILTER (WHERE fully_observed) AS fully_observed,
-               COALESCE(SUM(cost_usd), 0) AS cost_usd
+               COUNT(*) FILTER (
+                   WHERE fully_observed AND turns = priced_turns
+               ) AS fully_costed,
+               SUM(cost_usd) AS cost_usd,
+               COALESCE(SUM(turns), 0) AS turns,
+               COALESCE(SUM(priced_turns), 0) AS priced_turns
         FROM linked_tasks
         """,
         (since,),
     ).fetchone()
     linked_count = int(linked["linked"] or 0)
     fully_observed = int(linked["fully_observed"] or 0)
-    linked_cost = float(linked["cost_usd"] or 0)
-    coverage_complete = fully_observed == linked_count
+    fully_costed = int(linked["fully_costed"] or 0)
+    linked_turns = int(linked["turns"] or 0)
+    linked_priced_turns = int(linked["priced_turns"] or 0)
+    linked_unaccounted_turns = linked_turns - linked_priced_turns
+    linked_cost = (
+        float(linked["cost_usd"]) if linked_priced_turns else None
+    )
+    coverage_complete = fully_costed == linked_count
     return {
         "completed_tasks": int(completed or 0),
         "linked_completed_tasks": linked_count,
         "fully_observed_linked_tasks": fully_observed,
+        "fully_costed_linked_tasks": fully_costed,
+        "linked_priced_turns": linked_priced_turns,
+        "linked_unaccounted_turns": linked_unaccounted_turns,
         "task_cost_coverage_complete": coverage_complete,
         "linked_task_cost_usd": (
-            round(linked_cost, 4) if coverage_complete else None
+            round(linked_cost or 0.0, 4) if coverage_complete else None
         ),
         "cost_per_linked_task": (
-            round(linked_cost / linked_count, 4)
+            round((linked_cost or 0.0) / linked_count, 4)
             if linked_count and coverage_complete else None
         ),
     }
@@ -483,7 +540,10 @@ def _reliability(conn: sqlite3.Connection, since: str, tasks: dict) -> dict:
         (since,),
     ).fetchone()[0]
     turn_usage = conn.execute(
-        """SELECT COUNT(*) AS recorded_rows, MIN(ts) AS observed_from
+        """SELECT COUNT(*) AS recorded_rows,
+                  COUNT(cost_usd) AS priced_rows,
+                  COUNT(*) - COUNT(cost_usd) AS unaccounted_rows,
+                  MIN(ts) AS observed_from
            FROM turn_usage
            WHERE date(ts) >= date('now', ?)""",
         (since,),
@@ -527,6 +587,8 @@ def _reliability(conn: sqlite3.Connection, since: str, tasks: dict) -> dict:
         "turn_usage": {
             **turn_usage_coverage,
             "recorded_rows": int(turn_usage["recorded_rows"] or 0),
+            "priced_rows": int(turn_usage["priced_rows"] or 0),
+            "unaccounted_rows": int(turn_usage["unaccounted_rows"] or 0),
             "observed_from": turn_usage["observed_from"],
             "historical_rows_unknown": not turn_usage_coverage[
                 "coverage_complete"
@@ -594,11 +656,22 @@ def build_usage_analytics(
             conn.rollback()
             raise
 
-    observed_cost = round(
-        sum(provider["cost_usd"] for provider in providers.values()),
-        4,
-    )
     agent_turns = sum(provider["turns"] for provider in providers.values())
+    priced_turns = sum(
+        provider["priced_turns"] for provider in providers.values()
+    )
+    unaccounted_turns = agent_turns - priced_turns
+    observed_cost = (
+        round(
+            sum(
+                provider["cost_usd"]
+                for provider in providers.values()
+                if provider["cost_usd"] is not None
+            ),
+            4,
+        )
+        if priced_turns else None if agent_turns else 0.0
+    )
     return {
         "generated_at": now.isoformat(),
         "period": {"days": days, **period},
@@ -606,6 +679,8 @@ def build_usage_analytics(
         "summary": {
             "observed_cost_usd": observed_cost,
             "agent_turns": agent_turns,
+            "priced_turns": priced_turns,
+            "unaccounted_turns": unaccounted_turns,
             **tasks,
             "lifetime": lifetime,
         },
