@@ -7,10 +7,62 @@
 через свою фикстуру или маркер.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+import os
+import sqlite3
 import time
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+from urllib.parse import unquote, urlsplit
 
 import pytest
+
+
+def _sqlite_file_path(database, *, uri=False):
+    try:
+        raw = os.fsdecode(os.fspath(database))
+    except TypeError:
+        return None
+    if uri and raw.startswith("file:"):
+        parsed = urlsplit(raw)
+        if parsed.netloc and parsed.hostname != "localhost":
+            return None
+        raw = unquote(parsed.path)
+    if raw == ":memory:":
+        return None
+    return Path(raw).resolve()
+
+
+def _guard_sqlite_connect(connect, production_path):
+    production_path = production_path.resolve()
+
+    def guarded(database, *args, **kwargs):
+        uri = kwargs.get("uri", args[6] if len(args) > 6 else False)
+        if _sqlite_file_path(database, uri=uri) == production_path:
+            raise AssertionError(
+                f"test attempted to open production database: {production_path}"
+            )
+        return connect(database, *args, **kwargs)
+
+    guarded._orchestra_production_db_guard = production_path
+    return guarded
+
+
+@pytest.fixture(autouse=True)
+def _isolate_production_db(tmp_path):
+    """A missing local patch must fail before SQLite can touch the production DB."""
+    from app import db
+
+    production_path = db._DEFAULT_DB_PATH.resolve()
+    isolated_path = tmp_path / "orchestra.db"
+    with pytest.MonkeyPatch.context() as guard_patch:
+        guard_patch.setattr(db, "DB_PATH", isolated_path)
+        guard_patch.setenv("ORCHESTRA_DB_PATH", str(isolated_path))
+        guard_patch.setattr(
+            sqlite3,
+            "connect",
+            _guard_sqlite_connect(sqlite3.connect, production_path),
+        )
+        yield
 
 
 @pytest.fixture(autouse=True)

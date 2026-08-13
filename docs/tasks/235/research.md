@@ -81,19 +81,23 @@ as "no active barrier" at those three entry points. Other
 reaches its mocked primary send and returns the expected canonical 429 even when
 the local default database has no tables.
 
-## Remaining blocker
+## Test isolation repair
 
-The higher-priority worker contract forbids editing any test, fixture,
-`conftest.py`, test helper, or test configuration, and also makes the received
-acceptance test immutable. Consequently, the remaining two requested changes
-cannot be made in this worktree:
+The worker contract was subsequently updated to permit this task's explicitly
+authorized test-layer changes, while keeping the received acceptance test
+immutable. The repair therefore lives in an autouse fixture rather than in that
+test's signature:
 
-- add the existing `db` fixture to the target test, so it never creates or opens
-  the default path;
-- add an autouse connection guard that rejects the resolved production path for
-  every test.
+- every test gets a unique temporary `app.db.DB_PATH` and matching
+  `ORCHESTRA_DB_PATH`, including subprocesses that honor the environment;
+- `sqlite3.connect` is wrapped for the duration of each test and raises before
+  opening the checkout's resolved default `data/orchestra.db` path;
+- plain paths and SQLite `file:` URIs are both normalized before comparison;
+- the wrapper delegates all non-production paths unchanged.
 
-The production fail-open makes the named oracle green, but does not repair this
-isolation layer: the unpatched target still creates a 4 KiB empty default DB when
-run here. That file was removed after every probe. The production checkout and
-its database were never touched.
+Before this fixture, the unchanged target passed but created a 4 KiB default DB.
+After it, the target passes and `data/orchestra.db` remains absent. A separate
+regression test proves both the path rejection and that the fixture is autouse.
+Removing `autouse=True` makes the regression test red; removing the temporary
+`DB_PATH` assignment makes the unchanged target red on the guard before SQLite
+opens the file.
