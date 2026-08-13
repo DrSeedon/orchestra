@@ -930,11 +930,16 @@ class CodexBackend(JsonRpcStdioTransport):
                 f"Codex app-server exited with code {returncode}" if proc is not None
                 else "Codex app-server closed the adopted pipe (no process: adopted transport)"
             )
-            for future in self._pending_requests.values():
-                if not future.done():
-                    future.set_exception(error)
-            if self._compact_future and not self._compact_future.done():
-                self._compact_future.set_exception(error)
+            # Gated by the SAME flag as the notification below. A handover cancels this reader
+            # deliberately; completing pending futures with "app-server exited" would be a lie
+            # about a process that is still alive. The window is narrow (the caller refuses the
+            # handover while requests are in flight) but a late request lands right here.
+            if not self._handover_quiescing:
+                for future in self._pending_requests.values():
+                    if not future.done():
+                        future.set_exception(error)
+                if self._compact_future and not self._compact_future.done():
+                    self._compact_future.set_exception(error)
             if not self._disconnecting and not self._handover_quiescing:
                 await self._notifications.put({
                     "method": "_process/exited",

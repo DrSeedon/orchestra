@@ -10,6 +10,7 @@ supervisor generation, and a Claude turn waits 120 s for a permission answer tha
 generation can give.
 """
 import asyncio
+import contextlib
 import json
 import os
 from datetime import datetime, timezone
@@ -348,16 +349,19 @@ async def test_impl_quiesce_does_not_fabricate_process_death_and_carries_events(
 
         assert await backend.quiesce_for_handover(drain_budget_s=0.2) is True
 
-        methods = []
-        while not backend._notifications.empty():
-            methods.append(backend._notifications.get_nowait().get("method"))
-        assert "_process/exited" not in methods, (
-            "quiescing must not look like the agent died")
-        # the unconsumed event is carried forward as a raw frame instead of being dropped
+        # The queue is EMPTY after quiescing BY DESIGN, so asserting on it proves nothing —
+        # the first version of this guard stayed green with the flag removed. What actually
+        # happens without the flag is that `_process/exited` is CARRIED FORWARD in `leftover`,
+        # so that is where the assertion belongs.
         import base64
         carried = base64.b64decode(backend.leftover)
+        assert b"_process/exited" not in carried, (
+            f"quiescing must not fabricate the agent's death, got {carried[:120]!r}")
         assert b"turn/completed" in carried, (
             f"the queued terminal event must travel to the next generation, got {carried[:80]!r}")
+        # and the pending-request lie must not be fabricated either
+        assert not any(f.done() for f in backend._pending_requests.values()), (
+            "quiescing must not complete in-flight requests with a fabricated error")
     finally:
         await backend.teardown_adopted()
         for fd in (cli_out_w, cli_in_r):
@@ -397,6 +401,118 @@ async def test_impl_handover_refused_while_a_request_is_in_flight():
                 pass
 
 
+@pytest.mark.asyncio
+async def test_impl_quiescing_does_not_fail_a_late_pending_request():
+    """The reader's `finally` completes pending futures with "app-server exited". During a
+    handover that is a LIE about a live process. The caller refuses a handover while requests
+    are in flight, so this window is narrow — a request landing between the cancel and the
+    finally — which is exactly why it needs its own oracle instead of a race."""
+    from app.backend_codex import CodexBackend
+
+    backend = CodexBackend(model="gpt-5.6-luna", cwd="/tmp", system_prompt="")
+    cli_out_r, cli_out_w, cli_in_r, cli_in_w = _pipe_pair()
+    late = None  # referenced in finally: a failing precondition must not become a NameError
+    try:
+        await backend.adopt(cli_in_w, cli_out_r, thread_id="t", active_turn_id="x")
+
+        # PROVE the reader entered its body before cancelling it. A task cancelled before its
+        # first step never runs `finally`, so the probe would observe "no effect" and read as
+        # "no defect" — measured: with the gate deliberately removed this guard still passed
+        # until this wait was added.
+        os.write(cli_out_w, (json.dumps({"method": "thread/status/changed",
+                                         "params": {"threadId": "t"}}) + "\n").encode())
+        for _ in range(200):
+            await asyncio.sleep(0.01)
+            if not backend._notifications.empty():
+                break
+        assert not backend._notifications.empty(), "precondition: the reader is inside its loop"
+        assert backend._reader_task.get_coro().cr_frame is not None, "reader coroutine started"
+
+        backend._handover_quiescing = True  # the state a handover establishes
+        late = asyncio.get_running_loop().create_future()
+        backend._pending_requests[7] = late
+
+        backend._reader_task.cancel()
+        # `_read_stdout` catches CancelledError and returns, so awaiting it completes normally —
+        # the cancellation is swallowed by design, and the `finally` still runs.
+        with contextlib.suppress(asyncio.CancelledError):
+            await backend._reader_task
+        assert backend._reader_task.done()
+
+        assert not late.done(), (
+            "a request in flight during quiescing must NOT be failed with a fabricated "
+            "'app-server exited' — the CLI is alive and may still answer it")
+    finally:
+        if late is not None:
+            late.cancel()
+        await backend.teardown_adopted()
+        for fd in (cli_out_w, cli_in_r):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
+@pytest.mark.asyncio
+async def test_impl_failed_handover_does_not_leave_quiescing_stuck_on():
+    """Заход 4: the flag suppresses BOTH halves of the "process died" story and used to be
+    cleared only by `teardown_adopted` — which a non-adopted backend never calls. Stuck ON, a
+    REAL death is completely silent: no `_process/exited`, and pending futures are never
+    completed, so their callers wait forever."""
+    from app.backend_codex import CodexBackend
+
+    backend = CodexBackend(model="gpt-5.6-luna", cwd="/tmp", system_prompt="")
+    cli_out_r, cli_out_w, cli_in_r, cli_in_w = _pipe_pair()
+    try:
+        await backend.adopt(cli_in_w, cli_out_r, thread_id="t", active_turn_id="x")
+        # make the re-encoding path fail: an unserialisable object in the queue
+        await backend._notifications.put({"method": "x", "params": {"bad": object()}})
+
+        assert await backend.quiesce_for_handover(drain_budget_s=0.05) is False
+        assert backend._handover_quiescing is False, (
+            "a refused handover must not leave the backend in the quiescing state — "
+            "its real death would then be silent")
+
+        # and the proof that silence is what was at stake: with the flag clear, the reader's
+        # finally still tells the truth
+        late = asyncio.get_running_loop().create_future()
+        backend._pending_requests[11] = late
+        backend._reader_task = asyncio.create_task(backend._read_stdout())
+        await asyncio.sleep(0.05)
+        os.close(cli_out_w)  # the CLI dies for real -> EOF
+        await asyncio.wait_for(backend._reader_task, timeout=5)
+        assert late.done(), "a REAL death must complete pending requests, not stay silent"
+    finally:
+        for fd in (cli_out_w, cli_in_r):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
+def test_impl_unknown_start_time_refuses_to_signal(monkeypatch, tmp_path):
+    """Заход 4, note 2: an unrecorded start time must NOT be re-measured at adopt time — that
+    describes whoever holds the pid NOW. Unknown identity means refuse, and an orphan surviving
+    beats killing a stranger."""
+    from app import backend_jsonrpc
+
+    killed = []
+    monkeypatch.setattr(backend_jsonrpc.os, "kill", lambda pid, sig: killed.append(pid))
+    monkeypatch.setattr(backend_jsonrpc, "process_start_time", lambda pid: 777)
+    real_open = open
+
+    def fake_open(path, *a, **kw):
+        if str(path).endswith("/cmdline"):
+            return real_open(tmp_path / "cmdline", *a, **kw)
+        return real_open(path, *a, **kw)
+
+    (tmp_path / "cmdline").write_bytes(b"node /usr/bin/codex app-server --stdio\0")
+    monkeypatch.setattr("builtins.open", fake_open)
+
+    backend_jsonrpc.terminate_cli_process(4242, "Codex app-server", 0)
+    assert killed == [], "with no recorded start time the identity is unproven — do not signal"
+
+
 def test_impl_pid_identity_refuses_a_reused_pid(monkeypatch, tmp_path):
     """Round-2 finding: pid alone is not an identity. A reused number must not be signalled."""
     from app import backend_jsonrpc
@@ -415,20 +531,85 @@ def test_impl_pid_identity_refuses_a_reused_pid(monkeypatch, tmp_path):
     (tmp_path / "cmdline").write_bytes(b"node /usr/bin/codex app-server --stdio\0")
     monkeypatch.setattr("builtins.open", fake_open)
 
-    # start time matches what was recorded -> signal
     backend_jsonrpc.terminate_cli_process(4242, "Codex app-server", 999)
     assert killed == [4242]
 
-    # start time differs -> the pid was reused, refuse
     killed.clear()
     backend_jsonrpc.terminate_cli_process(4242, "Codex app-server", 111)
     assert killed == [], "a pid whose start time does not match must NOT be signalled"
 
-    # cmdline is not that runtime -> refuse
     killed.clear()
     (tmp_path / "cmdline").write_bytes(b"/usr/bin/postgres -D /var/lib/postgres\0")
     backend_jsonrpc.terminate_cli_process(4242, "Codex app-server", 999)
     assert killed == [], "a foreign command must NOT be signalled"
+
+
+@pytest.mark.asyncio
+async def test_impl_teardown_passes_the_recorded_start_time_not_zero(monkeypatch):
+    """The identity check is only as good as what reaches it.
+
+    The previous oracle called the primitive directly with `started_at` typed by hand, so it
+    never walked `teardown_adopted` — which zeroed `_adopted_started_at` BEFORE reading it and
+    handed 0 to the check, disabling pid-reuse protection permanently.
+    """
+    from app import backend_jsonrpc
+    from app.backend_codex import CodexBackend
+
+    calls = []
+    monkeypatch.setattr(backend_jsonrpc, "terminate_cli_process",
+                        lambda pid, label, started_at=0: calls.append((pid, label, started_at)))
+
+    backend = CodexBackend(model="gpt-5.6-luna", cwd="/tmp", system_prompt="")
+    cli_out_r, cli_out_w, cli_in_r, cli_in_w = _pipe_pair()
+    try:
+        await backend.adopt(cli_in_w, cli_out_r, thread_id="t", active_turn_id="x",
+                            cli_pid=4242, cli_started_at=999)
+        await backend.teardown_adopted()
+    finally:
+        for fd in (cli_out_w, cli_in_r):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+    assert calls == [(4242, "Codex app-server", 999)], (
+        f"teardown must pass the RECORDED start time through, got {calls}")
+
+
+@pytest.mark.asyncio
+async def test_impl_adopt_does_not_invent_a_missing_start_time(monkeypatch):
+    """Заход 4, note 2, through the REAL adopt path: a lost record must stay lost.
+
+    Re-measuring at adopt time describes whoever holds that pid NOW, so a stranger would be
+    blessed as the agent. The previous oracle called the primitive directly and never walked
+    this path — the mutation survived it.
+    """
+    from app import backend_jsonrpc
+    from app.backend_codex import CodexBackend
+
+    monkeypatch.setattr(backend_jsonrpc, "process_start_time", lambda pid: 555)
+    calls = []
+    monkeypatch.setattr(backend_jsonrpc, "terminate_cli_process",
+                        lambda pid, label, started_at=0: calls.append((pid, label, started_at)))
+
+    backend = CodexBackend(model="gpt-5.6-luna", cwd="/tmp", system_prompt="")
+    cli_out_r, cli_out_w, cli_in_r, cli_in_w = _pipe_pair()
+    try:
+        # the recorded value was lost (0) — the live pid belongs to somebody, but not provably us
+        await backend.adopt(cli_in_w, cli_out_r, thread_id="t", active_turn_id="x",
+                            cli_pid=4242, cli_started_at=0)
+        assert backend.cli_started_at == 0, (
+            "a missing start time must stay missing, not be measured from whoever holds the pid")
+        await backend.teardown_adopted()
+    finally:
+        for fd in (cli_out_w, cli_in_r):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+    assert calls == [(4242, "Codex app-server", 0)], (
+        f"the unknown identity must reach the check as unknown, got {calls}")
 
 
 # ------------------------------------- T4: shutdown hands over instead of killing the backend

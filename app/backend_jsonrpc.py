@@ -125,7 +125,7 @@ class JsonRpcStdioTransport:
                 "would be unknown to the next generation",
                 len(pending), pending[:5], compact_pending is not None,
             )
-            return False
+            return False  # flag not set yet on this path
 
         # Mark the pause BEFORE cancelling: `_read_stdout`'s finally enqueues `_process/exited`
         # otherwise, and the session would see a live agent as dead in the middle of a handover.
@@ -158,12 +158,24 @@ class JsonRpcStdioTransport:
                 "handover: %d parsed event(s) could not be re-encoded (%s) — refusing handover",
                 queue.qsize(), error,
             )
+            self.abort_handover()
             return False
         self._quiesced_prefix = b"".join(frames)
         logging.getLogger("app.session").info(
             "handover: carried %d already-parsed event(s) forward as raw frames", len(frames),
         )
         return True
+
+    def abort_handover(self) -> None:
+        """Undo the quiescing state when the handover will NOT happen (#230).
+
+        The flag suppresses both halves of the "process died" story, and only
+        `teardown_adopted` used to clear it — which a non-adopted backend never calls. Left
+        stuck ON, a REAL death becomes completely silent: no `_process/exited`, and pending
+        futures are never completed, so their callers wait forever.
+        """
+        self._handover_quiescing = False
+        self._quiesced_prefix = b""
 
     @property
     def leftover_bytes(self) -> bytes:
@@ -217,8 +229,9 @@ class JsonRpcStdioTransport:
         self._adopted_writer = asyncio.StreamWriter(transport, protocol, reader, loop)
         self._adopted_fds = (fd_in, fd_out)
         self._adopted_pid = cli_pid or None
-        self._adopted_started_at = cli_started_at or (
-            process_start_time(cli_pid) if cli_pid else 0)
+        # NOT `or process_start_time(cli_pid)`: a lost record must stay lost. Re-measuring
+        # here would describe whoever holds that pid NOW and would bless a stranger.
+        self._adopted_started_at = cli_started_at
 
     async def teardown_adopted(self) -> None:
         """Release an adopted CLI for real: reader, transports, and the process (#230 T9).
@@ -243,6 +256,7 @@ class JsonRpcStdioTransport:
                 read_transport.close()
         self._adopted_read_transport = None
         pid = self._adopted_pid
+        started_at = self._adopted_started_at  # read BEFORE the reset below wipes it
         self._adopted_writer = None
         self._adopted_reader = None
         self._adopted_fds = None
@@ -252,7 +266,7 @@ class JsonRpcStdioTransport:
         self._handover_quiescing = False
         self._quiesced_prefix = b""
         if pid:
-            terminate_cli_process(pid, self.RUNTIME_LABEL, self._adopted_started_at)
+            terminate_cli_process(pid, self.RUNTIME_LABEL, started_at)
 
     async def _request(self, method: str, params: dict) -> dict:
         if self._in is None or not self.is_alive:
@@ -346,7 +360,13 @@ def terminate_cli_process(pid: int, label: str, started_at: int = 0) -> None:
             pid, label, cmdline[:120],
         )
         return
-    if started_at and actual_start and started_at != actual_start:
+    if not started_at:
+        logger.error(
+            "refusing to signal pid %s: no recorded start time, identity cannot be proven",
+            pid,
+        )
+        return
+    if actual_start and started_at != actual_start:
         logger.error(
             "refusing to signal pid %s: start time %s != recorded %s — the pid was reused",
             pid, actual_start, started_at,

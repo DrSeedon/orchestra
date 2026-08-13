@@ -2037,6 +2037,11 @@ class SessionManager:
                 except Exception as rollback_error:
                     logger.error("[%s] could not roll back %s: %s",
                                  session.name, name, err_text(rollback_error))
+            abort = getattr(backend, "abort_handover", None)
+            if abort is not None:
+                # the backend keeps living and will be stopped the old way: leaving it in the
+                # quiescing state would silence its real death
+                abort()
             logger.error(
                 "[%s] handover failed (rolled back %d descriptor(s)), stopping the agent: %s",
                 session.name, len(stored), err_text(error),
