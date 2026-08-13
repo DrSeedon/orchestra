@@ -1,0 +1,79 @@
+{
+  "frozen_at_utc": "2026-08-13T08:25:25.388935+00:00",
+  "snapshot": {
+    "path_at_measurement": "/home/kesha/orchestra-262-research.db",
+    "sha256": "d6e34b41dc031162feb95040c50dc6d258363ca357baa378a02eeddff4d7e3b0",
+    "usage_snapshots_max_id": 9356,
+    "usage_snapshots_rows": 9356,
+    "turn_usage_max_id": 3160,
+    "turn_usage_rows": 3160
+  },
+  "test_row_exclusion": {
+    "sql": "NOT (scope = '/test' OR session_id LIKE 'test-%')",
+    "expected_rows": 26,
+    "expected_recorded_cost_usd": 1.0041406
+  },
+  "source_revision": {
+    "git_head": "384e13402ce13d10c573c8503645dfdc57636e66",
+    "pricing_files_last_commit": "99f5bd886b9d4c208789396adf878ba282fa59ae",
+    "app_models_sha256": "e0f5858980e5dfd9a7097502274003390faa85f118aacc6013d178dda32e4fed",
+    "app_backend_codex_sha256": "18e4210378a4c36890753e52871d5c5701e52aba63147e1d7ea429269d4bdf2d"
+  },
+  "prices_per_million_usd": {
+    "claude-opus-5[1m]": {"input": 5.0, "output": 25.0},
+    "claude-haiku-4-5": {"input": 0.8, "output": 4.0},
+    "gpt-5.6-sol": {"input": 5.0, "cached": 0.5, "write": 6.25, "output": 30.0},
+    "gpt-5.6-terra": {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 12.0},
+    "gpt-5.6-luna": {"input": 0.2, "cached": 0.02, "write": 0.25, "output": 1.2},
+    "gpt-5.3-codex-spark": null,
+    "gemini-3.6-flash": {"input": 1.5, "cached": 0.15, "output": 7.5}
+  },
+  "grok": {
+    "score_path": "docs/tasks/251/score.json",
+    "score_sha256": "e73e11213a1d59bddaef580e1548c86105062904706fa19c55e3a63e13c2f63c",
+    "pilot_paths": [
+      "docs/tasks/251/raw/pilot-45.jsonl",
+      "docs/tasks/251/raw/pilot-46.jsonl"
+    ],
+    "pilot_sha256": [
+      "273dd7b2f921e29bdd48644d3a58d2cdb687e0e25f276fd5258fc61ff6b7ff4c",
+      "1e517bce86679c657401b44847ae2ed56b817e69e05d6da015e5f7ec3df41a5f"
+    ],
+    "first_trace_started_utc": "2026-08-13T07:08:31.859000+00:00",
+    "last_trace_ended_utc": "2026-08-13T07:26:37.717000+00:00",
+    "nearest_snapshot_after_first_start": {
+      "ts": "2026-08-13T07:08:32.295786+00:00",
+      "utilization": 8.0
+    },
+    "immediate_post_batch_snapshot": {
+      "ts": "2026-08-13T07:28:43.402110+00:00",
+      "utilization": 12.0
+    },
+    "delayed_plateau_snapshot": {
+      "ts": "2026-08-13T08:03:58.203525+00:00",
+      "utilization": 13.0
+    }
+  },
+  "antigravity": {
+    "source": "docs/tasks/249/research.md:234",
+    "source_sha256": "a047fdac5b959b72d1d19b23d26143b865357ead49a5ae6b445538050b16bdc2",
+    "results": 13,
+    "input_tokens": 276577,
+    "output_tokens": 3445,
+    "thinking_tokens": 1546,
+    "cache_read_tokens": 256572,
+    "total_tokens": 280022,
+    "remaining_before": 1.0,
+    "remaining_after": 0.83995521068573
+  },
+  "subscriptions": {
+    "claude_usd_month": 200.0,
+    "codex_usd_month": 100.0,
+    "grok_usd_month": 30.0,
+    "antigravity_free_usd_month": 0.0,
+    "google_ai_pro_retail_usd_month": 19.99,
+    "jio_acquisition_rub_total": 90.0,
+    "jio_offer_months": 18,
+    "cbr_rub_per_usd_2026_08_13": 82.9977
+  }
+}
