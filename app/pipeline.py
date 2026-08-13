@@ -178,13 +178,15 @@ class PromptLayers(BaseModel):
         return v
 
 
-class QuotaBalancedModelPolicy(BaseModel):
-    """One worker model whose admission follows the live Claude/Codex balance."""
+class QuotaGuardedModelPolicy(BaseModel):
+    """One worker model guarded by Claude weekly pace and an absolute ceiling."""
 
     model_config = ConfigDict(extra="forbid")
     model: str
-    block_gap_pp: float
-    unblock_gap_pp: float
+    pace_block_lead_pp: float
+    pace_unblock_lead_pp: float
+    absolute_block_pct: float
+    absolute_unblock_pct: float
 
     @field_validator("model")
     @classmethod
@@ -194,10 +196,16 @@ class QuotaBalancedModelPolicy(BaseModel):
         return _canon_model(v)
 
     @model_validator(mode="after")
-    def _valid_hysteresis(self) -> "QuotaBalancedModelPolicy":
-        if not 0 <= self.unblock_gap_pp < self.block_gap_pp <= 100:
+    def _valid_hysteresis(self) -> "QuotaGuardedModelPolicy":
+        if not -100 <= self.pace_unblock_lead_pp < self.pace_block_lead_pp <= 100:
             raise ValueError(
-                "worker model policy requires 0 <= unblock_gap_pp < block_gap_pp <= 100"
+                "worker model policy requires -100 <= pace_unblock_lead_pp "
+                "< pace_block_lead_pp <= 100"
+            )
+        if not 0 <= self.absolute_unblock_pct < self.absolute_block_pct <= 100:
+            raise ValueError(
+                "worker model policy requires 0 <= absolute_unblock_pct "
+                "< absolute_block_pct <= 100"
             )
         return self
 
@@ -208,7 +216,7 @@ class WorkerModelPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid")
     always_allowed: list[str]
     denied: list[str]
-    quota_balanced: QuotaBalancedModelPolicy
+    quota_guarded: QuotaGuardedModelPolicy
     alternatives: list[str]
 
     @field_validator("always_allowed", "denied", "alternatives")
@@ -226,11 +234,11 @@ class WorkerModelPolicy(BaseModel):
 
     @model_validator(mode="after")
     def _valid_sets(self) -> "WorkerModelPolicy":
-        if self.quota_balanced.model in self.always_allowed:
-            raise ValueError("quota-balanced model cannot also be always allowed")
+        if self.quota_guarded.model in self.always_allowed:
+            raise ValueError("quota-guarded model cannot also be always allowed")
         overlap = set(self.always_allowed) & set(self.denied)
-        if self.quota_balanced.model in self.denied:
-            overlap.add(self.quota_balanced.model)
+        if self.quota_guarded.model in self.denied:
+            overlap.add(self.quota_guarded.model)
         if overlap:
             raise ValueError(
                 f"worker model policy allows and denies the same model: {sorted(overlap)}"

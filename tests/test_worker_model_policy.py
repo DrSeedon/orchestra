@@ -1,7 +1,11 @@
+import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
+from app.quota_gate import get_worker_admission as _real_get_worker_admission
 
 
 @pytest.fixture
@@ -13,15 +17,33 @@ def mgr(tmp_path, monkeypatch):
     worktree_root = tmp_path / "worktrees"
     worktree_root.mkdir()
     monkeypatch.setattr("app.workspace.WORKTREE_ROOT", worktree_root)
-    from app.manager import SessionManager
+    import app.manager as manager
+    from app.pipeline import WorkerModelPolicy, load_pipeline
+
+    policy = WorkerModelPolicy.model_validate({
+        "always_allowed": ["gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark"],
+        "denied": ["claude-fable-5[1m]", "gpt-5.6-terra"],
+        "quota_guarded": {
+            "model": "claude-opus-5[1m]",
+            "pace_block_lead_pp": 11,
+            "pace_unblock_lead_pp": 7,
+            "absolute_block_pct": 90,
+            "absolute_unblock_pct": 87,
+        },
+        "alternatives": ["gpt-5.6-sol", "gpt-5.6-luna"],
+    })
+    config = load_pipeline("default").model_copy(update={"worker_model_policy": policy})
+    monkeypatch.setattr(manager, "load_pipeline", lambda _name: config)
+    SessionManager = manager.SessionManager
     return SessionManager()
 
 
-def _usage(claude: float, codex: float) -> dict:
-    return {
-        "anthropic": {"seven_day": {"utilization": claude}},
-        "codex": {"primary": {"utilization": codex}},
-    }
+def _usage(utilization: float, elapsed_pct: float | None = None) -> dict:
+    seven_day = {"utilization": utilization}
+    if elapsed_pct is not None:
+        remaining = timedelta(days=7 * (1 - elapsed_pct / 100))
+        seven_day["resets_at"] = (datetime.now(timezone.utc) + remaining).isoformat()
+    return {"anthropic": {"seven_day": seven_day}}
 
 
 async def _spawn(mgr, name: str, model: str, **kwargs):
@@ -40,13 +62,189 @@ async def _spawn(mgr, name: str, model: str, **kwargs):
 
 
 @pytest.mark.asyncio
-async def test_skewed_pools_reject_opus_worker_before_publish(mgr, monkeypatch):
+async def test_policy_loader_requests_only_anthropic(monkeypatch):
+    import app.manager as manager
+    import app.routes.system as system
+
+    now = datetime.now(timezone.utc).timestamp()
+    loader = AsyncMock(return_value={
+        "providers": {
+            "anthropic": {
+                "windows": [{
+                    "id": "seven_day",
+                    "utilization": 10,
+                    "resets_at": datetime.now(timezone.utc).isoformat(),
+                }],
+            },
+        },
+        "observed_at_by_provider": {"anthropic": now},
+    })
+    monkeypatch.setattr(system, "current_quota_observation", loader)
+
+    await manager._worker_model_policy_usage()
+
+    loader.assert_awaited_once_with(required_provider="anthropic")
+
+
+@pytest.mark.asyncio
+async def test_warm_anthropic_cache_still_blocks_fast_opus_without_other_refresh(
+    mgr, monkeypatch,
+):
+    import app.routes.system as system
+
+    now = datetime.now(timezone.utc).timestamp()
+    warm = _usage(64, 28)["anthropic"]
+    monkeypatch.setattr(
+        system,
+        "_usage_cache",
+        {"data": warm, "ts": now, "token": None},
+    )
+    fetch_anthropic = AsyncMock(side_effect=AssertionError("warm cache was refreshed"))
+    fetch_codex = AsyncMock(side_effect=AssertionError("Codex telemetry was requested"))
+    monkeypatch.setattr(system, "_fetch_anthropic_usage", fetch_anthropic)
+    monkeypatch.setattr(system, "_fetch_codex_usage", fetch_codex)
+
+    with pytest.raises(ValueError, match=r"Claude 7d 64%.*window elapsed 28%"):
+        await _spawn(mgr, "warm-cache-opus", "claude-opus-5[1m]")
+
+    assert mgr.sessions == {}
+    fetch_anthropic.assert_not_awaited()
+    fetch_codex.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_warm_anthropic_cache_normal_control_passes_real_spawn_seam(
+    mgr, monkeypatch,
+):
+    import app.routes.system as system
+
+    now = datetime.now(timezone.utc).timestamp()
+    warm = _usage(39, 30)["anthropic"]
+    monkeypatch.setattr(system, "_usage_cache", {"data": warm, "ts": now, "token": None})
+    fetch_anthropic = AsyncMock(side_effect=AssertionError("warm cache was refreshed"))
+    fetch_codex = AsyncMock(side_effect=AssertionError("Codex telemetry was requested"))
+    monkeypatch.setattr(system, "_fetch_anthropic_usage", fetch_anthropic)
+    monkeypatch.setattr(system, "_fetch_codex_usage", fetch_codex)
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", _real_get_worker_admission)
+
+    worker = await _spawn(mgr, "warm-normal-opus", "claude-opus-5[1m]")
+
+    assert worker.model == "claude-opus-5[1m]"
+    fetch_anthropic.assert_not_awaited()
+    fetch_codex.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_stale_anthropic_cache_refresh_failure_is_fail_open_and_loud(
+    mgr, monkeypatch, caplog,
+):
+    import app.routes.system as system
+
+    now = datetime.now(timezone.utc).timestamp()
+    stale = _usage(95, 95)["anthropic"]
+    monkeypatch.setattr(
+        system,
+        "_usage_cache",
+        {"data": stale, "ts": now - 301, "token": None},
+    )
+    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: ("token", None, None))
+    fetch_anthropic = AsyncMock(side_effect=RuntimeError("offline"))
+    fetch_codex = AsyncMock(side_effect=AssertionError("Codex telemetry was requested"))
+    monkeypatch.setattr(system, "_fetch_anthropic_usage", fetch_anthropic)
+    monkeypatch.setattr(system, "_fetch_codex_usage", fetch_codex)
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", _real_get_worker_admission)
+
+    with caplog.at_level(logging.ERROR, logger="app.manager"):
+        worker = await _spawn(mgr, "stale-cache-opus", "claude-opus-5[1m]")
+
+    assert worker.model == "claude-opus-5[1m]"
+    assert "fresh Anthropic worker quota telemetry is unavailable" in caplog.text
+    assert "worker quota admission telemetry unavailable; allowing" in caplog.text
+    assert fetch_anthropic.await_count == 2
+    fetch_codex.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_unavailable_anthropic_cache_is_fail_open_at_real_spawn_seam(
+    mgr, monkeypatch, caplog,
+):
+    import app.routes.system as system
+
+    monkeypatch.setattr(system, "_usage_cache", {"data": None, "ts": 0.0, "token": None})
+    monkeypatch.setattr(system, "_read_oauth_credentials", lambda: (None, None, None))
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", _real_get_worker_admission)
+
+    with caplog.at_level(logging.ERROR, logger="app.manager"):
+        worker = await _spawn(mgr, "unavailable-opus", "claude-opus-5[1m]")
+
+    assert worker.model == "claude-opus-5[1m]"
+    assert "worker quota admission telemetry unavailable; allowing" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_slow_anthropic_telemetry_is_fail_open_at_real_spawn_seam(
+    mgr, monkeypatch, caplog,
+):
+    import app.routes.system as system
+
+    calls = 0
+
+    async def slow_then_unavailable(*, required_provider):
+        nonlocal calls
+        assert required_provider == "anthropic"
+        calls += 1
+        if calls == 1:
+            await asyncio.Event().wait()
+        return {
+            "providers": {},
+            "observed_at_by_provider": {},
+        }
+
+    monkeypatch.setattr(system, "current_quota_observation", slow_then_unavailable)
+    monkeypatch.setattr("app.manager.WORKER_MODEL_POLICY_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", _real_get_worker_admission)
+
+    with caplog.at_level(logging.ERROR, logger="app.manager"):
+        worker = await _spawn(mgr, "slow-telemetry-opus", "claude-opus-5[1m]")
+
+    assert worker.model == "claude-opus-5[1m]"
+    assert calls == 2
+    assert "TimeoutError" in caplog.text
+    assert "worker quota admission telemetry unavailable; allowing" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_quota_admission_exception_is_fail_open_and_loud(
+    mgr, monkeypatch, caplog,
+):
     monkeypatch.setattr(
         "app.manager._worker_model_policy_usage",
-        AsyncMock(return_value=_usage(63, 8)),
+        AsyncMock(return_value=_usage(39, 30)),
+    )
+    monkeypatch.setattr(
+        "app.quota_gate.get_worker_admission",
+        AsyncMock(side_effect=RuntimeError("admission unavailable")),
     )
 
-    with pytest.raises(ValueError, match=r"Claude 7d 63%.*Codex 8%.*gpt-5\.6-sol.*gpt-5\.6-luna"):
+    with caplog.at_level(logging.ERROR, logger="app.manager"):
+        worker = await _spawn(mgr, "admission-error-opus", "claude-opus-5[1m]")
+
+    assert worker.model == "claude-opus-5[1m]"
+    assert "worker quota admission check failed; allowing" in caplog.text
+    assert "admission unavailable" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_fast_claude_pace_rejects_opus_worker_before_publish(mgr, monkeypatch):
+    monkeypatch.setattr(
+        "app.manager._worker_model_policy_usage",
+        AsyncMock(return_value=_usage(64, 28)),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"Claude 7d 64%.*window elapsed 28%.*gpt-5\.6-sol.*gpt-5\.6-luna",
+    ):
         await _spawn(mgr, "blocked-opus", "claude-opus-5[1m]")
 
     assert mgr.sessions == {}
@@ -56,7 +254,7 @@ async def test_skewed_pools_reject_opus_worker_before_publish(mgr, monkeypatch):
 async def test_opus_override_requires_reason_and_logs_it(mgr, monkeypatch, caplog):
     monkeypatch.setattr(
         "app.manager._worker_model_policy_usage",
-        AsyncMock(return_value=_usage(63, 8)),
+        AsyncMock(return_value=_usage(64, 28)),
     )
 
     with caplog.at_level(logging.WARNING, logger="app.manager"):
@@ -101,36 +299,89 @@ async def test_allowed_codex_worker_models_do_not_read_balance(mgr, monkeypatch,
 
 
 @pytest.mark.asyncio
-async def test_balanced_pools_allow_opus_worker(mgr, monkeypatch):
+async def test_normal_claude_pace_allows_opus_worker(mgr, monkeypatch):
     monkeypatch.setattr(
         "app.manager._worker_model_policy_usage",
-        AsyncMock(return_value=_usage(14, 12)),
+        AsyncMock(return_value=_usage(39, 30)),
     )
 
-    worker = await _spawn(mgr, "balanced-opus", "claude-opus-5[1m]")
+    worker = await _spawn(mgr, "normal-pace-opus", "claude-opus-5[1m]")
 
     assert worker.model == "claude-opus-5[1m]"
 
 
 @pytest.mark.asyncio
-async def test_opus_balance_gate_has_hysteresis(mgr, monkeypatch):
+async def test_cold_start_below_absolute_ceiling_allows_opus(mgr, monkeypatch):
+    monkeypatch.setattr(
+        "app.manager._worker_model_policy_usage",
+        AsyncMock(return_value=_usage(88, 85)),
+    )
+
+    worker = await _spawn(mgr, "below-ceiling-opus", "claude-opus-5[1m]")
+
+    assert worker.model == "claude-opus-5[1m]"
+
+
+@pytest.mark.asyncio
+async def test_opus_pace_gate_has_hysteresis(mgr, monkeypatch):
     usage = AsyncMock(side_effect=[
-        _usage(20, 13),  # gap 7: latch blocked
-        _usage(20, 16),  # gap 4: remain blocked
-        _usage(20, 17),  # gap 3: unlock
-        _usage(20, 16),  # gap 4: remain open
-        _usage(20, 14),  # gap 6: block again
+        _usage(62, 50),  # lead 12: latch blocked
+        _usage(59, 50),  # lead 9: remain blocked
+        _usage(57, 50),  # lead 7: unlock
+        _usage(59, 50),  # lead 9: remain open
+        _usage(61.1, 50),  # lead 11.1: block again (headroom for clock movement)
     ])
     monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
 
     with pytest.raises(ValueError):
-        await _spawn(mgr, "gap-7", "claude-opus-5[1m]")
+        await _spawn(mgr, "lead-12", "claude-opus-5[1m]")
     with pytest.raises(ValueError):
-        await _spawn(mgr, "gap-4-blocked", "claude-opus-5[1m]")
-    assert (await _spawn(mgr, "gap-3", "claude-opus-5[1m]")).model == "claude-opus-5[1m]"
-    assert (await _spawn(mgr, "gap-4-open", "claude-opus-5[1m]")).model == "claude-opus-5[1m]"
+        await _spawn(mgr, "lead-9-blocked", "claude-opus-5[1m]")
+    assert (await _spawn(mgr, "lead-7", "claude-opus-5[1m]")).model == "claude-opus-5[1m]"
+    assert (await _spawn(mgr, "lead-9-open", "claude-opus-5[1m]")).model == "claude-opus-5[1m]"
     with pytest.raises(ValueError):
-        await _spawn(mgr, "gap-6", "claude-opus-5[1m]")
+        await _spawn(mgr, "lead-11", "claude-opus-5[1m]")
+
+
+@pytest.mark.asyncio
+async def test_opus_absolute_ceiling_has_independent_hysteresis(mgr, monkeypatch):
+    usage = AsyncMock(side_effect=[
+        _usage(91, 95),  # >=90: latch blocked, pace normal
+        _usage(88, 95),  # remain blocked
+        _usage(87, 95),  # unlock
+        _usage(88, 95),  # remain open
+        _usage(90, 95),  # block again
+    ])
+    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+
+    with pytest.raises(ValueError, match=r"absolute worker stop 90%"):
+        await _spawn(mgr, "ceiling-91", "claude-opus-5[1m]")
+    with pytest.raises(ValueError, match=r"absolute worker stop 90%"):
+        await _spawn(mgr, "ceiling-88-blocked", "claude-opus-5[1m]")
+    assert (await _spawn(mgr, "ceiling-87", "claude-opus-5[1m]")).model == "claude-opus-5[1m]"
+    assert (await _spawn(mgr, "ceiling-88-open", "claude-opus-5[1m]")).model == "claude-opus-5[1m]"
+    with pytest.raises(ValueError, match=r"absolute worker stop 90%"):
+        await _spawn(mgr, "ceiling-90", "claude-opus-5[1m]")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("resets_at", ["", "2020-01-01T00:00:00+00:00"])
+async def test_unusable_reset_skips_pace_but_keeps_absolute_ceiling(
+    mgr, monkeypatch, caplog, resets_at,
+):
+    normal = _usage(64)
+    ceiling = _usage(95)
+    normal["anthropic"]["seven_day"]["resets_at"] = resets_at
+    ceiling["anthropic"]["seven_day"]["resets_at"] = resets_at
+    usage = AsyncMock(side_effect=[normal, ceiling])
+    monkeypatch.setattr("app.manager._worker_model_policy_usage", usage)
+
+    with caplog.at_level(logging.WARNING, logger="app.manager"):
+        worker = await _spawn(mgr, "no-reset-pace", "claude-opus-5[1m]")
+    assert worker.model == "claude-opus-5[1m]"
+    assert "pace check skipped" in caplog.text
+    with pytest.raises(ValueError, match=r"absolute worker stop 90%"):
+        await _spawn(mgr, "no-reset-ceiling", "claude-opus-5[1m]")
 
 
 @pytest.mark.asyncio

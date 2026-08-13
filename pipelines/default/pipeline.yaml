@@ -1,19 +1,21 @@
 name: default
 description: Upstream-derived v2.18 pipeline with local models and runtime modules.
 validation: fail-open
-# Percentages are displayed as whole points; both counters can move by one displayed
-# point between samples, so the observed gap has a 2 pp joint step. A 3 pp deadband
-# is the smallest band wider than that step: Opus opens at <=3 pp and closes at >=6 pp.
-# At the current 63% Claude / 8% Codex reading the 55 pp gap is unambiguously closed.
-# ВРЕМЕННО ОТКЛЮЧЕНО до рестарта (#227): живой процесс поднят со схемой БЕЗ
+# ВРЕМЕННО ВЫКЛЮЧЕНО: живой процесс загружен со старой Pydantic-схемой extra='forbid',
+# поэтому новое поле роняет загрузку ВСЕГО манифеста. Снять '# ' со следующего блока
+# вместе с рестартом Orchestra; после этого значения и пороги меняются горячо.
+# Норма — utilization не более чем на 5–10 п.п. впереди прошедшего окна: 11 п.п. —
+# первый целый пункт снаружи, возврат на 7 п.п. даёт гистерезис. Потолок 90% резервирует
+# последние 10% под оркестраторов/кеш; возврат на 87% даёт отдельный гистерезис.
 # worker_model_policy:
-# worker_model_policy, и Pydantic extra='forbid' роняет ЗАГРУЗКУ ВСЕГО манифеста.
 #   always_allowed: [gpt-5.6-sol, gpt-5.6-luna, gpt-5.3-codex-spark]
 #   denied: ["claude-fable-5[1m]", gpt-5.6-terra]
-#   quota_balanced:
+#   quota_guarded:
 #     model: claude-opus-5[1m]
-#     block_gap_pp: 6
-#     unblock_gap_pp: 3
+#     pace_block_lead_pp: 11
+#     pace_unblock_lead_pp: 7
+#     absolute_block_pct: 90
+#     absolute_unblock_pct: 87
 #   alternatives: [gpt-5.6-sol, gpt-5.6-luna]
 defaults:
   model: opus

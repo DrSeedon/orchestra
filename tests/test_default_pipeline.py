@@ -11,6 +11,7 @@ fail-open валидацию, сборку промпта без слоя ``_pip
 from __future__ import annotations
 
 import pytest
+import yaml
 
 import app.pipeline as P
 
@@ -68,16 +69,33 @@ class TestDefaultManifestLoads:
         assert d.docs_scaffold is False  # апстрим не скаффолдит doc-папки
         assert d.inherit_claude_md is True  # CLAUDE.md проекта копируется в worktree
 
-    def test_worker_model_policy_is_manifest_owned(self):
-        policy = P.load_pipeline(PIPELINE).worker_model_policy
-        assert policy is not None
+    def test_worker_model_policy_is_staged_for_restart(self):
+        assert P.load_pipeline(PIPELINE).worker_model_policy is None
+        text = (P.PIPELINES_DIR / PIPELINE / "pipeline.yaml").read_text()
+        commented = """# worker_model_policy:
+#   always_allowed: [gpt-5.6-sol, gpt-5.6-luna, gpt-5.3-codex-spark]
+#   denied: [\"claude-fable-5[1m]\", gpt-5.6-terra]
+#   quota_guarded:
+#     model: claude-opus-5[1m]
+#     pace_block_lead_pp: 11
+#     pace_unblock_lead_pp: 7
+#     absolute_block_pct: 90
+#     absolute_unblock_pct: 87
+#   alternatives: [gpt-5.6-sol, gpt-5.6-luna]"""
+        assert commented in text
+        active = "\n".join(line.removeprefix("# ") for line in commented.splitlines())
+        policy = P.WorkerModelPolicy.model_validate(
+            yaml.safe_load(active)["worker_model_policy"]
+        )
         assert policy.always_allowed == [
             "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark",
         ]
         assert policy.denied == ["claude-fable-5[1m]", "gpt-5.6-terra"]
-        assert policy.quota_balanced.model == "claude-opus-5[1m]"
-        assert policy.quota_balanced.block_gap_pp == 6
-        assert policy.quota_balanced.unblock_gap_pp == 3
+        assert policy.quota_guarded.model == "claude-opus-5[1m]"
+        assert policy.quota_guarded.pace_block_lead_pp == 11
+        assert policy.quota_guarded.pace_unblock_lead_pp == 7
+        assert policy.quota_guarded.absolute_block_pct == 90
+        assert policy.quota_guarded.absolute_unblock_pct == 87
         assert policy.alternatives == ["gpt-5.6-sol", "gpt-5.6-luna"]
 
     def test_prompt_layers_have_no_pipeline_layer(self):

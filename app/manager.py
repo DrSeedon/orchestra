@@ -70,16 +70,38 @@ LOCK_WAIT_LIMIT_SECONDS = 25.0
 # Keep policy telemetry inside the 30s MCP request budget. Slow/missing telemetry is
 # advisory failure: the model gate logs it and admits the worker.
 WORKER_MODEL_POLICY_TIMEOUT_SECONDS = 12.0
+WEEKLY_WINDOW_SECONDS = 7 * 24 * 60 * 60
 
 
 async def _worker_model_policy_usage() -> dict:
-    """Read the same live payload served by GET /api/usage."""
-    from app.routes.system import get_usage
+    """Read only the live Anthropic payload behind GET /api/usage."""
+    from app.quota_gate import QUOTA_OBSERVATION_MAX_AGE
+    from app.routes.system import current_quota_observation
 
-    usage = await get_usage()
-    if not isinstance(usage, dict):
-        raise RuntimeError("GET /api/usage returned no worker quota telemetry")
-    return usage
+    observation = await current_quota_observation(required_provider="anthropic")
+    providers = observation.get("providers") if isinstance(observation, dict) else None
+    timestamps = (
+        observation.get("observed_at_by_provider")
+        if isinstance(observation, dict)
+        else None
+    )
+    observed_at = timestamps.get("anthropic") if isinstance(timestamps, dict) else None
+    age = time.time() - observed_at if isinstance(observed_at, (int, float)) else math.inf
+    if isinstance(observed_at, bool) or not 0 <= age < QUOTA_OBSERVATION_MAX_AGE:
+        raise RuntimeError("fresh Anthropic worker quota telemetry is unavailable")
+
+    anthropic = providers.get("anthropic") if isinstance(providers, dict) else None
+    windows = anthropic.get("windows") if isinstance(anthropic, dict) else None
+    seven_day = next(
+        (
+            window for window in windows
+            if isinstance(window, dict) and window.get("id") == "seven_day"
+        ),
+        None,
+    ) if isinstance(windows, list) else None
+    if seven_day is None:
+        raise RuntimeError("Anthropic seven-day worker quota telemetry is unavailable")
+    return {"anthropic": {"seven_day": seven_day}}
 
 
 def _policy_utilization(usage: dict, provider: str, window: str) -> float:
@@ -93,6 +115,26 @@ def _policy_utilization(usage: dict, provider: str, window: str) -> float:
     ):
         raise ValueError(f"{provider}.{window}.utilization is missing or malformed")
     return float(value)
+
+
+def _policy_window_elapsed(usage: dict) -> tuple[float | None, str]:
+    anthropic = usage.get("anthropic")
+    seven_day = anthropic.get("seven_day") if isinstance(anthropic, dict) else None
+    raw = seven_day.get("resets_at") if isinstance(seven_day, dict) else None
+    if not isinstance(raw, str) or not raw.strip():
+        return None, "anthropic.seven_day.resets_at is missing"
+    try:
+        reset_at = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None, "anthropic.seven_day.resets_at is malformed"
+    if reset_at.tzinfo is None:
+        return None, "anthropic.seven_day.resets_at has no timezone"
+    remaining = (reset_at.astimezone(timezone.utc) - datetime.now(timezone.utc)).total_seconds()
+    if remaining <= 0:
+        return None, "anthropic.seven_day.resets_at is in the past"
+    if remaining > WEEKLY_WINDOW_SECONDS:
+        return None, "anthropic.seven_day.resets_at is beyond the weekly window"
+    return 100.0 * (1.0 - remaining / WEEKLY_WINDOW_SECONDS), ""
 
 
 class LockBusy(RuntimeError):
@@ -462,7 +504,9 @@ class SessionManager:
         self.sessions: dict[str, AgentSession] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
         self._spawn_locks: dict[tuple[str, str], asyncio.Lock] = {}
-        self._worker_model_policy_latches: dict[tuple[str, str, float, float], bool] = {}
+        self._worker_model_policy_latches: dict[
+            tuple[str, str, float, float, float, float], tuple[bool, bool]
+        ] = {}
         # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
         self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
         # #220 T2: рестарт закрывает приём новых ходов, пока дренажит уже идущие
@@ -540,8 +584,8 @@ class SessionManager:
             return
 
         alternatives = ", ".join(policy.alternatives)
-        balanced = policy.quota_balanced
-        if model != balanced.model:
+        guarded = policy.quota_guarded
+        if model != guarded.model:
             raise ValueError(
                 f"worker model '{model}' is not allowed by pipeline '{pipeline}'. "
                 f"Use {alternatives}, or pass model_policy_override_reason with a non-empty reason."
@@ -551,7 +595,6 @@ class SessionManager:
             async with asyncio.timeout(WORKER_MODEL_POLICY_TIMEOUT_SECONDS):
                 usage = await _worker_model_policy_usage()
             claude = _policy_utilization(usage, "anthropic", "seven_day")
-            codex = _policy_utilization(usage, "codex", "primary")
         except Exception as error:
             logger.error(
                 "worker model policy telemetry unavailable; allowing model=%s: %s: %s",
@@ -559,22 +602,48 @@ class SessionManager:
             )
             return
 
-        gap = claude - codex
-        key = (pipeline, model, balanced.block_gap_pp, balanced.unblock_gap_pp)
-        blocked = self._worker_model_policy_latches.get(
-            key, gap > balanced.unblock_gap_pp,
+        key = (
+            pipeline, model,
+            guarded.pace_block_lead_pp, guarded.pace_unblock_lead_pp,
+            guarded.absolute_block_pct, guarded.absolute_unblock_pct,
         )
-        if gap >= balanced.block_gap_pp:
-            blocked = True
-        elif gap <= balanced.unblock_gap_pp:
-            blocked = False
-        self._worker_model_policy_latches[key] = blocked
-        if blocked:
+        pace_blocked, absolute_blocked = self._worker_model_policy_latches.get(
+            key, (False, False),
+        )
+
+        if claude >= guarded.absolute_block_pct:
+            absolute_blocked = True
+        elif claude <= guarded.absolute_unblock_pct:
+            absolute_blocked = False
+
+        elapsed, pace_error = _policy_window_elapsed(usage)
+        lead = None
+        if elapsed is None:
+            logger.warning("worker model policy pace check skipped: %s", pace_error)
+        else:
+            lead = claude - elapsed
+            if lead >= guarded.pace_block_lead_pp:
+                pace_blocked = True
+            elif lead <= guarded.pace_unblock_lead_pp:
+                pace_blocked = False
+
+        self._worker_model_policy_latches[key] = pace_blocked, absolute_blocked
+        active: list[str] = []
+        if elapsed is not None and pace_blocked:
+            active.append(
+                f"window elapsed {round(elapsed, 1):g}%, pace lead {round(lead, 1):g} pp "
+                f"(blocks at >= {guarded.pace_block_lead_pp:g} pp, unlocks at "
+                f"<= {guarded.pace_unblock_lead_pp:g} pp)"
+            )
+        if absolute_blocked:
+            active.append(
+                f"absolute worker stop {guarded.absolute_block_pct:g}% remains latched until "
+                f"<= {guarded.absolute_unblock_pct:g}%"
+            )
+        if active:
             raise ValueError(
-                f"worker model '{model}' is blocked while subscription pools are imbalanced: "
-                f"Claude 7d {claude:g}%, Codex {codex:g}% (gap {gap:g} pp; "
-                f"unlocks at <= {balanced.unblock_gap_pp:g} pp and blocks at "
-                f">= {balanced.block_gap_pp:g} pp). Use {alternatives}, or pass "
+                f"worker model '{model}' is blocked by Claude weekly policy: "
+                f"Claude 7d {claude:g}%; {'; '.join(active)}. Use {alternatives}, or pass "
                 "model_policy_override_reason with a non-empty reason."
             )
 
@@ -749,7 +818,22 @@ class SessionManager:
             )
             from app.quota_gate import get_worker_admission, require_worker_admission
 
-            require_worker_admission(await get_worker_admission(model))
+            try:
+                quota_decision = await get_worker_admission(model)
+            except Exception as error:
+                logger.error(
+                    "worker quota admission check failed; allowing model=%s: %s: %s",
+                    model, type(error).__name__, err_text(error),
+                )
+            else:
+                if quota_decision.state == "unknown":
+                    logger.error(
+                        "worker quota admission telemetry unavailable; allowing model=%s "
+                        "provider=%s reason=%s",
+                        model, quota_decision.provider, quota_decision.reason,
+                    )
+                else:
+                    require_worker_admission(quota_decision)
 
         # Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
         # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.
