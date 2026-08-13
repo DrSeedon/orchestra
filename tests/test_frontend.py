@@ -828,12 +828,12 @@ def _open_tool_fixture_page(browser: Browser) -> Page:
     return page
 
 
-def _open_tool_correlation_page(
-    browser: Browser,
-    compact_mode: bool,
-    source_path: Path | None = None,
-) -> Page:
-    page = browser.new_page()
+def _route_frontend_sources(page: Page, source_path: Path | None = None) -> None:
+    """Живой сервер отдаёт статику из ГЛАВНОГО чекаута — подменяем её своей.
+
+    Стиль подменяем НАРАВНЕ со скриптом: иначе проверка внешнего вида зеленела бы
+    на main, а не на ветке.
+    """
     source = (
         source_path or Path(__file__).parent.parent / "app/static/js/app.js"
     ).read_text()
@@ -845,13 +845,20 @@ def _open_tool_correlation_page(
             body=source,
         ),
     )
-    # Живой сервер отдаёт статику из ГЛАВНОГО чекаута, поэтому стиль подменяем тоже —
-    # иначе проверка внешнего вида зеленела бы на main, а не на ветке.
     style = (Path(__file__).parent.parent / "app/static/css/style.css").read_text()
     page.route(
         "**/static/css/style.css*",
         lambda route: route.fulfill(status=200, content_type="text/css", body=style),
     )
+
+
+def _open_tool_correlation_page(
+    browser: Browser,
+    compact_mode: bool,
+    source_path: Path | None = None,
+) -> Page:
+    page = browser.new_page()
+    _route_frontend_sources(page, source_path)
     _goto_dashboard_or_skip(page)
     page.wait_for_function("() => typeof addChatEntry === 'function'")
     page.evaluate("""compactMode => {
@@ -1121,6 +1128,206 @@ def test_notify_nav_hides_itself_when_no_calls_are_present(dashboard_browser: Br
     assert state["navHidden"] is True, "без зовов полоса навигации занимала бы место впустую"
     assert state["count"] == "🔔 0"
     assert state["markers"] == 0
+
+
+_NOTIFY_AGENT = "notify-268-probe"
+_NOTIFY_SESSION = "sess-268"
+
+
+def _notify_stub(permission: str) -> str:
+    """Подменяем Notification: настоящее системное окно из headless не наблюдаемо."""
+    return f"""
+    window.__notifications = [];
+    window.__permissionRequests = 0;
+    class FakeNotification {{
+        static permission = '{permission}';
+        static requestPermission() {{
+            window.__permissionRequests++;
+            FakeNotification.permission = 'granted';
+            return Promise.resolve('granted');
+        }}
+        constructor(title, options) {{
+            this.title = title;
+            this.options = options || {{}};
+            window.__notifications.push({{title, body: this.options.body,
+                tag: this.options.tag, requireInteraction: !!this.options.requireInteraction}});
+        }}
+        close() {{}}
+    }}
+    window.Notification = FakeNotification;
+    """
+
+
+def _notify_row(log_id: int, reason: str) -> dict:
+    """Форма строки — контракт `back` из #241: обычный вызов тула, без новых полей."""
+    return {
+        "id": log_id,
+        "type": "tool",
+        "content": "mcp__orchestra__notify_user: "
+        + json.dumps({"reason": reason}, ensure_ascii=False),
+        "ts": "2026-08-13T12:00:00+00:00",
+        "session_id": _NOTIFY_SESSION,
+        "tool_use_id": f"toolu_call{log_id}",
+    }
+
+
+def _open_notify_stream_page(
+    browser: Browser,
+    permission: str,
+    history_rows: list[dict],
+    stream_pages: list[list[dict]],
+    history_status: int = 200,
+) -> tuple[Page, list[int]]:
+    """Гоняем НАСТОЯЩИЙ путь: история → `_renderHistory` → `connectSSE` → onmessage.
+
+    Прямой вызов `_maybeNotifyCall` читался бы как покрытие и им не был: мутация
+    «убрать проводку в поток» осталась бы зелёной.
+    """
+    page = browser.new_page()
+    page.add_init_script(_notify_stub(permission))
+    _route_frontend_sources(page)
+
+    history_calls: list[int] = []
+
+    def history_route(route):
+        history_calls.append(1)
+        # Вторую порцию (добор страницы) отдаём пустой — иначе добор идёт по кругу.
+        rows = history_rows if len(history_calls) == 1 else []
+        route.fulfill(status=history_status, content_type="application/json",
+                      body=json.dumps(rows, ensure_ascii=False))
+
+    stream_calls: list[int] = []
+
+    def stream_route(route):
+        stream_calls.append(1)
+        # Каждому подключению — своя порция; последняя повторяется дальше, потому что
+        # поток рвётся и переподключается, а живой сервер после рестарта способен
+        # переслать уже показанное.
+        rows = stream_pages[min(len(stream_calls) - 1, len(stream_pages) - 1)]
+        body = "".join(
+            f"data: {json.dumps(row, ensure_ascii=False)}\n\n" for row in rows
+        )
+        route.fulfill(status=200, content_type="text/event-stream", body=body)
+
+    # Только СВОЙ агент: страница на загрузке уже держит поток агента по умолчанию, и
+    # широкий шаблон кормил бы синтетикой ещё и его — уведомление приходило бы с чужим
+    # именем в заголовке (поймано первым же прогоном).
+    page.route(re.compile(rf"/api/sessions/{_NOTIFY_AGENT}/logs\?"), history_route)
+    page.route(re.compile(rf"/api/sessions/{_NOTIFY_AGENT}/stream\?"), stream_route)
+    _goto_dashboard_or_skip(page)
+    # Сперва дать странице восстановить своего последнего агента: её выбор приходит
+    # асинхронно и иначе перебивает наш уже после selectAgent.
+    page.wait_for_function("() => typeof selectAgent === 'function' && selectedAgent")
+    page.evaluate("name => selectAgent(name)", _NOTIFY_AGENT)
+    page.wait_for_function("name => selectedAgent === name", arg=_NOTIFY_AGENT)
+    return page, stream_calls
+
+
+def test_live_call_notifies_once_while_history_and_replays_stay_silent(
+    dashboard_browser: Browser,
+):
+    """#268: уведомление браузера на зов оркестратора — ровно одно на зов.
+
+    Дашборд перерисовывает поток, дорисовывает историю сверху и переподключает SSE,
+    поэтому одна и та же строка приходит не раз. Старые зовы из истории при загрузке
+    не уведомляют вовсе: юзеру нужно свежее, а не разбор архива.
+    """
+    old_reason = "СТАРЫЙ ЗОВ из истории"
+    live_reason = "кеш падает 93.6% → 15%"
+    page, stream_calls = _open_notify_stream_page(
+        dashboard_browser,
+        "granted",
+        history_rows=[_notify_row(41001, old_reason)],
+        stream_pages=[[_notify_row(41010, live_reason)]],
+    )
+    page.wait_for_function("() => window.__notifications.length >= 1", timeout=15000)
+
+    # Переподключение потока после разрыва: те же строки приезжают повторно.
+    page.wait_for_timeout(5000)
+    page.evaluate(
+        """row => _prependHistory(selectedAgent, currentScope, [row])""",
+        _notify_row(41010, live_reason),
+    )
+    state = page.evaluate("""() => ({
+        notifications: window.__notifications,
+        cards: document.querySelectorAll('#chat .chat-notify-user').length,
+        permissionBtn: !!document.querySelector('#chat-notify-permission'),
+    })""")
+    page.close()
+
+    assert len(stream_calls) >= 2, (
+        f"поток обязан был переподключиться, подключений {len(stream_calls)}"
+    )
+    assert len(state["notifications"]) == 1, state["notifications"]
+    notification = state["notifications"][0]
+    assert notification["body"] == live_reason
+    assert _NOTIFY_AGENT in notification["title"], notification["title"]
+    assert notification["tag"] == "orchestra-call-41010"
+    assert notification["requireInteraction"] is True
+    assert old_reason not in json.dumps(state["notifications"], ensure_ascii=False), (
+        "зов из истории приехал бы уведомлением при каждой перезагрузке страницы"
+    )
+    assert state["cards"] >= 1, "подсветка зова из #241 обязана остаться живой"
+    assert state["permissionBtn"] is False, "разрешение уже есть — кнопке неоткуда взяться"
+
+
+def test_history_carried_by_the_stream_itself_stays_silent_then_arms(
+    dashboard_browser: Browser,
+):
+    """Запасной режим: `_fetchHistory` упал, историю везёт сам поток (`after_id=0`).
+
+    Эта пачка — архив, а не свежее, и уведомлять по ней нельзя. Но и замолчать до
+    следующего реконнекта нельзя: канал оказался бы тихо мёртвым на весь сеанс.
+    """
+    page, stream_calls = _open_notify_stream_page(
+        dashboard_browser,
+        "granted",
+        history_rows=[],
+        stream_pages=[
+            [_notify_row(43001, "АРХИВНЫЙ зов из пачки потока")],
+            [_notify_row(43010, "живой зов после взвода")],
+        ],
+        history_status=500,
+    )
+    page.wait_for_function("() => window.__notifications.length >= 1", timeout=20000)
+    notifications = page.evaluate("() => window.__notifications")
+    page.close()
+
+    assert len(stream_calls) >= 2, "второе подключение обязано было состояться"
+    assert len(notifications) == 1, notifications
+    assert notifications[0]["body"] == "живой зов после взвода"
+    assert notifications[0]["tag"] == "orchestra-call-43010"
+
+
+def test_notification_permission_is_asked_by_click_and_never_on_load(
+    dashboard_browser: Browser,
+):
+    """Всплывший на загрузке запрос юзер отклонит один раз — и канал потерян навсегда."""
+    page, _ = _open_notify_stream_page(
+        dashboard_browser,
+        "default",
+        history_rows=[],
+        stream_pages=[[_notify_row(42010, "зов без разрешения")]],
+    )
+    page.wait_for_selector("#chat-notify-permission", timeout=15000)
+    before = page.evaluate("""() => ({
+        requests: window.__permissionRequests,
+        notifications: window.__notifications.length,
+    })""")
+    page.click("#chat-notify-permission")
+    page.wait_for_function("() => window.__permissionRequests === 1", timeout=5000)
+    after = page.evaluate("""() => ({
+        requests: window.__permissionRequests,
+        btn: !!document.querySelector('#chat-notify-permission'),
+        permission: Notification.permission,
+    })""")
+    page.close()
+
+    assert before["requests"] == 0, "на загрузке разрешение не спрашиваем"
+    assert before["notifications"] == 0, "без разрешения уведомление создавать нечем"
+    assert after["requests"] == 1
+    assert after["permission"] == "granted"
+    assert after["btn"] is False, "решение принято — второй раз браузер не спросит"
 
 
 @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])

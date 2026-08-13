@@ -258,6 +258,72 @@ function _notifyUserReason(node) {
     try { return JSON.parse(content.slice(colonIdx + 1)).reason || ''; } catch { return ''; }
 }
 
+// Строку разбираем ДО отрисовки: про уведомление решает живой поток, а не готовый узел.
+function _callRowReason(row) {
+    if (row?.type !== 'tool') return null;
+    const content = typeof row.content === 'string' ? row.content : '';
+    const colonIdx = content.indexOf(':');
+    if (colonIdx < 0) return null;
+    if (canonicalToolName(content.slice(0, colonIdx).trim()) !== NOTIFY_USER_TOOL) return null;
+    try { return JSON.parse(content.slice(colonIdx + 1)).reason || ''; } catch { return ''; }
+}
+
+// Один зов — одно уведомление: поток переподключается, история дорисовывается сверху, и
+// одна и та же строка приходит не раз. Ключ — id строки журнала, он глобальный.
+const _notifiedCallIds = new Set();
+let _notifyLiveArmed = false;
+let _notifyArmTimer = null;
+
+function _armCallNotifications(lastId) {
+    clearTimeout(_notifyArmTimer);
+    // История уже на экране → поток отдаёт только строки новее неё, всё пришедшее настоящее.
+    _notifyLiveArmed = lastId > 0;
+    // Запасной режим (истории нет, её везёт сам поток): пачка приходит сразу за подключением,
+    // поэтому взводимся после неё, а не молчим до следующего реконнекта.
+    if (!_notifyLiveArmed) _notifyArmTimer = setTimeout(() => { _notifyLiveArmed = true; }, 2000);
+}
+
+function _maybeNotifyCall(row, agent) {
+    const reason = _callRowReason(row);
+    if (reason === null || !_notifyLiveArmed) return null;
+    const id = Number(row.id);
+    if (!Number.isFinite(id) || _notifiedCallIds.has(id)) return null;
+    _notifiedCallIds.add(id);
+    if (!('Notification' in window) || Notification.permission !== 'granted') return null;
+    const notification = new Notification(`🔔 ${agent || 'Оркестратор'} зовёт`, {
+        body: reason || 'без пояснения',
+        tag: `orchestra-call-${id}`,   // вторая защита от дубля, уже на стороне ОС
+        requireInteraction: true,      // юзера нет у экрана — зов не должен успеть исчезнуть
+    });
+    notification.onclick = () => {
+        window.focus();
+        const node = $('#chat')?.querySelector(`[data-chat-log-id="${id}"]`);
+        if (node) _jumpChatTimelineNode(node, node._chatTimelineMarker);
+        notification.close();
+    };
+    return notification;
+}
+
+// Разрешение просим ТОЛЬКО по клику: запрос, всплывший на загрузке, юзер отклонит один раз —
+// и канал потерян навсегда, второй раз браузер не спросит.
+function _addNotifyPermissionBtn() {
+    const timeline = $('#chat-timeline');
+    if (!timeline || $('#chat-notify-permission')) return;
+    if (!('Notification' in window) || Notification.permission !== 'default') return;
+    const btn = document.createElement('button');
+    btn.id = 'chat-notify-permission';
+    btn.type = 'button';
+    btn.className = 'chat-notify-permission';
+    btn.textContent = '🔔';
+    btn.title = 'Включить уведомления браузера о зовах оркестратора';
+    btn.setAttribute('aria-label', btn.title);
+    btn.addEventListener('click', async () => {
+        try { await Notification.requestPermission(); } catch (e) { console.warn('Notification permission:', e.name, e.message); }
+        btn.remove();   // решение принято — второй раз браузер всё равно не спросит
+    });
+    timeline.prepend(btn);
+}
+
 function _chatTimelineKind(type, node) {
     if (type === 'user_message') return node.dataset.from ? 'worker' : 'user';
     if (type === 'tool' && _isNotifyUserNode(node)) return 'notify';
@@ -378,6 +444,7 @@ function _addNotifyNav() {
 function initChatTimeline() {
     const chat = $('#chat');
     if (!chat || _chatTimelineObserver) return;
+    _addNotifyPermissionBtn();
     _addNotifyNav();
     for (const node of chat.children) _addChatTimelineMarker(node);
     _syncChatTimelineControls();
@@ -876,6 +943,7 @@ function connectSSE(fromHistoryLoad) {
     // limit нужен только в запасном режиме, когда истории у нас нет вовсе и её принесёт
     // сам поток (_fetchHistory не смог). В обычной работе сюда приходят с lastId > 0.
     const limitParam = lastId === 0 ? `&limit=${_CHAT_PAGE}` : '';
+    _armCallNotifications(lastId);
     const url = `/api/sessions/${selectedAgent}/stream?scope=${encodeURIComponent(currentScope)}&after_id=${lastId}${limitParam}`;
     eventSource = new EventSource(url);
     eventSource.onmessage = (event) => {
@@ -906,6 +974,7 @@ function connectSSE(fromHistoryLoad) {
             } else {
                 addChatEntry(l.type, l.content, l.ts, null, l);
             }
+            _maybeNotifyCall(l, targetAgent);
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
             // Live stream partials carry no id — skip id bookkeeping for them
             if (Number.isFinite(l.id)) {
