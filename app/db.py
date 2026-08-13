@@ -170,6 +170,18 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_mailbox_pending
                 ON mailbox(recipient, scope) WHERE delivered_at IS NULL;
 
+            CREATE TABLE IF NOT EXISTS restart_inbox (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                body TEXT NOT NULL,
+                chat_id INTEGER NOT NULL DEFAULT 0,
+                thread_id INTEGER NOT NULL DEFAULT 0,
+                created_at REAL NOT NULL,
+                delivered_at REAL
+            );
+            CREATE INDEX IF NOT EXISTS idx_restart_inbox_pending
+                ON restart_inbox(id) WHERE delivered_at IS NULL;
+
             CREATE TABLE IF NOT EXISTS test_lock (
                 scope TEXT PRIMARY KEY,
                 holder TEXT NOT NULL,

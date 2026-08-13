@@ -131,6 +131,12 @@ def open_mutating_admission() -> None:
     _mutating_admission_open = True
 
 
+def mutating_admission_open() -> bool:
+    """Public reader for the gate. In-process senders (the TG bridge) never touch HTTP, so
+    the middleware cannot protect them — they have to ask (#269)."""
+    return _mutating_admission_open
+
+
 def mutating_admission_verdict(method: str, path: str) -> dict:
     if not is_mutating_path(method, path) or _mutating_admission_open:
         return {"allowed": True, "retryable": False, "outcome_unknown": False}
@@ -140,7 +146,11 @@ def mutating_admission_verdict(method: str, path: str) -> dict:
         "retryable": True,
         "outcome_unknown": False,
         "code": "restart_pending",
-        "message": "Orchestra is restarting; this call was refused before any side effect.",
+        # Human sentence, not a status line: this is what a person reads when a channel shows
+        # the body verbatim (that is exactly how the raw JSON reached the user, #269). Machines
+        # read `code`/`retryable` above; people need "nothing broke" and "what now".
+        "message": "Orchestra перезапускается — сообщение не отправлено, ничего не сломалось. "
+                   "Повтори через минуту, я вернусь сам.",
     }
 
 
@@ -279,6 +289,10 @@ async def lifespan(app: FastAPI):
     from app.bootstrap import ensure_bootstrap
     await ensure_bootstrap()
     manager.start_background_tasks()
+    # #269: messages accepted while the previous process was restarting. In the background —
+    # a delivery runs the agent's turn, and startup must not wait for it.
+    from app import restart_inbox
+    restart_inbox_task = asyncio.create_task(restart_inbox.deliver_pending(manager))
     from app.bg_jobs import bg_manager
     bg_manager.set_session_manager(manager)
     await bg_manager.restore_from_db()
@@ -296,6 +310,9 @@ async def lifespan(app: FastAPI):
     from app.merge_operations import restore_merge_operations
     await restore_merge_operations()
     yield
+    # Cancelled mid-flight, a message stays queued and is delivered on the next start — the
+    # row is marked only after `manager.send` returned.
+    restart_inbox_task.cancel()
     snapshot_task.cancel()
     from app import rag_service as _rs
     from app.merge_operations import shutdown_merge_operations

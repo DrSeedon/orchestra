@@ -328,6 +328,11 @@ async def _flush_batch(sid: str, batch: list):
     local_tz = timezone(timedelta(hours=7))
     now = datetime.now(local_tz).strftime("%H:%M")
     combined = f"[{now}] {combined}"
+    from app.main import mutating_admission_open
+
+    if not mutating_admission_open():
+        await _queue_until_restarted(sid, valid, combined)
+        return
     try:
         await _manager.send(sid, combined)
     except Exception as error:
@@ -336,6 +341,45 @@ async def _flush_batch(sid: str, batch: list):
         # 0 сообщений в чат). Для человека на том конце это неотличимо от «агент прочитал
         # и не ответил».
         await _report_undelivered_to_user(sid, valid, error)
+
+
+async def _queue_until_restarted(sid: str, valid: list, combined: str) -> None:
+    """Restart in progress: park the message instead of pushing it into a dying session (#269).
+
+    Pushing it through would look accepted and then die with the process — for the person on
+    the other end that is indistinguishable from being ignored. Queued now, delivered by
+    `restart_inbox.deliver_pending` after startup.
+    """
+    from app import restart_inbox
+
+    first = next((m for m, _c in valid if m is not None), None)
+    chat_id = getattr(getattr(first, "chat", None), "id", 0) or 0
+    thread_id = getattr(first, "message_thread_id", None) or 0
+    try:
+        restart_inbox.enqueue(sid, combined, chat_id, thread_id)
+    except Exception as error:
+        # The queue is the only thing standing between this message and silence: if it fails,
+        # deliver the old way rather than drop it, and let the existing path report failure.
+        logger.warning("restart inbox unavailable for %s, delivering live: %s", sid, err_text(error))
+        try:
+            await _manager.send(sid, combined)
+        except Exception as send_error:
+            await _report_undelivered_to_user(sid, valid, send_error)
+        return
+
+    if first is None or bot is None:
+        return
+    try:
+        await _tg_send_safe(
+            first.chat.id,
+            "⏳ Orchestra перезапускается — сообщение принято, но пока не доставлено. "
+            "Ничего делать не нужно: отдам его агенту сам, как только вернусь.",
+            thread_id=getattr(first, "message_thread_id", None),
+            important=True,
+        )
+    except Exception as send_error:
+        logger.warning("could not tell the user the message is queued for %s: %s",
+                       sid, err_text(send_error))
 
 
 async def _report_undelivered_to_user(sid: str, valid: list, error: Exception) -> None:
