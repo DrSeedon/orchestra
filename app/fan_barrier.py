@@ -1,5 +1,6 @@
 """Durable completion barriers for a group of child workers."""
 
+import sqlite3
 import time
 
 from . import db
@@ -7,6 +8,15 @@ from . import db
 
 _TERMINAL_STATES = {"done", "failed", "timeout", "killed"}
 _BYPASS_KINDS = {"out_of_scope", "false_premise", "blocked"}
+
+
+def _schema_is_missing(error: sqlite3.OperationalError) -> bool:
+    prefix = "no such table:"
+    message = str(error).lower()
+    if not message.startswith(prefix):
+        return False
+    table = message.removeprefix(prefix).strip().rsplit(".", 1)[-1]
+    return table in {"fan_barriers", "fan_members"}
 
 
 def open_fan(
@@ -40,14 +50,19 @@ def open_fan(
 def should_buffer(child: str, message_kind: str | None = None) -> bool:
     if message_kind in _BYPASS_KINDS:
         return False
-    with db._conn() as conn:
-        row = conn.execute(
-            """SELECT 1 FROM fan_members m
-               JOIN fan_barriers f ON f.fan_id = m.fan_id
-               WHERE m.child = ? AND f.released = 0
-               LIMIT 1""",
-            (child,),
-        ).fetchone()
+    try:
+        with db._conn() as conn:
+            row = conn.execute(
+                """SELECT 1 FROM fan_members m
+                   JOIN fan_barriers f ON f.fan_id = m.fan_id
+                   WHERE m.child = ? AND f.released = 0
+                   LIMIT 1""",
+                (child,),
+            ).fetchone()
+    except sqlite3.OperationalError as error:
+        if _schema_is_missing(error):
+            return False
+        raise
     return row is not None
 
 
@@ -110,7 +125,12 @@ def record_terminal(
 
 
 def on_child_killed(child: str) -> bool:
-    return record_terminal(child, "killed")
+    try:
+        return record_terminal(child, "killed")
+    except sqlite3.OperationalError as error:
+        if _schema_is_missing(error):
+            return False
+        raise
 
 
 def is_released(fan_id: str) -> bool:
@@ -226,13 +246,18 @@ def peek_summary(name: str, scope: str) -> str | None:
     навсегда. Это ровно грабля #158, и я закрыл её в ящике, но не здесь.
     Гасит теперь `mark_summarised`, и только после успешной доставки.
     """
-    with db._conn() as conn:
-        row = conn.execute(
-            """SELECT fan_id FROM fan_barriers
-               WHERE reducer = ? AND scope = ? AND released = 1 AND summarised = 0
-               ORDER BY created_at DESC LIMIT 1""",
-            (name, scope),
-        ).fetchone()
+    try:
+        with db._conn() as conn:
+            row = conn.execute(
+                """SELECT fan_id FROM fan_barriers
+                   WHERE reducer = ? AND scope = ? AND released = 1 AND summarised = 0
+                   ORDER BY created_at DESC LIMIT 1""",
+                (name, scope),
+            ).fetchone()
+    except sqlite3.OperationalError as error:
+        if _schema_is_missing(error):
+            return None
+        raise
     return row[0] if row else None
 
 
