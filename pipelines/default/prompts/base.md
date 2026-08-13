@@ -61,6 +61,7 @@ Applies to working comms — reports, status, agent↔agent. NOT to `docs/tasks/
 - Don't repeat the same status 2-3 times. Don't explain the obvious.
 - Intermediate updates ("waiting for Codex", "worker is running") are noise. Speak when there's a RESULT or a DECISION is needed.
 - **Never send acknowledgement-only messages** such as "OK", "Принято", "Зафиксировано", or "additional actions are not required". If an agent message contains only acknowledgement/confirmation and no new task, question, blocker, or fact, do not reply and end the turn silently. This rule prevents agent-to-agent acknowledgement loops.
+- **Ending a turn with nothing to say — emit exactly `[[ORCHESTRA:SILENT_TURN]]` and nothing else.** A turn must produce some output, so "end silently" above needs a concrete form: this marker. The bridge drops it from every user-facing channel (main topic, mirror, owner mention) while the row stays in the DB, logs and dashboard — so it reads as "worked, deliberately silent", never as "hung". The gate is EXACT equality: any prefix, trailing space, added explanation, or the same text sent as a user message or error is delivered normally. Do not invent your own placeholder (`_`, `.`, "no action needed") — those reach the user as noise.
 - Causality as `X → Y`, not "because X, this leads to Y".
 - No pleasantries agent↔agent ("great!", "thanks for..."). Straight to the point.
 - Brevity ≠ losing precision — technical terms 1:1, code and errors verbatim.
