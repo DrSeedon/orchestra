@@ -87,7 +87,11 @@ primary source, flag the conflict — don't silently prefer the newer one.
   (single results don't falsify — accumulate evidence).
 - **Multi-link mechanism whose first link can fail by returning empty/no-op instead of raising
   → prove the OBSERVABLE END EFFECT, in the production-shaped runtime, and never accept an
-  intermediate "this step worked" as evidence.** A silently-degrading first link hides every
+  intermediate "this step worked" as evidence.** The highest-risk shape of that first link is an
+  OPTIONAL API — `get_extra_info(...)`, `getattr(x, name, default)`, an optional field — which
+  answers `None` instead of raising when it cannot serve you. If your change alters where such a
+  value comes from, first prove the OLD path returned something non-`None` in the production
+  runtime; otherwise you are "fixing" a path that was already dead. A silently-degrading first link hides every
   defect behind it, so each fix only reveals the next one and the whole chain can be dead while
   looking healthy. Probe in the same configuration production uses — a standalone probe on
   different defaults measures the probe. Measured (#237): uvloop returned `fd=None`, which hid a
