@@ -909,6 +909,127 @@ def test_parallel_tool_results_follow_tool_use_id_in_both_renderers(
         )
 
 
+# Формы идентификатора, реально встречающиеся в журнале: Claude/MCP пишет `toolu_*`,
+# Codex и Luna — `exec-<uuid>`, а у нативных Codex-событий он приходит только внутри
+# тела вызова как `_codex_item_id`.
+_TOOL_ID_FORMS = [
+    ("claude", "toolu_01G5brx7JCG8nwANkQmhc6eF", False),
+    ("codex_column", "exec-58a05905-8ec3-4b60-8ef8-b62fd6da3f42", False),
+    ("codex_item_id_in_body", "exec-f47f37ef-c04d-44af-ac6a-2e5a3ebcc0ef", True),
+]
+
+
+@pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+@pytest.mark.parametrize(
+    ("id_form", "base_id", "id_only_in_body"),
+    _TOOL_ID_FORMS,
+    ids=[form[0] for form in _TOOL_ID_FORMS],
+)
+def test_split_history_page_pairs_results_with_calls_that_arrive_later(
+    dashboard_browser: Browser,
+    compact_mode: bool,
+    id_form: str,
+    base_id: str,
+    id_only_in_body: bool,
+):
+    """История приезжает страницами и разрезает параллельный блок.
+
+    Результаты нарисованы более новой страницей, а их вызовы приходят следующей,
+    более старой — то есть ПОЗЖЕ и с якорем. Живой замер #260: `cardInDom: false`,
+    `hasAnchor: true` — вызова в DOM ещё нет, и exact-only оставлял вечную сироту.
+    """
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+    rendered = page.evaluate(
+        """({baseId, idOnlyInBody}) => {
+        const chat = document.querySelector('#chat');
+        const idA = baseId + '-a';
+        const idB = baseId + '-b';
+
+        // Новая страница: два результата параллельного блока, вызовов ещё нет.
+        addChatEntry('tool_result', 'SPLIT-RESULT-A', null, null, {id:31003, tool_use_id:idA});
+        addChatEntry('tool_result', 'SPLIT-RESULT-B', null, null, {id:31004, tool_use_id:idB});
+        const orphansBefore = chat.querySelectorAll('[data-unmatched-tool-result]').length;
+
+        // Следующая, более СТАРАЯ страница дорисовывается НАД показанным.
+        const anchor = chat.firstElementChild;
+        for (const [name, marker, id, logId] of [
+            ['mcp__orchestra__worker_wip', 'CALL-A', idA, 31001],
+            ['mcp__orchestra__worker_wip', 'CALL-B', idB, 31002],
+        ]) {
+            const args = idOnlyInBody
+                ? {name: marker, _codex_item_id: id}
+                : {name: marker};
+            const payload = idOnlyInBody ? {id: logId} : {id: logId, tool_use_id: id};
+            addChatEntry('tool', `${name}: ${JSON.stringify(args)}`, null, anchor, payload);
+        }
+
+        const sel = window.compactMode
+            ? '[data-compact-tool]'
+            : '[data-tool-use-id]:not([data-compact-tool])';
+        const cards = Object.fromEntries([...chat.querySelectorAll(sel)].map(card => [
+            card.dataset.toolUseId,
+            window.compactMode ? (card.dataset.resultContent || '') : card.innerText,
+        ]));
+        return {
+            orphansBefore,
+            orphansAfter: chat.querySelectorAll('[data-unmatched-tool-result]').length,
+            cards,
+            idA,
+            idB,
+        };
+    }""",
+        {"baseId": base_id, "idOnlyInBody": id_only_in_body},
+    )
+    page.close()
+
+    assert rendered["orphansBefore"] == 2, "результаты без вызова обязаны быть видны сразу"
+    assert rendered["orphansAfter"] == 0, "приехавший вызов обязан забрать свою сироту"
+    cards = rendered["cards"]
+    assert set(cards) == {rendered["idA"], rendered["idB"]}
+    assert "SPLIT-RESULT-A" in cards[rendered["idA"]]
+    assert "SPLIT-RESULT-B" not in cards[rendered["idA"]]
+    assert "SPLIT-RESULT-B" in cards[rendered["idB"]]
+    assert "SPLIT-RESULT-A" not in cards[rendered["idB"]]
+
+
+@pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+def test_legacy_rows_without_tool_use_id_pair_by_adjacency(
+    dashboard_browser: Browser,
+    compact_mode: bool,
+):
+    """63.7% строк журнала старше поля `tool_use_id` и не несут его вовсе.
+
+    Для них соседство — единственный доступный признак и он верный; exact-only
+    рисовал бы «Результат без вызова» на КАЖДОЙ такой строке.
+    """
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+    rendered = page.evaluate("""() => {
+        const chat = document.querySelector('#chat');
+        addChatEntry('tool', 'Bash: {"command":"echo LEGACY-ONE"}', null, null, {id:32001});
+        addChatEntry('tool_result', 'LEGACY-RESULT-ONE', null, null, {id:32002});
+        addChatEntry('tool', 'Bash: {"command":"echo LEGACY-TWO"}', null, null, {id:32003});
+        addChatEntry('tool_result', 'LEGACY-RESULT-TWO', null, null, {id:32004});
+        const sel = window.compactMode
+            ? '[data-compact-tool]'
+            : '[data-tool-raw-name]:not([data-compact-tool])';
+        return {
+            orphans: chat.querySelectorAll('[data-unmatched-tool-result]').length,
+            cards: [...chat.querySelectorAll(sel)].map(card => (
+                window.compactMode
+                    ? `${card.innerText} ${card.dataset.resultContent || ''}`
+                    : card.innerText
+            )),
+        };
+    }""")
+    page.close()
+
+    assert rendered["orphans"] == 0, "у строки без идентификатора сироты быть не может"
+    cards = rendered["cards"]
+    assert len(cards) == 2
+    assert "LEGACY-RESULT-ONE" in cards[0] and "LEGACY-RESULT-TWO" not in cards[0]
+    assert "LEGACY-RESULT-TWO" in cards[1] and "LEGACY-RESULT-ONE" not in cards[1]
+
+
 @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
 def test_unmatched_tool_result_is_visible_and_never_attaches_to_another_call(
     dashboard_browser: Browser,

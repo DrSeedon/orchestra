@@ -3653,6 +3653,10 @@ function buildCompactToolLine(type, content, ts, payload) {
         line.dataset.unmatchedToolResult = '1';
         line.style.color = '#f59e0b';
         const toolUseId = payload?.tool_use_id;
+        if (toolUseId) {
+            line.dataset.orphanResultFor = toolUseId;
+            line._orphanResult = {content, ts, payload};
+        }
         line.textContent = `⚠️ Результат без вызова${toolUseId ? ` · ${toolUseId}` : ''} — ${content.slice(0, 100)}`;
     }
 
@@ -3668,12 +3672,39 @@ function _findLastBefore(parent, selector, anchor) {
     return null;
 }
 
+// У результата без tool_use_id связать его с вызовом можно только соседством: поле
+// появилось недавно, и 63.7% строк журнала (все до него) идентификатора не несут.
+// Точный поиск для них означал бы «Результат без вызова» на КАЖДОЙ старой строке.
 function _toolForResult(chat, payload, anchor, compact) {
     const toolUseId = payload?.tool_use_id;
-    if (!toolUseId) return null;
+    if (!toolUseId) return _findLastBefore(chat, compact ? '[data-compact-tool]' : '[data-last-tool]', anchor);
+    // Идентификатор уникален, поэтому ищем по всему чату, а не назад от якоря: страница
+    // истории разрезает параллельный блок, и вызов приезжает ПОЗЖЕ своего результата;
+    // у Codex вызов и вовсе попадает в журнал после него.
     const idSelector = `[data-tool-use-id="${CSS.escape(String(toolUseId))}"]`;
-    const selector = compact ? `[data-compact-tool]${idSelector}` : idSelector;
-    return _findLastBefore(chat, selector, anchor);
+    return chat.querySelector(compact
+        ? `${idSelector}[data-compact-tool]`
+        : `${idSelector}:not([data-compact-tool])`);
+}
+
+// Вызова ещё не было в DOM, когда рисовался результат — он стал сиротой. Как только
+// вызов появился, забираем сироту к нему: перерисовываем результат на прежнем месте.
+function _adoptOrphanResults(chat, toolUseId) {
+    if (!toolUseId) return;
+    const selector = `[data-orphan-result-for="${CSS.escape(String(toolUseId))}"]`;
+    for (const node of [...chat.querySelectorAll(selector)]) {
+        const saved = node._orphanResult;
+        if (!saved) continue;
+        // Узел НЕ удаляем: он может быть якорем текущей пачки дорисовки — `_prependHistory`
+        // держит `chat.firstChild` на весь цикл, и удаление роняет вставку следующей строки
+        // с NotFoundError. Гасим его и перерисовываем результат ровно на его месте.
+        delete node.dataset.orphanResultFor;
+        delete node.dataset.unmatchedToolResult;
+        node._orphanResult = null;
+        node.textContent = '';
+        node.style.display = 'none';
+        addChatEntry('tool_result', saved.content, saved.ts, node, saved.payload);
+    }
 }
 
 const HIDE_THINKING = document.body.dataset.hideThinking === 'true';
@@ -4184,6 +4215,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         _insert(line);
         // Trim oldest nodes to cap memory — loses old history but prevents unbounded DOM growth
         while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
+        if (type === 'tool') _adoptOrphanResults(chat, line.dataset.toolUseId);
         if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
     }
@@ -5114,6 +5146,10 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const lastTool = _toolForResult(chat, payload, anchor, false);
         if (!lastTool) {
             div.dataset.unmatchedToolResult = '1';
+            if (resultToolId) {
+                div.dataset.orphanResultFor = resultToolId;
+                div._orphanResult = {content, ts, payload};
+            }
             const warning = document.createElement('div');
             warning.className = 'text-amber-400 text-xs font-medium mb-1';
             warning.textContent = `⚠️ Результат без вызова${resultToolId ? ` · ${resultToolId}` : ''}`;
@@ -6256,6 +6292,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     const wasAtBottom = _chatAtBottom(chat);
     _insert(div);
     while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
+    if (type === 'tool') _adoptOrphanResults(chat, div.dataset.toolUseId);
     if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
 }
 
