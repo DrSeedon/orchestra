@@ -364,7 +364,8 @@ def init_db() -> None:
                 model TEXT NOT NULL,
                 ok INTEGER NOT NULL,
                 stop_reason TEXT NOT NULL,
-                cost_usd REAL NOT NULL,
+                cost_usd REAL,
+                cost_unaccounted INTEGER NOT NULL DEFAULT 0,
                 input_tokens INTEGER NOT NULL,
                 output_tokens INTEGER NOT NULL,
                 cache_read_tokens INTEGER NOT NULL,
@@ -1044,6 +1045,56 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE turn_usage ADD COLUMN quota_primary_pct REAL")
     if turn_usage_cols and "quota_sampled_at" not in turn_usage_cols:
         c.execute("ALTER TABLE turn_usage ADD COLUMN quota_sampled_at TEXT")
+    if turn_usage_cols and "cost_unaccounted" not in turn_usage_cols:
+        c.execute(
+            "ALTER TABLE turn_usage ADD COLUMN "
+            "cost_unaccounted INTEGER NOT NULL DEFAULT 0"
+        )
+    turn_usage_info = {
+        row[1]: row for row in c.execute("PRAGMA table_info(turn_usage)").fetchall()
+    }
+    if turn_usage_info and turn_usage_info["cost_usd"][3]:
+        c.execute(
+            """CREATE TABLE turn_usage_nullable_cost (
+                id INTEGER PRIMARY KEY,
+                event_id TEXT NOT NULL UNIQUE,
+                ts TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                scope TEXT NOT NULL DEFAULT '',
+                task_id TEXT NOT NULL DEFAULT '',
+                runtime TEXT NOT NULL,
+                model TEXT NOT NULL,
+                ok INTEGER NOT NULL,
+                stop_reason TEXT NOT NULL,
+                cost_usd REAL,
+                cost_unaccounted INTEGER NOT NULL DEFAULT 0,
+                input_tokens INTEGER NOT NULL,
+                output_tokens INTEGER NOT NULL,
+                cache_read_tokens INTEGER NOT NULL,
+                cache_create_tokens INTEGER NOT NULL,
+                quota_five_hour_pct REAL,
+                quota_seven_day_pct REAL,
+                quota_primary_pct REAL,
+                quota_sampled_at TEXT
+            )"""
+        )
+        c.execute(
+            """INSERT INTO turn_usage_nullable_cost
+               SELECT id, event_id, ts, session_id, scope, task_id,
+                      runtime, model, ok, stop_reason,
+                      cost_usd, cost_unaccounted,
+                      input_tokens, output_tokens,
+                      cache_read_tokens, cache_create_tokens,
+                      quota_five_hour_pct, quota_seven_day_pct,
+                      quota_primary_pct, quota_sampled_at
+               FROM turn_usage"""
+        )
+        c.execute("DROP TABLE turn_usage")
+        c.execute("ALTER TABLE turn_usage_nullable_cost RENAME TO turn_usage")
+        c.execute("CREATE INDEX idx_turn_usage_ts ON turn_usage(ts)")
+        c.execute(
+            "CREATE INDEX idx_turn_usage_session ON turn_usage(session_id, ts)"
+        )
     # Идемпотентный сид профиля 'personal' (config_dir="" → env процесса, как сегодня).
     # INSERT OR IGNORE: повторная миграция не падает и не перетирает существующую строку.
     c.execute("INSERT OR IGNORE INTO profiles (name, config_dir) VALUES ('personal', '')")
@@ -2035,7 +2086,8 @@ def turn_usage_add(
     model: str,
     ok: bool,
     stop_reason: str,
-    cost_usd: float,
+    cost_usd: float | None,
+    cost_unaccounted: bool = False,
     input_tokens: int,
     output_tokens: int,
     cache_read_tokens: int,
@@ -2073,11 +2125,11 @@ def turn_usage_add(
             """INSERT OR IGNORE INTO turn_usage
                (event_id, ts, session_id, scope, task_id,
                 runtime, model, ok, stop_reason,
-                cost_usd, input_tokens, output_tokens,
+                cost_usd, cost_unaccounted, input_tokens, output_tokens,
                 cache_read_tokens, cache_create_tokens,
                 quota_five_hour_pct, quota_seven_day_pct,
                 quota_primary_pct, quota_sampled_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 event_id,
                 observed_at,
@@ -2088,7 +2140,8 @@ def turn_usage_add(
                 model,
                 int(bool(ok)),
                 stop_reason,
-                max(0.0, float(cost_usd or 0)),
+                None if cost_unaccounted else max(0.0, float(cost_usd or 0)),
+                int(bool(cost_unaccounted)),
                 max(0, int(input_tokens or 0)),
                 max(0, int(output_tokens or 0)),
                 max(0, int(cache_read_tokens or 0)),

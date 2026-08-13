@@ -174,7 +174,7 @@ def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
                 cache_write_input_tokens: int, output_tokens: int) -> float:
     """API-equivalent cost with cached input charged at its actual lower rate."""
     if model not in CODEX_TOKEN_PRICES:
-        return 0.0
+        raise ValueError(f"No token price configured for {model}")
     prices = CODEX_TOKEN_PRICES[model]
     if prices is None:
         raise ValueError(f"No published token price for {model}")
@@ -1504,9 +1504,15 @@ class CodexBackend(JsonRpcStdioTransport):
                 unknown_reason="Codex did not report last-call context",
             ),
         )
-        cost = _codex_cost(
-            self.model, turn_input, turn_cached, turn_cache_write, turn_output
-        )
+        cost_error = ""
+        try:
+            cost = _codex_cost(
+                self.model, turn_input, turn_cached, turn_cache_write, turn_output
+            )
+        except Exception as cost_exception:
+            cost = 0.0
+            cost_error = f"{type(cost_exception).__name__}: {cost_exception}"
+            logger.error("Codex usage unaccounted: %s", cost_error)
         metadata = {
             "event_id": str(turn.get("id") or ""),
             "session_id": self._thread_id,
@@ -1523,6 +1529,14 @@ class CodexBackend(JsonRpcStdioTransport):
         events = []
         if not ok and error.get("message"):
             events.append(AgentEvent("error", error["message"], {"model_error": model_error}))
+        if cost_error:
+            metadata["cost_unaccounted"] = True
+            metadata["cost_error"] = cost_error
+            events.append(AgentEvent(
+                "warning",
+                f"Codex usage unaccounted: {cost_error}",
+                {"cost_unaccounted": True, "cost_error": cost_error},
+            ))
         events.append(AgentEvent(
             "turn_end",
             f"stop_reason={stop_reason}",

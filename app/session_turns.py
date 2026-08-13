@@ -326,6 +326,7 @@ class TurnManager:
     def handle_turn_end(self, event: AgentEvent) -> None:
         s = self.s
         meta = event.metadata
+        cost_unaccounted = meta.get("cost_unaccounted") is True
         s._turn_start = 0
         ok, sr, nt = s._cost.apply_turn_result(meta, event.usage)
         event_id = str(meta.get("event_id") or "")
@@ -338,6 +339,9 @@ class TurnManager:
             )
             quota_snapshot = _unknown_quota_snapshot()
         if event_id:
+            cost_fields = {"cost_usd": s._turn_cost}
+            if cost_unaccounted:
+                cost_fields = {"cost_usd": None, "cost_unaccounted": True}
             s._submit_db_write(
                 turn_usage_add,
                 event_id=event_id,
@@ -348,7 +352,7 @@ class TurnManager:
                 model=s.model,
                 ok=ok,
                 stop_reason=sr,
-                cost_usd=s._turn_cost,
+                **cost_fields,
                 input_tokens=meta.get("input_tokens", 0),
                 output_tokens=meta.get("output_tokens", 0),
                 cache_read_tokens=meta.get("cache_read", 0),
@@ -466,11 +470,16 @@ class TurnManager:
         def _fc(v):
             return f"{v:.4f}" if v < 0.01 and v > 0 else f"{v:.2f}"
         limits_s = _format_limits(quota_snapshot)
+        if cost_unaccounted:
+            cost_summary = f"cost unaccounted for {s.model}"
+        else:
+            cost_summary = (
+                f"${_fc(s._turn_cost)} turn, ${_fc(s._context_cost)} ctx, "
+                f"${_fc(s._session_cost)} session, ${_fc(s.cost_usd)} total"
+            )
         s._log(
             "status",
-            f"turn ended ({sr}, {nt} turns, ${_fc(s._turn_cost)} turn, "
-            f"${_fc(s._context_cost)} ctx, ${_fc(s._session_cost)} session, "
-            f"${_fc(s.cost_usd)} total {ctx_s}){limits_s}",
+            f"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s}){limits_s}",
             event_id=event_id,
         )
 

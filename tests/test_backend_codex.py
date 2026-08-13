@@ -1485,3 +1485,215 @@ def test_is_alive_tracks_codex_process_state():
 
     backend._proc.returncode = 0
     assert backend.is_alive is False
+
+
+def _drive_turn_completed(model, payload):
+    backend = CodexBackend(model=model, cwd="/tmp")
+    usage = payload.get("usage") or {}
+    backend._convert_notification({
+        "method": "thread/tokenUsage/updated",
+        "params": {
+            "threadId": "thread-unpriced-1",
+            "tokenUsage": {
+                "total": {
+                    "inputTokens": usage.get("input_tokens", 0),
+                    "cachedInputTokens": usage.get("cached_input_tokens", 0),
+                    "cacheWriteInputTokens": usage.get(
+                        "cache_creation_input_tokens", 0
+                    ),
+                    "outputTokens": usage.get("output_tokens", 0),
+                },
+                "last": {},
+                "modelContextWindow": 128000,
+            },
+        },
+    })
+    try:
+        events = backend._convert_notification({
+            "method": "turn/completed",
+            "params": {
+                "threadId": "thread-unpriced-1",
+                "turn": {
+                    "id": payload["id"],
+                    "status": "completed",
+                },
+            },
+        })
+    except ValueError:
+        events = []
+    for event in events:
+        event.kind = event.type
+    return events
+
+
+UNPRICED_MODEL = "gpt-5.3-codex-spark"
+
+
+def _unpriced_turn_payload():
+    """Хвост хода в форме, которую разбирает _handle_turn_completed."""
+    return {
+        "id": "turn-unpriced-1",
+        "usage": {
+            "input_tokens": 1000,
+            "cached_input_tokens": 400,
+            "cache_creation_input_tokens": 100,
+            "output_tokens": 50,
+        },
+    }
+
+
+def test_t1_unpriced_model_still_closes_the_turn(monkeypatch):
+    """Цена не посчиталась → ход ВСЁ РАВНО закрыт: событие turn_end есть."""
+    import app.backend_codex as bc
+    monkeypatch.setitem(bc.CODEX_TOKEN_PRICES, UNPRICED_MODEL, None)
+    events = _drive_turn_completed(model=UNPRICED_MODEL,
+                                   payload=_unpriced_turn_payload())
+    kinds = [e.kind for e in events]
+    assert "turn_end" in kinds, f"конец хода потерян, пришло: {kinds}"
+
+
+def test_t2_unpriced_turn_is_marked_unaccounted_not_zero(monkeypatch):
+    """Неучтённый расход помечен ЯВНО, а не выдан за ноль."""
+    import app.backend_codex as bc
+    monkeypatch.setitem(bc.CODEX_TOKEN_PRICES, UNPRICED_MODEL, None)
+    events = _drive_turn_completed(model=UNPRICED_MODEL,
+                                   payload=_unpriced_turn_payload())
+    end = next(e for e in events if e.kind == "turn_end")
+    assert end.metadata.get("cost_unaccounted") is True, (
+        "расход обязан быть помечен неучтённым: ноль читается как 'бесплатно'")
+    assert end.metadata.get("input_tokens") == 1000, (
+        "токены обязаны доехать, даже когда цена не посчиталась")
+
+
+def test_t3_priced_model_is_unchanged(monkeypatch):
+    """Контрольное плечо: у модели С ценой поведение прежнее."""
+    events = _drive_turn_completed(model="gpt-5.6-luna",
+                                   payload=_unpriced_turn_payload())
+    end = next(e for e in events if e.kind == "turn_end")
+    assert end.metadata.get("cost_unaccounted") in (False, None)
+    assert end.metadata.get("cost_usd", 0) > 0
+
+
+def _persist_codex_turn(tmp_path, monkeypatch, *, model, event_id):
+    import app.db as dbmod
+    import app.session_turns as session_turns
+    from app.session import AgentSession
+
+    monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "turn-usage.db")
+    dbmod.init_db()
+    monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+    monkeypatch.setattr(
+        session_turns,
+        "_cached_quota_snapshot",
+        lambda _runtime, _model: {
+            "state": {
+                "quota_five_hour_pct": None,
+                "quota_seven_day_pct": None,
+                "quota_primary_pct": None,
+                "quota_sampled_at": None,
+            },
+            "display": (),
+        },
+    )
+
+    payload = _unpriced_turn_payload()
+    payload["id"] = event_id
+    events = _drive_turn_completed(model=model, payload=payload)
+    end = next(event for event in events if event.kind == "turn_end")
+    session = AgentSession(
+        id=f"session-{event_id}",
+        name=f"worker-{event_id}",
+        scope="/test",
+        cwd="/tmp",
+        model=model,
+        backend_type="codex",
+    )
+    session._log = lambda *_args, **_kwargs: None
+    session._persist = lambda: None
+    session._spawn_bg = lambda coro: coro.close()
+    session._hibernate.schedule = MagicMock()
+    session._submit_db_write = (
+        lambda operation, *args, **kwargs: operation(*args, **kwargs)
+    )
+    session._turns.handle_turn_end(end)
+
+    with dbmod._conn() as conn:
+        return conn.execute(
+            "SELECT * FROM turn_usage WHERE event_id = ?", (event_id,)
+        ).fetchone()
+
+
+def _persist_unaccounted_turn(tmp_path, monkeypatch):
+    return _persist_codex_turn(
+        tmp_path,
+        monkeypatch,
+        model=UNPRICED_MODEL,
+        event_id="turn-unaccounted-db",
+    )
+
+
+def _persist_priced_turn(tmp_path, monkeypatch):
+    return _persist_codex_turn(
+        tmp_path,
+        monkeypatch,
+        model="gpt-5.6-luna",
+        event_id="turn-priced-db",
+    )
+
+
+def _stats_over_mixed_turns(tmp_path, monkeypatch):
+    import app.db as dbmod
+
+    _persist_codex_turn(
+        tmp_path,
+        monkeypatch,
+        model=UNPRICED_MODEL,
+        event_id="turn-mixed-unaccounted",
+    )
+    _persist_codex_turn(
+        tmp_path,
+        monkeypatch,
+        model="gpt-5.6-luna",
+        event_id="turn-mixed-priced",
+    )
+    with dbmod._conn() as conn:
+        row = conn.execute(
+            """SELECT COUNT(*)              AS rows,
+                      COUNT(cost_usd)       AS priced_observations,
+                      SUM(cost_unaccounted) AS unaccounted_rows,
+                      COALESCE(SUM(cost_usd), 0) AS total_cost
+               FROM turn_usage"""
+        ).fetchone()
+    return dict(row)
+
+
+def _expected_priced_total():
+    return (500 * 0.2 + 400 * 0.02 + 100 * 0.25 + 50 * 1.2) / 1_000_000
+
+
+def test_t4_unaccounted_turn_persists_null_cost_not_zero(tmp_path, monkeypatch):
+    """Неучтённый расход в БД — NULL, а не 0.0: ноль занижает SUM() молча."""
+    # обвязку (поднять БД во временном пути, прогнать handle_turn_end
+    # с metadata из t2) напиши сам по образцу соседних тестов этого файла
+    row = _persist_unaccounted_turn(tmp_path, monkeypatch)
+    assert row["cost_usd"] is None, f"ожидался NULL, получено {row['cost_usd']!r}"
+    assert row["cost_unaccounted"] == 1
+    assert row["input_tokens"] == 1000, "токены обязаны сохраниться"
+
+
+def test_t5_unaccounted_turn_is_not_counted_as_a_priced_observation(tmp_path, monkeypatch):
+    """NULL от 0.0 отличает СЧЁТЧИК, а не сумма: SUM даёт одно и то же."""
+    stats = _stats_over_mixed_turns(tmp_path, monkeypatch)   # один платный ход + один неучтённый
+    assert stats["rows"] == 2, "обе строки обязаны сохраниться: токены нужны"
+    assert stats["priced_observations"] == 1, (
+        "неучтённый ход попал в выборку цен как наблюдение — "
+        "значит записан 0.0, а не NULL")
+    assert stats["unaccounted_rows"] == 1
+    assert stats["total_cost"] == pytest.approx(_expected_priced_total())
+
+
+def test_t6_priced_turn_is_unchanged(tmp_path, monkeypatch):
+    """Контрольное плечо: у модели С ценой запись прежняя."""
+    row = _persist_priced_turn(tmp_path, monkeypatch)
+    assert row["cost_usd"] > 0
+    assert row["cost_unaccounted"] == 0
