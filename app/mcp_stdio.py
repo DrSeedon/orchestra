@@ -723,14 +723,16 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        role: str = "worker",
                        mcp_servers: str = "",
                        owned_dirs: str = "",
-                       tg_topic: bool = False) -> str:
+                       tg_topic: bool = False,
+                       model_policy_override_reason: str = "") -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose it by the `<model-routing>` block in your own prompt, which is the single source of truth for routing (model ids are deliberately not repeated here: a duplicated list rots).
     base_branch — от какой локальной ветки ответвить worktree. Пусто ("") = авто по
     стратегии пайплайна: parent → ветка родителя, main → проверяемый mainline репозитория.
     При неоднозначности spawn требует явную ветку.
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
     owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → БЛОК (spawn fails).
-    tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
+    tg_topic — если True, агент получит собственный TG топик для логов и сообщений.
+    model_policy_override_reason — явное исключение из серверной model policy. Пусто = исключения нет; непустая причина записывается в лог."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -789,6 +791,8 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         body["description"] = description
     if tg_topic:
         body["tg_topic"] = True
+    if model_policy_override_reason:
+        body["model_policy_override_reason"] = model_policy_override_reason
     result = await _api("POST", "/api/sessions", json=body)
     if isinstance(result, dict) and result.get("error"):
         raise ApiToolError(code="domain_error", message=f"Spawn failed: {result['error']}")

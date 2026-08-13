@@ -68,6 +68,18 @@ class TestDefaultManifestLoads:
         assert d.docs_scaffold is False  # апстрим не скаффолдит doc-папки
         assert d.inherit_claude_md is True  # CLAUDE.md проекта копируется в worktree
 
+    def test_worker_model_policy_is_manifest_owned(self):
+        policy = P.load_pipeline(PIPELINE).worker_model_policy
+        assert policy is not None
+        assert policy.always_allowed == [
+            "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark",
+        ]
+        assert policy.denied == ["claude-fable-5[1m]", "gpt-5.6-terra"]
+        assert policy.quota_balanced.model == "claude-opus-5[1m]"
+        assert policy.quota_balanced.block_gap_pp == 6
+        assert policy.quota_balanced.unblock_gap_pp == 3
+        assert policy.alternatives == ["gpt-5.6-sol", "gpt-5.6-luna"]
+
     def test_prompt_layers_have_no_pipeline_layer(self):
         """У апстрима НЕТ _pipeline.md — только base + роль."""
         cfg = P.load_pipeline(PIPELINE)

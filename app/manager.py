@@ -4,6 +4,7 @@ import asyncio
 import itertools
 import json
 import logging
+import math
 import os
 import re
 import sqlite3
@@ -66,6 +67,32 @@ _adhoc_serial = itertools.count(1)
 # Клиент MCP отваливается по таймауту через 30 с (mcp_stdio.py). Ждём заведомо меньше,
 # чтобы вызывающий получил внятный отказ, а не ReadTimeout, неотличимый от мёртвого сервера.
 LOCK_WAIT_LIMIT_SECONDS = 25.0
+# Keep policy telemetry inside the 30s MCP request budget. Slow/missing telemetry is
+# advisory failure: the model gate logs it and admits the worker.
+WORKER_MODEL_POLICY_TIMEOUT_SECONDS = 12.0
+
+
+async def _worker_model_policy_usage() -> dict:
+    """Read the same live payload served by GET /api/usage."""
+    from app.routes.system import get_usage
+
+    usage = await get_usage()
+    if not isinstance(usage, dict):
+        raise RuntimeError("GET /api/usage returned no worker quota telemetry")
+    return usage
+
+
+def _policy_utilization(usage: dict, provider: str, window: str) -> float:
+    data = usage.get(provider)
+    value = data.get(window, {}).get("utilization") if isinstance(data, dict) else None
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        or not 0 <= float(value) <= 100
+    ):
+        raise ValueError(f"{provider}.{window}.utilization is missing or malformed")
+    return float(value)
 
 
 class LockBusy(RuntimeError):
@@ -435,6 +462,7 @@ class SessionManager:
         self.sessions: dict[str, AgentSession] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
         self._spawn_locks: dict[tuple[str, str], asyncio.Lock] = {}
+        self._worker_model_policy_latches: dict[tuple[str, str, float, float], bool] = {}
         # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
         self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
         # #220 T2: рестарт закрывает приём новых ходов, пока дренажит уже идущие
@@ -486,6 +514,70 @@ class SessionManager:
 
     # ── Session CRUD ──
 
+    async def _enforce_worker_model_policy(
+        self,
+        pipeline: str,
+        role: str,
+        model: str,
+        override_reason: str,
+    ) -> None:
+        cfg = load_pipeline(pipeline)
+        role_spec = cfg.roles.get(role)
+        if role_spec is None or role_spec.kind == "orchestrator":
+            return
+        policy = cfg.worker_model_policy
+        if policy is None:
+            return
+
+        reason = override_reason.strip()
+        if reason:
+            logger.warning(
+                "worker model policy overridden: pipeline=%s role=%s model=%s reason=%s",
+                pipeline, role, model, reason,
+            )
+            return
+        if model in policy.always_allowed:
+            return
+
+        alternatives = ", ".join(policy.alternatives)
+        balanced = policy.quota_balanced
+        if model != balanced.model:
+            raise ValueError(
+                f"worker model '{model}' is not allowed by pipeline '{pipeline}'. "
+                f"Use {alternatives}, or pass model_policy_override_reason with a non-empty reason."
+            )
+
+        try:
+            async with asyncio.timeout(WORKER_MODEL_POLICY_TIMEOUT_SECONDS):
+                usage = await _worker_model_policy_usage()
+            claude = _policy_utilization(usage, "anthropic", "seven_day")
+            codex = _policy_utilization(usage, "codex", "primary")
+        except Exception as error:
+            logger.error(
+                "worker model policy telemetry unavailable; allowing model=%s: %s: %s",
+                model, type(error).__name__, err_text(error),
+            )
+            return
+
+        gap = claude - codex
+        key = (pipeline, model, balanced.block_gap_pp, balanced.unblock_gap_pp)
+        blocked = self._worker_model_policy_latches.get(
+            key, gap > balanced.unblock_gap_pp,
+        )
+        if gap >= balanced.block_gap_pp:
+            blocked = True
+        elif gap <= balanced.unblock_gap_pp:
+            blocked = False
+        self._worker_model_policy_latches[key] = blocked
+        if blocked:
+            raise ValueError(
+                f"worker model '{model}' is blocked while subscription pools are imbalanced: "
+                f"Claude 7d {claude:g}%, Codex {codex:g}% (gap {gap:g} pp; "
+                f"unlocks at <= {balanced.unblock_gap_pp:g} pp and blocks at "
+                f">= {balanced.block_gap_pp:g} pp). Use {alternatives}, or pass "
+                "model_policy_override_reason with a non-empty reason."
+            )
+
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
                              system_prompt: str = "", use_worktree: bool = False,
                              repo_path: str | None = None, is_orchestrator: bool = False,
@@ -497,7 +589,8 @@ class SessionManager:
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
                              tg_topic: bool = False,
-                             planned_initial_turn: bool = False) -> AgentSession:
+                             planned_initial_turn: bool = False,
+                             model_policy_override_reason: str = "") -> AgentSession:
         normalized_scope = scope.rstrip("/")
         key = (normalized_scope, name)
         lock = self._spawn_locks.setdefault(key, asyncio.Lock())
@@ -524,6 +617,7 @@ class SessionManager:
                 owned_dirs=owned_dirs,
                 tg_topic=tg_topic,
                 planned_initial_turn=planned_initial_turn,
+                model_policy_override_reason=model_policy_override_reason,
             )
 
     async def _create_session_locked(self, name: str, scope: str, cwd: str, model: str,
@@ -537,7 +631,8 @@ class SessionManager:
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
                              tg_topic: bool = False,
-                             planned_initial_turn: bool = False) -> AgentSession:
+                             planned_initial_turn: bool = False,
+                             model_policy_override_reason: str = "") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -649,6 +744,9 @@ class SessionManager:
         validate_spawn(pipeline, parent_role, role if explicit_role else "")
 
         if planned_initial_turn and not is_orch:
+            await self._enforce_worker_model_policy(
+                pipeline, role, model, model_policy_override_reason,
+            )
             from app.quota_gate import get_worker_admission, require_worker_admission
 
             require_worker_admission(await get_worker_admission(model))

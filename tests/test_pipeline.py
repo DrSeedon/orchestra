@@ -109,6 +109,27 @@ class TestLoadPipeline:
         assert second is not first
         assert second.roles["hand"].effort == "high"
 
+    @pytest.mark.parametrize("block,unblock", [(3, 3), (2, 3), (101, 3)])
+    def test_worker_model_policy_rejects_invalid_hysteresis(
+        self, pipelines_root, block, unblock,
+    ):
+        manifest = _MINIMAL.format(name="demo").replace(
+            "    defaults:\n",
+            "    worker_model_policy:\n"
+            "      always_allowed: [gpt-5.6-sol]\n"
+            "      denied: ['claude-fable-5[1m]']\n"
+            "      quota_balanced:\n"
+            "        model: 'claude-opus-5[1m]'\n"
+            f"        block_gap_pp: {block}\n"
+            f"        unblock_gap_pp: {unblock}\n"
+            "      alternatives: [gpt-5.6-sol]\n"
+            "    defaults:\n",
+        )
+        _write_pipeline(pipelines_root, "demo", manifest)
+
+        with pytest.raises(ValueError, match="unblock_gap_pp < block_gap_pp"):
+            P.load_pipeline("demo")
+
     def test_file_changed_during_read_is_not_cached(self, pipelines_root, monkeypatch):
         """Неатомарная запись извне: содержимое не должно попасть в кеш и наружу.
 

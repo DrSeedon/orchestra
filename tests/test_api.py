@@ -2721,6 +2721,36 @@ async def test_create_session_passes_pipeline_and_profile(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_create_session_passes_model_policy_override_reason(monkeypatch):
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+    import app.routes.system as sysmod
+    captured = {}
+
+    async def fake_create(**kwargs):
+        captured.update(kwargs)
+
+        class _Sess:
+            _spawn_warning = ""
+
+            def to_dict(self):
+                return {"name": kwargs["name"], "id": "sid"}
+
+        return _Sess()
+
+    monkeypatch.setattr(mainmod.manager, "create_session", fake_create)
+    monkeypatch.setattr(sysmod, "_is_safe_path", lambda p: True)
+    req = sessmod.CreateSessionRequest(
+        name="w1", cwd="/tmp", model="claude-opus-5[1m]",
+        model_policy_override_reason="pilot #227",
+    )
+
+    await sessmod.create_session(req)
+
+    assert captured["model_policy_override_reason"] == "pilot #227"
+
+
+@pytest.mark.asyncio
 async def test_create_worktree_response_contains_server_repo_metadata(
     monkeypatch, tmp_path,
 ):

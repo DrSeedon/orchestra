@@ -533,6 +533,42 @@ async def test_spawn_base_branch_default_empty(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("reason,expected", [
+    ("", None),
+    ("pilot #227", "pilot #227"),
+])
+async def test_spawn_sends_model_policy_override_only_when_requested(
+    monkeypatch, reason, expected,
+):
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orchestrator")
+    captured = {}
+
+    async def fake_api(method, path, **kw):
+        if path == "/api/sessions":
+            captured.update(kw["json"])
+            return {
+                "worktree_path": "/worktrees/w",
+                "branch": "task-227/w",
+                "repo_path": "/s",
+                "git_common_dir": "/s/.git",
+            }
+        return {"ok": True}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.spawn_worker(
+            name="w", task="t", repo_path="/s", model="claude-opus-5[1m]",
+            model_policy_override_reason=reason,
+        )
+
+    if expected is None:
+        assert "model_policy_override_reason" not in captured
+    else:
+        assert captured["model_policy_override_reason"] == expected
+
+
+@pytest.mark.asyncio
 async def test_spawn_marks_parent_as_initial_task_sender(monkeypatch):
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")

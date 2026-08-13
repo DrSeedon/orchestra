@@ -178,6 +178,71 @@ class PromptLayers(BaseModel):
         return v
 
 
+class QuotaBalancedModelPolicy(BaseModel):
+    """One worker model whose admission follows the live Claude/Codex balance."""
+
+    model_config = ConfigDict(extra="forbid")
+    model: str
+    block_gap_pp: float
+    unblock_gap_pp: float
+
+    @field_validator("model")
+    @classmethod
+    def _canonical_model(cls, v: str) -> str:
+        if not _model_is_known(v):
+            logger.warning("worker model policy: unknown quota-balanced model '%s'", v)
+        return _canon_model(v)
+
+    @model_validator(mode="after")
+    def _valid_hysteresis(self) -> "QuotaBalancedModelPolicy":
+        if not 0 <= self.unblock_gap_pp < self.block_gap_pp <= 100:
+            raise ValueError(
+                "worker model policy requires 0 <= unblock_gap_pp < block_gap_pp <= 100"
+            )
+        return self
+
+
+class WorkerModelPolicy(BaseModel):
+    """Server-enforced model admission for roles whose manifest kind is worker."""
+
+    model_config = ConfigDict(extra="forbid")
+    always_allowed: list[str]
+    denied: list[str]
+    quota_balanced: QuotaBalancedModelPolicy
+    alternatives: list[str]
+
+    @field_validator("always_allowed", "denied", "alternatives")
+    @classmethod
+    def _canonical_models(cls, values: list[str]) -> list[str]:
+        result: list[str] = []
+        for value in values:
+            if not _model_is_known(value):
+                logger.warning("worker model policy: unknown model '%s'", value)
+            model = _canon_model(value)
+            if model in result:
+                raise ValueError(f"worker model policy contains duplicate model '{model}'")
+            result.append(model)
+        return result
+
+    @model_validator(mode="after")
+    def _valid_sets(self) -> "WorkerModelPolicy":
+        if self.quota_balanced.model in self.always_allowed:
+            raise ValueError("quota-balanced model cannot also be always allowed")
+        overlap = set(self.always_allowed) & set(self.denied)
+        if self.quota_balanced.model in self.denied:
+            overlap.add(self.quota_balanced.model)
+        if overlap:
+            raise ValueError(
+                f"worker model policy allows and denies the same model: {sorted(overlap)}"
+            )
+        missing = set(self.alternatives) - set(self.always_allowed)
+        if missing:
+            raise ValueError(
+                f"worker model policy alternatives must be always allowed: {sorted(missing)}"
+            )
+        return self
+
+
 class Defaults(BaseModel):
     """Дефолты пайплайна. Роль переопределяет: скаляр — replace, список — union."""
     model_config = ConfigDict(extra="forbid")
@@ -315,6 +380,7 @@ class PipelineConfig(BaseModel):
     description: str = ""
     validation: ValidationMode = "fail-closed"
     defaults: Defaults = Field(default_factory=Defaults)
+    worker_model_policy: WorkerModelPolicy | None = None
     roles: dict[str, RoleSpec]
 
     @model_validator(mode="after")

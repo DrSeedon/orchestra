@@ -69,6 +69,7 @@ class TestCreateSession:
             await mgr.create_session(
                 name="blocked-worker", scope="/s", cwd="/tmp",
                 model="claude-sonnet-5[1m]", planned_initial_turn=True,
+                model_policy_override_reason="exercise weekly quota gate in isolation",
             )
 
         assert mgr.sessions == {}
