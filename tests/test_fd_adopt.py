@@ -13,6 +13,7 @@ import asyncio
 import contextlib
 import json
 import os
+import signal
 from datetime import datetime, timezone
 from unittest.mock import patch
 
@@ -490,14 +491,29 @@ async def test_impl_failed_handover_does_not_leave_quiescing_stuck_on():
                 pass
 
 
-def test_impl_unknown_start_time_refuses_to_signal(monkeypatch, tmp_path):
+def test_t1_unknown_start_time_refuses_to_signal(monkeypatch, tmp_path):
     """Заход 4, note 2: an unrecorded start time must NOT be re-measured at adopt time — that
     describes whoever holds the pid NOW. Unknown identity means refuse, and an orphan surviving
     beats killing a stranger."""
     from app import backend_jsonrpc
 
-    killed = []
-    monkeypatch.setattr(backend_jsonrpc.os, "kill", lambda pid, sig: killed.append(pid))
+    numeric_kills = []
+    pidfd_signals = []
+    monkeypatch.setattr(
+        backend_jsonrpc.os, "kill", lambda pid, sig: numeric_kills.append(pid)
+    )
+    monkeypatch.setattr(backend_jsonrpc.os, "pidfd_open", lambda pid, flags=0: 91_110)
+    monkeypatch.setattr(
+        backend_jsonrpc.signal,
+        "pidfd_send_signal",
+        lambda pidfd, sig, *args, **kwargs: pidfd_signals.append((pidfd, sig)),
+    )
+    real_close = backend_jsonrpc.os.close
+    monkeypatch.setattr(
+        backend_jsonrpc.os,
+        "close",
+        lambda fd: None if fd == 91_110 else real_close(fd),
+    )
     monkeypatch.setattr(backend_jsonrpc, "process_start_time", lambda pid: 777)
     real_open = open
 
@@ -506,19 +522,40 @@ def test_impl_unknown_start_time_refuses_to_signal(monkeypatch, tmp_path):
             return real_open(tmp_path / "cmdline", *a, **kw)
         return real_open(path, *a, **kw)
 
-    (tmp_path / "cmdline").write_bytes(b"node /usr/bin/codex app-server --stdio\0")
+    (tmp_path / "cmdline").write_bytes(
+        b"node\0/usr/bin/codex\0app-server\0--stdio\0"
+    )
     monkeypatch.setattr("builtins.open", fake_open)
 
     backend_jsonrpc.terminate_cli_process(4242, "Codex app-server", 0)
-    assert killed == [], "with no recorded start time the identity is unproven — do not signal"
+    assert numeric_kills == []
+    assert pidfd_signals == [], (
+        "with no recorded start time the identity is unproven — do not signal"
+    )
 
 
-def test_impl_pid_identity_refuses_a_reused_pid(monkeypatch, tmp_path):
+def test_t1_helper_uses_pidfd_and_refuses_a_reused_pid(monkeypatch, tmp_path):
     """Round-2 finding: pid alone is not an identity. A reused number must not be signalled."""
     from app import backend_jsonrpc
 
-    killed = []
-    monkeypatch.setattr(backend_jsonrpc.os, "kill", lambda pid, sig: killed.append(pid))
+    numeric_kills = []
+    pidfd_signals = []
+    closed_pidfds = []
+    monkeypatch.setattr(
+        backend_jsonrpc.os, "kill", lambda pid, sig: numeric_kills.append(pid)
+    )
+    monkeypatch.setattr(backend_jsonrpc.os, "pidfd_open", lambda pid, flags=0: 91_111)
+    monkeypatch.setattr(
+        backend_jsonrpc.signal,
+        "pidfd_send_signal",
+        lambda pidfd, sig, *args, **kwargs: pidfd_signals.append((pidfd, sig)),
+    )
+    real_close = backend_jsonrpc.os.close
+    monkeypatch.setattr(
+        backend_jsonrpc.os,
+        "close",
+        lambda fd: closed_pidfds.append(fd) if fd == 91_111 else real_close(fd),
+    )
     monkeypatch.setattr(backend_jsonrpc, "process_start_time", lambda pid: 999)
 
     real_open = open
@@ -528,20 +565,28 @@ def test_impl_pid_identity_refuses_a_reused_pid(monkeypatch, tmp_path):
             return real_open(tmp_path / "cmdline", *a, **kw)
         return real_open(path, *a, **kw)
 
-    (tmp_path / "cmdline").write_bytes(b"node /usr/bin/codex app-server --stdio\0")
+    (tmp_path / "cmdline").write_bytes(
+        b"node\0/usr/bin/codex\0app-server\0--stdio\0"
+    )
     monkeypatch.setattr("builtins.open", fake_open)
 
     backend_jsonrpc.terminate_cli_process(4242, "Codex app-server", 999)
-    assert killed == [4242]
+    assert numeric_kills == [], "numeric os.kill reopens the PID-reuse race"
+    assert pidfd_signals == [(91_111, signal.SIGTERM)]
+    assert closed_pidfds == [91_111]
 
-    killed.clear()
+    pidfd_signals.clear()
+    closed_pidfds.clear()
     backend_jsonrpc.terminate_cli_process(4242, "Codex app-server", 111)
-    assert killed == [], "a pid whose start time does not match must NOT be signalled"
+    assert pidfd_signals == [], "a pid whose start time does not match must NOT be signalled"
+    assert closed_pidfds == [91_111]
 
-    killed.clear()
-    (tmp_path / "cmdline").write_bytes(b"/usr/bin/postgres -D /var/lib/postgres\0")
+    pidfd_signals.clear()
+    closed_pidfds.clear()
+    (tmp_path / "cmdline").write_bytes(b"/usr/bin/notcodex-helper\0app-server\0--stdio\0")
     backend_jsonrpc.terminate_cli_process(4242, "Codex app-server", 999)
-    assert killed == [], "a foreign command must NOT be signalled"
+    assert pidfd_signals == [], "a foreign command must NOT be signalled"
+    assert closed_pidfds == [91_111]
 
 
 @pytest.mark.asyncio

@@ -13,10 +13,13 @@ liveness. Семантику (что за события, как их конве
 import asyncio
 import base64
 import contextlib
+import errno
 import json
 import logging
 import os
+import shutil
 import signal
+from pathlib import Path
 from typing import Optional
 
 
@@ -335,50 +338,141 @@ def bounded_tool_arguments(value, *, field: str = ""):
     return value
 
 
-def terminate_cli_process(pid: int, label: str, started_at: int = 0) -> None:
-    """SIGTERM an agent CLI we are replacing, after proving it IS that CLI (#230 T9).
+def _normalise_executable(path: str) -> str:
+    """Resolve a configured executable and reject missing or malformed paths."""
+    if not isinstance(path, str) or not path or "\0" in path:
+        raise ValueError("invalid executable path")
+    path = os.path.expanduser(path)
+    if not os.path.isabs(path):
+        path = shutil.which(path) or ""
+    if not path:
+        raise FileNotFoundError("configured executable was not found")
+    return str(Path(path).resolve(strict=True))
 
-    Identity is pid AND process start time AND a runtime-specific marker. The pid alone is not
-    an identity: pids are reused, and this project has already been burned by exactly that with
-    process groups. `started_at` is field 22 of `/proc/<pid>/stat` as recorded at handover; a
-    mismatch means the number now belongs to somebody else.
-    """
-    logger = logging.getLogger("app.session")
-    marker = {"Codex app-server": "codex", "Grok": "grok"}.get(label, label.split()[0].lower())
+
+def _runtime_argv(argv: list[str], label: str | None) -> str | None:
+    """Return the matching managed runtime, accepting only its known argv shape."""
+    if not argv:
+        return None
+    if label is None:
+        allowed = ("codex", "grok")
+    elif label == "Codex app-server":
+        allowed = ("codex",)
+    elif label in ("Grok", "Grok ACP agent"):
+        allowed = ("grok",)
+    else:
+        return None
+
     try:
-        with open(f"/proc/{pid}/cmdline", "rb") as fh:
-            cmdline = fh.read().decode("utf-8", "replace")
-        actual_start = process_start_time(pid)
-    except FileNotFoundError:
-        return  # already gone
-    except OSError as error:
-        logger.warning("cannot verify pid %s before signalling: %s", pid, error)
-        return
-    if marker not in cmdline:
-        logger.error(
-            "refusing to signal pid %s: cmdline is not a %s process (%r)",
-            pid, label, cmdline[:120],
-        )
-        return
+        for runtime in allowed:
+            if runtime == "codex":
+                from app.backend_codex import CODEX_BIN
+                configured_path = CODEX_BIN
+            else:
+                from app.backend_grok import GROK_BIN
+                configured_path = GROK_BIN
+            try:
+                expected = _normalise_executable(configured_path)
+            except (OSError, ValueError, TypeError):
+                continue
+            if runtime == "codex":
+                if len(argv) < 3 or tuple(argv[-2:]) != ("app-server", "--stdio"):
+                    continue
+            else:
+                if (
+                    len(argv) < 4
+                    or argv[-2:] != ["--always-approve", "stdio"]
+                ):
+                    continue
+
+            if os.path.basename(argv[0]) in ("node", "nodejs"):
+                executable_index = 1
+            else:
+                executable_index = 0
+            if len(argv) <= executable_index:
+                continue
+            if _normalise_executable(argv[executable_index]) != expected:
+                continue
+            if runtime == "grok" and (
+                len(argv) <= executable_index + 1
+                or argv[executable_index + 1] != "agent"
+            ):
+                continue
+            return runtime
+    except (OSError, ValueError, TypeError):
+        return None
+    return None
+
+
+def terminate_cli_process(pid: int, label: str | None, started_at: int = 0) -> None:
+    """SIGTERM a managed CLI only after pinning and proving its process identity (#258)."""
+    logger = logging.getLogger("app.session")
     if not started_at:
         logger.error(
             "refusing to signal pid %s: no recorded start time, identity cannot be proven",
             pid,
         )
         return
-    if actual_start and started_at != actual_start:
-        logger.error(
-            "refusing to signal pid %s: start time %s != recorded %s — the pid was reused",
-            pid, actual_start, started_at,
-        )
-        return
+
+    pidfd: int | None = None
     try:
-        os.kill(pid, signal.SIGTERM)
-        logger.info("%s: replaced adopted CLI, sent SIGTERM to pid %s", label, pid)
-    except ProcessLookupError:
-        pass
-    except OSError as error:
-        logger.warning("could not terminate adopted CLI pid %s: %s", pid, error)
+        try:
+            pidfd = os.pidfd_open(pid)
+        except ProcessLookupError:
+            return
+        except OSError as error:
+            if error.errno == errno.ESRCH:
+                return
+            logger.error("refusing to signal pid %s: pidfd_open failed: %s", pid, error)
+            return
+
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as fh:
+                raw_cmdline = fh.read()
+            argv = [os.fsdecode(part) for part in raw_cmdline.split(b"\0") if part]
+            if not argv:
+                raise ValueError("empty /proc cmdline")
+            actual_start = process_start_time(pid)
+        except ProcessLookupError:
+            return
+        except (OSError, UnicodeError, ValueError, IndexError) as error:
+            logger.error("refusing to signal pid %s: /proc identity read failed: %s", pid, error)
+            return
+
+        if not actual_start:
+            logger.error("refusing to signal pid %s: process start time is unavailable", pid)
+            return
+        if actual_start != started_at:
+            logger.error(
+                "refusing to signal pid %s: start time %s != recorded %s — the pid was reused",
+                pid, actual_start, started_at,
+            )
+            return
+        runtime = _runtime_argv(argv, label)
+        if runtime is None:
+            logger.error(
+                "refusing to signal pid %s: argv does not match a managed runtime (%r)",
+                pid, argv[:12],
+            )
+            return
+        try:
+            signal.pidfd_send_signal(pidfd, signal.SIGTERM)
+        except ProcessLookupError:
+            return
+        except OSError as error:
+            if error.errno == errno.ESRCH:
+                return
+            logger.error("could not terminate adopted CLI pid %s through pidfd: %s", pid, error)
+            return
+        logger.info("%s: replaced adopted CLI, sent SIGTERM to pid %s", runtime, pid)
+    except Exception as error:
+        logger.error("refusing to signal pid %s: identity verification failed: %s", pid, error)
+    finally:
+        if pidfd is not None:
+            try:
+                os.close(pidfd)
+            except OSError as error:
+                logger.error("could not close pidfd for pid %s: %s", pid, error)
 
 
 def process_start_time(pid: int) -> int:
@@ -389,4 +483,7 @@ def process_start_time(pid: int) -> int:
     except OSError:
         return 0
     tail = raw.rpartition(")")[2].split()
-    return int(tail[19]) if len(tail) > 19 else 0
+    try:
+        return int(tail[19]) if len(tail) > 19 else 0
+    except (ValueError, IndexError):
+        return 0

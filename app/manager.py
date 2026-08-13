@@ -13,6 +13,7 @@ import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Awaitable, Callable, Optional
@@ -63,6 +64,12 @@ from app.tasks import spawn_supervised
 logger = logging.getLogger(__name__)
 
 _adhoc_serial = itertools.count(1)
+
+
+@dataclass(frozen=True, slots=True)
+class OrphanProcessIdentity:
+    pid: int
+    started_at: int
 
 # Клиент MCP отваливается по таймауту через 30 с (mcp_stdio.py). Ждём заведомо меньше,
 # чтобы вызывающий получил внятный отказ, а не ReadTimeout, неотличимый от мёртвого сервера.
@@ -2021,9 +2028,9 @@ class SessionManager:
             if session_id in self.sessions:
                 continue
             close_orphan_fd(fd)
-            pid = pids.get(fd)
-            if pid:
-                terminate_orphan_process(pid)
+            identity = pids.get(fd)
+            if identity:
+                terminate_orphan_process(identity)
             logger.warning(
                 "orphan sweep: closed fd %s of unknown session %s", fd, session_id)
             swept += 1
@@ -2298,35 +2305,36 @@ def close_orphan_fd(fd: int) -> None:
         logger.warning("could not close orphan fd %s: %s", fd, err_text(error))
 
 
-def orphan_pids() -> dict[int, int]:
-    """Map inherited descriptor -> CLI pid, for descriptors whose session is gone (#230 T7).
+def orphan_pids() -> dict[int, OrphanProcessIdentity]:
+    """Map inherited descriptor -> stored CLI identity, for descriptors whose session is gone.
 
-    The pid was written at handover (`sessions.cli_pid`). A row that no longer exists leaves
-    the pid unknown, and then closing the descriptor is all we can honestly do.
+    Both fields come from the same handover row. A row that no longer exists leaves the identity
+    unknown, and then closing the descriptor is all we can honestly do.
     """
     from app.db import _conn
 
-    mapping: dict[int, int] = {}
+    mapping: dict[int, OrphanProcessIdentity] = {}
     with _conn() as c:
         rows = c.execute(
-            "SELECT id, cli_pid FROM sessions WHERE cli_pid IS NOT NULL AND cli_pid != 0"
+            "SELECT id, cli_pid, cli_started_at FROM sessions "
+            "WHERE cli_pid IS NOT NULL AND cli_pid != 0"
         ).fetchall()
-    by_session = {row["id"]: int(row["cli_pid"]) for row in rows}
+    by_session = {
+        row["id"]: OrphanProcessIdentity(
+            pid=int(row["cli_pid"]),
+            started_at=int(row["cli_started_at"] or 0),
+        )
+        for row in rows
+    }
     for session_id, fd in _inherited_named_fds():
-        pid = by_session.get(session_id)
-        if pid:
-            mapping[fd] = pid
+        identity = by_session.get(session_id)
+        if identity:
+            mapping[fd] = identity
     return mapping
 
 
-def terminate_orphan_process(pid: int) -> None:
-    """Reap an agent process nobody owns any more (#230 T7)."""
-    import signal
+def terminate_orphan_process(identity: OrphanProcessIdentity) -> None:
+    """Reap a verified agent process nobody owns any more (#258)."""
+    from app import backend_jsonrpc
 
-    try:
-        os.kill(pid, signal.SIGTERM)
-        logger.warning("orphan sweep: sent SIGTERM to unowned agent pid %s", pid)
-    except ProcessLookupError:
-        pass
-    except OSError as error:
-        logger.warning("could not terminate orphan pid %s: %s", pid, err_text(error))
+    backend_jsonrpc.terminate_cli_process(identity.pid, None, identity.started_at)
