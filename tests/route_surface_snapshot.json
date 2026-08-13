@@ -30,6 +30,12 @@
   ]
  ],
  [
+  "/api/fan/open",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/files",
   [
    "GET"
