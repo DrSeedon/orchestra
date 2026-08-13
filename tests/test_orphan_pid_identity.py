@@ -104,7 +104,7 @@ async def test_t1_first_restart_reused_foreign_pid_survives_real_sweep(
     orphan_fd, peer_fd = os.pipe()
     monkeypatch.setattr(
         "app.fdstore.acquire_fds",
-        lambda: {"agent:gone-after-handover:stdout": orphan_fd},
+        lambda: {"agent.gone-after-handover.stdout": orphan_fd},
     )
     real_pidfd_open = os.pidfd_open
     opened: list[int] = []
@@ -167,8 +167,8 @@ async def test_t1_verified_codex_and_grok_orphans_signal_only_through_pidfd(
     monkeypatch.setattr(
         "app.fdstore.acquire_fds",
         lambda: {
-            "agent:verified-codex:stdout": codex_fd,
-            "agent:verified-grok:stdout": grok_fd,
+            "agent.verified-codex.stdout": codex_fd,
+            "agent.verified-grok.stdout": grok_fd,
         },
     )
 
@@ -262,8 +262,8 @@ async def test_t1_unverifiable_candidate_does_not_abort_later_orphan_cleanup(
     monkeypatch.setattr(
         "app.fdstore.acquire_fds",
         lambda: {
-            "agent:unverifiable:stdout": denied_fd,
-            "agent:later-valid:stdout": verified_fd,
+            "agent.unverifiable.stdout": denied_fd,
+            "agent.later-valid.stdout": verified_fd,
         },
     )
 

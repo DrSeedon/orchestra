@@ -46,17 +46,35 @@ class JsonRpcStdioTransport:
     _handover_quiescing: bool = False
     _adopted_started_at: int = 0
     _quiesced_prefix: bytes = b""
+    #: The same carried events in PARSED form. Two consumers want two shapes: the next
+    #: generation gets bytes (it has an empty reader and re-parses them), while a cancelled
+    #: handover has to put them back into THIS queue — re-feeding bytes into a reader whose
+    #: buffer already holds half a frame appends them after that fragment and destroys both.
+    _quiesced_events: tuple = ()
+
+    #: Parent-owned pipes (#237 T1): we create the pipe pair ourselves and hand the CLI only
+    #: its two ends, so the descriptors we keep are plain numbers we can give to systemd.
+    #: Asking the subprocess transport for them (`get_extra_info("pipe")`) returns None under
+    #: uvloop — the production loop — which is why handover silently never happened.
+    _owned_reader: Optional[asyncio.StreamReader] = None
+    _owned_writer: Optional[asyncio.StreamWriter] = None
+    _owned_read_transport = None
+    _owned_fds: Optional[tuple[int, int]] = None
 
     @property
     def _out(self) -> Optional[asyncio.StreamReader]:
         if self._adopted_reader is not None:
             return self._adopted_reader
+        if self._owned_reader is not None:
+            return self._owned_reader
         return self._proc.stdout if self._proc else None
 
     @property
     def _in(self):
         if self._adopted_writer is not None:
             return self._adopted_writer
+        if self._owned_writer is not None:
+            return self._owned_writer
         return self._proc.stdin if self._proc else None
 
     @property
@@ -67,27 +85,22 @@ class JsonRpcStdioTransport:
 
     @property
     def fd_in(self) -> Optional[int]:
-        """OUR end of the CLI's stdin, the descriptor systemd must keep (#230 T4)."""
+        """OUR end of the CLI's stdin, the descriptor systemd must keep (#230 T4).
+
+        Only descriptors we opened ourselves count. Digging them out of the subprocess
+        transport is NOT a fallback: under uvloop it yields None, so a backend spawned with
+        PIPE is simply not adoptable, and saying so here is what keeps the failure loud
+        instead of degrading into a handover that never happens (#237 T1).
+        """
         if self._adopted_fds is not None:
             return self._adopted_fds[0]
-        if self._proc is None or self._proc.stdin is None:
-            return None
-        transport = getattr(self._proc.stdin, "transport", None)
-        pipe = transport.get_extra_info("pipe") if transport else None
-        return pipe.fileno() if pipe is not None else None
+        return self._owned_fds[0] if self._owned_fds is not None else None
 
     @property
     def fd_out(self) -> Optional[int]:
         if self._adopted_fds is not None:
             return self._adopted_fds[1]
-        if self._proc is None:
-            return None
-        # the reader side is reachable only through the process transport (measured: both
-        # extraction paths verified on a spawned child before this was written)
-        transport = getattr(self._proc, "_transport", None)
-        pipe_transport = transport.get_pipe_transport(1) if transport else None
-        pipe = pipe_transport.get_extra_info("pipe") if pipe_transport else None
-        return pipe.fileno() if pipe is not None else None
+        return self._owned_fds[1] if self._owned_fds is not None else None
 
     @property
     def cli_started_at(self) -> int:
@@ -109,6 +122,15 @@ class JsonRpcStdioTransport:
 
     async def quiesce_for_handover(self, drain_budget_s: float = 1.0) -> bool:
         """Stop reading, THEN let the buffer settle, before anyone snapshots it (#230 T4).
+
+        INVARIANT — `False` means NOT QUIESCED. Every path that returns False leaves this
+        backend exactly as it was found: reader running, pipe not paused, flag clear, carried
+        events back where they were. The caller is entitled to just stop the agent the old
+        way and must not have to guess whether a refusal left it half-paused.
+
+        This is the invariant B1 broke: the failure path cleared the flag without restoring
+        the reader, so `False` meant "not quiesced" to the caller and "paused forever" to the
+        agent — alive, healthy-looking, and permanently deaf.
 
         Snapshotting while the reader is alive is a race: it can pull more bytes out of the
         kernel into a process that is about to die, and it can move whole notifications into an
@@ -133,6 +155,14 @@ class JsonRpcStdioTransport:
         # Mark the pause BEFORE cancelling: `_read_stdout`'s finally enqueues `_process/exited`
         # otherwise, and the session would see a live agent as dead in the middle of a handover.
         self._handover_quiescing = True
+        # Stop the kernel pipe from being drained at all. Cancelling the reader TASK is not
+        # enough: the transport keeps feeding bytes into a buffer that dies with this process,
+        # so every frame arriving between the quiesce and the snapshot was silently lost.
+        # Paused, those bytes stay in the pipe — which is exactly what survives the restart.
+        read_transport = self._adopted_read_transport or self._owned_read_transport
+        if read_transport is not None:
+            with contextlib.suppress(Exception):
+                read_transport.pause_reading()
         task = getattr(self, "_reader_task", None)
         if task is not None and not task.done():
             task.cancel()
@@ -152,16 +182,21 @@ class JsonRpcStdioTransport:
         # Declaring it lost would break the zero-loss contract, so re-encode the frames and
         # hand them to the next generation ahead of the buffered bytes: that is where they came
         # from, and the reader will parse them again.
-        frames: list[bytes] = []
+        events: list = []
+        while not queue.empty():
+            events.append(queue.get_nowait())
+        # Held in parsed form FIRST: the queue is now empty, so if anything below fails these
+        # objects are the only surviving copy and a cancelled handover must be able to
+        # give them back.
+        self._quiesced_events = tuple(events)
         try:
-            while not queue.empty():
-                frames.append(json.dumps(queue.get_nowait(), ensure_ascii=False).encode() + b"\n")
+            frames = [json.dumps(event, ensure_ascii=False).encode() + b"\n" for event in events]
         except Exception as error:
             logging.getLogger("app.session").error(
                 "handover: %d parsed event(s) could not be re-encoded (%s) — refusing handover",
-                queue.qsize(), error,
+                len(events), error,
             )
-            self.abort_handover()
+            await self.resume_after_aborted_handover()
             return False
         self._quiesced_prefix = b"".join(frames)
         logging.getLogger("app.session").info(
@@ -169,16 +204,34 @@ class JsonRpcStdioTransport:
         )
         return True
 
-    def abort_handover(self) -> None:
-        """Undo the quiescing state when the handover will NOT happen (#230).
+    async def resume_after_aborted_handover(self) -> None:
+        """Put a quiesced backend back to work when the handover will NOT happen (#237 T3).
 
-        The flag suppresses both halves of the "process died" story, and only
-        `teardown_adopted` used to clear it — which a non-adopted backend never calls. Left
-        stuck ON, a REAL death becomes completely silent: no `_process/exited`, and pending
-        futures are never completed, so their callers wait forever.
+        This is the ONLY way to undo a quiesce, and it is deliberately stronger than merely
+        clearing the flag. Once `quiesce_for_handover` has run, the reader task is cancelled
+        and the pipe is paused: an agent left like that is alive, `is_alive` is True, and it
+        is permanently deaf — everything its CLI writes sits in the pipe, `_process/exited`
+        never arrives, and the next `_request` waits on a future forever. Restarting the
+        reader also restores the death signal, which is what clearing the flag alone was for.
+
+        Carried events go back into the QUEUE, in order, ahead of anything the reader parses
+        next. Feeding them back as bytes would append them after the half-frame still sitting
+        in the reader's buffer and destroy both (measured: `[1,2]` in → `[]` delivered, two
+        `invalid JSONL`, `turn/completed` lost).
         """
-        self._handover_quiescing = False
+        events, self._quiesced_events = self._quiesced_events, ()
         self._quiesced_prefix = b""
+        self._handover_quiescing = False
+        queue = getattr(self, "_notifications", None)
+        if queue is not None:
+            for event in events:
+                queue.put_nowait(event)
+        read_transport = self._adopted_read_transport or self._owned_read_transport
+        if read_transport is not None:
+            with contextlib.suppress(Exception):
+                read_transport.resume_reading()
+        if self._out is not None and getattr(self, "_reader_task", None) is None:
+            self._reader_task = asyncio.create_task(self._read_stdout())
 
     @property
     def leftover_bytes(self) -> bytes:
@@ -205,6 +258,73 @@ class JsonRpcStdioTransport:
         """
         # base64 so the DB TEXT column cannot mangle a partial multi-byte frame
         return base64.b64encode(self.leftover_bytes).decode("ascii")
+
+    @staticmethod
+    def new_child_pipes() -> tuple[int, int, int, int]:
+        """Two pipe pairs: the CLI's stdin/stdout ends, and the two ends we keep (#237 T1).
+
+        Returned as ``(child_stdin, child_stdout, our_stdin_side, our_stdout_side)``. The
+        caller passes the first two to the spawn as numeric descriptors and MUST close them
+        afterwards — the child has its own copies by then, and holding ours open would keep
+        the CLI from ever seeing EOF.
+        """
+        child_stdin, our_stdin_side = os.pipe()   # us -> CLI
+        our_stdout_side, child_stdout = os.pipe()  # CLI -> us
+        return child_stdin, child_stdout, our_stdin_side, our_stdout_side
+
+    async def attach_owned_pipes(self, fd_in: int, fd_out: int, *, limit: int) -> None:
+        """Drive our ends of a spawned CLI's pipes through this event loop (#237 T1).
+
+        Both descriptors become OURS the moment this is called, success or failure — the
+        caller must not close them afterwards. Halfway through, `fd_out` already belongs to a
+        live read transport while `fd_in` does not, and an outside cleanup cannot tell the
+        two apart. Closing the wrong one is worse than leaking it: uvloop hands the freed
+        number straight to its next internal descriptor, and the transport reads a
+        different file (measured in #237 — `fd 13` came back as `/dev/null`).
+        """
+        loop = asyncio.get_running_loop()
+        reader = asyncio.StreamReader(limit=limit)
+        read_file = os.fdopen(fd_out, "rb", 0)
+        read_transport = None
+        try:
+            read_transport, _read_protocol = await loop.connect_read_pipe(
+                lambda: asyncio.StreamReaderProtocol(reader), read_file
+            )
+            write_transport, protocol = await loop.connect_write_pipe(
+                asyncio.streams.FlowControlMixin, os.fdopen(fd_in, "wb", 0)
+            )
+        except BaseException:
+            # Close through whoever owns it now, not by descriptor number.
+            with contextlib.suppress(Exception):
+                read_transport.close() if read_transport is not None else read_file.close()
+            raise
+        self._owned_reader = reader
+        self._owned_writer = asyncio.StreamWriter(write_transport, protocol, reader, loop)
+        self._owned_read_transport = read_transport
+        self._owned_fds = (fd_in, fd_out)
+
+    async def teardown_owned_pipes(self) -> None:
+        """Close both of our ends. Never called on the handover path: there the CLI lives on.
+
+        Closing goes through the transports, never `os.close`: `os.fdopen` gave them the
+        descriptor, and closing it twice surfaces as EBADF inside an unrelated later test.
+        `close()` only SCHEDULES the real close, so this yields until it has run — otherwise
+        the moment a descriptor is released is decided by the scheduler, and a replacement
+        CLI can be spawned while the previous generation's ends are still open.
+        """
+        writer, read_transport = self._owned_writer, self._owned_read_transport
+        self._owned_writer = None
+        self._owned_reader = None
+        self._owned_read_transport = None
+        self._owned_fds = None
+        if writer is not None:
+            with contextlib.suppress(Exception):
+                writer.close()
+        if read_transport is not None:
+            with contextlib.suppress(Exception):
+                read_transport.close()
+        if writer is not None or read_transport is not None:
+            await asyncio.sleep(0)
 
     async def adopt_pipes(self, fd_in: int, fd_out: int, *, limit: int,
                           leftover: str = "", cli_pid: int = 0,
@@ -268,6 +388,7 @@ class JsonRpcStdioTransport:
         self._adopted_started_at = 0
         self._handover_quiescing = False
         self._quiesced_prefix = b""
+        self._quiesced_events = ()
         if pid:
             terminate_cli_process(pid, self.RUNTIME_LABEL, started_at)
 

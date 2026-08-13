@@ -19,8 +19,14 @@ def _restore_drain_gate():
     test_system_restart.py перед test_hot_apply.py).
     """
     yield
+    from app import main as app_main
     from app.deps import manager
     manager.end_drain()
+    # Вторая половина того же класса, предсуществующая: `restart_server()` закрывает ЕЩЁ и
+    # приём мутирующего HTTP, а фикстура возвращала только приём ходов. Утечка роняла
+    # `test_fd_adopt.py::test_t6_real_middleware_counts_mutating_but_not_streams` — запрос
+    # отвергался гейтом, и обработчик не выполнялся вовсе. Воспроизведено и на чистом main.
+    app_main.open_mutating_admission()
 
 
 @pytest.mark.asyncio

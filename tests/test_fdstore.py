@@ -76,7 +76,7 @@ def test_t1_store_fds_sends_fdstore_payload_with_scm_rights(tmp_path, monkeypatc
 
     r, w = os.pipe()
     try:
-        fdstore.store_fds("agent:sess-1:stdout", [r])
+        fdstore.store_fds("agent.sess-1.stdout", [r])
 
         def next_msg(what):
             try:
@@ -88,11 +88,11 @@ def test_t1_store_fds_sends_fdstore_payload_with_scm_rights(tmp_path, monkeypatc
         # re-adding a name without removing it accumulates duplicates generation after
         # generation until FileDescriptorStoreMax is exhausted (found in impl review).
         removal, removal_anc, _f, _a = next_msg("FDSTOREREMOVE")
-        assert removal == b"FDSTOREREMOVE=1\nFDNAME=agent:sess-1:stdout"
+        assert removal == b"FDSTOREREMOVE=1\nFDNAME=agent.sess-1.stdout"
         assert removal_anc == [], "removal carries no descriptors"
 
         msg, ancdata, _flags, _addr = next_msg("FDSTORE")
-        assert msg == b"FDSTORE=1\nFDNAME=agent:sess-1:stdout"
+        assert msg == b"FDSTORE=1\nFDNAME=agent.sess-1.stdout"
         assert len(ancdata) == 1
         level, ctype, data = ancdata[0]
         assert (level, ctype) == (socket.SOL_SOCKET, socket.SCM_RIGHTS)
@@ -112,7 +112,7 @@ def test_t1_store_failure_is_loud(monkeypatch):
     r, w = os.pipe()
     try:
         with pytest.raises(fdstore.FdStoreUnavailable):
-            fdstore.store_fds("agent:sess-1:stdout", [r])
+            fdstore.store_fds("agent.sess-1.stdout", [r])
     finally:
         os.close(r)
         os.close(w)

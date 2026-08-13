@@ -506,16 +506,46 @@ class CodexBackend(JsonRpcStdioTransport):
             self._scope_env = {}
             cmd = codex_cmd
 
+        if scope_ok:
+            # A scoped launch puts `systemd-run` between us and the CLI, so `_proc.pid` is the
+            # launcher, not the app-server. Handing those pipes over would advertise a survivor
+            # we could not identify later, so this path keeps PIPE and stays non-adoptable —
+            # the same behaviour as before #237, but said out loud instead of silently.
+            logger.warning(
+                "Codex scope launch: seamless handover is unavailable for this session "
+                "(pid identity belongs to systemd-run, not to the app-server)"
+            )
+
+        child_stdin = child_stdout = our_stdin = our_stdout = None
         try:
+            if scope_ok:
+                stdio = {"stdin": asyncio.subprocess.PIPE,
+                         "stdout": asyncio.subprocess.PIPE}
+            else:
+                child_stdin, child_stdout, our_stdin, our_stdout = self.new_child_pipes()
+                stdio = {"stdin": child_stdin, "stdout": child_stdout}
             self._proc = await asyncio.create_subprocess_exec(
                 *cmd,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
+                **stdio,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
                 cwd=self.cwd,
                 limit=16 * 1024 * 1024,
             )
+            if our_stdin is not None:
+                # Ownership passes at the CALL, not on success: half-attached, one of these
+                # already belongs to a live transport and the cleanup below cannot tell which.
+                attach_in, attach_out = our_stdin, our_stdout
+                our_stdin = our_stdout = None
+                await self.attach_owned_pipes(attach_in, attach_out,
+                                              limit=16 * 1024 * 1024)
+                # Only now drop our copies of the CLI's own ends: the child has had them
+                # since the spawn, and keeping ours open would stop it from ever seeing EOF.
+                # Closing them AFTER wiring also means a failed wiring leaves them in hand,
+                # so the CLI dies on EOF instead of hanging on a pipe nobody reads.
+                os.close(child_stdin)
+                os.close(child_stdout)
+                child_stdin = child_stdout = None
             self._reader_task = asyncio.create_task(self._read_stdout())
             self._stderr_task = asyncio.create_task(self._drain_stderr())
             initialize_params = {
@@ -567,6 +597,15 @@ class CodexBackend(JsonRpcStdioTransport):
             self._rollout_path = None
             self._teardown_error = None
         except BaseException:
+            # Raw descriptors that never reached a transport are ours alone to close; the
+            # ones already handed to `attach_owned_pipes` are cleared above and closed by
+            # `disconnect()`, so nothing is closed twice.
+            for fd in (child_stdin, child_stdout, our_stdin, our_stdout):
+                if fd is not None:
+                    try:
+                        os.close(fd)
+                    except OSError:
+                        pass
             await self.disconnect()
             raise
 
@@ -844,6 +883,7 @@ class CodexBackend(JsonRpcStdioTransport):
             self._compact_future.set_exception(
                 RuntimeError("Codex app-server disconnected during context compact")
             )
+        await self.teardown_owned_pipes()
         self._proc = None
         self._scope_unit = None
         self._reader_task = None
@@ -926,33 +966,33 @@ class CodexBackend(JsonRpcStdioTransport):
         except Exception as exc:
             logger.exception("Codex app-server reader failed: %s", exc)
         finally:
-            # An ADOPTED transport has no Process object at all (#230 T2): the CLI is not our
-            # child. Its exit is then visible only as EOF on the pipe, which is why the reason
-            # is worded without a code instead of pretending we can wait() on someone else.
-            proc = self._proc
-            returncode = await proc.wait() if proc is not None else None
-            error = RuntimeError(
-                f"Codex app-server exited with code {returncode}" if proc is not None
-                else "Codex app-server closed the adopted pipe (no process: adopted transport)"
-            )
-            # Gated by the SAME flag as the notification below. A handover cancels this reader
-            # deliberately; completing pending futures with "app-server exited" would be a lie
-            # about a process that is still alive. The window is narrow (the caller refuses the
-            # handover while requests are in flight) but a late request lands right here.
+            # ONE gate over the whole "the process died" story. A handover cancels this reader
+            # on a process that is very much alive, so none of it may run: not the pending
+            # futures, not the notification, and above all not `proc.wait()` — waiting for a
+            # live CLI to exit stalled every handover until the shutdown timeout (#237 T1).
             if not self._handover_quiescing:
+                # An ADOPTED transport has no Process object at all (#230 T2): the CLI is not
+                # our child. Its exit is then visible only as EOF on the pipe, which is why the
+                # reason is worded without a code instead of pretending we can wait() on it.
+                proc = self._proc
+                returncode = await proc.wait() if proc is not None else None
+                error = RuntimeError(
+                    f"Codex app-server exited with code {returncode}" if proc is not None
+                    else "Codex app-server closed the adopted pipe (no process: adopted transport)"
+                )
                 for future in self._pending_requests.values():
                     if not future.done():
                         future.set_exception(error)
                 if self._compact_future and not self._compact_future.done():
                     self._compact_future.set_exception(error)
-            if not self._disconnecting and not self._handover_quiescing:
-                await self._notifications.put({
-                    "method": "_process/exited",
-                    "params": {
-                        "returncode": returncode,
-                        "stderr": self._last_stderr,
-                    },
-                })
+                if not self._disconnecting:
+                    await self._notifications.put({
+                        "method": "_process/exited",
+                        "params": {
+                            "returncode": returncode,
+                            "stderr": self._last_stderr,
+                        },
+                    })
 
     def _record_token_usage(self, params: dict) -> None:
         usage = params.get("tokenUsage") or {}

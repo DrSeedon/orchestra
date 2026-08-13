@@ -1736,12 +1736,17 @@ async def restart_preflight() -> dict:
     """
     from app import main as app_main
 
+    # BOTH gates, both before the first await. Closing only the HTTP half left a window where
+    # a new agent turn could start after the drain had taken its snapshot — so the very turn
+    # the drain protects was the one the signal cut (#237 T3).
+    manager.begin_drain()
     app_main.close_mutating_admission()
     drained = await app_main.drain_mutating_requests()
     if drained:
         return {"ok": True}
     left = app_main.inflight_mutating_count()
     app_main.open_mutating_admission()  # the restart is off: do not starve the agents
+    manager.end_drain()
     return {
         "ok": False,
         "reason": (
@@ -1752,22 +1757,64 @@ async def restart_preflight() -> dict:
     }
 
 
-_ADMISSION_WATCHDOG_S = 120.0  # > the 90.2s slowest mutating call, so no false reopen
+_RESPONSE_FLUSH_PAUSE_S = 0.5  # so the caller sees `scheduled` before we start
+_WATCHDOG_MARGIN_S = 120.0  # fleet quiesce + store + the outcome write, generously
 
 
-async def _reopen_admission_if_still_alive() -> None:
-    """Undo the preflight's admission gate if the restart never arrived (#230 T6).
+def _watchdog_budget_s() -> float:
+    """How long the safety net waits before deciding the restart is not coming.
 
-    A real restart kills this process, so in the happy path this coroutine simply dies with it
-    and the sleep is never observed. Reaching the end means the restart failed to happen.
+    Summed from the waits themselves rather than picked, because picking is how this broke
+    once already: the constant was sized against the 90.2s slowest mutating call, then T3 put
+    a 900s wait for live turns underneath the same gates and nobody re-added the numbers.
+
+    Firing early is not a harmless false alarm — it reopens the turn gate while the drain loop
+    is still legitimately waiting, new turns start, `_blocking_runtimes()` stops emptying, and
+    the restart becomes UNREACHABLE: the safety net feeding exactly what the loop waits on.
+
+    `MUTATING_DRAIN_BUDGET_S` is read at call time on purpose: `app.main` imports this module,
+    so a module-level import would be circular, and copying the number would give one budget
+    two owners — the same mistake in a new place.
     """
     from app import main as app_main
 
-    await asyncio.sleep(_ADMISSION_WATCHDOG_S)
-    app_main.open_mutating_admission()
+    return (_RESPONSE_FLUSH_PAUSE_S          # let the HTTP response leave first
+            + app_main.MUTATING_DRAIN_BUDGET_S  # the restart path drains HTTP a second time
+            + _DRAIN_DEADLINE_S              # then waits for turns it must not cut
+            + _WATCHDOG_MARGIN_S)            # fleet prepare + the outcome write
+
+#: Which restart attempt is current. A watchdog belongs to the attempt that armed it: firing
+#: into a LATER attempt would strip descriptors out of systemd's store and reopen both gates
+#: mid-transaction, from a coroutine that has no idea any of it is happening.
+_restart_attempt = 0
+
+
+async def _reopen_admission_if_still_alive(attempt: int = 0) -> None:
+    """Undo the preflight's admission gate if the restart never arrived (#230 T6).
+
+    A real restart kills this process, so in the happy path this coroutine simply dies with it
+    and the sleep is never observed. Reaching the end means the signal did not do its job.
+
+    Two things keep it from sawing the branch it sits on: it outlasts everything the attempt
+    may legitimately wait for, and it stands down if its own attempt is no longer the current
+    one. Without the first, it reopens the turn gate while the drain loop is still waiting —
+    new turns start, `_blocking_runtimes()` stops emptying, and the restart becomes
+    unreachable because its own safety net keeps feeding what it waits on.
+    """
+    budget = _watchdog_budget_s()
+    await asyncio.sleep(budget)
+    if attempt != _restart_attempt:
+        logger.info("restart watchdog for attempt %d stood down: attempt %d is current",
+                    attempt, _restart_attempt)
+        return
+    # Reopening the gates is not enough. A fleet that was already prepared is quiesced and
+    # stored: those agents would stay deaf and their descriptors would sit in systemd's store
+    # until it fills up. Give them their readers back too (found by the pre-mortem).
+    await _abort_restart(
+        f"no restart within {budget}s of a successful preflight")
     logger.error(
-        "restart did not happen within %ss after a successful preflight — reopening mutating "
-        "admission so agents are not starved", _ADMISSION_WATCHDOG_S,
+        "restart did not happen within %ss after a successful preflight — handover rolled "
+        "back and both admissions reopened so agents are not starved", budget,
     )
 
 
@@ -1782,25 +1829,96 @@ async def _restart_service_after_response() -> dict:
         return await _do_restart_service()
     except BaseException:
         from app import main as app_main
+        # The fleet may already be quiesced and stored: leaving it that way would abandon
+        # running CLIs that nobody owns any more, each of them deaf (#237 T3).
+        await _abort_restart("the restart path failed")
         app_main.open_mutating_admission()
-        logger.exception("restart path failed; mutating admission reopened")
+        logger.exception("restart path failed; handover rolled back, admission reopened")
         raise
 
 
+async def _abort_restart(reason: str) -> None:
+    """Give every prepared agent back its reader, and reopen both gates (#237 T3)."""
+    from app import main as app_main
+
+    try:
+        await manager.rollback_restart_handover()
+    except Exception as error:
+        logger.error("could not roll back the prepared handover: %s: %s",
+                     type(error).__name__, error)
+    manager.end_drain()
+    app_main.open_mutating_admission()
+    logger.warning("restart aborted (%s): no signal sent", reason)
+
+
+def _blocking_runtimes() -> list:
+    """Live turns that CANNOT be handed over, so the restart must wait for them (#237 T3).
+
+    Only Codex survives a restart today; Claude and Grok are separate trains. Their live turn
+    is the one thing a restart may never cut, so it blocks instead.
+    """
+    return [s for s in _drain_sessions()
+            if s.is_busy and getattr(s, "backend_type", "") != "codex"]
+
+
 async def _do_restart_service() -> dict:
-    await asyncio.sleep(0.5)
-    manager.begin_drain()
+    from app import main as app_main
+
+    await asyncio.sleep(_RESPONSE_FLUSH_PAUSE_S)
+    # Already-admitted mutating calls first: one of them may have committed its effect and
+    # not yet returned it, and signalling there makes its outcome unknown to the agent.
+    if not await app_main.drain_mutating_requests():
+        left = app_main.inflight_mutating_count()
+        await _abort_restart(f"{left} mutating call(s) still in flight")
+        return {"ok": False, "reason": f"{left} mutating call(s) still in flight",
+                "cut_turns": 0, "cut_names": [], "cut_ids": []}
+
     started = time.monotonic()
     while time.monotonic() - started < _DRAIN_DEADLINE_S:
-        if not [s for s in _drain_sessions() if s.is_busy]:
+        if not _blocking_runtimes():
             break
         await asyncio.sleep(1)
-    cut = [s for s in _drain_sessions() if s.is_busy]
+    blocked = _blocking_runtimes()
+    if blocked:
+        await _abort_restart(f"{len(blocked)} non-adoptable turn(s) still running")
+        return {
+            "ok": False,
+            "reason": "a live turn on a runtime that cannot be handed over",
+            "waited_s": time.monotonic() - started,
+            "cut_turns": 0,
+            "cut_names": [s.name for s in blocked],
+            "cut_ids": [s.id for s in blocked],
+        }
+
+    live_codex = [s for s in _drain_sessions()
+                  if s.is_busy and getattr(s, "backend_type", "") == "codex"]
+    prepared = await manager.prepare_restart_handover(live_codex)
+    if not prepared["ok"]:
+        await _abort_restart(prepared["reason"])
+        return {"ok": False, "reason": prepared["reason"], "waited_s": time.monotonic() - started,
+                "cut_turns": 0, "cut_names": [], "cut_ids": []}
+
+    # Last look before the point of no return: preparing the fleet takes real time, and both
+    # of these can have changed underneath it.
+    late = _blocking_runtimes()
+    if late or app_main.inflight_mutating_count():
+        await _abort_restart("work started while the fleet was being prepared")
+        return {
+            "ok": False,
+            "reason": "work started while the fleet was being prepared",
+            "waited_s": time.monotonic() - started,
+            "cut_turns": 0,
+            "cut_names": [s.name for s in late],
+            "cut_ids": [s.id for s in late],
+        }
+
     outcome = {
+        "ok": True,
+        "handed_over": prepared["handed_over"],
         "waited_s": time.monotonic() - started,
-        "cut_turns": len(cut),
-        "cut_names": [s.name for s in cut],
-        "cut_ids": [s.id for s in cut],
+        "cut_turns": 0,
+        "cut_names": [],
+        "cut_ids": [],
     }
     try:
         _record_restart_outcome(outcome)
@@ -1815,20 +1933,50 @@ async def _do_restart_service() -> dict:
     return outcome
 
 
+def _disarm_watchdog_if_aborted(done: asyncio.Task, watchdog: asyncio.Task) -> None:
+    """Stand the watchdog down when the attempt ended WITHOUT signalling (#237).
+
+    Deliberately not "whenever the attempt finishes": the one case the watchdog exists for is
+    a signal that failed to kill us, and there the attempt has completed normally. An abort,
+    by contrast, has already reopened both gates itself, so a live watchdog there can only
+    fire into whatever comes next.
+    """
+    if done.cancelled():
+        watchdog.cancel()
+        return
+    if done.exception() is not None:
+        watchdog.cancel()  # the failure path reopened the gates already
+        return
+    outcome = done.result()
+    if isinstance(outcome, dict) and outcome.get("ok") is False:
+        watchdog.cancel()
+
+
 @router.post("/api/restart")
 async def restart_server():
-    verdict = await restart_preflight()
-    if not verdict["ok"]:
-        raise HTTPException(409, verdict["reason"])
-    # The preflight left admission CLOSED so nothing new starts a side effect. If the restart
-    # does not actually happen, that gate must not stay shut: a stuck-closed gate answers every
-    # mutating tool call with "retry later" forever. Found by the full suite, not by review.
-    watchdog = asyncio.create_task(_reopen_admission_if_still_alive())
-    _restart_tasks.add(watchdog)
-    watchdog.add_done_callback(_restart_tasks.discard)
-    task = asyncio.create_task(_restart_service_after_response())
-    _restart_tasks.add(task)
-    task.add_done_callback(_restart_tasks.discard)
+    try:
+        verdict = await restart_preflight()
+        if not verdict["ok"]:
+            raise HTTPException(409, verdict["reason"])
+        # The preflight left BOTH gates closed so nothing new starts. If the restart does not
+        # actually happen, they must not stay shut: a stuck-closed gate answers every mutating
+        # tool call with "retry later" and refuses every agent turn, forever.
+        global _restart_attempt
+        _restart_attempt += 1
+        attempt = _restart_attempt
+        watchdog = asyncio.create_task(_reopen_admission_if_still_alive(attempt))
+        _restart_tasks.add(watchdog)
+        watchdog.add_done_callback(_restart_tasks.discard)
+        task = asyncio.create_task(_restart_service_after_response())
+        _restart_tasks.add(task)
+        task.add_done_callback(_restart_tasks.discard)
+        task.add_done_callback(lambda done: _disarm_watchdog_if_aborted(done, watchdog))
+    except BaseException:
+        # Nothing was scheduled, so nobody downstream will ever reopen the gates for us.
+        from app import main as app_main
+        app_main.open_mutating_admission()
+        manager.end_drain()
+        raise
     return {"ok": True, "scheduled": True}
 
 

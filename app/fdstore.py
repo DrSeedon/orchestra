@@ -7,13 +7,29 @@ turn to the NEXT supervisor generation (docs/tasks/230/research.md, F1).
 
 import array
 import os
+import re
 import socket
 
 SD_LISTEN_FDS_START = 3
 
+#: systemd accepts only these characters in an FDNAME and SILENTLY rewrites anything else to
+#: `stored` — measured in #237: `agent:<uuid>:stdin` and `agent:<uuid>:stdout` both came back
+#: as `stored`, collided as duplicates, and the next generation refused to start. `:` cannot
+#: be legal in any case: it is the LISTEN_FDNAMES separator.
+_SAFE_FDNAME = re.compile(r"[A-Za-z0-9_.-]+")
+
 
 class FdStoreUnavailable(RuntimeError):
     """The handover did NOT happen. Never swallow this: silence here loses live agents."""
+
+
+def _check_fdname(name: str) -> None:
+    """Refuse a name systemd would rewrite, before anything is handed over (#237 T2)."""
+    if not _SAFE_FDNAME.fullmatch(name):
+        raise ValueError(
+            f"unsafe FDNAME {name!r}: systemd accepts only [A-Za-z0-9_.-] and silently "
+            "replaces anything else with 'stored', which collides across agents"
+        )
 
 
 def remove_fds(name: str) -> None:
@@ -35,6 +51,7 @@ def store_fds(name: str, fds: list[int]) -> None:
     if not fds:
         raise FdStoreUnavailable(f"no descriptors to hand over under {name}")
 
+    _check_fdname(name)
     remove_fds(name)
     _notify(f"FDSTORE=1\nFDNAME={name}", fds)
 

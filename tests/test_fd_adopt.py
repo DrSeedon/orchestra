@@ -310,7 +310,7 @@ async def test_impl_partial_handover_rolls_back_the_stored_descriptor(mgr, monke
     stored, removed = [], []
 
     def flaky_store(name, fds):
-        if name.endswith(":stdout"):
+        if name.endswith(".stdout"):
             raise RuntimeError("systemd store is full")
         stored.append(name)
 
@@ -325,8 +325,8 @@ async def test_impl_partial_handover_rolls_back_the_stored_descriptor(mgr, monke
         handed = await mgr._hand_over_backend(session)
 
     assert handed is False, "a partial handover must fall back to stopping the agent"
-    assert stored == ["agent:rollback-1:stdin"]
-    assert removed == ["agent:rollback-1:stdin"], (
+    assert stored == ["agent.rollback-1.stdin"]
+    assert removed == ["agent.rollback-1.stdin"], (
         f"the already-stored descriptor must be rolled back, removed={removed}")
 
 
@@ -698,8 +698,8 @@ async def test_t4_shutdown_hands_over_instead_of_disconnecting(mgr, monkeypatch)
     # the full mapping, not just the names: a handover that swaps stdin and stdout would
     # attach the agent's input to its output, and LISTEN_FDNAMES order is NOT preserved
     assert dict(stored) == {
-        "agent:handover-1:stdin": (11,),
-        "agent:handover-1:stdout": (12,),
+        "agent.handover-1.stdin": (11,),
+        "agent.handover-1.stdout": (12,),
     }, f"descriptors must be handed over under their OWN names, got {dict(stored)}"
     assert torn_down == [], f"handover must not tear the backend down, did: {torn_down}"
 
@@ -735,8 +735,8 @@ async def test_t5_adopted_session_is_adopted_not_reset(mgr, monkeypatch):
 
     cli_out_r, cli_out_w, cli_in_r, cli_in_w = _pipe_pair()
     monkeypatch.setattr("app.fdstore.acquire_fds", lambda: {
-        "agent:adopted-1:stdin": cli_in_w,
-        "agent:adopted-1:stdout": cli_out_r,
+        "agent.adopted-1.stdin": cli_in_w,
+        "agent.adopted-1.stdout": cli_out_r,
     })
 
     adopted, connected = [], []
@@ -790,8 +790,8 @@ async def test_t5_adopted_turn_completes_from_the_pipe(mgr, monkeypatch):
     _store_active_turn("adopted-2", "turn-live")
     cli_out_r, cli_out_w, cli_in_r, cli_in_w = _pipe_pair()
     monkeypatch.setattr("app.fdstore.acquire_fds", lambda: {
-        "agent:adopted-2:stdin": cli_in_w,
-        "agent:adopted-2:stdout": cli_out_r,
+        "agent.adopted-2.stdin": cli_in_w,
+        "agent.adopted-2.stdout": cli_out_r,
     })
     real = CodexBackend(model="gpt-5.6-luna", cwd="/tmp", system_prompt="")
 
@@ -1056,7 +1056,7 @@ async def test_t6_admission_reopens_if_the_restart_never_happens(monkeypatch):
     from app import main as app_main
     from app.routes import system as system_routes
 
-    monkeypatch.setattr(system_routes, "_ADMISSION_WATCHDOG_S", 0.1, raising=False)
+    monkeypatch.setattr(system_routes, "_watchdog_budget_s", lambda: 0.1, raising=False)
     monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0, raising=False)
     scheduled = []
 
@@ -1104,7 +1104,7 @@ def test_t6_concrete_paths_resolve_to_their_route_template():
 async def test_t7_orphan_sweep_refuses_on_empty_registry(mgr, monkeypatch):
     """An empty registry means 'I know nothing', not 'they are all dead'."""
     closed = []
-    monkeypatch.setattr("app.fdstore.acquire_fds", lambda: {"agent:ghost:stdout": 41})
+    monkeypatch.setattr("app.fdstore.acquire_fds", lambda: {"agent.ghost.stdout": 41})
     monkeypatch.setattr("app.manager.close_orphan_fd", lambda fd: closed.append(fd),
                         raising=False)
 
@@ -1121,7 +1121,7 @@ async def test_t7_orphan_sweep_closes_only_unknown_fds(mgr, monkeypatch):
     _save_running_session("known-1")
     closed, killed = [], []
     monkeypatch.setattr("app.fdstore.acquire_fds", lambda: {
-        "agent:known-1:stdout": 40, "agent:ghost:stdout": 41,
+        "agent.known-1.stdout": 40, "agent.ghost.stdout": 41,
     })
     monkeypatch.setattr("app.manager.close_orphan_fd", lambda fd: closed.append(fd),
                         raising=False)
@@ -1150,7 +1150,7 @@ async def test_t9_stale_adopted_session_respawns_cli_on_next_turn(mgr, monkeypat
     _save_running_session("stale-1")
     cli_out_r, cli_out_w, cli_in_r, cli_in_w = _pipe_pair()
     monkeypatch.setattr("app.fdstore.acquire_fds", lambda: {
-        "agent:stale-1:stdin": cli_in_w, "agent:stale-1:stdout": cli_out_r,
+        "agent.stale-1.stdin": cli_in_w, "agent.stale-1.stdout": cli_out_r,
     })
     connects = []
     backend = make_backend_mock()

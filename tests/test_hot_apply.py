@@ -8,6 +8,7 @@
 """
 
 import asyncio
+import contextlib
 import os
 import signal
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -329,10 +330,15 @@ async def test_t3_restart_drains_before_signalling(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_t3_drain_deadline_is_unconditional_and_reports_cut_turns(monkeypatch):
+async def test_t3_drain_deadline_is_unconditional_and_names_the_blocking_turns(monkeypatch):
     """Ход может не кончиться никогда (research.md F7: цепочки agent→agent).
 
-    Поэтому дедлайн безусловный, а число разорванных ходов называется вслух.
+    Дедлайн остаётся безусловным: ждём ограниченное время и не дольше. Но его ИСХОД заменён
+    в #237 T3. Раньше по дедлайну рестарт всё равно резал ход и отчитывался числом
+    разорванных; теперь живой ход на рантайме, который нельзя передать, ОТМЕНЯЕТ рестарт.
+    Сменившие смысл ассерты: `kill` вызывался ровно раз → не вызывается вовсе;
+    `cut_turns == 1` («разорвали одного») → `cut_names` называет того, кто заблокировал,
+    при `cut_turns == 0`.
     """
     from app.routes import system
     from app.session import AgentStatus
@@ -347,9 +353,10 @@ async def test_t3_drain_deadline_is_unconditional_and_reports_cut_turns(monkeypa
         system._restart_service_after_response(), timeout=5,
     )
 
-    kill.assert_called_once_with(os.getpid(), signal.SIGINT)
-    assert isinstance(result, dict) and result.get("cut_turns") == 1, \
-        "рестарт сообщает, сколько ходов разорвал"
+    assert kill.called is False, "живой неподдержанный ход блокирует рестарт, а не режется"
+    assert result["ok"] is False and result["cut_names"] == ["stuck"], \
+        "рестарт называет, чей ход его остановил"
+    assert result["cut_turns"] == 0, "никто не разорван — в этом и смысл отмены"
 
 
 @pytest.mark.asyncio
@@ -365,8 +372,11 @@ async def test_t3_drain_outcome_is_persisted_before_the_signal(monkeypatch):
     from app.session import AgentStatus
 
     order = []
-    stuck = _FakeSession("stuck", AgentStatus.RUNNING)
-    monkeypatch.setattr(system, "_drain_sessions", lambda: [stuck], raising=False)
+    # #237 T3: сессия должна быть СВОБОДНА, иначе рестарт теперь отменяется и до записи с
+    # сигналом дело не доходит вовсе. Проверяемое свойство — порядок «запись → сигнал» —
+    # прежнее; изменился только путь, на котором сигнал вообще случается.
+    idle = _FakeSession("idle", AgentStatus.IDLE)
+    monkeypatch.setattr(system, "_drain_sessions", lambda: [idle], raising=False)
     monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.2, raising=False)
     monkeypatch.setattr(system.os, "kill", lambda *a: order.append("kill"))
 
@@ -379,7 +389,7 @@ async def test_t3_drain_outcome_is_persisted_before_the_signal(monkeypatch):
 
     await asyncio.wait_for(system._restart_service_after_response(), timeout=5)
 
-    assert order == [("record", 1), "kill"], \
+    assert order == [("record", 0), "kill"], \
         f"итог дренажа записан до SIGINT, а не после: {order}"
 
 
@@ -395,8 +405,10 @@ async def test_t3_broken_recorder_does_not_cancel_the_signal(monkeypatch):
     from app.session import AgentStatus
 
     kill = MagicMock()
+    # #237 T3: свободная сессия, потому что живой неподдержанный ход теперь отменяет рестарт,
+    # и «сбой учёта не отменяет сигнал» стало бы непроверяемым — сигнала не было бы и так.
     monkeypatch.setattr(system, "_drain_sessions",
-                        lambda: [_FakeSession("stuck")], raising=False)
+                        lambda: [_FakeSession("idle", AgentStatus.IDLE)], raising=False)
     monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.2, raising=False)
     monkeypatch.setattr(system.os, "kill", kill)
 
@@ -411,6 +423,163 @@ async def test_t3_broken_recorder_does_not_cancel_the_signal(monkeypatch):
     await asyncio.wait_for(system._restart_service_after_response(), timeout=5)
 
     kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+
+
+@pytest.mark.asyncio
+async def test_guard_failed_restart_never_leaves_the_agent_gate_closed(monkeypatch):
+    """Охранник, добавленный ПОСЛЕ заморозки #237 — не оракул тикета.
+
+    Замечен полным прогоном, а не ревью: #237 T3 закрывает приём ходов уже в preflight, и
+    падение до планирования фоновой задачи оставляло `draining=True` навсегда. В проде это
+    «каждый ход отвергнут с retry later» до следующего рестарта — ровно тот класс залипшего
+    гейта, который в #220 стоил 503 на всём сьюте.
+    """
+    from app import main as app_main
+    from app.deps import manager
+    from app.routes import system
+
+    async def boom():
+        raise RuntimeError("preflight exploded")
+
+    monkeypatch.setattr(app_main, "drain_mutating_requests", boom)
+
+    with pytest.raises(RuntimeError, match="preflight exploded"):
+        await system.restart_server()
+
+    assert manager.draining is False, "провалившийся рестарт обязан вернуть приём ходов"
+    assert app_main.mutating_admission_verdict(
+        "POST", "/api/sessions/worker/send")["allowed"] is True
+
+
+@pytest.mark.asyncio
+async def test_guard_watchdog_gives_a_prepared_fleet_its_readers_back(monkeypatch):
+    """Охранник, добавленный ПОСЛЕ заморозки #237 — не оракул тикета.
+
+    Найдено pre-mortem'ом: сторож переоткрывал гейты, но не откатывал уже переданный флот.
+    Рестарт, не случившийся после успешной подготовки, оставлял бы агентов КВИЕСЦИРОВАННЫМИ —
+    то есть живыми, но глухими навсегда, — а их дескрипторы копились бы в systemd до
+    исчерпания store. Сторож обязан вернуть читателя, а не только приём запросов.
+    """
+    from app.routes import system
+
+    rollback = AsyncMock()
+    monkeypatch.setattr(system.manager, "rollback_restart_handover", rollback,
+                        raising=False)
+    monkeypatch.setattr(system, "_watchdog_budget_s", lambda: 0.01)
+    monkeypatch.setattr(system, "_restart_attempt", 7)
+
+    await asyncio.wait_for(system._reopen_admission_if_still_alive(7), timeout=2)
+
+    rollback.assert_awaited_once_with()
+
+
+def test_guard_watchdog_outlasts_everything_the_restart_may_wait_for():
+    """Охранник, добавленный ПОСЛЕ заморозки #237 — не оракул тикета.
+
+    Ревью #237 (B2): бюджет сторожа (120 с) обосновывался самым долгим мутирующим вызовом
+    (90.2 с) и не знал, что T3 подложил под те же гейты ожидание до 900 с. Сторож,
+    срабатывающий РАНЬШЕ законного ожидания, открывает гейт ходов, ходы начинаются заново,
+    `_blocking_runtimes()` перестаёт пустеть — и рестарт становится недостижим: страховка
+    кормит ровно то, чего ждёт цикл.
+
+    Усилен после раунда 2: сравнения с одним `_DRAIN_DEADLINE_S` мало. Ревьюер сложил
+    ВСЕ ожидания пути — `0.5 + 120 + 900 = 1020.5` против бюджета `1020` — и показал, что
+    прежняя формула формально проигрывала, а спасал её только census-exempt `/api/restart`.
+    Поэтому сравнение идёт с суммой, а не со слагаемым.
+    """
+    from app import main as app_main
+    from app.routes import system
+
+    entitled = (system._RESPONSE_FLUSH_PAUSE_S
+                + app_main.MUTATING_DRAIN_BUDGET_S
+                + system._DRAIN_DEADLINE_S)
+    assert system._watchdog_budget_s() > entitled, (
+        f"сторож ({system._watchdog_budget_s()}s) обязан переживать ВСЁ, что рестарт вправе "
+        f"ждать после взведения ({entitled}s): паузу на ответ, повторный дренаж HTTP и "
+        f"ожидание непередаваемых ходов. Иначе он срабатывает посреди законного ожидания")
+
+
+@pytest.mark.asyncio
+async def test_guard_aborted_attempt_disarms_its_watchdog_but_a_signalling_one_does_not():
+    """Охранник, добавленный ПОСЛЕ раунда 2 ревью #237 — не оракул тикета.
+
+    Ревьюер превратил `_disarm_watchdog_if_aborted` целиком в no-op и получил `65 passed`:
+    отмену сторожа не проверял никто. Оба направления обязаны быть здесь, потому что
+    ошибиться можно в обе стороны и обе дорого:
+
+    * не снять после отказа → сторож доживает до следующей попытки и стреляет в её
+      транзакцию (это и есть B2);
+    * снять после успешного сигнала → исчезает единственный случай, ради которого сторож
+      существует: сигнал ушёл, а процесс не умер, и гейты остались закрытыми навсегда.
+    """
+    from app.routes import system
+
+    async def _pending():
+        await asyncio.sleep(3600)  # ДОЛЖЕН реально висеть: отмена завершённой задачи — no-op,
+        #                            и тест зеленел бы, ничего не проверив
+
+    async def _finished(outcome):
+        return outcome
+
+    for label, attempt_result, must_cancel in (
+        ("отказ рестарта", {"ok": False, "reason": "blocked"}, True),
+        ("сигнал ушёл", {"waited_s": 1.0, "cut_turns": 0}, False),
+    ):
+        watchdog = asyncio.create_task(_pending())
+        done = asyncio.create_task(_finished(attempt_result))
+        await done
+        system._disarm_watchdog_if_aborted(done, watchdog)
+        # `.cancel()` только ЗАПРАШИВАЕТ отмену: без такта цикла задача остаётся
+        # в состоянии `cancelling`, и `cancelled()` вернёт False на исправном коде.
+        for _ in range(10):
+            if watchdog.cancelled():
+                break
+            await asyncio.sleep(0)
+        assert watchdog.cancelled() is must_cancel, (
+            f"{label}: сторож {'обязан быть снят' if must_cancel else 'обязан остаться'}")
+        watchdog.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await watchdog
+
+    # третье направление: попытка упала исключением — гейты уже открыты её обработчиком
+    watchdog = asyncio.create_task(_pending())
+
+    async def _raises():
+        raise RuntimeError("restart path failed")
+
+    failed = asyncio.create_task(_raises())
+    with contextlib.suppress(RuntimeError):
+        await failed
+    system._disarm_watchdog_if_aborted(failed, watchdog)
+    for _ in range(10):
+        if watchdog.cancelled():
+            break
+        await asyncio.sleep(0)
+    assert watchdog.cancelled() is True, "упавшая попытка обязана снять своего сторожа"
+    with contextlib.suppress(asyncio.CancelledError):
+        await watchdog
+
+
+@pytest.mark.asyncio
+async def test_guard_watchdog_of_a_superseded_attempt_stands_down(monkeypatch):
+    """Охранник, добавленный ПОСЛЕ заморозки #237 — не оракул тикета.
+
+    Ревью #237 (B2): сторож жил дольше своей попытки и не был с ней связан. Сработав во
+    время СЛЕДУЮЩЕГО рестарта, он снял бы дескрипторы из systemd store и открыл оба гейта
+    посреди чужой транзакции — а та всё равно дошла бы до сигнала.
+    """
+    from app.routes import system
+
+    rollback = AsyncMock()
+    monkeypatch.setattr(system.manager, "rollback_restart_handover", rollback,
+                        raising=False)
+    monkeypatch.setattr(system, "_watchdog_budget_s", lambda: 0.01)
+    monkeypatch.setattr(system, "_restart_attempt", 8)  # попытка 7 уже не текущая
+
+    await asyncio.wait_for(system._reopen_admission_if_still_alive(7), timeout=2)
+
+    assert rollback.await_count == 0, \
+        "сторож устаревшей попытки не имеет права трогать чужую транзакцию"
 
 
 # ── T4: обе точки рестарта ходят через дренаж ──
