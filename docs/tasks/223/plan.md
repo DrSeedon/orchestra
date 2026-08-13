@@ -262,3 +262,129 @@ overhead без сложения с arms. Исторические 6–10 % не
   процент по всем `full-cycle` задачам.
 - Откат production-изменения — удалить шаги 3–4, вернуть старую строку `<parallelism>` и удалить
   immutable guard; red oracle затем закономерно снова даёт exit 1.
+
+## Дополнение 13.08.2026 — прямое разрешение test-layer edits
+
+### Решение и граница полномочия
+
+Меняется только абсолютная строка 18 роли `worker`. Исключение относится **только к прямому
+заданию оркестратора**: исполнитель может править ровно тот тестовый слой, чьи изменения прямо
+разрешены текстом assignment. Необходимость реализации, название test-only задачи или собственный
+вывод исполнителя разрешением не являются.
+
+`full-cycle` исключение не получает намеренно. Его Phase 3 одновременно выдаёт oracle и
+формирует payload исполнителю; разрешить этой же роли снимать широкий test-layer запрет — второй
+authority path, которого живой #235 не требует. Безусловный immutable-oracle guard снизил бы риск,
+но не доказывает безопасность непроверенной второй ветки. Поэтому **делегирование test-layer
+тикетов через `full-cycle` остаётся заблокированным**: это выбранная граница полномочия, а не
+недоделка. Расширение возможно отдельным тикетом после конкретного живого случая и собственного
+oracle.
+
+Финальный diff ограничен:
+
+- `pipelines/default/prompts/roles/worker.md` — одна замена правила строки 18;
+- `tests/test_default_pipeline.py` — уже замороженный delivery oracle;
+- `docs/tasks/223/plan.md`, `codex-review-test-layer-exception-plan.md`, позднее `report.md`.
+
+Не менять `roles/full-cycle.md`, `base.md`, orchestrator-роли, modules, `pipeline.yaml` или `app/`.
+`base.md` участвует только во временной составной мутации и откатывается до финального diff.
+
+### Дословный production-текст
+
+Строку 18 `roles/worker.md` заменить целиком, не меняя строки 13–17:
+
+```markdown
+- **Do not modify any test, fixture, test helper, `conftest.py`, test configuration, marker, or test-selection setting. Sole exception: test-layer edits are permitted only when a direct orchestrator assignment explicitly authorizes those specific edits. The permission must be stated in the assignment; never infer it from what the implementation requires. This exception never applies to the received acceptance test, which remains immutable. Without that explicit authorization, report `WIP/STOP`.**
+```
+
+Формулировка держит четыре независимые границы:
+
+1. default остаётся запретом;
+2. authority — только direct orchestrator assignment;
+3. permission должна быть дословно заявлена, а не выведена из задачи;
+4. received acceptance test исключён из исключения и остаётся immutable.
+
+### Замороженный delivery oracle
+
+RED-коммит: `5667a32f`. Команда:
+
+```bash
+uv run python -m pytest tests/test_default_pipeline.py -k 't3_worker_test_layer_authorization' -q
+```
+
+Наблюдённый RED: exit 1, `1 failed, 2 passed, 92 deselected`. Первая несущая строка:
+
+```text
+AssertionError: roles/worker.md must own the exception: 'Sole exception: test-layer edits are permitted only when a direct orchestrator assignment explicitly authorizes those specific edits.'
+```
+
+Три независимых теста проверяют:
+
+1. ручные цельные anchors принадлежат source `roles/worker.md` и доезжают в assembled worker
+   prompt;
+2. те же anchors имеют ноль вхождений в assembled `full-cycle`, `orchestrator` и
+   `sub-orchestrator`;
+3. прежний безусловный received-oracle anchor отдельно принадлежит source `worker.md` и доезжает
+   в его сборку.
+
+Source assertion в первом тесте принципиален: assembled-only проверка не различает честное
+владение роли и составную подмену через общий `base.md`.
+
+### Обязательные мутации после реализации
+
+Каждая мутация начинается со свежего `cp` своего файла в уникальный backup; восстановление —
+`mv`, затем `touch` восстановленного Python-consumed prompt-файла, `grep -c` всех anchors и
+повторный green run.
+
+1. **Exception missing:** удалить четыре новые exception-клаузы из `worker.md` →
+   `test_t3_worker_test_layer_authorization_is_worker_owned_and_delivered` красный.
+2. **Immutable guard missing:** отдельным свежим backup удалить прежнюю безусловную фразу
+   `The received acceptance test is immutable: NEVER edit, delete, rename, skip, xfail, or weaken it.`
+   → `test_t3_worker_test_layer_authorization_keeps_oracle_unconditionally_immutable` красный.
+3. **Составная ownership/leakage:** удалить четыре exception-клаузы из `worker.md` и посадить
+   их в `base.md` → focused command красная: source ownership отсутствует, а текст протекает в
+   `full-cycle`/orchestrator-роли. Восстановить оба файла из отдельных backups, `touch` оба,
+   проверить marker counts и повторить green command.
+
+### Побайтная защита строк 13 и 17
+
+До production-правки зафиксированы hashes исходных guard-блоков (финальные переводы строк
+включены). Строка 13 — начало одного перенесённого Markdown-правила, поэтому защищается весь
+абзац 13–16, а строка 17 — отдельным hash:
+
+```text
+sed -n '13,16p' pipelines/default/prompts/roles/worker.md | sha256sum
+8818fafeadd08c4eb11e37d189dc0af25dadd6ea91b48a1a5922070778368a0e  -
+
+sed -n '17p' pipelines/default/prompts/roles/worker.md | sha256sum
+9f7396eab9b8f48b86fe51e727fa902dfab4bd428bca9d5a7021ca66eb631d4b  -
+```
+
+После реализации выполнить те же две команды. Любое несовпадение — failure независимо от
+зелёного delivery oracle; править разрешено только строку 18.
+
+### T3 — разрешить прямо порученные правки тестового слоя
+
+- **Files:** `pipelines/default/prompts/roles/worker.md`, `tests/test_default_pipeline.py`
+- **Test:** `tests/test_default_pipeline.py::TestTicketDelegationGate` — committed RED in
+  `5667a32f`
+- **AC:** `uv run python -m pytest tests/test_default_pipeline.py -k
+  't3_worker_test_layer_authorization' -q` is green; соседний `-k 't1_delegation'` green;
+  дословный production-текст выше принадлежит только `roles/worker.md`; assembled
+  `full-cycle`/`orchestrator`/`sub-orchestrator` содержат ноль exception anchors; обе guard hash
+  равны preregistered значениям; три обязательные мутации красные и после каждого отдельного
+  отката focused command снова green; финальный diff не меняет `full-cycle.md`, `base.md`,
+  orchestrator-роли, modules, `pipeline.yaml` или `app/`; полный suite не запускать — focused и
+  соседний prompt suite являются scoped replacement.
+- **blocked-by:** T1 (уже смержен); T2 не блокирует T3
+
+### Риски и приёмка следующего потребителя
+
+- Исполнитель может получить расплывчатое «тесты понадобятся»; новая клауза обязана трактовать
+  это как отсутствие разрешения и вернуть `WIP/STOP`.
+- Полученный acceptance test сам относится к тестовому слою, но более узкий безусловный guard и
+  явная фраза `This exception never applies...` имеют приоритет над разрешением.
+- Прямое задание может разрешить конкретные test-layer edits шире нужного; это полномочие и
+  ответственность оркестратора, а не вывод worker.
+- Следующий автор может счесть заблокированный `full-cycle` path упущением; решение и причина
+  записаны выше и должны сохраняться в финальном отчёте дословно по смыслу.

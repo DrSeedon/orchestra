@@ -688,6 +688,15 @@ class TestTicketDelegationGate:
         "marker, or test-selection setting; if the implementation requires one, report "
         "`WIP/STOP`."
     )
+    TEST_LAYER_EXCEPTION_ANCHORS = (
+        "Sole exception: test-layer edits are permitted only when a direct orchestrator "
+        "assignment explicitly authorizes those specific edits.",
+        "The permission must be stated in the assignment; never infer it from what the "
+        "implementation requires.",
+        "This exception never applies to the received acceptance test, which remains "
+        "immutable.",
+        "Without that explicit authorization, report `WIP/STOP`.",
+    )
     FULL_CYCLE_ANCHORS = (
         "Only a ticket with a reviewed, committed RED command that just failed for the "
         "missing behavior is delegable.",
@@ -732,9 +741,14 @@ class TestTicketDelegationGate:
             assert self.IMMUTABLE_ANCHOR in self._src(role), (
                 f"roles/{role}.md must own the immutable-oracle rule"
             )
-            assert self.TEST_INFRA_ANCHOR in self._src(role), (
-                f"roles/{role}.md must own the oracle-infrastructure rule"
-            )
+        assert self.TEST_INFRA_ANCHOR in self._src("full-cycle"), (
+            "roles/full-cycle.md must keep the absolute delegated-oracle infrastructure rule"
+        )
+        worker_src = self._src("worker")
+        missing = [
+            anchor for anchor in self.TEST_LAYER_EXCEPTION_ANCHORS if anchor not in worker_src
+        ]
+        assert not missing, f"roles/worker.md is missing direct-assignment exception: {missing}"
         assert self.WORKER_FAILURE_ANCHOR in self._src("worker"), (
             "roles/worker.md must turn an oracle-dependent implementation into WIP/STOP"
         )
@@ -753,9 +767,11 @@ class TestTicketDelegationGate:
         assert self.WORKER_FAILURE_ANCHOR in P.build_system_prompt(PIPELINE, "worker"), (
             "worker prompt lost the WIP/STOP consequence of oracle immutability"
         )
-        assert self.TEST_INFRA_ANCHOR in P.build_system_prompt(PIPELINE, "worker"), (
-            "worker prompt lost the oracle-infrastructure rule"
-        )
+        worker_out = P.build_system_prompt(PIPELINE, "worker")
+        missing = [
+            anchor for anchor in self.TEST_LAYER_EXCEPTION_ANCHORS if anchor not in worker_out
+        ]
+        assert not missing, f"worker prompt lost direct-assignment exception: {missing}"
 
     def test_t1_delegation_does_not_leak_into_orchestrators(self):
         anchors = (
@@ -763,6 +779,7 @@ class TestTicketDelegationGate:
             self.IMMUTABLE_ANCHOR,
             self.WORKER_FAILURE_ANCHOR,
             self.TEST_INFRA_ANCHOR,
+            *self.TEST_LAYER_EXCEPTION_ANCHORS,
         )
         for role in self.ORCHESTRATOR_ROLES:
             out = P.build_system_prompt(PIPELINE, role)
@@ -776,6 +793,31 @@ class TestTicketDelegationGate:
         assert self.WORKER_FAILURE_ANCHOR not in P.build_system_prompt(
             PIPELINE, "full-cycle"
         ), "full-cycle received the worker-only WIP/STOP instruction"
+
+    def test_t3_worker_test_layer_authorization_is_worker_owned_and_delivered(self):
+        source = self._src("worker")
+        assembled = P.build_system_prompt(PIPELINE, "worker")
+        for anchor in self.TEST_LAYER_EXCEPTION_ANCHORS:
+            assert anchor in source, f"roles/worker.md must own the exception: {anchor!r}"
+            assert anchor in assembled, f"worker prompt lost the exception: {anchor!r}"
+
+    def test_t3_worker_test_layer_authorization_does_not_leak(self):
+        for role in ("full-cycle", *self.ORCHESTRATOR_ROLES):
+            assembled = P.build_system_prompt(PIPELINE, role)
+            leaked = [
+                anchor for anchor in self.TEST_LAYER_EXCEPTION_ANCHORS if anchor in assembled
+            ]
+            assert not leaked, f"{role} received the worker-only test-layer exception: {leaked}"
+
+    def test_t3_worker_test_layer_authorization_keeps_oracle_unconditionally_immutable(self):
+        source = self._src("worker")
+        assembled = P.build_system_prompt(PIPELINE, "worker")
+        assert self.IMMUTABLE_ANCHOR in source, (
+            "roles/worker.md lost the unconditional received-oracle prohibition"
+        )
+        assert self.IMMUTABLE_ANCHOR in assembled, (
+            "worker prompt lost the unconditional received-oracle prohibition"
+        )
 
     def test_t1_delegation_gate_precedes_implementation_work(self):
         out = P.build_system_prompt(PIPELINE, "full-cycle")
