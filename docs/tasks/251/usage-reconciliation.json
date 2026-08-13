@@ -1,0 +1,215 @@
+{
+  "rows": [
+    {
+      "run": "A-grok-4.5-1",
+      "prompt_tokens": 138291,
+      "tariff_multiplier": 1,
+      "completed_x_calls": 1,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.1532184,
+      "reported_cost": 0.1532184,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "A-grok-4.5-2",
+      "prompt_tokens": 138288,
+      "tariff_multiplier": 1,
+      "completed_x_calls": 1,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.0545024,
+      "reported_cost": 0.0545024,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "A-grok-4.5-3",
+      "prompt_tokens": 138288,
+      "tariff_multiplier": 1,
+      "completed_x_calls": 1,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.2793844,
+      "reported_cost": 0.2793844,
+      "residual_reported_minus_expected": -0.0
+    },
+    {
+      "run": "A-grok-4.6-1",
+      "prompt_tokens": 138317,
+      "tariff_multiplier": 1,
+      "completed_x_calls": 1,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.08784,
+      "reported_cost": 0.08784,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "A-grok-4.6-2",
+      "prompt_tokens": 138353,
+      "tariff_multiplier": 1,
+      "completed_x_calls": 1,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.170682,
+      "reported_cost": 0.170682,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "A-grok-4.6-3",
+      "prompt_tokens": 138347,
+      "tariff_multiplier": 1,
+      "completed_x_calls": 1,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.185616,
+      "reported_cost": 0.185616,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "B-grok-4.5-1",
+      "prompt_tokens": 217716,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 4,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.41108,
+      "reported_cost": 0.41108,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "B-grok-4.5-2",
+      "prompt_tokens": 220558,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 3,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.39656,
+      "reported_cost": 0.39656,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "B-grok-4.5-3",
+      "prompt_tokens": 212416,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 4,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.421144,
+      "reported_cost": 0.421144,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "B-grok-4.6-1",
+      "prompt_tokens": 228312,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 4,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.52328,
+      "reported_cost": 0.52328,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "B-grok-4.6-2",
+      "prompt_tokens": 218308,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 4,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.470892,
+      "reported_cost": 0.470892,
+      "residual_reported_minus_expected": -0.0
+    },
+    {
+      "run": "B-grok-4.6-3",
+      "prompt_tokens": 227967,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 4,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.521756,
+      "reported_cost": 0.521756,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "C-grok-4.5-1",
+      "prompt_tokens": 383213,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 10,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.5900256,
+      "reported_cost": 0.5900256,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "C-grok-4.5-2",
+      "prompt_tokens": 290821,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 5,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.4797632,
+      "reported_cost": 0.4797632,
+      "residual_reported_minus_expected": -0.0
+    },
+    {
+      "run": "C-grok-4.5-3",
+      "prompt_tokens": 302313,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 18,
+      "x_call_batches": 2,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.3569128,
+      "reported_cost": 0.3069128,
+      "residual_reported_minus_expected": -0.05
+    },
+    {
+      "run": "C-grok-4.6-1",
+      "prompt_tokens": 567906,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 17,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 1.003564,
+      "reported_cost": 1.003564,
+      "residual_reported_minus_expected": -0.0
+    },
+    {
+      "run": "C-grok-4.6-2",
+      "prompt_tokens": 812127,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 21,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 1.327572,
+      "reported_cost": 1.327572,
+      "residual_reported_minus_expected": 0.0
+    },
+    {
+      "run": "C-grok-4.6-3",
+      "prompt_tokens": 477461,
+      "tariff_multiplier": 2,
+      "completed_x_calls": 13,
+      "x_call_batches": 1,
+      "reported_model_calls": 1,
+      "expected_cost_if_every_completed_x_call_is_billable": 0.846448,
+      "reported_cost": 0.846448,
+      "residual_reported_minus_expected": -0.0
+    }
+  ],
+  "summary": {
+    "runs": 18,
+    "reported_model_calls": 18,
+    "x_call_batches": 19,
+    "completed_x_calls": 113,
+    "reported_cost": 8.2302408,
+    "expected_cost_if_every_completed_x_call_is_billable": 8.2802408,
+    "residuals": {
+      "0.0": 17,
+      "-0.05": 1
+    }
+  },
+  "interpretation_limit": "An X call-id batch is not documented as a modelCall. The single -$0.05 residual proves disagreement with the published per-completed-call formula, but without an exact account billing delta it does not prove whether the trace omitted spend or the first ten completed searches were non-billable."
+}

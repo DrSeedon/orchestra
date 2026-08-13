@@ -52,6 +52,7 @@ MODELS = {
     "gpt-5.5": "GPT-5.5",
     "gpt-5.4": "GPT-5.4",
     "gpt-5.4-mini": "GPT-5.4 Mini",
+    "grok-4.6": "Grok 4.6",
     "grok-4.5": "Grok 4.5",
 }
 
@@ -71,6 +72,7 @@ CONTEXT_LIMITS = {
     "gpt-5.4-mini": 258400,
     # Reported by the Grok runtime itself (initialize + session/new agree). The bundled
     # vendor README disagrees with the runtime on other numbers, so the runtime wins.
+    "grok-4.6": 500000,
     "grok-4.5": 500000,
 }
 
@@ -108,6 +110,7 @@ ALIASES = {
     "gpt5.4mini": "gpt-5.4-mini",
     "gpt-5.4mini": "gpt-5.4-mini",
     "grok": "grok-4.5",
+    "grok4.6": "grok-4.6",
     "grok4.5": "grok-4.5",
     "grok-build": "grok-4.5",
 }
@@ -124,6 +127,7 @@ BACKENDS = {
     "gpt-5.5": "codex",
     "gpt-5.4": "codex",
     "gpt-5.4-mini": "codex",
+    "grok-4.6": "grok",
     "grok-4.5": "grok",
 }
 
@@ -139,6 +143,7 @@ MODEL_PROVIDERS = {
     "gpt-5.5": "openai",
     "gpt-5.4": "openai",
     "gpt-5.4-mini": "openai",
+    "grok-4.6": "x-ai",
     "grok-4.5": "x-ai",
 }
 

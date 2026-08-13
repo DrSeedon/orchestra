@@ -1,0 +1,297 @@
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact","always-approve","context","session-info","deep-research","workflow","goal","loop","codex-debate","html-artifacts","agent-teams","close","codex-review","frontend-design","laptop-access","mcp-builder","quick-skill","reddit-reader","sfu-report","transcribe","webapp-testing","youtube-reader","build-with-ai","code-review","create-skill","create-workflow","design","execute-plan","bundled:imagine","implement","pr-babysit","resume-claude","resume-codex","resume-cursor","review","skill-design-principles"]}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact","always-approve","context","session-info","deep-research","workflow","goal","loop","codex-debate","html-artifacts","agent-teams","close","codex-review","frontend-design","laptop-access","mcp-builder","quick-skill","reddit-reader","sfu-report","transcribe","webapp-testing","youtube-reader","build-with-ai","code-review","create-skill","create-workflow","design","execute-plan","bundled:imagine","implement","pr-babysit","resume-claude","resume-codex","resume-cursor","review","skill-design-principles"]}
+{"type":"thought","data":"The"}
+{"type":"thought","data":" user"}
+{"type":"thought","data":" wants"}
+{"type":"thought","data":" me"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" use"}
+{"type":"thought","data":" native"}
+{"type":"thought","data":" X"}
+{"type":"thought","data":" semantic"}
+{"type":"thought","data":" search"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" find"}
+{"type":"thought","data":" a"}
+{"type":"thought","data":" post"}
+{"type":"thought","data":" by"}
+{"type":"thought","data":" @"}
+{"type":"thought","data":"gro"}
+{"type":"thought","data":"k"}
+{"type":"thought","data":" about"}
+{"type":"thought","data":" how"}
+{"type":"thought","data":" no"}
+{"type":"thought","data":" single"}
+{"type":"thought","data":" AI"}
+{"type":"thought","data":" replaces"}
+{"type":"thought","data":" every"}
+{"type":"thought","data":" other"}
+{"type":"thought","data":" model"}
+{"type":"thought","data":","}
+{"type":"thought","data":" and"}
+{"type":"thought","data":" different"}
+{"type":"thought","data":" models"}
+{"type":"thought","data":" lead"}
+{"type":"thought","data":" different"}
+{"type":"thought","data":" kinds"}
+{"type":"thought","data":" of"}
+{"type":"thought","data":" work"}
+{"type":"thought","data":"."}
+{"type":"thought","data":" I"}
+{"type":"thought","data":" need"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" return"}
+{"type":"thought","data":" a"}
+{"type":"thought","data":" speci..."}
+{"type":"tool_call","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-0","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-0","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-5461b96d-fb73-4b62-81f3-0cc00c807957-0","input":"{\"query\":\"no single AI replaces every other model; different models lead different kinds of work, choose the right model for the task rather than a universal winner\",\"limit\":\"10\",\"usernames\":[\"grok\"]}","name":"x_semantic_search","id":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-0"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-1","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-1","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-5461b96d-fb73-4b62-81f3-0cc00c807957-1","input":"{\"query\":\"from:grok (model OR models) (task OR replace OR winner OR different)\",\"limit\":\"10\",\"mode\":\"Latest\"}","name":"x_keyword_search","id":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-1"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-2","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-2","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-5461b96d-fb73-4b62-81f3-0cc00c807957-2","input":"{\"query\":\"no single AI model replaces every other; choose the right model for the task not a universal winner\",\"limit\":\"10\",\"usernames\":[\"grok\"]}","name":"x_semantic_search","id":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-2"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-3","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-3","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-5461b96d-fb73-4b62-81f3-0cc00c807957-3","input":"{\"query\":\"different models are better at different kinds of work pick the right model for the task\",\"limit\":\"10\",\"usernames\":[\"grok\"]}","name":"x_semantic_search","id":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-3"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-4","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-4","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-5461b96d-fb73-4b62-81f3-0cc00c807957-4","input":"{\"query\":\"from:grok (\\\"right model\\\" OR \\\"no single\\\" OR \\\"universal\\\" OR \\\"replaces\\\" OR \\\"different models\\\")\",\"limit\":\"10\",\"mode\":\"Latest\"}","name":"x_keyword_search","id":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-4"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-5","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-5","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-5461b96d-fb73-4b62-81f3-0cc00c807957-5","input":"{\"query\":\"No single best match it to your needs different models lead coding writing\",\"limit\":\"5\",\"usernames\":[\"grok\"]}","name":"x_semantic_search","id":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-5"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-6","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-6","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-5461b96d-fb73-4b62-81f3-0cc00c807957-6","input":"{\"query\":\"from:grok (\\\"No single best\\\" OR \\\"no single AI\\\" OR \\\"match it to your needs\\\" OR \\\"Depends on the task\\\")\",\"limit\":\"10\",\"mode\":\"Latest\"}","name":"x_keyword_search","id":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-6"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-7","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-7","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-5461b96d-fb73-4b62-81f3-0cc00c807957-7","input":"{\"query\":\"from:grok (\\\"right model\\\" OR \\\"different models lead\\\" OR \\\"no universal\\\" OR \\\"doesn't replace\\\")\",\"limit\":\"10\",\"mode\":\"Latest\"}","name":"x_keyword_search","id":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-7"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-8","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-8","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-5461b96d-fb73-4b62-81f3-0cc00c807957-8","input":"{\"query\":\"no single AI is best for everything different models excel at different tasks pick the right one\",\"limit\":\"10\",\"usernames\":[\"grok\"]}","name":"x_semantic_search","id":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-8"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-9","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-9","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-5461b96d-fb73-4b62-81f3-0cc00c807957-9","input":"{\"query\":\"from:grok (\\\"No single best\\\" OR \\\"Neither is universally\\\" OR \\\"match it to your needs\\\") (Claude OR ChatGPT OR Gemini OR model)\",\"limit\":\"10\",\"mode\":\"Latest\"}","name":"x_keyword_search","id":"ctc_fb0daa9b-e4b5-995f-8769-4a72859862b1_call-5461b96d-fb73-4b62-81f3-0cc00c807957-9"},"locations":[]}
+{"type":"thought","data":"The"}
+{"type":"thought","data":" user"}
+{"type":"thought","data":" wants"}
+{"type":"thought","data":" me"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" use"}
+{"type":"thought","data":" native"}
+{"type":"thought","data":" X"}
+{"type":"thought","data":" semantic"}
+{"type":"thought","data":" search"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" find"}
+{"type":"thought","data":" a"}
+{"type":"thought","data":" post"}
+{"type":"thought","data":" by"}
+{"type":"thought","data":" @"}
+{"type":"thought","data":"gro"}
+{"type":"thought","data":"k"}
+{"type":"thought","data":" about"}
+{"type":"thought","data":" how"}
+{"type":"thought","data":" no"}
+{"type":"thought","data":" single"}
+{"type":"thought","data":" AI"}
+{"type":"thought","data":" replaces"}
+{"type":"thought","data":" every"}
+{"type":"thought","data":" other"}
+{"type":"thought","data":" model"}
+{"type":"thought","data":","}
+{"type":"thought","data":" and"}
+{"type":"thought","data":" different"}
+{"type":"thought","data":" models"}
+{"type":"thought","data":" lead"}
+{"type":"thought","data":" different"}
+{"type":"thought","data":" kinds"}
+{"type":"thought","data":" of"}
+{"type":"thought","data":" work"}
+{"type":"thought","data":"."}
+{"type":"thought","data":" I"}
+{"type":"thought","data":" need"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" return"}
+{"type":"thought","data":" a"}
+{"type":"thought","data":" speci..."}
+{"type":"tool_call","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-0","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-0","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-0","input":"{\"query\":\"no single AI replaces every other model; different models lead different kinds of work, choose the right model for the task rather than a universal winner\",\"limit\":\"10\",\"usernames\":[\"grok\"]}","name":"x_semantic_search","id":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-0"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-1","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-1","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-1","input":"{\"query\":\"from:grok (model OR models) (task OR work) (right OR choose OR different)\",\"limit\":\"10\",\"mode\":\"Latest\"}","name":"x_keyword_search","id":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-1"},"locations":[]}
+{"type":"text","data":"Trying"}
+{"type":"text","data":" more"}
+{"type":"text","data":" targeted"}
+{"type":"text","data":" X"}
+{"type":"text","data":" searches"}
+{"type":"text","data":" for"}
+{"type":"text","data":" the"}
+{"type":"text","data":" exact"}
+{"type":"text","data":" meaning"}
+{"type":"text","data":"."}
+{"type":"tool_call","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-2","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-3","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-4","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-3","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-3","input":"{\"query\":\"there is no universal best model pick the right AI for each kind of work\",\"limit\":\"10\",\"usernames\":[\"grok\"]}","name":"x_semantic_search","id":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-3"},"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-2","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-2","input":"{\"query\":\"no single AI replaces every other model different models lead different work choose the right model for the task\",\"limit\":\"10\",\"usernames\":[\"grok\"]}","name":"x_semantic_search","id":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-2"},"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-4","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-4","input":"{\"query\":\"from:grok (\\\"right model\\\" OR \\\"no single\\\" OR \\\"universal\\\" OR \\\"every other\\\" OR \\\"different models\\\")\",\"limit\":\"10\",\"mode\":\"Latest\"}","name":"x_keyword_search","id":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-4"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-5","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-5","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-5","input":"{\"query\":\"No single best match the model to your main task Claude GPT Gemini Grok leads\",\"limit\":\"5\",\"usernames\":[\"grok\"]}","name":"x_semantic_search","id":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-5"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-6","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-7","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-6","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-6","input":"{\"query\":\"from:grok (\\\"No single best\\\" OR \\\"No single winner\\\" OR \\\"Match the model\\\")\",\"limit\":\"10\",\"mode\":\"Latest\"}","name":"x_keyword_search","id":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-6"},"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-7","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-7","input":"{\"post_id\":\"2087249993685975040\"}","name":"x_thread_fetch","id":"ctc_af919acb-28b2-937e-97e4-8a6312069f00_call-d5500233-42b8-431f-9eb0-d3a89fc918c0-7"},"locations":[]}
+{"type":"text","data":"{\""}
+{"type":"text","data":"found"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" true"}
+{"type":"text","data":","}
+{"type":"text","data":" \""}
+{"type":"text","data":"post"}
+{"type":"text","data":"_"}
+{"type":"text","data":"url"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" \""}
+{"type":"text","data":"https"}
+{"type":"text","data":"://"}
+{"type":"text","data":"x"}
+{"type":"text","data":".com"}
+{"type":"text","data":"/"}
+{"type":"text","data":"gro"}
+{"type":"text","data":"k"}
+{"type":"text","data":"/"}
+{"type":"text","data":"status"}
+{"type":"text","data":"/"}
+{"type":"text","data":"208"}
+{"type":"text","data":"724"}
+{"type":"text","data":"999"}
+{"type":"text","data":"368"}
+{"type":"text","data":"597"}
+{"type":"text","data":"504"}
+{"type":"text","data":"0"}
+{"type":"text","data":"\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"author"}
+{"type":"text","data":"_"}
+{"type":"text","data":"handle"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" \""}
+{"type":"text","data":"gro"}
+{"type":"text","data":"k"}
+{"type":"text","data":"\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"timestamp"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" \""}
+{"type":"text","data":"Tue"}
+{"type":"text","data":","}
+{"type":"text","data":" "}
+{"type":"text","data":"11"}
+{"type":"text","data":" Aug"}
+{"type":"text","data":" "}
+{"type":"text","data":"202"}
+{"type":"text","data":"6"}
+{"type":"text","data":" "}
+{"type":"text","data":"18"}
+{"type":"text","data":":"}
+{"type":"text","data":"49"}
+{"type":"text","data":":"}
+{"type":"text","data":"12"}
+{"type":"text","data":" GMT"}
+{"type":"text","data":"\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"verbatim"}
+{"type":"text","data":"_"}
+{"type":"text","data":"text"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" \""}
+{"type":"text","data":"No"}
+{"type":"text","data":" single"}
+{"type":"text","data":" best"}
+{"type":"text","data":"."}
+{"type":"text","data":" Claude"}
+{"type":"text","data":" variants"}
+{"type":"text","data":" currently"}
+{"type":"text","data":" top"}
+{"type":"text","data":" most"}
+{"type":"text","data":" coding"}
+{"type":"text","data":","}
+{"type":"text","data":" agent"}
+{"type":"text","data":"ic"}
+{"type":"text","data":","}
+{"type":"text","data":" and"}
+{"type":"text","data":" hard"}
+{"type":"text","data":"-"}
+{"type":"text","data":"reasoning"}
+{"type":"text","data":" benchmarks"}
+{"type":"text","data":"."}
+{"type":"text","data":" GPT"}
+{"type":"text","data":" models"}
+{"type":"text","data":" are"}
+{"type":"text","data":" the"}
+{"type":"text","data":" broad"}
+{"type":"text","data":"est"}
+{"type":"text","data":" all"}
+{"type":"text","data":"-"}
+{"type":"text","data":"round"}
+{"type":"text","data":"ers"}
+{"type":"text","data":"."}
+{"type":"text","data":" Gemini"}
+{"type":"text","data":" leads"}
+{"type":"text","data":" on"}
+{"type":"text","data":" context"}
+{"type":"text","data":" window"}
+{"type":"text","data":" and"}
+{"type":"text","data":" free"}
+{"type":"text","data":" access"}
+{"type":"text","data":"."}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" stands"}
+{"type":"text","data":" out"}
+{"type":"text","data":" for"}
+{"type":"text","data":" live"}
+{"type":"text","data":" X"}
+{"type":"text","data":"/"}
+{"type":"text","data":"web"}
+{"type":"text","data":" data"}
+{"type":"text","data":","}
+{"type":"text","data":" speed"}
+{"type":"text","data":","}
+{"type":"text","data":" and"}
+{"type":"text","data":" value"}
+{"type":"text","data":"."}
+{"type":"text","data":" Match"}
+{"type":"text","data":" the"}
+{"type":"text","data":" model"}
+{"type":"text","data":" to"}
+{"type":"text","data":" your"}
+{"type":"text","data":" main"}
+{"type":"text","data":" task"}
+{"type":"text","data":".\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"thread"}
+{"type":"text","data":"_"}
+{"type":"text","data":"urls"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" [],"}
+{"type":"text","data":" \""}
+{"type":"text","data":"tools"}
+{"type":"text","data":"_"}
+{"type":"text","data":"used"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" [\""}
+{"type":"text","data":"x"}
+{"type":"text","data":"_"}
+{"type":"text","data":"semantic"}
+{"type":"text","data":"_"}
+{"type":"text","data":"search"}
+{"type":"text","data":"\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"x"}
+{"type":"text","data":"_"}
+{"type":"text","data":"keyword"}
+{"type":"text","data":"_"}
+{"type":"text","data":"search"}
+{"type":"text","data":"\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"x"}
+{"type":"text","data":"_"}
+{"type":"text","data":"thread"}
+{"type":"text","data":"_"}
+{"type":"text","data":"fetch"}
+{"type":"text","data":"\"]}"}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact","always-approve","context","session-info","deep-research","workflow","goal","loop","codex-debate","html-artifacts","agent-teams","close","codex-review","frontend-design","laptop-access","mcp-builder","quick-skill","reddit-reader","sfu-report","transcribe","webapp-testing","youtube-reader","build-with-ai","code-review","create-skill","create-workflow","design","execute-plan","bundled:imagine","implement","pr-babysit","resume-claude","resume-codex","resume-cursor","review","skill-design-principles"]}
+{"type":"usage","usage":{"input_tokens":18025,"output_tokens":2020,"cache_read_input_tokens":284288,"cache_creation_input_tokens":0,"reasoning_tokens":1714},"signature":"3bwvWwgwV/SE87UyGGUu+dtf/kahUZ8fV/OgNxjd2PCEtQYJgcy+zj4f19pAga9wOhw+1QqLehbFuACbf03q52F2EPhG3osjc5EkTVHEE6PUj9ES5rrTMDnaqMALnUar8wH47NEaA7UNnTxUwcx1il6vg4HdqKoyhoZGOuV2GPVYPjnvGpU0M6uAkc4huAC20Qn0zX2AH+0v+ROnV7pd0JWEZOeyXxft0wJxM6BZaYbpXlAlAY2Fw55M5j6C3Rg4UBsYHJnEkMnX5BAgtesZI37ceKIzJOIJcbm1aKx8DB7Nmqx1BNfTyHko7P6W1IoyqQDqcoCvBUliSgpThDhMqJl65vHt/NQCPHw2YhPLJWSC86+I9+895QD/CNTSiPs/GB6A+Fz7sj6T0ZYxxoQSplzKnDON1NsSofP3S9O+r5z5H7DGyCIDT0+a2+o"}
+{"type":"end","stopReason":"end_turn","sessionId":"019ffa02-78a2-7003-b183-e7e84cf048c2","requestId":"269b5286-8582-44f4-9c83-f784aa176ec7","usage":{"input_tokens":18025,"cache_read_input_tokens":284288,"cache_creation_input_tokens":0,"output_tokens":2020,"reasoning_tokens":1714,"total_tokens":304333},"num_turns":1,"total_cost_usd":0.3069128,"total_cost_usd_ticks":3069128000,"modelUsage":{"grok-4.5-build":{"inputTokens":18025,"outputTokens":2020,"cacheReadInputTokens":284288,"cacheCreationInputTokens":0,"modelCalls":1,"costUSD":0.3069128}}}

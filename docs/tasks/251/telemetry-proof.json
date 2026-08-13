@@ -1,0 +1,18 @@
+{
+  "positive_post_paths": {
+    "/events": 19,
+    "/v1/logs": 2,
+    "/v1/metrics": 1
+  },
+  "positive_rc": 0,
+  "production_post_paths": {},
+  "production_rc": 0,
+  "production_switches": {
+    "GROK_EXTERNAL_OTEL": "0",
+    "GROK_TELEMETRY_ENABLED": "0",
+    "OTEL_LOGS_EXPORTER": "none",
+    "OTEL_METRICS_EXPORTER": "none",
+    "OTEL_TRACES_EXPORTER": "none",
+    "SENTRY_DSN": ""
+  }
+}

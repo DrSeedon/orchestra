@@ -44,15 +44,18 @@ def _update(kind, **payload):
 
 def test_grok_model_routes_to_grok_runtime():
     # The route is explicit; removing it must fail rather than select another runtime.
+    assert backend_for_model("grok-4.6") == "grok"
     assert backend_for_model("grok-4.5") == "grok"
 
 
 def test_grok_aliases_and_provider():
+    assert resolve_model("grok4.6") == "grok-4.6"
     assert resolve_model("grok") == "grok-4.5"
-    spec = get_model_spec("grok-4.5")
-    assert spec.runtime == "grok"
-    assert spec.provider == "x-ai"
-    assert spec.context_length == 500000
+    for model in ("grok-4.5", "grok-4.6"):
+        spec = get_model_spec(model)
+        assert spec.runtime == "grok"
+        assert spec.provider == "x-ai"
+        assert spec.context_length == 500000
 
 
 def test_unregistered_grok_model_fails_loud():
@@ -96,9 +99,11 @@ def test_cached_rate_is_runtime_value_not_published_value():
     # Published rate cards say $0.50/M cached. Only $0.30 closes the arithmetic on all
     # three measured turns, so the runtime is the source of truth here.
     assert GROK_TOKEN_PRICES["grok-4.5"]["cached"] == 0.30
+    assert GROK_TOKEN_PRICES["grok-4.6"]["cached"] == 0.50
 
 
 def test_context_limit_is_runtime_reported():
+    assert GROK_CONTEXT_LIMITS["grok-4.6"] == 500000
     assert GROK_CONTEXT_LIMITS["grok-4.5"] == 500000
 
 
@@ -191,6 +196,7 @@ def test_grok_prices_stay_out_of_the_shared_token_prices_dict():
     backend computed from the runtime's own figure.
     """
     from app.models import TOKEN_PRICES
+    assert "grok-4.6" not in TOKEN_PRICES
     assert "grok-4.5" not in TOKEN_PRICES
 
     inp, cached, out = 22810, 5376, 99
@@ -859,6 +865,9 @@ def test_grok_home_is_isolated_and_disables_claude_compat_mcp(tmp_path, monkeypa
     assert result == home
     config = (home / "config.toml").read_text(encoding="utf-8")
     assert "[compat.claude]" in config and "mcps = false" in config
+    assert "telemetry = false" in config
+    assert "trace_upload = false" in config
+    assert "otel_enabled = false" in config
     # Credentials are shared by symlink so a token refresh does not rot in a private copy.
     assert (home / "auth.json").is_symlink()
     assert (home / "auth.json").readlink() == fake_user_home / "auth.json"
@@ -884,6 +893,35 @@ def test_build_env_forces_orchestra_grok_home(tmp_path, monkeypatch):
     # An inherited GROK_HOME must not defeat isolation.
     monkeypatch.setenv("GROK_HOME", "/somewhere/else")
     assert _backend()._build_env()["GROK_HOME"] == str(home)
+
+
+def test_build_env_disables_every_grok_telemetry_channel(tmp_path, monkeypatch):
+    home = tmp_path / "grok-home"
+    fake_user_home = tmp_path / "user-grok"
+    fake_user_home.mkdir()
+    (fake_user_home / "auth.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr("app.backend_grok.GROK_HOME_DIR", home)
+    monkeypatch.setattr("app.backend_grok.GROK_USER_HOME", fake_user_home)
+    # Host and MCP env are both attacker-controlled inputs to a spawned worker.
+    monkeypatch.setenv("GROK_TELEMETRY_ENABLED", "1")
+    b = _backend(mcp_env={
+        "GROK_TELEMETRY_TRACE_UPLOAD": "1",
+        "GROK_EXTERNAL_OTEL": "1",
+        "OTEL_LOGS_EXPORTER": "otlp",
+        "SENTRY_DSN": "https://example.invalid/1",
+    })
+
+    env = b._build_env()
+
+    assert env["GROK_TELEMETRY_ENABLED"] == "0"
+    assert env["GROK_TELEMETRY_TRACE_UPLOAD"] == "0"
+    assert env["GROK_TELEMETRY_MIXPANEL_ENABLED"] == "0"
+    assert env["GROK_FEEDBACK_ENABLED"] == "0"
+    assert env["GROK_EXTERNAL_OTEL"] == "0"
+    assert env["OTEL_METRICS_EXPORTER"] == "none"
+    assert env["OTEL_LOGS_EXPORTER"] == "none"
+    assert env["OTEL_TRACES_EXPORTER"] == "none"
+    assert env["SENTRY_DSN"] == ""
 
 
 # ── session resume (T3) ──

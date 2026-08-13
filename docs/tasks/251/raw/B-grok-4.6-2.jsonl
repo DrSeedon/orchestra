@@ -1,0 +1,777 @@
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact","always-approve","context","session-info","deep-research","workflow","goal","loop","codex-debate","html-artifacts","agent-teams","close","codex-review","frontend-design","laptop-access","mcp-builder","quick-skill","reddit-reader","sfu-report","transcribe","webapp-testing","youtube-reader","build-with-ai","code-review","create-skill","create-workflow","design","execute-plan","bundled:imagine","implement","pr-babysit","resume-claude","resume-codex","resume-cursor","review","skill-design-principles"]}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact","always-approve","context","session-info","deep-research","workflow","goal","loop","codex-debate","html-artifacts","agent-teams","close","codex-review","frontend-design","laptop-access","mcp-builder","quick-skill","reddit-reader","sfu-report","transcribe","webapp-testing","youtube-reader","build-with-ai","code-review","create-skill","create-workflow","design","execute-plan","bundled:imagine","implement","pr-babysit","resume-claude","resume-codex","resume-cursor","review","skill-design-principles"]}
+{"type":"thought","data":"The"}
+{"type":"thought","data":" user"}
+{"type":"thought","data":" wants"}
+{"type":"thought","data":" me"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" find"}
+{"type":"thought","data":" a"}
+{"type":"thought","data":" specific"}
+{"type":"thought","data":" X"}
+{"type":"thought","data":" ("}
+{"type":"thought","data":"Twitter"}
+{"type":"thought","data":")"}
+{"type":"thought","data":" post"}
+{"type":"thought","data":" by"}
+{"type":"thought","data":" @"}
+{"type":"thought","data":"Artificial"}
+{"type":"thought","data":"An"}
+{"type":"thought","data":"lys"}
+{"type":"thought","data":" about"}
+{"type":"thought","data":" G"}
+{"type":"thought","data":"rok"}
+{"type":"thought","data":" "}
+{"type":"thought","data":"4"}
+{"type":"thought","data":"."}
+{"type":"thought","data":"6"}
+{"type":"thought","data":" scoring"}
+{"type":"thought","data":" "}
+{"type":"thought","data":"61"}
+{"type":"thought","data":" and"}
+{"type":"thought","data":" matching"}
+{"type":"thought","data":" GPT"}
+{"type":"thought","data":"-"}
+{"type":"thought","data":"5"}
+{"type":"thought","data":"."}
+{"type":"thought","data":"6"}
+{"type":"thought","data":" Sol"}
+{"type":"thought","data":"."}
+{"type":"thought","data":" They"}
+{"type":"thought","data":" want"}
+{"type":"thought","data":" me"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" use"}
+{"type":"thought","data":" native"}
+{"type":"thought","data":" X"}
+{"type":"thought","data":" tools"}
+{"type":"thought","data":","}
+{"type":"thought","data":" not"}
+{"type":"thought","data":" general"}
+{"type":"thought","data":" web"}
+{"type":"thought","data":" search"}
+{"type":"thought","data":".\n"}
+{"type":"text","data":"I'll"}
+{"type":"text","data":" search"}
+{"type":"text","data":" X"}
+{"type":"text","data":" directly"}
+{"type":"text","data":" for"}
+{"type":"text","data":" the"}
+{"type":"text","data":" @"}
+{"type":"text","data":"Artificial"}
+{"type":"text","data":"An"}
+{"type":"text","data":"lys"}
+{"type":"text","data":" post"}
+{"type":"text","data":" about"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"6"}
+{"type":"text","data":" scoring"}
+{"type":"text","data":" "}
+{"type":"text","data":"61"}
+{"type":"text","data":"."}
+{"type":"tool_call","toolCallId":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-0","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-0","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-0","input":"{\"query\":\"from:ArtificialAnlys Grok 4.6 61\",\"limit\":\"10\",\"mode\":\"Latest\"}","name":"x_keyword_search","id":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-0"},"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-1","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call","toolCallId":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-2","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-2","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-2","input":"{\"query\":\"ArtificialAnlys\",\"count\":\"3\"}","name":"x_user_search","id":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-2"},"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-1","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-1","input":"{\"query\":\"from:ArtificialAnlys (Grok OR \\\"4.6\\\") (61 OR Sol OR \\\"GPT-5.6\\\")\",\"limit\":\"10\",\"mode\":\"Latest\"}","name":"x_keyword_search","id":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-1"},"locations":[]}
+{"type":"text","data":"Found"}
+{"type":"text","data":" the"}
+{"type":"text","data":" matching"}
+{"type":"text","data":" post"}
+{"type":"text","data":"."}
+{"type":"text","data":" Fetch"}
+{"type":"text","data":"ing"}
+{"type":"text","data":" the"}
+{"type":"text","data":" thread"}
+{"type":"text","data":" so"}
+{"type":"text","data":" I"}
+{"type":"text","data":" only"}
+{"type":"text","data":" keep"}
+{"type":"text","data":" UR"}
+{"type":"text","data":"Ls"}
+{"type":"text","data":" the"}
+{"type":"text","data":" X"}
+{"type":"text","data":" tool"}
+{"type":"text","data":" actually"}
+{"type":"text","data":" returns"}
+{"type":"text","data":"."}
+{"type":"tool_call","toolCallId":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-3","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-3","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-3","input":"{\"post_id\":\"2087564648325530099\"}","name":"x_thread_fetch","id":"ctc_8f268bc0-2bd4-9349-a20a-4393723234c9_call-8cd6b57a-e4d6-4544-8fc4-bc9f7c677cd1-3"},"locations":[]}
+{"type":"text","data":"{\""}
+{"type":"text","data":"found"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" true"}
+{"type":"text","data":","}
+{"type":"text","data":" \""}
+{"type":"text","data":"post"}
+{"type":"text","data":"_"}
+{"type":"text","data":"url"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" null"}
+{"type":"text","data":","}
+{"type":"text","data":" \""}
+{"type":"text","data":"author"}
+{"type":"text","data":"_"}
+{"type":"text","data":"handle"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" \""}
+{"type":"text","data":"Artificial"}
+{"type":"text","data":"An"}
+{"type":"text","data":"lys"}
+{"type":"text","data":"\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"timestamp"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" \""}
+{"type":"text","data":"Wed"}
+{"type":"text","data":","}
+{"type":"text","data":" "}
+{"type":"text","data":"12"}
+{"type":"text","data":" Aug"}
+{"type":"text","data":" "}
+{"type":"text","data":"202"}
+{"type":"text","data":"6"}
+{"type":"text","data":" "}
+{"type":"text","data":"15"}
+{"type":"text","data":":"}
+{"type":"text","data":"39"}
+{"type":"text","data":":"}
+{"type":"text","data":"31"}
+{"type":"text","data":" GMT"}
+{"type":"text","data":"\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"verbatim"}
+{"type":"text","data":"_"}
+{"type":"text","data":"text"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" \""}
+{"type":"text","data":"Space"}
+{"type":"text","data":"X"}
+{"type":"text","data":"AI"}
+{"type":"text","data":"'s"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"6"}
+{"type":"text","data":" scores"}
+{"type":"text","data":" "}
+{"type":"text","data":"61"}
+{"type":"text","data":" on"}
+{"type":"text","data":" the"}
+{"type":"text","data":" Artificial"}
+{"type":"text","data":" Analysis"}
+{"type":"text","data":" Intelligence"}
+{"type":"text","data":" Index"}
+{"type":"text","data":","}
+{"type":"text","data":" joining"}
+{"type":"text","data":" the"}
+{"type":"text","data":" frontier"}
+{"type":"text","data":" in"}
+{"type":"text","data":" line"}
+{"type":"text","data":" with"}
+{"type":"text","data":" GPT"}
+{"type":"text","data":"-"}
+{"type":"text","data":"5"}
+{"type":"text","data":"."}
+{"type":"text","data":"6"}
+{"type":"text","data":" Sol"}
+{"type":"text","data":","}
+{"type":"text","data":" with"}
+{"type":"text","data":" stand"}
+{"type":"text","data":"out"}
+{"type":"text","data":" agent"}
+{"type":"text","data":"ic"}
+{"type":"text","data":" performance"}
+{"type":"text","data":" at"}
+{"type":"text","data":" lower"}
+{"type":"text","data":" cost"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"6"}
+{"type":"text","data":" gains"}
+{"type":"text","data":" "}
+{"type":"text","data":"5"}
+{"type":"text","data":" points"}
+{"type":"text","data":" over"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"5"}
+{"type":"text","data":" on"}
+{"type":"text","data":" the"}
+{"type":"text","data":" Intelligence"}
+{"type":"text","data":" Index"}
+{"type":"text","data":" just"}
+{"type":"text","data":" over"}
+{"type":"text","data":" one"}
+{"type":"text","data":" month"}
+{"type":"text","data":" after"}
+{"type":"text","data":" its"}
+{"type":"text","data":" release"}
+{"type":"text","data":","}
+{"type":"text","data":" or"}
+{"type":"text","data":" +"}
+{"type":"text","data":"23"}
+{"type":"text","data":" points"}
+{"type":"text","data":" compared"}
+{"type":"text","data":" to"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"3"}
+{"type":"text","data":"."}
+{"type":"text","data":" This"}
+{"type":"text","data":" brings"}
+{"type":"text","data":" Space"}
+{"type":"text","data":"X"}
+{"type":"text","data":"AI"}
+{"type":"text","data":" back"}
+{"type":"text","data":" to"}
+{"type":"text","data":" the"}
+{"type":"text","data":" intelligence"}
+{"type":"text","data":" frontier"}
+{"type":"text","data":" alongside"}
+{"type":"text","data":" Open"}
+{"type":"text","data":"AI"}
+{"type":"text","data":","}
+{"type":"text","data":" behind"}
+{"type":"text","data":" only"}
+{"type":"text","data":" Anthrop"}
+{"type":"text","data":"ic"}
+{"type":"text","data":".\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"Key"}
+{"type":"text","data":" take"}
+{"type":"text","data":"aways"}
+{"type":"text","data":":\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"➤"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"6"}
+{"type":"text","data":" joins"}
+{"type":"text","data":" the"}
+{"type":"text","data":" frontier"}
+{"type":"text","data":" of"}
+{"type":"text","data":" the"}
+{"type":"text","data":" Artificial"}
+{"type":"text","data":" Analysis"}
+{"type":"text","data":" Intelligence"}
+{"type":"text","data":" Index"}
+{"type":"text","data":":"}
+{"type":"text","data":" It"}
+{"type":"text","data":" scores"}
+{"type":"text","data":" "}
+{"type":"text","data":"61"}
+{"type":"text","data":","}
+{"type":"text","data":" in"}
+{"type":"text","data":" line"}
+{"type":"text","data":" with"}
+{"type":"text","data":" GPT"}
+{"type":"text","data":"-"}
+{"type":"text","data":"5"}
+{"type":"text","data":"."}
+{"type":"text","data":"6"}
+{"type":"text","data":" Sol"}
+{"type":"text","data":" ("}
+{"type":"text","data":"max"}
+{"type":"text","data":"),"}
+{"type":"text","data":" behind"}
+{"type":"text","data":" Claude"}
+{"type":"text","data":" Opus"}
+{"type":"text","data":" "}
+{"type":"text","data":"5"}
+{"type":"text","data":" ("}
+{"type":"text","data":"max"}
+{"type":"text","data":","}
+{"type":"text","data":" "}
+{"type":"text","data":"63"}
+{"type":"text","data":")"}
+{"type":"text","data":" and"}
+{"type":"text","data":" Claude"}
+{"type":"text","data":" F"}
+{"type":"text","data":"able"}
+{"type":"text","data":" "}
+{"type":"text","data":"5"}
+{"type":"text","data":" ("}
+{"type":"text","data":"max"}
+{"type":"text","data":" with"}
+{"type":"text","data":" fallback"}
+{"type":"text","data":","}
+{"type":"text","data":" "}
+{"type":"text","data":"62"}
+{"type":"text","data":"),"}
+{"type":"text","data":" and"}
+{"type":"text","data":" just"}
+{"type":"text","data":" ahead"}
+{"type":"text","data":" of"}
+{"type":"text","data":" K"}
+{"type":"text","data":"imi"}
+{"type":"text","data":" K"}
+{"type":"text","data":"3"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"➤"}
+{"type":"text","data":" Strong"}
+{"type":"text","data":" agent"}
+{"type":"text","data":"ic"}
+{"type":"text","data":" performance"}
+{"type":"text","data":":"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"6"}
+{"type":"text","data":" achieves"}
+{"type":"text","data":" a"}
+{"type":"text","data":" GD"}
+{"type":"text","data":"P"}
+{"type":"text","data":"val"}
+{"type":"text","data":"-"}
+{"type":"text","data":"AA"}
+{"type":"text","data":" v"}
+{"type":"text","data":"2"}
+{"type":"text","data":" Elo"}
+{"type":"text","data":" of"}
+{"type":"text","data":" "}
+{"type":"text","data":"175"}
+{"type":"text","data":"3"}
+{"type":"text","data":","}
+{"type":"text","data":" behind"}
+{"type":"text","data":" only"}
+{"type":"text","data":" Claude"}
+{"type":"text","data":" Opus"}
+{"type":"text","data":" "}
+{"type":"text","data":"5"}
+{"type":"text","data":" and"}
+{"type":"text","data":" with"}
+{"type":"text","data":" overlapping"}
+{"type":"text","data":" confidence"}
+{"type":"text","data":" intervals"}
+{"type":"text","data":" with"}
+{"type":"text","data":" Claude"}
+{"type":"text","data":" F"}
+{"type":"text","data":"able"}
+{"type":"text","data":" "}
+{"type":"text","data":"5"}
+{"type":"text","data":" and"}
+{"type":"text","data":" Q"}
+{"type":"text","data":"wen"}
+{"type":"text","data":"3"}
+{"type":"text","data":"."}
+{"type":"text","data":"8"}
+{"type":"text","data":" Max"}
+{"type":"text","data":"."}
+{"type":"text","data":" It"}
+{"type":"text","data":" scores"}
+{"type":"text","data":" "}
+{"type":"text","data":"50"}
+{"type":"text","data":"."}
+{"type":"text","data":"7"}
+{"type":"text","data":"%"}
+{"type":"text","data":" on"}
+{"type":"text","data":" "}
+{"type":"text","data":"𝜏"}
+{"type":"text","data":"³"}
+{"type":"text","data":"-"}
+{"type":"text","data":"Bank"}
+{"type":"text","data":"ing"}
+{"type":"text","data":","}
+{"type":"text","data":" among"}
+{"type":"text","data":" the"}
+{"type":"text","data":" top"}
+{"type":"text","data":" two"}
+{"type":"text","data":" scores"}
+{"type":"text","data":" alongside"}
+{"type":"text","data":" Q"}
+{"type":"text","data":"wen"}
+{"type":"text","data":"3"}
+{"type":"text","data":"."}
+{"type":"text","data":"8"}
+{"type":"text","data":" Max"}
+{"type":"text","data":" ("}
+{"type":"text","data":"51"}
+{"type":"text","data":"."}
+{"type":"text","data":"3"}
+{"type":"text","data":"%),"}
+{"type":"text","data":" and"}
+{"type":"text","data":" "}
+{"type":"text","data":"88"}
+{"type":"text","data":"."}
+{"type":"text","data":"4"}
+{"type":"text","data":"%"}
+{"type":"text","data":" on"}
+{"type":"text","data":" Terminal"}
+{"type":"text","data":"-"}
+{"type":"text","data":"Bench"}
+{"type":"text","data":" v"}
+{"type":"text","data":"2"}
+{"type":"text","data":"."}
+{"type":"text","data":"1"}
+{"type":"text","data":","}
+{"type":"text","data":" in"}
+{"type":"text","data":" line"}
+{"type":"text","data":" with"}
+{"type":"text","data":" the"}
+{"type":"text","data":" leading"}
+{"type":"text","data":" models"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"➤"}
+{"type":"text","data":" Frontier"}
+{"type":"text","data":"-"}
+{"type":"text","data":"level"}
+{"type":"text","data":" intelligence"}
+{"type":"text","data":" at"}
+{"type":"text","data":" lower"}
+{"type":"text","data":" cost"}
+{"type":"text","data":":"}
+{"type":"text","data":" Headline"}
+{"type":"text","data":" pricing"}
+{"type":"text","data":" is"}
+{"type":"text","data":" unchanged"}
+{"type":"text","data":" from"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"5"}
+{"type":"text","data":" at"}
+{"type":"text","data":" $"}
+{"type":"text","data":"2"}
+{"type":"text","data":"/$"}
+{"type":"text","data":"6"}
+{"type":"text","data":" per"}
+{"type":"text","data":" "}
+{"type":"text","data":"1"}
+{"type":"text","data":"M"}
+{"type":"text","data":" input"}
+{"type":"text","data":"/"}
+{"type":"text","data":"output"}
+{"type":"text","data":" tokens"}
+{"type":"text","data":","}
+{"type":"text","data":" "}
+{"type":"text","data":"60"}
+{"type":"text","data":"%"}
+{"type":"text","data":"+"}
+{"type":"text","data":" below"}
+{"type":"text","data":" Claude"}
+{"type":"text","data":" Opus"}
+{"type":"text","data":" "}
+{"type":"text","data":"5"}
+{"type":"text","data":" ($"}
+{"type":"text","data":"5"}
+{"type":"text","data":"/$"}
+{"type":"text","data":"25"}
+{"type":"text","data":")"}
+{"type":"text","data":" and"}
+{"type":"text","data":" GPT"}
+{"type":"text","data":"-"}
+{"type":"text","data":"5"}
+{"type":"text","data":"."}
+{"type":"text","data":"6"}
+{"type":"text","data":" Sol"}
+{"type":"text","data":" ($"}
+{"type":"text","data":"5"}
+{"type":"text","data":"/$"}
+{"type":"text","data":"30"}
+{"type":"text","data":")."}
+{"type":"text","data":" It"}
+{"type":"text","data":" cost"}
+{"type":"text","data":" $"}
+{"type":"text","data":"0"}
+{"type":"text","data":"."}
+{"type":"text","data":"84"}
+{"type":"text","data":" per"}
+{"type":"text","data":" task"}
+{"type":"text","data":","}
+{"type":"text","data":" the"}
+{"type":"text","data":" same"}
+{"type":"text","data":" as"}
+{"type":"text","data":" K"}
+{"type":"text","data":"imi"}
+{"type":"text","data":" K"}
+{"type":"text","data":"3"}
+{"type":"text","data":" with"}
+{"type":"text","data":" slightly"}
+{"type":"text","data":" higher"}
+{"type":"text","data":" intelligence"}
+{"type":"text","data":","}
+{"type":"text","data":" placing"}
+{"type":"text","data":" it"}
+{"type":"text","data":" on"}
+{"type":"text","data":" the"}
+{"type":"text","data":" Intelligence"}
+{"type":"text","data":" vs"}
+{"type":"text","data":"."}
+{"type":"text","data":" Cost"}
+{"type":"text","data":" per"}
+{"type":"text","data":" Task"}
+{"type":"text","data":" Pareto"}
+{"type":"text","data":" frontier"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"➤"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"6"}
+{"type":"text","data":" sits"}
+{"type":"text","data":" at"}
+{"type":"text","data":" F"}
+{"type":"text","data":"able"}
+{"type":"text","data":" "}
+{"type":"text","data":"5"}
+{"type":"text","data":"-"}
+{"type":"text","data":"tier"}
+{"type":"text","data":" on"}
+{"type":"text","data":" AA"}
+{"type":"text","data":"-"}
+{"type":"text","data":"Brief"}
+{"type":"text","data":"case"}
+{"type":"text","data":","}
+{"type":"text","data":" our"}
+{"type":"text","data":" private"}
+{"type":"text","data":" benchmark"}
+{"type":"text","data":" of"}
+{"type":"text","data":" long"}
+{"type":"text","data":"-"}
+{"type":"text","data":"horizon"}
+{"type":"text","data":" agent"}
+{"type":"text","data":"ic"}
+{"type":"text","data":" knowledge"}
+{"type":"text","data":" work"}
+{"type":"text","data":" tasks"}
+{"type":"text","data":","}
+{"type":"text","data":" with"}
+{"type":"text","data":" an"}
+{"type":"text","data":" Elo"}
+{"type":"text","data":" of"}
+{"type":"text","data":" "}
+{"type":"text","data":"157"}
+{"type":"text","data":"7"}
+{"type":"text","data":" -"}
+{"type":"text","data":" behind"}
+{"type":"text","data":" the"}
+{"type":"text","data":" Claude"}
+{"type":"text","data":" Opus"}
+{"type":"text","data":" "}
+{"type":"text","data":"5"}
+{"type":"text","data":" family"}
+{"type":"text","data":"."}
+{"type":"text","data":" It"}
+{"type":"text","data":" is"}
+{"type":"text","data":" notably"}
+{"type":"text","data":" turn"}
+{"type":"text","data":"-"}
+{"type":"text","data":"efficient"}
+{"type":"text","data":","}
+{"type":"text","data":" completing"}
+{"type":"text","data":" tasks"}
+{"type":"text","data":" in"}
+{"type":"text","data":" ~"}
+{"type":"text","data":"53"}
+{"type":"text","data":" turns"}
+{"type":"text","data":" and"}
+{"type":"text","data":" ~"}
+{"type":"text","data":"0"}
+{"type":"text","data":"."}
+{"type":"text","data":"5"}
+{"type":"text","data":"B"}
+{"type":"text","data":" input"}
+{"type":"text","data":" tokens"}
+{"type":"text","data":" on"}
+{"type":"text","data":" average"}
+{"type":"text","data":" vs"}
+{"type":"text","data":"."}
+{"type":"text","data":" ~"}
+{"type":"text","data":"103"}
+{"type":"text","data":" turns"}
+{"type":"text","data":" and"}
+{"type":"text","data":" ~"}
+{"type":"text","data":"2"}
+{"type":"text","data":"."}
+{"type":"text","data":"0"}
+{"type":"text","data":"B"}
+{"type":"text","data":" input"}
+{"type":"text","data":" tokens"}
+{"type":"text","data":" for"}
+{"type":"text","data":" Claude"}
+{"type":"text","data":" Opus"}
+{"type":"text","data":" "}
+{"type":"text","data":"5"}
+{"type":"text","data":" ("}
+{"type":"text","data":"max"}
+{"type":"text","data":")\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"Other"}
+{"type":"text","data":" model"}
+{"type":"text","data":" details"}
+{"type":"text","data":":\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"➤"}
+{"type":"text","data":" Context"}
+{"type":"text","data":" window"}
+{"type":"text","data":" of"}
+{"type":"text","data":" "}
+{"type":"text","data":"500"}
+{"type":"text","data":"k"}
+{"type":"text","data":" tokens"}
+{"type":"text","data":" ("}
+{"type":"text","data":"unch"}
+{"type":"text","data":"anged"}
+{"type":"text","data":" from"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"5"}
+{"type":"text","data":")\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"➤"}
+{"type":"text","data":" Pricing"}
+{"type":"text","data":" of"}
+{"type":"text","data":" $"}
+{"type":"text","data":"2"}
+{"type":"text","data":"/$"}
+{"type":"text","data":"6"}
+{"type":"text","data":" per"}
+{"type":"text","data":" "}
+{"type":"text","data":"1"}
+{"type":"text","data":"M"}
+{"type":"text","data":" tokens"}
+{"type":"text","data":" of"}
+{"type":"text","data":" input"}
+{"type":"text","data":"/"}
+{"type":"text","data":"output"}
+{"type":"text","data":";"}
+{"type":"text","data":" cache"}
+{"type":"text","data":" hits"}
+{"type":"text","data":" discounted"}
+{"type":"text","data":" to"}
+{"type":"text","data":" $"}
+{"type":"text","data":"0"}
+{"type":"text","data":"."}
+{"type":"text","data":"5"}
+{"type":"text","data":" per"}
+{"type":"text","data":" "}
+{"type":"text","data":"1"}
+{"type":"text","data":"M"}
+{"type":"text","data":" tokens"}
+{"type":"text","data":","}
+{"type":"text","data":" an"}
+{"type":"text","data":" increase"}
+{"type":"text","data":" over"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":"."}
+{"type":"text","data":"5"}
+{"type":"text","data":"’"}
+{"type":"text","data":"s"}
+{"type":"text","data":" $"}
+{"type":"text","data":"0"}
+{"type":"text","data":"."}
+{"type":"text","data":"3"}
+{"type":"text","data":" per"}
+{"type":"text","data":" "}
+{"type":"text","data":"1"}
+{"type":"text","data":"M"}
+{"type":"text","data":" tokens"}
+{"type":"text","data":" for"}
+{"type":"text","data":" cache"}
+{"type":"text","data":" hits"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"\\"}
+{"type":"text","data":"n"}
+{"type":"text","data":"Congratulations"}
+{"type":"text","data":" to"}
+{"type":"text","data":" @"}
+{"type":"text","data":"Space"}
+{"type":"text","data":"X"}
+{"type":"text","data":"AI"}
+{"type":"text","data":" and"}
+{"type":"text","data":" @"}
+{"type":"text","data":"el"}
+{"type":"text","data":"on"}
+{"type":"text","data":"mus"}
+{"type":"text","data":"k"}
+{"type":"text","data":" on"}
+{"type":"text","data":" the"}
+{"type":"text","data":" release"}
+{"type":"text","data":"!\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"thread"}
+{"type":"text","data":"_"}
+{"type":"text","data":"urls"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" [],"}
+{"type":"text","data":" \""}
+{"type":"text","data":"tools"}
+{"type":"text","data":"_"}
+{"type":"text","data":"used"}
+{"type":"text","data":"\":"}
+{"type":"text","data":" [\""}
+{"type":"text","data":"x"}
+{"type":"text","data":"_"}
+{"type":"text","data":"keyword"}
+{"type":"text","data":"_"}
+{"type":"text","data":"search"}
+{"type":"text","data":"\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"x"}
+{"type":"text","data":"_"}
+{"type":"text","data":"user"}
+{"type":"text","data":"_"}
+{"type":"text","data":"search"}
+{"type":"text","data":"\","}
+{"type":"text","data":" \""}
+{"type":"text","data":"x"}
+{"type":"text","data":"_"}
+{"type":"text","data":"thread"}
+{"type":"text","data":"_"}
+{"type":"text","data":"fetch"}
+{"type":"text","data":"\"]}"}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact","always-approve","context","session-info","deep-research","workflow","goal","loop","codex-debate","html-artifacts","agent-teams","close","codex-review","frontend-design","laptop-access","mcp-builder","quick-skill","reddit-reader","sfu-report","transcribe","webapp-testing","youtube-reader","build-with-ai","code-review","create-skill","create-workflow","design","execute-plan","bundled:imagine","implement","pr-babysit","resume-claude","resume-codex","resume-cursor","review","skill-design-principles"]}
+{"type":"usage","usage":{"input_tokens":64580,"output_tokens":3237,"cache_read_input_tokens":153728,"cache_creation_input_tokens":0,"reasoning_tokens":2397},"signature":"9L0pmi0oBhZdG1mRwDUp0PIfIASnp4f7yYz85iBYikNxhORgz7cJIhAVv8+xVLiWq+Xu82Auakj4xRhsmwKBOoCtX6RCnHZw+wjc8QB2HW+Eu0+r/gfE9aVInJzzwZWGLj+5kmErnIBcYqX5UwhAmEWt71cUCliyv5ApHhBEJWbRTd/hYtE1B/6wcn2ZayhF0zlIqEt93dhBX0qk6mvkW79dh7DwpZmFoyBh60K9FcSK0yx1xHNPlhE2zuhde2J8PaMycxEFRgjSlyMaCMX39MomS487/m7sGD7+vTEwpmnfWPOo4NGlBesWoswBI5qSJzBgsUmJWf2j5gLwHonCP/EmtUemZZzIl9tCkuwbzjnl/KLVaszVZxi8e9aPYhi841ybUHw5Cjpd81uvMVuLpb9+k6d1CSqyRStWcdE/LX9DOdaf4W/D0Vi7oq8gqriKdvlY9n1IJQEPHIXT5J2PgmS/LNb+JC/H5kikihGnqW9pJbQ7tSoq0h9LEal1HxClfEjiFGCzA65SqMi52LIbRgwguTQrlcwY/IYKljuKIoPza2r0uQ"}
+{"type":"end","stopReason":"end_turn","sessionId":"019ff9fb-8080-7330-83cc-115790b11f2b","requestId":"71c06fba-2dbc-4500-bd9a-b6a2428b82b8","usage":{"input_tokens":64580,"cache_read_input_tokens":153728,"cache_creation_input_tokens":0,"output_tokens":3237,"reasoning_tokens":2397,"total_tokens":221545},"num_turns":1,"total_cost_usd":0.470892,"total_cost_usd_ticks":4708920000,"modelUsage":{"grok-4.6-build":{"inputTokens":64580,"outputTokens":3237,"cacheReadInputTokens":153728,"cacheCreationInputTokens":0,"modelCalls":1,"costUSD":0.470892}}}

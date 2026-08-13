@@ -1,0 +1,376 @@
+{
+  "rows": [
+    {
+      "task": "A",
+      "model": "grok-4.5",
+      "rep": 1,
+      "score": 10,
+      "parts": {
+        "permalink": 2,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": true,
+      "x_tool_calls": 1,
+      "cost_usd": 0.1532184,
+      "wall_ms": 23852
+    },
+    {
+      "task": "A",
+      "model": "grok-4.5",
+      "rep": 2,
+      "score": 10,
+      "parts": {
+        "permalink": 2,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": true,
+      "x_tool_calls": 1,
+      "cost_usd": 0.0545024,
+      "wall_ms": 17436
+    },
+    {
+      "task": "A",
+      "model": "grok-4.5",
+      "rep": 3,
+      "score": 10,
+      "parts": {
+        "permalink": 2,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": true,
+      "x_tool_calls": 1,
+      "cost_usd": 0.2793844,
+      "wall_ms": 32739
+    },
+    {
+      "task": "A",
+      "model": "grok-4.6",
+      "rep": 1,
+      "score": 8,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 1,
+      "cost_usd": 0.08784,
+      "wall_ms": 22490
+    },
+    {
+      "task": "A",
+      "model": "grok-4.6",
+      "rep": 2,
+      "score": 10,
+      "parts": {
+        "permalink": 2,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 1,
+      "cost_usd": 0.170682,
+      "wall_ms": 26585
+    },
+    {
+      "task": "A",
+      "model": "grok-4.6",
+      "rep": 3,
+      "score": 10,
+      "parts": {
+        "permalink": 2,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 1,
+      "cost_usd": 0.185616,
+      "wall_ms": 30989
+    },
+    {
+      "task": "B",
+      "model": "grok-4.5",
+      "rep": 1,
+      "score": 10,
+      "parts": {
+        "permalink": 2,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 4,
+      "cost_usd": 0.41108,
+      "wall_ms": 30967
+    },
+    {
+      "task": "B",
+      "model": "grok-4.5",
+      "rep": 2,
+      "score": 8,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 3,
+      "cost_usd": 0.39656,
+      "wall_ms": 37627
+    },
+    {
+      "task": "B",
+      "model": "grok-4.5",
+      "rep": 3,
+      "score": 8,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": true,
+      "x_tool_calls": 4,
+      "cost_usd": 0.421144,
+      "wall_ms": 38356
+    },
+    {
+      "task": "B",
+      "model": "grok-4.6",
+      "rep": 1,
+      "score": 8,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 4,
+      "cost_usd": 0.52328,
+      "wall_ms": 45584
+    },
+    {
+      "task": "B",
+      "model": "grok-4.6",
+      "rep": 2,
+      "score": 8,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 4,
+      "cost_usd": 0.470892,
+      "wall_ms": 44977
+    },
+    {
+      "task": "B",
+      "model": "grok-4.6",
+      "rep": 3,
+      "score": 8,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 2,
+        "content": 2,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 4,
+      "cost_usd": 0.521756,
+      "wall_ms": 40442
+    },
+    {
+      "task": "C",
+      "model": "grok-4.5",
+      "rep": 1,
+      "score": 4,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 0,
+        "content": 0,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 10,
+      "cost_usd": 0.5900256,
+      "wall_ms": 54596
+    },
+    {
+      "task": "C",
+      "model": "grok-4.5",
+      "rep": 2,
+      "score": 4,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 0,
+        "content": 0,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 5,
+      "cost_usd": 0.4797632,
+      "wall_ms": 34616
+    },
+    {
+      "task": "C",
+      "model": "grok-4.5",
+      "rep": 3,
+      "score": 4,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 0,
+        "content": 0,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 18,
+      "cost_usd": 0.3069128,
+      "wall_ms": 104084
+    },
+    {
+      "task": "C",
+      "model": "grok-4.6",
+      "rep": 1,
+      "score": 4,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 0,
+        "content": 0,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 17,
+      "cost_usd": 1.003564,
+      "wall_ms": 100419
+    },
+    {
+      "task": "C",
+      "model": "grok-4.6",
+      "rep": 2,
+      "score": 4,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 0,
+        "content": 0,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 21,
+      "cost_usd": 1.327572,
+      "wall_ms": 106014
+    },
+    {
+      "task": "C",
+      "model": "grok-4.6",
+      "rep": 3,
+      "score": 4,
+      "parts": {
+        "permalink": 0,
+        "handle": 1,
+        "facts_or_time": 0,
+        "content": 0,
+        "x_tool": 2,
+        "no_fabrication": 1
+      },
+      "strict_json": false,
+      "x_tool_calls": 13,
+      "cost_usd": 0.846448,
+      "wall_ms": 77050
+    }
+  ],
+  "summary": {
+    "grok-4.5": {
+      "scores": [
+        10,
+        10,
+        10,
+        10,
+        8,
+        8,
+        4,
+        4,
+        4
+      ],
+      "mean_score": 7.555555555555555,
+      "mean_score_unambiguous_AB": 9.333333333333334,
+      "median_wall_ms": 34616,
+      "strict_json_runs": 4,
+      "successful_x_runs": 9,
+      "completed_x_calls": 47,
+      "reported_cost_usd_not_billing_truth": 3.0925908
+    },
+    "grok-4.6": {
+      "scores": [
+        8,
+        10,
+        10,
+        8,
+        8,
+        8,
+        4,
+        4,
+        4
+      ],
+      "mean_score": 7.111111111111111,
+      "mean_score_unambiguous_AB": 8.666666666666666,
+      "median_wall_ms": 44977,
+      "strict_json_runs": 0,
+      "successful_x_runs": 9,
+      "completed_x_calls": 66,
+      "reported_cost_usd_not_billing_truth": 5.13765
+    }
+  },
+  "difference_4.6_minus_4.5": -0.44444444444444464,
+  "difference_AB_only": -0.6666666666666679,
+  "median_own_noise": 0.0,
+  "fabrication_check_complete": false,
+  "delete_4.5_threshold_passed": false,
+  "caveat": "Task C is non-unique: both models fetched multiple real later @grok posts that satisfy the semantic description, so its frozen exact-target score is reported but must not be treated as a valid retrieval-quality discriminator. Reported cost is not billing truth; see usage-reconciliation.json."
+}

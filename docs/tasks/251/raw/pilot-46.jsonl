@@ -1,0 +1,169 @@
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact","always-approve","context","session-info","deep-research","workflow","goal","loop","codex-debate","html-artifacts","agent-teams","close","codex-review","frontend-design","laptop-access","mcp-builder","quick-skill","reddit-reader","sfu-report","transcribe","webapp-testing","youtube-reader"]}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact","always-approve","context","session-info","deep-research","workflow","goal","loop","codex-debate","html-artifacts","agent-teams","close","codex-review","frontend-design","laptop-access","mcp-builder","quick-skill","reddit-reader","sfu-report","transcribe","webapp-testing","youtube-reader"]}
+{"type":"thought","data":"The"}
+{"type":"thought","data":" user"}
+{"type":"thought","data":" wants"}
+{"type":"thought","data":" me"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" fetch"}
+{"type":"thought","data":" a"}
+{"type":"thought","data":" specific"}
+{"type":"thought","data":" X"}
+{"type":"thought","data":" ("}
+{"type":"thought","data":"Twitter"}
+{"type":"thought","data":")"}
+{"type":"thought","data":" post"}
+{"type":"thought","data":" using"}
+{"type":"thought","data":" native"}
+{"type":"thought","data":" X"}
+{"type":"thought","data":" tools"}
+{"type":"thought","data":","}
+{"type":"thought","data":" not"}
+{"type":"thought","data":" general"}
+{"type":"thought","data":" web"}
+{"type":"thought","data":" search"}
+{"type":"thought","data":"."}
+{"type":"thought","data":" Let"}
+{"type":"thought","data":" me"}
+{"type":"thought","data":" use"}
+{"type":"thought","data":" the"}
+{"type":"thought","data":" x"}
+{"type":"thought","data":"_"}
+{"type":"thought","data":"thread"}
+{"type":"thought","data":"_"}
+{"type":"thought","data":"fetch"}
+{"type":"thought","data":" tool"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" get"}
+{"type":"thought","data":" the"}
+{"type":"thought","data":" content"}
+{"type":"thought","data":" of"}
+{"type":"thought","data":" the"}
+{"type":"thought","data":" post"}
+{"type":"thought","data":"."}
+{"type":"text","data":"I'll"}
+{"type":"text","data":" fetch"}
+{"type":"text","data":" that"}
+{"type":"text","data":" X"}
+{"type":"text","data":" post"}
+{"type":"text","data":" with"}
+{"type":"text","data":" the"}
+{"type":"text","data":" native"}
+{"type":"text","data":" thread"}
+{"type":"text","data":" tool"}
+{"type":"text","data":" and"}
+{"type":"text","data":" return"}
+{"type":"text","data":" only"}
+{"type":"text","data":" the"}
+{"type":"text","data":" verified"}
+{"type":"text","data":" fields"}
+{"type":"text","data":"."}
+{"type":"tool_call","toolCallId":"ctc_d958f843-b11d-9562-842c-07eb289a4f37_call-f8a68299-f7c9-4a72-b362-4f292d356bff-0","title":"X search:","kind":"search","status":"in_progress","toolName":"X search:","rawInput":{"variant":"XSearch","backend":true},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"ctc_d958f843-b11d-9562-842c-07eb289a4f37_call-f8a68299-f7c9-4a72-b362-4f292d356bff-0","status":"completed","content":[],"rawOutput":{"call_id":"xs_call-f8a68299-f7c9-4a72-b362-4f292d356bff-0","input":"{\"post_id\":\"1969183334208045090\"}","name":"x_thread_fetch","id":"ctc_d958f843-b11d-9562-842c-07eb289a4f37_call-f8a68299-f7c9-4a72-b362-4f292d356bff-0"},"locations":[]}
+{"type":"thought","data":"The"}
+{"type":"thought","data":" user"}
+{"type":"thought","data":" asked"}
+{"type":"thought","data":" me"}
+{"type":"thought","data":" to"}
+{"type":"thought","data":" fetch"}
+{"type":"thought","data":" a"}
+{"type":"thought","data":" spec..."}
+{"type":"text","data":"**"}
+{"type":"text","data":"URL"}
+{"type":"text","data":":**"}
+{"type":"text","data":" https"}
+{"type":"text","data":"://"}
+{"type":"text","data":"x"}
+{"type":"text","data":".com"}
+{"type":"text","data":"/"}
+{"type":"text","data":"x"}
+{"type":"text","data":"ai"}
+{"type":"text","data":"/"}
+{"type":"text","data":"status"}
+{"type":"text","data":"/"}
+{"type":"text","data":"196"}
+{"type":"text","data":"918"}
+{"type":"text","data":"333"}
+{"type":"text","data":"420"}
+{"type":"text","data":"804"}
+{"type":"text","data":"509"}
+{"type":"text","data":"0"}
+{"type":"text","data":"  \n"}
+{"type":"text","data":"**"}
+{"type":"text","data":"Author"}
+{"type":"text","data":" handle"}
+{"type":"text","data":":**"}
+{"type":"text","data":" @"}
+{"type":"text","data":"Space"}
+{"type":"text","data":"X"}
+{"type":"text","data":"AI"}
+{"type":"text","data":"  \n"}
+{"type":"text","data":"**"}
+{"type":"text","data":"Timestamp"}
+{"type":"text","data":":**"}
+{"type":"text","data":" Fri"}
+{"type":"text","data":","}
+{"type":"text","data":" "}
+{"type":"text","data":"19"}
+{"type":"text","data":" Sep"}
+{"type":"text","data":" "}
+{"type":"text","data":"202"}
+{"type":"text","data":"5"}
+{"type":"text","data":" "}
+{"type":"text","data":"23"}
+{"type":"text","data":":"}
+{"type":"text","data":"34"}
+{"type":"text","data":":"}
+{"type":"text","data":"27"}
+{"type":"text","data":" GMT"}
+{"type":"text","data":"  \n"}
+{"type":"text","data":"**"}
+{"type":"text","data":"First"}
+{"type":"text","data":" sentence"}
+{"type":"text","data":":**"}
+{"type":"text","data":" G"}
+{"type":"text","data":"rok"}
+{"type":"text","data":" "}
+{"type":"text","data":"4"}
+{"type":"text","data":" Fast"}
+{"type":"text","data":" is"}
+{"type":"text","data":" available"}
+{"type":"text","data":" now"}
+{"type":"text","data":" for"}
+{"type":"text","data":" all"}
+{"type":"text","data":" users"}
+{"type":"text","data":" in"}
+{"type":"text","data":" https"}
+{"type":"text","data":"://"}
+{"type":"text","data":"gro"}
+{"type":"text","data":"k"}
+{"type":"text","data":".com"}
+{"type":"text","data":"/"}
+{"type":"text","data":" https"}
+{"type":"text","data":"://"}
+{"type":"text","data":"x"}
+{"type":"text","data":".com"}
+{"type":"text","data":"/"}
+{"type":"text","data":"i"}
+{"type":"text","data":"/"}
+{"type":"text","data":"flow"}
+{"type":"text","data":"/"}
+{"type":"text","data":"login"}
+{"type":"text","data":" i"}
+{"type":"text","data":"OS"}
+{"type":"text","data":" and"}
+{"type":"text","data":" Android"}
+{"type":"text","data":" apps"}
+{"type":"text","data":" in"}
+{"type":"text","data":" "}
+{"type":"text","data":"Fast"}
+{"type":"text","data":" "}
+{"type":"text","data":"and"}
+{"type":"text","data":" "}
+{"type":"text","data":"Auto"}
+{"type":"text","data":" "}
+{"type":"text","data":"modes"}
+{"type":"text","data":"."}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact","always-approve","context","session-info","deep-research","workflow","goal","loop","codex-debate","html-artifacts","agent-teams","close","codex-review","frontend-design","laptop-access","mcp-builder","quick-skill","reddit-reader","sfu-report","transcribe","webapp-testing","youtube-reader"]}
+{"type":"usage","usage":{"input_tokens":64697,"output_tokens":743,"cache_read_input_tokens":68992,"cache_creation_input_tokens":0,"reasoning_tokens":602},"signature":"rHUflRCCG0aws4zLrWbRftJJrIcz3LDCck0SFQdBD08QU8ITM+MID9gLQcp42xXOuFPCZO5oGAeCt3iZqWUAd6vfxu3nlojoNVYvoxdV+T+Qq0T86TlMtUbi3CnN6S0fFoVvHpaLtk27uTzrB1vt00MnWuXu5WWFui1gKYA+gBoA18AAGQdQjP+FF2LIGOZ5NhGPS6pfiGHkQKet4FCGk4YyhsjeNRQ5H7PruFqcp7ziFKkECutd5cvCxTxW2CEpMd+Q"}
+{"type":"end","stopReason":"end_turn","sessionId":"019ff9f3-7cf3-73f1-b82a-292d4757557b","requestId":"c05a2f5e-5690-4540-9f65-5ad082af1437","usage":{"input_tokens":64697,"cache_read_input_tokens":68992,"cache_creation_input_tokens":0,"output_tokens":743,"reasoning_tokens":602,"total_tokens":134432},"num_turns":1,"total_cost_usd":0.173348,"total_cost_usd_ticks":1733480000,"modelUsage":{"grok-4.6-build":{"inputTokens":64697,"outputTokens":743,"cacheReadInputTokens":68992,"cacheCreationInputTokens":0,"modelCalls":1,"costUSD":0.173348}}}

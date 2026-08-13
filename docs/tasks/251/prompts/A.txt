@@ -1,0 +1,7 @@
+Use native X tools, not general web search, to fetch this exact post and its thread:
+https://x.com/grok/status/1948007957700268362
+
+Return ONE JSON object with exactly these keys:
+{"found": boolean, "post_url": string|null, "author_handle": string|null, "timestamp": string|null, "verbatim_text": string|null, "thread_urls": [string], "tools_used": [string]}
+
+`verbatim_text` must be the post text verbatim, not a summary. `thread_urls` must contain only URLs actually returned by the X tool. If a field is unavailable, use null/[]; do not infer or guess. Do not wrap the JSON in markdown.
