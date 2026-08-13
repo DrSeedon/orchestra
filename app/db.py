@@ -176,11 +176,13 @@ def init_db() -> None:
                 body TEXT NOT NULL,
                 chat_id INTEGER NOT NULL DEFAULT 0,
                 thread_id INTEGER NOT NULL DEFAULT 0,
+                attempts INTEGER NOT NULL DEFAULT 0,
                 created_at REAL NOT NULL,
-                delivered_at REAL
+                delivered_at REAL,
+                failed_at REAL
             );
             CREATE INDEX IF NOT EXISTS idx_restart_inbox_pending
-                ON restart_inbox(id) WHERE delivered_at IS NULL;
+                ON restart_inbox(id) WHERE delivered_at IS NULL AND failed_at IS NULL;
 
             CREATE TABLE IF NOT EXISTS test_lock (
                 scope TEXT PRIMARY KEY,

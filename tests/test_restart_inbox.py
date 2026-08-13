@@ -4,6 +4,10 @@
 вовсе: мост живёт в этом же процессе и кладёт его прямо в сессию, которая через секунду
 умрёт. Для человека это неотличимо от «агент прочитал и не ответил».
 """
+import asyncio
+import logging
+import sqlite3
+
 import pytest
 
 
@@ -61,23 +65,26 @@ async def test_269_message_during_restart_is_queued_instead_of_pushed(inbox, mon
     monkeypatch.setattr(tb, "_tg_send_safe",
                         lambda chat_id, text, **kw: told.append(text) or _noop())
 
+    monkeypatch.setattr(app_main, "manager", manager)
+    monkeypatch.setattr(app_main, "_restart_inbox_drain", None)
+
     app_main.close_mutating_admission()
     try:
         await tb._flush_batch("sid-1", [(_Msg(), "ау", None)])
+        assert manager.sent == [], "во время рестарта сообщение не уходит в умирающую сессию"
+        queued = inbox.pending()
+        assert len(queued) == 1 and "ау" in queued[0]["body"]
+        assert queued[0]["session_id"] == "sid-1"
+        assert queued[0]["chat_id"] == 42 and queued[0]["thread_id"] == 7
+        assert told and "перезапус" in told[0].lower(), "юзеру обязаны сказать, что приняли"
     finally:
         app_main.open_mutating_admission()
+    await _settle_drain(app_main)
 
-    assert manager.sent == [], "во время рестарта сообщение не должно уходить в умирающую сессию"
-    queued = inbox.pending()
-    assert len(queued) == 1 and "ау" in queued[0]["body"]
-    assert queued[0]["session_id"] == "sid-1"
-    assert queued[0]["chat_id"] == 42 and queued[0]["thread_id"] == 7
-    assert told and "перезапус" in told[0].lower(), "юзеру обязаны сказать, что приняли"
-
-    # control arm: гейт открыт — работает как раньше, очередь не растёт
+    # control arm: гейт открыт — работает как раньше, в очередь ничего не ложится
     await tb._flush_batch("sid-1", [(_Msg(), "обычное", None)])
     assert [m for _s, m in manager.sent if "обычное" in m], "с открытым гейтом доставка живая"
-    assert len(inbox.pending()) == 1, "живое сообщение не должно попадать в очередь рестарта"
+    assert inbox.pending() == [], "живое сообщение не должно попадать в очередь рестарта"
 
 
 @pytest.mark.asyncio
@@ -115,6 +122,115 @@ async def test_269_failed_delivery_stays_queued_for_the_next_start(inbox):
     assert await inbox.deliver_pending(recovered) == 1
     assert [s for s, _m in recovered.sent] == ["sid-1"]
     assert inbox.pending() == []
+
+
+@pytest.mark.asyncio
+async def test_269_aborted_restart_still_delivers_what_it_promised(inbox, monkeypatch):
+    """B1: рестарта не случилось — приём открыли обратно, процесс жив, доставить обязаны.
+
+    `restart_preflight` при недодренированном хвосте (409), сторож и упавший путь рестарта
+    открывают приём, не убивая процесс. Дренаж, привязанный к СТАРТУ процесса, в этом
+    сценарии не зовётся вовсе: юзеру сказали «отдам, как вернусь», а возвращаться неоткуда.
+    """
+    import app.main as app_main
+    import app.tg_bridge as tb
+
+    manager = _Manager()
+    monkeypatch.setattr(tb, "_manager", manager)
+    monkeypatch.setattr(tb, "bot", object())
+    monkeypatch.setattr(tb, "_tg_send_safe", lambda chat_id, text, **kw: _noop())
+    monkeypatch.setattr(app_main, "manager", manager)
+    monkeypatch.setattr(app_main, "_restart_inbox_drain", None)
+
+    app_main.close_mutating_admission()
+    await tb._flush_batch("sid-1", [(_Msg(), "ау", None)])
+    assert len(inbox.pending()) == 1
+
+    # рестарт отменён: приём открыт, процесс НЕ перезапускался
+    app_main.open_mutating_admission()
+    await _settle_drain(app_main)
+
+    assert [s for s, _m in manager.sent] == ["sid-1"], (
+        "обещание доставить привязано к открытию приёма, а не к старту процесса")
+    assert inbox.pending() == []
+
+
+@pytest.mark.asyncio
+async def test_269_message_for_a_session_that_never_came_back_is_given_up_and_reported(
+        inbox, monkeypatch):
+    """H2: адресата больше нет — сказать юзеру и перестать воскрешать строку.
+
+    Без потолка попыток строка молча воскресает при каждом открытии приёма до конца жизни БД,
+    и человек так и не узнаёт, что его сообщение никто не получил.
+    """
+    import app.tg_bridge as tb
+
+    class _Gone:
+        async def send(self, session_id, message):
+            raise KeyError(f"session not found: {session_id}")
+
+    reported = []
+    monkeypatch.setattr(tb, "report_inbox_undeliverable",
+                        lambda chat_id, thread_id, body, detail:
+                        reported.append((chat_id, body, detail)) or _noop())
+
+    inbox.enqueue("sid-gone", "[10:00] ау", chat_id=42, thread_id=7)
+    gone = _Gone()
+    for _attempt in range(inbox.MAX_ATTEMPTS - 1):
+        assert await inbox.deliver_pending(gone) == 0
+        assert len(inbox.pending()) == 1, "до потолка попыток строка ещё ждёт"
+        assert reported == [], "рано сдаваться: сессия могла не успеть подняться"
+
+    assert await inbox.deliver_pending(gone) == 0
+    assert inbox.pending() == [], "после потолка строка больше не воскресает"
+    assert len(reported) == 1
+    chat_id, body, detail = reported[0]
+    assert chat_id == 42 and "ау" in body, "юзеру возвращают текст, а не только факт отказа"
+    assert "KeyError" in detail
+
+
+@pytest.mark.asyncio
+async def test_269_a_hanging_delivery_does_not_block_the_rest_of_the_queue(inbox, monkeypatch):
+    """L2: поштучность спасает от ИСКЛЮЧЕНИЯ, но не от ЗАВИСАНИЯ.
+
+    Прогон ограничен по времени намеренно: регрессия обязана краснеть, а не висеть.
+    """
+    monkeypatch.setattr(inbox, "DELIVERY_TIMEOUT_S", 0.05)
+
+    class _Hangs:
+        def __init__(self):
+            self.sent = []
+
+        async def send(self, session_id, message):
+            if session_id == "sid-hangs":
+                await asyncio.sleep(30)
+            self.sent.append(session_id)
+
+    inbox.enqueue("sid-hangs", "[10:00] первое")
+    inbox.enqueue("sid-2", "[10:01] второе")
+
+    manager = _Hangs()
+    assert await asyncio.wait_for(inbox.deliver_pending(manager), timeout=5) == 1
+    assert manager.sent == ["sid-2"], "повисшая строка не имеет права съесть очередь"
+    assert [row["session_id"] for row in inbox.pending()] == ["sid-hangs"]
+
+
+@pytest.mark.asyncio
+async def test_269_drain_failure_is_loud(inbox, monkeypatch, caplog):
+    """M1: отказ всего дренажа — единственный исход, который иначе никто бы не заметил."""
+    def explode():
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(inbox, "pending", explode)
+    with caplog.at_level(logging.ERROR):
+        assert await inbox.deliver_pending(_Manager()) == 0
+    assert any("could not read the queue" in record.message for record in caplog.records)
+
+
+async def _settle_drain(app_main) -> None:
+    task = app_main._restart_inbox_drain
+    assert task is not None, "открытие приёма обязано запустить дренаж"
+    await task
 
 
 async def _noop():

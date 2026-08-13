@@ -382,6 +382,26 @@ async def _queue_until_restarted(sid: str, valid: list, combined: str) -> None:
                        sid, err_text(send_error))
 
 
+async def report_inbox_undeliverable(chat_id: int, thread_id: int, body: str, detail: str) -> None:
+    """Мы обещали доставить это сообщение и не смогли — сказать честно и вернуть текст.
+
+    Адресат мог не подняться вовсе (архивирован, убит, обнулён `session_id`), и тогда молчание
+    длилось бы вечно: строка воскресала бы при каждом открытии приёма и никому об этом не
+    говорила (#269, H2).
+    """
+    if bot is None:
+        logger.warning("no bot to report an undeliverable queued message: %s", detail)
+        return
+    await _tg_send_safe(
+        chat_id,
+        "⚠️ Не смог доставить сообщение, которое принял во время перезапуска: агента, "
+        "которому оно адресовано, больше нет. Вот его текст, отправь другому:\n\n"
+        f"{body}",
+        thread_id=thread_id or None,
+        important=True,
+    )
+
+
 async def _report_undelivered_to_user(sid: str, valid: list, error: Exception) -> None:
     """Один ответ на батч: коротко юзеру в чат, подробности — в журнал и в историю сессии."""
     name = sid
