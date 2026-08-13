@@ -2864,7 +2864,8 @@ async function sendChat() {
         if (pendingBubble) { const ring = pendingBubble.querySelector('.debounce-ring'); if (ring) ring.remove(); }
         pendingBubble = null; pendingUserMsgs = []; _finalizedBubble = null;
         removeWaitingIndicator();
-        addChatEntry('error', e.message);
+        // Перезапуск — штатная операция, и красная строка про неё выглядела бы аварией.
+        addChatEntry(e.name === 'RestartPendingError' ? 'notification' : 'error', e.message);
     }
 }
 
