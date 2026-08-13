@@ -1130,6 +1130,143 @@ def test_notify_nav_hides_itself_when_no_calls_are_present(dashboard_browser: Br
     assert state["markers"] == 0
 
 
+# Дословный отказ сервера на время перезапуска: `mutating_admission_verdict`, app/main.py:138.
+_RESTART_REFUSAL = {
+    "error": {
+        "allowed": False,
+        "retryable": True,
+        "outcome_unknown": False,
+        "code": "restart_pending",
+        "message": "Orchestra is restarting; this call was refused before any side effect.",
+    }
+}
+
+
+def _open_restart_page(browser: Browser) -> tuple[Page, dict]:
+    """Дашборд с управляемыми ответами API.
+
+    `send_refused` — отказ `restart_pending` на отправку; `server_down` — сервис ушёл
+    (это делает перезапуск, и уходит он для ВСЕХ запросов сразу, а не только для одного
+    маршрута: `_onServerOk` из соседнего успешного ответа обнуляет счётчик отказов и
+    оверлей не появляется вовсе — поймано первым прогоном); `restart_header` — заголовок
+    серверной части #269.
+    """
+    page = browser.new_page()
+    _route_frontend_sources(page)
+    state = {"send_refused": True, "server_down": False, "restart_header": None}
+
+    def api_route(route):
+        url = route.request.url
+        if state["server_down"]:
+            route.fulfill(status=502, content_type="text/plain", body="bad gateway")
+            return
+        if re.search(r"/api/sessions/[^/]+/send", url):
+            if state["send_refused"]:
+                route.fulfill(status=503, content_type="application/json",
+                              body=json.dumps(_RESTART_REFUSAL))
+            else:
+                route.fulfill(status=200, content_type="application/json",
+                              body='{"ok": true}')
+            return
+        if url.split("?")[0].endswith("/api/models") and state["restart_header"] is not None:
+            response = route.fetch()
+            headers = dict(response.headers)
+            headers["X-Orchestra-Restarting"] = state["restart_header"]
+            route.fulfill(response=response, headers=headers)
+            return
+        route.continue_()
+
+    page.route(re.compile(r"/api/"), api_route)
+    _goto_dashboard_or_skip(page)
+    page.wait_for_function("() => typeof sendChat === 'function' && selectedAgent")
+    return page, state
+
+
+def test_restart_refusal_pauses_sending_and_lifts_itself_when_service_returns(
+    dashboard_browser: Browser,
+):
+    """#270: перезапуск — штатная операция, а выглядел он сырым JSON в чате.
+
+    Юзер написал «ау» и получил `503: {"error":{...,"code":"restart_pending",...}}`.
+    Сервер во время перезапуска ЖИВ и отвечает на чтения, поэтому оверлея не было вовсе,
+    а страница молча немела.
+    """
+    page, state = _open_restart_page(dashboard_browser)
+    page.fill("#chat-input", "ау")
+    page.click("#send-btn")
+    page.wait_for_selector("#restart-banner:not(.hidden)", timeout=10000)
+    paused = page.evaluate("""() => ({
+        banner: document.querySelector('#restart-banner').textContent,
+        btnDisabled: document.querySelector('#send-btn').disabled,
+        inputDisabled: document.querySelector('#chat-input').disabled,
+        placeholder: document.querySelector('#chat-input').placeholder,
+        // Только СВОЙ узел: в живой истории агента уже лежит сырой JSON того самого
+        // инцидента, ради которого задача и заведена — по всему чату проверка врала бы.
+        refusal: [...document.querySelectorAll('#chat > *')].reverse()
+            .find(node => node.innerText.includes('Orchestra перезапускается'))?.innerText || '',
+        overlay: !!_rebootOverlay,
+    })""")
+
+    # Перезапуск идёт: сервис ушёл, затем вернулся. Ничего руками не делаем.
+    state["send_refused"] = False
+    state["server_down"] = True
+    page.wait_for_function("() => !!_rebootOverlay", timeout=20000)
+    state["server_down"] = False
+    page.wait_for_function(
+        "() => document.querySelector('#restart-banner').classList.contains('hidden')",
+        timeout=20000,
+    )
+    # Поток поднимается ПОСЛЕ дозагрузки истории, то есть позже снятия полосы: ждём
+    # положительный признак, а не отсутствие незавершённой работы.
+    page.wait_for_function("() => !!eventSource", timeout=20000)
+    back = page.evaluate("""() => ({
+        overlay: !!_rebootOverlay,
+        btnDisabled: document.querySelector('#send-btn').disabled,
+        inputDisabled: document.querySelector('#chat-input').disabled,
+        streamOpen: !!eventSource,
+    })""")
+    page.close()
+
+    assert "перезапускается" in paused["banner"], paused["banner"]
+    assert paused["btnDisabled"] is True, "отправка всё равно будет отклонена"
+    assert paused["inputDisabled"] is True
+    assert "перезапуск" in paused["placeholder"].lower(), paused["placeholder"]
+    assert paused["refusal"], "отказ обязан быть виден в чате человеческим текстом"
+    assert "restart_pending" not in paused["refusal"], paused["refusal"]
+    assert '{"error"' not in paused["refusal"], paused["refusal"]
+    assert "503" not in paused["refusal"], paused["refusal"]
+    assert paused["overlay"] is False, "сервер ещё отвечает — оверлей «сервер ушёл» тут врал бы"
+
+    assert back["overlay"] is False, "сервис вернулся — оверлей обязан сняться сам"
+    assert back["btnDisabled"] is False, "после возврата отправка обязана ожить без перезагрузки"
+    assert back["inputDisabled"] is False
+    assert back["streamOpen"] is True, "поток событий обязан быть переподключён"
+
+
+def test_restart_header_raises_and_lowers_the_pause_without_any_user_action(
+    dashboard_browser: Browser,
+):
+    """Заголовок серверной части #269 (`X-Orchestra-Restarting`) — признак в обе стороны.
+
+    Он приезжает на существующем heartbeat, своего опроса не заводим. Пока его нет,
+    признаком остаётся 503 из первого теста.
+    """
+    page, state = _open_restart_page(dashboard_browser)
+    state["restart_header"] = "1"
+    page.wait_for_selector("#restart-banner:not(.hidden)", timeout=15000)
+    up = page.evaluate("() => document.querySelector('#chat-input').disabled")
+    state["restart_header"] = "0"
+    page.wait_for_function(
+        "() => document.querySelector('#restart-banner').classList.contains('hidden')",
+        timeout=15000,
+    )
+    down = page.evaluate("() => document.querySelector('#chat-input').disabled")
+    page.close()
+
+    assert up is True, "заголовок '1' обязан остановить отправку без единого клика"
+    assert down is False, "заголовок '0' обязан снять паузу"
+
+
 _NOTIFY_AGENT = "notify-268-probe"
 _NOTIFY_SESSION = "sess-268"
 

@@ -2256,6 +2256,13 @@ async function selectAgent(name) {
 function updateInputState() {
     const input = $('#chat-input');
     const btn = $('#send-btn');
+    // Отправка всё равно будет отклонена — честнее недоступная кнопка, чем ошибка в ответ.
+    if (_restartPending) {
+        input.placeholder = 'Идёт перезапуск Orchestra…';
+        input.disabled = true;
+        btn.disabled = true;
+        return;
+    }
     if (!selectedAgent) {
         input.placeholder = 'Message...';
         input.disabled = false;
@@ -2822,6 +2829,7 @@ function _showAgentContextMenu(e, s) {
 // follow-up messages get batched. The server echoes back via SSE which
 // replaces the bubble with the canonical version.
 async function sendChat() {
+    if (_restartPending) return;   // кнопка уже недоступна, это страховка от Enter
     const input = $('#chat-input');
     // Картинка ещё летит → ждём её путь, иначе сообщение уйдёт без картинки.
     // Поле ввода при этом живое: всё, что допечатают за время ожидания, войдёт в msg.
@@ -6677,7 +6685,18 @@ async function api(url, opts = {}) {
         const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
         try {
             const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, signal });
-            if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
+            if (!resp.ok) {
+                const text = await resp.text();
+                // Отказ на время перезапуска — штатный и повторяемый: вызов отклонён ДО
+                // побочного эффекта. Юзер до этого получал в чат сырой служебный JSON.
+                if (_restartPendingFromBody(resp.status, text)) {
+                    _setRestartPending(true);
+                    const refused = new Error('Orchestra перезапускается — вызов отклонён до изменений. Повтори через несколько секунд.');
+                    refused.name = 'RestartPendingError';
+                    throw refused;
+                }
+                throw new Error(`${resp.status}: ${text}`);
+            }
             const data = await resp.json();
             _hideNetFailBanner(url);
             return data;
@@ -6721,6 +6740,48 @@ function _hideNetFailBanner(url) {
 }
 
 // === Usage Bar ===
+
+// === Перезапуск Orchestra (#270) ===
+// Во время перезапуска сервер ЖИВ и отвечает на чтения — немеют только мутирующие вызовы,
+// и юзер узнавал об этом сырым служебным JSON в чате. Признак ловим на существующем пути
+// ответов (503 + `error.code = restart_pending`), своего опроса не заводим.
+let _restartPending = false;
+let _restartPendingSince = 0;
+// Перезапуск может не состояться: preflight не смог слить хвост мутаций и молча
+// переоткрыл приём, не сказав об этом ни одному клиенту. Без потолка полоса висела бы вечно.
+const _RESTART_PENDING_MAX_MS = 120000;
+
+function _restartPendingFromBody(status, text) {
+    if (status !== 503) return false;
+    try { return JSON.parse(text)?.error?.code === 'restart_pending'; } catch { return false; }
+}
+
+// Полосу строим в JS: шаблон отдаётся из главного чекаута и доехал бы до юзера только
+// рестартом — тем самым, про который она и рассказывает.
+function _restartBanner() {
+    let banner = document.getElementById('restart-banner');
+    if (banner) return banner;
+    banner = document.createElement('div');
+    banner.id = 'restart-banner';
+    // Тот же язык, что у соседних полос, и намеренно НЕ красный: перезапуск штатен.
+    banner.className = 'hidden items-center justify-center gap-2 px-4 py-2 bg-amber-500/15 border-b border-amber-500/40 text-amber-200 text-xs';
+    banner.innerHTML = '⏳ <b>Orchestra перезапускается</b> — отправка на паузе, вызовы отклоняются ДО изменений. ' +
+        '<span class="text-amber-400/70">Вернётся сама, перезагружать страницу не нужно.</span>';
+    const anchor = document.getElementById('rate-limit-banner');
+    if (anchor) anchor.parentNode.insertBefore(banner, anchor);
+    else document.body.prepend(banner);
+    return banner;
+}
+
+function _setRestartPending(on) {
+    if (on) _restartPendingSince = Date.now();   // каждый новый отказ продлевает окно
+    if (on === _restartPending) return;
+    _restartPending = on;
+    const banner = _restartBanner();
+    banner.classList.toggle('hidden', !on);
+    banner.classList.toggle('flex', on);
+    updateInputState();
+}
 
 // === Reboot Overlay ===
 let _rebootOverlay = null;
@@ -6782,6 +6843,7 @@ async function _recoverAfterOutage() {
     _recovering = true;
     try {
         _dismissRebootOverlay();
+        _setRestartPending(false);   // перезапуск состоялся и кончился — пауза больше не нужна
         // Неподтверждённое серверу выбрасываем: рестарт мог потерять ход, и какой пузырь
         // чей — надёжно не определить. Перезагрузка делала это молча, теперь делаем явно.
         localMessages.clear();
@@ -6895,6 +6957,14 @@ function _showBuildBanner(serverBuild) {
 async function _heartbeatProbe() {
     try {
         const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+        // Заголовок появится с серверной частью #269 и делает состояние однозначным в обе
+        // стороны. Пока его нет — снимаем паузу либо возвратом сервера, либо по потолку.
+        const restarting = r.headers.get('X-Orchestra-Restarting');
+        if (restarting !== null) _setRestartPending(restarting === '1');
+        else if (_restartPending && Date.now() - _restartPendingSince > _RESTART_PENDING_MAX_MS) {
+            console.warn('[restart] перезапуск не наступил за 2 минуты — снимаю паузу');
+            _setRestartPending(false);
+        }
         if (r.status < 502) {
             _onServerOk();
             // Сверяем ПОСЛЕ _onServerOk: он снимает оверлей ребута, а баннер под
