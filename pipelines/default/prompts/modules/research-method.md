@@ -85,6 +85,15 @@ primary source, flag the conflict — don't silently prefer the newer one.
 - Record raw numbers/outputs/errors verbatim.
 - One counter-example **lowers confidence**; it does not auto-flip your conclusion
   (single results don't falsify — accumulate evidence).
+- **Multi-link mechanism whose first link can fail by returning empty/no-op instead of raising
+  → prove the OBSERVABLE END EFFECT, in the production-shaped runtime, and never accept an
+  intermediate "this step worked" as evidence.** A silently-degrading first link hides every
+  defect behind it, so each fix only reveals the next one and the whole chain can be dead while
+  looking healthy. Probe in the same configuration production uses — a standalone probe on
+  different defaults measures the probe. Measured (#237): uvloop returned `fd=None`, which hid a
+  blocking `proc.wait()`, an invalid `:` in FDNAME, a terminal oracle watching an event type that
+  does not exist for that runtime, a stale `cli_pid`, and a resume query excluding the row —
+  six defects, one behind another, in a mechanism believed to work after a "successful" restart.
 
 ### Step 6 — Synthesize into research.md
 Write `docs/tasks/<task-id>/research.md`:
