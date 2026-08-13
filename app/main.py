@@ -166,7 +166,12 @@ class RequestCensusMiddleware:
         verdict = mutating_admission_verdict(method, path)
         if not verdict["allowed"]:
             from starlette.responses import JSONResponse
-            response = JSONResponse({"error": verdict}, status_code=503)
+            # This branch answers WITHOUT reaching send_wrapper below, so it needs the header of
+            # its own — a client that only saw the refusal would never learn the pause is over.
+            response = JSONResponse(
+                {"error": verdict}, status_code=503,
+                headers={"X-Orchestra-Restarting": "1"},
+            )
             await response(scope, receive, send)
             return
 
@@ -179,6 +184,13 @@ class RequestCensusMiddleware:
             nonlocal counted_mutating, counted_stream
             global _inflight_mutating, _inflight_streams
             if message["type"] == "http.response.start":
+                # On EVERY response, both values: a header that only ever says "1" cannot tell a
+                # client the pause ended, and a restart that never happens reopens admission
+                # silently (`restart_preflight`). Reading one bool costs nothing on the hot path.
+                message["headers"] = [
+                    *(message.get("headers") or []),
+                    (b"x-orchestra-restarting", b"0" if _mutating_admission_open else b"1"),
+                ]
                 headers = {k.lower(): v for k, v in message.get("headers") or []}
                 if headers.get(b"content-type", b"").startswith(b"text/event-stream"):
                     if counted_mutating:
