@@ -1751,17 +1751,21 @@ async def get_worker_info(name: str) -> str:
 
 
 @mcp.tool()
-async def task_create(title: str, project: str, price: int = 0,
+async def task_create(title: str, project: str = "", price: int = 0,
                       description: str = "", assignee: str = "",
                       status: str = "new", priority: int = 2) -> str:
     """Create a new task. Returns task number and details.
+    project: registered project scope or id; omitted uses the caller's mapped scope.
     price in exact currency units (e.g. 20000 = 20 000). 0 is valid (no price).
     priority: 0=critical, 1=high, 2=medium (default), 3=low."""
-    result = await _api("POST", "/api/tm/tasks", json={
-        "title": title, "project": project, "price": price,
+    payload = {
+        "title": title, "price": price,
         "description": description, "assignee": assignee, "status": status,
         "scope": SCOPE, "priority": priority,
-    })
+    }
+    if project:
+        payload["project"] = project
+    result = await _api("POST", "/api/tm/tasks", json=payload)
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     if isinstance(result, dict):

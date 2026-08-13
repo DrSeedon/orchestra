@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/tm", tags=["task-manager"])
 
 class TmTaskCreate(BaseModel):
     title: str
-    project: str
+    project: str = ""
     price: int = 0
     description: str = ""
     assignee: str = ""
@@ -62,7 +62,7 @@ def _resolve_scope_project_id(scope: str) -> str:
 def _resolve_task_project_id(project: str, scope: str) -> str:
     if project:
         with _tm._conn() as conn:
-            resolved = _tm.resolve_project_id(conn, project)
+            resolved = _tm.resolve_project_selector(conn, project)
         if not resolved:
             raise ValueError(f"project '{project}' not found")
         return resolved["id"]

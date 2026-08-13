@@ -126,6 +126,108 @@ class TestDashboard:
 
 
 class TestTaskProjectIdentity:
+    def test_create_rejects_unregistered_project_without_creating_it(self, client):
+        from app import tm
+
+        _seed_case_variant_tasks()
+        with tm._conn() as conn:
+            now = tm._now()
+            conn.execute(
+                "INSERT INTO tm_projects (id, name, prefix, scope, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                ("orchestra", "orchestra", "ORC", None, now),
+            )
+            tm.create_task(
+                conn, "orchestra", "legacy ghost", status="cancelled", par_number=5,
+            )
+
+        response = client.post(
+            "/api/tm/tasks",
+            json={"title": "ghost", "project": "orchestra", "scope": "/lower"},
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "error": (
+                "project 'orchestra' is not registered; allowed project scopes: "
+                "/lower, /upper"
+            ),
+        }
+        with tm._conn() as conn:
+            assert tm.resolve_project_id(conn, "orchestra")["scope"] is None
+            assert conn.execute(
+                "SELECT COUNT(*) FROM tm_tasks WHERE title = 'ghost'"
+            ).fetchone()[0] == 0
+
+        legacy_read = client.get("/api/tm/tasks/5", params={"project": "orchestra"})
+        legacy_update = client.put(
+            "/api/tm/tasks/5",
+            params={"project": "orchestra"},
+            json={"title": "legacy retained"},
+        )
+        assert legacy_read.status_code == 200
+        assert legacy_update.status_code == 200
+
+    def test_create_defaults_to_callers_mapped_scope(self, client):
+        _seed_case_variant_tasks()
+
+        response = client.post(
+            "/api/tm/tasks",
+            json={"title": "mapped", "scope": "/lower"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["project"] == "seedon"
+
+    def test_create_accepts_registered_scope_as_explicit_project(self, client):
+        _seed_case_variant_tasks()
+
+        response = client.post(
+            "/api/tm/tasks",
+            json={"title": "cross-project", "project": "/upper", "scope": "/lower"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["project"] == "Seedon"
+
+    def test_project_id_scope_collision_fails_closed_for_create_get_and_update(self, client):
+        from app import tm
+
+        with tm._conn() as conn:
+            now = tm._now()
+            conn.execute(
+                "INSERT INTO tm_projects (id, name, prefix, scope, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                ("selector", "By id", "BID", "/by-id", now),
+            )
+            conn.execute(
+                "INSERT INTO tm_projects (id, name, prefix, scope, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                ("by-scope", "By scope", "BSC", "selector", now),
+            )
+            by_id = tm.create_task(conn, "selector", "id task", par_number=1)
+            tm.create_task(conn, "by-scope", "scope task", par_number=1)
+
+        create = client.post(
+            "/api/tm/tasks",
+            json={"title": "must not exist", "project": "selector"},
+        )
+        read = client.get("/api/tm/tasks/1", params={"project": "selector"})
+        write = client.put(
+            "/api/tm/tasks/1",
+            params={"project": "selector"},
+            json={"title": "must not change"},
+        )
+
+        for response in (create, read, write):
+            assert response.status_code == 400
+            assert "project id 'selector' conflicts with scope of project 'by-scope'" in (
+                response.json()["error"]
+            )
+        with tm._conn() as conn:
+            assert conn.execute("SELECT COUNT(*) FROM tm_tasks").fetchone()[0] == 2
+            assert tm.get_task_by_id(conn, by_id["id"])["title"] == "id task"
+
     def test_explicit_project_wins_over_scope_for_read(self, client):
         _seed_case_variant_tasks()
 
@@ -177,6 +279,23 @@ class TestTaskProjectIdentity:
                 "lower", "new", 0,
             )
             assert conn.execute("SELECT COUNT(*) FROM tm_payment_allocations").fetchone()[0] == 0
+
+    def test_get_and_update_reject_unknown_explicit_project(self, client):
+        from app import tm
+
+        upper, _lower = _seed_case_variant_tasks()
+
+        read = client.get("/api/tm/tasks/1", params={"project": "unknown"})
+        write = client.put(
+            "/api/tm/tasks/1",
+            params={"project": "unknown"},
+            json={"title": "must not change"},
+        )
+
+        assert read.status_code == 404
+        assert write.status_code == 404
+        with tm._conn() as conn:
+            assert tm.get_task_by_id(conn, upper["id"])["title"] == "upper"
 
     def test_ambiguous_alias_and_foreign_prefix_fail_closed(self, client):
         from app import tm

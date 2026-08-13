@@ -448,6 +448,35 @@ async def test_task_create_returns_fields_needed_by_dashboard_card(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_task_create_omits_project_to_use_callers_scope(monkeypatch):
+    import app.mcp_stdio as m
+    from pydantic import BaseModel, ValidationError
+
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+    captured = {}
+
+    async def fake_api(method, path, **kwargs):
+        assert method == "POST"
+        assert path == "/api/tm/tasks"
+        assert "project" not in kwargs["json"]
+        assert kwargs["json"]["scope"] == "/scope"
+        captured.update(kwargs["json"])
+        return {"par": "1", "id": 1, "project": "/scope"}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        raw = await m.task_create(title="Mapped task")
+
+    assert json.loads(raw)["project"] == "/scope"
+
+    class OldRouteRequest(BaseModel):
+        title: str
+        project: str
+
+    with pytest.raises(ValidationError):
+        OldRouteRequest.model_validate(captured)
+
+
+@pytest.mark.asyncio
 async def test_task_get_and_update_prefer_explicit_project_over_scope(monkeypatch):
     import app.mcp_stdio as m
 

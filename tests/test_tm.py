@@ -159,7 +159,7 @@ def test_api_create_uses_resolved_exact_project_without_rebinding_scope(db):
     from app import tm
 
     with tm._conn() as conn:
-        _insert_legacy_project(conn, "Seedon", "UPR")
+        _insert_legacy_project(conn, "Seedon", "UPR", "/upper")
         _insert_legacy_project(conn, "seedon", "LOW", "/lower")
 
     result = tm.api_create_task("Seedon", "upper", scope="/lower")

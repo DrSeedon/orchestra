@@ -143,6 +143,18 @@ def get_project_by_scope(conn: sqlite3.Connection, scope: str) -> dict | None:
     return dict(row) if row else None
 
 
+def resolve_project_selector(conn: sqlite3.Connection, selector: str) -> dict | None:
+    """Resolve a project id or scope, rejecting tokens that identify two projects."""
+    by_id = resolve_project_id(conn, selector)
+    by_scope = get_project_by_scope(conn, selector)
+    if by_id and by_scope and by_id["id"] != by_scope["id"]:
+        raise ValueError(
+            f"Ambiguous project '{selector}' — project id '{by_id['id']}' conflicts "
+            f"with scope of project '{by_scope['id']}'"
+        )
+    return by_id or by_scope
+
+
 def get_project_by_prefix(conn: sqlite3.Connection, prefix: str) -> dict | None:
     row = conn.execute(
         "SELECT * FROM tm_projects WHERE prefix = ?", (prefix.upper(),)
@@ -875,16 +887,27 @@ def api_create_task(project_id: str, title: str, price: int = 0,
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            existing_project = resolve_project_id(conn, project_id)
-            resolved_project_id = (
-                existing_project["id"] if existing_project else project_id.casefold()
-            )
-            eff_scope = scope or None
-            if eff_scope:
-                existing_by_scope = get_project_by_scope(conn, eff_scope)
-                if existing_by_scope and existing_by_scope["id"] != resolved_project_id:
-                    eff_scope = None
-            project = ensure_project(conn, project_id, scope=eff_scope)
+            project = None
+            if project_id:
+                project = resolve_project_selector(conn, project_id)
+            elif scope:
+                project = get_project_by_scope(conn, scope)
+
+            if not project or not str(project.get("scope") or "").strip():
+                allowed = sorted(
+                    row["scope"]
+                    for row in conn.execute(
+                        "SELECT scope FROM tm_projects "
+                        "WHERE NULLIF(TRIM(scope), '') IS NOT NULL"
+                    ).fetchall()
+                )
+                requested = project_id or scope
+                allowed_text = ", ".join(allowed) or "none"
+                raise ValueError(
+                    f"project '{requested}' is not registered; "
+                    f"allowed project scopes: {allowed_text}"
+                )
+
             resolved_project_id = project["id"]
             task = create_task(
                 conn, resolved_project_id, title,
