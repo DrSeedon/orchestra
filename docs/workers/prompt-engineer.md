@@ -77,6 +77,10 @@ DONE WHEN: наблюдаемое условие завершения.
 - Одна мысль = один источник истины. Если решение принимается в другом месте, перенеси правило
   туда либо дай ссылку. Дубли расходятся: у нас протухала копия model-routing, а background-jobs
   одновременно жил в трёх местах. [L3]
+- **Каталог моделей ≠ доступность.** Для выбора нужна пересечённая проверка: explicit routing
+  policy ∩ live runtime catalog/probe ∩ credential readiness ∩ quota admission. Статический
+  registry в #247 рекламировал Grok до проверки auth и не знал live 4.6; dump живого каталога
+  тоже опасен — Codex возвращает внутренние slugs. Readiness проверять ДО создания session/worktree. [L6]
 - Role/persona помогает фокусу и тону, но не заменяет goal, критерии и границы. [A1][O1]
 
 ## Zero-shot, few-shot и примеры
@@ -117,9 +121,10 @@ DONE WHEN: наблюдаемое условие завершения.
 - **Фактический транспорт:** Claude получает preset `claude_code` + наш appended system prompt;
   Codex получает его как `developerInstructions`. Project `CLAUDE.md` зеркалится Codex в
   `AGENTS.md`; skills у Sol сейчас инлайнятся полностью. [L5]
-- **Личная память:** manager оборачивает файл в `<worker-memory>` при spawn/load. Правка файла
-  внутри уже живой сессии не перечитывается самим `compact()`; до reload/restart prompt cache
-  содержит прежнюю версию. Не обещай мгновенный refresh без отдельного механизма. [L5]
+- **Личная память и hot prompt:** `assemble_prompt` перечитывает memory и componentized base/modules
+  на следующем re-injection (включая успешный compact/load), но сама правка файла re-injection не
+  взводит. `prompt_overlay=NULL` с неизвестной границей сохраняет full prompt даже при restart;
+  `prompt_template_hash` пока не включает manifest modules. Проверять live blobs в БД, не только source. [L5][L6]
 - **Claude:** ясные explicit instructions, motivation/context, XML для смешанного контента,
   3–5 examples; latest models буквальнее и могут overtrigger от агрессивных MUST. [A1]
 - **Sol/GPT-5.6:** outcome + constraints + evidence + completion bar, затем свобода выбрать
@@ -157,9 +162,9 @@ DONE WHEN: наблюдаемое условие завершения.
 - Разница Opus vs Sol на этой задаче: параллельные независимые вызовы (grep + read) идут в один
   блок — на длинном аудите это заметно дешевле по ходам. Sol был точнее в дословном исполнении
   длинных механических протоколов. Для правки промптов разницы в качестве не заметил.
-- `docs/workers/<name>.md` перечитывается на spawn/restart, но НЕ на compact (`app/session.py`
-  `compact()` не трогает memory). Записал урок перед DONE и ждёшь компакт — продублируй в
-  handoff summary, иначе новая сессия работает по старой версии файла.
+- С 13.08.2026 успешный compact взводит re-injection, который перечитывает
+  `docs/workers/<name>.md`; старое ограничение «только spawn/restart» снято (#220). До самого
+  re-injection живая нативная сессия всё ещё работает со старой копией.
 
 ## Правки правил: два надёжных хода (2026-08-03, чистка CLAUDE.md)
 
@@ -417,6 +422,7 @@ DONE WHEN: наблюдаемое условие завершения.
   active-worker task queue / kill lifecycle (2026-08-01).
 - **[L5]** `app/backend_claude.py`, `app/backend_codex.py`, `app/runtime_registry.py`,
   `app/manager.py`, `app/workspace.py` — фактическая сборка prompt stack.
+- **[L6]** `docs/tasks/247/research.md` — model registry/readiness split и live prompt delivery.
 - **[O1]** [OpenAI: Prompting guidance for GPT-5.6 Sol](https://developers.openai.com/api/docs/guides/prompt-guidance-gpt-5p6) (checked 2026-08-01).
 - **[O2]** [OpenAI: Prompting Codex](https://learn.chatgpt.com/docs/prompting).
 - **[O3]** [OpenAI: AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
