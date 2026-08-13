@@ -18,11 +18,12 @@ import pytest
 from app.backend_codex import (
     CodexBackend,
     CodexProtocolError,
-    ORCHESTRA_FULL_MCP_TOOLS,
     CODEX_CONTEXT_LIMITS,
     CODEX_TOKEN_PRICES,
     CODEX_REASONING_EFFORTS,
     _codex_cost,
+    _ORCHESTRA_MCP_TOOL_EXCLUSIONS,
+    _orchestra_full_mcp_tools,
     _read_rollout_context,
     _read_rollout_totals,
     _usage_delta,
@@ -244,14 +245,34 @@ def test_effort_passthrough_and_fallback():
 # где оно теперь находится.
 
 
-def test_full_mcp_allowlist_tracks_registered_tools():
+def test_full_mcp_tools_are_derived_from_registration():
+    import tomllib
+    from app.mcp_stdio import mcp
+
+    @mcp.tool(name="test_dynamic_codex_tool")
+    def fake_tool() -> str:
+        return "fake"
+
+    try:
+        assert "test_dynamic_codex_tool" in _orchestra_full_mcp_tools()
+        backend = CodexBackend(
+            model="gpt-5.6-sol",
+            cwd="/tmp",
+            mcp_servers={"orchestra": {"command": "python"}},
+        )
+        config = tomllib.loads(backend._mcp_servers_toml())
+        assert "test_dynamic_codex_tool" in (
+            config["mcp_servers"]["orchestra"]["enabled_tools"]
+        )
+    finally:
+        mcp.remove_tool("test_dynamic_codex_tool")
+
+
+def test_full_mcp_exclusions_are_registered_tools():
     from app.mcp_stdio import mcp
 
     registered = {tool.name for tool in mcp._tool_manager.list_tools()}
-    enabled = set(ORCHESTRA_FULL_MCP_TOOLS)
-
-    assert enabled <= registered
-    assert registered - enabled == {"resolve_merge_operation", "send_chart"}
+    assert _ORCHESTRA_MCP_TOOL_EXCLUSIONS <= registered
 
 def test_mcp_config_rendered_into_config_toml_not_argv():
     import tomllib

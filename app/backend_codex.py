@@ -322,17 +322,22 @@ def _carried_base_scalars() -> str:
     return "\n".join(lines)
 
 
-ORCHESTRA_FULL_MCP_TOOLS = (
-    "spawn_worker", "acquire_test_lock", "release_test_lock", "test_lock_status",
-    "send_message", "list_agents", "list_orchestrators", "get_worker_logs",
-    "compact_worker", "kill_worker", "stop_worker", "rename_worker",
-    "send_file", "update_progress", "change_worker_model", "merge_worker",
-    "switch_worker_branch", "check_conflict", "worker_wip", "report_bug",
-    "update_worker_description", "update_worker_prompt", "get_worker_info",
-    "task_create", "task_update", "task_list", "task_get", "payment_receive",
-    "payment_status", "bg_create", "bg_list", "bg_cancel", "search_memory",
-    "codex_review", "open_fan",
-)
+_ORCHESTRA_MCP_TOOL_EXCLUSIONS: frozenset[str] = frozenset()
+
+
+def _orchestra_full_mcp_tools() -> tuple[str, ...]:
+    """Build Codex's full allowlist from the authoritative FastMCP registry."""
+    from app.mcp_stdio import mcp
+
+    registered = {tool.name for tool in mcp._tool_manager.list_tools()}
+    stale_exclusions = _ORCHESTRA_MCP_TOOL_EXCLUSIONS - registered
+    if stale_exclusions:
+        raise RuntimeError(
+            f"Orchestra MCP exclusions are not registered: {sorted(stale_exclusions)}"
+        )
+    # resolve_merge_operation and send_chart were absent only because their registrations
+    # postdated the deleted static allowlist; neither omission expressed an access policy.
+    return tuple(sorted(registered - _ORCHESTRA_MCP_TOOL_EXCLUSIONS))
 
 
 class CodexProtocolError(RuntimeError):
@@ -1730,7 +1735,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 lines.append(f"url = {self._toml_str(str(url))}")
             enabled_tools = cfg.get("enabled_tools")
             if name == "orchestra" and enabled_tools is None:
-                enabled_tools = ORCHESTRA_FULL_MCP_TOOLS
+                enabled_tools = _orchestra_full_mcp_tools()
             if enabled_tools is not None:
                 lines.append(
                     "enabled_tools = ["
