@@ -4,6 +4,7 @@ Requires: Orchestra running on localhost:8888 (no auth).
 Run: pytest tests/test_frontend.py -v
 """
 
+import json
 import os
 import re
 import subprocess
@@ -824,6 +825,349 @@ def _open_tool_fixture_page(browser: Browser) -> Page:
         document.querySelector('#chat').innerHTML = '';
     }""")
     return page
+
+
+def _open_tool_correlation_page(
+    browser: Browser,
+    compact_mode: bool,
+    source_path: Path | None = None,
+) -> Page:
+    page = browser.new_page()
+    source = (
+        source_path or Path(__file__).parent.parent / "app/static/js/app.js"
+    ).read_text()
+    page.route(
+        "**/static/js/app.js*",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/javascript",
+            body=source,
+        ),
+    )
+    _goto_dashboard_or_skip(page)
+    page.wait_for_function("() => typeof addChatEntry === 'function'")
+    page.evaluate("""compactMode => {
+        selectedAgent = null;
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        window.compactMode = compactMode;
+        document.querySelector('#chat').innerHTML = '';
+    }""", compact_mode)
+    return page
+
+
+@pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+def test_parallel_tool_results_follow_tool_use_id_in_both_renderers(
+    dashboard_browser: Browser,
+    compact_mode: bool,
+):
+    source_override = os.environ.get("ORCHESTRA_TOOL_CORRELATION_SOURCE")
+    source_path = Path(source_override) if source_override else None
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode, source_path)
+    result_by_id = page.evaluate("""() => {
+        const calls = [
+            ['mcp__orchestra__task_create', {title:'CALL-A'} , 'parallel-a', 26001],
+            ['mcp__orchestra__list_agents', {}, 'parallel-b', 26002],
+            ['mcp__orchestra__worker_wip', {name:'CALL-C'}, 'parallel-c', 26003],
+        ];
+        for (const [name, args, toolUseId, id] of calls) {
+            addChatEntry('tool', `${name}: ${JSON.stringify(args)}`, null, null,
+                {id, tool_use_id:toolUseId});
+        }
+
+        // A real parallel block logs every call before any result. Results may
+        // then finish in a different order; each marker deliberately differs.
+        for (const [toolUseId, marker, id] of [
+            ['parallel-c', 'RESULT-ONLY-C', 26006],
+            ['parallel-a', 'RESULT-ONLY-A', 26004],
+            ['parallel-b', 'RESULT-ONLY-B', 26005],
+        ]) {
+            addChatEntry('tool_result', marker, null, null, {id, tool_use_id:toolUseId});
+        }
+        const selector = window.compactMode ? '[data-compact-tool]' : '[data-tool-use-id]:not([data-compact-tool])';
+        return Object.fromEntries([...document.querySelectorAll(`#chat ${selector}`)]
+            .map(card => [
+                card.dataset.toolUseId,
+                window.compactMode ? card.dataset.resultContent || '' : card.innerText,
+            ]));
+    }""")
+    page.close()
+
+    assert set(result_by_id) == {"parallel-a", "parallel-b", "parallel-c"}
+    for tool_use_id, marker in {
+        "parallel-a": "RESULT-ONLY-A",
+        "parallel-b": "RESULT-ONLY-B",
+        "parallel-c": "RESULT-ONLY-C",
+    }.items():
+        assert marker in result_by_id[tool_use_id]
+        assert not any(
+            other in result_by_id[tool_use_id]
+            for other in {"RESULT-ONLY-A", "RESULT-ONLY-B", "RESULT-ONLY-C"}
+            if other != marker
+        )
+
+
+@pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+def test_unmatched_tool_result_is_visible_and_never_attaches_to_another_call(
+    dashboard_browser: Browser,
+    compact_mode: bool,
+):
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+    rendered = page.evaluate("""() => {
+        addChatEntry(
+            'tool',
+            'mcp__orchestra__task_create: {"title":"DO-NOT-ATTACH"}',
+            null,
+            null,
+            {id:26011, tool_use_id:'known-call'},
+        );
+        addChatEntry(
+            'tool_result',
+            'ORPHAN-RESULT-MARKER',
+            null,
+            null,
+            {id:26012, tool_use_id:'missing-call'},
+        );
+        const call = document.querySelector('[data-tool-use-id="known-call"]');
+        const orphan = document.querySelector('[data-unmatched-tool-result]');
+        return {
+            callText: call?.innerText || '',
+            orphanText: orphan?.innerText || '',
+            orphanCount: document.querySelectorAll('[data-unmatched-tool-result]').length,
+        };
+    }""")
+    page.close()
+
+    assert rendered["orphanCount"] == 1
+    assert "Результат без вызова" in rendered["orphanText"]
+    assert "ORPHAN-RESULT-MARKER" in rendered["orphanText"]
+    assert "ORPHAN-RESULT-MARKER" not in rendered["callText"]
+
+
+@pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+def test_load_more_keeps_tool_use_id_for_old_parallel_calls(
+    dashboard_browser: Browser,
+    compact_mode: bool,
+):
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+    page.route(
+        "**/api/sessions/history-fixture/logs*",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                [
+                    {
+                        "id": 41,
+                        "type": "tool",
+                        "content": 'mcp__orchestra__task_create: {"title":"OLD-A"}',
+                        "ts": None,
+                        "tool_use_id": "old-a",
+                    },
+                    {
+                        "id": 42,
+                        "type": "tool",
+                        "content": "mcp__orchestra__list_agents: {}",
+                        "ts": None,
+                        "tool_use_id": "old-b",
+                    },
+                    {
+                        "id": 43,
+                        "type": "tool_result",
+                        "content": "OLD-RESULT-A",
+                        "ts": None,
+                        "tool_use_id": "old-a",
+                    },
+                    {
+                        "id": 44,
+                        "type": "tool_result",
+                        "content": "OLD-RESULT-B",
+                        "ts": None,
+                        "tool_use_id": "old-b",
+                    },
+                ]
+            ),
+        ),
+    )
+    result_by_id = page.evaluate("""async compactMode => {
+        window.compactMode = compactMode;
+        selectedAgent = 'history-fixture';
+        currentScope = '/fixture';
+        chatLogs[selectedAgent] = {lastId:100, firstId:100, initialCount:1};
+        await loadMoreLogs();
+        const selector = compactMode
+            ? '[data-compact-tool]'
+            : '[data-tool-use-id]:not([data-compact-tool])';
+        return Object.fromEntries([...document.querySelectorAll(`#chat ${selector}`)]
+            .map(card => [
+                card.dataset.toolUseId,
+                compactMode ? card.dataset.resultContent || '' : card.innerText,
+            ]));
+    }""", compact_mode)
+    page.close()
+
+    assert "OLD-RESULT-A" in result_by_id["old-a"]
+    assert "OLD-RESULT-B" in result_by_id["old-b"]
+    assert "OLD-RESULT-B" not in result_by_id["old-a"]
+    assert "OLD-RESULT-A" not in result_by_id["old-b"]
+
+
+def test_tool_view_mode_is_visible_without_desktop_header_overflow(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page(viewport={"width": 1280, "height": 800})
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    page.route(
+        "**/static/js/app.js*",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/javascript",
+            body=source,
+        ),
+    )
+    _goto_dashboard_or_skip(page)
+    page.wait_for_function("() => typeof _toolForResult === 'function'")
+    button = page.locator("#compact-toggle-btn")
+    expect(button).to_have_text("📄 Normal")
+
+    measurements = []
+    for width in (1280, 1440, 1680, 1920):
+        page.set_viewport_size({"width": width, "height": 800})
+        measurements.append(page.evaluate("""() => {
+            const button = document.querySelector('#compact-toggle-btn');
+            const rect = button.getBoundingClientRect();
+            return {
+                viewport: innerWidth,
+                bodyFits: document.body.scrollWidth <= document.body.clientWidth,
+                buttonLeft: rect.left,
+                buttonRight: rect.right,
+                buttonVisible: getComputedStyle(button).display !== 'none',
+            };
+        }"""))
+
+    button.click()
+    expect(button).to_have_text("📋 Compact")
+    expect(button).to_have_attribute("aria-pressed", "true")
+    page.close()
+
+    assert all(item["bodyFits"] for item in measurements)
+    assert all(item["buttonVisible"] for item in measurements)
+    assert all(
+        0 <= item["buttonLeft"] < item["buttonRight"] <= item["viewport"]
+        for item in measurements
+    )
+
+
+@pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+def test_task_result_leads_with_action_and_keeps_raw_details(
+    dashboard_browser: Browser,
+    compact_mode: bool,
+):
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+    rendered = page.evaluate("""compactMode => {
+        addChatEntry(
+            'tool',
+            'mcp__orchestra__task_create: {"title":"Fix result correlation"}',
+            null,
+            null,
+            {id:26101, tool_use_id:'task-create-260'},
+        );
+        addChatEntry(
+            'tool_result',
+            JSON.stringify({
+                par:'ORC-260', id:9001, task_id:9001,
+                title:'Fix result correlation', project:'Orchestra',
+                price_rub:0, status:'new', priority:0,
+                description:'Every result belongs to its own call.',
+            }),
+            null,
+            null,
+            {id:26102, tool_use_id:'task-create-260'},
+        );
+        const compactCard = document.querySelector('[data-tool-use-id="task-create-260"]');
+        const compactResult = compactCard.querySelector('.compact-result')?.textContent || '';
+        if (compactMode) compactCard.click();
+        const card = compactMode
+            ? document.querySelector('[data-tool-use-id="task-create-260"]:not([data-compact-tool])')
+            : compactCard;
+        const details = card.querySelector('details[data-tool-technical-details]');
+        return {
+            compactResult,
+            cardText: card.innerText,
+            detailsLabel: details.querySelector('summary').textContent,
+            detailsOpen: details.open,
+            raw: details.querySelector('pre').textContent,
+        };
+    }""", compact_mode)
+    page.close()
+
+    if compact_mode:
+        assert rendered["compactResult"] == "✅ #260 создана"
+    assert "Задача #260 создана" in rendered["cardText"]
+    assert "Fix result correlation" in rendered["cardText"]
+    assert rendered["detailsLabel"] == "Технические детали"
+    assert not rendered["detailsOpen"]
+    assert '"price_rub": 0' in rendered["raw"]
+    assert '"task_id": 9001' in rendered["raw"]
+
+
+@pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+def test_agent_result_summarizes_statuses_and_keeps_raw_details(
+    dashboard_browser: Browser,
+    compact_mode: bool,
+):
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+    rendered = page.evaluate("""compactMode => {
+        addChatEntry(
+            'tool',
+            'mcp__orchestra__list_agents: {}',
+            null,
+            null,
+            {id:26201, tool_use_id:'agent-list-260'},
+        );
+        addChatEntry(
+            'tool_result',
+            [
+                '## Orchestrators',
+                '🟢 👑 **Orchestra-orchestrator** | running | opus | ctx:31% | "Coordinates work"',
+                '🟡 ⚙️ **frontend** | waiting | sol | ctx:42% | 260 | "Waiting review"',
+                '❌ ⚙️ **broken-worker** | broken | sol | ctx:18% | 259 | "Needs restart"',
+            ].join('\\n'),
+            null,
+            null,
+            {id:26202, tool_use_id:'agent-list-260'},
+        );
+        const compactCard = document.querySelector('[data-tool-use-id="agent-list-260"]');
+        const compactResult = compactCard.querySelector('.compact-result')?.textContent || '';
+        if (compactMode) compactCard.click();
+        const card = compactMode
+            ? document.querySelector('[data-tool-use-id="agent-list-260"]:not([data-compact-tool])')
+            : compactCard;
+        const details = card.querySelector('details[data-tool-technical-details]');
+        return {
+            compactResult,
+            cardText: card.innerText,
+            summary: card.querySelector('[data-agent-summary]').textContent,
+            attention: card.querySelector('[data-agent-attention]').textContent,
+            detailsOpen: details.open,
+            raw: details.querySelector('pre').textContent,
+        };
+    }""", compact_mode)
+    page.close()
+
+    if compact_mode:
+        assert rendered["compactResult"] == (
+            "3 всего · 1 работает · 1 ждёт · 1 сломан"
+        )
+    assert "Агенты · 3 всего" in rendered["cardText"]
+    assert rendered["summary"] == "1 работает1 ждёт1 сломан"
+    assert "frontend — waiting" in rendered["attention"]
+    assert "broken-worker — broken" in rendered["attention"]
+    assert not rendered["detailsOpen"]
+    assert "## Orchestrators" in rendered["raw"]
+    assert "ctx:42%" in rendered["raw"]
 
 
 def test_task_card_uses_real_long_description_and_shared_expandable_body(

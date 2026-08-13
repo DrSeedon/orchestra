@@ -752,13 +752,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePromptModal(); closeFilePreview(); closeModal(); closeClientModal(); } });
     const compactBtn = $('#compact-toggle-btn');
     if (compactBtn) {
-        compactBtn.textContent = window.compactMode ? '📄' : '📋';
-        compactBtn.title = window.compactMode ? 'Switch to normal view' : 'Switch to compact view';
+        const syncCompactButton = () => {
+            compactBtn.textContent = window.compactMode ? '📋 Compact' : '📄 Normal';
+            compactBtn.title = window.compactMode
+                ? 'Tool view: compact. Switch to normal view'
+                : 'Tool view: normal. Switch to compact view';
+            compactBtn.setAttribute('aria-pressed', String(window.compactMode));
+        };
+        syncCompactButton();
         compactBtn.addEventListener('click', () => {
             window.compactMode = !window.compactMode;
             localStorage.setItem('compactToolMode', window.compactMode);
-            compactBtn.textContent = window.compactMode ? '📄' : '📋';
-            compactBtn.title = window.compactMode ? 'Switch to normal view' : 'Switch to compact view';
+            syncCompactButton();
             _prepareChatAnchorRestore(false);
             _showChatFor(selectedAgent, currentScope);  // перерисовать всё в новом режиме
         });
@@ -930,7 +935,7 @@ async function loadMoreLogs() {
         _replayingHistory = true;
         try {
         for (const l of logs) {
-            addChatEntry(l.type, l.content, l.ts, anchor);
+            addChatEntry(l.type, l.content, l.ts, anchor, l);
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
             if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
                 chatLogs[selectedAgent].firstId = l.id;
@@ -3496,7 +3501,7 @@ function _renderJsonGrid(obj, container, maxDepth) {
     return grid;
 }
 
-function buildCompactToolLine(type, content, ts) {
+function buildCompactToolLine(type, content, ts, payload) {
     const line = document.createElement('div');
     line.className = 'flex items-center gap-2 text-xs py-0.5 px-2 cursor-pointer rounded group';
     line.style.color = '#64748b';
@@ -3592,9 +3597,10 @@ function buildCompactToolLine(type, content, ts) {
         line.dataset.compactTool = '1';
         line.dataset.toolContent = content;
         line.dataset.toolRaw = rawName;
+        if (payload?.tool_use_id) line.dataset.toolUseId = payload.tool_use_id;
         try {
             const parsed = JSON.parse(body);
-            if (parsed._codex_item_id) {
+            if (parsed._codex_item_id && !line.dataset.toolUseId) {
                 line.dataset.toolUseId = parsed._codex_item_id;
                 _flushCodexToolUpdates(line, parsed._codex_item_id);
             }
@@ -3622,9 +3628,12 @@ function buildCompactToolLine(type, content, ts) {
             sentinel.style.display = 'none';
             if (anchor) chat.insertBefore(sentinel, anchor);
             else chat.appendChild(sentinel);
-            addChatEntry('tool', tempContent, null, sentinel);
+            const toolPayload = line.dataset.toolUseId
+                ? {tool_use_id: line.dataset.toolUseId}
+                : undefined;
+            addChatEntry('tool', tempContent, null, sentinel, toolPayload);
             if (tempResult) {
-                addChatEntry('tool_result', tempResult, null, sentinel);
+                addChatEntry('tool_result', tempResult, null, sentinel, toolPayload);
             }
             window.compactMode = savedCompact;
             const rendered = [];
@@ -3641,7 +3650,10 @@ function buildCompactToolLine(type, content, ts) {
             line.after(fullBubble);
         });
     } else {
-        line.textContent = '📎 ' + content.slice(0, 100);
+        line.dataset.unmatchedToolResult = '1';
+        line.style.color = '#f59e0b';
+        const toolUseId = payload?.tool_use_id;
+        line.textContent = `⚠️ Результат без вызова${toolUseId ? ` · ${toolUseId}` : ''} — ${content.slice(0, 100)}`;
     }
 
     return line;
@@ -3654,6 +3666,14 @@ function _findLastBefore(parent, selector, anchor) {
         node = node.previousElementSibling;
     }
     return null;
+}
+
+function _toolForResult(chat, payload, anchor, compact) {
+    const toolUseId = payload?.tool_use_id;
+    if (!toolUseId) return null;
+    const idSelector = `[data-tool-use-id="${CSS.escape(String(toolUseId))}"]`;
+    const selector = compact ? `[data-compact-tool]${idSelector}` : idSelector;
+    return _findLastBefore(chat, selector, anchor);
 }
 
 const HIDE_THINKING = document.body.dataset.hideThinking === 'true';
@@ -3889,7 +3909,7 @@ function _taskCardBodyHtml(task) {
     if (task.status) rows.push(`<div><span style="color:#64748b">Status:</span> <b style="color:${statusColor}">${safe(task.status)}</b></div>`);
     if (task.project) rows.push(`<div><span style="color:#64748b">Project:</span> <span style="color:#94a3b8">${safe(task.project)}</span></div>`);
     const price = task.price_rub ?? task.price;
-    if (price != null && price !== '') rows.push(`<div><span style="color:#64748b">Price:</span> <b style="color:#eab308">${_taskMoney(price)} ${CUR}</b></div>`);
+    if (Number(price) > 0) rows.push(`<div><span style="color:#64748b">Price:</span> <b style="color:#eab308">${_taskMoney(price)} ${CUR}</b></div>`);
     if (Number(task.paid_rub) > 0) rows.push(`<div><span style="color:#64748b">Paid:</span> ${_taskMoney(task.paid_rub)} ${CUR}</div>`);
     if (Number(task.debt_rub) > 0) rows.push(`<div style="color:#ef4444">Debt: ${_taskMoney(task.debt_rub)} ${CUR}</div>`);
     if (task.assignee) rows.push(`<div><span style="color:#64748b">Assignee:</span> ${safe(task.assignee)}</div>`);
@@ -3907,6 +3927,48 @@ function _taskCardBodyHtml(task) {
         ? `<div data-task-fields style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px;color:#94a3b8">${rows.join('')}</div>`
         : '';
     return fields + _taskDescriptionHtml(task.description);
+}
+
+function _appendToolTechnicalDetails(card, content) {
+    const details = document.createElement('details');
+    details.dataset.toolTechnicalDetails = '1';
+    details.style.cssText = 'margin-top:6px;border-top:1px solid rgba(51,65,85,0.55);padding-top:4px';
+    const summary = document.createElement('summary');
+    summary.style.cssText = 'font-size:10px;color:#64748b;cursor:pointer;user-select:none';
+    summary.textContent = 'Технические детали';
+    const raw = document.createElement('pre');
+    raw.style.cssText = 'margin:5px 0 0;padding:6px 8px;border-radius:6px;background:#0d1117;color:#64748b;font-size:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto';
+    try { raw.textContent = JSON.stringify(JSON.parse(content), null, 2); }
+    catch { raw.textContent = content; }
+    details.append(summary, raw);
+    card.appendChild(details);
+}
+
+function _agentResultSummary(content) {
+    const lines = content.split('\n').filter(line => line.includes('|'));
+    if (!lines.length) return null;
+    const agents = lines.map(line => {
+        const parts = line.split('|').map(part => part.trim());
+        return {
+            line,
+            name: (parts[0] || '').replace(/\*\*/g, '').replace(/^[^\p{L}\p{N}_-]*/u, '').trim(),
+            status: parts[1] || 'unknown',
+        };
+    });
+    const counts = {running: 0, waiting: 0, broken: 0};
+    for (const agent of agents) {
+        if (Object.hasOwn(counts, agent.status)) counts[agent.status] += 1;
+    }
+    return {lines, agents, counts};
+}
+
+function _agentCountText(counts) {
+    const word = (count, one, many) => `${count} ${count === 1 ? one : many}`;
+    return [
+        word(counts.running, 'работает', 'работают'),
+        word(counts.waiting, 'ждёт', 'ждут'),
+        word(counts.broken, 'сломан', 'сломаны'),
+    ];
 }
 
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
@@ -4017,7 +4079,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
     if (window.compactMode && (type === 'tool' || type === 'tool_result')) {
         if (type === 'tool_result') {
-            const lastC = _findLastBefore(chat, '[data-compact-tool]', anchor);
+            const lastC = _toolForResult(chat, payload, anchor, true);
             if (lastC && _isBase64Image) {
                 const resultSpan = lastC.querySelector('.compact-result');
                 if (resultSpan) resultSpan.textContent = '🖼 image';
@@ -4039,8 +4101,33 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 const isWebFetchCompact = rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch';
                 const isWebSearchCompact = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
                 const isSpawnWorkerCompact = rawName === 'mcp__orchestra__spawn_worker';
+                const isTaskCompact = ['mcp__orchestra__task_create','mcp__orchestra__task_get','mcp__orchestra__task_update','mcp__orchestra__task_list'].includes(rawName);
+                const isAgentListCompact = rawName === 'mcp__orchestra__list_agents' || rawName === 'mcp__orchestra__list_orchestrators';
                 const resultSpan = lastC.querySelector('.compact-result');
-                if (resultSpan && isSendFileCompact) {
+                if (resultSpan && isTaskCompact) {
+                    let parsed = null;
+                    try { parsed = JSON.parse(content); } catch {}
+                    if (parsed && !parsed.error) {
+                        if (rawName === 'mcp__orchestra__task_create' || rawName === 'mcp__orchestra__task_get') {
+                            const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
+                            resultSpan.textContent = rawName.endsWith('task_create') ? `✅ #${number} создана` : `📋 #${number}`;
+                        } else if (rawName === 'mcp__orchestra__task_list') {
+                            resultSpan.textContent = `📋 ${(parsed.tasks || []).length} задач`;
+                        } else {
+                            resultSpan.textContent = '✅ обновлена';
+                        }
+                    } else {
+                        resultSpan.textContent = '❌';
+                    }
+                } else if (resultSpan && isAgentListCompact) {
+                    const summary = _agentResultSummary(clean);
+                    if (summary) {
+                        resultSpan.textContent = `${summary.agents.length} всего · ${_agentCountText(summary.counts).join(' · ')}`;
+                        resultSpan.style.color = summary.counts.broken ? '#ef4444' : summary.counts.waiting ? '#f59e0b' : '#64748b';
+                    } else {
+                        resultSpan.textContent = '❌ нет списка';
+                    }
+                } else if (resultSpan && isSendFileCompact) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
                 } else if (resultSpan && isOrchSimpleCompact) {
                     const hasErr = clean.includes('error') || clean.includes('Error') || clean.includes('fail') || clean.includes('Fail');
@@ -4088,11 +4175,11 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     } catch {}
                     resultSpan.textContent = '📖 ' + readShort;
                 }
-                lastC.dataset.resultContent = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
+                lastC.dataset.resultContent = (isTaskCompact || isAgentListCompact) ? content : clean;
                 return;
             }
         }
-        const line = buildCompactToolLine(type, content, ts);
+        const line = buildCompactToolLine(type, content, ts, payload);
         const wasAtBottom = _chatAtBottom(chat);
         _insert(line);
         // Trim oldest nodes to cap memory — loses old history but prevents unbounded DOM growth
@@ -4364,12 +4451,13 @@ function addChatEntry(type, content, ts, anchor, payload) {
         div.dataset.toolContent = content;
         div.dataset.toolRawName = rawName;
         div.style.cursor = 'pointer';
+        if (payload?.tool_use_id) div.dataset.toolUseId = payload.tool_use_id;
         let codexItemId = '';
         try {
             const parsed = JSON.parse(body);
             if (parsed._codex_item_id) {
                 codexItemId = parsed._codex_item_id;
-                div.dataset.toolUseId = codexItemId;
+                if (!div.dataset.toolUseId) div.dataset.toolUseId = codexItemId;
             }
         } catch {}
 
@@ -5023,11 +5111,14 @@ function addChatEntry(type, content, ts, anchor, payload) {
     else if (type === 'tool_result') {
         const chat = $('#chat');
         const resultToolId = payload?.tool_use_id || '';
-        const resultSelector = resultToolId
-            ? `[data-last-tool][data-tool-use-id="${CSS.escape(resultToolId)}"]`
-            : '[data-last-tool]';
-        const lastTool = _findLastBefore(chat, resultSelector, anchor) ||
-            (resultToolId ? _findLastBefore(chat, '[data-last-tool]', anchor) : null);
+        const lastTool = _toolForResult(chat, payload, anchor, false);
+        if (!lastTool) {
+            div.dataset.unmatchedToolResult = '1';
+            const warning = document.createElement('div');
+            warning.className = 'text-amber-400 text-xs font-medium mb-1';
+            warning.textContent = `⚠️ Результат без вызова${resultToolId ? ` · ${resultToolId}` : ''}`;
+            div.appendChild(warning);
+        }
         if (lastTool) {
             const liveOutput = lastTool.querySelector('.codex-live-output');
             if (liveOutput) liveOutput.remove();
@@ -5256,7 +5347,13 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     return;
                 }
                 if (tn === 'mcp__orchestra__task_create' || tn === 'mcp__orchestra__task_get') {
-                    if (hdr) { hdr.textContent = `📋 #${parsed.par}: ${parsed.title || '?'}`; hdr.style.color = tn.includes('create') ? '#22c55e' : '#a78bfa'; }
+                    const taskNumber = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
+                    if (hdr) {
+                        hdr.textContent = tn.includes('create')
+                            ? `✅ Задача #${taskNumber} создана · ${parsed.title || '?'}`
+                            : `📋 Задача #${taskNumber} · ${parsed.title || '?'}`;
+                        hdr.style.color = tn.includes('create') ? '#22c55e' : '#a78bfa';
+                    }
                     const taskBody = document.createElement('div');
                     taskBody.style.marginTop = '4px';
                     taskBody.innerHTML = _taskCardBodyHtml(parsed);
@@ -5479,6 +5576,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
                         }
                     }
                 }
+                if (tn.startsWith('mcp__orchestra__task_')) {
+                    _appendToolTechnicalDetails(lastTool, content);
+                }
                 addTimestamp(lastTool, ts);
                 // Панель задач обновляется на ЖИВОМ вызове инструмента. При отрисовке
                 // истории те же строки — это прошлое, и каждая из них дёргала бы полную
@@ -5568,7 +5668,8 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     return;
                 }
                 if (lastTool.dataset.toolRawName === 'mcp__orchestra__list_agents' || lastTool.dataset.toolRawName === 'mcp__orchestra__list_orchestrators') {
-                    const agentLines = clean.split('\n').filter(l => l.includes('|'));
+                    const agentSummary = _agentResultSummary(clean);
+                    const agentLines = agentSummary?.lines || [];
                     if (agentLines.length > 0) {
                         const PREVIEW_COUNT = 4;
                         const container = document.createElement('div');
@@ -5603,7 +5704,26 @@ function addChatEntry(type, content, ts, anchor, payload) {
                             container.appendChild(row);
                         }
                         lastTool.appendChild(container);
-                        if (hdr) hdr.textContent += ` (${agentLines.length})`;
+                        if (hdr) {
+                            const counts = agentSummary.counts;
+                            hdr.textContent = `🎼 Агенты · ${agentLines.length} всего`;
+                            hdr.style.color = counts.broken ? '#ef4444' : counts.waiting ? '#f59e0b' : '#a78bfa';
+                        }
+                        const counts = agentSummary.counts;
+                        const summary = document.createElement('div');
+                        summary.dataset.agentSummary = '1';
+                        summary.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8;display:flex;gap:10px;flex-wrap:wrap';
+                        const countText = _agentCountText(counts);
+                        summary.innerHTML = `<span style="color:#4ade80">${countText[0]}</span><span style="color:${counts.waiting ? '#f59e0b' : '#64748b'}">${countText[1]}</span><span style="color:${counts.broken ? '#ef4444' : '#64748b'}">${countText[2]}</span>`;
+                        lastTool.insertBefore(summary, container);
+                        const attention = agentSummary.agents.filter(agent => agent.status === 'waiting' || agent.status === 'broken');
+                        if (attention.length) {
+                            const attentionEl = document.createElement('div');
+                            attentionEl.dataset.agentAttention = '1';
+                            attentionEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fbbf24';
+                            attentionEl.textContent = `Требуют внимания: ${attention.map(agent => `${agent.name} — ${agent.status}`).join(', ')}`;
+                            lastTool.insertBefore(attentionEl, container);
+                        }
                         if (agentLines.length > PREVIEW_COUNT) {
                             const hint = document.createElement('div');
                             hint.className = 'text-xs mt-1';
@@ -5621,6 +5741,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                                 hint.textContent = _alExp ? '▲ collapse' : `▼ ${agentLines.length - PREVIEW_COUNT} more`;
                             });
                         }
+                        _appendToolTechnicalDetails(lastTool, content);
                         addTimestamp(lastTool, ts);
                         return;
                     }
