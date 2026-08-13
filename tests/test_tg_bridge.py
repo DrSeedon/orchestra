@@ -4042,7 +4042,10 @@ class TestTurnEndMention:
         assert "@DrSeedon" in tb._mention_markup("@DrSeedon")
 
     @staticmethod
-    async def _run(tb, monkeypatch, logs, *, role="orchestrator", mention="@DrSeedon"):
+    async def _run(
+        tb, monkeypatch, logs, *, role="orchestrator", mention="@DrSeedon",
+        capture_mirror=False,
+    ):
         class FakeConn:
             def close(self):
                 pass
@@ -4062,9 +4065,13 @@ class TestTurnEndMention:
             return None
 
         sent = []
+        mirrored = []
 
         async def tg_send_safe(chat_id, text, thread_id, entities=None, important=False, **kw):
             sent.append({"text": text, "important": important, "entities": entities})
+
+        async def mirror_send(_orch_name, text, **_kwargs):
+            mirrored.append(text)
 
         monkeypatch.setattr(tb, "TG_USER_MENTION", mention)
         monkeypatch.setattr(
@@ -4079,12 +4086,12 @@ class TestTurnEndMention:
         monkeypatch.setattr(tb, "_schedule_topic_status", lambda *a: None)
         monkeypatch.setattr(tb, "_any_running_in_scope", lambda scope: False)
         monkeypatch.setattr(tb, "_tg_send_safe", tg_send_safe)
-        monkeypatch.setattr(tb, "_mirror_send", AsyncMock())
+        monkeypatch.setattr(tb, "_mirror_send", mirror_send)
         monkeypatch.setattr(tb.asyncio, "sleep", no_sleep)
 
         with pytest.raises(asyncio.CancelledError):
             await tb.stream_logs("orch", 42)
-        return sent
+        return (sent, mirrored) if capture_mirror else sent
 
     @pytest.mark.asyncio
     async def test_orchestrator_final_message_is_mentioned(self, tb, monkeypatch):
@@ -4134,6 +4141,65 @@ class TestTurnEndMention:
             {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
         ])
         assert not [m for m in sent if "@DrSeedon" in m["text"]]
+
+    @pytest.mark.asyncio
+    async def test_exact_silent_turn_marker_is_not_delivered_or_mentioned(
+        self, tb, monkeypatch,
+    ):
+        rows = [
+            {"id": 1, "type": "text", "content": "[[ORCHESTRA:SILENT_TURN]]"},
+            {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
+        ]
+
+        sent, mirrored = await self._run(
+            tb, monkeypatch, rows, capture_mirror=True,
+        )
+
+        assert not [m for m in sent if "ORCHESTRA:SILENT_TURN" in m["text"]]
+        assert not [text for text in mirrored if "ORCHESTRA:SILENT_TURN" in text]
+        assert not [m for m in sent if "@DrSeedon" in m["text"]]
+        assert rows[0] == {
+            "id": 1,
+            "type": "text",
+            "content": "[[ORCHESTRA:SILENT_TURN]]",
+        }
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "_",
+            "[[ORCHESTRA:SILENT_TURN]] ",
+            "prefix [[ORCHESTRA:SILENT_TURN]]",
+            "[[ORCHESTRA:SILENT_TURN]]\nexplanation",
+        ],
+    )
+    async def test_silent_turn_near_misses_are_delivered(
+        self, tb, monkeypatch, content,
+    ):
+        sent = await self._run(tb, monkeypatch, [
+            {"id": 1, "type": "text", "content": content},
+        ])
+
+        assert len(sent) == 1
+        assert sent[0]["text"].startswith("💬")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("log_type", "prefix"),
+        [("user_message", "👤"), ("error", "❌")],
+    )
+    async def test_silent_marker_only_applies_to_agent_text(
+        self, tb, monkeypatch, log_type, prefix,
+    ):
+        sent = await self._run(tb, monkeypatch, [{
+            "id": 1,
+            "type": log_type,
+            "content": "[[ORCHESTRA:SILENT_TURN]]",
+        }])
+
+        assert len(sent) == 1
+        assert sent[0]["text"].startswith(prefix)
 
     @pytest.mark.asyncio
     async def test_two_turns_give_two_mentions(self, tb, monkeypatch):

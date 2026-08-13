@@ -101,6 +101,9 @@ UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
 # notifies even when the username does not resolve for the bot.
 TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
 
+# Exact protocol token: broadening this match can silently hide real user-facing text.
+TG_SILENT_TURN_MARKER = "[[ORCHESTRA:SILENT_TURN]]"
+
 
 def _mention_markup(mention: str) -> str:
     """Markdown for the owner mention. Numeric → tg:// link (reliable), else @username."""
@@ -3076,6 +3079,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                         else:
                             text = f"👤\n{c}" if c.startswith("> ") else f"👤 {c}"
                     elif t == "text":
+                        if c == TG_SILENT_TURN_MARKER:
+                            continue
                         from app.tool_call_guard import mark_unexecuted_tool_call
 
                         _spoke_this_turn = True
