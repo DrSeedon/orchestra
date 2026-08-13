@@ -77,10 +77,11 @@ DONE WHEN: наблюдаемое условие завершения.
 - Одна мысль = один источник истины. Если решение принимается в другом месте, перенеси правило
   туда либо дай ссылку. Дубли расходятся: у нас протухала копия model-routing, а background-jobs
   одновременно жил в трёх местах. [L3]
-- **Каталог моделей ≠ доступность.** Для выбора нужна пересечённая проверка: explicit routing
-  policy ∩ live runtime catalog/probe ∩ credential readiness ∩ quota admission. Статический
-  registry в #247 рекламировал Grok до проверки auth и не знал live 4.6; dump живого каталога
-  тоже опасен — Codex возвращает внутренние slugs. Readiness проверять ДО создания session/worktree. [L6]
+- **Каталог моделей ≠ доступность.** Проверка spawn: allowlist ∩ credential-ready ∩
+  catalog-ready ∩ `(quota != blocked)`. Unknown credentials/catalog закрывают вход, unknown quota
+  пропускает ГРОМКО: отсутствие telemetry не доказывает исчерпание. Credential probe обязан
+  использовать тот же resolved profile/config dir, что backend, иначе global auth маскирует
+  мёртвый профиль. Readiness — ДО session/worktree; live catalog не расширяет allowlist. [L6]
 - Role/persona помогает фокусу и тону, но не заменяет goal, критерии и границы. [A1][O1]
 
 ## Zero-shot, few-shot и примеры
