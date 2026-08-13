@@ -32,6 +32,7 @@ def isolated_model_registry(monkeypatch):
         "CONTEXT_LIMITS",
         "ALIASES",
         "BACKENDS",
+        "MODEL_PROVIDERS",
         "TOKEN_PRICES",
         "MODEL_SPECS",
     ):
@@ -62,9 +63,9 @@ def test_opus5_registry_and_aliases():
     assert resolve_model("opus") == model_id
     assert resolve_model("opus5") == model_id
     assert resolve_model("claude-opus-5") == model_id
-    # New requests upgrade aliases; persisted rows keep exact compatibility specs.
+    # Retired ids upgrade to Opus 5; 4.6 is selectable again and resolves to itself.
     assert resolve_model("claude-opus-4-8[1m]") == model_id
-    assert resolve_model("claude-opus-4-6") == model_id
+    assert resolve_model("claude-opus-4-6") == "claude-opus-4-6"
     assert "claude-opus-4-8[1m]" not in MODELS
     assert get_model_spec("claude-opus-4-8[1m]").runtime == "claude"
 
@@ -137,6 +138,74 @@ def test_registry_validator_covers_every_selectable_model():
         spec = get_model_spec(model_id)
         assert spec.runtime in PROVIDER_METADATA
         assert spec.provider != "unknown"
+
+
+def test_declaring_one_spec_populates_every_derived_view(isolated_model_registry):
+    """Adding a model must mean editing SELECTABLE_MODEL_SPECS and nothing else.
+
+    The five dicts below used to be hand-maintained in parallel, so forgetting one
+    made a model either invisible in the picker or fatal at spawn.
+    """
+    registry = isolated_model_registry
+    spec = ModelSpec(
+        id="claude-hypothetical-9",
+        name="Hypothetical 9",
+        runtime="claude",
+        provider="anthropic",
+        context_length=333000,
+        price_input=1.25,
+        price_output=6.5,
+    )
+
+    assert spec.id not in registry.MODELS
+
+    registry.register_model(spec)
+
+    assert registry.MODELS[spec.id] == "Hypothetical 9"
+    assert registry.CONTEXT_LIMITS[spec.id] == 333000
+    assert registry.BACKENDS[spec.id] == "claude"
+    assert registry.MODEL_PROVIDERS[spec.id] == "anthropic"
+    assert registry.TOKEN_PRICES[spec.id] == {"input": 1.25, "output": 6.5}
+    assert registry.get_model_spec(spec.id) is spec
+    registry.validate_model_registry()
+
+
+def test_derived_views_carry_exactly_the_declared_specs():
+    """No view may gain or lose an id relative to the single declaration list."""
+    import app.models as registry
+
+    declared = {spec.id for spec in registry.SELECTABLE_MODEL_SPECS}
+    assert declared == set(MODELS)
+    assert declared == set(BACKENDS)
+    assert declared == set(CONTEXT_LIMITS)
+    assert declared == set(registry.MODEL_PROVIDERS)
+    # Only priced specs reach TOKEN_PRICES; Codex/Grok price in their backends.
+    assert set(TOKEN_PRICES) == {
+        spec.id for spec in registry.SELECTABLE_MODEL_SPECS
+        if spec.price_input is not None or spec.price_output is not None
+    }
+    for spec in registry.SELECTABLE_MODEL_SPECS:
+        assert MODELS[spec.id] == spec.name
+        assert CONTEXT_LIMITS[spec.id] == spec.context_length
+        assert BACKENDS[spec.id] == spec.runtime
+        assert registry.MODEL_PROVIDERS[spec.id] == spec.provider
+
+
+def test_opus46_is_selectable_and_priced():
+    """Opus 4.6 is live on the subscription — picking it must not divert to Opus 5."""
+    spec = get_model_spec("claude-opus-4-6")
+    assert MODELS["claude-opus-4-6"] == "Opus 4.6"
+    assert spec.runtime == "claude"
+    assert spec.provider == "anthropic"
+    assert spec.context_length == 200000
+    assert get_model_spec("claude-opus-4-6[1m]").context_length == 1_000_000
+    assert TOKEN_PRICES["claude-opus-4-6"] == {"input": 5.0, "output": 25.0}
+    assert resolve_model("claude-opus-4-6") == "claude-opus-4-6"
+    assert resolve_model("claude-opus-4-6[1m]") == "claude-opus-4-6[1m]"
+    assert backend_for_model("claude-opus-4-6") == "claude"
+    # A live model must not also linger as a retired compatibility route.
+    import app.models as registry
+    assert "claude-opus-4-6" not in registry.COMPAT_MODEL_SPECS
 
 
 def test_cache_policy_is_explicit_and_unknown_is_conservative():

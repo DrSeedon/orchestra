@@ -40,41 +40,92 @@ class ProviderMetadata:
     model_providers: tuple[str, ...] = ()
 
 
-MODELS = {
-    "claude-fable-5[1m]": "Fable 5 (1M)",
-    "claude-opus-5[1m]": "Opus 5 (1M)",
-    "claude-sonnet-5[1m]": "Sonnet 5 (1M)",
-    "claude-haiku-4-5": "Haiku 4.5",
-    "gpt-5.3-codex-spark": "GPT-5.3 Codex Spark",
-    "gpt-5.6-sol": "GPT-5.6 Sol",
-    "gpt-5.6-terra": "GPT-5.6 Terra",
-    "gpt-5.6-luna": "GPT-5.6 Luna",
-    "gpt-5.5": "GPT-5.5",
-    "gpt-5.4": "GPT-5.4",
-    "gpt-5.4-mini": "GPT-5.4 Mini",
-    "grok-4.6": "Grok 4.6",
-    "grok-4.5": "Grok 4.5",
-}
-
-CONTEXT_LIMITS = {
-    "claude-fable-5[1m]": 1000000,
-    "claude-opus-5[1m]": 1000000,
-    "claude-sonnet-5[1m]": 1000000,
-    "claude-haiku-4-5": 200000,
+# THE single place a selectable model is declared. Everything below —
+# MODELS, CONTEXT_LIMITS, BACKENDS, MODEL_PROVIDERS, TOKEN_PRICES — is derived
+# from this list, so adding a model means adding exactly one ModelSpec here.
+# Prices are per million tokens; omit them for runtimes that price elsewhere
+# (Codex in backend_codex.py, Grok in backend_grok.py).
+SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
+    ModelSpec(
+        id="claude-fable-5[1m]", name="Fable 5 (1M)",
+        runtime="claude", provider="anthropic",
+        context_length=1000000, price_input=10.0, price_output=50.0,
+    ),
+    ModelSpec(
+        id="claude-opus-5[1m]", name="Opus 5 (1M)",
+        runtime="claude", provider="anthropic",
+        context_length=1000000, price_input=5.0, price_output=25.0,
+    ),
+    ModelSpec(
+        id="claude-sonnet-5[1m]", name="Sonnet 5 (1M)",
+        runtime="claude", provider="anthropic",
+        context_length=1000000, price_input=2.0, price_output=10.0,
+    ),
+    ModelSpec(
+        id="claude-haiku-4-5", name="Haiku 4.5",
+        runtime="claude", provider="anthropic",
+        context_length=200000, price_input=0.80, price_output=4.0,
+    ),
+    # Still served on the subscription: `claude --model claude-opus-4-6 --print`
+    # answers. Priced as Opus 5; the plain id gets Anthropic's standard 200k
+    # window, only the [1m] id carries the extended one.
+    ModelSpec(
+        id="claude-opus-4-6[1m]", name="Opus 4.6 (1M)",
+        runtime="claude", provider="anthropic",
+        context_length=1000000, price_input=5.0, price_output=25.0,
+    ),
+    ModelSpec(
+        id="claude-opus-4-6", name="Opus 4.6",
+        runtime="claude", provider="anthropic",
+        context_length=200000, price_input=5.0, price_output=25.0,
+    ),
     # Effective ChatGPT-auth Codex runtime budget. Public API window is larger, but
     # Orchestra's GPT workers run through Codex CLI and must use its runtime contract.
-    "gpt-5.3-codex-spark": 128000,
-    "gpt-5.6-sol": 258400,
-    "gpt-5.6-terra": 258400,
-    "gpt-5.6-luna": 258400,
-    "gpt-5.5": 258400,
-    "gpt-5.4": 258400,
-    "gpt-5.4-mini": 258400,
+    ModelSpec(
+        id="gpt-5.3-codex-spark", name="GPT-5.3 Codex Spark",
+        runtime="codex", provider="openai", context_length=128000,
+    ),
+    ModelSpec(
+        id="gpt-5.6-sol", name="GPT-5.6 Sol",
+        runtime="codex", provider="openai", context_length=258400,
+    ),
+    ModelSpec(
+        id="gpt-5.6-terra", name="GPT-5.6 Terra",
+        runtime="codex", provider="openai", context_length=258400,
+    ),
+    ModelSpec(
+        id="gpt-5.6-luna", name="GPT-5.6 Luna",
+        runtime="codex", provider="openai", context_length=258400,
+    ),
+    ModelSpec(
+        id="gpt-5.5", name="GPT-5.5",
+        runtime="codex", provider="openai", context_length=258400,
+    ),
+    ModelSpec(
+        id="gpt-5.4", name="GPT-5.4",
+        runtime="codex", provider="openai", context_length=258400,
+    ),
+    ModelSpec(
+        id="gpt-5.4-mini", name="GPT-5.4 Mini",
+        runtime="codex", provider="openai", context_length=258400,
+    ),
     # Reported by the Grok runtime itself (initialize + session/new agree). The bundled
     # vendor README disagrees with the runtime on other numbers, so the runtime wins.
-    "grok-4.6": 500000,
-    "grok-4.5": 500000,
-}
+    ModelSpec(
+        id="grok-4.6", name="Grok 4.6",
+        runtime="grok", provider="x-ai", context_length=500000,
+    ),
+    ModelSpec(
+        id="grok-4.5", name="Grok 4.5",
+        runtime="grok", provider="x-ai", context_length=500000,
+    ),
+)
+
+# Derived views. They stay plain dicts with the same contract because callers
+# import them by name and fetch_models_from_proxy() mutates them in place;
+# _rebuild_derived_views() below is the only writer at import time.
+MODELS: dict[str, str] = {}
+CONTEXT_LIMITS: dict[str, int] = {}
 
 # Short aliases let agents use "opus", "sonnet" etc. in spawn_worker without
 # knowing the exact versioned model ID — reduces prompt brittleness on model upgrades
@@ -89,8 +140,10 @@ ALIASES = {
     "claude-opus-5": "claude-opus-5[1m]",
     "claude-opus-4-8[1m]": "claude-opus-5[1m]",
     "claude-opus-4-8": "claude-opus-5[1m]",
-    "claude-opus-4-6[1m]": "claude-opus-5[1m]",
-    "claude-opus-4-6": "claude-opus-5[1m]",
+    # 4.6 is selectable again, so its ids must resolve to itself, not upgrade away.
+    "claude-opus-4-6[1m]": "claude-opus-4-6[1m]",
+    "claude-opus-4-6": "claude-opus-4-6",
+    "opus4.6": "claude-opus-4-6",
     "sonnet": "claude-sonnet-5[1m]",
     "sonnet5": "claude-sonnet-5[1m]",
     "claude-sonnet-5-1m": "claude-sonnet-5[1m]",
@@ -115,37 +168,9 @@ ALIASES = {
     "grok-build": "grok-4.5",
 }
 
-BACKENDS = {
-    "claude-fable-5[1m]": "claude",
-    "claude-opus-5[1m]": "claude",
-    "claude-sonnet-5[1m]": "claude",
-    "claude-haiku-4-5": "claude",
-    "gpt-5.3-codex-spark": "codex",
-    "gpt-5.6-sol": "codex",
-    "gpt-5.6-terra": "codex",
-    "gpt-5.6-luna": "codex",
-    "gpt-5.5": "codex",
-    "gpt-5.4": "codex",
-    "gpt-5.4-mini": "codex",
-    "grok-4.6": "grok",
-    "grok-4.5": "grok",
-}
+BACKENDS: dict[str, str] = {}
 
-MODEL_PROVIDERS = {
-    "claude-fable-5[1m]": "anthropic",
-    "claude-opus-5[1m]": "anthropic",
-    "claude-sonnet-5[1m]": "anthropic",
-    "claude-haiku-4-5": "anthropic",
-    "gpt-5.3-codex-spark": "openai",
-    "gpt-5.6-sol": "openai",
-    "gpt-5.6-terra": "openai",
-    "gpt-5.6-luna": "openai",
-    "gpt-5.5": "openai",
-    "gpt-5.4": "openai",
-    "gpt-5.4-mini": "openai",
-    "grok-4.6": "x-ai",
-    "grok-4.5": "x-ai",
-}
+MODEL_PROVIDERS: dict[str, str] = {}
 
 # Runtime ids double as the accounting buckets emitted by usage analytics. The
 # explicit `unknown` bucket is intentionally conservative: absence of evidence
@@ -207,13 +232,9 @@ def cache_policy_for_runtime(runtime: str) -> dict[str, int | bool]:
 
 
 # TOKEN_PRICES is for internal cost tracking only (subscription plan, not real API billing)
-# Codex models intentionally absent — their prices live in backend_codex.py
-TOKEN_PRICES = {
-    "claude-fable-5[1m]": {"input": 10.0, "output": 50.0},
-    "claude-opus-5[1m]":   {"input": 5.0,  "output": 25.0},
-    "claude-sonnet-5[1m]": {"input": 2.0,  "output": 10.0},
-    "claude-haiku-4-5":    {"input": 0.80, "output": 4.0},
-}
+# Codex and Grok models intentionally absent — a spec without prices stays out of
+# this view, and their prices live in backend_codex.py / backend_grok.py.
+TOKEN_PRICES: dict[str, dict[str, float]] = {}
 
 DEFAULT_MODEL = "claude-sonnet-5[1m]"
 MODEL_SPECS: dict[str, ModelSpec] = {}
@@ -254,32 +275,13 @@ COMPAT_MODEL_SPECS: dict[str, ModelSpec] = {
         provider="anthropic",
         context_length=1000000,
     ),
-    "claude-opus-4-6[1m]": ModelSpec(
-        id="claude-opus-4-6[1m]",
-        name="Opus 4.6 (legacy, 1M)",
-        runtime="claude",
-        provider="anthropic",
-        context_length=1000000,
-        price_input=15.0,
-        price_output=75.0,
-    ),
-    "claude-opus-4-6": ModelSpec(
-        id="claude-opus-4-6",
-        name="Opus 4.6 (legacy)",
-        runtime="claude",
-        provider="anthropic",
-        context_length=1000000,
-    ),
 }
 
 # The only proxy models observed on a registered deployment that omit both
 # runtime and provider. Exact ids make this a reviewed compatibility contract,
 # not another family-wide catch-all.
 _REVIEWED_PROXY_ROUTES: dict[str, tuple[str, str]] = {
-    **{
-        model_id: (BACKENDS[model_id], MODEL_PROVIDERS[model_id])
-        for model_id in MODELS
-    },
+    **{spec.id: (spec.runtime, spec.provider) for spec in SELECTABLE_MODEL_SPECS},
     "deepseek/deepseek-v4-flash": ("opencode", "deepseek"),
     "deepseek/deepseek-v4-pro": ("opencode", "deepseek"),
 }
@@ -297,6 +299,19 @@ def _generate_aliases(model_id: str) -> list[str]:
         if stripped and stripped != tail:
             aliases.append(stripped)
     return aliases
+
+
+def _apply_derived_views(spec: ModelSpec) -> None:
+    """Project one spec onto the five legacy dict views — the only writer of them."""
+    MODELS[spec.id] = spec.name
+    CONTEXT_LIMITS[spec.id] = spec.context_length
+    BACKENDS[spec.id] = spec.runtime
+    MODEL_PROVIDERS[spec.id] = spec.provider
+    if spec.price_input is not None or spec.price_output is not None:
+        TOKEN_PRICES[spec.id] = {
+            "input": float(spec.price_input or 0),
+            "output": float(spec.price_output or 0),
+        }
 
 
 def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
@@ -320,14 +335,7 @@ def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
     if spec.id in MODEL_SPECS and not replace:
         raise ValueError(f"model '{spec.id}' is already registered")
     MODEL_SPECS[spec.id] = spec
-    MODELS[spec.id] = spec.name
-    CONTEXT_LIMITS[spec.id] = spec.context_length
-    BACKENDS[spec.id] = spec.runtime
-    if spec.price_input is not None or spec.price_output is not None:
-        TOKEN_PRICES[spec.id] = {
-            "input": float(spec.price_input or 0),
-            "output": float(spec.price_output or 0),
-        }
+    _apply_derived_views(spec)
 
 
 def unregister_model(model_id: str) -> None:
@@ -335,6 +343,7 @@ def unregister_model(model_id: str) -> None:
     MODELS.pop(model_id, None)
     CONTEXT_LIMITS.pop(model_id, None)
     BACKENDS.pop(model_id, None)
+    MODEL_PROVIDERS.pop(model_id, None)
     TOKEN_PRICES.pop(model_id, None)
 
 
@@ -353,17 +362,16 @@ def get_model_spec(model_id: str) -> ModelSpec:
 
 
 def _seed_model_specs() -> None:
-    for model_id, name in list(MODELS.items()):
-        prices = TOKEN_PRICES.get(model_id, {})
-        MODEL_SPECS[model_id] = ModelSpec(
-            id=model_id,
-            name=name,
-            runtime=BACKENDS[model_id],
-            provider=MODEL_PROVIDERS[model_id],
-            context_length=CONTEXT_LIMITS[model_id],
-            price_input=prices.get("input"),
-            price_output=prices.get("output"),
-        )
+    """Populate MODEL_SPECS and every derived view from SELECTABLE_MODEL_SPECS."""
+    for spec in SELECTABLE_MODEL_SPECS:
+        if spec.id in MODEL_SPECS:
+            raise ValueError(f"model '{spec.id}' is declared twice in SELECTABLE_MODEL_SPECS")
+        if spec.id in COMPAT_MODEL_SPECS:
+            raise ValueError(
+                f"model '{spec.id}' is both selectable and a compatibility route"
+            )
+        MODEL_SPECS[spec.id] = spec
+        _apply_derived_views(spec)
 
 
 _seed_model_specs()
@@ -405,6 +413,8 @@ def validate_model_registry() -> None:
             errors.append(f"{model_id}: BACKENDS view differs from ModelSpec")
         if CONTEXT_LIMITS.get(model_id) != spec.context_length:
             errors.append(f"{model_id}: CONTEXT_LIMITS view differs from ModelSpec")
+        if MODEL_PROVIDERS.get(model_id) != spec.provider:
+            errors.append(f"{model_id}: MODEL_PROVIDERS view differs from ModelSpec")
 
     for provider_id, metadata in PROVIDER_METADATA.items():
         if provider_id != metadata.id:
@@ -439,6 +449,7 @@ def _clear_selectable_models() -> None:
     CONTEXT_LIMITS.clear()
     TOKEN_PRICES.clear()
     BACKENDS.clear()
+    MODEL_PROVIDERS.clear()
     MODEL_SPECS.clear()
     ALIASES.clear()
 
