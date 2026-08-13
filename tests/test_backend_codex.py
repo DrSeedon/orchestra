@@ -18,6 +18,7 @@ import pytest
 from app.backend_codex import (
     CodexBackend,
     CodexProtocolError,
+    ORCHESTRA_FULL_MCP_TOOLS,
     CODEX_CONTEXT_LIMITS,
     CODEX_TOKEN_PRICES,
     CODEX_REASONING_EFFORTS,
@@ -242,6 +243,16 @@ def test_effort_passthrough_and_fallback():
 # новый носитель: проверяется то же самое (command/args/env/enabled_tools/url), но там,
 # где оно теперь находится.
 
+
+def test_full_mcp_allowlist_tracks_registered_tools():
+    from app.mcp_stdio import mcp
+
+    registered = {tool.name for tool in mcp._tool_manager.list_tools()}
+    enabled = set(ORCHESTRA_FULL_MCP_TOOLS)
+
+    assert enabled <= registered
+    assert registered - enabled == {"resolve_merge_operation", "send_chart"}
+
 def test_mcp_config_rendered_into_config_toml_not_argv():
     import tomllib
     b = CodexBackend(model="gpt-5.6-sol", cwd="/tmp", mcp_servers={
@@ -261,6 +272,7 @@ def test_mcp_config_rendered_into_config_toml_not_argv():
     assert srv["env"]["WORKER_NAME"] == "w1"
     assert "send_message" in srv["enabled_tools"]
     assert "spawn_worker" in srv["enabled_tools"]
+    assert "open_fan" in srv["enabled_tools"]
 
 
 def test_mcp_config_supports_url_only_servers():

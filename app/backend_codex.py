@@ -331,7 +331,7 @@ ORCHESTRA_FULL_MCP_TOOLS = (
     "update_worker_description", "update_worker_prompt", "get_worker_info",
     "task_create", "task_update", "task_list", "task_get", "payment_receive",
     "payment_status", "bg_create", "bg_list", "bg_cancel", "search_memory",
-    "codex_review",
+    "codex_review", "open_fan",
 )
 
 
