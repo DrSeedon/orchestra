@@ -70,6 +70,19 @@ code, pre, kbd, samp, .font-mono,
 .chat-timeline-marker.is-worker { width: 11px; background: #c084fc; }
 .chat-timeline-marker.is-status { width: 7px; background: #fbbf24; }
 .chat-timeline-marker.is-error { width: 13px; background: #f87171; opacity: 1; }
+/* Зов оркестратора (#241) — самая заметная метка дорожки: их единицы, и юзер ищет их. */
+.chat-timeline-marker.is-notify {
+  width: 20px; max-height: 9px; background: #ef4444; opacity: 1;
+  box-shadow: 0 0 0 1px rgba(248,113,113,0.55);
+}
+.chat-timeline-user-nav.is-notify-nav {
+  border-color: rgba(239,68,68,0.65); color: #fca5a5; margin-bottom: 3px;
+}
+.chat-timeline-user-nav.is-notify-nav button { color: #fca5a5; }
+.chat-notify-user-reason {
+  margin-top: 2px; color: #fecaca; font-size: 12px;
+  overflow-wrap: anywhere; white-space: pre-wrap;
+}
 .chat-jump-latest {
   position: absolute; left: 50%; bottom: 12px; z-index: 20;
   transform: translateX(-50%); padding: 5px 11px;
@@ -93,6 +106,9 @@ code, pre, kbd, samp, .font-mono,
 .chat-bot { border-left: 3px solid rgba(99,102,241,0.1); }
 .chat-tool { background: rgba(56, 189, 248, 0.05); border-left: 3px solid rgba(56, 189, 248, 0.3); font-size: 12px; }
 .chat-tool-result { background: rgba(34, 197, 94, 0.05); border-left: 3px solid rgba(34, 197, 94, 0.2); font-size: 12px; }
+/* Идёт ПОСЛЕ .chat-tool намеренно: у них одинаковая специфичность, и порядок решает,
+   иначе голубая рамка обычного тула перекрывает красную у зова (#241). */
+.chat-notify-user { background: rgba(239, 68, 68, 0.12); border-left: 3px solid #ef4444; }
 /* Обрезанное сообщение (#74): маркер должен быть заметен, иначе обрезка читается как конец текста. */
 .trunc-notice {
   display: flex; align-items: center; gap: 8px; margin-top: 6px;

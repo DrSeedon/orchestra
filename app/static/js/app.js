@@ -242,10 +242,25 @@ function _scrollChatToBottom(behavior = 'auto') {
 }
 
 let _chatTimelineObserver = null;
-let _chatTimelineUserCount = 0;
+
+const NOTIFY_USER_TOOL = 'mcp__orchestra__notify_user';
+
+// Оркестратор зовёт юзера ТОЛЬКО этим вызовом (#241), поэтому таких строк мало и они
+// и есть «свежее», ради которого юзер иначе пролистывал бы весь поток.
+function _isNotifyUserNode(node) {
+    return (node?.dataset.toolRawName || node?.dataset.toolRaw) === NOTIFY_USER_TOOL;
+}
+
+function _notifyUserReason(node) {
+    const content = node?.dataset.toolContent || '';
+    const colonIdx = content.indexOf(':');
+    if (colonIdx < 0) return '';
+    try { return JSON.parse(content.slice(colonIdx + 1)).reason || ''; } catch { return ''; }
+}
 
 function _chatTimelineKind(type, node) {
     if (type === 'user_message') return node.dataset.from ? 'worker' : 'user';
+    if (type === 'tool' && _isNotifyUserNode(node)) return 'notify';
     if (type === 'tool' || type === 'tool_result') return 'tool';
     if (type === 'error') return 'error';
     if (type.includes('subagent') || type.includes('background')) return 'worker';
@@ -257,14 +272,19 @@ function _tagChatTimelineNode(node, type, ts) {
     if (!node || node.dataset.chatNavKind) return;
     const kind = _chatTimelineKind(type, node);
     const labels = {user: 'Моё сообщение', worker: 'Сообщение воркера', tool: 'Инструмент',
-                    error: 'Ошибка', status: 'Статус', agent: 'Ответ агента'};
+                    error: 'Ошибка', status: 'Статус', agent: 'Ответ агента',
+                    notify: 'Оркестратор зовёт'};
     let time = '';
     if (ts) {
         const date = new Date(ts);
         if (!Number.isNaN(date.getTime())) time = `, ${date.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}`;
     }
     node.dataset.chatNavKind = kind;
-    node.dataset.chatNavLabel = `${labels[kind]}${time}`;
+    // У зова причина и есть смысл метки: она объясняет, ЗАЧЕМ дёрнули, прямо в подсказке.
+    const reason = kind === 'notify' ? _notifyUserReason(node) : '';
+    node.dataset.chatNavLabel = reason
+        ? `${labels[kind]}: ${reason}${time}`
+        : `${labels[kind]}${time}`;
 }
 
 function _addChatTimelineMarker(node) {
@@ -286,25 +306,34 @@ function _addChatTimelineMarker(node) {
         track.prepend(marker);
     }
     node._chatTimelineMarker = marker;
-    if (kind === 'user') _chatTimelineUserCount++;
 }
 
 function _removeChatTimelineMarker(node) {
     const marker = node?._chatTimelineMarker;
     if (!marker) return;
-    if (node.dataset.chatNavKind === 'user') _chatTimelineUserCount--;
     marker.remove();
     node._chatTimelineMarker = null;
 }
 
+// Счёт берём из самой дорожки, а не из отдельных счётчиков: пара «инкремент при вставке /
+// декремент при удалении» — вторая копия истины, которая расходится с нарисованным.
 function _syncChatTimelineControls() {
-    const count = $('#chat-user-count');
-    const disabled = _chatTimelineUserCount === 0;
-    if (count) count.textContent = `Я ${_chatTimelineUserCount}`;
-    for (const id of ['#chat-user-prev', '#chat-user-next']) {
-        const button = $(id);
-        if (button) button.disabled = disabled;
+    const track = $('#chat-timeline-track');
+    for (const [cls, countId, prevId, nextId, label] of [
+        ['is-user', '#chat-user-count', '#chat-user-prev', '#chat-user-next', 'Я'],
+        ['is-notify', '#chat-notify-count', '#chat-notify-prev', '#chat-notify-next', '🔔'],
+    ]) {
+        const total = track ? track.querySelectorAll(`.${cls}`).length : 0;
+        const count = $(countId);
+        if (count) count.textContent = `${label} ${total}`;
+        for (const id of [prevId, nextId]) {
+            const button = $(id);
+            if (button) button.disabled = total === 0;
+        }
     }
+    const notifyNav = $('#chat-notify-nav');
+    // Зовов нет — полосу навигации не показываем вовсе, чтобы не занимала место впустую.
+    if (notifyNav) notifyNav.classList.toggle('hidden', !track?.querySelector('.is-notify'));
 }
 
 function _jumpChatTimelineNode(node, marker) {
@@ -319,8 +348,8 @@ function _jumpChatTimelineNode(node, marker) {
     _syncChatJumpButton();
 }
 
-function _jumpChatTimelineUser(direction) {
-    const markers = [...document.querySelectorAll('#chat-timeline-track .is-user')];
+function _jumpChatTimelineKind(markerClass, direction) {
+    const markers = [...document.querySelectorAll(`#chat-timeline-track .${markerClass}`)];
     if (!markers.length) return;
     const active = markers.findIndex(marker => marker.classList.contains('is-active'));
     const index = active < 0
@@ -331,9 +360,25 @@ function _jumpChatTimelineUser(direction) {
     _jumpChatTimelineNode(node, marker);
 }
 
+// Полосу зовов строим здесь, а не в шаблоне: так вся фича живёт в одном файле и доезжает
+// до юзера без рестарта, как и остальная статика.
+function _addNotifyNav() {
+    const timeline = $('#chat-timeline');
+    if (!timeline || $('#chat-notify-nav')) return;
+    const nav = document.createElement('div');
+    nav.id = 'chat-notify-nav';
+    nav.className = 'chat-timeline-user-nav is-notify-nav hidden';
+    nav.innerHTML = `
+        <button id="chat-notify-prev" type="button" title="Предыдущий зов оркестратора" aria-label="Предыдущий зов оркестратора">↑</button>
+        <span id="chat-notify-count">🔔 0</span>
+        <button id="chat-notify-next" type="button" title="Следующий зов оркестратора" aria-label="Следующий зов оркестратора">↓</button>`;
+    timeline.prepend(nav);
+}
+
 function initChatTimeline() {
     const chat = $('#chat');
     if (!chat || _chatTimelineObserver) return;
+    _addNotifyNav();
     for (const node of chat.children) _addChatTimelineMarker(node);
     _syncChatTimelineControls();
     _chatTimelineObserver = new MutationObserver(records => {
@@ -344,8 +389,10 @@ function initChatTimeline() {
         _syncChatTimelineControls();
     });
     _chatTimelineObserver.observe(chat, {childList: true});
-    $('#chat-user-prev')?.addEventListener('click', () => _jumpChatTimelineUser(-1));
-    $('#chat-user-next')?.addEventListener('click', () => _jumpChatTimelineUser(1));
+    $('#chat-user-prev')?.addEventListener('click', () => _jumpChatTimelineKind('is-user', -1));
+    $('#chat-user-next')?.addEventListener('click', () => _jumpChatTimelineKind('is-user', 1));
+    $('#chat-notify-prev')?.addEventListener('click', () => _jumpChatTimelineKind('is-notify', -1));
+    $('#chat-notify-next')?.addEventListener('click', () => _jumpChatTimelineKind('is-notify', 1));
 }
 
 function _prepareChatAnchorRestore(hasUnread) {
@@ -3516,7 +3563,8 @@ function buildCompactToolLine(type, content, ts, payload) {
         let preview = body;
         try {
             const parsed = JSON.parse(body);
-            if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${_modelLabel(parsed.model || 'claude-sonnet-4-6')})`;
+            if (rawName === NOTIFY_USER_TOOL) preview = `🔔 ${parsed.reason || 'зовёт'}`;
+            else if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${_modelLabel(parsed.model || 'claude-sonnet-4-6')})`;
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = codexWebSearchCompactLabel(codexWebSearchSpec(parsed));
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
@@ -3597,6 +3645,10 @@ function buildCompactToolLine(type, content, ts, payload) {
         line.dataset.compactTool = '1';
         line.dataset.toolContent = content;
         line.dataset.toolRaw = rawName;
+        if (rawName === NOTIFY_USER_TOOL) {
+            line.classList.add('chat-notify-user');
+            line.style.color = '#fca5a5';
+        }
         if (payload?.tool_use_id) line.dataset.toolUseId = payload.tool_use_id;
         try {
             const parsed = JSON.parse(body);
@@ -4531,6 +4583,20 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 div.dataset.isEdit = '1';
             } catch {}
         }
+        // Единственный вызов, которым оркестратор зовёт юзера (#241). Красный и без JSON:
+        // юзер ищет эти строки глазами, а `reason` объясняет, зачем дёрнули.
+        const isNotify = rawName === NOTIFY_USER_TOOL;
+        if (isNotify) {
+            let reason = '';
+            try { reason = JSON.parse(body).reason || ''; } catch {}
+            div.classList.add('chat-notify-user');
+            header.textContent = '🔔 Оркестратор зовёт';
+            header.style.color = '#fca5a5';
+            const reasonEl = document.createElement('div');
+            reasonEl.className = 'chat-notify-user-reason';
+            reasonEl.textContent = reason || body;
+            div.appendChild(reasonEl);
+        }
         const isSendMsg = rawName === 'mcp__orchestra__send_message';
         if (isSendMsg) {
             try {
@@ -5083,7 +5149,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isProgress && !isSendMsg && !isGrepTool && !isBashTool &&
+        } else if (!isProgress && !isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
                    !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
                    !isToolSearchCall && !isBugReport && !isWebFetch &&
                    !isSendFile && !isOrchSimple && !isGlob && !isSkill &&

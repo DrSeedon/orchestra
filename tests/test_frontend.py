@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from playwright.sync_api import Browser, Page, expect, sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 BASE = os.environ.get("ORCHESTRA_TEST_BASE", "http://localhost:8888")
 HTML_ARTIFACT_CSP = (
@@ -844,6 +845,13 @@ def _open_tool_correlation_page(
             body=source,
         ),
     )
+    # Живой сервер отдаёт статику из ГЛАВНОГО чекаута, поэтому стиль подменяем тоже —
+    # иначе проверка внешнего вида зеленела бы на main, а не на ветке.
+    style = (Path(__file__).parent.parent / "app/static/css/style.css").read_text()
+    page.route(
+        "**/static/css/style.css*",
+        lambda route: route.fulfill(status=200, content_type="text/css", body=style),
+    )
     _goto_dashboard_or_skip(page)
     page.wait_for_function("() => typeof addChatEntry === 'function'")
     page.evaluate("""compactMode => {
@@ -990,6 +998,129 @@ def test_split_history_page_pairs_results_with_calls_that_arrive_later(
     assert "SPLIT-RESULT-B" not in cards[rendered["idA"]]
     assert "SPLIT-RESULT-B" in cards[rendered["idB"]]
     assert "SPLIT-RESULT-A" not in cards[rendered["idB"]]
+
+
+@pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+def test_notify_user_call_is_highlighted_and_navigable_from_the_timeline(
+    dashboard_browser: Browser,
+    compact_mode: bool,
+):
+    """#241: оркестратор зовёт юзера только `notify_user`, и это надо находить глазами.
+
+    Форма строки — контракт `back`: обычный вызов тула, без новых полей и без нового API.
+    """
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+    reason = "кеш падает 93.6% → 15%"
+    page.evaluate(
+        """reason => {
+        // Рядом идёт обычная пара вызов/результат: подсветка не должна её задеть.
+        addChatEntry('tool', 'Bash: {"command":"echo NEIGHBOUR"}', null, null,
+            {id:33001, tool_use_id:'toolu_neighbour'});
+        addChatEntry('tool_result', 'NEIGHBOUR-RESULT', null, null,
+            {id:33002, tool_use_id:'toolu_neighbour'});
+        addChatEntry(
+            'tool',
+            `mcp__orchestra__notify_user: ${JSON.stringify({reason})}`,
+            '2026-08-13T12:00:00+00:00',
+            null,
+            {id:33003, tool_use_id:'toolu_notify241'},
+        );
+    }""",
+        reason,
+    )
+    # Свой потолок с диагнозом: без него пропажа зова из списка падает молчаливым
+    # 30-секундным таймаутом и не говорит, ЧТО именно сломалось.
+    try:
+        page.wait_for_function(
+            "() => document.querySelector('#chat-notify-count')?.textContent === '🔔 1'",
+            timeout=5000,
+        )
+    except PlaywrightTimeout:
+        actual = page.evaluate(
+            "() => [document.querySelector('#chat-notify-count')?.textContent,"
+            " document.querySelectorAll('#chat-timeline-track .is-notify').length]"
+        )
+        page.close()
+        pytest.fail(f"зов не попал в список: счётчик={actual[0]!r}, меток={actual[1]}")
+
+    state = page.evaluate("""() => {
+        const chat = document.querySelector('#chat');
+        const card = chat.querySelector('[data-tool-use-id="toolu_notify241"]');
+        const neighbour = chat.querySelector('[data-tool-use-id="toolu_neighbour"]');
+        const marker = document.querySelector('#chat-timeline-track .is-notify');
+        const nav = document.querySelector('#chat-notify-nav');
+        const styles = getComputedStyle(card);
+        return {
+            cardHighlighted: card.classList.contains('chat-notify-user'),
+            cardBorder: styles.borderLeftColor,
+            cardText: card.innerText,
+            navKind: card.dataset.chatNavKind,
+            navLabel: card.dataset.chatNavLabel,
+            markers: document.querySelectorAll('#chat-timeline-track .is-notify').length,
+            markerTitle: marker?.title || '',
+            navHidden: nav.classList.contains('hidden'),
+            navDisabled: document.querySelector('#chat-notify-next').disabled,
+            neighbourText: neighbour.innerText,
+            neighbourHighlighted: neighbour.classList.contains('chat-notify-user'),
+            orphans: chat.querySelectorAll('[data-unmatched-tool-result]').length,
+        };
+    }""")
+
+    assert state["cardHighlighted"], "зов обязан быть выделен в потоке"
+    assert state["cardBorder"] == "rgb(239, 68, 68)", state["cardBorder"]
+    assert reason in state["cardText"], state["cardText"]
+    assert '{"reason"' not in state["cardText"], "сырой JSON юзеру не нужен"
+    if compact_mode:
+        assert "🔔" in state["cardText"], state["cardText"]
+    else:
+        # В обычном режиме сырое имя тула заменено человеческой подписью.
+        assert "Оркестратор зовёт" in state["cardText"], state["cardText"]
+        assert "notify_user" not in state["cardText"], state["cardText"]
+
+    # Список: своя метка на дорожке, счётчик и работающая навигация.
+    assert state["navKind"] == "notify"
+    assert state["markers"] == 1
+    assert reason in state["navLabel"] and reason in state["markerTitle"]
+    assert state["navHidden"] is False
+    assert state["navDisabled"] is False
+
+    # Соседняя пара цела — корреляция важнее подсветки.
+    assert "NEIGHBOUR-RESULT" in state["neighbourText"]
+    assert state["neighbourHighlighted"] is False
+    assert state["orphans"] == 0
+
+    page.click("#chat-notify-next")
+    jumped = page.evaluate("""() => {
+        const marker = document.querySelector('#chat-timeline-track .is-notify');
+        const card = document.querySelector('#chat [data-tool-use-id="toolu_notify241"]');
+        const box = card.getBoundingClientRect();
+        const chatBox = document.querySelector('#chat').getBoundingClientRect();
+        return {
+            active: marker.classList.contains('is-active'),
+            inView: box.top < chatBox.bottom && box.bottom > chatBox.top,
+        };
+    }""")
+    page.close()
+    assert jumped["active"], "клик по навигации обязан подсветить метку"
+    assert jumped["inView"], "клик обязан привести зов во вьюпорт"
+
+
+@pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+def test_notify_nav_hides_itself_when_no_calls_are_present(dashboard_browser: Browser, compact_mode: bool):
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+    page.evaluate("""() => {
+        addChatEntry('tool', 'Bash: {"command":"echo PLAIN"}', null, null, {id:34001, tool_use_id:'toolu_plain'});
+    }""")
+    page.wait_for_function("() => document.querySelector('#chat-timeline-track')?.children.length >= 1")
+    state = page.evaluate("""() => ({
+        navHidden: document.querySelector('#chat-notify-nav').classList.contains('hidden'),
+        count: document.querySelector('#chat-notify-count').textContent,
+        markers: document.querySelectorAll('#chat-timeline-track .is-notify').length,
+    })""")
+    page.close()
+    assert state["navHidden"] is True, "без зовов полоса навигации занимала бы место впустую"
+    assert state["count"] == "🔔 0"
+    assert state["markers"] == 0
 
 
 @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
