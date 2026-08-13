@@ -1248,6 +1248,29 @@ async def send_chart(kind: str, title: str, data: dict, caption: str = "") -> st
 
 
 @mcp.tool()
+async def notify_user(reason: str) -> str:
+    """Дёрнуть юзера тегом в Telegram на границе ЭТОГО хода. Только для оркестраторов.
+
+    Молчание — нормальный режим: без этого вызова тега не будет, и это не забывчивость.
+    Зови, когда юзер обязан узнать СЕЙЧАС: нужно его РЕШЕНИЕ (развилка, которую ты не
+    вправе закрыть сам); ВЫВОД РАЗВЕРНУЛСЯ (сделали не то, о чём договаривались, или
+    отозвано ранее сказанное); ИНЦИДЕНТ на живых системах; РЕЗУЛЬТАТ с числом, меняющий
+    план. НЕ зови на блокеры ревью, мержи, статусы, промежуточные шаги, «воркер
+    начал/закончил» — на это он смотреть не хочет.
+
+    `reason` — одна короткая фраза, ЗАЧЕМ дёрнули; она уедет юзеру вместе с тегом.
+    Тег ставится один раз за ход независимо от числа вызовов.
+    """
+    reason = reason.strip()
+    if not reason:
+        return "notify_user needs a non-empty reason — one short phrase saying WHY."
+    # Тул сознательно ничего не делает: сигналом служит САМА строка вызова в журнале,
+    # которую пишет рантайм, а читает `stream_logs`. Никакого нового контракта
+    # MCP↔route — значит правка доезжает без окна «новый MCP против старого роута».
+    return f"User will be tagged at the end of this turn: {reason}"
+
+
+@mcp.tool()
 async def update_progress(percent: int, status: str) -> str:
     """Update task progress. percent: 0-100, status: short description of current step."""
     result = await _api("POST", f"/api/sessions/{WORKER_NAME}/progress", json={

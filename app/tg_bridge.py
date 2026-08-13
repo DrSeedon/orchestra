@@ -95,21 +95,48 @@ def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
 
 UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
 
-# @mention of the owner, fired once per ORCHESTRATOR turn on the turn boundary (#158),
-# so a TG push arrives exactly when an orchestrator stopped and is waiting for an answer.
-# Accepts "@username" or a numeric user_id; the id renders as a tg:// text_mention and
-# notifies even when the username does not resolve for the bot.
+# @mention of the owner, delivered on the ORCHESTRATOR turn boundary (#158) so a TG push
+# arrives exactly when an orchestrator stopped — but only when that turn explicitly asked
+# for it (#241). Accepts "@username" or a numeric user_id; the id renders as a tg://
+# text_mention and notifies even when the username does not resolve for the bot.
 TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
 
 # Exact protocol token: broadening this match can silently hide real user-facing text.
 TG_SILENT_TURN_MARKER = "[[ORCHESTRA:SILENT_TURN]]"
 
+# Единственный повод дёрнуть юзера (#241). Признак СТРУКТУРНЫЙ — строка журнала должна
+# БЫТЬ вызовом тула (`type == "tool"` + это имя в колонке `tool_name`), а не текстом,
+# который имя упоминает: иначе тегает любой, кто объясняет устройство тега (замер #161).
+TG_NOTIFY_TOOL = "mcp__orchestra__notify_user"
+TG_NOTIFY_REASON_MAX = 200
 
-def _mention_markup(mention: str) -> str:
-    """Markdown for the owner mention. Numeric → tg:// link (reliable), else @username."""
-    if mention.lstrip("-").isdigit():
-        return f"[⬆️ ответь](tg://user?id={mention})"
-    return f"⬆️ {mention}"
+
+def _mention_markup(mention: str, reason: str = "") -> str:
+    """Markdown for the owner mention. Numeric → tg:// link (reliable), else @username.
+
+    `reason` из `notify_user` объясняет, ЗАЧЕМ дёрнули, и обрезается: тег — это сигнал,
+    а полный текст причины и так лежит в журнале строкой вызова тула.
+    """
+    head = (f"[⬆️ ответь](tg://user?id={mention})" if mention.lstrip("-").isdigit()
+            else f"⬆️ {mention}")
+    reason = " ".join(reason.split())
+    if len(reason) > TG_NOTIFY_REASON_MAX:
+        reason = reason[:TG_NOTIFY_REASON_MAX].rstrip() + "…"
+    return f"{head} — {reason}" if reason else head
+
+
+def _notify_reason_from_args(content: str) -> str:
+    """`reason` из аргументов вызова `notify_user`.
+
+    Разбор — побочная услуга: тег определяется САМИМ фактом вызова, поэтому нечитаемые
+    аргументы дают тег без причины. Потеря тега здесь была бы проглоченной просьбой —
+    единственное опасное направление отказа в этой задаче.
+    """
+    _, _, raw = content.partition(":")
+    try:
+        return str(json.loads(raw).get("reason") or "").strip()
+    except Exception:
+        return ""
 
 
 def _cleanup_uploads():
@@ -3032,7 +3059,9 @@ async def stream_logs(orch_name: str, thread_id: int):
     # Отметка «якорь по этой строке уже ушёл» живёт ВНЕ состояния хода: состояние
     # обнуляется на границе, а откат курсора переигрывает саму строку `turn ended`.
     _anchor_sent_for = None
-    _spoke_this_turn = False          # был ли текст юзеру в текущем ходе
+    # None — `notify_user` в текущем ходе не звали, значит тега не будет. Строка (пусть
+    # и пустая) — звали, и тег обязателен: молчание это дефолт, а не забывчивость.
+    _notify_reason = None
     _pending_turn_end_mention = False
     _idle_ticks = 0
     current_log_previous_id = last_id
@@ -3083,7 +3112,6 @@ async def stream_logs(orch_name: str, thread_id: int):
                             continue
                         from app.tool_call_guard import mark_unexecuted_tool_call
 
-                        _spoke_this_turn = True
                         await _update_progress(turn, thread_id, orch_name, force=True)
                         turn.new_block()
                         raw_text = f"💬\n{mark_unexecuted_tool_call(c)}"
@@ -3097,6 +3125,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                             )
                         continue
                     elif t == "tool":
+                        if log.get("tool_name") == TG_NOTIFY_TOOL:
+                            _notify_reason = _notify_reason_from_args(c)
                         tool_name = c.split(":")[0].strip() if ":" in c else "tool"
                         tool_body = c[len(tool_name) + 1:].strip() if ":" in c else c
                         turn.add(log["id"], _tool_line(tool_name, tool_body),
@@ -3143,7 +3173,9 @@ async def stream_logs(orch_name: str, thread_id: int):
                             # на самой строке text её нет, мост стримит журнал вперёд и в
                             # момент отправки не знает, будет ли ещё текст (живой замер:
                             # 4777 из 6161 строк text — промежуточные).
-                            _pending_turn_end_mention = is_orch and _spoke_this_turn
+                            _pending_turn_end_mention = (
+                                is_orch and _notify_reason is not None
+                            )
                             await _update_progress(turn, thread_id, orch_name,
                                                    force=True)
                             if _anchor_sent_for == log["id"]:
@@ -3205,7 +3237,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         # а дропнутое уведомление хуже отсутствующего.
                         if TG_USER_MENTION:
                             for converted, aio_ents in _formatted_chunks(
-                                _mention_markup(TG_USER_MENTION)
+                                _mention_markup(TG_USER_MENTION, _notify_reason or "")
                             ):
                                 await _tg_send_safe(
                                     config["group_id"], converted, thread_id,
@@ -3213,9 +3245,10 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 )
                         # Флаги гасим только ПОСЛЕ доставки: перегрузка откатывает
                         # курсор и переигрывает строки хода, а сброшенный раньше
-                        # времени _spoke_this_turn дал бы на повторе тихую потерю тега.
+                        # времени _notify_reason дал бы на повторе тихую потерю тега —
+                        # строка вызова тула во второй раз уже не проиграется.
                         _pending_turn_end_mention = False
-                        _spoke_this_turn = False
+                        _notify_reason = None
             except _TgDeliveryOverloaded as e:
                 last_id = current_log_previous_id
                 logger.error(
