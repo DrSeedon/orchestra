@@ -5,3 +5,4 @@
 - Merge фикса `app/mcp_stdio.py` в `main` не обновляет уже запущенный MCP subprocess этого long-lived worker: перед повторной проверкой исправленного тула нужен reconnect, иначе он продолжит исполнять pre-merge код своей ветки.
 - Для внешнего review и handoff указывать immutable commit SHA, а не имя рабочей ветки: Orchestra может перенести persistent worker на `adhoc-*`, после чего diff по прежней `task-*` ветке станет пустым.
 - Ошибки чужого протокола не типизировать по substring свободного `message`: сперва проверить `code`/`data`/parameter field на реальном response; структурного discriminator нет → fail-loud без догадочного fallback.
+- Semantic resume-canary хранит маркер только в СТАРОМ ходе: не повторять его в текущем system/developer prompt, иначе точный recall — ложноположительный.

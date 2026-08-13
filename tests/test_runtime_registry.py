@@ -32,7 +32,7 @@ def test_builtin_runtime_capabilities_are_explicit():
     assert codex.event_stream == "per_turn"
     assert codex.mid_turn_inject is True
     assert codex.process_liveness is True
-    assert codex.resume_across_models is False
+    assert codex.resume_across_models is True
 
     assert {
         "claude": claude.hibernate,

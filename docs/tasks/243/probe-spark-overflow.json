@@ -1,0 +1,38 @@
+{
+  "scratch": "/home/kesha/.cache/orchestra-probes/r243-23e5gv1q",
+  "marker": "R243-f3c5c59c-a541-4245-8c22-064400a3dd9c",
+  "requested_id": "019ff9a9-d807-7ff0-9f5f-3e4b70cdd847",
+  "sol_overflow": {
+    "returned_id": "019ff9a9-d807-7ff0-9f5f-3e4b70cdd847",
+    "session_id": "019ff9a9-d807-7ff0-9f5f-3e4b70cdd847",
+    "ok": true,
+    "stop_reason": "end_turn",
+    "cost_usd": 0.612389,
+    "cache_hit": 8,
+    "input_tokens": 132343,
+    "output_tokens": 7,
+    "cached_input_tokens": 11008,
+    "context_tokens": 132343,
+    "max_tokens": 258400,
+    "text": "STORED"
+  },
+  "spark_after_overflow": {
+    "returned_id": "019ff9a9-d807-7ff0-9f5f-3e4b70cdd847",
+    "session_id": "019ff9a9-d807-7ff0-9f5f-3e4b70cdd847",
+    "ok": false,
+    "stop_reason": "error",
+    "cost_usd": 0.0,
+    "cache_hit": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cached_input_tokens": 0,
+    "context_tokens": 0,
+    "max_tokens": 121600,
+    "model_error": "context_window",
+    "errors": [
+      "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying.",
+      "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying."
+    ],
+    "text": ""
+  }
+}

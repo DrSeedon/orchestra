@@ -319,7 +319,7 @@ register_runtime(RuntimeDefinition(
         reconnect=False,
         hibernate=True,
         process_liveness=True,
-        resume_across_models=False,
+        resume_across_models=True,
     ),
     factory=_codex_factory,
 ))

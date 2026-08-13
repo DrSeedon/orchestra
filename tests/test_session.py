@@ -3890,7 +3890,7 @@ class TestRuntimeCapabilities:
         session._admission_service.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_codex_model_switch_starts_fresh_native_thread(
+    async def test_codex_model_switch_preserves_native_thread(
             self, session, monkeypatch):
         from app.session import AgentStatus
 
@@ -3910,10 +3910,17 @@ class TestRuntimeCapabilities:
         result = await session.change_model("gpt-5.6-sol")
 
         assert result["runtime_changed"] is False
-        assert result["native_session_reset"] is True
-        assert session.session_id is None
-        assert session.runtime_handoff == "provider-neutral handoff"
-        assert session.session_id_history[-1]["session_id"] == "codex-native-session"
+        assert result["native_session_reset"] is False
+        assert session.session_id == "codex-native-session"
+        assert session.runtime_handoff == ""
+        assert session.session_id_history == []
+        session._build_runtime_handoff.assert_not_awaited()
+        with patch("app.session.build_backend") as build:
+            session._make_backend()
+        runtime_id, context = build.call_args.args
+        assert runtime_id == "codex"
+        assert context.model == "gpt-5.6-sol"
+        assert context.resume_session_id == "codex-native-session"
 
     @pytest.mark.asyncio
     async def test_runtime_handoff_is_one_shot_user_message_context(self, session):
