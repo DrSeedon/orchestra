@@ -1235,14 +1235,18 @@ async def test_auto_wake_failure_never_propagates_into_the_turn(
 
 
 @pytest.mark.asyncio
-async def test_turn_end_on_limit_wakes_only_after_status_left_running():
+async def test_turn_end_on_limit_wakes_only_after_status_left_running(monkeypatch):
     """The seam must fire after finish_turn_status, never mid-turn."""
+    from app import mailbox
     from app.session_state import AgentStatus
     from app.session_turns import TurnManager
 
     observed = {}
+    monkeypatch.setattr(mailbox, "claim", lambda _name, _scope: [])
 
     class _Session:
+        name = "limit-worker"
+        scope = "/scope"
         status = AgentStatus.RUNNING
         _compact_ack_event = None
         _turn_gen = 0
@@ -1274,13 +1278,17 @@ async def test_turn_end_on_limit_wakes_only_after_status_left_running():
 
 
 @pytest.mark.asyncio
-async def test_normal_turn_end_does_not_schedule_a_wake():
+async def test_normal_turn_end_does_not_schedule_a_wake(monkeypatch):
+    from app import mailbox
     from app.session_state import AgentStatus
     from app.session_turns import TurnManager
 
     spawned = []
+    monkeypatch.setattr(mailbox, "claim", lambda _name, _scope: [])
 
     class _Session:
+        name = "normal-worker"
+        scope = "/scope"
         status = AgentStatus.IDLE
         _compact_ack_event = None
         _turn_gen = 0

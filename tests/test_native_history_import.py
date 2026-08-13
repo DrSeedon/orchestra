@@ -173,6 +173,7 @@ async def test_canary_collector_stops_at_persistent_claude_turn_end():
 
 
 @pytest.mark.asyncio
+@pytest.mark.timeout(840)
 @pytest.mark.parametrize("runtime", ["claude", "codex"])
 async def test_pinned_runtime_semantically_recalls_long_native_history(
     runtime, tmp_path, monkeypatch,
@@ -230,7 +231,7 @@ async def test_pinned_runtime_semantically_recalls_long_native_history(
         response = await asyncio.wait_for(_ask_for_markers(backend), timeout=600)
     finally:
         if backend is not None:
-            await backend.disconnect()
+            await asyncio.wait_for(backend.disconnect(), timeout=30)
 
     if os.environ.get("R174_PRINT_CANARY_RESPONSE") == "1":
         print("R174_RESPONSE " + json.dumps({"runtime": runtime, "text": response}))
