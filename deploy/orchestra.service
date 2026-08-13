@@ -1,0 +1,62 @@
+# Orchestra service — the version that does NOT kill its agents on restart (#230 T8).
+#
+# Three directives carry the whole task; everything else is the unit as it already runs today:
+#   KillMode=process        — do not signal the CLI children. The default (control-group) is
+#                             what kills every agent turn on every restart.
+#   FileDescriptorStoreMax= — systemd keeps our ends of the agents' pipes, so the CLI sees no
+#                             EOF and keeps streaming its turn to the NEXT generation.
+#   NotifyAccess=main       — without it $NOTIFY_SOCKET is not passed and FDSTORE=1 has nowhere
+#                             to go. Type=simple does not imply it.
+#
+# Measured before this file existed (docs/tasks/230/research.md F1): a real Codex and a real
+# Claude CLI survive `systemctl restart`, the turn's stream loses zero bytes, and the terminal
+# event arrives at the process that did not start the turn. Handover latency 89-129 ms.
+#
+# INSTALLATION IS AN OPERATOR ACTION. Do not copy this into /etc/systemd/system and reload from
+# an agent session: enabling KillMode=process while the code cannot yet adopt would leave
+# surviving children with no owner — the worst intermediate state of the whole rollout.
+[Unit]
+Description=Orchestra AI Agent Orchestrator
+After=network.target
+Requires=orchestra.socket
+After=orchestra.socket
+
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+NotifyAccess=main
+User=kesha
+Group=kesha
+WorkingDirectory=/home/kesha/orchestra
+Environment=PATH=/home/kesha/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=WORKSPACE_DIR=/home/kesha/workspace/project
+EnvironmentFile=/home/kesha/orchestra/.env
+
+# --fd 3 — serve the socket systemd already holds instead of binding our own.
+ExecStart=/home/kesha/.local/bin/uv run uvicorn app.main:app --fd 3
+
+Restart=always
+RestartSec=5
+
+# Children outlive us on purpose. Their reaping is ours to do (#230 T7: the fail-closed orphan
+# sweep on startup), not systemd's.
+KillMode=process
+
+# 2 descriptors per live session plus the listening socket. Measured fleet: 6 CLI children = 12
+# descriptors; 13 sessions would need 26. 256 leaves room for growth without silent refusal —
+# an over-full store rejects the handover, and app/fdstore.py raises FdStoreUnavailable rather
+# than losing an agent quietly.
+FileDescriptorStoreMax=256
+# Default is already "restart", stated explicitly because the whole design leans on it:
+# descriptors survive a RESTART and a crash, and are released on a full stop.
+FileDescriptorStorePreserve=restart
+
+# Unchanged from the current live unit — deliberate, not inherited by accident.
+OOMScoreAdjust=800
+MemoryHigh=8G
+MemoryMax=12G
+
+[Install]
+WantedBy=multi-user.target

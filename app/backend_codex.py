@@ -409,6 +409,11 @@ class CodexBackend(JsonRpcStdioTransport):
         return self._thread_id
 
     @property
+    def active_turn_id(self) -> Optional[str]:
+        """The turn the adopted bytes belong to (#230 T4)."""
+        return self._active_turn_id
+
+    @property
     def hibernate_safe(self) -> bool:
         return self._hibernate_safe
 
@@ -441,6 +446,27 @@ class CodexBackend(JsonRpcStdioTransport):
             raise NativeHistoryUnsupported(
                 f"native Codex history requires CLI {CODEX_CLI_HISTORY_VERSION}, got {actual}"
             )
+
+    async def adopt(self, fd_in: int, fd_out: int, thread_id: str,
+                    active_turn_id: str | None = None, *,
+                    leftover: str = "", cli_pid: int = 0, cli_started_at: int = 0) -> None:
+        """Take over an ALREADY RUNNING app-server over inherited pipes (#230 T2).
+
+        No process is spawned and no handshake is sent: the CLI outlived the supervisor
+        restart, it is already initialized, and its turn is still streaming into fd_out
+        (measured — docs/tasks/230/research.md F1). Re-initializing here would be wrong and
+        would also block, because the stream may be silent for minutes.
+        """
+        self._notifications = asyncio.Queue()
+        self._disconnecting = False
+        self._last_stderr = ""
+        await self.adopt_pipes(fd_in, fd_out, limit=16 * 1024 * 1024,
+                               leftover=leftover, cli_pid=cli_pid,
+                               cli_started_at=cli_started_at)
+        self._thread_id = thread_id
+        self._active_turn_id = active_turn_id
+        self._teardown_error = None
+        self._reader_task = asyncio.create_task(self._read_stdout())
 
     async def connect(self) -> None:
         if self.is_alive and not self._teardown_error:
@@ -823,6 +849,11 @@ class CodexBackend(JsonRpcStdioTransport):
     async def disconnect(self) -> None:
         proc = self._proc
         if proc is None and self._scope_unit is None:
+            if self._adopted_fds is not None or self._adopted_writer is not None:
+                # An ADOPTED backend owns no Process, but it very much owns a running CLI:
+                # returning here left it alive next to its replacement (found in impl review).
+                self._disconnecting = True
+                await self.teardown_adopted()
             return
         self._disconnecting = True
         try:
@@ -838,12 +869,12 @@ class CodexBackend(JsonRpcStdioTransport):
             raise
 
     async def _read_stdout(self) -> None:
-        proc = self._proc
-        if not proc or not proc.stdout:
+        stream = self._out
+        if stream is None:
             return
         try:
             while True:
-                raw = await proc.stdout.readline()
+                raw = await stream.readline()
                 if not raw:
                     break
                 try:
@@ -890,14 +921,21 @@ class CodexBackend(JsonRpcStdioTransport):
         except Exception as exc:
             logger.exception("Codex app-server reader failed: %s", exc)
         finally:
-            returncode = await proc.wait()
-            error = RuntimeError(f"Codex app-server exited with code {returncode}")
+            # An ADOPTED transport has no Process object at all (#230 T2): the CLI is not our
+            # child. Its exit is then visible only as EOF on the pipe, which is why the reason
+            # is worded without a code instead of pretending we can wait() on someone else.
+            proc = self._proc
+            returncode = await proc.wait() if proc is not None else None
+            error = RuntimeError(
+                f"Codex app-server exited with code {returncode}" if proc is not None
+                else "Codex app-server closed the adopted pipe (no process: adopted transport)"
+            )
             for future in self._pending_requests.values():
                 if not future.done():
                     future.set_exception(error)
             if self._compact_future and not self._compact_future.done():
                 self._compact_future.set_exception(error)
-            if not self._disconnecting:
+            if not self._disconnecting and not self._handover_quiescing:
                 await self._notifications.put({
                     "method": "_process/exited",
                     "params": {

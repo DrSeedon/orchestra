@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import AsyncIterator, Optional
 
 from claude_agent_sdk import (
+    Transport,
+    CLIConnectionError,
     ClaudeSDKClient,
     ClaudeAgentOptions,
     HookMatcher,
@@ -75,6 +77,77 @@ def _safe_config_key(session_id: str | None) -> str:
     if session_id and _SAFE_KEY.match(session_id):
         return session_id
     return f"anon-{uuid.uuid4().hex}"
+
+
+class InheritedFdTransport(Transport):
+    """Drive the Claude SDK over pipes we did NOT open (#230 T3).
+
+    The SDK accepts a custom transport (`ClaudeSDKClient(options, transport=...)`,
+    client.py:68-72) and confines the whole process lifecycle to its own subprocess
+    transport — so adopting a CLI that outlived a supervisor restart needs no SDK fork and
+    no process object. `close()` deliberately does NOT kill anything: the CLI is not ours,
+    it is mid-turn, and killing it is the exact thing #230 exists to stop.
+    """
+
+    #: frames are whole JSON lines; a 9000-byte message arrives across several reads
+    _LIMIT = 16 * 1024 * 1024
+
+    def __init__(self, fd_in: int, fd_out: int) -> None:
+        self._fd_in = fd_in
+        self._fd_out = fd_out
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
+        self._ready = False
+
+    async def connect(self) -> None:
+        if self._ready:
+            return
+        loop = asyncio.get_running_loop()
+        reader = asyncio.StreamReader(limit=self._LIMIT)
+        await loop.connect_read_pipe(
+            lambda: asyncio.StreamReaderProtocol(reader), os.fdopen(self._fd_out, "rb", 0)
+        )
+        transport, protocol = await loop.connect_write_pipe(
+            asyncio.streams.FlowControlMixin, os.fdopen(self._fd_in, "wb", 0)
+        )
+        self._reader = reader
+        self._writer = asyncio.StreamWriter(transport, protocol, reader, loop)
+        self._ready = True
+
+    async def write(self, data: str) -> None:
+        if not self._ready or self._writer is None:
+            raise CLIConnectionError("InheritedFdTransport is not ready for writing")
+        self._writer.write(data.encode("utf-8"))
+        await self._writer.drain()
+
+    async def read_messages(self) -> AsyncIterator[dict]:
+        if self._reader is None:
+            raise CLIConnectionError("InheritedFdTransport is not connected")
+        while True:
+            line = await self._reader.readline()
+            if not line:
+                return
+            text = line.strip()
+            if not text:
+                continue
+            try:
+                yield _json.loads(text)
+            except _json.JSONDecodeError:
+                logger.warning("adopted Claude CLI emitted invalid JSON line")
+
+    async def close(self) -> None:
+        self._ready = False
+        if self._writer is not None:
+            self._writer.close()
+            self._writer = None
+        self._reader = None
+
+    def is_ready(self) -> bool:
+        return self._ready
+
+    async def end_input(self) -> None:
+        if self._writer is not None:
+            self._writer.write_eof()
 
 
 def _make_auto_approve(is_orchestrator: bool = False):

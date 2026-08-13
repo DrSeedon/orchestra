@@ -50,6 +50,177 @@ async def _start_bridge_background(manager) -> None:
         logger.error(f"TG bridge FAILED to start: {type(e).__name__}: {e}", exc_info=True)
 
 
+MUTATING_DRAIN_BUDGET_S = 120.0  # measured: slowest mutating tool call 90.2s (merge_worker)
+DRAIN_POLL_S = 0.05
+
+#: The restart endpoint is NOT mutating traffic: counting it would make its own preflight wait
+#: for the request that asked for the restart — a self-deadlock (found in review, round 3).
+_CENSUS_EXEMPT_PATHS = frozenset({"/api/restart"})
+#: Read-only by verb, but stated explicitly so a mutating GET can be added here instead of
+#: being silently misclassified. Empty today; the list is the seam, not the emptiness.
+_MUTATING_READ_METHODS: frozenset[str] = frozenset()
+
+_READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_inflight_mutating = 0
+_inflight_streams = 0
+_mutating_admission_open = True
+
+
+def _known_api_paths() -> set[str]:
+    return {
+        route.path for route in app.routes
+        if getattr(route, "path", "").startswith("/api/")
+    }
+
+
+def _resolve_route_template(path: str) -> str | None:
+    """Concrete request path -> its registered template, or None if nothing matches.
+
+    The middleware sees `/api/sessions/foo/send`; the route table holds
+    `/api/sessions/{name}/send`. Comparing them directly (which the first version of this
+    classifier did) made EVERY parameterised route "unknown", hence mutating — so ordinary
+    dashboard GETs would have held the drain and been refused during a restart. Found by the
+    pre-mortem, not by the oracle, because the oracle passes templates in directly.
+    """
+    if path in _known_api_paths():
+        return path
+    for route in app.routes:
+        regex = getattr(route, "path_regex", None)
+        if regex is not None and regex.match(path):
+            return route.path
+    return None
+
+
+def is_mutating_path(method: str, path: str) -> bool:
+    """Classify a request against the app's OWN route table (#230 T6).
+
+    Fail-closed: an unknown path counts as mutating, because "unknown" means "I do not know
+    what this does", not "safe". The verb alone is never the criterion — `/api/restart` is a
+    POST that must not be counted, and a mutating GET can be declared in
+    `_MUTATING_READ_METHODS`.
+    """
+    if path in _CENSUS_EXEMPT_PATHS:
+        return False
+    method = method.upper()
+    template = _resolve_route_template(path)
+    if template is None:
+        return True
+    if template in _CENSUS_EXEMPT_PATHS:
+        return False
+    if template in _MUTATING_READ_METHODS:
+        return True
+    return method not in _READ_ONLY_METHODS
+
+
+def inflight_mutating_count() -> int:
+    return _inflight_mutating
+
+
+def inflight_stream_count() -> int:
+    return _inflight_streams
+
+
+def close_mutating_admission() -> None:
+    """Stop accepting NEW mutating calls; refused before its side effect, a call is retryable."""
+    global _mutating_admission_open
+    _mutating_admission_open = False
+
+
+def open_mutating_admission() -> None:
+    global _mutating_admission_open
+    _mutating_admission_open = True
+
+
+def mutating_admission_verdict(method: str, path: str) -> dict:
+    if not is_mutating_path(method, path) or _mutating_admission_open:
+        return {"allowed": True, "retryable": False, "outcome_unknown": False}
+    # It never started, so a retry is honest and the outcome is known: nothing happened.
+    return {
+        "allowed": False,
+        "retryable": True,
+        "outcome_unknown": False,
+        "code": "restart_pending",
+        "message": "Orchestra is restarting; this call was refused before any side effect.",
+    }
+
+
+class RequestCensusMiddleware:
+    """Counts in-flight mutating requests and long-lived streams (#230 T6).
+
+    Pure ASGI, not BaseHTTPMiddleware, because the count must survive until the response BODY
+    is finished — that is the whole point for streams. A request is reclassified as a stream
+    the moment its response declares `text/event-stream`: SSE never reaches zero, so it must
+    never hold the drain.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        global _inflight_mutating, _inflight_streams
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        method, path = scope.get("method", "GET"), scope.get("path", "")
+        verdict = mutating_admission_verdict(method, path)
+        if not verdict["allowed"]:
+            from starlette.responses import JSONResponse
+            response = JSONResponse({"error": verdict}, status_code=503)
+            await response(scope, receive, send)
+            return
+
+        counted_mutating = is_mutating_path(method, path)
+        counted_stream = False
+        if counted_mutating:
+            _inflight_mutating += 1
+
+        async def send_wrapper(message):
+            nonlocal counted_mutating, counted_stream
+            global _inflight_mutating, _inflight_streams
+            if message["type"] == "http.response.start":
+                headers = {k.lower(): v for k, v in message.get("headers") or []}
+                if headers.get(b"content-type", b"").startswith(b"text/event-stream"):
+                    if counted_mutating:
+                        _inflight_mutating -= 1
+                        counted_mutating = False
+                    _inflight_streams += 1
+                    counted_stream = True
+            elif message["type"] == "http.response.body" and not message.get("more_body"):
+                if counted_mutating:
+                    _inflight_mutating -= 1
+                    counted_mutating = False
+                if counted_stream:
+                    _inflight_streams -= 1
+                    counted_stream = False
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            if counted_mutating:
+                _inflight_mutating -= 1
+            if counted_stream:
+                _inflight_streams -= 1
+
+
+async def drain_mutating_requests(budget_s: float = MUTATING_DRAIN_BUDGET_S) -> bool:
+    """Wait for accepted mutating calls. False = budget expired, so refuse the restart.
+
+    Measured (docs/tasks/230/plan.md, falsifier 2): a gracefully drained request keeps its
+    response, while an instant restart commits the side effect and loses the answer — the agent
+    then sees a tool call whose outcome is unknown. Streams are never waited for: they do not
+    end. Budget default is above the slowest mutating call ever measured here (90.2s).
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + budget_s
+    while loop.time() < deadline:
+        if inflight_mutating_count() == 0:
+            return True
+        await asyncio.sleep(DRAIN_POLL_S)
+    return inflight_mutating_count() == 0
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
@@ -88,6 +259,11 @@ async def lifespan(app: FastAPI):
     if not is_auth_enabled():
         from app import tm_yougile  # noqa: F401 — registers tm sync hooks
     await manager.auto_resume_all()
+    # #230 T7: descriptors that came back for sessions nobody owns any more.
+    # Fail-closed inside: an EMPTY registry sweeps nothing.
+    swept = await manager.sweep_orphan_fds()
+    if swept:
+        logger.warning('orphan sweep closed pipes of %d unknown session(s)', swept)
     from app.bootstrap import ensure_bootstrap
     await ensure_bootstrap()
     manager.start_background_tasks()
@@ -221,4 +397,5 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return RedirectResponse("/login", status_code=302)
 
 
+app.add_middleware(RequestCensusMiddleware)
 app.add_middleware(AuthMiddleware)

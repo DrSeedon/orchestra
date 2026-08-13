@@ -54,6 +54,8 @@ def init_db() -> None:
     with _conn() as c:
         c.executescript("""
             CREATE TABLE IF NOT EXISTS sessions (
+                active_turn_id TEXT DEFAULT '',
+                leftover TEXT DEFAULT '',
                 -- NOT NULL для новых БД; существующие закрывает триггер в _guard_session_id:
                 -- ужесточить колонку без перестройки таблицы SQLite не даёт (#54)
                 id TEXT PRIMARY KEY NOT NULL,
@@ -783,6 +785,17 @@ def _migrate(c) -> None:
     if lock_cols and "holder_session_id" not in lock_cols:
         c.execute("ALTER TABLE test_lock ADD COLUMN holder_session_id TEXT NOT NULL DEFAULT ''")
     cols = {row[1] for row in c.execute("PRAGMA table_info(sessions)").fetchall()}
+    # #230: what the NEXT supervisor generation needs to attribute an adopted stream —
+    # which turn the incoming bytes belong to, and the bytes already pulled out of the pipe.
+    if "active_turn_id" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN active_turn_id TEXT DEFAULT ''")
+    if "leftover" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN leftover TEXT DEFAULT ''")
+    if "cli_pid" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN cli_pid INTEGER DEFAULT 0")
+    if "cli_started_at" not in cols:
+        # pid alone is not an identity: pids are reused (#230)
+        c.execute("ALTER TABLE sessions ADD COLUMN cli_started_at INTEGER DEFAULT 0")
     if "color" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN color TEXT DEFAULT ''")
     if "context_pct" not in cols:
@@ -2711,3 +2724,20 @@ def ack_facts(session_id: str, keys: list[str]) -> int:
             (session_id, *keys),
         )
         return cur.rowcount
+
+
+def save_handover_state(session_id: str, active_turn_id: str, leftover: str,
+                        cli_pid: int = 0, cli_started_at: int = 0) -> None:
+    """Persist what an adopted turn needs to be picked up by the next generation (#230 T4).
+
+    `leftover` is the bytes already consumed out of the kernel pipe into our userspace buffer:
+    everything still IN the pipe survives the restart by itself (measured — research F3), these
+    do not, so they travel through the DB or they are lost.
+    """
+    with _conn() as c:
+        c.execute(
+            "UPDATE sessions SET active_turn_id = ?, leftover = ?, cli_pid = ?, "
+            "cli_started_at = ? WHERE id = ?",
+            (active_turn_id or "", leftover or "", int(cli_pid or 0),
+             int(cli_started_at or 0), session_id),
+        )

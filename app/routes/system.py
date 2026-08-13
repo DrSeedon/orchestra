@@ -1727,6 +1727,50 @@ def _record_restart_outcome(outcome: dict) -> None:
                 f"{summary}. Твой ход разорван — автоматического повтора нет.")
 
 
+async def restart_preflight() -> dict:
+    """Decide whether a restart may proceed, BEFORE systemd is invoked (#230 T6).
+
+    A gate inside the lifespan is too late: by then `systemctl restart` is already committed
+    and nobody can be told "no". Order matters — close admission FIRST, so nothing new starts
+    a side effect while we wait, THEN drain what was already accepted.
+    """
+    from app import main as app_main
+
+    app_main.close_mutating_admission()
+    drained = await app_main.drain_mutating_requests()
+    if drained:
+        return {"ok": True}
+    left = app_main.inflight_mutating_count()
+    app_main.open_mutating_admission()  # the restart is off: do not starve the agents
+    return {
+        "ok": False,
+        "reason": (
+            f"{left} mutating tool call(s) still in flight after "
+            f"{app_main.MUTATING_DRAIN_BUDGET_S:.0f}s; restarting now would leave their "
+            "outcome unknown to the agent"
+        ),
+    }
+
+
+_ADMISSION_WATCHDOG_S = 120.0  # > the 90.2s slowest mutating call, so no false reopen
+
+
+async def _reopen_admission_if_still_alive() -> None:
+    """Undo the preflight's admission gate if the restart never arrived (#230 T6).
+
+    A real restart kills this process, so in the happy path this coroutine simply dies with it
+    and the sleep is never observed. Reaching the end means the restart failed to happen.
+    """
+    from app import main as app_main
+
+    await asyncio.sleep(_ADMISSION_WATCHDOG_S)
+    app_main.open_mutating_admission()
+    logger.error(
+        "restart did not happen within %ss after a successful preflight — reopening mutating "
+        "admission so agents are not starved", _ADMISSION_WATCHDOG_S,
+    )
+
+
 async def _restart_service_after_response() -> dict:
     """Дренаж → запись итога → SIGINT; systemd Restart=always поднимает нас обратно.
 
@@ -1734,6 +1778,16 @@ async def _restart_service_after_response() -> dict:
     `bg_manager.shutdown()` и `manager.shutdown_all()` — уже ПОСЛЕ него, внутри
     lifespan (`app/main.py:114,126,127`).
     """
+    try:
+        return await _do_restart_service()
+    except BaseException:
+        from app import main as app_main
+        app_main.open_mutating_admission()
+        logger.exception("restart path failed; mutating admission reopened")
+        raise
+
+
+async def _do_restart_service() -> dict:
     await asyncio.sleep(0.5)
     manager.begin_drain()
     started = time.monotonic()
@@ -1763,6 +1817,15 @@ async def _restart_service_after_response() -> dict:
 
 @router.post("/api/restart")
 async def restart_server():
+    verdict = await restart_preflight()
+    if not verdict["ok"]:
+        raise HTTPException(409, verdict["reason"])
+    # The preflight left admission CLOSED so nothing new starts a side effect. If the restart
+    # does not actually happen, that gate must not stay shut: a stuck-closed gate answers every
+    # mutating tool call with "retry later" forever. Found by the full suite, not by review.
+    watchdog = asyncio.create_task(_reopen_admission_if_still_alive())
+    _restart_tasks.add(watchdog)
+    watchdog.add_done_callback(_restart_tasks.discard)
     task = asyncio.create_task(_restart_service_after_response())
     _restart_tasks.add(task)
     task.add_done_callback(_restart_tasks.discard)

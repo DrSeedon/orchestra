@@ -1,0 +1,17 @@
+# Orchestra's listening socket, owned by systemd rather than by the process (#230 T8).
+#
+# Why: while the service restarts, agents keep running (that is the whole point of #230) and
+# their MCP tool calls keep arriving. If the app owned the socket, those calls would get
+# ECONNREFUSED. Measured A/B on throwaway units: socket activation 90/90 requests OK across two
+# restarts (worst latency 275 ms), app-owned port 56/60 with 4 × "connection refused" — and that
+# was on a service starting in under a second, while the real one takes ~3 s to serve.
+[Unit]
+Description=Orchestra HTTP socket (survives service restarts)
+
+[Socket]
+ListenStream=0.0.0.0:8888
+# Accept=no: one long-lived server accepting many connections, NOT one instance per connection.
+Accept=no
+
+[Install]
+WantedBy=sockets.target

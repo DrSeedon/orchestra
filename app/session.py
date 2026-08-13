@@ -417,6 +417,9 @@ class AgentSession:
     _persist_dirty: bool = field(default=False, repr=False)
     _turn_gen: int = field(default=0, repr=False)
     _turn_finished_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+    #: An adopted CLI still carries the tool list and prompt it was BORN with (#230 T9):
+    #: those can only change by re-spawning it, and only at a turn boundary.
+    tools_are_stale: bool = field(default=False, repr=False)
     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _spawn_warning: str = field(default="", repr=False)
     _spawn_repo_path: str = field(default="", repr=False)
@@ -873,6 +876,70 @@ class AgentSession:
         self._hibernate_task = None
         self.status = AgentStatus.IDLE
 
+    async def adopt_backend(self, fd_in: int, fd_out: int, *,
+                            active_turn_id: str | None = None,
+                            leftover: str = "", cli_pid: int = 0,
+                            cli_started_at: int = 0) -> None:
+        """Take over a CLI that outlived the supervisor restart (#230 T5).
+
+        No connect, no spawn, no restart notice: this turn was never interrupted. The status
+        stays RUNNING because it IS running — the previous generation persisted the turn id
+        exactly so this one can attribute the incoming bytes.
+        """
+        backend = self._make_backend()
+        adopt = getattr(backend, "adopt", None)
+        if adopt is None:
+            raise RuntimeError(
+                f"[{self.name}] runtime {self.backend_type} cannot adopt a live process"
+            )
+        # No signature fallback: a blanket `except TypeError` would re-run adoption after
+        # descriptors were already attached if the TypeError came from INSIDE adopt().
+        await adopt(fd_in, fd_out, self.session_id or "", active_turn_id,
+                    leftover=leftover, cli_pid=cli_pid, cli_started_at=cli_started_at)
+        self._backend = backend
+        self.tools_are_stale = True
+        # RUNNING must mean "a turn is in flight". A handover with no stored turn id means the
+        # turn had already finished, so claiming RUNNING would strand the session forever.
+        self.status = AgentStatus.RUNNING if active_turn_id else AgentStatus.IDLE
+        self._persist()
+        self._activate_backend_tasks()
+        # A per-turn runtime (codex) consumes events only inside a turn loop started by
+        # send(); nothing else reads the stream. An adopted session is ALREADY mid-turn, so
+        # the loop has to be resumed here or the surviving turn streams into nobody and never
+        # completes — measured as a 10s timeout before this branch existed.
+        if active_turn_id and get_runtime(self.backend_type).capabilities.event_stream == "per_turn":
+            if self._listen_task is None or self._listen_task.done():
+                self._turn_finished_event.clear()
+                self._listen_task = asyncio.create_task(self._turn_event_loop())
+                self._listen_task.add_done_callback(self._on_task_done)
+
+    async def _refresh_stale_backend(self) -> None:
+        """Release an adopted CLI at a TURN BOUNDARY so new tools apply (#230 T9).
+
+        The tool LIST and the MCP shim are fixed when the CLI starts, so the only way to change
+        them is a new process. Called only where a new turn begins — mid-turn injection paths
+        must NOT respawn, that would kill the very turn this task protects.
+
+        The prompt is deliberately NOT rebuilt here: the re-inject path in `send()` already
+        owns that (#220, `assemble_prompt`), and a second rebuild would be a second owner.
+        """
+        if not self.tools_are_stale:
+            return
+        logger.info(f"[{self.name}] releasing adopted CLI at the turn boundary "
+                    f"so new tools and prompt take effect")
+        old = self._backend
+        if old is not None:
+            try:
+                await old.disconnect()
+            except Exception as error:
+                logger.warning(f"[{self.name}] releasing the stale CLI failed: "
+                               f"{err_text(error)}")
+        if self._listen_task and not self._listen_task.done():
+            self._listen_task.cancel()
+        self._listen_task = None
+        self._backend = None
+        self.tools_are_stale = False
+
     async def wait_for_turn_completion(self) -> bool:
         """Wait for the active logical turn to publish its terminal status."""
         while self.status == AgentStatus.RUNNING:
@@ -1039,6 +1106,7 @@ class AgentSession:
                 _refuse_if_draining(self)  # no await between here and RUNNING below
                 self._manually_interrupted = False
                 self._did_report = False
+                await self._refresh_stale_backend()  # new turn -> fresh tools (#230 T9)
                 self._turns.bump_turn_gen()
                 self._turn_logs = []
                 self._turn_start = asyncio.get_event_loop().time()
@@ -1738,6 +1806,7 @@ class AgentSession:
                 _refuse_if_draining(self)  # no await between here and RUNNING below
                 self._manually_interrupted = False
                 self._did_report = False
+                await self._refresh_stale_backend()  # new turn -> fresh tools (#230 T9)
                 self._turns.bump_turn_gen()
                 self._turn_logs = []
                 self._turn_start = asyncio.get_event_loop().time()
