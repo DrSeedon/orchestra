@@ -912,21 +912,24 @@ class TestValidateSpawn:
         with pytest.raises(ValueError, match="unknown parent"):
             P.validate_spawn("closed", "phantom", "coder")
 
-    # fail-open: нестрого
+    # fail-open: известные роли по-прежнему режет whitelist
     def test_fail_open_forbidden_child_still_raises(self, pipelines_root):
-        # ВАЖНО: fail-open смягчает ТОЛЬКО неизвестные роли; явный whitelist при
-        # известных ролях всё равно действует (coder.can_spawn=[] → terminal)
+        # coder.can_spawn=[] → terminal; неизвестные роли закрывает #36 отдельно
         self._open(pipelines_root)
         with pytest.raises(ValueError, match="cannot spawn"):
             P.validate_spawn("opened", "coder", "lead")
 
-    def test_fail_open_unknown_parent_passes(self, pipelines_root):
+    def test_fail_open_unknown_parent_raises(self, pipelines_root):
+        # #36: fail-open больше не пропускает неизвестного родителя
         self._open(pipelines_root)
-        assert P.validate_spawn("opened", "phantom", "coder") is None
+        with pytest.raises(ValueError, match="unknown parent"):
+            P.validate_spawn("opened", "phantom", "coder")
 
-    def test_fail_open_unknown_child_passes(self, pipelines_root):
+    def test_fail_open_unknown_child_raises(self, pipelines_root):
+        # #36: fail-open больше не пропускает неизвестного ребёнка мимо whitelist
         self._open(pipelines_root)
-        assert P.validate_spawn("opened", "lead", "mystery") is None
+        with pytest.raises(ValueError, match="unknown role"):
+            P.validate_spawn("opened", "lead", "mystery")
 
     def test_wildcard_can_spawn_allows_any(self, pipelines_root):
         _write_pipeline(pipelines_root, "wild", """\

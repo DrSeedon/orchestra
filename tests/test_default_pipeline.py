@@ -489,14 +489,15 @@ class TestDefaultValidateSpawn:
         assert P.validate_spawn(PIPELINE, "", "orchestrator") is None
         assert P.validate_spawn(PIPELINE, None, "orchestrator") is None
 
-    def test_fail_open_unknown_child_passes(self):
-        """fail-open: при can_spawn=['*'] и неизвестном child — пропуск (дух апстрима,
-        каталог ролей = подсказка, не жёсткий контракт)."""
-        assert P.validate_spawn(PIPELINE, "orchestrator", "nonexistent-role") is None
+    def test_fail_open_unknown_child_raises(self):
+        """#36: '*' — любая известная роль, не любая строка."""
+        with pytest.raises(ValueError, match="unknown role"):
+            P.validate_spawn(PIPELINE, "orchestrator", "nonexistent-role")
 
-    def test_fail_open_unknown_parent_passes(self):
-        """fail-open: неизвестный parent не роняет спавн."""
-        assert P.validate_spawn(PIPELINE, "phantom", "worker") is None
+    def test_fail_open_unknown_parent_raises(self):
+        """#36: неизвестный parent не обходит whitelist."""
+        with pytest.raises(ValueError, match="unknown parent"):
+            P.validate_spawn(PIPELINE, "phantom", "worker")
 
 
 class TestSubOrchestratorGetsMemorySearch:
