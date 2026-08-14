@@ -170,6 +170,20 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_mailbox_pending
                 ON mailbox(recipient, scope) WHERE delivered_at IS NULL;
 
+            CREATE TABLE IF NOT EXISTS restart_inbox (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                body TEXT NOT NULL,
+                chat_id INTEGER NOT NULL DEFAULT 0,
+                thread_id INTEGER NOT NULL DEFAULT 0,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                created_at REAL NOT NULL,
+                delivered_at REAL,
+                failed_at REAL
+            );
+            CREATE INDEX IF NOT EXISTS idx_restart_inbox_pending
+                ON restart_inbox(id) WHERE delivered_at IS NULL AND failed_at IS NULL;
+
             CREATE TABLE IF NOT EXISTS test_lock (
                 scope TEXT PRIMARY KEY,
                 holder TEXT NOT NULL,
@@ -2550,7 +2564,12 @@ def silence_observe(*, has_data: bool, now: str, grace_seconds: float,
 def silence_mark_announced(now: str) -> None:
     """Зафиксировать ДОКАЗАННУЮ доставку сообщения о молчании."""
     with _conn() as c:
-        c.execute("UPDATE quota_silence SET announced_at = ? WHERE id = 1", (now,))
+        c.execute(
+            "INSERT INTO quota_silence (id, silence_since, notified_at, announced_at)\n"
+            " VALUES (1, ?, NULL, ?) ON CONFLICT(id) DO UPDATE\n"
+            " SET announced_at = excluded.announced_at",
+            (now, now),
+        )
 
 
 def silence_release(now: str) -> None:

@@ -32,6 +32,7 @@ let scrollAfterLoad = true;
 // Следуем ли за новыми сообщениями. Правило как в мессенджерах: внизу — следуем,
 // ушёл читать выше — не трогаем вообще. Снимается в обработчике scroll.
 let _chatFollow = true;
+let _chatTrimLimit = MAX_CHAT_NODES;
 let drafts = {};
 
 const _CHAT_BOTTOM_GAP = 80;
@@ -258,6 +259,72 @@ function _notifyUserReason(node) {
     try { return JSON.parse(content.slice(colonIdx + 1)).reason || ''; } catch { return ''; }
 }
 
+// Строку разбираем ДО отрисовки: про уведомление решает живой поток, а не готовый узел.
+function _callRowReason(row) {
+    if (row?.type !== 'tool') return null;
+    const content = typeof row.content === 'string' ? row.content : '';
+    const colonIdx = content.indexOf(':');
+    if (colonIdx < 0) return null;
+    if (canonicalToolName(content.slice(0, colonIdx).trim()) !== NOTIFY_USER_TOOL) return null;
+    try { return JSON.parse(content.slice(colonIdx + 1)).reason || ''; } catch { return ''; }
+}
+
+// Один зов — одно уведомление: поток переподключается, история дорисовывается сверху, и
+// одна и та же строка приходит не раз. Ключ — id строки журнала, он глобальный.
+const _notifiedCallIds = new Set();
+let _notifyLiveArmed = false;
+let _notifyArmTimer = null;
+
+function _armCallNotifications(lastId) {
+    clearTimeout(_notifyArmTimer);
+    // История уже на экране → поток отдаёт только строки новее неё, всё пришедшее настоящее.
+    _notifyLiveArmed = lastId > 0;
+    // Запасной режим (истории нет, её везёт сам поток): пачка приходит сразу за подключением,
+    // поэтому взводимся после неё, а не молчим до следующего реконнекта.
+    if (!_notifyLiveArmed) _notifyArmTimer = setTimeout(() => { _notifyLiveArmed = true; }, 2000);
+}
+
+function _maybeNotifyCall(row, agent) {
+    const reason = _callRowReason(row);
+    if (reason === null || !_notifyLiveArmed) return null;
+    const id = Number(row.id);
+    if (!Number.isFinite(id) || _notifiedCallIds.has(id)) return null;
+    _notifiedCallIds.add(id);
+    if (!('Notification' in window) || Notification.permission !== 'granted') return null;
+    const notification = new Notification(`🔔 ${agent || 'Оркестратор'} зовёт`, {
+        body: reason || 'без пояснения',
+        tag: `orchestra-call-${id}`,   // вторая защита от дубля, уже на стороне ОС
+        requireInteraction: true,      // юзера нет у экрана — зов не должен успеть исчезнуть
+    });
+    notification.onclick = () => {
+        window.focus();
+        const node = $('#chat')?.querySelector(`[data-chat-log-id="${id}"]`);
+        if (node) _jumpChatTimelineNode(node, node._chatTimelineMarker);
+        notification.close();
+    };
+    return notification;
+}
+
+// Разрешение просим ТОЛЬКО по клику: запрос, всплывший на загрузке, юзер отклонит один раз —
+// и канал потерян навсегда, второй раз браузер не спросит.
+function _addNotifyPermissionBtn() {
+    const timeline = $('#chat-timeline');
+    if (!timeline || $('#chat-notify-permission')) return;
+    if (!('Notification' in window) || Notification.permission !== 'default') return;
+    const btn = document.createElement('button');
+    btn.id = 'chat-notify-permission';
+    btn.type = 'button';
+    btn.className = 'chat-notify-permission';
+    btn.textContent = '🔔';
+    btn.title = 'Включить уведомления браузера о зовах оркестратора';
+    btn.setAttribute('aria-label', btn.title);
+    btn.addEventListener('click', async () => {
+        try { await Notification.requestPermission(); } catch (e) { console.warn('Notification permission:', e.name, e.message); }
+        btn.remove();   // решение принято — второй раз браузер всё равно не спросит
+    });
+    timeline.prepend(btn);
+}
+
 function _chatTimelineKind(type, node) {
     if (type === 'user_message') return node.dataset.from ? 'worker' : 'user';
     if (type === 'tool' && _isNotifyUserNode(node)) return 'notify';
@@ -378,6 +445,7 @@ function _addNotifyNav() {
 function initChatTimeline() {
     const chat = $('#chat');
     if (!chat || _chatTimelineObserver) return;
+    _addNotifyPermissionBtn();
     _addNotifyNav();
     for (const node of chat.children) _addChatTimelineMarker(node);
     _syncChatTimelineControls();
@@ -877,6 +945,7 @@ function connectSSE(fromHistoryLoad) {
     // limit нужен только в запасном режиме, когда истории у нас нет вовсе и её принесёт
     // сам поток (_fetchHistory не смог). В обычной работе сюда приходят с lastId > 0.
     const limitParam = lastId === 0 ? `&limit=${_CHAT_PAGE}` : '';
+    _armCallNotifications(lastId);
     const url = `/api/sessions/${selectedAgent}/stream?scope=${encodeURIComponent(currentScope)}&after_id=${lastId}${limitParam}`;
     eventSource = new EventSource(url);
     eventSource.onmessage = (event) => {
@@ -907,6 +976,7 @@ function connectSSE(fromHistoryLoad) {
             } else {
                 addChatEntry(l.type, l.content, l.ts, null, l);
             }
+            _maybeNotifyCall(l, targetAgent);
             if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
             // Live stream partials carry no id — skip id bookkeeping for them
             if (Number.isFinite(l.id)) {
@@ -977,19 +1047,24 @@ async function loadMoreLogs() {
         const chat = $('#chat');
         const oldHeight = chat.scrollHeight;
         if (btn) btn.remove();
+        const previousTrimLimit = _chatTrimLimit;
+        _chatTrimLimit = Math.max(MAX_CHAT_NODES, chat.children.length + logs.length);
         // prepend в правильном порядке (logs уже ASC из db)
         // фиксируем anchor = текущий firstChild, вставляем все перед ним по порядку
         const anchor = chat.firstChild;
         _replayingHistory = true;
         try {
-        for (const l of logs) {
-            addChatEntry(l.type, l.content, l.ts, anchor, l);
-            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
-            if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
-                chatLogs[selectedAgent].firstId = l.id;
+            for (const l of logs) {
+                addChatEntry(l.type, l.content, l.ts, anchor, l);
+                if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
+                if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
+                    chatLogs[selectedAgent].firstId = l.id;
+                }
             }
+        } finally {
+            _chatTrimLimit = previousTrimLimit;
+            _replayingHistory = false;
         }
-        } finally { _replayingHistory = false; }
         chat.scrollTop = chat.scrollHeight - oldHeight;
         // Full page (500) returned → more may exist, re-add button. Fewer → reached the start.
         if (logs.length >= 500) _addLoadMoreBtn();
@@ -2208,6 +2283,13 @@ async function selectAgent(name) {
 function updateInputState() {
     const input = $('#chat-input');
     const btn = $('#send-btn');
+    // Отправка всё равно будет отклонена — честнее недоступная кнопка, чем ошибка в ответ.
+    if (_restartPending) {
+        input.placeholder = 'Идёт перезапуск Orchestra…';
+        input.disabled = true;
+        btn.disabled = true;
+        return;
+    }
     if (!selectedAgent) {
         input.placeholder = 'Message...';
         input.disabled = false;
@@ -2783,6 +2865,7 @@ function _showAgentContextMenu(e, s) {
 // follow-up messages get batched. The server echoes back via SSE which
 // replaces the bubble with the canonical version.
 async function sendChat() {
+    if (_restartPending) return;   // кнопка уже недоступна, это страховка от Enter
     const input = $('#chat-input');
     // Картинка ещё летит → ждём её путь, иначе сообщение уйдёт без картинки.
     // Поле ввода при этом живое: всё, что допечатают за время ожидания, войдёт в msg.
@@ -2817,7 +2900,8 @@ async function sendChat() {
         if (pendingBubble) { const ring = pendingBubble.querySelector('.debounce-ring'); if (ring) ring.remove(); }
         pendingBubble = null; pendingUserMsgs = []; _finalizedBubble = null;
         removeWaitingIndicator();
-        addChatEntry('error', e.message);
+        // Перезапуск — штатная операция, и красная строка про неё выглядела бы аварией.
+        addChatEntry(e.name === 'RestartPendingError' ? 'notification' : 'error', e.message);
     }
 }
 
@@ -4084,6 +4168,23 @@ function _agentCountText(counts) {
     ];
 }
 
+// Platform notices (`system`) and Codex `warning` share one look: otherwise `system`
+// falls through to `.chat-bot` and a delivery failure reads as an agent reply (#51).
+function renderSystemChatEntry(type, content, ts) {
+    if (type !== 'system' && type !== 'warning') return null;
+    const el = document.createElement('div');
+    el.className = 'codex-warning';
+    if (type === 'system') el.dataset.chatSystem = '1';
+    const icon = document.createElement('span');
+    icon.className = 'codex-warning-icon';
+    icon.textContent = '⚠';
+    const body = document.createElement('span');
+    body.textContent = content;
+    el.append(icon, body);
+    addTimestamp(el, ts);
+    return el;
+}
+
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
 // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
 // payload = full SSE log object (carries subagent_id for sub-agent nesting)
@@ -4296,7 +4397,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const wasAtBottom = _chatAtBottom(chat);
         _insert(line);
         // Trim oldest nodes to cap memory — loses old history but prevents unbounded DOM growth
-        while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
+        while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
         if (type === 'tool') _adoptOrphanResults(chat, line.dataset.toolUseId);
         if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
@@ -4345,13 +4446,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
         return;
     }
 
-    if (type === 'warning') {
-        const warning = document.createElement('div');
-        warning.className = 'codex-warning';
-        warning.innerHTML = '<span class="codex-warning-icon">⚠</span><span></span>';
-        warning.lastChild.textContent = content;
-        addTimestamp(warning, ts);
-        _insert(warning);
+    const platformNotice = renderSystemChatEntry(type, content, ts);
+    if (platformNotice) {
+        _insert(platformNotice);
         return;
     }
 
@@ -6387,7 +6484,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     addTimestamp(div, ts);
     const wasAtBottom = _chatAtBottom(chat);
     _insert(div);
-    while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
+    while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
     if (type === 'tool') _adoptOrphanResults(chat, div.dataset.toolUseId);
     if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
 }
@@ -6638,7 +6735,18 @@ async function api(url, opts = {}) {
         const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
         try {
             const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, signal });
-            if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
+            if (!resp.ok) {
+                const text = await resp.text();
+                // Отказ на время перезапуска — штатный и повторяемый: вызов отклонён ДО
+                // побочного эффекта. Юзер до этого получал в чат сырой служебный JSON.
+                if (_restartPendingFromBody(resp.status, text)) {
+                    _setRestartPending(true);
+                    const refused = new Error('Orchestra перезапускается — вызов отклонён до изменений. Повтори через несколько секунд.');
+                    refused.name = 'RestartPendingError';
+                    throw refused;
+                }
+                throw new Error(`${resp.status}: ${text}`);
+            }
             const data = await resp.json();
             _hideNetFailBanner(url);
             return data;
@@ -6682,6 +6790,48 @@ function _hideNetFailBanner(url) {
 }
 
 // === Usage Bar ===
+
+// === Перезапуск Orchestra (#270) ===
+// Во время перезапуска сервер ЖИВ и отвечает на чтения — немеют только мутирующие вызовы,
+// и юзер узнавал об этом сырым служебным JSON в чате. Признак ловим на существующем пути
+// ответов (503 + `error.code = restart_pending`), своего опроса не заводим.
+let _restartPending = false;
+let _restartPendingSince = 0;
+// Перезапуск может не состояться: preflight не смог слить хвост мутаций и молча
+// переоткрыл приём, не сказав об этом ни одному клиенту. Без потолка полоса висела бы вечно.
+const _RESTART_PENDING_MAX_MS = 120000;
+
+function _restartPendingFromBody(status, text) {
+    if (status !== 503) return false;
+    try { return JSON.parse(text)?.error?.code === 'restart_pending'; } catch { return false; }
+}
+
+// Полосу строим в JS: шаблон отдаётся из главного чекаута и доехал бы до юзера только
+// рестартом — тем самым, про который она и рассказывает.
+function _restartBanner() {
+    let banner = document.getElementById('restart-banner');
+    if (banner) return banner;
+    banner = document.createElement('div');
+    banner.id = 'restart-banner';
+    // Тот же язык, что у соседних полос, и намеренно НЕ красный: перезапуск штатен.
+    banner.className = 'hidden items-center justify-center gap-2 px-4 py-2 bg-amber-500/15 border-b border-amber-500/40 text-amber-200 text-xs';
+    banner.innerHTML = '⏳ <b>Orchestra перезапускается</b> — отправка на паузе, вызовы отклоняются ДО изменений. ' +
+        '<span class="text-amber-400/70">Вернётся сама, перезагружать страницу не нужно.</span>';
+    const anchor = document.getElementById('rate-limit-banner');
+    if (anchor) anchor.parentNode.insertBefore(banner, anchor);
+    else document.body.prepend(banner);
+    return banner;
+}
+
+function _setRestartPending(on) {
+    if (on) _restartPendingSince = Date.now();   // каждый новый отказ продлевает окно
+    if (on === _restartPending) return;
+    _restartPending = on;
+    const banner = _restartBanner();
+    banner.classList.toggle('hidden', !on);
+    banner.classList.toggle('flex', on);
+    updateInputState();
+}
 
 // === Reboot Overlay ===
 let _rebootOverlay = null;
@@ -6743,6 +6893,7 @@ async function _recoverAfterOutage() {
     _recovering = true;
     try {
         _dismissRebootOverlay();
+        _setRestartPending(false);   // перезапуск состоялся и кончился — пауза больше не нужна
         // Неподтверждённое серверу выбрасываем: рестарт мог потерять ход, и какой пузырь
         // чей — надёжно не определить. Перезагрузка делала это молча, теперь делаем явно.
         localMessages.clear();
@@ -6856,6 +7007,14 @@ function _showBuildBanner(serverBuild) {
 async function _heartbeatProbe() {
     try {
         const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+        // Заголовок появится с серверной частью #269 и делает состояние однозначным в обе
+        // стороны. Пока его нет — снимаем паузу либо возвратом сервера, либо по потолку.
+        const restarting = r.headers.get('X-Orchestra-Restarting');
+        if (restarting !== null) _setRestartPending(restarting === '1');
+        else if (_restartPending && Date.now() - _restartPendingSince > _RESTART_PENDING_MAX_MS) {
+            console.warn('[restart] перезапуск не наступил за 2 минуты — снимаю паузу');
+            _setRestartPending(false);
+        }
         if (r.status < 502) {
             _onServerOk();
             // Сверяем ПОСЛЕ _onServerOk: он снимает оверлей ребута, а баннер под

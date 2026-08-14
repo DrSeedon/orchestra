@@ -64,6 +64,7 @@ _READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _inflight_mutating = 0
 _inflight_streams = 0
 _mutating_admission_open = True
+_restart_inbox_drain: "asyncio.Task | None" = None
 
 
 def _known_api_paths() -> set[str]:
@@ -128,7 +129,44 @@ def close_mutating_admission() -> None:
 
 def open_mutating_admission() -> None:
     global _mutating_admission_open
+    was_closed = not _mutating_admission_open
     _mutating_admission_open = True
+    # The queue is owed to the gate, not to the process: a restart that never happened
+    # (preflight refused, watchdog, failed restart path) reopens admission and keeps running,
+    # and the message we promised to deliver would wait for the next real start (#269 B1).
+    # Hooked on the transition, so the reopen-on-an-open-gate calls stay free.
+    if was_closed:
+        schedule_restart_inbox_drain()
+
+
+def schedule_restart_inbox_drain() -> None:
+    """Drain the restart queue in the background, at most one drain at a time."""
+    global _restart_inbox_drain
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return  # no loop to schedule onto — nothing was queued in this process either
+    if _restart_inbox_drain is not None and not _restart_inbox_drain.done():
+        return
+    from app import restart_inbox
+
+    _restart_inbox_drain = asyncio.create_task(restart_inbox.deliver_pending(manager))
+    _restart_inbox_drain.add_done_callback(_log_restart_inbox_drain)
+
+
+def _log_restart_inbox_drain(task: "asyncio.Task") -> None:
+    """A task nobody awaits swallows its exception until GC. Say it out loud instead."""
+    if task.cancelled():
+        return
+    error = task.exception()
+    if error is not None:
+        logger.error("restart inbox drain failed: %s: %s", type(error).__name__, error)
+
+
+def mutating_admission_open() -> bool:
+    """Public reader for the gate. In-process senders (the TG bridge) never touch HTTP, so
+    the middleware cannot protect them — they have to ask (#269)."""
+    return _mutating_admission_open
 
 
 def mutating_admission_verdict(method: str, path: str) -> dict:
@@ -140,7 +178,11 @@ def mutating_admission_verdict(method: str, path: str) -> dict:
         "retryable": True,
         "outcome_unknown": False,
         "code": "restart_pending",
-        "message": "Orchestra is restarting; this call was refused before any side effect.",
+        # Human sentence, not a status line: this is what a person reads when a channel shows
+        # the body verbatim (that is exactly how the raw JSON reached the user, #269). Machines
+        # read `code`/`retryable` above; people need "nothing broke" and "what now".
+        "message": "Orchestra перезапускается — сообщение не отправлено, ничего не сломалось. "
+                   "Повтори через минуту, я вернусь сам.",
     }
 
 
@@ -166,7 +208,12 @@ class RequestCensusMiddleware:
         verdict = mutating_admission_verdict(method, path)
         if not verdict["allowed"]:
             from starlette.responses import JSONResponse
-            response = JSONResponse({"error": verdict}, status_code=503)
+            # This branch answers WITHOUT reaching send_wrapper below, so it needs the header of
+            # its own — a client that only saw the refusal would never learn the pause is over.
+            response = JSONResponse(
+                {"error": verdict}, status_code=503,
+                headers={"X-Orchestra-Restarting": "1"},
+            )
             await response(scope, receive, send)
             return
 
@@ -179,6 +226,13 @@ class RequestCensusMiddleware:
             nonlocal counted_mutating, counted_stream
             global _inflight_mutating, _inflight_streams
             if message["type"] == "http.response.start":
+                # On EVERY response, both values: a header that only ever says "1" cannot tell a
+                # client the pause ended, and a restart that never happens reopens admission
+                # silently (`restart_preflight`). Reading one bool costs nothing on the hot path.
+                message["headers"] = [
+                    *(message.get("headers") or []),
+                    (b"x-orchestra-restarting", b"0" if _mutating_admission_open else b"1"),
+                ]
                 headers = {k.lower(): v for k, v in message.get("headers") or []}
                 if headers.get(b"content-type", b"").startswith(b"text/event-stream"):
                     if counted_mutating:
@@ -267,6 +321,9 @@ async def lifespan(app: FastAPI):
     from app.bootstrap import ensure_bootstrap
     await ensure_bootstrap()
     manager.start_background_tasks()
+    # #269: messages accepted while the previous process was restarting. In the background —
+    # a delivery runs the agent's turn, and startup must not wait for it.
+    schedule_restart_inbox_drain()
     from app.bg_jobs import bg_manager
     bg_manager.set_session_manager(manager)
     await bg_manager.restore_from_db()
@@ -284,6 +341,8 @@ async def lifespan(app: FastAPI):
     from app.merge_operations import restore_merge_operations
     await restore_merge_operations()
     yield
+    if _restart_inbox_drain is not None:
+        _restart_inbox_drain.cancel()
     snapshot_task.cancel()
     from app import rag_service as _rs
     from app.merge_operations import shutdown_merge_operations

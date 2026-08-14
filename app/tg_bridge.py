@@ -328,6 +328,11 @@ async def _flush_batch(sid: str, batch: list):
     local_tz = timezone(timedelta(hours=7))
     now = datetime.now(local_tz).strftime("%H:%M")
     combined = f"[{now}] {combined}"
+    from app.main import mutating_admission_open
+
+    if not mutating_admission_open():
+        await _queue_until_restarted(sid, valid, combined)
+        return
     try:
         await _manager.send(sid, combined)
     except Exception as error:
@@ -336,6 +341,65 @@ async def _flush_batch(sid: str, batch: list):
         # 0 сообщений в чат). Для человека на том конце это неотличимо от «агент прочитал
         # и не ответил».
         await _report_undelivered_to_user(sid, valid, error)
+
+
+async def _queue_until_restarted(sid: str, valid: list, combined: str) -> None:
+    """Restart in progress: park the message instead of pushing it into a dying session (#269).
+
+    Pushing it through would look accepted and then die with the process — for the person on
+    the other end that is indistinguishable from being ignored. Queued now, delivered by
+    `restart_inbox.deliver_pending` after startup.
+    """
+    from app import restart_inbox
+
+    first = next((m for m, _c in valid if m is not None), None)
+    chat_id = getattr(getattr(first, "chat", None), "id", 0) or 0
+    thread_id = getattr(first, "message_thread_id", None) or 0
+    try:
+        restart_inbox.enqueue(sid, combined, chat_id, thread_id)
+    except Exception as error:
+        # The queue is the only thing standing between this message and silence: if it fails,
+        # deliver the old way rather than drop it, and let the existing path report failure.
+        logger.warning("restart inbox unavailable for %s, delivering live: %s", sid, err_text(error))
+        try:
+            await _manager.send(sid, combined)
+        except Exception as send_error:
+            await _report_undelivered_to_user(sid, valid, send_error)
+        return
+
+    if first is None or bot is None:
+        return
+    try:
+        await _tg_send_safe(
+            first.chat.id,
+            "⏳ Orchestra перезапускается — сообщение принято, но пока не доставлено. "
+            "Ничего делать не нужно: отдам его агенту сам, как только вернусь.",
+            thread_id=getattr(first, "message_thread_id", None),
+            important=True,
+        )
+    except Exception as send_error:
+        logger.warning("could not tell the user the message is queued for %s: %s",
+                       sid, err_text(send_error))
+
+
+async def report_inbox_undeliverable(chat_id: int, thread_id: int, body: str, detail: str) -> None:
+    """Мы обещали доставить это сообщение и не смогли — сказать честно и вернуть текст.
+
+    Адресат мог не подняться вовсе (архивирован, убит, обнулён `session_id`), и тогда молчание
+    длилось бы вечно: строка воскресала бы при каждом открытии приёма и никому об этом не
+    говорила (#269, H2).
+    """
+    if bot is None:
+        logger.warning("no bot to report an undeliverable queued message: %s", detail)
+        return
+    await _tg_send_safe(
+        chat_id,
+        "⚠️ Не смог доставить сообщение, которое принял во время перезапуска: агента, "
+        "которому оно адресовано, больше нет. Вот его текст, отправь другому:\n\n"
+        f"{body}",
+        thread_id=thread_id or None,
+        important=True,
+    )
 
 
 async def _report_undelivered_to_user(sid: str, valid: list, error: Exception) -> None:
@@ -3266,9 +3330,13 @@ async def stream_logs(orch_name: str, thread_id: int):
 
 
 async def _get_limits_usage() -> dict:
-    from app.routes.system import _get_usage_data
+    # `quota_headroom` роут `/api/usage` считает у себя, а мы зовём `_get_usage_data`
+    # напрямую — без этой строки на пути картинки не было бы главного числа, «сколько
+    # полных пятичасовых окон осталось» (#274). Считаем ровно тем же вызовом, что и роут.
+    from app.routes.system import _get_usage_data, _quota_headroom
 
-    return await _get_usage_data()
+    data = await _get_usage_data()
+    return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
 
 
 async def _is_limits_owner(msg: types.Message) -> bool:
@@ -3284,6 +3352,18 @@ async def _is_limits_owner(msg: types.Message) -> bool:
         )
         return False
     return member.status == "creator"
+
+
+def _to_utc_datetime(raw) -> datetime | None:
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 def _format_limits_message(usage: dict, *, now: datetime | None = None) -> str:
@@ -3340,6 +3420,87 @@ def _format_limits_message(usage: dict, *, now: datetime | None = None) -> str:
         window_line("Claude 5h", anthropic.get("five_hour")),
         window_line("Claude 7d", anthropic.get("seven_day")),
         window_line("Codex", codex.get("primary")),
+        window_line("Spark", (codex.get("spark") or {}).get("primary")),
+        window_line("Grok", (usage.get("grok") or {}).get("primary")),
+    ]
+    extra_usage = anthropic.get("extra_usage") or {}
+    if extra_usage.get("spend_limit_reached") is True:
+        lines.append(
+            "• Claude extra usage — лимит расходов достигнут "
+            "(базовые окна считаются отдельно)"
+        )
+    return "\n".join(lines)
+
+
+def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None) -> str:
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    local_tz = timezone(timedelta(hours=7))
+
+    def _fmt_pct(value: float) -> str:
+        return f"{max(0.0, min(100.0, value)):.1f}".rstrip("0").rstrip(".")
+
+    def _reset_countdown(reset: datetime) -> str:
+        seconds = int((reset - now).total_seconds())
+        if seconds <= 0:
+            return "сброс уже наступил"
+        minutes_total = max(1, int((seconds + 59) // 60))
+        days, minutes_total = divmod(minutes_total, 24 * 60)
+        hours, minutes = divmod(minutes_total, 60)
+        parts: list[str] = []
+        if days:
+            parts.append(f"{days} д")
+        if hours:
+            parts.append(f"{hours} ч")
+        if minutes or not parts:
+            parts.append(f"{minutes} мин")
+        return f"через {' '.join(parts)}"
+
+    # Темп и «сколько окна прошло» считает `app/limits_card.py` — тот же код, что рисует
+    # картинку. Иначе подпись и картинка разъезжаются в числах, а спорить будут об одном.
+    from app.limits_card import progress_pct, resolve_window_minutes
+    from app.limits_card import pace_text as _pace_of
+
+    def _window_line(label: str, window: dict | None, window_id: str | None = None) -> str:
+        if not isinstance(window, dict) or not isinstance(
+            window.get("utilization"), (int, float)
+        ):
+            return f"• {label} — нет данных"
+
+        utilization = float(window["utilization"])
+        remaining = 100.0 - utilization
+        consumed_text = _fmt_pct(utilization)
+        remaining_text = _fmt_pct(remaining)
+
+        reset_value = window.get("resets_at")
+        reset = _to_utc_datetime(reset_value)
+        if reset is None:
+            return (
+                f"• {label} — осталось {remaining_text}%; "
+                f"израсходовано {consumed_text}% (окно не указано); сброс не указан"
+            )
+
+        absolute = reset.astimezone(local_tz).strftime("%d.%m.%Y %H:%M UTC+7")
+        resolved_window_minutes = resolve_window_minutes(window_id, window)
+        progress = progress_pct(reset, resolved_window_minutes, now)
+        pace = _pace_of(utilization, reset, resolved_window_minutes, now)
+        parts = [f"• {label} — осталось {remaining_text}%; израсходовано {consumed_text}%"]
+        if progress is not None:
+            parts.append(f"окно ({progress}%)")
+        parts.append(f"сброс {absolute}, {_reset_countdown(reset)}")
+        parts.append(pace)
+        return "; ".join(parts)
+
+    anthropic = usage.get("anthropic") or {}
+    codex = usage.get("codex") or {}
+    lines = [
+        "*Лимиты*",
+        _window_line("Claude 5h", anthropic.get("five_hour"), "five_hour"),
+        _window_line("Claude 7d", anthropic.get("seven_day"), "seven_day"),
+        _window_line("Codex", codex.get("primary")),
+        _window_line("Spark", (codex.get("spark") or {}).get("primary")),
+        _window_line("Grok", (usage.get("grok") or {}).get("primary")),
     ]
     extra_usage = anthropic.get("extra_usage") or {}
     if extra_usage.get("spend_limit_reached") is True:
@@ -3357,18 +3518,36 @@ async def handle_limits(msg: types.Message):
         return
 
     try:
-        response = _format_limits_message(await _get_limits_usage())
+        usage = await _get_limits_usage()
+        response = _format_limits_message_for_chat(usage)
+        from app.limits_card import render_limits_card
+
+        path = await render_limits_card(usage)
+        delivery = await _tg_send_file_safe(
+            msg.chat.id,
+            path,
+            response,
+            thread_id=None,
+            is_photo=True,
+            important=True,
+        )
+        if delivery is None:
+            raise RuntimeError("изображение не доставлено")
+        return
     except Exception as e:
         detail = str(e).strip() or "(без сообщения)"
-        response = f"❌ /api/usage: {type(e).__name__}: {detail}"
+        error_text = f"❌ /limits: {type(e).__name__}: {detail}"
+        delivery_text = locals().get("response")
+        if isinstance(delivery_text, str):
+            response = f"{error_text}\n{delivery_text}"
+        else:
+            response = error_text
 
-    for text, entities in _formatted_chunks(response):
-        await _tg_send_safe(
-            msg.chat.id,
-            text,
-            entities=entities,
-            important=False,
-        )
+    await _tg_send_safe(
+        msg.chat.id,
+        response,
+        important=False,
+    )
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.text, lambda msg: msg.text and msg.text.strip() == "/restart")

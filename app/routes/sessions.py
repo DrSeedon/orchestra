@@ -585,7 +585,10 @@ async def send_message(name: str, req: SendRequest):
                 # ВНУТРИ транзакции `record_terminal` — раздельные «посмотреть» и
                 # «зафиксировать» пропускают `wake=False`, легший между ними.
                 released = fan_barrier.record_terminal(
-                    req.sender, "done", require_drained_scope=req.scope
+                    req.sender,
+                    "done",
+                    summary=req.message,
+                    require_drained_scope=req.scope,
                 )
                 if released:
                     fan_id = fan_barrier.fan_id_for_child(
@@ -767,9 +770,9 @@ async def change_model(name: str, req: dict):
     new_model = resolve_model(new_model)
     if new_model not in MODELS:
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
-    found = manager.get_by_name(name, scope)
-    if not found or not found.loaded:
-        return JSONResponse({"error": "session not loaded"}, status_code=404)
+    found = await manager.ensure_loaded(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
     result = await found.change_model(new_model)
     if not result.get("ok"):
         return JSONResponse(result, status_code=409)

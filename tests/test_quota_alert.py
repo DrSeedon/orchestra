@@ -221,6 +221,16 @@ def test_silence_is_announced_once_after_the_grace_period(db):
     asyncio.run(evaluate_and_notify(None, now=base + timedelta(minutes=60), send=send))
     assert len(send.messages) == 1, "повтор про то же молчание"
 
+    # После возврата данных состояние обнуляется, и новое молчание должно снова
+    # уметь объявляться ровно один раз.
+    asyncio.run(evaluate_and_notify(_anthropic(5.0), now=base + timedelta(minutes=35), send=send))
+    assert len(send.messages) == 1
+
+    asyncio.run(evaluate_and_notify(None, now=base + timedelta(minutes=40), send=send))
+    assert len(send.messages) == 1
+    asyncio.run(evaluate_and_notify(None, now=base + timedelta(minutes=70), send=send))
+    assert len(send.messages) == 2
+
 
 def test_data_returning_says_nothing(db):
     send = Recorder()

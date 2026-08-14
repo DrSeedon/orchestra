@@ -1098,6 +1098,83 @@ def test_t6_concrete_paths_resolve_to_their_route_template():
     assert app_main.is_mutating_path("GET", "/api/nope/nope/nope") is True
 
 
+@pytest.mark.asyncio
+async def test_269_restart_header_states_both_values_on_ordinary_responses():
+    """#269: the pause must be readable in BOTH directions, on a response nobody was refused.
+
+    Only the closed arm ("1") is not enough: a restart that never happens reopens admission
+    silently (`restart_preflight` with an undrained tail), and a page loaded mid-restart sent
+    nothing, so it never saw a 503. This is the send_wrapper point — a read-only request is
+    never refused, so it cannot reach the refusal branch.
+    """
+    from starlette.applications import Starlette
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+    import httpx
+
+    from app import main as app_main
+
+    async def read(request):
+        return JSONResponse({"ok": True})
+
+    probe = Starlette(routes=[Route("/api/sessions", read, methods=["GET"])])
+    probe.add_middleware(app_main.RequestCensusMiddleware)
+
+    transport = httpx.ASGITransport(app=probe)
+    async with httpx.AsyncClient(transport=transport, base_url="http://probe") as client:
+        app_main.open_mutating_admission()
+        opened = await client.get("/api/sessions")
+        app_main.close_mutating_admission()
+        try:
+            closed = await client.get("/api/sessions")
+        finally:
+            app_main.open_mutating_admission()
+        reopened = await client.get("/api/sessions")
+
+    assert opened.headers.get("X-Orchestra-Restarting") == "0"
+    assert closed.headers.get("X-Orchestra-Restarting") == "1", (
+        "a read-only response must still carry the pause: the dashboard's heartbeat is a GET")
+    assert reopened.headers.get("X-Orchestra-Restarting") == "0", (
+        "a header stuck at 1 leaves the client paused until its own 120s ceiling")
+
+
+@pytest.mark.asyncio
+async def test_269_restart_header_is_on_the_refusal_itself():
+    """#269: the 503 answers WITHOUT reaching send_wrapper, so it needs its own header.
+
+    Covered separately on purpose: a test that only checks ordinary responses is green while
+    the refused call — the one the client is looking at — carries no state at all.
+    """
+    from starlette.applications import Starlette
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+    import httpx
+
+    from app import main as app_main
+
+    reached = []
+
+    async def mutate(request):
+        reached.append(True)
+        return JSONResponse({"ok": True})
+
+    probe = Starlette(routes=[Route("/api/sessions/x/send", mutate, methods=["POST"])])
+    probe.add_middleware(app_main.RequestCensusMiddleware)
+
+    transport = httpx.ASGITransport(app=probe)
+    async with httpx.AsyncClient(transport=transport, base_url="http://probe") as client:
+        app_main.close_mutating_admission()
+        try:
+            refused = await client.post("/api/sessions/x/send", json={})
+        finally:
+            app_main.open_mutating_admission()
+
+    assert refused.status_code == 503
+    assert refused.json()["error"]["code"] == "restart_pending"
+    assert not reached, "the refusal must happen before the handler, i.e. before send_wrapper"
+    assert refused.headers.get("X-Orchestra-Restarting") == "1"
+
+
 # ------------------------------------------------------------- T7: fail-closed orphan sweep
 
 @pytest.mark.asyncio

@@ -691,12 +691,11 @@ def get_active_pipeline(scope: str = "", parent_pipeline: str = "") -> str:
 def validate_spawn(pipeline_name: str, parent_role: str | None, child_role: str) -> None:
     """Проверить допустимость спавна ``child_role`` родителем ``parent_role``.
 
-    Режим из ``PipelineConfig.validation``:
+    Неизвестная роль родителя или ребёнка — всегда ``ValueError``, в том числе
+    при ``validation: fail-open``. Иначе whitelist ``can_spawn`` действует
+    только на роли из манифеста, а любая чужая строка обходит его целиком (#36).
 
-    * **fail-closed** (наш дефолт) — неизвестный parent/child → ValueError.
-    * **fail-open** (дух апстрима) — неизвестные роли пропускаются; но явный
-      ``can_spawn``-whitelist при ИЗВЕСТНЫХ ролях действует в обоих режимах.
-
+    ``can_spawn: ['*']`` значит любую *известную* роль, не любую строку.
     Корень (parent пуст/None) — спавн от юзера/UI, всегда разрешён. Пустой
     ``child_role`` (генерик-воркер) разрешён только если ``allow_unrouted_workers``.
 
@@ -704,17 +703,14 @@ def validate_spawn(pipeline_name: str, parent_role: str | None, child_role: str)
     :raises FileNotFoundError: если манифест отсутствует (manager ловит → fallback).
     """
     cfg = load_pipeline(pipeline_name)
-    fail_closed = cfg.validation == "fail-closed"
 
     if not parent_role:  # корень — спавн от юзера/UI
         return
     parent = cfg.roles.get(parent_role)
     if parent is None:
-        if fail_closed:
-            raise ValueError(
-                f"unknown parent role '{parent_role}' in pipeline '{pipeline_name}'. "
-                f"known={known_roles(pipeline_name)}")
-        return  # fail-open: неизвестный parent → пропуск
+        raise ValueError(
+            f"unknown parent role '{parent_role}' in pipeline '{pipeline_name}'. "
+            f"known={known_roles(pipeline_name)}")
     if not child_role:  # генерик-воркер (роль не указана)
         if not parent.allow_unrouted_workers:
             raise ValueError(
@@ -722,11 +718,9 @@ def validate_spawn(pipeline_name: str, parent_role: str | None, child_role: str)
                 f"allowed: {parent.can_spawn or '(none)'}")
         return
     if child_role not in cfg.roles:
-        if fail_closed:
-            raise ValueError(
-                f"unknown role '{child_role}' in pipeline '{pipeline_name}'. "
-                f"known={known_roles(pipeline_name)}")
-        return  # fail-open: неизвестный child → пропуск
+        raise ValueError(
+            f"unknown role '{child_role}' in pipeline '{pipeline_name}'. "
+            f"known={known_roles(pipeline_name)}")
     if "*" in parent.can_spawn:
         return
     if child_role not in parent.can_spawn:

@@ -2,12 +2,29 @@
 
 import sqlite3
 import time
+from pathlib import Path
 
 from . import db
 
 
 _TERMINAL_STATES = {"done", "failed", "timeout", "killed"}
 _BYPASS_KINDS = {"out_of_scope", "false_premise", "blocked"}
+
+
+def _persist_child_report(fan_id: str, child: str, body: str) -> str:
+    """Write the child's report next to the DB. Manifest keeps only this path."""
+    safe_fan = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in fan_id) or "fan"
+    safe_child = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in child) or "child"
+    directory = Path(db.DB_PATH).resolve().parent / "fan-reports" / safe_fan
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{safe_child}.md"
+    tmp = path.with_name(f"{path.name}.{time.time_ns()}.tmp")
+    try:
+        tmp.write_text(body, encoding="utf-8")
+        tmp.replace(path)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return str(path)
 
 
 def _schema_is_missing(error: sqlite3.OperationalError) -> bool:
@@ -79,8 +96,11 @@ def record_terminal(
     Проверка живёт ВНУТРИ той же транзакции, что и фиксация: между раздельными
     «посмотреть, что ящик пуст» и «записать терминал» успевает лечь `wake=False`,
     и веер отпустится по ребёнку, который своего сообщения ещё не видел.
+
+    `summary` больше не выбрасывается: если `report_path` не задан, текст
+    кладётся в файл, а в БД остаётся только путь. Иначе родитель видит
+    `path=-` и отчёт потерян (#275).
     """
-    del summary
     if state not in _TERMINAL_STATES:
         return False
     with db._conn() as conn:
@@ -104,6 +124,8 @@ def record_terminal(
         if row is None or row[1] is not None:
             return False
         fan_id = row[0]
+        if not report_path:
+            report_path = _persist_child_report(fan_id, child, summary or "")
         conn.execute(
             """UPDATE fan_members SET state = ?, report_path = ?
                WHERE fan_id = ? AND child = ? AND state IS NULL""",
