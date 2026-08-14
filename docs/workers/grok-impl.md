@@ -21,3 +21,8 @@
 - Кто пишет команду: ROLE-фильтр в `task_create` (`_acceptance_command_from_caller`).
   Закрывает только лёгкий путь «заполнил параметр тула». HTTP + общий `INTERNAL_TOKEN`,
   curl/SQL/правка `acceptance.py` — вне модели. Мутировать весь фильтр, не предикат.
+- Мерж без acceptance_command всё равно гоняет подмножество (`app/merge_test_gate.py`),
+  не полный сьют: 728s + один test_lock на проект. Mapping `app/foo.py` →
+  `tests/test_foo.py` + route snapshot при routes/main. Никогда pytest -x.
+  Нет git-диффа → skip (фикстуры #240). Гейт в `_run_operation`, не в
+  `merge_worktree_to_main` (#250 живёт там). Мутировать весь `evaluate_test_gate`.

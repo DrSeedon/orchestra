@@ -16,4 +16,4 @@ jobs:
       # шага все браузерные тесты молча скипались бы, и CI был бы зелёным, ничего
       # про фронт не проверив.
       - run: uv run playwright install --with-deps chromium
-      - run: uv run pytest -x -q --timeout=30
+      - run: uv run pytest -q --timeout=30

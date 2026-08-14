@@ -1015,31 +1015,69 @@ async def _run_operation(operation_id: str) -> None:
                 )
                 result["acceptance"] = acceptance
             else:
-                from app.routes.sessions import execute_merge_session
+                from app.merge_test_gate import evaluate_test_gate
 
-                raw = await execute_merge_session(
-                    session_id=record["session_id"],
-                    expected_name=record["worker_name"],
-                    expected_scope=record["scope"],
-                    expected_branch=record["accepted_worker_branch"],
-                    expected_head=record["accepted_worker_head"],
-                    req={
-                        **record["request"],
-                        "target": (
-                            record["request"].get("target")
-                            or record["accepted_base_branch"]
+                test_gate = await asyncio.to_thread(
+                    evaluate_test_gate, current["worktree_path"],
+                )
+                if test_gate["status"] in {FAILED, INCONCLUSIVE}:
+                    code = (
+                        "TEST_GATE_FAILED"
+                        if test_gate["status"] == FAILED
+                        else "TEST_GATE_INCONCLUSIVE"
+                    )
+                    error = _error(
+                        code,
+                        (
+                            f"Merge test gate {test_gate['status']}"
+                            f" ({test_gate.get('reason') or 'exit_nonzero'}): "
+                            f"{(test_gate.get('output') or '')[-400:]}"
                         ),
-                    },
-                )
-                from app import rag_service
+                        operation_id=operation_id,
+                        status=409,
+                        retryable=test_gate["status"] == INCONCLUSIVE,
+                    )
+                    result = _base_result(
+                        operation_id,
+                        "FAILED",
+                        target_branch=record["request"].get("target", ""),
+                        worker_branch=record["accepted_worker_branch"],
+                        worker_head=record["accepted_worker_head"],
+                        error=error,
+                        next_action=_action(
+                            "FIX_TESTS_THEN_RETRY",
+                            "Fix the failing merge-gate tests, then start a new merge.",
+                        ),
+                    )
+                    result["acceptance"] = acceptance
+                    result["test_gate"] = test_gate
+                else:
+                    from app.routes.sessions import execute_merge_session
 
-                result = normalize_merge_result(
-                    operation_id,
-                    raw,
-                    record["request"],
-                    rag_enabled=rag_service.is_enabled(),
-                )
-                result["acceptance"] = acceptance
+                    raw = await execute_merge_session(
+                        session_id=record["session_id"],
+                        expected_name=record["worker_name"],
+                        expected_scope=record["scope"],
+                        expected_branch=record["accepted_worker_branch"],
+                        expected_head=record["accepted_worker_head"],
+                        req={
+                            **record["request"],
+                            "target": (
+                                record["request"].get("target")
+                                or record["accepted_base_branch"]
+                            ),
+                        },
+                    )
+                    from app import rag_service
+
+                    result = normalize_merge_result(
+                        operation_id,
+                        raw,
+                        record["request"],
+                        rag_enabled=rag_service.is_enabled(),
+                    )
+                    result["acceptance"] = acceptance
+                    result["test_gate"] = test_gate
         try:
             terminal = await asyncio.to_thread(_session_snapshot, record["session_id"])
         except Exception as exc:
