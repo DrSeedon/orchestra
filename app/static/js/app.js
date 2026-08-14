@@ -4138,6 +4138,23 @@ function _agentCountText(counts) {
     ];
 }
 
+// Platform notices (`system`) and Codex `warning` share one look: otherwise `system`
+// falls through to `.chat-bot` and a delivery failure reads as an agent reply (#51).
+function renderSystemChatEntry(type, content, ts) {
+    if (type !== 'system' && type !== 'warning') return null;
+    const el = document.createElement('div');
+    el.className = 'codex-warning';
+    if (type === 'system') el.dataset.chatSystem = '1';
+    const icon = document.createElement('span');
+    icon.className = 'codex-warning-icon';
+    icon.textContent = '⚠';
+    const body = document.createElement('span');
+    body.textContent = content;
+    el.append(icon, body);
+    addTimestamp(el, ts);
+    return el;
+}
+
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
 // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
 // payload = full SSE log object (carries subagent_id for sub-agent nesting)
@@ -4399,13 +4416,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
         return;
     }
 
-    if (type === 'warning') {
-        const warning = document.createElement('div');
-        warning.className = 'codex-warning';
-        warning.innerHTML = '<span class="codex-warning-icon">⚠</span><span></span>';
-        warning.lastChild.textContent = content;
-        addTimestamp(warning, ts);
-        _insert(warning);
+    const platformNotice = renderSystemChatEntry(type, content, ts);
+    if (platformNotice) {
+        _insert(platformNotice);
         return;
     }
 
