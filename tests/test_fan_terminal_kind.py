@@ -172,3 +172,52 @@ def test_explicit_done_kind_still_releases(db, spy):
     _send("c2", "нашёл B", kind="done")
     assert fb.is_released("F276") is True
     assert len(spy.sent) == 1
+
+
+def test_tool_report_then_turn_end_is_one_terminal_and_one_wake(db, spy, monkeypatch):
+    """#276 доделка: тул + конец хода ≠ два терминала и два пробуждения.
+
+    Сняли ранний return по `_did_report` внутри открытого веера. «Веер закрылся»
+    зелёный и при одном, и при двух пробуждениях — смотрим счётчики.
+    """
+    import app.fan_barrier as fb_mod
+
+    fb = _open(("c1",))
+    accepted = []
+    real = fb_mod.record_terminal
+
+    def counted(*args, **kwargs):
+        ok = real(*args, **kwargs)
+        accepted.append(ok)
+        return ok
+
+    monkeypatch.setattr(fb_mod, "record_terminal", counted)
+
+    _send("c1", "итоговый отчёт", kind="done")
+    idle = []
+    child = _Child("c1", did_report=True, turn_logs=["итог"])
+    orig_idle = child.on_idle
+
+    async def tracked_idle(*a):
+        idle.append(a)
+        return await orig_idle(*a)
+
+    child.on_idle = tracked_idle
+
+    async def _go():
+        from app.session_turns import TurnManager
+        TurnManager(child).fire_auto_report()
+        if child._auto_report_task is not None:
+            await child._auto_report_task
+
+    asyncio.run(_go())
+
+    assert accepted.count(True) == 1, (
+        f"терминалов {accepted.count(True)} из {accepted!r}, ждали ровно один"
+    )
+    assert len(spy.sent) == 1, (
+        f"пробуждений родителя {len(spy.sent)}, ждали одно"
+    )
+    assert idle == [], (
+        f"после тула ещё и on_idle={idle!r} — второе пробуждение мимо барьера"
+    )
