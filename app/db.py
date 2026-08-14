@@ -2564,7 +2564,12 @@ def silence_observe(*, has_data: bool, now: str, grace_seconds: float,
 def silence_mark_announced(now: str) -> None:
     """Зафиксировать ДОКАЗАННУЮ доставку сообщения о молчании."""
     with _conn() as c:
-        c.execute("UPDATE quota_silence SET announced_at = ? WHERE id = 1", (now,))
+        c.execute(
+            "INSERT INTO quota_silence (id, silence_since, notified_at, announced_at)\n"
+            " VALUES (1, ?, NULL, ?) ON CONFLICT(id) DO UPDATE\n"
+            " SET announced_at = excluded.announced_at",
+            (now, now),
+        )
 
 
 def silence_release(now: str) -> None:

@@ -362,6 +362,23 @@ def test_silence_claim_is_taken_once_and_then_confirmed_forever(db):
     assert silence_observe(has_data=False, now=_iso(GRACE + 9000), grace_seconds=GRACE) is False
 
 
+def test_mark_announced_can_restore_missing_state_row(db):
+    """Если запись стирается или не успела создаться, `mark_announced` создаст её атомарно."""
+    from app.db import silence_mark_announced
+
+    silence_mark_announced(_iso())
+    conn = sqlite3.connect(str(db))
+    row = conn.execute(
+        "SELECT announced_at, silence_since, notified_at FROM quota_silence WHERE id = 1"
+    ).fetchone()
+    conn.close()
+    assert row is not None
+    announced_at, silence_since, notified_at = row
+    assert announced_at is not None
+    assert silence_since is not None
+    assert notified_at is None
+
+
 def test_silence_claim_expires_if_delivery_never_confirmed(db):
     """Процесс умер между заявкой и отправкой — сообщение обязано прозвучать позже.
 
