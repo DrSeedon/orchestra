@@ -986,6 +986,20 @@ async def open_fan(children: list[str], deadline_seconds: float = 1800.0,
 _ORCH_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 
 
+def _acceptance_command_from_caller(requested: str) -> str:
+    """Кто пишет команду приёмки. Закрывает ЛЁГКИЙ путь: заполнить параметр
+    `task_create` и закрыть свой пункт самообъявленным `true`.
+
+    НЕ закрывает агента с bash: тот же curl с общим INTERNAL_TOKEN, прямой
+    UPDATE по data/orchestra.db, правка app/acceptance.py. Против исполнителя,
+    который целенаправленно обходит проверку, защиты нет — у него шелл под
+    kesha с полным sudo, он и код проверки перепишет. bash/curl/SQL вне модели.
+    """
+    if ROLE not in _ORCH_ROLES:
+        return ""
+    return (requested or "").strip()
+
+
 def _cache_pill(s: dict) -> str:
     """Prompt-cache warmth as a short exact/approximate text pill."""
     from datetime import datetime, timezone
@@ -1817,7 +1831,7 @@ async def task_create(title: str, project: str = "", price: int = 0,
         "title": title, "price": price,
         "description": description, "assignee": assignee, "status": status,
         "scope": SCOPE, "priority": priority,
-        "acceptance_command": acceptance_command,
+        "acceptance_command": _acceptance_command_from_caller(acceptance_command),
     }
     if project:
         payload["project"] = project

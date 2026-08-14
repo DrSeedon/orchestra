@@ -188,3 +188,72 @@ def test_done_narrative_is_not_consulted(tmp_path):
     (tmp_path / "DONE.txt").write_text("DONE #240: Tests: 7 passed\n", encoding="utf-8")
     again = run_command("python3 -c 'raise SystemExit(1)'", str(tmp_path))
     assert again["status"] == FAILED
+
+
+def test_description_is_never_used_as_acceptance_command(acc_db):
+    """Исполняем только объявленное поле. description не читаем никогда."""
+    import app.tm as tm
+    from app.acceptance import SKIPPED, evaluate_for_merge
+
+    with tm._conn() as conn:
+        conn.execute(
+            "UPDATE tm_tasks SET acceptance_command='', "
+            "description=? WHERE par_number=42",
+            ("python3 -c 'raise SystemExit(0)'",),
+        )
+    result = evaluate_for_merge(session_id="merge-session", worktree_path=str(acc_db))
+    assert result["status"] == SKIPPED
+    assert result["command"] == ""
+
+
+async def _task_create_to_db(monkeypatch, *, role: str, command: str, title: str):
+    import app.mcp_stdio as m
+    import app.tm as tm
+
+    monkeypatch.setattr(m, "ROLE", role)
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+
+    async def write(method, path, json=None, **kwargs):
+        body = json if json is not None else kwargs.get("json") or {}
+        return tm.api_create_task(
+            body.get("project") or "",
+            body["title"],
+            scope=body.get("scope") or "",
+            acceptance_command=body.get("acceptance_command") or "",
+        )
+
+    monkeypatch.setattr(m, "_api", write)
+    return await m.task_create(title=title, acceptance_command=command)
+
+
+@pytest.mark.asyncio
+async def test_worker_task_create_does_not_store_acceptance_command(acc_db, monkeypatch):
+    import app.tm as tm
+
+    await _task_create_to_db(
+        monkeypatch, role="worker", command="true", title="from-worker",
+    )
+    with tm._conn() as conn:
+        stored = conn.execute(
+            "SELECT acceptance_command FROM tm_tasks WHERE title='from-worker'"
+        ).fetchone()
+    assert stored is not None
+    assert stored["acceptance_command"] == "", (
+        "воркер записал acceptance_command — самообъявление через тул"
+    )
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_task_create_stores_acceptance_command(acc_db, monkeypatch):
+    import app.tm as tm
+
+    await _task_create_to_db(
+        monkeypatch, role="orchestrator", command="uv run python -m pytest -q tests/x.py",
+        title="from-orch",
+    )
+    with tm._conn() as conn:
+        stored = conn.execute(
+            "SELECT acceptance_command FROM tm_tasks WHERE title='from-orch'"
+        ).fetchone()
+    assert stored is not None
+    assert stored["acceptance_command"] == "uv run python -m pytest -q tests/x.py"

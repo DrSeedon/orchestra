@@ -17,4 +17,7 @@
   Отвергнутые варианты 2/3 #276 — в `docs/tasks/276/rejected-variants.md`, не писать
   «жду ответа» заново.
 - Приёмку тикета гоняет `merge_operations` до `execute_merge_session`, команду берёт из
-  `tm_tasks.acceptance_command`, не из текста DONE. inconclusive ≠ failed. Не парсить отчёт.
+  `tm_tasks.acceptance_command`, не из текста DONE и не из `description`. inconclusive ≠ failed.
+- Кто пишет команду: ROLE-фильтр в `task_create` (`_acceptance_command_from_caller`).
+  Закрывает только лёгкий путь «заполнил параметр тула». HTTP + общий `INTERNAL_TOKEN`,
+  curl/SQL/правка `acceptance.py` — вне модели. Мутировать весь фильтр, не предикат.
