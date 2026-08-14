@@ -32,6 +32,7 @@ let scrollAfterLoad = true;
 // Следуем ли за новыми сообщениями. Правило как в мессенджерах: внизу — следуем,
 // ушёл читать выше — не трогаем вообще. Снимается в обработчике scroll.
 let _chatFollow = true;
+let _chatTrimLimit = MAX_CHAT_NODES;
 let drafts = {};
 
 const _CHAT_BOTTOM_GAP = 80;
@@ -1045,19 +1046,24 @@ async function loadMoreLogs() {
         const chat = $('#chat');
         const oldHeight = chat.scrollHeight;
         if (btn) btn.remove();
+        const previousTrimLimit = _chatTrimLimit;
+        _chatTrimLimit = Math.max(MAX_CHAT_NODES, chat.children.length + logs.length);
         // prepend в правильном порядке (logs уже ASC из db)
         // фиксируем anchor = текущий firstChild, вставляем все перед ним по порядку
         const anchor = chat.firstChild;
         _replayingHistory = true;
         try {
-        for (const l of logs) {
-            addChatEntry(l.type, l.content, l.ts, anchor, l);
-            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
-            if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
-                chatLogs[selectedAgent].firstId = l.id;
+            for (const l of logs) {
+                addChatEntry(l.type, l.content, l.ts, anchor, l);
+                if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
+                if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
+                    chatLogs[selectedAgent].firstId = l.id;
+                }
             }
+        } finally {
+            _chatTrimLimit = previousTrimLimit;
+            _replayingHistory = false;
         }
-        } finally { _replayingHistory = false; }
         chat.scrollTop = chat.scrollHeight - oldHeight;
         // Full page (500) returned → more may exist, re-add button. Fewer → reached the start.
         if (logs.length >= 500) _addLoadMoreBtn();
@@ -4344,7 +4350,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const wasAtBottom = _chatAtBottom(chat);
         _insert(line);
         // Trim oldest nodes to cap memory — loses old history but prevents unbounded DOM growth
-        while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
+        while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
         if (type === 'tool') _adoptOrphanResults(chat, line.dataset.toolUseId);
         if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
@@ -6435,7 +6441,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     addTimestamp(div, ts);
     const wasAtBottom = _chatAtBottom(chat);
     _insert(div);
-    while (chat.children.length > MAX_CHAT_NODES) chat.removeChild(chat.firstChild);
+    while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
     if (type === 'tool') _adoptOrphanResults(chat, div.dataset.toolUseId);
     if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
 }

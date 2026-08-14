@@ -1610,6 +1610,55 @@ def test_load_more_keeps_tool_use_id_for_old_parallel_calls(
     assert "OLD-RESULT-A" not in result_by_id["old-b"]
 
 
+def test_load_more_increases_visible_cards(dashboard_browser: Browser):
+    """Нажатие «Load 500 more» должно увеличить число рендернутых карточек."""
+    page = _open_tool_correlation_page(dashboard_browser, False)
+    page.route(
+        "**/api/sessions/history-fixture/logs*",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                [
+                    {
+                        "id": 500 + i,
+                        "type": "tool_result",
+                        "content": f"OLDER-{i}",
+                        "ts": None,
+                    }
+                    for i in range(1, 501)
+                ]
+            ),
+        ),
+    )
+    before = page.evaluate("""() => {
+        selectedAgent = 'history-fixture';
+        currentScope = '/fixture';
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        if (window.chatLogs) chatLogs = {};
+        chatLogs[selectedAgent] = {lastId: 1499, firstId: 1000, initialCount: 500};
+        const chat = document.querySelector('#chat');
+        chat.innerHTML = '';
+        for (let id = 1000; id <= 1499; id += 1) {
+            addChatEntry('tool', `visible-${id}`, null, null, {id});
+        }
+        updateLoadMoreBtn();
+        return document.querySelectorAll('#chat [data-chat-log-id]').length;
+    }""")
+    page.click("#load-more-btn")
+    page.wait_for_function(
+        f"() => document.querySelectorAll('#chat [data-chat-log-id]').length > {before}",
+        timeout=10000,
+    )
+    after = page.evaluate("""() => document.querySelectorAll('#chat [data-chat-log-id]').length""")
+    page.close()
+
+    assert after > before, (before, after)
+
+
 def test_tool_view_mode_is_visible_without_desktop_header_overflow(
     dashboard_browser: Browser,
 ):
