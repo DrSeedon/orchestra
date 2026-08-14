@@ -393,17 +393,29 @@ def _draw_cards(title: str, metrics: list[dict]) -> Image.Image:
 
 # ── запись ────────────────────────────────────────────────────────────────────
 
-def _save(img: Image.Image) -> str:
+def new_chart_path() -> Path:
+    """Свободный путь под новую картинку. Общий с `app/limits_card.py`: каталог у
+    картинок один, поэтому и владелец имени один."""
     CHART_DIR.mkdir(parents=True, exist_ok=True)
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S")
-    path = CHART_DIR / f"{stamp}-{uuid.uuid4().hex[:8]}.png"
-    img.save(path)
+    return CHART_DIR / f"{stamp}-{uuid.uuid4().hex[:8]}.png"
+
+
+def prune_charts() -> None:
+    """Оставить `_KEEP` свежих картинок. Звать ПОСЛЕ записи новой: до записи она
+    не попадает в отбор, и каталог усыхает на файл (поймано `test_directory_is_pruned_to_keep`)."""
     existing = sorted(CHART_DIR.glob("*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
     for stale in existing[_KEEP:]:
         try:
             os.unlink(stale)
         except OSError:
             pass                          # чужой воркер мог удалить раньше — не наше дело
+
+
+def _save(img: Image.Image) -> str:
+    path = new_chart_path()
+    img.save(path)
+    prune_charts()
     return str(path)
 
 

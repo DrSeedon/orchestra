@@ -3330,9 +3330,13 @@ async def stream_logs(orch_name: str, thread_id: int):
 
 
 async def _get_limits_usage() -> dict:
-    from app.routes.system import _get_usage_data
+    # `quota_headroom` роут `/api/usage` считает у себя, а мы зовём `_get_usage_data`
+    # напрямую — без этой строки на пути картинки не было бы главного числа, «сколько
+    # полных пятичасовых окон осталось» (#274). Считаем ровно тем же вызовом, что и роут.
+    from app.routes.system import _get_usage_data, _quota_headroom
 
-    return await _get_usage_data()
+    data = await _get_usage_data()
+    return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
 
 
 async def _is_limits_owner(msg: types.Message) -> bool:
@@ -3360,65 +3364,6 @@ def _to_utc_datetime(raw) -> datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed
-
-
-def _collect_limits_chart_data(usage: dict, *, now: datetime | None = None) -> dict:
-    now = now or datetime.now(timezone.utc)
-    if now.tzinfo is None:
-        now = now.replace(tzinfo=timezone.utc)
-
-    def _series_value(window: dict | None, fallback_minutes: int | None) -> tuple[float | None, float | None]:
-        if not isinstance(window, dict):
-            return None, None
-        utilization = window.get("utilization")
-        if not isinstance(utilization, (int, float)):
-            return None, None
-        minutes = window.get("window_minutes")
-        if not isinstance(minutes, (int, float)) or minutes <= 0:
-            minutes = fallback_minutes
-
-        elapsed = None
-        if isinstance(minutes, (int, float)) and minutes > 0:
-            reset = _to_utc_datetime(window.get("resets_at"))
-            if reset is not None:
-                total = minutes * 60
-                remaining = (reset - now).total_seconds()
-                elapsed = 100 - max(0.0, min(100.0, remaining / total * 100.0))
-
-        return float(utilization), elapsed
-
-    anthropic = usage.get("anthropic") or {}
-    codex = usage.get("codex") or {}
-    grok = usage.get("grok") or {}
-    entries = [
-        ("Claude 5h", _series_value(anthropic.get("five_hour"), 300)),
-        ("Claude 7d", _series_value(anthropic.get("seven_day"), 10080)),
-        ("Codex", _series_value(codex.get("primary"), None)),
-        ("Spark", _series_value((codex.get("spark") or {}).get("primary"), None)),
-        ("Grok", _series_value(grok.get("primary"), None)),
-    ]
-
-    categories: list[str] = []
-    burned: list[float] = []
-    window_elapsed: list[float] = []
-    for label, (consume, elapsed) in entries:
-        categories.append(label)
-        burned.append(consume if consume is not None else 0.0)
-        if elapsed is None:
-            elapsed = consume if consume is not None else 0.0
-        window_elapsed.append(max(0.0, min(100.0, float(elapsed))))
-
-    if len(categories) < 2:
-        raise ValueError("нет данных для графика лимитов")
-
-    return {
-        "unit": "%",
-        "categories": categories,
-        "series": [
-            {"name": "выжжено", "values": burned, "tone": "bad"},
-            {"name": "прошло окна", "values": window_elapsed, "tone": "neutral"},
-        ],
-    }
 
 
 def _format_limits_message(usage: dict, *, now: datetime | None = None) -> str:
@@ -3512,42 +3457,10 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
             parts.append(f"{minutes} мин")
         return f"через {' '.join(parts)}"
 
-    def _progress_pct(reset: datetime, window_minutes: int | None) -> int | None:
-        if not isinstance(window_minutes, int) or window_minutes <= 0:
-            return None
-        remaining = (reset - now).total_seconds()
-        elapsed = window_minutes * 60 - remaining
-        return int(
-            max(0, min(100, round(elapsed / (window_minutes * 60) * 100))),
-        )
-
-    def _pace_text(utilization: float, reset: datetime, window_minutes: int | None) -> str:
-        if not isinstance(window_minutes, int) or window_minutes <= 0:
-            return "темп не известен"
-        remain_ms = max(0, int((reset - now).total_seconds() * 1000))
-        elapsed_ms = window_minutes * 60_000 - remain_ms
-        ideal_pct = (elapsed_ms / (window_minutes * 60_000)) * 100
-        delta = utilization - ideal_pct
-        if delta <= 5:
-            return "темп ok"
-        cooldown_min = round(delta * (window_minutes * 60_000) / 100 / 60_000)
-        if cooldown_min < 60:
-            label = f"{cooldown_min}m"
-        elif cooldown_min < 1440:
-            label = f"{cooldown_min // 60}ч {cooldown_min % 60}м"
-        else:
-            days, rest = divmod(cooldown_min, 1440)
-            label = f"{days}д {rest // 60}ч {rest % 60}м"
-        return f"темп +{label}"
-
-    def _resolve_window_minutes(window_id: str | None, window: dict) -> int | None:
-        window_minutes = window.get("window_minutes")
-        if isinstance(window_minutes, int) and window_minutes > 0:
-            return window_minutes
-        fallback = {"five_hour": 300, "seven_day": 10080}
-        if window_id in fallback:
-            return fallback[window_id]
-        return None
+    # Темп и «сколько окна прошло» считает `app/limits_card.py` — тот же код, что рисует
+    # картинку. Иначе подпись и картинка разъезжаются в числах, а спорить будут об одном.
+    from app.limits_card import progress_pct, resolve_window_minutes
+    from app.limits_card import pace_text as _pace_of
 
     def _window_line(label: str, window: dict | None, window_id: str | None = None) -> str:
         if not isinstance(window, dict) or not isinstance(
@@ -3569,9 +3482,9 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
             )
 
         absolute = reset.astimezone(local_tz).strftime("%d.%m.%Y %H:%M UTC+7")
-        resolved_window_minutes = _resolve_window_minutes(window_id, window)
-        progress = _progress_pct(reset, resolved_window_minutes)
-        pace = _pace_text(utilization, reset, resolved_window_minutes)
+        resolved_window_minutes = resolve_window_minutes(window_id, window)
+        progress = progress_pct(reset, resolved_window_minutes, now)
+        pace = _pace_of(utilization, reset, resolved_window_minutes, now)
         parts = [f"• {label} — осталось {remaining_text}%; израсходовано {consumed_text}%"]
         if progress is not None:
             parts.append(f"окно ({progress}%)")
@@ -3607,10 +3520,9 @@ async def handle_limits(msg: types.Message):
     try:
         usage = await _get_limits_usage()
         response = _format_limits_message_for_chat(usage)
-        chart_data = _collect_limits_chart_data(usage)
-        from app.charts import render_chart
+        from app.limits_card import render_limits_card
 
-        path = render_chart("bars", "Лимиты", chart_data)
+        path = await render_limits_card(usage)
         delivery = await _tg_send_file_safe(
             msg.chat.id,
             path,

@@ -1,0 +1,35 @@
+<!doctype html><meta charset='utf-8'><style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:1000px; background:#0a0e17; color:#e2e8f0;
+  font-family:'DejaVu Sans',system-ui,sans-serif; padding:46px 46px 40px; }
+.head { font-size:30px; color:#8595ab; letter-spacing:.5px; }
+.huge { font-size:84px; font-weight:700; line-height:1.06; }
+.sub { font-size:38px; color:#a6b3c6; margin-top:10px; line-height:1.35; }
+.note { font-size:29px; color:#8595ab; margin-top:26px; line-height:1.45; }
+.pools { margin-top:38px; border-top:2px solid #334155; padding-top:26px;
+  display:flex; flex-direction:column; gap:19px; }
+.pool { display:flex; align-items:center; gap:16px; font-size:26px; }
+.pool .nm { width:225px; color:#a6b3c6; white-space:nowrap; }
+.pool .tr { flex:1 1 0; min-width:0; height:24px; background:#1b2436;
+  border-radius:12px; overflow:hidden; }
+.pool .fl { height:100%; border-radius:12px; }
+.pool .vl { width:180px; text-align:right; font-weight:700; white-space:nowrap; }
+.pool .rs { width:375px; font-size:22px; color:#8595ab; text-align:right;
+  white-space:nowrap; }
+.nodata { flex:1; color:#8595ab; font-style:italic; }
+
+.grid { display:flex; gap:12px; margin-top:34px; }
+.cell { flex:1; height:132px; border-radius:14px; background:#161f31;
+  border:2px solid #334155; position:relative; overflow:hidden; }
+.cell .burn { position:absolute; left:0; bottom:0; width:100%;
+  background:#ef4444; opacity:.85; }
+.cell .free { position:absolute; left:0; bottom:0; width:100%;
+  background:#22c55e; opacity:.30; }
+.cell.dead { border-style:dashed; border-color:#3a4560; background:
+  repeating-linear-gradient(135deg,#131a29 0 10px,#0e1522 10px 20px); }
+.cell .cap { position:absolute; left:0; right:0; bottom:8px; text-align:center;
+  font-size:22px; color:#8595ab; }
+.legend { display:flex; gap:34px; margin-top:22px; font-size:26px; color:#a6b3c6; }
+.legend i { display:inline-block; width:26px; height:26px; border-radius:6px;
+  vertical-align:-4px; margin-right:10px; }
+</style><body><div class="head">ЛИМИТЫ · 14.08 15:00</div><div class="huge">Осталось <span style="color:#eab308">0.9</span> окна</div><div class="sub">Неделя вмещает 7.6 полных пятичасовых окна, 6.7 уже сожжено.</div><div class="grid"><div class="cell"><div class="free" style="height:100%"></div><div class="burn" style="height:100%"></div><div class="cap">1</div></div><div class="cell"><div class="free" style="height:100%"></div><div class="burn" style="height:100%"></div><div class="cap">2</div></div><div class="cell"><div class="free" style="height:100%"></div><div class="burn" style="height:100%"></div><div class="cap">3</div></div><div class="cell"><div class="free" style="height:100%"></div><div class="burn" style="height:100%"></div><div class="cap">4</div></div><div class="cell"><div class="free" style="height:100%"></div><div class="burn" style="height:100%"></div><div class="cap">5</div></div><div class="cell"><div class="free" style="height:100%"></div><div class="burn" style="height:100%"></div><div class="cap">6</div></div><div class="cell"><div class="free" style="height:100%"></div><div class="burn" style="height:67%"></div><div class="cap">7</div></div><div class="cell"><div class="free" style="height:58%"></div><div class="burn" style="height:0%"></div><div class="cap">8</div></div></div><div class="legend"><span><i style="background:#ef4444"></i>сожжено</span><span><i style="background:#22c55e;opacity:.4"></i>ещё можно взять</span><span><i style="background:#131a29;border:2px solid #3a4560"></i>недели не хватит</span></div><div class="note">Шкала «ближайшие 5 часов» показывает 96% свободных, но взять из них можно только 91% — остальное упирается в недельный запас.</div><div class="pools"><div class="pool"><div class="nm">Claude · 5 часов</div><div class="tr"><div class="fl" style="width:4.0%;background:#22c55e"></div></div><div class="vl">занято 4%</div><div class="rs">через 4 ч 29 мин · 14.08 в 19:30</div></div><div class="pool"><div class="nm">Claude · неделя</div><div class="tr"><div class="fl" style="width:88.0%;background:#ef4444"></div></div><div class="vl">занято 88%</div><div class="rs">через 3 дн 22 ч · 18.08 в 14:00</div></div><div class="pool"><div class="nm">Codex</div><div class="tr"><div class="fl" style="width:97.0%;background:#ef4444"></div></div><div class="vl">занято 97%</div><div class="rs">через 5 дн 19 ч · 20.08 в 10:56</div></div><div class="pool"><div class="nm">Spark</div><div class="tr"><div class="fl" style="width:9.0%;background:#22c55e"></div></div><div class="vl">занято 9%</div><div class="rs">через 5 дн 21 ч · 20.08 в 12:48</div></div><div class="pool"><div class="nm">Grok</div><div class="nodata">нет данных — сервис не ответил</div></div></div></body>

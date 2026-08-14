@@ -18,6 +18,9 @@ dependencies = [
     "croniter>=2.0,<7.0",
     "pyyaml>=6.0,<7.0",
     "pillow>=10.0,<13.0",
+    # Прод-зависимость с #274: картинку `/limits` рисует chromium из HTML (app/limits_card.py).
+    # Раньше приезжала только транзитивно через dev-группу — на пути доставки это мина.
+    "playwright>=1.40,<2.0",
 ]
 
 [project.optional-dependencies]
