@@ -2184,28 +2184,6 @@ class TestAutoResume:
 
 
 class TestCanSpawn:
-    def _write_role(self, roles_dir, name, frontmatter_body):
-        (roles_dir / f"{name}.md").write_text(f"---\n{frontmatter_body}\n---\n\nBody for {name}.\n")
-
-    @pytest.fixture
-    def roles_dir(self, tmp_path, monkeypatch):
-        # can_spawn is read from temp frontmatter (_PROMPTS_DIR). The prompt build
-        # (ROLE_SYSTEM_PROMPT) reads real pipelines/ — the app/prompts fallback is
-        # removed, so an empty PIPELINES_DIR would fail loud. These tests assert
-        # spawn-whitelist behaviour and spawn role="worker" (present in default),
-        # so point at the real default pipeline for the prompt step.
-        from pathlib import Path
-        prompts = tmp_path / "prompts"
-        rdir = prompts / "roles"
-        rdir.mkdir(parents=True)
-        (prompts / "base.md").write_text("BASE")
-        monkeypatch.setattr("app.prompting._PROMPTS_DIR", prompts)
-        monkeypatch.setattr("app.prompting._SKILLS_DIR", prompts / "skills")
-        import app.pipeline as pl
-        monkeypatch.setattr(pl, "PIPELINES_DIR", Path(__file__).parent.parent / "pipelines")
-        pl.load_pipeline.cache_clear()
-        return rdir
-
     # REMOVED (#34): six unit tests of role_can_spawn (absent / YAML-null / non-list /
     # [] / whitelist / missing file). The function itself is gone — it had no callers in
     # app/ since 1bff39a, and `can_spawn` was never present in any role frontmatter, before
@@ -2216,8 +2194,9 @@ class TestCanSpawn:
     # frontmatter и ждал спавна. После #36 неизвестный parent role — всегда
     # ValueError (`unknown parent role 'boss'`), даже в одиночку, не из-за чужого
     # `can_spawn: []`. Allow-путь манифеста покрыт test_default_pipeline /
-    # test_pipeline.validate_spawn. Соседей (blocks_unlisted, empty_blocks_all)
-    # сняли тем же диагнозом ещё в #34.
+    # test_pipeline.validate_spawn и TestValidateSpawnIntegration.test_allowed_spawn_passes.
+    # Соседей (blocks_unlisted, empty_blocks_all) сняли тем же диагнозом ещё в #34.
+    # #280: не восстанавливать. Это была ФОРМА (frontmatter читается), не поведение.
 
     # REMOVED: test_whitelist_blocks_unlisted + test_empty_can_spawn_blocks_all.
     # They tested the legacy frontmatter can_spawn fallback (role_can_spawn reading
@@ -2226,16 +2205,33 @@ class TestCanSpawn:
     # enforcement is now covered by validate_spawn / TestRolesCatalogFromManifest.
     # These tested removed legacy behaviour, so they're deleted (not "broken").
 
+    # REMOVED (#280): test_unknown_parent_fails_open. Имя обещало fail-open
+    # неизвестного родителя; после #36 это поведение инвертировано. Тест передавал
+    # parent_name без сессии → _resolve_role=None → validate_spawn видел КОРЕНЬ
+    # и пускал. Мутация «unknown parent raise→return» оставляла его зелёным;
+    # краснел только от инверсии root-allow, уже покрытой
+    # TestValidateSpawn.test_root_empty_parent_allowed /
+    # TestDefaultValidateSpawn.test_root_spawn_allowed.
+
     @pytest.mark.asyncio
-    async def test_unknown_parent_fails_open(self, mgr, roles_dir):
+    async def test_unknown_parent_role_denied(self, mgr):
+        """#36/#280: parent session whose role is not in the manifest cannot spawn."""
+        from app.db import save_session
         from tests.conftest import make_backend_mock
-        self._write_role(roles_dir, "worker", "name: worker")
+        save_session({
+            "id": "ghost-1", "name": "ghost-parent", "scope": "/s", "cwd": "/tmp",
+            "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+            "session_id": None, "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": True, "color": "",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "role": "phantom", "pipeline": "default",
+        })
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            session = await mgr.create_session(
-                name="child", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
-                role="worker", parent_name="ghost-parent",
-            )
-        assert session.name == "child"
+            with pytest.raises(ValueError, match="unknown parent role 'phantom'"):
+                await mgr.create_session(
+                    name="child", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                    role="worker", parent_name="ghost-parent",
+                )
 
 
 class TestCustomMcp:
