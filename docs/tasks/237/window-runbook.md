@@ -52,7 +52,7 @@ rm -f /home/kesha/orchestra-scratch/237/liveB/started.txt \
 cd /home/kesha/orchestra
 # ДО сигнала A:
 python3 scripts/cli-inventory.py snapshot > /home/kesha/orchestra-scratch/237/pre-A-inventory.txt
-wc -l < /home/kesha/orchestra-scratch/237/pre-A-inventory.txt   # НЕ ноль, иначе см. ниже
+echo "snapshot rc=$?"   # 0 = снимок достоверен; 2 = сканер слеп, см. ниже
 
 # ПОСЛЕ A:
 python3 scripts/cli-inventory.py check /home/kesha/orchestra-scratch/237/pre-A-inventory.txt
@@ -65,7 +65,14 @@ python3 scripts/cli-inventory.py check /home/kesha/orchestra-scratch/237/pre-A-i
 
 **Пустой снимок — это ОТКАЗ, а не «сирот нет».** Ноль строк означает, что инвентарь ничего не
 увидел, и тогда `check` не сделает ни одной итерации: `M = 0` получится по построению, при
-любом числе выживших. Проверять именно `wc -l`, до рестарта, когда исправить ещё можно.
+любом числе выживших.
+
+Считать это глазами по `wc -l` больше НЕ нужно и уже неверно: после #271 (`a3d04a22`) отличие
+«процессов нет» от «сканер слеп» принуждается самим скриптом. `snapshot` отдаёт `2`, если не
+видит собственную канарейку; `check` на пустом файле при живых CLI отдаёт `2` со строкой
+`BLIND:` вместо прежнего тихого `0`. Пустой снимок с кодом `0` теперь означает честно пустой
+мир — канарейка при этом видна. Гейт: смотреть КОД ВОЗВРАТА обеих команд, а `wc -l` оставить
+как справку о размере.
 
 <details><summary>Почему здесь скрипт, а не строчка в markdown (это уже ломалось)</summary>
 
