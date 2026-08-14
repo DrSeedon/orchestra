@@ -263,7 +263,7 @@ class TurnManager:
         leave the orchestrator waiting forever for a signal that never comes.
         """
         s = self.s
-        if s.is_orchestrator or not s.on_idle or s._did_report or s._manually_interrupted:
+        if s.is_orchestrator or not s.on_idle or s._manually_interrupted:
             return
         if s._pending_messages or s._compacting:
             return
@@ -279,6 +279,9 @@ class TurnManager:
         # а случай типичный: ребёнок, не позвавший `send_message`, разбудил бы
         # родителя мимо барьера.
         from app import fan_barrier
+        # #276: вопрос/статус тоже ставит `_did_report`, но это не завершение.
+        # Конец хода — единственный сигнал по такому ребёнку; ранний return
+        # по `_did_report` оставлял его pending навсегда.
         if fan_barrier.should_buffer(s.name):
             # #231: осушение проверяется В ТОЙ ЖЕ транзакции, что и фиксация терминала.
             # Раздельные «посмотреть» и «записать» пропускают `wake=False`, легший
@@ -308,6 +311,9 @@ class TurnManager:
                                 dest.id, fan_barrier.manifest_text(fid)
                             )
                     s._auto_report_task = asyncio.create_task(_deliver_manifest())
+            return
+
+        if s._did_report:
             return
 
         last_texts = s._turn_logs[-5:] if s._turn_logs else []

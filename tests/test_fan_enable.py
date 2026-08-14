@@ -65,7 +65,7 @@ def spy(monkeypatch):
 def _report(child, message="report"):
     from app.routes.sessions import SendRequest, send_message
     return asyncio.run(send_message("parent", SendRequest(
-        message=message, scope="/repo", sender=child,
+        message=message, scope="/repo", sender=child, message_kind="done",
     )))
 
 

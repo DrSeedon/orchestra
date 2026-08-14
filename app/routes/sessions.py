@@ -580,13 +580,19 @@ async def send_message(name: str, req: SendRequest):
                 # манифест навсегда, а повтор всего лишь пришлёт его дважды (#158).
                 fan_barrier.mark_summarised(reducer_fan)
                 return {"ok": True, "fan_id": reducer_fan}
-            if fan_barrier.should_buffer(req.sender, req.message_kind):
+            if (
+                fan_barrier.should_buffer(req.sender, req.message_kind)
+                and fan_barrier.is_terminal_report(req.message_kind)
+            ):
+                # #276: терминальность — только явный kind, не факт вызова и не
+                # слово DONE в тексте. Вопрос / статус / SILENT_TURN идут ниже,
+                # к обычной доставке, и барьер не тратят.
                 # #231 T6: ребёнок с невыданным входом не терминален. Проверка стоит
                 # ВНУТРИ транзакции `record_terminal` — раздельные «посмотреть» и
                 # «зафиксировать» пропускают `wake=False`, легший между ними.
                 released = fan_barrier.record_terminal(
                     req.sender,
-                    "done",
+                    req.message_kind,
                     summary=req.message,
                     require_drained_scope=req.scope,
                 )

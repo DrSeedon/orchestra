@@ -11,6 +11,11 @@ _TERMINAL_STATES = {"done", "failed", "timeout", "killed"}
 _BYPASS_KINDS = {"out_of_scope", "false_premise", "blocked"}
 
 
+def is_terminal_report(message_kind: str | None) -> bool:
+    """Explicit completion kind only. Body text is not a signal (#276)."""
+    return message_kind in _TERMINAL_STATES
+
+
 def _persist_child_report(fan_id: str, child: str, body: str) -> str:
     """Write the child's report next to the DB. Manifest keeps only this path."""
     safe_fan = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in fan_id) or "fan"

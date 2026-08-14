@@ -73,20 +73,20 @@ def _send(sender, message="report", kind=None):
 # --- Гейт 1: явный send_message -------------------------------------------
 
 def test_child_report_does_not_wake_parent_while_barrier_closed(fanned, spy):
-    _send("c1")
+    _send("c1", kind="done")
     assert spy.sent == [], "родитель разбужен первым же ребёнком — барьера нет"
 
 
 def test_parent_woken_exactly_once_when_last_child_reports(fanned, spy):
-    _send("c1")
-    _send("c2")
+    _send("c1", kind="done")
+    _send("c2", kind="done")
     assert len(spy.sent) == 1, f"пробуждений {len(spy.sent)}, ожидалось ровно одно"
 
 
 def test_release_wake_carries_manifest_not_report_bodies(fanned, spy):
     body = "y" * 4000
-    _send("c1", message=body)
-    _send("c2", message=body)
+    _send("c1", message=body, kind="done")
+    _send("c2", message=body, kind="done")
     (_sid, text), = spy.sent
     assert body not in text, "тело детского отчёта уехало в контекст родителя"
     assert "c1" in text and "c2" in text

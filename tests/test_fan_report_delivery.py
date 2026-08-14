@@ -76,7 +76,7 @@ def _open_fan(children):
 def _send(sender, message):
     from app.routes.sessions import SendRequest, send_message
     return asyncio.run(send_message("parent", SendRequest(
-        message=message, scope="/repo", sender=sender,
+        message=message, scope="/repo", sender=sender, message_kind="done",
     )))
 
 
