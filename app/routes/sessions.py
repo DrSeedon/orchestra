@@ -749,9 +749,9 @@ async def change_model(name: str, req: dict):
     new_model = resolve_model(new_model)
     if new_model not in MODELS:
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
-    found = manager.get_by_name(name, scope)
-    if not found or not found.loaded:
-        return JSONResponse({"error": "session not loaded"}, status_code=404)
+    found = await manager.ensure_loaded(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
     result = await found.change_model(new_model)
     if not result.get("ok"):
         return JSONResponse(result, status_code=409)
