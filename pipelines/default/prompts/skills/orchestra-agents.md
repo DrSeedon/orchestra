@@ -58,7 +58,7 @@ integrations: []
   "name": "<проект>-orchestrator",
   "cwd": "/путь/к/проекту",
   "scope": "/путь/к/проекту",
-  "model": "claude-opus-5[1m]",
+  "model": "opus",
   "is_orchestrator": true,
   "role": "orchestrator",
   "description": "lifecycle=persistent | AI оркестратор проекта <название>",
@@ -66,8 +66,9 @@ integrations: []
 }
 ```
 
-`POST /api/sessions`. Оркестраторы всегда на Opus — они принимают решения о делегировании,
-и экономия на этой роли отражается на работе всех их воркеров сразу.
+`POST /api/sessions`. Omit a versioned model id: the role default lives in
+`pipelines/<name>/pipeline.yaml` (`roles.orchestrator.model`). Pass a short alias if you
+override. A copied id here goes stale.
 
 `cwd` и `scope` — корень проекта, а не подкаталог: оттуда подхватывается `CLAUDE.md`,
 `TODO.md` и структура `docs/`.
@@ -78,7 +79,7 @@ integrations: []
 spawn_worker(
   name='prompt-engineer',
   role='full-cycle',
-  model='claude-opus-5[1m]',
+  model='opus',
   repo_path='/путь/к/проекту',
   description='lifecycle=persistent | краткая роль одной фразой',
   task='<первая задача>'

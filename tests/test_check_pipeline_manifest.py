@@ -76,3 +76,24 @@ def test_check_fails_on_empty_roles(tmp_path):
     assert errors, "empty roles must not look like agreement"
     proc = _run("--check", "--manifest", str(planted))
     assert proc.returncode == 1
+
+
+def test_check_fails_when_prompt_quotes_manifest_model_id(tmp_path):
+    """#209: копия id в прозе — тот же класс, что протухшая скобка (xhigh)."""
+    data = yaml.safe_load(DEFAULT.read_text())
+    planted = tmp_path / "pipeline.yaml"
+    planted.write_text(yaml.safe_dump(data, allow_unicode=True))
+    (tmp_path / "prompts" / "roles").mkdir(parents=True)
+    (tmp_path / "prompts" / "modules").mkdir(parents=True)
+    for role, spec in data["roles"].items():
+        (tmp_path / "prompts" / "roles" / f"{role}.md").write_text("role body\n")
+        for mod in spec.get("modules") or []:
+            (tmp_path / "prompts" / "modules" / f"{mod}.md").write_text("module body\n")
+    quoted = tmp_path / "prompts" / "modules" / "model-routing.md"
+    quoted.write_text("Use `claude-opus-5[1m]` as the worker default.\n")
+
+    errors = check.disagreements(planted)
+    assert any("claude-opus-5[1m]" in e and "quotes manifest model" in e for e in errors), errors
+    proc = _run("--check", "--manifest", str(planted))
+    assert proc.returncode == 1
+    assert "claude-opus-5[1m]" in proc.stderr

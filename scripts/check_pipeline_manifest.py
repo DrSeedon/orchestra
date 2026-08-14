@@ -22,8 +22,46 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST = _REPO_ROOT / "pipelines" / "default" / "pipeline.yaml"
 
 
+def _manifest_model_ids(data: dict) -> set[str]:
+    """Versioned ids owned by the manifest — short aliases like ``opus`` are not copies."""
+    ids: set[str] = set()
+
+    def _take(value: object) -> None:
+        if isinstance(value, str) and ("-" in value or "[" in value):
+            ids.add(value)
+        elif isinstance(value, list):
+            for item in value:
+                _take(item)
+
+    defaults = data.get("defaults")
+    if isinstance(defaults, dict):
+        _take(defaults.get("model"))
+    for spec in (data.get("roles") or {}).values():
+        if not isinstance(spec, dict):
+            continue
+        _take(spec.get("model"))
+        effort = spec.get("effort")
+        if isinstance(effort, dict):
+            for key in effort:
+                if key != "default":
+                    _take(key)
+    policy = data.get("worker_model_policy")
+    if isinstance(policy, dict):
+        _take(policy.get("always_allowed"))
+        _take(policy.get("denied"))
+        _take(policy.get("alternatives"))
+        guarded = policy.get("quota_guarded")
+        if isinstance(guarded, dict):
+            _take(guarded.get("model"))
+    return ids
+
+
 def disagreements(manifest_path: Path) -> list[str]:
-    """Пути, которых манифест требует, а на диске нет. Пустой список = согласовано."""
+    """Пути, которых манифест требует, а на диске нет; плюс процитированные id моделей.
+
+    Пустой список = согласовано. Цитата id в промпте — та же дыра, что скобка
+    ``(xhigh)`` в #207: копия расходится с владельцем (#209).
+    """
     if not manifest_path.is_file():
         return [f"manifest not found: {manifest_path}"]
     data = yaml.safe_load(manifest_path.read_text()) or {}
@@ -44,6 +82,15 @@ def disagreements(manifest_path: Path) -> list[str]:
             mod_file = root / "prompts" / "modules" / f"{mod}.md"
             if not mod_file.is_file():
                 errors.append(f"role {name!r} module {mod!r}: missing {mod_file}")
+    prompt_root = root / "prompts"
+    model_ids = _manifest_model_ids(data)
+    if prompt_root.is_dir() and model_ids:
+        for md in sorted(prompt_root.rglob("*.md")):
+            text = md.read_text()
+            for mid in sorted(model_ids):
+                if mid in text:
+                    rel = md.relative_to(root)
+                    errors.append(f"{rel}: quotes manifest model {mid!r}")
     return errors
 
 
