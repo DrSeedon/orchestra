@@ -492,6 +492,11 @@ def _make_mcp_config(name: str, scope: str, role: str = "worker",
         # (держатель тест-лока), обязано опираться на него, а не на имя (#82).
         "ORCHESTRA_SESSION_ID": session_id,
     }
+    from app.mcp_proof import PROOF_ENV, issue_mcp_proof
+
+    proof = issue_mcp_proof(session_id)
+    if proof:
+        env[PROOF_ENV] = proof
     cfg = {"orchestra": {"command": MCP_STDIO_CMD[0], "args": MCP_STDIO_CMD[1:], "env": env, "alwaysLoad": True}}
     if extra:
         for k, v in extra.items():

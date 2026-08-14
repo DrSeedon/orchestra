@@ -50,6 +50,7 @@ WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
 SESSION_ID = os.environ.get("ORCHESTRA_SESSION_ID", "")
 PARENT_NAME = os.environ.get("PARENT_NAME", "")
 _INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")
+_MCP_PROOF = os.environ.get("ORCHESTRA_MCP_PROOF", "")
 ACCESS_MODE = os.environ.get("ORCHESTRA_ACCESS_MODE", "full").strip().lower()
 # Backend plants this nonce in our env. We write a proof file so Grok's same-name
 # MCP merge cannot pass off a foreign `orchestra` server as ours.
@@ -335,6 +336,8 @@ def _auth_headers() -> dict:
         headers["Authorization"] = f"Bearer {_INTERNAL_TOKEN}"
     if SESSION_ID:
         headers["X-Orchestra-Session-Id"] = SESSION_ID
+    if _MCP_PROOF:
+        headers["X-Orchestra-Mcp-Proof"] = _MCP_PROOF
     return headers
 
 
@@ -993,10 +996,13 @@ def _acceptance_command_from_caller(requested: str) -> str:
     """Кто пишет команду приёмки. Закрывает ЛЁГКИЙ путь: заполнить параметр
     `task_create` и закрыть свой пункт самообъявленным `true`.
 
-    НЕ закрывает агента с bash: тот же curl с общим INTERNAL_TOKEN, прямой
-    UPDATE по data/orchestra.db, правка app/acceptance.py. Против исполнителя,
-    который целенаправленно обходит проверку, защиты нет — у него шелл под
-    kesha с полным sudo, он и код проверки перепишет. bash/curl/SQL вне модели.
+    HTTP больше не верит одному INTERNAL_TOKEN + поддельному session-id:
+    privileged-поля требуют MCP-proof (см. app/mcp_proof.py). НЕ закрывает
+    агента с bash: ~/.orchestra/mcp-config, CODEX_HOME/*/config.toml,
+    /proc/<mcp>/environ, прямой UPDATE по data/orchestra.db, правка
+    app/acceptance.py. Против исполнителя, который целенаправленно обходит
+    проверку, защиты нет — у него шелл под kesha с полным sudo, он и код
+    проверки перепишет. bash/curl/SQL вне модели.
     """
     if ROLE not in _ORCH_ROLES:
         return ""

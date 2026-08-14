@@ -2,7 +2,7 @@
 
 import asyncio
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -76,13 +76,22 @@ def _resolve_task_project_id(project: str, scope: str) -> str:
 
 
 @router.post("/tasks")
-async def tm_create_task(req: TmTaskCreate):
+async def tm_create_task(req: TmTaskCreate, request: Request):
+    command = req.acceptance_command
+    if (command or "").strip():
+        from app.mcp_proof import caller_may_use_orchestrator_privilege
+
+        if not caller_may_use_orchestrator_privilege(request):
+            return JSONResponse(
+                {"error": "acceptance_command is orchestrator-only"},
+                status_code=403,
+            )
     try:
         return await asyncio.to_thread(
             _tm.api_create_task,
             req.project, req.title, req.price, req.description, req.assignee, req.status,
             scope=req.scope, priority=req.priority,
-            acceptance_command=req.acceptance_command,
+            acceptance_command=command,
         )
     except (ValueError, RuntimeError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)

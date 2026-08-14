@@ -77,24 +77,10 @@ def may_waive_diff_budget(
 
 
 def request_may_waive_diff_budget(request) -> bool:
-    """Resolve caller from cookie or X-Orchestra-Session-Id. See #250 notes."""
-    from app.auth import validate_session
-    from app.db import get_session
+    """Cookie or a proof-bound MCP session. Session-id alone is not identity."""
+    from app.mcp_proof import caller_may_use_orchestrator_privilege
 
-    cookie_ok = validate_session(request.cookies.get("session", ""))
-    caller_is_orchestrator = False
-    caller_role = ""
-    session_id = request.headers.get("x-orchestra-session-id", "").strip()
-    if session_id:
-        row = get_session(session_id)
-        if row:
-            caller_role = str(row.get("role") or "")
-            caller_is_orchestrator = bool(row.get("is_orchestrator"))
-    return may_waive_diff_budget(
-        caller_role=caller_role,
-        cookie_ok=cookie_ok,
-        caller_is_orchestrator=caller_is_orchestrator,
-    )
+    return caller_may_use_orchestrator_privilege(request)
 
 
 def check_diff_budget(worktree: str, base_ref: str, limit: int = MAX_DIFF_INSERTIONS) -> str:

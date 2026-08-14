@@ -19,8 +19,10 @@
 - Приёмку тикета гоняет `merge_operations` до `execute_merge_session`, команду берёт из
   `tm_tasks.acceptance_command`, не из текста DONE и не из `description`. inconclusive ≠ failed.
 - Кто пишет команду: ROLE-фильтр в `task_create` (`_acceptance_command_from_caller`).
-  Закрывает только лёгкий путь «заполнил параметр тула». HTTP + общий `INTERNAL_TOKEN`,
-  curl/SQL/правка `acceptance.py` — вне модели. Мутировать весь фильтр, не предикат.
+  HTTP privileged-поля (`acceptance_command`, `waive_diff_budget`) требуют
+  `ORCHESTRA_MCP_PROOF` из env MCP, не session-id. Proof не в systemd env;
+  переиздаётся в `_make_mcp_config`. /proc, mcp-config.json, config.toml, SQL —
+  вне модели. Мутировать весь `caller_may_use_orchestrator_privilege`.
 - Мерж без acceptance_command всё равно гоняет подмножество (`app/merge_test_gate.py`),
   не полный сьют: 728s + один test_lock на проект. Mapping `app/foo.py` →
   `tests/test_foo.py` + route snapshot при routes/main. Никогда pytest -x.
