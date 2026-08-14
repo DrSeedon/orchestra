@@ -66,6 +66,17 @@ logger = logging.getLogger(__name__)
 _adhoc_serial = itertools.count(1)
 
 
+def enc_cli_dir(cwd: str) -> str:
+    """~/.claude/projects/<this> — cwd with '/' and '.' mapped to '-'. Case preserved.
+
+    The leading '-' (from the leading '/') is part of the name and must stay:
+    stripping it produced a directory the CLI never reads. The CLI also maps
+    dots in temporary paths to '-'. scripts/migrate_agent.py re-exports this
+    function so the encoding cannot drift a second time.
+    """
+    return cwd.replace("/", "-").replace(".", "-")
+
+
 @dataclass(frozen=True, slots=True)
 class OrphanProcessIdentity:
     pid: int
@@ -1300,8 +1311,8 @@ class SessionManager:
     def _migrate_cli_session(session_id: str, old_scope: str, new_scope: str) -> None:
         """Copy CLI session files from old project dir to new so resume works after scope change."""
         cli_base = Path.home() / ".claude" / "projects"
-        old_dir = cli_base / old_scope.replace("/", "-").lstrip("-")
-        new_dir = cli_base / new_scope.replace("/", "-").lstrip("-")
+        old_dir = cli_base / enc_cli_dir(old_scope)
+        new_dir = cli_base / enc_cli_dir(new_scope)
         if not old_dir.is_dir():
             return
         import shutil

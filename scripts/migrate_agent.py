@@ -18,7 +18,7 @@ target's orchestra root / scope root.
         --to-scope   /home/kesha/projects/Parsing
 
 Two path encodings are handled (matching the app):
-  - CLI transcript dir : cwd.replace('/', '-').replace('.', '-')    (leading '-' kept)
+  - CLI transcript dir : app.manager.enc_cli_dir (leading '-' kept, '.' → '-')
   - worktree subdir    : <root>/worktrees/<slugify(scope)>/<name>   (lowercased)
 
 Everything is created over ssh as root, but Orchestra and the Claude CLI run as the
@@ -33,19 +33,16 @@ import re
 import subprocess
 import sys
 import tempfile
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 # ── path encodings ──
+# Owner: app.manager.enc_cli_dir. Import, do not copy — the previous inline
+# body drifted from change-scope (#200) and from the live CLI (#195).
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-def enc_cli_dir(cwd: str) -> str:
-    """~/.claude/projects/<this> — cwd with '/' and '.' mapped to '-'. Case preserved.
-
-    The leading '-' (from the leading '/') is part of the name and must stay:
-    stripping it produced a directory the CLI never reads, so transcripts were
-    written beside the real ones and every migrated agent silently resumed with
-    no history. The CLI also maps dots in temporary paths to '-'.
-    """
-    return cwd.replace("/", "-").replace(".", "-")
+from app.manager import enc_cli_dir  # noqa: E402
 
 
 def slugify_repo(repo_root: str) -> str:
