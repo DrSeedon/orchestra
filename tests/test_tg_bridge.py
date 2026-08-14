@@ -1544,6 +1544,8 @@ class TestLimitsCommand:
                 "• Codex — осталось 25.5%; сброс "
                 "01.08.2026 15:45 UTC+7, через 45 мин"
             ),
+            "• Spark — нет данных",
+            "• Grok — нет данных",
             (
                 "• Claude extra usage — лимит расходов достигнут "
                 "(базовые окна считаются отдельно)"
@@ -1573,7 +1575,7 @@ class TestLimitsCommand:
         self._authorize_owner(tb)
         queued = AsyncMock()
         monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value=usage))
-        monkeypatch.setattr(tb, "_tg_send_safe", queued)
+        monkeypatch.setattr(tb, "_tg_send_file_safe", queued)
 
         await tb.handle_limits(self._message())
 
@@ -1581,8 +1583,9 @@ class TestLimitsCommand:
         queued.assert_awaited_once()
         args, kwargs = queued.await_args
         assert args[0] == 123
-        assert "Claude 5h" in args[1]
-        assert kwargs["entities"]
+        assert args[1].endswith(".png")
+        assert "Claude 5h" in args[2]
+        assert kwargs["is_photo"] is True
         assert kwargs["important"] is False
 
     @pytest.mark.asyncio
@@ -1603,7 +1606,7 @@ class TestLimitsCommand:
         await tb.handle_limits(self._message())
 
         assert queued.await_args.args[1] == (
-            "❌ /api/usage: ReadTimeout: (без сообщения)"
+            "❌ /limits: ReadTimeout: (без сообщения)"
         )
 
     @pytest.mark.asyncio

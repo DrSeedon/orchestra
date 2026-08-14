@@ -3350,6 +3350,77 @@ async def _is_limits_owner(msg: types.Message) -> bool:
     return member.status == "creator"
 
 
+def _to_utc_datetime(raw) -> datetime | None:
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _collect_limits_chart_data(usage: dict, *, now: datetime | None = None) -> dict:
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+
+    def _series_value(window: dict | None, fallback_minutes: int | None) -> tuple[float | None, float | None]:
+        if not isinstance(window, dict):
+            return None, None
+        utilization = window.get("utilization")
+        if not isinstance(utilization, (int, float)):
+            return None, None
+        minutes = window.get("window_minutes")
+        if not isinstance(minutes, (int, float)) or minutes <= 0:
+            minutes = fallback_minutes
+
+        elapsed = None
+        if isinstance(minutes, (int, float)) and minutes > 0:
+            reset = _to_utc_datetime(window.get("resets_at"))
+            if reset is not None:
+                total = minutes * 60
+                remaining = (reset - now).total_seconds()
+                elapsed = 100 - max(0.0, min(100.0, remaining / total * 100.0))
+
+        return float(utilization), elapsed
+
+    anthropic = usage.get("anthropic") or {}
+    codex = usage.get("codex") or {}
+    grok = usage.get("grok") or {}
+    entries = [
+        ("Claude 5h", _series_value(anthropic.get("five_hour"), 300)),
+        ("Claude 7d", _series_value(anthropic.get("seven_day"), 10080)),
+        ("Codex", _series_value(codex.get("primary"), None)),
+        ("Spark", _series_value((codex.get("spark") or {}).get("primary"), None)),
+        ("Grok", _series_value(grok.get("primary"), None)),
+    ]
+
+    categories: list[str] = []
+    burned: list[float] = []
+    window_elapsed: list[float] = []
+    for label, (consume, elapsed) in entries:
+        categories.append(label)
+        burned.append(consume if consume is not None else 0.0)
+        if elapsed is None:
+            elapsed = consume if consume is not None else 0.0
+        window_elapsed.append(max(0.0, min(100.0, float(elapsed))))
+
+    if len(categories) < 2:
+        raise ValueError("нет данных для графика лимитов")
+
+    return {
+        "unit": "%",
+        "categories": categories,
+        "series": [
+            {"name": "выжжено", "values": burned, "tone": "bad"},
+            {"name": "прошло окна", "values": window_elapsed, "tone": "neutral"},
+        ],
+    }
+
+
 def _format_limits_message(usage: dict, *, now: datetime | None = None) -> str:
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -3404,6 +3475,8 @@ def _format_limits_message(usage: dict, *, now: datetime | None = None) -> str:
         window_line("Claude 5h", anthropic.get("five_hour")),
         window_line("Claude 7d", anthropic.get("seven_day")),
         window_line("Codex", codex.get("primary")),
+        window_line("Spark", (codex.get("spark") or {}).get("primary")),
+        window_line("Grok", (usage.get("grok") or {}).get("primary")),
     ]
     extra_usage = anthropic.get("extra_usage") or {}
     if extra_usage.get("spend_limit_reached") is True:
@@ -3421,18 +3494,30 @@ async def handle_limits(msg: types.Message):
         return
 
     try:
-        response = _format_limits_message(await _get_limits_usage())
-    except Exception as e:
-        detail = str(e).strip() or "(без сообщения)"
-        response = f"❌ /api/usage: {type(e).__name__}: {detail}"
+        usage = await _get_limits_usage()
+        response = _format_limits_message(usage)
+        chart_data = _collect_limits_chart_data(usage)
+        from app.charts import render_chart
 
-    for text, entities in _formatted_chunks(response):
-        await _tg_send_safe(
+        path = render_chart("bars", "Лимиты", chart_data)
+        await _tg_send_file_safe(
             msg.chat.id,
-            text,
-            entities=entities,
+            path,
+            response,
+            thread_id=None,
+            is_photo=True,
             important=False,
         )
+        return
+    except Exception as e:
+        detail = str(e).strip() or "(без сообщения)"
+        response = f"❌ /limits: {type(e).__name__}: {detail}"
+
+    await _tg_send_safe(
+        msg.chat.id,
+        response,
+        important=False,
+    )
 
 
 @dp.message(F.chat.type.in_({"group", "supergroup"}), F.text, lambda msg: msg.text and msg.text.strip() == "/restart")
