@@ -585,7 +585,10 @@ async def send_message(name: str, req: SendRequest):
                 # ВНУТРИ транзакции `record_terminal` — раздельные «посмотреть» и
                 # «зафиксировать» пропускают `wake=False`, легший между ними.
                 released = fan_barrier.record_terminal(
-                    req.sender, "done", require_drained_scope=req.scope
+                    req.sender,
+                    "done",
+                    summary=req.message,
+                    require_drained_scope=req.scope,
                 )
                 if released:
                     fan_id = fan_barrier.fan_id_for_child(
