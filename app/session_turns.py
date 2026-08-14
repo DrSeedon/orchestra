@@ -196,44 +196,6 @@ def _cached_quota_state(
     return _cached_quota_snapshot(runtime, model, now=now)["state"]
 
 
-def _format_limits(snapshot: dict, *, now: float | None = None) -> str:
-    checked_at = time.time() if now is None else now
-    parts = []
-    for label, window in snapshot.get("display", ()):
-        if not isinstance(window, dict):
-            continue
-        utilization = window.get("utilization")
-        if (
-            isinstance(utilization, bool)
-            or not isinstance(utilization, (int, float))
-            or not math.isfinite(utilization)
-            or not 0 <= utilization <= 100
-        ):
-            continue
-        reset_s = ""
-        reset_at = window.get("resets_at")
-        if reset_at:
-            try:
-                reset = datetime.fromisoformat(str(reset_at).replace("Z", "+00:00"))
-                if reset.tzinfo is None:
-                    raise ValueError("timezone missing")
-                remaining = reset.timestamp() - checked_at
-                if remaining > 0:
-                    if remaining >= 86400:
-                        days, remainder = divmod(int(remaining), 86400)
-                        reset_s = f" reset {days}d{remainder // 3600}h"
-                    else:
-                        hours, minutes = divmod(int(remaining) // 60, 60)
-                        reset_s = f" reset {hours}h{minutes:02d}m"
-            except (OSError, OverflowError, TypeError, ValueError) as error:
-                logger.debug(
-                    "%s resets_at unparsable (%r): %s: %s",
-                    label, reset_at, type(error).__name__, error,
-                )
-        parts.append(f"{label}:{utilization:g}%{reset_s}")
-    return " | " + " ".join(parts) if parts else ""
-
-
 class TurnManager:
     def __init__(self, s: "AgentSession") -> None:
         self.s = s
@@ -479,7 +441,6 @@ class TurnManager:
         ctx_s = f"ctx:{live_pct}%" if live_pct else ""
         def _fc(v):
             return f"{v:.4f}" if v < 0.01 and v > 0 else f"{v:.2f}"
-        limits_s = _format_limits(quota_snapshot)
         if cost_unaccounted:
             cost_summary = f"cost unaccounted for {s.model}"
         else:
@@ -489,7 +450,7 @@ class TurnManager:
             )
         s._log(
             "status",
-            f"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s}){limits_s}",
+            f"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s})",
             event_id=event_id,
         )
 

@@ -2423,8 +2423,8 @@ class TestRateLimitClassification:
         await session._drain_persist()
 
         ended = next(content for kind, content in logs if kind == "status" and "turn ended" in content)
-        assert "Codex 5h:33%" in ended
-        assert "Codex 7d:44%" in ended
+        assert "5h:" not in ended
+        assert "7d:" not in ended
         assert "88%" not in ended
         assert "100%" not in ended
 
@@ -2465,7 +2465,8 @@ class TestRateLimitClassification:
         selected.assert_called_once_with("codex", "gpt-5.6-sol")
         assert add_usage.call_args.kwargs["quota_primary_pct"] == 33
         ended = next(content for kind, content in logs if kind == "status" and "turn ended" in content)
-        assert "Codex 5h:33%" in ended
+        assert "5h:" not in ended
+        assert "7d:" not in ended
 
     def test_monthly_spend_limit_is_terminal_and_never_retried(self, session):
         from app.events import AgentEvent
