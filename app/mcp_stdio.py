@@ -330,9 +330,12 @@ def _apply_access_mode() -> None:
 
 
 def _auth_headers() -> dict:
+    headers = {}
     if _INTERNAL_TOKEN:
-        return {"Authorization": f"Bearer {_INTERNAL_TOKEN}"}
-    return {}
+        headers["Authorization"] = f"Bearer {_INTERNAL_TOKEN}"
+    if SESSION_ID:
+        headers["X-Orchestra-Session-Id"] = SESSION_ID
+    return headers
 
 
 def _retry_after_seconds(value: Any) -> int | float | None:
@@ -1536,6 +1539,7 @@ async def merge_worker(
     target: str = "",
     next_task_id: str = "",
     operation_id: str = "",
+    waive_diff_budget: bool = False,
 ) -> CallToolResult:
     """Durably squash a worker branch. Waits for the merge to finish and returns the outcome.
 
@@ -1547,7 +1551,26 @@ async def merge_worker(
     worker moved to another branch meanwhile, the call is refused and names the actual
     branch — start a new operation without operation_id. Verifying what actually landed
     (target branch, worker_wip) is always expected and never counts as merging manually.
+
+    waive_diff_budget: orchestrator-only. Skip the insertion ceiling for this merge.
+    The result records diff_budget_waived so the bypass is visible after the fact.
     """
+    if waive_diff_budget and ROLE not in _ORCH_ROLES:
+        return mcp_tool_result(
+            result={
+                "operation_state": "FAILED",
+                "error": {
+                    "code": "DIFF_BUDGET_WAIVE_FORBIDDEN",
+                    "message": "waive_diff_budget is orchestrator-only",
+                },
+            },
+            error=ApiToolError(
+                code="DIFF_BUDGET_WAIVE_FORBIDDEN",
+                message="waive_diff_budget is orchestrator-only",
+            ),
+            is_error=True,
+            text="waive_diff_budget is orchestrator-only",
+        )
     operation_id = operation_id or str(uuid.uuid4())
     body = {
         "operation_id": operation_id,
@@ -1555,6 +1578,8 @@ async def merge_worker(
         "scope": SCOPE,
         "target": target,
         "next_task_id": next_task_id,
+        "waive_diff_budget": bool(waive_diff_budget),
+        "waived_by": WORKER_NAME if waive_diff_budget else "",
     }
     try:
         try:

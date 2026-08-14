@@ -1122,6 +1122,8 @@ def merge_worktree_to_main(
     *,
     expected_worker_branch: str = "",
     expected_worker_head: str = "",
+    waive_diff_budget: bool = False,
+    waived_by: str = "",
 ) -> MergeOutcome:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), repo_path)
@@ -1130,6 +1132,7 @@ def merge_worktree_to_main(
     result = None
     worker_head = ""
     target_before = ""
+    diff_insertions = None
     target_after = ""
     worker_branch = ""
     mutation_started = False
@@ -1185,6 +1188,24 @@ def merge_worktree_to_main(
                             f"expected {expected_worker_branch}, found {branch}"
                         ),
                     }
+            if result is None:
+                try:
+                    from app.diff_budget import (
+                        MAX_DIFF_INSERTIONS,
+                        budget_error,
+                        measure_insertions,
+                    )
+                    diff_insertions = measure_insertions(str(wt), target_branch)
+                    budget = (
+                        ""
+                        if waive_diff_budget
+                        else budget_error(diff_insertions, MAX_DIFF_INSERTIONS)
+                    )
+                except RuntimeError as e:
+                    result = {"ok": False, "error": str(e)}
+                else:
+                    if budget:
+                        result = {"ok": False, "error": budget}
             if result is None:
                 child_error = _clean_worktree_error(wt, "worker")
                 if child_error:
@@ -1473,6 +1494,7 @@ def merge_worktree_to_main(
             state = "failed"
             commit_point = "rolled_back" if mutation_started else "not_reached"
             result["error"] = result.get("error") or "merge failed without an error detail"
+        from app.diff_budget import MAX_DIFF_INSERTIONS
         result.update(
             state=state,
             commit_point=commit_point,
@@ -1482,6 +1504,10 @@ def merge_worktree_to_main(
             worker_branch=worker_branch,
             worker_head=worker_head,
             conflicts=result.get("conflicts", []),
+            diff_insertions=diff_insertions,
+            diff_budget_limit=MAX_DIFF_INSERTIONS,
+            diff_budget_waived=bool(waive_diff_budget),
+            diff_budget_waived_by=waived_by if waive_diff_budget else "",
         )
         return result
 

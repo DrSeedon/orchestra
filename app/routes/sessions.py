@@ -1191,6 +1191,8 @@ async def execute_merge_session(
                     target_branch=target,
                     expected_worker_branch=pinned_branch,
                     expected_worker_head=merge_head,
+                    waive_diff_budget=bool(req.get("waive_diff_budget")),
+                    waived_by=str(req.get("waived_by") or ""),
                 )
             except Exception as e:
                 return {
@@ -1365,7 +1367,14 @@ async def execute_merge_session(
 
 
 @router.post("/api/sessions/{name}/merge")
-async def merge_session(name: str, req: dict):
+async def merge_session(name: str, req: dict, request: Request):
+    if req.get("waive_diff_budget"):
+        from app.diff_budget import request_may_waive_diff_budget
+        if not request_may_waive_diff_budget(request):
+            return JSONResponse(
+                {"error": "waive_diff_budget is orchestrator-only"},
+                status_code=403,
+            )
     scope = req.get("scope", "")
     found = manager.get_by_name(name, scope)
     if not found:

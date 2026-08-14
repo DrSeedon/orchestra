@@ -2,7 +2,7 @@
 
 import asyncio
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.merge_operations import (
@@ -34,13 +34,32 @@ async def merge_operation_capabilities():
 
 
 @router.post("")
-async def create_merge_operation(req: dict):
+async def create_merge_operation(req: dict, request: Request):
+    from app.diff_budget import request_may_waive_diff_budget
+
+    waive = bool(req.get("waive_diff_budget"))
+    if waive and not request_may_waive_diff_budget(request):
+        return _response(
+            {
+                "operation_state": "FAILED",
+                "error": {
+                    "code": "DIFF_BUDGET_WAIVE_FORBIDDEN",
+                    "message": (
+                        "waive_diff_budget is orchestrator-only; "
+                        "the executor cannot skip the review ceiling"
+                    ),
+                },
+            },
+            403,
+        )
     result, status_code = await accept_merge_operation(
         operation_id=str(req.get("operation_id") or ""),
         name=str(req.get("name") or ""),
         scope=str(req.get("scope") or ""),
         target=str(req.get("target") or ""),
         next_task_id=str(req.get("next_task_id") or ""),
+        waive_diff_budget=waive,
+        waived_by=str(req.get("waived_by") or ""),
     )
     return _response(result, status_code)
 

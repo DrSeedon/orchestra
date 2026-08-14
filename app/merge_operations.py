@@ -129,6 +129,7 @@ def _base_result(
 
 def normalize_request(
     *, name: str, scope: str, target: str = "", next_task_id: str = "",
+    waive_diff_budget: bool = False, waived_by: str = "",
 ) -> dict[str, Any]:
     return {
         "name": name.strip(),
@@ -136,6 +137,8 @@ def normalize_request(
         "target": target.strip(),
         "next_task_id": next_task_id.strip(),
         "squash": True,
+        "waive_diff_budget": bool(waive_diff_budget),
+        "waived_by": waived_by.strip() if waive_diff_budget else "",
     }
 
 
@@ -1101,9 +1104,12 @@ async def accept_merge_operation(
     scope: str,
     target: str = "",
     next_task_id: str = "",
+    waive_diff_budget: bool = False,
+    waived_by: str = "",
 ) -> tuple[dict[str, Any], int]:
     request = normalize_request(
         name=name, scope=scope, target=target, next_task_id=next_task_id,
+        waive_diff_budget=waive_diff_budget, waived_by=waived_by,
     )
     try:
         canonical_id = _operation_id(operation_id)
