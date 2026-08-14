@@ -4,3 +4,4 @@
 - A question to the orchestrator currently trips the fan barrier (platform bug, 14.08). Ask only when actually blocked, not “just in case”.
 - `pipeline.yaml` is hand-edited. `scripts/extract-manifest.py` was a dead bridge from deleted `app/prompts/` — do not restore generation; `--check` only verifies roles/modules exist as files.
 - `limit_wake` keys off `content LIKE 'turn ended%'`; percentages come from `current_provider_usage`, not the TG suffix.
+- `wait_for(..., timeout=0.1)` in tests: 0 on 14.08. The short ones now are `timeout=0.05` in `test_tg_bridge.py` (4).

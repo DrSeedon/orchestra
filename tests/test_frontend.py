@@ -1,20 +1,27 @@
 """Playwright smoke tests for Orchestra dashboard.
 
-Requires: Orchestra running on localhost:8888 (no auth).
-Run: pytest tests/test_frontend.py -v
+The dashboard is started in-process by ``dashboard_browser`` (isolated DB,
+no auth). A missing :8888 must not skip these tests — that printed green
+while 12 checks never ran (#145, #242).
 """
 
 import json
 import os
 import re
+import socket
 import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 from playwright.sync_api import Browser, Page, expect, sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-BASE = os.environ.get("ORCHESTRA_TEST_BASE", "http://localhost:8888")
+_DASHBOARD_ORIGIN = ""
 HTML_ARTIFACT_CSP = (
     "sandbox allow-scripts; "
     "default-src 'unsafe-inline' 'unsafe-eval' data: blob:; "
@@ -76,92 +83,144 @@ async def test_raw_non_html_response_has_no_artifact_csp(tmp_path, monkeypatch):
     assert "content-security-policy" not in response.headers
 
 
-# Снимок ДО автоюзной `_hermetic_dashboard_env` (tests/conftest.py:44): она стирает
-# DASHBOARD_* из os.environ, чтобы ВНУТРИПРОЦЕССНЫЕ тесты не подцепили auth хозяина
-# машины. Здесь задача обратная — залогиниться на ВНЕШНЕМ сервере, поэтому креды
-# читаем на импорте модуля, до фикстур. В коде их нет, только имена переменных.
-_ENV_DASHBOARD_AUTH = (os.environ.get("DASHBOARD_USER"),
-                       os.environ.get("DASHBOARD_PASSWORD"))
+def _dashboard_base() -> str:
+    if not _DASHBOARD_ORIGIN:
+        pytest.fail("dashboard fixture did not start — dashboard_browser is required")
+    return _DASHBOARD_ORIGIN
 
 
-def _dashboard_credentials():
-    """Логин/пароль из окружения; ручной прогон без юнита — из `.env` рядом."""
-    user, password = _ENV_DASHBOARD_AUTH
-    if password:
-        return user, password
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def _seed_dashboard_db(db_path: Path) -> None:
+    """One orchestrator + the notify probe so selectAgent/waiters have a name."""
+    from app import db as dbmod
+    from app.db import init_db, save_session
+
+    previous = dbmod.DB_PATH
+    dbmod.DB_PATH = db_path
     try:
-        from dotenv import dotenv_values   # не трогает os.environ, в отличие от load_dotenv
-    except ImportError:
-        return None, None
-    values = dotenv_values()
-    return values.get("DASHBOARD_USER"), values.get("DASHBOARD_PASSWORD")
+        init_db()
+        now = datetime.now(timezone.utc).isoformat()
+        save_session({
+            "id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope",
+            "cwd": "/tmp/fe-scope", "model": "claude-opus-5[1m]",
+            "system_prompt": "", "status": "idle", "session_id": None,
+            "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": True, "color": "", "created_at": now,
+            "finished_at": None, "role": "orchestrator",
+        })
+        save_session({
+            "id": "fe-notify-id", "name": "notify-268-probe",
+            "scope": "/tmp/fe-scope", "cwd": "/tmp/fe-scope",
+            "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "status": "idle", "session_id": None, "cost_usd": 0.0,
+            "worktree_path": None, "branch": None,
+            "is_orchestrator": False, "color": "", "created_at": now,
+            "finished_at": None, "role": "worker",
+            "parent_id": "fe-orch-id", "parent_name": "fe-orch",
+        })
+    finally:
+        dbmod.DB_PATH = previous
 
 
-def _goto_dashboard_or_skip(page: Page):
-    """Открыть развёрнутый дашборд, при живом auth — залогиниться.
+def _start_dashboard_server(db_path: Path) -> tuple[subprocess.Popen, str]:
+    # Empty strings beat load_dotenv(): existing keys are not overwritten, so
+    # the subprocess cannot pick up the machine unit's DASHBOARD_* / tunnels.
+    env = os.environ.copy()
+    env["ORCHESTRA_DB_PATH"] = str(db_path)
+    env["DASHBOARD_USER"] = ""
+    env["DASHBOARD_PASSWORD"] = ""
+    env["OWNER_MODE"] = ""
+    env["SSH_TUNNELS"] = ""
+    port = _free_port()
+    root = Path(__file__).resolve().parent.parent
+    proc = subprocess.Popen(
+        [
+            sys.executable, "-m", "uvicorn", "app.main:app",
+            "--host", "127.0.0.1", "--port", str(port),
+            "--log-level", "warning",
+        ],
+        cwd=str(root),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    origin = f"http://127.0.0.1:{port}"
+    deadline = time.time() + 30
+    last = "no attempt"
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            log = (proc.stdout.read() or b"").decode("utf-8", "replace")[-2000:]
+            raise RuntimeError(
+                f"dashboard fixture exited {proc.returncode}: {log}"
+            )
+        try:
+            urllib.request.urlopen(origin, timeout=1)
+            return proc, origin
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last = f"{type(exc).__name__}: {exc}"
+            time.sleep(0.1)
+    proc.kill()
+    raise RuntimeError(f"dashboard fixture did not accept HTTP at {origin}: {last}")
 
-    Раньше включённый auth означал скип: на боевой машине он включён всегда,
-    и 16 браузерных проверок печатались зелёными, ничего не проверив (#145).
-    Логинимся кредами из окружения; их нет — скип с этой причиной, а не с общей.
 
-    Поднять инстанс прямо здесь нельзя: ``app.db.DB_PATH`` вычисляется на
-    импорте модуля, поэтому в общем прогоне такой сервер работал бы по БОЕВОЙ
-    базе. Адрес стенда задаётся через ``ORCHESTRA_TEST_BASE``.
-    """
+def _stop_dashboard_server(proc: subprocess.Popen) -> None:
+    proc.terminate()
     try:
-        resp = page.goto(BASE, wait_until="domcontentloaded")
+        proc.wait(timeout=8)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=3)
+
+
+def _goto_dashboard(page: Page):
+    """Open the fixture dashboard. Missing HTML is a failure, not a skip (#242)."""
+    origin = _dashboard_base()
+    try:
+        resp = page.goto(origin, wait_until="domcontentloaded")
     except Exception as exc:
-        pytest.skip(f"дашборд на {BASE} недоступен ({type(exc).__name__}); "
-                    "укажи ORCHESTRA_TEST_BASE на развёрнутый стенд")
+        pytest.fail(
+            f"dashboard at {origin} unreachable ({type(exc).__name__}: {exc})"
+        )
     if resp is None or resp.status != 200:
-        status = "нет ответа" if resp is None else f"HTTP {resp.status}"
-        pytest.skip(f"дашборд на {BASE} ответил {status}")
+        status = "no response" if resp is None else f"HTTP {resp.status}"
+        pytest.fail(f"dashboard at {origin} returned {status}")
     if page.locator("#agent-list").count() == 0:
-        if page.locator('input[name="password"]').count() == 0:
-            pytest.skip(f"на {BASE} нет ни #agent-list, ни формы логина — "
-                        "по этому адресу отвечает не дашборд")
-        user, password = _dashboard_credentials()
-        if not user or not password:
-            pytest.skip(f"на {BASE} включён auth, а DASHBOARD_USER/DASHBOARD_PASSWORD "
-                        "нет в окружении — экспортируй их или положи рядом .env")
-        page.fill('input[name="username"]', user)
-        page.fill('input[name="password"]', password)
-        page.click('button[type="submit"]')
-        page.wait_for_selector("#agent-list", timeout=20000)
+        pytest.fail(f"dashboard at {origin} has no #agent-list")
     return resp
 
 
 @pytest.fixture(scope="module")
-def dashboard_browser():
-    with sync_playwright() as playwright:
-        try:
-            browser = playwright.chromium.launch()
-        except Exception as exc:
-            # `uv sync` ставит пакет playwright, но НЕ бинарники браузеров:
-            # без явного `playwright install` фикстура падала с ERROR, а не
-            # говорила, чего не хватает.
-            pytest.skip(f"chromium недоступен ({type(exc).__name__}); "
-                        "поставь его: playwright install --with-deps chromium")
-        yield browser
-        browser.close()
+def dashboard_browser(tmp_path_factory):
+    db_path = tmp_path_factory.mktemp("fe-dash") / "orchestra.db"
+    _seed_dashboard_db(db_path)
+    proc, origin = _start_dashboard_server(db_path)
+    global _DASHBOARD_ORIGIN
+    _DASHBOARD_ORIGIN = origin
+    try:
+        with sync_playwright() as playwright:
+            try:
+                browser = playwright.chromium.launch()
+            except Exception as exc:
+                pytest.fail(
+                    f"chromium unavailable ({type(exc).__name__}: {exc}); "
+                    "install: playwright install --with-deps chromium"
+                )
+            yield browser
+            browser.close()
+    finally:
+        _DASHBOARD_ORIGIN = ""
+        _stop_dashboard_server(proc)
 
 
 @pytest.fixture(scope="module")
 def dashboard_page(dashboard_browser: Browser):
-    """Требует РАЗВЁРНУТЫЙ дашборд без auth (см. докстринг модуля).
-
-    Без развёртывания эти проверки невыполнимы, и до сих пор они этого не
-    говорили: на CI по ``BASE`` никого нет → 8 ERROR на setup, у владельца там
-    живой сервис с включённым auth → отдаётся страница логина и `#agent-list`
-    не находится. Итог — красный CI с 9 июня и «сломанные» тесты, которые на
-    деле просто не могли выполниться. Пропуск с внятной причиной честнее.
-
-    Поднимать инстанс прямо здесь нельзя: ``app.db.DB_PATH`` вычисляется на
-    импорте, поэтому в общем прогоне сервер работал бы по БОЕВОЙ базе.
-    Задать адрес развёрнутого стенда — ``ORCHESTRA_TEST_BASE``.
-    """
     page = dashboard_browser.new_page()
-    _goto_dashboard_or_skip(page)
+    _goto_dashboard(page)
     expect(page.locator("#agent-list")).to_be_visible()
     yield page
     page.close()
@@ -448,7 +507,7 @@ def test_header_has_orch_tabs(dashboard_browser: Browser):
 
     page.route(re.compile(r"/api/orchestrators(?:\?|$)"), orch_list)
     try:
-        _goto_dashboard_or_skip(page)
+        _goto_dashboard(page)
         tab = page.locator(f'#orch-tabs .orch-tab[data-orch-name="{_PINNED_ORCH_TAB}"]')
         expect(tab).to_be_visible()
         expect(tab).to_contain_text(_PINNED_ORCH_TAB)
@@ -734,7 +793,7 @@ def test_no_js_errors(dashboard_browser: Browser):
     errors = []
     page = dashboard_browser.new_page()
     page.on("pageerror", lambda e: errors.append(str(e)))
-    _goto_dashboard_or_skip(page)
+    _goto_dashboard(page)
     expect(page.locator("#agent-list")).to_be_visible()
     page.wait_for_timeout(2000)
     page.close()
@@ -849,7 +908,7 @@ def test_claude_cache_pill_keeps_exact_thresholds(dashboard_browser: Browser):
 
 def _open_tool_fixture_page(browser: Browser) -> Page:
     page = browser.new_page()
-    _goto_dashboard_or_skip(page)
+    _goto_dashboard(page)
     expect(page.locator("#chat")).to_be_visible()
     page.wait_for_function(
         "() => typeof selectedAgent !== 'undefined' && selectedAgent !== null"
@@ -897,7 +956,7 @@ def _open_tool_correlation_page(
 ) -> Page:
     page = browser.new_page()
     _route_frontend_sources(page, source_path)
-    _goto_dashboard_or_skip(page)
+    _goto_dashboard(page)
     page.wait_for_function("() => typeof addChatEntry === 'function'")
     page.evaluate("""compactMode => {
         selectedAgent = null;
@@ -1215,7 +1274,7 @@ def _open_restart_page(browser: Browser) -> tuple[Page, dict]:
         route.continue_()
 
     page.route(re.compile(r"/api/"), api_route)
-    _goto_dashboard_or_skip(page)
+    _goto_dashboard(page)
     page.wait_for_function("() => typeof sendChat === 'function' && selectedAgent")
     return page, state
 
@@ -1389,7 +1448,7 @@ def _open_notify_stream_page(
     # именем в заголовке (поймано первым же прогоном).
     page.route(re.compile(rf"/api/sessions/{_NOTIFY_AGENT}/logs\?"), history_route)
     page.route(re.compile(rf"/api/sessions/{_NOTIFY_AGENT}/stream\?"), stream_route)
-    _goto_dashboard_or_skip(page)
+    _goto_dashboard(page)
     # Сперва дать странице восстановить своего последнего агента: её выбор приходит
     # асинхронно и иначе перебивает наш уже после selectAgent.
     page.wait_for_function("() => typeof selectAgent === 'function' && selectedAgent")
@@ -1710,7 +1769,7 @@ def test_tool_view_mode_is_visible_without_desktop_header_overflow(
             body=source,
         ),
     )
-    _goto_dashboard_or_skip(page)
+    _goto_dashboard(page)
     page.wait_for_function("() => typeof _toolForResult === 'function'")
     button = page.locator("#compact-toggle-btn")
     expect(button).to_have_text("📄 Normal")
@@ -1864,31 +1923,23 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
             "// Central renderer", 1,
         )[0]
     )
-    api_page = dashboard_browser.new_page()
-    # Нужен РЕАЛЬНЫЙ длинный текст, а не выдуманный. Раньше тест держался на
-    # задаче 112 в scope ноутбука — на другой машине её нет никогда. Берём любую
-    # длинную из scope этого репозитория, залогинившись как обычный юзер.
-    _goto_dashboard_or_skip(api_page)   # заодно кладёт cookie сессии в контекст
-    scope = _repo_scope()
-    listing = api_page.request.get(f"{BASE}/api/tm/tasks", params={"scope": scope})
-    if listing.status != 200:
-        api_page.close()
-        pytest.skip(f"{BASE}/api/tm/tasks?scope={scope} ответил HTTP {listing.status}")
-    task = None
-    for item in listing.json()["tasks"][:25]:
-        detail = api_page.request.get(f"{BASE}/api/tm/tasks/{item['par']}",
-                                      params={"scope": scope})
-        if detail.status == 200 and len(detail.json().get("description") or "") > 180:
-            task = detail.json()
-            break
-    api_page.close()
-    if task is None:
-        pytest.skip(f"в scope {scope} нет задачи с описанием длиннее 180 символов — "
-                    "тесту нужен реальный длинный текст")
-    assert len(task["description"]) > 180
-    # Из сервера берём только длинное описание; остальные поля задаём сами —
-    # приоритет и исполнитель у случайной живой задачи любые
-    task.update({"assignee": "frontend", "task_id": 987, "priority": 1})
+    # Isolated fixture DB has no TM rows. A real paragraph (not "x"*200) still
+    # exercises wrap/expand; pulling live tasks was a silent skip on empty scope.
+    description = (
+        "Need a description long enough to wrap in the task card: the renderer "
+        "collapses after two lines and the expand control must stay attached to "
+        "this body, not to a sibling. Extra sentences keep the length above the "
+        "180-character floor that used to come from a live ticket."
+    )
+    assert len(description) > 180
+    task = {
+        "description": description,
+        "assignee": "frontend",
+        "task_id": 987,
+        "priority": 1,
+        "title": "fixture task",
+        "par": 987,
+    }
 
     page = dashboard_browser.new_page(viewport={"width": 1440, "height": 900})
     page.set_content(
@@ -2455,7 +2506,7 @@ def test_truncated_read_image_restores_full_log_when_source_file_is_gone(
             status=200, content_type="text/javascript", body=source,
         ),
     )
-    _goto_dashboard_or_skip(page)
+    _goto_dashboard(page)
     page.wait_for_function("() => typeof _restoreToolResultImage === 'function'")
     page.wait_for_function(
         "() => typeof selectedAgent !== 'undefined' && selectedAgent !== null"
@@ -2626,7 +2677,7 @@ def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: B
             status=200, content_type="text/css", body=css_source,
         ),
     )
-    _goto_dashboard_or_skip(page)
+    _goto_dashboard(page)
     page.wait_for_function("() => typeof initVoiceInput === 'function'")
     page.evaluate(fake_media_script)
     expect(page.locator("#voice-btn")).to_be_visible()
