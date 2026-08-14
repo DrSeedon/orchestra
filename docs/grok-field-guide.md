@@ -29,9 +29,15 @@
 ```bash
 sudo npm i -g @xai-official/grok   # официальный пакет; curl|bash не использовать
 grok --version                     # на VPS: grok 1.0.3 (1a29d5bc12)
-grok login --device-auth           # headless/SSH; кладёт креды в ~/.grok/auth.json
+grok login --oauth                 # ТОЛЬКО так; кладёт креды в ~/.grok/auth.json
 grok models                        # должен ответить "You are logged in with grok.com"
 ```
+
+**`--device-auth` НЕ использовать** (замер 14.08.2026, `CLAUDE.md` — единственный владелец правила):
+он выдаёт токен БЕЗ `refresh_token`, тот живёт около суток, и по истечении CLI САМ удаляет
+`~/.grok/auth.json` — выглядит как «файл пропал», хотя это штатное истечение. `--oauth` даёт
+`refresh_token` + `expires_at` и продлевается сам. Живость проверять командой `grok models`,
+а не наличием файла.
 
 npm-пакет — лаунчер: настоящий бинарник (~165 МБ) уезжает в `~/.grok/bin/grok-<версия>`,
 `/usr/bin/grok` — симлинк на пакет. Обе ветки резолвера ведут в один файл.
