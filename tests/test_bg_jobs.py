@@ -679,6 +679,115 @@ class TestRunExecOutcome:
         assert "artifact" in row["error"].lower()
         assert "FAILED" in session.send.await_args.args[0]
 
+    @pytest.mark.asyncio
+    async def test_exit_zero_blind_artifact_without_verdict_is_failed(
+        self, db, mgr_mock, tmp_path,
+    ):
+        """#180 oracle: rc=0 + existing file is not a completed review.
+
+        Fixture is the #174 opening: no ## Verdict, starts with the admission
+        that the review never happened. Today's _run_exec treats this as success.
+        """
+        artifact = tmp_path / "codex-review-plan.md"
+        artifact.write_text(
+            "Unable to perform an evidence-backed review: "
+            "the filesystem sandbox failed before every read-only command.\n",
+            encoding="utf-8",
+        )
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-blind", datetime.now(timezone.utc)))
+
+        await mgr._run_exec(
+            "run-blind", "true",
+            "Codex review → docs/tasks/174/codex-review-plan.md",
+            "w1", "/s", 10,
+            success_file=str(artifact),
+        )
+
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-blind")
+        assert row["status"] == "failed", row
+        sent = session.send.await_args.args[0]
+        assert "FAILED" in sent
+        assert "completed" not in sent.lower()
+        err = (row.get("error") or "").lower()
+        assert "verdict" in err or "blind" in err or "unable" in err
+
+    @pytest.mark.asyncio
+    async def test_exit_zero_real_verdict_still_completes(self, db, mgr_mock, tmp_path):
+        artifact = tmp_path / "CODEX_REVIEW.md"
+        artifact.write_text("## Summary\nlooks good\n\n## Verdict\nAPPROVED\n")
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-ok", datetime.now(timezone.utc)))
+
+        await mgr._run_exec(
+            "run-ok", "true", "Codex review → CODEX_REVIEW.md",
+            "w1", "/s", 10,
+            success_file=str(artifact),
+        )
+
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-ok")
+        assert row["status"] == "triggered"
+        assert "FAILED" not in session.send.await_args.args[0]
+
+    @pytest.mark.asyncio
+    async def test_exit_zero_verdict_with_bwrap_is_still_blind(
+        self, db, mgr_mock, tmp_path,
+    ):
+        artifact = tmp_path / "codex-review-impl.md"
+        artifact.write_text(
+            "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n\n"
+            "## Verdict\nAPPROVED\n"
+        )
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-bwrap", datetime.now(timezone.utc)))
+
+        await mgr._run_exec(
+            "run-bwrap", "true", "Codex review → docs/tasks/179/codex-review-impl.md",
+            "w1", "/s", 10,
+            success_file=str(artifact),
+        )
+
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-bwrap")
+        assert row["status"] == "failed"
+        assert "blind" in (row.get("error") or "").lower()
+
+    @pytest.mark.asyncio
+    async def test_exit_zero_verdict_mentioning_sandbox_is_not_blind(
+        self, db, mgr_mock, tmp_path,
+    ):
+        artifact = tmp_path / "CODEX_REVIEW.md"
+        artifact.write_text(
+            "## Findings\nThe sandbox fails closed on unknown roles.\n\n"
+            "## Verdict\nAPPROVED\n"
+        )
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-sandbox-talk", datetime.now(timezone.utc)))
+
+        await mgr._run_exec(
+            "run-sandbox-talk", "true", "Codex review → CODEX_REVIEW.md",
+            "w1", "/s", 10,
+            success_file=str(artifact),
+        )
+
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-sandbox-talk")
+        assert row["status"] == "triggered"
+
 
 class TestPidfdProcessLifecycle:
     @pytest.mark.asyncio

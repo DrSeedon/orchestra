@@ -38,6 +38,23 @@ OUTPUT_PROGRESS_INTERVAL = 30
 _CRON_COMMAND_TIMEOUT_SECONDS = 30
 _NO_EXPIRY_TYPES = frozenset({"file", "command", "ssh", "cron", "cron_command"})
 _PIDFD_EXEC = str(Path(__file__).with_name("pidfd_exec.py"))
+# #180: rc=0 + nonempty file is not a review. Same markers as mcp_stdio's
+# first-line detector, plus the #174 opening that has no ## Verdict at all.
+_BLIND_REVIEW = re.compile(
+    r"Unable to perform an evidence-backed review|"
+    r"bwrap:|failed rtm_newaddr|setting up uid map: permission denied",
+    re.IGNORECASE,
+)
+_REVIEW_VERDICT = re.compile(r"(?im)^##\s+Verdict\b")
+
+
+def _blind_review_error(artifact: str, output: str = "") -> str:
+    """Empty string if the artifact looks like a real review; else why it does not."""
+    if _BLIND_REVIEW.search(artifact) or _BLIND_REVIEW.search(output):
+        return "review artifact is blind: execution never happened"
+    if _REVIEW_VERDICT.search(artifact) is None:
+        return "review artifact has no '## Verdict' section"
+    return ""
 _PIDFD_HANDSHAKE_TIMEOUT = 5
 _PIDFD_TERM_GRACE = 3
 _PIDFD_KILL_GRACE = 2
@@ -915,14 +932,16 @@ class BgJobManager:
                 try:
                     if not os.path.isfile(success_file) or os.path.getsize(success_file) == 0:
                         validation_error = f"Required output artifact is missing or empty: {success_file}"
-                    elif success_pattern:
+                    else:
                         with open(success_file, encoding="utf-8", errors="replace") as fh:
                             artifact = fh.read()
-                        if re.search(success_pattern, artifact) is None:
+                        if success_pattern and re.search(success_pattern, artifact) is None:
                             validation_error = (
                                 f"Required output artifact does not match success pattern: "
                                 f"{success_file}"
                             )
+                        else:
+                            validation_error = _blind_review_error(artifact, full_output)
                 except OSError as e:
                     validation_error = f"Cannot validate output artifact {success_file}: {e}"
             if validation_error:
