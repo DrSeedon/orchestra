@@ -21,6 +21,7 @@ class TmTaskCreate(BaseModel):
     status: str = "new"
     scope: str = ""
     priority: int = 2
+    acceptance_command: str = ""
 
 
 class TmTaskUpdate(BaseModel):
@@ -81,6 +82,7 @@ async def tm_create_task(req: TmTaskCreate):
             _tm.api_create_task,
             req.project, req.title, req.price, req.description, req.assignee, req.status,
             scope=req.scope, priority=req.priority,
+            acceptance_command=req.acceptance_command,
         )
     except (ValueError, RuntimeError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)

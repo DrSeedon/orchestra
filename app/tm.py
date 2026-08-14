@@ -194,7 +194,8 @@ def get_client_for_project(conn: sqlite3.Connection, project_id: str) -> dict | 
 def create_task(conn: sqlite3.Connection, project_id: str, title: str,
                 price_rub: int = 0, description: str = "", assignee: str = "",
                 status: str = "new", yougile_task_id: str | None = None,
-                par_number: int | None = None, priority: int = 2) -> dict:
+                par_number: int | None = None, priority: int = 2,
+                acceptance_command: str = "") -> dict:
     if status not in VALID_STATUSES:
         raise ValueError(f"Invalid status: {status}")
     if price_rub < 0:
@@ -203,14 +204,15 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
     now = _now()
     par = par_number if par_number is not None else _next_par(conn, project_id)
 
+    command = (acceptance_command or "").strip()
     conn.execute(
         """INSERT INTO tm_tasks
            (par_number, project_id, title, description, price_rub, paid_rub,
             status, assignee, yougile_task_id, sync_revision,
-            git_commits, created_at, updated_at, priority)
-           VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, '[]', ?, ?, ?)""",
+            git_commits, created_at, updated_at, priority, acceptance_command)
+           VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, '[]', ?, ?, ?, ?)""",
         (par, project_id, title, description, price_rub,
-         status, assignee, yougile_task_id, now, now, priority),
+         status, assignee, yougile_task_id, now, now, priority, command),
     )
     task_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     return {
@@ -226,6 +228,7 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         "yougile_task_id": yougile_task_id,
         "sync_revision": 0,
         "priority": priority,
+        "acceptance_command": command,
         "created_at": now,
         "updated_at": now,
     }
@@ -883,7 +886,7 @@ def _fire_journal_sync(payment_result: dict, client_id: str) -> None:
 def api_create_task(project_id: str, title: str, price: int = 0,
                     description: str = "", assignee: str = "",
                     status: str = "new", scope: str = "",
-                    priority: int = 2) -> dict:
+                    priority: int = 2, acceptance_command: str = "") -> dict:
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
@@ -916,6 +919,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 assignee=assignee,
                 status=status,
                 priority=priority,
+                acceptance_command=acceptance_command,
             )
             conn.commit()
         except Exception:

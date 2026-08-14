@@ -222,6 +222,7 @@ def init_db() -> None:
                 updated_at TEXT NOT NULL,
                 completed_at TEXT,
                 paid_at TEXT,
+                acceptance_command TEXT NOT NULL DEFAULT '',
                 CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled'))
             );
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status);
@@ -950,6 +951,11 @@ def _migrate(c) -> None:
             logger.warning(f"migration: {tbl} tm_tasks_old reference fix failed: {e}", exc_info=True)
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id)")
     task_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_tasks)").fetchall()}
+    if task_cols and "acceptance_command" not in task_cols:
+        c.execute(
+            "ALTER TABLE tm_tasks ADD COLUMN acceptance_command TEXT NOT NULL DEFAULT ''"
+        )
+        task_cols.add("acceptance_command")
     if task_cols and "priority" not in task_cols:
         # 0=critical, 1=high, 2=medium (default), 3=low — existing tasks land at medium
         c.execute("ALTER TABLE tm_tasks ADD COLUMN priority INTEGER NOT NULL DEFAULT 2")

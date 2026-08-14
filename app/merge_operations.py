@@ -974,30 +974,69 @@ async def _run_operation(operation_id: str) -> None:
                 ),
             )
         else:
-            from app.routes.sessions import execute_merge_session
+            from app.acceptance import FAILED, INCONCLUSIVE, evaluate_for_merge
 
-            raw = await execute_merge_session(
+            acceptance = await asyncio.to_thread(
+                evaluate_for_merge,
                 session_id=record["session_id"],
-                expected_name=record["worker_name"],
-                expected_scope=record["scope"],
-                expected_branch=record["accepted_worker_branch"],
-                expected_head=record["accepted_worker_head"],
-                req={
-                    **record["request"],
-                    "target": (
-                        record["request"].get("target")
-                        or record["accepted_base_branch"]
+                worktree_path=current["worktree_path"],
+            )
+            if acceptance["status"] in {FAILED, INCONCLUSIVE}:
+                code = (
+                    "ACCEPTANCE_FAILED"
+                    if acceptance["status"] == FAILED
+                    else "ACCEPTANCE_INCONCLUSIVE"
+                )
+                error = _error(
+                    code,
+                    (
+                        f"Platform acceptance {acceptance['status']}"
+                        f" ({acceptance.get('reason') or 'exit_nonzero'}): "
+                        f"{(acceptance.get('output') or '')[-400:]}"
                     ),
-                },
-            )
-            from app import rag_service
+                    operation_id=operation_id,
+                    status=409,
+                    retryable=acceptance["status"] == INCONCLUSIVE,
+                )
+                result = _base_result(
+                    operation_id,
+                    "FAILED",
+                    target_branch=record["request"].get("target", ""),
+                    worker_branch=record["accepted_worker_branch"],
+                    worker_head=record["accepted_worker_head"],
+                    error=error,
+                    next_action=_action(
+                        "FIX_ACCEPTANCE_THEN_RETRY",
+                        "Fix the registered acceptance command, then start a new merge.",
+                    ),
+                )
+                result["acceptance"] = acceptance
+            else:
+                from app.routes.sessions import execute_merge_session
 
-            result = normalize_merge_result(
-                operation_id,
-                raw,
-                record["request"],
-                rag_enabled=rag_service.is_enabled(),
-            )
+                raw = await execute_merge_session(
+                    session_id=record["session_id"],
+                    expected_name=record["worker_name"],
+                    expected_scope=record["scope"],
+                    expected_branch=record["accepted_worker_branch"],
+                    expected_head=record["accepted_worker_head"],
+                    req={
+                        **record["request"],
+                        "target": (
+                            record["request"].get("target")
+                            or record["accepted_base_branch"]
+                        ),
+                    },
+                )
+                from app import rag_service
+
+                result = normalize_merge_result(
+                    operation_id,
+                    raw,
+                    record["request"],
+                    rag_enabled=rag_service.is_enabled(),
+                )
+                result["acceptance"] = acceptance
         try:
             terminal = await asyncio.to_thread(_session_snapshot, record["session_id"])
         except Exception as exc:

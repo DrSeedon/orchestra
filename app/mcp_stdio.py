@@ -1807,7 +1807,8 @@ async def get_worker_info(name: str) -> str:
 @mcp.tool()
 async def task_create(title: str, project: str = "", price: int = 0,
                       description: str = "", assignee: str = "",
-                      status: str = "new", priority: int = 2) -> str:
+                      status: str = "new", priority: int = 2,
+                      acceptance_command: str = "") -> str:
     """Create a new task. Returns task number and details.
     project: registered project scope or id; omitted uses the caller's mapped scope.
     price in exact currency units (e.g. 20000 = 20 000). 0 is valid (no price).
@@ -1816,6 +1817,7 @@ async def task_create(title: str, project: str = "", price: int = 0,
         "title": title, "price": price,
         "description": description, "assignee": assignee, "status": status,
         "scope": SCOPE, "priority": priority,
+        "acceptance_command": acceptance_command,
     }
     if project:
         payload["project"] = project

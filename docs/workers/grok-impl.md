@@ -16,3 +16,5 @@
   иначе тул+idle даёт второй on_idle. Счётчик пробуждений, не «веер закрылся».
   Отвергнутые варианты 2/3 #276 — в `docs/tasks/276/rejected-variants.md`, не писать
   «жду ответа» заново.
+- Приёмку тикета гоняет `merge_operations` до `execute_merge_session`, команду берёт из
+  `tm_tasks.acceptance_command`, не из текста DONE. inconclusive ≠ failed. Не парсить отчёт.
