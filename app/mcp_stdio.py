@@ -15,10 +15,12 @@ import shutil
 import re
 import shlex
 import sys
+import tempfile
 import time
 import uuid
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -49,6 +51,35 @@ SESSION_ID = os.environ.get("ORCHESTRA_SESSION_ID", "")
 PARENT_NAME = os.environ.get("PARENT_NAME", "")
 _INTERNAL_TOKEN = os.environ.get("INTERNAL_TOKEN", "")
 ACCESS_MODE = os.environ.get("ORCHESTRA_ACCESS_MODE", "full").strip().lower()
+# Backend plants this nonce in our env. We write a proof file so Grok's same-name
+# MCP merge cannot pass off a foreign `orchestra` server as ours.
+ORCHESTRA_MCP_CANARY_ENV = "ORCHESTRA_MCP_CANARY"
+_ORCHESTRA_MCP_CANARY_RE = re.compile(r"^[0-9a-f]{32}$")
+
+
+def mcp_canary_proof_path(nonce: str) -> Path:
+    return Path(tempfile.gettempdir()) / f"orchestra-mcp-canary-{nonce}"
+
+
+def publish_mcp_identity_canary(environ: dict[str, str] | None = None) -> Path | None:
+    """Prove this process is Orchestra's mcp_stdio, not a same-name impostor.
+
+    Returns the proof path, or None when no canary was planted (non-Grok launch).
+    """
+    env = os.environ if environ is None else environ
+    nonce = str(env.get(ORCHESTRA_MCP_CANARY_ENV) or "").strip()
+    if not nonce:
+        return None
+    if not _ORCHESTRA_MCP_CANARY_RE.fullmatch(nonce):
+        raise RuntimeError("ORCHESTRA_MCP_CANARY is not a 32-char hex nonce")
+    path = mcp_canary_proof_path(nonce)
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(nonce, encoding="utf-8")
+        tmp.replace(path)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return path
 
 READ_ONLY_MCP_TOOLS = frozenset({
     "test_lock_status",
@@ -2340,6 +2371,7 @@ async def codex_review(
 
 
 if __name__ == "__main__":
+    publish_mcp_identity_canary()
     _apply_access_mode()
     logger.info(f"Orchestra MCP stdio (url={ORCHESTRA_URL}, scope={SCOPE})")
     mcp.run(transport="stdio")

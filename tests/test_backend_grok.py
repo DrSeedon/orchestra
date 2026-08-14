@@ -20,9 +20,11 @@ from app.backend_grok import (
     GROK_CONTEXT_LIMITS,
     GROK_COST_TICK_USD,
     GROK_TOKEN_PRICES,
+    ORCHESTRA_MCP_CANARY_ENV,
     _grok_cost,
     ensure_grok_home,
 )
+from app.mcp_stdio import publish_mcp_identity_canary
 from app.models import backend_for_model, get_model_spec, resolve_model
 from app.runtime_registry import get_runtime
 
@@ -603,7 +605,11 @@ def test_mcp_servers_translate_to_acp_shape_with_env_pairs():
     assert server["args"] == ["/repo/app/mcp_stdio.py"]
     # ACP wants a list of {name, value}; passing a dict would start the server unconfigured.
     env = {pair["name"]: pair["value"] for pair in server["env"]}
-    assert env == {"INTERNAL_TOKEN": "tok", "PYTHONPATH": "/repo"}
+    assert env["INTERNAL_TOKEN"] == "tok"
+    assert env["PYTHONPATH"] == "/repo"
+    assert ORCHESTRA_MCP_CANARY_ENV in env
+    assert len(env[ORCHESTRA_MCP_CANARY_ENV]) == 32
+    assert env[ORCHESTRA_MCP_CANARY_ENV] == b._mcp_canary
 
 
 def test_mcp_server_without_command_or_url_is_skipped():
@@ -654,6 +660,29 @@ def _record_mcp_roster(
     })
 
 
+def _plant_canary(b):
+    """Genuine mcp_stdio handshake: write the proof file the backend planted."""
+    assert b._mcp_canary
+    return publish_mcp_identity_canary({ORCHESTRA_MCP_CANARY_ENV: b._mcp_canary})
+
+
+def _record_mcp_v103_empty_identity(b, *, name="orchestra", tool_count=37, total=1):
+    """Grok 1.0.3 wire: empty servers_updated, count + name + tools only."""
+    b._track_mcp({"method": "_x.ai/mcp/servers_updated", "params": {"mcpServers": []}})
+    b._track_mcp({
+        "method": "_x.ai/mcp/init_progress",
+        "params": {"total": total, "connected": 1},
+    })
+    b._track_mcp({
+        "method": "_x.ai/mcp/server_status",
+        "params": {"name": name, "status": "ready"},
+    })
+    b._track_mcp({
+        "method": "_x.ai/mcp_initialized",
+        "params": {"mcpToolCount": tool_count},
+    })
+
+
 @pytest.mark.parametrize(
     ("required_started", "foreign_started", "expected_error"),
     [
@@ -685,6 +714,7 @@ def test_mcp_conformance_observable_roster_matrix(
             })
         _record_mcp_roster(b, *servers)
         if expected_error is None:
+            _plant_canary(b)
             await b._verify_mcp_isolation()
             return ""
         with pytest.raises(GrokMcpIsolationError) as exc:
@@ -777,9 +807,50 @@ def test_isolation_passes_when_only_expected_server_identity_starts():
         b = _backend(mcp_servers={"orchestra": {"command": "x"}})
         b._mcp_ready = asyncio.Event()
         _record_mcp_roster(b, *b._mcp_server_configs())
+        _plant_canary(b)
         await b._verify_mcp_isolation()
 
     asyncio.run(scenario())
+
+
+def test_mcp_canary_handshake_accepts_genuine_server():
+    """Our mcp_stdio proof file + the 1.0.3 empty-identity roster must pass."""
+    async def scenario():
+        b = _backend(mcp_servers={"orchestra": {
+            "command": "/venv/bin/python",
+            "args": ["/repo/app/mcp_stdio.py"],
+        }})
+        b._mcp_ready = asyncio.Event()
+        planted = _plant_canary(b)
+        assert planted is not None and planted.is_file()
+        assert planted.read_text(encoding="utf-8") == b._mcp_canary
+        _record_mcp_v103_empty_identity(b)
+        await b._verify_mcp_isolation()
+        assert not planted.exists()
+
+    asyncio.run(scenario())
+
+
+def test_mcp_canary_handshake_rejects_same_name_impostor():
+    """Trusted-folder `.mcp.json` named `orchestra` looks valid on 1.0.3 wire.
+
+    Empty identity + matching name + total=1 + tools>0 is exactly the hole
+    name-only checking cannot see. No proof file → refuse.
+    """
+    async def scenario():
+        b = _backend(mcp_servers={"orchestra": {
+            "command": "/venv/bin/python",
+            "args": ["/repo/app/mcp_stdio.py"],
+        }})
+        b._mcp_ready = asyncio.Event()
+        _record_mcp_v103_empty_identity(b, tool_count=12)
+        with pytest.raises(GrokMcpIsolationError) as exc:
+            await b._verify_mcp_isolation()
+        return str(exc.value)
+
+    error = asyncio.run(scenario())
+    assert "canary handshake" in error
+    assert "unexpected identity" not in error
 
 
 def test_isolation_rejects_required_server_roster_with_zero_tools():

@@ -4,6 +4,8 @@ import asyncio
 import json
 import logging
 import os
+import re
+import secrets
 import shutil
 import tempfile
 import uuid
@@ -86,6 +88,17 @@ GROK_COST_TICK_USD = 1e-10
 GROK_REASONING_EFFORTS = {"low", "medium", "high"}
 GROK_SILENCE_HEARTBEAT_SECONDS = 30
 GROK_MCP_INIT_TIMEOUT_SECONDS = 20
+
+# Planted in the orchestra server env; only our mcp_stdio.py writes the matching proof
+# file. Grok 1.0.3 no longer echoes server identity, so a same-name impostor from a
+# trusted-folder `.mcp.json` would otherwise pass the roster check.
+ORCHESTRA_MCP_CANARY_ENV = "ORCHESTRA_MCP_CANARY"
+_ORCHESTRA_MCP_CANARY_RE = re.compile(r"^[0-9a-f]{32}$")
+GROK_MCP_CANARY_TIMEOUT_SECONDS = 0.5
+
+
+def mcp_canary_proof_path(nonce: str) -> Path:
+    return Path(tempfile.gettempdir()) / f"orchestra-mcp-canary-{nonce}"
 
 
 class GrokMcpIsolationError(RuntimeError):
@@ -250,6 +263,8 @@ class GrokBackend(JsonRpcStdioTransport):
         self._pending_usage: dict = {}
         self._model_context_window = GROK_CONTEXT_LIMITS.get(model, GROK_DEFAULT_CONTEXT)
         self._context_tokens: int | None = None
+        self._mcp_canary: str | None = None
+        self._issue_mcp_canary()
         # A matching name is insufficient: a repository can define another command under it.
         expected_configs = self._mcp_server_configs()
         self._expected_server_identities = {
@@ -280,6 +295,7 @@ class GrokBackend(JsonRpcStdioTransport):
         self._last_stderr = ""
         self._active_prompts = 0
         self._queue_depth = 0
+        self._issue_mcp_canary()
         expected_configs = self._mcp_server_configs()
         self._expected_server_identities = {
             str(server["name"]): _mcp_server_identity(server)
@@ -457,6 +473,46 @@ class GrokBackend(JsonRpcStdioTransport):
                 + self._shadowing_hint(missing | unready)
                 + ". Refusing to run a worker without the exact Orchestra launch plan."
             )
+        await self._verify_mcp_canary()
+
+    def _issue_mcp_canary(self) -> None:
+        previous = self._mcp_canary
+        if previous and _ORCHESTRA_MCP_CANARY_RE.fullmatch(previous):
+            mcp_canary_proof_path(previous).unlink(missing_ok=True)
+        orchestra = self._mcp_servers.get("orchestra") or {}
+        if orchestra.get("command"):
+            self._mcp_canary = secrets.token_hex(16)
+        else:
+            self._mcp_canary = None
+
+    async def _verify_mcp_canary(self) -> None:
+        """Require our mcp_stdio.py to prove it is the process behind `orchestra`."""
+        nonce = self._mcp_canary
+        if not nonce:
+            return
+        path = mcp_canary_proof_path(nonce)
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + GROK_MCP_CANARY_TIMEOUT_SECONDS
+        while not path.is_file() and loop.time() < deadline:
+            await asyncio.sleep(0.05)
+        try:
+            if not path.is_file():
+                raise GrokMcpIsolationError(
+                    "Grok MCP conformance failed: orchestra canary handshake missing "
+                    "(server named 'orchestra' did not prove it is Orchestra's mcp_stdio). "
+                    "Refusing to run a worker without the exact Orchestra launch plan."
+                )
+            got = path.read_text(encoding="utf-8").strip()
+            if got != nonce:
+                raise GrokMcpIsolationError(
+                    "Grok MCP conformance failed: orchestra canary handshake mismatch. "
+                    "Refusing to run a worker without the exact Orchestra launch plan."
+                )
+        finally:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def _shadowing_hint(self, absent: set[str]) -> str:
         """Name the repo-local file that swallowed a server, when that is what happened.
@@ -1043,6 +1099,8 @@ class GrokBackend(JsonRpcStdioTransport):
             if command:
                 env = dict(self._mcp_env)
                 env.update({str(k): str(v) for k, v in (cfg.get("env") or {}).items()})
+                if name == "orchestra" and self._mcp_canary:
+                    env[ORCHESTRA_MCP_CANARY_ENV] = self._mcp_canary
                 servers.append({
                     "name": name,
                     "type": "stdio",
