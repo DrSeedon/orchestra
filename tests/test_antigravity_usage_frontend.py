@@ -7,6 +7,11 @@ from playwright.sync_api import Browser, expect, sync_playwright
 
 
 ROOT = Path(__file__).parent.parent
+_ANTIGRAVITY_BACKEND = ROOT / "app" / "backend_antigravity.py"
+pytestmark = pytest.mark.skipif(
+    not _ANTIGRAVITY_BACKEND.is_file(),
+    reason="#249 phase 2 not implemented (no app/backend_antigravity.py); follow-up #279",
+)
 UTILS_JS = ROOT / "app/static/js/utils.js"
 USAGE_JS = ROOT / "app/static/js/usage.js"
 STYLE_CSS = ROOT / "app/static/css/style.css"

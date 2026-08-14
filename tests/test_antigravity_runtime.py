@@ -17,6 +17,12 @@ import pytest
 from app.models import backend_for_model, get_model_spec, resolve_model
 from app.runtime_registry import BackendBuildContext, build_backend, get_runtime
 
+_ANTIGRAVITY_BACKEND = Path(__file__).resolve().parents[1] / "app" / "backend_antigravity.py"
+pytestmark = pytest.mark.skipif(
+    not _ANTIGRAVITY_BACKEND.is_file(),
+    reason="#249 phase 2 not implemented (no app/backend_antigravity.py); follow-up #279",
+)
+
 
 RAW_MODELS = (
     "gemini-3.6-flash-high",

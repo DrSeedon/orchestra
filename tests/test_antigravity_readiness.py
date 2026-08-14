@@ -15,6 +15,11 @@ import pytest
 ROOT = Path(__file__).parent.parent
 LOGIN_SCRIPT = ROOT / "scripts/antigravity-login.sh"
 RUNBOOK = ROOT / "docs/antigravity-runtime.md"
+_ANTIGRAVITY_BACKEND = ROOT / "app" / "backend_antigravity.py"
+pytestmark = pytest.mark.skipif(
+    not _ANTIGRAVITY_BACKEND.is_file(),
+    reason="#249 phase 2 not implemented (no app/backend_antigravity.py); follow-up #279",
+)
 
 
 def _backend_module():

@@ -2212,26 +2212,12 @@ class TestCanSpawn:
     # or after the pipelines/ migration. Spawn rights are decided solely by the manifest
     # (validate_spawn), covered by tests/test_pipeline.py + tests/test_default_pipeline.py.
 
-    @pytest.mark.asyncio
-    async def test_whitelist_allows_listed(self, mgr, roles_dir):
-        from app.db import save_session
-        from tests.conftest import make_backend_mock
-        self._write_role(roles_dir, "boss", "name: boss\ncan_spawn: [worker]")
-        self._write_role(roles_dir, "worker", "name: worker")
-        save_session({
-            "id": "p-1", "name": "parent", "scope": "/s", "cwd": "/tmp",
-            "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle", "session_id": None,
-            "cost_usd": 0.0, "worktree_path": None, "branch": None,
-            "is_orchestrator": False, "color": "#fff",
-            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
-            "role": "boss",
-        })
-        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            session = await mgr.create_session(
-                name="child", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
-                role="worker", parent_name="parent",
-            )
-        assert session.name == "child"
+    # REMOVED (#278): test_whitelist_allows_listed. Писал роль `boss` во временный
+    # frontmatter и ждал спавна. После #36 неизвестный parent role — всегда
+    # ValueError (`unknown parent role 'boss'`), даже в одиночку, не из-за чужого
+    # `can_spawn: []`. Allow-путь манифеста покрыт test_default_pipeline /
+    # test_pipeline.validate_spawn. Соседей (blocks_unlisted, empty_blocks_all)
+    # сняли тем же диагнозом ещё в #34.
 
     # REMOVED: test_whitelist_blocks_unlisted + test_empty_can_spawn_blocks_all.
     # They tested the legacy frontmatter can_spawn fallback (role_can_spawn reading
