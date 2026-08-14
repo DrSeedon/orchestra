@@ -5,3 +5,4 @@
 - `pipeline.yaml` is hand-edited. `scripts/extract-manifest.py` was a dead bridge from deleted `app/prompts/` — do not restore generation; `--check` only verifies roles/modules exist as files.
 - `limit_wake` keys off `content LIKE 'turn ended%'`; percentages come from `current_provider_usage`, not the TG suffix.
 - `wait_for(..., timeout=0.1)` in tests: 0 on 14.08. The short ones now are `timeout=0.05` in `test_tg_bridge.py` (4).
+- Flake `cards==0` after `wait_for_timeout(5000)`: wait for `.chat-notify-user` and stream reconnect count, never the clock.

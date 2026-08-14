@@ -1474,14 +1474,44 @@ def test_live_call_notifies_once_while_history_and_replays_stay_silent(
         history_rows=[_notify_row(41001, old_reason)],
         stream_pages=[[_notify_row(41010, live_reason)]],
     )
-    page.wait_for_function("() => window.__notifications.length >= 1", timeout=15000)
+    try:
+        page.wait_for_function("() => window.__notifications.length >= 1", timeout=8000)
+    except PlaywrightTimeout:
+        pytest.fail(
+            f"live notify never fired: {page.evaluate('() => window.__notifications')}"
+        )
+    try:
+        page.wait_for_function(
+            "() => document.querySelectorAll('#chat .chat-notify-user').length >= 1",
+            timeout=5000,
+        )
+    except PlaywrightTimeout:
+        pytest.fail(
+            "notify card never appeared after live call: count="
+            f"{page.evaluate('() => document.querySelectorAll(\"#chat .chat-notify-user\").length')}"
+        )
 
-    # Переподключение потока после разрыва: те же строки приезжают повторно.
-    page.wait_for_timeout(5000)
+    # Reconnect is a count, not a clock. 5s sleep under module load was the flake.
+    deadline = time.monotonic() + 8
+    while len(stream_calls) < 2 and time.monotonic() < deadline:
+        page.wait_for_timeout(50)
+    if len(stream_calls) < 2:
+        pytest.fail(f"stream did not reconnect, connections={len(stream_calls)}")
+
     page.evaluate(
         """row => _prependHistory(selectedAgent, currentScope, [row])""",
         _notify_row(41010, live_reason),
     )
+    try:
+        page.wait_for_function(
+            "() => document.querySelectorAll('#chat .chat-notify-user').length >= 1",
+            timeout=5000,
+        )
+    except PlaywrightTimeout:
+        pytest.fail(
+            "notify card gone after history prepend: count="
+            f"{page.evaluate('() => document.querySelectorAll(\"#chat .chat-notify-user\").length')}"
+        )
     state = page.evaluate("""() => ({
         notifications: window.__notifications,
         cards: document.querySelectorAll('#chat .chat-notify-user').length,
