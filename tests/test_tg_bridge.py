@@ -1552,8 +1552,34 @@ class TestLimitsCommand:
             ),
         ]
 
+    def test_format_limits_chat_message_includes_consumed_window_and_pace(self, tb):
+        usage = {
+            "anthropic": {
+                "five_hour": {
+                    "utilization": 30,
+                    "window_minutes": 300,
+                    "resets_at": "2026-08-01T00:50:00Z",
+                },
+            },
+            "codex": {},
+        }
+
+        text = tb._format_limits_message_for_chat(
+            usage,
+            now=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        )
+
+        lines = text.splitlines()
+        assert lines[0] == "*Лимиты*"
+        assert (
+            "• Claude 5h — осталось 70%; израсходовано 30%;"
+            " окно (83%); сброс 01.08.2026 07:50 UTC+7, через 50 мин; темп ok"
+        ) in lines
+        assert "• Claude 7d — нет данных" in lines
+        assert "• Codex — нет данных" in lines
+
     @pytest.mark.asyncio
-    async def test_response_uses_normal_delivery_queue(self, tb, monkeypatch):
+    async def test_limits_uses_important_file_delivery_path(self, tb, monkeypatch):
         usage = {
             "anthropic": {
                 "five_hour": {
@@ -1586,7 +1612,46 @@ class TestLimitsCommand:
         assert args[1].endswith(".png")
         assert "Claude 5h" in args[2]
         assert kwargs["is_photo"] is True
-        assert kwargs["important"] is False
+        assert kwargs["important"] is True
+        assert "израсходовано" in args[2]
+
+    @pytest.mark.asyncio
+    async def test_limits_sends_explicit_error_when_image_delivery_fails(
+        self, tb, monkeypatch,
+    ):
+        usage = {
+            "anthropic": {
+                "five_hour": {
+                    "utilization": 1,
+                    "resets_at": "2026-08-01T11:30:00Z",
+                },
+                "seven_day": {
+                    "utilization": 2,
+                    "resets_at": "2026-08-03T08:15:00Z",
+                },
+            },
+            "codex": {
+                "primary": {
+                    "utilization": 3,
+                    "resets_at": "2026-08-01T08:45:00Z",
+                },
+            },
+        }
+        self._authorize_owner(tb)
+        queued = AsyncMock(return_value=None)
+        text_call = AsyncMock()
+        monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value=usage))
+        monkeypatch.setattr(tb, "_tg_send_file_safe", queued)
+        monkeypatch.setattr(tb, "_tg_send_safe", text_call)
+
+        await tb.handle_limits(self._message())
+
+        tb.bot.get_chat_member.assert_awaited_once_with(-100123456, 456)
+        text_call.assert_awaited_once()
+        assert text_call.await_args.args[1].startswith(
+            "❌ /limits: RuntimeError: изображение не доставлено",
+        )
+        assert "Claude 5h" in text_call.await_args.args[1]
 
     @pytest.mark.asyncio
     async def test_usage_error_includes_exception_class_and_empty_detail(

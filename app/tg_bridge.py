@@ -3487,6 +3487,117 @@ def _format_limits_message(usage: dict, *, now: datetime | None = None) -> str:
     return "\n".join(lines)
 
 
+def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None) -> str:
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    local_tz = timezone(timedelta(hours=7))
+
+    def _fmt_pct(value: float) -> str:
+        return f"{max(0.0, min(100.0, value)):.1f}".rstrip("0").rstrip(".")
+
+    def _reset_countdown(reset: datetime) -> str:
+        seconds = int((reset - now).total_seconds())
+        if seconds <= 0:
+            return "сброс уже наступил"
+        minutes_total = max(1, int((seconds + 59) // 60))
+        days, minutes_total = divmod(minutes_total, 24 * 60)
+        hours, minutes = divmod(minutes_total, 60)
+        parts: list[str] = []
+        if days:
+            parts.append(f"{days} д")
+        if hours:
+            parts.append(f"{hours} ч")
+        if minutes or not parts:
+            parts.append(f"{minutes} мин")
+        return f"через {' '.join(parts)}"
+
+    def _progress_pct(reset: datetime, window_minutes: int | None) -> int | None:
+        if not isinstance(window_minutes, int) or window_minutes <= 0:
+            return None
+        remaining = (reset - now).total_seconds()
+        elapsed = window_minutes * 60 - remaining
+        return int(
+            max(0, min(100, round(elapsed / (window_minutes * 60) * 100))),
+        )
+
+    def _pace_text(utilization: float, reset: datetime, window_minutes: int | None) -> str:
+        if not isinstance(window_minutes, int) or window_minutes <= 0:
+            return "темп не известен"
+        remain_ms = max(0, int((reset - now).total_seconds() * 1000))
+        elapsed_ms = window_minutes * 60_000 - remain_ms
+        ideal_pct = (elapsed_ms / (window_minutes * 60_000)) * 100
+        delta = utilization - ideal_pct
+        if delta <= 5:
+            return "темп ok"
+        cooldown_min = round(delta * (window_minutes * 60_000) / 100 / 60_000)
+        if cooldown_min < 60:
+            label = f"{cooldown_min}m"
+        elif cooldown_min < 1440:
+            label = f"{cooldown_min // 60}ч {cooldown_min % 60}м"
+        else:
+            days, rest = divmod(cooldown_min, 1440)
+            label = f"{days}д {rest // 60}ч {rest % 60}м"
+        return f"темп +{label}"
+
+    def _resolve_window_minutes(window_id: str | None, window: dict) -> int | None:
+        window_minutes = window.get("window_minutes")
+        if isinstance(window_minutes, int) and window_minutes > 0:
+            return window_minutes
+        fallback = {"five_hour": 300, "seven_day": 10080}
+        if window_id in fallback:
+            return fallback[window_id]
+        return None
+
+    def _window_line(label: str, window: dict | None, window_id: str | None = None) -> str:
+        if not isinstance(window, dict) or not isinstance(
+            window.get("utilization"), (int, float)
+        ):
+            return f"• {label} — нет данных"
+
+        utilization = float(window["utilization"])
+        remaining = 100.0 - utilization
+        consumed_text = _fmt_pct(utilization)
+        remaining_text = _fmt_pct(remaining)
+
+        reset_value = window.get("resets_at")
+        reset = _to_utc_datetime(reset_value)
+        if reset is None:
+            return (
+                f"• {label} — осталось {remaining_text}%; "
+                f"израсходовано {consumed_text}% (окно не указано); сброс не указан"
+            )
+
+        absolute = reset.astimezone(local_tz).strftime("%d.%m.%Y %H:%M UTC+7")
+        resolved_window_minutes = _resolve_window_minutes(window_id, window)
+        progress = _progress_pct(reset, resolved_window_minutes)
+        pace = _pace_text(utilization, reset, resolved_window_minutes)
+        parts = [f"• {label} — осталось {remaining_text}%; израсходовано {consumed_text}%"]
+        if progress is not None:
+            parts.append(f"окно ({progress}%)")
+        parts.append(f"сброс {absolute}, {_reset_countdown(reset)}")
+        parts.append(pace)
+        return "; ".join(parts)
+
+    anthropic = usage.get("anthropic") or {}
+    codex = usage.get("codex") or {}
+    lines = [
+        "*Лимиты*",
+        _window_line("Claude 5h", anthropic.get("five_hour"), "five_hour"),
+        _window_line("Claude 7d", anthropic.get("seven_day"), "seven_day"),
+        _window_line("Codex", codex.get("primary")),
+        _window_line("Spark", (codex.get("spark") or {}).get("primary")),
+        _window_line("Grok", (usage.get("grok") or {}).get("primary")),
+    ]
+    extra_usage = anthropic.get("extra_usage") or {}
+    if extra_usage.get("spend_limit_reached") is True:
+        lines.append(
+            "• Claude extra usage — лимит расходов достигнут "
+            "(базовые окна считаются отдельно)"
+        )
+    return "\n".join(lines)
+
+
 @dp.message(F.chat.type == "private", F.text, lambda msg: msg.text and msg.text.strip() == "/limits")
 async def handle_limits(msg: types.Message):
     if not await _is_limits_owner(msg):
@@ -3495,23 +3606,30 @@ async def handle_limits(msg: types.Message):
 
     try:
         usage = await _get_limits_usage()
-        response = _format_limits_message(usage)
+        response = _format_limits_message_for_chat(usage)
         chart_data = _collect_limits_chart_data(usage)
         from app.charts import render_chart
 
         path = render_chart("bars", "Лимиты", chart_data)
-        await _tg_send_file_safe(
+        delivery = await _tg_send_file_safe(
             msg.chat.id,
             path,
             response,
             thread_id=None,
             is_photo=True,
-            important=False,
+            important=True,
         )
+        if delivery is None:
+            raise RuntimeError("изображение не доставлено")
         return
     except Exception as e:
         detail = str(e).strip() or "(без сообщения)"
-        response = f"❌ /limits: {type(e).__name__}: {detail}"
+        error_text = f"❌ /limits: {type(e).__name__}: {detail}"
+        delivery_text = locals().get("response")
+        if isinstance(delivery_text, str):
+            response = f"{error_text}\n{delivery_text}"
+        else:
+            response = error_text
 
     await _tg_send_safe(
         msg.chat.id,
