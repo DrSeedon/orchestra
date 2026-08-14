@@ -794,6 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#view-prompt-btn').addEventListener('click', openPromptModal);
     $('#compact-btn').addEventListener('click', compactAgent);
     $('#restart-cli-btn').addEventListener('click', restartCli);
+    $('#clear-session-btn')?.addEventListener('click', clearSession);
     $('#prompt-modal-close').addEventListener('click', closePromptModal);
     $('#prompt-modal').addEventListener('click', (e) => { if (e.target === $('#prompt-modal')) closePromptModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePromptModal(); closeFilePreview(); closeModal(); closeClientModal(); } });
@@ -1120,6 +1121,26 @@ async function restartCli() {
     } catch (e) {
         btn.textContent = '❌';
         setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 2000);
+    }
+}
+
+async function clearSession() {
+    if (!selectedAgent || !currentScope) return;
+    if (!confirm(`Очистить сессию «${selectedAgent}»?\n\nАгент забудет весь разговор и начнёт с чистого листа.\nWorktree, ветка и промпт не пострадают.`)) return;
+    const btn = $('#clear-session-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    try {
+        await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/clear-session`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({scope: currentScope}),
+        });
+        btn.textContent = '✅';
+        setTimeout(() => { btn.textContent = '🧹'; btn.disabled = false; }, 1500);
+    } catch (e) {
+        btn.textContent = '❌';
+        setTimeout(() => { btn.textContent = '🧹'; btn.disabled = false; }, 2000);
     }
 }
 
@@ -2329,13 +2350,22 @@ function updateAgentInfo(session) {
         $('#subagents-btn')?.classList.add('hidden');
         $('#compact-btn').classList.add('hidden');
         $('#restart-cli-btn').classList.add('hidden');
+        $('#clear-session-btn')?.classList.add('hidden');
         return;
     }
     $('#view-prompt-btn').classList.remove('hidden');
     $('#subagents-btn')?.classList.remove('hidden');
     $('#compact-btn').classList.remove('hidden');
     $('#restart-cli-btn').classList.remove('hidden');
+    $('#clear-session-btn')?.classList.remove('hidden');
     const isRunning = session.status === 'running';
+    const clearBtn = $('#clear-session-btn');
+    if (clearBtn) {
+        clearBtn.disabled = isRunning;
+        clearBtn.title = isRunning
+            ? 'Дождись idle'
+            : 'Очистить сессию — начать разговор с нуля (история забывается, worktree и ветка не трогаются)';
+    }
     $('#compact-btn').disabled = isRunning;
     $('#compact-btn').title = isRunning ? 'Wait for idle' : 'Compact context';
     $('#ai-name').textContent = session.name;

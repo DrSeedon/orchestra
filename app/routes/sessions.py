@@ -692,6 +692,27 @@ async def restart_cli(name: str, req: ScopeRequest):
     return {"ok": True}
 
 
+@router.post("/api/sessions/{name}/clear-session")
+async def clear_session(name: str, req: ScopeRequest):
+    """Drop the conversation thread: next turn starts with an empty history.
+
+    Unlike restart-cli (reconnects the backend but keeps session_id), this
+    forgets the thread entirely. The worktree, branch and prompt are untouched.
+    """
+    session = await manager.ensure_loaded(name, req.scope)
+    if not session:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    if session.status.value == "running":
+        return JSONResponse({"error": "agent is running"}, status_code=400)
+    old_sid = session.session_id
+    await session._disconnect_backend()
+    session.session_id = ""
+    session.runtime_handoff = ""
+    session.status = AgentStatus.IDLE
+    session._persist()
+    return {"ok": True, "cleared": old_sid}
+
+
 @router.post("/api/sessions/{name}/interrupt")
 async def interrupt_session(name: str, req: ScopeRequest):
     found = manager.get_by_name(name, req.scope)
