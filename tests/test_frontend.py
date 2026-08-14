@@ -413,9 +413,47 @@ def test_unexecuted_tool_call_marker_detects_structure_without_prose_false_alarm
     page.close()
 
 
-def test_header_has_orch_tabs(dashboard_page: Page):
-    tabs = dashboard_page.locator("#orch-tabs")
-    expect(tabs).to_be_visible()
+_PINNED_ORCH_TAB = "task197-pinned-orch"
+
+
+def test_header_has_orch_tabs(dashboard_browser: Browser):
+    """Вкладки шапки рисуются из /api/orchestrators, не из шаблона.
+
+    Пустой ``#orch-tabs`` — flex без padding, bounding box 0×0, и Playwright
+    считает его невидимым. ``to_be_visible()`` на контейнере поэтому зеленеет
+    только когда живой сервер уже успел прислать оркестраторов — в полном
+    прогоне тот же запрос тормозит или падает в пустой ``catch {}``, и тест
+    краснеет (#185, #187, #197). Пиним ответ: живая БД больше не участвует.
+    """
+    page = dashboard_browser.new_page()
+    pinned = [{
+        "id": "sess-task197",
+        "name": _PINNED_ORCH_TAB,
+        "scope": "/tmp/task197-pinned",
+        "status": "idle",
+        "any_running": False,
+        "any_waiting": False,
+    }]
+
+    def orch_list(route):
+        url = route.request.url.split("?", 1)[0].rstrip("/")
+        if route.request.method == "GET" and url.endswith("/api/orchestrators"):
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(pinned),
+            )
+            return
+        route.fallback()
+
+    page.route(re.compile(r"/api/orchestrators(?:\?|$)"), orch_list)
+    try:
+        _goto_dashboard_or_skip(page)
+        tab = page.locator(f'#orch-tabs .orch-tab[data-orch-name="{_PINNED_ORCH_TAB}"]')
+        expect(tab).to_be_visible()
+        expect(tab).to_contain_text(_PINNED_ORCH_TAB)
+    finally:
+        page.close()
 
 
 def test_orchestrator_unread_tracks_own_turn_only(dashboard_browser: Browser):
