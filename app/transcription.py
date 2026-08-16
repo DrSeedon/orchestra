@@ -17,6 +17,10 @@ UPLOADS_DIR = Path(__file__).parent.parent / "data" / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 TRANSCRIPTION_CACHE_PATH = UPLOADS_DIR / ".transcription_cache.json"
 
+# The service environment can be replaced while this process is still alive. Load the
+# CA bundle once so later client construction does not reopen a deleted certifi path.
+_DEEPGRAM_SSL_CONTEXT = httpx.create_ssl_context(verify=True)
+
 
 def _load_transcription_cache() -> dict[str, str]:
     if TRANSCRIPTION_CACHE_PATH.exists():
@@ -49,13 +53,21 @@ async def transcribe_audio(
     api_key = os.getenv("DEEPGRAM_API_KEY", "")
     if not api_key:
         return "", "DEEPGRAM_API_KEY is not configured"
-    file_size = Path(path).stat().st_size
-    audio_data = Path(path).read_bytes()
+    try:
+        file_size = Path(path).stat().st_size
+        audio_data = Path(path).read_bytes()
+    except OSError as e:
+        detail = f"{type(e).__name__}: {e}"
+        logger.error("Transcription input unavailable: %s", detail)
+        return "", f"audio file unavailable: {detail}"
     last_err = ""
     started = time.monotonic()
     for attempt in range(3):
         try:
-            async with httpx.AsyncClient(timeout=120, verify=True) as client:
+            async with httpx.AsyncClient(
+                timeout=120,
+                verify=_DEEPGRAM_SSL_CONTEXT,
+            ) as client:
                 response = await client.post(
                     "https://api.deepgram.com/v1/listen?model=nova-3&language=multi&smart_format=true&profanity_filter=false",
                     headers={
@@ -67,7 +79,7 @@ async def transcribe_audio(
                 output = response.content
             break
         except Exception as e:
-            last_err = f"{type(e).__name__}: {e}"
+            last_err = f"transcription service unavailable: {type(e).__name__}: {e}"
             logger.warning("Deepgram attempt %d/3 failed: %s", attempt + 1, last_err)
             if attempt < 2:
                 await asyncio.sleep(1.5 * (attempt + 1))
