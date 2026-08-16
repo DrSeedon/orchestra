@@ -1,0 +1,59 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+____ test_tc_backends_use_controller_launch_and_project_tools_use_release_b ____
+
+    def test_tc_backends_use_controller_launch_and_project_tools_use_release_b():
+>       _load_boundary()
+
+docs/tasks/303/test_release_c_credentials.py:79: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _load_boundary():
+        path = ROOT / "app/provider_boundary.py"
+>       assert path.is_file(), (
+            "T-C missing behavior: provider credentials and project tools share one authority domain"
+        )
+E       AssertionError: T-C missing behavior: provider credentials and project tools share one authority domain
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/app/provider_boundary.py').is_file
+
+docs/tasks/303/test_release_c_credentials.py:43: AssertionError
+_____ test_tc_all_provider_probe_rows_are_current_complete_and_non_leaking _____
+
+    def test_tc_all_provider_probe_rows_are_current_complete_and_non_leaking():
+        evidence = ROOT / "docs/tasks/303/release-c-evidence.json"
+>       assert evidence.is_file(), (
+            "T-C missing evidence: all-provider auth/refresh/EACCES rehearsal has not passed"
+        )
+E       AssertionError: T-C missing evidence: all-provider auth/refresh/EACCES rehearsal has not passed
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/docs/tasks/303/release-c-evidence.json').is_file
+
+docs/tasks/303/test_release_c_credentials.py:99: AssertionError
+_____ test_tc_one_failed_or_unknown_provider_holds_the_global_latch_closed _____
+
+    def test_tc_one_failed_or_unknown_provider_holds_the_global_latch_closed():
+>       boundary = _load_boundary()
+                   ^^^^^^^^^^^^^^^^
+
+docs/tasks/303/test_release_c_credentials.py:199: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _load_boundary():
+        path = ROOT / "app/provider_boundary.py"
+>       assert path.is_file(), (
+            "T-C missing behavior: provider credentials and project tools share one authority domain"
+        )
+E       AssertionError: T-C missing behavior: provider credentials and project tools share one authority domain
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/app/provider_boundary.py').is_file
+
+docs/tasks/303/test_release_c_credentials.py:43: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_c_credentials.py::test_tc_backends_use_controller_launch_and_project_tools_use_release_b
+FAILED docs/tasks/303/test_release_c_credentials.py::test_tc_all_provider_probe_rows_are_current_complete_and_non_leaking
+FAILED docs/tasks/303/test_release_c_credentials.py::test_tc_one_failed_or_unknown_provider_holds_the_global_latch_closed
+3 failed in 0.16s

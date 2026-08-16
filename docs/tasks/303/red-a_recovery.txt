@@ -1,0 +1,22 @@
+Installed 5 packages in 46ms
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_ta_versioned_runtime_activation_and_exact_rollback_are_delivered _____
+
+    def test_ta_versioned_runtime_activation_and_exact_rollback_are_delivered():
+        service = (ROOT / "deploy/orchestra.service").read_text(encoding="utf-8")
+        exec_lines = [line for line in service.splitlines() if line.startswith("ExecStart=")]
+>       assert exec_lines == [
+            "ExecStart=/var/lib/orchestra-runtime/current/bin/python -m uvicorn "
+            "app.main:app --fd 3"
+        ], "T-A missing behavior: the service still starts through a mutable uv-selected environment"
+E       AssertionError: T-A missing behavior: the service still starts through a mutable uv-selected environment
+E       assert ['ExecStart=/...n:app --fd 3'] == ['ExecStart=/...n:app --fd 3']
+E         
+E         At index 0 diff: 'ExecStart=/home/kesha/.local/bin/uv run uvicorn app.main:app --fd 3' != 'ExecStart=/var/lib/orchestra-runtime/current/bin/python -m uvicorn app.main:app --fd 3'
+E         Use -v to get more diff
+
+docs/tasks/303/test_release_a_recovery.py:21: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_versioned_runtime_activation_and_exact_rollback_are_delivered
+1 failed, 1 passed in 0.14s

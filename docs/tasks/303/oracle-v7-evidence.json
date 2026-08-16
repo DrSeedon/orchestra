@@ -1,0 +1,81 @@
+{
+  "schema": "orchestra.task303.oracle-freeze-evidence.v3",
+  "date": "2026-08-16",
+  "freeze_commit": "c83f4437e73432e6b3752014b7786126e59b48a2",
+  "status": "frozen_pending_independent_enforcement_oracle_audit",
+  "production_or_configuration_changed": false,
+  "oracle_sha256": {
+    "oracle_support.py": "f0a2c57b6bfe43feed99a08c98da84b6161fd47912bb71145c95a427b67a58c7",
+    "test_authority_oracle_selftest.py": "b17f11fe67719596db60834376bea25648e8498c763acf113c439638361fee81",
+    "test_release_a_recovery.py": "e29ccc3ee1f3a9b1bd5ed05790853a1a5739c12cfd01f5e2ca033fc71a715e63",
+    "test_release_b_identity.py": "650624e975f677f1708799cbd11febc562bf53a3b94e0b3440b6d9afbf1ca353",
+    "test_release_c_credentials.py": "372460aa70f4427fe185eaf0349ed0d40ea340bffcbe1d683604be231fb0d99b",
+    "test_release_d_env.py": "be89030df06a5c3d25f28e92ba9fb5c8a4c71ad9903beb90487ead2181df1f3d"
+  },
+  "supporting_sha256": {
+    "emergency-baseline-v6.json": "f17cb06baf175036cd40043cececb006b7d618b21e8e79598114bf857177d2a3",
+    "oracle-selftest-v7.txt": "8dd6b85588f01a8df7ce52b0b206ab02eb0ccc3b40362b81c59c161d2772f9ef",
+    "red-release-a-v7.txt": "02d073c7fdc9b404807e86e8adfada06de446d220cc5a47101a07e490f08edc5",
+    "red-release-b-v7.txt": "aab6313ddb5053e59128b6ea1d57c1a7804716f5cf46422fccb4fc2a6d5ca118",
+    "red-release-c-v7.txt": "6a75c8ac9aacd03380f3be8a6d75aa60fe3c653c4576da81f85eddac28737f84",
+    "red-release-d-v7.txt": "a02210e9dd98adc00c1d7fcadf8e82fdc8d2d9e28b2f390e4f4205b8c3cabe1e"
+  },
+  "commands": {
+    "selftest": {"exit_code": 0, "passed": 5, "output": "oracle-selftest-v7.txt"},
+    "release_a": {"exit_code": 1, "failed": 5, "passed": 4, "deselected": 2, "output": "red-release-a-v7.txt"},
+    "release_b": {"exit_code": 1, "failed": 3, "passed": 4, "deselected": 1, "output": "red-release-b-v7.txt"},
+    "release_c": {"exit_code": 1, "failed": 3, "output": "red-release-c-v7.txt"},
+    "release_d": {"exit_code": 1, "failed": 5, "output": "red-release-d-v7.txt"}
+  },
+  "gate_1": {
+    "production_caller": "/etc/systemd/system/orchestra-runtime-recovery@.service",
+    "authority_under_test": "sole installed ExecStart argv into selected immutable runtime_manager activate operation",
+    "deployment_binding": "installer can only install and daemon-reload; separate authorized operator starts the fixed unit; oracle parses the installed unit, verifies PID 1 loaded that exact fragment with no drop-ins and matching effective ExecStart, then executes the derived argv",
+    "command_shape": ["<selected-runtime-manager>", "activate", "--state-root", "/var/lib/orchestra-runtime", "--activation-id", "%i"],
+    "oracle_owned": ["restricted unit parser", "fixture copies", "physical attacks", "barrier release", "filesystem snapshots", "temporary state-root/id substitution"],
+    "oracle_does_not_supply": ["handwritten or declarative activation argv", "verification callback", "runner callback", "commit callback", "activation implementation"],
+    "control_roles": ["runtime_manager", "activation_probe", "activation_hook"],
+    "attacks_per_role": ["rename", "symlink", "inode_preserving_content"],
+    "attack_count": 9,
+    "real_state_paths": ["current", "deploy-state/active.json", "activation-state/admission.json", "activation-state/process.json", "activation-state/apply.jsonl"],
+    "control_apply_count": 1
+  },
+  "gate_2": {
+    "production_caller": "/etc/systemd/system/orchestra-boundary-activate@.service",
+    "authority_under_test": "sole installed ExecStart argv into selected immutable runtime_manager authorize-commit operation",
+    "command_shape": ["<selected-runtime-manager>", "authorize-commit", "--state-root", "/var/lib/orchestra-runtime", "--activation-id", "%i"],
+    "independent_verifier": "/usr/bin/openssl pkeyutl",
+    "known_vector": "RFC8032-test-vector-2",
+    "invalid_arms": ["shape_valid_garbage", "signature_bit_flip", "wrong_public_key", "wrong_activation_context", "cross_host", "cross_pid", "runtime_drift", "stale"],
+    "concurrency": {
+      "contenders": 2,
+      "argv_identity": "same unit-derived manager/operation/activation/attestation/context/key/time/state/sync paths",
+      "barrier_phase": "validated_before_consume",
+      "required_results": ["authorized", "replay"],
+      "required_exit_codes": [0, 73],
+      "required_apply_count": 1,
+      "required_receipt_count": 1,
+      "loser_pid_absent_from_authority_state": true
+    },
+    "third_replay_state_delta": 0
+  },
+  "mutations": [
+    {"name": "unit_manager_identity_accepts_argv0", "exit_code": 1, "caught": "/bin/true caller no longer rejected"},
+    {"name": "unit_operation_identity_accepts_argv1", "exit_code": 1, "caught": "direct-apply operation no longer rejected"},
+    {"name": "release_a_selects_boundary_unit", "exit_code": 1, "caught": "recovery unit wiring mismatch"},
+    {"name": "release_b_passes_manager_not_unit_argv", "exit_code": 1, "caught": "authorization unit argv bypass"},
+    {"name": "gate2_one_contender_barrier", "source": "v6 unchanged oracle", "exit_code": 1, "caught": "two-contender requirement removed"},
+    {"name": "gate2_independent_verifier_always_true", "source": "v6 unchanged oracle", "exit_code": 1, "caught": "garbage signature accepted"}
+  ],
+  "rejected_v6": {
+    "freeze_commit": "1ec850dbf5b69a35bdcd6422eca1001f5a3576f8",
+    "hash_registry_commit": "60e211c6815d9f3b455c9a8f659aa708ecf83181",
+    "audit_artifact_commit": "6cb62f96",
+    "audit_path": "enforcement-oracle-audit-v6.md",
+    "audit_sha256": "6accc9a8a7496f8a0e77c37cdc5a42084c2850afd802b2ecb778865a0b0a7b14",
+    "verdict": "CHANGES REQUIRED",
+    "wrapper_status": "failed_blind_execution_never_happened"
+  },
+  "independent_review": null,
+  "plan_approved": false
+}

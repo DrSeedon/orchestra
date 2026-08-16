@@ -1,0 +1,27 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 python docs/tasks/303/v10_delivery_gate.py C
+exit_code: 1
+
+...F                                                                     [100%]
+=================================== FAILURES ===================================
+____ test_tc_backends_use_controller_launch_and_project_tools_use_release_b ____
+
+    def test_tc_backends_use_controller_launch_and_project_tools_use_release_b():
+>       _load_boundary()
+
+docs/tasks/303/test_release_c_credentials.py:162: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _load_boundary():
+        candidate = ROOT / "app/provider_boundary.py"
+>       assert candidate.is_file(), (
+            "T-C missing behavior: provider credentials and project tools share one authority domain"
+        )
+E       AssertionError: T-C missing behavior: provider credentials and project tools share one authority domain
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/app/provider_boundary.py').is_file
+
+docs/tasks/303/test_release_c_credentials.py:125: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_c_credentials.py::test_tc_backends_use_controller_launch_and_project_tools_use_release_b
+1 failed, 3 passed in 0.30s

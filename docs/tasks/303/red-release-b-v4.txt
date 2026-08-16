@@ -1,0 +1,5 @@
+command: sudo -n env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_release_b_identity.py
+exit_code: 1
+result: 2 failed in 0.23s
+first_failure: AssertionError: T-B missing behavior: no mandatory project-execution identity boundary exists
+additional_failure: AssertionError: T-B missing evidence: the privileged rehearsal has not passed

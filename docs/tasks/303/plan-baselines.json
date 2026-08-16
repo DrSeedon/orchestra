@@ -1,0 +1,207 @@
+{
+  "schema": "orchestra.task303.plan-baselines.v1",
+  "candidate": {
+    "commit": "82247195ed2819414354fb0807c1993aaad1f31e",
+    "outputs": [
+      "oracle-selftest-v10.txt",
+      "red-delivery-a-v10.txt",
+      "red-delivery-b-v10.txt",
+      "red-delivery-c-v10.txt",
+      "red-delivery-d-v10.txt",
+      "red-activation-a-v10.txt",
+      "red-activation-b-v10.txt",
+      "red-activation-c-v10.txt",
+      "red-activation-d-v10.txt"
+    ],
+    "review": "enforcement-oracle-audit-v10.md",
+    "review_artifact_commit": "b8070d12461d32c903d2975c943621e9c63d417a",
+    "review_sha256": "85f4672342c6f34b609ebc3bb235c06c39adec980c415d1c120680d7418503fa",
+    "review_round": 3,
+    "verdict": "APPROVED",
+    "cross_family_review": "unavailable",
+    "status": "accepted_phase2_baseline_activation_pending"
+  },
+  "superseded_for_implementation": [
+    {
+      "commit": "6045144a5fc207b276048b622f5f63f04dff26eb",
+      "outputs": [
+        "oracle-selftest-v9.txt",
+        "red-release-a-v9.txt",
+        "red-release-b-v9.txt",
+        "red-release-c-v9.txt",
+        "red-release-d-v9.txt"
+      ],
+      "review": "enforcement-oracle-audit-v7.md",
+      "review_artifact_commit": "b8f8a27348cdbb5225383ebb03a7eeb2ca5ed653",
+      "review_sha256": "5ffaca93ac20067a9eabdc5b009537019d504d74f04e445a07f399dc6f708eff",
+      "verdict": "APPROVED",
+      "authority_seam_evidence_preserved": true,
+      "carried_forward_as_green_evidence": false,
+      "status": "superseded_for_implementation_combined_privileged_gate"
+    }
+  ],
+  "rejected": [
+    {
+      "commit": "c2cd8e215ee808ad041daa7ecffe25e92ce2bf75",
+      "hash_registry_commit": "c269b0e9bfe6259e2607b6d14fab2d41a6e5a821",
+      "outputs": [
+        "oracle-selftest-v10.txt",
+        "red-delivery-a-v10.txt",
+        "red-delivery-b-v10.txt",
+        "red-delivery-c-v10.txt",
+        "red-delivery-d-v10.txt",
+        "red-activation-a-v10.txt",
+        "red-activation-b-v10.txt",
+        "red-activation-c-v10.txt",
+        "red-activation-d-v10.txt"
+      ],
+      "review": "enforcement-oracle-audit-v10.md",
+      "review_round": 2,
+      "status": "rejected_changes_required",
+      "blocking": [
+        "git_tracked_application_payload_had_no_independent_source_content_policy"
+      ],
+      "closed": [
+        "alternate_name_credential_and_activation_state_members",
+        "sensitive_relative_symlink",
+        "delivery_cannot_authorize_activation",
+        "delivery_cannot_claim_isolation",
+        "privileged_activation_gates_remain_mandatory_pending"
+      ]
+    },
+    {
+      "commit": "3174b10f209925a29093fe86c89251dd3cb7cbbd",
+      "hash_registry_commit": "e51e3c660ea81a540dfbb5551dddd96cf32f3197",
+      "outputs": [
+        "oracle-selftest-v10.txt",
+        "red-delivery-a-v10.txt",
+        "red-delivery-b-v10.txt",
+        "red-delivery-c-v10.txt",
+        "red-delivery-d-v10.txt",
+        "red-activation-a-v10.txt",
+        "red-activation-b-v10.txt",
+        "red-activation-c-v10.txt",
+        "red-activation-d-v10.txt"
+      ],
+      "evidence": "oracle-v10-round1-evidence.json",
+      "review": "enforcement-oracle-audit-v10.md",
+      "review_round": 1,
+      "status": "rejected_changes_required",
+      "blocking": [
+        "alternate_name_provider_credentials_member_accepted",
+        "alternate_name_ssh_private_key_member_accepted",
+        "activation_receipt_member_accepted",
+        "relative_symlink_to_sensitive_state_accepted"
+      ],
+      "closed": [
+        "delivery_cannot_authorize_activation",
+        "delivery_cannot_claim_isolation",
+        "privileged_activation_gates_remain_mandatory_pending"
+      ]
+    },
+    {
+      "commit": "9c80ec07d30e918e8f9a8d79c4be8bc984afeafe",
+      "hash_registry_commit": "75fc5e99",
+      "outputs": "red-release-*-v8.txt",
+      "review": "enforcement-oracle-audit-v7.md",
+      "review_artifact_commit": "a01e5eab",
+      "review_through_round_2_sha256": "121f8b2dada884f072e3c8f4bb55d557f1cc2d3f60fc479fbf5befd791cb6012",
+      "status": "rejected_changes_required",
+      "blocking": [
+        "constructed_systemctl_and_start_false_green"
+      ],
+      "closed": [
+        "fixed_systemd_to_manager_binding",
+        "atomic_concurrent_replay",
+        "literal_indirect_installer_mutations",
+        "direct_manager_mutation",
+        "alternate_application_route_mutation"
+      ]
+    },
+    {
+      "commit": "c83f4437e73432e6b3752014b7786126e59b48a2",
+      "hash_registry_commit": "316c8d5a6d9bca023cc42a5b2a1212fbea03e348",
+      "outputs": "red-release-*-v7.txt",
+      "review": "enforcement-oracle-audit-v7.md",
+      "review_artifact_commit": "714aaf61",
+      "review_round_1_sha256": "fb058767012a914aeb870c0d85d94f8c42ac6e365b922c104c69a4059bedcfd2",
+      "status": "rejected_changes_required",
+      "blocking": [
+        "indirect_installer_activation_not_detected",
+        "direct_manager_invocation_not_detected",
+        "alternate_application_authority_route_not_detected"
+      ],
+      "closed": [
+        "fixed_systemd_to_manager_binding",
+        "atomic_concurrent_replay"
+      ]
+    },
+    {
+      "commit": "1ec850dbf5b69a35bdcd6422eca1001f5a3576f8",
+      "hash_registry_commit": "60e211c6815d9f3b455c9a8f659aa708ecf83181",
+      "outputs": "red-release-*-v6.txt",
+      "review": "enforcement-oracle-audit-v6.md",
+      "review_artifact_commit": "6cb62f96",
+      "review_sha256": "6accc9a8a7496f8a0e77c37cdc5a42084c2850afd802b2ecb778865a0b0a7b14",
+      "review_wrapper_status": "failed_blind_execution_never_happened",
+      "status": "rejected_changes_required",
+      "blocking": [
+        "gate1_actual_deployment_caller_not_bound",
+        "gate2_actual_deployment_caller_not_bound"
+      ],
+      "closed": [
+        "atomic_concurrent_replay",
+        "recovery_not_prevention_wording"
+      ]
+    },
+    {
+      "commit": "8fe615b9cc89b0f94a8cce9e1d7d8d9f659b2e4e",
+      "hash_registry_commit": "52d56bba",
+      "outputs": "red-release-*-v5.txt",
+      "review": "docs/reviews/303/enforcement-oracle-audit.md",
+      "review_commit": "a315f7a3d306a6cb472c8881b15d7ad07fe60641",
+      "review_sha256": "b1eb94944cb98f215e06bcd0ad7caceb96232b29adda936549e63b6906dfa277",
+      "status": "rejected_changes_required",
+      "blocking": [
+        "non_atomic_concurrent_replay_false_green",
+        "gate1_unused_callback_adapter_and_false_state",
+        "gate2_direct_helper_and_false_state"
+      ]
+    },
+    {
+      "commit": "622e740e2cd934d7bfe6fac40ab894afef27ac9c",
+      "outputs": "red-release-*-v4.txt",
+      "review": "codex-review-plan-corrected.md",
+      "status": "rejected_changes_required",
+      "blocking": [
+        "self_reported_installed_artifact_swap",
+        "signature_shape_without_ed25519_verification",
+        "disconnected_validation_and_replay_consumption"
+      ],
+      "closed": [
+        "independent_provider_identity_and_bin_true_attacks"
+      ]
+    },
+    {
+      "commit": "ff6aacb7ee6a05ed1cdc07588e80ef8cecddd69b",
+      "outputs": "red-release-*-v3.txt",
+      "review": "codex-review-plan.md",
+      "status": "rejected_changes_required",
+      "blocking": [
+        "repo_writable_root_artifacts",
+        "replayable_unbound_attestations",
+        "common_mode_provider_resolution"
+      ]
+    },
+    {
+      "commits": [
+        "ff6a8c03",
+        "213b5339",
+        "1745b9a7",
+        "f02b9905",
+        "0dbb9a59"
+      ],
+      "status": "superseded_excluded"
+    }
+  ]
+}

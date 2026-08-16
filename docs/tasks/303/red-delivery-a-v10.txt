@@ -1,0 +1,46 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 python docs/tasks/303/v10_delivery_gate.py A
+exit_code: 1
+
+..........FF                                                             [100%]
+=================================== FAILURES ===================================
+_____ test_ta_units_template_and_installer_use_a_direct_versioned_runtime ______
+
+    def test_ta_units_template_and_installer_use_a_direct_versioned_runtime():
+        service = (ROOT / "deploy/orchestra.service").read_text(encoding="utf-8")
+        exec_lines = [line for line in service.splitlines() if line.startswith("ExecStart=")]
+>       assert exec_lines == [
+            "ExecStart=/opt/orchestra/runtimes/current/bin/python -m uvicorn "
+            "app.main:app --fd 3"
+        ], "T-A missing behavior: the live unit still starts through a mutable uv environment"
+E       AssertionError: T-A missing behavior: the live unit still starts through a mutable uv environment
+E       assert ['ExecStart=/...n:app --fd 3'] == ['ExecStart=/...n:app --fd 3']
+E         
+E         At index 0 diff: 'ExecStart=/home/kesha/.local/bin/uv run uvicorn app.main:app --fd 3' != 'ExecStart=/opt/orchestra/runtimes/current/bin/python -m uvicorn app.main:app --fd 3'
+E         Use -v to get more diff
+
+docs/tasks/303/test_release_a_recovery.py:125: AssertionError
+______ test_ta_only_shipped_activation_authority_entries_are_fixed_units _______
+
+    def test_ta_only_shipped_activation_authority_entries_are_fixed_units():
+>       surface = assert_shipped_activation_surface(ROOT)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+docs/tasks/303/test_release_a_recovery.py:196: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary')
+
+    def assert_shipped_activation_surface(root: Path) -> dict[str, Any]:
+        """Prove the two fixed units are the only shipped callers of root activation authority."""
+        manifest_path = root / AUTHORITY_SURFACE_MANIFEST
+>       assert manifest_path.is_file() and not manifest_path.is_symlink(), (
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            "T-A missing behavior: no shipped activation-surface manifest exists"
+        )
+E       AssertionError: T-A missing behavior: no shipped activation-surface manifest exists
+
+docs/tasks/303/oracle_support.py:147: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_units_template_and_installer_use_a_direct_versioned_runtime
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_only_shipped_activation_authority_entries_are_fixed_units
+2 failed, 10 passed in 0.48s

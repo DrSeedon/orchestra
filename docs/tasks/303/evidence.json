@@ -1,0 +1,356 @@
+{
+  "task": 303,
+  "phase": "research",
+  "collected_at_utc": "2026-08-16T15:02:44Z",
+  "updated_at_utc": "2026-08-16T15:23:21Z",
+  "repository_commit": "b0b72d65587aeb9ef3ccef628d3187bd66ae45d8",
+  "safety": {
+    "live_runtime_modified": false,
+    "service_restarted": false,
+    "persistent_configuration_modified": false,
+    "experiments_used_scratch_paths_only": true,
+    "secrets_recorded": false
+  },
+  "incident_session": {
+    "id": "c4b3d2b6-95a9-43c6-b622-991dce60d172",
+    "name": "research-typed-world-tools",
+    "scope": "/home/kesha/projects/dnd-game-master",
+    "worktree": "/home/kesha/orchestra/worktrees/home-kesha-projects-dnd-game-master/research-typed-world-tools",
+    "model": "gpt-5.6-sol",
+    "runtime": "codex",
+    "role": "full-cycle",
+    "owned_dirs": [
+      "docs/tasks/377/phase3/r2"
+    ],
+    "created_at_utc": "2026-08-16T13:14:49.980426+00:00"
+  },
+  "timeline": [
+    {
+      "log_id": 128859,
+      "at_utc": "2026-08-16T12:47:33.233262+00:00",
+      "session": "research-durable-coordinator",
+      "event": "DND worker invokes uv run --active while inheriting the service VIRTUAL_ENV"
+    },
+    {
+      "log_id": 128874,
+      "at_utc": "2026-08-16T12:47:42.391370+00:00",
+      "session": "research-durable-coordinator",
+      "event": "uv reports Removed/Creating /home/kesha/orchestra/.venv with CPython 3.11.15 and installs 97 packages"
+    },
+    {
+      "log_id": 128932,
+      "at_utc": "2026-08-16T12:48:33.567724+00:00",
+      "session": "feat-runtime-switch",
+      "event": "Orchestra-project uv run --active recreates the same path with CPython 3.12.3 and 74 packages"
+    },
+    {
+      "log_id": 130428,
+      "at_utc": "2026-08-16T13:19:55.379062+00:00",
+      "session": "research-typed-world-tools",
+      "event": "VIRTUAL_ENV=/home/kesha/orchestra/.venv uv run --active --frozen python -V"
+    },
+    {
+      "log_id": 130429,
+      "at_utc": "2026-08-16T13:19:56.226866+00:00",
+      "session": "research-typed-world-tools",
+      "event": "uv reports Removed/Creating /home/kesha/orchestra/.venv; Python 3.11.15"
+    },
+    {
+      "log_id": 130434,
+      "at_utc": "2026-08-16T13:20:06.654616+00:00",
+      "session": "r1-primary-sources",
+      "event": "search_memory fails: ModuleNotFoundError: No module named 'httpcore'"
+    },
+    {
+      "log_id": 130438,
+      "at_utc": "2026-08-16T13:20:10.212253+00:00",
+      "session": "research-narrative-director",
+      "event": "list_agents fails: FileNotFoundError: [Errno 2] No such file or directory"
+    },
+    {
+      "log_id": 130486,
+      "at_utc": "2026-08-16T13:21:01.000946+00:00",
+      "session": "feat-runtime-switch",
+      "event": "Orchestra-project uv run --active briefly restores the path to its 74-package environment"
+    },
+    {
+      "log_id": 130504,
+      "at_utc": "2026-08-16T13:21:24.881586+00:00",
+      "session": "research-typed-world-tools",
+      "event": "UV_PROJECT_ENVIRONMENT=/home/kesha/orchestra/.venv uv run --frozen pytest ..."
+    },
+    {
+      "log_id": 130508,
+      "at_utc": "2026-08-16T13:21:30.098848+00:00",
+      "session": "research-typed-world-tools",
+      "event": "uv reports Removed/Creating the service environment, installs 97 packages, and the DND suite passes 102 tests in 3.41s"
+    },
+    {
+      "log_id": 130609,
+      "at_utc": "2026-08-16T13:23:55.850801+00:00",
+      "session": "frontend",
+      "event": "send_message fails: FileNotFoundError: [Errno 2] No such file or directory"
+    },
+    {
+      "log_id": 131203,
+      "at_utc": "2026-08-16T14:04:55.880173+00:00",
+      "session": "kesha-tg-bot-orchestrator",
+      "event": "Telegram voice result exposes FileNotFoundError: [Errno 2] No such file or directory"
+    }
+  ],
+  "live_runtime_snapshot": {
+    "service_started_at_local": "2026-08-16 10:09:47 CEST",
+    "service_source_commit_at_start": "43eb156aa71c47204b5c95f356166bee024f729b",
+    "systemd_main_pid_uv_wrapper": 481445,
+    "uvicorn_pid": 481449,
+    "uvicorn_executable": "/usr/bin/python3.12",
+    "uvicorn_deleted_mappings": 191,
+    "uvicorn_environment": {
+      "VIRTUAL_ENV": "/home/kesha/orchestra/.venv",
+      "UV_PROJECT_ENVIRONMENT": null,
+      "PATH_prefix": "/home/kesha/orchestra/.venv/bin"
+    },
+    "disk_environment": {
+      "path": "/home/kesha/orchestra/.venv",
+      "inode": 2097326,
+      "mtime_local": "2026-08-16 15:21:25.122684294 +0200",
+      "python": "3.11.15",
+      "pyvenv_version_info": "3.11",
+      "pyvenv_prompt": "dm-claude",
+      "python_3_12_site_packages_exists": false,
+      "old_certifi_bundle_exists": false
+    },
+    "mcp_processes": {
+      "python_3_12_with_12_deleted_mappings": 30,
+      "python_3_11_with_12_deleted_mappings": 1,
+      "python_3_11_with_0_deleted_mappings": 3
+    },
+    "cli_inventory": {
+      "processes": 68,
+      "logical_clis": 34,
+      "survived_a_restart": 0
+    }
+  },
+  "systemd_and_identity": {
+    "service_user": "kesha",
+    "service_group": "kesha",
+    "worker_uid": 1001,
+    "worker_groups": [
+      "kesha",
+      "sudo"
+    ],
+    "sudo_n_true_exit": 0,
+    "sudo_policy": "(ALL) NOPASSWD: ALL",
+    "service_runtime_owner": "kesha:kesha",
+    "service_runtime_mode": "0755",
+    "service_env_file_owner": "kesha:kesha",
+    "service_env_file_mode": "0644",
+    "NoNewPrivileges": false,
+    "ProtectSystem": false,
+    "ProtectHome": false,
+    "PrivateMounts": false,
+    "ReadOnlyPaths": [],
+    "ReadWritePaths": [],
+    "InaccessiblePaths": [],
+    "RestrictNamespaces": false,
+    "systemd_analyze_exposure": "9.2 UNSAFE",
+    "ORCHESTRA_AGENT_UID_present": false,
+    "dedicated_agent_account_present": false,
+    "no_new_privs_sudo_probe": {
+      "command": "setpriv --no-new-privs sudo -n true",
+      "exit": 1,
+      "output": "sudo: The 'no new privileges' flag is set, which prevents sudo from running as root."
+    }
+  },
+  "worker_environment_snapshot": {
+    "pid": 986611,
+    "runtime": "codex",
+    "VIRTUAL_ENV": "/home/kesha/orchestra/.venv",
+    "UV_PROJECT_ENVIRONMENT": null,
+    "PATH_contains_service_venv": true,
+    "environment_variable_count": 49,
+    "sensitive_variable_names_only": [
+      "DASHBOARD_PASSWORD",
+      "DEEPGRAM_API_KEY",
+      "INTERNAL_TOKEN",
+      "TG_BRIDGE_TOKEN"
+    ],
+    "direct_readable_sensitive_paths": [
+      {
+        "path": "/home/kesha/orchestra/.env",
+        "mode": "0644",
+        "uid": 1001,
+        "gid": 1001,
+        "bytes": 1435
+      },
+      {
+        "path": "worker worktree .env",
+        "mode": "0644",
+        "uid": 1001,
+        "gid": 1001,
+        "bytes": 1435
+      },
+      {
+        "path": "incident DND worktree .env",
+        "mode": "0664",
+        "uid": 1001,
+        "gid": 1001,
+        "bytes": 299
+      }
+    ],
+    "workspace_source": "app/workspace.py:26-29 identifies .env as a secret-bearing file copied to worktrees"
+  },
+  "provider_auth_boundary": {
+    "codex_auth": {
+      "path": "/home/kesha/.codex/auth.json",
+      "mode": "0600",
+      "uid": 1001,
+      "gid": 1001,
+      "bytes": 4080,
+      "session_home_behavior": "app/backend_codex.py:1864-1870 symlinks each managed CODEX_HOME to the shared auth file"
+    },
+    "claude_auth": {
+      "path": "/home/kesha/.claude/.credentials.json",
+      "mode": "0600",
+      "uid": 1001,
+      "gid": 1001,
+      "bytes": 470
+    },
+    "grok_auth_behavior": "app/backend_grok.py:132-155 symlinks the managed home to the user auth file when present",
+    "current_tool_exposure": "Codex is configured danger-full-access; Claude auto-approves tools except a short name block; Grok always approves; OpenCode allows bash and external directories",
+    "inference": "one UID cannot make a mode-0600 provider store readable to its CLI yet unreadable to arbitrary project code under the same UID"
+  },
+  "uv_scratch_experiments": {
+    "uv_version": "0.11.28",
+    "script": "docs/tasks/303/probe_uv_boundary.sh",
+    "project_a": "Python >=3.12,<3.13; prompt probe-a",
+    "project_b": "Python >=3.11,<3.12; prompt probe-b",
+    "results": [
+      {
+        "id": "P1",
+        "mechanism": "absolute UV_PROJECT_ENVIRONMENT plus uv run --frozen",
+        "before": "version_info=3.12.3;prompt=probe-a",
+        "after": "version_info=3.11;prompt=probe-b",
+        "removed_environment_lines": 1
+      },
+      {
+        "id": "P2",
+        "mechanism": "inherited VIRTUAL_ENV plus uv run --active --frozen",
+        "before": "version_info=3.12.3;prompt=probe-a",
+        "after": "version_info=3.11;prompt=probe-b",
+        "removed_environment_lines": 1
+      },
+      {
+        "id": "P3",
+        "mechanism": "unset VIRTUAL_ENV and UV_PROJECT_ENVIRONMENT; ordinary per-project uv run --frozen",
+        "shared_before": "version_info=3.12.3;prompt=probe-a",
+        "shared_after": "version_info=3.12.3;prompt=probe-a",
+        "project_local": "version_info=3.11;prompt=probe-b",
+        "exit": 0
+      },
+      {
+        "id": "P4",
+        "mechanism": "parent strips environment, child shell supplies inline UV_PROJECT_ENVIRONMENT",
+        "before": "version_info=3.12.3;prompt=probe-a",
+        "after": "version_info=3.11;prompt=probe-b",
+        "removed_environment_lines": 1
+      },
+      {
+        "id": "P5",
+        "mechanism": "--no-sync with explicit shared target",
+        "before": "version_info=3.12.3;prompt=probe-a",
+        "after": "version_info=3.12.3;prompt=probe-a",
+        "executed_python": "3.12",
+        "exit": 0
+      },
+      {
+        "id": "P6",
+        "mechanism": "uv venv --clear --python 3.11 PATH",
+        "before": "version_info=3.12.3;prompt=probe-a",
+        "after": "version_info=3.11",
+        "exit": 0
+      },
+      {
+        "id": "P7",
+        "mechanism": "symlink alias supplied as UV_PROJECT_ENVIRONMENT",
+        "before": "version_info=3.12.3;prompt=probe-a",
+        "after": "version_info=3.11;prompt=probe-b",
+        "removed_environment_lines": 1,
+        "exit": 0
+      },
+      {
+        "id": "P8",
+        "mechanism": "same-UID mode-bit denial then owner restores write bit",
+        "read_only_exit": 2,
+        "owner_chmod_then_exit": 0,
+        "after": "version_info=3.11;prompt=probe-b"
+      },
+      {
+        "id": "P9",
+        "mechanism": "shell/PATH uv wrapper versus absolute uv binary",
+        "wrapper_exit": 77,
+        "absolute_uv_exit": 0
+      }
+    ]
+  },
+  "compatibility_measurements": {
+    "window_utc": "2026-08-16T00:00:00 through 2026-08-16T13:21:24",
+    "orchestra_scope_uv_run_active": {
+      "commands": 59,
+      "sessions": 2,
+      "with_no_sync": 0
+    },
+    "dnd_scope_uv_run_active": {
+      "commands": 3,
+      "sessions": 3,
+      "with_no_sync": 1,
+      "sync_capable": 2
+    },
+    "normal_project_local_probe_exit": 0,
+    "probe_scope": "dependency-free scratch project only; proposed-UID cache/home, native builds, and existing worktree ownership were not tested",
+    "conclusion_confidence": "LIKELY pending representative dependency-bearing project uv sync/run/test under the proposed UID",
+    "impact": "stripping inherited service VIRTUAL_ENV preserves the measured project-local uv path but intentionally breaks the current Orchestra-worktree convention that reuses the live service environment"
+  },
+  "recovery_build_probe": {
+    "mechanism": "fresh scratch UV_PROJECT_ENVIRONMENT; uv sync --project <worktree> --frozen --python 3.12 --no-install-project",
+    "sync_exit": 0,
+    "probe_exit": 0,
+    "python": "3.12.3",
+    "imports": {
+      "fastapi": "0.136.3",
+      "httpx": "0.28.1",
+      "httpcore": "1.0.9",
+      "uvicorn": "0.48.0"
+    },
+    "certifi_bundle_exists": true,
+    "certifi_bundle_bytes": 236095
+  },
+  "ssl_reproduction": {
+    "command_shape": "monkeypatch certifi.where() to a missing path, then construct httpx.AsyncClient()",
+    "exception": "FileNotFoundError",
+    "message": "[Errno 2] No such file or directory"
+  },
+  "review_route": {
+    "risk_floor": "shared runtime, authorization, secrets, and agent continuity",
+    "mandatory": "Sol technical review plus Opus cross-family review when available",
+    "author_model": "gpt-5.6-sol",
+    "anthropic_seven_day_utilization_at_research": 100.0,
+    "anthropic_reset_at": "2026-08-18T07:00:00.258447+00:00",
+    "sol_round_1": {
+      "artifact": "docs/tasks/303/review-round1.md",
+      "verdict": "CHANGES REQUIRED",
+      "blocking_findings": 1,
+      "suggestions": 2,
+      "blocking_issue": "environment omission did not prevent direct reads of mode-0644 service secrets"
+    },
+    "sol_round_2": {
+      "artifact": "docs/tasks/303/codex-review-research.md",
+      "preserved_artifact": "docs/tasks/303/review-round2.md",
+      "verdict": "CHANGES REQUIRED",
+      "blocking_findings": 1,
+      "blocking_issue": "provider CLIs require authentication stores that same-UID project subprocesses could also read",
+      "round_ceiling_reached": true,
+      "resolution_re_reviewed": false
+    }
+  }
+}

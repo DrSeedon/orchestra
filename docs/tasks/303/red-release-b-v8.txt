@@ -1,0 +1,69 @@
+.....FFFF                                                                [100%]
+=================================== FAILURES ===================================
+____ test_tb_every_local_child_consumer_calls_only_the_fail_closed_launcher ____
+
+    def test_tb_every_local_child_consumer_calls_only_the_fail_closed_launcher():
+        boundary = ROOT / "app/execution_identity.py"
+>       assert boundary.is_file(), (
+            "T-B missing behavior: no mandatory project-execution identity boundary exists"
+        )
+E       AssertionError: T-B missing behavior: no mandatory project-execution identity boundary exists
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/app/execution_identity.py').is_file
+
+docs/tasks/303/test_release_b_identity.py:137: AssertionError
+___ test_tb_public_activation_consumer_atomically_consumes_concurrent_replay ___
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4007/test_tb_public_activation_cons0')
+
+    def test_tb_public_activation_consumer_atomically_consumes_concurrent_replay(tmp_path):
+>       assert CONTROL_SELECTION.is_file(), (
+            "T-B missing behavior: no installed public activation consumer is selected"
+        )
+E       AssertionError: T-B missing behavior: no installed public activation consumer is selected
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/var/lib/orchestra-runtime/control-plane-selected.json').is_file
+
+docs/tasks/303/test_release_b_identity.py:173: AssertionError
+________ test_tb_boundary_unit_is_the_only_shipped_authorization_caller ________
+
+    def test_tb_boundary_unit_is_the_only_shipped_authorization_caller():
+>       surface = assert_shipped_activation_surface(ROOT)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+docs/tasks/303/test_release_b_identity.py:208: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary')
+
+    def assert_shipped_activation_surface(root: Path) -> dict[str, Any]:
+        """Prove the two fixed units are the only shipped callers of root activation authority."""
+        manifest_path = root / AUTHORITY_SURFACE_MANIFEST
+>       assert manifest_path.is_file() and not manifest_path.is_symlink(), (
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            "T-A missing behavior: no shipped activation-surface manifest exists"
+        )
+E       AssertionError: T-A missing behavior: no shipped activation-surface manifest exists
+
+docs/tasks/303/oracle_support.py:137: AssertionError
+__ test_tb_privileged_rehearsal_observes_uid_eacces_and_real_uv_compatibility __
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4007/test_tb_privileged_rehearsal_o0')
+
+    def test_tb_privileged_rehearsal_observes_uid_eacces_and_real_uv_compatibility(tmp_path):
+        evidence = ROOT / "docs/tasks/303/release-b-evidence.json"
+>       assert evidence.is_file(), "T-B missing evidence: the privileged rehearsal has not passed"
+E       AssertionError: T-B missing evidence: the privileged rehearsal has not passed
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/docs/tasks/303/release-b-evidence.json').is_file
+
+docs/tasks/303/test_release_b_identity.py:217: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_b_identity.py::test_tb_every_local_child_consumer_calls_only_the_fail_closed_launcher
+FAILED docs/tasks/303/test_release_b_identity.py::test_tb_public_activation_consumer_atomically_consumes_concurrent_replay
+FAILED docs/tasks/303/test_release_b_identity.py::test_tb_boundary_unit_is_the_only_shipped_authorization_caller
+FAILED docs/tasks/303/test_release_b_identity.py::test_tb_privileged_rehearsal_observes_uid_eacces_and_real_uv_compatibility
+4 failed, 5 passed, 1 deselected in 0.47s

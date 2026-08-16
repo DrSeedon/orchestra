@@ -1,0 +1,15 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_authority_oracle_selftest.py
+exit_code: 0
+result: 5 passed in 0.33s
+scope: oracle mechanics only; no production authority implementation is supplied
+unit_parser_controls: exact root-selected manager path, exact operation, exact state-root/id shape, Type=oneshot, User=root, one ExecStart and no other Exec*, no Environment/EnvironmentFile or root/image/bind/mount remapping; effective systemctl-show parser rejects wrong path, ignore-errors, and multiple records
+release_wiring_controls: Gate A must derive recovery argv and pass it to the physical-swap helper; Gate B must derive boundary argv and pass it to the concurrent authorization helper
+gate1_physical_attacks: rename, symlink, inode_preserving_content
+gate2_crypto: RFC8032 test vector 2, shape-valid garbage, bit flip, wrong key
+gate2_concurrency: two distinct contenders required at validated_before_consume barrier
+mutation_unit_manager_identity: parser changed to accept argv[0] instead of expected manager -> exit 1, Failed: DID NOT RAISE AssertionError for /bin/true bypass
+mutation_unit_operation_identity: parser changed to accept argv[1] instead of expected operation -> exit 1, Failed: DID NOT RAISE AssertionError for direct-apply bypass
+mutation_release_a_caller: behavioral test selected boundary rather than recovery unit -> exit 1, assert 'boundary' == 'recovery'
+mutation_release_b_caller: behavioral test passed manager rather than authorization_argv -> exit 1, assert 'manager' == 'authorization_argv'
+post_restore: 5 passed in 0.33s
+collection_or_import_failure: false

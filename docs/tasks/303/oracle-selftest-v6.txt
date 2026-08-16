@@ -1,0 +1,29 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_authority_oracle_selftest.py
+exit_code: 0
+result: 4 passed in 0.23s
+scope: oracle mechanics only; no local activation manager, verifier policy, replay policy, or apply implementation
+gate_1_mechanics: rename, symlink, and inode-preserving content attacks physically alter the fixture; public helper accepts only installed manager path, artifact sources, and temp root
+gate_2_mechanics: RFC 8032 vector accepted; garbage, bit flip, and wrong key rejected; barrier requires two distinct contender PIDs
+
+mutation_gate_1_attack: replace the physical rename with return in a temporary helper copy
+marker_before: 1
+marker_after: 1
+mutation_result: exit 1; observed sha256 remained equal to verified sha256
+
+mutation_gate_2_barrier: change `if len(ready) == 2` to `if len(ready) >= 1` in a temporary helper copy
+marker_before: 1
+marker_after: 1
+mutation_result: exit 1; the one-contender negative arm no longer reached the required two-contender failure
+
+mutation_gate_2_verifier: replace the independent verifier return-code result with True in a temporary helper copy
+marker_before: 1
+mutation_result: exit 1; shape-valid garbage was accepted
+
+mutation_public_wiring: rename both release-test calls to unused helper names in temporary copies
+a_marker_before: 1
+b_marker_before: 1
+a_marker_after: 1
+b_marker_after: 1
+mutation_result: exit 1; selftest detected that the release oracle no longer invokes the public-manager helper
+
+post_mutation_original: 4 passed in 0.23s; project oracle files unchanged by temporary mutations

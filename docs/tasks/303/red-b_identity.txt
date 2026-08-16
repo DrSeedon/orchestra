@@ -1,0 +1,31 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+___ test_tb_every_arbitrary_code_seam_uses_one_fail_closed_project_identity ____
+
+    def test_tb_every_arbitrary_code_seam_uses_one_fail_closed_project_identity():
+        boundary = ROOT / "app/execution_identity.py"
+>       assert boundary.is_file(), (
+            "T-B missing behavior: no mandatory project-execution identity boundary exists"
+        )
+E       AssertionError: T-B missing behavior: no mandatory project-execution identity boundary exists
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/app/execution_identity.py').is_file
+
+docs/tasks/303/test_release_b_identity.py:12: AssertionError
+_____ test_tb_operator_and_real_project_rehearsals_cover_the_bypass_matrix _____
+
+    def test_tb_operator_and_real_project_rehearsals_cover_the_bypass_matrix():
+        installer = ROOT / "deploy/manage-project-execution-user.sh"
+        rehearsal = ROOT / "scripts/rehearse-project-identity.py"
+>       assert installer.is_file(), "T-B missing behavior: project UID has no fail-closed installer"
+E       AssertionError: T-B missing behavior: project UID has no fail-closed installer
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/deploy/manage-project-execution-user.sh').is_file
+
+docs/tasks/303/test_release_b_identity.py:41: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_b_identity.py::test_tb_every_arbitrary_code_seam_uses_one_fail_closed_project_identity
+FAILED docs/tasks/303/test_release_b_identity.py::test_tb_operator_and_real_project_rehearsals_cover_the_bypass_matrix
+2 failed in 0.12s

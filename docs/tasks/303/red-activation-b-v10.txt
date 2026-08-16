@@ -1,0 +1,36 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_authority_oracle_selftest.py docs/tasks/303/test_release_b_identity.py::test_tb_public_activation_consumer_atomically_consumes_concurrent_replay docs/tasks/303/test_release_b_identity.py::test_tb_privileged_rehearsal_observes_uid_eacces_and_real_uv_compatibility
+exit_code: 1
+
+......FF                                                                 [100%]
+=================================== FAILURES ===================================
+___ test_tb_public_activation_consumer_atomically_consumes_concurrent_replay ___
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4076/test_tb_public_activation_cons0')
+
+    def test_tb_public_activation_consumer_atomically_consumes_concurrent_replay(tmp_path):
+>       assert CONTROL_SELECTION.is_file(), (
+            "T-B missing behavior: no installed public activation consumer is selected"
+        )
+E       AssertionError: T-B missing behavior: no installed public activation consumer is selected
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/var/lib/orchestra-runtime/control-plane-selected.json').is_file
+
+docs/tasks/303/test_release_b_identity.py:173: AssertionError
+__ test_tb_privileged_rehearsal_observes_uid_eacces_and_real_uv_compatibility __
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4076/test_tb_privileged_rehearsal_o0')
+
+    def test_tb_privileged_rehearsal_observes_uid_eacces_and_real_uv_compatibility(tmp_path):
+        evidence = ROOT / "docs/tasks/303/release-b-evidence.json"
+>       assert evidence.is_file(), "T-B missing evidence: the privileged rehearsal has not passed"
+E       AssertionError: T-B missing evidence: the privileged rehearsal has not passed
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/docs/tasks/303/release-b-evidence.json').is_file
+
+docs/tasks/303/test_release_b_identity.py:217: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_b_identity.py::test_tb_public_activation_consumer_atomically_consumes_concurrent_replay
+FAILED docs/tasks/303/test_release_b_identity.py::test_tb_privileged_rehearsal_observes_uid_eacces_and_real_uv_compatibility
+2 failed, 6 passed in 0.37s

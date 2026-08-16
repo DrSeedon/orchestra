@@ -1,0 +1,93 @@
+{
+  "schema": "orchestra.task303.oracle-freeze-evidence.v5",
+  "date": "2026-08-16",
+  "freeze_commit": "6045144a5fc207b276048b622f5f63f04dff26eb",
+  "status": "accepted_phase2_baseline",
+  "production_or_configuration_changed": false,
+  "oracle_sha256": {
+    "oracle_support.py": "6a0d1262f55b3fc4e3d8382a4a3f351bd7b1f184a1918e65f1ec9e82d0f9e421",
+    "test_authority_oracle_selftest.py": "1f7d042c59c5e57e48f979b06d725fb2e4827986d23876fe7c250193cb9db66f",
+    "test_release_a_recovery.py": "ed79bd5541ae7c7be876ae6d75324d714c8e871dce181e47b7621734776facc5",
+    "test_release_b_identity.py": "a4fb65f1bc54ff195ada6bb9e07d519dbd5817ac5b85a7350714847ac5dca426",
+    "test_release_c_credentials.py": "372460aa70f4427fe185eaf0349ed0d40ea340bffcbe1d683604be231fb0d99b",
+    "test_release_d_env.py": "be89030df06a5c3d25f28e92ba9fb5c8a4c71ad9903beb90487ead2181df1f3d"
+  },
+  "supporting_sha256": {
+    "emergency-baseline-v6.json": "f17cb06baf175036cd40043cececb006b7d618b21e8e79598114bf857177d2a3",
+    "oracle-selftest-v9.txt": "fd14cdc4324f99c94e1c223a45b4157339986c37c6aa682625e9d58908d92420",
+    "red-release-a-v9.txt": "0b24b9a74b101249c5522ffdfc693485e87307b4dee9e89a5204b3dff00c1846",
+    "red-release-b-v9.txt": "ca6e702f626c238e89f5c5e1e7e427b66e80966191b3f079930dddb5d80a713c",
+    "red-release-c-v9.txt": "d1aca5166e28acf2d7e6b02ee893070e8943e7a3d1443fe31857657971d6c7cd",
+    "red-release-d-v9.txt": "93643b946ca7560ff78f264ed8cb225d14ea862523dad2caf70d67ec5b1b0ab0"
+  },
+  "commands": {
+    "selftest": {"exit_code": 0, "passed": 6, "output": "oracle-selftest-v9.txt"},
+    "release_a": {"exit_code": 1, "failed": 6, "passed": 5, "deselected": 2, "output": "red-release-a-v9.txt"},
+    "release_b": {"exit_code": 1, "failed": 4, "passed": 5, "deselected": 1, "output": "red-release-b-v9.txt"},
+    "release_c": {"exit_code": 1, "failed": 3, "output": "red-release-c-v9.txt"},
+    "release_d": {"exit_code": 1, "failed": 5, "output": "red-release-d-v9.txt"}
+  },
+  "closed_installer_surface": {
+    "path": "deploy/install.sh",
+    "accepted_source": "exact SAFE_INSTALLER_SOURCE bytes only",
+    "euid_zero_behavior": "exit 77 before package-builder exec",
+    "nonroot_behavior": "exec absolute /usr/bin/python3 package builder only",
+    "root_bootstrap": "runbook absolute commands plus installed root-only manager; no checkout shell",
+    "constructed_audit_attack": {
+      "fragments": ["sys", "temctl", "sta", "rt"],
+      "v8_result": "FALSE_GREEN: 7 files scanned",
+      "v9_result": "REJECTED: installer is not the exact root-refusing package-builder wrapper"
+    }
+  },
+  "gate_1": {
+    "production_caller": "/etc/systemd/system/orchestra-runtime-recovery@.service",
+    "authority_under_test": "sole installed ExecStart argv into root-only immutable runtime_manager activate operation",
+    "installed_control_mode": "0500",
+    "source_inventory": ["app/**/*.py", "scripts/**/*", "deploy/**/*"],
+    "fixed_surface_manifest": "deploy/orchestra-authority-surface.json",
+    "allowed_authority_owner": "scripts/manage_orchestra_runtime.py",
+    "allowed_callers": ["deploy/orchestra-runtime-recovery@.service", "deploy/orchestra-boundary-activate@.service"],
+    "physical_artifact_attacks": ["rename", "symlink", "inode_preserving_content"],
+    "physical_attack_count": 9
+  },
+  "gate_2": {
+    "production_caller": "/etc/systemd/system/orchestra-boundary-activate@.service",
+    "authority_under_test": "sole installed ExecStart argv into root-only immutable runtime_manager authorize-commit operation",
+    "independent_verifier": "/usr/bin/openssl pkeyutl",
+    "known_vector": "RFC8032-test-vector-2",
+    "concurrent_contenders": 2,
+    "required_results": ["authorized", "replay"],
+    "required_apply_count": 1,
+    "required_receipt_count": 1,
+    "third_replay_state_delta": 0
+  },
+  "mutations": [
+    {"name": "literal_installer_activation", "caught_by": "exact installer bytes"},
+    {"name": "indirect_installer_activation", "caught_by": "exact installer bytes"},
+    {"name": "constructed_installer_activation", "fixture": "sys+temctl and sta+rt", "caught_by": "exact installer bytes"},
+    {"name": "direct_manager_invocation", "caught_by": "exact installer bytes and root-only 0500 control plane"},
+    {"name": "alternate_application_route", "caught_by": "whole-corpus Python import/reference scan and root-only 0500 control plane"},
+    {"name": "gate2_atomic_concurrent_replay", "source": "v7 mechanism accepted by audit", "required": "one authorize, one replay, apply_count=1"},
+    {"name": "gate2_independent_ed25519", "source": "v7 mechanism accepted by audit", "required": "garbage, bit flip, wrong key/context fail"}
+  ],
+  "rejected_v8": {
+    "freeze_commit": "9c80ec07d30e918e8f9a8d79c4be8bc984afeafe",
+    "hash_registry_commit": "75fc5e99",
+    "audit_round_2_artifact_commit": "a01e5eab",
+    "audit_path": "enforcement-oracle-audit-v7.md",
+    "audit_through_round_2_sha256": "121f8b2dada884f072e3c8f4bb55d557f1cc2d3f60fc479fbf5befd791cb6012",
+    "verdict": "CHANGES REQUIRED",
+    "blocking": ["constructed_systemctl_and_start_false_green"]
+  },
+  "independent_review": {
+    "path": "enforcement-oracle-audit-v7.md",
+    "round": 3,
+    "artifact_commit": "b8f8a27348cdbb5225383ebb03a7eeb2ca5ed653",
+    "artifact_sha256": "5ffaca93ac20067a9eabdc5b009537019d504d74f04e445a07f399dc6f708eff",
+    "prior_blocker": "FIXED",
+    "blocking_findings": 0,
+    "verdict": "APPROVED"
+  },
+  "cross_family_review": "unavailable",
+  "plan_approved": true
+}

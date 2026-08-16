@@ -1,0 +1,15 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3.12
+Resolved 1 package in 9ms
+Using CPython 3.11.15
+Resolved 1 package in 5ms
+P1_explicit_UV_PROJECT_ENVIRONMENT	before=version_info=3.12.3;prompt=probe-a;	after=version_info=3.11;prompt=probe-b;	removed=1
+P2_inherited_VIRTUAL_ENV_active	before=version_info=3.12.3;prompt=probe-a;	after=version_info=3.11;prompt=probe-b;	removed=1
+P3_stripped_env_normal_project	shared_before=version_info=3.12.3;prompt=probe-a;	shared_after=version_info=3.12.3;prompt=probe-a;	local=version_info=3.11;prompt=probe-b;	rc=0
+P4_parent_env_strip_inline_bypass	before=version_info=3.12.3;prompt=probe-a;	after=version_info=3.11;prompt=probe-b;	removed=1
+P5_no_sync	before=version_info=3.12.3;prompt=probe-a;	after=version_info=3.12.3;prompt=probe-a;	rc=0	python=(3, 12)
+P6_direct_uv_venv_bypass	before=version_info=3.12.3;prompt=probe-a;	after=version_info=3.11;	rc=0
+P7_symlink_alias	before=version_info=3.12.3;prompt=probe-a;	after=version_info=3.11;prompt=probe-b;	rc=0	removed=1
+P8_same_uid_modes	readonly_rc=2	owner_chmod_then_rc=0	after=version_info=3.11;prompt=probe-b;
+P9_PATH_or_shell_wrapper	wrapper_rc=77	absolute_uv_rc=0
+SCRATCH	/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/docs/tasks/303/.probe-uv.oD9ZYA
+CLEANED	1

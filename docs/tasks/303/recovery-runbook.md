@@ -1,0 +1,56 @@
+# Task #303 — recovery runbook
+
+This is a proposed operator runbook, not permission to mutate production. The read-only snapshot in `emergency-baseline-v6.json` records an emergency layer already applied outside this Phase 2 work: direct ExecStart from root-owned `/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2`, `UnsetEnvironment=VIRTUAL_ENV UV_PROJECT_ENVIRONMENT`, `NoNewPrivileges=yes`, and a read-only runtime. This plan turn changes none of it. Any restart or identity/credential activation remains a separate explicitly authorized user action.
+
+V10 separates delivery from activation. During the authorized implementation phase, run only the ticket's unprivileged `v10_delivery_gate.py <release>` command. It may write an installable tar under `/var/tmp/orchestra-task303-packages/` and a task-local machine report, but that report must say `activation_ready=false`, `privileged_evidence=pending`, `activation_authorized=false`, and `isolation_claimed=false`. Stop there. Every step below that writes `/opt`, `/usr/libexec`, `/var/lib`, `/etc/systemd/system`, changes a user, contacts PID 1, moves a secret, drains turns, or starts a unit belongs to a later separately authorized operator window.
+
+## Preconditions and stop conditions
+
+1. Stop admitting new environment-mutating commands. Preserve the SQLite log rows and `/proc/<pid>/maps` evidence before changing the current path.
+2. Do not run `uv sync`, `uv run`, `uv venv`, `pip`, or a package installer against `/home/kesha/orchestra/.venv`. Do not delete it while any process maps or imports files from it.
+3. If there is no verified side-by-side runtime, or the application restart preflight cannot drain/handoff the current workload, stop. Do not substitute an immediate `systemctl restart` while agents are active.
+
+## Build without disturbing running agents
+
+1. From a clean exact Orchestra source revision, run the frozen unprivileged delivery command. It builds a tar under an owner-only `0700` directory, requires the accepted tar to be owner-only `0600`, and compares it byte-for-byte with an independently derived allowed inventory: Git-tracked application inputs, a fixed control-plane/unit source map, and a second neutral-home frozen-lock Python 3.12 runtime build. Any extra member or non-allowlisted resolved symlink target fails regardless of manifest booleans. Public-source members must also pass the independent typed text/source policy, which rejects credential-store shapes, private keys, known token material, and named literal credentials; archive-validation rejection removes the candidate. A failure during post-build expected-inventory derivation can leave an unreadable-to-other-UIDs candidate inside that same `0700` directory, but emits no report; remove it manually before retrying. It rejects authority state, absolute/escaping links, and special files, and snapshots the real authority paths before and after. It does **not** create `/opt/orchestra/runtimes/<release>`, cannot read root-only protected values in the final design, and therefore must report `protected_secret_comparison=pending_privileged_activation` rather than claiming arbitrary source text is credential-free. A green command produces only the pending delivery report and stops.
+2. Use the project's pinned Python 3.12 and frozen lock. The scratch rehearsal for this research used `uv sync --project <orchestra-worktree> --frozen --python 3.12 --no-install-project` with `UV_PROJECT_ENVIRONMENT` pointed only at a task-owned scratch directory. It exited 0 and imported FastAPI 0.136.3, HTTPX 0.28.1, HTTPCore 1.0.9, and Uvicorn 0.48.0; `certifi.where()` existed and was 236095 bytes.
+3. Verify from the new interpreter, before activation:
+   - interpreter major/minor is 3.12;
+   - `fastapi`, `httpx`, `httpcore`, `uvicorn`, and application imports succeed;
+   - `ssl.create_default_context(cafile=certifi.where())` succeeds;
+   - a production-shaped authenticated health probe returns an application-specific response, not merely an HTTP status from a proxy;
+   - the source revision and lock digest match the intended deploy.
+4. **Deferred privileged lane only:** after a new authorization, copy the already verified package into a new versioned directory under `/opt/orchestra/runtimes/<release>` using trusted root-owned tooling. Install it root-owned and non-writable to both controller and project identities. Preserve direct `<versioned-runtime>/bin/python -m uvicorn ...`, env unsetting, `NoNewPrivileges`, and `ReadOnlyPaths`; do not use `uv run` in the live unit. Switch a root-controlled `current` symlink only through the installed public manager after verification.
+5. **Deferred privileged lane only:** install and hash-pin `/etc/systemd/system/orchestra-runtime-recovery@.service` and `/etc/systemd/system/orchestra-boundary-activate@.service`; install every control-plane executable root-owned mode `0500`. Each unit must have exactly one shell-free `ExecStart` into the selected installed manager, no other `Exec*` directive, and no environment file. Before installation, compare `deploy/orchestra-authority-surface.json` with the independent full scan of shipped `app`, `scripts`, and `deploy` sources. `deploy/install.sh` must equal the frozen non-root package-builder wrapper byte for byte and must exit 77 when EUID is 0. Root bootstrap uses only this runbook's absolute `/usr/bin/install`/digest/extraction commands, the installed manager's `stage`/`verify` operations, and a literal `/usr/bin/systemctl daemon-reload`; it never executes a checkout shell script. Activation is a still later explicit operator action.
+6. Before workers resume, make the service `.env`, sensitive configuration, database/transcripts, and **service** credential stores unreadable as well as unwritable by both the credential-controller and project-execution identities (for example service-owned mode 0600, ACLs, or an equivalent `InaccessiblePaths=` policy). Verify direct `open()` returns `EACCES`. Removing values from `environ` is not a confidentiality boundary.
+7. Stop copying the service `.env` into Orchestra project worktrees. If a project genuinely needs credentials, provide a project-scoped subset whose authority is limited to that project; do not reuse the service's dashboard, bridge, or internal bearer credentials.
+8. Keep provider authentication in a credential-controller/broker domain, not the project-execution domain. Before activation, prove the controller can start each provider CLI, complete one authenticated model turn, and refresh credentials if the provider supports refresh. Then prove an adversarial project Read/Bash/test/MCP/background command gets `EACCES` for the same provider store. A backend whose credential-bearing CLI also executes unconfined project tools does not pass; use a mandatory per-tool UID/mount sandbox or broker authentication outside that CLI.
+
+## Preserve active work during activation
+
+1. After a separate explicit authorization, start only the fixed root-owned one-shot entrypoint: `systemctl start --wait orchestra-runtime-recovery@<activation-id>.service` for A, or `systemctl start --wait orchestra-boundary-activate@<activation-id>.service` for B–D. That unit's installed manager calls Orchestra's authorized application restart endpoint (`POST /api/restart`); it never runs `systemctl restart orchestra` on the success path. The loaded restart path closes admission, drains mutating calls, waits for active Claude/Grok work (deadline 900 seconds), and hands active Codex pipes to systemd before sending SIGINT.[1]
+2. Do not shorten the drain because the current unit has `KillMode=process`: the handoff is what permits the CLI processes to outlive the web process. An operator-level systemd restart bypasses application preflight and is unsafe while work is active.[2]
+3. Existing MCP subprocesses attached to surviving Codex CLIs may still execute the old, deleted Python environment. Do not kill their active parent CLIs. The adoption path marks their tools stale and refreshes the CLI/MCP pair at the next turn boundary, explicitly not during a turn.[3]
+4. Let every already-running turn reach its boundary. At the boundary, verify that the old MCP PID exits and the replacement's executable and imports resolve inside the new versioned runtime.
+
+## Verification and rollback
+
+1. Verify the new Uvicorn PID resolves to the versioned Python and has no `(deleted)` mappings from the old service environment.
+2. Start a fresh worker connection and verify its MCP calls, Telegram text, Telegram voice transcription, and an authenticated dashboard/API call. Confirm the CA bundle exists from that process.
+3. From the project-execution domain, assert both directions of the boundary: its worktree/cache/home are writable and direct reads and writes of service canary paths fail with `EACCES`. Direct reads of provider-authentication canaries must also fail. Inspect environment, argv, MCP configs, logs, and worktree files to prove reusable service/provider credential names and values are absent.
+4. From the credential-controller domain, verify provider startup, one authenticated turn, and refresh still succeed. Confirm no model-selected file/process/network operation ran with the controller's credential-readable authority.
+5. Verify session states, active CLI identities, and completion of the pre-restart turns from the database. A returned HTTP health status alone is insufficient evidence of agent continuity.
+6. Enumerate all processes referencing the old path through `/proc/*/{exe,maps,environ}`. Only after the set is empty may the old `.venv` be archived or removed.
+7. Rollback before A1 commits is owned by the still-running recovery unit: it prevents a restart loop, restores the exact measured A0 ExecStart/drop-in bytes, selector target, and active-state bytes, starts the recorded A0 runtime, and requires its positive health response before returning. After A1 commits, rollback starts a new explicitly authorized recovery-unit transaction against the recorded previous verified runtime and repeats the same application-level drain/handoff. B–D rollback similarly restores the immediately previous signed policy/ownership manifest through the boundary unit; it never returns provider credentials to the project UID. Never rebuild either runtime in place.
+
+## Fallback when the application endpoint cannot run
+
+Close admission through the available operator control, wait until there are no running/waiting turns and no mutating calls, verify that condition positively in the database/process inventory, and only then perform an explicitly authorized manual service restart. This fallback preserves agents by waiting for zero active work; it does not claim systemd itself can hand off active work.
+
+## References
+
+[1] `app/routes/system.py:1748-1996` and `app/session.py:2483-2725` in source commit `43eb156aa71c47204b5c95f356166bee024f729b` (the revision loaded by the incident service; the relevant restart code was unchanged in the inspected current tree).
+
+[2] `docs/tasks/230/report.md:109-128`, measured restart/handoff behavior and the manual-systemd bypass.
+
+[3] `app/session.py:917-942`, adopted Codex session refresh at the next turn boundary.

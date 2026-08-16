@@ -1,0 +1,120 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+___ test_td_worker_and_each_mcp_server_receive_only_their_scoped_environment ___
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4009/test_td_worker_and_each_mcp_se0')
+
+    def test_td_worker_and_each_mcp_server_receive_only_their_scoped_environment(tmp_path):
+        runtime_env = _load("app/runtime_env.py", "task303_runtime_env")
+        source = {
+            "PATH": "/service/.venv/bin:/usr/bin:/bin",
+            "HOME": "/home/service",
+            "LANG": "C.UTF-8",
+            "HTTPS_PROXY": "http://proxy.invalid",
+            **{key: f"canary-{key}" for key in SERVICE_ONLY_KEYS},
+        }
+>       worker = runtime_env.build_worker_env(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            source,
+            home=str(tmp_path / "worker-home"),
+            path="/usr/bin:/bin",
+        )
+E       AttributeError: module 'task303_runtime_env' has no attribute 'build_worker_env'
+
+docs/tasks/303/test_release_d_env.py:67: AttributeError
+_ test_td_capability_is_bound_to_session_scope_mode_and_not_operator_authority _
+
+    def test_td_capability_is_bound_to_session_scope_mode_and_not_operator_authority():
+>       capability = _load("app/mcp_capability.py", "task303_mcp_capability")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+docs/tasks/303/test_release_d_env.py:99: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+relative = 'app/mcp_capability.py', name = 'task303_mcp_capability'
+
+    def _load(relative: str, name: str):
+        path = ROOT / relative
+>       assert path.is_file(), f"T-D missing behavior: {relative} does not exist"
+E       AssertionError: T-D missing behavior: app/mcp_capability.py does not exist
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/app/mcp_capability.py').is_file
+
+docs/tasks/303/test_release_d_env.py:45: AssertionError
+_____________ test_td_guard_resolves_symlinks_and_emits_no_values ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4009/test_td_guard_resolves_symlink0')
+
+    def test_td_guard_resolves_symlinks_and_emits_no_values(tmp_path):
+        runtime_env = _load("app/runtime_env.py", "task303_runtime_env_guard")
+        worktree = tmp_path / "worktree"
+        cache = tmp_path / "cache"
+        protected = tmp_path / "service-runtime"
+        worktree.mkdir()
+        cache.mkdir()
+        protected.mkdir()
+        alias = worktree / "runtime-alias"
+        alias.symlink_to(protected, target_is_directory=True)
+        canary = "task303-path-secret-canary"
+>       decision = runtime_env.audit_project_environment_target(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            key="UV_PROJECT_ENVIRONMENT",
+            value=str(alias / canary),
+            worktree=worktree,
+            project_cache=cache,
+            protected_roots=[protected],
+            session_id="session-a",
+            provider="codex",
+            source="mcp",
+        )
+E       AttributeError: module 'task303_runtime_env_guard' has no attribute 'audit_project_environment_target'
+
+docs/tasks/303/test_release_d_env.py:140: AttributeError
+____ test_td_env_cleanup_deletes_only_registered_unchanged_replaced_copies _____
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4009/test_td_env_cleanup_deletes_on0')
+
+    def test_td_env_cleanup_deletes_only_registered_unchanged_replaced_copies(tmp_path):
+        runtime_env = _load("app/runtime_env.py", "task303_runtime_env_cleanup")
+        source = tmp_path / "source.env"
+        source.write_text("PROJECT_TOKEN=scoped\n", encoding="utf-8")
+        copied_hash = _sha256(source.read_bytes())
+        unchanged = tmp_path / "unchanged.env"
+        modified = tmp_path / "modified.env"
+        no_replacement = tmp_path / "no-replacement.env"
+        for path in (unchanged, modified, no_replacement):
+            path.write_bytes(source.read_bytes())
+        modified.write_text("PROJECT_TOKEN=user-edited\n", encoding="utf-8")
+        records = [
+            {"source": str(source), "destination": str(unchanged), "copied_sha256": copied_hash, "replacement_ready": True},
+            {"source": str(source), "destination": str(modified), "copied_sha256": copied_hash, "replacement_ready": True},
+            {"source": str(source), "destination": str(no_replacement), "copied_sha256": copied_hash, "replacement_ready": False},
+        ]
+>       result = runtime_env.cleanup_injected_env_copies(records, manifest_complete=True)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'task303_runtime_env_cleanup' has no attribute 'cleanup_injected_env_copies'
+
+docs/tasks/303/test_release_d_env.py:180: AttributeError
+______ test_td_release_b_attacks_still_fail_with_the_path_guard_disabled _______
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4009/test_td_release_b_attacks_stil0')
+
+    def test_td_release_b_attacks_still_fail_with_the_path_guard_disabled(tmp_path):
+        evidence = ROOT / "docs/tasks/303/release-d-evidence.json"
+>       assert evidence.is_file(), (
+            "T-D missing evidence: Release B was not rerun with the path guard disabled"
+        )
+E       AssertionError: T-D missing evidence: Release B was not rerun with the path guard disabled
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/docs/tasks/303/release-d-evidence.json').is_file
+
+docs/tasks/303/test_release_d_env.py:193: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_d_env.py::test_td_worker_and_each_mcp_server_receive_only_their_scoped_environment
+FAILED docs/tasks/303/test_release_d_env.py::test_td_capability_is_bound_to_session_scope_mode_and_not_operator_authority
+FAILED docs/tasks/303/test_release_d_env.py::test_td_guard_resolves_symlinks_and_emits_no_values
+FAILED docs/tasks/303/test_release_d_env.py::test_td_env_cleanup_deletes_only_registered_unchanged_replaced_copies
+FAILED docs/tasks/303/test_release_d_env.py::test_td_release_b_attacks_still_fail_with_the_path_guard_disabled
+5 failed in 0.22s

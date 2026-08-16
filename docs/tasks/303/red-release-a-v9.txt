@@ -1,0 +1,132 @@
+.....FFFFFF                                                              [100%]
+=================================== FAILURES ===================================
+_____ test_ta_units_template_and_installer_use_a_direct_versioned_runtime ______
+
+    def test_ta_units_template_and_installer_use_a_direct_versioned_runtime():
+        service = (ROOT / "deploy/orchestra.service").read_text(encoding="utf-8")
+        exec_lines = [line for line in service.splitlines() if line.startswith("ExecStart=")]
+>       assert exec_lines == [
+            "ExecStart=/opt/orchestra/runtimes/current/bin/python -m uvicorn "
+            "app.main:app --fd 3"
+        ], "T-A missing behavior: the live unit still starts through a mutable uv environment"
+E       AssertionError: T-A missing behavior: the live unit still starts through a mutable uv environment
+E       assert ['ExecStart=/...n:app --fd 3'] == ['ExecStart=/...n:app --fd 3']
+E         
+E         At index 0 diff: 'ExecStart=/home/kesha/.local/bin/uv run uvicorn app.main:app --fd 3' != 'ExecStart=/opt/orchestra/runtimes/current/bin/python -m uvicorn app.main:app --fd 3'
+E         Use -v to get more diff
+
+docs/tasks/303/test_release_a_recovery.py:125: AssertionError
+______ test_ta_only_shipped_activation_authority_entries_are_fixed_units _______
+
+    def test_ta_only_shipped_activation_authority_entries_are_fixed_units():
+>       surface = assert_shipped_activation_surface(ROOT)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+docs/tasks/303/test_release_a_recovery.py:196: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary')
+
+    def assert_shipped_activation_surface(root: Path) -> dict[str, Any]:
+        """Prove the two fixed units are the only shipped callers of root activation authority."""
+        manifest_path = root / AUTHORITY_SURFACE_MANIFEST
+>       assert manifest_path.is_file() and not manifest_path.is_symlink(), (
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            "T-A missing behavior: no shipped activation-surface manifest exists"
+        )
+E       AssertionError: T-A missing behavior: no shipped activation-surface manifest exists
+
+docs/tasks/303/oracle_support.py:147: AssertionError
+_ test_ta_activation_control_plane_and_service_source_are_root_owned_and_pinned _
+
+    def test_ta_activation_control_plane_and_service_source_are_root_owned_and_pinned():
+>       assert CONTROL_SELECTION.is_file(), (
+            "T-A missing behavior: no independently verified root control-plane selection exists"
+        )
+E       AssertionError: T-A missing behavior: no independently verified root control-plane selection exists
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/var/lib/orchestra-runtime/control-plane-selected.json').is_file
+
+docs/tasks/303/test_release_a_recovery.py:207: AssertionError
+_________ test_ta_package_open_rejects_symlinks_and_copy_is_fd_pinned __________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4022/test_ta_package_open_rejects_s0')
+
+    def test_ta_package_open_rejects_symlinks_and_copy_is_fd_pinned(tmp_path):
+>       manager_path, _, _ = trusted_artifact("runtime_manager")
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+docs/tasks/303/test_release_a_recovery.py:287: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/303/oracle_support.py:1235: in trusted_artifact
+    selection, _ = load_control_selection()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^
+docs/tasks/303/oracle_support.py:1217: in load_control_selection
+    assert_root_regular(CONTROL_SELECTION, private=True)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/var/lib/orchestra-runtime/control-plane-selected.json')
+
+    def assert_root_regular(path: Path, *, private: bool = False) -> os.stat_result:
+        """Reject symlinks and every root-owned path component writable by another UID."""
+        assert path.is_absolute(), path
+>       assert path.exists(), f"missing trusted file: {path}"
+               ^^^^^^^^^^^^^
+E       AssertionError: missing trusted file: /var/lib/orchestra-runtime/control-plane-selected.json
+
+docs/tasks/303/oracle_support.py:1159: AssertionError
+_ test_ta_real_installed_artifacts_cannot_change_between_verification_and_execution _
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4022/test_ta_real_installed_artifac0')
+
+    def test_ta_real_installed_artifacts_cannot_change_between_verification_and_execution(
+        tmp_path,
+    ):
+>       assert CONTROL_SELECTION.is_file(), (
+            "T-A missing behavior: no installed public activation manager is selected"
+        )
+E       AssertionError: T-A missing behavior: no installed public activation manager is selected
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/var/lib/orchestra-runtime/control-plane-selected.json').is_file
+
+docs/tasks/303/test_release_a_recovery.py:334: AssertionError
+_____________ test_ta_scratch_transaction_handoff_and_failure_cuts _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4022/test_ta_scratch_transaction_ha0')
+
+    def test_ta_scratch_transaction_handoff_and_failure_cuts(tmp_path):
+>       report = _run_scratch_rehearsal(tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+docs/tasks/303/test_release_a_recovery.py:349: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/303/test_release_a_recovery.py:76: in _run_scratch_rehearsal
+    script, _, _ = trusted_artifact("recovery_rehearsal")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+docs/tasks/303/oracle_support.py:1235: in trusted_artifact
+    selection, _ = load_control_selection()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^
+docs/tasks/303/oracle_support.py:1217: in load_control_selection
+    assert_root_regular(CONTROL_SELECTION, private=True)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/var/lib/orchestra-runtime/control-plane-selected.json')
+
+    def assert_root_regular(path: Path, *, private: bool = False) -> os.stat_result:
+        """Reject symlinks and every root-owned path component writable by another UID."""
+        assert path.is_absolute(), path
+>       assert path.exists(), f"missing trusted file: {path}"
+               ^^^^^^^^^^^^^
+E       AssertionError: missing trusted file: /var/lib/orchestra-runtime/control-plane-selected.json
+
+docs/tasks/303/oracle_support.py:1159: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_units_template_and_installer_use_a_direct_versioned_runtime
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_only_shipped_activation_authority_entries_are_fixed_units
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_activation_control_plane_and_service_source_are_root_owned_and_pinned
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_package_open_rejects_symlinks_and_copy_is_fd_pinned
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_real_installed_artifacts_cannot_change_between_verification_and_execution
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_scratch_transaction_handoff_and_failure_cuts
+6 failed, 5 passed, 2 deselected in 0.74s

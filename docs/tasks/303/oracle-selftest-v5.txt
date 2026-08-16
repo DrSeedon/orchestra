@@ -1,0 +1,17 @@
+command: sudo -n env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_authority_oracle_selftest.py
+exit_code: 0
+result: 2 passed in 1.01s
+gate_1_control: actual descriptor execution for manager/probe/hook; verified identity equals independently observed executed identity
+gate_1_attacks: 9 blocked arms = 3 roles x rename/symlink/inode-preserving-content
+gate_2_control: RFC 8032 test vector 2 accepted; garbage/bit-flip/wrong-key controls rejected
+gate_2_attacks: shape-valid garbage, signature bit flip, wrong key, wrong activation context, cross-host, cross-PID, runtime drift, stale, replay, and runtime-policy bypass rejected
+
+mutation_gate_1: disabled the post-verification descriptor identity comparison
+mutation_result: exit 1; AssertionError: artifact swap was accepted: runtime_manager:rename
+mutation_gate_2_signature: disabled the reference policy's Ed25519 verification
+mutation_result: exit 1; AssertionError: shape_valid_garbage
+mutation_gate_2_replay: removed O_EXCL from the reference policy receipt creation
+mutation_result: exit 1 at second-call replay assertion
+mutation_gate_2_runtime: bypassed policy_authorize in the reference runtime operation
+mutation_result: exit 1; AssertionError: runtime authorization bypassed the installed policy operation
+post_restore: marker counts restored; 2 passed in 1.01s

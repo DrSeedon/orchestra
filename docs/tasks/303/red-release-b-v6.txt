@@ -1,0 +1,8 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_authority_oracle_selftest.py docs/tasks/303/test_release_b_identity.py -k 'gate2 or tb_'
+exit_code: 1
+result: 3 failed, 3 passed, 1 deselected in 0.33s
+selftests: no-stand-in, RFC 8032, and two-distinct-contender barrier mechanics passed
+first_failure: AssertionError: T-B missing behavior: no mandatory project-execution identity boundary exists
+public_consumer_failure: AssertionError: T-B missing behavior: no installed public activation consumer is selected
+evidence_failure: AssertionError: T-B missing evidence: the privileged rehearsal has not passed
+collection_or_import_failure: false

@@ -1,0 +1,153 @@
+{
+  "schema": "orchestra.task303.oracle-freeze-evidence.v10",
+  "date": "2026-08-16",
+  "freeze_commit": "82247195ed2819414354fb0807c1993aaad1f31e",
+  "status": "accepted_phase2_baseline_activation_pending",
+  "production_or_configuration_changed": false,
+  "production_activation_performed": false,
+  "v9": {
+    "freeze_commit": "6045144a5fc207b276048b622f5f63f04dff26eb",
+    "authority_review_verdict": "APPROVED",
+    "authority_review_preserved": true,
+    "implementation_status": "superseded_for_implementation_combined_privileged_gate",
+    "carried_forward_as_green_evidence": false
+  },
+  "oracle_sha256": {
+    "oracle_v10_support.py": "172b279e6c884cdafcf5ade420e4e34fc9a09eef7f614e57c95035c11d83c6a9",
+    "v10_delivery_gate.py": "f3be12d4834776ec0b4fff2b5eb39e0ab495c8dde7b2243ca50f9adf254a764a",
+    "test_v10_delivery_oracle.py": "8411c2b987380fc6e0ab444af0dd4096f39627eea27463b26c63cd98bc4fb4ef",
+    "oracle_support.py": "6a0d1262f55b3fc4e3d8382a4a3f351bd7b1f184a1918e65f1ec9e82d0f9e421",
+    "test_authority_oracle_selftest.py": "1f7d042c59c5e57e48f979b06d725fb2e4827986d23876fe7c250193cb9db66f",
+    "test_release_a_recovery.py": "ed79bd5541ae7c7be876ae6d75324d714c8e871dce181e47b7621734776facc5",
+    "test_release_b_identity.py": "a4fb65f1bc54ff195ada6bb9e07d519dbd5817ac5b85a7350714847ac5dca426",
+    "test_release_c_credentials.py": "372460aa70f4427fe185eaf0349ed0d40ea340bffcbe1d683604be231fb0d99b",
+    "test_release_d_env.py": "be89030df06a5c3d25f28e92ba9fb5c8a4c71ad9903beb90487ead2181df1f3d"
+  },
+  "supporting_sha256": {
+    "oracle-selftest-v10.txt": "b8d311ca355948ca5b2ad6fa10e6a208c1fd385c05d67f3634719232db0ccaae",
+    "red-delivery-a-v10.txt": "d932498ebf78442a01025caec3d77a086f298e32787912e25cfb9b542ac4c4de",
+    "red-delivery-b-v10.txt": "162c83daac1d599b4c510ad9120fef8ac95701c7021de0592c620e1485c9a196",
+    "red-delivery-c-v10.txt": "028e35eb2f766f8481fa6cffe6586177d1e340a362522ccadd641908493c33ab",
+    "red-delivery-d-v10.txt": "c6c24f389f660de604a813ad93c8730306117678b8bfd99e16c8c839b6e21fb3",
+    "red-activation-a-v10.txt": "bbbe891f48d93026960b1e147a09a3da245030795ac7992bc635388256148ca5",
+    "red-activation-b-v10.txt": "0f6b0abcfc8d3f2c779a6d25d6c9a82043446529b38711ac7d5ea63c1869b300",
+    "red-activation-c-v10.txt": "08c51d2e0c8b00dd49a5e0cc08c6e961cb9bac751af8574a5530b1e09e5aa27d",
+    "red-activation-d-v10.txt": "58be83e8a7038793cf19f57eee4fb0e5070be2b70718868e25a29e5008a9e3d0"
+  },
+  "selftest": {
+    "exit_code": 0,
+    "passed": 9,
+    "output": "oracle-selftest-v10.txt",
+    "mutations": [
+      "activation_ready_true",
+      "privileged_evidence_complete",
+      "activation_authorized_true",
+      "isolation_claimed_true",
+      "activation_receipt_present",
+      "each_activation_only_field_present",
+      "authority_state_archive_member",
+      "private_key_archive_member",
+      "provider_credentials_alternate_name",
+      "ssh_private_key_alternate_name",
+      "activation_receipt_alternate_name",
+      "relative_symlink_to_sensitive_state",
+      "tracked_allowlisted_credential_json",
+      "tracked_allowlisted_named_literal",
+      "tracked_allowlisted_known_token",
+      "tracked_allowlisted_private_key",
+      "escaping_archive_symlink",
+      "delivery_runner_activation_executable_surface"
+    ]
+  },
+  "delivery_contract": {
+    "schema": "orchestra.task303.delivery.v1",
+    "runs_as": "non-root",
+    "requires_clean_exact_commit": true,
+    "package_path_root": "/var/tmp/orchestra-task303-packages",
+    "package_builder": "scripts/build-orchestra-runtime-package.py --delivery-only",
+    "package_member_policy": "exact separately derived Git/fixed-map/reference-runtime inventory",
+    "public_source_policy": "closed text/source types plus private-key, known-token, and named-literal rejection",
+    "candidate_storage": "owner-only 0700 directory and 0600 accepted archive; archive-validation rejection removes the archive; pre-validation inventory failure may leave an owner-only archive and emits no report",
+    "manifest_content_flags_are_authoritative": false,
+    "child_service_and_provider_secrets_stripped": true,
+    "authoritative_paths_snapshotted_before_and_after": true,
+    "required_report_values": {
+      "delivery_ready": true,
+      "activation_ready": false,
+      "privileged_evidence": "pending",
+      "activation_authorized": false,
+      "isolation_claimed": false,
+      "production_state_unchanged": true,
+      "activation_receipt": null,
+      "protected_secret_comparison": "pending_privileged_activation"
+    },
+    "activation_consumer_input": false,
+    "privileged_release_evidence": false
+  },
+  "releases": {
+    "A": {
+      "delivery": {"exit_code": 1, "failed": 2, "passed": 10, "output": "red-delivery-a-v10.txt", "status": "red_missing_behavior"},
+      "activation": {"exit_code": 1, "failed": 4, "passed": 6, "output": "red-activation-a-v10.txt", "status": "mandatory_pending_real_installed_state"},
+      "delivery_ready": false,
+      "activation_ready": false,
+      "privileged_evidence": "pending",
+      "isolation_claimed": false
+    },
+    "B": {
+      "delivery": {"exit_code": 1, "failed": 2, "passed": 9, "output": "red-delivery-b-v10.txt", "status": "red_missing_behavior"},
+      "activation": {"exit_code": 1, "failed": 2, "passed": 6, "output": "red-activation-b-v10.txt", "status": "mandatory_pending_real_installed_state"},
+      "delivery_ready": false,
+      "activation_ready": false,
+      "privileged_evidence": "pending",
+      "isolation_claimed": false
+    },
+    "C": {
+      "delivery": {"exit_code": 1, "failed": 1, "passed": 3, "output": "red-delivery-c-v10.txt", "status": "red_missing_behavior"},
+      "activation": {"exit_code": 1, "failed": 2, "passed": 0, "output": "red-activation-c-v10.txt", "status": "mandatory_pending_real_provider_and_installed_state"},
+      "delivery_ready": false,
+      "activation_ready": false,
+      "privileged_evidence": "pending",
+      "isolation_claimed": false,
+      "global_provider_latch": "not_evaluated_pending_all_four_providers"
+    },
+    "D": {
+      "delivery": {"exit_code": 1, "failed": 4, "passed": 3, "output": "red-delivery-d-v10.txt", "status": "red_missing_behavior"},
+      "activation": {"exit_code": 1, "failed": 1, "passed": 0, "output": "red-activation-d-v10.txt", "status": "mandatory_pending_real_installed_state"},
+      "delivery_ready": false,
+      "activation_ready": false,
+      "privileged_evidence": "pending",
+      "isolation_claimed": false
+    }
+  },
+  "activation_gate": {
+    "authoritative_roots": [
+      "/var/lib/orchestra-runtime",
+      "/opt/orchestra/runtimes",
+      "/usr/libexec/orchestra-runtime",
+      "/etc/systemd/system"
+    ],
+    "pid1_effective_unit_check_required": true,
+    "real_target_pid_starttime_runtime_binding_required": true,
+    "root_owned_installed_identity_required": true,
+    "atomic_one_use_attestation_required": true,
+    "may_be_green_in_implementation_phase": false,
+    "may_be_skipped": false,
+    "may_be_synthesized": false,
+    "may_accept_delivery_report": false
+  },
+  "independent_review": {
+    "path": "enforcement-oracle-audit-v10.md",
+    "status": "approved_round3",
+    "verdict": "APPROVED",
+    "rounds": 3,
+    "review_sha256": "85f4672342c6f34b609ebc3bb235c06c39adec980c415d1c120680d7418503fa",
+    "review_artifact_commit": "b8070d12461d32c903d2975c943621e9c63d417a",
+    "round1_blocking": "alternate-name credential/activation-state members and sensitive relative symlink were not rejected",
+    "round1_fix": "exact derived inventory plus resolved-target allowlist and four frozen counterexamples",
+    "round2_blocking": "Git-tracked application paths were allowlisted without an independent source-content policy",
+    "round2_fix": "typed public-source validation before build and after extraction, allowed-inventory secret mutations, owner-only candidate storage, and explicit pending protected-value comparison",
+    "round3_suggestion": "post-build expected-inventory failure occurs before archive cleanup but leaves only an owner-only candidate and no report",
+    "required_focus": "package GREEN cannot authorize activation, satisfy privileged evidence, or claim isolation"
+  },
+  "cross_family_review": "unavailable"
+}

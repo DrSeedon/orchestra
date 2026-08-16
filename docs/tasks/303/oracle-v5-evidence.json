@@ -1,0 +1,67 @@
+{
+  "schema": "orchestra.task303.oracle-freeze-evidence.v1",
+  "date": "2026-08-16",
+  "freeze_commit": "8fe615b9cc89b0f94a8cce9e1d7d8d9f659b2e4e",
+  "status": "frozen_pending_separate_enforcement_oracle_audit",
+  "production_or_configuration_changed": false,
+  "oracle_sha256": {
+    "oracle_support.py": "ed509cc21c454fd9025584677519980480efdd7838d2876aa938a07f80bcf64e",
+    "test_authority_oracle_selftest.py": "6ee87489cdf92a3dd15cef1d02a430ca81fa983fca566c3453a8f7104147548a",
+    "test_release_a_recovery.py": "a11ce85d524cb68700f97b7256cd4d44e055a5e575013acac8207c0ada82f925",
+    "test_release_b_identity.py": "307ef4cedbd4ea509e0985fb9322a5989fc6099b0435645f353c03b2f04dcb58",
+    "test_release_c_credentials.py": "372460aa70f4427fe185eaf0349ed0d40ea340bffcbe1d683604be231fb0d99b",
+    "test_release_d_env.py": "be89030df06a5c3d25f28e92ba9fb5c8a4c71ad9903beb90487ead2181df1f3d"
+  },
+  "commands": {
+    "selftest": {"exit_code": 0, "passed": 2, "output": "oracle-selftest-v5.txt"},
+    "release_a": {"exit_code": 1, "failed": 5, "passed": 1, "output": "red-release-a-v5.txt"},
+    "release_b": {"exit_code": 1, "failed": 3, "passed": 1, "output": "red-release-b-v5.txt"},
+    "release_c": {"exit_code": 1, "failed": 3, "output": "red-release-c-v5.txt"},
+    "release_d": {"exit_code": 1, "failed": 5, "output": "red-release-d-v5.txt"}
+  },
+  "gate_1": {
+    "control_roles": ["runtime_manager", "activation_probe", "activation_hook"],
+    "control_observation": "sha256+device+inode+size+mode from the same descriptor executed via /proc/self/fd",
+    "attacks_per_role": ["rename", "symlink", "inode_preserving_content"],
+    "attack_count": 9,
+    "protected_state": ["selector", "admission", "process"],
+    "rehearsal_json_installed_artifact_swap_accepted": false
+  },
+  "gate_2": {
+    "independent_verifier": "/usr/bin/openssl pkeyutl",
+    "known_vector": "RFC8032-test-vector-2",
+    "invalid_arms": [
+      "shape_valid_garbage",
+      "signature_bit_flip",
+      "wrong_public_key",
+      "wrong_activation_context",
+      "cross_host",
+      "cross_pid",
+      "runtime_drift",
+      "stale"
+    ],
+    "same_runtime_operation_calls": 2,
+    "first_apply_count": 1,
+    "second_apply_count": 0,
+    "replay_post_state_delta": 0,
+    "runtime_policy_call_counter_required": true
+  },
+  "mutations": [
+    {"name": "gate1_skip_postverify_identity", "exit_code": 1, "caught": "runtime_manager:rename accepted"},
+    {"name": "gate2_skip_ed25519_verify", "exit_code": 1, "caught": "shape_valid_garbage accepted"},
+    {"name": "gate2_remove_o_excl", "exit_code": 1, "caught": "second call not replay"},
+    {"name": "gate2_runtime_bypasses_policy", "exit_code": 1, "caught": "policy call counter unchanged"}
+  ],
+  "rejected_baselines": [
+    {
+      "commit": "ff6aacb7ee6a05ed1cdc07588e80ef8cecddd69b",
+      "review": "codex-review-plan.md"
+    },
+    {
+      "commit": "622e740e2cd934d7bfe6fac40ab894afef27ac9c",
+      "review": "codex-review-plan-corrected.md"
+    }
+  ],
+  "model_review_run": false,
+  "plan_approved": false
+}

@@ -1,0 +1,8 @@
+command: sudo -n env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_authority_oracle_selftest.py docs/tasks/303/test_release_b_identity.py -k 'gate2 or tb_'
+exit_code: 1
+result: 3 failed, 1 passed, 1 deselected in 0.58s
+selftest: Gate 2 cryptographic/replay/runtime-wiring meta-oracle passed before production assertions
+first_failure: AssertionError: T-B missing behavior: no mandatory project-execution identity boundary exists
+gate_failure: missing trusted file: /var/lib/orchestra-runtime/control-plane-selected.json
+gate_failure: missing privileged Release B evidence
+collection_or_import_failure: false

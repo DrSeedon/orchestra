@@ -1,0 +1,74 @@
+{
+  "schema": "orchestra.task303.oracle-freeze-evidence.v2",
+  "date": "2026-08-16",
+  "freeze_commit": "1ec850dbf5b69a35bdcd6422eca1001f5a3576f8",
+  "status": "frozen_pending_independent_enforcement_oracle_audit",
+  "production_or_configuration_changed": false,
+  "oracle_sha256": {
+    "oracle_support.py": "f7be7992cf98702743dc6e738188e14bb5923e1e23435ef9bc096a490c80ae3b",
+    "test_authority_oracle_selftest.py": "293f449f599d6c4f234e399715f312e41754ff2027228d1851208d30d95aa07d",
+    "test_release_a_recovery.py": "bbc7409d3b9924373953a9cc5124503d1e87724cc8d92b74bfd275422de6f98a",
+    "test_release_b_identity.py": "3a3ed2f335d05ec8ab21cfcfc7d551770982414ac93bf99db7b21fac1a56da19",
+    "test_release_c_credentials.py": "372460aa70f4427fe185eaf0349ed0d40ea340bffcbe1d683604be231fb0d99b",
+    "test_release_d_env.py": "be89030df06a5c3d25f28e92ba9fb5c8a4c71ad9903beb90487ead2181df1f3d"
+  },
+  "supporting_sha256": {
+    "emergency-baseline-v6.json": "f17cb06baf175036cd40043cececb006b7d618b21e8e79598114bf857177d2a3",
+    "oracle-selftest-v6.txt": "e95bc17cbb9bebfcfca99134952c86a44ef3d55ad3b68764c40ce6296b28142a",
+    "red-release-a-v6.txt": "b1f4d5cb7573ffc40efe4cb6fc718d985f8901ad66ac57079546fcbb1fe76b8a",
+    "red-release-b-v6.txt": "c8ab8515dfc3e0fd2939c2b9363b26f9546d81ff059f43d993db977d81d42462",
+    "red-release-c-v6.txt": "f3efb6be0342350ea8ea6aa29bacb3e038606445bcf692df5ddc84281d667df8",
+    "red-release-d-v6.txt": "59c3be2c8cff7c19a3b72e1bfa5ce12faa82b4f6db687c710f0f48e8bf8cd756"
+  },
+  "commands": {
+    "selftest": {"exit_code": 0, "passed": 4, "output": "oracle-selftest-v6.txt"},
+    "release_a": {"exit_code": 1, "failed": 5, "passed": 3, "deselected": 2, "output": "red-release-a-v6.txt"},
+    "release_b": {"exit_code": 1, "failed": 3, "passed": 3, "deselected": 1, "output": "red-release-b-v6.txt"},
+    "release_c": {"exit_code": 1, "failed": 3, "output": "red-release-c-v6.txt"},
+    "release_d": {"exit_code": 1, "failed": 5, "output": "red-release-d-v6.txt"}
+  },
+  "gate_1": {
+    "authority_under_test": "selected installed runtime_manager executable, public activate --state-root operation",
+    "deployment_binding": "control selection pins the exact manager/activate/production-state-root argv",
+    "oracle_owned": ["fixture copies", "physical attacks", "barrier release", "filesystem snapshots"],
+    "oracle_does_not_supply": ["verification callback", "runner callback", "commit callback", "activation implementation"],
+    "control_roles": ["runtime_manager", "activation_probe", "activation_hook"],
+    "attacks_per_role": ["rename", "symlink", "inode_preserving_content"],
+    "attack_count": 9,
+    "real_state_paths": ["current", "deploy-state/active.json", "activation-state/admission.json", "activation-state/process.json", "activation-state/apply.jsonl"],
+    "control_apply_count": 1
+  },
+  "gate_2": {
+    "authority_under_test": "selected installed runtime_manager executable, public authorize-commit --state-root operation",
+    "independent_verifier": "/usr/bin/openssl pkeyutl",
+    "known_vector": "RFC8032-test-vector-2",
+    "invalid_arms": ["shape_valid_garbage", "signature_bit_flip", "wrong_public_key", "wrong_activation_context", "cross_host", "cross_pid", "runtime_drift", "stale"],
+    "concurrency": {
+      "contenders": 2,
+      "argv_identity": "same manager/operation/attestation/context/key/time/state/sync paths",
+      "barrier_phase": "validated_before_consume",
+      "required_results": ["authorized", "replay"],
+      "required_exit_codes": [0, 73],
+      "required_apply_count": 1,
+      "required_receipt_count": 1,
+      "loser_pid_absent_from_authority_state": true
+    },
+    "third_replay_state_delta": 0
+  },
+  "mutations": [
+    {"name": "gate1_attack_generator_noop", "exit_code": 1, "caught": "fixture digest unchanged"},
+    {"name": "gate2_one_contender_barrier", "exit_code": 1, "caught": "two-contender requirement removed"},
+    {"name": "gate2_independent_verifier_always_true", "exit_code": 1, "caught": "garbage signature accepted"},
+    {"name": "release_tests_stop_calling_public_helpers", "exit_code": 1, "caught": "public helper wiring absent"}
+  ],
+  "rejected_v5": {
+    "freeze_commit": "8fe615b9cc89b0f94a8cce9e1d7d8d9f659b2e4e",
+    "hash_registry_commit": "52d56bba",
+    "audit_commit": "a315f7a3d306a6cb472c8881b15d7ad07fe60641",
+    "audit_path": "docs/reviews/303/enforcement-oracle-audit.md",
+    "audit_sha256": "b1eb94944cb98f215e06bcd0ad7caceb96232b29adda936549e63b6906dfa277",
+    "verdict": "CHANGES REQUIRED"
+  },
+  "independent_review": null,
+  "plan_approved": false
+}

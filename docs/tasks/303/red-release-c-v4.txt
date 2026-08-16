@@ -1,0 +1,6 @@
+command: sudo -n env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_release_c_credentials.py
+exit_code: 1
+result: 3 failed in 0.33s
+first_failure: AssertionError: T-C missing behavior: provider credentials and project tools share one authority domain
+additional_failure: AssertionError: T-C missing evidence: all-provider auth/refresh/EACCES rehearsal has not passed
+additional_failure: AssertionError: T-C missing behavior: provider credentials and project tools share one authority domain

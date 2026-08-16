@@ -1,0 +1,46 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+___ test_td_service_activation_and_secrets_are_not_in_worker_or_mcp_base_env ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7bde67057050>
+
+    def test_td_service_activation_and_secrets_are_not_in_worker_or_mcp_base_env(monkeypatch):
+        monkeypatch.setenv("VIRTUAL_ENV", "/home/kesha/orchestra/.venv")
+        monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", "/home/kesha/orchestra/.venv")
+        monkeypatch.setenv("INTERNAL_TOKEN", "task303-service-secret-canary")
+        runtime_env = _load_runtime_env()
+        leaked = {
+            key for key in ("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT", "INTERNAL_TOKEN")
+            if key in runtime_env.MCP_BASE_ENV
+        }
+>       assert not leaked, (
+            f"T-D missing behavior: service environment still leaks into MCP base env: {sorted(leaked)}"
+        )
+E       AssertionError: T-D missing behavior: service environment still leaks into MCP base env: ['INTERNAL_TOKEN']
+E       assert not {'INTERNAL_TOKEN'}
+
+docs/tasks/303/test_release_d_env.py:29: AssertionError
+_________ test_td_service_env_is_not_copied_and_guards_are_observable __________
+
+    def test_td_service_env_is_not_copied_and_guards_are_observable():
+        workspace = (ROOT / "app/workspace.py").read_text(encoding="utf-8")
+        registry = (ROOT / "app/runtime_registry.py").read_text(encoding="utf-8")
+        runtime_env = (ROOT / "app/runtime_env.py").read_text(encoding="utf-8")
+        project_files_line = next(
+            line for line in workspace.splitlines() if line.startswith("PROJECT_FILES =")
+        )
+>       assert '".env"' not in project_files_line, (
+            "T-D missing behavior: the service/project .env is still copied into every worktree"
+        )
+E       AssertionError: T-D missing behavior: the service/project .env is still copied into every worktree
+E       assert '".env"' not in 'PROJECT_FIL...on", ".env")'
+E         
+E         '".env"' is contained here:
+E           cp.json", ".env")
+E         ?           ++++++
+
+docs/tasks/303/test_release_d_env.py:44: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_d_env.py::test_td_service_activation_and_secrets_are_not_in_worker_or_mcp_base_env
+FAILED docs/tasks/303/test_release_d_env.py::test_td_service_env_is_not_copied_and_guards_are_observable
+2 failed in 0.12s

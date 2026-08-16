@@ -1,0 +1,6 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_release_d_env.py
+exit_code: 1
+result: 5 failed in 0.21s
+first_failure: AttributeError: module 'task303_runtime_env' has no attribute 'build_worker_env'
+evidence_failure: AssertionError: T-D missing evidence: Release B was not rerun with the path guard disabled
+collection_or_import_failure: false

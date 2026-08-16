@@ -1,0 +1,9 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_authority_oracle_selftest.py docs/tasks/303/test_release_a_recovery.py -k 'gate1 or ta_'
+exit_code: 1
+result: 5 failed, 4 passed, 2 deselected in 0.46s
+selftests: actual-unit parser/wiring, observer/no-stand-in, and physical-attack mechanics passed
+measured_baseline: direct /opt runtime recovery evidence passed and remains explicitly non-preventive
+first_failure: AssertionError: T-A missing behavior: the live unit still starts through a mutable uv environment
+public_seam_failure: AssertionError: T-A missing behavior: no installed public activation manager is selected
+state_backend_failure: missing trusted file: /var/lib/orchestra-runtime/control-plane-selected.json
+collection_or_import_failure: false

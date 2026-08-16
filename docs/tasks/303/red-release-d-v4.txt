@@ -1,0 +1,8 @@
+command: sudo -n env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_release_d_env.py
+exit_code: 1
+result: 5 failed in 0.31s
+first_failure: AttributeError: module 'task303_runtime_env' has no attribute 'build_worker_env'
+additional_failure: AssertionError: T-D missing behavior: app/mcp_capability.py does not exist
+additional_failure: AttributeError: module 'task303_runtime_env_guard' has no attribute 'audit_project_environment_target'
+additional_failure: AttributeError: module 'task303_runtime_env_cleanup' has no attribute 'cleanup_injected_env_copies'
+additional_failure: AssertionError: T-D missing evidence: Release B was not rerun with the path guard disabled

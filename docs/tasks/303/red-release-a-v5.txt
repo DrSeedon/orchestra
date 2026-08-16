@@ -1,0 +1,8 @@
+command: sudo -n env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_authority_oracle_selftest.py docs/tasks/303/test_release_a_recovery.py -k 'gate1 or ta_'
+exit_code: 1
+result: 5 failed, 1 passed, 1 deselected in 1.26s
+selftest: Gate 1 meta-oracle passed before production assertions
+first_failure: AssertionError: T-A missing behavior: the live unit still starts through a mutable uv environment
+gate_failure: missing trusted file: /var/lib/orchestra-runtime/control-plane-selected.json
+gate_failure: missing trusted activation_entrypoint and installed manager/probe/hook artifacts
+collection_or_import_failure: false

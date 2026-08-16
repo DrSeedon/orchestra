@@ -1,0 +1,65 @@
+{
+  "schema": "orchestra.task303.emergency-baseline.v1",
+  "observed_at": "2026-08-16T20:35:15+02:00",
+  "measurement_kind": "read_only_live_host",
+  "service": {
+    "active": true,
+    "main_pid": 1097966,
+    "user": "kesha",
+    "group": "kesha",
+    "uid": 1001,
+    "gid": 1001,
+    "working_directory": "/home/kesha/orchestra",
+    "exec_start": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-m",
+      "uvicorn",
+      "app.main:app",
+      "--fd",
+      "3"
+    ],
+    "no_new_privileges_systemd": true,
+    "no_new_privileges_proc": 1,
+    "activation_environment_present": []
+  },
+  "runtime": {
+    "path": "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2",
+    "owner": "root",
+    "group": "root",
+    "mode": "0555",
+    "writable_by_service_uid": false,
+    "python": "3.12.3",
+    "httpcore": "1.0.9",
+    "certifi": "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/certifi/cacert.pem",
+    "ssl_context": "pass",
+    "pyvenv_cfg_sha256": "1f22295bef5c16b9f28ea1258fcdd92d7750d21541d1ab329a7b5c9b04f28a60"
+  },
+  "systemd_dropin": {
+    "path": "/etc/systemd/system/orchestra.service.d/60-runtime-isolation.conf",
+    "owner": "root",
+    "group": "root",
+    "mode": "0644",
+    "sha256": "1ff755b6b055084b44fffa3c7713f7bc6acc61091ddff9ebb40bb5720aa32e83",
+    "direct_exec_start": true,
+    "unset_environment": ["VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT"],
+    "read_only_paths": ["/opt/orchestra/runtimes"]
+  },
+  "counterevidence_to_prevention": {
+    "checkout": "/home/kesha/orchestra",
+    "checkout_owner": "kesha",
+    "checkout_group": "kesha",
+    "checkout_mode": "0755",
+    "checkout_writable_by_service_uid": true,
+    "controller_and_project_authority_still_shared": true
+  },
+  "read_only_sources": [
+    "systemctl show orchestra -p MainPID -p User -p Group -p ExecStart -p WorkingDirectory -p NoNewPrivileges",
+    "systemctl cat orchestra",
+    "/proc/1097966/status Uid/Gid/NoNewPrivs",
+    "/proc/1097966/environ exact-name filter for VIRTUAL_ENV and UV_PROJECT_ENVIRONMENT",
+    "stat and sha256sum on the selected runtime and 60-runtime-isolation.conf",
+    "selected runtime Python imports plus ssl.create_default_context()"
+  ],
+  "claim": "recovery_integrity_only",
+  "production_or_configuration_changed_by_measurement": false
+}

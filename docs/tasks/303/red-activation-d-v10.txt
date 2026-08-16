@@ -1,0 +1,23 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 pytest -p no:cacheprovider -q docs/tasks/303/test_release_d_env.py::test_td_release_b_attacks_still_fail_with_the_path_guard_disabled
+exit_code: 1
+
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_td_release_b_attacks_still_fail_with_the_path_guard_disabled _______
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-4078/test_td_release_b_attacks_stil0')
+
+    def test_td_release_b_attacks_still_fail_with_the_path_guard_disabled(tmp_path):
+        evidence = ROOT / "docs/tasks/303/release-d-evidence.json"
+>       assert evidence.is_file(), (
+            "T-D missing evidence: Release B was not rerun with the path guard disabled"
+        )
+E       AssertionError: T-D missing evidence: Release B was not rerun with the path guard disabled
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/docs/tasks/303/release-d-evidence.json').is_file
+
+docs/tasks/303/test_release_d_env.py:193: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_d_env.py::test_td_release_b_attacks_still_fail_with_the_path_guard_disabled
+1 failed in 0.16s

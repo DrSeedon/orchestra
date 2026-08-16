@@ -1,0 +1,46 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_____ test_ta_units_template_and_installer_use_a_direct_versioned_runtime ______
+
+    def test_ta_units_template_and_installer_use_a_direct_versioned_runtime():
+        service = (ROOT / "deploy/orchestra.service").read_text(encoding="utf-8")
+        exec_lines = [line for line in service.splitlines() if line.startswith("ExecStart=")]
+>       assert exec_lines == [
+            "ExecStart=/var/lib/orchestra-runtime/current/bin/python -m uvicorn "
+            "app.main:app --fd 3"
+        ], "T-A missing behavior: the live unit still starts through a mutable uv environment"
+E       AssertionError: T-A missing behavior: the live unit still starts through a mutable uv environment
+E       assert ['ExecStart=/...n:app --fd 3'] == ['ExecStart=/...n:app --fd 3']
+E         
+E         At index 0 diff: 'ExecStart=/home/kesha/.local/bin/uv run uvicorn app.main:app --fd 3' != 'ExecStart=/var/lib/orchestra-runtime/current/bin/python -m uvicorn app.main:app --fd 3'
+E         Use -v to get more diff
+
+docs/tasks/303/test_release_a_recovery.py:55: AssertionError
+_____________ test_ta_scratch_transaction_handoff_and_failure_cuts _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-3839/test_ta_scratch_transaction_ha0')
+
+    def test_ta_scratch_transaction_handoff_and_failure_cuts(tmp_path):
+>       report = _run_scratch_rehearsal(tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+docs/tasks/303/test_release_a_recovery.py:98: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-3839/test_ta_scratch_transaction_ha0')
+
+    def _run_scratch_rehearsal(tmp_path: Path) -> dict:
+        script = ROOT / "scripts/rehearse-runtime-recovery.py"
+>       assert script.is_file(), (
+            "T-A missing behavior: no production-path scratch recovery rehearsal exists"
+        )
+E       AssertionError: T-A missing behavior: no production-path scratch recovery rehearsal exists
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-venv-boundary/scripts/rehearse-runtime-recovery.py').is_file
+
+docs/tasks/303/test_release_a_recovery.py:33: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_units_template_and_installer_use_a_direct_versioned_runtime
+FAILED docs/tasks/303/test_release_a_recovery.py::test_ta_scratch_transaction_handoff_and_failure_cuts
+2 failed in 0.15s
