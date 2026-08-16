@@ -4,6 +4,7 @@ orchestrators, test-lock, restart, GitHub webhook."""
 import asyncio
 import hashlib
 import hmac
+import inspect
 import json
 import logging
 import os
@@ -47,6 +48,13 @@ from app.runtime_router import (
 logger = logging.getLogger("orchestra.system")
 
 router = APIRouter()
+
+
+def get_quota_controller():
+    """Return the process-owned, non-enforcing shadow observer."""
+    from app.quota_controller import get_quota_controller as get_controller
+
+    return get_controller()
 
 
 class ProfileRequest(BaseModel):
@@ -409,6 +417,7 @@ _USAGE_CACHE_TTL = 300
 _quota_refresh_locks = {
     "anthropic": asyncio.Lock(),
     "codex": asyncio.Lock(),
+    "grok": asyncio.Lock(),
 }
 _CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 _GROK_CREDENTIALS_PATH = Path.home() / ".grok" / "auth.json"
@@ -614,6 +623,31 @@ def _provider_usage_snapshot(
         })
     if anthropic_windows:
         providers["anthropic"] = {"label": "Claude", "windows": anthropic_windows}
+
+    fable = next(
+        (
+            limit for limit in (anthropic or {}).get("limits", [])
+            if (
+                isinstance(limit, dict)
+                and limit.get("kind") == "weekly_scoped"
+                and str(limit.get("scope_model_display_name", "")).casefold() == "fable"
+                and isinstance(limit.get("percent"), (int, float))
+                and not isinstance(limit.get("percent"), bool)
+            )
+        ),
+        None,
+    )
+    if fable is not None:
+        providers["anthropic_fable"] = {
+            "label": "Claude Fable",
+            "windows": [{
+                "id": "weekly_scoped",
+                "label": "7d",
+                "utilization": fable["percent"],
+                "window_minutes": 10080,
+                "resets_at": fable.get("resets_at"),
+            }],
+        }
 
     for provider_id, label, usage in (
         ("codex", "Codex", codex),
@@ -875,7 +909,7 @@ async def _get_usage_data(
         if grok_fetched:
             _grok_usage_cache["data"] = grok_data
             _grok_usage_cache["ts"] = now
-        elif not required_provider:
+        elif required_provider == "grok" or not required_provider:
             _grok_usage_cache["data"] = None
             _grok_usage_cache["ts"] = 0.0
     if required_provider == "grok" and not grok_fetched:
@@ -983,17 +1017,26 @@ async def current_provider_usage(
 
 
 def _quota_observation_from_cache() -> dict:
+    observed_at_by_provider = {
+        "anthropic": _usage_cache.get("ts"),
+        "anthropic_fable": _usage_cache.get("ts"),
+        "codex": _codex_usage_cache.get("ts"),
+        "codex_spark": _codex_usage_cache.get("ts"),
+    }
+    grok_ts = _grok_usage_cache.get("ts")
+    if (
+        _grok_usage_cache.get("data") is not None
+        and isinstance(grok_ts, (int, float))
+        and grok_ts > 0
+    ):
+        observed_at_by_provider["grok"] = grok_ts
     return {
         "providers": _provider_usage_snapshot(
             _usage_cache.get("data"),
             _codex_usage_cache.get("data"),
             _grok_usage_cache.get("data"),
         ),
-        "observed_at_by_provider": {
-            "anthropic": _usage_cache.get("ts"),
-            "codex": _codex_usage_cache.get("ts"),
-            "codex_spark": _codex_usage_cache.get("ts"),
-        },
+        "observed_at_by_provider": observed_at_by_provider,
     }
 
 
@@ -1234,6 +1277,46 @@ async def usage_readiness(model: str):
         observation_loader=current_quota_observation,
     )
     return worker_readiness_envelope(decision)
+
+
+@router.get("/api/usage/quota-controller")
+async def quota_controller_status():
+    try:
+        result = get_quota_controller().status()
+        if inspect.isawaitable(result):
+            result = await result
+        if isinstance(result, dict):
+            return result
+    except Exception as error:
+        from app.quota_controller import empty_status, record_shadow_error
+
+        record_shadow_error()
+        result = empty_status()
+        result["status_error"] = f"{type(error).__name__}: {err_text(error)}"
+        return result
+    from app.quota_controller import empty_status
+
+    return empty_status()
+
+
+@router.post("/api/usage/quota-controller/reserve")
+async def create_quota_reserve_intent(request: Request, payload: dict):
+    require_operator_session(request)
+    result = get_quota_controller().create_reserve_intent(payload)
+    if inspect.isawaitable(result):
+        result = await result
+    return result
+
+
+@router.delete("/api/usage/quota-controller/reserve/{intent_id}")
+async def cancel_quota_reserve_intent(request: Request, intent_id: str):
+    require_operator_session(request)
+    result = get_quota_controller().cancel_reserve_intent(intent_id)
+    if inspect.isawaitable(result):
+        result = await result
+    if result is None:
+        raise HTTPException(status_code=404, detail="reserve intent not found")
+    return result
 
 
 @router.get("/api/usage/routing-policy")

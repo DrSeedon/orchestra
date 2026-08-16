@@ -95,7 +95,7 @@ Fast не создаёт synthetic utilization и не наследует Spark.
 
 - `cold`: <1 полного same-regime окна; только conservative upper proxy, без ACCELERATE;
 - `pilot`: 1–2 полных окна; bootstrap виден, gate-advice использует верхнюю границу;
-- `operational`: ≥3 полных стабильных окна, telemetry coverage ≥80%, ≥20
+- `operational`: ≥3 полных стабильных окна, telemetry coverage ≥90%, ≥20
   non-overlapping blocks после thinning не короче correlation length, ESS ≥20;
 - `fail_safe`: fresh usable value/anchor отсутствует, найден drift/corruption либо q95
   для candidate class неидентифицируем.
@@ -385,7 +385,7 @@ Evidence set получает `eligible=true` для конкретного `ena
 
 1. prospective=true и есть ≥3 полных стабильных same-regime окна для каждого enforcement
    bucket/constraint;
-2. telemetry coverage каждого окна ≥80%; ≥20 non-overlapping blocks; ESS ≥20;
+2. telemetry coverage каждого окна ≥90%; ≥20 non-overlapping blocks; ESS ≥20;
 3. для каждого разрешаемого `(bucket,model,mode,task_class)` ≥20 settled usable outcomes;
 4. empirical q95 coverage ≥95%, а односторонняя 95% binomial lower bound ≥80%;
 5. `unsafe_allow_count=0`, `corrupt_authoritative_decision_count=0`, drift в qualified
@@ -394,6 +394,12 @@ Evidence set получает `eligible=true` для конкретного `ena
    median unused headroom, а false holds не больше baseline;
 7. current live regime_set_hash совпадает с evidence; plan/rate-card/auth-home drift сразу
    делает evidence ineligible.
+
+Correction для Release A (2026-08-16): первоначально утверждённый порог telemetry coverage
+≥80% заменён на ≥90% в соответствии с immutable T4 oracle. Более строгий порог действует только
+на shadow evidence eligibility: он может лишь задержать квалификацию evidence, но не меняет
+dispatch, routing или текущий static gate. Enforcement остаётся отдельным запрещённым в этом
+релизе T5.
 
 Missing constraint/stratum/field — named fail-closed reason, не default zero/pass. Evidence
 одной Codex stratum не может авторизовать Claude, Spark или Grok.

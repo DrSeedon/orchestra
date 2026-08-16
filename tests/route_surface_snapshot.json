@@ -571,6 +571,24 @@
   ]
  ],
  [
+  "/api/usage/quota-controller",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/usage/quota-controller/reserve",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/usage/quota-controller/reserve/{intent_id}",
+  [
+   "DELETE"
+  ]
+ ],
+ [
   "/api/usage/readiness",
   [
    "GET"

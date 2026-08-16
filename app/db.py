@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import os
+import re
 import sqlite3
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
@@ -12,6 +13,54 @@ from pathlib import Path
 logger = logging.getLogger("db")
 
 _DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
+
+_QUOTA_CONTROLLER_TABLE_COLUMNS = {
+    "quota_controller_decisions": (
+        "decision_id", "created_at", "mode", "source", "session_id", "turn_gen",
+        "task_id", "task_class", "model", "fast_mode", "critical_intent_id",
+        "policy_version", "regime_set_hash", "observation_at", "observation_json",
+        "decision_json", "legacy_decision_json",
+    ),
+    "quota_controller_outcomes": (
+        "decision_id", "terminal_event_id", "submitted_at", "ended_at", "settled_at",
+        "status", "concurrent_dispatches", "actual_json",
+    ),
+    "quota_controller_inflight_reservations": (
+        "decision_id", "bucket", "window_id", "reserved_pp", "state", "created_at",
+        "updated_at",
+    ),
+    "quota_controller_reserve_intents": (
+        "intent_id", "created_at", "deadline_at", "task_id", "logical_work_id",
+        "reason", "lane", "task_class", "model", "turn_count", "state", "revision",
+        "created_by",
+    ),
+    "quota_controller_evidence_sets": (
+        "evidence_id", "created_at", "dataset_start", "dataset_end", "policy_version",
+        "regime_set_hash", "source_digest", "prospective", "metrics_json",
+        "reasons_json", "eligible",
+    ),
+}
+
+_QUOTA_CONTROLLER_INDEXES = {
+    "idx_quota_controller_decisions_dispatch",
+    "idx_quota_controller_decisions_created",
+    "idx_quota_controller_inflight_bucket",
+    "idx_quota_controller_evidence_created",
+}
+
+_QUOTA_CONTROLLER_TRIGGERS = {
+    "quota_controller_decisions_no_update",
+    "quota_controller_decisions_no_delete",
+    "quota_controller_decisions_no_replace",
+    "quota_controller_outcomes_no_update",
+    "quota_controller_outcomes_no_delete",
+    "quota_controller_outcomes_no_replace",
+    "quota_controller_evidence_no_update",
+    "quota_controller_evidence_no_delete",
+    "quota_controller_evidence_no_replace",
+}
+
+_quota_controller_expected_sql: dict[tuple[str, str], str] | None = None
 
 
 def _resolve_db_path() -> Path:
@@ -38,6 +87,275 @@ class RoutingLatchSnapshotMismatch(RuntimeError):
     """The durable latch set changed after the caller evaluated its decision."""
 
 
+def _create_quota_controller_schema(c: sqlite3.Connection) -> None:
+    """Create the shadow controller schema as one transactional unit."""
+    c.execute("BEGIN IMMEDIATE")
+    statements = (
+        """
+        CREATE TABLE IF NOT EXISTS quota_controller_decisions (
+            decision_id TEXT PRIMARY KEY,
+            created_at TEXT NOT NULL,
+            mode TEXT NOT NULL CHECK (mode IN ('shadow','advisory','enforce')),
+            source TEXT NOT NULL CHECK (source IN ('snapshot','dispatch','replay')),
+            session_id TEXT NOT NULL DEFAULT '',
+            turn_gen INTEGER,
+            task_id TEXT NOT NULL DEFAULT '',
+            task_class TEXT NOT NULL,
+            model TEXT NOT NULL,
+            fast_mode INTEGER NOT NULL CHECK (fast_mode IN (0,1)),
+            critical_intent_id TEXT,
+            policy_version INTEGER NOT NULL,
+            regime_set_hash TEXT NOT NULL,
+            observation_at TEXT,
+            observation_json TEXT NOT NULL CHECK (json_valid(observation_json)),
+            decision_json TEXT NOT NULL CHECK (json_valid(decision_json)),
+            legacy_decision_json TEXT NOT NULL CHECK (json_valid(legacy_decision_json))
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS quota_controller_outcomes (
+            decision_id TEXT PRIMARY KEY
+                REFERENCES quota_controller_decisions(decision_id),
+            terminal_event_id TEXT NOT NULL UNIQUE,
+            submitted_at TEXT NOT NULL,
+            ended_at TEXT NOT NULL,
+            settled_at TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN (
+                'exact','interval','unscorable','submit_failed','cancelled'
+            )),
+            concurrent_dispatches INTEGER NOT NULL CHECK (concurrent_dispatches >= 0),
+            actual_json TEXT NOT NULL CHECK (json_valid(actual_json))
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS quota_controller_inflight_reservations (
+            decision_id TEXT NOT NULL
+                REFERENCES quota_controller_decisions(decision_id),
+            bucket TEXT NOT NULL,
+            window_id TEXT NOT NULL,
+            reserved_pp REAL NOT NULL CHECK (reserved_pp >= 0),
+            state TEXT NOT NULL CHECK (
+                state IN ('reserved','submitted','released','cancelled')
+            ),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (decision_id, bucket, window_id)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS quota_controller_reserve_intents (
+            intent_id TEXT PRIMARY KEY,
+            created_at TEXT NOT NULL,
+            deadline_at TEXT NOT NULL,
+            task_id TEXT NOT NULL,
+            logical_work_id TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            lane TEXT NOT NULL,
+            task_class TEXT NOT NULL,
+            model TEXT NOT NULL,
+            turn_count INTEGER NOT NULL CHECK (turn_count > 0),
+            state TEXT NOT NULL CHECK (
+                state IN ('planned','consumed','released','cancelled')
+            ),
+            revision INTEGER NOT NULL,
+            created_by TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS quota_controller_evidence_sets (
+            evidence_id TEXT PRIMARY KEY,
+            created_at TEXT NOT NULL,
+            dataset_start TEXT NOT NULL,
+            dataset_end TEXT NOT NULL,
+            policy_version INTEGER NOT NULL,
+            regime_set_hash TEXT NOT NULL,
+            source_digest TEXT NOT NULL,
+            prospective INTEGER NOT NULL CHECK (prospective IN (0,1)),
+            metrics_json TEXT NOT NULL CHECK (json_valid(metrics_json)),
+            reasons_json TEXT NOT NULL CHECK (json_valid(reasons_json)),
+            eligible INTEGER NOT NULL CHECK (eligible IN (0,1))
+        )
+        """,
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS
+            idx_quota_controller_decisions_dispatch
+        ON quota_controller_decisions(session_id, turn_gen, source)
+        WHERE source = 'dispatch'
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_quota_controller_decisions_created
+        ON quota_controller_decisions(created_at DESC)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_quota_controller_inflight_bucket
+        ON quota_controller_inflight_reservations(bucket, window_id, state)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_quota_controller_evidence_created
+        ON quota_controller_evidence_sets(created_at DESC)
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_decisions_no_update
+        BEFORE UPDATE ON quota_controller_decisions
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller decisions are immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_decisions_no_delete
+        BEFORE DELETE ON quota_controller_decisions
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller decisions are immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_decisions_no_replace
+        BEFORE INSERT ON quota_controller_decisions
+        WHEN EXISTS (
+            SELECT 1 FROM quota_controller_decisions
+            WHERE decision_id = NEW.decision_id
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller decisions are immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_outcomes_no_update
+        BEFORE UPDATE ON quota_controller_outcomes
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller outcomes are immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_outcomes_no_delete
+        BEFORE DELETE ON quota_controller_outcomes
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller outcomes are immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_outcomes_no_replace
+        BEFORE INSERT ON quota_controller_outcomes
+        WHEN EXISTS (
+            SELECT 1 FROM quota_controller_outcomes
+            WHERE decision_id = NEW.decision_id
+               OR terminal_event_id = NEW.terminal_event_id
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller outcomes are immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_evidence_no_update
+        BEFORE UPDATE ON quota_controller_evidence_sets
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller evidence is immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_evidence_no_delete
+        BEFORE DELETE ON quota_controller_evidence_sets
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller evidence is immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_evidence_no_replace
+        BEFORE INSERT ON quota_controller_evidence_sets
+        WHEN EXISTS (
+            SELECT 1 FROM quota_controller_evidence_sets
+            WHERE evidence_id = NEW.evidence_id
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller evidence is immutable');
+        END
+        """,
+    )
+    for statement in statements:
+        c.execute(statement)
+
+
+def _quota_controller_schema_complete(c: sqlite3.Connection) -> bool:
+    objects = {
+        (row["type"], row["name"])
+        for row in c.execute(
+            "SELECT type, name FROM sqlite_master "
+            "WHERE name LIKE 'quota_controller_%' "
+            "OR name LIKE 'idx_quota_controller_%'"
+        )
+    }
+    for table, expected_columns in _QUOTA_CONTROLLER_TABLE_COLUMNS.items():
+        if ("table", table) not in objects:
+            continue
+        actual_columns = tuple(
+            row["name"] for row in c.execute(f"PRAGMA table_info({table})")
+        )
+        if actual_columns != expected_columns:
+            raise sqlite3.OperationalError(
+                f"incompatible quota controller table: {table}"
+            )
+    required = {
+        *(("table", name) for name in _QUOTA_CONTROLLER_TABLE_COLUMNS),
+        *(("index", name) for name in _QUOTA_CONTROLLER_INDEXES),
+        *(("trigger", name) for name in _QUOTA_CONTROLLER_TRIGGERS),
+    }
+    if not required <= objects:
+        return False
+    actual_sql = {
+        (row["type"], row["name"]): _normalize_schema_sql(row["sql"])
+        for row in c.execute(
+            "SELECT type, name, sql FROM sqlite_master "
+            "WHERE name LIKE 'quota_controller_%' "
+            "OR name LIKE 'idx_quota_controller_%'"
+        )
+        if (row["type"], row["name"]) in required
+    }
+    for key, expected in _expected_quota_controller_sql().items():
+        if actual_sql.get(key) != expected:
+            raise sqlite3.OperationalError(
+                f"incompatible quota controller object: {key[1]}"
+            )
+    return True
+
+
+def _normalize_schema_sql(sql: str | None) -> str:
+    return re.sub(r"\s+", " ", sql or "").strip().casefold()
+
+
+def _expected_quota_controller_sql() -> dict[tuple[str, str], str]:
+    global _quota_controller_expected_sql
+    if _quota_controller_expected_sql is not None:
+        return _quota_controller_expected_sql
+    expected = sqlite3.connect(":memory:")
+    expected.row_factory = sqlite3.Row
+    try:
+        _create_quota_controller_schema(expected)
+        expected.commit()
+        required_names = {
+            *_QUOTA_CONTROLLER_TABLE_COLUMNS,
+            *_QUOTA_CONTROLLER_INDEXES,
+            *_QUOTA_CONTROLLER_TRIGGERS,
+        }
+        _quota_controller_expected_sql = {
+            (row["type"], row["name"]): _normalize_schema_sql(row["sql"])
+            for row in expected.execute(
+                "SELECT type, name, sql FROM sqlite_master"
+            )
+            if row["name"] in required_names
+        }
+        return _quota_controller_expected_sql
+    finally:
+        expected.close()
+
+
+def _ensure_quota_controller_schema(c: sqlite3.Connection) -> None:
+    if _quota_controller_schema_complete(c):
+        return
+    _create_quota_controller_schema(c)
+    if not _quota_controller_schema_complete(c):
+        raise sqlite3.OperationalError("incomplete quota controller schema")
+
+
 def _conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
@@ -47,6 +365,26 @@ def _conn() -> sqlite3.Connection:
     # 5s busy timeout: retry on locked DB instead of raising immediately
     conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def quota_controller_connection(path: str | Path) -> sqlite3.Connection:
+    """Open a controller database and install its T1 schema when needed."""
+    db_path = Path(path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path), timeout=5.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA foreign_keys=ON")
+    try:
+        if not _quota_controller_schema_complete(conn):
+            _ensure_quota_controller_schema(conn)
+            conn.commit()
+    except Exception:
+        conn.rollback()
+        conn.close()
+        raise
     return conn
 
 
@@ -595,6 +933,7 @@ def init_db() -> None:
                 SELECT RAISE(ABORT, 'runtime routing latch cannot be replaced');
             END;
         """)
+        _ensure_quota_controller_schema(c)
         _migrate(c)
 
 

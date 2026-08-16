@@ -316,6 +316,18 @@ class TurnManager:
                 f"{type(error).__name__}: {error}"
             )
             quota_snapshot = _unknown_quota_snapshot()
+        reservation = getattr(s, "_active_shadow_reservation", None)
+        if event_id and reservation is not None:
+            s._shadow_settle(
+                reservation,
+                event_id,
+                str(meta.get("ended_at") or datetime.now(timezone.utc).isoformat()),
+                actual={
+                    "ok": ok,
+                    "stop_reason": sr,
+                    "terminal_quota": quota_snapshot["state"],
+                },
+            )
         if event_id:
             cost_fields = {"cost_usd": s._turn_cost}
             if cost_unaccounted:
