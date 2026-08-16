@@ -1,0 +1,2 @@
+{'threads': 1, 'items': 1, 'elapsed_s': 0.169, 'cpu_avg_pct': 94.9, 'load_peak_1m': 5.01, 'heartbeat_max_ms': 6.25, 'quality_vector_dim': 1024}
+RC=0

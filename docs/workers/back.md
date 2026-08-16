@@ -257,3 +257,11 @@
   #297 два новых fan-double не имели `_last_text_output`; `getattr(..., None)` сохранил
   совместимость только для неполных doubles, а production `AgentSession` оставил поле
   обязательным и инициализированным.
+- **Меряешь RAG/ONNX в контуре с уже загруженной моделью → прогоняй одинаковый warm-model
+  bounded workload отдельным процессом и сохраняй stdout сразу в артефакт.** Большой
+  synthetic batch в том же cgroup может быть убит по памяти до вывода, а `uv run` в worker
+  worktree тихо скипает настоящий слой без optional deps; для него нужен
+  `/home/kesha/orchestra/.venv/bin/python -m pytest tests/test_rag.py`.
+- **Проверяешь latency event loop во время синхронного тяжёлого вызова → выноси вызов в
+  executor, иначе heartbeat не получает ни одного сэмпла; CPU time / wall time называй
+  average, а не peak.**

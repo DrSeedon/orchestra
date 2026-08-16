@@ -7,13 +7,38 @@ Embed-dependent tests are marked `@pytest.mark.rag` and skip when fastembed/mode
 """
 
 import sqlite3
+import os
 import subprocess
+import sys
 import time
 from pathlib import Path
 
 import pytest
 
 from app import rag
+
+
+def test_background_onnx_default_is_single_thread():
+    """The default must leave one CPU lane to latency-sensitive work."""
+    env = os.environ.copy()
+    env.pop("RAG_ONNX_THREADS", None)
+    result = subprocess.run(
+        [sys.executable, "-c", "from app import rag; print(rag.RAG_ONNX_THREADS)"],
+        cwd=Path(__file__).parents[1], env=env, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "1"
+
+
+def test_background_onnx_explicit_thread_override_is_preserved():
+    env = os.environ.copy()
+    env["RAG_ONNX_THREADS"] = "3"
+    result = subprocess.run(
+        [sys.executable, "-c", "from app import rag; print(rag.RAG_ONNX_THREADS)"],
+        cwd=Path(__file__).parents[1], env=env, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "3"
 
 
 # skip embed-dependent tests if fastembed/sqlite-vec/model not installed (RAG optional dep)

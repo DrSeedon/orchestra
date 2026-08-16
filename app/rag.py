@@ -49,7 +49,9 @@ CHUNK_SIZE = 800          # ~200 токенов на кусок
 CHUNK_OVERLAP = 200       # ~50 токенов перекрытие
 CHUNK_STRIDE = 1000       # макс чанков на источник (chunk_id = source_id*STRIDE + idx)
 EMBED_BATCH = int(os.getenv("RAG_EMBED_BATCH", "64"))  # kesha benchmark: 64 optimal (98ms/chunk)
-RAG_ONNX_THREADS = int(os.getenv("RAG_ONNX_THREADS", "2"))  # cap ONNX threads (0=all cores=490% CPU)
+# One ONNX lane is the safe default: two lanes measured at ~200% CPU in the web process.
+# Operators may raise this explicitly after measuring their latency budget.
+RAG_ONNX_THREADS = int(os.getenv("RAG_ONNX_THREADS", "1"))
 RAG_NICE = int(os.getenv("RAG_NICE", "10"))  # os.nice() on backfill thread
 
 # Файловая индексация. Только markdown-проза: .md.
