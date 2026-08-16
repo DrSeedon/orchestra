@@ -476,6 +476,132 @@ async def test_task_create_omits_project_to_use_callers_scope(monkeypatch):
         OldRouteRequest.model_validate(captured)
 
 
+async def _call_tm_task_create(method, path, **kwargs):
+    from app import tm
+
+    assert method == "POST"
+    assert path == "/api/tm/tasks"
+    body = kwargs["json"]
+    return tm.api_create_task(
+        body.get("project", ""),
+        body["title"],
+        price=body["price"],
+        description=body["description"],
+        assignee=body["assignee"],
+        status=body["status"],
+        scope=body["scope"],
+        priority=body["priority"],
+        acceptance_command=body["acceptance_command"],
+    )
+
+
+def _register_session_scope(scope: str) -> None:
+    from app.db import _conn, init_db
+
+    init_db()
+    with _conn() as conn:
+        conn.execute(
+            """INSERT INTO sessions (id, name, scope, cwd, model, status, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "session-scope-authority",
+                "scope-authority",
+                scope,
+                scope,
+                "claude-sonnet-5[1m]",
+                "idle",
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_task_create_admits_exact_session_scope_when_tm_project_is_stale(monkeypatch):
+    import app.mcp_stdio as m
+    from app import tm
+
+    scope = "/home/kesha/projects/VPN-Service"
+    _register_session_scope(scope)
+    monkeypatch.setattr(m, "SCOPE", scope)
+
+    with tm._conn() as conn:
+        assert conn.execute(
+            "SELECT 1 FROM tm_projects WHERE scope = ?", (scope,)
+        ).fetchone() is None
+
+    with patch.object(m, "_api", side_effect=_call_tm_task_create):
+        raw = await m.task_create(title="VPN registration oracle")
+
+    result = json.loads(raw)
+    assert result["title"] == "VPN registration oracle"
+    with tm._conn() as conn:
+        stored_scope = conn.execute(
+            """SELECT p.scope
+               FROM tm_tasks AS t
+               JOIN tm_projects AS p ON p.id = t.project_id
+               WHERE t.id = ?""",
+            (result["task_id"],),
+        ).fetchone()[0]
+    assert stored_scope == scope
+
+
+@pytest.mark.asyncio
+async def test_task_create_rejects_scope_absent_from_session_and_projects(monkeypatch):
+    import app.mcp_stdio as m
+    from app import tm
+
+    scope = "/home/kesha/projects/does-not-exist"
+    from app.db import init_db
+    init_db()
+    monkeypatch.setattr(m, "SCOPE", scope)
+
+    with patch.object(m, "_api", side_effect=_call_tm_task_create):
+        with pytest.raises(ValueError, match="project '.*/does-not-exist' is not registered"):
+            await m.task_create(title="must be rejected")
+
+    with tm._conn() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM tm_projects").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM tm_tasks").fetchone()[0] == 0
+
+
+@pytest.mark.asyncio
+async def test_task_create_keeps_caller_scope_and_registered_project_authorization(monkeypatch):
+    import app.mcp_stdio as m
+    from app import tm
+    from app.db import init_db
+
+    init_db()
+    now = tm._now()
+    with tm._conn() as conn:
+        for project_id, scope, prefix in (
+            ("lower", "/lower", "LOW"),
+            ("upper", "/upper", "UPR"),
+        ):
+            conn.execute(
+                """INSERT INTO tm_projects
+                   (id, name, prefix, scope, created_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (project_id, project_id, prefix, scope, now),
+            )
+
+    monkeypatch.setattr(m, "SCOPE", "/lower")
+    with patch.object(m, "_api", side_effect=_call_tm_task_create):
+        await m.task_create(title="caller-scoped task")
+        await m.task_create(title="explicit registered task", project="/upper")
+
+    with tm._conn() as conn:
+        rows = conn.execute(
+            """SELECT t.title, p.scope
+               FROM tm_tasks AS t
+               JOIN tm_projects AS p ON p.id = t.project_id
+               ORDER BY t.id"""
+        ).fetchall()
+    assert [(row["title"], row["scope"]) for row in rows] == [
+        ("caller-scoped task", "/lower"),
+        ("explicit registered task", "/upper"),
+    ]
+
+
 @pytest.mark.asyncio
 async def test_task_get_and_update_prefer_explicit_project_over_scope(monkeypatch):
     import app.mcp_stdio as m
