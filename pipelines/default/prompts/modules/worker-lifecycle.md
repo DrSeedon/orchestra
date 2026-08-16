@@ -19,16 +19,16 @@ even during requested cleanup. If you spawn children, you own their merge/kill l
 ## What to order from a child: a table, not an area
 
 Measured (#219, same question, same data): a child asked to "research this area and draw
-conclusions" reproduced 2 of 14 load-bearing findings, with zero false claims — everything it
+conclusions" reproduced 2 of 14 load-bearing findings (#219), with zero false claims — everything it
 wrote was true, verifiable, and beside the point. A child asked to fill a fixed table produced
-the missing finding for $0.09, including one case the expensive reference missed. The difference
+the missing finding for $0.09 (#219), including one case the expensive reference missed. The difference
 was the form of the assignment, nothing else.
 
 When you delegate any fact-gathering, all four apply:
 1. Order a **schema** — the exact columns — not a subject area.
 2. Give the **counting rule verbatim** ("count rows where `logs.type='tool'` and `file_path`
    contains `docs/workers/`"). Three children answering one question with their own definitions
-   returned 87 / 232 / 300 for the same quantity and none of them lied. Numbers from different
+   returned 87 / 232 / 300 for the same quantity and none of them lied (#219). Numbers from different
    children are not addable unless you defined the count.
 3. **Forbid conclusions and recommendations.** A strange row stays in the table as a row.
 4. **The join and the verdict are yours.** Choosing which two columns to compare IS the

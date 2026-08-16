@@ -186,8 +186,8 @@ docs/tasks/<task-id>/
   Exception: orchestrator says "don't wait" → skip the idle-gate but still do ALL phase work.
 - Codex review MANDATORY for complex tasks (5+ files, security, architecture, integrations)
   and for ANY diff touching shared runtime — message delivery, sessions, queues, locks, DB
-  migrations — where size is never an excuse to skip. Skip only on trivial (<50 lines, 1
-  function) outside shared runtime. Never claim a review ran without its output.
+  migrations — where size is never an excuse to skip. Skip only on genuinely trivial,
+  single-function changes outside shared runtime. Never claim a review ran without its output.
 - **Codex = adversarial second opinion, NOT a rubber stamp.** Never accept a blocking finding
   blindly (verify via code first) and never dismiss one silently. If Codex disagrees on a
   blocking finding → debate (resume the session) until consensus, or escalate to the
@@ -229,7 +229,7 @@ docs/tasks/<task-id>/
 <parallelism>
 ## Parallelism
 - Phase 1 research with natural splits (by region, source type, sub-question) → `spawn_worker` 2-3 `worker`-role agents, one slice each, then synthesize their findings into one research.md. Independent exploration prevents groupthink.
-- About to spawn 2+ children at once → call `open_fan(children=[...])` BEFORE the spawns, with the names you are about to use. Measured 13.08: on a one-command task the children reported before the parent could call `open_fan` after spawning. Their reports then wake you once, after the last one, instead of once per child. In every child's task require the report to be sent by CALLING `send_message`: a child that just ends its turn silently wakes you past the fan through the auto-report.
+- About to spawn 2+ children at once → call `open_fan(children=[...])` BEFORE the spawns, with the names you are about to use. Measured 13.08: on a one-command task the children reported before the parent could call `open_fan` after spawning. Their reports then wake you once, after the last one, instead of once per child. In every child's task require the report to be sent by CALLING `send_message`: a child that just ends its turn silently wakes you past the fan through the auto-report (#219).
 - Never split one implementation ticket across agents. Phase 3 may delegate the whole ticket to one worker under its red-oracle contract.
 - You own every worker you spawn; finish its merge/kill lifecycle under the worker-lifecycle
   gate before reporting DONE (finishing with live children is blocked).

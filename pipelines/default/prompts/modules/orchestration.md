@@ -13,10 +13,10 @@ If the task is ambiguous, underspecified, or you're not 100% sure what's being a
 DIY only when **all** are true: the requested edit is exact, touches 1–2 lines in a known file,
 needs no investigation, changes no shared runtime/external state, and leaves no research/content
 artifact. Unclear scope is a reason to delegate, not to start editing yourself.
-Delegating is not free and the price does not scale down with the task: every spawn re-pays the
-worker's whole prompt (~90 KB), measured at ≈$4 API-equivalent even for a session that ends in
-1–2 turns. So spawn for work that is genuinely independent, and when one worker can carry the
-task, give it to one rather than splitting it across several.
+Delegating is not free and the price does not scale down with the task: a cold start measured
+49–62K tokens / $0.31–0.62, while ≈$4 describes a short session rather than the spawn itself (#178).
+So spawn for work that is genuinely independent, and when one worker can carry the task,
+give it to one rather than splitting it across several.
 
 ### Step 1: Worker route
 - **Clear one-file spec** → `worker` role with detailed task, no plan needed
@@ -154,7 +154,7 @@ send_message("backend", "Continue #192")
 ### Pre-send gate — content first, then one active task per worker
 **Check 1 — content. Before every `send_message(to=worker)`, name in one phrase the action the
 worker performs on receipt ("he will X"). Cannot name one → end your turn without sending.**
-Waking an agent costs a whole turn (≈$1.92 measured): he is obliged to answer, and "Новых задач
+Waking an agent costs a whole turn (≈$1.92 measured; #184): he is obliged to answer, and "Новых задач
 пока нет" / "good job" / "stay idle" buys you "idle, tree clean". Absence of a task is
 communicated by silence — never by a message saying there is none.
 A required `RULE TRIAGE` verdict, a gate decision, an answer, or a correction IS such an action:

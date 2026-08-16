@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -20,6 +21,51 @@ import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST = _REPO_ROOT / "pipelines" / "default" / "pipeline.yaml"
+
+# Numeric examples (task ids, API arguments, CSS values) are not evidence.  This
+# deliberately small vocabulary catches prose that presents money, rates, sample
+# counts, or measured thresholds as facts without turning every number into a
+# citation requirement.
+_MEASURED_WORDS = re.compile(
+    r"(?i)measur|замер|empir|corpus|median|медиан|cost|price|стоим|стоит|"
+    r"цена|доля|процент|ratio|соотнош|окуп|sample|выборк|размер диффа"
+)
+_MEASURED_VALUE = re.compile(
+    r"(?:\$\s*\d|\d+(?:[.,]\d+)?\s*%|\d+(?:[.,]\d+)?\s*[×x]|"
+    r"\b\d+\s+(?:of|из|against|против)\s+\d+|\b\d+\s*/\s*\d+|"
+    r"\b(?:p\d+|n\s*=\s*\d+)|"
+    r"[<>]\s*\d+\s*(?:строк|lines|КБ|KB|токен))",
+    re.IGNORECASE,
+)
+_SOURCE_MARKER = re.compile(
+    r"(?:#\d+|source\s*[:=]|источник\s*[:=]|https?://|docs/tasks/)",
+    re.IGNORECASE,
+)
+_PROCEDURAL_VALUE = re.compile(r"(?i)trivial\s*\(\s*[<>]\s*\d+\s*lines?")
+
+
+def _prompt_metric_errors(prompt_root: Path) -> list[str]:
+    """Require an inline source on empirical numeric claims, not all numbers."""
+    errors: list[str] = []
+    for md in sorted(prompt_root.rglob("*.md")):
+        for line_no, line in enumerate(md.read_text().splitlines(), 1):
+            if _PROCEDURAL_VALUE.search(line):
+                continue
+            if _MEASURED_WORDS.search(line) and _MEASURED_VALUE.search(line):
+                if not _SOURCE_MARKER.search(line):
+                    rel = md.relative_to(prompt_root.parent)
+                    errors.append(
+                        f"{rel}:{line_no}: measured numeric claim lacks inline source marker"
+                    )
+            elif _MEASURED_VALUE.search(line) and re.search(
+                r"(?i)\b(?:rounds?|раунд|diff|дифф|threshold|порог)\b", line
+            ):
+                if not _SOURCE_MARKER.search(line):
+                    rel = md.relative_to(prompt_root.parent)
+                    errors.append(
+                        f"{rel}:{line_no}: measured numeric claim lacks inline source marker"
+                    )
+    return errors
 
 
 def _manifest_model_ids(data: dict) -> set[str]:
@@ -91,6 +137,8 @@ def disagreements(manifest_path: Path) -> list[str]:
                 if mid in text:
                     rel = md.relative_to(root)
                     errors.append(f"{rel}: quotes manifest model {mid!r}")
+    if prompt_root.is_dir():
+        errors.extend(_prompt_metric_errors(prompt_root))
     return errors
 
 

@@ -126,8 +126,8 @@ Write `docs/tasks/<task-id>/research.md`:
   reasoning locks in an early wrong guess — counter it deliberately.
 - **Do NOT flip your answer just because challenged/pushed.** Flip only when NEW
   EVIDENCE warrants it. Caving to pushback = instability, not reasoning.
-- **Do NOT cite a source you didn't open.** Models fabricate 14–95% of references
-  from memory, and 3–13% even with search. If you didn't fetch it, you may not cite it.
+- **Do NOT cite a source you didn't open.** Models can fabricate references from memory,
+  including when search is available. If you didn't fetch it, you may not cite it.
 - **Do NOT paraphrase without analysis.** A summary is not a finding. Decompose into
   atomic claims and verify each. Grounding + traceability over fluency.
 - **Do NOT trust a source because it's famous or recent.** Rank by susceptibility to

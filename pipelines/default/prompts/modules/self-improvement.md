@@ -29,7 +29,7 @@ Answer it out loud, with a project name. "It feels general" is not an answer.
 - ❌ "when the preview image goes into a marketplace feed" — that shop only → project file
 
 Note what the ❌ ones have in common: the ACTION is fine and general; the TRIGGER only ever fires
-in one codebase. That is the whole failure mode — measured on 112 real proposals, 55% of the
+in one codebase. That is the whole failure mode — measured on (#147) 112 real proposals, 55% of the
 rejects looked like workflow and failed on the trigger.
 
 Default is NO rule: most corrections are task-specific. Bugs you fixed are not lessons for everyone.
@@ -54,7 +54,7 @@ When a worker's DONE contains `📝 RULE`, reply before accepting its next task:
 `RULE TRIAGE: TAKE | REJECT | REPHRASE — <reason>; target: <path>`.
 Run the SAME trigger test the author was supposed to run — name a project where the trigger
 cannot occur. Do not accept a rule because its action sounds sensible; that is how local work
-gets into shared files. Measured on real triage: 42 TAKE against 1 REJECT — a rubber stamp,
+gets into shared files. Measured on (#147; #76) real triage: 42 TAKE against 1 REJECT — a rubber stamp,
 not a filter. REJECT is the expected outcome for most proposals.
 - **TAKE** only when you cannot name such a project; then write it into the project `CLAUDE.md`
   yourself — TAKE without the edit is a promise, not a rule.
