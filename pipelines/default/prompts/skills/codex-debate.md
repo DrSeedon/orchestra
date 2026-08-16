@@ -1,12 +1,13 @@
 ---
 name: codex-debate
-description: "Risk-based model review routing: deterministic skip, Luna first pass, Sol technical escalation, targeted Opus cross-family review, and evidence-backed debate. Sol runs through codex_review. Triggers: 'review', 'кодекс ревью', 'второе мнение', 'cross-review', 'adversarial review', '/codex', '/codex-debate'."
+description: "Risk-based model review routing: deterministic skip, Luna first pass, Sol technical escalation, targeted Opus cross-family review, and evidence-backed debate. Luna and Sol run through codex_review. Triggers: 'review', 'кодекс ревью', 'второе мнение', 'cross-review', 'adversarial review', '/codex', '/codex-debate'."
 ---
 
 # Review Routing and Codex Debate
 
 Этот файл — единственный владелец выбора reviewer, доказательств для skip и потолка раундов.
-`codex_review` запускает только Sol; Luna и Opus требуют свежей reviewer-сессии через Orchestra.
+`codex_review` запускает Luna или Sol в явном reviewer model; Opus требует свежей
+reviewer-сессии через Orchestra.
 Основание маршрута и его границы измерений: `docs/tasks/289/research.md`.
 
 ## Главный принцип — ВТОРОЕ МНЕНИЕ, НЕ ИСТИНА
@@ -72,11 +73,14 @@ consumer или последствия → high-risk до решения нез�
 
 ### Как запустить выбранный маршрут
 
-- `codex_review` — Sol-only. Не называй его Luna review и не используй для Opus independence.
-- Luna/Opus запускаются свежей reviewer-сессией через spawn-capable родителя с точным target,
-  AC, PROJECT CONTEXT и запретом реализации. Terminal worker отправляет этот review handoff своему
-  оркестратору; он не подменяет выбранную модель молча. Exact model id берётся из live Orchestra
-  registry, не копируется в этот skill.
+- Luna запускается напрямую через `codex_review(model="gpt5.6luna", ...)`; Sol — через
+  `model="codex"`. Устаревший вызов без `model` детерминированно остаётся Sol.
+- Opus запускается свежей reviewer-сессией через spawn-capable родителя с точным target, AC,
+  PROJECT CONTEXT и запретом реализации. Terminal worker отправляет этот review handoff своему
+  оркестратору; он не подменяет выбранную модель молча. Для других моделей exact id берётся из
+  live Orchestra registry, не копируется в этот skill.
+- `codex_review` принимает только зарегистрированные модели Codex runtime; Spark запрещён для
+  review политикой. Luna/Sol остаются одной model family и не дают Opus independence.
 - Отсутствие выбранного reviewer — громкий `review route unavailable`, а не skip и не ложный
   verdict. Дальнейший fallback решает оркестратор.
 - Explicit user request на конкретного reviewer выполняется; safety floors выше всё равно
@@ -85,19 +89,22 @@ consumer или последствия → high-risk до решения нез�
 ## MCP tool: codex_review
 
 ```
-codex_review(context, target, output, mode, resume)
+codex_review(context, target, output, mode, resume, model)
 ```
 - `target` — файл для review (для `mode="exec"`). Пусто → git diff (`mode="review"`)
 - `output` — путь для результата, всегда под `docs/tasks/<id>/`
 - `mode` — `"review"` (git diff) или `"exec"` (review конкретного файла)
 - `context` — промпт для Codex: задача + PROJECT CONTEXT (см. ниже). ВСЕГДА передавай
 - `resume` — `true` → продолжить debate в той же сессии (ключ = тот же `output`). Для follow-up раундов
+- `model` — reviewer model из live registry. Luna: `gpt5.6luna`; Sol: `codex`. Параметр нужно
+  повторять на resume; если опущен, backward-compatible default всегда Sol
 
 Тул сам держит persistent-сессию по `output`-файлу, делает resume, пишет результат. Никакого ручного управления UUID/proxy/timeout.
 
 **Review реализации (diff):**
 ```
 codex_review(mode="review", output="docs/tasks/<id>/codex-review-impl.md",
+             model="gpt5.6luna",
              context="Review the staged git diff for bugs, security, breaking changes, race conditions. <PROJECT CONTEXT>")
 ```
 
@@ -110,6 +117,7 @@ codex_review(target="docs/tasks/<id>/plan.md", mode="exec", output="docs/tasks/<
 **Debate / re-review (тот же output, resume):**
 ```
 codex_review(output="docs/tasks/<id>/codex-review-impl.md", resume=True,
+             model="<same reviewer model as the prior round>",
              context="<task + current PROJECT CONTEXT>. I fixed X and Y. Re-review: for each prior blocking → FIXED / STILL BROKEN / NEW BUG. Append ## Round N.")
 ```
 
@@ -147,7 +155,7 @@ codex_review(output="docs/tasks/<id>/codex-review-impl.md", resume=True,
 5. Следующий раунд законен только после изменения artifact по проверенному blocker либо для
    проверяемого спора по blocker с фактами из кода. Новая suggestion, nit, unchanged artifact и
    желание получить `APPROVED` не открывают раунд.
-6. Для Sol follow-up: `codex_review(..., resume=True, context="<task + current PROJECT CONTEXT>; фиксы/контраргументы: <evidence>, re-review")`.
+6. Для Luna/Sol follow-up: `codex_review(..., resume=True, model="<тот же reviewer>", context="<task + current PROJECT CONTEXT>; фиксы/контраргументы: <evidence>, re-review")`.
 7. Остановись при состоявшемся verdict, эскалации наверх или потолке — что наступит раньше.
 
 **Потолок раундов — по типу предмета. Этот файл — единственный владелец правила; в промптах ролей чисел нет.**

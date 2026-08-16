@@ -585,11 +585,63 @@ def _spawn_delivery_error(
     )
 
 
-# `codex_review` пинит эту модель и в quota gate, и в самом CLI, и в телеметрии.
-_CODEX_REVIEW_MODEL = "gpt-5.6-sol"
+# Backward-compatible default: callers that omit ``model`` keep the historical Sol review.
+_CODEX_REVIEW_DEFAULT_MODEL = "gpt-5.6-sol"
 _READINESS_POLICY = "worker-weekly-v1"
 _READINESS_MAX_AGE_SECONDS = 300.0
 _READINESS_CLOCK_SKEW_SECONDS = 5.0
+
+
+def _resolve_codex_review_model(model: str) -> str:
+    """Resolve registry aliases, then enforce the explicit-review runtime policy."""
+    from app.models import get_model_spec, resolve_model
+    from app.quota_gate import quota_bucket_for_model
+
+    if not isinstance(model, str) or not model.strip():
+        raise ApiToolError(
+            code="invalid_argument",
+            message="model must name a registered Codex reviewer",
+            details={"field": "model"},
+        )
+    try:
+        resolved = resolve_model(model)
+    except ValueError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=str(error),
+            details={"field": "model", "requested_model": model},
+        ) from error
+
+    spec = get_model_spec(resolved)
+    if spec.runtime != "codex":
+        raise ApiToolError(
+            code="invalid_argument",
+            message=(
+                f"model '{resolved}' uses runtime '{spec.runtime}'; "
+                "codex_review requires a registered Codex-runtime model"
+            ),
+            details={
+                "field": "model",
+                "requested_model": model,
+                "resolved_model": resolved,
+                "runtime": spec.runtime,
+            },
+        )
+    if quota_bucket_for_model(resolved) != "codex":
+        raise ApiToolError(
+            code="invalid_argument",
+            message=(
+                f"model '{resolved}' is not review-capable; "
+                "Codex Spark is forbidden for review by policy"
+            ),
+            details={
+                "field": "model",
+                "requested_model": model,
+                "resolved_model": resolved,
+                "runtime": spec.runtime,
+            },
+        )
+    return resolved
 
 
 def _readiness_timestamp(value: object) -> float | None:
@@ -2210,8 +2262,9 @@ async def codex_review(
     output: str = "CODEX_REVIEW.md",
     mode: str = "review",
     resume: bool = False,
+    model: str = _CODEX_REVIEW_DEFAULT_MODEL,
 ) -> str:
-    """Run Codex (GPT-5.6 Sol) cross-LLM review in background. Returns immediately.
+    """Run a registered Codex model review in background. Returns immediately.
     After calling, END YOUR TURN NOW; Orchestra wakes you when the job completes.
     target: file path for review, or empty for git diff review.
     output: where to write results (relative to your cwd). Also the session key — reuse the SAME
@@ -2220,7 +2273,11 @@ async def codex_review(
     mode: 'review' (git diff, default) or 'exec' (review specific file).
     resume: continue the previous Codex session for this output (debate round). Falls back to a
         fresh session if none stored. On a resumed round put your counter-arguments / changelog
-        in context (e.g. 'I fixed X and Y, re-review')."""
+        in context (e.g. 'I fixed X and Y, re-review').
+    model: reviewer model or registry alias. Omitted means gpt-5.6-sol for backward compatibility.
+        Registered Codex-runtime models are accepted except Codex Spark, which policy forbids for
+        review. Pass the model again on resume; it is applied to the resumed Codex thread."""
+    review_model = _resolve_codex_review_model(model)
     context = context.strip()
     if not context or "PROJECT CONTEXT" not in context.upper():
         raise ApiToolError(
@@ -2234,7 +2291,7 @@ async def codex_review(
     )
 
     # Первым делом после валидации: не создавать фоновую джобу, которая гарантированно упадёт по квоте.
-    refusal = await _quota_refusal(_CODEX_REVIEW_MODEL)
+    refusal = await _quota_refusal(review_model)
     if refusal:
         raise refusal
     info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
@@ -2271,7 +2328,7 @@ async def codex_review(
     codex_bin = _codex_bin()
     if not codex_bin:
         return _CODEX_MISSING_HINT
-    codex_cli = f"{q(codex_bin)} -m {q(_CODEX_REVIEW_MODEL)}"
+    codex_cli = f"{q(codex_bin)} -m {q(review_model)}"
 
     if mode == "review":
         review_prompt = (
@@ -2378,7 +2435,7 @@ async def codex_review(
         "--usage-session-id", q(requesting_session_id),
         "--usage-scope", q(SCOPE),
         "--usage-task-id", q(str(info.get("task_id") or "")),
-        "--usage-model", q(_CODEX_REVIEW_MODEL),
+        "--usage-model", q(review_model),
     ]
     if is_resume:
         finalize_args.append("--resume")
@@ -2409,7 +2466,10 @@ async def codex_review(
     )
 
     action = "resume" if is_resume else mode
-    logger.info(f"codex_review: mode={mode} resume={is_resume} slug={slug} cwd={cwd} output={output_abs}")
+    logger.info(
+        f"codex_review: model={review_model} mode={mode} resume={is_resume} "
+        f"slug={slug} cwd={cwd} output={output_abs}"
+    )
     result = await _api("POST", "/api/bg/jobs", json={
         "type": "run",
         "config": {
@@ -2419,7 +2479,7 @@ async def codex_review(
         },
         # Без слова "done": то же поле подставляется в провал как
         # "[Background job FAILED] <message>", и "Codex exec done" читалось как успех.
-        "message": f"Codex {action} → {output}",
+        "message": f"Codex {action} ({review_model}) → {output}",
         "target_name": WORKER_NAME,
         "target_scope": SCOPE,
         "timeout_seconds": 600,
@@ -2430,7 +2490,8 @@ async def codex_review(
     job_id = result.get("id", "?")
     resumed_note = f" (resumed session {prev_uuid[:8]})" if is_resume else ""
     return (
-        f"Codex {action} started{resumed_note} (bg job {job_id}, 10-min timeout). "
+        f"Codex {action} started with reviewer model {review_model}{resumed_note} "
+        f"(bg job {job_id}, 10-min timeout). "
         f"END YOUR TURN NOW — this is required, not optional. Orchestra will wake you "
         f"when the job succeeds, times out, or fails. "
         f"On success: read {output}. To continue this debate, call codex_review again with the "

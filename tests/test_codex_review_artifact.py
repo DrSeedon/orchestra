@@ -57,6 +57,42 @@ def test_resume_appends_without_overwriting_prior_review(tmp_path):
     assert json.loads(sessions.read_text())["sessions"]["review"]["turns"] == 2
 
 
+def test_resume_labels_the_model_used_for_that_round(tmp_path):
+    output = tmp_path / "review.md"
+    output.write_text(
+        '<!-- codex-review-metadata: {"reviewer_model": "gpt-5.6-sol"} -->\n\n'
+        "prior review\n"
+    )
+    round_file = tmp_path / "review.md.round"
+    round_file.write_text("## Verdict\nPASS after Luna follow-up\n")
+    sessions = tmp_path / "codex_sessions.json"
+    sessions.write_text(json.dumps({"sessions": {"review": {
+        "uuid": "thread-1",
+        "reviewer_model": "gpt-5.6-sol",
+        "turns": 1,
+    }}}))
+    jsonl = tmp_path / "review.jsonl"
+    _jsonl(jsonl)
+
+    finalize_review_artifact(
+        output=output,
+        round_file=round_file,
+        sessions_file=sessions,
+        slug="review",
+        jsonl_file=jsonl,
+        resume=True,
+        require_verdict=True,
+        usage_model="gpt-5.6-luna",
+    )
+
+    content = output.read_text()
+    assert content.count('"reviewer_model": "gpt-5.6-sol"') == 1
+    assert content.count('"reviewer_model": "gpt-5.6-luna"') == 1
+    saved = json.loads(sessions.read_text())["sessions"]["review"]
+    assert saved["reviewer_model"] == "gpt-5.6-luna"
+    assert saved["turns"] == 2
+
+
 def test_missing_verdict_fails_without_touching_existing_output(tmp_path):
     output = tmp_path / "review.md"
     output.write_text("keep me\n")
@@ -116,7 +152,7 @@ def test_review_usage_is_persisted_once_for_requesting_agent(tmp_path, monkeypat
             usage_session_id="requesting-agent-id",
             usage_scope="/scope",
             usage_task_id="215",
-            usage_model="gpt-5.6-sol",
+            usage_model="gpt-5.6-luna",
         )
 
     with sqlite3.connect(db.DB_PATH) as conn:
@@ -128,12 +164,18 @@ def test_review_usage_is_persisted_once_for_requesting_agent(tmp_path, monkeypat
     assert row["scope"] == "/scope"
     assert row["task_id"] == "215"
     assert row["runtime"] == "codex"
-    assert row["model"] == "gpt-5.6-sol"
+    assert row["model"] == "gpt-5.6-luna"
     assert row["input_tokens"] == 100
     assert row["output_tokens"] == 20
     assert row["cache_read_tokens"] == 60
     assert row["cache_create_tokens"] == 10
     assert row["cost_usd"] > 0
+    assert json.loads(sessions.read_text())["sessions"]["review"]["reviewer_model"] == (
+        "gpt-5.6-luna"
+    )
+    assert output.read_text().startswith(
+        '<!-- codex-review-metadata: {"reviewer_model": "gpt-5.6-luna"} -->\n'
+    )
 
 
 def test_old_cli_without_usage_arguments_preserves_review_and_exits_zero(tmp_path):

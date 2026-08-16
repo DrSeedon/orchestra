@@ -117,21 +117,31 @@ def finalize_review_artifact(*, output: Path, round_file: Path, sessions_file: P
         raise ValueError(f"Codex thread UUID is missing from {jsonl_file}")
     output.parent.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    model_metadata = (
+        f"<!-- codex-review-metadata: "
+        f"{json.dumps({'reviewer_model': usage_model}, sort_keys=True)} -->"
+        if usage_model else ""
+    )
     if resume and output.exists():
         prior = output.read_text(encoding="utf-8").rstrip()
-        content = f"{prior}\n\n## Round ({now})\n\n{review}\n"
+        round_parts = [f"## Round ({now})", model_metadata, review]
+        content = f"{prior}\n\n" + "\n\n".join(part for part in round_parts if part) + "\n"
     else:
-        content = review + "\n"
+        content = "\n\n".join(part for part in (model_metadata, review) if part) + "\n"
     output_tmp = output.with_name(output.name + ".tmp")
     output_tmp.write_text(content, encoding="utf-8")
     os.replace(output_tmp, output)
 
-    sessions["sessions"][slug] = {
+    session_metadata = {
         "uuid": thread_id,
         "started": previous.get("started") or now,
         "last_used": now,
         "turns": int(previous.get("turns") or 0) + 1,
     }
+    reviewer_model = usage_model or previous.get("reviewer_model", "")
+    if reviewer_model:
+        session_metadata["reviewer_model"] = reviewer_model
+    sessions["sessions"][slug] = session_metadata
     sessions_file.parent.mkdir(parents=True, exist_ok=True)
     sessions_tmp = sessions_file.with_name(sessions_file.name + ".tmp")
     sessions_tmp.write_text(json.dumps(sessions, ensure_ascii=False, indent=2) + "\n",

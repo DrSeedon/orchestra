@@ -518,6 +518,13 @@ class TestRiskBasedReviewRouting:
         for anchor in anchors:
             assert policy.count(anchor) == 1, f"canonical review contract lacks {anchor!r}"
 
+    def test_canonical_skill_exposes_direct_luna_review_and_sol_default(self):
+        policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()
+        assert 'codex_review(model="gpt5.6luna", ...)' in policy
+        assert "backward-compatible default всегда Sol" in policy
+        assert "`codex_review` — Sol-only" not in policy
+        assert "`codex_review` запускает только Sol" not in policy
+
     def test_assembled_prompts_drop_stale_mandatory_sol_wording(self):
         for role in self.ACTORS:
             out = P.build_system_prompt(PIPELINE, role)

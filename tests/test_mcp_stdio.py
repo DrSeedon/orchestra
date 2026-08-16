@@ -1818,3 +1818,141 @@ async def test_resolve_merge_operation_reports_server_refusal(monkeypatch):
 
     assert out.isError is True
     assert "OPERATION_NOT_BLOCKING" in out.content[0].text or "only PARTIAL" in out.content[0].text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("requested_model", "expected_model", "resume"),
+    [
+        ("gpt-5.6-luna", "gpt-5.6-luna", True),
+        ("gpt-5.6-sol", "gpt-5.6-sol", False),
+        ("gpt5.6luna", "gpt-5.6-luna", False),
+    ],
+)
+async def test_codex_review_model_reaches_quota_cli_job_and_accounting(
+    tmp_path, monkeypatch, requested_model, expected_model, resume,
+):
+    import app.mcp_stdio as m
+
+    if resume:
+        (tmp_path / "codex_sessions.json").write_text(json.dumps({
+            "sessions": {"review": {"uuid": "review-thread"}},
+        }))
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        if path == "/api/usage/readiness":
+            return {
+                "policy": "worker-weekly-v1",
+                "state": "available",
+                "model": expected_model,
+                "provider": "codex",
+                "observed_at": 2_000_000_000,
+                "valid_until": 2_000_000_300,
+            }
+        if method == "GET":
+            return {
+                "id": "requester-id",
+                "worktree_path": str(tmp_path),
+                "task_id": "304",
+            }
+        return {"id": "bg-review"}
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    monkeypatch.setattr(m, "_codex_bin", lambda: "/usr/bin/codex")
+    monkeypatch.setattr(m, "WORKER_NAME", "review-author")
+    monkeypatch.setattr(m, "SCOPE", str(tmp_path))
+    monkeypatch.setattr(m.time, "time", lambda: 2_000_000_001)
+
+    result = await m.codex_review(
+        context="PROJECT CONTEXT: #304 model propagation fixture",
+        target="artifact.py",
+        output="review.md",
+        mode="exec",
+        resume=resume,
+        model=requested_model,
+    )
+
+    readiness = next(call for call in calls if call[1] == "/api/usage/readiness")
+    assert readiness[2]["params"] == {"model": expected_model}
+    job = next(call[2]["json"] for call in calls if call[1] == "/api/bg/jobs")
+    command = job["config"]["command"]
+    assert command.count(f"-m {expected_model}") == (2 if resume else 1)
+    assert f"--usage-model {expected_model}" in command
+    assert expected_model in job["message"]
+    assert expected_model in result
+    if resume:
+        assert "exec resume review-thread" in command
+
+
+@pytest.mark.asyncio
+async def test_codex_review_default_is_documented_and_stays_sol(tmp_path, monkeypatch):
+    import app.mcp_stdio as m
+
+    captured = {}
+
+    async def fake_api(method, path, **kwargs):
+        if path == "/api/usage/readiness":
+            captured["readiness"] = kwargs["params"]
+            return {
+                "policy": "worker-weekly-v1",
+                "state": "available",
+                "model": "gpt-5.6-sol",
+                "provider": "codex",
+                "observed_at": 2_000_000_000,
+                "valid_until": 2_000_000_300,
+            }
+        if method == "GET":
+            return {"id": "requester-id", "worktree_path": str(tmp_path)}
+        captured["job"] = kwargs["json"]
+        return {"id": "bg-review"}
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    monkeypatch.setattr(m, "_codex_bin", lambda: "/usr/bin/codex")
+    monkeypatch.setattr(m, "SCOPE", str(tmp_path))
+    monkeypatch.setattr(m.time, "time", lambda: 2_000_000_001)
+
+    await m.codex_review(
+        context="PROJECT CONTEXT: #304 default fixture",
+        target="artifact.py",
+        output="review.md",
+        mode="exec",
+    )
+
+    tool = next(tool for tool in m.mcp._tool_manager.list_tools() if tool.name == "codex_review")
+    assert tool.parameters["properties"]["model"]["default"] == "gpt-5.6-sol"
+    assert "Omitted means gpt-5.6-sol" in tool.description
+    assert captured["readiness"] == {"model": "gpt-5.6-sol"}
+    assert "-m gpt-5.6-sol" in captured["job"]["config"]["command"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("model", "message"),
+    [
+        ("not-a-model", "unknown model"),
+        ("claude-opus-5[1m]", "runtime 'claude'"),
+        ("grok-4.6", "runtime 'grok'"),
+        ("gpt-5.3-codex-spark", "Spark is forbidden"),
+    ],
+)
+async def test_codex_review_rejects_invalid_non_codex_and_spark_before_api(
+    monkeypatch, model, message,
+):
+    import app.mcp_stdio as m
+
+    api = AsyncMock(side_effect=AssertionError("invalid model must not reach any API"))
+    monkeypatch.setattr(m, "_api", api)
+
+    with pytest.raises(m.ApiToolError, match=message) as caught:
+        await m.codex_review(
+            context="PROJECT CONTEXT: #304 rejection fixture",
+            target="artifact.py",
+            mode="exec",
+            model=model,
+        )
+
+    assert caught.value.code == "invalid_argument"
+    assert caught.value.details["field"] == "model"
+    api.assert_not_awaited()
