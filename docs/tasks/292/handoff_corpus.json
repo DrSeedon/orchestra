@@ -1,0 +1,17 @@
+{
+  "t237": {
+    "handoff": "Task #237 addresses Claude sessions not surviving restart. The current implementation work is approved for Phase 3 after a frozen RED. The scope is the first Codex transport train only: use Orchestra-owned child stdin/stdout descriptors, strict inherited descriptor naming, all-or-none restart preparation and rollback, and a transient rehearsal. Claude/Grok transport is a later train. The exact approved plan and RED are in docs/tasks/237/plan.md and the frozen tree is bc5e639d. Do not deploy or signal production.",
+    "current_state": "Implementation has not started in this handoff snapshot; the next action is to begin with T1 after reproducing the frozen RED on the sealed baseline.",
+    "allowed_read_paths": ["docs/tasks/237/plan.md", "docs/tasks/237/research.md", "tests/test_seamless_restart.py", "app/fdstore.py", "app/manager.py"]
+  },
+  "t241": {
+    "handoff": "Task #241 changes the orchestrator-user notification contract. The tracker says the current bridge tags the user at every orchestrator turn boundary, which makes the signal useless. Add an MCP notify_user tool with mandatory short reason; a call in the turn emits one tag at turn end, no call emits none; preserve/show the reason; highlight tagged dashboard messages; keep workers and delivery mechanics unchanged. The user-provided acceptance check is a live no-call/call pair and a mutation that removes the call check.",
+    "current_state": "This handoff occurs after the task and acceptance contract exist but before the solution commits. The next action is to inspect the frozen baseline and run the named checks, then implement only the notification contract.",
+    "allowed_read_paths": ["app/tg_bridge.py", "app/mcp_stdio.py", "app/static/js/app.js", "tests/test_tg_bridge.py", "tests/test_api.py"]
+  },
+  "t248": {
+    "handoff": "Task #248 closes task-tracker integrity gaps around spawn, merge, and finalization. Phase 3 T1 is already landed; T2 is the current pre-commit scoped task-reference gate. The approved plan requires durable task binding/outcome before Git, rejection of unknown/foreign/substituted references with unchanged target HEAD, canonical same-scope refs, recomputation under the repository lock at the exact worker HEAD, emitted-ref recheck, and explicit reserved-trailer/commit-point outcomes. T3 finalization is later. The frozen T2 oracle is b7ad6c76 and the T1 baseline is b35795dc.",
+    "current_state": "The T2 handoff snapshot is before the final accepted solution. Start by running the frozen T2 RED on the sealed baseline and inspect the plan; do not begin T3 or mutate tests.",
+    "allowed_read_paths": ["docs/tasks/248/plan.md", "docs/tasks/248/research.md", "tests/test_task_tracker_integration.py", "app/workspace.py", "app/tm.py", "app/merge_operations.py"]
+  }
+}

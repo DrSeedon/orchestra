@@ -1,0 +1,41 @@
+{
+  "task_id": 292,
+  "verdict": "REJECT",
+  "evidence_kind": "protocol-abort",
+  "protocol_lock": "prereg-lock.json",
+  "protocol_sha256": "454bf185cbcb2b29923ce92f07f585f884e8d95d99c822371a5978b35a678779",
+  "selection": {
+    "cases": ["t237", "t241", "t248"],
+    "arms": ["A", "P", "B"],
+    "repetitions": 3,
+    "planned_agent_runs": 27,
+    "completed_agent_runs": 0,
+    "first_cell": "t241/P/r1"
+  },
+  "preflight": {
+    "sealed_clone_method": "git archive baseline -> isolated seed repo -> git clone --no-local",
+    "solution_objects_unreachable": {
+      "t237": true,
+      "t241": true,
+      "t248": true
+    },
+    "source": "runner preflight output; each solution commit probe returned non-zero"
+  },
+  "capsules": {
+    "t237": {"bytes": 795, "rough_upper_bound_tokens": 199},
+    "t241": {"bytes": 797, "rough_upper_bound_tokens": 200},
+    "t248": {"bytes": 911, "rough_upper_bound_tokens": 228},
+    "placebo_byte_matched": true,
+    "position_matched": true
+  },
+  "abort": {
+    "cell": "t241/P/r1",
+    "runner_error": "stream-json contained no result event",
+    "model_usage": null,
+    "turn_count": null,
+    "replacement_or_retry": false,
+    "scorer_runs": 0
+  },
+  "interpretation": "No causal estimate, noise floor, scorer agreement, or PASS claim is valid. The pilot is a protocol-faithful REJECT due to an aborted first run, not evidence that a capsule has no semantic value.",
+  "runtime_config_mutation": false
+}

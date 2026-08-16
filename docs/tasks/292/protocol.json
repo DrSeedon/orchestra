@@ -1,0 +1,81 @@
+{
+  "task_id": 292,
+  "purpose": "Measure causal value of a derived change-capsule for cross-runtime handoff without installing OpenSpec or changing runtime/config.",
+  "registered_at": "2026-08-16T12:00:00Z",
+  "baseline": "Current provider-neutral handoff plus authoritative task/plan sources.",
+  "change_under_test": "A small DERIVED/DO NOT EDIT capsule containing authoritative refs, observable requirements, non-goals, and exact AC.",
+  "outcome": "intent recall, invented/contradictory facts, exact AC/next-action correctness, pre-action read/tool calls, and input tokens.",
+  "hypotheses": {
+    "H2": "A semantic capsule improves cross-runtime handoff over current handoff and over byte/position-matched padding.",
+    "H3": "The capsule adds no measurable value beyond the current handoff and formatting/length controls."
+  },
+  "cases": [
+    {
+      "case_id": "t237",
+      "task": 237,
+      "handoff_utc": "2026-08-13T09:21:52Z",
+      "baseline_commit": "bc5e639d7346f248578f018a5fce74b42d4ed95d",
+      "solution_commits": ["fecd2402c024c794662b297661e24fbd71d6a52d"],
+      "authoritative": ["DB tm_tasks.par_number=237", "docs/tasks/237/plan.md", "docs/tasks/237/research.md"],
+      "exact_ac": "uv run python -m pytest -q tests/test_seamless_restart.py"
+    },
+    {
+      "case_id": "t241",
+      "task": 241,
+      "handoff_utc": "2026-08-13T09:57:13Z",
+      "baseline_commit": "c0185e9d88a2f519a9ecdde81ef05c6b9e396105",
+      "solution_commits": ["0a328591ec3d6dd8ed306297b3b7cadcdf9de551", "e8283644f184fb11bfd1ae6c98048d0c2c931955"],
+      "authoritative": ["DB tm_tasks.par_number=241", "DB task description"],
+      "exact_ac": "uv run python -m pytest -q tests/test_tg_bridge.py tests/test_api.py"
+    },
+    {
+      "case_id": "t248",
+      "task": 248,
+      "handoff_utc": "2026-08-13T09:16:26Z",
+      "baseline_commit": "b35795dc5a6e81bd42750cc70ac58087a8cb40f8",
+      "solution_commits": ["60528bfc15e874da0b0f8bfedf4605d0f467cdf2"],
+      "authoritative": ["DB tm_tasks.par_number=248", "docs/tasks/248/plan.md", "docs/tasks/248/research.md"],
+      "exact_ac": "uv run python -m pytest -q tests/test_task_tracker_integration.py"
+    }
+  ],
+  "arms": {
+    "A": "Current handoff brief only.",
+    "P": "Current handoff brief plus deterministic padding with exactly the same UTF-8 byte length and insertion position as B.",
+    "B": "Current handoff brief plus the derived semantic capsule at the fixed insertion position."
+  },
+  "randomization": {
+    "seed": 2921608,
+    "order": "one deterministic permutation of all 27 case/arm/repetition cells; no parallel fan-out",
+    "fresh_context": true,
+    "repetitions_per_cell": 3
+  },
+  "agent": {
+    "runtime": "claude",
+    "model": "claude-opus-5[1m]",
+    "effort": "high",
+    "tools": ["Read", "Glob", "Grep"],
+    "side_effects": "forbidden",
+    "solution_objects": "must be unreachable in the sealed clone"
+  },
+  "scoring": {
+    "primary_metrics": ["intent_recall", "invented_or_contradictory_facts", "exact_ac_correct", "next_action_correct"],
+    "cost_metrics": ["pre_action_read_tool_calls", "input_tokens", "capsule_bytes", "rough_tokens"],
+    "agreement": "Cohen kappa on binary fact-level semantic decisions; disagreement is miss",
+    "stop": "kappa < 0.8, missing/aborted run, stale source, edit/side effect, solution object reachable, or leakage"
+  },
+  "pass_fail": {
+    "all_b_runs_zero_invented_or_contradictory": true,
+    "all_b_runs_exact_ac_and_next_action": true,
+    "median_b_recall_not_below_a_or_p_per_case": true,
+    "recall_gain_pp": "B versus both A and P >= max(20, noise_floor_pp) on at least 2 of 3 cases",
+    "reads": "B median below both controls by at least 1 and above reads_noise_floor on at least 2 of 3 cases",
+    "capsule": "<=2048 UTF-8 bytes and <=750 tokenizer tokens",
+    "otherwise": "REJECT"
+  },
+  "noise": {
+    "per_case_metric_range": "max-min over the three repetitions for A and P separately",
+    "noise_floor": "max of A/P recall ranges across cases",
+    "reads_noise_floor": "max of A/P read-call ranges across cases",
+    "median": "numeric median; ties retained; no missing-value imputation"
+  }
+}
