@@ -143,6 +143,32 @@ def get_project_by_scope(conn: sqlite3.Connection, scope: str) -> dict | None:
     return dict(row) if row else None
 
 
+def _project_for_session_scope(conn: sqlite3.Connection, scope: str) -> dict | None:
+    """Register an exact session scope without rebinding an existing project identity."""
+    project = get_project_by_scope(conn, scope)
+    if project:
+        return project
+    if not conn.execute("SELECT 1 FROM sessions WHERE scope = ? LIMIT 1", (scope,)).fetchone():
+        return None
+
+    base_id = f"scope:{scope}"
+    candidate = base_id
+    suffix = 2
+    while True:
+        matches = [
+            dict(row)
+            for row in conn.execute("SELECT * FROM tm_projects").fetchall()
+            if row["id"].casefold() == candidate.casefold()
+        ]
+        if not matches:
+            return ensure_project(conn, candidate, name=scope, scope=scope)
+        for match in matches:
+            if match.get("scope") == scope:
+                return match
+        candidate = f"{base_id}:{suffix}"
+        suffix += 1
+
+
 def resolve_project_selector(conn: sqlite3.Connection, selector: str) -> dict | None:
     """Resolve a project id or scope, rejecting tokens that identify two projects."""
     by_id = resolve_project_id(conn, selector)
@@ -894,7 +920,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
             if project_id:
                 project = resolve_project_selector(conn, project_id)
             elif scope:
-                project = get_project_by_scope(conn, scope)
+                project = _project_for_session_scope(conn, scope)
 
             if not project or not str(project.get("scope") or "").strip():
                 allowed = sorted(
