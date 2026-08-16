@@ -1,0 +1,40 @@
+canonical-reference guard disabled:
+......F
+FAILED test_v11_reference_rejects_unsafe_directory_links[noncanonical]
+1 failed, 6 passed in 0.19s
+
+protected-state guard disabled:
+.....F......F.
+FAILED test_v11_package_rejects_unsafe_directory_links[protected_state-replacement5-extra_members5-allowed_directories5]
+FAILED test_v11_reference_rejects_unsafe_directory_links[protected_state]
+2 failed, 12 passed in 0.22s
+
+candidate/reference equality guard disabled:
+FF
+FAILED test_v11_candidate_reference_link_mismatch_fails_closed[replacement0]
+FAILED test_v11_candidate_reference_link_mismatch_fails_closed[not-a-link\n]
+2 failed in 0.21s
+
+all three guards restored; clean rerun:
+..........................                                               [100%]
+26 passed in 0.53s
+
+audit-round-1 explicit-directory rejection disabled:
+FAILED test_v11_explicit_archive_directories_are_not_silently_discarded: DID NOT RAISE AssertionError
+1 failed
+
+audit-round-1 final pinned-path identity guard disabled:
+FAILED test_v11_validation_rejects_path_replacement_after_pinned_snapshot: DID NOT RAISE AssertionError
+1 failed
+
+cyclic/chained package-link rejection disabled:
+FAILED test_v11_package_rejects_unsafe_directory_links[cycle-replacement4-extra_members4-allowed_directories4]: DID NOT RAISE AssertionError
+1 failed
+
+validated-report digest binding replaced by a pathname reopen:
+FAILED test_v11_runner_has_no_new_activation_executable_surface: assert 'sha256_path(package)' not in source
+1 failed
+
+all seven guards restored; clean rerun:
+..............................                                           [100%]
+30 passed in 0.54s

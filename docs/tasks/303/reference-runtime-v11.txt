@@ -1,0 +1,8 @@
+V10_REJECTED=runtime directory/device link is unsupported: <scratch>/v10-reference/lib64
+LIB64_IS_LINK=True
+LIB64_TARGET=lib
+LIB64_TARGET_IS_DIR=True
+V11_REAL_REFERENCE_ACCEPTED
+LIB64_ENTRY {'type': 'symlink', 'mode': '0777', 'target': 'lib'}
+LIB_ALLOWED True
+MEMBERS 3438 DIRECTORIES 408

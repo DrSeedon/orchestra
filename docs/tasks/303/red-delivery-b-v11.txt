@@ -1,0 +1,5 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 python docs/tasks/303/v11_delivery_gate.py B
+exit_code: 1
+result: 2 failed, 30 passed in 0.65s
+failure: AssertionError: T-B missing behavior: no mandatory project-execution identity boundary exists
+failure: AssertionError: T-A missing behavior: no shipped activation-surface manifest exists

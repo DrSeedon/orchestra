@@ -1,27 +1,49 @@
 {
   "schema": "orchestra.task303.plan-baselines.v1",
   "candidate": {
-    "commit": "82247195ed2819414354fb0807c1993aaad1f31e",
+    "commit": "4d5a49aa145772307e9f4333859ddea7a8c6daf5",
     "outputs": [
-      "oracle-selftest-v10.txt",
-      "red-delivery-a-v10.txt",
-      "red-delivery-b-v10.txt",
-      "red-delivery-c-v10.txt",
-      "red-delivery-d-v10.txt",
-      "red-activation-a-v10.txt",
-      "red-activation-b-v10.txt",
-      "red-activation-c-v10.txt",
-      "red-activation-d-v10.txt"
+      "oracle-selftest-v11.txt",
+      "reference-runtime-v11.txt",
+      "mutation-v11.txt",
+      "red-delivery-a-v11.txt",
+      "red-delivery-b-v11.txt",
+      "red-delivery-c-v11.txt",
+      "red-delivery-d-v11.txt"
     ],
-    "review": "enforcement-oracle-audit-v10.md",
-    "review_artifact_commit": "b8070d12461d32c903d2975c943621e9c63d417a",
-    "review_sha256": "85f4672342c6f34b609ebc3bb235c06c39adec980c415d1c120680d7418503fa",
-    "review_round": 3,
+    "evidence": "oracle-v11-evidence.json",
+    "review": "enforcement-oracle-audit-v11.md",
+    "review_artifact_commit": "a1524ea333899d60aadfb563bb45be54cc01fdd2",
+    "review_sha256": "1c234fe83756837496c4f6312857e5e695fd0d7a2301d8a20994bc835144285b",
+    "review_round": 2,
     "verdict": "APPROVED",
     "cross_family_review": "unavailable",
-    "status": "accepted_phase2_baseline_activation_pending"
+    "status": "frozen_red_approved_for_phase3_delivery"
   },
   "superseded_for_implementation": [
+    {
+      "commit": "82247195ed2819414354fb0807c1993aaad1f31e",
+      "outputs": [
+        "oracle-selftest-v10.txt",
+        "red-delivery-a-v10.txt",
+        "red-delivery-b-v10.txt",
+        "red-delivery-c-v10.txt",
+        "red-delivery-d-v10.txt",
+        "red-activation-a-v10.txt",
+        "red-activation-b-v10.txt",
+        "red-activation-c-v10.txt",
+        "red-activation-d-v10.txt"
+      ],
+      "review": "enforcement-oracle-audit-v10.md",
+      "review_artifact_commit": "b8070d12461d32c903d2975c943621e9c63d417a",
+      "review_sha256": "85f4672342c6f34b609ebc3bb235c06c39adec980c415d1c120680d7418503fa",
+      "verdict": "APPROVED",
+      "delivery_activation_split_evidence_preserved": true,
+      "oracle_bytes_unchanged": true,
+      "carried_forward_as_green_evidence": false,
+      "status": "superseded_for_implementation_reference_directory_symlink_unsatisfiable",
+      "blocker_commits": ["e6794be5", "987b4841"]
+    },
     {
       "commit": "6045144a5fc207b276048b622f5f63f04dff26eb",
       "outputs": [
@@ -41,6 +63,34 @@
     }
   ],
   "rejected": [
+    {
+      "commit": "3431c689ec78cada281d7ac432bf3d163b95e89e",
+      "hash_registry_commit": "425de74f5e9fc0ec8d58c7bb70ee0b010fbce982",
+      "outputs": [
+        "oracle-selftest-v11.txt",
+        "reference-runtime-v11.txt",
+        "mutation-v11.txt",
+        "red-delivery-a-v11.txt",
+        "red-delivery-b-v11.txt",
+        "red-delivery-c-v11.txt",
+        "red-delivery-d-v11.txt"
+      ],
+      "review": "enforcement-oracle-audit-v11.md",
+      "review_artifact_commit": "5fa8c5102d4af89332b25aef8b0435ddc25fd725",
+      "review_sha256": "cc3d93ddcba2622353b6a0f02ab415cdb8d6a864c4e7b0a924677eee1bf52cb7",
+      "review_round": 1,
+      "status": "rejected_changes_required",
+      "blocking": [
+        "explicit_archive_directory_entry_and_mode_discarded",
+        "package_path_reopened_between_digest_inspection_and_report"
+      ],
+      "closed": [
+        "canonical_internal_lib64_directory_link",
+        "absolute_escape_dangling_chained_escape_special_device_protected_state_noncanonical_links",
+        "candidate_reference_link_type_mismatch",
+        "delivery_cannot_authorize_activation_or_claim_isolation"
+      ]
+    },
     {
       "commit": "c2cd8e215ee808ad041daa7ecffe25e92ce2bf75",
       "hash_registry_commit": "c269b0e9bfe6259e2607b6d14fab2d41a6e5a821",
