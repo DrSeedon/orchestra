@@ -3511,10 +3511,17 @@ class TestEnsureBackendForceFresh:
         )
         session._hibernate.heartbeat_loop = AsyncMock()
 
-        result = await session._ensure_backend()
+        with patch(
+            "app.workspace.sync_agents_md",
+            side_effect=lambda path: order.append(("agents", path)),
+        ) as sync_agents:
+            result = await session._ensure_backend()
 
         assert result is backend
-        assert order == ["skills", "project-doc", "build", "connect"]
+        sync_agents.assert_called_once_with(session.cwd)
+        assert order == [
+            ("agents", session.cwd), "skills", "project-doc", "build", "connect",
+        ]
 
     @pytest.mark.asyncio
     async def test_force_fresh_rebuilds_existing_backend(self, session):

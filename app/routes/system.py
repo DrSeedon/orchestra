@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response, Form
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel, ValidationError
 
 from app.auth import is_auth_enabled, is_owner_mode, require_operator_session
@@ -945,6 +945,24 @@ async def get_usage():
     # Считаем только здесь: гейтам и limit_wake, которые ходят через
     # current_provider_usage, этот вывод не нужен, а он стоит запроса к истории.
     return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
+
+
+@router.get("/api/usage/card")
+async def get_usage_card():
+    """Render the canonical `/limits` PNG for trusted local clients.
+
+    The Telegram bridge and Kesha must not grow separate copies of the quota
+    arithmetic or the HTML card: a visual that looks identical but was built
+    from different numbers is worse than an explicit failure.
+    """
+    if not is_owner_mode():
+        raise HTTPException(status_code=404, detail="not found")
+    data = await _get_usage_data()
+    usage = {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
+    from app.limits_card import render_limits_card
+
+    path = await render_limits_card(usage)
+    return FileResponse(path, media_type="image/png", filename="limits.png")
 
 
 async def current_provider_usage(

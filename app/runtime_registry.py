@@ -227,9 +227,15 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
             )
         if skills_block:
             system_prompt += "\n\n" + skills_block
+    servers = dict(context.mcp_servers)
+    # `.mcp.json` is the repository-owned tool layer copied into every worktree.
+    # Claude and Grok already merge it explicitly; relying on Codex discovery left
+    # managed Codex sessions with only Orchestra MCP and silently dropped project tools.
+    for name, cfg in _load_scope_mcp_servers(context.scope).items():
+        servers.setdefault(name, cfg)
     mcp_env = {
         key: str(value)
-        for config in context.mcp_servers.values()
+        for config in servers.values()
         for key, value in config.get("env", {}).items()
     }
     return CodexBackend(
@@ -238,7 +244,7 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
         system_prompt=system_prompt,
         resume_thread_id=context.resume_session_id,
         mcp_env=mcp_env,
-        mcp_servers=context.mcp_servers,
+        mcp_servers=servers,
         reasoning_effort=context.effort or "high",
         is_orchestrator=context.is_orchestrator,
         history_import=context.history_import,

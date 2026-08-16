@@ -1793,6 +1793,20 @@ class CodexBackend(JsonRpcStdioTransport):
             blocks.append("\n".join(lines))
         return "\n\n".join(blocks)
 
+    def _trusted_project_toml(self) -> str:
+        """Trust only this backend's canonical cwd in its private CODEX_HOME.
+
+        Managed Codex runs are created for an Orchestra-owned project/worktree.  Without
+        this entry Codex deliberately disables that checkout's project-local `.codex`
+        config, hooks, and rules.  Copying the base config's whole `[projects]` table is
+        still forbidden: it would grant one agent trust in unrelated checkouts.
+        """
+        project = str(Path(self.cwd).expanduser().resolve())
+        return (
+            f"[projects.{self._toml_key(project)}]\n"
+            'trust_level = "trusted"'
+        )
+
     def _prepare_codex_home(self) -> Path:
         """Собрать приватный `CODEX_HOME` этого агента и вернуть путь.
 
@@ -1859,6 +1873,7 @@ class CodexBackend(JsonRpcStdioTransport):
         carried = _carried_base_scalars()
         if carried:
             parts.append(carried)
+        parts.append(self._trusted_project_toml())
         servers = self._mcp_servers_toml()
         if servers:
             parts.append(servers)

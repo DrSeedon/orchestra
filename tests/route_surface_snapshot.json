@@ -252,6 +252,12 @@
   ]
  ],
  [
+  "/api/sessions/{name}/clear-session",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/sessions/{name}/compact",
   [
    "POST"
@@ -517,6 +523,12 @@
  ],
  [
   "/api/usage/analytics",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/usage/card",
   [
    "GET"
   ]

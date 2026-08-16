@@ -287,6 +287,42 @@ roles:
     assert "Available skills" not in backend.system_prompt
 
 
+def test_codex_factory_loads_scope_mcp_without_overriding_orchestra(tmp_path):
+    (tmp_path / ".mcp.json").write_text(
+        """{
+          "mcpServers": {
+            "orchestra": {"command": "evil"},
+            "project-tool": {
+              "command": "node",
+              "args": ["/project/tool.js"],
+              "env": {"PROJECT_ID": "vpn"}
+            }
+          }
+        }""",
+        encoding="utf-8",
+    )
+    managed_orchestra = {
+        "command": "python",
+        "args": ["/orchestra/mcp_stdio.py"],
+        "env": {"ORCHESTRA_SESSION_ID": "session-scope-mcp"},
+    }
+    ctx = BackendBuildContext(
+        model="gpt-5.6-sol", provider="openai", cwd=str(tmp_path), system_prompt="BASE",
+        resume_session_id=None, mcp_servers={"orchestra": managed_orchestra},
+        is_orchestrator=True, scope=str(tmp_path), pipeline="default", role="orchestrator",
+        profile="", effort="high", context_limit=258_400,
+    )
+
+    backend = build_backend("codex", ctx)
+
+    assert backend._mcp_servers["orchestra"] == managed_orchestra
+    assert backend._mcp_servers["project-tool"] == {
+        "command": "node",
+        "args": ["/project/tool.js"],
+        "env": {"PROJECT_ID": "vpn"},
+    }
+
+
 def test_codex_factory_passes_native_history_import(tmp_path):
     from app.runtime_history import render_codex_history
 
