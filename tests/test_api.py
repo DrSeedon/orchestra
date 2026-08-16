@@ -3120,3 +3120,42 @@ async def test_compact_quota_refusal_is_canonical_429(monkeypatch):
     body = json.loads(response.body)
     assert response.status_code == 429
     assert body["error"]["code"] == "weekly_quota_blocked"
+
+
+@pytest.mark.asyncio
+async def test_clear_session_drops_auto_restorable_conversation_state(monkeypatch):
+    from app.routes import sessions as routes
+
+    found = SimpleNamespace(
+        status=SimpleNamespace(value="idle"),
+        session_id="native-thread",
+        runtime_handoff="old handoff",
+        history_import_source="logs:claude",
+        last_summary="old compact summary",
+        _last_context={"percentage": 99, "total_tokens": 250_000, "max_tokens": 258_400},
+        _prompt_injected=True,
+        _cancel_precompact_timer=MagicMock(),
+        _disconnect_backend=AsyncMock(),
+        _persist=MagicMock(),
+    )
+    monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=found))
+
+    result = await routes.clear_session(
+        "worker", routes.ScopeRequest(scope="/s"),
+    )
+
+    assert result == {"ok": True, "cleared": "native-thread"}
+    found._disconnect_backend.assert_awaited_once()
+    assert found.session_id == ""
+    assert found.runtime_handoff == ""
+    assert found.history_import_source is None
+    assert found.last_summary == ""
+    assert found._last_context == {
+        "percentage": 0,
+        "total_tokens": 0,
+        "max_tokens": 0,
+    }
+    assert found._prompt_injected is False
+    found._cancel_precompact_timer.assert_called_once_with("session_clear")
+    assert found.status.value == "idle"
+    found._persist.assert_called_once()

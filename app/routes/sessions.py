@@ -715,8 +715,17 @@ async def clear_session(name: str, req: ScopeRequest):
         return JSONResponse({"error": "agent is running"}, status_code=400)
     old_sid = session.session_id
     await session._disconnect_backend()
+    session._cancel_precompact_timer("session_clear")
     session.session_id = ""
     session.runtime_handoff = ""
+    session.history_import_source = None
+    session.last_summary = ""
+    session._last_context = {
+        "percentage": 0,
+        "total_tokens": 0,
+        "max_tokens": 0,
+    }
+    session._prompt_injected = False
     session.status = AgentStatus.IDLE
     session._persist()
     return {"ok": True, "cleared": old_sid}
