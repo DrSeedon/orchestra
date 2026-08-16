@@ -1,0 +1,614 @@
+{
+  "available_artifact_census": {
+    "artifacts": 372,
+    "by_final_verdict": {
+      "approved": 136,
+      "changes_requested": 26,
+      "missing": 132,
+      "other": 78
+    },
+    "by_phase": {
+      "impl": 107,
+      "other": 62,
+      "plan": 84,
+      "research": 119
+    },
+    "by_repo": {
+      "dnd-game-master": 4,
+      "kesha-tg-bot": 25,
+      "research-review-roi": 277,
+      "seedon": 66
+    },
+    "by_round_count": {
+      "1": 174,
+      "2": 74,
+      "3": 70,
+      "4": 28,
+      "5": 19,
+      "6": 1,
+      "7": 5,
+      "8": 1
+    },
+    "distinct_hashes": 371,
+    "initial_finding_markers": {
+      "blocking": 144,
+      "nit": 8,
+      "question": 32,
+      "suggestion": 270
+    },
+    "resolution_markers": {
+      "fixed_or_resolved": 434,
+      "rejected_or_not_problem": 7,
+      "still_open": 29
+    },
+    "zero_actionable_marker_artifacts": 272
+  },
+  "baseline_2026_07_25": {
+    "call_backends": {
+      "claude": 23,
+      "sol": 75
+    },
+    "call_modes": {
+      "exec": 45,
+      "resume": 40,
+      "review": 13
+    },
+    "clean_arms": {
+      "claude": {
+        "blocking_present": 9,
+        "mean_substantive": 5.857142857142857,
+        "median_substantive": 4.5,
+        "n": 14,
+        "zero_substantive": 0
+      },
+      "sol": {
+        "blocking_present": 10,
+        "mean_substantive": 4.3076923076923075,
+        "median_substantive": 4.0,
+        "n": 26,
+        "zero_substantive": 3
+      }
+    },
+    "files": {
+      "blind_rows": 45,
+      "call_rows": 98,
+      "distinct_blind_ids": 45,
+      "graded_rows": 45
+    },
+    "fisher_zero_substantive_p": 0.5394736842105263,
+    "reader_test_contaminants": 5
+  },
+  "generated_at": "2026-08-16T10:40:12.708073+00:00",
+  "live_db_retained_window": {
+    "artifact_rounds": {
+      "1": 17,
+      "2": 39,
+      "3": 25,
+      "4": 10,
+      "5": 4,
+      "7": 1
+    },
+    "attributed_usage": {
+      "cache_ratio": 0.8452887960362473,
+      "cached_input_tokens": {
+        "mean": 414568.448,
+        "median": 369664.0,
+        "n": 125,
+        "p90": 777881.6000000001,
+        "sum": 51821056.0
+      },
+      "cost_usd": {
+        "mean": 0.679545384,
+        "median": 0.638601,
+        "n": 125,
+        "p90": 1.1178452,
+        "sum": 84.943173
+      },
+      "input_tokens": {
+        "mean": 490445.928,
+        "median": 427958.0,
+        "n": 125,
+        "p90": 874624.8,
+        "sum": 61305741.0
+      },
+      "output_tokens": {
+        "mean": 3095.792,
+        "median": 2983.0,
+        "n": 125,
+        "p90": 4903.000000000001,
+        "sum": 386974.0
+      },
+      "reviews": 125
+    },
+    "author_model": {
+      "claude-opus-5[1m]": 86,
+      "gpt-5.6-luna": 13,
+      "gpt-5.6-sol": 136
+    },
+    "author_model_metrics": {
+      "claude-opus-5[1m]": {
+        "completed": 72,
+        "failed_or_timeout": 4,
+        "invocations": 86,
+        "wall_seconds": {
+          "mean": 87.64473409722223,
+          "median": 79.046909,
+          "n": 72,
+          "p90": 126.6478979,
+          "sum": 6310.420855
+        }
+      },
+      "gpt-5.6-luna": {
+        "completed": 7,
+        "failed_or_timeout": 0,
+        "invocations": 13,
+        "wall_seconds": {
+          "mean": 207.38641071428574,
+          "median": 179.813371,
+          "n": 7,
+          "p90": 416.7889238000001,
+          "sum": 1451.7048750000001
+        }
+      },
+      "gpt-5.6-sol": {
+        "completed": 103,
+        "failed_or_timeout": 4,
+        "invocations": 136,
+        "wall_seconds": {
+          "mean": 132.7524216407767,
+          "median": 73.687399,
+          "n": 103,
+          "p90": 240.2032114,
+          "sum": 13673.499429
+        }
+      }
+    },
+    "author_runtime": {
+      "claude": 86,
+      "codex": 149
+    },
+    "caller_quiescent": {
+      "False": 67,
+      "True": 123
+    },
+    "codex_accounting_window": {
+      "cost_usd": 969.9105716,
+      "review_cost_share": 0.08757835566208401,
+      "review_turn_share": 0.24801587301587302,
+      "turns": 504,
+      "window_start": "2026-08-12T05:49:47.869722+00:00"
+    },
+    "cutoff": "2026-08-16T10:07:30.748436+00:00",
+    "foreign_turns_during_reviews": 344,
+    "initial_finding_markers": {
+      "blocking": 77,
+      "nit": 0,
+      "question": 14,
+      "suggestion": 171
+    },
+    "invocations": 235,
+    "latest_quota_segment": {
+      "caveat": "Integer provider delta is global. The point allocation is proportional-cost accounting, not causal attribution.",
+      "codex_cost_usd": 144.66055092,
+      "codex_turns": 60,
+      "first_utilization": 0.0,
+      "integer_point_delta": 11.0,
+      "last_snapshot": "2026-08-16T10:06:12.848941+00:00",
+      "last_utilization": 11.0,
+      "quota_point_allocation_proxy": 0.7270075036432054,
+      "review_cost_share": 0.0660915912402914,
+      "review_cost_usd": 9.560846,
+      "review_turns": 10,
+      "start": "2026-08-16T07:20:43.838690+00:00"
+    },
+    "mode": {
+      "exec": 98,
+      "resume": 115,
+      "review": 22
+    },
+    "paired": 190,
+    "phase": {
+      "impl": 95,
+      "other": 16,
+      "plan": 41,
+      "research": 83
+    },
+    "phase_metrics": {
+      "impl": {
+        "completed": 77,
+        "cost_usd": {
+          "mean": 0.5907326511627907,
+          "median": 0.538792,
+          "n": 43,
+          "p90": 1.0118038000000003,
+          "sum": 25.401504
+        },
+        "failed_or_timeout": 5,
+        "invocations": 95,
+        "wall_seconds": {
+          "mean": 138.1874031038961,
+          "median": 71.801195,
+          "n": 77,
+          "p90": 212.73329180000044,
+          "sum": 10640.430038999999
+        }
+      },
+      "other": {
+        "completed": 10,
+        "cost_usd": {
+          "mean": 0.4439923333333333,
+          "median": 0.440652,
+          "n": 3,
+          "p90": 0.5505144000000001,
+          "sum": 1.331977
+        },
+        "failed_or_timeout": 0,
+        "invocations": 16,
+        "wall_seconds": {
+          "mean": 94.4795417,
+          "median": 50.424187,
+          "n": 10,
+          "p90": 109.89418339999985,
+          "sum": 944.795417
+        }
+      },
+      "plan": {
+        "completed": 33,
+        "cost_usd": {
+          "mean": 0.7548658095238096,
+          "median": 0.585779,
+          "n": 21,
+          "p90": 1.158749,
+          "sum": 15.852182
+        },
+        "failed_or_timeout": 2,
+        "invocations": 41,
+        "wall_seconds": {
+          "mean": 105.29470424242423,
+          "median": 79.028985,
+          "n": 33,
+          "p90": 147.71771,
+          "sum": 3474.7252399999998
+        }
+      },
+      "research": {
+        "completed": 62,
+        "cost_usd": {
+          "mean": 0.7303018965517241,
+          "median": 0.7022625,
+          "n": 58,
+          "p90": 1.1596144000000002,
+          "sum": 42.35751
+        },
+        "failed_or_timeout": 1,
+        "invocations": 83,
+        "wall_seconds": {
+          "mean": 102.83345908064517,
+          "median": 90.007854,
+          "n": 62,
+          "p90": 147.60759899999996,
+          "sum": 6375.674463
+        }
+      }
+    },
+    "quota_window": {
+      "attribution": "Global integer provider counter; cannot causally allocate to reviews. Cost share above is the accounting proxy.",
+      "first": 51.0,
+      "integer_point_delta": -40.0,
+      "last": 11.0,
+      "reset_values": 14
+    },
+    "resolution_markers": {
+      "fixed_or_resolved": 131,
+      "rejected_or_not_problem": 0,
+      "still_open": 17
+    },
+    "resolved_artifacts": 96,
+    "reviewer_model": {
+      "gpt-5.6-sol": 235
+    },
+    "reviews_with_foreign_turn_overlap": 120,
+    "scope": {
+      "dnd-game-master": 3,
+      "kesha-tg-bot": 4,
+      "orchestra": 210,
+      "seedon": 18
+    },
+    "status": {
+      "completed": 182,
+      "failed": 7,
+      "timed_out": 1,
+      "unpaired": 45
+    },
+    "task_cycles": {
+      "matched_completed_tasks": 37,
+      "note": "Task cycle is tracker created_at→completed_at; review intervals are unioned. This is a task-path upper bound, not synchronous HTTP/user delay.",
+      "review_wall_share": {
+        "mean": 0.05709865292741544,
+        "median": 0.04800868930218934,
+        "n": 37,
+        "p90": 0.12925998692683213,
+        "sum": 2.1126501583143713
+      }
+    },
+    "unique_artifact_paths": 101,
+    "wall_seconds_all_paired": {
+      "mean": 119.1686852736842,
+      "median": 79.074015,
+      "n": 190,
+      "p90": 180.17201880000002,
+      "sum": 22642.050202
+    },
+    "wall_seconds_completed": {
+      "mean": 117.7781602142857,
+      "median": 79.001879,
+      "n": 182,
+      "p90": 180.106456,
+      "sum": 21435.625159
+    },
+    "yield_proxy": {
+      "accepted_or_fixed_markers": 131,
+      "caveat": "Resolution markers are syntactic author/reviewer follow-through, not independent truth grading.",
+      "per_api_equivalent_dollar": 1.5422075179602721,
+      "per_completed_review_turn": 0.7197802197802198,
+      "per_review_wall_minute": 0.3666792986767585
+    },
+    "zero_actionable_marker_artifacts": {
+      "caveat": "Syntactic marker proxy only; not a ground-truth zero-value judgment.",
+      "count": 44,
+      "denominator": 96,
+      "rate": 0.4583333333333333
+    }
+  },
+  "luna_sol_preregistered_ab": {
+    "blind_results": {
+      "arm-1": {
+        "blocking_false_positive_rate": 0.0,
+        "blocking_false_positives": 0,
+        "cases": {
+          "K2": {
+            "blocking_false_positive": false,
+            "required_mechanism_hit": false,
+            "truth_label": "defect",
+            "verdict": "PASS"
+          },
+          "M7": {
+            "blocking_false_positive": false,
+            "required_mechanism_hit": null,
+            "truth_label": "clean",
+            "verdict": "PASS"
+          },
+          "Q4": {
+            "blocking_false_positive": false,
+            "required_mechanism_hit": false,
+            "truth_label": "defect",
+            "verdict": "BLOCK"
+          },
+          "T9": {
+            "blocking_false_positive": false,
+            "required_mechanism_hit": null,
+            "truth_label": "clean",
+            "verdict": "PASS"
+          }
+        },
+        "clean_cases": 2,
+        "defect_cases": 2,
+        "required_blocker_hits": 0,
+        "required_blocker_recall": 0.0,
+        "review_sha256": "38a5b6ca49b6061ed4cb33854b06325306f6d0ad5b430f627e81f125d200970a",
+        "verdict_vector": [
+          "PASS",
+          "PASS",
+          "BLOCK",
+          "PASS"
+        ]
+      },
+      "arm-2": {
+        "blocking_false_positive_rate": 0.0,
+        "blocking_false_positives": 0,
+        "cases": {
+          "K2": {
+            "blocking_false_positive": false,
+            "required_mechanism_hit": false,
+            "truth_label": "defect",
+            "verdict": "PASS"
+          },
+          "M7": {
+            "blocking_false_positive": false,
+            "required_mechanism_hit": null,
+            "truth_label": "clean",
+            "verdict": "PASS"
+          },
+          "Q4": {
+            "blocking_false_positive": false,
+            "required_mechanism_hit": false,
+            "truth_label": "defect",
+            "verdict": "BLOCK"
+          },
+          "T9": {
+            "blocking_false_positive": false,
+            "required_mechanism_hit": null,
+            "truth_label": "clean",
+            "verdict": "PASS"
+          }
+        },
+        "clean_cases": 2,
+        "defect_cases": 2,
+        "required_blocker_hits": 0,
+        "required_blocker_recall": 0.0,
+        "review_sha256": "9794d83c7c498942336ac4e74a35213368cef6f8a9789ce315513625d46ab8ae",
+        "verdict_vector": [
+          "PASS",
+          "PASS",
+          "BLOCK",
+          "PASS"
+        ]
+      }
+    },
+    "common_required_blocker_misses": [
+      "K2",
+      "Q4"
+    ],
+    "decision": "no_observed_difference_not_equivalence",
+    "freeze": {
+      "corpus_sha256": "5ab469c76089dc124e849223b904eea449b36a8308e1e07621b4f863af43bf5d",
+      "ground_truth_commitment": "f728c37b19a26d33f4e48b8d124fe7d896170fca67f479ba7ff3b455599a06eb",
+      "prompt_sha256": "4cd1ea1d3485ee351a34559768ab94c944960ce180ce631ae374191e654d3222",
+      "verified": true
+    },
+    "limits": [
+      "N=4 is an operational falsifier, not a statistical equivalence study.",
+      "A mechanism is a hit only if it matches the preregistered blocker; a different valid finding is secondary value, not primary recall.",
+      "Both calls use the same model family, so common misses do not estimate cross-family performance."
+    ],
+    "model_to_blind_arm": {
+      "luna": "arm-1",
+      "sol": "arm-2"
+    },
+    "run_metadata": {
+      "post": {
+        "backup_bytes": 324218880,
+        "backup_sha256": "147e794c435929ec093217136905d0c1692352e6665bda25cf0b27e24955b880",
+        "codex_main_utilization": 12.0,
+        "codex_resets_at": "2026-08-23T07:26:39Z",
+        "integrity_check": "ok",
+        "last_turn_usage_id": 3537,
+        "last_turn_usage_ts": "2026-08-16T10:25:59.998460+00:00",
+        "provider_sample_ts": "2026-08-16T10:26:20.575361+00:00",
+        "taken_at": "2026-08-16T10:27:28.600487+00:00"
+      },
+      "pre": {
+        "backup_bytes": 323035136,
+        "backup_sha256": "aba8f5d66a41f94e5f3a2aa3cd4a28a3fb09752f5cf339f4eb6412cd67864d98",
+        "codex_main_utilization": 12.0,
+        "codex_resets_at": "2026-08-23T07:26:39Z",
+        "integrity_check": "ok",
+        "last_turn_usage_id": 3535,
+        "last_turn_usage_ts": "2026-08-16T10:23:30.461513+00:00",
+        "provider_sample_ts": "2026-08-16T10:21:18.984957+00:00",
+        "taken_at": "2026-08-16T10:23:38.375541+00:00"
+      },
+      "pricing_source": "app/backend_codex.py CODEX_TOKEN_PRICES at cutoff",
+      "provider_budget": {
+        "attribution": "Direct ephemeral A/B calls are measured from their JSONL; all intervening turn_usage rows are foreign. The provider counter is global and integer-quantized.",
+        "foreign_turn_count": 2,
+        "foreign_turns": [
+          {
+            "api_equivalent_cost_usd": 8.200567,
+            "cached_input_tokens": 11138304,
+            "id": 3536,
+            "input_tokens": 11389307,
+            "model": "gpt-5.6-sol",
+            "output_tokens": 45880,
+            "runtime": "codex",
+            "session_hash": "b5b2012537f4",
+            "ts": "2026-08-16T10:24:01.958710+00:00"
+          },
+          {
+            "api_equivalent_cost_usd": 0.374833,
+            "cached_input_tokens": 635136,
+            "id": 3537,
+            "input_tokens": 639341,
+            "model": "gpt-5.6-sol",
+            "output_tokens": 1208,
+            "runtime": "codex",
+            "session_hash": "b5b2012537f4",
+            "ts": "2026-08-16T10:25:59.998460+00:00"
+          }
+        ],
+        "integer_utilization_delta_points": 0.0,
+        "reset_unchanged": true
+      },
+      "raw_retention": "Raw JSONL and SQLite snapshots were deleted after this aggregate was frozen.",
+      "runs": {
+        "luna": {
+          "agent_message_events": 2,
+          "api_equivalent_cost_usd": 0.00649676,
+          "command_execution_events": 2,
+          "error_events": 0,
+          "event_counts": {
+            "item.completed": 3,
+            "item.started": 1,
+            "thread.started": 1,
+            "turn.completed": 1,
+            "turn.started": 1
+          },
+          "item_counts": {
+            "agent_message": 2,
+            "command_execution": 2
+          },
+          "job": {
+            "created_at": "2026-08-16T10:23:58.794036+00:00",
+            "error_present": false,
+            "exit_code": 0,
+            "status": "triggered",
+            "triggered_at": "2026-08-16T10:25:31.063558+00:00",
+            "wall_seconds": 92.269522
+          },
+          "model": "gpt-5.6-luna",
+          "outside_path_pattern_count": 0,
+          "raw_jsonl_sha256": "52b4d68c99ca1b79dfedcaa0103efd9eac4da6a0b0f5cf62e35fb34cb626507f",
+          "review_sha256": "38a5b6ca49b6061ed4cb33854b06325306f6d0ad5b430f627e81f125d200970a",
+          "usage": {
+            "cache_write_input_tokens": 0,
+            "cached_input_tokens": 30208,
+            "input_tokens": 45217,
+            "output_tokens": 2409,
+            "reasoning_output_tokens": 2119
+          }
+        },
+        "sol": {
+          "agent_message_events": 2,
+          "api_equivalent_cost_usd": 0.183838,
+          "command_execution_events": 2,
+          "error_events": 0,
+          "event_counts": {
+            "item.completed": 3,
+            "item.started": 1,
+            "thread.started": 1,
+            "turn.completed": 1,
+            "turn.started": 1
+          },
+          "item_counts": {
+            "agent_message": 2,
+            "command_execution": 2
+          },
+          "job": {
+            "created_at": "2026-08-16T10:25:57.501221+00:00",
+            "error_present": false,
+            "exit_code": 0,
+            "status": "triggered",
+            "triggered_at": "2026-08-16T10:27:09.473497+00:00",
+            "wall_seconds": 71.972276
+          },
+          "model": "gpt-5.6-sol",
+          "outside_path_pattern_count": 0,
+          "raw_jsonl_sha256": "19cc764d4461e7233681fbfeef5af105bd4a083556ded6c4afa38fcf73954847",
+          "review_sha256": "9794d83c7c498942336ac4e74a35213368cef6f8a9789ce315513625d46ab8ae",
+          "usage": {
+            "cache_write_input_tokens": 0,
+            "cached_input_tokens": 32256,
+            "input_tokens": 47822,
+            "output_tokens": 2996,
+            "reasoning_output_tokens": 2588
+          }
+        }
+      },
+      "schema_version": 1
+    },
+    "schema_version": 1
+  },
+  "method_limits": [
+    "The live logs table is retention-limited; invocations before its minimum timestamp are not reconstructed from DB.",
+    "Filesystem artifact census includes available current repository trees, not deleted/unmerged files.",
+    "Finding and resolution counts are syntax markers; quality/false positives require blinded ground truth.",
+    "Task cycle uses tracker timestamps and is an upper bound on critical-path share, not synchronous user delay."
+  ],
+  "schema_version": 1,
+  "snapshot": {
+    "bytes": 328450048,
+    "cutoff": "2026-08-16T10:07:30.748436+00:00",
+    "integrity_check": "ok",
+    "sha256": "288f9d3724f1c3a152619696878ef0a27a9beefa8f470bf63105c2b56ee72609"
+  }
+}

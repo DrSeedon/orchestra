@@ -1,0 +1,24 @@
+Review only `frozen_corpus.md` in the current directory. Do not inspect parent
+directories, git history, logs, databases, task reports, or the internet. Do not
+edit files.
+
+PROJECT CONTEXT: Orchestra is a personal/small-team agent orchestrator with many
+parallel turns. Stack: Python, FastAPI, asyncio, SQLite, git worktrees, Telegram,
+Claude/Codex/Grok runtimes. Blocking severity is reserved for crash, data loss or
+corruption, security, or a shared-runtime availability failure. A useful but
+non-blocking improvement is `suggestion`; style is `nit` and should be omitted.
+
+The corpus contains four independent compact historical patch excerpts. Review
+each case independently against its stated contract. The excerpt contains every
+call-site fact needed for the intended classification; do not invent unseen
+code. For every case, report:
+
+1. `blocking`: zero or more concrete blockers, with mechanism and observable
+   consequence;
+2. `suggestion`: only real non-blocking value;
+3. `verdict`: `PASS` when no blocker, otherwise `BLOCK`.
+
+Use exactly these headings: `## Summary`, `## Case K2`, `## Case M7`, `## Case
+Q4`, `## Case T9`, `## Verdict`. Include one exact line from
+`frozen_corpus.md` to prove the target was read. One fresh pass only; no debate.
+

@@ -1,0 +1,23 @@
+{
+  "commitment": "f728c37b19a26d33f4e48b8d124fe7d896170fca67f479ba7ff3b455599a06eb",
+  "nonce": "c60c967eee404d8aab0896e69a030025",
+  "scheme": "sha256(canonical_json(truth, sort_keys=True, separators=(',', ':')) + nonce)",
+  "truth": {
+    "K2": {
+      "label": "defect",
+      "required_blocker": "downstream strict admission rejects unknown after the new fail-open gate, so session creation can succeed while initial task delivery fails"
+    },
+    "M7": {
+      "label": "clean",
+      "required_blocker": null
+    },
+    "Q4": {
+      "label": "defect",
+      "required_blocker": "the per-chat lock is held across flood/network sleeps and retries, starving all deliveries for that chat behind one slow important send"
+    },
+    "T9": {
+      "label": "clean",
+      "required_blocker": null
+    }
+  }
+}

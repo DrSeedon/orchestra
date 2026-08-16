@@ -1,0 +1,131 @@
+{
+  "post": {
+    "backup_bytes": 324218880,
+    "backup_sha256": "147e794c435929ec093217136905d0c1692352e6665bda25cf0b27e24955b880",
+    "codex_main_utilization": 12.0,
+    "codex_resets_at": "2026-08-23T07:26:39Z",
+    "integrity_check": "ok",
+    "last_turn_usage_id": 3537,
+    "last_turn_usage_ts": "2026-08-16T10:25:59.998460+00:00",
+    "provider_sample_ts": "2026-08-16T10:26:20.575361+00:00",
+    "taken_at": "2026-08-16T10:27:28.600487+00:00"
+  },
+  "pre": {
+    "backup_bytes": 323035136,
+    "backup_sha256": "aba8f5d66a41f94e5f3a2aa3cd4a28a3fb09752f5cf339f4eb6412cd67864d98",
+    "codex_main_utilization": 12.0,
+    "codex_resets_at": "2026-08-23T07:26:39Z",
+    "integrity_check": "ok",
+    "last_turn_usage_id": 3535,
+    "last_turn_usage_ts": "2026-08-16T10:23:30.461513+00:00",
+    "provider_sample_ts": "2026-08-16T10:21:18.984957+00:00",
+    "taken_at": "2026-08-16T10:23:38.375541+00:00"
+  },
+  "pricing_source": "app/backend_codex.py CODEX_TOKEN_PRICES at cutoff",
+  "provider_budget": {
+    "attribution": "Direct ephemeral A/B calls are measured from their JSONL; all intervening turn_usage rows are foreign. The provider counter is global and integer-quantized.",
+    "foreign_turn_count": 2,
+    "foreign_turns": [
+      {
+        "api_equivalent_cost_usd": 8.200567,
+        "cached_input_tokens": 11138304,
+        "id": 3536,
+        "input_tokens": 11389307,
+        "model": "gpt-5.6-sol",
+        "output_tokens": 45880,
+        "runtime": "codex",
+        "session_hash": "b5b2012537f4",
+        "ts": "2026-08-16T10:24:01.958710+00:00"
+      },
+      {
+        "api_equivalent_cost_usd": 0.374833,
+        "cached_input_tokens": 635136,
+        "id": 3537,
+        "input_tokens": 639341,
+        "model": "gpt-5.6-sol",
+        "output_tokens": 1208,
+        "runtime": "codex",
+        "session_hash": "b5b2012537f4",
+        "ts": "2026-08-16T10:25:59.998460+00:00"
+      }
+    ],
+    "integer_utilization_delta_points": 0.0,
+    "reset_unchanged": true
+  },
+  "raw_retention": "Raw JSONL and SQLite snapshots were deleted after this aggregate was frozen.",
+  "runs": {
+    "luna": {
+      "agent_message_events": 2,
+      "api_equivalent_cost_usd": 0.00649676,
+      "command_execution_events": 2,
+      "error_events": 0,
+      "event_counts": {
+        "item.completed": 3,
+        "item.started": 1,
+        "thread.started": 1,
+        "turn.completed": 1,
+        "turn.started": 1
+      },
+      "item_counts": {
+        "agent_message": 2,
+        "command_execution": 2
+      },
+      "job": {
+        "created_at": "2026-08-16T10:23:58.794036+00:00",
+        "error_present": false,
+        "exit_code": 0,
+        "status": "triggered",
+        "triggered_at": "2026-08-16T10:25:31.063558+00:00",
+        "wall_seconds": 92.269522
+      },
+      "model": "gpt-5.6-luna",
+      "outside_path_pattern_count": 0,
+      "raw_jsonl_sha256": "52b4d68c99ca1b79dfedcaa0103efd9eac4da6a0b0f5cf62e35fb34cb626507f",
+      "review_sha256": "38a5b6ca49b6061ed4cb33854b06325306f6d0ad5b430f627e81f125d200970a",
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 30208,
+        "input_tokens": 45217,
+        "output_tokens": 2409,
+        "reasoning_output_tokens": 2119
+      }
+    },
+    "sol": {
+      "agent_message_events": 2,
+      "api_equivalent_cost_usd": 0.183838,
+      "command_execution_events": 2,
+      "error_events": 0,
+      "event_counts": {
+        "item.completed": 3,
+        "item.started": 1,
+        "thread.started": 1,
+        "turn.completed": 1,
+        "turn.started": 1
+      },
+      "item_counts": {
+        "agent_message": 2,
+        "command_execution": 2
+      },
+      "job": {
+        "created_at": "2026-08-16T10:25:57.501221+00:00",
+        "error_present": false,
+        "exit_code": 0,
+        "status": "triggered",
+        "triggered_at": "2026-08-16T10:27:09.473497+00:00",
+        "wall_seconds": 71.972276
+      },
+      "model": "gpt-5.6-sol",
+      "outside_path_pattern_count": 0,
+      "raw_jsonl_sha256": "19cc764d4461e7233681fbfeef5af105bd4a083556ded6c4afa38fcf73954847",
+      "review_sha256": "9794d83c7c498942336ac4e74a35213368cef6f8a9789ce315513625d46ab8ae",
+      "usage": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 32256,
+        "input_tokens": 47822,
+        "output_tokens": 2996,
+        "reasoning_output_tokens": 2588
+      }
+    }
+  },
+  "schema_version": 1
+}

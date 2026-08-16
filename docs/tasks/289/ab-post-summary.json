@@ -1,0 +1,11 @@
+{
+  "backup_bytes": 324218880,
+  "backup_sha256": "147e794c435929ec093217136905d0c1692352e6665bda25cf0b27e24955b880",
+  "codex_main_utilization": 12.0,
+  "codex_resets_at": "2026-08-23T07:26:39Z",
+  "integrity_check": "ok",
+  "last_turn_usage_id": 3537,
+  "last_turn_usage_ts": "2026-08-16T10:25:59.998460+00:00",
+  "provider_sample_ts": "2026-08-16T10:26:20.575361+00:00",
+  "taken_at": "2026-08-16T10:27:28.600487+00:00"
+}
