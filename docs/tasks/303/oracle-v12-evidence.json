@@ -1,0 +1,159 @@
+{
+  "schema": "orchestra.task303.oracle-freeze-evidence.v12",
+  "date": "2026-08-16",
+  "freeze_commit": "a60337de58d282477575130d27c70894604d3d94",
+  "status": "frozen_red_approved_for_phase3_delivery",
+  "production_or_configuration_changed": false,
+  "production_activation_performed": false,
+  "implementation_performed": false,
+  "v9_v10_v11": {
+    "authority_and_delivery_review_verdicts_preserved": "APPROVED",
+    "oracle_bytes_unchanged": true,
+    "carried_forward_as_green_implementation_evidence": false,
+    "v11_status": "superseded_for_implementation_runtime_prefix_instability"
+  },
+  "v11_blocker_evidence": {
+    "implementation_commit": "0904572a",
+    "stop_commit": "2d1aec30",
+    "members_per_build": 3438,
+    "real_directories_per_build": 408,
+    "raw_differences": 38,
+    "activation_differences": 5,
+    "console_script_differences": 17,
+    "record_differences": 16,
+    "cause": "absolute scratch virtual-environment build prefix"
+  },
+  "oracle_sha256": {
+    "oracle_v12_support.py": "cd04eb19f0f29bee33b15bed17cc87c2ce8a7a7a7211317a40d1866b91cb8cd7",
+    "v12_delivery_gate.py": "45b18eaa3e2434b64f7ebb35a62cd43ab659c3ad187567986eff9211511da924",
+    "test_v12_delivery_oracle.py": "bc205fcf675919438bf3d2acf1b170272434eab444aa60f052e678ff243f478b",
+    "oracle_v11_support.py": "4e150be3a3c4e544fcdc782ae6205648645b2f0325cc356db9aaa84c858e7507",
+    "v11_delivery_gate.py": "36d866b22bf145cd17bc587315c7a4dac6c26216ab9bcbbd2941f35f0faadbad",
+    "test_v11_delivery_oracle.py": "dc8fe816d94815cfb2054c64dab58914768ecc4719d7330011851362bd42f0ea",
+    "oracle_v10_support.py": "172b279e6c884cdafcf5ade420e4e34fc9a09eef7f614e57c95035c11d83c6a9",
+    "v10_delivery_gate.py": "f3be12d4834776ec0b4fff2b5eb39e0ab495c8dde7b2243ca50f9adf254a764a",
+    "test_v10_delivery_oracle.py": "8411c2b987380fc6e0ab444af0dd4096f39627eea27463b26c63cd98bc4fb4ef",
+    "oracle_support.py": "6a0d1262f55b3fc4e3d8382a4a3f351bd7b1f184a1918e65f1ec9e82d0f9e421",
+    "test_authority_oracle_selftest.py": "1f7d042c59c5e57e48f979b06d725fb2e4827986d23876fe7c250193cb9db66f",
+    "test_release_a_recovery.py": "ed79bd5541ae7c7be876ae6d75324d714c8e871dce181e47b7621734776facc5",
+    "test_release_b_identity.py": "a4fb65f1bc54ff195ada6bb9e07d519dbd5817ac5b85a7350714847ac5dca426",
+    "test_release_c_credentials.py": "372460aa70f4427fe185eaf0349ed0d40ea340bffcbe1d683604be231fb0d99b",
+    "test_release_d_env.py": "be89030df06a5c3d25f28e92ba9fb5c8a4c71ad9903beb90487ead2181df1f3d"
+  },
+  "supporting_sha256": {
+    "oracle-selftest-v12.txt": "ffa4dbc01511bb3291fefc6cdf4a91d4fc6cac382bfe5a9f43323d72605547e6",
+    "reference-runtime-v12.txt": "dc777ef451564e1ea8f93e510e00ee01b58cdfca9210b50adc929ea5563217b5",
+    "option-evaluation-v12.txt": "29b27de396fa926f3e5104a26aca05f5d253b012e7cc2d6787fcd00262b79268",
+    "mutation-v12.txt": "57c5728872cc63ec24844033b513a5af42105744b1a45629ff4df39e2f7d3ea5",
+    "red-delivery-a-v12.txt": "bbe451b9fe00d7e0fa100c277799e6a9ce08fc7b5a84be04ab06745eb7cdecbc",
+    "red-delivery-b-v12.txt": "1aa0c6690b00b4a59d143329d106a6adf570abefd66c3ae9ed350c89754e8b7c",
+    "red-delivery-c-v12.txt": "8fef80941bf97abe0b06daf04d4dc268a532dd5a84913aee1ca9f7bb40840c8c",
+    "red-delivery-d-v12.txt": "f7c9548cd0dae3d20079164a45ebe96b18b8035f5178749cd54827d01d76f564"
+  },
+  "selftest": {
+    "command": "env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 python -m pytest -p no:cacheprovider -q docs/tasks/303/test_v12_delivery_oracle.py docs/tasks/303/test_authority_oracle_selftest.py",
+    "exit_code": 0,
+    "passed": 15,
+    "output": "oracle-selftest-v12.txt"
+  },
+  "two_build_control": {
+    "exit_code": 0,
+    "python": "/usr/bin/python3.12",
+    "uv_mode": "sync --frozen --no-install-project",
+    "members_per_build": 3438,
+    "real_directories_per_build": 408,
+    "raw_differences": 38,
+    "normalized_differences": 0,
+    "unclassified_prefix_entries": 0,
+    "classified": {"activation": 5, "shebang": 17, "record": 16},
+    "normalized_content_sha256": "972672ddaa8d84856ff5f9e697490e49a3a18b1afd9bdaa75bff884dc4f54ac1",
+    "output": "reference-runtime-v12.txt"
+  },
+  "selected_packaging_contract": {
+    "choice": "delivery_normalizes_independently_enumerated_prefix_artifacts",
+    "install_prefix": "/opt/orchestra/runtimes/<full-source-commit>-<release-a-d>-py312",
+    "builder_receives_reference_path": false,
+    "candidate_is_normalized_by_oracle": false,
+    "activation_executes_checkout": false,
+    "activation_runs_uv_or_pip": false,
+    "activation_operation": "descriptor-pinned extraction of already validated package into a side-by-side versioned directory",
+    "rollback": "select the prior immutable versioned runtime",
+    "offline_activation": true,
+    "delivery_may_use_lock_hashed_network_or_cache": true,
+    "wheel_materialization_rejected_reason": "requires a new platform artifact selector/downloader/manifest and privileged package installation; empty-cache uv offline sync failed after partial target creation",
+    "output": "option-evaluation-v12.txt"
+  },
+  "negative_controls": {
+    "named_attacks": [
+      "arbitrary_install_prefix",
+      "unclassified_embedded_reference_prefix",
+      "console_shebang_record_hash_or_size_mismatch",
+      "manifest_install_prefix_mismatch",
+      "candidate_and_manifest_common_mode_prefix_lie"
+    ],
+    "one_guard_at_a_time_mutations": [
+      {"guard": "fixed_install_prefix_allowlist", "result": "1 failed"},
+      {"guard": "unclassified_reference_prefix_rejection", "result": "1 failed"},
+      {"guard": "record_recomputation", "result": "1 failed"},
+      {"guard": "manifest_install_prefix_binding", "result": "1 failed"},
+      {"guard": "candidate_reference_exact_equality", "result": "1 failed"}
+    ],
+    "output": "mutation-v12.txt"
+  },
+  "delivery_contract": {
+    "inherits_v11_link_inventory_and_pinned_snapshot_toctou_controls": true,
+    "reference_prefix_grammars_independently_enumerated": true,
+    "unclassified_reference_prefix_rejected": true,
+    "record_rows_owned_by_changed_shebangs_recomputed": true,
+    "candidate_raw_inventory_compared_to_independent_normalized_reference": true,
+    "final_prefix_derived_from_release_and_full_source_commit": true,
+    "required_report_values": {
+      "activation_ready": false,
+      "privileged_evidence": "pending",
+      "activation_authorized": false,
+      "isolation_claimed": false,
+      "protected_secret_comparison": "pending_privileged_activation"
+    },
+    "activation_consumer_input": false,
+    "privileged_release_evidence": false
+  },
+  "releases": {
+    "A": {"delivery": {"exit_code": 1, "failed": 2, "passed": 16, "output": "red-delivery-a-v12.txt", "status": "red_missing_behavior"}, "activation": "mandatory_pending_v9_v10_host_gate"},
+    "B": {"delivery": {"exit_code": 1, "failed": 2, "passed": 15, "output": "red-delivery-b-v12.txt", "status": "red_missing_behavior"}, "activation": "mandatory_pending_v9_v10_host_gate"},
+    "C": {"delivery": {"exit_code": 1, "failed": 1, "passed": 9, "output": "red-delivery-c-v12.txt", "status": "red_missing_behavior"}, "activation": "mandatory_pending_v9_v10_host_gate", "global_provider_latch": "not_evaluated_pending_all_four_providers"},
+    "D": {"delivery": {"exit_code": 1, "failed": 4, "passed": 9, "output": "red-delivery-d-v12.txt", "status": "red_missing_behavior"}, "activation": "mandatory_pending_v9_v10_host_gate"}
+  },
+  "activation_gate": {
+    "v9_v10_authority_oracles_unchanged": true,
+    "may_be_green_in_implementation_phase": false,
+    "may_be_skipped": false,
+    "may_be_synthesized": false,
+    "may_accept_delivery_report": false
+  },
+  "review_decision_inputs": {
+    "changed_files": ["docs/tasks/303/oracle_v12_support.py", "docs/tasks/303/v12_delivery_gate.py", "docs/tasks/303/test_v12_delivery_oracle.py", "docs/tasks/303/plan.md", "docs/tasks/303/recovery-runbook.md"],
+    "consumers": ["phase3_delivery_implementer", "targeted_security_reviewer", "later_privileged_activation_operator"],
+    "author_model": "gpt-5.6-sol",
+    "author_runtime": "Codex",
+    "risk_floor": "mandatory_targeted_sol_security_review",
+    "exact_ac": "two fresh runtimes normalize to identical final-prefix bytes; arbitrary prefix, unclassified path, shebang/RECORD mismatch, install-prefix mismatch, and candidate/reference common-mode lies fail; V9-V11 bytes stay unchanged; package GREEN cannot authorize activation or claim isolation"
+  },
+  "independent_review": {
+    "path": "enforcement-oracle-audit-v12.md",
+    "status": "approved_round_1",
+    "review_artifact_commit": "9e73de0de936db2806937cea553dc4ebc6d11d4b",
+    "review_sha256": "4da2226b720459e117c6ad53b963d6313e84841022ec5224a1988417872697d4",
+    "review_round": 1,
+    "review_execution": {
+      "command": "env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 python -m pytest -p no:cacheprovider -q docs/tasks/303/test_v12_delivery_oracle.py docs/tasks/303/test_authority_oracle_selftest.py",
+      "exit_code": 0,
+      "output": "15 passed in 7.25s"
+    },
+    "registered_hashes": 23,
+    "registered_hash_mismatches": 0,
+    "blocking_findings": 0,
+    "suggestions": 0,
+    "verdict": "APPROVED",
+    "cross_family_review": "unavailable"
+  }
+}

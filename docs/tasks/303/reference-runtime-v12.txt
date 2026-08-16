@@ -1,0 +1,17 @@
+uv_version=0.11.28
+python=/usr/bin/python3.12
+command=uv sync --frozen --python /usr/bin/python3.12 --no-install-project
+fresh_builds=2
+members_each=3438
+real_directories_each=408
+raw_byte_differences=38
+classified_activation=5
+classified_console_shebang=17
+recomputed_owning_record=16
+unclassified_private_prefix_entries=0
+normalized_byte_differences=0
+residual_private_prefix_entries=0
+normalized_tree_sha256_one=972672ddaa8d84856ff5f9e697490e49a3a18b1afd9bdaa75bff884dc4f54ac1
+normalized_tree_sha256_two=972672ddaa8d84856ff5f9e697490e49a3a18b1afd9bdaa75bff884dc4f54ac1
+install_prefix=/opt/orchestra/runtimes/<40-lowercase-source-commit>-<release-a-d>-py312
+oracle_private_reference_path_in_output=false

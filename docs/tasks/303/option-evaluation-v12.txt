@@ -1,0 +1,22 @@
+normalization_control:
+  two fresh uv runtimes: 3438 members each; directory sets equal
+  raw differences: 38 = 5 exact activation assignments + 17 exact executable shebangs + 16 owning RECORD files
+  after independent final-prefix normalization and owning-RECORD recomputation: 0 differences, 0 residual private-prefix entries
+  root activation work: descriptor-pinned extraction only; no checkout script or package installer executes as root
+  rollback: side-by-side immutable full-commit/release path; current selector remains the only switch
+  offline activation: yes; the accepted tar is self-contained
+  cold delivery build: may fetch lock-hashed inputs; it is not falsely called offline
+
+offline_wheel_materialization_control:
+  uv 0.11.28 has sync/pip-sync --offline --no-index --find-links --no-build, but no download subcommand
+  empty-cache uv sync --offline --frozen --no-build exit=1 and created an incomplete target before reporting missing claude_agent_sdk wheel data
+  uv.lock packages: 99 total = 98 registry packages with wheel lists + 1 virtual Orchestra project
+  uv export requirements-txt emitted 1475 wheel/sdist hash lines across platform alternatives
+  a self-contained input therefore needs a new platform-wheel selector/downloader/manifest plus exact uv executable/config identity
+  root activation work: invoke uv against packaged metadata/wheels, then attest and clean partial targets on every failure
+  deterministic final bytes: deferred until privileged materialization, so delivery cannot compare the final tree
+  root checkout execution: avoidable with --no-install-project, but the root authority surface still gains a package installer and wheel parser
+
+decision:
+  choose the narrowly classified final-prefix normalization contract
+  reject root-time wheel materialization for V12 because it moves byte creation into activation and expands root authority without fixing the present 38-byte issue more simply

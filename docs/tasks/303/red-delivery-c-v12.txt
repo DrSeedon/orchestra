@@ -1,0 +1,4 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 python docs/tasks/303/v12_delivery_gate.py C
+exit_code: 1
+result: 1 failed, 9 passed in 8.21s
+failure: AssertionError: T-C missing behavior: provider credentials and project tools share one authority domain

@@ -1,0 +1,5 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 python docs/tasks/303/v12_delivery_gate.py A
+exit_code: 1
+result: 2 failed, 16 passed in 7.01s
+failure: AssertionError: T-A missing behavior: the live unit still starts through a mutable uv environment
+failure: AssertionError: T-A missing behavior: no shipped activation-surface manifest exists

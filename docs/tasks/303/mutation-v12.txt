@@ -1,0 +1,23 @@
+arbitrary install-prefix allowlist disabled:
+FAILED test_v12_rejects_arbitrary_or_mismatched_install_prefix: DID NOT RAISE AssertionError
+1 failed
+
+unclassified embedded reference-prefix rejection disabled:
+FAILED test_v12_rejects_unclassified_embedded_build_prefix: DID NOT RAISE AssertionError
+1 failed
+
+owning RECORD recomputation replaced with original hash/size:
+FAILED test_v12_rejects_shebang_record_mismatch: DID NOT RAISE AssertionError
+1 failed
+
+manifest-to-derived install-prefix binding disabled:
+FAILED test_v12_rejects_arbitrary_or_mismatched_install_prefix: DID NOT RAISE AssertionError
+1 failed
+
+candidate-to-independent-normalized-inventory equality disabled:
+FAILED test_v12_rejects_candidate_manifest_common_mode_prefix_lie: DID NOT RAISE AssertionError
+1 failed
+
+all five guards restored; clean rerun:
+...............                                                          [100%]
+15 passed in 7.09s

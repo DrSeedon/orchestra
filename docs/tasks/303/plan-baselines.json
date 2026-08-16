@@ -1,26 +1,49 @@
 {
   "schema": "orchestra.task303.plan-baselines.v1",
   "candidate": {
-    "commit": "4d5a49aa145772307e9f4333859ddea7a8c6daf5",
+    "commit": "a60337de58d282477575130d27c70894604d3d94",
     "outputs": [
-      "oracle-selftest-v11.txt",
-      "reference-runtime-v11.txt",
-      "mutation-v11.txt",
-      "red-delivery-a-v11.txt",
-      "red-delivery-b-v11.txt",
-      "red-delivery-c-v11.txt",
-      "red-delivery-d-v11.txt"
+      "oracle-selftest-v12.txt",
+      "reference-runtime-v12.txt",
+      "option-evaluation-v12.txt",
+      "mutation-v12.txt",
+      "red-delivery-a-v12.txt",
+      "red-delivery-b-v12.txt",
+      "red-delivery-c-v12.txt",
+      "red-delivery-d-v12.txt"
     ],
-    "evidence": "oracle-v11-evidence.json",
-    "review": "enforcement-oracle-audit-v11.md",
-    "review_artifact_commit": "a1524ea333899d60aadfb563bb45be54cc01fdd2",
-    "review_sha256": "1c234fe83756837496c4f6312857e5e695fd0d7a2301d8a20994bc835144285b",
-    "review_round": 2,
+    "evidence": "oracle-v12-evidence.json",
+    "review": "enforcement-oracle-audit-v12.md",
+    "review_artifact_commit": "9e73de0de936db2806937cea553dc4ebc6d11d4b",
+    "review_sha256": "4da2226b720459e117c6ad53b963d6313e84841022ec5224a1988417872697d4",
+    "review_round": 1,
     "verdict": "APPROVED",
     "cross_family_review": "unavailable",
     "status": "frozen_red_approved_for_phase3_delivery"
   },
   "superseded_for_implementation": [
+    {
+      "commit": "4d5a49aa145772307e9f4333859ddea7a8c6daf5",
+      "outputs": [
+        "oracle-selftest-v11.txt",
+        "reference-runtime-v11.txt",
+        "mutation-v11.txt",
+        "red-delivery-a-v11.txt",
+        "red-delivery-b-v11.txt",
+        "red-delivery-c-v11.txt",
+        "red-delivery-d-v11.txt"
+      ],
+      "review": "enforcement-oracle-audit-v11.md",
+      "review_artifact_commit": "a1524ea333899d60aadfb563bb45be54cc01fdd2",
+      "review_sha256": "1c234fe83756837496c4f6312857e5e695fd0d7a2301d8a20994bc835144285b",
+      "review_round": 2,
+      "verdict": "APPROVED",
+      "directory_link_and_toctou_evidence_preserved": true,
+      "oracle_bytes_unchanged": true,
+      "carried_forward_as_green_evidence": false,
+      "status": "superseded_for_implementation_runtime_prefix_instability",
+      "blocker_commits": ["0904572a", "2d1aec30"]
+    },
     {
       "commit": "82247195ed2819414354fb0807c1993aaad1f31e",
       "outputs": [
