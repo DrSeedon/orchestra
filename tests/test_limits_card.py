@@ -120,3 +120,26 @@ async def test_limits_usage_carries_quota_headroom(monkeypatch):
     monkeypatch.setattr(system, "_quota_headroom", lambda anthropic: {"rate": 0.13})
 
     assert (await tb._get_limits_usage())["quota_headroom"] == {"rate": 0.13}
+
+
+@pytest.mark.asyncio
+async def test_usage_card_endpoint_uses_the_canonical_renderer(monkeypatch, tmp_path):
+    """Other local clients must receive the same PNG as Orchestra's Telegram bridge."""
+    import app.limits_card as card
+    import app.routes.system as system
+
+    png = tmp_path / "limits.png"
+    png.write_bytes(b"png")
+    raw = {"anthropic": {}}
+    monkeypatch.setattr(system, "is_owner_mode", lambda: True)
+    monkeypatch.setattr(system, "_get_usage_data", AsyncMock(return_value=raw))
+    monkeypatch.setattr(system, "_quota_headroom", lambda anthropic: {"rate": 0.13})
+    render = AsyncMock(return_value=str(png))
+    monkeypatch.setattr(card, "render_limits_card", render)
+
+    response = await system.get_usage_card()
+
+    render.assert_awaited_once_with({"anthropic": {}, "quota_headroom": {"rate": 0.13}})
+    assert response.path == str(png)
+    assert response.media_type == "image/png"
+    assert response.filename == "limits.png"
