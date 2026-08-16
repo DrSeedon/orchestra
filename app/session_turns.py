@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from app.db import turn_usage_add
 from app.events import AgentEvent
 from app.session_state import AgentStatus
+from app.turn_markers import is_successful_silent_turn
 
 if TYPE_CHECKING:
     from app.session import AgentSession
@@ -231,6 +232,9 @@ class TurnManager:
             return
         if s._last_turn_ok and not s._turn_logs:
             return
+        silent_turn = is_successful_silent_turn(
+            getattr(s, "_last_text_output", None), s._last_turn_ok
+        )
         # An unparented worker started directly from dashboard/TG has nobody to report
         # to. A parented child must still report: parent_name survives service restarts
         # even when the transient last_task_sender metadata does not.
@@ -248,7 +252,9 @@ class TurnManager:
             # #231: осушение проверяется В ТОЙ ЖЕ транзакции, что и фиксация терминала.
             # Раздельные «посмотреть» и «записать» пропускают `wake=False`, легший
             # между ними, — и веер отпустится по ребёнку, не видевшему своего входа.
-            silent_text = "\n".join(str(item) for item in (s._turn_logs or []))
+            silent_text = "" if silent_turn else "\n".join(
+                str(item) for item in (s._turn_logs or [])
+            )
             if fan_barrier.record_terminal(
                 s.name,
                 "done",
@@ -275,7 +281,7 @@ class TurnManager:
                     s._auto_report_task = asyncio.create_task(_deliver_manifest())
             return
 
-        if s._did_report:
+        if s._did_report or silent_turn:
             return
 
         last_texts = s._turn_logs[-5:] if s._turn_logs else []

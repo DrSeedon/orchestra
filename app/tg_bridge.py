@@ -26,6 +26,10 @@ from telegramify_markdown import convert as md_convert
 
 from app.errtext import err_text
 from app.tasks import spawn_supervised
+from app.turn_markers import (
+    SILENT_TURN_MARKER as TG_SILENT_TURN_MARKER,
+    is_silent_turn_text,
+)
 from app.transcription import transcribe_audio as _transcribe_audio
 
 logger = logging.getLogger("tg-bridge")
@@ -100,9 +104,6 @@ UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
 # for it (#241). Accepts "@username" or a numeric user_id; the id renders as a tg://
 # text_mention and notifies even when the username does not resolve for the bot.
 TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
-
-# Exact protocol token: broadening this match can silently hide real user-facing text.
-TG_SILENT_TURN_MARKER = "[[ORCHESTRA:SILENT_TURN]]"
 
 # Единственный повод дёрнуть юзера (#241). Признак СТРУКТУРНЫЙ — строка журнала должна
 # БЫТЬ вызовом тула (`type == "tool"` + это имя в колонке `tool_name`), а не текстом,
@@ -3172,7 +3173,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                         else:
                             text = f"👤\n{c}" if c.startswith("> ") else f"👤 {c}"
                     elif t == "text":
-                        if c == TG_SILENT_TURN_MARKER:
+                        if is_silent_turn_text(c):
                             continue
                         from app.tool_call_guard import mark_unexecuted_tool_call
 

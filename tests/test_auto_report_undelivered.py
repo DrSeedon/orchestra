@@ -3,6 +3,7 @@
 Стенд живой: настоящий репозиторий, настоящий отказ авто-switch у ОРКЕСТРАТОРА (то есть
 принять он не может), воркер уходит в idle и отчитывается.
 """
+import asyncio
 import logging
 import subprocess
 import uuid
@@ -127,6 +128,31 @@ async def test_successful_auto_report_leaves_no_record(env, monkeypatch):
         await callback("worker", env["repo"], ["вывод"], "", True)
 
     assert not _delivery_rows(env["boss_id"]), "удачная доставка не должна оставлять след"
+
+
+@pytest.mark.asyncio
+async def test_silent_marker_auto_report_leaves_no_record(env):
+    from tests.conftest import make_backend_mock
+
+    with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+        from app.main import manager
+
+        manager.sessions.clear()
+        await manager.ensure_loaded_any("boss")
+        worker = await manager.ensure_loaded_any("worker")
+        worker.on_idle = manager._make_idle_callback(env["repo"])
+        worker.parent_name = "boss"
+        worker.last_task_sender = "boss"
+        worker._turn_logs = ["[tool] inspect", "[[ORCHESTRA:SILENT_TURN]]"]
+        worker._last_text_output = "[[ORCHESTRA:SILENT_TURN]]"
+        worker._last_turn_ok = True
+        worker._turns.fire_auto_report()
+        if worker._auto_report_task is not None:
+            await worker._auto_report_task
+
+    assert not _delivery_rows(env["boss_id"]), (
+        "семантически тихий ход не должен создавать запись недоставленного автоотчёта"
+    )
 
 
 @pytest.mark.asyncio

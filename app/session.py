@@ -386,6 +386,7 @@ class AgentSession:
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
+    _last_text_output: Optional[str] = field(default=None, repr=False)
     _tool_names_by_id: dict = field(default_factory=dict, repr=False)
     _prompt_injected: bool = field(default=False, repr=False)
     _current_prompt: str = field(default="", repr=False)
@@ -1109,6 +1110,7 @@ class AgentSession:
                 await self._refresh_stale_backend()  # new turn -> fresh tools (#230 T9)
                 self._turns.bump_turn_gen()
                 self._turn_logs = []
+                self._last_text_output = None
                 self._turn_start = asyncio.get_event_loop().time()
                 self._last_msg_time = self._turn_start
                 self.status = AgentStatus.RUNNING
@@ -1655,6 +1657,7 @@ class AgentSession:
                 self._safeguard_refusal = event.content
             self._log("text", event.content)
             self._turn_logs.append(event.content)
+            self._last_text_output = event.content
         elif event.type == "thinking":
             self._log("thinking", event.content)
         elif event.type == "tool_use":
@@ -1809,6 +1812,7 @@ class AgentSession:
                 await self._refresh_stale_backend()  # new turn -> fresh tools (#230 T9)
                 self._turns.bump_turn_gen()
                 self._turn_logs = []
+                self._last_text_output = None
                 self._turn_start = asyncio.get_event_loop().time()
                 self._last_msg_time = self._turn_start
                 self.status = AgentStatus.RUNNING
@@ -2259,6 +2263,7 @@ class AgentSession:
                 self._turns.bump_turn_gen()
                 self._compact_ack_gen = self._turn_gen
                 self._turn_logs = []
+                self._last_text_output = None
                 self._turn_start = asyncio.get_event_loop().time()
                 self._last_msg_time = self._turn_start
                 self.status = AgentStatus.RUNNING

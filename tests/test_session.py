@@ -924,6 +924,157 @@ async def test_auto_report_skips_successful_silent_turn(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_auto_report_skips_exact_silent_marker(monkeypatch):
+    s = _mk_session(monkeypatch)
+    s.on_idle = AsyncMock()
+    s.last_task_sender = "parent"
+    s._turn_logs = ["[[ORCHESTRA:SILENT_TURN]]"]
+    s._last_text_output = "[[ORCHESTRA:SILENT_TURN]]"
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0)
+
+    s.on_idle.assert_not_awaited()
+    assert s._auto_report_task is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "content",
+    [
+        " [[ORCHESTRA:SILENT_TURN]]",
+        "[[ORCHESTRA:SILENT_TURN]] ",
+        "prefix [[ORCHESTRA:SILENT_TURN]]",
+        "[[ORCHESTRA:SILENT_TURN]] suffix",
+    ],
+)
+async def test_auto_report_keeps_silent_marker_near_misses(monkeypatch, content):
+    s = _mk_session(monkeypatch)
+    fired = []
+
+    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
+        fired.append(texts)
+
+    s.on_idle = on_idle
+    s.last_task_sender = "parent"
+    s._turn_logs = [content]
+    s._last_text_output = content
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0.05)
+
+    assert fired == [[content]]
+
+
+@pytest.mark.asyncio
+async def test_failed_turn_with_silent_marker_is_reported(monkeypatch):
+    s = _mk_session(monkeypatch)
+    fired = []
+
+    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
+        fired.append((texts, turn_ok))
+
+    s.on_idle = on_idle
+    s.last_task_sender = "parent"
+    s._last_turn_ok = False
+    s._turn_logs = ["[[ORCHESTRA:SILENT_TURN]]"]
+    s._last_text_output = "[[ORCHESTRA:SILENT_TURN]]"
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0.05)
+
+    assert fired == [(["[[ORCHESTRA:SILENT_TURN]]"], False)]
+
+
+@pytest.mark.asyncio
+async def test_unparented_silent_marker_does_not_wake_anyone(monkeypatch):
+    s = _mk_session(monkeypatch)
+    s.on_idle = AsyncMock()
+    s.parent_name = ""
+    s.last_task_sender = ""
+    s._turn_logs = ["[[ORCHESTRA:SILENT_TURN]]"]
+    s._last_text_output = "[[ORCHESTRA:SILENT_TURN]]"
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0)
+
+    s.on_idle.assert_not_awaited()
+    assert s._auto_report_task is None
+
+
+@pytest.mark.asyncio
+async def test_auto_report_ignores_tool_logs_before_exact_final_marker(monkeypatch):
+    s = _mk_session(monkeypatch)
+    s.on_idle = AsyncMock()
+    s.last_task_sender = "parent"
+    s._turn_logs = ["[tool] inspect", "[[ORCHESTRA:SILENT_TURN]]"]
+    s._last_text_output = "[[ORCHESTRA:SILENT_TURN]]"
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0)
+
+    s.on_idle.assert_not_awaited()
+    assert s._auto_report_task is None
+
+
+@pytest.mark.asyncio
+async def test_auto_report_uses_typed_final_text_after_tool_event(monkeypatch):
+    from app.events import AgentEvent
+
+    s = _mk_session(monkeypatch)
+    s.on_idle = AsyncMock()
+    s.last_task_sender = "parent"
+    s._log = lambda *args, **kwargs: None
+    s._handle_event(AgentEvent("tool_use", "inspect"))
+    s._handle_event(AgentEvent("text", "[[ORCHESTRA:SILENT_TURN]]"))
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0)
+
+    s.on_idle.assert_not_awaited()
+    assert s._turn_logs == ["[tool] inspect", "[[ORCHESTRA:SILENT_TURN]]"]
+
+
+@pytest.mark.asyncio
+async def test_auto_report_reports_tool_logs_before_marker_variant(monkeypatch):
+    s = _mk_session(monkeypatch)
+    fired = []
+
+    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
+        fired.append(texts)
+
+    s.on_idle = on_idle
+    s.last_task_sender = "parent"
+    s._turn_logs = ["[tool] inspect", "[[ORCHESTRA:SILENT_TURN]] "]
+    s._last_text_output = "[[ORCHESTRA:SILENT_TURN]] "
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0.05)
+
+    assert fired == [["[tool] inspect", "[[ORCHESTRA:SILENT_TURN]] "]]
+
+
+@pytest.mark.asyncio
+async def test_failed_turn_with_tool_logs_and_marker_is_reported(monkeypatch):
+    s = _mk_session(monkeypatch)
+    fired = []
+
+    async def on_idle(name, scope, texts, stop_reason="", turn_ok=True):
+        fired.append((texts, turn_ok))
+
+    s.on_idle = on_idle
+    s.last_task_sender = "parent"
+    s._last_turn_ok = False
+    s._turn_logs = ["[tool] inspect", "[[ORCHESTRA:SILENT_TURN]]"]
+    s._last_text_output = "[[ORCHESTRA:SILENT_TURN]]"
+
+    s._turns.fire_auto_report()
+    await asyncio.sleep(0.05)
+
+    assert fired == [(["[tool] inspect", "[[ORCHESTRA:SILENT_TURN]]"], False)]
+
+
+@pytest.mark.asyncio
 async def test_auto_report_cancelled_by_new_turn(monkeypatch):
     # Живой гейт "есть незавершённая активность" — pending_messages: если у агента
     # есть отложенные сообщения (пришёл новый ход), авто-репорт не стреляет.

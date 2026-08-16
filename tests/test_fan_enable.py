@@ -244,9 +244,12 @@ class _SilentChild:
     parent_name = "parent"
     last_task_sender = "parent"
 
-    def __init__(self, name, scope="/repo"):
+    def __init__(self, name, scope="/repo", logs=None, turn_ok=True):
         self.name = name
         self.scope = scope
+        self._turn_logs = ["did work"] if logs is None else logs
+        self._last_turn_ok = turn_ok
+        self._last_text_output = self._turn_logs[-1] if self._turn_logs else None
 
     async def on_idle(self, *a):
         return None
@@ -300,6 +303,33 @@ def test_impl5_silent_completion_wakes_reducer_not_parent(db, monkeypatch):
         f"молчаливый ребёнок разбудил {sid} вместо редьюсера — дорогой участник "
         "платит за сборку в зависимости от того, как ребёнок закончил ход"
     )
+
+
+def test_impl5_exact_silent_marker_completes_fan_without_manifest_noise(db, monkeypatch):
+    import app.fan_barrier as fb
+    from app.routes import sessions as rs
+    from app.session_turns import TurnManager
+
+    asyncio.run(rs.open_fan(rs.OpenFanRequest(
+        fan_id="F-silent-marker", parent_name="parent", scope="/repo",
+        children=["c-marker"], reducer="R",
+    )))
+    m = _SpyManager()
+    monkeypatch.setattr("app.deps.manager", m)
+    child = _SilentChild("c-marker", logs=["[[ORCHESTRA:SILENT_TURN]]"])
+
+    async def _go():
+        TurnManager(child).fire_auto_report()
+        if child._auto_report_task is not None:
+            await child._auto_report_task
+
+    asyncio.run(_go())
+
+    manifest = fb.manifest("F-silent-marker")
+    assert manifest["complete"] is True
+    assert manifest["members"][0]["state"] == "done"
+    assert len(m.sent) == 1 and m.sent[0][0] == "sid-R"
+    assert "ORCHESTRA:SILENT_TURN" not in m.sent[0][1]
 
 
 def test_impl6_manifest_survives_a_failed_delivery(db, monkeypatch):
