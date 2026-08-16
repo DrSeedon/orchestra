@@ -69,6 +69,57 @@ class TestInitDb:
         assert kv_get("turn_usage_collector_started_at") == turn_started
 
 
+def test_t1_artifact_registry_schema_is_exact_and_idempotent(db):
+    from app.db import _conn, init_db
+
+    init_db()
+    init_db()
+    with _conn() as conn:
+        columns = {
+            row[1]: (row[2], row[3])
+            for row in conn.execute("PRAGMA table_info(artifacts)").fetchall()
+        }
+        indexes = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='artifacts'"
+            ).fetchall()
+        }
+        sql = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='artifacts'"
+        ).fetchone()
+
+    expected = {
+        "id",
+        "capability_verifier",
+        "stored_name",
+        "content_sha256",
+        "display_name",
+        "publisher_session_id",
+        "publisher_name",
+        "scope",
+        "size_bytes",
+        "created_at",
+        "expires_at",
+        "state",
+        "activated_at",
+        "revoked_at",
+        "last_opened_at",
+        "open_count",
+    }
+    assert set(columns) == expected
+    assert "source_path" not in columns and "capability" not in columns
+    assert columns["capability_verifier"] == ("BLOB", 1)
+    assert columns["content_sha256"] == ("BLOB", 1)
+    assert "idx_artifacts_expiry" in indexes
+    assert sql is not None
+    normalized = " ".join(sql[0].lower().split())
+    assert "state in ('pending', 'active', 'revoked')" in normalized
+    assert "length(capability_verifier) = 32" in normalized
+    assert "length(content_sha256) = 32" in normalized
+    assert "size_bytes <= 10485760" in normalized
+
+
 class TestConnection:
     def test_wal_mode(self, db):
         from app.db import _conn

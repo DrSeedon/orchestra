@@ -27,6 +27,59 @@ async def _protocol_call(module, name, arguments):
 
 
 @pytest.mark.asyncio
+async def test_t2_publish_artifact_sends_only_path_caption_and_ttl(monkeypatch):
+    import app.mcp_stdio as m
+
+    api = AsyncMock(return_value={
+        "ok": True,
+        "artifact_id": "A" * 22,
+        "expires_at": 2_000_000_600,
+        "message_id": 77,
+    })
+    monkeypatch.setattr(m, "_api", api)
+
+    assert hasattr(m, "publish_artifact"), (
+        "#294 missing contract: MCP publish_artifact tool is not registered"
+    )
+    result = await m.publish_artifact("/scope/report.html", "report", 600)
+
+    api.assert_awaited_once()
+    args, kwargs = api.await_args
+    assert args == ("POST", "/api/artifacts/publish")
+    assert kwargs["json"] == {
+        "path": "/scope/report.html",
+        "caption": "report",
+        "ttl_seconds": 600,
+    }
+    serialized = str(result)
+    assert "/scope/report.html" not in serialized
+    assert "#" not in serialized
+
+
+@pytest.mark.asyncio
+async def test_t2_publish_failure_never_automatically_uses_document_fallback(monkeypatch):
+    import app.mcp_stdio as m
+
+    api = AsyncMock(return_value={
+        "error": "artifact link failed; use send_file(path, as_document=True)",
+    })
+    auto_send = AsyncMock(side_effect=AssertionError("fallback must remain explicit"))
+    monkeypatch.setattr(m, "_api", api)
+    monkeypatch.setattr(m, "send_file", auto_send)
+
+    assert hasattr(m, "publish_artifact"), (
+        "#294 missing contract: MCP publish_artifact tool is not registered"
+    )
+    with pytest.raises(m.ApiToolError) as caught:
+        await m.publish_artifact("/scope/report.html", "report", 600)
+
+    auto_send.assert_not_awaited()
+    assert "send_file" in str(caught.value)
+    assert "as_document=True" in str(caught.value)
+    assert "/scope/report.html" not in str(caught.value)
+
+
+@pytest.mark.asyncio
 async def test_api_429_preserves_typed_fields_and_request_id(monkeypatch):
     import app.mcp_stdio as m
 

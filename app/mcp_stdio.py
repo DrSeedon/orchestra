@@ -1251,6 +1251,27 @@ async def send_file(path: str, caption: str = "", as_document: bool = False) -> 
 
 
 @mcp.tool()
+async def publish_artifact(path: str, caption: str = "", ttl_seconds: int | None = None) -> str:
+    """Publish a private immutable HTML artifact; document fallback stays explicit."""
+    payload = {"path": path, "caption": caption}
+    if ttl_seconds is not None:
+        payload["ttl_seconds"] = ttl_seconds
+    result = await _api("POST", "/api/artifacts/publish", json=payload)
+    if isinstance(result, dict) and result.get("error"):
+        raise ApiToolError(
+            code="domain_error",
+            message="Artifact link failed; use send_file(path, as_document=True)",
+        )
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        raise ApiToolError(
+            code="invalid_response",
+            message="Artifact publication returned an invalid response; use send_file(path, as_document=True)",
+            outcome_unknown=True,
+        )
+    return f"Artifact published (id={result.get('artifact_id', '?')}, expires_at={result.get('expires_at', '?')})."
+
+
+@mcp.tool()
 async def send_chart(kind: str, title: str, data: dict, caption: str = "") -> str:
     """Draw a chart from data and send it to the user's Telegram as a picture. One call.
 

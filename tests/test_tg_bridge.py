@@ -16,9 +16,70 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from aiogram.types import LinkPreviewOptions
 from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError, TelegramRetryAfter
 from aiogram.methods import SendMessage
 from app.tg_bridge import stop_bridge as _real_stop_bridge
+
+
+@pytest.mark.asyncio
+async def test_t2_artifact_text_disables_link_preview_at_the_bot_call(tb, monkeypatch):
+    message = SimpleNamespace(message_id=77, chat=SimpleNamespace(id=-100123456))
+    tb.bot = AsyncMock()
+    tb.bot.send_message.return_value = message
+    monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+    result = await tb._tg_send_safe(
+        -100123456,
+        "https://artifacts.example.test/api/artifacts/open/locator#capability",
+        42,
+        important=True,
+        disable_link_preview=True,
+    )
+
+    assert result is message
+    options = tb.bot.send_message.await_args.kwargs["link_preview_options"]
+    assert isinstance(options, LinkPreviewOptions)
+    assert options.is_disabled is True
+
+
+@pytest.mark.asyncio
+async def test_t2_text_helper_threads_preview_disable_without_changing_document_fallback(
+    tb, tmp_path, monkeypatch,
+):
+    captured = {}
+    message = SimpleNamespace(message_id=77, chat=SimpleNamespace(id=-100123456))
+
+    async def send_safe(*args, **kwargs):
+        captured.update(kwargs)
+        return message
+
+    tb.bot = object()
+    tb.config["topics"] = {"publisher": 42}
+    monkeypatch.setattr(tb, "_tg_send_safe", send_safe)
+    text_result = await tb.send_text_to_tg(
+        "https://artifacts.example.test/open/id#cap",
+        scope="/scope",
+        sender="publisher",
+        disable_link_preview=True,
+    )
+    assert text_result["ok"] is True
+    assert captured["disable_link_preview"] is True
+
+    path = tmp_path / "fallback.html"
+    path.write_text("<!doctype html><p>fallback</p>")
+    file_calls = []
+
+    async def send_file(*args, **kwargs):
+        file_calls.append((args, kwargs))
+        return message
+
+    monkeypatch.setattr(tb, "_tg_send_file_safe", send_file)
+    file_result = await tb.send_file_to_tg(
+        str(path), "fallback", "/scope", "publisher", as_document=True,
+    )
+    assert file_result["ok"] is True
+    assert file_calls[0][1]["is_photo"] is False
 
 
 @pytest.fixture

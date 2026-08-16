@@ -96,6 +96,31 @@ def init_db() -> None:
                 config_dir TEXT NOT NULL DEFAULT '',
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS artifacts (
+                id TEXT PRIMARY KEY,
+                capability_verifier BLOB NOT NULL
+                    CHECK(length(capability_verifier) = 32),
+                stored_name TEXT NOT NULL UNIQUE,
+                content_sha256 BLOB NOT NULL CHECK(length(content_sha256) = 32),
+                display_name TEXT NOT NULL,
+                publisher_session_id TEXT NOT NULL,
+                publisher_name TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL
+                    CHECK(size_bytes > 0 AND size_bytes <= 10485760),
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL CHECK(expires_at > created_at),
+                state TEXT NOT NULL CHECK(state IN ('pending', 'active', 'revoked')),
+                activated_at INTEGER,
+                revoked_at INTEGER,
+                last_opened_at INTEGER,
+                open_count INTEGER NOT NULL DEFAULT 0 CHECK(open_count >= 0),
+                CHECK((state = 'pending' AND activated_at IS NULL AND revoked_at IS NULL)
+                   OR (state = 'active' AND activated_at IS NOT NULL AND revoked_at IS NULL)
+                   OR (state = 'revoked' AND revoked_at IS NOT NULL))
+            );
+            CREATE INDEX IF NOT EXISTS idx_artifacts_expiry
+                ON artifacts(state, expires_at);
             CREATE TABLE IF NOT EXISTS logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,

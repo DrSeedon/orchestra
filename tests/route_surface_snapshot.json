@@ -6,6 +6,37 @@
   ]
  ],
  [
+  "/api/artifacts/open/{locator}",
+  [
+   "GET",
+   "HEAD"
+  ]
+ ],
+ [
+  "/api/artifacts/open/{locator}/content",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/artifacts/open/{locator}/redeem",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/artifacts/publish",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/artifacts/{locator}/revoke",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/bg/jobs",
   [
    "GET"

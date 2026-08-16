@@ -282,6 +282,8 @@ async def lifespan(app: FastAPI):
     from app.session import validate_auto_compact_window_config
     validate_auto_compact_window_config()
     init_db()
+    from app.artifacts import cleanup_expired
+    cleanup_expired()
     _tunnel_started = False
     if not is_auth_enabled():
         # Model discovery may itself use a local SSH-forward from .env. Start those
@@ -395,6 +397,7 @@ from app.routes.tg import router as tg_router
 from app.routes.subagent import router as subagent_router
 from app.routes.memory import router as memory_router
 from app.routes.merge_operations import router as merge_operations_router
+from app.routes.artifacts import router as artifacts_router
 app.include_router(tm_router)
 app.include_router(bg_router)
 app.include_router(proxy_router)
@@ -404,6 +407,7 @@ app.include_router(tg_router)
 app.include_router(subagent_router)
 app.include_router(memory_router)
 app.include_router(merge_operations_router)
+app.include_router(artifacts_router)
 
 
 @app.exception_handler(Exception)

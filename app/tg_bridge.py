@@ -22,6 +22,7 @@ from aiogram.exceptions import (
     TelegramServerError,
 )
 from aiogram.client.default import DefaultBotProperties
+from aiogram.types import LinkPreviewOptions
 from telegramify_markdown import convert as md_convert
 
 from app.errtext import err_text
@@ -1931,7 +1932,7 @@ async def _tg_call_safe(
 async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
                          entities=None, important: bool = False,
                          telemetry_key=None, best_effort: bool = False,
-                         batch_bucket=None):
+                         batch_bucket=None, disable_link_preview: bool = False):
     # Тулы копятся в bucket и уезжают ОДНИМ сообщением: TG даёт 20 сообщений
     # на 60 с в группу, поэтому «каждый тул = своё сообщение» физически
     # недостижимо — без батча пачка вызовов теряется на rate-лимите, а при
@@ -1979,6 +1980,8 @@ async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
                 sent = await bot.send_message(
                     chat_id, chunk, message_thread_id=thread_id,
                     parse_mode=None, entities=send_entities,
+                    link_preview_options=(LinkPreviewOptions(is_disabled=True)
+                                          if disable_link_preview else None),
                 )
             return sent
         except TelegramBadRequest:
@@ -2028,6 +2031,8 @@ async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
                     queued_result.text,
                     message_thread_id=queued_result.thread_id,
                     parse_mode=None, entities=None,
+                    link_preview_options=(LinkPreviewOptions(is_disabled=True)
+                                          if disable_link_preview else None),
                 )
 
             plain = await _tg_call_safe(
@@ -2058,6 +2063,8 @@ async def _tg_send_safe(chat_id: int, text: str, thread_id: int = None,
             result.text,
             message_thread_id=result.thread_id,
             parse_mode=None, entities=None,
+            link_preview_options=(LinkPreviewOptions(is_disabled=True)
+                                  if disable_link_preview else None),
         )
 
     return await _tg_call_safe(
@@ -2642,7 +2649,9 @@ def _resolve_topic(scope: str, sender: str) -> tuple[str | None, int | None]:
     return orch_name, (topics.get(orch_name) if orch_name else None)
 
 
-async def send_text_to_tg(text: str, *, scope: str, sender: str) -> dict:
+async def send_text_to_tg(
+    text: str, *, scope: str, sender: str, disable_link_preview: bool = False,
+) -> dict:
     """Отправить текст в TG. Успех — ТОЛЬКО `{"ok": True, ...}`, всё иное — отказ.
 
     Признак успеха обязан быть явным: сосед `send_file_to_tg` сообщает об операционных
@@ -2658,7 +2667,10 @@ async def send_text_to_tg(text: str, *, scope: str, sender: str) -> dict:
     orch_name, thread_id = _resolve_topic(scope, sender)
     if not thread_id:
         return {"error": f"no TG topic for scope: {scope}"}
-    msg = await _tg_send_safe(config["group_id"], text[:4096], thread_id, important=True)
+    msg = await _tg_send_safe(
+        config["group_id"], text[:4096], thread_id, important=True,
+        disable_link_preview=disable_link_preview,
+    )
     if msg is None:
         return {"error": "TG text delivery failed; see tg-bridge logs"}
     return {"ok": True, "message_id": msg.message_id, "chat_id": msg.chat.id}

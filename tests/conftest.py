@@ -151,7 +151,19 @@ def _hermetic_dashboard_env(monkeypatch):
     import dotenv
 
     monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: False)
-    for key in ("DASHBOARD_USER", "DASHBOARD_PASSWORD", "OWNER_MODE"):
+    for key in (
+        "DASHBOARD_USER",
+        "DASHBOARD_PASSWORD",
+        "OWNER_MODE",
+        "ARTIFACT_PUBLIC_LINKS_ENABLED",
+        "PUBLIC_BASE_URL",
+        "ARTIFACT_LINK_SECRET",
+        "ARTIFACT_DEFAULT_TTL_SECONDS",
+        "ARTIFACT_MAX_TTL_SECONDS",
+        "ARTIFACT_MAX_BYTES",
+        "STATE_DIRECTORY",
+        "XDG_STATE_HOME",
+    ):
         monkeypatch.delenv(key, raising=False)
 
 
