@@ -1,0 +1,229 @@
+{
+  "task_id": 288,
+  "phase": "research",
+  "measured_at": "2026-08-16",
+  "timezone": "Europe/Berlin",
+  "baseline": {
+    "worktree_head_before_research": "6646e76757b6ec93dca5504e9397fb1b3492ce67",
+    "orchestra_main_sha": "2e3d6276b6bc3118d1943225bca6a9aab4697f03",
+    "openspec_main_sha": "2826b8889e5223a9a8095d4428b60b56597e1020",
+    "spec_kit_main_sha": "bf88c9f9a82fa370c7a7257aa2b3cf10b457b65c",
+    "openspec_version": "1.9.0",
+    "reconstructed_orchestra_task": 214,
+    "reconstruction_preregistration": "docs/tasks/288/prereg.md"
+  },
+  "openspec_repository_snapshot": {
+    "full_name": "Fission-AI/OpenSpec",
+    "created_at": "2025-08-05T10:37:45Z",
+    "updated_at": "2026-08-16T09:19:27Z",
+    "pushed_at": "2026-08-15T00:52:34Z",
+    "archived": false,
+    "license_spdx": "MIT",
+    "stargazers_count": 65028,
+    "forks_count": 4484,
+    "github_open_issues_count_including_pull_requests": 201,
+    "github_ui_issue_count_observed": 104,
+    "github_ui_pull_request_count_observed": 97,
+    "release_count": 44,
+    "latest_release": {
+      "tag": "v1.9.0",
+      "published_at": "2026-08-13T15:38:22Z",
+      "prerelease": false
+    },
+    "oldest_release_in_api_page": {
+      "tag": "v0.1.0",
+      "published_at": "2025-09-06T16:46:52Z"
+    },
+    "releases_last_30_days": 3,
+    "releases_last_90_days": 8,
+    "release_gap_days_all_44_releases": {
+      "median": 3.323,
+      "mean": 7.929,
+      "includes_prereleases": true
+    },
+    "package": {
+      "name": "@fission-ai/openspec",
+      "node_engine": ">=20.19.0",
+      "production_dependency_count": 9,
+      "has_postinstall": true
+    }
+  },
+  "generated_guidance_measurement": {
+    "method": "GitHub recursive tree blob sizes at openspec_main_sha; token equivalent is ceil(bytes/4), not tokenizer output or per-turn billing",
+    "core_profile_skill_files": [
+      {"workflow": "propose", "path": "skills/openspec-propose/SKILL.md", "bytes": 11272, "approx_tokens": 2818},
+      {"workflow": "explore", "path": "skills/openspec-explore/SKILL.md", "bytes": 16213, "approx_tokens": 4054},
+      {"workflow": "apply", "path": "skills/openspec-apply-change/SKILL.md", "bytes": 8198, "approx_tokens": 2050},
+      {"workflow": "update", "path": "skills/openspec-update-change/SKILL.md", "bytes": 6925, "approx_tokens": 1732},
+      {"workflow": "sync", "path": "skills/openspec-sync-specs/SKILL.md", "bytes": 12483, "approx_tokens": 3121},
+      {"workflow": "archive", "path": "skills/openspec-archive-change/SKILL.md", "bytes": 10656, "approx_tokens": 2664}
+    ],
+    "one_core_tree": {"files": 6, "bytes": 65747, "approx_tokens": 16437},
+    "claude_plus_codex_two_tree_storage_lower_bound": {"files": 12, "bytes": 131494, "approx_tokens": 32874},
+    "caveats": [
+      "The two-tree number excludes Claude command files and project config.",
+      "Skills are progressively loaded; the whole stored tree is not evidence of whole-tree per-turn context.",
+      "Codex and the generic agents target share one .agents tree when both are selected."
+    ]
+  },
+  "task_214_reconstruction": {
+    "selection": {
+      "task_status": "done",
+      "created_at": "2026-08-12T05:36:21.256387+00:00",
+      "completed_at": "2026-08-12T06:48:34.484524+00:00",
+      "squash_commit": "1e6a817",
+      "commit_files": 12,
+      "commit_insertions": 1152,
+      "commit_deletions": 26
+    },
+    "current_tracked_task_docs": {
+      "files": [
+        {"path": "docs/tasks/214/codex-review-impl-r3.md", "bytes": 3023, "approx_tokens": 756},
+        {"path": "docs/tasks/214/codex-review-impl.md", "bytes": 9059, "approx_tokens": 2265},
+        {"path": "docs/tasks/214/report.md", "bytes": 34475, "approx_tokens": 8619}
+      ],
+      "total_files": 3,
+      "total_bytes": 46557,
+      "approx_tokens": 11640,
+      "excludes": ["Task Manager row", "implementation code", "tests", "git history"]
+    },
+    "openspec_active_change": {
+      "files": [
+        {"path": "reconstruction-214/change/.openspec.yaml", "bytes": 21, "approx_tokens": 6},
+        {"path": "reconstruction-214/change/proposal.md", "bytes": 1352, "approx_tokens": 338},
+        {"path": "reconstruction-214/change/specs/agent-effort-routing/spec.md", "bytes": 2996, "approx_tokens": 749},
+        {"path": "reconstruction-214/change/design.md", "bytes": 2733, "approx_tokens": 684},
+        {"path": "reconstruction-214/change/tasks.md", "bytes": 1346, "approx_tokens": 337}
+      ],
+      "total_files": 5,
+      "total_bytes": 8448,
+      "approx_tokens": 2112,
+      "percent_of_current_tracked_task_docs": 18.1
+    },
+    "openspec_persistent_after_archive": {
+      "archived_change_files": 5,
+      "canonical_spec_files": 1,
+      "total_files": 6,
+      "total_bytes": 11476,
+      "approx_tokens": 2869,
+      "percent_of_current_tracked_task_docs": 24.6,
+      "note": "Archive moves rather than duplicates the change bundle; canonical-spec.md models the merged main spec."
+    },
+    "atomic_fact_method": "A placement counts only when the fact is explicit in that surface; an implication or generic checkbox does not count. OpenSpec occurrences are counted across proposal, delta spec, design, tasks, and canonical spec. Current sources are the Task Manager description returned by task_get(214) and docs/tasks/214/report.md.",
+    "methodology_limitations": [
+      "The retrospective OpenSpec reconstruction was authored from the Task Manager description and final report, so zero facts beyond that source corpus is true by construction and is not evidence that contemporaneous OpenSpec authoring would discover no new facts.",
+      "prereg.md froze the counting rule but did not contain or hash the fourteen-fact inventory; the fact boundaries are auditable in this file but were not independently frozen before reconstruction.",
+      "The 55 placements and 42 repeats are a descriptive duplication audit of this reconstructed bundle, not a causal estimate of OpenSpec's prospective value."
+    ],
+    "fact_matrix": [
+      {"id":"F01","fact":"effort accepts scalar or mapping","tracker":true,"report":true,"openspec":["proposal","delta","design","tasks","canonical"]},
+      {"id":"F02","fact":"resolution order exact model, runtime, default, none","tracker":true,"report":true,"openspec":["proposal","delta","design","tasks","canonical"]},
+      {"id":"F03","fact":"runtime names win validation before model aliases","tracker":false,"report":true,"openspec":["delta","design","tasks","canonical"]},
+      {"id":"F04","fact":"unknown effort level fails manifest loading","tracker":false,"report":true,"openspec":["proposal","delta","design","tasks","canonical"]},
+      {"id":"F05","fact":"unknown model key is preserved with warning","tracker":true,"report":true,"openspec":["proposal","delta","design","tasks","canonical"]},
+      {"id":"F06","fact":"four roles receive the specified model effort map","tracker":false,"report":true,"openspec":["design","tasks"]},
+      {"id":"F07","fact":"live session reconciles at the next turn boundary","tracker":false,"report":true,"openspec":["proposal","delta","design","tasks","canonical"]},
+      {"id":"F08","fact":"active turn is not interrupted","tracker":false,"report":true,"openspec":["proposal","delta","design","tasks","canonical"]},
+      {"id":"F09","fact":"disconnect precedes persistence and rebuild preserves native session/context","tracker":false,"report":true,"openspec":["delta","design","tasks","canonical"]},
+      {"id":"F10","fact":"invalid or unresolved replacement leaves live state unchanged","tracker":false,"report":true,"openspec":["proposal","delta","design","tasks","canonical"]},
+      {"id":"F11","fact":"legacy session without role or pipeline remains unchanged","tracker":false,"report":true,"openspec":["delta","design","tasks","canonical"]},
+      {"id":"F12","fact":"manifest read is re-statted and unstable snapshot retried","tracker":false,"report":true,"openspec":["delta","design","tasks","canonical"]},
+      {"id":"F13","fact":"no new API, tool, field, or route and manifest remains authoritative","tracker":false,"report":true,"openspec":["proposal","design"]},
+      {"id":"F14","fact":"focused verification passed 536 tests and targeted mutations failed","tracker":false,"report":true,"openspec":[]}
+    ],
+    "fact_summary": {
+      "load_bearing_facts": 14,
+      "facts_present_in_current_report": 14,
+      "facts_present_in_task_tracker": 3,
+      "facts_repeated_by_at_least_one_openspec_surface": 13,
+      "openspec_fact_placements": 55,
+      "openspec_repeat_placements_after_first_placement_per_represented_fact": 42,
+      "unique_load_bearing_facts_added_beyond_tracker_plus_report_in_retrospective_reconstruction": 0,
+      "verification_fact_omitted_from_openspec_reconstruction": 1
+    }
+  },
+  "reproduction_commands": [
+    {
+      "id": "R1",
+      "purpose": "OpenSpec repository and release snapshot",
+      "command": "python3 urllib.request calls to https://api.github.com/repos/Fission-AI/OpenSpec, /commits/main, and /releases?per_page=100; compute counts and release gaps with datetime/statistics",
+      "expected_key_output": "main 2826b888...; 44 releases; v1.9.0 at 2026-08-13T15:38:22Z; 3 in 30d; 8 in 90d; median gap 3.323d"
+    },
+    {
+      "id": "R2",
+      "purpose": "Generated skill sizes",
+      "command": "GET https://api.github.com/repos/Fission-AI/OpenSpec/git/trees/2826b8889e5223a9a8095d4428b60b56597e1020?recursive=1 and select skills/*/SKILL.md blob sizes",
+      "expected_key_output": "core six files total 65747 bytes"
+    },
+    {
+      "id": "R3",
+      "purpose": "Reconstruction and current artifact sizes",
+      "command": "find docs/tasks/288/reconstruction-214 -type f -printf '%p %s\\n'; find docs/tasks/214 -maxdepth 1 -type f -printf '%p %s\\n'",
+      "expected_key_output": "active 5/8448; archived+canonical 6/11476; current task docs 3/46557 bytes"
+    },
+    {
+      "id": "R4",
+      "purpose": "Current Orchestra pipeline contract",
+      "command": "git show main:pipelines/default/prompts/roles/full-cycle.md | nl -ba",
+      "expected_key_output": "three phases and approval gates; research/plan/reviews/report; vertical tickets; committed RED; immutable acceptance test"
+    },
+    {
+      "id": "R5",
+      "purpose": "Current cross-runtime handoff implementation",
+      "command": "git show main:app/session.py | nl -ba | sed -n '1165,1192p;2473,2505p'",
+      "expected_key_output": "one-shot runtime_handoff injection; clear only after backend.send; bounded provider-neutral transcript"
+    },
+    {
+      "id": "R6",
+      "purpose": "Task 214 tracker metadata",
+      "command": "Orchestra MCP task_get({par:'214'})",
+      "expected_key_output": "status done; commit 1e6a817; 12 files, +1152/-26"
+    }
+  ],
+  "source_manifest": [
+    {"id":"S1","tier":2,"accessed":"2026-08-16","url":"https://github.com/Fission-AI/OpenSpec","claims":["canonical owner","repository activity","MIT license","workflow overview"]},
+    {"id":"S2","tier":2,"accessed":"2026-08-16","url":"https://api.github.com/repos/Fission-AI/OpenSpec","claims":["repository metadata snapshot"]},
+    {"id":"S3","tier":2,"accessed":"2026-08-16","url":"https://api.github.com/repos/Fission-AI/OpenSpec/releases?per_page=100","claims":["release count and cadence"]},
+    {"id":"S4","tier":2,"accessed":"2026-08-16","url":"https://github.com/Fission-AI/OpenSpec/releases/tag/v1.9.0","claims":["latest release changes and archived validation"]},
+    {"id":"S5","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/Fission-AI/OpenSpec/2826b8889e5223a9a8095d4428b60b56597e1020/package.json","claims":["version","Node requirement","dependencies","postinstall declaration"]},
+    {"id":"S6","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/Fission-AI/OpenSpec/2826b8889e5223a9a8095d4428b60b56597e1020/SECURITY.md","claims":["threat model","telemetry","self-update","postinstall behavior"]},
+    {"id":"S7","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/Fission-AI/OpenSpec/2826b8889e5223a9a8095d4428b60b56597e1020/docs/concepts.md","claims":["spec/change model","artifact graph","delta and archive lifecycle","no rigid gates"]},
+    {"id":"S8","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/Fission-AI/OpenSpec/2826b8889e5223a9a8095d4428b60b56597e1020/docs/cli.md","claims":["CLI commands","JSON surfaces","file creation"]},
+    {"id":"S9","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/Fission-AI/OpenSpec/2826b8889e5223a9a8095d4428b60b56597e1020/docs/agent-contract.md","claims":["machine-readable agent contract","prompt context/advisory guidance separation"]},
+    {"id":"S10","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/Fission-AI/OpenSpec/2826b8889e5223a9a8095d4428b60b56597e1020/docs/supported-tools.md","claims":["supported agents","generated paths","Codex skills-only","managed ownership"]},
+    {"id":"S11","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/Fission-AI/OpenSpec/2826b8889e5223a9a8095d4428b60b56597e1020/docs/team-workflow.md","claims":["git boundary","one change owner","parallel archive conflict"]},
+    {"id":"S12","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/Fission-AI/OpenSpec/2826b8889e5223a9a8095d4428b60b56597e1020/docs/customization.md","claims":["context/rules injection","advisory not enforceable","custom schemas"]},
+    {"id":"S13","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/Fission-AI/OpenSpec/2826b8889e5223a9a8095d4428b60b56597e1020/schemas/spec-driven/schema.yaml","claims":["default artifact dependencies and instructions"]},
+    {"id":"S14","tier":2,"accessed":"2026-08-16","url":"https://github.com/Fission-AI/OpenSpec/issues/1387","claims":["open parallel-change drift and late/silent overwrite report"]},
+    {"id":"S15","tier":2,"accessed":"2026-08-16","url":"https://github.com/Fission-AI/OpenSpec/issues/1212","claims":["closed historical stale-spec fast-path defect"]},
+    {"id":"S16","tier":2,"accessed":"2026-08-16","url":"https://github.com/Fission-AI/OpenSpec/issues/704","claims":["issue reporter states configurable on_archive hook is absent and requests it; parser source not independently audited"]},
+    {"id":"S17","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/github/spec-kit/bf88c9f9a82fa370c7a7257aa2b3cf10b457b65c/docs/index.md","claims":["Spec Kit core workflow and integration count"]},
+    {"id":"S18","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/github/spec-kit/bf88c9f9a82fa370c7a7257aa2b3cf10b457b65c/docs/reference/agentic-sdd.md","claims":["Spec Kit phases","analyze and converge semantics"]},
+    {"id":"S19","tier":2,"accessed":"2026-08-16","url":"https://raw.githubusercontent.com/github/spec-kit/bf88c9f9a82fa370c7a7257aa2b3cf10b457b65c/docs/upgrade.md","claims":["Spec Kit removed duplicated constitution propagation in favor of runtime owner"]},
+    {"id":"S20","tier":1,"accessed":"2026-08-16","url":"local:docs/tasks/214/report.md","claims":["completed-ticket behavior and verification evidence"]},
+    {"id":"S21","tier":2,"accessed":"2026-08-16","url":"local:pipelines/default/prompts/roles/full-cycle.md@2e3d6276","claims":["Orchestra pipeline gates and artifacts"]},
+    {"id":"S22","tier":2,"accessed":"2026-08-16","url":"local:app/session.py@2e3d6276","claims":["current runtime_handoff implementation"]},
+    {"id":"S23","tier":1,"accessed":"2026-08-16","url":"local:docs/tasks/174/research.md","claims":["measured cross-runtime handoff losses and provider-neutral boundary"]}
+  ],
+  "source_captures": [
+    {"id":"S1","bytes":396127,"sha256":"13c33ea190f732404f66e14359ef4b72afa9e290df12fcefa4293154a99e43d0"},
+    {"id":"S2","bytes":6424,"sha256":"e53b09806f2185d39d5a6dcedd8fcaa12988d716d41aba95106a5dcbd63f4cd3"},
+    {"id":"S3","bytes":141728,"sha256":"0d1f21fdbd0955f593d70e111e4cc88bfce1974c8d1ba300b87d36131c0cc9eb"},
+    {"id":"S4","capture_url":"https://api.github.com/repos/Fission-AI/OpenSpec/releases/tags/v1.9.0","bytes":5004,"sha256":"2c21d6634881d711582e06e2dbc42c0ed2b87256a78fcb5cf063b08e7f6e4fc5"},
+    {"id":"S5","bytes":2572,"sha256":"d48395883667410baf98c76ca2e795d9d6f6092d059e237ec17914826e80decf"},
+    {"id":"S6","bytes":5702,"sha256":"d4cb39512a4ac5822d592bd283b7f7e41288d62767cc36d5b17bf15ffa8d550c"},
+    {"id":"S7","bytes":25013,"sha256":"370f8ef1a1142cd1d250588f4a27f740e4fda66c6e4e15f68bbfcb86c47cf0b7"},
+    {"id":"S8","bytes":45477,"sha256":"3e30b274cdf5a404b5e467840a361e8eeb4bcfce39e24835104df7c7d794e3af"},
+    {"id":"S9","bytes":15753,"sha256":"174a34d11771f77fee084dbe744b1d7b76417427934c3eea4328565789682415"},
+    {"id":"S10","bytes":16898,"sha256":"e2d7fa7d703bed8e2d917be81345801e7228bed23edb70b0d72e2984a37b16dc"},
+    {"id":"S11","bytes":5561,"sha256":"33bc93d4f08fc34c9c0684fa37546e18138c6d292981292e8916f30a7e13b409"},
+    {"id":"S12","bytes":15073,"sha256":"ceb466834cc558f06fb04cf8e3f77a3070c221a38e6ae5e8c80447fa24e9795f"},
+    {"id":"S13","bytes":10542,"sha256":"7004a6a4d82fbab6d2e5e0e5f178db4e612fa57d7e012ce275fcce9f76a61af6"},
+    {"id":"S14","capture_url":"https://api.github.com/repos/Fission-AI/OpenSpec/issues/1387","bytes":6154,"sha256":"68b6b81921c42b5cda3f61f039a64b5d64bdec15eec349d63f21b2c4f8ec52bf"},
+    {"id":"S15","capture_url":"https://api.github.com/repos/Fission-AI/OpenSpec/issues/1212","bytes":7505,"sha256":"ec79574fdab89be41d8d3f25fd372b479150be17f01350ede1212f541318d13e"},
+    {"id":"S16","capture_url":"https://api.github.com/repos/Fission-AI/OpenSpec/issues/704","bytes":3761,"sha256":"dcb1fb735ce15b2b94dd1ffe7e80d6e53f2f1f710c052f4f09e2ce92f4431d58"},
+    {"id":"S17","bytes":5894,"sha256":"3b1344a0127f396850bcebb5326b5230fe712d2110eec409ee4ab857d4f0c183"},
+    {"id":"S18","bytes":8271,"sha256":"29a92531ad8bd56a62222851629cd08700b11cee9a54645fcd2aa9383f05010c"},
+    {"id":"S19","bytes":22217,"sha256":"37b3e4078d7e18343ac75d8ea15fb08765c93daf4aac98f037ba8797dca4d396"}
+  ]
+}
