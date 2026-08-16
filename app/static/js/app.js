@@ -2232,6 +2232,7 @@ async function onOrchestratorChange() {
     streamContent = '';
     streamPending = '';
     _streamDeferredFinal = null;
+    _lastFinalizedStreamText = '';
     _resetCodexActivityState();
     selectedAgent = opt?.dataset?.name || null;
     if (currentScope && selectedAgent) {
@@ -2269,6 +2270,7 @@ async function selectAgent(name) {
     streamContent = '';
     streamPending = '';
     _streamDeferredFinal = null;
+    _lastFinalizedStreamText = '';
     _resetCodexActivityState();
     $('#chat').innerHTML = '';
     _prepareChatAnchorRestore(false);
@@ -3442,6 +3444,10 @@ let streamPending = '';
 let _streamRafId = null;
 let _streamLastParse = 0;
 let _streamDeferredFinal = null;
+// Last text that closed a live stream bubble. Grok (and any async log writer) can deliver
+// `turn ended` status before the matching `text` row; if we already finalized the stream,
+// a second identical `text` must not paint a second bubble.
+let _lastFinalizedStreamText = '';
 const _STREAM_BASE_CPS = 12;  // chars per frame at 60fps (~720 chars/sec)
 const _STREAM_PARSE_INTERVAL = 50;  // ms between marked.parse calls
 
@@ -3494,6 +3500,7 @@ function _finalizeStreamBubble(finalText, ts) {
     _markUnexecutedToolCall(streamBubble, finalText);
     addCopyBtn(streamBubble, finalText);
     addTimestamp(streamBubble, ts);
+    _lastFinalizedStreamText = finalText || '';
     streamBubble = null;
     streamContent = '';
     streamPending = '';
@@ -4423,11 +4430,23 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
     // 'text' event signals streaming finished — flush typewriter buffer,
     // replace with authoritative DB content, finalize with copy/timestamp.
-    if (type === 'text' && streamBubble) {
-        _stampChatLogNode(streamBubble, payload);
-        _completeStreamBubble(content, ts);
-        _scheduleChatReadCapture();
-        return;
+    if (type === 'text') {
+        if (streamBubble) {
+            _stampChatLogNode(streamBubble, payload);
+            _completeStreamBubble(content, ts);
+            _scheduleChatReadCapture();
+            return;
+        }
+        // Stream already closed (e.g. status `turn ended` raced ahead of this row) with
+        // the same body — skip the second paint. History reload has no streamBubble and
+        // content differs from any prior live finalize, so it still creates a bubble.
+        if (content && content === _lastFinalizedStreamText) {
+            _lastFinalizedStreamText = '';
+            _scheduleChatReadCapture();
+            return;
+        }
+        // No live stream (history, or runtime that only emits final text) → fall through
+        // to the normal chat-bot bubble renderer below.
     }
 
     if (type === 'thinking') {
@@ -4471,6 +4490,20 @@ function addChatEntry(type, content, ts, anchor, payload) {
         if (/^codex hook .+: (?:running|started|completed)(?: · \d+ms)?$/i.test(content || '')) return;
         if (/^codex mcp .+: (?:starting|ready)$/i.test(content || '')) return;
         if (/^compact started \(native Codex,/i.test(content || '')) return;
+        // Do NOT finalize streamBubble on `turn ended`: `_log` is async, so status can
+        // land before the matching `text` row. Finalizing here left streamBubble=null and
+        // the later `text` painted a second copy of the same answer (Grok harness, 15.08).
+        // Orphan streams (no final text ever) are rare now that Grok flushes text on turn_end.
+        if (content && /^grok mcp ready\b/i.test(content)) {
+            const badge = document.createElement('div');
+            badge.className = 'text-center text-xs py-1 text-emerald-400 italic';
+            badge.textContent = `🔌 ${content}`;
+            addTimestamp(badge, ts);
+            const wasAtBottom = _chatAtBottom(chat);
+            _insert(badge);
+            if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+            return;
+        }
         const nativeCodexCompact = (content || '').match(
             /^compact done \(native Codex\):\s*(\d+)%\s*→\s*(\d+)%/i
         );

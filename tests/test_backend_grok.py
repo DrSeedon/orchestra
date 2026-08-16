@@ -303,6 +303,93 @@ def test_message_and_thought_chunks_map_to_stream_events():
     assert (thought.type, thought.content) == ("thinking_stream", "hmm")
 
 
+def test_message_chunks_flush_to_text_on_turn_end():
+    """Session only persists `text`, not live `stream` — Grok must finalize the buffer."""
+    b = _backend()
+    b._convert(_update("agent_thought_chunk", content={"type": "text", "text": "think"}))
+    b._convert(_update("agent_message_chunk", content={"type": "text", "text": "hello "}))
+    b._convert(_update("agent_message_chunk", content={"type": "text", "text": "world"}))
+    events = b._finish_prompt("p1", "end_turn", {})
+    assert [e.type for e in events] == ["thinking", "text", "turn_end"]
+    assert events[0].content == "think"
+    assert events[1].content == "hello world"
+    assert events[2].metadata["ok"] is True
+    # Second completion of the same prompt is ignored (no double flush).
+    assert b._finish_prompt("p1", "end_turn", {}) == []
+
+
+def test_tool_call_flushes_open_message_before_tool_use():
+    b = _backend()
+    b._convert(_update("agent_message_chunk", content={"type": "text", "text": "before"}))
+    events = b._convert(_update("tool_call", toolCallId="t1", title="read_file",
+                                rawInput={"path": "a.py"}))
+    assert [e.type for e in events] == ["text", "tool_use"]
+    assert events[0].content == "before"
+    assert events[1].metadata["tool_use_id"] == "t1"
+
+
+def test_tool_call_does_not_flush_thinking_fragments():
+    """Grok thinks between tools; flushing each fragment made 50+ reasoning cards."""
+    b = _backend()
+    b._convert(_update("agent_thought_chunk", content={"type": "text", "text": "a"}))
+    b._convert(_update("agent_thought_chunk", content={"type": "text", "text": "b"}))
+    events = b._convert(_update("tool_call", toolCallId="t1", title="grep", rawInput={}))
+    assert [e.type for e in events] == ["tool_use"]
+    b._convert(_update("agent_thought_chunk", content={"type": "text", "text": "c"}))
+    end = b._finish_prompt("p1", "end_turn", {})
+    assert [e.type for e in end] == ["thinking", "turn_end"]
+    assert end[0].content == "abc"
+
+
+def test_nested_content_wrapper_unwraps_to_plain_text():
+    """Live Grok MCP results arrive as {type:content, content:{type:text,text:...}}."""
+    from app.backend_grok import _content_text
+    nested = {"type": "content", "content": {"type": "text", "text": "found 5 matches"}}
+    assert _content_text(nested) == "found 5 matches"
+    assert _content_text([nested]) == "found 5 matches"
+    mcp = {
+        "type": "MCP",
+        "tool_name": "list_agents",
+        "server_name": "orchestra",
+        "output": {"OkayOutput": "## Orchestrators\n🟢 boss"},
+    }
+    assert _content_text(mcp) == "## Orchestrators\n🟢 boss"
+
+
+def test_mcp_tool_result_unwraps_okay_output():
+    b = _backend()
+    b._convert(_update("tool_call", toolCallId="t1", title="use_tool"))
+    (result,) = b._convert(_update(
+        "tool_call_update",
+        toolCallId="t1",
+        title="orchestra__list_agents",
+        status="completed",
+        content=[{
+            "type": "MCP",
+            "tool_name": "list_agents",
+            "server_name": "orchestra",
+            "output": {"OkayOutput": "🟢 Orchestra-orchestrator"},
+        }],
+    ))
+    assert result.content == "🟢 Orchestra-orchestrator"
+
+
+def test_history_replay_queue_drops_session_updates():
+    b = _backend()
+    b._notifications.put_nowait(_update("agent_message_chunk",
+                                        content={"type": "text", "text": "old"}))
+    b._notifications.put_nowait({"method": "_x.ai/mcp_initialized",
+                                 "params": {"mcpToolCount": 3}})
+    b._drain_history_replay_queue()
+    remaining = []
+    while True:
+        try:
+            remaining.append(b._notifications.get_nowait())
+        except Exception:
+            break
+    assert [m.get("method") for m in remaining] == ["_x.ai/mcp_initialized"]
+
+
 def test_tool_call_then_update_carries_resolved_mcp_name():
     """Grok routes MCP tools through search_tool/use_tool; the real name arrives later."""
     b = _backend()
@@ -311,7 +398,8 @@ def test_tool_call_then_update_carries_resolved_mcp_name():
     assert call.metadata["tool_use_id"] == "t1"
     (result,) = b._convert(_update("tool_call_update", toolCallId="t1",
                                    title="orchestra__list_agents", status="completed",
-                                   content=[{"type": "text", "text": "ok"}]))
+                                   content=[{"type": "content",
+                                             "content": {"type": "text", "text": "ok"}}]))
     assert result.type == "tool_result"
     assert result.metadata["tool_name"] == "orchestra__list_agents"
     assert result.metadata["is_error"] is False
@@ -560,8 +648,10 @@ def test_process_death_mid_stream_ends_the_turn_once():
 
     events = asyncio.run(scenario())
     kinds = [e.type for e in events]
-    assert kinds == ["stream", "turn_end"]          # streamed text is not discarded
+    # Live stream + finalized text (DB source of truth) + failed turn_end.
+    assert kinds == ["stream", "text", "turn_end"]
     assert events[0].content == "partial answer"
+    assert events[1].content == "partial answer"
     end = events[-1].metadata
     assert end["ok"] is False
     assert end["stop_reason"] == "process_exit_-9"
@@ -582,8 +672,9 @@ def test_failed_prompt_after_streaming_keeps_text_and_reports_failure():
         return [e async for e in b.events()]
 
     events = asyncio.run(scenario())
-    assert [e.type for e in events] == ["stream", "error", "turn_end"]
+    assert [e.type for e in events] == ["stream", "text", "error", "turn_end"]
     assert events[0].content == "half an answer"
+    assert events[1].content == "half an answer"
     assert events[-1].metadata["ok"] is False
 
 
@@ -610,6 +701,22 @@ def test_mcp_servers_translate_to_acp_shape_with_env_pairs():
     assert ORCHESTRA_MCP_CANARY_ENV in env
     assert len(env[ORCHESTRA_MCP_CANARY_ENV]) == 32
     assert env[ORCHESTRA_MCP_CANARY_ENV] == b._mcp_canary
+
+
+def test_http_mcp_always_emits_headers_list():
+    """Bare {type:http,url} → session/new Invalid params (measured grok 0.2.112)."""
+    b = _backend(mcp_servers={
+        "jobs": {"url": "https://example.invalid/mcp"},
+        "auth": {
+            "type": "http",
+            "url": "https://example.invalid/secure",
+            "headers": {"Authorization": "Bearer x"},
+        },
+    })
+    servers = {s["name"]: s for s in b._mcp_server_configs()}
+    assert servers["jobs"]["type"] == "http"
+    assert servers["jobs"]["headers"] == []
+    assert servers["auth"]["headers"] == [{"name": "Authorization", "value": "Bearer x"}]
 
 
 def test_mcp_server_without_command_or_url_is_skipped():

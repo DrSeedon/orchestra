@@ -169,14 +169,69 @@ def _grok_cost(model: str, input_tokens: int, cached_tokens: int, output_tokens:
 
 
 def _content_text(content) -> str:
-    """Flatten an ACP content block (or list of them) to text."""
+    """Flatten an ACP content block (or list of them) to text.
+
+    Grok wraps tool results as `{type: "content", content: {type: "text", text: ...}}`
+    and MCP results as `{type: "MCP", tool_name, output: {OkayOutput: ...}}`.
+    Dumping the outer object left the dashboard showing raw JSON grids instead of
+    the tool output itself.
+    """
     if isinstance(content, dict):
-        if content.get("type") == "text":
+        ctype = content.get("type")
+        if ctype == "text":
+            return str(content.get("text", ""))
+        # Grok MCP tool_call_update payload (measured 15.08.2026).
+        if ctype == "MCP" or (
+            isinstance(content.get("output"), dict)
+            and ("tool_name" in content or "server_name" in content)
+        ):
+            output = content.get("output")
+            if isinstance(output, dict):
+                for key in (
+                    "OkayOutput", "ErrorOutput", "output", "text", "result", "content",
+                ):
+                    if key in output and output[key] not in (None, ""):
+                        return _content_text(output[key])
+                # Last resort: first non-empty string value in output.
+                for value in output.values():
+                    if isinstance(value, str) and value.strip():
+                        return value
+                    inner = _content_text(value)
+                    if inner.strip():
+                        return inner
+            elif output is not None:
+                return _content_text(output)
+        # Nested content wrapper from Grok tool_call_update / MCP results.
+        if "content" in content and ctype in (None, "content", "resource", "resource_link"):
+            inner = _content_text(content.get("content"))
+            if inner:
+                return inner
+        if "text" in content and ctype is None:
             return str(content.get("text", ""))
         return json.dumps(bounded_tool_arguments(content), ensure_ascii=False)
     if isinstance(content, list):
-        return "\n".join(_content_text(part) for part in content)
+        parts = [_content_text(part) for part in content]
+        return "\n".join(part for part in parts if part)
     return str(content) if content is not None else ""
+
+
+def _headers_to_acp(headers) -> list[dict]:
+    """ACP rejects bare http/sse MCP entries without a `headers` array (even empty)."""
+    if not headers:
+        return []
+    if isinstance(headers, dict):
+        return [{"name": str(k), "value": str(v)} for k, v in headers.items()]
+    if isinstance(headers, list):
+        out = []
+        for item in headers:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name")
+            if name is None:
+                continue
+            out.append({"name": str(name), "value": str(item.get("value", ""))})
+        return out
+    return []
 
 
 def _mcp_server_identity(server: dict) -> tuple:
@@ -259,6 +314,16 @@ class GrokBackend(JsonRpcStdioTransport):
         self._queue_depth = 0
         self._completed_prompts: set[str] = set()
         self._tool_names: dict[str, str] = {}
+        # Grok only streams message/thought chunks — never a final item-complete event.
+        # Session persists `text`/`thinking`, not live `stream`/`thinking_stream`, so without
+        # these buffers assistant replies vanish from history and leave the UI bubble open
+        # across turns (messages glue, reasoning floats as a live card forever).
+        self._message_buf: list[str] = []
+        self._thought_buf: list[str] = []
+        # session/load replays prior turns as session/update notifications. If those land
+        # in the event stream they are re-logged as "new" tool/text/thinking rows and bury
+        # real user messages under a flood (measured: full history dumped at 07:36 and 07:40).
+        self._suppress_history_replay = False
         # turn_completed carries usage; the turn_end is emitted by the prompt completion.
         self._pending_usage: dict = {}
         self._model_context_window = GROK_CONTEXT_LIMITS.get(model, GROK_DEFAULT_CONTEXT)
@@ -356,37 +421,51 @@ class GrokBackend(JsonRpcStdioTransport):
             self._absorb_model_meta(result.get("_meta") or {})
             params = {"cwd": self.cwd, "mcpServers": self._mcp_server_configs()}
             result = None
-            if self._session_id:
-                try:
-                    result = await self._request(
-                        "session/load", {**params, "sessionId": self._session_id}
-                    )
-                except GrokProtocolError as exc:
-                    # A stale id must not brick the worker forever: the store is keyed by
-                    # (cwd, sessionId), so a moved or pruned worktree makes load fail
-                    # permanently. Start fresh — but never quietly, the lost history is
-                    # exactly what someone would otherwise spend an hour looking for.
-                    logger.warning(
-                        "Grok session/load failed for %s (%s) — starting a fresh session",
-                        self._session_id, exc,
-                    )
-                    self._notifications.put_nowait({
-                        "method": "_session/resume_failed",
-                        # NOT "sessionId": events() drops notifications whose sessionId is
-                        # not the current one, and this warning is about the OLD id — it
-                        # would filter out the very message announcing the lost history.
-                        "params": {"staleSessionId": self._session_id, "message": str(exc)},
-                    })
-                    self._session_id = None
-            if result is None:
-                result = await self._request("session/new", params)
-                session_id = result.get("sessionId")
-                if not session_id:
-                    raise RuntimeError("Grok ACP returned no session id")
-                self._session_id = session_id
-            self._absorb_models(result.get("models") or {})
+            # Drop session/update content while load/new runs — Grok replays the whole
+            # transcript into the notification queue, and the first turn after connect
+            # would re-persist it as brand-new logs.
+            self._suppress_history_replay = True
+            try:
+                if self._session_id:
+                    try:
+                        result = await self._request(
+                            "session/load", {**params, "sessionId": self._session_id}
+                        )
+                    except GrokProtocolError as exc:
+                        # A stale id must not brick the worker forever: the store is keyed by
+                        # (cwd, sessionId), so a moved or pruned worktree makes load fail
+                        # permanently. Start fresh — but never quietly, the lost history is
+                        # exactly what someone would otherwise spend an hour looking for.
+                        logger.warning(
+                            "Grok session/load failed for %s (%s) — starting a fresh session",
+                            self._session_id, exc,
+                        )
+                        self._notifications.put_nowait({
+                            "method": "_session/resume_failed",
+                            # NOT "sessionId": events() drops notifications whose sessionId is
+                            # not the current one, and this warning is about the OLD id — it
+                            # would filter out the very message announcing the lost history.
+                            "params": {
+                                "staleSessionId": self._session_id,
+                                "message": str(exc),
+                            },
+                        })
+                        self._session_id = None
+                if result is None:
+                    result = await self._request("session/new", params)
+                    session_id = result.get("sessionId")
+                    if not session_id:
+                        raise RuntimeError("Grok ACP returned no session id")
+                    self._session_id = session_id
+                self._absorb_models(result.get("models") or {})
+                # Anything already queued during load is history replay — drop content
+                # updates, keep MCP startup (isolation still needs them).
+                self._drain_history_replay_queue()
+            finally:
+                self._suppress_history_replay = False
             await self._verify_mcp_isolation()
         except BaseException:
+            self._suppress_history_replay = False
             await self.disconnect()
             raise
 
@@ -696,6 +775,12 @@ class GrokBackend(JsonRpcStdioTransport):
                     # Track MCP startup here, not in events(): isolation is verified during
                     # connect(), before any consumer starts draining the event stream.
                     self._track_mcp(message)
+                    if (
+                        self._suppress_history_replay
+                        and message.get("method") == "session/update"
+                    ):
+                        # session/load replays prior turns; do not surface them as new events.
+                        continue
                     await self._notifications.put(message)
         except asyncio.CancelledError:
             return
@@ -851,7 +936,7 @@ class GrokBackend(JsonRpcStdioTransport):
 
         if method == "_prompt/failed":
             self._active_prompts = max(0, self._active_prompts - 1)
-            return [
+            return self._flush_open_streams() + [
                 AgentEvent("error", params.get("message", "Grok prompt failed"),
                            {"model_error": "error"}),
                 self._turn_end_event(False, "error", "error"),
@@ -888,19 +973,53 @@ class GrokBackend(JsonRpcStdioTransport):
                     unknown_reason="Grok exited before reporting current context",
                 ),
             )
-            return [AgentEvent("turn_end", "stop_reason=process_exit", metadata={
-                "session_id": self._session_id,
-                "ok": False,
-                "stop_reason": f"process_exit_{params.get('returncode')}",
-                "returncode": params.get("returncode"),
-                "stderr_tail": params.get("stderr", ""),
-                "model_error": "server_error",
-                "errors": ["server_error"],
-                "cost_usd": 0,
-                **turn_usage.metadata(),
-            }, usage=turn_usage)]
+            return self._flush_open_streams() + [AgentEvent(
+                "turn_end", "stop_reason=process_exit", metadata={
+                    "session_id": self._session_id,
+                    "ok": False,
+                    "stop_reason": f"process_exit_{params.get('returncode')}",
+                    "returncode": params.get("returncode"),
+                    "stderr_tail": params.get("stderr", ""),
+                    "model_error": "server_error",
+                    "errors": ["server_error"],
+                    "cost_usd": 0,
+                    **turn_usage.metadata(),
+                }, usage=turn_usage,
+            )]
 
         return []
+
+    def _drain_history_replay_queue(self) -> None:
+        """Remove session/update content left in the queue after session/load."""
+        kept: list[dict] = []
+        while True:
+            try:
+                message = self._notifications.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            if message.get("method") == "session/update":
+                continue
+            kept.append(message)
+        for message in kept:
+            self._notifications.put_nowait(message)
+
+    def _flush_message(self) -> list[AgentEvent]:
+        text = "".join(self._message_buf)
+        self._message_buf.clear()
+        if not text:
+            return []
+        return [AgentEvent("text", text)]
+
+    def _flush_thought(self) -> list[AgentEvent]:
+        text = "".join(self._thought_buf)
+        self._thought_buf.clear()
+        if not text:
+            return []
+        return [AgentEvent("thinking", text)]
+
+    def _flush_open_streams(self) -> list[AgentEvent]:
+        # Thought before message: reasoning precedes the answer that used it.
+        return self._flush_thought() + self._flush_message()
 
     def _session_update(self, params: dict) -> list[AgentEvent]:
         update = params.get("update") or {}
@@ -911,29 +1030,43 @@ class GrokBackend(JsonRpcStdioTransport):
             self._context_tokens = total
 
         if kind == "agent_message_chunk":
-            return [AgentEvent("stream", _content_text(update.get("content")))]
+            chunk = _content_text(update.get("content"))
+            if chunk:
+                self._message_buf.append(chunk)
+            return [AgentEvent("stream", chunk)]
 
         if kind == "agent_thought_chunk":
-            return [AgentEvent("thinking_stream", _content_text(update.get("content")),
+            chunk = _content_text(update.get("content"))
+            if chunk:
+                self._thought_buf.append(chunk)
+            return [AgentEvent("thinking_stream", chunk,
                                {"activity": "reasoning",
                                 "item_id": str(meta.get("promptId") or "")})]
 
         if kind == "tool_call":
+            # Flush answer text before the tool so order is text → tool → result → text.
+            # Do NOT flush thinking here: Grok thinks between nearly every tool, and that
+            # produced 50+ reasoning cards per turn. One thinking card lands at turn_end.
+            events = self._flush_message()
             tool_id = str(update.get("toolCallId") or update.get("id") or "")
             name = str(update.get("title") or update.get("kind") or "tool")
             self._tool_names[tool_id] = name
-            return [AgentEvent(
+            events.append(AgentEvent(
                 "tool_use",
                 f"{name}: {json.dumps(bounded_tool_arguments(update.get('rawInput') or {}), ensure_ascii=False)}",
                 metadata={"tool_name": name, "short_name": name, "tool_use_id": tool_id},
-            )]
+            ))
+            return events
 
         if kind == "tool_call_update":
             return self._tool_call_update(update)
 
         if kind == "plan":
-            return [AgentEvent("plan", json.dumps(update.get("entries") or [],
-                                                  ensure_ascii=False))]
+            # Plan is mid-turn structure; keep reasoning open until the turn ends.
+            events = self._flush_message()
+            events.append(AgentEvent("plan", json.dumps(update.get("entries") or [],
+                                                        ensure_ascii=False)))
+            return events
         return []
 
     def _tool_call_update(self, update: dict) -> list[AgentEvent]:
@@ -948,9 +1081,18 @@ class GrokBackend(JsonRpcStdioTransport):
             return []
         name = self._tool_names.get(tool_id, "tool")
         content = update.get("content")
-        text = _content_text(content) if content is not None else json.dumps(
-            {"status": status}, ensure_ascii=False
-        )
+        text = _content_text(content) if content is not None else ""
+        if not text.strip():
+            raw = update.get("rawOutput")
+            if raw is not None:
+                if isinstance(raw, (dict, list)):
+                    text = _content_text(raw)
+                    if not text.strip():
+                        text = json.dumps(bounded_tool_arguments(raw), ensure_ascii=False)
+                else:
+                    text = str(raw)
+        if not text.strip():
+            text = json.dumps({"status": status}, ensure_ascii=False)
         return [AgentEvent("tool_result", text[:20_000], metadata={
             "tool_use_id": tool_id,
             "tool_name": name,
@@ -993,7 +1135,9 @@ class GrokBackend(JsonRpcStdioTransport):
         ok = reason == "end_turn"
         model_error = "" if ok else ("interrupted" if reason == "cancelled" else "error")
         usage = (meta or {}).get("usage") or {}
-        return [self._turn_end_event(ok, reason, model_error, usage)]
+        return self._flush_open_streams() + [
+            self._turn_end_event(ok, reason, model_error, usage)
+        ]
 
     def _turn_completed(self, update: dict) -> list[AgentEvent]:
         """Record usage; the turn_end itself is emitted by _finish_prompt.
@@ -1109,7 +1253,17 @@ class GrokBackend(JsonRpcStdioTransport):
                     "env": [{"name": k, "value": v} for k, v in env.items()],
                 })
             else:
-                servers.append({"name": name, "type": "http", "url": str(url)})
+                # Measured (grok 0.2.112): bare `{type:http,url}` → session/new Invalid params.
+                # `headers` must be present as a list (empty is fine). Dict headers rejected.
+                transport = str(cfg.get("type") or "http")
+                if transport not in ("http", "sse"):
+                    transport = "http"
+                servers.append({
+                    "name": name,
+                    "type": transport,
+                    "url": str(url),
+                    "headers": _headers_to_acp(cfg.get("headers")),
+                })
         return servers
 
     def _write_agent_profile(self) -> Path | None:

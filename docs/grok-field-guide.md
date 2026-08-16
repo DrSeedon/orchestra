@@ -215,14 +215,16 @@ UNCERTAIN, и **как именно** это проверить, когда по
 - **Чего не делать:** копировать классификацию Codex «по аналогии». У Codex терминальный
   лимит ловится в error handler по своим полям — это не переносится.
 
-### 7.2 `type: "http"` для url-MCP — НЕ ПРОВЕРЕН
-- **Почему не закрыто:** под рукой не было http-MCP сервера. Проверен только `stdio`.
-- **Как проверить:** поднять любой streamable-HTTP MCP, передать в `session/new.mcpServers`
-  запись `{"name": ..., "type": "http", "url": ...}` и убедиться, что сервер доходит до
-  `status=ready` и его тулы видны. Заголовки (`headers`) мы сейчас не передаём вовсе —
-  если понадобится авторизованный http-MCP, форму придётся выяснять отдельно.
-- **Известно точно:** `initialize` рапортует `mcpCapabilities: {http: true, sse: true}`,
-  то есть поддержка заявлена. Заявлена ≠ проверена.
+### 7.2 `type: "http"` для url-MCP — ПРОВЕРЕНО (форма params)
+- **Замер 15.08.2026, grok 0.2.112:** bare `{"name", "type":"http", "url"}` →
+  `session/new` **Invalid params** (валит весь connect, как у COG-second-brain с
+  `agentic-jobs`). `headers` **обязан** быть массивом (пустой `[]` ок). Dict `headers:{}`
+  — тоже Invalid params. То же для `type: "sse"`.
+- **Orchestra:** `_mcp_server_configs()` всегда шлёт `headers` list-of-pairs
+  (`_headers_to_acp`). Авторизованный http-MCP: `headers: {"Authorization": "Bearer …"}`
+  в `.mcp.json` → `[{name, value}, …]`.
+- **Не закрыто:** доходит ли remote http-MCP до `status=ready` и видны ли тулы — отдельно
+  от формы params; connect больше не падает на Invalid params.
 
 ### 7.3 TTL кэша — НЕ ИЗМЕРЕН
 - **Почему не закрыто:** xAI TTL не документирует, рантайм его не сообщает, а замер требует

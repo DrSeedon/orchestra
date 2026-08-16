@@ -4,6 +4,32 @@
 > независимо, поэтому номера версий 2.31.0-2.33.0 использованы ДВАЖДЫ для разного
 > содержания: ниже сперва блок VPS, затем блок ноутбука. Формат чинится задачей #52.
 
+## v2.39.3 — 2026-08-15 — Grok chat: no double answer bubble
+
+### Fixed
+- **Ответ Grok больше не рисуется дважды в конце хода** (`app/static/js/app.js`). `_log` fire-and-forget: `turn ended` status иногда получал id раньше `text`; defensive finalize на status закрывал streamBubble, а следующий `text` создавал второй такой же бабл. Убран finalize на `turn ended`; `text` с тем же телом после live-finalize скипается (`_lastFinalizedStreamText`). *Triggered case:* «Каеф. Ещё один чистый бабл» + Reasoning + снова тот же текст.
+
+## v2.39.2 — 2026-08-15 — Grok harness polish: resume flood + thinking
+
+### Fixed
+- **`session/load` больше не заливает старую историю в логи как новые события** (`_suppress_history_replay`, `_drain_history_replay_queue`). *Triggered case:* после compact/reconnect на «ку ку» в 07:40:07 повторно записались десятки tool/thinking/text из прошлого хода; user messages «пропали» — утонули под flood first-paint.
+- **Одна reasoning-карточка на ход, не 50+** — thinking flush только на turn_end/fail/exit; на tool/plan flush'ится только `text`. *Triggered case:* 54 thinking bubbles с 07:30.
+- **MCP tool_result разворачивает `OkayOutput`** (`_content_text` для `{type:MCP, output:{OkayOutput}}`). *Triggered case:* list_agents как JSON-обёртка, не карточка.
+
+### Known tradeoff
+- Уже залитый replay (07:36/07:40) в DB остаётся — чистится только новыми ходами после рестарта. Compact ack timeout 60s для Grok не трогали.
+
+## v2.39.1 — 2026-08-15 — Grok harness: connect + chat UI
+
+### Fixed
+- **Grok `session/new` больше не падает на HTTP/SSE MCP без `headers`** (`app/backend_grok.py` `_mcp_server_configs`, `_headers_to_acp`). Bare `{type:http,url}` → Invalid params (замер grok 0.2.112); теперь всегда уходит `headers: []` или list-of-pairs. *Triggered case:* COG-second-brain `agentic-jobs` url-MCP валил switch на Grok; Orchestra-orchestrator без http-MCP поднимался нормально.
+- **Ответы Grok пишутся в историю и не склеиваются между ходами** (`_message_buf`/`_thought_buf` → финальные `text`/`thinking` на tool/plan/turn_end/fail). Раньше шли только live `stream`/`thinking_stream`, а session persist'ит только `text`/`thinking` — в DB за день 0 text после смены на Grok, bubble на фронте оставался open. *Triggered case:* «сообщения в одно склеиваются», reasoning сверху отдельной live-карточкой, после reload ответов нет.
+- **Результаты тулов Grok — плоский текст, не JSON-grid** (`_content_text` разворачивает `{type:content, content:{type:text,…}}`). *Triggered case:* в чате `type / content / text` вместо вывода read/grep.
+- **Фронт: defensive close stream на `turn ended` + badge `grok mcp ready`** (`app/static/js/app.js`).
+
+### Known tradeoff
+- Python-часть (`backend_grok.py`) — после рестарта Orchestra / reconnect Grok-сессий. JS/CSS — без рестарта.
+
 ## v2.39.0 — 2026-08-13 — #245 голосовой ввод в дашборде
 
 ### Added
