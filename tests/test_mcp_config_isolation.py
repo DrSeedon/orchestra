@@ -9,6 +9,7 @@
 import json
 import os
 import stat
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -238,9 +239,26 @@ def test_t4_foreign_global_servers_not_copied(tmp_path, monkeypatch):
     assert "yandex-direct" not in text, "глобальный чужой MCP-сервер скопирован воркеру"
     assert "openaiDeveloperDocs" not in text
     assert "foreign-secret-value" not in text, "чужой секрет утёк в конфиг воркера"
-    assert "trust_level" not in text, "[projects.*] склонированы без нужды"
+    data = tomllib.loads(text)
+    assert data["projects"] == {
+        "/home/kesha/orchestra": {"trust_level": "trusted"},
+    }, "нужен trust только собственного cwd, не чужих [projects.*] из base config"
     # разрешённый скаляр обязан переехать — иначе воркер молча теряет потолок обрезки AGENTS.md
     assert "project_doc_max_bytes = 131072" in text
+
+
+def test_t4_trusts_canonical_cwd_and_escapes_it_as_toml_key(tmp_path):
+    project = tmp_path / 'project "quoted"'
+    project.mkdir()
+    b = _codex_backend(
+        cwd=str(project),
+        mcp_servers=_servers("session-roundtrip"),
+    )
+
+    data = tomllib.loads((b._prepare_codex_home() / "config.toml").read_text())
+    assert data["projects"] == {
+        str(project.resolve()): {"trust_level": "trusted"},
+    }
 
 
 def test_t4_child_env_points_at_the_same_home(tmp_path):
