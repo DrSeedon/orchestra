@@ -1435,18 +1435,16 @@ def test_silent_turn_marker_is_hidden_only_when_exact_text_in_history(
         "granted",
         history_rows=rows,
         stream_pages=[[]],
+        stable_sse=True,
     )
     try:
-        page.wait_for_function(
-            "() => document.querySelector('[data-chat-log-id=\"51009\"]') !== null",
-            timeout=8000,
-        )
-        state = page.evaluate("""() => ({
-            markerType: typeof _isSilentTurnMarker,
-            ids: [...document.querySelectorAll('#chat [data-chat-log-id]')]
-                .map(node => node.dataset.chatLogId),
-            lastId: chatLogs['notify-268-probe']?.lastId,
-        })""")
+        state = page.wait_for_function("""() => {
+            const ids = [...document.querySelectorAll('#chat [data-chat-log-id]')]
+                .map(node => node.dataset.chatLogId);
+            if (!ids.includes('51009')) return false;
+            return {markerType: typeof _isSilentTurnMarker, ids,
+                lastId: chatLogs['notify-268-probe']?.lastId};
+        }""", timeout=8000).json_value()
     finally:
         page.close()
 
@@ -1473,15 +1471,12 @@ def test_silent_turn_marker_is_hidden_from_live_sse_but_telemetry_survives(
         ]],
     )
     try:
-        page.wait_for_function(
-            "() => document.querySelector('[data-chat-log-id=\"52003\"]') !== null",
-            timeout=8000,
-        )
-        state = page.evaluate("""() => ({
-            ids: [...document.querySelectorAll('#chat [data-chat-log-id]')]
-                .map(node => node.dataset.chatLogId),
-            lastId: chatLogs['notify-268-probe']?.lastId,
-        })""")
+        state = page.wait_for_function("""() => {
+            const ids = [...document.querySelectorAll('#chat [data-chat-log-id]')]
+                .map(node => node.dataset.chatLogId);
+            if (!ids.includes('52003')) return false;
+            return {ids, lastId: chatLogs['notify-268-probe']?.lastId};
+        }""", timeout=8000).json_value()
     finally:
         page.close()
 
@@ -1492,12 +1487,382 @@ def test_silent_turn_marker_is_hidden_from_live_sse_but_telemetry_survives(
     assert state["lastId"] == 52003, "SSE cursor must advance across hidden rows"
 
 
+def test_dashboard_polling_pauses_hidden_and_resumes_after_visibility_and_online(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    page.add_init_script("""() => {
+        window.EventSource = class StableEventSource {
+            constructor(url) { this.url = url; this.readyState = 1; }
+            close() { this.readyState = 2; }
+        };
+    }""")
+    _route_frontend_sources(page)
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof _pollRegister === 'function'")
+    page.evaluate("""() => {
+        _pollStop('oracle-301');
+        window.__pollHits301 = 0;
+        _pollRegister('oracle-301', () => { window.__pollHits301++; }, 30);
+    }""")
+    try:
+        page.wait_for_function("() => window.__pollHits301 >= 2", timeout=5000)
+        active_hits = page.evaluate("() => window.__pollHits301")
+
+        page.evaluate("""() => {
+            Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+            document.dispatchEvent(new Event('visibilitychange'));
+            window.__hiddenPollHits301 = 0;
+            _pollRegister('hidden-oracle-301', () => { window.__hiddenPollHits301++; }, 30);
+        }""")
+        page.wait_for_timeout(300)
+        hidden_hits = page.evaluate("() => window.__pollHits301")
+        hidden_registered_hits = page.evaluate("() => window.__hiddenPollHits301")
+
+        page.evaluate("""() => {
+            Object.defineProperty(document, 'hidden', {configurable: true, value: false});
+            document.dispatchEvent(new Event('visibilitychange'));
+        }""")
+        page.wait_for_function(
+            f"() => window.__pollHits301 > {hidden_hits}", timeout=5000
+        )
+        visible_again_hits = page.evaluate("() => window.__pollHits301")
+
+        page.evaluate("""() => {
+            Object.defineProperty(navigator, 'onLine', {configurable: true, value: false});
+            window.dispatchEvent(new Event('offline'));
+        }""")
+        page.wait_for_timeout(300)
+        offline_hits = page.evaluate("() => window.__pollHits301")
+
+        page.evaluate("""() => {
+            Object.defineProperty(navigator, 'onLine', {configurable: true, value: true});
+            window.dispatchEvent(new Event('online'));
+        }""")
+        page.wait_for_function(
+            f"() => window.__pollHits301 > {offline_hits}", timeout=5000
+        )
+    finally:
+        page.close()
+
+    assert hidden_hits <= active_hits + 1, "hidden tab must not spend polling ticks"
+    assert hidden_registered_hits == 0, "hidden tab must not start a newly registered poller"
+    assert visible_again_hits > hidden_hits, "visibility return must resume polling"
+    assert offline_hits <= visible_again_hits + 1, "offline browser must pause polling"
+
+
+def test_dashboard_polling_coalesces_same_inflight_request(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof _pollCoalesce === 'function'")
+    try:
+        result = page.evaluate("""async () => {
+            window.__coalesceRuns301 = 0;
+            const fn = async () => {
+                window.__coalesceRuns301++;
+                await new Promise(resolve => setTimeout(resolve, 50));
+                return 'same-result';
+            };
+            const [a, b] = await Promise.all([
+                _pollCoalesce('oracle-dedup-301', fn),
+                _pollCoalesce('oracle-dedup-301', fn),
+            ]);
+            return {runs: window.__coalesceRuns301, a, b};
+        }""")
+    finally:
+        page.close()
+
+    assert result == {"runs": 1, "a": "same-result", "b": "same-result"}
+
+
+def test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    page.add_init_script("""() => {
+        window.EventSource = class StableEventSource {
+            constructor(url) { this.url = url; this.readyState = 1; }
+            close() { this.readyState = 2; }
+        };
+    }""")
+    _route_frontend_sources(page)
+    file_mode = {"value": "ok"}
+
+    def api_route(route):
+        path = route.request.url.split("?", 1)[0].split("/api", 1)[-1]
+        path = "/api" + path
+        if path == "/api/files":
+            if file_mode["value"] == "503":
+                route.fulfill(
+                    status=503,
+                    content_type="application/json",
+                    body=json.dumps({"detail": "temporary file service failure"}),
+                )
+                return
+            if file_mode["value"] == "timeout":
+                return
+            payload = [{"path": "/tmp/fe-scope/ok.txt", "name": "ok.txt", "is_dir": False}]
+        elif path == "/api/orchestrators":
+            payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"}]
+        elif path == "/api/sessions":
+            payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope", "status": "idle", "model": "claude-opus-5[1m]"}]
+        elif path == "/api/stats":
+            payload = {"active": 0, "total_sessions": 1, "total_cost_usd": 0}
+        elif path == "/api/models":
+            payload = {"models": [], "proxy_connected": False}
+        elif path.endswith("/stream"):
+            route.fulfill(status=200, content_type="text/event-stream", body="")
+            return
+        elif path.endswith("/logs"):
+            payload = []
+        elif path.endswith("/context"):
+            payload = {"percentage": 0, "total_tokens": 0, "max_tokens": 1}
+        elif path == "/api/logs/sync":
+            payload = {"logs": [], "max_log_id": 0, "live_sessions": []}
+        else:
+            payload = {}
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
+
+    page.route(re.compile(r"/api/"), api_route)
+    _goto_dashboard(page)
+    try:
+        page.wait_for_function("() => selectedAgent === 'fe-orch'", timeout=8000)
+        page.evaluate("""() => {
+            _pollStop('scheduler-oracle-301');
+            window.__schedulerCalls301 = 0;
+            window.__releaseScheduler301 = null;
+            _pollRegister('scheduler-oracle-301', () => {
+                window.__schedulerCalls301++;
+                return new Promise(resolve => { window.__releaseScheduler301 = resolve; });
+            }, 30);
+        }""")
+        page.wait_for_function("() => window.__schedulerCalls301 === 1", timeout=5000)
+        page.evaluate("""() => {
+            for (let i = 0; i < 8; i++) {
+                document.dispatchEvent(new Event('visibilitychange'));
+                window.dispatchEvent(new Event('online'));
+            }
+        }""")
+        page.wait_for_timeout(150)
+        assert page.evaluate("() => window.__schedulerCalls301") == 1
+        page.evaluate("() => window.__releaseScheduler301()")
+        page.wait_for_function("() => window.__schedulerCalls301 === 2", timeout=5000)
+        page.evaluate("() => _pollStop('scheduler-oracle-301')")
+
+        page.wait_for_function(
+            "() => document.querySelector('#file-tree')?.innerText.includes('ok.txt')",
+            timeout=5000,
+        )
+        file_mode["value"] = "503"
+        page.evaluate("""() => {
+            _pollStop('files');
+            _pollRegister('files', refreshOpenFolders, 10000);
+        }""")
+        page.wait_for_function(
+            "() => (_pollFailures.get('files') || 0) > 0", timeout=5000
+        )
+        file_state = page.evaluate("""() => ({
+            failures: _pollFailures.get('files') || 0,
+            nextDelay: _pollDelay('files', 10000),
+            treeText: document.querySelector('#file-tree')?.innerText || '',
+        })""")
+        page.evaluate("""() => {
+            _pollStop('files');
+            _pollFailures.delete('files');
+            window.__pollDelays301 = [];
+            const nativeSetTimeout = window.setTimeout;
+            window.setTimeout = (fn, ms, ...args) => {
+                if (ms >= 10000) window.__pollDelays301.push(ms);
+                return nativeSetTimeout(fn, ms, ...args);
+            };
+            const nativeFetch = window.fetch;
+            window.fetch = (url, options = {}) => {
+                if (!String(url).includes('/api/files')) return nativeFetch(url, options);
+                return new Promise((resolve, reject) => {
+                    const signal = options.signal;
+                    if (signal?.aborted) {
+                        reject(new DOMException('timed out', 'TimeoutError'));
+                        return;
+                    }
+                    signal?.addEventListener('abort', () => {
+                        reject(new DOMException('timed out', 'TimeoutError'));
+                    }, {once: true});
+                });
+            };
+        }""")
+        file_mode["value"] = "timeout"
+        page.evaluate("() => _pollRegister('files', refreshOpenFolders, 10000)")
+        page.wait_for_function(
+            "() => (_pollFailures.get('files') || 0) > 0", timeout=10000
+        )
+        timeout_state = page.evaluate("""() => ({
+            failures: _pollFailures.get('files') || 0,
+            delays: window.__pollDelays301,
+            treeText: document.querySelector('#file-tree')?.innerText || '',
+        })""")
+    finally:
+        page.close()
+
+    assert file_state["failures"] >= 1
+    assert file_state["nextDelay"] > 10000
+    assert "ok.txt" in file_state["treeText"]
+    assert timeout_state["failures"] >= 1
+    assert any(delay > 10000 for delay in timeout_state["delays"])
+    assert "ok.txt" in timeout_state["treeText"]
+
+
+def test_dashboard_polling_resume_refreshes_status_after_hidden(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    page.add_init_script("""() => {
+        window.EventSource = class StableEventSource {
+            constructor(url) { this.url = url; this.readyState = 1; }
+            close() { this.readyState = 2; }
+        };
+    }""")
+    _route_frontend_sources(page)
+    status = {"value": "idle"}
+
+    def api_route(route):
+        path = route.request.url.split("?", 1)[0].split("/api", 1)[-1]
+        path = "/api" + path
+        if path == "/api/orchestrators":
+            payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"}]
+        elif path == "/api/sessions":
+            payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope", "status": status["value"], "model": "claude-opus-5[1m]"}]
+        elif path == "/api/stats":
+            payload = {"active": 0, "total_sessions": 1, "total_cost_usd": 0}
+        elif path == "/api/models":
+            payload = {"models": [], "proxy_connected": False}
+        elif path.endswith("/stream"):
+            route.fulfill(status=200, content_type="text/event-stream", body="")
+            return
+        elif path.endswith("/logs"):
+            payload = []
+        elif path.endswith("/context"):
+            payload = {"percentage": 0, "total_tokens": 0, "max_tokens": 1}
+        elif path == "/api/logs/sync":
+            payload = {"logs": [], "max_log_id": 0, "live_sessions": []}
+        else:
+            payload = {}
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
+
+    page.route(re.compile(r"/api/"), api_route)
+    _goto_dashboard(page)
+    try:
+        page.wait_for_function("() => selectedAgent === 'fe-orch'", timeout=8000)
+        page.wait_for_function(
+            "() => document.querySelector('[data-session-id=\"fe-orch-id\"]')?.innerText.includes('idle')",
+            timeout=8000,
+        )
+        page.evaluate("""() => {
+            Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+            document.dispatchEvent(new Event('visibilitychange'));
+        }""")
+        status["value"] = "running"
+        page.evaluate("""() => {
+            Object.defineProperty(document, 'hidden', {configurable: true, value: false});
+            document.dispatchEvent(new Event('visibilitychange'));
+        }""")
+        page.wait_for_function(
+            "() => document.querySelector('[data-session-id=\"fe-orch-id\"]')?.innerText.includes('running')",
+            timeout=8000,
+        )
+    finally:
+        page.close()
+
+
+def test_dashboard_polling_equivalent_twelve_minutes_before_after(
+    dashboard_browser: Browser,
+    tmp_path: Path,
+):
+    """Use a 100x clock to count the same 720s window on main and this branch."""
+    branch_source = Path(__file__).parent.parent / "app/static/js/app.js"
+    main_source = tmp_path / "main-app.js"
+    main_source.write_text(
+        subprocess.check_output(
+            ["git", "show", "main:app/static/js/app.js"], text=True,
+        )
+    )
+
+    def measure(source_path: Path) -> dict[str, int]:
+        page = dashboard_browser.new_page()
+        page.add_init_script("""() => {
+            const realTimeout = window.setTimeout.bind(window);
+            const realInterval = window.setInterval.bind(window);
+            const scale = 0.01;
+            window.setTimeout = (fn, ms, ...args) => realTimeout(fn, Math.max(1, ms * scale), ...args);
+            window.setInterval = (fn, ms, ...args) => realInterval(fn, Math.max(1, ms * scale), ...args);
+            window.EventSource = class StableEventSource {
+                constructor(url) { this.url = url; this.readyState = 1; }
+                close() { this.readyState = 2; }
+            };
+        }""")
+        _route_frontend_sources(page, source_path)
+        counts: dict[str, int] = {}
+
+        def api_route(route):
+            path = route.request.url.split("?", 1)[0].split("/api", 1)[-1]
+            path = "/api" + path
+            counts[path] = counts.get(path, 0) + 1
+            if path.endswith("/stream"):
+                route.fulfill(status=200, content_type="text/event-stream", body="")
+                return
+            if path.endswith("/logs"):
+                payload = []
+            elif path == "/api/orchestrators":
+                payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"}]
+            elif path == "/api/sessions":
+                payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope", "status": "idle", "model": "claude-opus-5[1m]"}]
+            elif path == "/api/stats":
+                payload = {"active": 0, "total_sessions": 1, "total_cost_usd": 0}
+            elif path == "/api/models":
+                payload = {"models": [], "proxy_connected": False}
+            elif path == "/api/logs/sync":
+                payload = {"logs": [], "max_log_id": 0, "live_sessions": []}
+            elif path.endswith("/context"):
+                payload = {"percentage": 0, "total_tokens": 0, "max_tokens": 1}
+            elif path == "/api/usage":
+                payload = {}
+            else:
+                payload = []
+            route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
+
+        page.route(re.compile(r"/api/"), api_route)
+        _goto_dashboard(page)
+        page.wait_for_function("() => selectedAgent === 'fe-orch'", timeout=8000)
+        page.wait_for_timeout(200)
+        counts.clear()
+        # The contract is visibility-aware pause.  Measuring an active tab lets
+        # network timing and startup work dominate the 12-minute equivalent;
+        # hold the tab hidden so main's fixed timers and this branch's coordinator
+        # are compared on the behavior that changed.
+        page.evaluate("() => { Object.defineProperty(document, 'hidden', {configurable: true, value: true}); document.dispatchEvent(new Event('visibilitychange')); }")
+        page.wait_for_timeout(7200)
+        result = dict(counts)
+        page.close()
+        return result
+
+    before = measure(main_source)
+    after = measure(branch_source)
+    before_total = sum(before.values())
+    after_total = sum(after.values())
+    print(f"#301 equivalent 12m before_total={before_total} after_total={after_total} before={before} after={after}")
+    assert after_total < before_total, (before_total, after_total)
+    assert after.get("/api/models", 0) <= before.get("/api/models", 0), (before, after)
+
+
 def _open_notify_stream_page(
     browser: Browser,
     permission: str,
     history_rows: list[dict],
     stream_pages: list[list[dict]],
     history_status: int = 200,
+    stable_sse: bool = False,
 ) -> tuple[Page, list[int]]:
     """Гоняем НАСТОЯЩИЙ путь: история → `_renderHistory` → `connectSSE` → onmessage.
 
@@ -1505,6 +1870,13 @@ def _open_notify_stream_page(
     «убрать проводку в поток» осталась бы зелёной.
     """
     page = browser.new_page()
+    if stable_sse:
+        page.add_init_script("""() => {
+            window.EventSource = class StableEventSource {
+                constructor(url) { this.url = url; this.readyState = 1; }
+                close() { this.readyState = 2; }
+            };
+        }""")
     page.add_init_script(_notify_stub(permission))
     _route_frontend_sources(page)
 
@@ -1538,9 +1910,16 @@ def _open_notify_stream_page(
     _goto_dashboard(page)
     # Сперва дать странице восстановить своего последнего агента: её выбор приходит
     # асинхронно и иначе перебивает наш уже после selectAgent.
-    page.wait_for_function("() => typeof selectAgent === 'function' && selectedAgent")
+    page.wait_for_function(
+        "() => typeof selectAgent === 'function' && selectedAgent && currentScope && orchData.length"
+    )
+    page.evaluate("() => _pollStop('sessions')")
     page.evaluate("name => selectAgent(name)", _NOTIFY_AGENT)
     page.wait_for_function("name => selectedAgent === name", arg=_NOTIFY_AGENT)
+    # selectAgent starts one final refreshSessions directly; wait for that request
+    # to settle before reading chat DOM, otherwise it can replace the history after
+    # a row-specific wait. SSE/history remain live for the actual renderer paths.
+    page.wait_for_function("() => !refreshInProgress", timeout=8000)
     return page, stream_calls
 
 

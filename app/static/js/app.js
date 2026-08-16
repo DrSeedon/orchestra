@@ -620,7 +620,12 @@ async function _storeSync() {
         }
         if (!resp.ok) { _storeDisable(`/api/logs/sync ответил ${resp.status}`, new Error((await resp.text()).slice(0, 200))); return null; }
         data = await resp.json();
-    } catch (e) { console.warn('[store] синхронизация не удалась:', e.name, e.message); return null; }
+        _pollNoteSuccess('store');
+    } catch (e) {
+        _pollNoteFailure('store', e);
+        console.warn('[store] синхронизация не удалась:', e.name, e.message);
+        return null;
+    }
 
     const live = data.live_sessions;
     if (Array.isArray(live) && live.length) {
@@ -709,17 +714,15 @@ async function _storeRead(sessionId, limit) {
 }
 
 function initStoreSync() {
-    const kick = () => { _storeSync(); };
+    const kick = () => { _pollRegister('store', _storeSync, _STORE_SYNC_MS); };
     if (window.requestIdleCallback) requestIdleCallback(kick, {timeout: 3000});
     else setTimeout(kick, 500);
-    setInterval(kick, _STORE_SYNC_MS);
     // Единственное место, где обрабатывается «вкладку развернули». Дел здесь два и оба
     // срочные: подтянуть хвост журнала и проверить, жив ли сервер, — при свёрнутой вкладке
     // таймеры идут не по расписанию, и его возврат замечался через десятки секунд (#15).
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) return;
-        kick();
-        _heartbeatProbe();
+        _pollWakeAll();
     });
 }
 
@@ -897,6 +900,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     loadModels();
     loadOrchestrators();
+    _initPollingVisibility();
     scheduleRefresh();
     initFilePreviewModal();
     initUsageBar();
@@ -909,11 +913,93 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let eventSource = null;
 
+const _POLL_MAX_BACKOFF_MS = 120000;
+const _pollers = new Map();
+const _pollTimers = new Map();
+const _pollInFlight = new Map();
+const _pollFailures = new Map();
+
+function _pollCanRun() {
+    return !document.hidden && navigator.onLine !== false;
+}
+
+function _pollDelay(key, base) {
+    const failures = _pollFailures.get(key) || 0;
+    return Math.min(base * (2 ** failures), _POLL_MAX_BACKOFF_MS);
+}
+
+function _pollNoteFailure(key, error) {
+    if (!key || !error) return;
+    const transient = navigator.onLine === false
+        || ['TimeoutError', 'TypeError', 'AbortError'].includes(error.name)
+        || (Number(error.status) >= 500 && Number(error.status) < 600);
+    if (transient) _pollFailures.set(key, Math.min((_pollFailures.get(key) || 0) + 1, 8));
+}
+
+function _pollNoteSuccess(key) {
+    if (key) _pollFailures.delete(key);
+}
+
+function _pollCoalesce(key, fn) {
+    if (_pollInFlight.has(key)) return _pollInFlight.get(key);
+    const request = Promise.resolve().then(fn).finally(() => _pollInFlight.delete(key));
+    _pollInFlight.set(key, request);
+    return request;
+}
+
+function _pollStop(key) {
+    const timer = _pollTimers.get(key);
+    if (timer) clearTimeout(timer);
+    _pollTimers.delete(key);
+    _pollers.delete(key);
+}
+
+function _pollSchedule(key, immediate = false) {
+    const poller = _pollers.get(key);
+    const requestKey = `poller:${key}`;
+    if (!poller || !_pollCanRun() || _pollTimers.has(key) || _pollInFlight.has(requestKey)) return;
+    const delay = immediate ? 0 : _pollDelay(key, poller.base);
+    _pollTimers.set(key, setTimeout(async () => {
+        _pollTimers.delete(key);
+        if (!_pollCanRun()) return;
+        try { await _pollCoalesce(requestKey, poller.fn); } catch (e) { _pollNoteFailure(key, e); }
+        _pollSchedule(key);
+    }, delay));
+}
+
+function _pollWake(key) {
+    const timer = _pollTimers.get(key);
+    if (timer) clearTimeout(timer);
+    _pollTimers.delete(key);
+    _pollSchedule(key, true);
+}
+
+function _pollRegister(key, fn, base, immediate = true) {
+    _pollers.set(key, {fn, base});
+    _pollSchedule(key, immediate);
+}
+
+function _pollWakeAll() {
+    if (!_pollCanRun()) return;
+    for (const key of _pollers.keys()) _pollWake(key);
+    if (selectedAgent && currentScope && !eventSource) connectSSE();
+}
+
+function _initPollingVisibility() {
+    const pause = () => {
+        for (const timer of _pollTimers.values()) clearTimeout(timer);
+        _pollTimers.clear();
+    };
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) pause();
+        else _pollWakeAll();
+    });
+    window.addEventListener('offline', pause);
+    window.addEventListener('online', _pollWakeAll);
+}
+
 function scheduleRefresh() {
-    setTimeout(async () => {
-        await refreshSessions();
-        scheduleRefresh();
-    }, 3000);
+    _pollRegister('sessions', refreshSessions, 3000);
 }
 
 // Чей журнал сейчас в #chat. Сверяется с тем, что называет поток: сервер разрешает
@@ -1081,9 +1167,9 @@ async function loadMoreLogs() {
 
 
 // === Models ===
-async function loadModels() {
+async function _loadModelsNow() {
     try {
-        const data = await api('/api/models');
+        const data = await api('/api/models', {pollKey: 'models'});
         const models = data.models || [];
         _MODELS = models.map(m => ({ ...m, label: m.name }));
         _modelsLoaded = true;
@@ -1099,6 +1185,10 @@ async function loadModels() {
         }
         _updateProxyStatus(data.proxy_connected);
     } catch {}
+}
+
+function loadModels() {
+    return _pollCoalesce('models-request', _loadModelsNow);
 }
 
 // === Profile / Pipeline / Role dropdowns (модалка создания корня) ===
@@ -1524,9 +1614,9 @@ async function deleteOrchestrator() {
 let orchData = [];
 const _unreadTabs = new Set();
 
-async function loadOrchestrators() {
+async function _loadOrchestratorsNow() {
     try {
-        const allOrchs = await api('/api/orchestrators');
+        const allOrchs = await api('/api/orchestrators', {pollKey: 'orchestrators'});
         // Данные только что получены. Без этой отметки дроссель в refreshSessions считает
         // их протухшими и через полсекунды тянет тот же список второй раз (#71).
         _orchFreshAt = Date.now();
@@ -1568,6 +1658,10 @@ async function loadOrchestrators() {
             }
         }
     } catch {}
+}
+
+function loadOrchestrators() {
+    return _pollCoalesce('orchestrators-request', _loadOrchestratorsNow);
 }
 
 function _applyTabOrder(list) {
@@ -2540,14 +2634,18 @@ function formatContext(ctx) {
     return s;
 }
 
-async function fetchAgentContext(name) {
+async function _fetchAgentContextNow(name) {
     if (!currentScope) return;
     try {
-        const ctx = await api(`/api/sessions/${name}/context?scope=${encodeURIComponent(currentScope)}`);
+        const ctx = await api(`/api/sessions/${name}/context?scope=${encodeURIComponent(currentScope)}`, {pollKey: 'context'});
         const text = formatContext(ctx);
         contextCache[`${currentScope}:${name}`] = text;
         if (name === selectedAgent) setContextDisplay(text);
     } catch {}
+}
+
+function fetchAgentContext(name) {
+    return _pollCoalesce(`context-request:${name}`, () => _fetchAgentContextNow(name));
 }
 
 // === Agent List ===
@@ -2729,8 +2827,9 @@ function _startCacheCountdown() {
     window._cacheTimer = setInterval(() => {
         document.querySelectorAll('.cache-pill[data-cache-expires]').forEach(_renderCachePill);
     }, 30000);
-    // Refresh orch tabs every 60s to pick up new last_turn_ts
-    setInterval(() => loadOrchestrators(), 60000);
+    // Refresh orch tabs every 60s to pick up new last_turn_ts; the poll coordinator
+    // pauses it while hidden and coalesces the startup request with this first tick.
+    _pollRegister('orchestrators', loadOrchestrators, 60000);
 }
 
 function createAgentItem(s) {
@@ -6625,7 +6724,7 @@ function _createFileItem(f, container) {
 
 async function _refreshContainer(container, dirPath) {
     try {
-        const files = await api(`/api/files?path=${encodeURIComponent(dirPath)}`);
+        const files = await api(`/api/files?path=${encodeURIComponent(dirPath)}`, {pollKey: 'files'});
         const newPaths = new Set(files.map(f => f.path));
         const existing = new Map();
         for (const child of [...container.children]) {
@@ -6659,16 +6758,18 @@ async function refreshOpenFolders() {
     }
 }
 
-let _fileRefreshInterval = null;
-
 function initFilePanel() {
     const tree = $('#file-tree');
 
     if (currentScope) {
         loadFileTree(currentScope, tree);
+        if (!_tasksTabActive && !_jobsTabActive) {
+            _pollRegister('files', refreshOpenFolders, 10000);
+            _pollWake('files');
+        } else _pollStop('files');
+    } else {
+        _pollStop('files');
     }
-    if (_fileRefreshInterval) clearInterval(_fileRefreshInterval);
-    _fileRefreshInterval = setInterval(refreshOpenFolders, 10000);
 }
 
 // === Refresh Loop ===
@@ -6676,7 +6777,7 @@ function initFilePanel() {
 // вкладкам не требуют трёхсекундной свежести. Отметка ставится ДО запроса, иначе
 // параллельные заходы успеют войти все.
 let _orchFreshAt = 0;
-const _ORCH_REFRESH_MS = 15000;
+const _ORCH_REFRESH_MS = 60000;
 let refreshInProgress = false; // single-flight guard — skips if previous refresh is still in flight
 async function refreshSessions() {
     if (refreshInProgress) return;
@@ -6696,8 +6797,8 @@ async function refreshSessions() {
             // Замер perf это опроверг: здоровый ответ приезжает за секунды, а сломанный не
             // приезжает вовсе. Длинное ожидание не спасало ни одного запроса, зато мешало
             // повтору, поэтому здесь теперь дефолтный бюджет и три попытки.
-            api(`/api/sessions?scope=${encodeURIComponent(capturedScope)}`, { signal }),
-            api(`/api/stats?scope=${encodeURIComponent(capturedScope)}`, { signal }),
+            api(`/api/sessions?scope=${encodeURIComponent(capturedScope)}`, { signal, pollKey: 'sessions' }),
+            api(`/api/stats?scope=${encodeURIComponent(capturedScope)}`, { signal, pollKey: 'sessions' }),
         ]);
 
         if (capturedScope !== currentScope) return;
@@ -6769,11 +6870,14 @@ const _API_MUTATION_TIMEOUT_MS = 5000;
 async function api(url, opts = {}) {
     const isGet = !opts.method || opts.method.toUpperCase() === 'GET';
     const attempts = (isGet && opts.timeoutMs === undefined) ? _API_ATTEMPTS : 1;
+    const pollKey = opts.pollKey;
+    const requestOpts = {...opts};
+    delete requestOpts.pollKey;
     for (let attempt = 1; ; attempt++) {
         const timeout = AbortSignal.timeout(opts.timeoutMs ?? (isGet ? _API_TIMEOUT_MS : _API_MUTATION_TIMEOUT_MS));
         const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
         try {
-            const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts, signal });
+            const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...requestOpts, signal });
             if (!resp.ok) {
                 const text = await resp.text();
                 // Отказ на время перезапуска — штатный и повторяемый: вызов отклонён ДО
@@ -6784,9 +6888,12 @@ async function api(url, opts = {}) {
                     refused.name = 'RestartPendingError';
                     throw refused;
                 }
-                throw new Error(`${resp.status}: ${text}`);
+                const serverError = new Error(`${resp.status}: ${text}`);
+                serverError.status = resp.status;
+                throw serverError;
             }
             const data = await resp.json();
+            _pollNoteSuccess(pollKey);
             _hideNetFailBanner(url);
             return data;
         } catch (e) {
@@ -6794,7 +6901,9 @@ async function api(url, opts = {}) {
             // запрос, который уже никому не нужен.
             if (opts.signal?.aborted) throw e;
             const broken = e.name === 'TimeoutError' || e.name === 'TypeError';
+            const transient = broken || (Number(e.status) >= 500 && Number(e.status) < 600);
             if (!broken || attempt >= attempts) {
+                if (transient) _pollNoteFailure(pollKey, e);
                 if (broken && attempts > 1) _showNetFailBanner(url, attempts);
                 throw e;
             }
@@ -7055,25 +7164,27 @@ async function _heartbeatProbe() {
             _setRestartPending(false);
         }
         if (r.status < 502) {
+            _pollNoteSuccess('heartbeat');
             _onServerOk();
             // Сверяем ПОСЛЕ _onServerOk: он снимает оверлей ребута, а баннер под
             // полноэкранным оверлеем был бы невидим.
             const serverBuild = r.headers.get('X-Orchestra-Build');
             if (serverBuild && _pageBuild && serverBuild !== _pageBuild) _showBuildBanner(serverBuild);
-        } else _onServerError();
-    } catch (e) { _onFetchFail(e); }
+        } else {
+            _pollNoteFailure('heartbeat', {name: 'TypeError'});
+            _onServerError();
+        }
+    } catch (e) { _pollNoteFailure('heartbeat', e); _onFetchFail(e); }
 }
 
 function initHeartbeat() {
-    setInterval(_heartbeatProbe, 3000);   // разворот вкладки обрабатывает initStoreSync
+        _pollRegister('heartbeat', _heartbeatProbe, 8000);
 }
 
 // === Tasks Panel ===
 let _tasksTabActive = false;
-let _tasksInterval = null;
 
 let _jobsTabActive = false;
-let _jobsInterval = null;
 
 function switchLeftTab(tab) {
     const fileTree = document.getElementById('file-tree');
@@ -7091,10 +7202,16 @@ function switchLeftTab(tab) {
     if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
     _tasksTabActive = tab === 'tasks';
     _jobsTabActive = tab === 'jobs';
-    if (_tasksTabActive) { loadTasks(); if (!_tasksInterval) _tasksInterval = setInterval(loadTasks, 5000); }
-    else { if (_tasksInterval) { clearInterval(_tasksInterval); _tasksInterval = null; } }
-    if (_jobsTabActive) { loadJobs(); if (!_jobsInterval) _jobsInterval = setInterval(loadJobs, 10000); }
-    else { if (_jobsInterval) { clearInterval(_jobsInterval); _jobsInterval = null; } }
+    if (tab === 'files') initFilePanel();
+    else _pollStop('files');
+    if (_tasksTabActive) {
+        _pollRegister('tasks', loadTasks, 5000);
+        _pollWake('tasks');
+    } else _pollStop('tasks');
+    if (_jobsTabActive) {
+        _pollRegister('jobs', loadJobs, 10000);
+        _pollWake('jobs');
+    } else _pollStop('jobs');
 }
 
 function openClientModal() {
@@ -7181,7 +7298,7 @@ let _taskCollapsed = {};
 
 const _scopesWithoutClient = new Set();   // scope → клиент не привязан, спрашивать бесполезно
 
-async function loadTasks() {
+async function _loadTasksNow() {
     const panel = document.getElementById('tasks-panel');
     if (!panel) return;
     try {
@@ -7191,16 +7308,20 @@ async function loadTasks() {
         // опрашивается каждые 5 с, поэтому без отметки мы стучались бы в этот 404
         // двенадцать раз в минуту и столько же раз красили консоль.
         const [tasksResp, payResp] = await Promise.all([
-            fetch(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`),
+            api(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`, {pollKey: 'tasks'}),
             _scopesWithoutClient.has(scope) ? null : fetch('/api/tm/payments/status').catch(() => null),
         ]);
         if (payResp && payResp.status === 404) _scopesWithoutClient.add(scope);
-        const data = await tasksResp.json();
+        const data = tasksResp;
         const payData = payResp && payResp.ok ? await payResp.json().catch(() => null) : null;
         renderTasksPanel(panel, data, payData);
     } catch (e) {
         panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load tasks</div>';
     }
+}
+
+function loadTasks() {
+    return _pollCoalesce('tasks-request', _loadTasksNow);
 }
 
 // === Sub-agents Modal (post-hoc telemetry + transcripts) ===
@@ -7648,17 +7769,20 @@ async function showTaskDetail(par) {
 const _JOB_ICONS = { timer: '⏰', file: '📄', command: '🖥️', ssh: '🔗', run: '▶️' };
 const _JOB_STATUS = { active: '🟢', triggered: '✅', expired: '⏰', cancelled: '❌', failed: '❌' };
 
-async function loadJobs() {
+async function _loadJobsNow() {
     const panel = document.getElementById('jobs-panel');
     if (!panel) return;
     try {
         const scope = currentScope || '';
-        const resp = await fetch(`/api/bg/jobs?scope=${encodeURIComponent(scope)}`);
-        const jobs = await resp.json();
+        const jobs = await api(`/api/bg/jobs?scope=${encodeURIComponent(scope)}`, {pollKey: 'jobs'});
         renderJobsPanel(panel, Array.isArray(jobs) ? jobs : (jobs.jobs || []));
     } catch (e) {
         panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load jobs</div>';
     }
+}
+
+function loadJobs() {
+    return _pollCoalesce('jobs-request', _loadJobsNow);
 }
 
 function _timeLeft(expiresAt) {
