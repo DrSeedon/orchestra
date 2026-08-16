@@ -1,0 +1,16 @@
+Implement this closed task in the supplied repository. The only writable production file is
+`app/db.py`; the acceptance file `tests/test_quota_alert_state.py` is frozen and immutable.
+
+`silence_mark_announced(now)` must atomically preserve the announcement even when the singleton
+row `quota_silence.id = 1` is missing. In that missing-row case it must create the row with
+`silence_since = now`, `notified_at = NULL`, and `announced_at = now`. When the row exists, keep
+the existing state and update `announced_at`. Do not change any other behavior.
+
+Run exactly:
+
+`uv run python -m pytest -q tests/test_quota_alert_state.py::test_mark_announced_can_restore_missing_state_row tests/test_quota_alert_state.py::test_silence_claim_is_taken_once_and_then_confirmed_forever`
+
+Never edit, delete, rename, skip, xfail, or weaken the acceptance file, fixtures, helpers, test
+configuration, markers, or test selection. Do not inspect paths outside this clone, use the
+network, fetch history, or search for a later implementation. Finish with the exact test result
+and files changed. If the command remains red, say so; do not claim completion.

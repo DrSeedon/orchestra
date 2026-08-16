@@ -1,0 +1,942 @@
+{
+  "schema_version": 1,
+  "prereg_commit": "89d00a00d3b9b09731e0eb1910ebbba9e3ca6145",
+  "generated_at": 1786870584.4679568,
+  "codex_version": "codex-cli 0.146.0",
+  "root": "/var/tmp/orchestra-bench-286-89d00a00d3b9",
+  "fixtures": [
+    {
+      "task": "silence-upsert",
+      "seed": "/var/tmp/orchestra-bench-286-89d00a00d3b9/seeds/silence-upsert",
+      "seed_commit": "1f096f2978eca52ba4955281f92665d4cb2902d9",
+      "future_unreachable": true,
+      "oracle_sha256": [
+        "21b355181967837008612738fe9315c2211e13afba4d9433c3bc34a594ca7331"
+      ],
+      "red_exit": 1,
+      "red_tail": "            \"SELECT announced_at, silence_since, notified_at FROM quota_silence WHERE id = 1\"\n        ).fetchone()\n        conn.close()\n>       assert row is not None\nE       assert None is not None\n\ntests/test_quota_alert_state.py:375: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_quota_alert_state.py::test_mark_announced_can_restore_missing_state_row\n1 failed, 1 passed in 7.33s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-spark-luna/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\nUsing CPython 3.12.3 interpreter at: /usr/bin/python3\nCreating virtual environment at: .venv\nInstalled 74 packages in 60ms"
+    },
+    {
+      "task": "no-quota-suffix",
+      "seed": "/var/tmp/orchestra-bench-286-89d00a00d3b9/seeds/no-quota-suffix",
+      "seed_commit": "72126e4162ed64a84df171a0fc551bb8d96d3bf4",
+      "future_unreachable": true,
+      "oracle_sha256": [
+        "8a72aee377002be4aa9f212fe1985a6322ec5bb38c71c511922916bded51a563"
+      ],
+      "red_exit": 1,
+      "red_tail": "E       AssertionError: assert '5h:' not in 'turn ended ... reset 4d13h'\nE         \nE         '5h:' is contained here:\nE            | Claude 5h:67% reset 1h30m Claude 7d:86% reset 4d13h\nE         ?           +++\n\ntests/test_turn_ended_no_quota_suffix.py:55: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_turn_ended_no_quota_suffix.py::test_turn_ended_line_has_cost_and_ctx_but_no_quota_percents\n1 failed in 7.29s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-spark-luna/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\nUsing CPython 3.12.3 interpreter at: /usr/bin/python3\nCreating virtual environment at: .venv\nInstalled 74 packages in 138ms"
+    }
+  ],
+  "reused_222": {
+    "source": "docs/tasks/222/blind-grades.json",
+    "sha256": "27745fe6bffbde79c6c771893525b6b9216245b050bb64c11ce134e5f683f477",
+    "confirmatory_rows": 20,
+    "models_key": {
+      "m7p": "gpt-5.3-codex-spark",
+      "q2v": "gpt-5.6-luna"
+    },
+    "rows": [
+      {
+        "case": "ambiguous",
+        "rep": 1,
+        "label": "m7p",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 99.794,
+        "tool_calls": 46,
+        "usage": {
+          "input_tokens": 1220334,
+          "cached_input_tokens": 1144576,
+          "output_tokens": 37427
+        },
+        "virtual_cost": null,
+        "pool_delta_primary": 1,
+        "pool_delta_spark": 1,
+        "prompt_chars": 2080,
+        "grade": {
+          "verdict": "SILENT",
+          "failure_mode": "SILENT",
+          "changed_paths_before_oracle": [
+            "app/quota_runway.py",
+            "tests/test_quota_runway.py"
+          ],
+          "asks_question": false,
+          "names_real_gap": false,
+          "claims_done": true,
+          "admits_specification_gap": false,
+          "future_oracle": {
+            "ran": true,
+            "passed": 19,
+            "total": 42,
+            "tail": "./../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_naive_datetime_is_rejected_loudly\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_weekly_reset_is_seven_utc_regardless_of_input_timezone\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[nan]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[inf]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[-1.0]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[100.5]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[nan]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[-0.5]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[101.0]\n23 failed, 19 passed in 8.54s\n"
+          }
+        }
+      },
+      {
+        "case": "ambiguous",
+        "rep": 1,
+        "label": "q2v",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r1-q2v/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 45.028,
+        "tool_calls": 14,
+        "usage": {
+          "input_tokens": 100107,
+          "cached_input_tokens": 67584,
+          "output_tokens": 1931
+        },
+        "virtual_cost": 0.01017348,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 2080,
+        "grade": {
+          "verdict": "SAFE_LOUD",
+          "failure_mode": "SAFE_LOUD",
+          "changed_paths_before_oracle": [],
+          "asks_question": true,
+          "names_real_gap": true,
+          "claims_done": false,
+          "admits_specification_gap": false,
+          "future_oracle": {
+            "ran": false,
+            "passed": null,
+            "total": null,
+            "tail": ""
+          }
+        }
+      },
+      {
+        "case": "ambiguous",
+        "rep": 2,
+        "label": "m7p",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 667.859,
+        "tool_calls": 104,
+        "usage": {
+          "input_tokens": 3873373,
+          "cached_input_tokens": 3587200,
+          "output_tokens": 72201
+        },
+        "virtual_cost": null,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 2,
+        "prompt_chars": 2080,
+        "grade": {
+          "verdict": "SILENT",
+          "failure_mode": "SILENT",
+          "changed_paths_before_oracle": [
+            "app/quota_runway.py",
+            "tests/test_quota_runway.py"
+          ],
+          "asks_question": false,
+          "names_real_gap": true,
+          "claims_done": true,
+          "admits_specification_gap": false,
+          "future_oracle": {
+            "ran": true,
+            "passed": 18,
+            "total": 42,
+            "tail": "./../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_naive_datetime_is_rejected_loudly\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_weekly_reset_is_seven_utc_regardless_of_input_timezone\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[nan]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[inf]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[-1.0]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_percentage_raises_instead_of_flowing_through[100.5]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[nan]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[-0.5]\nFAILED ../../../../../../var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-m7p/repo/tests/test_b222_future_oracle.py::test_impossible_baseline_raises_too[101.0]\n24 failed, 18 passed in 5.21s\n"
+          }
+        }
+      },
+      {
+        "case": "ambiguous",
+        "rep": 2,
+        "label": "q2v",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ambiguous-r2-q2v/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 324.317,
+        "tool_calls": 12,
+        "usage": {
+          "input_tokens": 320365,
+          "cached_input_tokens": 259328,
+          "output_tokens": 3025
+        },
+        "virtual_cost": 0.02102396,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 1,
+        "prompt_chars": 2080,
+        "grade": {
+          "verdict": "SAFE_LOUD",
+          "failure_mode": "SAFE_LOUD",
+          "changed_paths_before_oracle": [],
+          "asks_question": true,
+          "names_real_gap": true,
+          "claims_done": false,
+          "admits_specification_gap": false,
+          "future_oracle": {
+            "ran": false,
+            "passed": null,
+            "total": null,
+            "tail": ""
+          }
+        }
+      },
+      {
+        "case": "code",
+        "rep": 1,
+        "label": "m7p",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/code-r1-m7p/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 35.538,
+        "tool_calls": 10,
+        "usage": {
+          "input_tokens": 78249,
+          "cached_input_tokens": 65280,
+          "output_tokens": 2414
+        },
+        "virtual_cost": null,
+        "pool_delta_primary": 1,
+        "pool_delta_spark": 0,
+        "prompt_chars": 714,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "checks": {
+            "targeted_green": true,
+            "hidden_green": true,
+            "cause_assert_added": true,
+            "scope_allowed": true
+          },
+          "targeted_tail": "...............                                                          [100%]\n15 passed in 5.95s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "hidden_tail": "warning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "changed_paths": [
+            "app/errtext.py",
+            "tests/test_errtext.py"
+          ]
+        }
+      },
+      {
+        "case": "code",
+        "rep": 1,
+        "label": "q2v",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/code-r1-q2v/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 44.879,
+        "tool_calls": 6,
+        "usage": {
+          "input_tokens": 80914,
+          "cached_input_tokens": 70400,
+          "output_tokens": 1166
+        },
+        "virtual_cost": 0.00491,
+        "pool_delta_primary": 1,
+        "pool_delta_spark": 0,
+        "prompt_chars": 714,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "checks": {
+            "targeted_green": true,
+            "hidden_green": true,
+            "cause_assert_added": true,
+            "scope_allowed": true
+          },
+          "targeted_tail": "................                                                         [100%]\n16 passed in 5.73s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "hidden_tail": "warning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "changed_paths": [
+            "app/errtext.py",
+            "tests/test_errtext.py"
+          ]
+        }
+      },
+      {
+        "case": "code",
+        "rep": 2,
+        "label": "m7p",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/code-r2-m7p/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 42.423,
+        "tool_calls": 10,
+        "usage": {
+          "input_tokens": 96371,
+          "cached_input_tokens": 82944,
+          "output_tokens": 2897
+        },
+        "virtual_cost": null,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 714,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "checks": {
+            "targeted_green": true,
+            "hidden_green": true,
+            "cause_assert_added": true,
+            "scope_allowed": true
+          },
+          "targeted_tail": "................                                                         [100%]\n16 passed in 5.74s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "hidden_tail": "warning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "changed_paths": [
+            "app/errtext.py",
+            "tests/test_errtext.py"
+          ]
+        }
+      },
+      {
+        "case": "code",
+        "rep": 2,
+        "label": "q2v",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/code-r2-q2v/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 54.211,
+        "tool_calls": 8,
+        "usage": {
+          "input_tokens": 98609,
+          "cached_input_tokens": 72448,
+          "output_tokens": 1442
+        },
+        "virtual_cost": 0.00841156,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 714,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "checks": {
+            "targeted_green": true,
+            "hidden_green": true,
+            "cause_assert_added": true,
+            "scope_allowed": true
+          },
+          "targeted_tail": "................                                                         [100%]\n16 passed in 5.93s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "hidden_tail": "warning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "changed_paths": [
+            "app/errtext.py",
+            "tests/test_errtext.py"
+          ]
+        }
+      },
+      {
+        "case": "ctx100",
+        "rep": 1,
+        "label": "m7p",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx100-r1-m7p/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 8.3,
+        "tool_calls": 0,
+        "usage": {
+          "input_tokens": 102060,
+          "cached_input_tokens": 4224,
+          "output_tokens": 561
+        },
+        "virtual_cost": null,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 390495,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "expected": [
+            "2663",
+            "7701",
+            "7257",
+            "4888",
+            "6598"
+          ],
+          "normalized_answer": "2663,7701,7257,4888,6598"
+        }
+      },
+      {
+        "case": "ctx100",
+        "rep": 1,
+        "label": "q2v",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx100-r1-q2v/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 7.765,
+        "tool_calls": 0,
+        "usage": {
+          "input_tokens": 103255,
+          "cached_input_tokens": 8960,
+          "output_tokens": 64
+        },
+        "virtual_cost": 0.019115,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 390495,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "expected": [
+            "2663",
+            "7701",
+            "7257",
+            "4888",
+            "6598"
+          ],
+          "normalized_answer": "2663,7701,7257,4888,6598"
+        }
+      },
+      {
+        "case": "ctx100",
+        "rep": 2,
+        "label": "m7p",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx100-r2-m7p/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 8.812,
+        "tool_calls": 0,
+        "usage": {
+          "input_tokens": 102060,
+          "cached_input_tokens": 13184,
+          "output_tokens": 503
+        },
+        "virtual_cost": null,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 390495,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "expected": [
+            "2372",
+            "3608",
+            "9957",
+            "9824",
+            "6331"
+          ],
+          "normalized_answer": "2372,3608,9957,9824,6331"
+        }
+      },
+      {
+        "case": "ctx100",
+        "rep": 2,
+        "label": "q2v",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx100-r2-q2v/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 8.802,
+        "tool_calls": 0,
+        "usage": {
+          "input_tokens": 103047,
+          "cached_input_tokens": 8960,
+          "output_tokens": 78
+        },
+        "virtual_cost": 0.0190902,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 390495,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "expected": [
+            "2372",
+            "3608",
+            "9957",
+            "9824",
+            "6331"
+          ],
+          "normalized_answer": "2372,3608,9957,9824,6331"
+        }
+      },
+      {
+        "case": "ctx164",
+        "rep": 1,
+        "label": "m7p",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx164-r1-m7p/metrics.json",
+        "exit_code": 1,
+        "wall_seconds": 6.093,
+        "tool_calls": 0,
+        "usage": {},
+        "virtual_cost": null,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 651017,
+        "grade": {
+          "verdict": "LOUD_FAILURE",
+          "failure_mode": "LOUD_FAILURE",
+          "expected": [
+            "2663",
+            "7701",
+            "7257",
+            "4888",
+            "6598"
+          ],
+          "normalized_answer": ""
+        }
+      },
+      {
+        "case": "ctx164",
+        "rep": 1,
+        "label": "q2v",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx164-r1-q2v/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 8.012,
+        "tool_calls": 0,
+        "usage": {
+          "input_tokens": 163768,
+          "cached_input_tokens": 8960,
+          "output_tokens": 71
+        },
+        "virtual_cost": 0.031226,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 651017,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "expected": [
+            "2663",
+            "7701",
+            "7257",
+            "4888",
+            "6598"
+          ],
+          "normalized_answer": "2663,7701,7257,4888,6598"
+        }
+      },
+      {
+        "case": "ctx164",
+        "rep": 2,
+        "label": "m7p",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx164-r2-m7p/metrics.json",
+        "exit_code": 1,
+        "wall_seconds": 5.961,
+        "tool_calls": 0,
+        "usage": {},
+        "virtual_cost": null,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 651017,
+        "grade": {
+          "verdict": "LOUD_FAILURE",
+          "failure_mode": "LOUD_FAILURE",
+          "expected": [
+            "2372",
+            "3608",
+            "9957",
+            "9824",
+            "6331"
+          ],
+          "normalized_answer": ""
+        }
+      },
+      {
+        "case": "ctx164",
+        "rep": 2,
+        "label": "q2v",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/ctx164-r2-q2v/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 8.229,
+        "tool_calls": 0,
+        "usage": {
+          "input_tokens": 163768,
+          "cached_input_tokens": 8960,
+          "output_tokens": 59
+        },
+        "virtual_cost": 0.0312116,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 651017,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "expected": [
+            "2372",
+            "3608",
+            "9957",
+            "9824",
+            "6331"
+          ],
+          "normalized_answer": "2372,3608,9957,9824,6331"
+        }
+      },
+      {
+        "case": "text",
+        "rep": 1,
+        "label": "m7p",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/text-r1-m7p/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 138.55,
+        "tool_calls": 48,
+        "usage": {
+          "input_tokens": 1367863,
+          "cached_input_tokens": 1294336,
+          "output_tokens": 9148
+        },
+        "virtual_cost": null,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 1364,
+        "grade": {
+          "verdict": "PARTIAL",
+          "failure_mode": "SILENT_FALSE_SUCCESS",
+          "facts": {
+            "owner_top_level": true,
+            "double_star_bold": true,
+            "single_star_is_italic": false,
+            "headings_converted": true,
+            "tables_to_bullets": true,
+            "bare_urls": true,
+            "length_by_question": false
+          },
+          "fact_count": 5,
+          "nonleak": true,
+          "targeted_green": true,
+          "scope_allowed": true,
+          "false_advice": false,
+          "targeted_tail": "........................................................................ [ 91%]\n.......                                                                  [100%]\n79 passed in 6.10s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "changed_paths": [
+            "pipelines/default/prompts/roles/orchestrator.md",
+            "tests/test_default_pipeline.py"
+          ]
+        }
+      },
+      {
+        "case": "text",
+        "rep": 1,
+        "label": "q2v",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/text-r1-q2v/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 222.539,
+        "tool_calls": 30,
+        "usage": {
+          "input_tokens": 636901,
+          "cached_input_tokens": 442112,
+          "output_tokens": 6924
+        },
+        "virtual_cost": 0.05610884,
+        "pool_delta_primary": 1,
+        "pool_delta_spark": 1,
+        "prompt_chars": 1364,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "facts": {
+            "owner_top_level": true,
+            "double_star_bold": true,
+            "single_star_is_italic": true,
+            "headings_converted": true,
+            "tables_to_bullets": true,
+            "bare_urls": true,
+            "length_by_question": true
+          },
+          "fact_count": 7,
+          "nonleak": true,
+          "targeted_green": true,
+          "scope_allowed": true,
+          "false_advice": false,
+          "targeted_tail": "........................................................................ [ 91%]\n.......                                                                  [100%]\n79 passed in 6.09s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "changed_paths": [
+            "pipelines/default/prompts/roles/orchestrator.md",
+            "tests/test_default_pipeline.py"
+          ]
+        }
+      },
+      {
+        "case": "text",
+        "rep": 2,
+        "label": "m7p",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/text-r2-m7p/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 88.534,
+        "tool_calls": 50,
+        "usage": {
+          "input_tokens": 779665,
+          "cached_input_tokens": 694528,
+          "output_tokens": 10548
+        },
+        "virtual_cost": null,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 1364,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "facts": {
+            "owner_top_level": true,
+            "double_star_bold": true,
+            "single_star_is_italic": true,
+            "headings_converted": true,
+            "tables_to_bullets": true,
+            "bare_urls": true,
+            "length_by_question": true
+          },
+          "fact_count": 7,
+          "nonleak": true,
+          "targeted_green": true,
+          "scope_allowed": true,
+          "false_advice": false,
+          "targeted_tail": "........................................................................ [ 88%]\n.........                                                                [100%]\n81 passed in 5.95s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "changed_paths": [
+            "pipelines/default/prompts/roles/orchestrator.md",
+            "tests/test_default_pipeline.py"
+          ]
+        }
+      },
+      {
+        "case": "text",
+        "rep": 2,
+        "label": "q2v",
+        "metrics_path": "/var/tmp/orchestra-bench-222-f74b5d6a9773/text-r2-q2v/metrics.json",
+        "exit_code": 0,
+        "wall_seconds": 198.397,
+        "tool_calls": 42,
+        "usage": {
+          "input_tokens": 720136,
+          "cached_input_tokens": 548864,
+          "output_tokens": 6552
+        },
+        "virtual_cost": 0.05309408,
+        "pool_delta_primary": 0,
+        "pool_delta_spark": 0,
+        "prompt_chars": 1364,
+        "grade": {
+          "verdict": "PASS",
+          "failure_mode": "PASS",
+          "facts": {
+            "owner_top_level": true,
+            "double_star_bold": true,
+            "single_star_is_italic": true,
+            "headings_converted": true,
+            "tables_to_bullets": true,
+            "bare_urls": true,
+            "length_by_question": true
+          },
+          "fact_count": 7,
+          "nonleak": true,
+          "targeted_green": true,
+          "scope_allowed": true,
+          "false_advice": false,
+          "targeted_tail": "........................................................................ [ 88%]\n.........                                                                [100%]\n81 passed in 6.40s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead\n",
+          "changed_paths": [
+            "pipelines/default/prompts/roles/orchestrator.md",
+            "tests/test_default_pipeline.py"
+          ]
+        }
+      }
+    ]
+  },
+  "new_confirmatory_runs": [
+    {
+      "task": "silence-upsert",
+      "model": "gpt-5.6-luna",
+      "started_at": 1786870451.9938111,
+      "ended_at": 1786870504.5869808,
+      "wall_seconds": 52.593,
+      "exit_code": 0,
+      "timed_out": false,
+      "prompt_chars": 1135,
+      "proof": {
+        "seed_commit": "1f096f2978eca52ba4955281f92665d4cb2902d9",
+        "alternates_absent": true,
+        "future_implementation_unreachable": true,
+        "oracle_sha256_before": [
+          "21b355181967837008612738fe9315c2211e13afba4d9433c3bc34a594ca7331"
+        ]
+      },
+      "first_event_seconds": 3.140725941164419,
+      "cold_start_seconds": 7.428080069134012,
+      "tool_calls": 7,
+      "tool_failures": [],
+      "commands": [
+        "/bin/bash -lc \"sed -n '1,240p' app/db.py && printf '\\\\n--- status ---\\\\n' && git status --short\"",
+        "/bin/bash -lc 'rg -n -C 12 \"silence_mark_announced|quota_silence|silence_claim\" app/db.py'",
+        "/bin/bash -lc \"sed -n '1,260p' tests/test_quota_alert_state.py && sed -n '2480,2585p' app/db.py\"",
+        "/bin/bash -lc 'rg -n -C 18 \"mark_announced_can_restore|silence_claim_is_taken\" tests/test_quota_alert_state.py'",
+        "/bin/bash -lc 'uv run python -m pytest -q tests/test_quota_alert_state.py::test_mark_announced_can_restore_missing_state_row tests/test_quota_alert_state.py::test_silence_claim_is_taken_once_and_then_confirmed_forever'",
+        "/bin/bash -lc 'git status --short && git diff -- app/db.py'"
+      ],
+      "usage": {
+        "input_tokens": 170474,
+        "cached_input_tokens": 149504,
+        "output_tokens": 1522
+      },
+      "tool_failure_count": 0,
+      "oracle_sha256_after": [
+        "21b355181967837008612738fe9315c2211e13afba4d9433c3bc34a594ca7331"
+      ],
+      "oracle_unchanged": true,
+      "grade_exit": 0,
+      "grade_tail": "..                                                                       [100%]\n2 passed in 5.56s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-spark-luna/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead",
+      "changed_paths": [
+        "app/db.py"
+      ],
+      "allowed_paths_exact": true,
+      "outcome": "PASS",
+      "final": "Implemented atomic upsert in [app/db.py](/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/silence-upsert-luna/repo/app/db.py).\n\nTest result:\n\n```text\n.. [100%]\n2 passed in 7.14s\n```\n\nFiles changed: `app/db.py` only.",
+      "virtual_api_equivalent_usd": 0.00901048,
+      "luna_priced_trace_sensitivity_usd": 0.00901048,
+      "leakage_markers": [],
+      "raw": {
+        "events": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/silence-upsert-luna/events.jsonl",
+        "stderr": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/silence-upsert-luna/stderr.txt",
+        "diff": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/silence-upsert-luna/diff.patch"
+      },
+      "diff_sha256": "64d6e1e9575b09d5e35a7842fb1b9542f2b9299cd5eec8003e08db11e76582ff",
+      "diff_patch": "diff --git a/app/db.py b/app/db.py\nindex 06a65e5..ca3180b 100644\n--- a/app/db.py\n+++ b/app/db.py\n@@ -2564,7 +2564,12 @@ def silence_observe(*, has_data: bool, now: str, grace_seconds: float,\n def silence_mark_announced(now: str) -> None:\n     \"\"\"Зафиксировать ДОКАЗАННУЮ доставку сообщения о молчании.\"\"\"\n     with _conn() as c:\n-        c.execute(\"UPDATE quota_silence SET announced_at = ? WHERE id = 1\", (now,))\n+        c.execute(\n+            \"INSERT INTO quota_silence (id, silence_since, notified_at, announced_at)\"\n+            \" VALUES (1, ?, NULL, ?)\"\n+            \" ON CONFLICT(id) DO UPDATE SET announced_at = excluded.announced_at\",\n+            (now, now),\n+        )\n \n \n def silence_release(now: str) -> None:\n"
+    },
+    {
+      "task": "silence-upsert",
+      "model": "gpt-5.3-codex-spark",
+      "started_at": 1786870452.0104048,
+      "ended_at": 1786870482.055923,
+      "wall_seconds": 30.046,
+      "exit_code": 0,
+      "timed_out": false,
+      "prompt_chars": 1135,
+      "proof": {
+        "seed_commit": "1f096f2978eca52ba4955281f92665d4cb2902d9",
+        "alternates_absent": true,
+        "future_implementation_unreachable": true,
+        "oracle_sha256_before": [
+          "21b355181967837008612738fe9315c2211e13afba4d9433c3bc34a594ca7331"
+        ]
+      },
+      "first_event_seconds": 3.0433308389037848,
+      "cold_start_seconds": 10.134714660001919,
+      "tool_calls": 4,
+      "tool_failures": [],
+      "commands": [
+        "/bin/bash -lc 'rg -n \"silence_mark_announced|quota_silence|announced_at|notified_at|silence_since|id = 1|ON CONFLICT\" app/db.py'",
+        "/bin/bash -lc \"sed -n '2520,2590p' app/db.py\"",
+        "/bin/bash -lc 'uv run python -m pytest -q tests/test_quota_alert_state.py::test_mark_announced_can_restore_missing_state_row tests/test_quota_alert_state.py::test_silence_claim_is_taken_once_and_then_confirmed_forever'"
+      ],
+      "usage": {
+        "input_tokens": 93202,
+        "cached_input_tokens": 80384,
+        "output_tokens": 1615
+      },
+      "tool_failure_count": 0,
+      "oracle_sha256_after": [
+        "21b355181967837008612738fe9315c2211e13afba4d9433c3bc34a594ca7331"
+      ],
+      "oracle_unchanged": true,
+      "grade_exit": 0,
+      "grade_tail": "..                                                                       [100%]\n2 passed in 5.13s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-spark-luna/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead",
+      "changed_paths": [
+        "app/db.py"
+      ],
+      "allowed_paths_exact": true,
+      "outcome": "PASS",
+      "final": "Implemented: `silence_mark_announced(now)` now uses atomic upsert and preserves existing state while ensuring missing `quota_silence.id = 1` is restored.\n\n`app/db.py` changed:\n- `/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/silence-upsert-spark/repo/app/db.py`\n\nRan exactly:\n`uv run python -m pytest -q tests/test_quota_alert_state.py::test_mark_announced_can_restore_missing_state_row tests/test_quota_alert_state.py::test_silence_claim_is_taken_once_and_then_confirmed_forever`\n\nResult: `2 passed in 7.19s`",
+      "virtual_api_equivalent_usd": null,
+      "luna_priced_trace_sensitivity_usd": 0.00610928,
+      "leakage_markers": [],
+      "raw": {
+        "events": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/silence-upsert-spark/events.jsonl",
+        "stderr": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/silence-upsert-spark/stderr.txt",
+        "diff": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/silence-upsert-spark/diff.patch"
+      },
+      "diff_sha256": "64d6e1e9575b09d5e35a7842fb1b9542f2b9299cd5eec8003e08db11e76582ff",
+      "diff_patch": "diff --git a/app/db.py b/app/db.py\nindex 06a65e5..ca3180b 100644\n--- a/app/db.py\n+++ b/app/db.py\n@@ -2564,7 +2564,12 @@ def silence_observe(*, has_data: bool, now: str, grace_seconds: float,\n def silence_mark_announced(now: str) -> None:\n     \"\"\"Зафиксировать ДОКАЗАННУЮ доставку сообщения о молчании.\"\"\"\n     with _conn() as c:\n-        c.execute(\"UPDATE quota_silence SET announced_at = ? WHERE id = 1\", (now,))\n+        c.execute(\n+            \"INSERT INTO quota_silence (id, silence_since, notified_at, announced_at)\"\n+            \" VALUES (1, ?, NULL, ?)\"\n+            \" ON CONFLICT(id) DO UPDATE SET announced_at = excluded.announced_at\",\n+            (now, now),\n+        )\n \n \n def silence_release(now: str) -> None:\n"
+    },
+    {
+      "task": "no-quota-suffix",
+      "model": "gpt-5.6-luna",
+      "started_at": 1786870517.9657717,
+      "ended_at": 1786870577.5111175,
+      "wall_seconds": 59.545,
+      "exit_code": 0,
+      "timed_out": false,
+      "prompt_chars": 998,
+      "proof": {
+        "seed_commit": "72126e4162ed64a84df171a0fc551bb8d96d3bf4",
+        "alternates_absent": true,
+        "future_implementation_unreachable": true,
+        "oracle_sha256_before": [
+          "8a72aee377002be4aa9f212fe1985a6322ec5bb38c71c511922916bded51a563"
+        ]
+      },
+      "first_event_seconds": 2.1521879099309444,
+      "cold_start_seconds": 6.791949491947889,
+      "tool_calls": 6,
+      "tool_failures": [],
+      "commands": [
+        "/bin/bash -lc \"sed -n '1,240p' app/session_turns.py && printf '\\\\n--- acceptance test ---\\\\n' && sed -n '1,240p' tests/test_turn_ended_no_quota_suffix.py\"",
+        "/bin/bash -lc 'rg -n \"format_limits|turn ended|quota|reset\" app/session_turns.py'",
+        "/bin/bash -lc \"sed -n '300,520p' app/session_turns.py\"",
+        "/bin/bash -lc 'uv run python -m pytest -q tests/test_turn_ended_no_quota_suffix.py'",
+        "/bin/bash -lc 'git status --short && git diff -- app/session_turns.py tests/test_turn_ended_no_quota_suffix.py'"
+      ],
+      "usage": {
+        "input_tokens": 160875,
+        "cached_input_tokens": 142336,
+        "output_tokens": 1900
+      },
+      "tool_failure_count": 0,
+      "oracle_sha256_after": [
+        "8a72aee377002be4aa9f212fe1985a6322ec5bb38c71c511922916bded51a563"
+      ],
+      "oracle_unchanged": true,
+      "grade_exit": 0,
+      "grade_tail": ".                                                                        [100%]\n1 passed in 4.76s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-spark-luna/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead",
+      "changed_paths": [
+        "app/session_turns.py"
+      ],
+      "allowed_paths_exact": true,
+      "outcome": "PASS",
+      "final": "Implemented.\n\n- Removed quota/reset suffix from `turn ended` status.\n- Removed unused `_format_limits`.\n- Quota sampling and persistence unchanged.\n- Acceptance test untouched.\n\nTest result: `1 passed in 9.81s`\n\nChanged file: [app/session_turns.py](/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/no-quota-suffix-luna/repo/app/session_turns.py)",
+      "virtual_api_equivalent_usd": 0.00883452,
+      "luna_priced_trace_sensitivity_usd": 0.00883452,
+      "leakage_markers": [],
+      "raw": {
+        "events": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/no-quota-suffix-luna/events.jsonl",
+        "stderr": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/no-quota-suffix-luna/stderr.txt",
+        "diff": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/no-quota-suffix-luna/diff.patch"
+      },
+      "diff_sha256": "96179e9eb7b32d7c4d87399aa11d20a875421fb2bae47988b27d4420ca19a999",
+      "diff_patch": "diff --git a/app/session_turns.py b/app/session_turns.py\nindex a6361b8..26c3ded 100644\n--- a/app/session_turns.py\n+++ b/app/session_turns.py\n@@ -196,44 +196,6 @@ def _cached_quota_state(\n     return _cached_quota_snapshot(runtime, model, now=now)[\"state\"]\n \n \n-def _format_limits(snapshot: dict, *, now: float | None = None) -> str:\n-    checked_at = time.time() if now is None else now\n-    parts = []\n-    for label, window in snapshot.get(\"display\", ()):\n-        if not isinstance(window, dict):\n-            continue\n-        utilization = window.get(\"utilization\")\n-        if (\n-            isinstance(utilization, bool)\n-            or not isinstance(utilization, (int, float))\n-            or not math.isfinite(utilization)\n-            or not 0 <= utilization <= 100\n-        ):\n-            continue\n-        reset_s = \"\"\n-        reset_at = window.get(\"resets_at\")\n-        if reset_at:\n-            try:\n-                reset = datetime.fromisoformat(str(reset_at).replace(\"Z\", \"+00:00\"))\n-                if reset.tzinfo is None:\n-                    raise ValueError(\"timezone missing\")\n-                remaining = reset.timestamp() - checked_at\n-                if remaining > 0:\n-                    if remaining >= 86400:\n-                        days, remainder = divmod(int(remaining), 86400)\n-                        reset_s = f\" reset {days}d{remainder // 3600}h\"\n-                    else:\n-                        hours, minutes = divmod(int(remaining) // 60, 60)\n-                        reset_s = f\" reset {hours}h{minutes:02d}m\"\n-            except (OSError, OverflowError, TypeError, ValueError) as error:\n-                logger.debug(\n-                    \"%s resets_at unparsable (%r): %s: %s\",\n-                    label, reset_at, type(error).__name__, error,\n-                )\n-        parts.append(f\"{label}:{utilization:g}%{reset_s}\")\n-    return \" | \" + \" \".join(parts) if parts else \"\"\n-\n-\n class TurnManager:\n     def __init__(self, s: \"AgentSession\") -> None:\n         self.s = s\n@@ -479,7 +441,6 @@ class TurnManager:\n         ctx_s = f\"ctx:{live_pct}%\" if live_pct else \"\"\n         def _fc(v):\n             return f\"{v:.4f}\" if v < 0.01 and v > 0 else f\"{v:.2f}\"\n-        limits_s = _format_limits(quota_snapshot)\n         if cost_unaccounted:\n             cost_summary = f\"cost unaccounted for {s.model}\"\n         else:\n@@ -489,7 +450,7 @@ class TurnManager:\n             )\n         s._log(\n             \"status\",\n-            f\"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s}){limits_s}\",\n+            f\"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s})\",\n             event_id=event_id,\n         )\n \n"
+    },
+    {
+      "task": "no-quota-suffix",
+      "model": "gpt-5.3-codex-spark",
+      "started_at": 1786870517.9305573,
+      "ended_at": 1786870568.1881092,
+      "wall_seconds": 50.258,
+      "exit_code": 0,
+      "timed_out": false,
+      "prompt_chars": 998,
+      "proof": {
+        "seed_commit": "72126e4162ed64a84df171a0fc551bb8d96d3bf4",
+        "alternates_absent": true,
+        "future_implementation_unreachable": true,
+        "oracle_sha256_before": [
+          "8a72aee377002be4aa9f212fe1985a6322ec5bb38c71c511922916bded51a563"
+        ]
+      },
+      "first_event_seconds": 2.2115796280559152,
+      "cold_start_seconds": 6.5855739479884505,
+      "tool_calls": 7,
+      "tool_failures": [],
+      "commands": [
+        "/bin/bash -lc 'rg -n \"turn ended|quota|quota suffix|provider.*quota|ctx:|countdown|reset\" app/session_turns.py tests/test_turn_ended_no_quota_suffix.py'",
+        "/bin/bash -lc \"sed -n '180,280p;330,520p' app/session_turns.py\"",
+        "/bin/bash -lc \"rg -n \\\"_format_limits\\\\(|_cached_quota_snapshot\\\\(|_unknown_quota_snapshot\\\\(|quota_primary_pct|quota_five_hour_pct|quota_seven_day_pct\\\" app/session_turns.py\"",
+        "/bin/bash -lc \"sed -n '1,110p' app/session_turns.py\"",
+        "/bin/bash -lc \"rg -n \\\"\\\\bmath\\\\.\\\" app/session_turns.py\"",
+        "/bin/bash -lc 'uv run python -m pytest -q tests/test_turn_ended_no_quota_suffix.py'"
+      ],
+      "usage": {
+        "input_tokens": 175052,
+        "cached_input_tokens": 156032,
+        "output_tokens": 3522
+      },
+      "tool_failure_count": 0,
+      "oracle_sha256_after": [
+        "8a72aee377002be4aa9f212fe1985a6322ec5bb38c71c511922916bded51a563"
+      ],
+      "oracle_unchanged": true,
+      "grade_exit": 0,
+      "grade_tail": ".                                                                        [100%]\n1 passed in 4.73s\nwarning: `VIRTUAL_ENV=/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-spark-luna/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead",
+      "changed_paths": [
+        "app/session_turns.py"
+      ],
+      "allowed_paths_exact": true,
+      "outcome": "PASS",
+      "final": "Implemented.  \n`app/session_turns.py` now logs `turn ended` without provider quota percentages or reset countdown suffixes, while still preserving stop reason, turn count, cost summary, and `ctx:...%`.\n\n- Changed file: [app/session_turns.py](/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/no-quota-suffix-spark/repo/app/session_turns.py)\n- Test command run exactly as requested:\n  `uv run python -m pytest -q tests/test_turn_ended_no_quota_suffix.py`\n- Result: `1 passed in 8.68s` (green)\n\nNo other files were changed.",
+      "virtual_api_equivalent_usd": null,
+      "luna_priced_trace_sensitivity_usd": 0.01115104,
+      "leakage_markers": [],
+      "raw": {
+        "events": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/no-quota-suffix-spark/events.jsonl",
+        "stderr": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/no-quota-suffix-spark/stderr.txt",
+        "diff": "/var/tmp/orchestra-bench-286-89d00a00d3b9/runs/no-quota-suffix-spark/diff.patch"
+      },
+      "diff_sha256": "96179e9eb7b32d7c4d87399aa11d20a875421fb2bae47988b27d4420ca19a999",
+      "diff_patch": "diff --git a/app/session_turns.py b/app/session_turns.py\nindex a6361b8..26c3ded 100644\n--- a/app/session_turns.py\n+++ b/app/session_turns.py\n@@ -196,44 +196,6 @@ def _cached_quota_state(\n     return _cached_quota_snapshot(runtime, model, now=now)[\"state\"]\n \n \n-def _format_limits(snapshot: dict, *, now: float | None = None) -> str:\n-    checked_at = time.time() if now is None else now\n-    parts = []\n-    for label, window in snapshot.get(\"display\", ()):\n-        if not isinstance(window, dict):\n-            continue\n-        utilization = window.get(\"utilization\")\n-        if (\n-            isinstance(utilization, bool)\n-            or not isinstance(utilization, (int, float))\n-            or not math.isfinite(utilization)\n-            or not 0 <= utilization <= 100\n-        ):\n-            continue\n-        reset_s = \"\"\n-        reset_at = window.get(\"resets_at\")\n-        if reset_at:\n-            try:\n-                reset = datetime.fromisoformat(str(reset_at).replace(\"Z\", \"+00:00\"))\n-                if reset.tzinfo is None:\n-                    raise ValueError(\"timezone missing\")\n-                remaining = reset.timestamp() - checked_at\n-                if remaining > 0:\n-                    if remaining >= 86400:\n-                        days, remainder = divmod(int(remaining), 86400)\n-                        reset_s = f\" reset {days}d{remainder // 3600}h\"\n-                    else:\n-                        hours, minutes = divmod(int(remaining) // 60, 60)\n-                        reset_s = f\" reset {hours}h{minutes:02d}m\"\n-            except (OSError, OverflowError, TypeError, ValueError) as error:\n-                logger.debug(\n-                    \"%s resets_at unparsable (%r): %s: %s\",\n-                    label, reset_at, type(error).__name__, error,\n-                )\n-        parts.append(f\"{label}:{utilization:g}%{reset_s}\")\n-    return \" | \" + \" \".join(parts) if parts else \"\"\n-\n-\n class TurnManager:\n     def __init__(self, s: \"AgentSession\") -> None:\n         self.s = s\n@@ -479,7 +441,6 @@ class TurnManager:\n         ctx_s = f\"ctx:{live_pct}%\" if live_pct else \"\"\n         def _fc(v):\n             return f\"{v:.4f}\" if v < 0.01 and v > 0 else f\"{v:.2f}\"\n-        limits_s = _format_limits(quota_snapshot)\n         if cost_unaccounted:\n             cost_summary = f\"cost unaccounted for {s.model}\"\n         else:\n@@ -489,7 +450,7 @@ class TurnManager:\n             )\n         s._log(\n             \"status\",\n-            f\"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s}){limits_s}\",\n+            f\"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s})\",\n             event_id=event_id,\n         )\n \n"
+    }
+  ]
+}

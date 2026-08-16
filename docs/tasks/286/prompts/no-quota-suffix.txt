@@ -1,0 +1,17 @@
+Implement this closed task in the supplied repository. The only writable production file is
+`app/session_turns.py`; the acceptance file `tests/test_turn_ended_no_quota_suffix.py` is frozen
+and immutable.
+
+The terminal status entry beginning `turn ended` must keep stop reason, turn count, cost status,
+and `ctx:<percent>%`, but must no longer append provider quota percentages or reset countdowns.
+Remove the now-unused quota-suffix formatter if it has no other caller. Do not change quota
+sampling, persistence, alerts, or any other status entry.
+
+Run exactly:
+
+`uv run python -m pytest -q tests/test_turn_ended_no_quota_suffix.py`
+
+Never edit, delete, rename, skip, xfail, or weaken the acceptance file, fixtures, helpers, test
+configuration, markers, or test selection. Do not inspect paths outside this clone, use the
+network, fetch history, or search for a later implementation. Finish with the exact test result
+and files changed. If the command remains red, say so; do not claim completion.
