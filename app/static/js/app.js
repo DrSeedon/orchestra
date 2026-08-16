@@ -245,6 +245,11 @@ function _scrollChatToBottom(behavior = 'auto') {
 let _chatTimelineObserver = null;
 
 const NOTIFY_USER_TOOL = 'mcp__orchestra__notify_user';
+const SILENT_TURN_MARKER = '[[ORCHESTRA:SILENT_TURN]]';
+
+function _isSilentTurnMarker(type, content) {
+    return type === 'text' && content === SILENT_TURN_MARKER;
+}
 
 // Оркестратор зовёт юзера ТОЛЬКО этим вызовом (#241), поэтому таких строк мало и они
 // и есть «свежее», ради которого юзер иначе пролистывал бы весь поток.
@@ -4196,6 +4201,7 @@ function renderSystemChatEntry(type, content, ts) {
 // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
 // payload = full SSE log object (carries subagent_id for sub-agent nesting)
 function addChatEntry(type, content, ts, anchor, payload) {
+    if (_isSilentTurnMarker(type, content)) return;
     if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return;
     // Live sub-agent output → nest inside the sub-agent accordion, not the main flow
     if ((type === 'subagent_stream' || type === 'subagent_event') && payload && payload.subagent_id) {

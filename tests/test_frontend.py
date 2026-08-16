@@ -1366,6 +1366,7 @@ def test_restart_header_raises_and_lowers_the_pause_without_any_user_action(
 
 _NOTIFY_AGENT = "notify-268-probe"
 _NOTIFY_SESSION = "sess-268"
+_SILENT_TURN_MARKER = "[[ORCHESTRA:SILENT_TURN]]"
 
 
 def _notify_stub(permission: str) -> str:
@@ -1403,6 +1404,92 @@ def _notify_row(log_id: int, reason: str) -> dict:
         "session_id": _NOTIFY_SESSION,
         "tool_use_id": f"toolu_call{log_id}",
     }
+
+
+def _silent_turn_row(log_id: int, row_type: str = "text", content: str | None = None) -> dict:
+    return {
+        "id": log_id,
+        "type": row_type,
+        "content": _SILENT_TURN_MARKER if content is None else content,
+        "ts": "2026-08-16T12:00:00+00:00",
+        "session_id": _NOTIFY_SESSION,
+    }
+
+
+def test_silent_turn_marker_is_hidden_only_when_exact_text_in_history(
+    dashboard_browser: Browser,
+):
+    rows = [
+        _silent_turn_row(51001),
+        _silent_turn_row(51002, content=f" {_SILENT_TURN_MARKER}"),
+        _silent_turn_row(51003, content=f"{_SILENT_TURN_MARKER}\n"),
+        _silent_turn_row(51004, content=f"prefix {_SILENT_TURN_MARKER}"),
+        _silent_turn_row(51005, content=f"{_SILENT_TURN_MARKER} suffix"),
+        _silent_turn_row(51006, content=_SILENT_TURN_MARKER.replace("TURN", "TURN_")),
+        _silent_turn_row(51007, "user_message"),
+        _silent_turn_row(51008, "error"),
+        _silent_turn_row(51009, "status", "turn ended"),
+    ]
+    page, _ = _open_notify_stream_page(
+        dashboard_browser,
+        "granted",
+        history_rows=rows,
+        stream_pages=[[]],
+    )
+    try:
+        page.wait_for_function(
+            "() => document.querySelector('[data-chat-log-id=\"51009\"]') !== null",
+            timeout=8000,
+        )
+        state = page.evaluate("""() => ({
+            markerType: typeof _isSilentTurnMarker,
+            ids: [...document.querySelectorAll('#chat [data-chat-log-id]')]
+                .map(node => node.dataset.chatLogId),
+            lastId: chatLogs['notify-268-probe']?.lastId,
+        })""")
+    finally:
+        page.close()
+
+    assert state["markerType"] == "function"
+    assert "51001" not in state["ids"], "exact marker must not get a history bubble"
+    assert {str(row_id) for row_id in range(51002, 51010)} <= set(state["ids"]), (
+        "whitespace, prefix/suffix, underscore, user_message/error, and telemetry rows "
+        "must remain visible"
+    )
+    assert state["lastId"] == 51009, "hidden presentation must not drop history bookkeeping"
+
+
+def test_silent_turn_marker_is_hidden_from_live_sse_but_telemetry_survives(
+    dashboard_browser: Browser,
+):
+    page, stream_calls = _open_notify_stream_page(
+        dashboard_browser,
+        "granted",
+        history_rows=[],
+        stream_pages=[[
+            _silent_turn_row(52001),
+            _silent_turn_row(52002, content=f" {_SILENT_TURN_MARKER}"),
+            _silent_turn_row(52003, "status", "turn ended"),
+        ]],
+    )
+    try:
+        page.wait_for_function(
+            "() => document.querySelector('[data-chat-log-id=\"52003\"]') !== null",
+            timeout=8000,
+        )
+        state = page.evaluate("""() => ({
+            ids: [...document.querySelectorAll('#chat [data-chat-log-id]')]
+                .map(node => node.dataset.chatLogId),
+            lastId: chatLogs['notify-268-probe']?.lastId,
+        })""")
+    finally:
+        page.close()
+
+    assert stream_calls, "live SSE route must have been exercised"
+    assert "52001" not in state["ids"], "exact marker must not get a live bubble"
+    assert "52002" in state["ids"], "near-match live text must remain visible"
+    assert "52003" in state["ids"], "turn ended telemetry must remain visible"
+    assert state["lastId"] == 52003, "SSE cursor must advance across hidden rows"
 
 
 def _open_notify_stream_page(
