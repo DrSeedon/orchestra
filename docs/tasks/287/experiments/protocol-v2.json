@@ -1,0 +1,47 @@
+{
+  "protocol_version": "287.2-exploratory",
+  "preregistered_at": "2026-08-16T11:13:35+02:00",
+  "status_at_registration": "The 287.1 results are known. This is a post-hoc exploratory correction, never pooled with or presented as confirmatory replication of 287.1.",
+  "reason": {
+    "v1_design_defect": "Raw, summary, and native representations exposed event IDs while the answer contract demanded canonical F/D/S/U/N IDs that only deterministic packets exposed. Exact-ID retention therefore measured answer-key availability, not retention.",
+    "v1_runtime_availability": "Claude returned subscription spend-limit status in a neutral harness probe. Grok succeeded only when pointed at Orchestra's already-managed GROK_HOME; the v1 default home was unauthenticated.",
+    "non_rerun_rule": "No 287.1 cell is replaced or rerun. Version 2 uses a corrected representation contract, retains all 287.1 data, and is labelled exploratory because the investigator has seen version 1 outcomes."
+  },
+  "inherit_from": "protocol.json",
+  "changes": [
+    "Each raw event receives explicit state_ids metadata linking observable content to canonical IDs; all mechanisms therefore have access to the same answer vocabulary.",
+    "The source-generated summary uses Codex Luna because Claude is unavailable; it is frozen for both available targets.",
+    "Available targets are Codex Luna and Grok 4.6. Claude is recorded unavailable, not substituted.",
+    "Grok uses the existing managed subscription home at /home/kesha/orchestra/data/grok-home without editing config or credentials.",
+    "Grok parser consumes the CLI structuredOutput field; the neutral preflight returned status=ok before registration.",
+    "Task contents, distractor count, output schema, scoring rubric, timeout, no-rerun rule, and mechanism definitions remain version 1."
+  ],
+  "state_id_mapping": {
+    "code": {
+      "E-C01": ["F-C1"], "E-C03": ["F-C3"], "E-C04": ["F-C2", "D-C1"],
+      "E-C06": ["D-C1"], "E-C08": ["F-C4", "S-C1", "U-C1"], "E-C09": ["N-C1"]
+    },
+    "research": {
+      "E-R01": ["F-R1", "F-R2", "F-R3"], "E-R04": ["F-R4", "S-R1"],
+      "E-R06": ["F-R4", "S-R1"], "E-R07": ["D-R1"], "E-R08": ["U-R1", "N-R1"]
+    },
+    "multi_tool_state": {
+      "E-M01": ["F-M1"], "E-M03": ["F-M2", "S-M1"], "E-M05": ["F-M3", "S-M1"],
+      "E-M07": ["F-M4", "S-M1", "U-M1"], "E-M08": ["D-M1", "N-M1"]
+    }
+  },
+  "design": {
+    "tasks": 3,
+    "available_targets": ["codex", "grok"],
+    "unavailable_targets": {"claude": "subscription spend limit; neutral probe returned api_error_status=429 and zero usage"},
+    "mechanisms": 6,
+    "portable_action_cells": 30,
+    "native_action_cells": 6,
+    "summary_generation_cells": 15,
+    "native_seed_cells": 6,
+    "total_model_turns_planned": 57,
+    "replicates": 1,
+    "ordering": "task, mechanism, target; target order alternates Codex/Grok by task index",
+    "winner_rule": "Same as protocol 287.1; compare only within the 287.2 corpus and label every conclusion exploratory."
+  }
+}
