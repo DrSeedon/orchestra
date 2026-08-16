@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -97,3 +98,77 @@ def test_check_fails_when_prompt_quotes_manifest_model_id(tmp_path):
     proc = _run("--check", "--manifest", str(planted))
     assert proc.returncode == 1
     assert "claude-opus-5[1m]" in proc.stderr
+
+
+def _policy_copy(tmp_path: Path) -> Path:
+    root = tmp_path / "default"
+    shutil.copytree(DEFAULT.parent / "prompts", root / "prompts")
+    shutil.copy2(DEFAULT, root / "pipeline.yaml")
+    return root / "pipeline.yaml"
+
+
+def _policy_errors(manifest: Path) -> list[str]:
+    data = yaml.safe_load(manifest.read_text())
+    return check._review_policy_errors(manifest.parent, data)
+
+
+def test_review_policy_rejects_silent_worker_bypass(tmp_path):
+    manifest = _policy_copy(tmp_path)
+    worker = manifest.parent / "prompts" / "roles" / "worker.md"
+    worker.write_text(
+        worker.read_text().replace(check._REVIEW_POLICY_POINTER, "review when useful")
+    )
+
+    errors = _policy_errors(manifest)
+    assert any("roles/worker.md" in error and "pointer" in error for error in errors), errors
+
+
+def test_review_policy_rejects_self_downgrade_without_evidence(tmp_path):
+    manifest = _policy_copy(tmp_path)
+    owner = manifest.parent / "prompts" / "skills" / "codex-debate.md"
+    owner.write_text(
+        owner.read_text().replace(
+            "The author never self-certifies risk or oracle strength",
+            "The author chooses the risk and oracle strength",
+        )
+    )
+
+    errors = _policy_errors(manifest)
+    assert any("self-certifies" in error for error in errors), errors
+
+
+def test_review_policy_rejects_author_controlled_high_risk_floor(tmp_path):
+    manifest = _policy_copy(tmp_path)
+    owner = manifest.parent / "prompts" / "skills" / "codex-debate.md"
+    owner.write_text(
+        owner.read_text().replace(
+            "**High-risk is evidence-derived, not author-declared.**",
+            "**High-risk is whatever the author declares.**",
+        )
+    )
+
+    errors = _policy_errors(manifest)
+    assert any("High-risk is evidence-derived" in error for error in errors), errors
+
+
+def test_review_policy_rejects_stale_mandatory_sol_rule(tmp_path):
+    manifest = _policy_copy(tmp_path)
+    full_cycle = manifest.parent / "prompts" / "roles" / "full-cycle.md"
+    full_cycle.write_text(
+        full_cycle.read_text()
+        + "\nCodex review MANDATORY for complex tasks regardless of the policy gate.\n"
+    )
+
+    errors = _policy_errors(manifest)
+    assert any("stale review policy wording" in error for error in errors), errors
+
+
+def test_review_policy_rejects_duplicate_owner_clause(tmp_path):
+    manifest = _policy_copy(tmp_path)
+    consumer = manifest.parent / "prompts" / "modules" / "orchestration.md"
+    consumer.write_text(
+        consumer.read_text() + "\n## Review decision gate — canonical policy\n"
+    )
+
+    errors = _policy_errors(manifest)
+    assert any("duplicates canonical review policy" in error for error in errors), errors

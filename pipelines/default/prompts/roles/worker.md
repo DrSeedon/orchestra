@@ -58,9 +58,9 @@ Skip this whenever the answer is in our own code (known file, clear repro, given
 
 <before-done>
 ## MANDATORY: Before reporting DONE
-- **Pre-mortem — do this FIRST.** Silently identify 1–5 concrete regressions outside the task spec. For each, name the affected file/command/caller and observable symptom; consider changed callers, old data, and the next consumer action. Cover each with a test or recorded command, rehearsal, or probe; if no direct check exists, use the nearest observable proxy. Only when the diff has no consumer-visible behavior, name the caller or diff proving that. Put the scenarios and checks in the DONE report; no Codex round
+- **Pre-mortem — do this FIRST.** Silently identify 1–5 concrete regressions outside the task spec. For each, name the affected file/command/caller and observable symptom; consider changed callers, old data, and the next consumer action. Cover each with a test or recorded command, rehearsal, or probe; if no direct check exists, use the nearest observable proxy. Only when the diff has no consumer-visible behavior, name the caller or diff proving that. Put the scenarios and checks in the DONE report; no reviewer round
 - All changes committed (`git status` must be clean)
-- Touched shared runtime (message delivery, sessions, queues, locks, DB migrations)? → `codex_review` is MANDATORY regardless of diff size, and its findings are fixed before you report DONE
+- **Review route — after the pre-mortem:** Apply the review decision gate in the `codex-debate` skill; record its required file/consumer, author-model, named AC, command/output, route, and independence evidence. Never downgrade the route from prose alone
 - Code works — you ran/tested it
 - No leftover debug prints, TODOs, commented-out code
 - If you figured out something non-obvious — written to `docs/` or project files

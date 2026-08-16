@@ -34,18 +34,16 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
    - Confidence: CONFIRMED (proven/multi-source) / LIKELY / UNCERTAIN / REFUTED
    - Counter-evidence — what argues against
    - Affected files, risks, edge cases (for the code to come)
-5. **Second opinion (Codex).** For non-trivial research, run a Codex debate to challenge your
-   key conclusions — "second opinion on my research conclusions" (codex-debate skill, or
-   `codex_review(mode="exec", target="docs/tasks/<id>/research.md",
-   context="<task + current PROJECT CONTEXT>")` if no Bash). Feed it the
-   findings you're most confident about and ask it to falsify them. If Codex surfaces a
-   blocking hole in a load-bearing finding → verify via code/measurement, then resume the
-   session to debate (do NOT just note it and move on — see the second-opinion rule below).
+5. Apply the selected review route to research conclusions: mechanical completeness for fact
+   extraction, otherwise the reviewer chosen by the canonical gate. Feed it the findings you're
+   most confident about and ask it to falsify them. If the reviewer surfaces a
+   blocking hole in a load-bearing finding → verify via code/measurement, then apply the
+   canonical follow-up/escalation rule (do NOT just note it and move on).
    Fold the outcome into research.md (Counter-evidence / confidence).
 6. Report: `RESEARCH DONE #<id>: <2-3 sentence truth + confidence>. docs/tasks/<id>/research.md. Awaiting approval to plan.`
 7. **STOP. Wait for approval.**
 
-### Phase 2: PLAN → slice into tickets (AC) + Codex review
+### Phase 2: PLAN → slice into tickets (AC) + risk-based review
 1. Write `docs/tasks/<task-id>/plan.md`: what changes in which files (functions/classes),
    new files, migration notes, what NOT to touch.
 2. **Slice the plan into vertical tickets** (tracer-bullet style — not horizontal layers).
@@ -92,25 +90,25 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
    part of the mark: a bare `oracle: none` is not a valid ticket.
    **A ticket marked `oracle: none` stays on the expensive side and is never handed to a
    cheap executor** — that mark is the whole point, not an escape hatch.
-4. Codex review the plan + tickets (codex-debate skill Quick Review). Fix issues, document disagreements.
-   Codex reviews the plan, the tickets AND the committed test. A test that is
+4. Run the review route selected by the canonical gate on the plan + tickets. Fix issues and
+   document disagreements. The reviewer checks the plan, tickets AND the committed test. A test that is
    already green at review time is a blocking finding, and so is an `oracle: none`
-   whose stated reason Codex can refute by naming a viable check.
-   **On disagreement, debate — don't just record.** If Codex flags a blocking issue and you
-   disagree after checking the code, RESUME the same Codex session with your counter-argument
-   (same output file + `resume=True`, or codex-debate resume-by-UUID) and iterate to consensus.
+   whose stated reason the reviewer can refute by naming a viable check.
+   **On disagreement, debate — don't just record.** If the reviewer flags a blocking issue and
+   you disagree after checking the code, follow the canonical evidence-backed follow-up or
+   model-escalation rule.
    Only escalate to the orchestrator when: the round ceiling in the `codex-debate` skill is
-   reached with findings still open, Codex demands deleting existing functionality / an
+   reached with findings still open, the reviewer demands deleting existing functionality / an
    architecture change, or the disagreement is genuinely unresolvable.
    A recorded-and-ignored blocking finding is not acceptable.
    **Research/architecture exception:** for open-ended design decisions (not bug fixes), preserve
-   first-round dissent as a section in codex-review-*.md even after reaching consensus. The
+   first-round dissent as a section in `review-*.md` even after reaching consensus. The
    minority opinion may turn out correct — don't erase it from the record.
 5. Report: `PLAN READY #<id>: <approach>, N tickets, M with a red test (K `oracle: none`).
-   <command> → exit 1: <first failing line>. Plan + Codex in docs/tasks/<id>/. Awaiting approval.`
+   <command> → exit 1: <first failing line>. Plan + review evidence in docs/tasks/<id>/. Awaiting approval.`
 6. **STOP. Wait for approval.**
 
-### Phase 3: IMPLEMENT ticket-by-ticket + Codex review
+### Phase 3: IMPLEMENT ticket-by-ticket + risk-based review
 1. TAKE tickets in `blocked-by` order, ONE at a time inside each dependency chain to keep
    context lean. Independent tickets whose files and lines do not overlap may run concurrently; serialize only dependency chains and overlapping changes. This step selects the ticket;
    implementation starts only after step 2 passes.
@@ -141,21 +139,21 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
    each in step 6 with a test or recorded command, rehearsal, or probe; if no direct check exists,
    use the nearest observable proxy. Only when the diff has no consumer-visible behavior, record
    the caller or diff proving that. Record the scenarios and checks in `report.md` (step 9); no
-   Codex round.
+   reviewer round.
 6. Test: `uv run python -m pytest -x -q > /tmp/pytest-<task-id>.log 2>&1`,
    then read the log ONCE. Never poll a long command with repeated empty `write_stdin`/`wait`.
    If `git status` ever shows a modified `uv.lock` after a test run — STOP, don't commit it. It means
    the `[options] exclude-newer` barrier (`pyproject.toml` + `uv.lock`) got lost and deps re-resolved
    themselves; restore it instead of committing ~800 lines of silent upgrades.
-7. Apply the review gate in the pipeline rules below to the git diff — it decides run vs. skip; do not treat this numbered step as an unconditional run. If it runs: fix CRITICAL/HIGH, re-run if needed.
+7. Apply the selected review route to the git diff. If it runs: verify and resolve blocking findings; repeat only when the canonical follow-up rule permits it.
 8. Commit (one clean commit, or per-ticket if large): `#<task-id>: <what you did>`.
 9. Write `docs/tasks/<task-id>/report.md` (what, files ±lines, tickets done, tests, breaking, TODOs).
    Any lesson worth reusing goes INTO this report — no separate retro file. Platform bugs → `report_bug`.
 10. Report DONE (report-format module) + the review line that MATCHES what happened:
-   review ran → `Codex approved. Report in docs/tasks/<id>/report.md`;
-   gate allowed skip → `Codex skipped — <eligible reason>. Report in docs/tasks/<id>/report.md`.
-   Never write "Codex approved" without a `codex-review-*.md` verdict behind it.
-   **Verify artifact, not narrative:** your DONE report must reference concrete evidence — test output, file paths, measurements, codex-review-*.md excerpts. "I tested it" or "I verified" without showing the artifact is not acceptable. The orchestrator checks artifacts, not your narration of them.
+   review ran → `Review: <route/model>, <verdict>. Report in docs/tasks/<id>/report.md`;
+   gate allowed skip → `Review: skipped — <named oracle + AC evidence>. Report in docs/tasks/<id>/report.md`.
+   Never write "approved" without a reviewer artifact and completed-verdict evidence.
+   **Verify artifact, not narrative:** your DONE report must reference concrete evidence — test output, file paths, measurements, and reviewer-artifact excerpts. "I tested it" or "I verified" without showing the artifact is not acceptable. The orchestrator checks artifacts, not your narration of them.
 </pipeline>
 
 <artifacts>
@@ -164,8 +162,7 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
 docs/tasks/<task-id>/
 ├── research.md          — Phase 1: truth (sources + measurements), affected files, risks
 ├── plan.md              — Phase 2: what/how/which files + ## Tickets (slices with AC + blocked-by)
-├── codex-review-plan.md — Phase 2: Codex on the plan
-├── codex-review-impl.md — Phase 3: Codex on the impl
+├── review-*.md          — selected reviewer evidence (Sol tool artifacts may retain codex-review-*)
 └── report.md            — Phase 3: final report (includes any reusable lesson)
 ```
 </artifacts>
@@ -184,13 +181,11 @@ docs/tasks/<task-id>/
 ## Pipeline rules
 - NEVER skip a phase. NEVER proceed without approval after Phase 1 and 2 — STOP and wait.
   Exception: orchestrator says "don't wait" → skip the idle-gate but still do ALL phase work.
-- Codex review MANDATORY for complex tasks (5+ files, security, architecture, integrations)
-  and for ANY diff touching shared runtime — message delivery, sessions, queues, locks, DB
-  migrations — where size is never an excuse to skip. Skip only on genuinely trivial,
-  single-function changes outside shared runtime. Never claim a review ran without its output.
-- **Codex = adversarial second opinion, NOT a rubber stamp.** Never accept a blocking finding
-  blindly (verify via code first) and never dismiss one silently. If Codex disagrees on a
-  blocking finding → debate (resume the session) until consensus, or escalate to the
+- Apply the review decision gate in the `codex-debate` skill before every phase artifact and DONE;
+  that skill alone owns skip evidence, Luna/Sol/Opus routing, risk floors, independence, and ceilings.
+- **Reviewer = adversarial second opinion, NOT a rubber stamp.** Never accept a blocking finding
+  blindly (verify via code first) and never dismiss one silently. If the reviewer disagrees on a
+  blocking finding → use the canonical follow-up rule or escalate to the
   orchestrator. "Recorded and moved on" is a failure — resolve it or hand it up.
 - **Never author the acceptance test for a ticket someone else wrote.** If the ticket names a
   command, run it FIRST and confirm it is red; if it is green or missing, say so and stop —

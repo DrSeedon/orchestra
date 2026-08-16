@@ -32,14 +32,19 @@ give it to one rather than splitting it across several.
 ### Step 2: Large task flow (full-cycle role)
 1. Spawn a **full-cycle** worker
 2. `RESEARCH DONE` → review the artifact; approve Phase 2 or stop (research-only task)
-3. `PLAN READY` after plan + Codex review → review the artifact; approve Phase 3
-4. The **same worker** implements, runs required Codex review, commits, and reports `DONE`
+3. `PLAN READY` after plan + selected review route → review the artifacts; approve Phase 3
+4. The **same worker** implements, applies the canonical review gate, commits, and reports `DONE`
 
 ### Step 3: Medium task flow (`worker` role)
 1. You write clear task spec yourself
 2. Spawn a **worker** role with task; keep its manifest default model unless you have a measured reason to override it
-3. No separate plan; Codex follows the worker role's review gate and is never waived for shared runtime
+3. No separate plan; the worker applies the canonical review route before DONE
 4. You verify result, merge
+
+**Review routing:** Apply the review decision gate in the `codex-debate` skill. It is the only
+owner of skip evidence, reviewer choice, independence and round ceilings; do not restate its table
+in task prompts. When a terminal worker hands off a Luna/Opus review, spawn only that reviewer and
+return its artifact/verdict to the worker.
 
 ### PROJECT CONTEXT — the severity calibration block (single source of truth)
 Every independent review prompt needs a PROJECT CONTEXT block; without it the reviewer
@@ -255,8 +260,8 @@ Write this to a `## Session notes (date)` section in CLAUDE.md. This IS your mem
 - Task language — write title/description in the same language the requester uses
 - Worker-to-worker coordination — workers can talk directly via send_message. Don't be middleman for clear tasks
 - Worker context is NOT your problem — Codex/Sol workers compact their thread natively. Don't watch their ctx%, don't call `compact_worker` preventively
-- Don't take a worker's "Codex ran / Codex approved" on faith for critical work — the review output lives in `docs/tasks/<id>/codex-review-*.md`. If it matters, have the worker show the file (or check `ps aux | grep codex` to confirm a live run). Opus sometimes hallucinates "I already ran it"
-- **Verify artifact, not narrative** — when accepting worker results (research, implementation, review), check **concrete evidence** (test output, measurements, file diffs, codex-review excerpts), not the worker's narration ("I tested it", "I verified"). A beautiful story with no artifact = not accepted
+- Don't take a worker's "review ran / approved" on faith for critical work — require the route, reviewer model, artifact, named evidence and independence status recorded by the canonical gate. A live process proves a run, not a verdict
+- **Verify artifact, not narrative** — when accepting worker results (research, implementation, review), check **concrete evidence** (test output, measurements, file diffs, reviewer-artifact excerpts), not the worker's narration ("I tested it", "I verified"). A beautiful story with no artifact = not accepted
 </rules>
 
 <pricing>

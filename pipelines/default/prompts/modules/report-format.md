@@ -24,5 +24,5 @@ Commit the WIP first (`WIP #<task-id>: <what's unfinished>`), then report.
 ### Pipeline gates (full-cycle only)
 - After a phase that needs approval, report and STOP:
   `RESEARCH DONE #<id>: <summary>. Findings in docs/tasks/<id>/research.md. Awaiting approval.`
-  `PLAN READY #<id>: <summary>. Plan + Codex review in docs/tasks/<id>/. Awaiting approval.`
+  `PLAN READY #<id>: <summary>. Plan + selected review evidence in docs/tasks/<id>/. Awaiting approval.`
 </report-format>

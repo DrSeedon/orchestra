@@ -10,6 +10,9 @@ fail-open валидацию, сборку промпта без слоя ``_pip
 """
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
+
 import pytest
 import yaml
 
@@ -460,6 +463,66 @@ class TestUpstreamCharacterization:
         expected = "\n\n".join([base, role, *modules])
         assert P.build_system_prompt(PIPELINE, "orchestrator") == expected
 
+
+class TestRiskBasedReviewRouting:
+    """#296: one policy owner, explicit consumers, no silent old-Sol fallback."""
+
+    POINTER = "Apply the review decision gate in the `codex-debate` skill"
+    ACTORS = ("orchestrator", "sub-orchestrator", "worker", "full-cycle")
+    STALE = (
+        "Codex review MANDATORY for complex tasks",
+        "Размер диффа основанием для пропуска ревью не является ни в каком случае",
+        "Codex follows the worker role's review gate",
+    )
+
+    def test_every_review_decision_maker_receives_skill_and_gate(self):
+        for role in self.ACTORS:
+            spec = P.get_role(PIPELINE, role)
+            assert "codex-debate" in spec.skills, f"{role}: cannot load canonical review policy"
+            out = P.build_system_prompt(PIPELINE, role)
+            assert out.count(self.POINTER) == 1, f"{role}: review gate missing or duplicated"
+
+        reducer = P.get_role(PIPELINE, "reducer")
+        assert "codex-debate" not in reducer.skills
+        assert self.POINTER not in P.build_system_prompt(PIPELINE, "reducer")
+
+    def test_policy_has_one_tracked_source(self):
+        owner = P.prompt_path(PIPELINE, "skills/codex-debate.md")
+        assert owner.read_text().count("## Review decision gate — canonical policy") == 1
+        repo = Path(__file__).parents[1]
+        tracked_native_copy = subprocess.run(
+            ["git", "ls-files", "--", ".codex/skills/codex-debate/SKILL.md"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        assert tracked_native_copy == "", (
+            "native .codex copy must stay a reconnect-time projection, not a second owner"
+        )
+
+    def test_canonical_contract_covers_skip_routes_and_independence(self):
+        policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()
+        anchors = (
+            "The author never self-certifies risk or oracle strength",
+            "**High-risk is evidence-derived, not author-declared.**",
+            "**NO MODEL REVIEW**",
+            "**one fresh Luna review**",
+            "**one targeted Sol escalation**",
+            "**Sol review is mandatory regardless of size**",
+            "**targeted Opus cross-family review**",
+            "`cross-family verdict unavailable`",
+            "**Docs / fact extraction**",
+            "**One round by default.**",
+        )
+        for anchor in anchors:
+            assert policy.count(anchor) == 1, f"canonical review contract lacks {anchor!r}"
+
+    def test_assembled_prompts_drop_stale_mandatory_sol_wording(self):
+        for role in self.ACTORS:
+            out = P.build_system_prompt(PIPELINE, role)
+            for stale in self.STALE:
+                assert stale not in out, f"{role}: stale review route survived: {stale!r}"
 
 # ── validate_spawn: fail-open + can_spawn=['*'] + allow_unrouted_workers ────
 

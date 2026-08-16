@@ -43,6 +43,99 @@ _SOURCE_MARKER = re.compile(
 )
 _PROCEDURAL_VALUE = re.compile(r"(?i)trivial\s*\(\s*[<>]\s*\d+\s*lines?")
 
+# The routing table and round policy have one semantic owner.  Roles/modules carry only
+# this pointer so a future edit cannot leave one audience on the old mandatory-Sol rule.
+_REVIEW_POLICY_POINTER = "Apply the review decision gate in the `codex-debate` skill"
+_REVIEW_POLICY_ACTORS = ("orchestrator", "sub-orchestrator", "worker", "full-cycle")
+_REVIEW_POLICY_ANCHORS = (
+    "## Review decision gate — canonical policy",
+    "The author never self-certifies risk or oracle strength",
+    "**High-risk is evidence-derived, not author-declared.**",
+    "**NO MODEL REVIEW**",
+    "**one fresh Luna review**",
+    "**one targeted Sol escalation**",
+    "**Sol review is mandatory regardless of size**",
+    "**targeted Opus cross-family review**",
+    "`cross-family verdict unavailable`",
+    "**Docs / fact extraction**",
+    "**One round by default.**",
+)
+_STALE_REVIEW_POLICY = (
+    "Codex review MANDATORY for complex tasks",
+    "Размер диффа основанием для пропуска ревью не является ни в каком случае",
+    "Codex follows the worker role's review gate",
+    "runs required Codex review",
+    "Second opinion (Codex)",
+    "Codex review the plan + tickets",
+)
+
+
+def _review_policy_errors(
+    root: Path,
+    data: dict,
+) -> list[str]:
+    """Keep review routing enforceable, single-owned, and delivered to every decision maker."""
+    errors: list[str] = []
+    prompt_root = root / "prompts"
+    canonical = prompt_root / "skills" / "codex-debate.md"
+    if not canonical.is_file():
+        return [f"review policy owner missing: {canonical}"]
+    canonical_text = canonical.read_text()
+
+    for anchor in _REVIEW_POLICY_ANCHORS:
+        count = canonical_text.count(anchor)
+        if count != 1:
+            errors.append(
+                f"prompts/skills/codex-debate.md: review policy anchor must occur once: "
+                f"{anchor!r} (found {count})"
+            )
+
+    roles = data.get("roles") or {}
+    consumer_sources: list[str] = []
+    if "worker" in roles:
+        consumer_sources.append("roles/worker.md")
+    if "full-cycle" in roles:
+        consumer_sources.append("roles/full-cycle.md")
+    if "orchestrator" in roles or "sub-orchestrator" in roles:
+        consumer_sources.append("modules/orchestration.md")
+    for rel in consumer_sources:
+        path = prompt_root / rel
+        if not path.is_file():
+            errors.append(f"review policy consumer missing: {path}")
+            continue
+        count = path.read_text().count(_REVIEW_POLICY_POINTER)
+        if count != 1:
+            errors.append(
+                f"prompts/{rel}: review gate pointer must occur once "
+                f"(found {count})"
+            )
+
+    for role in _REVIEW_POLICY_ACTORS:
+        spec = roles.get(role)
+        if spec is None:
+            continue
+        if not isinstance(spec, dict):
+            errors.append(f"review policy actor {role!r}: invalid manifest entry")
+            continue
+        skills = spec.get("skills") or []
+        if "codex-debate" not in skills:
+            errors.append(f"role {role!r}: codex-debate skill is required for review decisions")
+
+    for md in sorted(prompt_root.rglob("*.md")):
+        text = md.read_text()
+        rel = md.relative_to(root)
+        for stale in _STALE_REVIEW_POLICY:
+            if stale in text:
+                errors.append(f"{rel}: stale review policy wording: {stale!r}")
+        if md != canonical:
+            for anchor in _REVIEW_POLICY_ANCHORS:
+                if anchor in text:
+                    errors.append(
+                        f"{rel}: duplicates canonical review policy anchor {anchor!r}"
+                    )
+
+    return errors
+
 
 def _prompt_metric_errors(prompt_root: Path) -> list[str]:
     """Require an inline source on empirical numeric claims, not all numbers."""
@@ -139,6 +232,12 @@ def disagreements(manifest_path: Path) -> list[str]:
                     errors.append(f"{rel}: quotes manifest model {mid!r}")
     if prompt_root.is_dir():
         errors.extend(_prompt_metric_errors(prompt_root))
+    review_users = [
+        name for name, spec in roles.items()
+        if isinstance(spec, dict) and "codex-debate" in (spec.get("skills") or [])
+    ]
+    if review_users:
+        errors.extend(_review_policy_errors(root, data))
     return errors
 
 

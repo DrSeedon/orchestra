@@ -1,37 +1,86 @@
 ---
 name: codex-debate
-description: "Cross-LLM adversarial review через Codex (GPT-5.6 Sol) — MCP tool codex_review. Персистентные сессии, multi-round debate до консенсуса, Conventional Comments. Триггеры: 'спроси кодекса', 'кодекс ревью', 'ревьюй через кодекса', 'второе мнение', 'cross-review', 'adversarial review', 'переспроси кодекса', 'уточни у кодекса', 'продолжи с кодексом', '/codex', '/codex-debate'. НЕ юзать на тривиальных задачах."
+description: "Risk-based model review routing: deterministic skip, Luna first pass, Sol technical escalation, targeted Opus cross-family review, and evidence-backed debate. Sol runs through codex_review. Triggers: 'review', 'кодекс ревью', 'второе мнение', 'cross-review', 'adversarial review', '/codex', '/codex-debate'."
 ---
 
-# Codex Debate — cross-LLM adversarial review через GPT-5.6 Sol
+# Review Routing and Codex Debate
 
-Review плана/кода/решения второй моделью (Codex, GPT-5.6 Sol) через MCP tool `codex_review`. Тул сам управляет процессом Codex, сессиями и записью результата — ты только вызываешь его и работаешь с findings.
+Этот файл — единственный владелец выбора reviewer, доказательств для skip и потолка раундов.
+`codex_review` запускает только Sol; Luna и Opus требуют свежей reviewer-сессии через Orchestra.
+Основание маршрута и его границы измерений: `docs/tasks/289/research.md`.
 
 ## Главный принцип — ВТОРОЕ МНЕНИЕ, НЕ ИСТИНА
-Codex — другая модель с другими bias'ами. Часто прав, но **не всегда**:
+Reviewer — дополнительный sensor, не oracle. Он часто прав, но **не всегда**:
 - **Прислушивайся** к каждому замечанию
 - **Проверяй** blocking-замечания через код (`grep`/`cat`/read) **перед** тем как принять
 - **Спорь** если не согласен — resume сессии с контраргументами из кода (не молча игнорь)
-- **Эскалируй** если Codex просит удалить функционал или сменить архитектуру
+- **Эскалируй** если reviewer просит удалить функционал или сменить архитектуру
 - **Не соглашайся слепо** — это обесценивает review
 
 **Кому эскалировать.** Ты общаешься с тем, кто дал тебе задачу: worker/full-cycle — своему
 оркестратору (или отправителю `[from:X]`) через `send_message`; оркестратор — юзеру. Воркер
 не пишет юзеру напрямую и не выводит вопрос в обычный чат.
 
-Формат: "Codex говорит X. Я проверил — [согласен / не согласен потому что Y]. Нужно решение."
+Формат: "Reviewer говорит X. Я проверил — [согласен / не согласен потому что Y]. Нужно решение."
 
-## When to use
-- "спроси кодекса", "кодекс ревью", "второе мнение", "cross-review", "adversarial review"
-- "переспроси/уточни/продолжи с кодексом" → **resume, НЕ новый вызов**
-- `/codex` или `/codex-debate`
-- **Review, обязательный по роли** (review gate у `worker`/`full-cycle`) → запускай сразу,
-  approval не нужен и не спрашивается: роль уже решила за тебя
-- Review, который ты предлагаешь ПО СВОЕЙ инициативе сверх обязательного → сначала «да» от
-  того, кто дал задачу
+## Review decision gate — canonical policy
 
-## When NOT to use
-- Мелкие/тривиальные правки — трата токенов (точная граница skip — в review gate твоей роли)
+Перед review/skip запиши в отчёт четыре входа: изменённые файлы и consumers; author model/runtime
+из metadata сессии, не из имени агента; точный AC; named test/check command и его фактический
+вывод. **The author never self-certifies risk or oracle strength**: автор может поднять риск, но
+не понизить floor, заданный затронутой поверхностью. Слова `trivial`, `low-risk`, `strong oracle`
+без этих проверяемых входов не открывают дешёвый маршрут.
+
+**Strong independent deterministic oracle** — заранее существовавший или замороженный до
+реализации named test/AC, чья команда даёт однозначный pass/fail и механически покрывает каждый
+критичный критерий. Тест, написанный после реализации, self-review, «дифф выглядит безопасно» и
+неназванный ручной просмотр не являются таким oracle. Нет exact command + observed output + AC →
+oracle слабый.
+
+**High-risk is evidence-derived, not author-declared.** Floor взводится из перечисленных changed
+consumers, если затронут хотя бы один класс: shared process/session/message delivery, queue/lock/
+concurrency; auth/permissions/security/secrets; persistence schema/migration или irreversible/
+destructive/data-loss path; externally consumed API/schema/protocol/compatibility contract; review/
+admission/authorization/lifecycle gate, чей bypass отключает контроль. Явная классификация задачи
+оркестратором тоже взводит floor. Автор может добавить класс риска, но не снять сработавший; неясны
+consumer или последствия → high-risk до решения независимого reviewer/оркестратора.
+
+Применяй сверху вниз; более высокий risk floor всегда побеждает дешёвый маршрут:
+
+1. **NO MODEL REVIEW** — только trivial fully closed leaf: точные file/symbol и AC известны до
+   работы, неизвестных решений и внешних контрактов нет, diff не затрагивает high-risk floor,
+   strong independent deterministic oracle зелёный. В отчёте обязательны command, output и AC;
+   без них skip запрещён.
+2. **one fresh Luna review** — low/medium compact diff со strong oracle. `Compact` означает:
+   поверхность ограничена названными symbols/files, все изменённые consumers перечислены, нет
+   открытого state/schema/security решения. Ровно один first pass, не серия «до чистоты».
+3. **one targeted Sol escalation** — Luna дала blocker, uncertainty по обязательному свойству
+   или schema mismatch. Проверь finding, при принятом blocker измени artifact, затем передай Sol
+   только этот seam/спор; Luna второй раз не запускай. Иди сразу в один targeted Sol technical
+   pass без Luna, если strong oracle отсутствует, diff не compact или high-risk floor выше
+   сработал.
+4. **Sol review is mandatory regardless of size** — shared runtime, auth, security, secrets или
+   migrations. Малый diff и зелёный тест не снижают этот floor. Здесь Luna не является gate.
+5. **targeted Opus cross-family review** — high-risk код authored Sol/Luna получает его на
+   load-bearing seams, когда Claude доступен, в дополнение к Sol technical pass. Luna и Sol
+   — одна model family; ни fresh thread, ни согласие двух её checkpoints не делают review
+   независимым. Если Opus недоступен, пиши дословно `cross-family verdict unavailable`; не называй
+   Luna/Sol independent review.
+6. **Docs / fact extraction** — сначала mechanical completeness checks. Для короткой
+   low-consequence fact extraction они могут быть финальным gate; иначе один Luna completeness
+   pass. Causal/statistical спор или high-risk вывод поднимается по правилам выше.
+
+### Как запустить выбранный маршрут
+
+- `codex_review` — Sol-only. Не называй его Luna review и не используй для Opus independence.
+- Luna/Opus запускаются свежей reviewer-сессией через spawn-capable родителя с точным target,
+  AC, PROJECT CONTEXT и запретом реализации. Terminal worker отправляет этот review handoff своему
+  оркестратору; он не подменяет выбранную модель молча. Exact model id берётся из live Orchestra
+  registry, не копируется в этот skill.
+- Отсутствие выбранного reviewer — громкий `review route unavailable`, а не skip и не ложный
+  verdict. Дальнейший fallback решает оркестратор.
+- Explicit user request на конкретного reviewer выполняется; safety floors выше всё равно
+  сохраняются. Review сверх gate требует approval постановщика.
 
 ## MCP tool: codex_review
 
@@ -89,15 +138,17 @@ codex_review(output="docs/tasks/<id>/codex-review-impl.md", resume=True,
 - Persistent-сессию (thread) тул хранит сам, привязывая к `output`. Продолжение = `resume=True` с тем же `output`
 - Новая тема = новый `output`-файл. НЕ переиспользуй `output` от несвязанного review
 
-## Auto-Iteration to Consensus
-После первого раунда — итерируй САМ, без вопросов наверх:
+## Evidence-backed follow-up
+**One round by default.** После первого раунда:
 1. Прочитай `output`-файл, разбери findings
 2. Каждое **blocking** → проверь через код (grep/cat/read). Решение: ACK / DISAGREE / PARTIAL
-3. **Эскалируй** (адресат — выше) если Codex хочет: удалить функционал / существенно менять архитектуру рабочих компонентов / что-то с неясными последствиями
+3. **Эскалируй** (адресат — выше) если reviewer хочет: удалить функционал / существенно менять архитектуру рабочих компонентов / что-то с неясными последствиями
 4. Почини ACK'нутые (Edit)
-5. `codex_review(..., resume=True, context="<task + current PROJECT CONTEXT>; фиксы: <changelog>, re-review")`
-6. Codex дописывает Round N
-7. Луп пока: Codex пишет "APPROVED"/"no blockers" **И вердикт состоялся** (критерий ниже) → готово; сработала эскалация → стоп, запроси решение
+5. Следующий раунд законен только после изменения artifact по проверенному blocker либо для
+   проверяемого спора по blocker с фактами из кода. Новая suggestion, nit, unchanged artifact и
+   желание получить `APPROVED` не открывают раунд.
+6. Для Sol follow-up: `codex_review(..., resume=True, context="<task + current PROJECT CONTEXT>; фиксы/контраргументы: <evidence>, re-review")`.
+7. Остановись при состоявшемся verdict, эскалации наверх или потолке — что наступит раньше.
 
 **Потолок раундов — по типу предмета. Этот файл — единственный владелец правила; в промптах ролей чисел нет.**
 
@@ -152,19 +203,23 @@ codex_review(output="docs/tasks/<id>/codex-review-impl.md", resume=True,
 norm = lambda s: re.sub(r"\s+", " ", re.sub(r"^[ \t]*>?[ \t]*", "", s, flags=re.M)).strip()
 ```
 
-Нет ни одного из двух признаков → пиши в отчёте **«вердикта нет, ревью без доказательств»**, а не «Codex approved». Это законный исход, а не провал.
+Нет ни одного из двух признаков → пиши в отчёте **«вердикта нет, ревью без доказательств»**, а не «review approved». Это законный исход, а не провал.
 
-**Размер диффа основанием для пропуска ревью не является ни в каком случае.** Замер: на диффах меньше 150 строк зрячее ревью дало блокеры в 2 случаях из 6, и оба — гонки в жизненном цикле, которые прошли бы тесты (#177).
+Размер сам по себе не выбирает маршрут: trivial skip требует всех доказательств gate, а
+shared-runtime/security floor требует Sol при любом размере.
 
-**Спор, а не молчание.** Не согласен с blocking после проверки кода → resume с контраргументом (факты из кода), итерируй до консенсуса **или до потолка раундов, что наступит раньше**. Recorded-and-ignored blocking = провал; упереться в потолок с открытыми находками и отдать их оркестратору — не провал, а предписанный исход.
+**Спор, а не молчание.** Не согласен с blocking после проверки кода → один evidence-backed
+follow-up в пределах потолка. Recorded-and-ignored blocking = провал; упереться в потолок с
+открытыми находками и отдать их оркестратору — предписанный исход.
 
 ## Show Result to User
 ```
-Codex review done (rounds: N)
+Review route: <skip / Luna / Sol / Sol + Opus cross-family>
+Rounds: N
 Verdict: <APPROVED / needs work / reject>
 Findings: blocking X (Y fixed, Z rejected + причина) · suggestion M (K accepted) · nit skipped
-Full: docs/tasks/<id>/codex-review-*.md
-Next: OK → continue/commit · ещё дебаты → "переспроси кодекса про <X>"
+Evidence: <named command + output + AC; reviewer artifact path>
+Independence: <cross-family / same-family / cross-family verdict unavailable>
 ```
 
 ## Prompt Templates (для `context`)
@@ -185,9 +240,9 @@ Next: OK → continue/commit · ещё дебаты → "переспроси к
 назвать поле по репозиторию — выясни до review.
 
 ## What NOT to Do
-- НЕ создавай новый вызов на follow-up — используй `resume=True`
+- НЕ создавай новый Sol-вызов на законный follow-up — используй `resume=True`
 - НЕ соглашайся слепо с blocking — проверь через код
 - НЕ игнорируй blocking молча — resolve (fix/debate) или эскалируй
 - НЕ заявляй "одобрено" не прочитав output-файл
-- НЕ дёргай юзера каждый раунд — итерируй до консенсуса или до потолка раундов (эскалация только на удаление/архитектуру)
+- НЕ повторяй review unchanged artifact и не покупай раунд одной новой suggestion
 - НЕ переиспользуй `output` несвязанного review
