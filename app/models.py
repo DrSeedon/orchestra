@@ -155,6 +155,8 @@ ALIASES = {
     "gpt5.3spark": "gpt-5.3-codex-spark",
     "gpt5.6": "gpt-5.6-sol",
     "gpt5.6sol": "gpt-5.6-sol",
+    "sol": "gpt-5.6-sol",
+    "luna": "gpt-5.6-luna",
     "gpt5.6terra": "gpt-5.6-terra",
     "gpt5.6luna": "gpt-5.6-luna",
     "codex": "gpt-5.6-sol",
