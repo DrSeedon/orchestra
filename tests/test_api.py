@@ -38,6 +38,14 @@ def client(db):
             yield c
 
 
+def _merge_session_request():
+    return SimpleNamespace(cookies={}, headers={})
+
+
+async def _call_merge_session(sessmod, name: str, req: dict):
+    return await sessmod.merge_session(name, req, _merge_session_request())
+
+
 def _save_merge_session_record(session) -> None:
     from datetime import datetime, timezone
     from app.db import save_session
@@ -944,7 +952,7 @@ async def test_merge_endpoint_passes_target(db, monkeypatch):
     session = FakeSession()
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
 
-    res = await sessmod.merge_session("w", {"scope": "/s", "target": "feature/auth"})
+    res = await _call_merge_session(sessmod, "w", {"scope": "/s", "target": "feature/auth"})
     assert captured["session_id"] == "sid"
     assert captured["expected_branch"] == "task-1/w"
     assert captured["req"]["target"] == "feature/auth"
@@ -1003,7 +1011,7 @@ async def test_merge_persists_actual_branch_and_base_for_loaded_or_detached(
     )
     monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
 
-    result = await sessmod.merge_session(f"merge-{loaded}", {"scope": "/s"})
+    result = await _call_merge_session(sessmod, f"merge-{loaded}", {"scope": "/s"})
 
     assert result["ok"] is True
     row = get_session(f"merge-{loaded}")
@@ -1054,7 +1062,7 @@ async def test_merge_rejects_ambiguous_legacy_base_before_git(db, monkeypatch):
     )
     monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
 
-    response = await sessmod.merge_session("legacy", {"scope": "/s"})
+    response = await _call_merge_session(sessmod, "legacy", {"scope": "/s"})
 
     assert response.status_code == 400
     assert merge_called is False
@@ -1109,7 +1117,7 @@ async def test_merge_links_commits_with_normalized_sqlite_results(db, monkeypatc
     )
     monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
 
-    result = await sessmod.merge_session("worker", {"scope": "/s"})
+    result = await _call_merge_session(sessmod, "worker", {"scope": "/s"})
 
     assert result["linked_tasks"]["90"] == {
         "ok": True,
@@ -1163,7 +1171,7 @@ async def test_merge_links_duplicate_par_only_in_worker_scope_project(db, monkey
         },
     )
 
-    result = await sessmod.merge_session("worker", {"scope": "/lower"})
+    result = await _call_merge_session(sessmod, "worker", {"scope": "/lower"})
 
     assert result["linked_tasks"]["1"] == {
         "ok": True, "added": 1, "task_id": lower["id"],
@@ -1205,7 +1213,7 @@ async def test_merge_rejects_invalid_or_missing_next_task_before_git(
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("merge must not run")),
     )
 
-    response = await sessmod.merge_session(
+    response = await _call_merge_session(sessmod,
         "worker", {"scope": "/s", "next_task_id": next_task_id},
     )
 
@@ -1446,7 +1454,7 @@ async def test_merge_revision_change_keeps_git_success_and_skips_task_update(
         lambda *_args, **_kwargs: {"ok": True, "branch": "task-43/worker"},
     )
 
-    result = await sessmod.merge_session(
+    result = await _call_merge_session(sessmod,
         "worker", {"scope": "/s", "next_task_id": "43"},
     )
 
@@ -1492,7 +1500,7 @@ async def test_merge_next_updates_only_case_variant_in_worker_scope(db, monkeypa
         lambda *_args, **_kwargs: {"ok": True, "branch": "task-43/worker"},
     )
 
-    result = await sessmod.merge_session(
+    result = await _call_merge_session(sessmod,
         "worker", {"scope": "/lower", "next_task_id": "43"},
     )
 
@@ -1536,7 +1544,7 @@ async def test_merge_switch_failure_stays_merge_success_and_keeps_quarantine(
         lambda *_args, **_kwargs: {"ok": False, "error": "target is dirty"},
     )
 
-    result = await sessmod.merge_session(
+    result = await _call_merge_session(sessmod,
         "worker", {"scope": "/s", "next_task_id": "43"},
     )
 
@@ -1587,7 +1595,7 @@ async def test_merge_switch_exception_stays_merge_success_and_keeps_quarantine(
         ),
     )
 
-    result = await sessmod.merge_session(
+    result = await _call_merge_session(sessmod,
         "worker", {"scope": "/s", "next_task_id": "43"},
     )
 
@@ -1640,7 +1648,7 @@ async def test_merge_quarantine_persistence_retries_before_returning(
         },
     )
 
-    result = await sessmod.merge_session("worker", {"scope": "/s"})
+    result = await _call_merge_session(sessmod, "worker", {"scope": "/s"})
 
     assert result["ok"] is True
     assert result["lifecycle_status"] == {
@@ -1698,7 +1706,7 @@ async def test_merge_switch_persistence_failure_is_partial_and_keeps_task_unchan
         lambda *_args, **_kwargs: {"ok": True, "branch": "task-43/worker"},
     )
 
-    result = await sessmod.merge_session(
+    result = await _call_merge_session(sessmod,
         "worker", {"scope": "/s", "next_task_id": "43"},
     )
 
@@ -1754,7 +1762,7 @@ async def test_merge_task_db_exception_is_explicit_without_reversing_git_success
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError()),
     )
 
-    result = await sessmod.merge_session(
+    result = await _call_merge_session(sessmod,
         "worker", {"scope": "/s", "next_task_id": "43"},
     )
 
@@ -2459,7 +2467,7 @@ async def test_merge_waits_for_running_worker_to_finish_turn(db, monkeypatch):
     monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
 
     merge_task = asyncio.create_task(
-        sessmod.merge_session("w", {"scope": "/s"}),
+        _call_merge_session(sessmod, "w", {"scope": "/s"}),
     )
     await asyncio.wait_for(wait_started.wait(), timeout=0.2)
     assert merge_called is False
@@ -2511,7 +2519,7 @@ async def test_merge_rejects_waiting_worker_without_merging(db, monkeypatch):
     )
     monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
 
-    response = await sessmod.merge_session("w", {"scope": "/s"})
+    response = await _call_merge_session(sessmod, "w", {"scope": "/s"})
 
     assert response.status_code == 400
     assert "waiting" in response.body.decode()
@@ -2676,7 +2684,7 @@ async def test_merge_and_switch_hold_lifecycle_lock_against_worker_wakeup(db, mo
         lambda _session, requested="": requested or "master",
     )
 
-    result = await sessmod.merge_session("w", {
+    result = await _call_merge_session(sessmod, "w", {
         "scope": "/s",
         "target": "main",
         "next_task_id": "43",
