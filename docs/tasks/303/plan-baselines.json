@@ -1,5 +1,19 @@
 {
   "schema": "orchestra.task303.plan-baselines.v1",
+  "current_product_scope": {
+    "id": "incident-scope-2026-08-17",
+    "freeze_commit": "3a574b7bb7ce8ef4c3cd60446342dbff95138f2d",
+    "handoff": "implementation-handoff.md",
+    "test": "test_incident_scope_supersession.py",
+    "red_output": "red-incident-scope.txt",
+    "evidence": "incident-scope-evidence.json",
+    "tickets": 2,
+    "tests": 3,
+    "red_result": "3 failed in 0.27s",
+    "phase3_approved": true,
+    "new_plan_approval_required": false,
+    "status": "phase3_approved_frozen_red"
+  },
   "candidate": {
     "commit": "a60337de58d282477575130d27c70894604d3d94",
     "outputs": [
@@ -19,7 +33,10 @@
     "review_round": 1,
     "verdict": "APPROVED",
     "cross_family_review": "unavailable",
-    "status": "frozen_red_approved_for_phase3_delivery"
+    "former_status": "frozen_red_approved_for_phase3_delivery",
+    "status": "superseded_by_incident_scope_2026_08_17",
+    "artifacts_preserved_as_evidence": true,
+    "may_satisfy_current_acceptance": false
   },
   "superseded_for_implementation": [
     {

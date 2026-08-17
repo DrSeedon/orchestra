@@ -1,0 +1,6 @@
+command: env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 python -m pytest -p no:cacheprovider -q docs/tasks/303/test_incident_scope_supersession.py
+exit_code: 1
+result: 3 failed in 0.27s
+failure: AssertionError: #303 incident boundary missing: deploy/orchestra.service must start uvicorn with a direct, concrete versioned /opt runtime Python
+failure: AssertionError: #303 incident boundary missing runtime helpers: ['build_project_env', 'guard_uv_invocation', 'project_cli_path', 'sanitize_project_mcp_servers']
+failure: AssertionError: #303 project-execution seams bypass the boundary: app/runtime_registry.py:build_backend, four backend launchers, app/bg_jobs.py:_spawn_bg_process, app/acceptance.py:run_command, app/merge_test_gate.py:run_pytest, and app/routes/bg.py:bg_job_create

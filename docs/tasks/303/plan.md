@@ -1,4 +1,8 @@
-# Task #303 — Phase 2 plan
+# SUPERSEDED PLAN EVIDENCE: V3–V12 (#303)
+
+> On 2026-08-17 the user rejected the controller/executor UID split, credential broker, provider canaries, and four-release architecture. Everything below this banner is preserved historical design/review evidence and is not a current implementation contract. The approved incident-scoped Phase 3 contract is [implementation-handoff.md](implementation-handoff.md), with exactly three RED tests in `test_incident_scope_supersession.py`. No new plan approval is required.
+
+# Historical Task #303 — Phase 2 plan
 
 ## Gate status and scope
 

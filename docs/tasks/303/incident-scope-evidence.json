@@ -1,0 +1,81 @@
+{
+  "schema": "orchestra.task303.incident-scope-supersession.v1",
+  "date": "2026-08-17",
+  "freeze_commit": "3a574b7bb7ce8ef4c3cd60446342dbff95138f2d",
+  "status": "phase3_approved_frozen_red",
+  "phase3_approval_source": "Orchestra-orchestrator explicit user decision",
+  "requires_new_plan_approval": false,
+  "production_or_configuration_changed": false,
+  "production_activation_performed": false,
+  "old_scope": {
+    "versions": "V3-V12",
+    "status": "superseded_for_new_product_scope",
+    "artifacts_preserved": true,
+    "may_satisfy_current_acceptance": false
+  },
+  "current_claims": [
+    "service uses direct Python from a concrete root-owned versioned /opt/orchestra/runtimes/<release>",
+    "all project execution removes VIRTUAL_ENV and UV_PROJECT_ENVIRONMENT after environment merging",
+    "uv targets outside the current agent canonical worktree fail loudly",
+    "replacing the repository .venv does not affect the running service or Orchestra MCP"
+  ],
+  "explicit_non_claims": [
+    "deliberate same-UID adversary resistance",
+    "absolute-path launcher bypass resistance",
+    "direct filesystem-write prevention",
+    "credential confidentiality",
+    "provider isolation",
+    "controller/executor UID separation",
+    "credential broker",
+    "provider canary authentication"
+  ],
+  "frozen_sha256": {
+    "test_incident_scope_supersession.py": "8a6cca1157a6bb51b19a7bf274a0bc4e32680a1895be8db8b1d830bb1a5c76f8",
+    "implementation-handoff.md": "39a5262a264d2c9260e62c0af1b011b12f795eac8e156ad0a8f142552e876eb6",
+    "red-incident-scope.txt": "ccd8b0b5d74ab9d7098dc19f7e7e4252437cfb2d5daf9d57d2b61f3e4feeeb8d"
+  },
+  "acceptance": {
+    "command": "env -u VIRTUAL_ENV -u UV_PROJECT_ENVIRONMENT PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/var/tmp/orchestra-task303-uv-cache-kesha /home/kesha/.local/bin/uvx --from pytest==9.0.2 python -m pytest -p no:cacheprovider -q docs/tasks/303/test_incident_scope_supersession.py",
+    "exit_code": 1,
+    "result": "3 failed in 0.27s",
+    "red_reason": "three missing product behaviors; collection and import succeeded",
+    "green_target": "3 passed",
+    "required_mutations": [
+      "restore uv run in service unit",
+      "stop stripping UV_PROJECT_ENVIRONMENT",
+      "remove one enumerated seam call",
+      "allow an in-worktree symlink to escape outside"
+    ]
+  },
+  "implementation_tickets": [
+    {
+      "id": "I1",
+      "title": "side-by-side direct runtime artifacts",
+      "blocked_by": []
+    },
+    {
+      "id": "I2",
+      "title": "strip and guard all project execution",
+      "blocked_by": ["I1"]
+    }
+  ],
+  "owned_dirs": [
+    "app/",
+    "deploy/",
+    "scripts/",
+    "tests/",
+    "docs/tasks/303-implementation/",
+    "docs/workers/impl-303-incident-scope.md/"
+  ],
+  "frozen_test_outside_implementer_ownership": "docs/tasks/303/test_incident_scope_supersession.py",
+  "rollback": {
+    "phase3": "git revert implementation commit; no live state exists",
+    "later_activation": "restore exact prior unit and prior versioned runtime, daemon-reload/restart only under separate operator authorization after drain/handoff"
+  },
+  "review": {
+    "route": "not_run_by_explicit_orchestrator_instruction",
+    "reason": "short executable supersession requested; no further oracle carousel; Phase 3 already approved",
+    "approval_not_inferred_from_historical_reviews": true,
+    "cross_family_verdict": "unavailable"
+  }
+}
