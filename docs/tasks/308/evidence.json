@@ -1,0 +1,529 @@
+{
+  "task_id": 308,
+  "captured_at": "2026-08-17T08:00:00Z",
+  "scope": "Research-only evaluation of DeepSeek Harness for possible use in Orchestra",
+  "verdict": {
+    "decision": "SLICE",
+    "confidence": "MEDIUM",
+    "meaning": "FULL is rejected with high confidence and REJECT is rejected with high confidence. SLICE means only that three candidate pilots deserve measurement; their ROI is not yet established and none is approved for integration."
+  },
+  "screenshot": {
+    "path": "/home/kesha/orchestra/data/uploads/photo_20260817_074733_147410.jpg",
+    "sha256": "676563e14f792cf42b326bd3124e8b67370b0d0822f5ab1f7d14af9f440aec76",
+    "media": "JPEG/JFIF",
+    "dimensions_px": [1280, 1120],
+    "visible_claims": {
+      "organization": "DeepSeek",
+      "followers_rounded": "102k",
+      "public_repositories": 36,
+      "pinned_repository": "deepseek-harness",
+      "tagline": "Everything is a Plugin",
+      "stars_rounded": "141k",
+      "forks_rounded": "14.3k"
+    },
+    "assessment": "The visible numbers and repository identity agree with live GitHub data at capture time. This corroborates authenticity, but pixels alone do not prove the screenshot's provenance or rule out editing."
+  },
+  "github": {
+    "repository": {
+      "source": "https://api.github.com/repos/deepseek-ai/deepseek-harness",
+      "full_name": "deepseek-ai/deepseek-harness",
+      "owner_type": "Organization",
+      "created_at": "2026-08-13T11:56:32Z",
+      "updated_at": "2026-08-17T07:56:51Z",
+      "pushed_at": "2026-08-13T13:00:21Z",
+      "default_branch": "master",
+      "archived": false,
+      "size_kib": 117204,
+      "stars": 141869,
+      "forks": 14400,
+      "watchers_subscribers": 586,
+      "open_issues_reported": 0,
+      "issues_enabled": false,
+      "discussions_enabled": true,
+      "license_spdx": "MIT",
+      "homepage": "https://deepseek.com/harness"
+    },
+    "organization": {
+      "source": "https://api.github.com/orgs/deepseek-ai",
+      "login": "deepseek-ai",
+      "created_at": "2023-10-18T09:17:52Z",
+      "public_repositories": 36,
+      "followers": 101764,
+      "website": "https://www.deepseek.com/"
+    },
+    "history": {
+      "source": "https://api.github.com/repos/deepseek-ai/deepseek-harness/commits?per_page=1",
+      "reachable_commits_from_api_last_page": 12293,
+      "first_commit": {
+        "sha": "b67e81ac97647270b3002d78532baf3a5b68cbc3",
+        "date": "2026-06-10T14:57:44Z",
+        "author": "Tianyi Cui",
+        "message": "Initialize repo with README, AGENTS.md, and CLAUDE.md symlink"
+      },
+      "latest_commit_at_capture": {
+        "sha": "47f943859bef60e4160492346772ded9b24f765a",
+        "date": "2026-08-13T11:38:46Z",
+        "author": "imccyu",
+        "message": "Merge pull request #2519 from deepseek-harness/feat/npm-public; release and publish the dsh family publicly"
+      },
+      "commits_since_2026_08_01_from_api_last_page": 3638,
+      "weekly_commit_totals": [
+        {"week": "2026-06-07", "total": 37},
+        {"week": "2026-06-14", "total": 312},
+        {"week": "2026-06-21", "total": 175},
+        {"week": "2026-06-28", "total": 371},
+        {"week": "2026-07-05", "total": 658},
+        {"week": "2026-07-12", "total": 1422},
+        {"week": "2026-07-19", "total": 2169},
+        {"week": "2026-07-26", "total": 3646},
+        {"week": "2026-08-02", "total": 1566},
+        {"week": "2026-08-09", "total": 1436}
+      ],
+      "note": "The repository object was only about four days old at capture, while its imported/reachable commit history began about 64 days earlier. GitHub weekly statistics and commit-list pagination have different aggregation semantics and are not expected to sum identically."
+    },
+    "top_contributors": [
+      {"login": "tianyicui", "contributions": 5235},
+      {"login": "LegGasai", "contributions": 1361},
+      {"login": "imccyu", "contributions": 1168},
+      {"login": "Chinesezjc", "contributions": 587},
+      {"login": "turtle1999", "contributions": 585},
+      {"login": "hypatiamay", "contributions": 490},
+      {"login": "CreatixChu", "contributions": 481},
+      {"login": "kermanx", "contributions": 477},
+      {"login": "ZiyaZhang", "contributions": 371},
+      {"login": "Kingwl", "contributions": 289}
+    ],
+    "releases": {
+      "source": "https://api.github.com/repos/deepseek-ai/deepseek-harness/releases",
+      "count": 0
+    },
+    "tags": {
+      "source": "https://api.github.com/repos/deepseek-ai/deepseek-harness/tags",
+      "count": 0
+    }
+  },
+  "npm": {
+    "source": "https://registry.npmjs.org/%40deepseek-ai%2Fdsh",
+    "package": "@deepseek-ai/dsh",
+    "created_at": "2026-08-10T19:41:11.384Z",
+    "modified_at": "2026-08-13T12:36:19.675Z",
+    "versions": [
+      "0.0.1-rc.1",
+      "0.0.1-rc.2",
+      "0.0.1-rc.5",
+      "0.1.0-rc.2",
+      "0.1.0-rc.3",
+      "0.1.0-rc.6"
+    ],
+    "latest": "0.1.0-rc.6",
+    "next": "0.1.0-rc.6",
+    "maintainer_handles": ["imccyu", "tianyicui-deepseek"],
+    "license": "MIT",
+    "direct_dependencies": 61,
+    "published_file_count": 20,
+    "published_unpacked_bytes": 116711,
+    "published_engines_field": null,
+    "source_engines": "^22.19 || >=24",
+    "source_package_manager": "pnpm@11.7.0",
+    "assessment": "All public versions are release candidates. The source declares a Node requirement, but the published manifest does not enforce it."
+  },
+  "cordis": {
+    "framework_repo": {
+      "source": "https://api.github.com/repos/cordiverse/cordis",
+      "created_at": "2022-05-17T18:52:57Z",
+      "pushed_at": "2026-08-13T13:48:22Z",
+      "stars": 5236,
+      "forks": 281,
+      "open_issues": 42,
+      "reachable_commits_from_api_last_page": 550,
+      "license": "MIT"
+    },
+    "paper_repo": {
+      "source": "https://api.github.com/repos/cordiverse/paper",
+      "created_at": "2026-08-13T09:53:33Z",
+      "pushed_at": "2026-08-13T12:54:03Z",
+      "stars": 2018,
+      "forks": 78,
+      "reachable_commits": 2,
+      "repository_license": null
+    },
+    "dsh_vendor_snapshot": {
+      "source_path": "vendor/README.md",
+      "upstream_version_named": "4.0.0-rc.7",
+      "published_internal_version_observed": "4.0.1",
+      "local_modification_groups_listed": 18,
+      "assessment": "DSH is built on a materially modified vendored/rescoped Cordis, not on a pristine drop-in upstream dependency."
+    }
+  },
+  "source_snapshot": {
+    "repository": "https://github.com/deepseek-ai/deepseek-harness/tree/47f943859bef60e4160492346772ded9b24f765a",
+    "sha": "47f943859bef60e4160492346772ded9b24f765a",
+    "clone": "shallow, clean, inspected read-only",
+    "tracked_files": 7412,
+    "typescript_files": 2578,
+    "typescript_lines": 564122,
+    "production_typescript_lines_by_path_filter": 259876,
+    "package_json_files": 248,
+    "strict_spec_or_test_files": 811,
+    "it_or_test_call_sites": 12543,
+    "github_workflow_files": 15,
+    "security_files_max_depth_4": 0,
+    "manifests_with_dsh_field": 44,
+    "license": "MIT; Copyright (c) 2026 DeepSeek"
+  },
+  "architecture": {
+    "primary_source": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/architecture.md",
+    "verified_plugin_examples": [
+      "model adapter",
+      "tool registry",
+      "session log",
+      "agent loop",
+      "persistence",
+      "sandbox and approval policy",
+      "Web UI composition"
+    ],
+    "core_service_seams": [
+      "ctx.sessions",
+      "ctx.systemPrompt",
+      "ctx.tools",
+      "ctx.agents",
+      "ctx.agentLoop",
+      "ctx.llm"
+    ],
+    "event_domains": ["durable session events", "live agent events", "capability/policy events"],
+    "invariant": "Model-visible means logged: every input reaching a model request must be reconstructable from the append-only session log.",
+    "composition": {
+      "base_bundle_rows": 78,
+      "web_app_bundle_rows": 51,
+      "headless_bundle_rows": 3,
+      "published_web_config_rows": 129
+    },
+    "assessment": "The plugin architecture is real and pervasive. The claim of 'no privileged core' is an abstraction claim, not a small-system claim: the published Web composition has 129 rows across a 248-manifest, roughly 260k production-TypeScript codebase."
+  },
+  "providers_and_auth": {
+    "published_default": {
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-flash",
+      "other_official_catalog_model": "deepseek-v4-pro",
+      "credential": "DEEPSEEK_API_KEY",
+      "base_url": "https://api.deepseek.com",
+      "consumer_subscription_route": false
+    },
+    "pi_ai_dependency": {
+      "package": "@earendil-works/pi-ai",
+      "version": "0.82.1",
+      "catalog_generated_at": "2026-07-25T12:44:19.521Z",
+      "provider_files": 37,
+      "api_groups": 48,
+      "model_entries": 1109,
+      "providers": [
+        "amazon-bedrock", "ant-ling", "anthropic", "azure-openai-responses", "cerebras",
+        "cloudflare-ai-gateway", "cloudflare-workers-ai", "deepseek", "fireworks", "github-copilot",
+        "google-vertex", "google", "groq", "huggingface", "kimi-coding", "minimax-cn", "minimax",
+        "mistral", "moonshotai-cn", "moonshotai", "nvidia", "openai-codex", "openai", "opencode-go",
+        "opencode", "openrouter", "qwen-token-plan-cn", "qwen-token-plan", "together",
+        "vercel-ai-gateway", "xai", "xiaomi-token-plan-ams", "xiaomi-token-plan-cn",
+        "xiaomi-token-plan-sgp", "xiaomi", "zai-coding-cn", "zai"
+      ]
+    },
+    "auth_assessment": [
+      "Most primary routes require API keys.",
+      "Bedrock, Vertex and Azure can use their provider-native ambient credential chains.",
+      "A custom OpenAI-compatible endpoint can point at a local model server; DSH does not bundle or manage a local model runtime.",
+      "The DSH pi-ai adapter has no consumer OAuth login/token-store flow for openai-codex; without a configured profile it suppresses that route as unconfigured.",
+      "The bundled pi-ai catalog does include subscription-oriented protocols such as GitHub Copilot OAuth and Kimi Code subscription, plus token-plan products. The DSH adapter does not inject pi-ai's OAuth credential store or run an interactive login, so these are catalog capabilities rather than a demonstrated DSH login path; a manually supplied token/key may still configure a route.",
+      "No persistent primary-model route using a Claude.ai, ChatGPT or DeepSeek consumer subscription was found."
+    ]
+  },
+  "product_subagents": {
+    "packages_published": [
+      "@deepseek-ai/dsh-subagent-codex",
+      "@deepseek-ai/dsh-subagent-claude-code"
+    ],
+    "published_default_config_contains_provider_rows": false,
+    "main_dsh_published_dependencies_include_packages": false,
+    "preset_tool_rows_exist_disabled": true,
+    "codex": {
+      "transport": "codex app-server --stdio",
+      "development_baseline": "codex-cli 0.147.0",
+      "lifecycle": "one fresh process, ephemeral thread and turn per run",
+      "input": "standalone text plus parent session cwd",
+      "output": "final answer only",
+      "auth": "host native Codex configuration/authentication",
+      "limitations": ["no continuation", "no resume", "no pooling", "no progress stream", "no product-session persistence", "no human approval path", "no wall-clock timeout", "no rollback"]
+    },
+    "claude_code": {
+      "transport": "official Claude Agent SDK query through native claude executable",
+      "development_baseline": "SDK 0.3.220 / Claude Code 2.1.220",
+      "lifecycle": "one fresh non-persisted query and process per run",
+      "input": "standalone text plus parent session cwd",
+      "output": "final answer only",
+      "auth": "host native Claude settings/authentication",
+      "limitations": ["no continuation", "no resume", "no pooling", "no progress stream", "no product-session persistence", "AskUserQuestion disabled", "no wall-clock timeout", "no rollback"]
+    },
+    "assessment": "The packages are real and can indirectly use consumer subscriptions through separately installed native CLIs. The out-of-box claim is overstated for the published default, and the wrappers are one-shot bridges rather than Orchestra-equivalent persistent workers."
+  },
+  "persistence_memory_and_orchestration": {
+    "sessions": {
+      "default_backend": "append-only JSONL with zstd frames",
+      "properties": ["fsync checkpoints", "torn-tail recovery", "fork", "resume", "transcript and telemetry projections"],
+      "default_query_index": "SQLite :memory:, openAt: never",
+      "format_status": "pre-release; compatibility changes are explicitly expected"
+    },
+    "memory": {
+      "built_in_semantic_memory": false,
+      "opt_in_examples": ["Memorix 1.3.0", "MCP reference memory", "Engram 1.20.0"],
+      "shipped_memory_server": false
+    },
+    "jobs": {
+      "default_backend": "jobs-local",
+      "process_restart_durable": false,
+      "default_owner_limit": 10
+    },
+    "schedule": {
+      "state_is_durable_in_session_log": true,
+      "on_time_delivery_requires_live_original_session": true,
+      "cold_session_behavior": "overdue reminders are processed only after resume"
+    },
+    "mcp": {
+      "transports": ["stdio", "HTTP"],
+      "automatic_reconnect": true,
+      "default_reconnect_attempts": 10,
+      "security_note": "External MCP commands are trusted host processes outside the agent file sandbox."
+    },
+    "subagent_core": "DSH also has native in-process one-shot and continuable child agents with durable descriptors, depth controls, follow-ups, interrupt authority and Web UI. This is separate from the one-shot Codex/Claude product adapters."
+  },
+  "security": {
+    "shell_confinement": {
+      "default_published_mode": "workspace-write",
+      "modes": ["read-only", "workspace-write", "danger-full-access"],
+      "linux": ["bubblewrap", "Landlock fallback"],
+      "macos": "Seatbelt",
+      "windows": "ACL plus restricted-token backend",
+      "enforcement_reporting": ["full", "partial", "unavailable"],
+      "fail_closed_when_unavailable": true,
+      "scope": "filesystem effects only; network and process policy are outside the vocabulary"
+    },
+    "in_process_filesystem_tools": {
+      "mechanism": "trusted-code mutation fence on writeText/editText",
+      "reads_restricted": false,
+      "kernel_security_boundary": false,
+      "known_residual": "resolve-to-syscall TOCTOU; adversarial host processes are out of scope",
+      "assessment": "This shares policy vocabulary with shell confinement but is not the same enforcement boundary."
+    },
+    "credentials": {
+      "posix_directory_mode": "0700",
+      "posix_file_mode": "0600",
+      "atomic_write": true,
+      "same_uid_read_protection": false,
+      "note": "workspace-write restricts mutations, not broad reads; the OS keychain provider is deferred"
+    },
+    "workflow_runtime": {
+      "implementation": "Node worker thread plus node:vm",
+      "security_boundary": false,
+      "documented_escape_impact": "escaped model-written code can recover Node capabilities with host-process privileges"
+    },
+    "web": {
+      "default_bind": "127.0.0.1:3080",
+      "application_auth_found": false,
+      "application_tls_found": false,
+      "non_loopback_source_support": "source configuration supports 0.0.0.0 with allowed authorities, while loopback-only settings features are disabled remotely",
+      "assessment": "Treat as a local development UI, not as an Orchestra-like authenticated remote multi-user control plane."
+    },
+    "telemetry": {
+      "default": "DISABLED",
+      "when_enabled": "exports session-log telemetry to https://harness-telemetry.deepseeksvc.com/v1/logs"
+    },
+    "postmortem_counter_evidence": {
+      "source_path": "docs/postmortem/0001-acp-default-export-drops-inject.md",
+      "fact": "The ACP bridge was completely non-functional in production despite 178 green unit tests and 100% line coverage; two real-loader/topology integration bugs were hidden by hand-mounted tests.",
+      "resolved": true
+    },
+    "security_policy_file_found": false
+  },
+  "ui": {
+    "published_web_bundle_rows": 51,
+    "verified_surfaces": [
+      "conversation and session history",
+      "workspace browser",
+      "provider/model settings",
+      "plugin inventory",
+      "agent presets and model selection",
+      "permissions",
+      "plans and goals",
+      "workflows and subagent activity",
+      "background jobs",
+      "produced files",
+      "questions",
+      "trajectory and downloads"
+    ],
+    "missing_or_not_found_in_targeted_search": ["Telegram bridge", "task/payment manager", "YouGile integration", "authenticated remote multi-project dashboard"],
+    "worktree_isolation": "deferred in current workflow implementation; not an available DSH execution-isolation mode"
+  },
+  "smoke": {
+    "policy": {
+      "location": "/var/tmp/dsh308.ayJak0",
+      "filesystem": "ext4, outside repository",
+      "environment": "env -i with temporary HOME, DSH_HOME, npm/pnpm cache and prefix",
+      "credentials_used": false,
+      "global_install": false,
+      "node": "v24.19.0",
+      "npm": "11.17.0",
+      "node_tarball_sha256_verified_against": "https://nodejs.org/dist/latest-v24.x/SHASUMS256.txt"
+    },
+    "preregistered_success": "The named command must emit a usable result and the Web command must return HTTP 200 within 15 minutes, while writing only under the disposable directory.",
+    "attempts": [
+      {
+        "command": "npx --yes @deepseek-ai/dsh@0.1.0-rc.6 --help",
+        "runtime": "Node 20.20.2 / npm 10.8.2",
+        "result": "FAIL",
+        "elapsed": "10 minutes",
+        "stdout_bytes": 0,
+        "observation": "npm dependency placement stopped progressing; Node 20 is below the source-declared supported engine"
+      },
+      {
+        "command": "npx --yes @deepseek-ai/dsh@0.1.0-rc.6 --help",
+        "runtime": "Node 24.19.0 / npm 11.17.0",
+        "result": "FAIL",
+        "elapsed": "16.7 minutes",
+        "stdout_bytes": 0,
+        "observation": "same no-output dependency-placement hang on a supported Node runtime"
+      },
+      {
+        "command": "npx --yes @deepseek-ai/dsh@0.1.0-rc.6 web",
+        "runtime": "Node 24.19.0 / npm 11.17.0",
+        "result": "INCONCLUSIVE",
+        "elapsed": "120 seconds bounded probe",
+        "stdout_bytes": 0,
+        "exit_code": 137,
+        "observation": "bounded probe killed after no output; no listener appeared"
+      },
+      {
+        "command": "npx @deepseek-ai/dsh web",
+        "runtime": "Node 24.19.0 / npm 11.17.0",
+        "result": "PASS",
+        "elapsed_seconds": 509,
+        "http_url": "http://127.0.0.1:3080/",
+        "http_status": 200,
+        "body_bytes": 12109,
+        "raw_log_bytes": 225,
+        "raw_log_sha256": "83e8e737798debc5f7a8619e334ee0d81dfa87dff983f94270a9bdb603dc2f6c",
+        "html_sha256": "7dcd324799abd542ec5f121e39b6e5c22981f7b062f43dce08553755c33916fc",
+        "observation": "Exact README inner command in a fresh isolated home; npm installed rc.6, emitted one deprecation warning, then printed the loopback URL. Process group was cleaned and the port closed."
+      },
+      {
+        "command": "corepack pnpm@11.7.0 dlx @deepseek-ai/dsh@0.1.0-rc.6 --help",
+        "runtime": "Node 24.19.0 / pnpm 11.7.0",
+        "result": "PASS",
+        "elapsed": "3 minutes 21 seconds",
+        "packages_resolved": 582,
+        "packages_downloaded": 527,
+        "packages_added": 525
+      },
+      {
+        "command": "corepack pnpm@11.7.0 dlx @deepseek-ai/dsh@0.1.0-rc.6 web",
+        "runtime": "Node 24.19.0 / pnpm 11.7.0",
+        "result": "PASS",
+        "http_url": "http://127.0.0.1:3080/",
+        "ready_after_seconds": 46,
+        "http_status": 200,
+        "body_bytes": 12109,
+        "html_title": "DeepSeek Harness",
+        "writes_outside_temp": false
+      },
+      {
+        "command": "dsh --profile web --dump-default-config",
+        "runtime": "same published package through pnpm dlx",
+        "result": "PASS",
+        "bytes": 15329,
+        "lines": 490,
+        "plugin_rows": 129
+      }
+    ],
+    "disk": {
+      "pnpm_store_apparent_bytes": 341904606,
+      "pnpm_store_disk_approx": "439 MB",
+      "corepack_disk_approx": "20 MB"
+    },
+    "conclusion": "The exact README command is reproducible on supported Node 24/npm 11 and reached HTTP 200 in 509 seconds. Earlier unlike pinned/help probes stalled and a 120-second pinned Web probe was inconclusive against its 15-minute criterion; these are mixed cold-install outcomes, not failure of the official quick start or a measured variance distribution. The project-native pnpm route was faster in this run."
+  },
+  "orchestra_baseline": {
+    "snapshot_sha": "27a83859dcc10292ae5d287a6e8da73f01b928a3",
+    "python_app_files": 78,
+    "python_app_lines": 46471,
+    "mcp_tools_in_app_mcp_stdio": 39,
+    "verified_features": [
+      "persistent Claude, Codex, Grok and OpenCode runtime adapters",
+      "consumer-subscription native auth without primary API-key routing",
+      "mid-turn injection and long-lived worker sessions",
+      "SQLite sessions, logs, jobs, tasks and payments",
+      "server-side background jobs restored after restart",
+      "semantic memory over docs and logs with cross-project option",
+      "Telegram bridge",
+      "authenticated FastAPI dashboard",
+      "Task Manager and YouGile sync",
+      "per-worker git worktrees and multi-project orchestration",
+      "model routing, quota, merge and lifecycle controls"
+    ],
+    "known_relative_weaknesses": [
+      "git worktrees are isolation but not an OS security boundary",
+      "the current runtime is less uniformly plugin-composable than DSH",
+      "model-visible state is not governed by one explicit event-log invariant across every runtime"
+    ]
+  },
+  "comparison": [
+    {"axis": "primary auth", "dsh": "DeepSeek/API keys, provider-native cloud credentials, local compatible endpoints", "orchestra": "consumer subscriptions through native CLIs/SDKs", "winner_for_current_use": "Orchestra"},
+    {"axis": "worker lifecycle", "dsh": "native child agents are capable; Codex/Claude product bridges are one-shot", "orchestra": "persistent managed workers with steering, hibernate/resume and cross-agent delivery", "winner_for_current_use": "Orchestra"},
+    {"axis": "durable background work", "dsh": "default jobs are process-local; schedules wake only live sessions", "orchestra": "server jobs survive restart and actively notify sessions", "winner_for_current_use": "Orchestra"},
+    {"axis": "semantic memory", "dsh": "external opt-in MCP examples", "orchestra": "built-in indexed docs/log memory", "winner_for_current_use": "Orchestra"},
+    {"axis": "tool/capability architecture", "dsh": "typed, reversible Cordis seams and explicit tool waterfalls", "orchestra": "working but less uniform runtime-specific integration", "winner_for_current_use": "DSH"},
+    {"axis": "filesystem policy", "dsh": "kernel-backed shell file confinement plus a separate trusted-code FS mutation fence; explicit status for shell enforcement", "orchestra": "worktree isolation; some runtimes/review run without OS sandbox", "winner_for_current_use": "DSH architecture is more explicit, but neither is a general process/network security boundary"},
+    {"axis": "remote control plane", "dsh": "polished local Web UI, no app auth/TLS found", "orchestra": "authenticated remote dashboard plus Telegram/task integrations", "winner_for_current_use": "Orchestra"},
+    {"axis": "maturity", "dsh": "developer preview, RC-only, no releases/tags, public for four days", "orchestra": "current production-shaped system", "winner_for_current_use": "Orchestra"}
+  ],
+  "integration_cost": {
+    "full_adoption": {
+      "estimate": "multiple engineer-months",
+      "confidence": "LOW",
+      "reason": "Would replace or reimplement the Python control plane, subscription runtimes, Telegram, durable jobs, semantic memory, worktrees, auth, task/payment integrations and lifecycle/merge controls in TypeScript/Cordis."
+    },
+    "sidecar": {
+      "estimate": "multiple engineer-weeks before production hardening",
+      "confidence": "LOW",
+      "reason": "Duplicates UI, session store, settings/auth and process supervision without solving primary subscription routing."
+    },
+    "isolated_slices": {
+      "estimate": "3-7 engineer-days per prototype, then re-estimate from measurements",
+      "confidence": "MEDIUM-LOW",
+      "reason": "The proposed pilots can be implemented at existing Orchestra seams without importing Cordis or the DSH runtime."
+    }
+  },
+  "pilots": [
+    {
+      "id": "P1",
+      "name": "Model-visible event-log replay invariant",
+      "scope": "Test-only projection over 20 representative Orchestra sessions covering plain turns, tool calls, steering, images, compaction and interrupted/restarted work.",
+      "acceptance": ["20/20 replayed model requests have byte-equivalent model-visible inputs or an explicit classified divergence", "no production writes", "fixture benchmark overhead below 1%"]
+    },
+    {
+      "id": "P2",
+      "name": "Sandbox capability seam and enforcement reporting",
+      "scope": "Disposable Linux runner prototype with read-only, workspace-write and danger-full-access modes plus full/partial/unavailable status.",
+      "acceptance": ["outside-workspace write denied", "inside-workspace write allowed only in workspace-write", "missing backend fails closed as unavailable", "network and process isolation are explicitly reported as not enforced", "mutation tests prove each guard"]
+    },
+    {
+      "id": "P3",
+      "name": "DSH side-by-side benchmark, not integration",
+      "scope": "After separate credential authorization, run three fixed closed coding tasks in an isolated clone through an operator-selected DeepSeek API or local compatible endpoint.",
+      "acceptance": ["3/3 task oracles pass", "zero writes outside disposable workspace", "record wall time, tokens and metered cost", "continue only if quality and cost are competitive with the same Orchestra tasks"]
+    }
+  ],
+  "commands": {
+    "github_snapshot": "curl GitHub REST repository, organization, commits, contributors, releases, tags and commit-activity endpoints into disposable files; parse with jq",
+    "source_metrics": "git ls-files | wc -l; git ls-files '*.ts' '*.tsx' | wc -l; git ls-files '*.ts' '*.tsx' | xargs wc -l; path-filter production lines by excluding (^|/)(tests?|__tests__|fixtures|snapshots)/ and .(spec|test|e2e).; rg package/test/workflow counts against snapshot 47f943859bef60e4160492346772ded9b24f765a",
+    "npm_snapshot": "curl https://registry.npmjs.org/%40deepseek-ai%2Fdsh and parse with jq",
+    "smoke": "env -i HOME=<temp>/home DSH_HOME=<temp>/dsh-home npm_config_cache=<temp>/npm-cache npm_config_prefix=<temp>/npm-prefix PATH=<node24>/bin:/usr/bin:/bin; inner command exactly: npx @deepseek-ai/dsh web; readiness curl http://127.0.0.1:3080/ once per second; separate setsid process group; 900-second limit",
+    "raw_smoke_artifacts": "Disposable paths /var/tmp/dsh308.ayJak0/exact-readme/npx-readme-web.raw.log and index.html; hashes are recorded above. They are not committed evidence and may disappear after reboot.",
+    "orchestra_baseline": "find app -name '*.py' counts plus wc/rg against local snapshot 27a83859dcc10292ae5d287a6e8da73f01b928a3"
+  }
+}
