@@ -1662,7 +1662,7 @@ class SessionManager:
         db_row = get_session_by_name(name, scope)
         if not db_row:
             return None
-        return await self._load_from_db(db_row)
+        return await self._ensure_loaded_row(db_row)
 
     async def ensure_loaded_by_id(self, session_id: str) -> Optional[AgentSession]:
         """Загрузить сессию по НЕИЗМЕНЯЕМОМУ id.
@@ -1676,7 +1676,7 @@ class SessionManager:
         db_row = get_session(session_id)
         if not db_row or db_row.get("status") == "archived":
             return None
-        return await self._load_from_db(db_row)
+        return await self._ensure_loaded_row(db_row)
 
     async def ensure_loaded_any(self, name: str) -> Optional[AgentSession]:
         for s in self.sessions.values():
@@ -1684,8 +1684,19 @@ class SessionManager:
                 return s
         for row in get_all_sessions():
             if row["name"] == name:
-                return await self._load_from_db(row)
+                return await self._ensure_loaded_row(row)
         return None
+
+    async def _ensure_loaded_row(self, db_row: dict) -> AgentSession:
+        session_id = db_row["id"]
+        session = self.sessions.get(session_id)
+        if session is not None:
+            return session
+        async with self.get_session_lock(session_id):
+            session = self.sessions.get(session_id)
+            if session is not None:
+                return session
+            return await self._load_from_db(db_row)
 
     def assemble_prompt(
         self, *, pipeline: str, role: str, scope: str, is_orch: bool, name: str,

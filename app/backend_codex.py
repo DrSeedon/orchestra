@@ -1,14 +1,21 @@
 """CodexBackend — wraps Codex CLI subprocess for agent sessions."""
 
 import asyncio
+import fcntl
+import hashlib
 import json
 import logging
 import os
 import re
 import shutil
+import sqlite3
 import sys
 import tomllib
 import uuid
+import weakref
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
@@ -19,6 +26,7 @@ from app.runtime_history import (
     HISTORICAL_TOOL_INSTRUCTION,
     CodexHistoryImport,
     NativeHistoryUnsupported,
+    sanitize_sensitive_text,
 )
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
@@ -277,6 +285,57 @@ def _tool_arguments_json(arguments) -> str:
 
 _SAFE_HOME_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$")
 _CODEX_HOME_ROOT = Path.home() / ".orchestra" / "codex-home"
+_MANAGED_HOME_LOCKS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+_CODEX_STATE_MIGRATIONS_BY_CLI = {
+    # Captured from a read-only Codex 0.146.0 state DB. Checksums are SQLx's
+    # provider-owned migration identity; a mutable base DB is not schema authority.
+    CODEX_CLI_HISTORY_VERSION: (
+        (1, bytes.fromhex("627ef19164c9bb298a0cd99945981c9b7bda3d9e6cf12eb35145e3b1d3bf7cf8740f0dbaa0b475185fc2993397078049")),
+        (2, bytes.fromhex("521b72cbc04c7d03b1e4aef8dc0fdee672f1f7f5881385a55a0e937e4ebe87a3f67bca4d3f6b59afbc9a7ca723c82856")),
+        (3, bytes.fromhex("e58a2862bdb66d3274e60144a26dc9d68bbefff834cd29b82b740f38fcf95862934f412665d985715167839e8f0eb377")),
+        (4, bytes.fromhex("8adc251366e4c7e5ea78b620ac71f4c4bdfb8f048bf9f2fd7204226cfba54c8e83fc9d83fc1ec334bc683bb7f6d0d8a8")),
+        (5, bytes.fromhex("1ac64f85e083e5b49b974bf498fc39c630f0032057fb4bf4cb31708619fac5a80189f261cf3e38dafd92dc406e73c220")),
+        (6, bytes.fromhex("a203fc4b597e1420bffdc4e00e214798b21cf7fc921d8bd6f089c75248fb6a4b4942c97a1f8e0271eca8cf3b3e5e7a80")),
+        (7, bytes.fromhex("7e35a464df6d4c82694de50865ba3fe9104f9e1385a33be7d633ab4b8d6cf60b7f369fe083d31251fd77b75fa2d61f82")),
+        (8, bytes.fromhex("aa3f287f7a448554e7af01f259f0871ce90ace1a7d4b8ebbd74c87ae57c3e21119f7eec8b9c2e9f4a9e76e63a0f0b60a")),
+        (9, bytes.fromhex("8b469360777e6dd6c21d3f0eb93481251846b0a50e0a44eb0dbee4a0a32b7206768a5d83a5fcec30c6fd2e43d755ff1b")),
+        (10, bytes.fromhex("8adaf1365f8e5deeba68bdeee9fd83b094a87bdab364d95ab5c714f7b8bd95dc3b38576871470312154c9d41e8f10f93")),
+        (11, bytes.fromhex("31ececbd07f04452d0dc5127d824ed183056b9900a31aa739387a4aef232016d975110829814841fb6bf3fd23634b799")),
+        (12, bytes.fromhex("0012a213ed25f2cf806c2530c487ebb00b4f102f5960d1a852154a0f77d25c9e9f7df29550faeb30ebaff15a26c7d604")),
+        (13, bytes.fromhex("05526a0900a8430523a9a05932ea61302fce20782b245498565c1b9a2dfd10cf5c49932089b496ae23af44f6c5f76af4")),
+        (14, bytes.fromhex("4d2fbb2442c5c5c7c47b4254b5b8dc2c52129f65c4a952a79f1ec5c40fb07483326429ce5acdbd372bc9262352cb6277")),
+        (15, bytes.fromhex("0eece6db59c948faa6608526af440a9f53f5a982d27f3e866cd9f1401c2e59bc61f8381b5a1c9744acb232f50db493e5")),
+        (16, bytes.fromhex("4768f743e981293735c6e07b0282ec8ace98af720059d68555b17979d28c94b0c893a97a950d5e32758bc6d92d8fe6ff")),
+        (17, bytes.fromhex("4cbdb2edfebf6040858ffc193cffa36e6b3fbf508f8418ad073081bbfcf59d53d423b6eb4c0ded206ab4d4c1a0efed94")),
+        (18, bytes.fromhex("a4363003bc44f0a4ae1eed53b536b7175f97863ea6881a059dc6642e70e2921576204697cec2345f560e65ff7fbf4455")),
+        (19, bytes.fromhex("3884c02f080f0184e92b620f870dfbb840a8ec5dfce2fe6455dd8197fcd27d7dd86e63ad6ec7c4091a1161d9ed199f8d")),
+        (20, bytes.fromhex("07673f4859f740134569ab9606760d8173ed6df92da47c86fbd0ceeb333e18ab7ac91d525ab8c11503c42164fd4167ae")),
+        (21, bytes.fromhex("ea1aebe4f5a1d56c8effcc15f705c272275dd8adfeb01bc97d3f7b283474a3b8c2b0c8c69de55786e8bda17cae6f4de7")),
+        (22, bytes.fromhex("160fe01b757dd06f9573b9030952d021f2b148732bea5fc5f5ae09e9227f3f83ca676695edaf8502669fcb546119dc94")),
+        (23, bytes.fromhex("e6c748a9a18286e4c773ffe0dad659f16fb7e5b7b032235815991c405f2d32c068f3edde920d0fcf589b687bffcfee2e")),
+        (24, bytes.fromhex("e92aa526b1f36e26f6221c04a671f07b27de2e7a5112d93a8c3af816a87846e7804d5fbad689e61cf4ec91fd79d3bd8a")),
+        (25, bytes.fromhex("d6fb51d79941b93c3278fe2a8a0c6fa882407b7b716e32d72329f0b7b60c181a42f49e56cd552315efb0402a111ede12")),
+        (26, bytes.fromhex("6c62a325d3b9ca8e424eacb9e3890d8d9de57c3725e2d1fa30c3743ae779fca2969387174359dfb26e4920791ae7e831")),
+        (27, bytes.fromhex("d84dca6a039e004c0c7d06c5a16c2ccc363137537f3dd9898f50bb013ce9067140761b87d58ca742d769d35976863fc3")),
+        (28, bytes.fromhex("ef44adaa291e40dfe6b74e3cd259711adae13f01c5594b177d08e2d2041a67ed3813feecf049662aaed0f636bd3f4ac3")),
+        (29, bytes.fromhex("e9ec76f97dbf41ce4949de324a2a26538c2025c0ac4f272b77a852970fb14b7ec970d6978a765f91ae171dce9c0e4149")),
+        (30, bytes.fromhex("80c1cdacd4520b42b18b960164912685591a7ee041645f35609a2ee2792eb474b7b0b758366556982d8cde2acb583672")),
+        (31, bytes.fromhex("943675a9b3dc92d0b2731ae7d2fe324ff1a40b6366b9d5d8b4cb47ca885c08beb6ebb1d776a5a47c878b4094dde70ea0")),
+        (32, bytes.fromhex("3c01d615c5e3aba0fd858b7168e73881598d7d33a0ecc41527bdf6595a199d1aec2ff9f3b3000a57241c500d81b34259")),
+        (33, bytes.fromhex("4904aae354e3d8ce32ac21d2ae579fd708446ae1dfb2649fc9dd22dc9279b91a2bbb02e6f01b3e0abd1088177bf2f030")),
+        (34, bytes.fromhex("d6fea739c76ebdef35a23f06e54efb5904d7987fb6b663db1ebc98eb9b192305f454932bfbaa2231aedca6209903a5f3")),
+        (35, bytes.fromhex("d7b56acb07c96858bdc7ca4c53db51eb71c6a19ef2c524ff68c2660a6fe0d23211a6d39cb905f01c42ffb7c8ee913bbc")),
+        (36, bytes.fromhex("6381f7bb4c36be41c6106b8523ea6c68f5a00273a5522155b7b84bad26d152436f3375df7097ce3abf2421aec32641ed")),
+        (37, bytes.fromhex("f6a5ab0db36bb9e45ab5285b56090fb453df0a4d4d8d62eace234f0b557f4203c6c455fc67bd7d6e72623c3979ec9405")),
+        (38, bytes.fromhex("e7778522cbe529f5e2ba179b502aee8e5c21272ad820e672ab0a565f7edc9bd0f29171ccf9815c0acc0f89eae0a2b1fc")),
+        (39, bytes.fromhex("c217b3d14c08c23603f485af11452ee2b68f65fa8dbaf215f33f53b608c092be8738de3f63d6a38f120edea5af247c17")),
+        (40, bytes.fromhex("a7a99674f90a43184e43d66595c4f1da50ae8715a5bfcb1579a2b7b10668335d7f7ab6b6f2d7a7a379272773d803a914")),
+        (41, bytes.fromhex("0dc734dbe4cbcc5ad5a8bbc2fdc1cf770ddea3cb53eb36c55a4da6fa2e8be4cc8e68672f43ac953e727e415e45c50a78")),
+        (42, bytes.fromhex("cfdc4fd47328d1b67c0c7555125de4fb4add5b3b57fd31ac1987e4d8b0c99b1f5418db9ee7ec2158aed8a2e3dfcfd636")),
+        (43, bytes.fromhex("605128e722bd2521c7e979e9961c16706435e442b3e3a8efa36f6b16c42e3833090906d9a62fde097a109b78e29da830")),
+        (44, bytes.fromhex("5d29223bd1cafe456a4af992a545e8ec420b71331eb12a7427e26512b8a44117d9445b83562f095b3a5a0f11c4f091d2")),
+    ),
+}
 # Из базового конфига переносим ТОЛЬКО это. Расширять список осознанно: каждая строка
 # здесь — копия, которая начинает расходиться с оригиналом.
 _CARRIED_BASE_KEYS = ("project_doc_max_bytes",)
@@ -302,6 +361,314 @@ def _write_private(path: Path, text: str) -> None:
 
 def _base_codex_home() -> Path:
     return Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
+
+
+@dataclass(frozen=True)
+class _CodexStateInfo:
+    status: str
+    last_success_at: int | None
+    migrations: tuple[tuple[int, bytes], ...]
+    thread_count: int
+
+
+def _managed_home_async_lock(home: Path) -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    locks = _MANAGED_HOME_LOCKS.setdefault(loop, {})
+    return locks.setdefault(home.resolve(), asyncio.Lock())
+
+
+def _acquire_managed_home_file_lock(home: Path) -> int:
+    lock_dir = home.parent / ".locks"
+    lock_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(lock_dir, 0o700)
+    digest = hashlib.sha256(os.fsencode(str(home.resolve()))).hexdigest()[:24]
+    lock_path = lock_dir / f"{digest}.lock"
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(lock_path, flags, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _release_managed_home_file_lock(fd: int) -> None:
+    try:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
+async def _acquire_managed_home_file_lock_async(home: Path) -> int:
+    task = asyncio.create_task(asyncio.to_thread(_acquire_managed_home_file_lock, home))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        # flock cannot be cancelled in the worker thread. If it acquires after this
+        # waiter is cancelled, release it before propagating cancellation.
+        await asyncio.gather(task, return_exceptions=True)
+        if not task.cancelled() and task.exception() is None:
+            await asyncio.to_thread(_release_managed_home_file_lock, task.result())
+        raise
+
+
+@asynccontextmanager
+async def _managed_home_lock(home: Path):
+    async with _managed_home_async_lock(home):
+        fd = await _acquire_managed_home_file_lock_async(home)
+        try:
+            yield
+        finally:
+            await _run_home_io(_release_managed_home_file_lock, fd)
+
+
+async def _run_home_io(func, *args):
+    task = asyncio.create_task(asyncio.to_thread(func, *args))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        # Releasing the home lock while the thread still moves SQLite files would let the
+        # next owner overlap the very operation the lock exists to serialize.
+        await asyncio.gather(task, return_exceptions=True)
+        raise
+
+
+def _state_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {str(row[1]) for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _inspect_codex_state(path: Path, *, check_integrity: bool) -> _CodexStateInfo:
+    required = {
+        "_sqlx_migrations": {
+            "version", "description", "installed_on", "success", "checksum",
+            "execution_time",
+        },
+        "backfill_state": {
+            "id", "status", "last_watermark", "last_success_at", "updated_at",
+        },
+        "threads": {"id"},
+    }
+    try:
+        uri = f"file:{path.resolve()}?mode=ro"
+        with sqlite3.connect(uri, uri=True) as conn:
+            conn.execute("PRAGMA query_only=ON")
+            tables = {
+                str(row[0])
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+            missing_tables = required.keys() - tables
+            if missing_tables:
+                raise RuntimeError(
+                    f"Codex state schema is incomplete: missing {sorted(missing_tables)}"
+                )
+            for table, columns in required.items():
+                missing = columns - _state_columns(conn, table)
+                if missing:
+                    raise RuntimeError(
+                        f"Codex state schema is incomplete: {table} missing {sorted(missing)}"
+                    )
+            if check_integrity:
+                result = [str(row[0]) for row in conn.execute("PRAGMA quick_check")]
+                if result != ["ok"]:
+                    raise RuntimeError(f"Codex state quick_check failed: {result[:3]}")
+            migration_rows = list(conn.execute(
+                "SELECT version, success, checksum FROM _sqlx_migrations ORDER BY version"
+            ))
+            if not migration_rows or any(int(row[1]) != 1 for row in migration_rows):
+                raise RuntimeError("Codex state migrations are absent or incomplete")
+            migrations = tuple(
+                (int(version), bytes(checksum))
+                for version, _success, checksum in migration_rows
+            )
+            backfill_rows = list(conn.execute(
+                "SELECT status, last_success_at FROM backfill_state WHERE id = 1"
+            ))
+            if len(backfill_rows) != 1:
+                raise RuntimeError("Codex state has no unique backfill_state row")
+            status, last_success_at = backfill_rows[0]
+            thread_count = int(conn.execute("SELECT COUNT(*) FROM threads").fetchone()[0])
+    except RuntimeError:
+        raise
+    except (OSError, sqlite3.Error, TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"cannot validate Codex state {path}: {type(exc).__name__}: {exc}"
+        ) from exc
+    return _CodexStateInfo(
+        status=str(status),
+        last_success_at=(int(last_success_at) if last_success_at is not None else None),
+        migrations=migrations,
+        thread_count=thread_count,
+    )
+
+
+def _validate_codex_state_migrations(
+    info: _CodexStateInfo,
+    cli_version: str,
+) -> None:
+    expected = _CODEX_STATE_MIGRATIONS_BY_CLI.get(cli_version)
+    if expected is None:
+        raise RuntimeError(
+            f"no validated Codex state migration signature for CLI {cli_version or 'unknown'}"
+        )
+    if info.migrations != expected:
+        raise RuntimeError(
+            "refusing unsupported Codex state migration signature: "
+            f"CLI={cli_version}, expected={len(expected)} migrations through "
+            f"{expected[-1][0]}, got={len(info.migrations)} migrations through "
+            f"{info.migrations[-1][0] if info.migrations else 'none'}"
+        )
+
+
+def _managed_codex_state_needs_seed(home: Path, cli_version: str) -> bool:
+    target = home / "state_5.sqlite"
+    if not target.exists():
+        return True
+    info = _inspect_codex_state(target, check_integrity=False)
+    _validate_codex_state_migrations(info, cli_version)
+    if info.status == "complete" and info.last_success_at is not None:
+        return False
+    if info.status == "running" and info.last_success_at is None:
+        return True
+    raise RuntimeError(
+        "refusing to replace Codex state that may contain successful history: "
+        f"status={info.status!r}, last_success_at={info.last_success_at!r}"
+    )
+
+
+def _backup_codex_state(source: Path, destination: Path) -> None:
+    source_uri = f"file:{source.resolve()}?mode=ro"
+    with sqlite3.connect(source_uri, uri=True) as source_conn:
+        source_conn.execute("PRAGMA query_only=ON")
+        with sqlite3.connect(destination) as destination_conn:
+            source_conn.backup(destination_conn)
+    os.chmod(destination, 0o600)
+
+
+def _select_managed_codex_state_source(target_home: Path, cli_version: str) -> Path:
+    base = _base_codex_home() / "state_5.sqlite"
+    base_info = _inspect_codex_state(base, check_integrity=True)
+    _validate_codex_state_migrations(base_info, cli_version)
+    if base_info.status != "complete" or base_info.last_success_at is None:
+        raise RuntimeError(
+            "refusing incomplete base Codex state source: "
+            f"status={base_info.status!r}, "
+            f"last_success_at={base_info.last_success_at!r}"
+        )
+    candidates = [(base_info.thread_count, base_info.last_success_at, base)]
+    if _CODEX_HOME_ROOT.is_dir():
+        for candidate in _CODEX_HOME_ROOT.glob("*/state_5.sqlite"):
+            if candidate.parent == target_home:
+                continue
+            try:
+                info = _inspect_codex_state(candidate, check_integrity=False)
+            except RuntimeError as exc:
+                logger.warning("ignoring invalid managed Codex state %s: %s", candidate, exc)
+                continue
+            if (
+                info.status == "complete"
+                and info.last_success_at is not None
+                and info.migrations == base_info.migrations
+            ):
+                candidates.append((info.thread_count, info.last_success_at, candidate))
+    return max(candidates, key=lambda item: (item[0], item[1], str(item[2])))[2]
+
+
+def _prepare_managed_codex_state(
+    home: Path,
+    source: Path,
+    cli_version: str,
+) -> str:
+    """Seed only absent or never-successful state from a validated WAL-safe backup."""
+    if cli_version != CODEX_CLI_HISTORY_VERSION:
+        raise RuntimeError(
+            "managed Codex state seed is validated only for CLI "
+            f"{CODEX_CLI_HISTORY_VERSION}, got {cli_version or 'unknown'}"
+        )
+    target = home / "state_5.sqlite"
+    if target.exists():
+        target_info = _inspect_codex_state(target, check_integrity=False)
+        _validate_codex_state_migrations(target_info, cli_version)
+        if target_info.status == "complete" and target_info.last_success_at is not None:
+            return "healthy"
+        if not (
+            target_info.status == "running" and target_info.last_success_at is None
+        ):
+            raise RuntimeError(
+                "refusing to replace Codex state that may contain successful history: "
+                f"status={target_info.status!r}, "
+                f"last_success_at={target_info.last_success_at!r}"
+            )
+    else:
+        target_info = None
+
+    source_info = _inspect_codex_state(source, check_integrity=True)
+    _validate_codex_state_migrations(source_info, cli_version)
+    if source_info.status != "complete" or source_info.last_success_at is None:
+        raise RuntimeError(
+            "refusing incomplete Codex state source: "
+            f"status={source_info.status!r}, "
+            f"last_success_at={source_info.last_success_at!r}"
+        )
+    if target_info is not None and target_info.migrations != source_info.migrations:
+        raise RuntimeError("refusing Codex state recovery across migration signatures")
+
+    temporary = home / f".state_5.seed-{uuid.uuid4().hex}.sqlite"
+    recovery: Path | None = None
+    moved: list[tuple[Path, Path]] = []
+    try:
+        _backup_codex_state(source, temporary)
+        copied = _inspect_codex_state(temporary, check_integrity=True)
+        if (
+            copied.status != "complete"
+            or copied.last_success_at is None
+            or copied.migrations != source_info.migrations
+        ):
+            raise RuntimeError("Codex state backup is incomplete or changed schema")
+        if target_info is None:
+            try:
+                os.link(temporary, target)
+            except FileExistsError as exc:
+                raise RuntimeError(
+                    "Codex managed state appeared during seed; refusing to overwrite it"
+                ) from exc
+            temporary.unlink()
+            logger.info(
+                "Codex managed state seeded: home=%s source=%s threads=%d",
+                home, source, copied.thread_count,
+            )
+            return "seeded"
+
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        recovery = home / f"state-recovery-{stamp}-{uuid.uuid4().hex[:8]}"
+        recovery.mkdir(mode=0o700)
+        try:
+            for path in (target, Path(f"{target}-wal"), Path(f"{target}-shm")):
+                if path.exists():
+                    preserved = recovery / path.name
+                    os.replace(path, preserved)
+                    moved.append((path, preserved))
+            os.replace(temporary, target)
+        except BaseException:
+            for original, preserved in reversed(moved):
+                if original.exists():
+                    original.unlink()
+                os.replace(preserved, original)
+            if recovery.exists() and not any(recovery.iterdir()):
+                recovery.rmdir()
+            raise
+        logger.warning(
+            "Codex never-successful running state recovered: home=%s source=%s "
+            "preserved=%s threads=%d",
+            home, source, recovery, copied.thread_count,
+        )
+        return "recovered"
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _carried_base_scalars() -> str:
@@ -452,6 +819,28 @@ class CodexBackend(JsonRpcStdioTransport):
                 f"native Codex history requires CLI {CODEX_CLI_HISTORY_VERSION}, got {actual}"
             )
 
+    async def _managed_state_cli_version(self) -> str:
+        try:
+            returncode, stdout, stderr = await _run_process(
+                CODEX_BIN,
+                "--version",
+                timeout=10,
+            )
+        except (OSError, asyncio.TimeoutError) as error:
+            raise RuntimeError(
+                "cannot verify CLI version for managed Codex state: "
+                f"{type(error).__name__}: {error}"
+            ) from error
+        version_text = stdout or stderr
+        parts = version_text.split()
+        version = parts[1] if len(parts) >= 2 and parts[0] == "codex-cli" else ""
+        if returncode != 0 or not version:
+            raise RuntimeError(
+                "cannot identify CLI version for managed Codex state: "
+                f"{version_text or f'exit {returncode}'}"
+            )
+        return version
+
     async def adopt(self, fd_in: int, fd_out: int, thread_id: str,
                     active_turn_id: str | None = None, *,
                     leftover: str = "", cli_pid: int = 0, cli_started_at: int = 0) -> None:
@@ -474,6 +863,38 @@ class CodexBackend(JsonRpcStdioTransport):
         self._reader_task = asyncio.create_task(self._read_stdout())
 
     async def connect(self) -> None:
+        home = self._managed_codex_home_path()
+        if home is None:
+            await self._connect_unlocked()
+            return
+        async with _managed_home_lock(home):
+            await _run_home_io(self._prepare_codex_home)
+            cli_version = await self._managed_state_cli_version()
+            if cli_version != CODEX_CLI_HISTORY_VERSION:
+                raise RuntimeError(
+                    "managed Codex state is validated only for CLI "
+                    f"{CODEX_CLI_HISTORY_VERSION}, got {cli_version or 'unknown'}"
+                )
+            if await _run_home_io(
+                _managed_codex_state_needs_seed,
+                home,
+                cli_version,
+            ):
+                logger.info("Codex managed state preparation started: home=%s", home)
+                source = await _run_home_io(
+                    _select_managed_codex_state_source,
+                    home,
+                    cli_version,
+                )
+                await _run_home_io(
+                    _prepare_managed_codex_state,
+                    home,
+                    source,
+                    cli_version,
+                )
+            await self._connect_unlocked()
+
+    async def _connect_unlocked(self) -> None:
         if self.is_alive and not self._teardown_error:
             return
 
@@ -976,10 +1397,27 @@ class CodexBackend(JsonRpcStdioTransport):
                 # reason is worded without a code instead of pretending we can wait() on it.
                 proc = self._proc
                 returncode = await proc.wait() if proc is not None else None
-                error = RuntimeError(
+                stderr_task = self._stderr_task
+                if stderr_task is not None and stderr_task is not asyncio.current_task():
+                    try:
+                        await asyncio.wait_for(
+                            asyncio.shield(stderr_task),
+                            timeout=CODEX_PROCESS_TIMEOUT_SECONDS,
+                        )
+                    except TimeoutError:
+                        stderr_task.cancel()
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception as exc:
+                        logger.warning("Codex stderr drain failed during exit: %s", exc)
+                stderr = sanitize_sensitive_text(self._last_stderr).strip()
+                message = (
                     f"Codex app-server exited with code {returncode}" if proc is not None
                     else "Codex app-server closed the adopted pipe (no process: adopted transport)"
                 )
+                if stderr:
+                    message = f"{message}: {stderr}"
+                error = RuntimeError(message)
                 for future in self._pending_requests.values():
                     if not future.done():
                         future.set_exception(error)
@@ -990,7 +1428,7 @@ class CodexBackend(JsonRpcStdioTransport):
                         "method": "_process/exited",
                         "params": {
                             "returncode": returncode,
-                            "stderr": self._last_stderr,
+                            "stderr": stderr,
                         },
                     })
 
@@ -1807,22 +2245,9 @@ class CodexBackend(JsonRpcStdioTransport):
             'trust_level = "trusted"'
         )
 
-    def _prepare_codex_home(self) -> Path:
-        """Собрать приватный `CODEX_HOME` этого агента и вернуть путь.
-
-        СОБРАТЬ, а не скопировать базовый: копия затащила бы глобальные MCP-серверы
-        (со своими токенами) и `[projects.*]` в конфиг каждого воркера, в обход отбора
-        в `runtime_registry`. Переносим из базового только разрешённые скаляры.
-        """
+    def _managed_codex_home_path(self) -> Path | None:
         if not self._mcp_servers:
-            # Нечего изолировать: без MCP-серверов нет ни конфига, ни секретов в argv,
-            # и подменить идентичность нечем — env-блока не существует.
-            # ОСТАТОЧНЫЙ РИСК, названный явно: такой бэкенд работает на ОБЩЕМ home и видит
-            # глобальные серверы из ~/.codex/config.toml. Managed-путь сюда не приходит —
-            # `_make_mcp_config` всегда кладёт сервер `orchestra`, — поэтому ветка
-            # достижима только при конструировании бэкенда в обход менеджера.
-            self._codex_home = _base_codex_home()
-            return self._codex_home
+            return None
         session_id = (self._mcp_servers.get("orchestra", {}).get("env") or {}).get(
             "ORCHESTRA_SESSION_ID"
         )
@@ -1833,7 +2258,25 @@ class CodexBackend(JsonRpcStdioTransport):
                 "CodexBackend requires a well-formed ORCHESTRA_SESSION_ID in the trusted "
                 f"'orchestra' MCP server env; got {session_id!r}"
             )
-        home = _CODEX_HOME_ROOT / session_id
+        return _CODEX_HOME_ROOT / session_id
+
+    def _prepare_codex_home(self) -> Path:
+        """Собрать приватный `CODEX_HOME` этого агента и вернуть путь.
+
+        СОБРАТЬ, а не скопировать базовый: копия затащила бы глобальные MCP-серверы
+        (со своими токенами) и `[projects.*]` в конфиг каждого воркера, в обход отбора
+        в `runtime_registry`. Переносим из базового только разрешённые скаляры.
+        """
+        home = self._managed_codex_home_path()
+        if home is None:
+            # Нечего изолировать: без MCP-серверов нет ни конфига, ни секретов в argv,
+            # и подменить идентичность нечем — env-блока не существует.
+            # ОСТАТОЧНЫЙ РИСК, названный явно: такой бэкенд работает на ОБЩЕМ home и видит
+            # глобальные серверы из ~/.codex/config.toml. Managed-путь сюда не приходит —
+            # `_make_mcp_config` всегда кладёт сервер `orchestra`, — поэтому ветка
+            # достижима только при конструировании бэкенда в обход менеджера.
+            self._codex_home = _base_codex_home()
+            return self._codex_home
         home.mkdir(parents=True, exist_ok=True)
         os.chmod(_CODEX_HOME_ROOT, 0o700)
         os.chmod(home, 0o700)

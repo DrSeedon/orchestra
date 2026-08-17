@@ -155,6 +155,11 @@ def _sanitize(value: str, *, binary: bool = False) -> tuple[str, int]:
     return text, count
 
 
+def sanitize_sensitive_text(value: str) -> str:
+    """Redact credentials from runtime diagnostics before exposing them to clients."""
+    return _sanitize(value)[0]
+
+
 def _cap_model_visible_tools(
     items: list[dict[str, Any]],
     *,

@@ -2039,6 +2039,7 @@ class TestAutoResume:
             await mgr.auto_resume_all()
         assert mgr.get("orch-1") is not None
 
+
     @pytest.mark.asyncio
     async def test_resume_normalizes_empty_pipeline(self, mgr):
         """Old migrated rows store pipeline='' → _load_from_db must normalize to
@@ -2181,6 +2182,120 @@ class TestAutoResume:
         assert session.prompt_overlay is None
         assert "OLD" not in session.system_prompt
 
+
+
+class TestEnsureLoadedSingleFlight:
+    @staticmethod
+    def _row():
+        return {
+            "id": "cold-codex", "name": "cold-codex", "scope": "/scope",
+            "status": "idle",
+        }
+
+    @pytest.mark.asyncio
+    async def test_simultaneous_model_change_and_send_share_one_cold_load(
+        self, mgr, monkeypatch,
+    ):
+        row = self._row()
+        monkeypatch.setattr("app.manager.get_session_by_name", lambda *_args: row)
+        first_started = asyncio.Event()
+        release = asyncio.Event()
+        load_calls = 0
+
+        class Session:
+            id = row["id"]
+            name = row["name"]
+            scope = row["scope"]
+            needs_switch = False
+
+            def __init__(self):
+                self.changed = 0
+                self.sent = 0
+
+            async def change_model(self, _model):
+                self.changed += 1
+
+            async def send(self, _message):
+                self.sent += 1
+
+        async def load(_row):
+            nonlocal load_calls
+            load_calls += 1
+            first_started.set()
+            await release.wait()
+            session = Session()
+            mgr.sessions[session.id] = session
+            return session
+
+        monkeypatch.setattr(mgr, "_load_from_db", load)
+
+        async def change_model():
+            session = await mgr.ensure_loaded(row["name"], row["scope"])
+            await session.change_model("gpt-5.6-sol")
+            return session
+
+        async def send():
+            session = await mgr.ensure_loaded(row["name"], row["scope"])
+            await mgr.send(session.id, "hello")
+            return session
+
+        change_task = asyncio.create_task(change_model())
+        await first_started.wait()
+        send_task = asyncio.create_task(send())
+        await asyncio.sleep(0)
+        release.set()
+        changed, sent = await asyncio.gather(change_task, send_task)
+
+        assert load_calls == 1
+        assert changed is sent
+        assert changed.changed == 1
+        assert changed.sent == 1
+
+    @pytest.mark.asyncio
+    async def test_cancelled_cold_load_owner_releases_waiter_without_overlap(
+        self, mgr, monkeypatch,
+    ):
+        row = self._row()
+        monkeypatch.setattr("app.manager.get_session_by_name", lambda *_args: row)
+        first_started = asyncio.Event()
+        never = asyncio.Event()
+        active = 0
+        max_active = 0
+        calls = 0
+
+        class Session:
+            id = row["id"]
+            name = row["name"]
+            scope = row["scope"]
+
+        async def load(_row):
+            nonlocal active, max_active, calls
+            calls += 1
+            active += 1
+            max_active = max(max_active, active)
+            try:
+                if calls == 1:
+                    first_started.set()
+                    await never.wait()
+                session = Session()
+                mgr.sessions[session.id] = session
+                return session
+            finally:
+                active -= 1
+
+        monkeypatch.setattr(mgr, "_load_from_db", load)
+        owner = asyncio.create_task(mgr.ensure_loaded(row["name"], row["scope"]))
+        await first_started.wait()
+        waiter = asyncio.create_task(mgr.ensure_loaded(row["name"], row["scope"]))
+        await asyncio.sleep(0)
+        owner.cancel()
+        await asyncio.gather(owner, return_exceptions=True)
+
+        session = await asyncio.wait_for(waiter, timeout=1)
+
+        assert session.id == row["id"]
+        assert calls == 2
+        assert max_active == 1
 
 
 class TestCanSpawn:

@@ -463,6 +463,46 @@ async def test_connect_direct_fallback_is_not_hibernate_safe(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_startup_exit_surfaces_sanitized_stderr_after_drain():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    stdout = asyncio.StreamReader()
+    stdout.feed_eof()
+    stderr_reads = 0
+
+    async def read_stderr(_size):
+        nonlocal stderr_reads
+        stderr_reads += 1
+        if stderr_reads == 1:
+            await asyncio.sleep(0.01)
+            return (
+                b"state db backfill is running; waiting up to 30s\n"
+                b"token=super-secret-value\n"
+            )
+        return b""
+
+    backend._proc = SimpleNamespace(
+        returncode=1,
+        stdout=stdout,
+        stderr=SimpleNamespace(read=read_stderr),
+        wait=AsyncMock(return_value=1),
+    )
+    pending = asyncio.get_running_loop().create_future()
+    backend._pending_requests[1] = pending
+    backend._stderr_task = asyncio.create_task(backend._drain_stderr())
+
+    await backend._read_stdout()
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await pending
+    detail = str(exc_info.value)
+    assert "state db backfill is running; waiting up to 30s" in detail
+    assert "super-secret-value" not in detail
+    assert "[redacted]" in detail
+    exited = backend._notifications.get_nowait()
+    assert exited["params"]["stderr"] in detail
+
+
+@pytest.mark.asyncio
 async def test_resume_rejects_substituted_thread_before_turn(monkeypatch):
     import app.backend_codex as module
 
