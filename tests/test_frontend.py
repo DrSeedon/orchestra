@@ -234,6 +234,39 @@ def _goto_dashboard(page: Page):
     return resp
 
 
+def _goto_dashboard_or_skip(page: Page):
+    """Open a dashboard in the shared fixture mode or fallback to external URL."""
+    if _DASHBOARD_ORIGIN:
+        return _goto_dashboard(page)
+
+    base = os.environ.get("ORCHESTRA_TEST_BASE", "http://127.0.0.1:8888")
+    try:
+        resp = page.goto(base, wait_until="domcontentloaded")
+    except Exception as exc:
+        pytest.fail(
+            f"dashboard on {base} unavailable ({type(exc).__name__}: {exc})"
+        )
+    if resp is None or resp.status != 200:
+        status = "no response" if resp is None else f"HTTP {resp.status}"
+        pytest.fail(f"dashboard on {base} returned {status}")
+    if page.locator("#agent-list").count() == 0:
+        if page.locator('input[name="password"]').count() == 0:
+            pytest.fail(
+                f"{base} did not render #agent-list and no login form present"
+            )
+        user = os.environ.get("DASHBOARD_USER")
+        password = os.environ.get("DASHBOARD_PASSWORD")
+        if not user or not password:
+            pytest.fail(
+                f"{base} requires dashboard auth but DASHBOARD_USER/PASSWORD not set"
+            )
+        page.fill('input[name="username"]', user)
+        page.fill('input[name="password"]', password)
+        page.click('button[type="submit"]')
+        page.wait_for_selector("#agent-list", timeout=20000)
+    return resp
+
+
 @pytest.fixture(scope="module")
 def dashboard_browser(tmp_path_factory):
     db_path = tmp_path_factory.mktemp("fe-dash") / "orchestra.db"

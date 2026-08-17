@@ -3,27 +3,47 @@
 Проверяем подменой app.js+style.css: живой :8888 отдаёт статику из главного чекаута.
 Якорь — свой узел [data-chat-system], не весь #chat: в живом чате лежит продовый текст.
 """
+import os
+
 import pytest
 from playwright.sync_api import Browser, expect, sync_playwright
 
-from tests.test_frontend import _goto_dashboard_or_skip, _route_frontend_sources
+from tests.test_frontend import (
+    _goto_dashboard_or_skip,
+    _route_frontend_sources,
+    _seed_dashboard_db,
+    _start_dashboard_server,
+    _stop_dashboard_server,
+)
 
 SYSTEM_MARKER = "TASK51-SYSTEM-НЕ-ДОСТАВЛЕНО"
 AGENT_MARKER = "TASK51-AGENT-обычный-ответ"
 
 
 @pytest.fixture(scope="module")
-def dashboard_browser():
-    with sync_playwright() as playwright:
-        try:
-            browser = playwright.chromium.launch()
-        except Exception as exc:
-            pytest.skip(
-                f"chromium недоступен ({type(exc).__name__}); "
-                "поставь его: playwright install --with-deps chromium"
-            )
-        yield browser
-        browser.close()
+def dashboard_browser(tmp_path_factory):
+    db_path = tmp_path_factory.mktemp("fe-dash") / "orchestra.db"
+    _seed_dashboard_db(db_path)
+    proc, origin = _start_dashboard_server(db_path)
+    previous_base = os.environ.get("ORCHESTRA_TEST_BASE")
+    os.environ["ORCHESTRA_TEST_BASE"] = origin
+    try:
+        with sync_playwright() as playwright:
+            try:
+                browser = playwright.chromium.launch()
+            except Exception as exc:
+                pytest.skip(
+                    f"chromium недоступен ({type(exc).__name__}); "
+                    "поставь его: playwright install --with-deps chromium"
+                )
+            yield browser
+            browser.close()
+    finally:
+        if previous_base is None:
+            os.environ.pop("ORCHESTRA_TEST_BASE", None)
+        else:
+            os.environ["ORCHESTRA_TEST_BASE"] = previous_base
+        _stop_dashboard_server(proc)
 
 
 def _open_chat_page(browser: Browser):
