@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import json
 import math
+import os
 import time
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
@@ -46,6 +47,73 @@ class DispatchDecision:
     context: Mapping[str, Any] = field(default_factory=dict, compare=False, repr=False)
 
 
+def enforce_new_worker_turn(
+    *,
+    context: Mapping[str, Any],
+    adaptive: DispatchDecision | None,
+    static_decision,
+    enforcement_enabled: bool = True,
+) -> dict[str, Any]:
+    """Apply the conservative Release-A policy to one new worker turn.
+
+    ``server_role`` is supplied from the persisted session role.  Deliberately do
+    not consult caller-provided boolean flags: an orchestrator exemption must be
+    a server-owned fact.  Unknown adaptive telemetry falls back to the static
+    decision; only a fresh, known adaptive hold can stop an otherwise admissible
+    worker turn.
+    """
+    role = _text(context.get("server_role"))
+    if role == "orchestrator":
+        return {"action": "exempt", "reason": "orchestrator_exempt"}
+    if static_decision is not None and not bool(getattr(static_decision, "allowed", False)):
+        return {"action": "static_denial", "reason": "static_gate_denied"}
+    if not enforcement_enabled:
+        return {"action": "static_allow", "reason": "enforcement_hot_disabled"}
+
+    zone = _text(getattr(adaptive, "zone", ""))
+    unsafe_zones = {"THROTTLE", "RESERVE", "FAIL_SAFE"}
+    adaptive_allow = getattr(adaptive, "would_allow", None)
+    adaptive_confidence = _text(getattr(adaptive, "confidence", "")).lower()
+    adaptive_reasons = getattr(adaptive, "reasons", ())
+    known_fresh = (
+        adaptive is not None
+        and adaptive_allow in {True, False}
+        and adaptive_confidence in {"operational", "calibrated", "pilot"}
+        and not adaptive_reasons
+    )
+    if not known_fresh:
+        return {"action": "static_allow", "reason": "adaptive_indeterminate_static_fallback"}
+    model = _text(context.get("model")).lower()
+    # Luna's Fast service tier is the server default.  It remains admissible in
+    # reserve/fail-safe zones; the old generic ``fast_mode`` stop was an unsafe
+    # policy because it could strand the default Luna lane.  Other explicitly
+    # fast lanes retain the conservative hold until their own tier is routed.
+    is_luna_fast = model in {"gpt-5.6-luna", "gpt-5.6-luna-fast", "luna-fast"}
+    if bool(context.get("fast_mode")) and not is_luna_fast and zone in unsafe_zones:
+        return {"action": "hold", "reason": "fast_disabled_zone"}
+    if (
+        "sol" in model
+        and _text(context.get("task_class"), "worker") == "noncritical"
+        and zone in unsafe_zones
+    ):
+        return {
+            "action": "hold",
+            "reason": "noncritical_sol_before_luna",
+            "fallback_model": "gpt-5.6-luna",
+        }
+
+    if adaptive_allow is True:
+        return {"action": "adaptive_allow", "reason": "adaptive_would_allow"}
+    if (
+        adaptive is not None
+        and adaptive_allow is False
+        and adaptive_confidence in {"operational", "calibrated", "pilot"}
+        and not adaptive_reasons
+    ):
+        return {"action": "hold", "reason": "adaptive_would_hold"}
+    return {"action": "static_allow", "reason": "adaptive_indeterminate_static_fallback"}
+
+
 @dataclass(frozen=True)
 class ShadowDispatchContext:
     """Server-owned identity for one logical provider operation."""
@@ -78,6 +146,47 @@ class ShadowObserverUnavailable:
 
 _DISABLED_OBSERVER = ShadowObserverUnavailable()
 _shadow_errors_total = 0
+
+
+def adaptive_enforcement_enabled() -> bool:
+    """Read the kill switch for every turn; no restart is needed to disable it."""
+    return os.environ.get("ORCHESTRA_ADAPTIVE_ENFORCEMENT", "1").strip().lower() not in {
+        "0", "false", "off", "no",
+    }
+
+
+def luna_fast_default_status(*, zone: str = "", telemetry_available: bool = False) -> dict[str, Any]:
+    """Describe the server-owned Codex lane policy for Usage Analytics.
+
+    This is deliberately derived from controller state, never from a request field.
+    Luna Fast is always the default; a tight Codex runway suppresses Sol and points
+    new work/reviews at Luna Fast.  Missing telemetry is visible as a fallback, not
+    silently interpreted as available headroom.
+    """
+    normalized = _text(zone).upper()
+    tight = normalized in {"THROTTLE", "RESERVE", "FAIL_SAFE"}
+    if tight:
+        reason = "codex_runway_tight_route_luna_fast"
+    elif telemetry_available:
+        reason = "codex_runway_normal_sol_allowed"
+    else:
+        reason = "codex_telemetry_unavailable_static_fallback"
+    return {
+        "luna_fast_default": True,
+        "sol_suppressed": tight,
+        "sol_suppression_reason": reason,
+        "luna_fast_reason": "server_owned_default",
+    }
+
+
+def route_codex_model_for_runway(model: str, status: Mapping[str, Any] | None) -> tuple[str, str]:
+    """Return the server-owned model lane for a new worker/review operation."""
+    requested = _text(model)
+    if "sol" not in requested.lower() or not isinstance(status, Mapping):
+        return requested, "requested_lane"
+    if status.get("sol_suppressed") is True:
+        return "gpt-5.6-luna", "sol_suppressed_route_luna_fast"
+    return requested, "sol_allowed"
 
 
 def disabled_observer() -> ShadowObserverUnavailable:
@@ -601,6 +710,118 @@ class SQLiteControllerStore:
             conn.close()
         return status
 
+    def analytics_snapshot(self) -> dict:
+        """Return bounded, redacted shadow history for Usage Analytics."""
+        conn = quota_controller_connection(self.path)
+        try:
+            rows = conn.execute(
+                """SELECT created_at, model, decision_json, observation_json
+                   FROM quota_controller_decisions
+                   ORDER BY created_at DESC LIMIT 100"""
+            ).fetchall()
+            outcome_rows = conn.execute(
+                """SELECT status, COUNT(*) AS count
+                   FROM quota_controller_outcomes GROUP BY status"""
+            ).fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            return {
+                "data_available": False,
+                "reason": "no_shadow_telemetry",
+                "decision_counts": {"would_allow": 0, "would_hold": 0, "indeterminate": 0},
+                "actual_hold_count": 0,
+                "outcome_count": 0,
+                "latest": None,
+                "today_codex": {"data_available": False, "reason": "no_shadow_telemetry"},
+                "history": [],
+                "buckets": [],
+            }
+        counts = {"would_allow": 0, "would_hold": 0, "indeterminate": 0}
+        history: list[dict[str, Any]] = []
+        buckets: dict[str, dict[str, Any]] = {}
+        today = datetime.now(timezone.utc).date().isoformat()
+        codex_today = 0
+        for row in rows:
+            try:
+                raw = json.loads(row["decision_json"])
+            except (TypeError, ValueError):
+                raw = {}
+            try:
+                observations = json.loads(row["observation_json"])
+            except (TypeError, ValueError):
+                observations = []
+            observations_by_bucket = {
+                _text(item.get("bucket"), "unknown"): item
+                for item in observations if isinstance(item, Mapping)
+            }
+            value = raw.get("would_allow")
+            key = "would_allow" if value is True else "would_hold" if value is False else "indeterminate"
+            counts[key] += 1
+            model = _text(row["model"], "unknown")
+            if row["created_at"].startswith(today) and ("codex" in model.lower() or "gpt-" in model.lower()):
+                codex_today += 1
+            reasons = [str(item) for item in raw.get("reasons", ()) if isinstance(item, str)]
+            history.append({
+                "created_at": row["created_at"],
+                "model": model,
+                "would_allow": value,
+                "zone": _text(raw.get("zone"), "FAIL_SAFE"),
+                "binding_constraint": raw.get("binding_constraint"),
+                "reasons": reasons[:5],
+            })
+            for item in raw.get("constraints", ()):
+                if not isinstance(item, Mapping):
+                    continue
+                bucket = _text(item.get("bucket"), "unknown")
+                observation = observations_by_bucket.get(bucket, {})
+                reset_at = _text(observation.get("reset_at")) or None
+                runway_seconds = None
+                if reset_at:
+                    try:
+                        runway_seconds = max(
+                            0.0,
+                            datetime.fromisoformat(reset_at.replace("Z", "+00:00")).timestamp()
+                            - time.time(),
+                        )
+                    except ValueError:
+                        runway_seconds = None
+                if bucket in buckets:
+                    continue
+                buckets[bucket] = {
+                    "bucket": bucket,
+                    "utilization": item.get("utilization"),
+                    "q95_next_turn_pp": item.get("q95_next_turn_pp"),
+                    "inflight_reserved_pp": item.get("inflight_reserved_pp"),
+                    "guard_pp": item.get("guard_pp"),
+                    "reserve_pp": item.get("reserve_pp"),
+                    "headroom_pp": item.get("rhs_pp"),
+                    "projected_end_pp": item.get("lhs_pp"),
+                    "reset_at": reset_at,
+                    "runway_seconds": runway_seconds,
+                    "zone": _text(raw.get("zone"), "FAIL_SAFE"),
+                }
+        outcome_count = sum(int(row["count"]) for row in outcome_rows)
+        actual_hold_count = sum(
+            int(row["count"]) for row in outcome_rows if row["status"] == "adaptive_hold"
+        )
+        latest = history[0] if history else None
+        return {
+            "data_available": True,
+            "reason": "shadow_telemetry_available",
+            "decision_counts": counts,
+            "actual_hold_count": actual_hold_count,
+            "outcome_count": outcome_count,
+            "latest": latest,
+            "today_codex": {
+                "data_available": codex_today > 0,
+                "count": codex_today,
+                "reason": "observed" if codex_today else "no_codex_decisions_today",
+            },
+            "history": history[:50],
+            "buckets": list(buckets.values())[:20],
+        }
+
 
 class ProductionShadowController:
     """Process-owned observer that records advice but never owns admission."""
@@ -726,8 +947,73 @@ class ProductionShadowController:
     async def cancel_reserve_intent(self, intent_id):
         return await asyncio.to_thread(self._store().cancel_reserve_intent, intent_id)
 
+    def _latest_codex_lane(self) -> tuple[str, bool]:
+        """Return a fresh, known Codex-primary zone for Sol suppression.
+
+        Analytics history is provider-agnostic.  Sol routing must not infer Codex
+        pressure from a newer Grok/Anthropic row or from stale FAIL_SAFE data.
+        """
+        conn = quota_controller_connection(self._store().path)
+        try:
+            rows = conn.execute(
+                """SELECT decision_json, observation_json
+                   FROM quota_controller_decisions
+                   ORDER BY created_at DESC LIMIT 100"""
+            ).fetchall()
+        finally:
+            conn.close()
+        now = time.time()
+        for row in rows:
+            try:
+                decision = json.loads(row["decision_json"])
+                observations = json.loads(row["observation_json"])
+            except (TypeError, ValueError):
+                continue
+            constraints = decision.get("constraints")
+            if not isinstance(constraints, list):
+                continue
+            primary = next(
+                (item for item in constraints
+                 if isinstance(item, Mapping) and item.get("bucket") == "codex:primary"),
+                None,
+            )
+            if not isinstance(primary, Mapping):
+                continue
+            if primary.get("would_allow") not in {True, False}:
+                continue
+            if decision.get("confidence") not in {"operational", "calibrated", "pilot"}:
+                continue
+            if decision.get("reasons"):
+                continue
+            obs = next(
+                (item for item in (observations if isinstance(observations, list) else ())
+                 if isinstance(item, Mapping) and item.get("bucket") == "codex:primary"),
+                None,
+            )
+            sampled = _number(obs.get("observed_at")) if isinstance(obs, Mapping) else None
+            if sampled is None or sampled > now or now - sampled >= 300:
+                continue
+            return _text(decision.get("zone")), True
+        return "", False
+
     def status(self) -> dict:
-        return self._store().status()
+        status = self._store().status()
+        shadow = self._store().analytics_snapshot()
+        status["shadow"] = shadow
+        latest_zone, codex_known = self._latest_codex_lane()
+        status.update(
+            luna_fast_default_status(
+                zone=latest_zone,
+                telemetry_available=codex_known,
+            )
+        )
+        status["enforcement_enabled"] = adaptive_enforcement_enabled()
+        status["enforcement_active"] = adaptive_enforcement_enabled()
+        status["enforcement_tier"] = "precalibration"
+        status["enforcement_reason"] = (
+            "active_precalibration" if status["enforcement_active"] else "enforcement_hot_disabled"
+        )
+        return status
 
 
 _production_controller: ProductionShadowController | None = None
@@ -743,7 +1029,12 @@ def get_quota_controller() -> ProductionShadowController:
 def empty_status() -> dict:
     return {
         "mode": "shadow",
+        # Legacy shadow status helper remains non-authoritative for #291 callers;
+        # ProductionShadowController.status() overlays the live kill-switch state.
         "enforcement_active": False,
+        "enforcement_enabled": False,
+        "enforcement_tier": "precalibration",
+        "enforcement_reason": "active_precalibration",
         "static_comparison_counts": {
             "agree": 0,
             "adaptive_would_allow": 0,
@@ -751,6 +1042,7 @@ def empty_status() -> dict:
             "adaptive_indeterminate": 0,
         },
         "observer_errors_total": _shadow_errors_total,
+        **luna_fast_default_status(telemetry_available=False),
     }
 
 

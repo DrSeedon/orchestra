@@ -795,8 +795,8 @@ async def _post_initial_delivery(
     return normalized
 
 
-# Backward-compatible default: callers that omit ``model`` keep the historical Sol review.
-_CODEX_REVIEW_DEFAULT_MODEL = "gpt-5.6-sol"
+# Server-owned default: omitted-model reviews use Luna Fast; Sol is an explicit lane.
+_CODEX_REVIEW_DEFAULT_MODEL = "gpt-5.6-luna"
 _READINESS_POLICY = "worker-weekly-v1"
 _READINESS_MAX_AGE_SECONDS = 300.0
 _READINESS_CLOCK_SKEW_SECONDS = 5.0
@@ -821,6 +821,15 @@ def _resolve_codex_review_model(model: str) -> str:
             message=str(error),
             details={"field": "model", "requested_model": model},
         ) from error
+
+    try:
+        from app.quota_controller import get_quota_controller, route_codex_model_for_runway
+
+        resolved, _route_reason = route_codex_model_for_runway(
+            resolved, get_quota_controller().status(),
+        )
+    except Exception:
+        pass
 
     spec = get_model_spec(resolved)
     if spec.runtime != "codex":
@@ -2505,7 +2514,7 @@ async def codex_review(
     resume: continue the previous Codex session for this output (debate round). Falls back to a
         fresh session if none stored. On a resumed round put your counter-arguments / changelog
         in context (e.g. 'I fixed X and Y, re-review').
-    model: reviewer model or registry alias. Omitted means gpt-5.6-sol for backward compatibility.
+    model: reviewer model or registry alias. Omitted means the server-owned gpt-5.6-luna Fast tier.
         Registered Codex-runtime models are accepted except Codex Spark, which policy forbids for
         review. Pass the model again on resume; it is applied to the resumed Codex thread."""
     review_model = _resolve_codex_review_model(model)

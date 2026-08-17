@@ -117,7 +117,7 @@ async function _analyticsLoad() {
     const days = _analyticsPeriods[_analyticsPeriod].days;
     const requestVersion = ++_analyticsRequestVersion;
     try {
-        const payload = await api(`/api/usage/analytics?days=${days}`);
+        const payload = await api(`/api/usage/analytics?days=${days}`, { timeoutMs: 15000 });
         if (requestVersion !== _analyticsRequestVersion) return;
         _analyticsPayload = payload;
         _analyticsRenderQuality();
@@ -192,6 +192,7 @@ function _analyticsRenderOverview(body) {
 
     body.innerHTML = `
         ${_analyticsWakePanel()}
+        ${_analyticsQuotaPanel(data)}
         <section class="analytics-route analytics-route-${routing.tone}">
             <div><span class="analytics-eyebrow">Куда роутить сейчас</span><strong>${routing.title}</strong></div>
             <p>${routing.detail}</p>
@@ -221,6 +222,46 @@ function _analyticsRenderOverview(body) {
     const wakeButton = body.querySelector('[data-analytics-wake]');
     if (wakeButton) wakeButton.onclick = () => _analyticsScheduleWake(wakeButton);
     _analyticsRenderChart(data.daily || []);
+}
+
+function _analyticsQuotaPanel(data) {
+    const controller = data.quota_controller || {};
+    const shadow = controller.shadow || controller;
+    if (controller.reason === 'quota_controller_error' || shadow.reason === 'quota_controller_error') {
+        return `<section class="analytics-panel analytics-quota-error" data-quota-controller>
+            <div class="analytics-section-head"><div><span class="analytics-kicker">Quota controller</span><h3>Квоты недоступны</h3></div></div>
+            <p>Не удалось прочитать телеметрию контроллера. Статический гейт сохранён.</p>
+        </section>`;
+    }
+    if (!shadow.data_available) {
+        return `<section class="analytics-panel analytics-quota-empty" data-quota-controller>
+            <div class="analytics-section-head"><div><span class="analytics-kicker">Quota controller</span><h3>Теневая телеметрия ещё не накоплена</h3></div></div>
+            <p>Нет shadow telemetry (<code>no_shadow_telemetry</code>). Сегодняшнюю волну Codex нельзя классифицировать как hold или allow.</p>
+            <p class="analytics-quota-routing">Luna Fast: по умолчанию · Sol: fallback к static · ${_analyticsEsc(controller.sol_suppression_reason || 'codex_telemetry_unavailable_static_fallback')}</p>
+        </section>`;
+    }
+    const counts = shadow.decision_counts || {};
+    const lunaFast = controller.luna_fast_default === true;
+    const solSuppressed = controller.sol_suppressed === true;
+    const routingLine = lunaFast
+        ? `Luna Fast: по умолчанию · Sol: ${solSuppressed ? 'подавлен' : 'доступен'} · ${_analyticsEsc(controller.sol_suppression_reason || '—')}`
+        : 'Серверный tier policy недоступен';
+    const buckets = (shadow.buckets || []).map(bucket => `
+        <article class="analytics-kpi-card" data-quota-bucket="${_analyticsEsc(bucket.bucket)}">
+            <span>${_analyticsEsc(bucket.bucket)}</span>
+            <strong>${_analyticsNumber(bucket.utilization)}%</strong>
+            <small>q95 ${_analyticsNumber(bucket.q95_next_turn_pp)} · inflight ${_analyticsNumber(bucket.inflight_reserved_pp)} · guard ${_analyticsNumber(bucket.guard_pp)} · reserve ${_analyticsNumber(bucket.reserve_pp)} · headroom ${_analyticsNumber(bucket.headroom_pp)} · projected ${_analyticsNumber(bucket.projected_end_pp)}</small>
+            <small>reset ${_analyticsDateTime(bucket.reset_at)} · runway ${bucket.runway_seconds == null ? '—' : _analyticsNumber(bucket.runway_seconds / 3600) + ' ч'}</small>
+        </article>`).join('');
+    const history = (shadow.history || []).slice(0, 20).map(item => `
+        <li><time>${_analyticsDateTime(item.created_at)}</time><span>${_analyticsEsc(item.model)}</span><b>${item.would_allow === true ? 'allow' : item.would_allow === false ? 'hold' : 'indeterminate'}</b><small>${_analyticsEsc((item.reasons || []).join(', ') || item.zone || '—')}</small></li>`).join('');
+    return `<section class="analytics-panel analytics-quota-history" data-quota-controller>
+        <div class="analytics-section-head"><div><span class="analytics-kicker">Quota controller</span><h3>Квоты и история решений</h3></div><span>${controller.enforcement_active ? 'Адаптивный pre-calibration' : 'Только статический гейт'}</span></div>
+        <p class="analytics-quota-routing" data-quota-routing>${routingLine}</p>
+        <div class="analytics-kpi-grid"><article><span>Would allow</span><strong>${_analyticsNumber(counts.would_allow)}</strong><small>теневые решения</small></article><article><span>Would hold</span><strong>${_analyticsNumber(counts.would_hold)}</strong><small>фактических hold ${_analyticsNumber(shadow.actual_hold_count)}</small></article><article><span>Indeterminate</span><strong>${_analyticsNumber(counts.indeterminate)}</strong><small>fallback к static</small></article></div>
+        <div class="analytics-provider-grid">${buckets || '<div class="analytics-empty">Нет bucket-снимков.</div>'}</div>
+        <ol class="analytics-quota-timeline">${history || '<li>История пока пуста.</li>'}</ol>
+    </section>`;
 }
 
 function _analyticsWakePanel() {

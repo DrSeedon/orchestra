@@ -758,6 +758,20 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .analytics-kpi-grid small { color: #63758d; font-size: 8px; }
 .analytics-overview-grid, .analytics-efficiency-grid, .analytics-reliability-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, .7fr); gap: 10px; }
 .analytics-panel { min-width: 0; padding: 13px; border: 1px solid #243247; border-radius: 7px; background: #0d1621; }
+.analytics-quota-empty, .analytics-quota-error { border-left: 3px solid #f5b84f; }
+.analytics-quota-error { border-left-color: #fb8585; }
+.analytics-quota-empty p, .analytics-quota-error p { max-width: 760px; color: #91a1b5; font-size: 10px; line-height: 1.5; }
+.analytics-quota-empty code { color: #f5b84f; font-family: var(--font-mono); }
+.analytics-quota-history { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+.analytics-kpi-card { min-width: 0; padding: 10px; border: 1px solid #233247; border-radius: 6px; background: #0c141f; }
+.analytics-kpi-card span, .analytics-kpi-card strong, .analytics-kpi-card small { display: block; }
+.analytics-kpi-card span { overflow: hidden; color: #8fa3bb; font: 700 9px/1.2 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.analytics-kpi-card strong { margin: 5px 0 4px; color: #e8eef7; font: 700 16px/1 var(--font-mono); }
+.analytics-kpi-card small { color: #687b94; font-size: 8px; }
+.analytics-quota-timeline { display: flex; flex-direction: column; gap: 1px; max-height: 220px; overflow: auto; padding: 0; margin: 0; list-style: none; }
+.analytics-quota-timeline li { display: grid; grid-template-columns: 135px minmax(110px, 1fr) 88px minmax(100px, 1fr); gap: 8px; padding: 6px 8px; border-top: 1px solid #202e41; color: #9bacc0; font-size: 9px; }
+.analytics-quota-timeline time, .analytics-quota-timeline small { color: #697d96; font-family: var(--font-mono); }
+.analytics-quota-timeline b { color: #e4edf7; font: 700 9px/1.2 var(--font-mono); }
 .analytics-chart-wrap { height: 250px; position: relative; }
 .analytics-signal-list { display: flex; flex-direction: column; }
 .analytics-signal { display: grid; grid-template-columns: 45px 1fr; gap: 9px; padding: 10px 0; border-top: 1px solid #202e40; }

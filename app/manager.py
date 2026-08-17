@@ -837,6 +837,21 @@ class SessionManager:
             if p_session:
                 parent_id = p_session.id
 
+        if not is_orch:
+            # Server-owned runway routing applies before a new worker/review
+            # session is admitted.  Missing telemetry leaves the requested lane
+            # untouched; a tight Codex lane routes Sol work to Luna Fast.
+            try:
+                from app.quota_controller import get_quota_controller, route_codex_model_for_runway
+
+                model, route_reason = route_codex_model_for_runway(
+                    model, get_quota_controller().status(),
+                )
+                if route_reason == "sol_suppressed_route_luna_fast":
+                    logger.info("server routing: Sol suppressed; using Luna Fast for %s", name)
+            except Exception as error:
+                logger.warning("server quota route unavailable for %s: %s: %s", name, type(error).__name__, error)
+
         # R2: валидация спавна ДО любых side-effects (worktree/start). Единственный
         # источник прав — манифест пайплайна: другого пути принятия решения о спавне
         # в коде нет. Нет манифеста → FileNotFoundError пробрасывается

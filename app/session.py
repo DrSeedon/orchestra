@@ -9,7 +9,7 @@ import os
 import re
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone, timedelta
 from functools import partial, wraps
 from pathlib import Path
@@ -355,6 +355,8 @@ class AgentSession:
     base_branch: str = ""
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     role: str = "worker"
+    task_class: str = "worker"
+    fast_mode: bool = False
     parent_id: str = ""
     parent_name: str = ""
     pipeline: str = ""
@@ -756,6 +758,19 @@ class AgentSession:
     def is_orchestrator(self, value: bool) -> None:
         self._is_orchestrator = value
 
+    def _server_owned_role(self) -> str:
+        return "orchestrator" if is_orchestrator_role(self.role) else "worker"
+
+    def _server_task_class(self) -> str:
+        if self.is_orchestrator:
+            return "orchestrator"
+        return self.role if self.role in {"critical", "noncritical"} else "worker"
+
+    def _server_fast_mode(self) -> bool:
+        return self.fast_mode or self.model.lower() in {
+            "gpt-5.6-luna", "gpt-5.6-luna-fast", "luna-fast",
+        }
+
     def _make_backend(self, force_fresh: bool = False, history_import=None):
         spec = get_model_spec(self.model)
         system_prompt = self.system_prompt
@@ -1006,7 +1021,8 @@ class AgentSession:
                 model=self.model,
                 intent_kind=intent_kind,
                 task_id=self.task_id,
-                task_class=self.role or "worker",
+                task_class=self._server_task_class(),
+                fast_mode=self._server_fast_mode(),
                 started_at=datetime.now(timezone.utc).isoformat(),
             )
             reservation = reserve(
@@ -1103,6 +1119,7 @@ class AgentSession:
         ended_at: str,
         *,
         actual: dict | None = None,
+        status: str = "unscorable",
     ) -> None:
         if reservation is None or not event_id:
             return
@@ -1115,7 +1132,7 @@ class AgentSession:
                     reservation,
                     event_id,
                     ended_at,
-                    status="unscorable",
+                    status=status,
                     actual=actual or {},
                 )
                 if inspect.isawaitable(result):
@@ -1156,6 +1173,22 @@ class AgentSession:
         if message.startswith("[system] Turn limit reached"):
             return "auto_continue"
         return "idle_send"
+
+    def _adaptive_admission_result(self, decision, reservation) -> dict:
+        from app.quota_controller import adaptive_enforcement_enabled, enforce_new_worker_turn
+
+        return enforce_new_worker_turn(
+            context={
+                **(dict(getattr(reservation, "context", {})) if reservation is not None else {}),
+                "server_role": self._server_owned_role(),
+                "model": self.model,
+                "task_class": self._server_task_class(),
+                "fast_mode": self._server_fast_mode(),
+            },
+            adaptive=reservation,
+            static_decision=decision,
+            enforcement_enabled=adaptive_enforcement_enabled(),
+        )
 
     async def send(self, message: str, *, delivery=None) -> None:
         original_user_message = message
@@ -1396,6 +1429,27 @@ class AgentSession:
             shadow_reservation = await self._shadow_reserve(
                 decision, self._shadow_intent_kind(original_user_message),
             )
+            adaptive_result = self._adaptive_admission_result(decision, shadow_reservation)
+            if adaptive_result["action"] == "hold":
+                if shadow_reservation is not None:
+                    self._shadow_settle(
+                        shadow_reservation,
+                        f"adaptive-hold:{shadow_reservation.decision_id}",
+                        datetime.now(timezone.utc).isoformat(),
+                        status="adaptive_hold",
+                        actual={"reason": adaptive_result["reason"]},
+                    )
+                self._log("status", f"new worker turn held: {adaptive_result['reason']}")
+                if self.status == AgentStatus.RUNNING:
+                    self.status = AgentStatus.IDLE
+                    self._persist()
+                    self._turns.publish_turn_finished()
+                held = replace(
+                    decision,
+                    state="blocked",
+                    reason=f"adaptive:{adaptive_result['reason']}",
+                )
+                raise QuotaGateError(held, code="adaptive_quota_hold")
             dispatch_started = False
             try:
                 if delivery is not None:
@@ -2072,6 +2126,24 @@ class AgentSession:
                 shadow_reservation = await self._shadow_reserve(
                     decision, "queued_flush",
                 )
+                adaptive_result = self._adaptive_admission_result(
+                    decision, shadow_reservation,
+                )
+                if adaptive_result["action"] == "hold":
+                    if shadow_reservation is not None:
+                        self._shadow_settle(
+                            shadow_reservation,
+                            f"adaptive-hold:{shadow_reservation.decision_id}",
+                            datetime.now(timezone.utc).isoformat(),
+                            actual={"reason": adaptive_result["reason"]},
+                        )
+                    self._pending_messages[0:0] = msgs
+                    self._spawn_bg(self._retry_adaptive_hold())
+                    self._log("status", f"queued worker turns held: {adaptive_result['reason']}")
+                    self.status = AgentStatus.IDLE
+                    self._persist()
+                    self._turns.publish_turn_finished()
+                    return
                 try:
                     await backend.send(combined)
                 except Exception as error:
@@ -2104,6 +2176,11 @@ class AgentSession:
                 self._turns.publish_turn_finished()
         finally:
             self._lifecycle_lock.release()
+
+    async def _retry_adaptive_hold(self) -> None:
+        await asyncio.sleep(5)
+        if self.status == AgentStatus.IDLE and self._pending_messages and not self._compacting:
+            await self._flush_pending()
 
     def _on_task_done(self, task: asyncio.Task) -> None:
         try:

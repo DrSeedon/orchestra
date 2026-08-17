@@ -1254,6 +1254,17 @@ async def usage_analytics_endpoint(days: int = 7):
         key in current for key in ("anthropic", "codex", "orchestra")
     ) else {}
     payload = build_usage_analytics(days=days, capacity=capacity)
+    try:
+        payload["quota_controller"] = get_quota_controller().status()
+    except Exception as error:
+        # Cost history remains useful when the optional controller telemetry is
+        # unavailable; the frontend renders this as an explicit error state.
+        payload["quota_controller"] = {
+            "data_available": False,
+            "reason": "quota_controller_error",
+            "error": type(error).__name__,
+            "enforcement_active": False,
+        }
     from app.limit_wake import wake_status
 
     payload["wake_after_reset"] = wake_status()

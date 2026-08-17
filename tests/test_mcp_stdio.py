@@ -2272,7 +2272,7 @@ async def test_codex_review_model_reaches_quota_cli_job_and_accounting(
 
 
 @pytest.mark.asyncio
-async def test_codex_review_default_is_documented_and_stays_sol(tmp_path, monkeypatch):
+async def test_codex_review_default_is_server_owned_luna_fast(tmp_path, monkeypatch):
     import app.mcp_stdio as m
 
     captured = {}
@@ -2283,7 +2283,7 @@ async def test_codex_review_default_is_documented_and_stays_sol(tmp_path, monkey
             return {
                 "policy": "worker-weekly-v1",
                 "state": "available",
-                "model": "gpt-5.6-sol",
+                "model": "gpt-5.6-luna",
                 "provider": "codex",
                 "observed_at": 2_000_000_000,
                 "valid_until": 2_000_000_300,
@@ -2306,10 +2306,10 @@ async def test_codex_review_default_is_documented_and_stays_sol(tmp_path, monkey
     )
 
     tool = next(tool for tool in m.mcp._tool_manager.list_tools() if tool.name == "codex_review")
-    assert tool.parameters["properties"]["model"]["default"] == "gpt-5.6-sol"
-    assert "Omitted means gpt-5.6-sol" in tool.description
-    assert captured["readiness"] == {"model": "gpt-5.6-sol"}
-    assert "-m gpt-5.6-sol" in captured["job"]["config"]["command"]
+    assert tool.parameters["properties"]["model"]["default"] == "gpt-5.6-luna"
+    assert "Omitted means the server-owned gpt-5.6-luna Fast tier" in tool.description
+    assert captured["readiness"] == {"model": "gpt-5.6-luna"}
+    assert "-m gpt-5.6-luna" in captured["job"]["config"]["command"]
 
 
 @pytest.mark.asyncio

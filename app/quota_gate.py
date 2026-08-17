@@ -98,11 +98,11 @@ class QuotaGateError(RuntimeError):
     status_code = 429
     retryable = False
 
-    def __init__(self, decision: QuotaDecision):
+    def __init__(self, decision: QuotaDecision, *, code: str | None = None):
         if decision.state not in {"blocked", "unknown"}:
             raise ValueError(f"cannot refuse quota decision {decision.state!r}")
         self.decision = decision
-        self.code = (
+        self.code = code or (
             "weekly_quota_blocked"
             if decision.state == "blocked"
             else "weekly_quota_unknown"
@@ -111,6 +111,11 @@ class QuotaGateError(RuntimeError):
 
     def _message(self) -> str:
         label = self.decision.provider_label or self.decision.provider or "provider"
+        if self.code == "adaptive_quota_hold":
+            return (
+                f"New worker turn held by adaptive quota controller: "
+                f"{self.decision.reason or 'headroom policy'}"
+            )
         if self.decision.state == "blocked":
             cause = (
                 f"{label} weekly quota is {self.decision.weekly_utilization:g}% "
