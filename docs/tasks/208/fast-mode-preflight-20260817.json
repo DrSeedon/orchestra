@@ -1,0 +1,13 @@
+{
+  "excluded": true,
+  "model_calls": 0,
+  "stop_reason": "normal_service_tier_not_applied",
+  "observed_thread_start_mapping": {
+    "requested_normal_null": "default",
+    "requested_fast": "priority"
+  },
+  "primary_before_pct": 57,
+  "primary_after_pct": 57,
+  "direct_virtual_cost_usd": 0,
+  "note": "Preflight validation rejected the documented wire value before turn/start. No benchmark cell was run; the harness was corrected and re-frozen before the first model call."
+}
