@@ -1181,6 +1181,22 @@ class SessionManager:
         await _wait_owned_task(delivery_task)
         delivery_task.result()
 
+    async def send_initial_delivery(self, session_id: str, message: str, *, delivery) -> None:
+        session = self.sessions.get(session_id)
+        if not session:
+            raise KeyError(f"session not found: {session_id}")
+
+        async def deliver() -> None:
+            async with self.get_session_lock(session_id):
+                if self.sessions.get(session_id) is not session:
+                    raise KeyError(f"session changed before delivery: {session_id}")
+                await self._auto_switch_before_delivery(session)
+                await session.send(message, delivery=delivery)
+
+        delivery_task = asyncio.create_task(deliver())
+        await _wait_owned_task(delivery_task)
+        delivery_task.result()
+
     async def interrupt(self, session_id: str) -> None:
         session = self.sessions.get(session_id)
         if session:

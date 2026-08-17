@@ -95,6 +95,7 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "payment_status",
     "bg_list",
     "search_memory",
+    "delivery_status",
 })
 
 REDUCER_MCP_TOOLS = frozenset({
@@ -488,7 +489,12 @@ def _transport_error(
         retryable=method == "GET" or no_request_sent,
         request_id=request_id,
         outcome_unknown=method != "GET" and not no_request_sent,
-        details={"method": method, "path": path, "exception_type": type(exc).__name__},
+        details={
+            "method": method,
+            "path": path,
+            "exception_type": type(exc).__name__,
+            "request_not_sent": no_request_sent,
+        },
     )
 
 
@@ -550,23 +556,50 @@ def _spawn_delivery_error(
     name: str,
     mapping: dict[str, str],
     cause: ApiToolError,
+    *,
+    task: str,
+    delivery_id: str,
 ) -> ApiToolError:
-    if cause.outcome_unknown:
+    if cause.code == "IDEMPOTENCY_CONFLICT" or cause.status == 409:
+        next_action = {
+            "code": "RESOLVE_IDEMPOTENCY_CONFLICT",
+            "tool": "delivery_status",
+            "arguments": {"delivery_id": delivery_id},
+            "message": (
+                "This delivery id belongs to another payload; inspect it and do not retry "
+                "the changed task."
+            ),
+        }
+        delivery = "failed"
+    elif cause.outcome_unknown:
         delivery = "unknown"
         next_action = {
-            "code": "CHECK_DELIVERY_STATE",
-            "message": "Inspect the worker turn/logs; do not resend until delivery outcome is known.",
+            "code": "CHECK_DELIVERY_STATUS",
+            "tool": "delivery_status",
+            "arguments": {"delivery_id": delivery_id},
+            "message": "Check this delivery id; do not resend the task with a new id.",
+        }
+    elif (
+        cause.code == "DELIVERY_ACCEPT_REJECTED" and cause.status == 503
+    ) or cause.details.get("request_not_sent") is True or cause.code == "connect_error":
+        delivery = "failed"
+        next_action = {
+            "code": "RETRY_SAME_DELIVERY",
+            "tool": "retry_initial_delivery",
+            "arguments": {"name": name, "task": task, "delivery_id": delivery_id},
+            "message": "Retry only this delivery id; do not create a new logical task.",
         }
     else:
         delivery = "failed"
         next_action = {
-            "code": "SEND_INITIAL_TASK",
-            "message": "Fix the rejection cause, then use send_message; do not retry spawn.",
+            "code": "RESOLVE_DELIVERY_REJECTION",
+            "message": "Resolve this typed delivery rejection; do not resend automatically.",
         }
     result = {
         "worker_name": name,
         "created": True,
         "delivery": delivery,
+        "delivery_id": delivery_id,
         **mapping,
         "next_action": next_action,
     }
@@ -583,6 +616,183 @@ def _spawn_delivery_error(
         details=details,
         result=result,
     )
+
+
+def _delivery_payload(
+    name: str,
+    task: str,
+    delivery_id: str,
+    scope: str,
+) -> dict[str, str]:
+    return {
+        "delivery_id": delivery_id,
+        "message": task,
+        "scope": scope,
+        "sender": WORKER_NAME,
+    }
+
+
+def _delivery_status_path(delivery_id: str) -> str:
+    return f"/api/initial-deliveries/{delivery_id}"
+
+
+def _delivery_receipt_text(
+    name: str,
+    model: str,
+    mapping: dict[str, str],
+    delivery: dict[str, Any],
+) -> str:
+    delivery_id = str(delivery.get("delivery_id") or "?")
+    state = str(delivery.get("delivery_state") or delivery.get("state") or "UNKNOWN")
+    status_url = str(delivery.get("status_url") or _delivery_status_path(delivery_id))
+    out = (
+        f"Worker '{name}' spawned. Model: {model}. Task accepted. "
+        f"delivery_id={delivery_id}; state={state}. "
+        f"Check delivery status with delivery_status('{delivery_id}') or GET {status_url}."
+    )
+    out += (
+        f"\nWorktree: {mapping['worktree_path']}"
+        f"\nRepository: {mapping['repo_path']}"
+        f"\nGit common dir: {mapping['git_common_dir']}"
+        f"\nBranch: {mapping['branch']}"
+    )
+    return out
+
+
+def _is_delivery_receipt(value: Any, delivery_id: str) -> bool:
+    return (
+        isinstance(value, dict)
+        and value.get("delivery_id") == delivery_id
+        and bool(value.get("delivery_state") or value.get("state"))
+    )
+
+
+def _normalize_delivery_receipt(
+    value: Any,
+    delivery_id: str,
+    *,
+    require_state: bool = True,
+) -> dict[str, Any] | None:
+    if not isinstance(value, dict) or value.get("ok") is not True:
+        return None
+    response_delivery_id = value.get("delivery_id")
+    if response_delivery_id is not None and response_delivery_id != delivery_id:
+        return None
+    delivery_state = value.get("delivery_state") or value.get("state")
+    if require_state and not delivery_state:
+        return None
+    return {
+        **value,
+        "delivery_id": response_delivery_id or delivery_id,
+        "delivery_state": delivery_state or "UNKNOWN",
+    }
+
+
+async def _reconcile_initial_delivery(
+    cause: ApiToolError,
+    delivery_id: str,
+    scope: str,
+    *,
+    allow_legacy_status: bool = False,
+) -> tuple[dict[str, Any] | None, ApiToolError]:
+    is_conflict = cause.code == "IDEMPOTENCY_CONFLICT" or cause.status == 409
+    should_reconcile = (
+        not is_conflict and cause.outcome_unknown
+        or (cause.status is not None and cause.status >= 500
+            and not is_conflict
+            and not (cause.code == "DELIVERY_ACCEPT_REJECTED"
+                     and cause.status == 503
+                     and not cause.outcome_unknown))
+    )
+    if not should_reconcile:
+        return None, cause
+    try:
+        status = await _api(
+            "GET", _delivery_status_path(delivery_id), params={"scope": scope},
+        )
+    except ApiToolError as status_error:
+        reconciliation: Any = status_error.envelope()
+    else:
+        if _is_delivery_receipt(status, delivery_id):
+            return status, cause
+        if allow_legacy_status:
+            status_receipt = _normalize_delivery_receipt(
+                status, delivery_id, require_state=False,
+            )
+            if status_receipt is not None:
+                return status_receipt, cause
+        reconciliation = {"status": "missing", "response": status}
+    details = dict(cause.details)
+    details["reconciliation"] = reconciliation
+    return None, ApiToolError(
+        code=cause.code,
+        message=cause.message,
+        status=cause.status,
+        retryable=False,
+        request_id=cause.request_id,
+        retry_after_seconds=cause.retry_after_seconds,
+        outcome_unknown=True,
+        details=details,
+    )
+
+
+async def _post_initial_delivery(
+    name: str,
+    task: str,
+    delivery_id: str,
+    scope: str = SCOPE,
+) -> dict[str, Any]:
+    payload = _delivery_payload(name, task, delivery_id, scope)
+    try:
+        result = await _api(
+            "POST", f"/api/sessions/{name}/initial-deliveries", json=payload,
+        )
+    except ApiToolError as cause:
+        status, cause = await _reconcile_initial_delivery(cause, delivery_id, scope)
+        if status is not None:
+            return status
+        raise cause
+    if isinstance(result, dict) and result.get("error") is not None:
+        raw_error = result["error"]
+        if isinstance(raw_error, dict):
+            cause = ApiToolError(
+                code=str(raw_error.get("code") or "domain_error"),
+                message=str(raw_error.get("message") or raw_error.get("detail") or "delivery rejected"),
+                status=raw_error.get("status") if isinstance(raw_error.get("status"), int) else 200,
+                retryable=bool(raw_error.get("retryable", False)),
+                request_id=raw_error.get("request_id"),
+                outcome_unknown=bool(raw_error.get("outcome_unknown", False)),
+                details=raw_error.get("details") if isinstance(raw_error.get("details"), dict) else {},
+            )
+        else:
+            cause = ApiToolError(
+                code="domain_error",
+                message=str(raw_error),
+                status=200,
+                retryable=False,
+                outcome_unknown=False,
+                details={"response": result},
+            )
+        status, cause = await _reconcile_initial_delivery(cause, delivery_id, scope)
+        if status is not None:
+            return status
+        raise cause
+    normalized = _normalize_delivery_receipt(result, delivery_id)
+    if normalized is None:
+        cause = ApiToolError(
+            code="invalid_response",
+            message="Initial delivery API returned an invalid acceptance receipt",
+            status=200,
+            outcome_unknown=True,
+            details={"phase": "initial_task_delivery", "response": result},
+        )
+        status, cause = await _reconcile_initial_delivery(
+            cause, delivery_id, scope, allow_legacy_status=True,
+        )
+        if status is not None:
+            return status
+        raise cause
+    return normalized
 
 
 # Backward-compatible default: callers that omit ``model`` keep the historical Sol review.
@@ -813,7 +1023,8 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        mcp_servers: str = "",
                        owned_dirs: str = "",
                        tg_topic: bool = False,
-                       model_policy_override_reason: str = "") -> str:
+                       model_policy_override_reason: str = "",
+                       delivery_id: str = "") -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose it by the `<model-routing>` block in your own prompt, which is the single source of truth for routing (model ids are deliberately not repeated here: a duplicated list rots).
     base_branch — от какой локальной ветки ответвить worktree. Пусто ("") = авто по
     стратегии пайплайна: parent → ветка родителя, main → проверяемый mainline репозитория.
@@ -917,35 +1128,55 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         f"\nGit common dir: {mapping_data['git_common_dir']}"
         f"\nBranch: {mapping_data['branch']}"
     )
+    delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
+    if not delivery_id:
+        delivery_id = str(uuid.uuid4())
     try:
-        send_result = await _api("POST", f"/api/sessions/{name}/send", json={
-            "message": task, "scope": scope, "sender": WORKER_NAME or ROLE,
-        })
+        delivery = await _post_initial_delivery(name, task, delivery_id, scope)
     except ApiToolError as exc:
-        raise _spawn_delivery_error(name, mapping_data, exc) from exc
-    if (
-        not isinstance(send_result, dict)
-        or send_result.get("ok") is not True
-        or send_result.get("error")
-    ):
-        detail = (
-            send_result.get("error", "malformed API response")
-            if isinstance(send_result, dict)
-            else "malformed API response"
-        )
-        cause = ApiToolError(
-            code="domain_error" if isinstance(send_result, dict) and send_result.get("error") else "invalid_response",
-            message=str(detail),
-            status=200,
-            outcome_unknown=not (isinstance(send_result, dict) and bool(send_result.get("error"))),
-            details={"response": send_result},
-        )
-        raise _spawn_delivery_error(name, mapping_data, cause)
-    out = f"Worker '{name}' spawned. Model: {model}. Task sent."
-    out += f"\n{mapping}"
+        raise _spawn_delivery_error(
+            name, mapping_data, exc, task=task, delivery_id=delivery_id,
+        ) from exc
+    out = _delivery_receipt_text(name, model, mapping_data, delivery)
     if isinstance(result, dict) and result.get("spawn_warning"):
         out += f"\n⚠️ {result['spawn_warning']}"
     return out
+
+
+@mcp.tool()
+async def delivery_status(delivery_id: str) -> dict[str, Any]:
+    """Look up one durable initial-task delivery by its immutable id."""
+    delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
+    if not delivery_id:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="delivery_id is required",
+            details={"field": "delivery_id"},
+        )
+    result = await _api(
+        "GET", _delivery_status_path(delivery_id), params={"scope": SCOPE},
+    )
+    if not isinstance(result, dict):
+        raise ApiToolError(
+            code="invalid_response",
+            message="Delivery status API returned a non-object response",
+            status=200,
+            details={"response_type": type(result).__name__},
+        )
+    return result
+
+
+@mcp.tool()
+async def retry_initial_delivery(name: str, task: str, delivery_id: str) -> dict[str, Any]:
+    """Retry one known-not-sent initial task, preserving its delivery id and payload key."""
+    delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
+    if not delivery_id:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="delivery_id is required; retry cannot mint a replacement key",
+            details={"field": "delivery_id"},
+        )
+    return await _post_initial_delivery(name, task, delivery_id, SCOPE)
 
 
 @mcp.tool()

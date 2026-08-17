@@ -170,6 +170,13 @@ class SendRequest(BaseModel):
     message_kind: str | None = None
 
 
+class InitialDeliveryRequest(BaseModel):
+    delivery_id: str
+    message: str
+    scope: str
+    sender: str
+
+
 class ScopeRequest(BaseModel):
     scope: str
 
@@ -262,6 +269,56 @@ async def get_session(name: str, scope: str):
         return JSONResponse({"error": "not found"}, status_code=404)
     # detached: raw DB row keeps legacy response shape (richer than to_dict)
     return found.to_dict() if found.loaded else found.db_row
+
+
+@router.post("/api/sessions/{name}/initial-deliveries", status_code=202)
+async def accept_initial_delivery(name: str, req: InitialDeliveryRequest):
+    found = manager.get_by_name(name, req.scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    from app import initial_deliveries
+
+    try:
+        resource, status_code = await initial_deliveries.accept_initial_delivery(
+            delivery_id=req.delivery_id,
+            session_id=found.id,
+            worker_name=found.name,
+            scope=req.scope,
+            sender=req.sender,
+            message=req.message,
+        )
+    except sqlite3.DatabaseError:
+        if initial_deliveries.get_initial_delivery(req.delivery_id, req.scope) is None:
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": "DELIVERY_ACCEPT_REJECTED",
+                        "message": "delivery acceptance was not committed; retry is safe",
+                        "outcome_unknown": False,
+                        "retryable": True,
+                        "details": {"commit_state": "NOT_COMMITTED"},
+                    }
+                },
+                status_code=503,
+            )
+        raise
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    return JSONResponse(resource, status_code=status_code)
+
+
+@router.get("/api/initial-deliveries/{delivery_id}")
+async def get_initial_delivery(delivery_id: str, scope: str):
+    from app import initial_deliveries
+
+    try:
+        resource = initial_deliveries.get_initial_delivery(delivery_id, scope)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    if resource is None:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return resource
 
 
 @router.get("/api/sessions/{name}/prompt")

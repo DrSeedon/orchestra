@@ -14,6 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.auth import is_auth_enabled, validate_session, requires_auth, check_internal_token
 from app.db import init_db
 from app.deps import manager
+from app.initial_deliveries import recover_initial_deliveries
 
 logger = logging.getLogger("orchestra")
 # Uvicorn настраивает только свои логгеры, рутовый остаётся без хендлера → всё, что Orchestra
@@ -315,6 +316,7 @@ async def lifespan(app: FastAPI):
     if not is_auth_enabled():
         from app import tm_yougile  # noqa: F401 — registers tm sync hooks
     await manager.auto_resume_all()
+    await recover_initial_deliveries()
     # #230 T7: descriptors that came back for sessions nobody owns any more.
     # Fail-closed inside: an EMPTY registry sweeps nothing.
     swept = await manager.sweep_orphan_fds()

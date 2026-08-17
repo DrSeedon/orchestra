@@ -85,6 +85,12 @@
   ]
  ],
  [
+  "/api/initial-deliveries/{delivery_id}",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/logs/sync",
   [
    "GET"
@@ -308,6 +314,12 @@
  ],
  [
   "/api/sessions/{name}/hibernate",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/sessions/{name}/initial-deliveries",
   [
    "POST"
   ]

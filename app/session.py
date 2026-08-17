@@ -11,7 +11,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
-from functools import partial
+from functools import partial, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -317,6 +317,25 @@ def _bounded_summary(summary: str) -> str:
     return summary[:head] + marker + summary[-tail:]
 
 
+def _accept_is_orchestrator_init_alias(cls):
+    """Accept the public property name while retaining the internal nullable field."""
+    generated_init = cls.__init__
+
+    @wraps(generated_init)
+    def init(self, *args, is_orchestrator=None, **kwargs):
+        if is_orchestrator is not None:
+            if "_is_orchestrator" in kwargs:
+                raise TypeError(
+                    "pass only one of is_orchestrator and _is_orchestrator"
+                )
+            kwargs["_is_orchestrator"] = is_orchestrator
+        generated_init(self, *args, **kwargs)
+
+    cls.__init__ = init
+    return cls
+
+
+@_accept_is_orchestrator_init_alias
 @dataclass
 class AgentSession:
     id: str
@@ -1138,8 +1157,13 @@ class AgentSession:
             return "auto_continue"
         return "idle_send"
 
-    async def send(self, message: str) -> None:
+    async def send(self, message: str, *, delivery=None) -> None:
         original_user_message = message
+        history_user_message = original_user_message
+        if delivery is not None:
+            persisted_user_message = getattr(delivery, "history_user_message", None)
+            if isinstance(persisted_user_message, str) and persisted_user_message:
+                history_user_message = persisted_user_message
         decision = None
         admitted_model = ""
         admitted_stop_gen = -1
@@ -1180,6 +1204,10 @@ class AgentSession:
             break
 
         try:
+            if delivery is not None and (
+                self._compacting or self.status == AgentStatus.RUNNING
+            ):
+                raise RuntimeError("initial delivery requires an idle session")
         # Retry budgets belong to one logical request. A real new message resets both;
         # each internal retry preserves only its own failure class.
             if not message.startswith("[system] Retrying after rate limit."):
@@ -1228,7 +1256,8 @@ class AgentSession:
 
             self.progress_pct = 0
             self.progress_status = ""
-            self._log("user_message", message)
+            if delivery is None:
+                self._log("user_message", message)
 
             did_inject = False
             pending_th = ""
@@ -1305,12 +1334,12 @@ class AgentSession:
             try:
                 try:
                     backend = await self._ensure_backend(
-                        exclude_history_users=(original_user_message,),
+                        exclude_history_users=(history_user_message,),
                     )
                 except NativeHistoryImportError as error:
                     backend = await self._fallback_db_backed_claude(
                         error,
-                        (original_user_message,),
+                        (history_user_message,),
                     )
             except Exception:
                 self.status = AgentStatus.IDLE
@@ -1324,7 +1353,7 @@ class AgentSession:
             # so the new session does not wake up amnesiac or keep returning HTTP 500.
             if getattr(backend, "resume_failed", False):
                 self.runtime_handoff = await self._build_runtime_handoff(
-                    exclude_latest_user=original_user_message
+                    exclude_latest_user=history_user_message
                 )
                 stale_session_id = self.session_id
                 if stale_session_id:
@@ -1367,9 +1396,28 @@ class AgentSession:
             shadow_reservation = await self._shadow_reserve(
                 decision, self._shadow_intent_kind(original_user_message),
             )
+            dispatch_started = False
             try:
+                if delivery is not None:
+                    await delivery.before_submit()
+                    dispatch_started = True
                 await backend.send(outbound_message)
+                if delivery is not None:
+                    provider_ref = getattr(backend, "active_turn_id", None)
+                    await delivery.mark_submitted(
+                        provider_ref=(
+                            provider_ref
+                            if isinstance(provider_ref, str) and provider_ref
+                            else None
+                        ),
+                    )
+            except asyncio.CancelledError as error:
+                if delivery is not None and dispatch_started:
+                    await delivery.mark_unknown(error)
+                raise
             except Exception as error:
+                if delivery is not None and dispatch_started:
+                    await delivery.mark_unknown(error)
                 await self._shadow_mark_submit_failed(shadow_reservation, error)
                 if self.status == AgentStatus.RUNNING:
                     self.status = AgentStatus.IDLE

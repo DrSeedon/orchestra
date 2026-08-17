@@ -1,4 +1,5 @@
 import json
+import inspect
 
 import httpx
 import pytest
@@ -777,7 +778,7 @@ async def test_spawn_sends_model_policy_override_only_when_requested(
 
 
 @pytest.mark.asyncio
-async def test_spawn_marks_parent_as_initial_task_sender(monkeypatch):
+async def test_t3_spawn_marks_parent_as_initial_task_sender(monkeypatch):
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")
     monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
@@ -802,7 +803,14 @@ async def test_spawn_marks_parent_as_initial_task_sender(monkeypatch):
             model="claude-opus-5[1m]",
         )
 
-    send_call = next(call for call in calls if call[1] == "/api/sessions/child/send")
+    delivery_calls = [
+        call for call in calls
+        if call[1] == "/api/sessions/child/initial-deliveries"
+    ]
+    assert len(delivery_calls) == 1, (
+        "#311 missing behavior: spawn still uses synchronous /send"
+    )
+    send_call = delivery_calls[0]
     assert send_call[2]["sender"] == "parent-orchestrator"
 
 
@@ -935,7 +943,7 @@ async def test_spawn_malformed_success_fails_loud_without_task(
 
 
 @pytest.mark.asyncio
-async def test_spawn_task_delivery_error_reports_created_worker(monkeypatch):
+async def test_t3_spawn_task_delivery_error_reports_created_worker(monkeypatch):
     import app.mcp_stdio as m
 
     monkeypatch.setattr(m, "SCOPE", "/s")
@@ -950,7 +958,14 @@ async def test_spawn_task_delivery_error_reports_created_worker(monkeypatch):
                 "repo_path": "/repo",
                 "git_common_dir": "/repo/.git",
             }
-        return {"error": "delivery unavailable"}
+        raise m.ApiToolError(
+            code="DELIVERY_ACCEPT_REJECTED",
+            message="delivery transaction rolled back before commit",
+            status=503,
+            retryable=True,
+            outcome_unknown=False,
+            details={"commit_state": "NOT_COMMITTED"},
+        )
 
     with patch.object(m, "_api", side_effect=fake_api):
         with pytest.raises(m.ApiToolError) as caught:
@@ -959,15 +974,29 @@ async def test_spawn_task_delivery_error_reports_created_worker(monkeypatch):
                 model="gpt-5.6-sol",
             )
 
-    assert calls == ["/api/sessions", "/api/sessions/child/send"]
+    assert calls == [
+        "/api/sessions",
+        "/api/sessions/child/initial-deliveries",
+    ]
     assert "worker 'child' was created" in caught.value.message.lower()
     assert caught.value.outcome_unknown is False
     assert caught.value.result["worktree_path"] == "/worktrees/child"
-    assert caught.value.result["next_action"]["code"] == "SEND_INITIAL_TASK"
+    delivery_id = caught.value.result["delivery_id"]
+    assert delivery_id
+    assert caught.value.result["next_action"] == {
+        "code": "RETRY_SAME_DELIVERY",
+        "tool": "retry_initial_delivery",
+        "arguments": {
+            "name": "child",
+            "task": "do it",
+            "delivery_id": delivery_id,
+        },
+        "message": "Retry only this delivery id; do not create a new logical task.",
+    }
 
 
 @pytest.mark.asyncio
-async def test_spawn_unknown_delivery_preserves_mapping_and_forbids_resend(monkeypatch):
+async def test_t3_spawn_unknown_delivery_preserves_mapping_and_forbids_resend(monkeypatch):
     import app.mcp_stdio as m
 
     monkeypatch.setattr(m, "SCOPE", "/s")
@@ -1001,8 +1030,364 @@ async def test_spawn_unknown_delivery_preserves_mapping_and_forbids_resend(monke
     assert structured["error"]["outcome_unknown"] is True
     assert structured["result"]["created"] is True
     assert structured["result"]["worktree_path"] == "/worktrees/child"
-    assert structured["result"]["next_action"]["code"] == "CHECK_DELIVERY_STATE"
+    assert "delivery_id" in structured["result"], (
+        "#311 missing behavior: timeout result has no durable delivery id"
+    )
+    assert structured["result"]["delivery_id"]
+    assert structured["result"]["next_action"]["code"] == "CHECK_DELIVERY_STATUS"
+    assert structured["result"]["next_action"]["tool"] == "delivery_status"
+    assert structured["result"]["next_action"]["arguments"] == {
+        "delivery_id": structured["result"]["delivery_id"],
+    }
     assert "do not resend" in structured["result"]["next_action"]["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_t3_spawn_delivery_posts_caller_key_and_returns_accepted_receipt(
+    monkeypatch,
+):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000311"
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+    assert "delivery_id" in inspect.signature(m.spawn_worker).parameters, (
+        "#311 missing behavior: spawn_worker has no caller delivery_id"
+    )
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-311/child",
+                "repo_path": "/repo",
+                "git_common_dir": "/repo/.git",
+            }
+        assert path == "/api/sessions/child/initial-deliveries"
+        body = kwargs["json"]
+        assert body == {
+            "delivery_id": delivery_id,
+            "message": "do it",
+            "scope": "/s",
+            "sender": "parent-orchestrator",
+        }
+        return {
+            "ok": True,
+            "delivery_id": delivery_id,
+            "delivery_state": "QUEUED",
+            "payload_hash": "hash-311",
+            "status_url": f"/api/initial-deliveries/{delivery_id}",
+        }
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    result = await m.spawn_worker(
+        name="child",
+        task="do it",
+        repo_path="/repo",
+        model="gpt-5.6-sol",
+        delivery_id=delivery_id,
+    )
+
+    assert [(method, path) for method, path, _ in calls] == [
+        ("POST", "/api/sessions"),
+        ("POST", "/api/sessions/child/initial-deliveries"),
+    ]
+    assert delivery_id in result
+    assert "accepted" in result.lower()
+    assert "task sent" not in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_t3_spawn_delivery_timeout_reconciles_without_second_post(monkeypatch):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000312"
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+    assert "delivery_id" in inspect.signature(m.spawn_worker).parameters, (
+        "#311 missing behavior: spawn_worker has no caller delivery_id"
+    )
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-311/child",
+                "repo_path": "/repo",
+                "git_common_dir": "/repo/.git",
+            }
+        if method == "POST":
+            raise m.ApiToolError(
+                code="transport_timeout",
+                message="response lost after durable acceptance",
+                outcome_unknown=True,
+            )
+        assert method == "GET"
+        assert path == f"/api/initial-deliveries/{delivery_id}"
+        assert kwargs["params"] == {"scope": "/s"}
+        return {
+            "ok": True,
+            "delivery_id": delivery_id,
+            "delivery_state": "SUBMITTED",
+            "payload_hash": "hash-312",
+            "status_url": path,
+            "provider_ref": "turn-312",
+        }
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    result = await m.spawn_worker(
+        name="child",
+        task="do it",
+        repo_path="/repo",
+        model="gpt-5.6-sol",
+        delivery_id=delivery_id,
+    )
+
+    delivery_posts = [
+        call for call in calls
+        if call[0] == "POST" and "initial-deliveries" in call[1]
+    ]
+    assert len(delivery_posts) == 1
+    assert ("GET", f"/api/initial-deliveries/{delivery_id}") in [
+        (method, path) for method, path, _ in calls
+    ]
+    assert delivery_id in result
+    assert "submitted" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_t3_spawn_delivery_unresolved_timeout_has_actionable_no_resend(
+    monkeypatch,
+):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000313"
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+    assert "delivery_id" in inspect.signature(m.spawn_worker).parameters, (
+        "#311 missing behavior: spawn_worker has no caller delivery_id"
+    )
+
+    async def fake_api(method, path, **_kwargs):
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-311/child",
+                "repo_path": "/repo",
+                "git_common_dir": "/repo/.git",
+            }
+        raise m.ApiToolError(
+            code="transport_timeout" if method == "POST" else "delivery_status_unavailable",
+            message="outcome remains unknown",
+            outcome_unknown=True,
+        )
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    result = await _protocol_call(m, "spawn_worker", {
+        "name": "child",
+        "task": "do it",
+        "repo_path": "/repo",
+        "model": "gpt-5.6-sol",
+        "delivery_id": delivery_id,
+    })
+
+    assert result.isError is True
+    structured = result.structuredContent
+    assert structured["error"]["outcome_unknown"] is True
+    assert structured["result"]["delivery_id"] == delivery_id
+    assert structured["result"]["next_action"] == {
+        "code": "CHECK_DELIVERY_STATUS",
+        "tool": "delivery_status",
+        "arguments": {"delivery_id": delivery_id},
+        "message": (
+            "Check this delivery id; do not resend the task with a new id."
+        ),
+    }
+
+
+@pytest.mark.asyncio
+async def test_t3_spawn_committed_then_500_unresolved_never_posts_again(
+    monkeypatch,
+):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000315"
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-311/child",
+                "repo_path": "/repo",
+                "git_common_dir": "/repo/.git",
+            }
+        if method == "POST":
+            raise m.ApiToolError(
+                code="http_5xx",
+                message="500 returned after the server committed acceptance",
+                status=500,
+                retryable=False,
+                outcome_unknown=True,
+            )
+        raise m.ApiToolError(
+            code="delivery_status_unavailable",
+            message="status response also unavailable",
+            status=503,
+            retryable=True,
+            outcome_unknown=False,
+        )
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    result = await _protocol_call(m, "spawn_worker", {
+        "name": "child",
+        "task": "do it",
+        "repo_path": "/repo",
+        "model": "gpt-5.6-sol",
+        "delivery_id": delivery_id,
+    })
+
+    assert [call[0:2] for call in calls] == [
+        ("POST", "/api/sessions"),
+        ("POST", "/api/sessions/child/initial-deliveries"),
+        ("GET", f"/api/initial-deliveries/{delivery_id}"),
+    ]
+    assert result.isError is True
+    assert result.structuredContent["error"]["outcome_unknown"] is True
+    assert result.structuredContent["result"]["next_action"] == {
+        "code": "CHECK_DELIVERY_STATUS",
+        "tool": "delivery_status",
+        "arguments": {"delivery_id": delivery_id},
+        "message": "Check this delivery id; do not resend the task with a new id.",
+    }
+
+
+@pytest.mark.asyncio
+async def test_t3_spawn_idempotency_conflict_is_actionable_and_never_retries(
+    monkeypatch,
+):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000316"
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-311/child",
+                "repo_path": "/repo",
+                "git_common_dir": "/repo/.git",
+            }
+        raise m.ApiToolError(
+            code="IDEMPOTENCY_CONFLICT",
+            message="delivery id is already bound to another payload",
+            status=409,
+            retryable=False,
+            outcome_unknown=False,
+        )
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    result = await _protocol_call(m, "spawn_worker", {
+        "name": "child",
+        "task": "changed task",
+        "repo_path": "/repo",
+        "model": "gpt-5.6-sol",
+        "delivery_id": delivery_id,
+    })
+
+    assert [call[0:2] for call in calls] == [
+        ("POST", "/api/sessions"),
+        ("POST", "/api/sessions/child/initial-deliveries"),
+    ]
+    assert result.isError is True
+    assert result.structuredContent["error"]["code"] == "IDEMPOTENCY_CONFLICT"
+    assert result.structuredContent["result"]["next_action"] == {
+        "code": "RESOLVE_IDEMPOTENCY_CONFLICT",
+        "tool": "delivery_status",
+        "arguments": {"delivery_id": delivery_id},
+        "message": (
+            "This delivery id belongs to another payload; inspect it and do not retry "
+            "the changed task."
+        ),
+    }
+
+
+@pytest.mark.asyncio
+async def test_t3_delivery_status_and_known_precommit_retry_keep_the_same_key(
+    monkeypatch,
+):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000314"
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+    assert hasattr(m, "delivery_status"), (
+        "#311 missing behavior: delivery_status MCP tool is not registered"
+    )
+    assert hasattr(m, "retry_initial_delivery"), (
+        "#311 missing behavior: retry_initial_delivery MCP tool is not registered"
+    )
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        return {
+            "ok": True,
+            "delivery_id": delivery_id,
+            "delivery_state": "QUEUED",
+            "payload_hash": "hash-314",
+            "status_url": f"/api/initial-deliveries/{delivery_id}",
+            "next_action": {
+                "code": "WAIT_FOR_DELIVERY",
+                "tool": "delivery_status",
+                "arguments": {"delivery_id": delivery_id},
+            },
+        }
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    retried = await _protocol_call(m, "retry_initial_delivery", {
+        "name": "child",
+        "task": "do it",
+        "delivery_id": delivery_id,
+    })
+    looked_up = await _protocol_call(m, "delivery_status", {
+        "delivery_id": delivery_id,
+    })
+
+    assert calls[0][0:2] == (
+        "POST", "/api/sessions/child/initial-deliveries",
+    )
+    assert calls[0][2]["json"] == {
+        "delivery_id": delivery_id,
+        "message": "do it",
+        "scope": "/s",
+        "sender": "parent-orchestrator",
+    }
+    assert calls[1][0:2] == (
+        "GET", f"/api/initial-deliveries/{delivery_id}",
+    )
+    assert calls[1][2]["params"] == {"scope": "/s"}
+    assert retried.isError is False
+    assert looked_up.isError is False
+    assert retried.structuredContent["result"]["delivery_id"] == delivery_id
+    assert looked_up.structuredContent["result"]["next_action"]["code"] == (
+        "WAIT_FOR_DELIVERY"
+    )
 
 
 @pytest.mark.asyncio

@@ -471,6 +471,24 @@ def init_db() -> None:
                 tool_is_error INTEGER
             );
             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
+            CREATE TABLE IF NOT EXISTS initial_deliveries (
+                delivery_id TEXT PRIMARY KEY,
+                schema_version INTEGER NOT NULL,
+                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                worker_name TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                sender TEXT NOT NULL,
+                message TEXT NOT NULL,
+                payload_hash TEXT NOT NULL,
+                state TEXT NOT NULL,
+                user_log_id INTEGER UNIQUE REFERENCES logs(id),
+                provider_ref TEXT,
+                error_json TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_initial_deliveries_scope_state_created
+                ON initial_deliveries(scope, state, created_at);
             -- get_last_turn_map() runs on every /api/sessions; without this it scans
             -- every logs row (14 MB of content) to LIKE-match 8% of them: 16 ms → 0.6 ms.
             CREATE INDEX IF NOT EXISTS idx_logs_status ON logs(session_id, ts) WHERE type='status';
