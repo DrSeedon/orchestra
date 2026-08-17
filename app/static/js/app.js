@@ -3786,6 +3786,13 @@ function buildCompactToolLine(type, content, ts, payload) {
         const short = toolShortName(rawName);
 
         let preview = body;
+        const _safeTaskFilter = (value) => typeof value === 'string' && value.length <= 32 && !/[<>\"'`]/.test(value);
+        const _taskListFilter = (parsedObj) => {
+            const parts = [parsedObj.status, parsedObj.project, parsedObj.assignee]
+                .map((value) => (typeof value === 'string' ? value.trim() : ''))
+                .filter((value) => value && _safeTaskFilter(value));
+            return parts.length > 0 ? parts.join(', ') : '';
+        };
         try {
             const parsed = JSON.parse(body);
             if (rawName === NOTIFY_USER_TOOL) preview = `🔔 ${parsed.reason || 'зовёт'}`;
@@ -3814,10 +3821,14 @@ function buildCompactToolLine(type, content, ts, payload) {
             else if (rawName === 'ViewImage') preview = `🖼 ${(parsed.file_path || '').split('/').pop() || 'image'}`;
             else if (rawName === 'ImageGeneration') preview = '🎨 generating image';
             else if (rawName === 'Sleep') preview = `⏱ ${Math.round((parsed.duration_ms || 0) / 1000)}s`;
-            else if (rawName === 'mcp__orchestra__task_create') { const _pp = {0:'🔴',1:'🟠',3:'🟢'}[parsed.priority]||''; preview = `📋 New: ${_pp}"${parsed.title || '?'}"${parsed.price ? ' | '+parsed.price+' ${CUR}' : ''}`; }
-            else if (rawName === 'mcp__orchestra__task_update') { const _f = Object.keys(parsed).filter(k=>k!=='par').map(k=>`${k}→${parsed[k]}`).join(', '); preview = `✏️ #${taskNum(parsed.par) || '?'}: ${_f}`; }
-            else if (rawName === 'mcp__orchestra__task_list') { const _fl = [parsed.status,parsed.project,parsed.assignee].filter(Boolean).join(', '); preview = `📋 Tasks${_fl ? ' ('+_fl+')' : ''}`; }
-            else if (rawName === 'mcp__orchestra__task_get') preview = `📋 #${taskNum(parsed.par) || '?'}`;
+            else if (rawName === 'mcp__orchestra__task_create') preview = `создаёт задачу «${typeof parsed.title === 'string' ? parsed.title : '?'}»`;
+            else if (rawName === 'mcp__orchestra__task_update') {
+                const status = typeof parsed.status === 'string' && parsed.status.length > 0 ? ` • статус ${parsed.status}` : '';
+                preview = `обновляет задачу #${taskNum(parsed.par) || '?'}${status}`;
+            } else if (rawName === 'mcp__orchestra__task_list') {
+                const _fl = _taskListFilter(parsed);
+                preview = `читает список задач${_fl ? ` (${_fl})` : ''}`;
+            } else if (rawName === 'mcp__orchestra__task_get') preview = `читает задачу #${taskNum(parsed.par) || '?'}`;
             else if (rawName === 'mcp__orchestra__payment_receive') preview = `💰 +${parsed.amount || '?'} ${CUR}`;
             else if (rawName === 'mcp__orchestra__payment_status') preview = '💰 Balance';
             else if (rawName === 'mcp__orchestra__bg_create') { const _bi = _JOB_ICONS[parsed.type]||'⚙️'; preview = `${_bi} BG: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
@@ -4434,13 +4445,18 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     let parsed = null;
                     try { parsed = JSON.parse(content); } catch {}
                     if (parsed && !parsed.error) {
-                        if (rawName === 'mcp__orchestra__task_create' || rawName === 'mcp__orchestra__task_get') {
+                        if (rawName === 'mcp__orchestra__task_create') {
                             const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
-                            resultSpan.textContent = rawName.endsWith('task_create') ? `✅ #${number} создана` : `📋 #${number}`;
+                            resultSpan.textContent = `✅ задача #${number} создана`;
+                        } else if (rawName === 'mcp__orchestra__task_get') {
+                            const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
+                            resultSpan.textContent = `📋 читает задачу #${number}`;
                         } else if (rawName === 'mcp__orchestra__task_list') {
-                            resultSpan.textContent = `📋 ${(parsed.tasks || []).length} задач`;
+                            resultSpan.textContent = `📋 читает список задач (${(parsed.tasks || []).length})`;
                         } else {
-                            resultSpan.textContent = '✅ обновлена';
+                            const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
+                            const status = parsed.new_status || parsed.status;
+                            resultSpan.textContent = `✏️ обновляет задачу #${number}${typeof status === 'string' && status ? ` • ${status}` : ''}`;
                         }
                     } else {
                         resultSpan.textContent = '❌';
@@ -5133,10 +5149,20 @@ function addChatEntry(type, content, ts, anchor, payload) {
             'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
             'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `Logs: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? `${d.limit} entries` : '' }),
             'mcp__orchestra__get_worker_info': (d) => ({ icon: '🤖', label: `Info: ${d.name||'?'}`, color: '#a78bfa' }),
-            'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `New: "${d.title||'?'}"`, color: '#22c55e', sub: d.price ? `${d.price} ${CUR}` : '' }),
-            'mcp__orchestra__task_update': (d) => { const f = Object.keys(d).filter(k=>k!=='par').map(k=>`${k}→${d[k]}`).join(', '); return { icon: '✏️', label: `#${taskNum(d.par)||'?'}: ${f}`, color: '#38bdf8' }; },
-            'mcp__orchestra__task_list': (d) => { const f = [d.status,d.project,d.assignee].filter(Boolean).join(', '); return { icon: '📋', label: `Tasks${f ? ' ('+f+')' : ''}`, color: '#a78bfa' }; },
-            'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `Task #${taskNum(d.par)||'?'}`, color: '#a78bfa' }),
+            'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `создаёт задачу «${typeof d.title === 'string' ? d.title : '?'}»`, color: '#22c55e', sub: d.price ? `${d.price} ${CUR}` : '' }),
+            'mcp__orchestra__task_update': (d) => {
+                const status = typeof d.status === 'string' && d.status.length > 0 ? ` • статус ${d.status}` : '';
+                return { icon: '✏️', label: `обновляет задачу #${taskNum(d.par)||'?'}${status}`, color: '#38bdf8' };
+            },
+            'mcp__orchestra__task_list': (d) => {
+                const _safeTaskFilter = (value) => typeof value === 'string' && value.length <= 32 && !/[<>\"'`]/.test(value);
+                const f = [d.status,d.project,d.assignee]
+                    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+                    .filter((value) => value && _safeTaskFilter(value))
+                    .join(', ');
+                return { icon: '📋', label: `читает список задач${f ? ` (${f})` : ''}`, color: '#a78bfa' };
+            },
+            'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `читает задачу #${taskNum(d.par)||'?'}`, color: '#a78bfa' }),
             'mcp__orchestra__payment_receive': (d) => ({ icon: '💰', label: `+${d.amount||'?'} ${CUR}`, color: '#22c55e', sub: d.note || '' }),
             'mcp__orchestra__payment_status': () => ({ icon: '💰', label: 'Balance', color: '#eab308' }),
             'mcp__orchestra__bg_create': (d) => { const i = _JOB_ICONS[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
@@ -5716,9 +5742,11 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 if (tn === 'mcp__orchestra__task_create' || tn === 'mcp__orchestra__task_get') {
                     const taskNumber = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
                     if (hdr) {
-                        hdr.textContent = tn.includes('create')
-                            ? `✅ Задача #${taskNumber} создана · ${parsed.title || '?'}`
-                            : `📋 Задача #${taskNumber} · ${parsed.title || '?'}`;
+                        if (tn.includes('create')) {
+                            hdr.textContent = `✅ создаёт задачу «${parsed.title || '?'}»`;
+                        } else {
+                            hdr.textContent = `📋 читает задачу #${taskNumber}`;
+                        }
                         hdr.style.color = tn.includes('create') ? '#22c55e' : '#a78bfa';
                     }
                     const taskBody = document.createElement('div');
@@ -5750,7 +5778,12 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     }
                     const parNum = (parsed.par || '?').replace(/^[A-Z]+-/, '');
                     const titleStr = parsed.title ? ` "${parsed.title.slice(0,40)}"` : '';
-                    if (hdr) { hdr.textContent = `✏️ #${parNum}${titleStr}: ${changes.length ? changes.join(', ') : 'updated'}`; hdr.style.color = '#22c55e'; }
+                    const status = parsed.new_status || parsed.status;
+                    const statusLabel = typeof status === 'string' && status ? ` • статус ${status}` : '';
+                    if (hdr) {
+                        hdr.textContent = `✏️ обновляет задачу #${parNum}${titleStr}${statusLabel}`;
+                        hdr.style.color = '#22c55e';
+                    }
                     if (parsed.old_title && parsed.title && parsed.old_title !== parsed.title) {
                         const titleDiff = document.createElement('div');
                         titleDiff.style.cssText = 'margin-top:3px;font-size:10px';
@@ -5791,7 +5824,12 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     if (detail.innerHTML) lastTool.appendChild(detail);
                 } else if (tn === 'mcp__orchestra__task_list') {
                     const tasks = parsed.tasks || [];
-                    if (hdr) hdr.textContent = `📋 ${tasks.length} tasks` + (parsed.total_debt && parsed.total_debt !== '0' ? ` | debt: ${parsed.total_debt}` : '');
+                    const debt = parsed.total_debt && parsed.total_debt !== '0' ? ` | долг: ${parsed.total_debt}` : '';
+                    const resultMeta = document.createElement('div');
+                    resultMeta.className = 'text-xs mt-1';
+                    resultMeta.style.color = '#64748b';
+                    resultMeta.textContent = `Результат: ${tasks.length}${debt}`;
+                    lastTool.appendChild(resultMeta);
                     if (tasks.length > 0 && parsed.detailed) {
                         const container = document.createElement('div');
                         container.style.cssText = 'margin-top:6px;display:flex;flex-direction:column;gap:6px';
