@@ -113,6 +113,117 @@ def test_select_tests_maps_stem_and_routes(tmp_path):
     assert select_tests(["docs/a.md"], worktree=str(tmp_path)) == []
 
 
+def test_large_mapped_subset_runs_all_files_in_bounded_batches(monkeypatch):
+    from app import merge_test_gate as gate
+
+    tests = [f"tests/test_{n:02d}.py" for n in range(14)]
+    calls = []
+
+    monkeypatch.setattr(gate, "changed_paths", lambda _worktree: ["app/widget.py"])
+    monkeypatch.setattr(gate, "select_tests", lambda _changed, worktree: tests)
+
+    def fake_run(worktree, batch, *, timeout=None):
+        calls.append((list(batch), timeout))
+        return {
+            "status": gate.PASSED,
+            "reason": "",
+            "exit_code": 0,
+            "output": "passed " + ", ".join(batch),
+            "tests": list(batch),
+        }
+
+    monkeypatch.setattr(gate, "run_pytest", fake_run)
+    result = gate.evaluate_test_gate("/worktree")
+
+    assert result["status"] == gate.PASSED
+    assert [test for batch, _timeout in calls for test in batch] == tests
+    assert [len(batch) for batch, _timeout in calls] == [12, 2]
+    assert sum(timeout for _batch, timeout in calls) <= gate.DEFAULT_TIMEOUT_SECONDS
+
+
+def test_small_mapped_subset_stays_one_batch(monkeypatch):
+    from app import merge_test_gate as gate
+
+    tests = [f"tests/test_{n:02d}.py" for n in range(12)]
+    calls = []
+
+    monkeypatch.setattr(gate, "changed_paths", lambda _worktree: ["app/widget.py"])
+    monkeypatch.setattr(gate, "select_tests", lambda _changed, worktree: tests)
+
+    def fake_run(worktree, batch, *, timeout=None):
+        calls.append((list(batch), timeout))
+        return {
+            "status": gate.PASSED,
+            "reason": "",
+            "exit_code": 0,
+            "output": "passed",
+            "tests": list(batch),
+        }
+
+    monkeypatch.setattr(gate, "run_pytest", fake_run)
+    result = gate.evaluate_test_gate("/worktree")
+
+    assert result["status"] == gate.PASSED
+    assert calls == [(tests, None)]
+
+
+def test_large_subset_preserves_failed_and_inconclusive_batches(monkeypatch):
+    from app import merge_test_gate as gate
+
+    tests = [f"tests/test_{n:02d}.py" for n in range(13)]
+    outcomes = iter((gate.FAILED, gate.INCONCLUSIVE))
+
+    monkeypatch.setattr(gate, "changed_paths", lambda _worktree: ["app/widget.py"])
+    monkeypatch.setattr(gate, "select_tests", lambda _changed, worktree: tests)
+
+    def fake_run(worktree, batch, *, timeout=None):
+        status = next(outcomes)
+        return {
+            "status": status,
+            "reason": "exit_nonzero" if status == gate.FAILED else "timeout",
+            "exit_code": 1 if status == gate.FAILED else None,
+            "output": "diagnostic-" + batch[0],
+            "tests": list(batch),
+        }
+
+    monkeypatch.setattr(gate, "run_pytest", fake_run)
+    result = gate.evaluate_test_gate("/worktree")
+
+    assert result["status"] == gate.FAILED
+    assert result["reason"] == "batch_failed"
+    assert result["tests"] == tests
+    assert all(test in result["output"] for test in (tests[0], tests[-1]))
+    assert "diagnostic-tests/test_00.py" in result["output"]
+
+
+def test_large_subset_keeps_diagnostics_from_verbose_batches(monkeypatch):
+    from app import merge_test_gate as gate
+
+    tests = [f"tests/test_{n:02d}.py" for n in range(13)]
+    outcomes = iter((gate.FAILED, gate.INCONCLUSIVE))
+    diagnostics = iter(("early-failure", "late-timeout"))
+
+    monkeypatch.setattr(gate, "changed_paths", lambda _worktree: ["app/widget.py"])
+    monkeypatch.setattr(gate, "select_tests", lambda _changed, worktree: tests)
+
+    def fake_run(worktree, batch, *, timeout=None):
+        status = next(outcomes)
+        return {
+            "status": status,
+            "reason": "exit_nonzero" if status == gate.FAILED else "timeout",
+            "exit_code": 1 if status == gate.FAILED else None,
+            "output": next(diagnostics) + "-" + ("x" * 5000),
+            "tests": list(batch),
+        }
+
+    monkeypatch.setattr(gate, "run_pytest", fake_run)
+    result = gate.evaluate_test_gate("/worktree")
+
+    assert "early-failure" in result["output"]
+    assert "late-timeout" in result["output"]
+    assert len(result["output"]) <= 4000
+
+
 def test_pytest_argv_has_no_exitfirst():
     from app.merge_test_gate import pytest_argv
 

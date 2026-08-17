@@ -10,7 +10,8 @@ change. Docs-only / no git diff → skipped (fixtures without git stay skipped
 so #240 oracles keep working). Unmapped app modules are a hole we accept —
 missing tests ≠ landing a red test that already exists.
 
-Cap: more than MAX_TEST_FILES mapped → inconclusive, not «run everything».
+Mapped files are run in sequential batches of MAX_TEST_FILES. The batches share one
+wall-clock budget and never turn into a full-suite invocation.
 Timeout → inconclusive. Does not close bash: the worker can rewrite this file.
 """
 
@@ -19,6 +20,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from app.acceptance import FAILED, INCONCLUSIVE, PASSED, SKIPPED
@@ -152,6 +154,81 @@ def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None)
     }
 
 
+def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
+    """Run every mapped batch under one deadline and combine its evidence."""
+    deadline = time.monotonic() + DEFAULT_TIMEOUT_SECONDS
+    batch_budget = DEFAULT_TIMEOUT_SECONDS / len(batches)
+    results: list[dict] = []
+    for index, batch in enumerate(batches):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            result = {
+                "status": INCONCLUSIVE,
+                "reason": "timeout",
+                "exit_code": None,
+                "output": "total timeout budget exhausted before this batch",
+                "tests": batch,
+            }
+        else:
+            # Reserve an equal share for every batch. The deadline clamp accounts
+            # for process startup and keeps the sum of subprocess budgets bounded.
+            result = run_pytest(worktree, batch, timeout=min(batch_budget, remaining))
+        results.append(result)
+
+    failed = [result for result in results if result["status"] == FAILED]
+    inconclusive = [
+        result for result in results if result["status"] == INCONCLUSIVE
+    ]
+    if failed:
+        status = FAILED
+        reason = "batch_failed"
+        exit_code = failed[0].get("exit_code")
+    elif inconclusive:
+        status = INCONCLUSIVE
+        reason = "batch_inconclusive"
+        exit_code = None
+    else:
+        status = PASSED
+        reason = ""
+        exit_code = 0
+
+    sections = []
+    for index, result in enumerate(results, start=1):
+        lines = [
+            f"batch {index}/{len(results)} "
+            f"status={result['status']} tests={','.join(result['tests'])}"
+        ]
+        if result.get("reason"):
+            lines.append(f"reason={result['reason']}")
+        if result.get("output"):
+            lines.append(result["output"])
+        sections.append("\n".join(lines))
+    # Keep a diagnostic slice from every batch. A single tail of the combined
+    # output can hide the early failing batch behind a verbose later one.
+    per_batch = max(1, (4000 - len(sections) + 1) // len(sections))
+    compact = []
+    for section in sections:
+        if len(section) > per_batch:
+            header, _, detail = section.partition("\n")
+            room = per_batch - len(header) - 2
+            if room <= 0:
+                section = header[:per_batch]
+            else:
+                marker = "\n…\n"
+                available = max(0, room - len(marker))
+                head = available // 2
+                tail = available - head
+                section = f"{header}\n{detail[:head]}{marker}{detail[-tail:]}"
+        compact.append(section)
+    return {
+        "status": status,
+        "reason": reason,
+        "exit_code": exit_code,
+        "output": "\n".join(compact),
+        "tests": list(sum(batches, [])),
+    }
+
+
 def evaluate_test_gate(worktree: str) -> dict:
     changed = changed_paths(worktree)
     if changed is None:
@@ -166,10 +243,9 @@ def evaluate_test_gate(worktree: str) -> dict:
             "exit_code": None, "output": "", "tests": [],
         }
     if len(tests) > MAX_TEST_FILES:
-        return {
-            "status": INCONCLUSIVE, "reason": "subset_too_large",
-            "exit_code": None,
-            "output": f"{len(tests)} mapped files > {MAX_TEST_FILES}",
-            "tests": tests,
-        }
+        batches = [
+            tests[start:start + MAX_TEST_FILES]
+            for start in range(0, len(tests), MAX_TEST_FILES)
+        ]
+        return _batch_result(worktree, batches)
     return run_pytest(worktree, tests)
