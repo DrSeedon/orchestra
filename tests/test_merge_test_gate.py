@@ -124,6 +124,84 @@ def test_pytest_argv_has_no_exitfirst():
     assert "pytest" in argv
 
 
+@pytest.mark.parametrize(
+    "stdout,stderr,expected",
+    [
+        (b"bytes", "str", "bytesstr"),
+        ("str", b"bytes", "strbytes"),
+        (None, None, ""),
+        (b"\xff", None, "�"),
+    ],
+)
+def test_run_pytest_timeout_normalizes_output_types(tmp_path, monkeypatch, stdout, stderr, expected):
+    from app import merge_test_gate as gate
+    from app.acceptance import INCONCLUSIVE
+
+    tests = ["tests/test_widget.py"]
+    monkeypatch.setattr(
+        gate.subprocess,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            subprocess.TimeoutExpired(
+                cmd=["pytest"],
+                timeout=1,
+                output=stdout,
+                stderr=stderr,
+            )
+        ),
+    )
+    result = gate.run_pytest(str(tmp_path), tests, timeout=1)
+    assert result["status"] == INCONCLUSIVE
+    assert result["reason"] == "timeout"
+    assert result["output"] == expected
+    assert result["tests"] == tests
+
+
+def test_run_pytest_timeout_replaces_invalid_utf8(tmp_path, monkeypatch):
+    from app import merge_test_gate as gate
+
+    tests = ["tests/test_widget.py"]
+    monkeypatch.setattr(
+        gate.subprocess,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            subprocess.TimeoutExpired(
+                cmd=["pytest"],
+                timeout=1,
+                output=b"bad\xffbytes",
+                stderr=None,
+            )
+        ),
+    )
+    result = gate.run_pytest(str(tmp_path), tests, timeout=1)
+    assert result["status"] == "inconclusive"
+    assert result["reason"] == "timeout"
+    assert "bad�bytes" in result["output"]
+
+
+def test_run_pytest_timeout_truncates_to_last_4000_chars(tmp_path, monkeypatch):
+    from app import merge_test_gate as gate
+
+    tests = ["tests/test_widget.py"]
+    payload = "x" * 4500
+    monkeypatch.setattr(
+        gate.subprocess,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            subprocess.TimeoutExpired(
+                cmd=["pytest"],
+                timeout=1,
+                output=payload,
+                stderr=None,
+            )
+        ),
+    )
+    result = gate.run_pytest(str(tmp_path), tests, timeout=1)
+    assert result["reason"] == "timeout"
+    assert len(result["output"]) == 4000
+    assert result["output"] == payload[-4000:]
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("gate_db", [{
     "app/widget.py": "VALUE = 1\n",

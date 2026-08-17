@@ -33,6 +33,14 @@ _ROUTE_EXACT = frozenset({
 })
 
 
+def _normalize_output(output: str | bytes | None) -> str:
+    if output is None:
+        return ""
+    if isinstance(output, bytes):
+        return output.decode("utf-8", "replace")
+    return output
+
+
 def _git(cwd: Path, *args: str) -> str | None:
     try:
         proc = subprocess.run(
@@ -122,9 +130,7 @@ def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None)
             "exit_code": None, "output": argv[0], "tests": tests,
         }
     except subprocess.TimeoutExpired as exc:
-        out = (exc.stdout or "") + (exc.stderr or "")
-        if isinstance(out, bytes):
-            out = out.decode("utf-8", "replace")
+        out = _normalize_output(exc.stdout) + _normalize_output(exc.stderr)
         return {
             "status": INCONCLUSIVE, "reason": "timeout",
             "exit_code": None, "output": out[-4000:], "tests": tests,
@@ -134,7 +140,7 @@ def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None)
             "status": INCONCLUSIVE, "reason": "os_error",
             "exit_code": None, "output": str(exc), "tests": tests,
         }
-    output = ((proc.stdout or "") + (proc.stderr or ""))[-4000:]
+    output = (_normalize_output(proc.stdout) + _normalize_output(proc.stderr))[-4000:]
     if proc.returncode == 0:
         return {
             "status": PASSED, "reason": "",
