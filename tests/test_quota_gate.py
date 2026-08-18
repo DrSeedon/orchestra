@@ -57,6 +57,40 @@ def test_exact_weekly_threshold_for_each_bucket(model, bucket):
     assert decision.weekly_utilization == 95
 
 
+@pytest.mark.parametrize("utilization", [94, 95, 97, 97.999])
+def test_luna_temporary_threshold_allows_below_98(utilization):
+    providers, observed = _snapshot(codex=utilization)
+
+    decision = evaluate_worker_admission(
+        "gpt-5.6-luna", providers, observed, now=NOW,
+    )
+
+    assert decision.state == "available"
+    assert decision.threshold == 98
+    assert decision.to_dict()["threshold"] == 98
+
+
+def test_luna_temporary_threshold_blocks_at_98_with_exact_message():
+    providers, observed = _snapshot(codex=98)
+    decision = evaluate_worker_admission(
+        "gpt-5.6-luna", providers, observed, now=NOW,
+    )
+
+    assert decision.state == "blocked"
+    assert decision.threshold == 98
+    assert "stop at 98%" in str(QuotaGateError(decision))
+
+
+def test_sol_keeps_95_threshold_while_luna_uses_98():
+    providers, observed = _snapshot(codex=97)
+
+    sol = evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW)
+    luna = evaluate_worker_admission("gpt-5.6-luna", providers, observed, now=NOW)
+
+    assert (sol.state, sol.threshold) == ("blocked", 95)
+    assert (luna.state, luna.threshold) == ("available", 98)
+
+
 def test_dual_envelope_preserves_exact_threshold_for_legacy_and_new_clients():
     providers, observed = _snapshot(codex=94.999)
     allowed = worker_readiness_envelope(

@@ -14,6 +14,7 @@ from app.runtime_registry import get_runtime
 
 WEEKLY_WINDOW_MINUTES = 10080
 WORKER_WEEKLY_LIMIT_PCT = 95.0
+LUNA_WORKER_WEEKLY_LIMIT_PCT = 98.0
 QUOTA_OBSERVATION_MAX_AGE = 300.0
 SPARK_MODEL = "gpt-5.3-codex-spark"
 READINESS_POLICY = "worker-weekly-v1"
@@ -33,6 +34,7 @@ class QuotaDecision:
     reset_at: str | None
     alternatives: tuple[dict[str, str], ...]
     reason: str
+    threshold: float = WORKER_WEEKLY_LIMIT_PCT
 
     @property
     def allowed(self) -> bool:
@@ -45,7 +47,7 @@ class QuotaDecision:
             "provider": self.provider,
             "provider_label": self.provider_label,
             "weekly_utilization": self.weekly_utilization,
-            "threshold": WORKER_WEEKLY_LIMIT_PCT,
+            "threshold": self.threshold,
             "observed_at": self.observed_at,
             "valid_until": self.valid_until,
             "reset_at": self.reset_at,
@@ -119,7 +121,7 @@ class QuotaGateError(RuntimeError):
         if self.decision.state == "blocked":
             cause = (
                 f"{label} weekly quota is {self.decision.weekly_utilization:g}% "
-                f"(new worker turns stop at {WORKER_WEEKLY_LIMIT_PCT:g}%)"
+                f"(new worker turns stop at {self.decision.threshold:g}%)"
             )
         else:
             cause = f"{label} weekly quota status is unavailable or stale"
@@ -207,6 +209,7 @@ def _weekly_status(
     provider: object,
     observed_at: object,
     now: float,
+    threshold: float = WORKER_WEEKLY_LIMIT_PCT,
 ) -> tuple[str, float | None, float | None, str | None, str]:
     timestamp = _timestamp(observed_at)
     if timestamp is None:
@@ -233,7 +236,7 @@ def _weekly_status(
     utilization = max(item for item in utilizations if item is not None)
     blocking_windows = [
         item for item, value in zip(weekly, utilizations)
-        if value is not None and value >= WORKER_WEEKLY_LIMIT_PCT
+        if value is not None and value >= threshold
     ]
     resets = [
         reset
@@ -244,13 +247,13 @@ def _weekly_status(
         if reset is not None
     ]
     reset_at = max(resets, default=None, key=lambda item: item[0])
-    if utilization >= WORKER_WEEKLY_LIMIT_PCT:
+    if utilization >= threshold:
         return "blocked", utilization, timestamp, reset_at[1] if reset_at else None, (
             f"weekly utilization {utilization:g}% is at or above "
-            f"{WORKER_WEEKLY_LIMIT_PCT:g}%"
+            f"{threshold:g}%"
         )
     return "available", utilization, timestamp, None, (
-        f"weekly utilization {utilization:g}% is below {WORKER_WEEKLY_LIMIT_PCT:g}%"
+        f"weekly utilization {utilization:g}% is below {threshold:g}%"
     )
 
 
@@ -298,8 +301,13 @@ def evaluate_worker_admission(
         )
     provider = providers.get(bucket)
     observed_raw = observed_at_by_provider.get(bucket)
+    threshold = (
+        LUNA_WORKER_WEEKLY_LIMIT_PCT
+        if resolved == "gpt-5.6-luna"
+        else WORKER_WEEKLY_LIMIT_PCT
+    )
     state, utilization, observed_at, reset_at, reason = _weekly_status(
-        provider, observed_raw, checked_at,
+        provider, observed_raw, checked_at, threshold,
     )
     label = provider.get("label") if isinstance(provider, Mapping) else None
     alternatives = _alternatives(bucket, providers, observed_at_by_provider, checked_at)
@@ -314,6 +322,7 @@ def evaluate_worker_admission(
         reset_at=reset_at,
         alternatives=alternatives,
         reason=reason,
+        threshold=threshold,
     )
 
 
