@@ -764,6 +764,54 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_logs_status ON logs(session_id, ts) WHERE type='status';
             CREATE INDEX IF NOT EXISTS idx_sessions_scope ON sessions(scope, is_orchestrator, status);
 
+            CREATE TABLE IF NOT EXISTS runtime_handoffs (
+                handoff_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                idempotency_key TEXT NOT NULL,
+                status TEXT NOT NULL,
+                source_runtime TEXT NOT NULL,
+                source_model TEXT NOT NULL,
+                source_session_id TEXT,
+                target_runtime TEXT NOT NULL,
+                target_model TEXT NOT NULL,
+                snapshot_log_id INTEGER NOT NULL,
+                snapshot_sha256 TEXT NOT NULL,
+                packet_json TEXT NOT NULL,
+                packet_sha256 TEXT NOT NULL,
+                preferred_mode TEXT NOT NULL,
+                confirmed_attempt_no INTEGER,
+                failure_code TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                confirmed_at TEXT,
+                UNIQUE(session_id, idempotency_key)
+            );
+            CREATE TABLE IF NOT EXISTS runtime_handoff_attempts (
+                handoff_id TEXT NOT NULL REFERENCES runtime_handoffs(handoff_id) ON DELETE CASCADE,
+                attempt_no INTEGER NOT NULL CHECK (attempt_no IN (1, 2)),
+                mode TEXT NOT NULL,
+                status TEXT NOT NULL,
+                cleanup_locator TEXT NOT NULL,
+                target_session_id TEXT,
+                candidate_sha256 TEXT NOT NULL,
+                preflight_json TEXT,
+                ingress_json TEXT,
+                capability_json TEXT,
+                error_code TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                retired_at TEXT,
+                PRIMARY KEY (handoff_id, attempt_no)
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_runtime_handoffs_live_session
+                ON runtime_handoffs(session_id)
+                WHERE status IN (
+                    'prepared', 'target_staged', 'ingress_validated',
+                    'capability_validated', 'source_released'
+                );
+            CREATE INDEX IF NOT EXISTS idx_runtime_handoff_attempts_handoff
+                ON runtime_handoff_attempts(handoff_id, attempt_no);
+
             CREATE TABLE IF NOT EXISTS subagents (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -2185,6 +2233,347 @@ def get_history_logs(session_id: str, conn=None) -> tuple[int, list[dict]]:
     finally:
         if conn is None:
             c.close()
+
+
+_HANDOFF_COLUMNS = (
+    "handoff_id", "session_id", "idempotency_key", "status",
+    "source_runtime", "source_model", "source_session_id",
+    "target_runtime", "target_model", "snapshot_log_id",
+    "snapshot_sha256", "packet_json", "packet_sha256", "preferred_mode",
+    "confirmed_attempt_no", "failure_code", "created_at", "updated_at",
+    "confirmed_at",
+)
+
+
+def _insert_runtime_handoff(c: sqlite3.Connection, record: dict) -> dict:
+    existing = c.execute(
+        "SELECT * FROM runtime_handoffs WHERE session_id=? AND idempotency_key=?",
+        (record["session_id"], record["idempotency_key"]),
+    ).fetchone()
+    if existing:
+        return dict(existing)
+    columns = [column for column in _HANDOFF_COLUMNS if column in record]
+    placeholders = ", ".join("?" for _ in columns)
+    c.execute(
+        f"INSERT INTO runtime_handoffs ({', '.join(columns)}) "
+        f"VALUES ({placeholders})",
+        tuple(record[column] for column in columns),
+    )
+    return dict(c.execute(
+        "SELECT * FROM runtime_handoffs WHERE handoff_id=?",
+        (record["handoff_id"],),
+    ).fetchone())
+
+
+def create_runtime_handoff(record: dict) -> dict:
+    """Insert an idempotent handoff operation without duplicating its packet."""
+    with _conn() as c:
+        return _insert_runtime_handoff(c, record)
+
+
+def prepare_runtime_handoff_snapshot(
+    session_id: str,
+    idempotency_key: str,
+    builder,
+) -> tuple[dict | None, object | None]:
+    """Freeze logs and create the prepared row under one SQLite write lock.
+
+    ``builder`` receives the current session row, snapshot id, and rows. It returns
+    ``(record, side_result)``; ``record=None`` is an ineligible preparation and does
+    not create a live operation.
+    """
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        existing = c.execute(
+            "SELECT * FROM runtime_handoffs WHERE session_id=? AND idempotency_key=?",
+            (session_id, idempotency_key),
+        ).fetchone()
+        if existing:
+            return dict(existing), None
+        session = c.execute(
+            "SELECT * FROM sessions WHERE id=?", (session_id,)
+        ).fetchone()
+        if not session:
+            raise RuntimeError("runtime handoff source session not found")
+        snapshot_id, rows = get_history_logs(session_id, conn=c)
+        record, side_result = builder(dict(session), snapshot_id, rows)
+        if record is None:
+            return None, side_result
+        return _insert_runtime_handoff(c, record), side_result
+
+
+def get_runtime_handoff(handoff_id: str) -> dict | None:
+    with _conn() as c:
+        try:
+            row = c.execute(
+                "SELECT * FROM runtime_handoffs WHERE handoff_id=?", (handoff_id,)
+            ).fetchone()
+        except sqlite3.OperationalError as error:
+            if "no such table" not in str(error):
+                raise
+            return None
+        return dict(row) if row else None
+
+
+def list_runtime_handoff_attempts(handoff_id: str) -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM runtime_handoff_attempts WHERE handoff_id=? "
+            "ORDER BY attempt_no",
+            (handoff_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+def list_latest_runtime_handoffs() -> list[dict]:
+    """Return the one unfinished operation that can affect each session owner."""
+    with _conn() as c:
+        try:
+            rows = c.execute(
+                """SELECT h.*
+                   FROM runtime_handoffs AS h
+                   JOIN (
+                       SELECT session_id, MAX(rowid) AS newest_rowid
+                       FROM runtime_handoffs
+                       WHERE status IN (
+                           'prepared', 'target_staged', 'ingress_validated',
+                           'capability_validated', 'source_released',
+                           'recovery_required'
+                       )
+                       GROUP BY session_id
+                   ) AS latest ON latest.newest_rowid = h.rowid
+                   ORDER BY h.rowid"""
+            ).fetchall()
+        except sqlite3.OperationalError as error:
+            if "no such table" not in str(error):
+                raise
+            return []
+        return [dict(row) for row in rows]
+
+
+def get_latest_runtime_handoff_for_session(session_id: str) -> dict | None:
+    """Return the unfinished operation that owns a session's recovery gate."""
+    with _conn() as c:
+        try:
+            row = c.execute(
+                """SELECT * FROM runtime_handoffs
+                   WHERE session_id=? AND status IN (
+                       'prepared', 'target_staged', 'ingress_validated',
+                       'capability_validated', 'source_released',
+                       'recovery_required'
+                   )
+                   ORDER BY rowid DESC LIMIT 1""",
+                (session_id,),
+            ).fetchone()
+        except sqlite3.OperationalError as error:
+            if "no such table" not in str(error):
+                raise
+            return None
+        return dict(row) if row else None
+
+
+def get_confirmed_runtime_handoff_attempt(
+    session_id: str,
+    target_session_id: str | None,
+) -> dict | None:
+    """Locate the provider-owned target store for the current confirmed owner."""
+    if not target_session_id:
+        return None
+    with _conn() as c:
+        row = c.execute(
+            """SELECT a.*, h.target_runtime, h.target_model
+               FROM runtime_handoffs AS h
+               JOIN runtime_handoff_attempts AS a
+                 ON a.handoff_id=h.handoff_id
+                AND a.attempt_no=h.confirmed_attempt_no
+               WHERE h.session_id=? AND h.status='confirmed'
+                 AND a.status='confirmed' AND a.target_session_id=?
+               ORDER BY h.rowid DESC LIMIT 1""",
+            (session_id, target_session_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def retire_runtime_handoff(
+    handoff_id: str,
+    *,
+    status: str,
+    failure_code: str,
+) -> None:
+    """Atomically terminate an operation and retire every allocated target owner."""
+    if status not in {"failed", "recovery_required"}:
+        raise ValueError("runtime handoff retirement status must be terminal")
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        changed = c.execute(
+            """UPDATE runtime_handoffs
+               SET status=?, failure_code=?, updated_at=?
+               WHERE handoff_id=?""",
+            (status, failure_code, now, handoff_id),
+        )
+        if changed.rowcount != 1:
+            raise RuntimeError("runtime handoff not found")
+        c.execute(
+            """UPDATE runtime_handoff_attempts
+               SET status=CASE WHEN status='confirmed' THEN status ELSE 'retired' END,
+                   error_code=COALESCE(error_code, ?),
+                   retired_at=COALESCE(retired_at, ?), updated_at=?
+               WHERE handoff_id=?""",
+            (failure_code, now, now, handoff_id),
+        )
+
+
+def allocate_runtime_handoff_attempt(
+    handoff_id: str,
+    *,
+    mode: str,
+    candidate_sha256: str,
+    cleanup_locator: str,
+) -> dict:
+    """Persist the cleanup owner before an external target can be created."""
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute(
+            "SELECT COALESCE(MAX(attempt_no), 0) FROM runtime_handoff_attempts "
+            "WHERE handoff_id=?",
+            (handoff_id,),
+        ).fetchone()
+        attempt_no = int(row[0]) + 1
+        if attempt_no > 2:
+            raise RuntimeError("runtime handoff fallback exhausted")
+        c.execute(
+            """INSERT INTO runtime_handoff_attempts
+               (handoff_id, attempt_no, mode, status, cleanup_locator,
+                candidate_sha256, created_at, updated_at)
+               VALUES (?, ?, ?, 'allocated', ?, ?, ?, ?)""",
+            (
+                handoff_id, attempt_no, mode, cleanup_locator,
+                candidate_sha256, now, now,
+            ),
+        )
+        return dict(c.execute(
+            "SELECT * FROM runtime_handoff_attempts "
+            "WHERE handoff_id=? AND attempt_no=?",
+            (handoff_id, attempt_no),
+        ).fetchone())
+
+
+def update_runtime_handoff_attempt(
+    handoff_id: str,
+    attempt_no: int,
+    *,
+    status: str,
+    target_session_id: str | None = None,
+    preflight_json: str | None = None,
+    ingress_json: str | None = None,
+    capability_json: str | None = None,
+    error_code: str | None = None,
+    retired_at: str | None = None,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        cur = c.execute(
+            """UPDATE runtime_handoff_attempts SET
+                   status=?, target_session_id=COALESCE(?, target_session_id),
+                   preflight_json=COALESCE(?, preflight_json),
+                   ingress_json=COALESCE(?, ingress_json),
+                   capability_json=COALESCE(?, capability_json),
+                   error_code=COALESCE(?, error_code),
+                   retired_at=COALESCE(?, retired_at), updated_at=?
+               WHERE handoff_id=? AND attempt_no=?""",
+            (
+                status, target_session_id, preflight_json, ingress_json,
+                capability_json, error_code, retired_at, now,
+                handoff_id, attempt_no,
+            ),
+        )
+        if cur.rowcount != 1:
+            raise RuntimeError("runtime handoff attempt not found")
+
+
+def update_runtime_handoff_status(
+    handoff_id: str, status: str, *, failure_code: str | None = None
+) -> None:
+    with _conn() as c:
+        cur = c.execute(
+            "UPDATE runtime_handoffs SET status=?, failure_code=?, updated_at=? "
+            "WHERE handoff_id=?",
+            (
+                status, failure_code, datetime.now(timezone.utc).isoformat(),
+                handoff_id,
+            ),
+        )
+        if cur.rowcount != 1:
+            raise RuntimeError("runtime handoff not found")
+
+
+def confirm_runtime_handoff(
+    *,
+    handoff_id: str,
+    attempt_no: int,
+    expected_source: dict,
+    target_session_id: str,
+) -> None:
+    """Commit target ownership and the operation ledger in one transaction."""
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        handoff = c.execute(
+            "SELECT * FROM runtime_handoffs WHERE handoff_id=?", (handoff_id,)
+        ).fetchone()
+        if not handoff:
+            raise RuntimeError("runtime handoff not found")
+        session = c.execute(
+            "SELECT model, session_id, backend_type FROM sessions WHERE id=?",
+            (handoff["session_id"],),
+        ).fetchone()
+        actual_source = {
+            "runtime": session["backend_type"],
+            "model": session["model"],
+            "session_id": session["session_id"],
+        } if session else None
+        if actual_source != expected_source:
+            raise RuntimeError("runtime handoff source changed before confirmation")
+        if handoff["status"] != "source_released":
+            raise RuntimeError("runtime handoff source was not released")
+        attempt = c.execute(
+            "SELECT * FROM runtime_handoff_attempts "
+            "WHERE handoff_id=? AND attempt_no=?",
+            (handoff_id, attempt_no),
+        ).fetchone()
+        if not attempt or attempt["status"] != "capability_validated":
+            raise RuntimeError("runtime handoff attempt was not capability validated")
+        expected_candidate_sha256 = handoff["packet_sha256"]
+        if attempt["mode"] == "fallback_packet":
+            from app.runtime_history import build_runtime_packet_fallback
+
+            packet = build_runtime_packet_fallback(json.loads(handoff["packet_json"]))
+            expected_candidate_sha256 = packet["integrity"]["canonical_sha256"]
+        if attempt["candidate_sha256"] != expected_candidate_sha256:
+            raise RuntimeError("runtime handoff attempt hash mismatch")
+        if not target_session_id or attempt["target_session_id"] != target_session_id:
+            raise RuntimeError("runtime handoff target session mismatch")
+        c.execute(
+            "UPDATE sessions SET model=?, session_id=?, backend_type=?, "
+            "runtime_handoff='', history_import_source=NULL WHERE id=?",
+            (
+                handoff["target_model"], target_session_id,
+                handoff["target_runtime"], handoff["session_id"],
+            ),
+        )
+        c.execute(
+            "UPDATE runtime_handoffs SET status='confirmed', "
+            "confirmed_attempt_no=?, confirmed_at=?, updated_at=? "
+            "WHERE handoff_id=?",
+            (attempt_no, now, now, handoff_id),
+        )
+        c.execute(
+            "UPDATE runtime_handoff_attempts SET status='confirmed', updated_at=? "
+            "WHERE handoff_id=? AND attempt_no=?",
+            (now, handoff_id, attempt_no),
+        )
 
 
 # Sub-agent telemetry columns that upsert may set. Text cols use NULLIF-COALESCE

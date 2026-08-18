@@ -27,6 +27,7 @@ from app.runtime_history import (
     CodexHistoryImport,
     NativeHistoryUnsupported,
     sanitize_sensitive_text,
+    build_model_visible_manifest,
 )
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
@@ -731,7 +732,8 @@ class CodexBackend(JsonRpcStdioTransport):
                  mcp_servers: dict | None = None,
                  reasoning_effort: str = "high",
                  is_orchestrator: bool = False,
-                 history_import: object | None = None):
+                 history_import: object | None = None,
+                 validation_profile: bool = False):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
@@ -745,6 +747,7 @@ class CodexBackend(JsonRpcStdioTransport):
         if history_import is not None and not isinstance(history_import, CodexHistoryImport):
             raise TypeError("history_import must be CodexHistoryImport")
         self._history_import = history_import
+        self._validation_profile = validation_profile
         self.reasoning_effort = (
             reasoning_effort if reasoning_effort in CODEX_REASONING_EFFORTS else "high"
         )
@@ -779,6 +782,18 @@ class CodexBackend(JsonRpcStdioTransport):
     @property
     def session_id(self) -> Optional[str]:
         return self._thread_id
+
+    def build_handoff_manifest(self, prepared, *, validation_profile: bool):
+        return build_model_visible_manifest(
+            runtime="codex",
+            model=self.model,
+            effective_window=self._model_context_window,
+            system_prompt=self.system_prompt,
+            prepared=prepared,
+            validation_profile=validation_profile,
+            project_docs=getattr(prepared, "project_docs", ()),
+            mcp_servers=self._mcp_servers,
+        )
 
     @property
     def active_turn_id(self) -> Optional[str]:

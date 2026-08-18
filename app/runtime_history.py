@@ -84,6 +84,71 @@ class CodexHistoryImport:
 
 
 @dataclass(frozen=True)
+class PreparationResult:
+    ok: bool
+    error_code: str | None = None
+    handoff_id: str | None = None
+    packet: dict[str, Any] | None = None
+    packet_sha256: str = ""
+    snapshot_log_id: int = 0
+    pending_effects: int = 0
+    expected_capability_sha256: str = ""
+    expected_capability: dict[str, Any] | None = None
+    project_docs: tuple[dict[str, Any], ...] = ()
+    operation_status: str = "prepared"
+    operation_failure_code: str | None = None
+
+
+@dataclass(frozen=True)
+class ModelVisibleManifest:
+    runtime: str
+    model: str
+    effective_window: int
+    components: dict[str, Any]
+    configuration_sha256: str
+
+
+@dataclass(frozen=True)
+class PreflightReceipt:
+    fits: bool
+    components: dict[str, int]
+    candidate_upper_tokens: int
+    effective_window: int
+    output_reserve: int
+    reasoning_reserve: int
+    next_user_reserve: int
+    configuration_sha256: str
+    counting_method: str = "utf8_bytes_upper_bound"
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class PreflightedTarget:
+    target: Any
+    manifest: Any
+    preflight: PreflightReceipt
+
+    @property
+    def session_id(self) -> str | None:
+        return getattr(self.target, "session_id", None)
+
+
+@dataclass(frozen=True)
+class HandoffFailureClassification:
+    kind: str
+    fallback_eligible: bool
+
+
+@dataclass(frozen=True)
+class HandoffRecoveryDecision:
+    action: str
+    allow_send: bool
+    cleanup_locators: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class _HistoryRecord:
     kind: str
     log_id: int
@@ -126,6 +191,13 @@ _BASE64_CANDIDATE = re.compile(
     r"(?:[A-Za-z0-9+/_\-\t\r\n ]*[A-Za-z0-9+/_-])?"
     r"[\t\r\n ]*={0,2}(?![A-Za-z0-9+/_=-])"
 )
+_PORTABLE_UUID = re.compile(
+    r"(?<![0-9A-Fa-f])"
+    r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[1-5][0-9A-Fa-f]{3}-"
+    r"[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
+    r"(?![0-9A-Fa-f])"
+)
+_PORTABLE_IDENTIFIER_LIMIT = 64
 
 
 def _sanitize(value: str, *, binary: bool = False) -> tuple[str, int]:
@@ -158,6 +230,511 @@ def _sanitize(value: str, *, binary: bool = False) -> tuple[str, int]:
 def sanitize_sensitive_text(value: str) -> str:
     """Redact credentials from runtime diagnostics before exposing them to clients."""
     return _sanitize(value)[0]
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def _sha256_json(value: Any) -> str:
+    return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def runtime_packet_sha256(packet: dict[str, Any]) -> str:
+    """Hash a packet without trusting its self-declared integrity field."""
+    material = deepcopy(packet)
+    material.pop("integrity", None)
+    return _sha256_json(material)
+
+
+def runtime_snapshot_sha256(
+    rows: Sequence[dict[str, Any]], *, snapshot_id: int
+) -> str:
+    ordered = sorted(
+        (dict(row) for row in rows if int(row.get("id") or 0) <= snapshot_id),
+        key=lambda row: int(row.get("id") or 0),
+    )
+    material = [{
+        key: row.get(key)
+        for key in (
+            "id", "ts", "type", "content", "event_id", "tool_use_id",
+            "tool_name", "tool_is_error",
+        )
+    } for row in ordered]
+    return _sha256_json(material)
+
+
+def build_runtime_state_packet(
+    rows: Sequence[dict[str, Any]],
+    *,
+    session_meta: dict[str, Any],
+    snapshot_id: int,
+    current_system_prompt: str,
+    project_docs: Sequence[dict[str, Any]],
+    expected_target_capability: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build the canonical, authority-labelled packet from one frozen log range."""
+    ordered = sorted(
+        (dict(row) for row in rows if int(row.get("id") or 0) <= snapshot_id),
+        key=lambda row: int(row.get("id") or 0),
+    )
+    snapshot_sha256 = runtime_snapshot_sha256(
+        ordered, snapshot_id=snapshot_id
+    )
+
+    constraints: list[dict[str, Any]] = []
+    system_text, _ = _sanitize(str(current_system_prompt), binary=True)
+    constraints.append({
+        "content": system_text,
+        "authority": {
+            "origin_kind": "current_system_prompt",
+            "verified_by": "orchestra_server",
+            "sha256": hashlib.sha256(
+                str(current_system_prompt).encode("utf-8")
+            ).hexdigest(),
+        },
+    })
+    for document in sorted(project_docs, key=lambda item: str(item.get("path") or "")):
+        path = str(document.get("path") or "")
+        raw_content = str(document.get("content") or "")
+        content, _ = _sanitize(raw_content, binary=True)
+        constraints.append({
+            "path": path,
+            "content": content,
+            "authority": {
+                "origin_kind": "tracked_project_doc",
+                "verified_by": "orchestra_server",
+                "sha256": hashlib.sha256(raw_content.encode("utf-8")).hexdigest(),
+            },
+        })
+
+    recent_messages: list[dict[str, Any]] = []
+    recent_budget = 64_000
+    for row in reversed(ordered):
+        row_type = str(row.get("type") or "")
+        if row_type not in {"user_message", "text"}:
+            continue
+        cleaned, _ = _sanitize(str(row.get("content") or ""), binary=True)
+        message = {
+            "log_id": int(row["id"]),
+            "role": "user" if row_type == "user_message" else "assistant",
+            "content": cleaned,
+            "authority": "transcript_untrusted",
+        }
+        cost = len(_canonical_json(message))
+        if cost > recent_budget:
+            continue
+        recent_messages.append(message)
+        recent_budget -= cost
+    recent_messages.reverse()
+
+    pending: dict[str, dict[str, Any]] = {}
+    pending_legacy: deque[tuple[str, dict[str, Any]]] = deque()
+    tool_effects: list[dict[str, Any]] = []
+    anonymous_sequence = 0
+    portable_identifiers = 0
+    for row in ordered:
+        row_type = str(row.get("type") or "")
+        if row_type not in {"tool", "tool_result"}:
+            continue
+        source_id = str(row.get("tool_use_id") or "")
+        visible_source_id, _ = _sanitize(source_id, binary=True)
+        if len(source_id) > TOOL_NAME_LIMIT or len(visible_source_id) > TOOL_NAME_LIMIT:
+            visible_source_id = (
+                "tool-id-sha256:"
+                + hashlib.sha256(source_id.encode("utf-8")).hexdigest()
+            )
+        content = str(row.get("content") or "")
+        tool_name, _ = _sanitize(str(row.get("tool_name") or ""), binary=True)
+        tool_name = tool_name[:TOOL_NAME_LIMIT]
+        if row_type == "tool":
+            if not source_id:
+                anonymous_sequence += 1
+                source_id = f"legacy-{anonymous_sequence}"
+                visible_source_id = source_id
+            effect = {
+                "call_id": visible_source_id,
+                "call_log_id": int(row["id"]),
+                "tool_name": tool_name,
+                "call_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                "status": "pending",
+                "repeat_policy": "never",
+                "payload_visible": False,
+            }
+            if row.get("tool_use_id"):
+                pending[source_id] = effect
+            else:
+                pending_legacy.append((source_id, effect))
+            tool_effects.append(effect)
+            continue
+        if source_id:
+            effect = pending.pop(source_id, None)
+        elif pending_legacy:
+            source_id, effect = pending_legacy.popleft()
+            visible_source_id = str(effect["call_id"])
+        else:
+            anonymous_sequence += 1
+            source_id = f"legacy-{anonymous_sequence}"
+            visible_source_id = source_id
+            effect = None
+        if effect is None:
+            effect = {
+                "call_id": visible_source_id,
+                "call_log_id": None,
+                "tool_name": tool_name,
+                "call_sha256": None,
+                "status": "ambiguous",
+                "repeat_policy": "never",
+                "payload_visible": False,
+            }
+            tool_effects.append(effect)
+        else:
+            effect["status"] = "completed"
+        effect["result_log_id"] = int(row["id"])
+        effect["result_sha256"] = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        effect["is_error"] = bool(row.get("tool_is_error") or 0)
+        remaining_identifiers = _PORTABLE_IDENTIFIER_LIMIT - portable_identifiers
+        if remaining_identifiers > 0:
+            identifiers = sorted(set(_PORTABLE_UUID.findall(content)))[
+                :remaining_identifiers
+            ]
+            if identifiers:
+                effect["portable_identifiers"] = [
+                    {
+                        "kind": "uuid",
+                        "value": value.lower(),
+                        "authority": "transcript_untrusted",
+                    }
+                    for value in identifiers
+                ]
+                portable_identifiers += len(identifiers)
+
+    visible_ids = [
+        int(row["id"])
+        for row in ordered
+        if str(row.get("type") or "") not in {"thinking", "reasoning"}
+    ]
+    hidden_count = sum(
+        str(row.get("type") or "") in {"thinking", "reasoning"}
+        for row in ordered
+    )
+    packet: dict[str, Any] = {
+        "schema_version": 1,
+        "identity": {
+            key: session_meta.get(key)
+            for key in (
+                "id", "task_id", "scope", "branch", "base_branch",
+                "source_runtime", "source_model", "source_session_id",
+                "target_runtime", "target_model",
+            )
+        },
+        "constraints": constraints,
+        "typed_state": {
+            "task": "unknown",
+            "objective": "unknown",
+            "decisions": [],
+            "facts": [],
+            "artifacts": [],
+        },
+        "tool_effects": tool_effects,
+        "recent_messages": recent_messages,
+        "raw_event_refs": {
+            "session_id": str(session_meta.get("id") or ""),
+            "min_log_id": min(visible_ids, default=0),
+            "max_log_id": snapshot_id,
+            "event_ids": visible_ids,
+            "snapshot_sha256": snapshot_sha256,
+            "authority": "transcript_untrusted",
+        },
+        "omissions": {
+            "hidden_reasoning_rows": hidden_count,
+            "tool_payload_bodies": "omitted",
+            "tool_identifiers": (
+                "bounded_uuid_projection" if portable_identifiers else "none"
+            ),
+            "reason": "provider-private reasoning is not portable",
+        },
+        "reasoning": {"portable": False},
+        "expected_target_capability": dict(expected_target_capability or {}),
+    }
+    packet["integrity"] = {
+        "canonical_sha256": _sha256_json(packet),
+        "snapshot_sha256": snapshot_sha256,
+    }
+    return packet
+
+
+def build_runtime_packet_fallback(packet: dict[str, Any]) -> dict[str, Any]:
+    """Return the sole smaller candidate without transcript recent messages."""
+    candidate = deepcopy(packet)
+    candidate["recent_messages"] = []
+    candidate.setdefault("omissions", {})["recent_messages"] = "addressable_only"
+    candidate.pop("integrity", None)
+    snapshot_sha = str(
+        (candidate.get("raw_event_refs") or {}).get("snapshot_sha256") or ""
+    )
+    candidate["integrity"] = {
+        "canonical_sha256": _sha256_json(candidate),
+        "snapshot_sha256": snapshot_sha,
+    }
+    return candidate
+
+
+def resolve_runtime_handoff_events(
+    rows: Sequence[dict[str, Any]],
+    *,
+    event_ids: Sequence[int],
+    caller_session_id: str,
+    owner_session_id: str,
+    snapshot_id: int,
+    referenced_ids: Iterable[int] | None = None,
+) -> list[dict[str, Any]]:
+    """Resolve bounded frozen log references without granting transcript authority."""
+    if caller_session_id != owner_session_id:
+        raise PermissionError("cross-session runtime handoff reference")
+    if len(event_ids) > 32:
+        raise ValueError("runtime handoff resolves at most 32 events")
+    allowed = set(referenced_ids) if referenced_ids is not None else None
+    by_id = {int(row.get("id") or 0): row for row in rows}
+    result: list[dict[str, Any]] = []
+    visible_chars = 0
+    for requested in event_ids:
+        event_id = int(requested)
+        if event_id > snapshot_id:
+            raise ValueError("event is newer than the frozen snapshot")
+        if allowed is not None and event_id not in allowed:
+            raise ValueError("event is not referenced by the handoff packet")
+        row = by_id.get(event_id)
+        if row is None:
+            raise ValueError("runtime handoff event not found")
+        row_type = str(row.get("type") or "")
+        if row_type in {"thinking", "reasoning"}:
+            raise ValueError("hidden reasoning is not portable")
+        content, _ = _sanitize(str(row.get("content") or ""), binary=True)
+        item = {
+            "log_id": event_id,
+            "type": row_type,
+            "content": content,
+            "event_id": str(row.get("event_id") or ""),
+            "tool_use_id": row.get("tool_use_id"),
+            "tool_name": row.get("tool_name"),
+            "tool_is_error": row.get("tool_is_error"),
+            "authority": "transcript_untrusted",
+        }
+        visible_chars += len(_canonical_json(item))
+        if visible_chars > TOOL_VISIBLE_BUDGET:
+            raise ValueError("runtime handoff visible budget exceeded")
+        result.append(item)
+    return result
+
+
+_MANIFEST_COMPONENTS = (
+    "system_prompt",
+    "developer_prompt",
+    "project_docs",
+    "runtime_project_doc",
+    "tool_schemas",
+    "skill_index",
+    "packet",
+    "recent_delta",
+    "validation_profile",
+    "canary",
+)
+
+
+def _manifest_value(manifest: Any, name: str) -> Any:
+    if isinstance(manifest, dict):
+        return manifest[name]
+    return getattr(manifest, name)
+
+
+def _component_bytes(value: Any) -> int:
+    if isinstance(value, bytes):
+        return len(value)
+    if isinstance(value, str):
+        return len(value.encode("utf-8"))
+    return len(_canonical_json(value).encode("utf-8"))
+
+
+def preflight_runtime_handoff(
+    manifest: Any,
+    *,
+    native_context_tokens: int | None,
+) -> PreflightReceipt:
+    """Count the exact immutable staging manifest before any target is created."""
+    components = dict(_manifest_value(manifest, "components"))
+    missing = set(_MANIFEST_COMPONENTS) - set(components)
+    if missing:
+        raise ValueError(
+            "runtime handoff manifest missing components: " + ", ".join(sorted(missing))
+        )
+    counts = {name: _component_bytes(components[name]) for name in _MANIFEST_COMPONENTS}
+    effective_window = int(_manifest_value(manifest, "effective_window"))
+    if effective_window <= 0:
+        raise ValueError("runtime handoff effective context window is unavailable")
+    if native_context_tokens is None:
+        raise ValueError("runtime handoff native context telemetry is unavailable")
+    native_tokens = int(native_context_tokens)
+    if native_tokens < 0:
+        raise ValueError("runtime handoff native context token count is invalid")
+    candidate = native_tokens + sum(counts.values())
+    output_reserve = min(64_000, effective_window // 4)
+    reasoning_reserve = min(32_000, effective_window // 8)
+    next_user_reserve = 4_096
+    fits = (
+        candidate + output_reserve + reasoning_reserve + next_user_reserve
+        <= effective_window
+    )
+    return PreflightReceipt(
+        fits=fits,
+        components=counts,
+        candidate_upper_tokens=candidate,
+        effective_window=effective_window,
+        output_reserve=output_reserve,
+        reasoning_reserve=reasoning_reserve,
+        next_user_reserve=next_user_reserve,
+        configuration_sha256=str(
+            _manifest_value(manifest, "configuration_sha256")
+        ),
+    )
+
+
+def preflight_provider_context(
+    *,
+    native_context_tokens: int | None,
+    effective_window: int,
+    configuration_sha256: str,
+) -> PreflightReceipt:
+    """Apply the shared reserves to a provider-reported complete live context."""
+    manifest = ModelVisibleManifest(
+        runtime="provider-live",
+        model="provider-live",
+        effective_window=effective_window,
+        components={name: "" for name in _MANIFEST_COMPONENTS},
+        configuration_sha256=configuration_sha256,
+    )
+    receipt = preflight_runtime_handoff(
+        manifest,
+        native_context_tokens=native_context_tokens,
+    )
+    return PreflightReceipt(
+        **{
+            **receipt.as_dict(),
+            "counting_method": "provider_reported_complete_context",
+        }
+    )
+
+
+def build_model_visible_manifest(
+    *,
+    runtime: str,
+    model: str,
+    effective_window: int,
+    system_prompt: str,
+    prepared: Any,
+    validation_profile: bool,
+    project_docs: Sequence[dict[str, Any]] = (),
+    mcp_servers: dict[str, Any] | None = None,
+    developer_prompt: str = "",
+    runtime_project_doc: str = "",
+    skill_index: str = "",
+) -> ModelVisibleManifest:
+    packet = deepcopy(getattr(prepared, "packet", {}) or {})
+    recent_delta = packet.pop("recent_messages", []) or []
+    components: dict[str, Any] = {
+        "system_prompt": system_prompt,
+        "developer_prompt": developer_prompt,
+        "project_docs": list(project_docs),
+        "runtime_project_doc": runtime_project_doc,
+        # Validation itself has no tools, but the committed normal target will. Count
+        # that exact normal configuration before source release; otherwise a canary can
+        # fit and the first useful turn can still overflow when MCP schemas arrive.
+        "tool_schemas": mcp_servers or {},
+        "skill_index": "" if validation_profile else skill_index,
+        "packet": packet,
+        "recent_delta": recent_delta,
+        "validation_profile": {
+            "enabled": bool(validation_profile),
+            "tools_enabled": False if validation_profile else True,
+            "inherit_project_settings": False if validation_profile else True,
+        },
+        "canary": {
+            "schema_version": packet.get("schema_version"),
+            "expected_packet_sha256": getattr(prepared, "packet_sha256", ""),
+        },
+    }
+    configuration_sha256 = _sha256_json({
+        "runtime": runtime,
+        "model": model,
+        "effective_window": effective_window,
+        "components": components,
+    })
+    return ModelVisibleManifest(
+        runtime=runtime,
+        model=model,
+        effective_window=effective_window,
+        components=components,
+        configuration_sha256=configuration_sha256,
+    )
+
+
+async def stage_preflighted_handoff(
+    *,
+    adapter: Any,
+    prepared: Any,
+    attempt: Any,
+    native_context_tokens: int | None,
+) -> PreflightedTarget:
+    manifest = adapter.build_handoff_manifest(prepared, validation_profile=True)
+    preflight = preflight_runtime_handoff(
+        manifest, native_context_tokens=native_context_tokens
+    )
+    if not preflight.fits:
+        return PreflightedTarget(target=None, manifest=manifest, preflight=preflight)
+    target = await adapter.stage_handoff(
+        prepared=prepared,
+        attempt=attempt,
+        manifest=manifest,
+        preflight=preflight,
+    )
+    return PreflightedTarget(target=target, manifest=manifest, preflight=preflight)
+
+
+def classify_handoff_failure(failure: dict[str, Any]) -> HandoffFailureClassification:
+    kind = str(failure.get("kind") or "unknown")
+    eligible = bool(failure.get("structured")) and kind in {
+        "context_overflow", "schema_rejected", "ingress_rejected",
+    }
+    return HandoffFailureClassification(kind=kind, fallback_eligible=eligible)
+
+
+def decide_runtime_handoff_recovery(
+    *,
+    session_state: dict[str, Any],
+    handoff: dict[str, Any],
+    attempts: Sequence[dict[str, Any]],
+) -> HandoffRecoveryDecision:
+    source = dict(handoff["source"])
+    target = dict(handoff["target"])
+    status = str(handoff["status"])
+    locators = tuple(
+        str(attempt.get("cleanup_locator") or "")
+        for attempt in attempts
+        if attempt.get("cleanup_locator")
+    )
+    if status == "confirmed" and session_state == target:
+        return HandoffRecoveryDecision("resume_target", True, locators)
+    if status in {
+        "prepared", "target_staged", "ingress_validated",
+        "capability_validated", "source_released", "failed",
+    } and session_state == source:
+        return HandoffRecoveryDecision("resume_source", True, locators)
+    return HandoffRecoveryDecision("block_recovery_required", False, locators)
 
 
 def _cap_model_visible_tools(

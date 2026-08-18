@@ -1,6 +1,7 @@
 """TDD tests for session.py — AgentSession."""
 
 import asyncio
+import hashlib
 import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -4004,49 +4005,26 @@ class TestRuntimeCapabilities:
         assert session._pending_messages == []
 
     @pytest.mark.asyncio
-    async def test_cross_runtime_native_rejection_builds_log_handoff(
-            self, session, monkeypatch):
-        from app.runtime_history import NativeHistoryUnsupported
-        from app.session import AgentStatus
+    async def test_codex_cross_runtime_target_is_disabled_without_empty_tools_proof(
+            self, session):
+        from app.runtime_registry import get_runtime
 
-        session.model = "claude-sonnet-5[1m]"
-        session.backend_type = "claude"
-        session.session_id = "claude-native-session"
-        session.session_id_history = [{"session_id": "legacy-claude-session"}]
-        session.status = AgentStatus.IDLE
-        session._backend = AsyncMock()
-        session._backend.disconnect = AsyncMock()
-        session._admission_service = AsyncMock(side_effect=AssertionError("model control read quota"))
-        session._log = lambda *_args, **_kwargs: None
-        monkeypatch.setattr("app.session.get_logs", lambda *_args, **_kwargs: [
-            {"type": "user_message", "content": "Fix the parser"},
-            {"type": "text", "content": "Parser fixed and tests pass"},
-        ])
-        monkeypatch.setattr(
-            session,
-            "_build_codex_history_import",
-            AsyncMock(side_effect=lambda thread_id: _codex_history_for_switch(thread_id)),
-        )
-        monkeypatch.setattr(
-            session,
-            "_ensure_backend",
-            AsyncMock(side_effect=[
-                NativeHistoryUnsupported("history unavailable"),
-                SimpleNamespace(session_id=None),
-            ]),
+        backend = AsyncMock()
+        staged = SimpleNamespace(
+            runtime="codex", backend=backend,
+            configuration_sha256="b" * 64,
         )
 
-        result = await session.change_model("gpt-5.6-sol")
+        receipt = await session._run_handoff_ingress_canary(
+            staged,
+            packet={"schema_version": 1},
+            expected_packet_sha256="a" * 64,
+        )
 
-        assert result["ok"] is True
-        assert result["runtime_changed"] is True
-        assert session.backend_type == "codex"
-        assert session.session_id is None
-        assert "Fix the parser" in session.runtime_handoff
-        assert "Parser fixed" in session.runtime_handoff
-        assert session.session_id_history[0]["runtime"] == "claude"
-        assert session.session_id_history[0]["model"] == "claude-sonnet-5[1m]"
-        session._admission_service.assert_not_awaited()
+        assert get_runtime("codex").capabilities.validated_handoff is False
+        assert receipt["ok"] is False
+        assert receipt["failure"]["kind"] == "capability_unsupported"
+        backend.connect.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_codex_model_switch_preserves_native_thread(
@@ -4057,13 +4035,30 @@ class TestRuntimeCapabilities:
         session.backend_type = "codex"
         session.session_id = "codex-native-session"
         session.status = AgentStatus.IDLE
-        session._backend = AsyncMock()
-        session._backend.disconnect = AsyncMock()
+        source = AsyncMock()
+        source.disconnect = AsyncMock()
+        session._backend = source
         session._log = lambda *_args, **_kwargs: None
+        session._last_context = {
+            "percentage": 1, "total_tokens": 1_000, "max_tokens": 258_400,
+        }
+        session._same_runtime_resume_preflight = MagicMock(return_value=SimpleNamespace(
+            fits=True, as_dict=lambda: {"fits": True},
+        ))
+        session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
+            ok=True, handoff_id=None, pending_effects=0,
+        ))
+        session._refresh_skills = AsyncMock()
+        session._refresh_codex_project_doc = AsyncMock()
+        session._activate_backend_tasks = MagicMock()
+        target = AsyncMock()
+        target.session_id = "codex-native-session"
+        target.resume_failed = False
+        target.connect = AsyncMock()
+        target.disconnect = AsyncMock()
+        session._make_backend = MagicMock(return_value=target)
         monkeypatch.setattr(
-            session,
-            "_build_runtime_handoff",
-            AsyncMock(return_value="provider-neutral handoff"),
+            "app.session.save_session", MagicMock(),
         )
 
         result = await session.change_model("gpt-5.6-sol")
@@ -4073,13 +4068,106 @@ class TestRuntimeCapabilities:
         assert session.session_id == "codex-native-session"
         assert session.runtime_handoff == ""
         assert session.session_id_history == []
-        session._build_runtime_handoff.assert_not_awaited()
-        with patch("app.session.build_backend") as build:
-            session._make_backend()
-        runtime_id, context = build.call_args.args
-        assert runtime_id == "codex"
-        assert context.model == "gpt-5.6-sol"
-        assert context.resume_session_id == "codex-native-session"
+        target.connect.assert_awaited_once()
+        source.disconnect.assert_awaited_once()
+        assert session._backend is target
+        assert any(
+            call.kwargs.get("model_override") == "gpt-5.6-sol"
+            and call.kwargs.get("resume_session_id") == "codex-native-session"
+            for call in session._make_backend.call_args_list
+        )
+
+    @pytest.mark.asyncio
+    async def test_same_runtime_source_disconnect_failure_requires_recovery(
+            self, session, monkeypatch):
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.5"
+        session.backend_type = "codex"
+        session.session_id = "codex-native-session"
+        session.status = AgentStatus.IDLE
+        session._last_context = {
+            "percentage": 1, "total_tokens": 1_000, "max_tokens": 258_400,
+        }
+        source = AsyncMock()
+        source.disconnect.side_effect = RuntimeError("source ownership unknown")
+        session._backend = source
+        session._same_runtime_resume_preflight = MagicMock(return_value=SimpleNamespace(
+            fits=True, as_dict=lambda: {"fits": True},
+        ))
+        session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
+            ok=True, handoff_id=None, pending_effects=0,
+        ))
+        session._refresh_skills = AsyncMock()
+        session._refresh_codex_project_doc = AsyncMock()
+        target = AsyncMock()
+        target.session_id = "codex-native-session"
+        target.resume_failed = False
+        session._make_backend = MagicMock(return_value=target)
+        save = MagicMock()
+        monkeypatch.setattr("app.session.save_session", save)
+
+        result = await session.change_model("gpt-5.6-sol")
+
+        assert result["ok"] is False
+        assert result["error_code"] == "handoff_recovery_required"
+        assert session.model == "gpt-5.5"
+        assert session._backend is source
+        assert session._handoff_recovery_required is True
+        save.assert_not_called()
+        target.disconnect.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_same_runtime_success_confirms_durable_ledger_atomically(
+            self, session, monkeypatch):
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.5"
+        session.backend_type = "codex"
+        session.session_id = "codex-native-session"
+        session.status = AgentStatus.IDLE
+        session._last_context = {
+            "percentage": 1, "total_tokens": 1_000, "max_tokens": 258_400,
+        }
+        source = AsyncMock()
+        session._backend = source
+        session._same_runtime_resume_preflight = MagicMock(return_value=SimpleNamespace(
+            fits=True, as_dict=lambda: {"fits": True},
+        ))
+        prepared = SimpleNamespace(
+            ok=True, handoff_id="h1", pending_effects=0,
+            packet_sha256="a" * 64,
+        )
+        session._prepare_runtime_handoff = AsyncMock(return_value=prepared)
+        session._refresh_skills = AsyncMock()
+        session._refresh_codex_project_doc = AsyncMock()
+        target = AsyncMock()
+        target.session_id = "codex-native-session"
+        target.resume_failed = False
+        session._make_backend = MagicMock(return_value=target)
+        monkeypatch.setattr(
+            "app.session.get_runtime_handoff",
+            lambda _hid: {"handoff_id": "h1"},
+        )
+        monkeypatch.setattr("app.session.allocate_runtime_handoff_attempt", MagicMock(
+            return_value={"handoff_id": "h1", "attempt_no": 1},
+        ))
+        update_attempt = MagicMock()
+        update_status = MagicMock()
+        monkeypatch.setattr("app.session.update_runtime_handoff_attempt", update_attempt)
+        monkeypatch.setattr("app.session.update_runtime_handoff_status", update_status)
+        save = MagicMock()
+        monkeypatch.setattr("app.session.save_session", save)
+        session._confirm_runtime_handoff = AsyncMock()
+
+        result = await session.change_model("gpt-5.6-sol")
+
+        assert result["ok"] is True
+        source.disconnect.assert_awaited_once()
+        session._confirm_runtime_handoff.assert_awaited_once()
+        assert any(call.args[1] == "source_released" for call in update_status.call_args_list)
+        save.assert_not_called()
+        assert session._backend is target
 
     @pytest.mark.asyncio
     async def test_runtime_handoff_is_one_shot_user_message_context(self, session):
@@ -4853,495 +4941,6 @@ def _codex_history_for_switch(thread_id):
     )
 
 
-@pytest.mark.asyncio
-async def test_cross_runtime_to_claude_commits_native_history_after_connect(session, monkeypatch):
-    from app.runtime_history import CLAUDE_HISTORY_SOURCE
-    from app.session import AgentStatus
-
-    session.model = "gpt-5.6-sol"
-    session.backend_type = "codex"
-    session.session_id = "old-codex-thread"
-    session.last_summary = "unused prebuilt fallback"
-    session.status = AgentStatus.IDLE
-    old_backend = AsyncMock()
-    session._backend = old_backend
-    session._log = MagicMock()
-    session._activate_backend_tasks = MagicMock()
-
-    async def build_history(target_session_id, target_model, _exclude=()):
-        return _history_for_switch(target_session_id, target_model)
-
-    async def connect_target(*, history_import=None, **_kwargs):
-        backend = SimpleNamespace(session_id=history_import.session_id)
-        session._backend = backend
-        return backend
-
-    monkeypatch.setattr(session, "_build_claude_history_import", build_history)
-    monkeypatch.setattr(session, "_ensure_backend", connect_target)
-
-    result = await session.change_model("claude-sonnet-5[1m]")
-
-    assert result["history_transfer"]["mode"] == "native"
-    assert result["history_transfer"]["users"] == 1
-    assert session.model == "claude-sonnet-5[1m]"
-    assert session.backend_type == "claude"
-    assert session.session_id
-    assert session.history_import_source == CLAUDE_HISTORY_SOURCE
-    assert session.runtime_handoff == ""
-    assert session.session_id_history[-1]["session_id"] == "old-codex-thread"
-    assert session._prompt_injected is True
-    old_backend.disconnect.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_cross_runtime_to_codex_commits_returned_native_thread_after_connect(
-    session, monkeypatch,
-):
-    from app.runtime_history import CLAUDE_HISTORY_SOURCE
-    from app.session import AgentStatus
-
-    session.model = "claude-sonnet-5[1m]"
-    session.backend_type = "claude"
-    session.session_id = "old-claude-session"
-    session.last_summary = "unused prebuilt fallback"
-    session.history_import_source = CLAUDE_HISTORY_SOURCE
-    session.status = AgentStatus.IDLE
-    old_backend = AsyncMock()
-    session._backend = old_backend
-    session._log = MagicMock()
-    session._activate_backend_tasks = MagicMock()
-
-    async def build_history(target_thread_id, _exclude=()):
-        return _codex_history_for_switch(target_thread_id)
-
-    async def connect_target(*, history_import=None, **_kwargs):
-        assert history_import.thread_id
-        backend = SimpleNamespace(session_id="fresh-codex-thread")
-        session._backend = backend
-        return backend
-
-    monkeypatch.setattr(session, "_build_codex_history_import", build_history)
-    monkeypatch.setattr(session, "_ensure_backend", connect_target)
-
-    result = await session.change_model("gpt-5.6-sol")
-
-    assert result["history_transfer"]["mode"] == "native"
-    assert result["history_transfer"]["users"] == 1
-    assert session.model == "gpt-5.6-sol"
-    assert session.backend_type == "codex"
-    assert session.session_id == "fresh-codex-thread"
-    assert session.history_import_source is None
-    assert session.runtime_handoff == ""
-    assert session.session_id_history[-1]["session_id"] == "old-claude-session"
-    assert session._prompt_injected is True
-    old_backend.disconnect.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("rejection_kind", ["unsupported", "rejected"])
-async def test_codex_history_typed_import_failure_uses_visible_summary_fallback(
-    session, monkeypatch, rejection_kind,
-):
-    from app.runtime_history import (
-        CLAUDE_HISTORY_SOURCE,
-        NativeHistoryRejected,
-        NativeHistoryUnsupported,
-    )
-    from app.session import AgentStatus
-
-    session.model = "claude-sonnet-5[1m]"
-    session.backend_type = "claude"
-    session.session_id = "old-claude-session"
-    session.history_import_source = CLAUDE_HISTORY_SOURCE
-    session.last_summary = "bounded fallback"
-    session.status = AgentStatus.IDLE
-    session._backend = AsyncMock()
-    session._log = MagicMock()
-    session._activate_backend_tasks = MagicMock()
-
-    async def build_history(target_thread_id, _exclude=()):
-        return _codex_history_for_switch(target_thread_id)
-
-    fresh = SimpleNamespace(session_id="fresh-summary-thread")
-    rejection = (
-        NativeHistoryUnsupported("experimentalApi unavailable")
-        if rejection_kind == "unsupported"
-        else NativeHistoryRejected("history schema rejected")
-    )
-    ensure = AsyncMock(side_effect=[
-        rejection,
-        fresh,
-    ])
-    monkeypatch.setattr(session, "_build_codex_history_import", build_history)
-    monkeypatch.setattr(session, "_ensure_backend", ensure)
-
-    result = await session.change_model("gpt-5.6-sol")
-
-    assert result["history_transfer"] == {
-        "mode": "summary",
-        "runtime": "codex",
-        "reason": f"{type(rejection).__name__}: {rejection}",
-    }
-    assert session.session_id == "fresh-summary-thread"
-    assert session.runtime_handoff == "bounded fallback"
-    assert session.history_import_source is None
-    warnings = [call.args[1] for call in session._log.call_args_list if call.args[0] == "warning"]
-    assert warnings == [
-        "native history import unavailable: "
-        f"{type(rejection).__name__}: {rejection}; summary fallback active"
-    ]
-    assert ensure.await_count == 2
-    assert ensure.await_args_list[0].kwargs["history_import"].history
-    assert ensure.await_args_list[1].kwargs == {
-        "force_fresh": True,
-        "activate": False,
-    }
-
-
-@pytest.mark.asyncio
-async def test_codex_history_fallback_preflight_failure_keeps_old_backend(session, monkeypatch):
-    from app.runtime_history import CLAUDE_HISTORY_SOURCE
-    from app.session import AgentStatus
-
-    session.model = "claude-sonnet-5[1m]"
-    session.backend_type = "claude"
-    session.session_id = "old-claude-session"
-    session.history_import_source = CLAUDE_HISTORY_SOURCE
-    session.runtime_handoff = "old handoff"
-    session.status = AgentStatus.IDLE
-    old_backend = AsyncMock()
-    session._backend = old_backend
-    session._log = MagicMock()
-
-    async def build_history(target_thread_id, _exclude=()):
-        return _codex_history_for_switch(target_thread_id)
-
-    monkeypatch.setattr(session, "_build_codex_history_import", build_history)
-    ensure = AsyncMock()
-    monkeypatch.setattr(session, "_ensure_backend", ensure)
-    monkeypatch.setattr(
-        session,
-        "_build_runtime_handoff",
-        AsyncMock(side_effect=RuntimeError("history DB unavailable")),
-    )
-
-    result = await session.change_model("gpt-5.6-sol")
-
-    assert result == {
-        "ok": False,
-        "error": "RuntimeError: history DB unavailable",
-    }
-    assert session.model == "claude-sonnet-5[1m]"
-    assert session.backend_type == "claude"
-    assert session.session_id == "old-claude-session"
-    assert session.history_import_source == CLAUDE_HISTORY_SOURCE
-    assert session.runtime_handoff == "old handoff"
-    assert session._backend is old_backend
-    old_backend.disconnect.assert_not_awaited()
-    ensure.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_codex_history_auth_failure_rolls_back_claude_marker(session, monkeypatch):
-    from app.runtime_history import CLAUDE_HISTORY_SOURCE
-    from app.session import AgentStatus
-
-    session.model = "claude-sonnet-5[1m]"
-    session.backend_type = "claude"
-    session.session_id = "old-claude-session"
-    session.last_summary = "unused prebuilt fallback"
-    session.history_import_source = CLAUDE_HISTORY_SOURCE
-    session.status = AgentStatus.IDLE
-    session._backend = AsyncMock()
-    session._log = MagicMock()
-
-    async def build_history(target_thread_id, _exclude=()):
-        return _codex_history_for_switch(target_thread_id)
-
-    monkeypatch.setattr(session, "_build_codex_history_import", build_history)
-    monkeypatch.setattr(
-        session,
-        "_ensure_backend",
-        AsyncMock(side_effect=RuntimeError("authentication required")),
-    )
-
-    result = await session.change_model("gpt-5.6-sol")
-
-    assert result["ok"] is False
-    assert "authentication required" in result["error"]
-    assert session.model == "claude-sonnet-5[1m]"
-    assert session.backend_type == "claude"
-    assert session.session_id == "old-claude-session"
-    assert session.history_import_source == CLAUDE_HISTORY_SOURCE
-    assert session._ensure_backend.await_count == 1
-
-
-@pytest.mark.asyncio
-async def test_codex_history_generic_resume_error_fails_loud_without_summary_fallback(
-    session, monkeypatch,
-):
-    from app.backend_codex import CodexProtocolError
-    from app.runtime_history import CLAUDE_HISTORY_SOURCE
-    from app.session import AgentStatus
-
-    session.model = "claude-sonnet-5[1m]"
-    session.backend_type = "claude"
-    session.session_id = "old-claude-session"
-    session.last_summary = "must remain unused"
-    session.runtime_handoff = "old handoff"
-    session.history_import_source = CLAUDE_HISTORY_SOURCE
-    session.status = AgentStatus.IDLE
-    session._backend = AsyncMock()
-    session._log = MagicMock()
-
-    async def build_history(target_thread_id, _exclude=()):
-        return _codex_history_for_switch(target_thread_id)
-
-    monkeypatch.setattr(session, "_build_codex_history_import", build_history)
-    ensure = AsyncMock(side_effect=CodexProtocolError(
-        "thread/resume",
-        {"code": -32602, "message": "invalid params: invalid threadId"},
-    ))
-    monkeypatch.setattr(session, "_ensure_backend", ensure)
-
-    result = await session.change_model("gpt-5.6-sol")
-
-    assert result["ok"] is False
-    assert "invalid params: invalid threadId" in result["error"]
-    assert session.model == "claude-sonnet-5[1m]"
-    assert session.backend_type == "claude"
-    assert session.session_id == "old-claude-session"
-    assert session.runtime_handoff == "old handoff"
-    assert session.history_import_source == CLAUDE_HISTORY_SOURCE
-    assert ensure.await_count == 1
-
-
-@pytest.mark.asyncio
-async def test_codex_history_save_failure_disconnects_target_and_restores_claude(
-    session, monkeypatch,
-):
-    from app.runtime_history import CLAUDE_HISTORY_SOURCE
-    from app.session import AgentStatus
-
-    session.model = "claude-sonnet-5[1m]"
-    session.backend_type = "claude"
-    session.session_id = "old-claude-session"
-    session.last_summary = "unused prebuilt fallback"
-    session.history_import_source = CLAUDE_HISTORY_SOURCE
-    session.status = AgentStatus.IDLE
-    session._backend = AsyncMock()
-    session._log = MagicMock()
-    session._activate_backend_tasks = MagicMock()
-
-    async def build_history(target_thread_id, _exclude=()):
-        return _codex_history_for_switch(target_thread_id)
-
-    target = AsyncMock()
-
-    async def connect_target(*, history_import=None, **_kwargs):
-        target.session_id = "fresh-codex-thread"
-        session._backend = target
-        return target
-
-    monkeypatch.setattr(session, "_build_codex_history_import", build_history)
-    monkeypatch.setattr(session, "_ensure_backend", connect_target)
-    monkeypatch.setattr(
-        "app.session.save_session",
-        MagicMock(side_effect=RuntimeError("disk full")),
-    )
-
-    result = await session.change_model("gpt-5.6-sol")
-
-    assert result["ok"] is False
-    assert "disk full" in result["error"]
-    assert session.model == "claude-sonnet-5[1m]"
-    assert session.backend_type == "claude"
-    assert session.session_id == "old-claude-session"
-    assert session.history_import_source == CLAUDE_HISTORY_SOURCE
-    target.disconnect.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_claude_history_version_mismatch_uses_visible_summary_fallback(session, monkeypatch):
-    from app.runtime_history import NativeHistoryUnsupported
-    from app.session import AgentStatus
-
-    session.model = "gpt-5.6-sol"
-    session.backend_type = "codex"
-    session.session_id = "old-codex-thread"
-    session.last_summary = "bounded fallback"
-    session.status = AgentStatus.IDLE
-    session._backend = AsyncMock()
-    session._log = MagicMock()
-    session._activate_backend_tasks = MagicMock()
-
-    async def build_history(target_session_id, target_model, _exclude=()):
-        return _history_for_switch(target_session_id, target_model)
-
-    fresh = SimpleNamespace(session_id=None)
-    ensure = AsyncMock(side_effect=[
-        NativeHistoryUnsupported("expected 2.1.197, got 2.2.0"),
-        fresh,
-    ])
-    monkeypatch.setattr(session, "_build_claude_history_import", build_history)
-    monkeypatch.setattr(session, "_ensure_backend", ensure)
-
-    result = await session.change_model("claude-sonnet-5[1m]")
-
-    assert result["history_transfer"]["mode"] == "summary"
-    assert session.runtime_handoff == "bounded fallback"
-    assert session.history_import_source is None
-    warnings = [call.args[1] for call in session._log.call_args_list if call.args[0] == "warning"]
-    assert len(warnings) == 1
-    assert "expected 2.1.197, got 2.2.0" in warnings[0]
-    assert warnings[0].endswith("summary fallback active")
-
-
-@pytest.mark.asyncio
-async def test_claude_history_fallback_preflight_failure_keeps_old_backend(
-    session, monkeypatch,
-):
-    from app.session import AgentStatus
-
-    session.model = "gpt-5.6-sol"
-    session.backend_type = "codex"
-    session.session_id = "old-codex-thread"
-    session.runtime_handoff = "old handoff"
-    session.status = AgentStatus.IDLE
-    old_backend = AsyncMock()
-    session._backend = old_backend
-    session._log = MagicMock()
-
-    async def build_history(target_session_id, target_model, _exclude=()):
-        return _history_for_switch(target_session_id, target_model)
-
-    monkeypatch.setattr(session, "_build_claude_history_import", build_history)
-    ensure = AsyncMock()
-    monkeypatch.setattr(session, "_ensure_backend", ensure)
-    monkeypatch.setattr(
-        session,
-        "_build_runtime_handoff",
-        AsyncMock(side_effect=RuntimeError("history DB unavailable")),
-    )
-
-    result = await session.change_model("claude-sonnet-5[1m]")
-
-    assert result == {
-        "ok": False,
-        "error": "RuntimeError: history DB unavailable",
-    }
-    assert session.model == "gpt-5.6-sol"
-    assert session.backend_type == "codex"
-    assert session.session_id == "old-codex-thread"
-    assert session.history_import_source is None
-    assert session.runtime_handoff == "old handoff"
-    assert session._backend is old_backend
-    old_backend.disconnect.assert_not_awaited()
-    ensure.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_claude_history_auth_failure_rolls_back_old_runtime(session, monkeypatch):
-    from app.session import AgentStatus
-
-    session.model = "gpt-5.6-sol"
-    session.backend_type = "codex"
-    session.session_id = "old-codex-thread"
-    session.last_summary = "unused prebuilt fallback"
-    session.status = AgentStatus.IDLE
-    session._backend = AsyncMock()
-    session._log = MagicMock()
-
-    async def build_history(target_session_id, target_model, _exclude=()):
-        return _history_for_switch(target_session_id, target_model)
-
-    monkeypatch.setattr(session, "_build_claude_history_import", build_history)
-    monkeypatch.setattr(
-        session,
-        "_ensure_backend",
-        AsyncMock(side_effect=RuntimeError("authentication required")),
-    )
-
-    result = await session.change_model("claude-sonnet-5[1m]")
-
-    assert result["ok"] is False
-    assert "authentication required" in result["error"]
-    assert session.model == "gpt-5.6-sol"
-    assert session.backend_type == "codex"
-    assert session.session_id == "old-codex-thread"
-    assert session.history_import_source is None
-
-
-@pytest.mark.asyncio
-async def test_claude_history_save_failure_disconnects_target_and_rolls_back(session, monkeypatch):
-    from app.session import AgentStatus
-
-    session.model = "gpt-5.6-sol"
-    session.backend_type = "codex"
-    session.session_id = "old-codex-thread"
-    session.last_summary = "unused prebuilt fallback"
-    session.status = AgentStatus.IDLE
-    session._backend = AsyncMock()
-    session._log = MagicMock()
-    session._activate_backend_tasks = MagicMock()
-
-    async def build_history(target_session_id, target_model, _exclude=()):
-        return _history_for_switch(target_session_id, target_model)
-
-    target = AsyncMock()
-
-    async def connect_target(*, history_import=None, **_kwargs):
-        target.session_id = history_import.session_id
-        session._backend = target
-        return target
-
-    monkeypatch.setattr(session, "_build_claude_history_import", build_history)
-    monkeypatch.setattr(session, "_ensure_backend", connect_target)
-    monkeypatch.setattr(
-        "app.session.save_session",
-        MagicMock(side_effect=RuntimeError("disk full")),
-    )
-
-    result = await session.change_model("claude-sonnet-5[1m]")
-
-    assert result["ok"] is False
-    assert "disk full" in result["error"]
-    assert session.model == "gpt-5.6-sol"
-    assert session.backend_type == "codex"
-    assert session.session_id == "old-codex-thread"
-    assert session.history_import_source is None
-    target.disconnect.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_history_marker_clears_when_leaving_claude(session, monkeypatch):
-    from app.runtime_history import CLAUDE_HISTORY_SOURCE
-    from app.session import AgentStatus
-
-    session.model = "claude-sonnet-5[1m]"
-    session.backend_type = "claude"
-    session.session_id = "imported-claude"
-    session.last_summary = "unused prebuilt fallback"
-    session.history_import_source = CLAUDE_HISTORY_SOURCE
-    session.status = AgentStatus.IDLE
-    session._backend = AsyncMock()
-    session._log = MagicMock()
-    monkeypatch.setattr(
-        session,
-        "_build_codex_history_import",
-        AsyncMock(side_effect=lambda thread_id: _codex_history_for_switch(thread_id)),
-    )
-    monkeypatch.setattr(
-        session,
-        "_ensure_backend",
-        AsyncMock(return_value=SimpleNamespace(session_id="fresh-codex-thread")),
-    )
-
-    result = await session.change_model("gpt-5.6-sol")
-
-    assert result["ok"] is True
-    assert session.history_import_source is None
-
 
 @pytest.mark.asyncio
 async def test_two_db_backed_claude_connects_render_identical_history(
@@ -5430,3 +5029,214 @@ async def test_tool_metadata_is_persisted_with_log(session, monkeypatch):
         "tool_name": "Read",
         "tool_is_error": True,
     }
+
+
+@pytest.mark.asyncio
+async def test_handoff_ingress_requires_terminal_turn_receipt(session, monkeypatch):
+    from app.events import AgentEvent
+    import app.session as sessionmod
+
+    monkeypatch.setattr(
+        sessionmod, "get_runtime",
+        lambda _runtime: SimpleNamespace(
+            capabilities=SimpleNamespace(validated_handoff=True),
+        ),
+    )
+
+    class Backend:
+        _validation_profile = True
+        session_id = "target-session"
+
+        async def connect(self):
+            return None
+
+        async def send(self, _message):
+            return None
+
+        async def events(self):
+            yield AgentEvent("text", "ORCHESTRA_HANDOFF_ACK 1 " + "a" * 64)
+
+    staged = SimpleNamespace(
+        backend=Backend(), runtime="claude", configuration_sha256="b" * 64,
+        session_id="target-session",
+    )
+
+    receipt = await session._run_handoff_ingress_canary(
+        staged,
+        packet={"schema_version": 1},
+        expected_packet_sha256="a" * 64,
+    )
+
+    assert receipt["ok"] is False
+    assert receipt["failure"] == {
+        "kind": "ingress_incomplete", "structured": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_handoff_ingress_rejects_tool_use_event(session, monkeypatch):
+    from app.events import AgentEvent
+    import app.session as sessionmod
+
+    monkeypatch.setattr(
+        sessionmod, "get_runtime",
+        lambda _runtime: SimpleNamespace(
+            capabilities=SimpleNamespace(validated_handoff=True),
+        ),
+    )
+
+    class Backend:
+        _validation_profile = True
+        session_id = "target-session"
+
+        async def connect(self):
+            return None
+
+        async def send(self, _message):
+            return None
+
+        async def events(self):
+            yield AgentEvent("tool_use", "Bash: forbidden")
+            yield AgentEvent("text", "ORCHESTRA_HANDOFF_ACK 1 " + "a" * 64)
+            yield AgentEvent("turn_end", metadata={"ok": True})
+
+    staged = SimpleNamespace(
+        backend=Backend(), runtime="claude", configuration_sha256="b" * 64,
+        session_id="target-session",
+    )
+
+    receipt = await session._run_handoff_ingress_canary(
+        staged,
+        packet={"schema_version": 1},
+        expected_packet_sha256="a" * 64,
+    )
+
+    assert receipt["ok"] is False
+    assert receipt["tools_enabled"] is True
+    assert receipt["failure"] == {
+        "kind": "capability_unsupported", "structured": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_handoff_capability_rejects_normal_manifest_configuration_drift(
+    session,
+):
+    expected = {
+        "runtime": "claude",
+        "model": "claude-sonnet-5[1m]",
+        "cli_version": "2.1.197",
+        "sdk_version": "0.2.114",
+        "raw_ref_runtime_tool": False,
+    }
+    fingerprint = hashlib.sha256(json.dumps(
+        expected, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+
+    class ValidationBackend:
+        async def verify_handoff_validation_surface(self):
+            return {
+                "ok": True,
+                "validation_tools_empty": True,
+                "raw_ref_runtime_tool": False,
+                "cli_version": "2.1.197",
+                "sdk_version": "0.2.114",
+            }
+
+    class NormalBackend:
+        def handoff_expected_capabilities(self):
+            return expected
+
+        def build_handoff_manifest(self, _prepared, *, validation_profile):
+            assert validation_profile is False
+            return SimpleNamespace(configuration_sha256="changed-configuration")
+
+    session._make_backend = MagicMock(return_value=NormalBackend())
+    staged = SimpleNamespace(
+        backend=ValidationBackend(),
+        runtime="claude",
+        model="claude-sonnet-5[1m]",
+        packet={"expected_target_capability": expected},
+        prepared=SimpleNamespace(packet={}),
+        cleanup_locator="/isolated",
+        configuration_sha256="preflighted-configuration",
+        session_id="target-session",
+    )
+
+    receipt = await session._verify_handoff_capabilities(
+        staged, expected_fingerprint=fingerprint,
+    )
+
+    assert receipt["ok"] is False
+    assert receipt["fingerprint"] == fingerprint
+    assert receipt["configuration_sha256"] == "changed-configuration"
+
+
+@pytest.mark.asyncio
+async def test_handoff_packet_integrity_fails_before_target_factory(session):
+    packet = {
+        "schema_version": 1,
+        "recent_messages": [{"role": "user", "content": "tampered"}],
+        "integrity": {"canonical_sha256": "a" * 64},
+    }
+    prepared = SimpleNamespace(
+        handoff_id="h1",
+        packet=packet,
+        packet_sha256="a" * 64,
+        expected_capability_sha256="b" * 64,
+        expected_capability={},
+        pending_effects=0,
+        project_docs=(),
+    )
+    session._make_backend = MagicMock(
+        side_effect=AssertionError("target factory must not run")
+    )
+
+    outcome = await session._stage_runtime_handoff_target(
+        prepared, target_model="claude-sonnet-5[1m]", mode="packet",
+    )
+
+    assert outcome == {
+        "ok": False,
+        "failure": {"kind": "packet_integrity_mismatch", "structured": False},
+    }
+    session._make_backend.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_idempotent_handoff_reuses_frozen_project_bytes(
+    session, tmp_path, monkeypatch,
+):
+    from app import db as dbmod
+
+    monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "handoff.db")
+    dbmod.init_db()
+    session.id = "frozen-project-docs"
+    session.backend_type = "claude"
+    session.model = "claude-sonnet-5[1m]"
+    session.session_id = "source-session"
+    dbmod.save_session(session._to_db_dict())
+    dbmod.add_log(
+        session.id, datetime.now(timezone.utc), "user_message", "old fact",
+    )
+    session._drain_handoff_log_writes = AsyncMock()
+    session._expected_handoff_capability = MagicMock(return_value={
+        "runtime": "codex", "model": "gpt-5.6-sol", "supported": False,
+    })
+
+    first = await session._prepare_runtime_handoff(
+        "gpt-5.6-sol",
+        idempotency_key="same-operator-request",
+        project_docs=[{"path": "AGENTS.md", "content": "frozen policy"}],
+    )
+    second = await session._prepare_runtime_handoff(
+        "gpt-5.6-sol",
+        idempotency_key="same-operator-request",
+        project_docs=[{"path": "AGENTS.md", "content": "changed later"}],
+    )
+
+    assert first.handoff_id == second.handoff_id
+    assert second.packet == first.packet
+    assert second.project_docs == (
+        {"path": "AGENTS.md", "content": "frozen policy"},
+    )

@@ -45,6 +45,13 @@ def create_session(username: str) -> str:
     return _make_token(username)
 
 
+def create_csrf_token(username: str) -> str:
+    secret = os.environ.get("DASHBOARD_PASSWORD", "")
+    return hmac.new(
+        secret.encode(), f"csrf:{username}".encode(), hashlib.sha256
+    ).hexdigest()
+
+
 def validate_session(token: str) -> bool:
     if not token:
         return False
@@ -64,6 +71,15 @@ def require_operator_session(request: Request) -> None:
         )
     if not validate_session(request.cookies.get("session", "")):
         raise HTTPException(status_code=403, detail="operator session required")
+
+
+def require_operator_csrf(request: Request) -> None:
+    require_operator_session(request)
+    username = os.environ.get("DASHBOARD_USER", "")
+    supplied = request.headers.get("X-CSRF-Token", "")
+    expected = create_csrf_token(username)
+    if not supplied or not hmac.compare_digest(supplied, expected):
+        raise HTTPException(status_code=403, detail="operator CSRF token required")
 
 
 def check_internal_token(auth_header: str) -> bool:

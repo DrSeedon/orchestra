@@ -2457,6 +2457,31 @@ function _updateProxyStatus(connected) {
 
 function _historyTransferMessage(transfer) {
     if (!transfer || !transfer.mode) return null;
+    if (transfer.mode === 'blocked') {
+        return {
+            type: 'error',
+            text: `dialog switch blocked; source retained: ${transfer.error_code || transfer.reason || 'unknown error'}`,
+        };
+    }
+    if (transfer.mode === 'packet' || transfer.mode === 'fallback_packet') {
+        const omitted = transfer.omissions || {};
+        const omittedLabels = Object.entries(omitted)
+            .filter(([, value]) => Boolean(value))
+            .map(([key]) => key.replaceAll('_', ' '));
+        return {
+            type: transfer.mode === 'fallback_packet' ? 'warning' : 'status',
+            text: `${transfer.mode === 'fallback_packet' ? 'bounded fallback packet' : 'server state packet'} validated` +
+                `${transfer.handoff_id ? ` (${transfer.handoff_id})` : ''}; ` +
+                `raw snapshot remains operator-only and untrusted; ` +
+                `omitted: ${omittedLabels.length ? omittedLabels.join(', ') : 'none declared'}`,
+        };
+    }
+    if (transfer.mode === 'native_resume') {
+        return {
+            type: 'status',
+            text: 'native provider thread resumed after total-context preflight',
+        };
+    }
     if (transfer.mode === 'summary') {
         return {
             type: 'warning',
@@ -2509,7 +2534,20 @@ async function _showModelPicker(agentName, currentModel, anchor) {
                         _showHistoryTransfer(resp.history_transfer);
                         loadSessions();
                     }
-                } catch (e) { console.warn('Change model failed:', e); }
+                } catch (e) {
+                    const match = String(e.message || '').match(/^\d+:\s*(\{.*\})$/s);
+                    if (match) {
+                        try {
+                            const body = JSON.parse(match[1]);
+                            _showHistoryTransfer({
+                                ...(body.history_transfer || {mode: 'blocked'}),
+                                error_code: body.error_code,
+                                reason: body.error,
+                            });
+                        } catch {}
+                    }
+                    console.warn('Change model failed:', e);
+                }
             });
         }
         dd.appendChild(item);

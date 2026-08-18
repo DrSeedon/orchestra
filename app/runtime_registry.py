@@ -36,6 +36,7 @@ class RuntimeCapabilities:
     resume: bool = True
     resume_across_models: bool = True
     subagents: bool = True
+    validated_handoff: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -47,6 +48,7 @@ class RuntimeCapabilities:
             "resume": self.resume,
             "resume_across_models": self.resume_across_models,
             "subagents": self.subagents,
+            "validated_handoff": self.validated_handoff,
         }
 
 
@@ -67,6 +69,8 @@ class BackendBuildContext:
     context_limit: int
     codex_skill_index_fallback: bool = False
     history_import: object | None = None
+    validation_profile: bool = False
+    config_dir_override: str = ""
 
 
 @dataclass(frozen=True)
@@ -165,14 +169,18 @@ def _claude_factory(context: BackendBuildContext) -> BackendLike:
         role = get_role(context.pipeline, context.role)
     except FileNotFoundError:
         role = None
-    inherit = role.inherit_claude_md if role else True
-    config_dir = ""
+    inherit = False if context.validation_profile else (
+        role.inherit_claude_md if role else True
+    )
+    profile_config_dir = ""
     if context.profile:
         profile = get_profile(context.profile)
-        config_dir = profile["config_dir"] if profile else ""
+        profile_config_dir = profile["config_dir"] if profile else ""
+    config_dir = context.config_dir_override or profile_config_dir
     user_mcp = (
-        _load_user_mcp_servers(config_dir)
-        if role is not None and role.mcp_servers == "all"
+        _load_user_mcp_servers(profile_config_dir)
+        if not context.validation_profile
+        and role is not None and role.mcp_servers == "all"
         else {}
     )
     return ClaudeBackend(
@@ -182,12 +190,15 @@ def _claude_factory(context: BackendBuildContext) -> BackendLike:
         resume_session_id=context.resume_session_id,
         mcp_servers=context.mcp_servers,
         is_orchestrator=context.is_orchestrator,
-        scope_mcp_servers=_load_scope_mcp_servers(context.scope),
+        scope_mcp_servers=(
+            {} if context.validation_profile else _load_scope_mcp_servers(context.scope)
+        ),
         config_dir=config_dir,
         inherit_claude_md=inherit,
         user_mcp_servers=user_mcp,
         effort=context.effort,
         history_import=context.history_import,
+        validation_profile=context.validation_profile,
     )
 
 
@@ -208,7 +219,9 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
     # capability is not detectable cheaply (no version string we trust, and probing costs a
     # process per connect), so it is an explicit switch rather than a guess. Never both at
     # once — two sources would list the same skill name twice, which Codex does NOT dedupe.
-    if _CODEX_SKILL_INDEX_ENABLED or context.codex_skill_index_fallback:
+    if not context.validation_profile and (
+        _CODEX_SKILL_INDEX_ENABLED or context.codex_skill_index_fallback
+    ):
         skills_block = build_codex_skills_index(
             context.pipeline,
             skills,
@@ -248,6 +261,7 @@ def _codex_factory(context: BackendBuildContext) -> BackendLike:
         reasoning_effort=context.effort or "high",
         is_orchestrator=context.is_orchestrator,
         history_import=context.history_import,
+        validation_profile=context.validation_profile,
     )
 
 
@@ -267,12 +281,13 @@ def _grok_factory(context: BackendBuildContext) -> BackendLike:
     # Grok discovers MCP servers from ~/.claude.json and .mcp.json on its own and broadcasts
     # their env (a real API key leaked this way during research). Compose the set explicitly
     # from the same loaders Claude uses so a worker never inherits foreign tools implicitly.
-    servers = dict(context.mcp_servers)
-    for name, cfg in _load_scope_mcp_servers(context.scope).items():
-        servers.setdefault(name, cfg)
-    if role is not None and role.mcp_servers == "all":
-        for name, cfg in _load_user_mcp_servers(config_dir).items():
+    servers = {} if context.validation_profile else dict(context.mcp_servers)
+    if not context.validation_profile:
+        for name, cfg in _load_scope_mcp_servers(context.scope).items():
             servers.setdefault(name, cfg)
+        if role is not None and role.mcp_servers == "all":
+            for name, cfg in _load_user_mcp_servers(config_dir).items():
+                servers.setdefault(name, cfg)
     mcp_env = {
         key: str(value)
         for config in context.mcp_servers.values()
@@ -287,6 +302,7 @@ def _grok_factory(context: BackendBuildContext) -> BackendLike:
         mcp_servers=servers,
         reasoning_effort=context.effort or "high",
         is_orchestrator=context.is_orchestrator,
+        validation_profile=context.validation_profile,
     )
 
 
@@ -314,6 +330,11 @@ register_runtime(RuntimeDefinition(
         mid_turn_inject=True,
         reconnect=True,
         hibernate=True,
+        # The pinned SDK exposes a mechanical tools-disabled validation client, but
+        # production enablement also requires the real semantic canary and connected
+        # normal-profile context receipt. The 2026-08-16 canary was rate-limited, so
+        # cross-runtime admission remains fail-closed until that gate is rerun GREEN.
+        validated_handoff=False,
     ),
     factory=_claude_factory,
 ))

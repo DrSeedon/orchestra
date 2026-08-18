@@ -14,7 +14,15 @@ from fastapi.responses import JSONResponse
 from starlette.responses import StreamingResponse
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.db import get_log, get_logs, get_logs_before, get_logs_sync, get_all_sessions
+from app.db import (
+    get_all_sessions,
+    get_history_logs,
+    get_log,
+    get_logs,
+    get_logs_before,
+    get_logs_sync,
+    get_runtime_handoff,
+)
 from app.deps import manager
 from app.errtext import err_text
 from app.models import resolve_model, MODELS
@@ -849,6 +857,57 @@ async def change_model(name: str, req: dict):
     if not result.get("ok"):
         return JSONResponse(result, status_code=409)
     return result
+
+
+@router.post("/api/sessions/{session_id}/handoffs/{handoff_id}/events")
+async def runtime_handoff_events(
+    session_id: str, handoff_id: str, request: Request, req: dict,
+):
+    import json
+
+    from app.auth import require_operator_csrf
+    from app.runtime_history import (
+        resolve_runtime_handoff_events,
+        runtime_packet_sha256,
+        runtime_snapshot_sha256,
+    )
+
+    require_operator_csrf(request)
+    handoff = get_runtime_handoff(handoff_id)
+    if not handoff or handoff["session_id"] != session_id:
+        return JSONResponse({"error": "handoff not found"}, status_code=404)
+    try:
+        event_ids = [int(value) for value in req.get("event_ids", [])]
+        _snapshot_id, rows = get_history_logs(session_id)
+        packet = json.loads(handoff["packet_json"])
+        if (
+            packet.get("integrity")
+            and runtime_packet_sha256(packet) != handoff["packet_sha256"]
+        ):
+            raise ValueError("runtime handoff packet checksum mismatch")
+        raw_refs = packet.get("raw_event_refs") or {}
+        packet_snapshot_sha256 = str(raw_refs.get("snapshot_sha256") or "")
+        if packet_snapshot_sha256:
+            actual_snapshot_sha256 = runtime_snapshot_sha256(
+                rows, snapshot_id=int(handoff["snapshot_log_id"])
+            )
+            if (
+                packet_snapshot_sha256 != handoff["snapshot_sha256"]
+                or actual_snapshot_sha256 != packet_snapshot_sha256
+            ):
+                raise ValueError("runtime handoff snapshot checksum mismatch")
+        referenced = raw_refs.get("event_ids")
+        events = resolve_runtime_handoff_events(
+            rows,
+            event_ids=event_ids,
+            caller_session_id=session_id,
+            owner_session_id=session_id,
+            snapshot_id=int(handoff["snapshot_log_id"]),
+            referenced_ids=referenced,
+        )
+    except (TypeError, ValueError, PermissionError) as error:
+        return JSONResponse({"error": str(error)}, status_code=400)
+    return {"events": events}
 
 
 def _rename_parent_references(parent_id: str, old_name: str, new_name: str) -> int:

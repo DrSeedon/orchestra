@@ -4,6 +4,17 @@
 > независимо, поэтому номера версий 2.31.0-2.33.0 использованы ДВАЖДЫ для разного
 > содержания: ниже сперва блок VPS, затем блок ноутбука. Формат чинится задачей #52.
 
+## v2.39.4 — 2026-08-16 — #290 fail-closed cross-runtime handoff
+
+### Changed
+- **Смена runtime теперь является подтверждаемой транзакцией, а не optimistic transcript import.** Orchestra фиксирует один deterministic state packet из собственной `logs`, заранее считает весь заявленный model-visible manifest, запускает отдельный tools-disabled ingress canary, сверяет независимый capability receipt и только после этого отпускает source. Packet не переносит hidden reasoning и не повышает transcript/tool data до system/repository authority; незавершённый tool effect блокирует switch до создания target.
+- **Fallback ограничен одной уменьшенной packet-кандидатой.** Network/auth/unknown ошибки не маскируются под несовместимость; вторая совместимостная ошибка завершает операцию громко. Две таблицы operation ledger добавляются additive, а неоднозначный crash оставляет сессию в `recovery_required` вместо угадывания владельца или повторной доставки side effect.
+- **Все cross-runtime capabilities пока отключены.** Codex 0.146.0 и Grok 1.0.3 не доказали механически пустую ingress tool surface; Claude CLI 2.1.197 / `claude-agent-sdk==0.2.114` доказал tools-disabled ingress, но live semantic canary упёрся в quota, а полный provider-private normal surface нельзя точно сериализовать до запуска процесса. Перед source release Claude дополнительно сверяет подключённый normal-profile surface и provider-reported complete context, но это safety gate, не разрешение включить capability. Обновление `claude-agent-sdk` намеренно ломает импорт/валидацию через version tripwire и требует isolated canary. Ledger сохраняется, возврата к тихому summary/fresh target нет.
+
+### Compatibility gate
+- Скриншот внутреннего Codex benchmark от 15.08 сообщает для 741-turn / 231 MiB conversation: 27.62→1.66 s, 894→16 requests, 15,529→64 loaded transcript items и −41.2% whole-app memory growth. Метрика названа `conversation-renderer JavaScript heap`, поэтому это evidence про UI/lazy loading, не про model context. На 16.08 официального release note для этой оптимизации нет, а установленный CLI остаётся 0.146.0.
+- После официального релиза допускается один bounded A/B: native-resume latency/RSS/request count и отдельно raw-history import payload/context admission. Packet/preflight ceilings не ослабляются, пока отдельный token/context canary не докажет изменение model-visible поведения; UI-победа сама по себе таким доказательством не является.
+
 ## v2.39.3 — 2026-08-15 — Grok chat: no double answer bubble
 
 ### Fixed

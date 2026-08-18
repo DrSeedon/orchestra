@@ -44,7 +44,7 @@ def test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox():
     assert "allow-same-origin" not in match.group(1)
 
 
-def test_model_picker_surfaces_native_history_result_and_fallback():
+def test_model_picker_surfaces_validated_packet_native_resume_and_blocked_source():
     source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
     helper = source.split("function _historyTransferMessage", 1)[1].split(
         "async function _showModelPicker", 1,
@@ -53,9 +53,13 @@ def test_model_picker_surfaces_native_history_result_and_fallback():
         "function updateAgentInfo", 1,
     )[0]
 
-    assert "reasoning omitted=${transfer.reasoning_omitted}" in helper
-    assert "summary fallback active" in helper
+    assert "server state packet" in helper
+    assert "bounded fallback packet" in helper
+    assert "native provider thread resumed after total-context preflight" in helper
+    assert "dialog switch blocked; source retained" in helper
+    assert "raw snapshot remains operator-only and untrusted" in helper
     assert "_showHistoryTransfer(resp.history_transfer);" in picker
+    assert "body.error_code" in picker
 
 
 @pytest.mark.asyncio

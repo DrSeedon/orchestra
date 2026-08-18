@@ -57,6 +57,9 @@ from app.pipeline import (
 from app.db import (
     get_session, get_session_by_name, get_all_sessions, publish_ready_session,
     archive_session, get_stats, update_session_lifecycle,
+    get_confirmed_runtime_handoff_attempt, get_latest_runtime_handoff_for_session,
+    list_latest_runtime_handoffs,
+    list_runtime_handoff_attempts, update_runtime_handoff_status,
 )
 from app.errtext import err_text
 from app.tasks import spawn_supervised
@@ -1743,7 +1746,17 @@ class SessionManager:
             prompt_without_memory, name, role, scope, repository_path,
         ), prompt_overlay
 
-    async def _load_from_db(self, db_row: dict) -> AgentSession:
+    async def _load_from_db(
+        self,
+        db_row: dict,
+        *,
+        recovery_handoff: dict | None = None,
+    ) -> AgentSession:
+        # Every loader funnels through this method, including lazy name/id lookup.
+        # Recovery ownership therefore cannot depend on startup auto-resume selecting
+        # the row (sessions with a NULL native id are intentionally absent there).
+        if recovery_handoff is None:
+            recovery_handoff = get_latest_runtime_handoff_for_session(db_row["id"])
         role = db_row.get("role") or ("orchestrator" if db_row.get("is_orchestrator") else "worker")
         # Old rows (migrated) store pipeline='' → normalize to DEFAULT_PIPELINE.
         # Without this, ROLE_SYSTEM_PROMPT('') now fails loud (legacy fallback removed)
@@ -1847,6 +1860,30 @@ class SessionManager:
         if not is_orch:
             session.on_idle = self._make_idle_callback(db_row["scope"])
             session.on_turn_blocked = self._make_quota_blocked_callback(db_row["scope"])
+        confirmed_attempt = get_confirmed_runtime_handoff_attempt(
+            session.id, session.session_id,
+        )
+        if confirmed_attempt is not None:
+            locator = str(confirmed_attempt.get("cleanup_locator") or "")
+            if (
+                session._handoff_cleanup_locator_is_owned(locator)
+                and Path(locator).is_dir()
+                and confirmed_attempt.get("target_runtime") == session.backend_type
+                and confirmed_attempt.get("target_model") == session.model
+            ):
+                session._handoff_config_dir = locator
+            else:
+                session._handoff_recovery_required = True
+                update_runtime_handoff_status(
+                    str(confirmed_attempt["handoff_id"]),
+                    "recovery_required",
+                    failure_code="handoff_confirmed_target_store_missing",
+                )
+        if recovery_handoff is not None:
+            await session.recover_runtime_handoff(
+                recovery_handoff,
+                list_runtime_handoff_attempts(recovery_handoff["handoff_id"]),
+            )
         await session.start()
         self.sessions[session.id] = session
         return session
@@ -2156,6 +2193,9 @@ class SessionManager:
         # and the orchestrator's on_idle callback registered before workers resume
         orchs = [r for r in resumable if bool(r.get("is_orchestrator")) or is_orchestrator_role(r.get("role", "worker"))]
         workers = [r for r in resumable if not (bool(r.get("is_orchestrator")) or is_orchestrator_role(r.get("role", "worker")))]
+        pending_handoffs = {
+            row["session_id"]: row for row in list_latest_runtime_handoffs()
+        }
 
         for row in orchs:
             if row["id"] in self.sessions:
@@ -2163,7 +2203,9 @@ class SessionManager:
             if not Path(row.get("cwd") or row["scope"]).is_dir():
                 continue
             try:
-                session = await self._load_from_db(row)
+                session = await self._load_from_db(
+                    row, recovery_handoff=pending_handoffs.get(row["id"]),
+                )
                 logger.info(f"Resumed orchestrator: {row['name']}")
                 if row["id"] in adoptable:
                     fd_in, fd_out = adoptable[row["id"]]
@@ -2192,7 +2234,9 @@ class SessionManager:
             if not Path(row.get("cwd") or row["scope"]).is_dir():
                 continue
             try:
-                session = await self._load_from_db(row)
+                session = await self._load_from_db(
+                    row, recovery_handoff=pending_handoffs.get(row["id"]),
+                )
                 logger.info(f"Resumed worker: {row['name']}")
                 if row["id"] in adoptable:
                     fd_in, fd_out = adoptable[row["id"]]

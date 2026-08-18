@@ -1,6 +1,7 @@
 """ClaudeBackend — wraps claude-agent-sdk for persistent agent sessions."""
 
 import asyncio
+import hashlib
 import importlib.metadata
 import json as _json
 import logging
@@ -44,8 +45,11 @@ from app.runtime_history import (
     HISTORICAL_TOOL_INSTRUCTION,
     ClaudeHistoryImport,
     ClaudeLogSessionStore,
+    NativeHistoryImportError,
     NativeHistoryRejected,
     NativeHistoryUnsupported,
+    build_model_visible_manifest,
+    preflight_provider_context,
 )
 from app.usage_contract import AggregateUsage, TurnUsage, deferred_context
 
@@ -477,7 +481,8 @@ class ClaudeBackend:
                  inherit_claude_md: bool = True,
                  user_mcp_servers: dict | None = None,
                  effort: str | None = None,
-                 history_import: object | None = None):
+                 history_import: object | None = None,
+                 validation_profile: bool = False):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
@@ -496,6 +501,7 @@ class ClaudeBackend:
         if history_import is not None and not isinstance(history_import, ClaudeHistoryImport):
             raise TypeError("history_import must be ClaudeHistoryImport")
         self._history_import = history_import
+        self._validation_profile = validation_profile
         self._client: Optional[ClaudeSDKClient] = None
         self._session_id: str | None = resume_session_id
         self.resume_failed = False
@@ -524,6 +530,284 @@ class ClaudeBackend:
     @property
     def session_id(self) -> Optional[str]:
         return self._session_id
+
+    def build_handoff_manifest(self, prepared, *, validation_profile: bool):
+        from app.models import get_model_spec
+
+        return build_model_visible_manifest(
+            runtime="claude",
+            model=self.model,
+            effective_window=get_model_spec(self.model).context_length,
+            system_prompt=self.system_prompt,
+            prepared=prepared,
+            validation_profile=validation_profile,
+            project_docs=getattr(prepared, "project_docs", ()),
+            mcp_servers={
+                **self._user_mcp_servers,
+                **self._scope_mcp_servers,
+                **self._mcp_servers,
+            },
+        )
+
+    def handoff_expected_capabilities(self) -> dict:
+        from app.models import get_model_spec
+
+        tool_material = self._expected_normal_tool_material()
+        return {
+            "runtime": "claude",
+            "model": self.model,
+            "effective_window": get_model_spec(self.model).context_length,
+            "cli_version": CLAUDE_CLI_HISTORY_VERSION,
+            "sdk_version": CLAUDE_SDK_HISTORY_VERSION,
+            "system_prompt_sha256": hashlib.sha256(
+                self.system_prompt.encode("utf-8")
+            ).hexdigest(),
+            "normal_tool_fingerprint": hashlib.sha256(
+                _json.dumps(
+                    tool_material,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest(),
+            "validation_surface": "sdk-tools-empty",
+            "raw_ref_runtime_tool": False,
+        }
+
+    def _expected_normal_tool_material(self) -> dict:
+        merged_mcp = {
+            **self._user_mcp_servers,
+            **self._scope_mcp_servers,
+            **self._mcp_servers,
+        }
+        return {
+            "builtin_surface": {
+                "preset": "claude_code",
+                "cli_version": CLAUDE_CLI_HISTORY_VERSION,
+            },
+            "tools": None,
+            "allowed_tools": [],
+            "disallowed_tools": _disallowed_tools(self._is_orchestrator),
+            "mcp_servers": merged_mcp,
+            "setting_sources": (
+                ["user", "project", "local"]
+                if self._inherit_claude_md else ["local"]
+            ),
+            "permission_mode": "default",
+            "can_use_tool": True,
+            "hooks": (
+                {"PreToolUse": [{
+                    "matcher": "Bash", "hook_count": 1, "timeout": None,
+                }]}
+                if os.environ.get("CLAUDE_BASH_HOOK_ENABLED") == "1"
+                else {}
+            ),
+        }
+
+    async def verify_handoff_validation_surface(self) -> dict:
+        """Prove the pinned CLI and the SDK options that removed all tools."""
+        if not self._validation_profile or self._client is None:
+            return {"ok": False, "validation_tools_empty": False}
+        versions = await self._verify_pinned_versions()
+        options = self._client.options
+        tools_empty = (
+            options.tools == []
+            and options.allowed_tools == []
+            and options.disallowed_tools == ["*"]
+            and not options.mcp_servers
+            and options.setting_sources == ["local"]
+        )
+        return {
+            "ok": tools_empty,
+            "validation_tools_empty": tools_empty,
+            "raw_ref_runtime_tool": False,
+            **versions,
+        }
+
+    def _normal_options_tool_material(self) -> dict:
+        if self._client is None:
+            return {}
+        options = self._client.options
+        configured_mcp: dict = {}
+        if options.mcp_servers:
+            try:
+                if isinstance(options.mcp_servers, (str, Path)):
+                    configured_mcp = _json.loads(
+                        Path(options.mcp_servers).read_text()
+                    ).get("mcpServers", {})
+                elif isinstance(options.mcp_servers, dict):
+                    configured_mcp = dict(options.mcp_servers)
+            except (OSError, ValueError, TypeError):
+                return {}
+        hooks = {}
+        for event, matchers in (options.hooks or {}).items():
+            hooks[str(event)] = [
+                {
+                    "matcher": getattr(matcher, "matcher", None),
+                    "hook_count": len(getattr(matcher, "hooks", ()) or ()),
+                    "timeout": getattr(matcher, "timeout", None),
+                }
+                for matcher in matchers
+            ]
+        return {
+            "builtin_surface": {
+                "preset": "claude_code",
+                "cli_version": CLAUDE_CLI_HISTORY_VERSION,
+            },
+            "tools": options.tools,
+            "allowed_tools": list(options.allowed_tools or []),
+            "disallowed_tools": list(options.disallowed_tools or []),
+            "mcp_servers": configured_mcp,
+            "setting_sources": list(options.setting_sources or []),
+            "permission_mode": options.permission_mode,
+            "can_use_tool": callable(options.can_use_tool),
+            "hooks": hooks,
+        }
+
+    async def verify_handoff_normal_surface(
+        self,
+        *,
+        prepared,
+        expected_configuration_sha256: str,
+        expected_descriptor: dict,
+    ) -> dict:
+        """Inspect the connected normal client before the source is released."""
+        if self._validation_profile or self._client is None:
+            return {"ok": False, "failure": {
+                "kind": "capability_unsupported", "structured": True,
+                "detail": "normal handoff client is not connected",
+            }}
+        try:
+            versions = await self._verify_pinned_versions()
+            options = self._client.options
+            manifest = self.build_handoff_manifest(
+                prepared, validation_profile=False
+            )
+            context = await self.context_usage()
+            query = getattr(self._client, "_query", None)
+            initialization = getattr(query, "_initialization_result", None)
+            mcp_status = (
+                await query.get_mcp_status()
+                if query is not None and callable(getattr(query, "get_mcp_status", None))
+                else None
+            )
+            tool_material = self._normal_options_tool_material()
+            tool_fingerprint = hashlib.sha256(_json.dumps(
+                tool_material,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")).hexdigest()
+            context_available = bool(
+                isinstance(context, dict)
+                and isinstance(context.get("total_tokens"), int)
+                and int(context["total_tokens"]) >= 0
+                and isinstance(context.get("max_tokens"), int)
+                and int(context["max_tokens"]) > 0
+            )
+            live_preflight = None
+            if context_available:
+                live_preflight = preflight_provider_context(
+                    native_context_tokens=int(context["total_tokens"]),
+                    effective_window=min(
+                        int(manifest.effective_window), int(context["max_tokens"])
+                    ),
+                    configuration_sha256=manifest.configuration_sha256,
+                )
+            options_match = bool(
+                options.model == self.model
+                and options.resume == self.session_id
+                and options.system_prompt is None
+                and tool_material
+                and tool_fingerprint
+                == expected_descriptor.get("normal_tool_fingerprint")
+            )
+            initialization_ok = bool(
+                isinstance(initialization, dict)
+                and isinstance(initialization.get("commands"), list)
+                and isinstance(initialization.get("agents"), list)
+                and isinstance(initialization.get("models"), list)
+            )
+            expected_mcp_names = set(tool_material.get("mcp_servers") or {})
+            live_mcp_names = {
+                str(item.get("name") or "")
+                for item in (
+                    mcp_status.get("mcpServers", [])
+                    if isinstance(mcp_status, dict) else []
+                )
+                if isinstance(item, dict) and item.get("name")
+            }
+            mcp_surface_ok = bool(
+                isinstance(mcp_status, dict)
+                and expected_mcp_names == live_mcp_names
+            )
+            versions_match = all(
+                versions.get(key) == expected_descriptor.get(key)
+                for key in ("cli_version", "sdk_version")
+            )
+            configuration_match = (
+                manifest.configuration_sha256 == expected_configuration_sha256
+            )
+            ok = bool(
+                options_match
+                and initialization_ok
+                and mcp_surface_ok
+                and versions_match
+                and configuration_match
+                and live_preflight is not None
+                and live_preflight.fits
+            )
+            failure = None
+            if live_preflight is not None and not live_preflight.fits:
+                failure = {
+                    "kind": "context_overflow",
+                    "structured": True,
+                    "detail": "normal target live context does not fit reserves",
+                }
+            elif not ok:
+                failure = {
+                    "kind": "capability_unsupported",
+                    "structured": True,
+                    "detail": "normal target live capability receipt mismatch",
+                }
+            surface = {
+                "initialization": {
+                    key: initialization.get(key)
+                    for key in (
+                        "commands", "agents", "output_style",
+                        "available_output_styles", "models",
+                    )
+                    if isinstance(initialization, dict) and key in initialization
+                },
+                "tool_material": tool_material,
+                "mcp_status": mcp_status,
+            }
+            return {
+                "ok": ok,
+                "failure": failure,
+                "configuration_sha256": manifest.configuration_sha256,
+                "normal_tool_fingerprint": tool_fingerprint,
+                "live_surface_sha256": hashlib.sha256(_json.dumps(
+                    surface,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")).hexdigest(),
+                "live_context_preflight": (
+                    live_preflight.as_dict() if live_preflight else None
+                ),
+                **versions,
+            }
+        except NativeHistoryImportError as error:
+            return {"ok": False, "failure": {
+                "kind": "capability_unsupported", "structured": True,
+                "detail": err_text(error),
+            }}
+        except Exception as error:
+            return {"ok": False, "failure": {
+                "kind": type(error).__name__, "structured": False,
+                "detail": err_text(error),
+            }}
 
     def _write_mcp_config(self, servers: dict) -> Path:
         """Записать конфиг MCP в приватный файл и вернуть путь.
@@ -613,6 +897,12 @@ class ClaudeBackend:
             user=agent_uid,
             stderr=self._capture_stderr,
         )
+        if self._validation_profile:
+            # The validation turn has no authority to perform work. ``tools=[]`` is
+            # the SDK's mechanical surface control; prompt instructions are not used.
+            options.tools = []
+            options.allowed_tools = []
+            options.disallowed_tools = ["*"]
         if self._effort:
             eff = self._effort
             if eff == "xhigh" and "claude" in (self.model or ""):
@@ -654,9 +944,7 @@ class ClaudeBackend:
         # в manager.create_session при skills=="all".
         return ClaudeSDKClient(options=options)
 
-    async def _verify_history_versions(self) -> None:
-        if not self._history_import:
-            return
+    async def _verify_pinned_versions(self) -> dict[str, str]:
         sdk_version = importlib.metadata.version("claude-agent-sdk")
         if sdk_version != CLAUDE_SDK_HISTORY_VERSION:
             raise NativeHistoryUnsupported(
@@ -690,6 +978,11 @@ class ClaudeBackend:
             raise NativeHistoryUnsupported(
                 f"native Claude history requires CLI {CLAUDE_CLI_HISTORY_VERSION}, got {actual}"
             )
+        return {"cli_version": actual_version, "sdk_version": sdk_version}
+
+    async def _verify_history_versions(self) -> None:
+        if self._history_import:
+            await self._verify_pinned_versions()
 
     def _history_rejection(self, error: BaseException) -> NativeHistoryRejected | None:
         if not self._history_import:
@@ -825,15 +1118,18 @@ class ClaudeBackend:
             return False
 
     async def disconnect(self) -> None:
-        if self._client:
-            try:
-                await self._client.disconnect()
-            except Exception as e:
-                logger.warning(f"ClaudeBackend disconnect failed: {e}")
+        client = self._client
+        try:
+            if client:
+                await client.disconnect()
+        except Exception as e:
+            logger.warning(f"ClaudeBackend disconnect failed: {e}")
+            raise
+        finally:
             self._client = None
-        # Владелец жизненного цикла конфига — сам бэкенд: файл обязан жить весь коннект
-        # (рантайм может перезапустить MCP-сервер позже) и исчезнуть вместе с ним.
-        self._remove_mcp_config()
+            # Владелец жизненного цикла конфига — сам бэкенд: файл обязан жить
+            # весь коннект и удаляться даже при ошибке SDK disconnect.
+            self._remove_mcp_config()
 
     async def context_usage(self) -> dict | None:
         if not self._client:

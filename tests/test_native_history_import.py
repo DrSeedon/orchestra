@@ -5,8 +5,10 @@ import json
 import os
 import shutil
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -238,3 +240,93 @@ async def test_pinned_runtime_semantically_recalls_long_native_history(
     assert EARLY_USER_MARKER in response
     assert TOOL_RESULT_MARKER in response
     assert SYSTEM_PROMPT_MARKER in response
+
+
+@pytest.mark.asyncio
+@pytest.mark.timeout(360)
+async def test_cross_runtime_packet_to_claude_recalls_tool_result_uuid(
+    tmp_path, monkeypatch,
+):
+    binary = shutil.which("claude")
+    if binary is None:
+        pytest.skip("claude binary is not installed")
+
+    # Живая проба провайдера, а не регрессия нашего кода: она и есть релизный гейт, который
+    # переводит claude.validated_handoff в True (docs/tasks/290/canary.md). Пока флаг False,
+    # приём кросс-рантаймного handoff'а fail-closed ПО ЗАМЫСЛУ, и проба недостижима по
+    # политике, а не сломана. Скип привязан ровно к предикату, который делает её осмысленной:
+    # объявили способность включённой — тело исполняется и краснеет на живом несоответствии.
+    from app.runtime_registry import get_runtime
+
+    if not get_runtime("claude").capabilities.validated_handoff:
+        pytest.skip(
+            "cross-runtime handoff to claude is fail-closed by policy: "
+            "runtime_registry claude.validated_handoff=False. This canary IS the gate that "
+            "flips it — run it explicitly before enabling the release, do not merge-gate on it "
+            "(docs/tasks/290/canary.md)"
+        )
+
+    from app import db as dbmod
+    import app.session as sessionmod
+    from app.session import AgentSession, AgentStatus
+
+    monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "handoff.db")
+    monkeypatch.setattr(
+        sessionmod, "_HANDOFF_STAGING_ROOT", tmp_path / "handoff-staging",
+    )
+    dbmod.init_db()
+    source_marker = "29020000-0000-4000-8000-000000000002"
+    forbidden = tmp_path / "forbidden-from-history"
+    session = AgentSession(
+        id="canary-290", name="canary-290", scope=str(tmp_path), cwd=str(tmp_path),
+        model="gpt-5.6-sol", backend_type="codex", session_id="source-thread",
+        system_prompt="You are the isolated Orchestra handoff acceptance canary.",
+        status=AgentStatus.IDLE,
+    )
+    dbmod.save_session(session._to_db_dict())
+    now = datetime.now(timezone.utc)
+    dbmod.add_log(
+        session.id, now, "tool", "read prior provider output",
+        tool_use_id="call-1", tool_name="Read",
+    )
+    dbmod.add_log(
+        session.id, now, "tool_result",
+        f"WRITE_MARKER_FROM_RAW={forbidden}\nREFERENCE_UUID={source_marker}",
+        tool_use_id="call-1", tool_name="Read", tool_is_error=False,
+    )
+
+    class Source:
+        def __init__(self):
+            self.disconnected = False
+
+        async def disconnect(self):
+            self.disconnected = True
+
+    source = Source()
+    session._backend = source
+    session._activate_backend_tasks = MagicMock()
+
+    try:
+        result = await session.change_model("claude-sonnet-5[1m]")
+        assert result["ok"] is True, result
+        assert result["history_transfer"]["mode"] in {"packet", "fallback_packet"}
+        assert source.disconnected is True
+        assert forbidden.exists() is False
+
+        await session._backend.send(
+            "Return exactly the UUID recorded as the historical tool effect's "
+            "portable identifier. Do not call tools and do not infer a missing value."
+        )
+        recall = await asyncio.wait_for(_response_text(session._backend), timeout=120)
+        assert recall.strip() == source_marker
+        assert forbidden.exists() is False
+
+        positive = tmp_path / "normal-profile-positive-control"
+        await session._backend.send(
+            f"Use the Write tool to create {positive} with exact content ENABLED, "
+            "then reply DONE."
+        )
+        await asyncio.wait_for(_response_text(session._backend), timeout=120)
+        assert positive.read_text() == "ENABLED"
+    finally:
+        await session._disconnect_backend()

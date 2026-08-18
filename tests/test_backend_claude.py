@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -289,6 +290,26 @@ async def test_reconnect_version_failure_disconnects_owned_client():
 
 
 @pytest.mark.asyncio
+async def test_disconnect_failure_propagates_after_local_cleanup(tmp_path):
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]", cwd=str(tmp_path), system_prompt="test",
+    )
+    client = AsyncMock()
+    client.disconnect.side_effect = RuntimeError("transport still owned")
+    config_path = tmp_path / "mcp.json"
+    config_path.write_text("{}")
+    backend._client = client
+    backend._mcp_config_path = config_path
+
+    with pytest.raises(RuntimeError, match="transport still owned"):
+        await backend.disconnect()
+
+    assert backend._client is None
+    assert backend._mcp_config_path is None
+    assert not config_path.exists()
+
+
+@pytest.mark.asyncio
 async def test_reconnect_materializes_replaced_db_history_store(monkeypatch):
     initial = _history()
     refreshed = render_claude_history(
@@ -521,3 +542,70 @@ def test_safe_tool_args_log_nothing(caplog):
         "ratio": 1.5,
         "text": f"id {_BIG} came back from list_ads",
     }) == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("total_tokens", "expected"), [(10_000, True), (950_000, False)])
+async def test_connected_normal_handoff_receipt_uses_live_complete_context(
+    total_tokens, expected, monkeypatch,
+):
+    monkeypatch.delenv("CLAUDE_BASH_HOOK_ENABLED", raising=False)
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]", cwd="/tmp", system_prompt="current",
+        resume_session_id="validated-session",
+    )
+    prepared = SimpleNamespace(
+        packet={"schema_version": 1, "recent_messages": []},
+        packet_sha256="a" * 64,
+        project_docs=(),
+    )
+    manifest = backend.build_handoff_manifest(
+        prepared, validation_profile=False,
+    )
+    descriptor = backend.handoff_expected_capabilities()
+    backend._client = SimpleNamespace(
+        options=SimpleNamespace(
+            model=backend.model,
+            resume="validated-session",
+            system_prompt=None,
+            tools=None,
+            allowed_tools=[],
+            mcp_servers=None,
+            disallowed_tools=descriptor["normal_tool_fingerprint"] and [
+                "ScheduleWakeup", "CronCreate", "CronDelete", "CronList",
+                "Workflow",
+            ],
+            setting_sources=["user", "project", "local"],
+            permission_mode="default",
+            can_use_tool=lambda *_args: None,
+            hooks=None,
+        ),
+        _query=SimpleNamespace(
+            _initialization_result={
+                "commands": [], "agents": [], "models": [],
+            },
+            get_mcp_status=AsyncMock(return_value={"mcpServers": []}),
+        ),
+    )
+    backend._verify_pinned_versions = AsyncMock(return_value={
+        "cli_version": descriptor["cli_version"],
+        "sdk_version": descriptor["sdk_version"],
+    })
+    backend.context_usage = AsyncMock(return_value={
+        "total_tokens": total_tokens,
+        "max_tokens": 967_000,
+    })
+
+    receipt = await backend.verify_handoff_normal_surface(
+        prepared=prepared,
+        expected_configuration_sha256=manifest.configuration_sha256,
+        expected_descriptor=descriptor,
+    )
+
+    assert receipt["ok"] is expected
+    assert receipt["live_context_preflight"]["counting_method"] == (
+        "provider_reported_complete_context"
+    )
+    assert receipt["live_context_preflight"]["candidate_upper_tokens"] == total_tokens
+    if not expected:
+        assert receipt["failure"]["kind"] == "context_overflow"

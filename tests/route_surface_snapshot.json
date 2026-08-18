@@ -427,9 +427,15 @@
   ]
  ],
  [
-  "/api/sessions/{name}/wip",
+ "/api/sessions/{name}/wip",
+ [
+  "GET"
+ ]
+],
+ [
+  "/api/sessions/{session_id}/handoffs/{handoff_id}/events",
   [
-   "GET"
+   "POST"
   ]
  ],
  [

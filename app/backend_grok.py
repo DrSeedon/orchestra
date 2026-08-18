@@ -14,6 +14,7 @@ from typing import AsyncIterator, Optional
 
 from app.backend_jsonrpc import JsonRpcStdioTransport, bounded_tool_arguments
 from app.events import AgentEvent
+from app.runtime_history import build_model_visible_manifest
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 
 logger = logging.getLogger(__name__)
@@ -286,7 +287,8 @@ class GrokBackend(JsonRpcStdioTransport):
                  mcp_env: dict[str, str] | None = None,
                  mcp_servers: dict | None = None,
                  reasoning_effort: str = "high",
-                 is_orchestrator: bool = False):
+                 is_orchestrator: bool = False,
+                 validation_profile: bool = False):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
@@ -294,6 +296,7 @@ class GrokBackend(JsonRpcStdioTransport):
         self._mcp_env: dict[str, str] = mcp_env or {}
         self._mcp_servers: dict = mcp_servers or {}
         self._is_orchestrator = is_orchestrator
+        self._validation_profile = validation_profile
         self.reasoning_effort = (
             reasoning_effort if reasoning_effort in GROK_REASONING_EFFORTS else "high"
         )
@@ -349,6 +352,18 @@ class GrokBackend(JsonRpcStdioTransport):
     @property
     def session_id(self) -> Optional[str]:
         return self._session_id
+
+    def build_handoff_manifest(self, prepared, *, validation_profile: bool):
+        return build_model_visible_manifest(
+            runtime="grok",
+            model=self.model,
+            effective_window=self._model_context_window,
+            system_prompt=self.system_prompt,
+            prepared=prepared,
+            validation_profile=validation_profile,
+            project_docs=getattr(prepared, "project_docs", ()),
+            mcp_servers=self._mcp_servers,
+        )
 
     async def connect(self) -> None:
         if self.is_alive:
