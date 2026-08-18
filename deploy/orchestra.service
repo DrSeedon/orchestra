@@ -35,7 +35,21 @@ Environment=WORKSPACE_DIR=/home/kesha/workspace/project
 EnvironmentFile=/home/kesha/orchestra/.env
 
 # --fd 3 — serve the socket systemd already holds instead of binding our own.
-ExecStart=/home/kesha/.local/bin/uv run uvicorn app.main:app --fd 3
+#
+# The interpreter is exec'd DIRECTLY, and that is load-bearing, not a style choice. systemd sets
+# LISTEN_PID to the pid of the process it exec'd; `uv run` does not exec, it forks a child, so
+# the application ends up with a pid that LISTEN_PID does not name. Measured (#324):
+#   LISTEN_PID=$$ exec uv run --no-project python -c ... -> LISTEN_PID=2751595 pid=2751601 False
+#   LISTEN_PID=$$ exec .venv/bin/python            -c ... -> LISTEN_PID=2751602 pid=2751602 True
+# app/tg_bridge.py refuses to start the Telegram bridge unless LISTEN_PID == os.getpid(), so the
+# `uv run` form starts HTTP fine (fd 3 is inherited either way) and silently leaves the user with
+# no Telegram at all. app/fdstore.py:92 already depended on the same identity for agent adoption.
+#
+# WHICH interpreter is not decided here: on this host the untracked drop-in
+# /etc/systemd/system/orchestra.service.d/60-runtime-isolation.conf (#303) resets ExecStart= and
+# pins an isolated runtime under /opt/orchestra/runtimes. This line is the base that must stay
+# safe when that drop-in is absent.
+ExecStart=/home/kesha/orchestra/.venv/bin/python -m uvicorn app.main:app --fd 3
 
 Restart=always
 RestartSec=5

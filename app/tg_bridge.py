@@ -3728,8 +3728,58 @@ async def topic_sync_loop():
             logger.error(f"Topic sync error: {e}")
 
 
+class UnmanagedInstanceError(RuntimeError):
+    """This Orchestra is not the one systemd runs, so it must not hold the bot token."""
+
+
+def _unmanaged_instance_reason() -> str | None:
+    """Why this process may NOT poll Telegram, or None if it is the canonical instance.
+
+    Telegram serves getUpdates to one consumer per token. `.env` is copied into every
+    worker worktree with the production TG_BRIDGE_TOKEN in it (22 of 42 copies on
+    18.08.2026), so any app an agent starts there steals the user's incoming messages
+    — #324: 383 TelegramConflictError in one hour from two orphaned instances.
+
+    The canonical instance is the process systemd socket-activates: sd_listen_fds sets
+    LISTEN_PID to the pid of the very process systemd EXEC'D. Measured on the live
+    service: MainPID 2577299, LISTEN_PID=2577299.
+
+    Presence of the systemd variables proves nothing — a worker's shell inherits
+    LISTEN_PID, LISTEN_FDS, NOTIFY_SOCKET, INVOCATION_ID and SYSTEMD_EXEC_PID from the
+    service (measured in an agent worktree, all five visible). Only the pid identity
+    distinguishes the process that owns them from the processes that inherited them.
+
+    What satisfies this is the DIRECT exec of the interpreter, NOT the `--fd 3` argument:
+    an ExecStart of the form `uv run uvicorn … --fd 3` serves HTTP perfectly (fd 3 is
+    inherited by the child) while failing this check, because `uv run` forks instead of
+    exec'ing. Measured (#324): `uv run` -> LISTEN_PID=2751595 pid=2751601; direct
+    interpreter -> 2751602 == 2751602. On this host the direct form comes from the
+    untracked drop-in 60-runtime-isolation.conf (#303); deploy/orchestra.service carries
+    it too, so the base unit is safe without that drop-in. Changing ExecStart back to a
+    wrapper takes the bridge down silently — the log says so, the user's Telegram just
+    goes quiet. app/fdstore.py:92 relies on the same identity for agent adoption.
+    """
+    listen_pid = os.environ.get("LISTEN_PID")
+    if not listen_pid:
+        return "LISTEN_PID is unset — this process was not socket-activated by systemd"
+    if listen_pid != str(os.getpid()):
+        return (
+            f"LISTEN_PID={listen_pid} does not match this process ({os.getpid()}) — the "
+            "value was inherited from the canonical instance, not assigned to this one"
+        )
+    return None
+
+
 async def start_bridge(manager):
     global bot, _manager
+    reason = _unmanaged_instance_reason()
+    if reason is not None:
+        raise UnmanagedInstanceError(
+            f"TG bridge refused to start: {reason}. Only orchestra.service "
+            "(`uvicorn app.main:app --fd 3`, socket-activated) may hold TG_BRIDGE_TOKEN; a "
+            "second poller silently swallows the user's Telegram messages (#324). Nothing "
+            f"else about this instance is affected. cwd={os.getcwd()}"
+        )
     from dotenv import load_dotenv
     load_dotenv()
     await _reset_tg_delivery_state()
@@ -3895,19 +3945,3 @@ async def stop_bridge():
         bot = None
         _manager = None
         _mirror_stopping.clear()
-
-
-if __name__ == "__main__":
-    import sys
-    async def _main():
-        from app.manager import SessionManager
-        m = SessionManager()
-        from app.db import init_db
-        init_db()
-        if len(sys.argv) > 1:
-            os.environ["TG_BRIDGE_TOKEN"] = sys.argv[1]
-        if len(sys.argv) > 2:
-            os.environ["TG_BRIDGE_GROUP"] = sys.argv[2]
-        await start_bridge(m)
-        await asyncio.Event().wait()
-    asyncio.run(_main())

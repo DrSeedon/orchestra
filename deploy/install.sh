@@ -125,4 +125,11 @@ echo "Next steps:"
 echo "  1. Set up Claude Code auth: claude setup-token (on laptop)"
 echo "  2. Copy token to VPS: ssh $SSH_TARGET 'echo CLAUDE_CODE_OAUTH_TOKEN=sk-ant-... >> /opt/orchestra/.env'"
 echo "  3. (Optional) Add domain + SSL: certbot --nginx -d your-domain.com"
-echo "  4. (Optional) TG bot: add TG_BRIDGE_TOKEN + TG_BRIDGE_GROUP to .env"
+# The TG bridge refuses to start unless systemd socket-activated the process itself
+# (app/tg_bridge.py, #324). orchestra.service.template binds --host/--port, so setting the token
+# on this installation would produce a bridge that never starts and says so only in the journal.
+# Say what it costs instead of inviting a dead configuration.
+echo "  4. (Optional) TG bot: NOT available with this unit template — it binds --host/--port,"
+echo "     and the bridge only runs under socket activation (deploy/orchestra.socket +"
+echo "     ExecStart=<venv>/bin/python -m uvicorn app.main:app --fd 3, interpreter exec'd"
+echo "     directly, no 'uv run'). Setting TG_BRIDGE_TOKEN alone will NOT start it."
