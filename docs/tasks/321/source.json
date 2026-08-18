@@ -45,7 +45,15 @@
     "luna_q95_pct_points": 0.35,
     "sol_q95_pct_points": 2.4,
     "guard_pct_points": 0.5,
-    "reserve_pct_points": 0,
-    "remaining_to_target_pct_points": 3
+    "reserve_function": "1.5 * hours_to_reset / 168",
+    "remaining_to_target_pct_points": 3,
+    "interactive_axes": {
+      "x": "codex_primary_utilization_pct",
+      "y": "hours_to_reset",
+      "defaults": {
+        "utilization_pct": 96,
+        "hours_to_reset": 121
+      }
+    }
   }
 }

@@ -4,468 +4,312 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>Quota runway — как дожить до сброса</title>
+  <title>Quota map — доступность моделей</title>
   <style>
-    /* костяк производен от visualize.css, (c) OpenAI, Apache-2.0;
-       изменено: убран внешний JS, добавлены печать и вторая шрифтовая семья */
+    /* костяк производен от visualize.css, (c) OpenAI, Apache-2.0 */
     :root{
-      color-scheme: light dark;
-      /* акцент: бирюзовый — про запас воздуха и управляемый runway */
-      --accent: light-dark(#087a74, #62d3c8);
-      --fs: 15px;
-      --radius: 12px;
-      --font: ui-sans-serif, system-ui, sans-serif;
-      --font-head: ui-serif, Georgia, serif;
-      --bg: light-dark(#fff, #181818);
-      --ink: light-dark(#1a1c1f, #f2f2f0);
-      --mut: color-mix(in srgb, var(--ink) 48%, transparent);
-      --card: color-mix(in oklab, var(--ink) 5%, transparent);
-      --border: color-mix(in srgb, var(--ink) 12%, transparent);
-      --ring: var(--accent);
-      --bad: light-dark(#c0341a, #ff7a63);
-      --fs-sm: max(11px, calc(var(--fs) - 2px));
-      --fs-h3: calc(var(--fs) * 1.29);
-      --fs-h2: calc(var(--fs) * 1.43);
-      --fs-h1: calc(var(--fs) * 1.72);
-      --r-sm: calc(var(--radius) * .6);
-      --r-lg: calc(var(--radius) * 1.6);
-      --shadow: 0 1px 2px -1px rgb(0 0 0 / 8%);
-      --s1: var(--accent);
-      --s2: light-dark(#c26a1f, #f59a56);
-      --s3: light-dark(#2f7d46, #74d58b);
-      --s4: light-dark(#b8457f, #f08fc0);
-      --s5: light-dark(#6b57c4, #aa91ef);
-      --s6: light-dark(#1f7a72, #5acbc2);
+      color-scheme:light dark;
+      /* акцент: бирюзовый — свободный runway и безопасное продолжение */
+      --accent:light-dark(#087a74,#62d3c8);
+      --fs:15px;--radius:12px;
+      --font:ui-sans-serif,system-ui,sans-serif;
+      --font-head:ui-serif,Georgia,serif;
+      --bg:light-dark(#fff,#181818);--ink:light-dark(#1a1c1f,#f2f2f0);
+      --mut:color-mix(in srgb,var(--ink) 48%,transparent);
+      --card:color-mix(in oklab,var(--ink) 5%,transparent);
+      --border:color-mix(in srgb,var(--ink) 12%,transparent);
+      --ring:var(--accent);--bad:light-dark(#c0341a,#ff7a63);
+      --fs-sm:max(11px,calc(var(--fs) - 2px));--fs-h3:calc(var(--fs) * 1.29);
+      --fs-h2:calc(var(--fs) * 1.43);--fs-h1:calc(var(--fs) * 1.72);
+      --r-sm:calc(var(--radius) * .6);--r-lg:calc(var(--radius) * 1.6);
+      --shadow:0 1px 2px -1px rgb(0 0 0 / 8%);
+      --s1:var(--accent);--s2:light-dark(#c26a1f,#f59a56);
+      --s3:light-dark(#2f7d46,#74d58b);--s4:light-dark(#b8457f,#f08fc0);
+      --s5:light-dark(#6b57c4,#aa91ef);--s6:light-dark(#1f7a72,#5acbc2);
     }
     *{box-sizing:border-box}
     body{margin:0;padding:clamp(16px,4vw,40px);background:var(--bg);color:var(--ink);
-         font:430 var(--fs)/1.5 var(--font);letter-spacing:0}
+      font:430 var(--fs)/1.5 var(--font)}
     h1,h2,h3{margin:0;font-family:var(--font-head);font-weight:500;line-height:1.25}
-    h1{font-size:var(--fs-h1)} h2{font-size:var(--fs-h2)} h3{font-size:var(--fs-h3)}
-    small,.sm{font-size:var(--fs-sm)} .mut{color:var(--mut)}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px 24px 10px 0;border-bottom:1px solid var(--border);
-          text-align:start;vertical-align:top;overflow-wrap:anywhere}
-    th{font-weight:600;border-bottom-color:color-mix(in srgb,var(--ink) 16%,transparent)}
-    tbody tr:last-child :is(th,td){border-bottom:0}
-    .num{text-align:end;font-variant-numeric:tabular-nums}
-    .scroll{overflow-x:auto;scrollbar-width:thin}
-    .card{padding:12px;border-radius:var(--r-lg);background:var(--card)}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(max(180px,24%),1fr));gap:12px}
+    h1{font-size:var(--fs-h1)}h2{font-size:var(--fs-h2)}h3{font-size:var(--fs-h3)}
+    small,.sm{font-size:var(--fs-sm)}.mut{color:var(--mut)}
     .badge{padding:3px 8px;border-radius:9999px;font-size:var(--fs-sm);
-           background:color-mix(in srgb,var(--accent) 15%,transparent)}
-    code{padding:1px 6px;border-radius:var(--r-sm);font-size:.92em;
-         font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-         background:color-mix(in srgb,var(--ink) 10%,transparent);
-         box-decoration-break:clone;-webkit-box-decoration-break:clone;overflow-wrap:anywhere}
-    :is(a,button,summary,input,select,[tabindex]):focus-visible{
-         outline:2px solid var(--ring);outline-offset:2px}
-    :is([aria-pressed="true"],[aria-selected="true"]){background:var(--accent);color:var(--bg)}
+      background:color-mix(in srgb,var(--accent) 15%,transparent)}
+    code{padding:1px 6px;border-radius:var(--r-sm);font:500 .92em/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;
+      background:color-mix(in srgb,var(--ink) 10%,transparent)}
+    :is(a,button,input,[tabindex]):focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+    :is([aria-pressed="true"]){background:var(--accent);color:var(--bg)}
     svg{display:block;max-width:100%;height:auto}
-    .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+    .shell{width:min(1360px,100%);margin:auto}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:24px}
+    .top p{max-width:780px;margin:8px 0 0;color:var(--mut);font-size:1.04rem}
+    .live-stamp{text-align:end;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
 
-    .shell{width:min(1220px,100%);margin-inline:auto}
-    .topline{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding-bottom:24px}
-    .lede{max-width:760px;margin:8px 0 0;color:var(--mut);font-size:1.04rem}
-    .snapshot{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:end;white-space:nowrap}
-    .live-strip{display:grid;grid-template-columns:minmax(220px,1.5fr) repeat(3,minmax(130px,1fr));
+    .control-deck{display:grid;grid-template-columns:repeat(2,minmax(240px,1fr)) minmax(260px,.8fr);
       gap:2px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow)}
-    .live-cell{min-height:104px;padding:16px;background:var(--card);display:flex;flex-direction:column;justify-content:space-between}
-    .live-cell strong{font-family:var(--font-head);font-weight:500;font-size:clamp(1.45rem,3vw,2.25rem);line-height:1}
-    .live-cell.primary{background:color-mix(in srgb,var(--accent) 11%,var(--card))}
-    .state-ok{color:var(--s3)} .state-stop{color:var(--bad)} .state-warn{color:var(--s2)}
-    .section{padding:40px 0;border-bottom:1px solid var(--border)}
-    .section-head{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:16px}
-    .section-head p{max-width:670px;margin:4px 0 0;color:var(--mut)}
-    .scenario-tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-    button{border:1px solid var(--border);border-radius:9999px;padding:6px 12px;background:transparent;
-      color:inherit;font:600 var(--fs-sm)/1.4 var(--font);cursor:pointer}
-    button:hover{border-color:color-mix(in srgb,var(--accent) 65%,var(--border))}
-    .chart-wrap{border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;background:var(--card);overflow:hidden}
-    .chart-caption{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-top:12px}
-    .chart-caption strong{display:block;font-family:var(--font-head);font-size:var(--fs-h3);font-weight:500}
-    .chart-caption p{margin:2px 0 0;color:var(--mut);max-width:720px}
-    .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:var(--fs-sm);color:var(--mut)}
-    .legend span{display:inline-flex;align-items:center;gap:6px}
-    .swatch{width:18px;height:3px;border-radius:3px;background:var(--s1)}
-    .swatch.target{background:var(--s2)} .swatch.unknown{background:var(--mut)}
-    .rail-key{display:flex;justify-content:flex-end;gap:16px;flex-wrap:wrap;margin:24px 0 8px;
-      color:var(--mut);font-size:var(--fs-sm)}
-    .rail-key span{display:inline-flex;align-items:center;gap:6px}
-    .rail-key i{display:inline-block;width:12px;height:3px;border-radius:3px;background:currentColor}
-    .rail-key .sol-key{color:var(--bad)}.rail-key .luna-key{color:var(--s3)}.rail-key .target-key{color:var(--s2)}
-    .quota-rail{position:relative;height:64px;margin:8px 0 24px;border-radius:var(--r-sm);
-      background:color-mix(in srgb,var(--ink) 8%,transparent);overflow:visible}
-    .quota-used{height:100%;width:96%;border-radius:var(--r-sm) 0 0 var(--r-sm);
-      background:color-mix(in srgb,var(--accent) 58%,transparent);position:relative}
-    .quota-used::after{content:"96%";position:absolute;right:10px;top:50%;translate:0 -50%;
-      font-family:var(--font-head);font-size:var(--fs-h2);font-weight:500;color:var(--ink)}
-    .marker{position:absolute;top:-8px;height:80px;width:2px;background:currentColor}
-    .marker.sol{left:95%;color:var(--bad)} .marker.luna{left:98%;color:var(--s3)} .marker.target{left:99%;color:var(--s2)}
-    .rail-labels{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    .rail-labels strong{display:block;font-family:var(--font-head);font-size:var(--fs-h3);font-weight:500}
-    .lane-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:24px}
-    .lane{padding:16px;border-top:3px solid var(--border);background:var(--card);border-radius:0 0 var(--r-lg) var(--r-lg)}
-    .lane.luna{border-color:var(--s3)} .lane.sol{border-color:var(--bad)}
-    .lane-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
-    .lane h3{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1rem}
-    .lane-status{font-size:var(--fs-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-    .lane p{margin:8px 0 0;color:var(--mut)}
-    .mini-track{height:10px;background:color-mix(in srgb,var(--ink) 9%,transparent);border-radius:9999px;margin-top:16px;position:relative}
-    .mini-track::before{content:"";position:absolute;inset:0 auto 0 0;width:60%;border-radius:9999px;background:var(--accent)}
-    .mini-track::after{content:"";position:absolute;top:-5px;left:60%;width:2px;height:20px;background:var(--ink)}
-    .lane.sol .mini-track::before{width:60%}.lane.sol .mini-track::after{left:50%;background:var(--bad)}
-    .lane.luna .mini-track::after{left:80%;background:var(--s3)}
-    .track-scale{display:flex;justify-content:space-between;margin-top:5px;color:var(--mut);font-size:var(--fs-sm)}
-    .formula-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:24px;align-items:start}
-    .equation{padding:24px;border-left:4px solid var(--accent);background:var(--card);border-radius:0 var(--r-lg) var(--r-lg) 0}
-    .equation-main{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:clamp(1rem,2vw,1.35rem);font-weight:600;overflow-wrap:anywhere}
-    .budget{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;margin-top:24px;border-radius:var(--r-sm);overflow:hidden}
-    .budget-part{min-height:92px;padding:12px;background:color-mix(in srgb,var(--ink) 7%,transparent)}
-    .budget-part strong{display:block;font-family:var(--font-head);font-size:var(--fs-h2);font-weight:500}
-    .budget-part.q95{background:color-mix(in srgb,var(--s5) 16%,transparent)}
-    .budget-part.guard{background:color-mix(in srgb,var(--s2) 16%,transparent)}
-    .budget-part.reserve{background:color-mix(in srgb,var(--s4) 14%,transparent)}
-    .budget-part.result{background:color-mix(in srgb,var(--s3) 16%,transparent)}
-    .explain-list{margin:0;padding:0;list-style:none}
-    .explain-list li{padding:12px 0;border-bottom:1px solid var(--border)}
-    .explain-list li:first-child{padding-top:0}.explain-list li:last-child{border:0}
-    .explain-list strong{display:block;font-weight:650}
-    .truth-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-    .truth{padding:16px;border:1px solid var(--border);border-radius:var(--r-lg)}
-    .truth .kicker{font-size:var(--fs-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
-    .truth h3{margin-top:6px}.truth p{margin:8px 0 0;color:var(--mut)}
-    .truth.current{border-top:4px solid var(--accent)}
-    .truth.next{border-top:4px solid var(--s2)}
-    .truth.limit{border-top:4px solid var(--s4)}
-    .foot{display:flex;justify-content:space-between;gap:24px;padding-top:24px;color:var(--mut);font-size:var(--fs-sm)}
-    .foot a{color:inherit}
-    .download{white-space:nowrap}
-    #window-chart text{font-family:var(--font);fill:var(--mut);font-size:13px}
-    #window-chart .label-strong{fill:var(--ink);font-weight:650}
-    #window-chart .grid-line{stroke:var(--border);stroke-width:1}
-    #window-chart .axis-line{stroke:color-mix(in srgb,var(--ink) 28%,transparent);stroke-width:1}
-    #window-chart .target-line{stroke:var(--s2);stroke-width:2;stroke-dasharray:7 6}
-    #window-chart .reset-line{stroke:var(--s4);stroke-width:2;stroke-dasharray:3 6}
-    #window-chart .series{fill:none;stroke:var(--s1);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
-    #window-chart .fan{fill:color-mix(in srgb,var(--s5) 20%,transparent);stroke:none}
-    #window-chart .unknown-zone{fill:url(#unknownHatch);stroke:var(--mut);stroke-dasharray:6 5;stroke-width:1}
-    #window-chart .hold-line{stroke:var(--bad);stroke-width:3;stroke-dasharray:4 5}
-    #window-chart .current-dot{fill:var(--bg);stroke:var(--s1);stroke-width:5}
-    #window-chart .target-band{fill:color-mix(in srgb,var(--s2) 10%,transparent)}
+    .control{padding:16px 24px;background:var(--card);min-height:142px}
+    .control-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+    .control-label{font-weight:650}.control-value{font-family:var(--font-head);font-size:clamp(2rem,5vw,3.35rem);line-height:.95;font-weight:500}
+    .control-value small{font-family:var(--font);font-size:var(--fs-sm);color:var(--mut)}
+    input[type="range"]{appearance:none;width:100%;height:28px;margin:18px 0 0;background:transparent;cursor:pointer}
+    input[type="range"]::-webkit-slider-runnable-track{height:8px;border-radius:9999px;background:linear-gradient(90deg,var(--accent) var(--fill),color-mix(in srgb,var(--ink) 12%,transparent) var(--fill))}
+    input[type="range"]::-moz-range-track{height:8px;border-radius:9999px;background:color-mix(in srgb,var(--ink) 12%,transparent)}
+    input[type="range"]::-moz-range-progress{height:8px;border-radius:9999px;background:var(--accent)}
+    input[type="range"]::-webkit-slider-thumb{appearance:none;width:24px;height:24px;margin-top:-8px;border:4px solid var(--bg);border-radius:50%;background:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+    input[type="range"]::-moz-range-thumb{width:18px;height:18px;border:4px solid var(--bg);border-radius:50%;background:var(--accent)}
+    .range-ends{display:flex;justify-content:space-between;color:var(--mut);font-size:var(--fs-sm)}
+    .mode-box{display:flex;flex-direction:column;justify-content:space-between}
+    .mode-buttons{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+    button{border:1px solid var(--border);border-radius:9999px;background:transparent;color:inherit;
+      padding:7px 12px;font:650 var(--fs-sm)/1.3 var(--font);cursor:pointer}
+    button:hover{border-color:var(--accent)}
+    .mode-note{margin:12px 0 0;color:var(--mut)}
 
-    @media (max-width:820px){
-      .topline,.section-head,.chart-caption,.foot{align-items:flex-start;flex-direction:column}
-      .snapshot{text-align:start}.live-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .formula-layout{grid-template-columns:1fr}.truth-grid{grid-template-columns:1fr}.lane-grid{grid-template-columns:1fr}
-      .rail-labels{grid-template-columns:1fr}.scenario-tabs{justify-content:flex-start}
-    }
-    @media (max-width:540px){
-      .live-strip{grid-template-columns:1fr}.budget{grid-template-columns:repeat(2,1fr)}
-      .chart-wrap{padding:8px}.section{padding:24px 0}
-    }
-    @media print{
-      :root{color-scheme:light}
-      body{padding:0;background:#fff;color:#000}
-      .no-print{display:none}
-      tr,li{break-inside:avoid}
-      .section{break-inside:avoid}
-      *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
-    }
+    .map-head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin:40px 0 12px}
+    .map-head p{margin:4px 0 0;color:var(--mut)}
+    .map-layout{display:grid;grid-template-columns:minmax(0,2.3fr) minmax(270px,.7fr);gap:12px;align-items:stretch}
+    .map-panel{padding:12px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--card);overflow:hidden;min-width:0}
+    .side{display:flex;flex-direction:column;gap:8px}
+    .model{padding:16px;border:1px solid var(--border);border-left:5px solid var(--mut);border-radius:var(--r-lg);background:var(--card);min-height:126px}
+    .model.available{border-left-color:var(--s3)}.model.blocked{border-left-color:var(--bad)}.model.conditional{border-left-color:var(--s2)}
+    .model-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .model h3{font:600 1rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .model-state{font-size:var(--fs-sm);font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+    .available .model-state{color:var(--s3)}.blocked .model-state{color:var(--bad)}.conditional .model-state{color:var(--s2)}
+    .model p{margin:8px 0 0;color:var(--mut)}
+    .metric{display:flex;justify-content:space-between;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:var(--fs-sm)}
+    .metric strong{font-variant-numeric:tabular-nums}
+    .readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;margin-top:12px;border-radius:var(--r-lg);overflow:hidden}
+    .readout-item{padding:12px 16px;background:var(--card);min-height:88px}
+    .readout-item strong{display:block;font-family:var(--font-head);font-size:var(--fs-h2);font-weight:500}
+    .readout-item span{color:var(--mut);font-size:var(--fs-sm)}
+    .explain{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.5fr);gap:24px;margin-top:24px;padding:24px 0;border-top:1px solid var(--border)}
+    .formula{font:650 clamp(1rem,2vw,1.35rem)/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .explain p{margin:8px 0 0;color:var(--mut)}
+    .facts{margin:0;padding:0;list-style:none}.facts li{padding:8px 0;border-bottom:1px solid var(--border)}.facts li:last-child{border:0}
+
+    #quota-map text{font-family:var(--font);fill:var(--mut);font-size:13px}
+    #quota-map .strong{fill:var(--ink);font-weight:700}
+    #quota-map .grid{stroke:var(--border);stroke-width:1}
+    #quota-map .axis{stroke:color-mix(in srgb,var(--ink) 34%,transparent);stroke-width:1.5}
+    #quota-map .zone-all{fill:color-mix(in srgb,var(--s3) 18%,transparent)}
+    #quota-map .zone-luna{fill:color-mix(in srgb,var(--accent) 19%,transparent)}
+    #quota-map .zone-stop{fill:color-mix(in srgb,var(--bad) 12%,transparent)}
+    #quota-map .sol-boundary{fill:none;stroke:var(--bad);stroke-width:3;stroke-dasharray:7 5}
+    #quota-map .luna-boundary{fill:none;stroke:var(--s3);stroke-width:4}
+    #quota-map .cursor{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:3 5;opacity:.55}
+    #quota-map .current-diamond{fill:var(--bg);stroke:var(--ink);stroke-width:4}
+    #quota-map .model-dot{stroke:var(--bg);stroke-width:4}
+    #quota-map .point-label{fill:var(--bg);stroke:var(--border);stroke-width:1}
+    #quota-map .point-text{font-size:12px;font-weight:750;fill:var(--ink)}
+    #quota-map .spark-line{stroke:var(--s5);stroke-width:2;stroke-dasharray:3 5}
+    .legend{display:flex;justify-content:flex-end;gap:16px;flex-wrap:wrap;color:var(--mut);font-size:var(--fs-sm)}
+    .legend span{display:inline-flex;align-items:center;gap:6px}.legend i{width:16px;height:4px;border-radius:4px;background:currentColor}
+    .legend .all{color:var(--s3)}.legend .luna{color:var(--accent)}.legend .stop{color:var(--bad)}
+    .foot{display:flex;justify-content:space-between;gap:24px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border);color:var(--mut);font-size:var(--fs-sm)}
+
+    @media(max-width:980px){.control-deck{grid-template-columns:1fr 1fr}.mode-box{grid-column:1/-1}.map-layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:repeat(3,1fr)}.explain{grid-template-columns:1fr}}
+    @media(max-width:680px){.top,.map-head,.foot{flex-direction:column;align-items:flex-start}.live-stamp{text-align:start}.control-deck{grid-template-columns:1fr}.mode-box{grid-column:auto}.side{grid-template-columns:1fr}.readout{grid-template-columns:1fr 1fr}.map-panel{padding:4px}.legend{justify-content:flex-start}}
+    @media print{:root{color-scheme:light}body{padding:0;background:#fff;color:#000}.no-print{display:none}.map-layout{grid-template-columns:2fr 1fr}*{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
   </style>
 </head>
 <body>
-  <main class="shell">
-    <header class="topline">
-      <div>
-        <h1>Дожить до сброса, не сжечь запас</h1>
-        <p class="lede">Не один общий рубильник, а две разные полосы движения: дешёвая Luna работает дольше, тяжёлая Sol останавливается раньше. Ниже — живой снимок после рестарта и то, как будет принимать решение скользящий контроллер.</p>
-      </div>
-      <div class="snapshot sm mut">Снимок<br><strong>18.08.2026 · 08:14 CEST</strong></div>
-    </header>
+<main class="shell">
+  <header class="top">
+    <div><h1>Карта доступа к моделям</h1><p>Двигайте текущий расход и часы до сброса. Точка переезжает по карте, границы пересчитываются, а Luna, Sol и Spark сразу меняют цвет и статус.</p></div>
+    <div class="live-stamp sm mut">живой старт<br><strong>96% · 121 ч</strong></div>
+  </header>
 
-    <section class="live-strip" aria-label="Текущее состояние квоты">
-      <div class="live-cell primary">
-        <span class="sm mut">Codex · недельное окно</span>
-        <strong>96%</strong>
-        <span class="sm">До сброса ≈ 121 ч</span>
-      </div>
-      <div class="live-cell">
-        <span class="sm mut">Luna Fast</span>
-        <strong class="state-ok">доступна</strong>
-        <span class="sm">временный порог 98%</span>
-      </div>
-      <div class="live-cell">
-        <span class="sm mut">Sol</span>
-        <strong class="state-stop">стоп</strong>
-        <span class="sm">порог 95%</span>
-      </div>
-      <div class="live-cell">
-        <span class="sm mut">Умный прогноз</span>
-        <strong class="state-warn">не готов</strong>
-        <span class="sm">q95 следующего хода неизвестен</span>
-      </div>
-    </section>
+  <section class="control-deck no-print" aria-label="Параметры квотного окна">
+    <div class="control">
+      <div class="control-head"><div><div class="control-label">Текущий usage</div><div class="sm mut">Codex primary · недельный</div></div><output id="usage-output" class="control-value" for="usage">96<small>%</small></output></div>
+      <input id="usage" type="range" min="0" max="100" step="1" value="96" aria-label="Текущий расход Codex в процентах">
+      <div class="range-ends"><span>0%</span><span>100%</span></div>
+    </div>
+    <div class="control">
+      <div class="control-head"><div><div class="control-label">До сброса окна</div><div class="sm mut">оставшийся runway</div></div><output id="hours-output" class="control-value" for="hours">121<small> ч</small></output></div>
+      <input id="hours" type="range" min="0" max="168" step="1" value="121" aria-label="Часы до сброса недельного окна">
+      <div class="range-ends"><span>0 ч</span><span>168 ч</span></div>
+    </div>
+    <div class="control mode-box">
+      <div><div class="control-label">Логика границ</div><div class="mode-buttons" role="group" aria-label="Режим карты"><button type="button" data-mode="adaptive" aria-pressed="true">Новая система</button><button type="button" data-mode="static" aria-pressed="false">Пороги сегодня</button></div></div>
+      <p id="mode-note" class="mode-note sm">Preview #318: граница изгибается по runway, q95 и резерву. q95 пока демонстрационный — live-калибровка ещё не накоплена.</p>
+    </div>
+  </section>
 
-    <section class="section">
-      <div class="section-head">
-        <div>
-          <h2>Окно до сброса</h2>
-          <p>По оси X — оставшееся время, по Y — расход недельного пула. Переключите сценарий: текущий честно показывает неизвестность, два других объясняют будущую механику.</p>
-        </div>
-        <div class="scenario-tabs no-print" role="group" aria-label="Сценарий графика">
-          <button type="button" data-scenario="live" aria-pressed="true">Сейчас</button>
-          <button type="button" data-scenario="calibrated" aria-pressed="false">После калибровки</button>
-          <button type="button" data-scenario="hold" aria-pressed="false">Запас кончился</button>
-        </div>
-      </div>
-      <figure class="chart-wrap" aria-labelledby="chart-title">
-        <svg id="window-chart" viewBox="0 0 1080 510" role="img" aria-labelledby="chart-title chart-desc">
-          <title id="chart-title">Прогноз расхода Codex до сброса недельного окна</title>
-          <desc id="chart-desc">Текущий расход 96 процентов, целевой потолок 99 процентов, сброс через 121 час. В текущем режиме q95 неизвестен, поэтому точный прогноз отсутствует.</desc>
-          <defs>
-            <pattern id="unknownHatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
-              <line x1="0" y1="0" x2="0" y2="10" stroke="currentColor" stroke-opacity=".16" stroke-width="4"/>
-            </pattern>
-          </defs>
-          <rect class="target-band" x="76" y="70" width="924" height="62" rx="6"/>
-          <g aria-hidden="true">
-            <line class="grid-line" x1="76" y1="442" x2="1000" y2="442"/><text x="28" y="447">90%</text>
-            <line class="grid-line" x1="76" y1="380" x2="1000" y2="380"/><text x="28" y="385">92%</text>
-            <line class="grid-line" x1="76" y1="318" x2="1000" y2="318"/><text x="28" y="323">94%</text>
-            <line class="grid-line" x1="76" y1="256" x2="1000" y2="256"/><text x="28" y="261">96%</text>
-            <line class="grid-line" x1="76" y1="194" x2="1000" y2="194"/><text x="28" y="199">98%</text>
-            <line class="target-line" x1="76" y1="101" x2="1000" y2="101"/><text class="label-strong" x="82" y="92">99% · целевой потолок</text>
-            <line class="grid-line" x1="76" y1="70" x2="1000" y2="70"/><text x="20" y="75">100%</text>
-            <line class="axis-line" x1="76" y1="70" x2="76" y2="442"/>
-            <line class="axis-line" x1="76" y1="442" x2="1000" y2="442"/>
-            <line class="grid-line" x1="307" y1="70" x2="307" y2="442"/><text x="288" y="475">30 ч</text>
-            <line class="grid-line" x1="538" y1="70" x2="538" y2="442"/><text x="519" y="475">61 ч</text>
-            <line class="grid-line" x1="769" y1="70" x2="769" y2="442"/><text x="746" y="475">91 ч</text>
-            <line class="reset-line" x1="1000" y1="58" x2="1000" y2="450"/><text class="label-strong" x="902" y="40">сброс · 23 августа</text>
-          </g>
-          <path id="fan-path" class="unknown-zone" d=""/>
-          <path id="series-path" class="series" d=""/>
-          <path id="hold-path" class="hold-line" d="" visibility="hidden"/>
-          <circle id="current-dot" class="current-dot" cx="76" cy="256" r="8"/>
-          <g id="annotation">
-            <rect id="annotation-bg" x="104" y="222" width="292" height="72" rx="8" fill="var(--bg)" stroke="var(--border)"/>
-            <text id="annotation-title" class="label-strong" x="120" y="247">Сейчас: 96%</text>
-            <text id="annotation-line1" x="120" y="269">q95 неизвестен → прогноз нечестен</text>
-            <text id="annotation-line2" x="120" y="288">показываем область неопределённости</text>
-          </g>
-        </svg>
-        <figcaption class="chart-caption">
-          <div>
-            <strong id="scenario-title">Честный live-режим: коридор, а не выдуманная линия</strong>
-            <p id="scenario-copy">Система знает текущие 96% и время сброса, но ещё не знает q95 размера следующего хода. Поэтому любой точный прогноз сейчас был бы декоративной ложью.</p>
-          </div>
-          <div class="legend" aria-label="Легенда">
-            <span><i class="swatch"></i>траектория</span>
-            <span><i class="swatch target"></i>потолок 99%</span>
-            <span><i class="swatch unknown"></i>неопределённость</span>
-          </div>
-        </figcaption>
-      </figure>
-    </section>
+  <div class="map-head"><div><h2>Usage × время до сброса</h2><p>Слева безопаснее. Выше — дольше жить до сброса и больше нужен резерв.</p></div><div class="legend"><span class="all"><i></i>все доступны</span><span class="luna"><i></i>только Luna</span><span class="stop"><i></i>Codex primary стоп</span></div></div>
 
-    <section class="section">
-      <div class="section-head">
-        <div>
-          <h2>Почему Luna работает, а Sol уже нет</h2>
-          <p>Сейчас действует временный, очень простой слой #320. Он не блокирует весь Codex-пул одновременно: у моделей отдельные пороги.</p>
-        </div>
-        <span class="badge">живой ответ readiness API</span>
-      </div>
-      <div class="rail-key" aria-label="Обозначения порогов">
-        <span class="sol-key"><i></i>Sol · 95%</span>
-        <span class="luna-key"><i></i>Luna · 98%</span>
-        <span class="target-key"><i></i>цель · 99%</span>
-      </div>
-      <div class="quota-rail" aria-label="Использовано 96 процентов из 100">
-        <div class="quota-used"></div>
-        <div class="marker sol" title="Порог Sol 95%"></div>
-        <div class="marker luna" title="Порог Luna 98%"></div>
-        <div class="marker target" title="Целевой потолок 99%"></div>
-      </div>
-      <div class="rail-labels">
-        <div><strong>96% использовано</strong><span class="mut">Живой provider counter после рестарта.</span></div>
-        <div><strong>2 п.п. для Luna</strong><span class="mut">Можно запускать до достижения 98%.</span></div>
-        <div><strong>3 п.п. до цели</strong><span class="mut">99%, а не физические 100%, оставляет страховку.</span></div>
-      </div>
-      <div class="lane-grid">
-        <article class="lane luna">
-          <div class="lane-top"><h3>gpt-5.6-luna · Fast</h3><span class="lane-status state-ok">allow</span></div>
-          <p>Текущие 96% ниже её временного порога 98%. Новая закрытая работа и Codex-review могут продолжаться.</p>
-          <div class="mini-track" aria-hidden="true"></div>
-          <div class="track-scale"><span>90</span><span>сейчас 96</span><span>порог 98</span><span>100</span></div>
-        </article>
-        <article class="lane sol">
-          <div class="lane-top"><h3>gpt-5.6-sol</h3><span class="lane-status state-stop">hold</span></div>
-          <p>Текущие 96% уже выше порога 95%. Тяжёлые Sol-ходы не должны съедать остаток, предназначенный Luna.</p>
-          <div class="mini-track" aria-hidden="true"></div>
-          <div class="track-scale"><span>90</span><span>порог 95</span><span>сейчас 96</span><span>100</span></div>
-        </article>
-      </div>
-    </section>
+  <section class="map-layout">
+    <div class="map-panel">
+      <svg id="quota-map" viewBox="0 0 980 640" role="img" aria-labelledby="map-title map-desc">
+        <title id="map-title">Интерактивная карта доступности моделей по расходу и времени до сброса</title>
+        <desc id="map-desc">При 96 процентах и 121 часе Luna доступна, Sol заблокирована, Spark доступна в отдельном бакете.</desc>
+        <path id="zone-all" class="zone-all"/>
+        <path id="zone-luna" class="zone-luna"/>
+        <path id="zone-stop" class="zone-stop"/>
+        <g aria-hidden="true">
+          <line class="grid" x1="82" y1="552" x2="900" y2="552"/><text x="45" y="557">0 ч</text>
+          <line class="grid" x1="82" y1="483" x2="900" y2="483"/><text x="36" y="488">24 ч</text>
+          <line class="grid" x1="82" y1="346" x2="900" y2="346"/><text x="36" y="351">72 ч</text>
+          <line class="grid" x1="82" y1="209" x2="900" y2="209"/><text x="28" y="214">120 ч</text>
+          <line class="grid" x1="82" y1="72" x2="900" y2="72"/><text x="28" y="77">168 ч</text>
+          <line class="grid" x1="82" y1="72" x2="82" y2="552"/><text x="76" y="580">0%</text>
+          <line class="grid" x1="246" y1="72" x2="246" y2="552"/><text x="232" y="580">20%</text>
+          <line class="grid" x1="409" y1="72" x2="409" y2="552"/><text x="395" y="580">40%</text>
+          <line class="grid" x1="573" y1="72" x2="573" y2="552"/><text x="559" y="580">60%</text>
+          <line class="grid" x1="736" y1="72" x2="736" y2="552"/><text x="722" y="580">80%</text>
+          <line class="grid" x1="900" y1="72" x2="900" y2="552"/><text x="878" y="580">100%</text>
+          <line class="axis" x1="82" y1="552" x2="900" y2="552"/><line class="axis" x1="82" y1="72" x2="82" y2="552"/>
+          <text class="strong" x="418" y="616">текущий usage пула, %</text>
+          <text class="strong" transform="translate(16 392) rotate(-90)">часов до сброса</text>
+        </g>
+        <path id="sol-boundary" class="sol-boundary"/>
+        <path id="luna-boundary" class="luna-boundary"/>
+        <line id="cursor-x" class="cursor"/><line id="cursor-y" class="cursor"/>
+        <g id="current-point"><path class="current-diamond" d="M0 -12 L12 0 L0 12 L-12 0 Z"/><text class="strong" x="16" y="5">текущая точка</text></g>
+        <g id="point-sol"><circle class="model-dot" r="10"/><rect class="point-label" rx="7" width="126" height="32"/><text class="point-text" y="21">Sol</text></g>
+        <g id="point-luna"><circle class="model-dot" r="10"/><rect class="point-label" rx="7" width="126" height="32"/><text class="point-text" y="21">Luna</text></g>
+        <line id="spark-guide" class="spark-line"/>
+        <g id="point-spark"><circle class="model-dot" r="10"/><rect class="point-label" x="16" y="-16" rx="7" width="146" height="32"/><text class="point-text" x="27" y="5">Spark · отдельный pool</text></g>
+        <g id="boundary-labels"><rect id="sol-label-bg" class="point-label" rx="6" width="108" height="28"/><text id="sol-label" class="point-text" y="19">Sol</text><rect id="luna-label-bg" class="point-label" rx="6" width="116" height="28"/><text id="luna-label" class="point-text" y="19">Luna</text></g>
+      </svg>
+    </div>
+    <aside class="side" aria-label="Статус моделей">
+      <article id="card-luna" class="model"><div class="model-top"><h3>gpt-5.6-luna · Fast</h3><span class="model-state">—</span></div><p class="model-copy"></p><div class="metric"><span>граница сейчас</span><strong class="model-boundary">—</strong></div></article>
+      <article id="card-sol" class="model"><div class="model-top"><h3>gpt-5.6-sol</h3><span class="model-state">—</span></div><p class="model-copy"></p><div class="metric"><span>граница сейчас</span><strong class="model-boundary">—</strong></div></article>
+      <article id="card-spark" class="model available"><div class="model-top"><h3>gpt-5.3-codex-spark</h3><span class="model-state">available</span></div><p>Отдельный недельный бакет: живой снимок 9%. Ползунок Codex primary на него не влияет.</p><div class="metric"><span>живой usage</span><strong>9%</strong></div></article>
+    </aside>
+  </section>
 
-    <section class="section">
-      <div class="section-head">
-        <div>
-          <h2>Как будет решать скользящий контроллер</h2>
-          <p>Процент — только начало. Безопасное решение учитывает размер следующего хода, параллельные запуски, телеметрическую погрешность и операторский резерв.</p>
-        </div>
-        <span class="badge state-warn">сейчас: precalibration</span>
-      </div>
-      <div class="formula-layout">
-        <div class="equation">
-          <div class="equation-main">u<sub>eff</sub> + q95(next turn) + guard ≤ 99 − reserve</div>
-          <p class="mut">Разрешить новый ход можно только если консервативная верхняя оценка всё ещё помещается под целевым потолком.</p>
-          <div class="budget" aria-label="Состав решения контроллера">
-            <div class="budget-part"><span class="sm mut">уже занято</span><strong>u<sub>eff</sub></strong><span class="sm">provider + inflight</span></div>
-            <div class="budget-part q95"><span class="sm mut">следующий ход</span><strong>q95</strong><span class="sm">по модели и режиму</span></div>
-            <div class="budget-part guard"><span class="sm mut">погрешность</span><strong>guard</strong><span class="sm">минимум 0.5 п.п.</span></div>
-            <div class="budget-part result"><span class="sm mut">решение</span><strong>allow / hold</strong><span class="sm">по каждой полосе</span></div>
-          </div>
-        </div>
-        <ul class="explain-list">
-          <li><strong>13 решений наблюдались</strong><span class="mut">И 13 исходов сохранены в shadow telemetry.</span></li>
-          <li><strong>13 из 13 пока indeterminate</strong><span class="mut">Причина одна: <code>unknown_q95</code>.</span></li>
-          <li><strong>Fail-safe — не общий стоп</strong><span class="mut">Статический model-aware слой продолжает разрешать Luna.</span></li>
-          <li><strong>Затем пороги исчезнут</strong><span class="mut">Их заменит фактический runway каждого типа хода.</span></li>
-        </ul>
-      </div>
-    </section>
+  <section class="readout" aria-live="polite">
+    <div class="readout-item"><span>Текущая точка</span><strong id="read-point">96% · 121 ч</strong></div>
+    <div class="readout-item"><span>До границы Luna</span><strong id="read-luna">—</strong></div>
+    <div class="readout-item"><span>До границы Sol</span><strong id="read-sol">—</strong></div>
+    <div class="readout-item"><span>Темп до цели 99%</span><strong id="read-rate">—</strong></div>
+  </section>
 
-    <section class="section">
-      <div class="section-head">
-        <div>
-          <h2>Три уровня правды</h2>
-          <p>Чтобы интерфейс не выдавал планы за работающий прод, состояние разделено прямо на странице.</p>
-        </div>
-      </div>
-      <div class="truth-grid">
-        <article class="truth current">
-          <div class="kicker">Работает сейчас</div>
-          <h3>Разные пороги Luna и Sol</h3>
-          <p>Коммит <code>5a9ff796</code> загружен рестартом. Live API: Luna available @98, Sol blocked @95.</p>
-        </article>
-        <article class="truth next">
-          <div class="kicker">Следующий слой</div>
-          <h3>Hot-config без рестарта</h3>
-          <p>SQLite + operator API + аудит + rollback. Для его первичной загрузки потребуется отдельный код и ещё один согласованный рестарт.</p>
-        </article>
-        <article class="truth limit">
-          <div class="kicker">После калибровки</div>
-          <h3>Настоящее скользящее окно</h3>
-          <p>Контроллер #318 заменит круглые 95/98 на q95 каждого класса хода. Пока q95 неизвестен — это план, не активное обещание.</p>
-        </article>
-      </div>
-    </section>
+  <section class="explain">
+    <div><div class="formula">u<sub>eff</sub> + q95(next turn) + guard ≤ 99 − reserve</div><p id="formula-copy">В preview граница каждой модели пересчитывается на выбранном часе. Чем больше времени до сброса, тем больше временный резерв; чем тяжелее q95 модели, тем левее её линия.</p></div>
+    <ul class="facts"><li><strong>Зелёная зона</strong> — помещаются и Sol, и Luna.</li><li><strong>Бирюзовая зона</strong> — Sol уже тяжёлая, Luna ещё проходит.</li><li><strong>Красная зона</strong> — новые ходы Codex primary удерживаются.</li></ul>
+  </section>
+  <footer class="foot"><span>Live defaults: Codex 96%, Spark 9%, reset 23.08. В режиме «Новая система» q95 — явно демонстрационный до накопления калибровки.</span><span>Источник: <code>docs/tasks/321/source.json</code></span></footer>
+</main>
 
-    <footer class="foot">
-      <span>Источник: живые <code>/api/usage</code>, <code>/api/usage/readiness</code> и <code>/api/usage/quota-controller</code>. Данные сохранены в <code>docs/tasks/321/source.json</code>.</span>
-      <button class="download no-print" id="download-json" type="button">Скачать снимок JSON</button>
-    </footer>
-  </main>
+<script>
+(() => {
+  'use strict';
+  const $ = selector => document.querySelector(selector);
+  const usage = $('#usage');
+  const hours = $('#hours');
+  const usageOut = $('#usage-output');
+  const hoursOut = $('#hours-output');
+  const svg = $('#quota-map');
+  const X0=82, X1=900, Y0=552, Y1=72;
+  const sx = pct => X0 + pct/100*(X1-X0);
+  const sy = hrs => Y0 - hrs/168*(Y0-Y1);
+  const clamp = (v,min,max) => Math.max(min,Math.min(max,v));
+  let mode='adaptive';
 
-  <script>
-  (() => {
-    'use strict';
-    const source = {
-      capturedAt: '2026-08-18T06:14:00Z',
-      utilization: 96,
-      resetAt: '2026-08-23T07:26:39Z',
-      runwayHours: 121.2,
-      luna: { threshold: 98, state: 'available' },
-      sol: { threshold: 95, state: 'blocked' },
-      controller: { target: 99, decisions: 13, outcomes: 13, q95: null, reason: 'unknown_q95' }
-    };
-    const svg = document.getElementById('window-chart');
-    const series = document.getElementById('series-path');
-    const fan = document.getElementById('fan-path');
-    const hold = document.getElementById('hold-path');
-    const title = document.getElementById('scenario-title');
-    const copy = document.getElementById('scenario-copy');
-    const annTitle = document.getElementById('annotation-title');
-    const ann1 = document.getElementById('annotation-line1');
-    const ann2 = document.getElementById('annotation-line2');
-    const desc = document.getElementById('chart-desc');
-    const x = hour => 76 + (hour / source.runwayHours) * 924;
-    const y = pct => 442 - ((pct - 90) / 10) * 372;
-    const line = pts => pts.map((p, i) => `${i ? 'L' : 'M'} ${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join(' ');
-    const area = (upper, lower) => `${line(upper)} ${lower.slice().reverse().map(p => `L ${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join(' ')} Z`;
+  const boundary = (model, hrs) => {
+    if(mode==='static') return model==='sol' ? 95 : 98;
+    const reserve=1.5*(hrs/168);
+    const q95=model==='sol' ? 2.4 : .35;
+    return 99-.5-q95-reserve;
+  };
+  const curve = model => {
+    const pts=[];
+    for(let h=0;h<=168;h+=12) pts.push([boundary(model,h),h]);
+    return pts;
+  };
+  const line = pts => pts.map((p,i)=>`${i?'L':'M'} ${sx(p[0]).toFixed(1)} ${sy(p[1]).toFixed(1)}`).join(' ');
+  const zoneLeft = pts => `M ${X0} ${Y0} L ${sx(pts[0][0])} ${sy(pts[0][1])} ${pts.slice(1).map(p=>`L ${sx(p[0])} ${sy(p[1])}`).join(' ')} L ${X0} ${Y1} Z`;
+  const zoneBetween = (left,right) => `${line(left)} ${right.slice().reverse().map(p=>`L ${sx(p[0])} ${sy(p[1])}`).join(' ')} Z`;
+  const zoneRight = pts => `${line(pts)} L ${X1} ${Y1} L ${X1} ${Y0} Z`;
 
-    const scenarios = {
-      live: {
-        series: [[0,96],[121.2,96]],
-        upper: [[0,96],[30,100],[61,100],[91,100],[121.2,100]],
-        lower: [[0,96],[30,96],[61,96],[91,96],[121.2,96]],
-        fanClass: 'unknown-zone', hold: null,
-        title: 'Честный live-режим: коридор, а не выдуманная линия',
-        copy: 'Система знает текущие 96% и время сброса, но ещё не знает q95 размера следующего хода. Поэтому любой точный прогноз сейчас был бы декоративной ложью.',
-        ann: ['Сейчас: 96%','q95 неизвестен → прогноз нечестен','показываем область неопределённости'],
-        desc: 'Текущий расход 96 процентов. От 96 до 100 процентов показана область неопределённости, потому что q95 следующего хода неизвестен.'
-      },
-      calibrated: {
-        series: [[0,96],[24,96.4],[48,97.1],[72,97.5],[96,98.0],[121.2,98.2]],
-        upper: [[0,96],[24,96.8],[48,97.5],[72,98.1],[96,98.7],[121.2,98.8]],
-        lower: [[0,96],[24,96.1],[48,96.6],[72,97.0],[96,97.4],[121.2,97.6]],
-        fanClass: 'fan', hold: null,
-        title: 'После калибровки: управляемый коридор заканчивается ниже 99%',
-        copy: 'Это объясняющий сценарий, не live-прогноз: q95, guard и inflight известны, поэтому контроллер дозирует новые ходы и сохраняет запас до цели.',
-        ann: ['Пример: q95 известен','коридор p50–p95 остаётся ниже 99%','значения иллюстративные, не live'],
-        desc: 'Иллюстративная траектория после калибровки заканчивается на 98.2 процента, а верхняя граница коридора — на 98.8 процента.'
-      },
-      hold: {
-        series: [[0,96],[24,97.1],[48,98.1],[65,98.7],[72,99],[121.2,99]],
-        upper: [[0,96],[24,97.5],[48,98.6],[65,99],[72,99],[121.2,99]],
-        lower: [[0,96],[24,96.7],[48,97.6],[65,98.2],[72,98.5],[121.2,98.5]],
-        fanClass: 'fan', hold: [[72,99],[121.2,99]],
-        title: 'Запас исчерпан: новые ходы держатся до сброса',
-        copy: 'Когда консервативная оценка достигает 99%, контроллер перестаёт открывать новые ходы. Идущая работа не убивается, а свободный пул не падает в физический ноль.',
-        ann: ['72 ч: достигнут потолок','новые ходы → HOLD','работающие ходы не прерываются'],
-        desc: 'Иллюстративная траектория достигает 99 процентов через 72 часа, после чего новые ходы удерживаются до сброса.'
-      }
-    };
-
-    function renderScenario(key) {
-      const s = scenarios[key];
-      series.setAttribute('d', line(s.series));
-      fan.setAttribute('d', area(s.upper, s.lower));
-      fan.setAttribute('class', s.fanClass);
-      if (s.hold) {
-        hold.setAttribute('d', line(s.hold));
-        hold.setAttribute('visibility', 'visible');
-      } else {
-        hold.setAttribute('visibility', 'hidden');
-      }
-      title.textContent = s.title;
-      copy.textContent = s.copy;
-      annTitle.textContent = s.ann[0];
-      ann1.textContent = s.ann[1];
-      ann2.textContent = s.ann[2];
-      desc.textContent = s.desc;
-      document.querySelectorAll('[data-scenario]').forEach(button => {
-        button.setAttribute('aria-pressed', String(button.dataset.scenario === key));
-      });
-    }
-
-    document.querySelectorAll('[data-scenario]').forEach(button => {
-      button.addEventListener('click', () => renderScenario(button.dataset.scenario));
-    });
-    document.getElementById('download-json').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify(source, null, 2)], {type:'application/json'});
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = 'quota-runway-snapshot-2026-08-18.json';
-      anchor.click();
-      URL.revokeObjectURL(url);
-    });
-    renderScenario('live');
-    svg.dataset.ready = 'true';
-  })();
-  </script>
+  function setSliderFill(input){
+    const pct=(Number(input.value)-Number(input.min))/(Number(input.max)-Number(input.min))*100;
+    input.style.setProperty('--fill',`${pct}%`);
+  }
+  function setCard(id, ok, edge, current, model){
+    const card=$(id);
+    card.className=`model ${ok?'available':'blocked'}`;
+    card.querySelector('.model-state').textContent=ok?'available':'hold';
+    const delta=edge-current;
+    card.querySelector('.model-copy').textContent=ok
+      ? `${model} проходит: запас ${delta.toFixed(1)} п.п. до её границы.`
+      : `${model} удерживается: текущая точка выше границы на ${Math.abs(delta).toFixed(1)} п.п.`;
+    card.querySelector('.model-boundary').textContent=`${edge.toFixed(1)}%`;
+  }
+  function placeModel(groupId,pct,hrs,label,ok,offset){
+    const group=$(groupId), gx=sx(pct), gy=sy(clamp(hrs+offset,0,168));
+    group.setAttribute('transform',`translate(${gx.toFixed(1)} ${gy.toFixed(1)})`);
+    const circle=group.querySelector('circle');
+    circle.style.fill=ok?'var(--s3)':'var(--bad)';
+    const rect=group.querySelector('rect'), text=group.querySelector('text');
+    const left=pct>72;
+    rect.setAttribute('x',left?-142:16);rect.setAttribute('y','-16');
+    text.setAttribute('x',left?-132:27);text.setAttribute('y','5');
+    text.textContent=`${label} · ${ok?'OK':'HOLD'}`;
+  }
+  function placeBoundaryLabel(prefix,edge,hrs,text){
+    const px=sx(edge), py=sy(hrs);
+    const bg=$(`#${prefix}-label-bg`), label=$(`#${prefix}-label`);
+    const bx=clamp(px-112,X0+4,X1-120), by=clamp(py-44,Y1+4,Y0-32);
+    bg.setAttribute('x',bx);bg.setAttribute('y',by);
+    label.setAttribute('x',bx+10);label.setAttribute('y',by+19);label.textContent=text;
+  }
+  function render(){
+    const u=Number(usage.value), h=Number(hours.value);
+    usageOut.innerHTML=`${u}<small>%</small>`;
+    hoursOut.innerHTML=`${h}<small> ч</small>`;
+    setSliderFill(usage);setSliderFill(hours);
+    const solCurve=curve('sol'), lunaCurve=curve('luna');
+    $('#zone-all').setAttribute('d',zoneLeft(solCurve));
+    $('#zone-luna').setAttribute('d',zoneBetween(solCurve,lunaCurve));
+    $('#zone-stop').setAttribute('d',zoneRight(lunaCurve));
+    $('#sol-boundary').setAttribute('d',line(solCurve));
+    $('#luna-boundary').setAttribute('d',line(lunaCurve));
+    const px=sx(u),py=sy(h);
+    $('#cursor-x').setAttribute('x1',px);$('#cursor-x').setAttribute('x2',px);$('#cursor-x').setAttribute('y1',Y1);$('#cursor-x').setAttribute('y2',Y0);
+    $('#cursor-y').setAttribute('x1',X0);$('#cursor-y').setAttribute('x2',X1);$('#cursor-y').setAttribute('y1',py);$('#cursor-y').setAttribute('y2',py);
+    $('#current-point').setAttribute('transform',`translate(${px.toFixed(1)} ${py.toFixed(1)})`);
+    const currentText=$('#current-point text');
+    currentText.setAttribute('x',u>75?'-16':'16');
+    currentText.setAttribute('text-anchor',u>75?'end':'start');
+    const solEdge=boundary('sol',h),lunaEdge=boundary('luna',h);
+    const solOK=u<solEdge,lunaOK=u<lunaEdge;
+    placeModel('#point-sol',u,h,'Sol',solOK,-9);
+    placeModel('#point-luna',u,h,'Luna',lunaOK,9);
+    const sparkX=sx(9),sparkY=sy(122);
+    $('#point-spark').setAttribute('transform',`translate(${sparkX.toFixed(1)} ${sparkY.toFixed(1)})`);
+    $('#point-spark circle').style.fill='var(--s5)';
+    $('#spark-guide').setAttribute('x1',sparkX);$('#spark-guide').setAttribute('x2',sparkX);$('#spark-guide').setAttribute('y1',sparkY);$('#spark-guide').setAttribute('y2',Y0);
+    const solLabelHour=156,lunaLabelHour=143;
+    placeBoundaryLabel('sol',boundary('sol',solLabelHour),solLabelHour,'граница Sol');
+    placeBoundaryLabel('luna',boundary('luna',lunaLabelHour),lunaLabelHour,'граница Luna');
+    setCard('#card-luna',lunaOK,lunaEdge,u,'Luna');setCard('#card-sol',solOK,solEdge,u,'Sol');
+    $('#read-point').textContent=`${u}% · ${h} ч`;
+    const lunaDelta=lunaEdge-u,solDelta=solEdge-u;
+    $('#read-luna').textContent=`${lunaDelta>=0?'+':''}${lunaDelta.toFixed(1)} п.п.`;
+    $('#read-sol').textContent=`${solDelta>=0?'+':''}${solDelta.toFixed(1)} п.п.`;
+    $('#read-rate').textContent=h>0?`${(Math.max(0,99-u)/h).toFixed(3)} п.п./ч`:'сброс сейчас';
+    $('#map-desc').textContent=`Текущая точка ${u} процентов и ${h} часов. Luna ${lunaOK?'доступна':'заблокирована'}, Sol ${solOK?'доступна':'заблокирована'}, Spark доступна в отдельном бакете.`;
+    svg.dataset.ready='true';
+  }
+  document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{
+    mode=button.dataset.mode;
+    document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+    $('#mode-note').textContent=mode==='static'
+      ? 'Живой временный override #320: Sol 95%, Luna 98%. Время до сброса видно, но круглые пороги от него пока не зависят.'
+      : 'Preview #318: граница изгибается по runway, q95 и резерву. q95 пока демонстрационный — live-калибровка ещё не накоплена.';
+    $('#formula-copy').textContent=mode==='static'
+      ? 'Сейчас это вертикальные пороги: Sol <95%, Luna <98%. Hot-config #320 позволит менять их без рестарта.'
+      : 'В preview граница каждой модели пересчитывается на выбранном часе. Чем больше времени до сброса, тем больше временный резерв; чем тяжелее q95 модели, тем левее её линия.';
+    render();
+  }));
+  usage.addEventListener('input',render);hours.addEventListener('input',render);
+  render();
+})();
+</script>
 </body>
 </html>
