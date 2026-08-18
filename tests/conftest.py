@@ -231,3 +231,49 @@ def _isolate_worktree_root(tmp_path, monkeypatch):
     root = tmp_path / "_isolated_worktrees"
     root.mkdir(exist_ok=True)
     monkeypatch.setattr("app.workspace.WORKTREE_ROOT", root)
+
+
+# ── sync-Playwright и pytest-asyncio в одном процессе ────────────────────────
+# Сессионная фикстура pytest-playwright зовёт `sync_playwright().start()` и
+# останавливает её только в конце СЕССИИ. Пока она жива, в главном потоке висит
+# запущенный event loop, и любой последующий `@pytest.mark.asyncio` падает
+# `RuntimeError: Runner.run() cannot be called from a running event loop`.
+# Замер (#318): после `tests/test_t314_analytics_browser.py` проба видит
+# `<_UnixSelectorEventLoop running=True closed=False>`, после файла со своей
+# закрытой сессией — `None`; тест-гейт собирает мапнутые тесты в ОДИН прогон,
+# поэтому договорённость «гонять браузерные отдельным вызовом» не исполняется.
+# Ниже — та же цепочка фикстур pytest-playwright, но с модульной областью:
+# каждый браузерный файл закрывает свою сессию за собой.
+@pytest.fixture(scope="module")
+def playwright():
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as instance:
+        yield instance
+
+
+@pytest.fixture(scope="module")
+def browser_type(playwright, browser_name):
+    return getattr(playwright, browser_name)
+
+
+@pytest.fixture(scope="module")
+def launch_browser(browser_type_launch_args, browser_type, connect_options):
+    if connect_options:
+        # Удалённый браузер — этот путь не покрыт: fail loud вместо тихого расхождения
+        # с поведением pytest-playwright.
+        raise NotImplementedError(
+            "connect_options не поддержан модульной фикстурой browser (tests/conftest.py)"
+        )
+
+    def launch(**kwargs):
+        return browser_type.launch(**{**browser_type_launch_args, **kwargs})
+
+    return launch
+
+
+@pytest.fixture(scope="module")
+def browser(launch_browser):
+    instance = launch_browser()
+    yield instance
+    instance.close()

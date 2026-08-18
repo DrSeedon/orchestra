@@ -39,8 +39,20 @@ def test_policy_defaults_and_exact_boundaries(policy_db):
     snapshot = db.quota_policy_snapshot()
     assert snapshot["label"] == "TEMPORARY STATIC OVERRIDE"
     assert {lane: item["threshold"] for lane, item in snapshot["lanes"].items()} == {
-        "sol": 95.0, "luna": 98.0, "spark": 95.0,
+        "sol": 95.0, "luna": 98.0, "spark": 95.0, "claude": 90.0,
     }
+    anthropic = (
+        {"anthropic": _provider("Claude", 89)}, {"anthropic": NOW - 10},
+    )
+    assert evaluate_worker_admission(
+        "claude-opus-5[1m]", *anthropic, now=NOW, policy=snapshot,
+    ).allowed
+    anthropic = (
+        {"anthropic": _provider("Claude", 90)}, {"anthropic": NOW - 10},
+    )
+    assert not evaluate_worker_admission(
+        "claude-opus-5[1m]", *anthropic, now=NOW, policy=snapshot,
+    ).allowed
     providers, observed = _providers(codex=94)
     assert evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW, policy=snapshot).allowed
     providers, observed = _providers(codex=95)

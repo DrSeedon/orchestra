@@ -6,6 +6,11 @@ let _analyticsPayload = null;
 let _analyticsAgentFilter = 'all';
 let _analyticsSelectedAgent = null;
 let _analyticsRequestVersion = 0;
+// Карта квот приезжает в общем снимке аналитики: модалка держит контракт
+// «один запрос на открытие». Журнал правок операторский и тянется по кнопке.
+let _analyticsQuotaMap = null;
+let _analyticsQuotaMapError = '';
+let _analyticsQuotaPolicy = null;
 
 const _analyticsPeriods = {
     today: { label: 'Сегодня', days: 1 },
@@ -120,6 +125,9 @@ async function _analyticsLoad() {
         const payload = await api(`/api/usage/analytics?days=${days}`, { timeoutMs: 15000 });
         if (requestVersion !== _analyticsRequestVersion) return;
         _analyticsPayload = payload;
+        const map = payload.quota_map;
+        _analyticsQuotaMap = map && map.buckets ? map : null;
+        _analyticsQuotaMapError = _analyticsQuotaMap ? '' : ((map || {}).error || 'снимок не содержит карту квот');
         _analyticsRenderQuality();
         _analyticsRender();
     } catch (error) {
@@ -223,13 +231,23 @@ function _analyticsRenderOverview(body) {
     if (wakeButton) wakeButton.onclick = () => _analyticsScheduleWake(wakeButton);
     const rollbackButton = body.querySelector('[data-quota-policy-rollback]');
     if (rollbackButton) rollbackButton.onclick = () => _analyticsRollbackQuotaPolicy(rollbackButton);
+    const saveButton = body.querySelector('[data-quota-policy-save]');
+    if (saveButton) saveButton.onclick = () => _analyticsSaveQuotaPolicy(saveButton);
+    const auditButton = body.querySelector('[data-quota-policy-audit-load]');
+    if (auditButton) auditButton.onclick = () => _analyticsLoadPolicyAudit(auditButton);
+    body.querySelectorAll('[data-quota-threshold]').forEach(input => {
+        input.oninput = () => {
+            const readout = body.querySelector(`[data-quota-threshold-value="${input.dataset.quotaThreshold}"]`);
+            if (readout) readout.textContent = `${input.value}%`;
+        };
+    });
     _analyticsRenderChart(data.daily || []);
 }
 
 function _analyticsQuotaPanel(data) {
     const controller = data.quota_controller || {};
     const shadow = controller.shadow || controller;
-    const staticPolicy = _analyticsStaticPolicy(controller);
+    const staticPolicy = _analyticsQuotaMapPanel(controller);
     if (controller.reason === 'quota_controller_error' || shadow.reason === 'quota_controller_error') {
         return `<section class="analytics-panel analytics-quota-error" data-quota-controller>
             <div class="analytics-section-head"><div><span class="analytics-kicker">Quota controller</span><h3>Квоты недоступны</h3></div></div>
@@ -270,28 +288,223 @@ function _analyticsQuotaPanel(data) {
     </section>`;
 }
 
-function _analyticsStaticPolicy(controller) {
-    const policy = controller.static_policy || {};
+// Журнал правок операторский и в общий снимок намеренно не входит (#320),
+// поэтому он тянется по требованию, а не на каждом открытии модалки.
+async function _analyticsLoadPolicyAudit(button) {
+    button.disabled = true;
+    button.textContent = 'Читаю журнал…';
+    try {
+        _analyticsQuotaPolicy = await api('/api/usage/quota-controller/policy', { timeoutMs: 15000 });
+        _analyticsRender();
+    } catch (error) {
+        button.disabled = false;
+        button.textContent = 'Журнал правок';
+        button.title = error && error.message ? error.message : 'журнал недоступен';
+    }
+}
+
+function _analyticsResetIn(seconds) {
+    if (seconds == null) return 'срок сброса неизвестен';
+    const total = Math.max(0, Number(seconds));
+    const hours = Math.floor(total / 3600);
+    if (hours >= 24) return `до сброса ${Math.floor(hours / 24)} дн ${hours % 24} ч`;
+    if (hours >= 1) return `до сброса ${hours} ч ${Math.round((total % 3600) / 60)} мин`;
+    return `до сброса ${Math.max(1, Math.round(total / 60))} мин`;
+}
+
+// Одна картинка на пул: где мы сейчас (заливка), что из-за этого доступно
+// (чипы моделей) и сколько осталось до сброса. Позиция каждой отметки считается
+// из того же процента, который печатается рядом, — картинка не может разойтись
+// с числом. Пул без недельной телеметрии рисуется как «нет данных», а не как 0%.
+function _analyticsQuotaPool(bucket) {
+    const lanes = bucket.lanes || [];
+    const window = bucket.window || {};
+    const models = bucket.models || [];
+    const utilization = Number(window.utilization);
+    if (!bucket.data_available || !Number.isFinite(utilization)) {
+        return `<article class="quota-pool quota-pool-nodata" data-quota-pool="${_analyticsEsc(bucket.bucket)}">
+            <header><b>${_analyticsEsc(bucket.label)}</b><span class="quota-pool-pill quota-pool-pill-unknown" data-quota-status>нет данных</span></header>
+            <p class="quota-pool-nodata-line">Недельного окна в телеметрии нет. Гейт видит то же самое и отвечает <code>unknown</code> — это не ноль расхода.</p>
+        </article>`;
+    }
+    const blocking = lanes.filter(lane => utilization >= Number(lane.threshold));
+    const nearest = lanes.reduce(
+        (best, lane) => (best == null || Number(lane.threshold) < Number(best.threshold) ? lane : best),
+        null,
+    );
+    const margin = nearest ? Number(nearest.threshold) - utilization : null;
+    const tone = blocking.length ? 'blocked' : margin != null && margin <= 5 ? 'warn' : 'ok';
+    const status = blocking.length
+        ? `заблокировано: ${blocking.map(lane => _analyticsEsc(lane.label)).join(', ')}`
+        : tone === 'warn' ? `до порога ${_analyticsNumber(Math.round(margin * 10) / 10)} п.п.` : 'свободно';
+    // Подписи порогов ставятся в две строки и прижимаются к краю у 100%:
+    // на живых числах Sol 95 и Luna 98 иначе наезжают друг на друга.
+    const ticks = lanes.map((lane, index) => {
+        const position = Math.min(100, Math.max(0, Number(lane.threshold)));
+        const classes = [index % 2 ? 'quota-tick-low' : '', position >= 92 ? 'quota-tick-edge' : '']
+            .filter(Boolean).join(' ');
+        return `<u data-quota-mark="${_analyticsEsc(lane.lane)}" class="${classes}" style="left:${position}%">
+            <em>${_analyticsEsc(lane.label)} ${_analyticsNumber(lane.threshold)}</em>
+        </u>`;
+    }).join('');
+    const chips = models
+        .slice()
+        .sort((a, b) => Number(b.allowed) - Number(a.allowed) || a.model.localeCompare(b.model))
+        .map(item => `<li class="quota-chip quota-chip-${item.state === 'available' ? 'ok' : item.state === 'blocked' ? 'blocked' : 'unknown'}"
+                data-quota-model="${_analyticsEsc(item.model)}" title="${_analyticsEsc(item.reason || '')}">
+            ${_analyticsEsc(item.label || item.model)}<span data-quota-verdict>${
+                item.state === 'available' ? 'доступна' : item.state === 'blocked' ? 'блок' : 'нет данных'
+            } · ${_analyticsNumber(item.threshold)}%</span>
+        </li>`).join('');
+    const reference = (bucket.reference_windows || [])
+        .filter(item => Number.isFinite(Number(item.utilization)))
+        .map(item => `${_analyticsEsc(item.label || item.id)} ${_analyticsNumber(item.utilization)}%`)
+        .join(' · ');
+    return `<article class="quota-pool quota-pool-${tone}" data-quota-pool="${_analyticsEsc(bucket.bucket)}">
+        <header><b>${_analyticsEsc(bucket.label)}</b>
+            <span class="quota-pool-pill quota-pool-pill-${tone}" data-quota-status>${status}</span></header>
+        <div class="quota-pool-figure">
+            <strong data-quota-utilization>${_analyticsNumber(utilization)}<i>%</i></strong>
+            <span>${_analyticsResetIn(window.reset_in_seconds)}</span>
+        </div>
+        <div class="quota-pool-bar" data-quota-bar="${_analyticsEsc(bucket.bucket)}">
+            <i style="width:${Math.min(100, Math.max(0, utilization))}%"></i>${ticks}
+        </div>
+        <ul class="quota-pool-chips">${chips || '<li class="quota-chip quota-chip-unknown">моделей нет</li>'}</ul>
+        ${reference ? `<p class="quota-pool-reference">${reference} — справочно, допуск решает только недельное окно</p>` : ''}
+        ${bucket.bucket === 'anthropic' ? '<p class="quota-pool-reference" data-quota-orchestrator-note>Порог останавливает новые ходы <b>воркеров</b>; оркестратор гейт не проходит и продолжает работать — это резерв #227.</p>' : ''}
+        ${bucket.fresh ? '' : '<p class="quota-pool-reference quota-pool-stale">телеметрия устарела — гейт откажет как unknown</p>'}
+    </article>`;
+}
+
+function _analyticsQuotaPools(map) {
+    const buckets = map.buckets || [];
+    if (!buckets.length) return '<div class="analytics-empty">Пулов с недельной политикой не найдено.</div>';
+    return buckets.map(_analyticsQuotaPool).join('');
+}
+
+function _analyticsQuotaOutside(map) {
+    const outside = map.outside_policy || [];
+    if (!outside.length) return '';
+    const names = outside.map(item => _analyticsEsc(item.label || item.model)).join(', ');
+    return `<p class="quota-map-outside" data-quota-outside>Вне недельной политики: ${names} — порога нет, гейт их не режет.</p>`;
+}
+
+// Полосы берём из карты; когда её запрос не дошёл, тот же снимок политики уже
+// лежит в общем payload аналитики — оператор не остаётся без управления.
+function _analyticsPolicySnapshot(map, controller) {
+    const fromMap = (map || {}).policy || {};
+    if (fromMap.lanes && Object.keys(fromMap.lanes).length) return fromMap;
+    return (controller || {}).static_policy || {};
+}
+
+function _analyticsQuotaControls(map, controller) {
+    const policy = _analyticsPolicySnapshot(map, controller);
     const lanes = policy.lanes || {};
-    const labels = { sol: 'Sol', luna: 'Luna Fast', spark: 'Spark' };
-    const rows = ['sol', 'luna', 'spark'].map(lane => {
+    const labels = { claude: 'Claude', sol: 'Sol', luna: 'Luna Fast', spark: 'Spark' };
+    const bounds = { luna: [95, 99] };
+    const rows = ['claude', 'sol', 'luna', 'spark'].filter(lane => lanes[lane]).map(lane => {
         const item = lanes[lane] || {};
-        const threshold = item.threshold == null ? '—' : `${_analyticsNumber(item.threshold)}%`;
+        const [min, max] = bounds[lane] || [50, 100];
         return `<article class="analytics-policy-row" data-quota-policy-lane="${lane}">
-            <span>${labels[lane]}</span><strong>${threshold}</strong>
+            <span>${labels[lane] || lane}</span>
+            <strong data-quota-threshold-value="${lane}">${_analyticsNumber(item.threshold)}%</strong>
+            <input type="range" min="${min}" max="${max}" step="1" value="${Number(item.threshold)}"
+                   data-quota-threshold="${lane}" aria-label="Порог ${labels[lane] || lane}">
             <small>новые worker turns · revision ${_analyticsEsc(item.revision == null ? '—' : item.revision)}</small>
         </article>`;
     }).join('');
-    const available = policy.data_available !== false && Object.keys(lanes).length > 0;
-    const reason = policy.reason || policy.error || 'policy_unavailable_static_fallback';
-    return `<section class="analytics-static-policy" data-quota-static-policy>
-        <div class="analytics-section-head"><div><span class="analytics-kicker">Operator control</span><h3>Статическая квота</h3></div>
+    const auditLine = !_analyticsQuotaPolicy
+        ? '<button type="button" data-quota-policy-audit-load>Журнал правок</button>'
+        : (() => {
+            const audit = (_analyticsQuotaPolicy.audit || [])[0];
+            return audit
+                ? `Последняя правка: ${_analyticsEsc(audit.actor)} · ${_analyticsDateTime(audit.created_at)} · ${_analyticsEsc(audit.action)} · «${_analyticsEsc(audit.reason)}»`
+                : 'Журнал прочитан: правок оператора ещё не было.';
+        })();
+    return `<div class="analytics-policy-grid">${rows || '<div class="analytics-empty">Полос нет.</div>'}</div>
+        <div class="quota-map-actions">
+            <input type="text" data-quota-policy-reason placeholder="Причина правки (обязательна)" maxlength="200">
+            <button type="button" data-quota-policy-save ${rows ? '' : 'disabled'}>Применить пороги</button>
+            <button type="button" data-quota-policy-rollback ${rows ? '' : 'disabled'}>Откатить к defaults</button>
+        </div>
+        <p class="analytics-quota-policy-meta" data-quota-policy-audit>${auditLine}</p>`;
+}
+
+// Единственный ответ на вопрос «применил или нет»: что режет ход прямо сейчас.
+function _analyticsQuotaModeLine(map, controller) {
+    const policy = _analyticsPolicySnapshot(map, controller);
+    const mapMode = (map || {}).mode || {};
+    const mode = {
+        label: mapMode.label || policy.label,
+        source: mapMode.source || policy.source,
+        revision: mapMode.revision ?? policy.revision,
+        reason: mapMode.reason || policy.reason,
+        updated_at: mapMode.updated_at || policy.updated_at,
+        tier: mapMode.adaptive_tier || 'precalibration',
+    };
+    const shadow = (controller || {}).shadow || {};
+    const killSwitch = mapMode.adaptive_kill_switch_enabled ?? (controller || {}).enforcement_active;
+    const adaptive = killSwitch == null
+        ? 'Адаптивный контроллер (#314): состояние killswitch неизвестно — снимок контроллера не прочитан.'
+        : killSwitch
+        ? `Адаптивный контроллер (#314): killswitch включён, tier ${_analyticsEsc(mode.tier)} — держит ход только при свежей и уверенной телеметрии, иначе решает тот же статический порог. Фактических hold за период: ${_analyticsNumber(shadow.actual_hold_count)}.`
+        : 'Адаптивный контроллер (#314): выключен killswitch — ходы режет только статический порог.';
+    return `<p class="quota-map-mode" data-quota-mode>
+        <b>Сейчас режет ход: статический порог</b> — ${_analyticsEsc(mode.label || 'TEMPORARY STATIC OVERRIDE')},
+        source ${_analyticsEsc(mode.source || '—')}, revision ${_analyticsEsc(mode.revision == null ? '—' : mode.revision)},
+        изменён ${_analyticsDateTime(mode.updated_at)} («${_analyticsEsc(mode.reason || '—')}»).
+        <br>${adaptive}
+    </p>`;
+}
+
+function _analyticsQuotaMapPanel(controller) {
+    const map = _analyticsQuotaMap;
+    const policy = _analyticsPolicySnapshot(map, controller);
+    const pools = map
+        ? `<div class="quota-map-pools">${_analyticsQuotaPools(map)}</div>${_analyticsQuotaOutside(map)}`
+        : `<p class="analytics-quota-policy-reason" data-quota-map-error>Живая карта пулов не загрузилась: ${
+            _analyticsEsc(_analyticsQuotaMapError || 'нет данных')}. Пороги ниже — из снимка политики.</p>`;
+    return `<section class="analytics-static-policy" data-quota-map data-quota-static-policy>
+        <div class="analytics-section-head"><div><span class="analytics-kicker">Карта квот · живые данные</span><h3>Кто сейчас проходит гейт</h3></div>
             <span data-quota-policy-label>${_analyticsEsc(policy.label || 'TEMPORARY STATIC OVERRIDE')}</span></div>
-        <p class="analytics-quota-policy-meta">${available ? `revision ${_analyticsEsc(policy.revision == null ? '—' : policy.revision)} · source ${_analyticsEsc(policy.source || '—')}` : 'Снимок policy недоступен'}</p>
-        <div class="analytics-policy-grid">${rows}</div>
-        <p class="analytics-quota-policy-reason">Причина: ${_analyticsEsc(reason)}</p>
-        <button type="button" data-quota-policy-rollback ${available ? '' : 'disabled'}>Откатить к defaults</button>
+        ${_analyticsQuotaModeLine(map, controller)}
+        ${pools}
+        ${_analyticsQuotaControls(map, controller)}
     </section>`;
+}
+
+async function _analyticsSaveQuotaPolicy(button) {
+    const panel = button.closest('[data-quota-map]');
+    const reasonInput = panel ? panel.querySelector('[data-quota-policy-reason]') : null;
+    const reason = reasonInput && reasonInput.value.trim();
+    if (!reason) {
+        if (reasonInput) reasonInput.focus();
+        button.title = 'Причина обязательна';
+        return;
+    }
+    const thresholds = {};
+    panel.querySelectorAll('[data-quota-threshold]').forEach(input => {
+        thresholds[input.dataset.quotaThreshold] = Number(input.value);
+    });
+    button.disabled = true;
+    const oldText = button.textContent;
+    button.textContent = 'Применяю…';
+    try {
+        await api('/api/usage/quota-controller/policy', {
+            method: 'PUT',
+            body: JSON.stringify({
+                thresholds,
+                reason,
+                expected_revision: (_analyticsQuotaMap.policy || {}).revision,
+            }),
+        });
+        await _analyticsLoad();
+    } catch (error) {
+        button.disabled = false;
+        button.textContent = oldText;
+        button.title = error && error.message ? error.message : 'Пороги не применены';
+    }
 }
 
 async function _analyticsRollbackQuotaPolicy(button) {

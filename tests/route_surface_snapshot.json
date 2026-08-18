@@ -619,6 +619,12 @@
   ]
  ],
  [
+  "/api/usage/quota-map",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/usage/readiness",
   [
    "GET"

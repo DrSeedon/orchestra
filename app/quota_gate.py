@@ -15,6 +15,18 @@ from app.runtime_registry import get_runtime
 WEEKLY_WINDOW_MINUTES = 10080
 WORKER_WEEKLY_LIMIT_PCT = 95.0
 LUNA_WORKER_WEEKLY_LIMIT_PCT = 98.0
+# Абсолютный worker-стоп пула Claude из принятой политики #227
+# (pipelines/default/pipeline.yaml:17 absolute_block_pct, app/manager.py:646):
+# последние 10 п.п. недели резервируются под оркестраторов и кеш. Оркестраторы
+# гейт не проходят вовсе (app/session.py:1207, :2032, :2248).
+CLAUDE_WORKER_WEEKLY_LIMIT_PCT = 90.0
+# Совпадение с сидом БД (app/db.py QUOTA_POLICY_DEFAULTS) закреплено тестом.
+LANE_DEFAULT_THRESHOLDS = {
+    "sol": WORKER_WEEKLY_LIMIT_PCT,
+    "luna": LUNA_WORKER_WEEKLY_LIMIT_PCT,
+    "spark": WORKER_WEEKLY_LIMIT_PCT,
+    "claude": CLAUDE_WORKER_WEEKLY_LIMIT_PCT,
+}
 QUOTA_OBSERVATION_MAX_AGE = 300.0
 SPARK_MODEL = "gpt-5.3-codex-spark"
 READINESS_POLICY = "worker-weekly-v1"
@@ -185,6 +197,11 @@ def _timestamp(value: object) -> float | None:
     return result if math.isfinite(result) and result > 0 else None
 
 
+def parse_quota_timestamp(value: object) -> float | None:
+    """Public name for the gate's own reset/observation timestamp parser."""
+    return _timestamp(value)
+
+
 def _utilization(value: object) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
@@ -268,11 +285,8 @@ def _alternatives(
     for bucket in ("anthropic", "codex", "codex_spark"):
         if bucket == target:
             continue
-        threshold = WORKER_WEEKLY_LIMIT_PCT
-        if bucket == "codex_spark":
-            threshold = _policy_threshold(policy, "spark", threshold)
-        elif bucket == "codex":
-            threshold = _policy_threshold(policy, "sol", threshold)
+        # Полоса берётся по бакету: у codex это Sol, дефолтный worker-исполнитель.
+        threshold = lane_threshold(policy, policy_lane_for_model("", bucket))
         state, _usage, _observed, _reset, _reason = _weekly_status(
             providers.get(bucket), observed_at_by_provider.get(bucket), now, threshold,
         )
@@ -281,6 +295,28 @@ def _alternatives(
             label = data.get("label") if isinstance(data, Mapping) else None
             result.append({"provider": bucket, "label": str(label or bucket)})
     return tuple(result)
+
+
+def policy_lane_for_model(resolved_model: str, bucket: str | None) -> str | None:
+    """Map one resolved model to its operator policy lane (single owner)."""
+    if bucket == "codex_spark":
+        return "spark"
+    if resolved_model == "gpt-5.6-luna":
+        return "luna"
+    if bucket == "codex":
+        return "sol"
+    if bucket in {"anthropic", "anthropic_fable"}:
+        return "claude"
+    return None
+
+
+def lane_threshold(policy: Mapping[str, object] | None, lane: str | None) -> float:
+    """Threshold in force for one lane: operator policy, else its default."""
+    if lane is None:
+        return WORKER_WEEKLY_LIMIT_PCT
+    return _policy_threshold(
+        policy, lane, LANE_DEFAULT_THRESHOLDS.get(lane, WORKER_WEEKLY_LIMIT_PCT),
+    )
 
 
 def _policy_threshold(
@@ -324,14 +360,7 @@ def evaluate_worker_admission(
         )
     provider = providers.get(bucket)
     observed_raw = observed_at_by_provider.get(bucket)
-    if bucket == "codex_spark":
-        threshold = _policy_threshold(policy, "spark", WORKER_WEEKLY_LIMIT_PCT)
-    elif resolved == "gpt-5.6-luna":
-        threshold = _policy_threshold(policy, "luna", LUNA_WORKER_WEEKLY_LIMIT_PCT)
-    elif bucket == "codex":
-        threshold = _policy_threshold(policy, "sol", WORKER_WEEKLY_LIMIT_PCT)
-    else:
-        threshold = WORKER_WEEKLY_LIMIT_PCT
+    threshold = lane_threshold(policy, policy_lane_for_model(resolved, bucket))
     state, utilization, observed_at, reset_at, reason = _weekly_status(
         provider, observed_raw, checked_at, threshold,
     )

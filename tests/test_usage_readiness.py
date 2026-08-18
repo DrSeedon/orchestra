@@ -198,7 +198,8 @@ async def test_readiness_endpoint_exposes_worker_weekly_policy(isolated_usage):
     assert result["state"] == "reset"
     assert result["decision_reset_at"] is None
     assert result["reset_at"] is not None
-    assert result["threshold"] == 95
+    # 90 — абсолютный worker-стоп пула Claude (#227); 95% фикстуры выше него, как и раньше.
+    assert result["threshold"] == 90
 
 
 @pytest.mark.asyncio

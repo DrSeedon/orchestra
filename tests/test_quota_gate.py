@@ -38,23 +38,26 @@ def _snapshot(*, anthropic=10, codex=10, spark=10, timestamp=NOW - 10):
     )
 
 
+# Пороги стоят литералами намеренно: тест обязан краснеть при смене политики,
+# а не подстраиваться под неё. Claude режется на 90 (абсолютный worker-стоп #227).
 @pytest.mark.parametrize(
-    ("model", "bucket"),
+    ("model", "bucket", "threshold"),
     [
-        ("claude-opus-5[1m]", "anthropic"),
-        ("gpt-5.6-sol", "codex"),
-        ("gpt-5.3-codex-spark", "codex_spark"),
+        ("claude-opus-5[1m]", "anthropic", 90),
+        ("gpt-5.6-sol", "codex", 95),
+        ("gpt-5.3-codex-spark", "codex_spark", 95),
     ],
 )
-def test_exact_weekly_threshold_for_each_bucket(model, bucket):
+def test_exact_weekly_threshold_for_each_bucket(model, bucket, threshold):
     providers, observed = _snapshot()
-    providers[bucket] = _provider(providers[bucket]["label"], 94.9)
+    providers[bucket] = _provider(providers[bucket]["label"], threshold - 0.1)
     assert evaluate_worker_admission(model, providers, observed, now=NOW).state == "available"
 
-    providers[bucket] = _provider(providers[bucket]["label"], 95)
+    providers[bucket] = _provider(providers[bucket]["label"], threshold)
     decision = evaluate_worker_admission(model, providers, observed, now=NOW)
     assert decision.state == "blocked"
-    assert decision.weekly_utilization == 95
+    assert decision.weekly_utilization == threshold
+    assert decision.threshold == threshold
 
 
 @pytest.mark.parametrize("utilization", [94, 95, 97, 97.999])
@@ -142,7 +145,9 @@ def test_dual_envelope_not_applicable_has_no_synthetic_timestamps():
 
 
 def test_short_window_does_not_block_weekly_headroom():
-    providers, observed = _snapshot(anthropic=94)
+    # 89 — под порогом Claude 90: окно недели по-прежнему с запасом, а
+    # пятичасовое стоит на 100% и допуск решать не должно.
+    providers, observed = _snapshot(anthropic=89)
     providers["anthropic"]["windows"].insert(0, {
         "id": "five_hour", "window_minutes": 300, "utilization": 100,
     })
@@ -150,7 +155,7 @@ def test_short_window_does_not_block_weekly_headroom():
         "claude-opus-5[1m]", providers, observed, now=NOW,
     )
     assert decision.state == "available"
-    assert decision.weekly_utilization == 94
+    assert decision.weekly_utilization == 89
 
 
 @pytest.mark.parametrize(

@@ -1265,6 +1265,15 @@ async def usage_analytics_endpoint(days: int = 7):
             "error": type(error).__name__,
             "enforcement_active": False,
         }
+    # Карта едет в том же снимке: модалка держит контракт «один запрос на
+    # открытие», а телеметрия уже прогрета вызовом get_usage() выше.
+    try:
+        payload["quota_map"] = await build_quota_map()
+    except Exception as error:
+        payload["quota_map"] = {
+            "data_available": False,
+            "error": f"{type(error).__name__}: {err_text(error)}",
+        }
     from app.limit_wake import wake_status
 
     payload["wake_after_reset"] = wake_status()
@@ -1288,6 +1297,158 @@ async def usage_readiness(model: str):
         observation_loader=current_quota_observation,
     )
     return worker_readiness_envelope(decision)
+
+
+@router.get("/api/usage/quota-map")
+async def quota_map():
+    return await build_quota_map()
+
+
+async def build_quota_map() -> dict:
+    """One live picture of who is admitted right now and by which threshold.
+
+    The verdicts come from `evaluate_worker_admission` itself, so the dashboard
+    cannot drift from the gate: no threshold arithmetic is repeated in JS.
+    """
+    # Те же ворота, что у /api/usage: подписочные проценты — owner-only.
+    if not is_owner_mode():
+        return {"data_available": False, "error": "owner_mode_only"}
+    from app.models import MODELS
+    from app.quota_controller import adaptive_enforcement_enabled
+    from app.quota_gate import (
+        QUOTA_OBSERVATION_MAX_AGE,
+        WEEKLY_WINDOW_MINUTES,
+        evaluate_worker_admission,
+        lane_threshold,
+        parse_quota_timestamp,
+        policy_lane_for_model,
+    )
+
+    await _get_usage_data()
+    observation = _quota_observation_from_cache()
+    providers = observation.get("providers") or {}
+    timestamps = observation.get("observed_at_by_provider") or {}
+    now = time.time()
+
+    policy = None
+    policy_error = ""
+    try:
+        from app.db import quota_policy_snapshot
+
+        policy = quota_policy_snapshot()
+    except Exception as error:
+        policy_error = f"{type(error).__name__}: {err_text(error)}"
+
+    lane_labels = {
+        "claude": "Claude", "sol": "Sol", "luna": "Luna Fast", "spark": "Spark",
+    }
+    bucket_labels = {
+        "anthropic": "Claude", "codex": "Codex", "codex_spark": "Codex Spark",
+        "grok": "Grok", "anthropic_fable": "Claude Fable",
+    }
+    models_by_bucket: dict[str, list[dict]] = {}
+    lanes_by_bucket: dict[str, dict[str, dict]] = {}
+    outside_policy = []
+    for model_id, model_label in MODELS.items():
+        decision = evaluate_worker_admission(
+            model_id, providers, timestamps, now=now, policy=policy,
+        )
+        lane = policy_lane_for_model(decision.model, decision.provider or None)
+        item = {
+            "model": decision.model,
+            "label": model_label,
+            "bucket": decision.provider,
+            "lane": lane,
+            "state": decision.state,
+            "allowed": decision.allowed,
+            # Порог существует только там, где есть полоса; у Grok его нет вовсе,
+            # и печатать чужой дефолт означало бы выдать пустоту за число.
+            "threshold": decision.threshold if lane else None,
+            "utilization": decision.weekly_utilization,
+            "reason": decision.reason,
+        }
+        if lane is None:
+            outside_policy.append(item)
+            continue
+        models_by_bucket.setdefault(decision.provider, []).append(item)
+        entry = lanes_by_bucket.setdefault(decision.provider, {}).setdefault(
+            lane,
+            {
+                "lane": lane,
+                "label": lane_labels.get(lane, lane),
+                "threshold": lane_threshold(policy, lane),
+                "models": [],
+            },
+        )
+        entry["models"].append(decision.model)
+
+    buckets = []
+    for bucket in sorted(set(models_by_bucket) | set(lanes_by_bucket)):
+        data = providers.get(bucket)
+        data = data if isinstance(data, dict) else {}
+        observed_at = timestamps.get(bucket)
+        observed_at = float(observed_at) if isinstance(observed_at, (int, float)) else None
+        gating = None
+        reference = []
+        for window in data.get("windows") or []:
+            if not isinstance(window, dict):
+                continue
+            resets_at = window.get("resets_at")
+            parsed = parse_quota_timestamp(resets_at)
+            item = {
+                "id": window.get("id"),
+                "label": window.get("label"),
+                "window_minutes": window.get("window_minutes"),
+                "utilization": window.get("utilization"),
+                "resets_at": resets_at,
+                "reset_in_seconds": None if parsed is None else max(0.0, parsed - now),
+            }
+            # Решение принимается только по недельному окну: пятичасовое Claude
+            # остаётся справочным и в пороги не входит (решение юзера, #318).
+            if window.get("window_minutes") == WEEKLY_WINDOW_MINUTES and gating is None:
+                gating = item
+            else:
+                reference.append(item)
+        buckets.append({
+            "bucket": bucket,
+            "label": data.get("label") or bucket_labels.get(bucket, bucket),
+            "observed_at": observed_at,
+            "fresh": (
+                observed_at is not None
+                and 0 <= now - observed_at < QUOTA_OBSERVATION_MAX_AGE
+            ),
+            "data_available": gating is not None
+            and isinstance(gating.get("utilization"), (int, float)),
+            "window": gating,
+            "reference_windows": reference,
+            "lanes": sorted(
+                lanes_by_bucket.get(bucket, {}).values(),
+                key=lambda item: item["threshold"],
+            ),
+            "models": models_by_bucket.get(bucket, []),
+        })
+
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "observation_max_age_seconds": QUOTA_OBSERVATION_MAX_AGE,
+        "mode": {
+            "deciding": "static_thresholds",
+            "policy_available": policy is not None,
+            "policy_error": policy_error,
+            "source": (policy or {}).get("source", ""),
+            "label": (policy or {}).get("label", ""),
+            "revision": (policy or {}).get("revision"),
+            "reason": (policy or {}).get("reason", ""),
+            "updated_at": (policy or {}).get("updated_at", ""),
+            # Адаптивный контроллер держит ход только при свежей и уверенной
+            # телеметрии; иначе решает статический порог (enforce_new_worker_turn).
+            "adaptive_kill_switch_enabled": adaptive_enforcement_enabled(),
+            "adaptive_tier": "precalibration",
+        },
+        "policy": policy or {},
+        "buckets": buckets,
+        "outside_policy": outside_policy,
+    }
 
 
 @router.get("/api/usage/quota-controller")
@@ -1337,6 +1498,7 @@ async def replace_quota_controller_policy(request: Request, payload: dict):
         "sol": "sol", "sol_threshold": "sol",
         "luna": "luna", "luna_threshold": "luna",
         "spark": "spark", "spark_threshold": "spark",
+        "claude": "claude", "claude_threshold": "claude",
     }
     parsed = {}
     for key, value in values.items():

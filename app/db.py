@@ -71,7 +71,25 @@ _QUOTA_CONTROLLER_TRIGGERS = {
     "quota_controller_policy_audit_no_replace",
 }
 
-QUOTA_POLICY_DEFAULTS = {"sol": 95.0, "luna": 98.0, "spark": 95.0}
+# Единственный текст DDL полосы: миграция пересобирает таблицу этим же
+# оператором, потому что страж схемы сверяет сохранённый CREATE дословно, а
+# ALTER TABLE ... RENAME записал бы в sqlite_master другой текст.
+_QUOTA_POLICY_TABLE_SQL = """
+        CREATE TABLE IF NOT EXISTS quota_controller_policy (
+            lane TEXT PRIMARY KEY CHECK (lane IN ('sol','luna','spark','claude')),
+            threshold REAL NOT NULL CHECK (threshold >= 0 AND threshold <= 100),
+            revision INTEGER NOT NULL CHECK (revision >= 1),
+            source TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+
+# Пороги совпадают с fallback-константами гейта (app/quota_gate.py
+# LANE_DEFAULT_THRESHOLDS); равенство закреплено тестом. claude=90 — абсолютный
+# worker-стоп принятой политики #227 (pipelines/default/pipeline.yaml:17
+# absolute_block_pct, app/manager.py:646).
+QUOTA_POLICY_DEFAULTS = {"sol": 95.0, "luna": 98.0, "spark": 95.0, "claude": 90.0}
 QUOTA_POLICY_SOURCE = "temporary_static_override"
 QUOTA_POLICY_LABEL = "TEMPORARY STATIC OVERRIDE"
 
@@ -285,16 +303,7 @@ def _create_quota_controller_schema(c: sqlite3.Connection) -> None:
             SELECT RAISE(ABORT, 'quota controller evidence is immutable');
         END
         """,
-        """
-        CREATE TABLE IF NOT EXISTS quota_controller_policy (
-            lane TEXT PRIMARY KEY CHECK (lane IN ('sol','luna','spark')),
-            threshold REAL NOT NULL CHECK (threshold >= 0 AND threshold <= 100),
-            revision INTEGER NOT NULL CHECK (revision >= 1),
-            source TEXT NOT NULL,
-            reason TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )
-        """,
+        _QUOTA_POLICY_TABLE_SQL,
         """
         CREATE TABLE IF NOT EXISTS quota_controller_policy_audit (
             audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -411,7 +420,46 @@ def _expected_quota_controller_sql() -> dict[tuple[str, str], str]:
         expected.close()
 
 
+def _migrate_quota_policy_lanes(c: sqlite3.Connection) -> None:
+    """Rebuild the policy table when its lane CHECK predates a new lane.
+
+    SQLite cannot alter a CHECK constraint, and the schema guard compares the
+    stored CREATE text verbatim, so the table is recreated with exactly the
+    statement the creation path uses. Rows keep their thresholds and revisions;
+    a row whose lane the new CHECK rejects fails the migration loudly.
+    """
+    row = c.execute(
+        "SELECT sql FROM sqlite_master "
+        "WHERE type='table' AND name='quota_controller_policy'"
+    ).fetchone()
+    if row is None:
+        return
+    if _normalize_schema_sql(row["sql"]) == _normalize_schema_sql(_QUOTA_POLICY_TABLE_SQL):
+        return
+    c.execute("BEGIN IMMEDIATE")
+    try:
+        rows = [
+            tuple(item) for item in c.execute(
+                "SELECT lane, threshold, revision, source, reason, updated_at "
+                "FROM quota_controller_policy"
+            )
+        ]
+        c.execute("DROP TABLE quota_controller_policy")
+        c.execute(_QUOTA_POLICY_TABLE_SQL)
+        c.executemany(
+            "INSERT INTO quota_controller_policy "
+            "(lane, threshold, revision, source, reason, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+        c.commit()
+    except Exception:
+        c.rollback()
+        raise
+
+
 def _ensure_quota_controller_schema(c: sqlite3.Connection) -> None:
+    _migrate_quota_policy_lanes(c)
     if _quota_controller_schema_complete(c):
         return
     _create_quota_controller_schema(c)
@@ -441,6 +489,7 @@ def quota_controller_connection(path: str | Path) -> sqlite3.Connection:
     conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA foreign_keys=ON")
     try:
+        _migrate_quota_policy_lanes(conn)
         if not _quota_controller_schema_complete(conn):
             _ensure_quota_controller_schema(conn)
         _ensure_quota_policy_defaults(conn)
@@ -460,18 +509,24 @@ def _quota_policy_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute(
         "SELECT lane, threshold, revision, source, reason, updated_at "
         "FROM quota_controller_policy ORDER BY CASE lane "
-        "WHEN 'sol' THEN 0 WHEN 'luna' THEN 1 ELSE 2 END"
+        "WHEN 'claude' THEN 0 WHEN 'sol' THEN 1 WHEN 'luna' THEN 2 ELSE 3 END"
     ).fetchall()
 
 
 def _ensure_quota_policy_defaults(conn: sqlite3.Connection) -> None:
     now = datetime.now(timezone.utc).isoformat()
+    # Новая полоса встаёт на текущую ревизию набора: иначе она выглядела бы
+    # старее остальных, а CAS в replace_quota_policy читает максимум.
+    current = conn.execute(
+        "SELECT MAX(revision) AS revision FROM quota_controller_policy"
+    ).fetchone()
+    revision = int(current["revision"] or 1) if current is not None else 1
     for lane, threshold in QUOTA_POLICY_DEFAULTS.items():
         conn.execute(
             "INSERT OR IGNORE INTO quota_controller_policy "
             "(lane, threshold, revision, source, reason, updated_at) "
-            "VALUES (?, ?, 1, ?, ?, ?)",
-            (lane, threshold, QUOTA_POLICY_SOURCE, "initial default", now),
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (lane, threshold, revision, QUOTA_POLICY_SOURCE, "initial default", now),
         )
 
 
