@@ -11,13 +11,19 @@ PROJECT_CONTEXT = """PROJECT CONTEXT:
 - review must inspect the requested file
 """
 
+# The model asked for is neither the server-owned default (gpt-5.6-luna) nor the model the
+# readiness fixture reports: an assert naming either would stay green whether or not the
+# caller's model actually reaches the Codex CLI.
+REVIEW_MODEL = "gpt-5.6-terra"
+READINESS_MODEL = "gpt-5.6-sol"
+
 
 def _fake_api(tmp_path, captured):
     async def fake_api(method, path, **kwargs):
         if path == "/api/usage/readiness":
             return {
                 "policy": "worker-weekly-v1", "state": "available",
-                "model": "gpt-5.6-sol", "provider": "codex",
+                "model": READINESS_MODEL, "provider": "codex",
                 "provider_label": "Codex", "weekly_utilization": 1,
                 "threshold": 95, "observed_at": 2_000_000_000,
                 "valid_until": 2_000_000_300, "alternatives": [],
@@ -61,11 +67,17 @@ def test_codex_review_disables_unusable_namespace_sandbox(
 
     asyncio.run(mcp.codex_review(
         context=PROJECT_CONTEXT, target="artifact.txt",
-        output="review.md", mode=mode, resume=resume,
+        output="review.md", mode=mode, resume=resume, model=REVIEW_MODEL,
     ))
 
     command = captured["config"]["command"]
-    assert command.count("-m gpt-5.6-sol") == (2 if resume else 1)
+    # This file's subject is the sandbox flags; the model assert is only here to pin that
+    # every CLI invocation the command builds (one fresh, or resume + stale-session
+    # fallback) runs the model the caller asked for — not the default, not readiness's.
+    invocations = 2 if resume else 1
+    assert command.count("-m ") == invocations
+    assert command.count(f"-m {REVIEW_MODEL}") == invocations
+    assert READINESS_MODEL not in command
     assert "-s danger-full-access -a never exec" in command
     assert "workspace-write" not in command
     assert "--full-auto" not in command

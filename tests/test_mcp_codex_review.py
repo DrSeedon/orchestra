@@ -15,6 +15,26 @@ PROJECT_CONTEXT = """PROJECT CONTEXT (calibrate review severity):
 - What does NOT matter: enterprise ceremony
 """
 
+# Three deliberately different models. The reviewer model is chosen by the CALLER
+# (or falls back to the server-owned default); the readiness endpoint reports a model
+# of its own and must never decide it. Keeping READINESS_MODEL distinct from both the
+# default and the explicit lane is what makes these assertions falsifiable.
+DEFAULT_MODEL = "gpt-5.6-luna"
+EXPLICIT_MODEL = "gpt-5.6-terra"
+READINESS_MODEL = "gpt-5.6-sol"
+
+
+def readiness_response():
+    return {
+        "policy": "worker-weekly-v1", "state": "available",
+        "model": READINESS_MODEL,
+        "provider": "codex", "provider_label": "Codex",
+        "weekly_utilization": 1, "threshold": 95,
+        "observed_at": 2_000_000_000,
+        "valid_until": 2_000_000_300,
+        "alternatives": [], "reason": "test",
+    }
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["exec", "review"])
@@ -27,15 +47,7 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
 
     async def fake_api(method, path, **kwargs):
         if path == "/api/usage/readiness":
-            return {
-                "policy": "worker-weekly-v1", "state": "available",
-                "model": "gpt-5.6-sol",
-                "provider": "codex", "provider_label": "Codex",
-                "weekly_utilization": 1, "threshold": 95,
-                "observed_at": 2_000_000_000,
-                "valid_until": 2_000_000_300,
-                "alternatives": [], "reason": "test",
-            }
+            return readiness_response()
         if method == "GET":
             return {
                 "cwd": str(tmp_path), "worktree_path": str(tmp_path),
@@ -69,11 +81,14 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
     if mode == "exec":
         assert "Verdict" in config["success_pattern"]
     command = config["command"]
-    assert command.count("-m gpt-5.6-sol") == 1
+    # Model omitted → server-owned default reaches the Codex CLI and the usage record,
+    # and the model advertised by readiness does not leak into either.
+    assert command.count(f"-m {DEFAULT_MODEL}") == 1
+    assert f"--usage-model {DEFAULT_MODEL}" in command
+    assert READINESS_MODEL not in command
     assert "--usage-session-id requester-id" in command
     assert "--usage-scope" in command
     assert "--usage-task-id 215" in command
-    assert "--usage-model gpt-5.6-sol" in command
     assert f"-o {output}.round" in command
     assert "codex_review_artifact.py" in command
     assert '[ "$FINALIZE_RC" -eq 0 ] || exit "$FINALIZE_RC"' in command
@@ -94,7 +109,57 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
 
 
 @pytest.mark.asyncio
-async def test_codex_review_resume_command_passes_usage_arguments(tmp_path, monkeypatch):
+@pytest.mark.parametrize("requested", [EXPLICIT_MODEL, "gpt5.6terra"])
+async def test_codex_review_explicit_model_overrides_default_and_readiness(
+    tmp_path, monkeypatch, requested,
+):
+    import app.mcp_stdio as mcp
+
+    captured = {}
+    readiness_params = []
+
+    async def fake_api(method, path, **kwargs):
+        if path == "/api/usage/readiness":
+            readiness_params.append(kwargs.get("params"))
+            return readiness_response()
+        if method == "GET":
+            return {
+                "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+                "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
+            }
+        captured.update(kwargs["json"])
+        return {"id": "bg-test"}
+
+    monkeypatch.setattr(mcp, "_api", fake_api)
+    monkeypatch.setattr(mcp, "WORKER_NAME", "sol-pilot")
+    monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+    monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+
+    result = await mcp.codex_review(
+        context=PROJECT_CONTEXT, target="research.md", output="review.md",
+        mode="exec", model=requested,
+    )
+
+    command = captured["config"]["command"]
+    # The caller's model (alias resolved to its canonical id) wins over both the
+    # server-owned default and the model advertised by readiness.
+    assert command.count(f"-m {EXPLICIT_MODEL}") == 1
+    assert f"--usage-model {EXPLICIT_MODEL}" in command
+    assert DEFAULT_MODEL not in command
+    assert READINESS_MODEL not in command
+    assert EXPLICIT_MODEL in result
+    # The quota gate is asked about the model that will actually run.
+    assert readiness_params == [{"model": EXPLICIT_MODEL}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "model_kwargs, expected",
+    [({}, DEFAULT_MODEL), ({"model": EXPLICIT_MODEL}, EXPLICIT_MODEL)],
+)
+async def test_codex_review_resume_command_passes_usage_arguments(
+    tmp_path, monkeypatch, model_kwargs, expected,
+):
     import app.mcp_stdio as mcp
 
     captured = {}
@@ -104,13 +169,7 @@ async def test_codex_review_resume_command_passes_usage_arguments(tmp_path, monk
 
     async def fake_api(method, path, **kwargs):
         if path == "/api/usage/readiness":
-            return {
-                "policy": "worker-weekly-v1", "state": "available",
-                "model": "gpt-5.6-sol", "provider": "codex",
-                "provider_label": "Codex", "weekly_utilization": 1,
-                "threshold": 95, "observed_at": 2_000_000_000,
-                "valid_until": 2_000_000_300, "alternatives": [], "reason": "test",
-            }
+            return readiness_response()
         if method == "GET":
             return {
                 "cwd": str(tmp_path), "worktree_path": str(tmp_path),
@@ -126,14 +185,53 @@ async def test_codex_review_resume_command_passes_usage_arguments(tmp_path, monk
 
     await mcp.codex_review(
         context=PROJECT_CONTEXT, target="research.md", output="review.md",
-        mode="exec", resume=True,
+        mode="exec", resume=True, **model_kwargs,
     )
 
     command = captured["config"]["command"]
     assert "exec resume stored-uuid" in command
     assert "--usage-event-id codex-review:" in command
     assert "--usage-session-id requester-id" in command
-    assert "--usage-model gpt-5.6-sol" in command
+    # The resume path builds two CLI invocations (resume + stale-session fallback);
+    # every one of them must run the selected model, not readiness's.
+    cli_invocations = command.count("-m ")
+    assert cli_invocations >= 1
+    assert command.count(f"-m {expected}") == cli_invocations
+    assert f"--usage-model {expected}" in command
+    assert READINESS_MODEL not in command
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "model",
+    [
+        "",                        # empty
+        "not-a-registered-model",  # unknown id
+        "claude-opus-5[1m]",       # registered, but wrong runtime
+        "gpt-5.3-codex-spark",     # Codex runtime, but forbidden as reviewer
+    ],
+)
+async def test_codex_review_rejects_unusable_model_before_any_api_call(monkeypatch, model):
+    import app.mcp_stdio as mcp
+
+    calls = []
+
+    async def fake_api(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("model validation must run before readiness or background-job calls")
+
+    monkeypatch.setattr(mcp, "_api", fake_api)
+
+    with pytest.raises(mcp.ApiToolError) as caught:
+        await mcp.codex_review(
+            context=PROJECT_CONTEXT, target="x", output="review.md",
+            mode="exec", model=model,
+        )
+
+    # Refusal, never silent substitution of the default.
+    assert caught.value.code == "invalid_argument"
+    assert caught.value.details["field"] == "model"
+    assert calls == []
 
 
 @pytest.mark.asyncio
@@ -209,14 +307,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":100,"cached_inpu
 
     async def api(method, path, **kwargs):
         if path == "/api/usage/readiness":
-            return {
-                "policy": "worker-weekly-v1", "state": "available",
-                "model": "gpt-5.6-sol", "provider": "codex",
-                "provider_label": "Codex", "weekly_utilization": 1,
-                "threshold": 95, "observed_at": 2_000_000_000,
-                "valid_until": 2_000_000_300, "alternatives": [],
-                "reason": "test",
-            }
+            return readiness_response()
         if method == "GET":
             return {
                 "id": Session.id, "cwd": str(tmp_path),
@@ -236,7 +327,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":100,"cached_inpu
 
     result = await mcp.codex_review(
         context=PROJECT_CONTEXT, target="artifact.py",
-        output="review.md", mode="exec",
+        output="review.md", mode="exec", model=EXPLICIT_MODEL,
     )
     await jobs.bg_manager._tasks[created["job_id"]]
 
@@ -248,6 +339,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":100,"cached_inpu
         row = dict(conn.execute("SELECT * FROM turn_usage").fetchone())
     assert row["session_id"] == Session.id
     assert row["runtime"] == "codex"
-    assert row["model"] == "gpt-5.6-sol"
+    # Accounting records the model the caller selected — not the default, not readiness's.
+    assert row["model"] == EXPLICIT_MODEL
     assert row["input_tokens"] > 0
     assert row["output_tokens"] > 0
