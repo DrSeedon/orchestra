@@ -63,4 +63,5 @@ norecursedirs = ["worktrees", ".venv", "data", "docs"]
 markers = [
     "needs_two_users: требует беспарольного sudo — владение файлами не моделируется заглушками",
     "needs_model: требует эмбеддер (orchestra[rag]) — индексация и поиск не моделируются заглушками",
+    "live_probe: тратит настоящий ход провайдера (поднимает CLI, шлёт запрос). Краснеет от квоты и капризов провайдера, а не от диффа, поэтому merge-gate его не гоняет — запускать вручную `uv run pytest -m live_probe tests/`. Новую такую пробу заводить только вместе с записью в test_live_probe_inventory_is_explicit",
 ]

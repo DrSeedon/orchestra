@@ -10,6 +10,10 @@ change. Docs-only / no git diff → skipped (fixtures without git stay skipped
 so #240 oracles keep working). Unmapped app modules are a hole we accept —
 missing tests ≠ landing a red test that already exists.
 
+Tests marked `live_probe` are deselected: they spend a real provider turn, so they go red
+on quota and provider outages instead of on the diff. They stay runnable by hand
+(`pytest -m live_probe tests/`) and their inventory is pinned by a test.
+
 Mapped files are run in sequential batches of MAX_TEST_FILES. The batches share one
 wall-clock budget and never turn into a full-suite invocation.
 Timeout → inconclusive. Does not close bash: the worker can rewrite this file.
@@ -106,9 +110,21 @@ def select_tests(changed: list[str], *, worktree: str) -> list[str]:
     return sorted(selected)
 
 
+LIVE_PROBE_MARKER = "live_probe"
+NO_TESTS_EXIT_CODE = 5  # pytest EXIT_NOTESTSCOLLECTED
+
+
 def pytest_argv(tests: list[str]) -> list[str]:
     # No -x / --exitfirst / --maxfail=1: one red must not hide the rest.
-    return [sys.executable, "-m", "pytest", "-q", *tests]
+    # `-m "not live_probe"` снимает с гейта пробы, тратящие настоящий ход провайдера: они
+    # краснеют от квоты и недоступности, а не от диффа, и блокируют чужие мержи (18.08:
+    # codex-проба стояла красной по rate_limit в самом main). Умолчание безопасное — новая
+    # проба БЕЗ маркера гоняется гейтом и падает громко; исчезнуть незаметно она не может.
+    return [
+        sys.executable, "-m", "pytest", "-q",
+        "-m", f"not {LIVE_PROBE_MARKER}",
+        *tests,
+    ]
 
 
 def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None) -> dict:
@@ -149,6 +165,14 @@ def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None)
         return {
             "status": PASSED, "reason": "",
             "exit_code": 0, "output": output, "tests": tests,
+        }
+    if proc.returncode == NO_TESTS_EXIT_CODE:
+        # Файл выбран, но после `-m "not live_probe"` в нём не осталось ни одного теста —
+        # то есть весь файл состоит из живых проб. Это не провал, но и не «проверено»:
+        # FAILED врал бы про красноту, PASSED — про пустой прогон.
+        return {
+            "status": SKIPPED, "reason": "no_tests_after_deselect",
+            "exit_code": proc.returncode, "output": output, "tests": tests,
         }
     return {
         "status": FAILED, "reason": "exit_nonzero",

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -273,8 +274,85 @@ def test_pytest_argv_has_no_exitfirst():
     assert "-x" not in argv
     assert "--exitfirst" not in argv
     assert "--maxfail=1" not in argv
-    assert argv.count("-m") == 1
+    # Раньше здесь стояло `argv.count("-m") == 1` — оно пиновало форму запуска
+    # `python -m pytest`. Теперь `-m` два: второй несёт выражение маркеров, поэтому
+    # проверяем обе роли поимённо, а не считаем вхождения.
+    assert argv[:4] == [sys.executable, "-m", "pytest", "-q"]
     assert "pytest" in argv
+
+
+def test_pytest_argv_deselects_live_probes_after_the_module_flag():
+    """Гейт не тратит ход провайдера: живые пробы снимаются выражением маркеров."""
+    from app.merge_test_gate import LIVE_PROBE_MARKER, pytest_argv
+
+    argv = pytest_argv(["tests/test_widget.py"])
+
+    assert f"not {LIVE_PROBE_MARKER}" in argv
+    marker_flag = argv.index(f"not {LIVE_PROBE_MARKER}") - 1
+    assert argv[marker_flag] == "-m"
+    # Второй `-m` обязан идти ПОСЛЕ `python -m pytest`, иначе он подменит имя модуля.
+    assert marker_flag > argv.index("pytest")
+    assert argv[-1] == "tests/test_widget.py"
+
+
+def test_run_pytest_reports_all_deselected_as_skipped_not_failed(tmp_path, monkeypatch):
+    """Файл целиком из живых проб не должен читаться как красный.
+
+    После `-m "not live_probe"` pytest отвечает кодом 5 (ничего не собрано). Прежняя
+    ветка `exit_nonzero` объявила бы это провалом и заблокировала мерж на пустом прогоне.
+    """
+    from app import merge_test_gate as gate
+    from app.acceptance import SKIPPED
+
+    monkeypatch.setattr(
+        gate.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=["pytest"],
+            returncode=gate.NO_TESTS_EXIT_CODE,
+            stdout="no tests ran, 2 deselected",
+            stderr="",
+        ),
+    )
+
+    result = gate.run_pytest(str(tmp_path), ["tests/test_only_probes.py"])
+
+    assert result["status"] == SKIPPED
+    assert result["reason"] == "no_tests_after_deselect"
+    assert result["exit_code"] == gate.NO_TESTS_EXIT_CODE
+
+
+def test_live_probe_inventory_is_explicit():
+    """Живая проба не может исчезнуть из гейта незаметно.
+
+    Маркер снимает тест с merge-gate, то есть выводит его из-под общей проверки. Такой
+    ход обязан быть заявленным: список ниже — единственное место, где он заявляется.
+    Появился маркер где-то ещё (или пропал отсюда) — тест краснеет и заставляет
+    объяснить, почему проба тратит настоящий ход провайдера.
+    """
+    from app.merge_test_gate import LIVE_PROBE_MARKER
+
+    expected = {"tests/test_native_history_import.py": 2}
+
+    # Считаем ДЕКОРАТОРЫ, а не вхождения строки: первая версия этой проверки насчитала 3
+    # вместо 2, потому что имя маркера упомянуто в докстринге файла. Проза не должна ни
+    # раздувать инвентарь, ни прятать в себе настоящий маркер.
+    decorator = f"@pytest.mark.{LIVE_PROBE_MARKER}"
+    root = Path(__file__).resolve().parent
+    found = {}
+    for path in sorted(root.rglob("*.py")):
+        count = sum(
+            1
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip().startswith(decorator)
+        )
+        if count:
+            found[str(path.relative_to(root.parent))] = count
+
+    assert found == expected, (
+        "инвентарь живых проб разошёлся с заявленным; добавляешь пробу — впиши её сюда "
+        f"и в докстринг её файла. Найдено: {found}"
+    )
 
 
 @pytest.mark.parametrize(

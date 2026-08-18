@@ -1,4 +1,24 @@
-"""Pinned native-history canaries against the installed Claude and Codex CLIs."""
+"""Pinned native-history canaries against the installed Claude and Codex CLIs.
+
+Три теста здесь помечены `@pytest.mark.live_probe`: они поднимают настоящий CLI и тратят
+ход провайдера. **Merge-gate их не гоняет** (`app/merge_test_gate.pytest_argv` передаёт
+`-m "not live_probe"`), потому что красными они бывают от квоты и недоступности провайдера,
+а не от диффа: 16.08 claude-проба стояла красной по `rate_limit`, 18.08 — codex-проба, и та
+блокировала мержи всем, чей набор задевал этот файл.
+
+Запускать руками, и обязательно — если правишь `runtime_history`, `backend_*` или путь
+handoff'а:
+
+    uv run pytest -m live_probe tests/                 # все живые пробы
+    uv run pytest -m live_probe tests/test_native_history_import.py
+
+Красная живая проба — это НЕ разрешение её пропустить. Сначала посмотри `GET /api/usage` и
+время падения: секунды означают, что до провайдера дело не дошло и виноват наш гейт,
+десятки секунд — что ответил провайдер.
+
+Заводишь новую живую пробу — добавь маркер И строку в `test_live_probe_inventory_is_explicit`
+(`tests/test_merge_test_gate.py`), иначе её падение поедет в чужие мержи.
+"""
 
 import asyncio
 import json
@@ -174,6 +194,7 @@ async def test_canary_collector_stops_at_persistent_claude_turn_end():
     assert continued == []
 
 
+@pytest.mark.live_probe
 @pytest.mark.asyncio
 @pytest.mark.timeout(840)
 @pytest.mark.parametrize("runtime", ["claude", "codex"])
@@ -242,6 +263,7 @@ async def test_pinned_runtime_semantically_recalls_long_native_history(
     assert SYSTEM_PROMPT_MARKER in response
 
 
+@pytest.mark.live_probe
 @pytest.mark.asyncio
 @pytest.mark.timeout(360)
 async def test_cross_runtime_packet_to_claude_recalls_tool_result_uuid(
