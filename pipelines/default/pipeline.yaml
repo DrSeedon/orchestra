@@ -20,9 +20,9 @@ validation: fail-open
 # чекаута, то есть эффект наступил бы в момент МЕРЖА, а не рестарта, и снёс бы спавны
 # (на load_pipeline висят каталог ролей и ROLE_SYSTEM_PROMPT).
 # Снять '# ' с трёх строк ниже В ОКНО РЕСТАРТА; порядок и проверки — docs/tasks/329/report.md.
-# worker_model_policy:
-#   always_allowed: [gpt-5.6-sol, gpt-5.6-luna, gpt-5.3-codex-spark, "claude-opus-5[1m]"]
-#   alternatives: [gpt-5.6-sol, gpt-5.6-luna]
+worker_model_policy:
+  always_allowed: [gpt-5.6-sol, gpt-5.6-luna, gpt-5.3-codex-spark, "claude-opus-5[1m]"]
+  alternatives: [gpt-5.6-sol, gpt-5.6-luna]
 defaults:
   model: opus
   skills: []
