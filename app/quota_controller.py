@@ -999,6 +999,16 @@ class ProductionShadowController:
     def status(self) -> dict:
         status = self._store().status()
         shadow = self._store().analytics_snapshot()
+        try:
+            from app.db import quota_policy_snapshot
+
+            status["static_policy"] = quota_policy_snapshot()
+        except Exception as error:
+            status["static_policy"] = {
+                "data_available": False,
+                "reason": f"policy_unavailable:{type(error).__name__}",
+                "label": "TEMPORARY STATIC OVERRIDE",
+            }
         status["shadow"] = shadow
         latest_zone, codex_known = self._latest_codex_lane()
         status.update(
@@ -1042,6 +1052,11 @@ def empty_status() -> dict:
             "adaptive_indeterminate": 0,
         },
         "observer_errors_total": _shadow_errors_total,
+        "static_policy": {
+            "data_available": False,
+            "reason": "policy_unavailable",
+            "label": "TEMPORARY STATIC OVERRIDE",
+        },
         **luna_fast_default_status(telemetry_available=False),
     }
 

@@ -39,6 +39,13 @@ _QUOTA_CONTROLLER_TABLE_COLUMNS = {
         "regime_set_hash", "source_digest", "prospective", "metrics_json",
         "reasons_json", "eligible",
     ),
+    "quota_controller_policy": (
+        "lane", "threshold", "revision", "source", "reason", "updated_at",
+    ),
+    "quota_controller_policy_audit": (
+        "audit_id", "actor", "created_at", "old_json", "new_json", "reason",
+        "revision", "action",
+    ),
 }
 
 _QUOTA_CONTROLLER_INDEXES = {
@@ -46,6 +53,7 @@ _QUOTA_CONTROLLER_INDEXES = {
     "idx_quota_controller_decisions_created",
     "idx_quota_controller_inflight_bucket",
     "idx_quota_controller_evidence_created",
+    "idx_quota_controller_policy_audit_created",
 }
 
 _QUOTA_CONTROLLER_TRIGGERS = {
@@ -58,7 +66,14 @@ _QUOTA_CONTROLLER_TRIGGERS = {
     "quota_controller_evidence_no_update",
     "quota_controller_evidence_no_delete",
     "quota_controller_evidence_no_replace",
+    "quota_controller_policy_audit_no_update",
+    "quota_controller_policy_audit_no_delete",
+    "quota_controller_policy_audit_no_replace",
 }
+
+QUOTA_POLICY_DEFAULTS = {"sol": 95.0, "luna": 98.0, "spark": 95.0}
+QUOTA_POLICY_SOURCE = "temporary_static_override"
+QUOTA_POLICY_LABEL = "TEMPORARY STATIC OVERRIDE"
 
 _quota_controller_expected_sql: dict[tuple[str, str], str] | None = None
 
@@ -270,6 +285,54 @@ def _create_quota_controller_schema(c: sqlite3.Connection) -> None:
             SELECT RAISE(ABORT, 'quota controller evidence is immutable');
         END
         """,
+        """
+        CREATE TABLE IF NOT EXISTS quota_controller_policy (
+            lane TEXT PRIMARY KEY CHECK (lane IN ('sol','luna','spark')),
+            threshold REAL NOT NULL CHECK (threshold >= 0 AND threshold <= 100),
+            revision INTEGER NOT NULL CHECK (revision >= 1),
+            source TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS quota_controller_policy_audit (
+            audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            actor TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            old_json TEXT NOT NULL CHECK (json_valid(old_json)),
+            new_json TEXT NOT NULL CHECK (json_valid(new_json)),
+            reason TEXT NOT NULL,
+            revision INTEGER NOT NULL CHECK (revision >= 1),
+            action TEXT NOT NULL CHECK (action IN ('update','rollback'))
+        )
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_quota_controller_policy_audit_created
+        ON quota_controller_policy_audit(created_at DESC, audit_id DESC)
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_policy_audit_no_update
+        BEFORE UPDATE ON quota_controller_policy_audit
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller policy audit is immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_policy_audit_no_delete
+        BEFORE DELETE ON quota_controller_policy_audit
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller policy audit is immutable');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS quota_controller_policy_audit_no_replace
+        BEFORE INSERT ON quota_controller_policy_audit
+        WHEN EXISTS (SELECT 1 FROM quota_controller_policy_audit WHERE audit_id = NEW.audit_id)
+        BEGIN
+            SELECT RAISE(ABORT, 'quota controller policy audit is immutable');
+        END
+        """,
     )
     for statement in statements:
         c.execute(statement)
@@ -380,12 +443,164 @@ def quota_controller_connection(path: str | Path) -> sqlite3.Connection:
     try:
         if not _quota_controller_schema_complete(conn):
             _ensure_quota_controller_schema(conn)
-            conn.commit()
+        _ensure_quota_policy_defaults(conn)
+        conn.commit()
     except Exception:
         conn.rollback()
         conn.close()
         raise
     return conn
+
+
+class QuotaPolicyRevisionMismatch(RuntimeError):
+    """The operator policy changed after a caller read its revision."""
+
+
+def _quota_policy_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT lane, threshold, revision, source, reason, updated_at "
+        "FROM quota_controller_policy ORDER BY CASE lane "
+        "WHEN 'sol' THEN 0 WHEN 'luna' THEN 1 ELSE 2 END"
+    ).fetchall()
+
+
+def _ensure_quota_policy_defaults(conn: sqlite3.Connection) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    for lane, threshold in QUOTA_POLICY_DEFAULTS.items():
+        conn.execute(
+            "INSERT OR IGNORE INTO quota_controller_policy "
+            "(lane, threshold, revision, source, reason, updated_at) "
+            "VALUES (?, ?, 1, ?, ?, ?)",
+            (lane, threshold, QUOTA_POLICY_SOURCE, "initial default", now),
+        )
+
+
+def quota_policy_snapshot() -> dict:
+    """Read one durable, internally consistent static quota policy snapshot."""
+    with _conn() as conn:
+        _ensure_quota_controller_schema(conn)
+        _ensure_quota_policy_defaults(conn)
+        conn.commit()
+        rows = _quota_policy_rows(conn)
+    if len(rows) != len(QUOTA_POLICY_DEFAULTS):
+        raise sqlite3.OperationalError("quota controller policy is incomplete")
+    lanes = {
+        row["lane"]: {
+            "threshold": float(row["threshold"]),
+            "revision": int(row["revision"]),
+            "source": row["source"],
+            "reason": row["reason"],
+            "updated_at": row["updated_at"],
+        }
+        for row in rows
+    }
+    revision = max(item["revision"] for item in lanes.values())
+    latest = max(rows, key=lambda row: row["updated_at"])
+    return {
+        "schema_version": 1,
+        "revision": revision,
+        "source": QUOTA_POLICY_SOURCE,
+        "label": QUOTA_POLICY_LABEL,
+        "reason": latest["reason"],
+        "updated_at": latest["updated_at"],
+        "lanes": lanes,
+    }
+
+
+def _quota_policy_values(snapshot: dict) -> dict[str, float]:
+    lanes = snapshot.get("lanes") if isinstance(snapshot, dict) else None
+    if not isinstance(lanes, dict):
+        raise ValueError("quota policy lanes are missing")
+    result = {}
+    for lane in QUOTA_POLICY_DEFAULTS:
+        value = lanes.get(lane, {}).get("threshold") if isinstance(lanes.get(lane), dict) else None
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+            raise ValueError(f"quota policy lane {lane} is invalid")
+        result[lane] = float(value)
+    return result
+
+
+def _validate_quota_policy_values(values: dict[str, float]) -> None:
+    for lane, value in values.items():
+        if lane not in QUOTA_POLICY_DEFAULTS:
+            raise ValueError(f"unknown quota policy lane: {lane}")
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"quota policy {lane} threshold must be numeric")
+        value = float(value)
+        if not math.isfinite(value) or not 0 <= value <= 100:
+            raise ValueError(f"quota policy {lane} threshold must be between 0 and 100")
+        if lane == "luna" and not 95 <= value <= 99:
+            raise ValueError("quota policy luna threshold must be between 95 and 99")
+
+
+def replace_quota_policy(
+    values: dict[str, float],
+    *,
+    actor: str,
+    reason: str,
+    expected_revision: int | None = None,
+    action: str = "update",
+) -> dict:
+    """Atomically replace thresholds and append one operator audit row."""
+    if action not in {"update", "rollback"}:
+        raise ValueError("unsupported quota policy action")
+    reason = str(reason or "").strip()
+    if not reason:
+        raise ValueError("quota policy reason is required")
+    actor = str(actor or "operator").strip() or "operator"
+    _validate_quota_policy_values(values)
+    with _conn() as conn:
+        _ensure_quota_controller_schema(conn)
+        _ensure_quota_policy_defaults(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        rows = _quota_policy_rows(conn)
+        old = {row["lane"]: float(row["threshold"]) for row in rows}
+        current_revision = max(int(row["revision"]) for row in rows)
+        if expected_revision is not None and int(expected_revision) != current_revision:
+            raise QuotaPolicyRevisionMismatch(
+                f"quota policy revision changed: expected {expected_revision}, found {current_revision}"
+            )
+        new = dict(old)
+        new.update({lane: float(value) for lane, value in values.items()})
+        _validate_quota_policy_values(new)
+        revision = current_revision + 1
+        now = datetime.now(timezone.utc).isoformat()
+        for lane, threshold in new.items():
+            conn.execute(
+                "UPDATE quota_controller_policy SET threshold=?, revision=?, source=?, reason=?, updated_at=? WHERE lane=?",
+                (threshold, revision, QUOTA_POLICY_SOURCE, reason, now, lane),
+            )
+        conn.execute(
+            "INSERT INTO quota_controller_policy_audit "
+            "(actor, created_at, old_json, new_json, reason, revision, action) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (actor, now, json.dumps(old, sort_keys=True), json.dumps(new, sort_keys=True), reason, revision, action),
+        )
+        conn.commit()
+    return quota_policy_snapshot()
+
+
+def rollback_quota_policy(*, actor: str, reason: str = "operator rollback to defaults") -> dict:
+    return replace_quota_policy(
+        dict(QUOTA_POLICY_DEFAULTS), actor=actor, reason=reason, action="rollback",
+    )
+
+
+def quota_policy_audit(limit: int = 50) -> list[dict]:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT audit_id, actor, created_at, old_json, new_json, reason, revision, action "
+            "FROM quota_controller_policy_audit ORDER BY audit_id DESC LIMIT ?",
+            (max(1, min(int(limit), 200)),),
+        ).fetchall()
+    result = []
+    for row in rows:
+        item = dict(row)
+        for key in ("old_json", "new_json"):
+            item[key[:-5]] = json.loads(item.pop(key))
+        result.append(item)
+    return result
 
 
 def init_db() -> None:
@@ -952,6 +1167,7 @@ def init_db() -> None:
             END;
         """)
         _ensure_quota_controller_schema(c)
+        _ensure_quota_policy_defaults(c)
         _migrate(c)
 
 

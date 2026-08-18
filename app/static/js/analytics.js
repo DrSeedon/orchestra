@@ -221,16 +221,20 @@ function _analyticsRenderOverview(body) {
         </section>`;
     const wakeButton = body.querySelector('[data-analytics-wake]');
     if (wakeButton) wakeButton.onclick = () => _analyticsScheduleWake(wakeButton);
+    const rollbackButton = body.querySelector('[data-quota-policy-rollback]');
+    if (rollbackButton) rollbackButton.onclick = () => _analyticsRollbackQuotaPolicy(rollbackButton);
     _analyticsRenderChart(data.daily || []);
 }
 
 function _analyticsQuotaPanel(data) {
     const controller = data.quota_controller || {};
     const shadow = controller.shadow || controller;
+    const staticPolicy = _analyticsStaticPolicy(controller);
     if (controller.reason === 'quota_controller_error' || shadow.reason === 'quota_controller_error') {
         return `<section class="analytics-panel analytics-quota-error" data-quota-controller>
             <div class="analytics-section-head"><div><span class="analytics-kicker">Quota controller</span><h3>Квоты недоступны</h3></div></div>
             <p>Не удалось прочитать телеметрию контроллера. Статический гейт сохранён.</p>
+            ${staticPolicy}
         </section>`;
     }
     if (!shadow.data_available) {
@@ -238,6 +242,7 @@ function _analyticsQuotaPanel(data) {
             <div class="analytics-section-head"><div><span class="analytics-kicker">Quota controller</span><h3>Теневая телеметрия ещё не накоплена</h3></div></div>
             <p>Нет shadow telemetry (<code>no_shadow_telemetry</code>). Сегодняшнюю волну Codex нельзя классифицировать как hold или allow.</p>
             <p class="analytics-quota-routing">Luna Fast: по умолчанию · Sol: fallback к static · ${_analyticsEsc(controller.sol_suppression_reason || 'codex_telemetry_unavailable_static_fallback')}</p>
+            ${staticPolicy}
         </section>`;
     }
     const counts = shadow.decision_counts || {};
@@ -258,10 +263,52 @@ function _analyticsQuotaPanel(data) {
     return `<section class="analytics-panel analytics-quota-history" data-quota-controller>
         <div class="analytics-section-head"><div><span class="analytics-kicker">Quota controller</span><h3>Квоты и история решений</h3></div><span>${controller.enforcement_active ? 'Адаптивный pre-calibration' : 'Только статический гейт'}</span></div>
         <p class="analytics-quota-routing" data-quota-routing>${routingLine}</p>
+        ${staticPolicy}
         <div class="analytics-kpi-grid"><article><span>Would allow</span><strong>${_analyticsNumber(counts.would_allow)}</strong><small>теневые решения</small></article><article><span>Would hold</span><strong>${_analyticsNumber(counts.would_hold)}</strong><small>фактических hold ${_analyticsNumber(shadow.actual_hold_count)}</small></article><article><span>Indeterminate</span><strong>${_analyticsNumber(counts.indeterminate)}</strong><small>fallback к static</small></article></div>
         <div class="analytics-provider-grid">${buckets || '<div class="analytics-empty">Нет bucket-снимков.</div>'}</div>
         <ol class="analytics-quota-timeline">${history || '<li>История пока пуста.</li>'}</ol>
     </section>`;
+}
+
+function _analyticsStaticPolicy(controller) {
+    const policy = controller.static_policy || {};
+    const lanes = policy.lanes || {};
+    const labels = { sol: 'Sol', luna: 'Luna Fast', spark: 'Spark' };
+    const rows = ['sol', 'luna', 'spark'].map(lane => {
+        const item = lanes[lane] || {};
+        const threshold = item.threshold == null ? '—' : `${_analyticsNumber(item.threshold)}%`;
+        return `<article class="analytics-policy-row" data-quota-policy-lane="${lane}">
+            <span>${labels[lane]}</span><strong>${threshold}</strong>
+            <small>новые worker turns · revision ${_analyticsEsc(item.revision == null ? '—' : item.revision)}</small>
+        </article>`;
+    }).join('');
+    const available = policy.data_available !== false && Object.keys(lanes).length > 0;
+    const reason = policy.reason || policy.error || 'policy_unavailable_static_fallback';
+    return `<section class="analytics-static-policy" data-quota-static-policy>
+        <div class="analytics-section-head"><div><span class="analytics-kicker">Operator control</span><h3>Статическая квота</h3></div>
+            <span data-quota-policy-label>${_analyticsEsc(policy.label || 'TEMPORARY STATIC OVERRIDE')}</span></div>
+        <p class="analytics-quota-policy-meta">${available ? `revision ${_analyticsEsc(policy.revision == null ? '—' : policy.revision)} · source ${_analyticsEsc(policy.source || '—')}` : 'Снимок policy недоступен'}</p>
+        <div class="analytics-policy-grid">${rows}</div>
+        <p class="analytics-quota-policy-reason">Причина: ${_analyticsEsc(reason)}</p>
+        <button type="button" data-quota-policy-rollback ${available ? '' : 'disabled'}>Откатить к defaults</button>
+    </section>`;
+}
+
+async function _analyticsRollbackQuotaPolicy(button) {
+    button.disabled = true;
+    const oldText = button.textContent;
+    button.textContent = 'Откатываю…';
+    try {
+        await api('/api/usage/quota-controller/policy/rollback', {
+            method: 'POST',
+            body: JSON.stringify({ reason: 'analytics operator rollback' }),
+        });
+        await _analyticsLoad();
+    } catch (error) {
+        button.disabled = false;
+        button.textContent = oldText;
+        button.title = error && error.message ? error.message : 'Откат не выполнен';
+    }
 }
 
 function _analyticsWakePanel() {

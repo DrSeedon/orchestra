@@ -1310,6 +1310,75 @@ async def quota_controller_status():
     return empty_status()
 
 
+def _operator_actor() -> str:
+    """Use the authenticated server identity; never trust a request body actor."""
+    return os.environ.get("DASHBOARD_USER", "operator") or "operator"
+
+
+@router.get("/api/usage/quota-controller/policy")
+async def quota_controller_policy(request: Request):
+    require_operator_session(request)
+    from app.db import quota_policy_audit, quota_policy_snapshot
+
+    result = quota_policy_snapshot()
+    result["audit"] = quota_policy_audit()
+    return result
+
+
+@router.put("/api/usage/quota-controller/policy")
+async def replace_quota_controller_policy(request: Request, payload: dict):
+    require_operator_session(request)
+    from app.db import QuotaPolicyRevisionMismatch, replace_quota_policy
+
+    values = payload.get("thresholds", payload.get("lanes", payload))
+    if not isinstance(values, dict):
+        raise HTTPException(status_code=422, detail="thresholds must be an object")
+    aliases = {
+        "sol": "sol", "sol_threshold": "sol",
+        "luna": "luna", "luna_threshold": "luna",
+        "spark": "spark", "spark_threshold": "spark",
+    }
+    parsed = {}
+    for key, value in values.items():
+        lane = aliases.get(str(key))
+        if lane is not None:
+            parsed[lane] = value
+    if not parsed:
+        raise HTTPException(status_code=422, detail="at least one quota threshold is required")
+    expected = payload.get("expected_revision", payload.get("revision"))
+    if expected is not None and (
+        isinstance(expected, bool) or not isinstance(expected, int)
+    ):
+        raise HTTPException(status_code=422, detail="expected_revision must be an integer")
+    try:
+        result = replace_quota_policy(
+            parsed,
+            actor=_operator_actor(),
+            reason=str(payload.get("reason") or "").strip(),
+            expected_revision=expected,
+        )
+    except QuotaPolicyRevisionMismatch as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    result["audit"] = __import__("app.db", fromlist=["quota_policy_audit"]).quota_policy_audit()
+    return result
+
+
+@router.post("/api/usage/quota-controller/policy/rollback")
+async def rollback_quota_controller_policy(request: Request, payload: dict | None = None):
+    require_operator_session(request)
+    from app.db import quota_policy_audit, rollback_quota_policy
+
+    payload = payload or {}
+    result = rollback_quota_policy(
+        actor=_operator_actor(),
+        reason=str(payload.get("reason") or "operator rollback to defaults"),
+    )
+    result["audit"] = quota_policy_audit()
+    return result
+
+
 @router.post("/api/usage/quota-controller/reserve")
 async def create_quota_reserve_intent(request: Request, payload: dict):
     require_operator_session(request)

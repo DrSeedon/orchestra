@@ -65,3 +65,31 @@ def test_t314_browser_quota_cards_and_history_render_without_ids(browser):
     assert "codex:primary" in body.inner_text()
     assert "q95_guard" in body.inner_text()
     assert page.locator("[data-quota-controller]").locator("[data-decision-id]").count() == 0
+
+
+def test_t320_browser_static_policy_rows_are_explicit_and_separate(browser):
+    page = _page(browser)
+    payload = _payload()
+    payload["quota_controller"] = {
+        "shadow": {"data_available": False, "reason": "no_shadow_telemetry"},
+        "static_policy": {
+            "label": "TEMPORARY STATIC OVERRIDE",
+            "source": "temporary_static_override",
+            "revision": 4,
+            "reason": "operator runway correction",
+            "lanes": {
+                "sol": {"threshold": 95, "revision": 4},
+                "luna": {"threshold": 98, "revision": 4},
+                "spark": {"threshold": 95, "revision": 4},
+            },
+        },
+    }
+    page.evaluate("payload => { window.api = async () => payload; }", payload)
+    _open(page)
+    body = page.locator("#analytics-body")
+    assert body.locator("[data-quota-static-policy]").count() == 1
+    assert "95%" in body.locator("[data-quota-policy-lane='sol']").inner_text()
+    assert "98%" in body.locator("[data-quota-policy-lane='luna']").inner_text()
+    assert "95%" in body.locator("[data-quota-policy-lane='spark']").inner_text()
+    assert "TEMPORARY STATIC OVERRIDE" in body.inner_text()
+    assert "operator runway correction" in body.inner_text()

@@ -262,13 +262,19 @@ def _alternatives(
     providers: Mapping[str, object],
     observed_at_by_provider: Mapping[str, object],
     now: float,
+    policy: Mapping[str, object] | None = None,
 ) -> tuple[dict[str, str], ...]:
     result = []
     for bucket in ("anthropic", "codex", "codex_spark"):
         if bucket == target:
             continue
+        threshold = WORKER_WEEKLY_LIMIT_PCT
+        if bucket == "codex_spark":
+            threshold = _policy_threshold(policy, "spark", threshold)
+        elif bucket == "codex":
+            threshold = _policy_threshold(policy, "sol", threshold)
         state, _usage, _observed, _reset, _reason = _weekly_status(
-            providers.get(bucket), observed_at_by_provider.get(bucket), now,
+            providers.get(bucket), observed_at_by_provider.get(bucket), now, threshold,
         )
         if state == "available":
             data = providers.get(bucket)
@@ -277,12 +283,29 @@ def _alternatives(
     return tuple(result)
 
 
+def _policy_threshold(
+    policy: Mapping[str, object] | None,
+    lane: str,
+    fallback: float,
+) -> float:
+    if not isinstance(policy, Mapping):
+        return fallback
+    lanes = policy.get("lanes")
+    item = lanes.get(lane) if isinstance(lanes, Mapping) else None
+    value = item.get("threshold") if isinstance(item, Mapping) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return fallback
+    value = float(value)
+    return value if math.isfinite(value) else fallback
+
+
 def evaluate_worker_admission(
     model: str,
     providers: Mapping[str, object],
     observed_at_by_provider: Mapping[str, object],
     *,
     now: float | None = None,
+    policy: Mapping[str, object] | None = None,
 ) -> QuotaDecision:
     checked_at = time.time() if now is None else float(now)
     try:
@@ -301,16 +324,21 @@ def evaluate_worker_admission(
         )
     provider = providers.get(bucket)
     observed_raw = observed_at_by_provider.get(bucket)
-    threshold = (
-        LUNA_WORKER_WEEKLY_LIMIT_PCT
-        if resolved == "gpt-5.6-luna"
-        else WORKER_WEEKLY_LIMIT_PCT
-    )
+    if bucket == "codex_spark":
+        threshold = _policy_threshold(policy, "spark", WORKER_WEEKLY_LIMIT_PCT)
+    elif resolved == "gpt-5.6-luna":
+        threshold = _policy_threshold(policy, "luna", LUNA_WORKER_WEEKLY_LIMIT_PCT)
+    elif bucket == "codex":
+        threshold = _policy_threshold(policy, "sol", WORKER_WEEKLY_LIMIT_PCT)
+    else:
+        threshold = WORKER_WEEKLY_LIMIT_PCT
     state, utilization, observed_at, reset_at, reason = _weekly_status(
         provider, observed_raw, checked_at, threshold,
     )
     label = provider.get("label") if isinstance(provider, Mapping) else None
-    alternatives = _alternatives(bucket, providers, observed_at_by_provider, checked_at)
+    alternatives = _alternatives(
+        bucket, providers, observed_at_by_provider, checked_at, policy,
+    )
     return QuotaDecision(
         state=state,
         model=resolved,
@@ -361,7 +389,13 @@ async def get_worker_admission(
         providers = {}
     if not isinstance(timestamps, Mapping):
         timestamps = {}
-    return evaluate_worker_admission(model, providers, timestamps)
+    try:
+        from app.db import quota_policy_snapshot
+
+        policy = quota_policy_snapshot()
+    except Exception:
+        policy = None
+    return evaluate_worker_admission(model, providers, timestamps, policy=policy)
 
 
 def require_worker_admission(decision: QuotaDecision) -> None:
