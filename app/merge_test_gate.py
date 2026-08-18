@@ -27,6 +27,7 @@ from app.acceptance import FAILED, INCONCLUSIVE, PASSED, SKIPPED
 
 MAX_TEST_FILES = 12
 DEFAULT_TIMEOUT_SECONDS = 180.0
+_BATCH_DIAGNOSTIC_LIMIT = 4000
 ROUTE_TEST = "tests/test_routes_surface.py"
 _ROUTE_EXACT = frozenset({
     "app/main.py",
@@ -154,12 +155,35 @@ def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None)
     }
 
 
+def _compact_output(text: str, limit: int) -> str:
+    if limit <= 0:
+        return ""
+    if len(text) <= limit:
+        return text
+    marker = "\n…\n"
+    if limit <= len(marker):
+        return text[:limit]
+    head = (limit - len(marker)) // 2
+    tail = limit - len(marker) - head
+    return f"{text[:head]}{marker}{text[-tail:]}"
+
+
+def _ordered_batches(tests: list[str]) -> list[list[str]]:
+    if len(tests) <= MAX_TEST_FILES:
+        return [tests]
+    batches = [
+        tests[start:start + MAX_TEST_FILES]
+        for start in range(0, len(tests), MAX_TEST_FILES)
+    ]
+    return sorted(batches, key=len)
+
+
 def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
     """Run every mapped batch under one deadline and combine its evidence."""
     deadline = time.monotonic() + DEFAULT_TIMEOUT_SECONDS
-    batch_budget = DEFAULT_TIMEOUT_SECONDS / len(batches)
+    batches_left = len(batches)
     results: list[dict] = []
-    for index, batch in enumerate(batches):
+    for batch in batches:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             result = {
@@ -170,9 +194,8 @@ def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
                 "tests": batch,
             }
         else:
-            # Reserve an equal share for every batch. The deadline clamp accounts
-            # for process startup and keeps the sum of subprocess budgets bounded.
-            result = run_pytest(worktree, batch, timeout=min(batch_budget, remaining))
+            result = run_pytest(worktree, batch, timeout=remaining / batches_left)
+        batches_left -= 1
         results.append(result)
 
     failed = [result for result in results if result["status"] == FAILED]
@@ -200,31 +223,21 @@ def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
         ]
         if result.get("reason"):
             lines.append(f"reason={result['reason']}")
-        if result.get("output"):
-            lines.append(result["output"])
-        sections.append("\n".join(lines))
-    # Keep a diagnostic slice from every batch. A single tail of the combined
-    # output can hide the early failing batch behind a verbose later one.
-    per_batch = max(1, (4000 - len(sections) + 1) // len(sections))
-    compact = []
-    for section in sections:
-        if len(section) > per_batch:
-            header, _, detail = section.partition("\n")
-            room = per_batch - len(header) - 2
-            if room <= 0:
-                section = header[:per_batch]
-            else:
-                marker = "\n…\n"
-                available = max(0, room - len(marker))
-                head = available // 2
-                tail = available - head
-                section = f"{header}\n{detail[:head]}{marker}{detail[-tail:]}"
-        compact.append(section)
+        section_limit = max(
+            1,
+            (_BATCH_DIAGNOSTIC_LIMIT - max(0, len(results) - 1)) // len(results),
+        )
+        section = "\n".join(lines)
+        output = result.get("output") or ""
+        budget = section_limit - len(section) - 1
+        if output and budget > 0:
+            section = f"{section}\n{_compact_output(output, budget)}"
+        sections.append(section[:section_limit])
     return {
         "status": status,
         "reason": reason,
         "exit_code": exit_code,
-        "output": "\n".join(compact),
+        "output": "\n".join(sections),
         "tests": list(sum(batches, [])),
     }
 
@@ -243,9 +256,6 @@ def evaluate_test_gate(worktree: str) -> dict:
             "exit_code": None, "output": "", "tests": [],
         }
     if len(tests) > MAX_TEST_FILES:
-        batches = [
-            tests[start:start + MAX_TEST_FILES]
-            for start in range(0, len(tests), MAX_TEST_FILES)
-        ]
+        batches = _ordered_batches(tests)
         return _batch_result(worktree, batches)
     return run_pytest(worktree, tests)

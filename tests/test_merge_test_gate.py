@@ -118,9 +118,11 @@ def test_large_mapped_subset_runs_all_files_in_bounded_batches(monkeypatch):
 
     tests = [f"tests/test_{n:02d}.py" for n in range(14)]
     calls = []
+    monotonic_calls = iter([0.0, 0.0, 32.56])
 
     monkeypatch.setattr(gate, "changed_paths", lambda _worktree: ["app/widget.py"])
     monkeypatch.setattr(gate, "select_tests", lambda _changed, worktree: tests)
+    monkeypatch.setattr(gate.time, "monotonic", lambda: next(monotonic_calls))
 
     def fake_run(worktree, batch, *, timeout=None):
         calls.append((list(batch), timeout))
@@ -136,9 +138,42 @@ def test_large_mapped_subset_runs_all_files_in_bounded_batches(monkeypatch):
     result = gate.evaluate_test_gate("/worktree")
 
     assert result["status"] == gate.PASSED
-    assert [test for batch, _timeout in calls for test in batch] == tests
-    assert [len(batch) for batch, _timeout in calls] == [12, 2]
-    assert sum(timeout for _batch, timeout in calls) <= gate.DEFAULT_TIMEOUT_SECONDS
+    assert [test for batch, _timeout in calls for test in batch] == [tests[12], tests[13], *tests[:12]]
+    assert [len(batch) for batch, _timeout in calls] == [2, 12]
+    assert calls[0][1] == pytest.approx(90.0)
+    assert calls[1][1] == pytest.approx(147.44, abs=0.01)
+
+
+def test_each_batch_is_attempted_when_non_final_batch_fails(monkeypatch):
+    from app import merge_test_gate as gate
+
+    tests = [f"tests/test_{n:02d}.py" for n in range(13)]
+    calls = []
+
+    monkeypatch.setattr(gate, "changed_paths", lambda _worktree: ["app/widget.py"])
+    monkeypatch.setattr(gate, "select_tests", lambda _changed, worktree: tests)
+    monkeypatch.setattr(gate.time, "monotonic", lambda: 0.0)
+    outcomes = iter((gate.FAILED, gate.INCONCLUSIVE))
+
+    def fake_run(worktree, batch, *, timeout=None):
+        calls.append((list(batch), timeout, len(batch)))
+        status = next(outcomes)
+        return {
+            "status": status,
+            "reason": "exit_nonzero" if status == gate.FAILED else "timeout",
+            "exit_code": 1 if status == gate.FAILED else None,
+            "output": "diag-" + (" ".join(batch)),
+            "tests": list(batch),
+        }
+
+    monkeypatch.setattr(gate, "run_pytest", fake_run)
+    result = gate.evaluate_test_gate("/worktree")
+
+    assert len(calls) == 2
+    assert [size for _batch, _timeout, size in calls] == [1, 12]
+    assert result["status"] == gate.FAILED
+    assert result["reason"] == "batch_failed"
+
 
 
 def test_small_mapped_subset_stays_one_batch(monkeypatch):
@@ -191,7 +226,7 @@ def test_large_subset_preserves_failed_and_inconclusive_batches(monkeypatch):
 
     assert result["status"] == gate.FAILED
     assert result["reason"] == "batch_failed"
-    assert result["tests"] == tests
+    assert sorted(result["tests"]) == tests
     assert all(test in result["output"] for test in (tests[0], tests[-1]))
     assert "diagnostic-tests/test_00.py" in result["output"]
 
