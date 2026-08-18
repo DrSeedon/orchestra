@@ -118,18 +118,21 @@ def test_large_mapped_subset_runs_all_files_in_bounded_batches(monkeypatch):
 
     tests = [f"tests/test_{n:02d}.py" for n in range(14)]
     calls = []
-    monotonic_calls = iter([0.0, 0.0, 32.56])
+    clock = [0.0]
 
     monkeypatch.setattr(gate, "changed_paths", lambda _worktree: ["app/widget.py"])
     monkeypatch.setattr(gate, "select_tests", lambda _changed, worktree: tests)
-    monkeypatch.setattr(gate.time, "monotonic", lambda: next(monotonic_calls))
+    monkeypatch.setattr(gate.time, "monotonic", lambda: clock[0])
 
     def fake_run(worktree, batch, *, timeout=None):
         calls.append((list(batch), timeout))
+        cost = {2: 36.82, 4: 48.0, 5: 60.0, 12: 240.0}[len(batch)]
+        clock[0] += min(cost, timeout)
+        status = gate.PASSED if cost <= timeout else gate.INCONCLUSIVE
         return {
-            "status": gate.PASSED,
-            "reason": "",
-            "exit_code": 0,
+            "status": status,
+            "reason": "" if status == gate.PASSED else "timeout",
+            "exit_code": 0 if status == gate.PASSED else None,
             "output": "passed " + ", ".join(batch),
             "tests": list(batch),
         }
@@ -138,10 +141,14 @@ def test_large_mapped_subset_runs_all_files_in_bounded_batches(monkeypatch):
     result = gate.evaluate_test_gate("/worktree")
 
     assert result["status"] == gate.PASSED
-    assert [test for batch, _timeout in calls for test in batch] == [tests[12], tests[13], *tests[:12]]
-    assert [len(batch) for batch, _timeout in calls] == [2, 12]
-    assert calls[0][1] == pytest.approx(90.0)
-    assert calls[1][1] == pytest.approx(147.44, abs=0.01)
+    assert [test for batch, _timeout in calls for test in batch] == tests
+    batch_sizes = [len(batch) for batch, _timeout in calls]
+    assert batch_sizes == [5, 5, 4]
+    assert max(batch_sizes) < gate.MAX_TEST_FILES
+    assert sum({4: 48.0, 5: 60.0}[size] for size in batch_sizes) <= gate.DEFAULT_TIMEOUT_SECONDS
+    assert 36.82 + 240.0 > gate.DEFAULT_TIMEOUT_SECONDS  # old [2, 12] profile
+    assert [timeout for _batch, timeout in calls] == [60.0, 60.0, 60.0]
+    assert clock[0] == pytest.approx(168.0)
 
 
 def test_each_batch_is_attempted_when_non_final_batch_fails(monkeypatch):
@@ -153,7 +160,7 @@ def test_each_batch_is_attempted_when_non_final_batch_fails(monkeypatch):
     monkeypatch.setattr(gate, "changed_paths", lambda _worktree: ["app/widget.py"])
     monkeypatch.setattr(gate, "select_tests", lambda _changed, worktree: tests)
     monkeypatch.setattr(gate.time, "monotonic", lambda: 0.0)
-    outcomes = iter((gate.FAILED, gate.INCONCLUSIVE))
+    outcomes = iter((gate.FAILED, gate.INCONCLUSIVE, gate.PASSED))
 
     def fake_run(worktree, batch, *, timeout=None):
         calls.append((list(batch), timeout, len(batch)))
@@ -169,11 +176,11 @@ def test_each_batch_is_attempted_when_non_final_batch_fails(monkeypatch):
     monkeypatch.setattr(gate, "run_pytest", fake_run)
     result = gate.evaluate_test_gate("/worktree")
 
-    assert len(calls) == 2
-    assert [size for _batch, _timeout, size in calls] == [1, 12]
+    assert len(calls) == 3
+    assert [size for _batch, _timeout, size in calls] == [5, 4, 4]
+    assert max(size for _batch, _timeout, size in calls) < gate.MAX_TEST_FILES
     assert result["status"] == gate.FAILED
     assert result["reason"] == "batch_failed"
-
 
 
 def test_small_mapped_subset_stays_one_batch(monkeypatch):
@@ -206,7 +213,7 @@ def test_large_subset_preserves_failed_and_inconclusive_batches(monkeypatch):
     from app import merge_test_gate as gate
 
     tests = [f"tests/test_{n:02d}.py" for n in range(13)]
-    outcomes = iter((gate.FAILED, gate.INCONCLUSIVE))
+    outcomes = iter((gate.FAILED, gate.INCONCLUSIVE, gate.PASSED))
 
     monkeypatch.setattr(gate, "changed_paths", lambda _worktree: ["app/widget.py"])
     monkeypatch.setattr(gate, "select_tests", lambda _changed, worktree: tests)
@@ -235,8 +242,8 @@ def test_large_subset_keeps_diagnostics_from_verbose_batches(monkeypatch):
     from app import merge_test_gate as gate
 
     tests = [f"tests/test_{n:02d}.py" for n in range(13)]
-    outcomes = iter((gate.FAILED, gate.INCONCLUSIVE))
-    diagnostics = iter(("early-failure", "late-timeout"))
+    outcomes = iter((gate.FAILED, gate.INCONCLUSIVE, gate.PASSED))
+    diagnostics = iter(("early-failure", "late-timeout", "late-pass"))
 
     monkeypatch.setattr(gate, "changed_paths", lambda _worktree: ["app/widget.py"])
     monkeypatch.setattr(gate, "select_tests", lambda _changed, worktree: tests)

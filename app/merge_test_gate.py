@@ -26,6 +26,7 @@ from pathlib import Path
 from app.acceptance import FAILED, INCONCLUSIVE, PASSED, SKIPPED
 
 MAX_TEST_FILES = 12
+MAX_BATCH_TESTS = 6
 DEFAULT_TIMEOUT_SECONDS = 180.0
 _BATCH_DIAGNOSTIC_LIMIT = 4000
 ROUTE_TEST = "tests/test_routes_surface.py"
@@ -171,11 +172,15 @@ def _compact_output(text: str, limit: int) -> str:
 def _ordered_batches(tests: list[str]) -> list[list[str]]:
     if len(tests) <= MAX_TEST_FILES:
         return [tests]
-    batches = [
-        tests[start:start + MAX_TEST_FILES]
-        for start in range(0, len(tests), MAX_TEST_FILES)
-    ]
-    return sorted(batches, key=len)
+    batch_count = (len(tests) + MAX_BATCH_TESTS - 1) // MAX_BATCH_TESTS
+    base_size, remainder = divmod(len(tests), batch_count)
+    batches = []
+    cursor = 0
+    for index in range(batch_count):
+        size = base_size + (index < remainder)
+        batches.append(tests[cursor:cursor + size])
+        cursor += size
+    return batches
 
 
 def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
