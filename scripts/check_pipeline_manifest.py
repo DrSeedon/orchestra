@@ -187,11 +187,7 @@ def _manifest_model_ids(data: dict) -> set[str]:
     policy = data.get("worker_model_policy")
     if isinstance(policy, dict):
         _take(policy.get("always_allowed"))
-        _take(policy.get("denied"))
         _take(policy.get("alternatives"))
-        guarded = policy.get("quota_guarded")
-        if isinstance(guarded, dict):
-            _take(guarded.get("model"))
     return ids
 
 

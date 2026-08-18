@@ -178,48 +178,24 @@ class PromptLayers(BaseModel):
         return v
 
 
-class QuotaGuardedModelPolicy(BaseModel):
-    """One worker model guarded by Claude weekly pace and an absolute ceiling."""
-
-    model_config = ConfigDict(extra="forbid")
-    model: str
-    pace_block_lead_pp: float
-    pace_unblock_lead_pp: float
-    absolute_block_pct: float
-    absolute_unblock_pct: float
-
-    @field_validator("model")
-    @classmethod
-    def _canonical_model(cls, v: str) -> str:
-        if not _model_is_known(v):
-            logger.warning("worker model policy: unknown quota-balanced model '%s'", v)
-        return _canon_model(v)
-
-    @model_validator(mode="after")
-    def _valid_hysteresis(self) -> "QuotaGuardedModelPolicy":
-        if not -100 <= self.pace_unblock_lead_pp < self.pace_block_lead_pp <= 100:
-            raise ValueError(
-                "worker model policy requires -100 <= pace_unblock_lead_pp "
-                "< pace_block_lead_pp <= 100"
-            )
-        if not 0 <= self.absolute_unblock_pct < self.absolute_block_pct <= 100:
-            raise ValueError(
-                "worker model policy requires 0 <= absolute_unblock_pct "
-                "< absolute_block_pct <= 100"
-            )
-        return self
-
-
 class WorkerModelPolicy(BaseModel):
-    """Server-enforced model admission for roles whose manifest kind is worker."""
+    """Static, spend-independent model admission for roles whose kind is worker.
+
+    One mechanism, fail-closed: a model absent from `always_allowed` is refused,
+    so a model newly added to the registry is denied to workers until someone
+    admits it deliberately. There is deliberately no second deny list — two gates
+    over one thought diverge (#329).
+
+    Everything about pools — utilization, pace, reserve — belongs to the quota
+    controller (hot policy in `quota_controller_policy` + `app/quota_gate.py`) and
+    does not exist here at all.
+    """
 
     model_config = ConfigDict(extra="forbid")
     always_allowed: list[str]
-    denied: list[str]
-    quota_guarded: QuotaGuardedModelPolicy
     alternatives: list[str]
 
-    @field_validator("always_allowed", "denied", "alternatives")
+    @field_validator("always_allowed", "alternatives")
     @classmethod
     def _canonical_models(cls, values: list[str]) -> list[str]:
         result: list[str] = []
@@ -234,15 +210,6 @@ class WorkerModelPolicy(BaseModel):
 
     @model_validator(mode="after")
     def _valid_sets(self) -> "WorkerModelPolicy":
-        if self.quota_guarded.model in self.always_allowed:
-            raise ValueError("quota-guarded model cannot also be always allowed")
-        overlap = set(self.always_allowed) & set(self.denied)
-        if self.quota_guarded.model in self.denied:
-            overlap.add(self.quota_guarded.model)
-        if overlap:
-            raise ValueError(
-                f"worker model policy allows and denies the same model: {sorted(overlap)}"
-            )
         missing = set(self.alternatives) - set(self.always_allowed)
         if missing:
             raise ValueError(

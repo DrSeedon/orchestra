@@ -72,34 +72,45 @@ class TestDefaultManifestLoads:
         assert d.docs_scaffold is False  # апстрим не скаффолдит doc-папки
         assert d.inherit_claude_md is True  # CLAUDE.md проекта копируется в worktree
 
-    def test_worker_model_policy_is_staged_for_restart(self):
-        assert P.load_pipeline(PIPELINE).worker_model_policy is None
-        text = (P.PIPELINES_DIR / PIPELINE / "pipeline.yaml").read_text()
-        commented = """# worker_model_policy:
-#   always_allowed: [gpt-5.6-sol, gpt-5.6-luna, gpt-5.3-codex-spark]
-#   denied: [\"claude-fable-5[1m]\", gpt-5.6-terra]
-#   quota_guarded:
-#     model: claude-opus-5[1m]
-#     pace_block_lead_pp: 11
-#     pace_unblock_lead_pp: 7
-#     absolute_block_pct: 90
-#     absolute_unblock_pct: 87
-#   alternatives: [gpt-5.6-sol, gpt-5.6-luna]"""
-        assert commented in text
-        active = "\n".join(line.removeprefix("# ") for line in commented.splitlines())
-        policy = P.WorkerModelPolicy.model_validate(
-            yaml.safe_load(active)["worker_model_policy"]
-        )
+    def test_worker_model_policy_is_active_or_explicitly_staged_and_free_of_spend(self):
+        """Блок может быть ВЫКЛЮЧЕН решением (мерж без рестарта, #329), но не может
+        просто исчезнуть: выключенный обязан лежать закомментированным, проходить
+        схему при включении и не содержать ничего про расход."""
+        path = P.PIPELINES_DIR / PIPELINE / "pipeline.yaml"
+        text = path.read_text()
+        raw = yaml.safe_load(text).get("worker_model_policy")
+        active = raw is not None
+        if not active:
+            block = []
+            for line in text.splitlines():
+                if line.startswith("# worker_model_policy:"):
+                    block = [line]
+                elif block and line.startswith("#   "):
+                    block.append(line)
+                elif block:
+                    break
+            assert block, (
+                "worker_model_policy не активен и не найден закомментированным: "
+                "выключать его можно только явно"
+            )
+            raw = yaml.safe_load(
+                "\n".join(line.removeprefix("# ").removeprefix("#") for line in block)
+            )["worker_model_policy"]
+
+        # Форма одна и та же в обоих состояниях: ничего про расход, схема принимает.
+        assert set(raw) == {"always_allowed", "alternatives"}, raw
+        for spend_field in ("quota_guarded", "denied", "pace_block_lead_pp", "absolute_block_pct"):
+            assert spend_field not in raw
+        policy = P.WorkerModelPolicy.model_validate(raw)
         assert policy.always_allowed == [
-            "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark",
+            "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark", "claude-opus-5[1m]",
         ]
-        assert policy.denied == ["claude-fable-5[1m]", "gpt-5.6-terra"]
-        assert policy.quota_guarded.model == "claude-opus-5[1m]"
-        assert policy.quota_guarded.pace_block_lead_pp == 11
-        assert policy.quota_guarded.pace_unblock_lead_pp == 7
-        assert policy.quota_guarded.absolute_block_pct == 90
-        assert policy.quota_guarded.absolute_unblock_pct == 87
         assert policy.alternatives == ["gpt-5.6-sol", "gpt-5.6-luna"]
+        for never in ("claude-fable-5[1m]", "gpt-5.6-terra"):
+            assert never not in policy.always_allowed
+
+        # Выключенный блок означает именно «не принуждается», и это видно загрузчику.
+        assert (P.load_pipeline(PIPELINE).worker_model_policy is not None) is active
 
     def test_prompt_layers_have_no_pipeline_layer(self):
         """У апстрима НЕТ _pipeline.md — только base + роль."""

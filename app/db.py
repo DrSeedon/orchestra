@@ -86,9 +86,8 @@ _QUOTA_POLICY_TABLE_SQL = """
         """
 
 # Пороги совпадают с fallback-константами гейта (app/quota_gate.py
-# LANE_DEFAULT_THRESHOLDS); равенство закреплено тестом. claude=90 — абсолютный
-# worker-стоп принятой политики #227 (pipelines/default/pipeline.yaml:17
-# absolute_block_pct, app/manager.py:646).
+# LANE_DEFAULT_THRESHOLDS); равенство закреплено тестом. Обоснование каждого числа —
+# там же, у констант: в манифесте пайплайна их больше нет (#329).
 QUOTA_POLICY_DEFAULTS = {"sol": 95.0, "luna": 98.0, "spark": 95.0, "claude": 90.0}
 QUOTA_POLICY_SOURCE = "temporary_static_override"
 QUOTA_POLICY_LABEL = "TEMPORARY STATIC OVERRIDE"

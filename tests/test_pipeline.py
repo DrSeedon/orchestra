@@ -109,50 +109,36 @@ class TestLoadPipeline:
         assert second is not first
         assert second.roles["hand"].effort == "high"
 
-    @pytest.mark.parametrize("block,unblock", [(7, 7), (6, 7), (101, 7)])
-    def test_worker_model_policy_rejects_invalid_hysteresis(
-        self, pipelines_root, block, unblock,
-    ):
+    def test_worker_model_policy_rejects_spend_fields(self, pipelines_root):
+        """Логику пулов в манифесте не принимаем: у неё один владелец — контроллер (#329)."""
         manifest = _MINIMAL.format(name="demo").replace(
             "    defaults:\n",
             "    worker_model_policy:\n"
             "      always_allowed: [gpt-5.6-sol]\n"
-            "      denied: ['claude-fable-5[1m]']\n"
+            "      alternatives: [gpt-5.6-sol]\n"
             "      quota_guarded:\n"
             "        model: 'claude-opus-5[1m]'\n"
-            f"        pace_block_lead_pp: {block}\n"
-            f"        pace_unblock_lead_pp: {unblock}\n"
             "        absolute_block_pct: 90\n"
-            "        absolute_unblock_pct: 87\n"
-            "      alternatives: [gpt-5.6-sol]\n"
             "    defaults:\n",
         )
         _write_pipeline(pipelines_root, "demo", manifest)
 
-        with pytest.raises(ValueError, match="pace_unblock_lead_pp < pace_block_lead_pp"):
+        with pytest.raises(ValueError, match="quota_guarded"):
             P.load_pipeline("demo")
 
-    @pytest.mark.parametrize("block,unblock", [(87, 87), (86, 87), (101, 87)])
-    def test_worker_model_policy_rejects_invalid_absolute_hysteresis(
-        self, pipelines_root, block, unblock,
+    def test_worker_model_policy_rejects_suggesting_a_model_it_does_not_admit(
+        self, pipelines_root,
     ):
         manifest = _MINIMAL.format(name="demo").replace(
             "    defaults:\n",
             "    worker_model_policy:\n"
             "      always_allowed: [gpt-5.6-sol]\n"
-            "      denied: ['claude-fable-5[1m]']\n"
-            "      quota_guarded:\n"
-            "        model: 'claude-opus-5[1m]'\n"
-            "        pace_block_lead_pp: 11\n"
-            "        pace_unblock_lead_pp: 7\n"
-            f"        absolute_block_pct: {block}\n"
-            f"        absolute_unblock_pct: {unblock}\n"
-            "      alternatives: [gpt-5.6-sol]\n"
+            "      alternatives: [gpt-5.6-luna]\n"
             "    defaults:\n",
         )
         _write_pipeline(pipelines_root, "demo", manifest)
 
-        with pytest.raises(ValueError, match="absolute_unblock_pct < absolute_block_pct"):
+        with pytest.raises(ValueError, match="alternatives must be always allowed"):
             P.load_pipeline("demo")
 
     def test_file_changed_during_read_is_not_cached(self, pipelines_root, monkeypatch):
