@@ -1,59 +1,61 @@
 {
-  "artifact": "quota-runway-controller",
-  "captured_at": "2026-08-18T06:14:00Z",
-  "source_endpoints": [
-    "/api/usage",
-    "/api/usage/readiness?model=gpt-5.6-luna",
-    "/api/usage/readiness?model=gpt-5.6-sol",
-    "/api/usage/quota-controller"
-  ],
-  "codex_primary": {
-    "utilization_pct": 96,
-    "window_minutes": 10080,
-    "resets_at": "2026-08-23T07:26:39Z",
-    "runway_hours": 121.2
-  },
-  "current_static_gate": {
-    "luna": {
-      "model": "gpt-5.6-luna",
-      "threshold_pct": 98,
-      "decision": "available",
-      "temporary_policy_commit": "5a9ff796"
+  "task": "#321",
+  "artifact": "docs/artifacts/quota-runway-controller.html",
+  "status": "illustrative offline preview",
+  "previous_live_snapshot": {
+    "captured_at": "2026-08-18T06:14:00Z",
+    "source_endpoints": [
+      "/api/usage",
+      "/api/usage/readiness?model=gpt-5.6-luna",
+      "/api/usage/readiness?model=gpt-5.6-sol",
+      "/api/usage/quota-controller"
+    ],
+    "codex_primary": {
+      "utilization_pct": 96,
+      "window_minutes": 10080,
+      "resets_at": "2026-08-23T07:26:39Z",
+      "runway_hours": 121.2
     },
-    "sol": {
-      "model": "gpt-5.6-sol",
-      "threshold_pct": 95,
-      "decision": "blocked"
-    }
+    "static_gate_at_capture": {
+      "luna": {"model": "gpt-5.6-luna", "threshold_pct": 98, "decision": "available"},
+      "sol": {"model": "gpt-5.6-sol", "threshold_pct": 95, "decision": "blocked"}
+    },
+    "note": "Retained provenance only; this offline preview does not silently merge live values into its illustrative controls."
   },
-  "adaptive_controller": {
-    "target_pct": 99,
-    "formula": "u_eff + q95(next_turn) + guard <= target - reserve",
-    "mode": "shadow",
-    "enforcement_tier": "precalibration",
-    "decision_count": 13,
-    "outcome_count": 13,
-    "indeterminate_count": 13,
-    "latest_reason": "unknown_q95",
-    "codex_primary_shadow_utilization_pct": 95,
-    "guard_pct_points": 0.5,
-    "q95_next_turn_pct_points": null,
-    "note": "The live readiness observation was 96%, while the latest controller bucket snapshot still contained 95%. The visual keeps both facts distinct instead of silently merging them."
+  "sources": [
+    "docs/tasks/285/research.md#Контроллер 99% к сбросу",
+    "docs/tasks/291/plan.md#Неоднозначность #285, закрытая этим планом"
+  ],
+  "durable_facts": {
+    "window_hours": 168,
+    "target_formula": "target(h) = B * elapsed / W",
+    "elapsed_formula": "elapsed = W - h",
+    "budget_formula": "B = 99 - reserve",
+    "dispatch_gate": "u_eff + q95(next_turn) + guard <= 99 - reserve",
+    "effective_utilization": "u_eff = reported utilization + sum(q95(unsettled dispatches in the same bucket))",
+    "guard": "max(0.5 pp integer-display guard, p95 unobserved telemetry-lag burn, residual/drift guard)",
+    "reserve_semantics": "critical reserve is dynamic q95 remaining critical demand, not a permanent fixed percentage",
+    "in_flight": "in-flight turns are not interrupted; the next dispatch is gated",
+    "bootstrap_boundary": "full controller uses p50/p90/p95 moving-block bootstrap of same plan/regime hourly increments; this preview does not implement that estimator"
   },
-  "illustrative_calibrated_scenario": {
-    "label": "explanatory only — not live telemetry",
-    "luna_q95_pct_points": 0.35,
-    "sol_q95_pct_points": 2.4,
-    "guard_pct_points": 0.5,
-    "reserve_function": "1.5 * hours_to_reset / 168",
-    "remaining_to_target_pct_points": 3,
-    "interactive_axes": {
-      "x": "codex_primary_utilization_pct",
-      "y": "hours_to_reset",
-      "defaults": {
-        "utilization_pct": 96,
-        "hours_to_reset": 121
-      }
-    }
-  }
+  "illustrative_preview": {
+    "reserve_pp": 1,
+    "sol_lead_pp": 10,
+    "luna_lead_pp": 15,
+    "sol_q95_pp": 2.4,
+    "luna_q95_pp": 0.7,
+    "guard_pp": 0.5,
+    "label": "operator-configurable examples before #318 calibration; not measured facts and not a production contract"
+  },
+  "acceptance_examples": {
+    "early_80": "h=160, usage=80 => Sol HOLD and Luna HOLD",
+    "late_80": "h=8, usage=80 => Luna ALLOW under illustrative defaults (Sol also fits)",
+    "between_corridors": "h=40, usage=85 => Sol HOLD and Luna ALLOW under illustrative defaults",
+    "hard_fit": "h=0, usage=98 => Luna HOLD because u_eff + q95 + guard > B"
+  },
+  "non_goals": [
+    "No app/ changes",
+    "No live telemetry or network calls",
+    "No claim that the 2D illustrative corridors are the calibrated #285 bootstrap controller"
+  ]
 }

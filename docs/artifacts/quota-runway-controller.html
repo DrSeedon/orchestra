@@ -4,16 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>Quota map — доступность моделей</title>
+  <title>Недельная траектория квоты</title>
   <style>
-    /* костяк производен от visualize.css, (c) OpenAI, Apache-2.0 */
     :root{
       color-scheme:light dark;
-      /* акцент: бирюзовый — свободный runway и безопасное продолжение */
+      /* акцент: морская бирюза — траектория расхода и управляемый runway */
       --accent:light-dark(#087a74,#62d3c8);
       --fs:15px;--radius:12px;
       --font:ui-sans-serif,system-ui,sans-serif;
-      --font-head:ui-serif,Georgia,serif;
+      --font-head:ui-serif,Georgia,"Times New Roman",serif;
       --bg:light-dark(#fff,#181818);--ink:light-dark(#1a1c1f,#f2f2f0);
       --mut:color-mix(in srgb,var(--ink) 48%,transparent);
       --card:color-mix(in oklab,var(--ink) 5%,transparent);
@@ -28,287 +27,123 @@
       --s5:light-dark(#6b57c4,#aa91ef);--s6:light-dark(#1f7a72,#5acbc2);
     }
     *{box-sizing:border-box}
-    body{margin:0;padding:clamp(16px,4vw,40px);background:var(--bg);color:var(--ink);
-      font:430 var(--fs)/1.5 var(--font)}
+    body{margin:0;padding:clamp(16px,4vw,40px);background:var(--bg);color:var(--ink);font:430 var(--fs)/1.5 var(--font)}
     h1,h2,h3{margin:0;font-family:var(--font-head);font-weight:500;line-height:1.25}
     h1{font-size:var(--fs-h1)}h2{font-size:var(--fs-h2)}h3{font-size:var(--fs-h3)}
     small,.sm{font-size:var(--fs-sm)}.mut{color:var(--mut)}
-    .badge{padding:3px 8px;border-radius:9999px;font-size:var(--fs-sm);
-      background:color-mix(in srgb,var(--accent) 15%,transparent)}
-    code{padding:1px 6px;border-radius:var(--r-sm);font:500 .92em/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;
-      background:color-mix(in srgb,var(--ink) 10%,transparent)}
+    code{padding:1px 6px;border-radius:var(--r-sm);font:500 .92em/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;background:color-mix(in srgb,var(--ink) 10%,transparent);overflow-wrap:anywhere}
     :is(a,button,input,[tabindex]):focus-visible{outline:2px solid var(--ring);outline-offset:2px}
-    :is([aria-pressed="true"]){background:var(--accent);color:var(--bg)}
     svg{display:block;max-width:100%;height:auto}
     .shell{width:min(1360px,100%);margin:auto}
     .top{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:24px}
-    .top p{max-width:780px;margin:8px 0 0;color:var(--mut);font-size:1.04rem}
-    .live-stamp{text-align:end;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
-
-    .control-deck{display:grid;grid-template-columns:repeat(2,minmax(240px,1fr)) minmax(260px,.8fr);
-      gap:2px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow)}
-    .control{padding:16px 24px;background:var(--card);min-height:142px}
-    .control-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
-    .control-label{font-weight:650}.control-value{font-family:var(--font-head);font-size:clamp(2rem,5vw,3.35rem);line-height:.95;font-weight:500}
-    .control-value small{font-family:var(--font);font-size:var(--fs-sm);color:var(--mut)}
-    input[type="range"]{appearance:none;width:100%;height:28px;margin:18px 0 0;background:transparent;cursor:pointer}
-    input[type="range"]::-webkit-slider-runnable-track{height:8px;border-radius:9999px;background:linear-gradient(90deg,var(--accent) var(--fill),color-mix(in srgb,var(--ink) 12%,transparent) var(--fill))}
-    input[type="range"]::-moz-range-track{height:8px;border-radius:9999px;background:color-mix(in srgb,var(--ink) 12%,transparent)}
-    input[type="range"]::-moz-range-progress{height:8px;border-radius:9999px;background:var(--accent)}
-    input[type="range"]::-webkit-slider-thumb{appearance:none;width:24px;height:24px;margin-top:-8px;border:4px solid var(--bg);border-radius:50%;background:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-    input[type="range"]::-moz-range-thumb{width:18px;height:18px;border:4px solid var(--bg);border-radius:50%;background:var(--accent)}
+    .top p{max-width:800px;margin:8px 0 0;color:var(--mut);font-size:1.04rem}
+    .stamp{text-align:end;white-space:nowrap;font:500 var(--fs-sm)/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mut)}
+    .deck{display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:2px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow)}
+    .control{padding:16px 24px;background:var(--card);min-height:150px}
+    .control-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.control-label{font-weight:650}.control-value{font-family:var(--font-head);font-size:clamp(2.25rem,5vw,3.65rem);line-height:.9;font-weight:500;white-space:nowrap}.control-value small{font-family:var(--font);font-size:var(--fs-sm);color:var(--mut)}
+    input[type=range]{appearance:none;width:100%;height:28px;margin:20px 0 0;background:transparent;cursor:pointer}input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:9999px;background:linear-gradient(90deg,var(--accent) var(--fill),color-mix(in srgb,var(--ink) 12%,transparent) var(--fill))}input[type=range]::-moz-range-track{height:8px;border-radius:9999px;background:color-mix(in srgb,var(--ink) 12%,transparent)}input[type=range]::-moz-range-progress{height:8px;border-radius:9999px;background:var(--accent)}input[type=range]::-webkit-slider-thumb{appearance:none;width:24px;height:24px;margin-top:-8px;border:4px solid var(--bg);border-radius:50%;background:var(--accent);box-shadow:0 0 0 1px var(--accent)}input[type=range]::-moz-range-thumb{width:18px;height:18px;border:4px solid var(--bg);border-radius:50%;background:var(--accent)}
     .range-ends{display:flex;justify-content:space-between;color:var(--mut);font-size:var(--fs-sm)}
-    .mode-box{display:flex;flex-direction:column;justify-content:space-between}
-    .mode-buttons{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
-    button{border:1px solid var(--border);border-radius:9999px;background:transparent;color:inherit;
-      padding:7px 12px;font:650 var(--fs-sm)/1.3 var(--font);cursor:pointer}
-    button:hover{border-color:var(--accent)}
-    .mode-note{margin:12px 0 0;color:var(--mut)}
-
-    .map-head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin:40px 0 12px}
-    .map-head p{margin:4px 0 0;color:var(--mut)}
-    .map-layout{display:grid;grid-template-columns:minmax(0,2.3fr) minmax(270px,.7fr);gap:12px;align-items:stretch}
-    .map-panel{padding:12px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--card);overflow:hidden;min-width:0}
-    .side{display:flex;flex-direction:column;gap:8px}
-    .model{padding:16px;border:1px solid var(--border);border-left:5px solid var(--mut);border-radius:var(--r-lg);background:var(--card);min-height:126px}
-    .model.available{border-left-color:var(--s3)}.model.blocked{border-left-color:var(--bad)}.model.conditional{border-left-color:var(--s2)}
-    .model-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
-    .model h3{font:600 1rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
-    .model-state{font-size:var(--fs-sm);font-weight:800;letter-spacing:.06em;text-transform:uppercase}
-    .available .model-state{color:var(--s3)}.blocked .model-state{color:var(--bad)}.conditional .model-state{color:var(--s2)}
-    .model p{margin:8px 0 0;color:var(--mut)}
-    .metric{display:flex;justify-content:space-between;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:var(--fs-sm)}
-    .metric strong{font-variant-numeric:tabular-nums}
-    .readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;margin-top:12px;border-radius:var(--r-lg);overflow:hidden}
-    .readout-item{padding:12px 16px;background:var(--card);min-height:88px}
-    .readout-item strong{display:block;font-family:var(--font-head);font-size:var(--fs-h2);font-weight:500}
-    .readout-item span{color:var(--mut);font-size:var(--fs-sm)}
-    .explain{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.5fr);gap:24px;margin-top:24px;padding:24px 0;border-top:1px solid var(--border)}
-    .formula{font:650 clamp(1rem,2vw,1.35rem)/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
-    .explain p{margin:8px 0 0;color:var(--mut)}
-    .facts{margin:0;padding:0;list-style:none}.facts li{padding:8px 0;border-bottom:1px solid var(--border)}.facts li:last-child{border:0}
-
-    #quota-map text{font-family:var(--font);fill:var(--mut);font-size:13px}
-    #quota-map .strong{fill:var(--ink);font-weight:700}
-    #quota-map .grid{stroke:var(--border);stroke-width:1}
-    #quota-map .axis{stroke:color-mix(in srgb,var(--ink) 34%,transparent);stroke-width:1.5}
-    #quota-map .zone-all{fill:color-mix(in srgb,var(--s3) 18%,transparent)}
-    #quota-map .zone-luna{fill:color-mix(in srgb,var(--accent) 19%,transparent)}
-    #quota-map .zone-stop{fill:color-mix(in srgb,var(--bad) 12%,transparent)}
-    #quota-map .sol-boundary{fill:none;stroke:var(--bad);stroke-width:3;stroke-dasharray:7 5}
-    #quota-map .luna-boundary{fill:none;stroke:var(--s3);stroke-width:4}
-    #quota-map .cursor{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:3 5;opacity:.55}
-    #quota-map .current-diamond{fill:var(--bg);stroke:var(--ink);stroke-width:4}
-    #quota-map .model-dot{stroke:var(--bg);stroke-width:4}
-    #quota-map .point-label{fill:var(--bg);stroke:var(--border);stroke-width:1}
-    #quota-map .point-text{font-size:12px;font-weight:750;fill:var(--ink)}
-    #quota-map .spark-line{stroke:var(--s5);stroke-width:2;stroke-dasharray:3 5}
-    .legend{display:flex;justify-content:flex-end;gap:16px;flex-wrap:wrap;color:var(--mut);font-size:var(--fs-sm)}
-    .legend span{display:inline-flex;align-items:center;gap:6px}.legend i{width:16px;height:4px;border-radius:4px;background:currentColor}
-    .legend .all{color:var(--s3)}.legend .luna{color:var(--accent)}.legend .stop{color:var(--bad)}
-    .foot{display:flex;justify-content:space-between;gap:24px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border);color:var(--mut);font-size:var(--fs-sm)}
-
-    @media(max-width:980px){.control-deck{grid-template-columns:1fr 1fr}.mode-box{grid-column:1/-1}.map-layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:repeat(3,1fr)}.explain{grid-template-columns:1fr}}
-    @media(max-width:680px){.top,.map-head,.foot{flex-direction:column;align-items:flex-start}.live-stamp{text-align:start}.control-deck{grid-template-columns:1fr}.mode-box{grid-column:auto}.side{grid-template-columns:1fr}.readout{grid-template-columns:1fr 1fr}.map-panel{padding:4px}.legend{justify-content:flex-start}}
-    @media print{:root{color-scheme:light}body{padding:0;background:#fff;color:#000}.no-print{display:none}.map-layout{grid-template-columns:2fr 1fr}*{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+    .quick{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.quick button,button{border:1px solid var(--border);border-radius:9999px;background:transparent;color:inherit;padding:7px 12px;font:650 var(--fs-sm)/1.3 var(--font);cursor:pointer}button:hover{border-color:var(--accent)}
+    .readout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;margin-top:12px;border-radius:var(--r-lg);overflow:hidden}.readout-item{padding:12px 16px;background:var(--card);min-height:88px}.readout-item strong{display:block;font-family:var(--font-head);font-size:var(--fs-h2);font-weight:500;font-variant-numeric:tabular-nums}.readout-item span{color:var(--mut);font-size:var(--fs-sm)}
+    .map-head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin:40px 0 12px}.map-head p{margin:4px 0 0;color:var(--mut)}.legend{display:flex;justify-content:flex-end;gap:14px;flex-wrap:wrap;color:var(--mut);font-size:var(--fs-sm)}.legend span{display:inline-flex;align-items:center;gap:6px}.legend i{width:16px;height:7px;border-radius:3px}.legend .normal i{background:color-mix(in srgb,var(--s3) 70%,transparent)}.legend .middle i{background:color-mix(in srgb,var(--s2) 70%,transparent)}.legend .hold i{background:color-mix(in srgb,var(--bad) 70%,transparent)}
+    .map-layout{display:grid;grid-template-columns:minmax(0,2.3fr) minmax(280px,.7fr);gap:12px;align-items:stretch}.map-panel{padding:12px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--card);overflow:hidden;min-width:0}.side{display:flex;flex-direction:column;gap:8px}.model{padding:16px;border:1px solid var(--border);border-left:5px solid var(--mut);border-radius:var(--r-lg);background:var(--card);min-height:154px}.model.allow{border-left-color:var(--s3)}.model.hold{border-left-color:var(--bad)}.model-top{display:flex;justify-content:space-between;align-items:center;gap:12px}.model h3{font:600 1rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}.model-state{font-size:var(--fs-sm);font-weight:800;letter-spacing:.04em}.allow .model-state{color:var(--s3)}.hold .model-state{color:var(--bad)}.model p{margin:8px 0 0;color:var(--mut)}.metric{display:flex;justify-content:space-between;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:var(--fs-sm)}.metric strong{font-variant-numeric:tabular-nums}
+    #quota-map text{font-family:var(--font);fill:var(--mut);font-size:13px}#quota-map .strong{fill:var(--ink);font-weight:700}#quota-map .grid{stroke:var(--border);stroke-width:1}#quota-map .axis{stroke:color-mix(in srgb,var(--ink) 34%,transparent);stroke-width:1.5}#quota-map .zone-normal{fill:color-mix(in srgb,var(--s3) 18%,transparent)}#quota-map .zone-middle{fill:color-mix(in srgb,var(--s2) 18%,transparent)}#quota-map .zone-hold{fill:color-mix(in srgb,var(--bad) 12%,transparent)}#quota-map .target{fill:none;stroke:var(--accent);stroke-width:4}#quota-map .corridor-sol{fill:none;stroke:var(--s2);stroke-width:2.5;stroke-dasharray:8 5}#quota-map .corridor-luna{fill:none;stroke:var(--s3);stroke-width:2.5;stroke-dasharray:3 5}#quota-map .fit{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-dasharray:2 5;opacity:.65}#quota-map .cursor{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:3 5;opacity:.55}#quota-map .current{fill:var(--bg);stroke:var(--ink);stroke-width:4}.point-label{fill:var(--bg);stroke:var(--border);stroke-width:1}.point-text{font-size:12px;font-weight:750;fill:var(--ink)}#quota-map .zone-label{font-size:14px;font-weight:700;fill:var(--ink);opacity:.7}
+    .formula-band{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.5fr);gap:24px;margin-top:24px;padding:24px 0;border-top:1px solid var(--border)}.formula{font:650 clamp(1rem,2vw,1.35rem)/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}.formula-band p{margin:8px 0 0;color:var(--mut)}.facts{margin:0;padding:0;list-style:none}.facts li{padding:8px 0;border-bottom:1px solid var(--border)}.facts li:last-child{border:0}.notice{margin-top:16px;padding:12px 16px;border-left:4px solid var(--s2);background:color-mix(in srgb,var(--s2) 9%,transparent);border-radius:var(--r-sm)}
+    .comparison{margin-top:24px;padding-top:16px;border-top:1px solid var(--border)}.comparison table{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}.comparison th,.comparison td{padding:8px 16px 8px 0;text-align:start;border-bottom:1px solid var(--border)}.comparison th{font-weight:600}.foot{display:flex;justify-content:space-between;gap:24px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border);color:var(--mut);font-size:var(--fs-sm)}
+    @media(max-width:980px){.map-layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:repeat(3,1fr)}.formula-band{grid-template-columns:1fr}}
+    @media(max-width:680px){.top,.map-head,.foot{flex-direction:column;align-items:flex-start}.stamp{text-align:start}.deck{grid-template-columns:1fr}.side{grid-template-columns:1fr}.readout{grid-template-columns:1fr 1fr}.map-panel{padding:4px}.legend{justify-content:flex-start}.comparison{overflow-x:auto}.comparison table{min-width:520px}}
+    @media print{ :root{color-scheme:light}body{padding:0;background:#fff;color:#000}.no-print{display:none}.map-layout{grid-template-columns:2fr 1fr}*{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
   </style>
 </head>
 <body>
 <main class="shell">
   <header class="top">
-    <div><h1>Карта доступа к моделям</h1><p>Двигайте текущий расход и часы до сброса. Точка переезжает по карте, границы пересчитываются, а Luna, Sol и Spark сразу меняют цвет и статус.</p></div>
-    <div class="live-stamp sm mut">живой старт<br><strong>96% · 121 ч</strong></div>
+    <div><h1>Недельная траектория квоты</h1><p>К контроллеру важен не статичный порог, а вопрос «где мы должны быть к этому часу недели?». Двигайте два ползунка: target, коридоры и решение каждой lane обновятся сразу.</p></div>
+    <div class="stamp">Codex primary · 168 ч<br><strong>предпросмотр · теневой режим</strong></div>
   </header>
 
-  <section class="control-deck no-print" aria-label="Параметры квотного окна">
-    <div class="control">
-      <div class="control-head"><div><div class="control-label">Текущий usage</div><div class="sm mut">Codex primary · недельный</div></div><output id="usage-output" class="control-value" for="usage">96<small>%</small></output></div>
-      <input id="usage" type="range" min="0" max="100" step="1" value="96" aria-label="Текущий расход Codex в процентах">
-      <div class="range-ends"><span>0%</span><span>100%</span></div>
-    </div>
-    <div class="control">
-      <div class="control-head"><div><div class="control-label">До сброса окна</div><div class="sm mut">оставшийся runway</div></div><output id="hours-output" class="control-value" for="hours">121<small> ч</small></output></div>
-      <input id="hours" type="range" min="0" max="168" step="1" value="121" aria-label="Часы до сброса недельного окна">
-      <div class="range-ends"><span>0 ч</span><span>168 ч</span></div>
-    </div>
-    <div class="control mode-box">
-      <div><div class="control-label">Логика границ</div><div class="mode-buttons" role="group" aria-label="Режим карты"><button type="button" data-mode="adaptive" aria-pressed="true">Новая система</button><button type="button" data-mode="static" aria-pressed="false">Пороги сегодня</button></div></div>
-      <p id="mode-note" class="mode-note sm">Preview #318: граница изгибается по runway, q95 и резерву. q95 пока демонстрационный — live-калибровка ещё не накоплена.</p>
-    </div>
+  <section class="deck no-print" aria-label="Параметры недельного окна">
+    <div class="control"><div class="control-head"><div><div class="control-label">Текущий usage</div><div class="sm mut">сообщённое использование + незавершённые резервации</div></div><output id="usage-output" class="control-value" for="usage">80<small>%</small></output></div><input id="usage" type="range" min="0" max="100" step="1" value="80" aria-label="Текущий usage в процентах"><div class="range-ends"><span>0%</span><span>100%</span></div></div>
+    <div class="control"><div class="control-head"><div><div class="control-label">Часы до сброса</div><div class="sm mut">h; слева — начало недели, справа — сброс</div></div><output id="hours-output" class="control-value" for="hours">120<small> ч</small></output></div><input id="hours" type="range" min="0" max="168" step="1" value="120" aria-label="Часы до сброса недельного окна"><div class="range-ends"><span>168 ч</span><span>0 ч</span></div><div class="quick"><button type="button" data-preset="early">Начало · 80%</button><button type="button" data-preset="late">Поздно · 80%</button></div></div>
   </section>
 
-  <div class="map-head"><div><h2>Usage × время до сброса</h2><p>Слева безопаснее. Выше — дольше жить до сброса и больше нужен резерв.</p></div><div class="legend"><span class="all"><i></i>все доступны</span><span class="luna"><i></i>только Luna</span><span class="stop"><i></i>Codex primary стоп</span></div></div>
+  <section class="readout" aria-live="polite"><div class="readout-item"><span>Плановая цель сейчас</span><strong id="read-target">—</strong></div><div class="readout-item"><span>Впереди / позади плана</span><strong id="read-ahead">—</strong></div><div class="readout-item"><span>Точка на траектории</span><strong id="read-point">—</strong></div><div class="readout-item"><span>Осталось до B = 99 − reserve</span><strong id="read-headroom">—</strong></div></section>
 
+  <div class="map-head"><div><h2>Usage × ход недели</h2><p>X — время недели от начала к сбросу · Y — usage. Ниже target — обычный режим; выше коридора — удержание.</p></div><div class="legend"><span class="normal"><i></i>normal</span><span class="middle"><i></i>Sol HOLD / Luna ALLOW</span><span class="hold"><i></i>both HOLD</span></div></div>
   <section class="map-layout">
     <div class="map-panel">
-      <svg id="quota-map" viewBox="0 0 980 640" role="img" aria-labelledby="map-title map-desc">
-        <title id="map-title">Интерактивная карта доступности моделей по расходу и времени до сброса</title>
-        <desc id="map-desc">При 96 процентах и 121 часе Luna доступна, Sol заблокирована, Spark доступна в отдельном бакете.</desc>
-        <path id="zone-all" class="zone-all"/>
-        <path id="zone-luna" class="zone-luna"/>
-        <path id="zone-stop" class="zone-stop"/>
+      <svg id="quota-map" viewBox="0 0 980 610" role="img" aria-labelledby="map-title map-desc">
+        <title id="map-title">Недельная target-траектория и коридоры допуска</title><desc id="map-desc">График показывает target, коридоры Sol и Luna, жёсткий fit и текущую точку usage по ходу 168-часовой недели.</desc>
+        <path id="zone-hold" class="zone-hold"/><path id="zone-middle" class="zone-middle"/><path id="zone-normal" class="zone-normal"/>
         <g aria-hidden="true">
-          <line class="grid" x1="82" y1="552" x2="900" y2="552"/><text x="45" y="557">0 ч</text>
-          <line class="grid" x1="82" y1="483" x2="900" y2="483"/><text x="36" y="488">24 ч</text>
-          <line class="grid" x1="82" y1="346" x2="900" y2="346"/><text x="36" y="351">72 ч</text>
-          <line class="grid" x1="82" y1="209" x2="900" y2="209"/><text x="28" y="214">120 ч</text>
-          <line class="grid" x1="82" y1="72" x2="900" y2="72"/><text x="28" y="77">168 ч</text>
-          <line class="grid" x1="82" y1="72" x2="82" y2="552"/><text x="76" y="580">0%</text>
-          <line class="grid" x1="246" y1="72" x2="246" y2="552"/><text x="232" y="580">20%</text>
-          <line class="grid" x1="409" y1="72" x2="409" y2="552"/><text x="395" y="580">40%</text>
-          <line class="grid" x1="573" y1="72" x2="573" y2="552"/><text x="559" y="580">60%</text>
-          <line class="grid" x1="736" y1="72" x2="736" y2="552"/><text x="722" y="580">80%</text>
-          <line class="grid" x1="900" y1="72" x2="900" y2="552"/><text x="878" y="580">100%</text>
-          <line class="axis" x1="82" y1="552" x2="900" y2="552"/><line class="axis" x1="82" y1="72" x2="82" y2="552"/>
-          <text class="strong" x="418" y="616">текущий usage пула, %</text>
-          <text class="strong" transform="translate(16 392) rotate(-90)">часов до сброса</text>
+          <line class="grid" x1="84" y1="500" x2="900" y2="500"/><line class="grid" x1="84" y1="412" x2="900" y2="412"/><line class="grid" x1="84" y1="324" x2="900" y2="324"/><line class="grid" x1="84" y1="236" x2="900" y2="236"/><line class="grid" x1="84" y1="148" x2="900" y2="148"/><line class="grid" x1="84" y1="60" x2="900" y2="60"/>
+          <text x="44" y="505">0%</text><text x="35" y="417">20%</text><text x="35" y="329">40%</text><text x="35" y="241">60%</text><text x="35" y="153">80%</text><text x="28" y="65">100%</text>
+          <line class="grid" x1="84" y1="60" x2="84" y2="500"/><line class="grid" x1="288" y1="60" x2="288" y2="500"/><line class="grid" x1="492" y1="60" x2="492" y2="500"/><line class="grid" x1="696" y1="60" x2="696" y2="500"/><line class="grid" x1="900" y1="60" x2="900" y2="500"/>
+          <text x="74" y="529">начало</text><text x="270" y="529">−126 ч</text><text x="475" y="529">−84 ч</text><text x="679" y="529">−42 ч</text><text x="871" y="529">reset</text>
+          <line class="axis" x1="84" y1="500" x2="900" y2="500"/><line class="axis" x1="84" y1="60" x2="84" y2="500"/><text class="strong" x="417" y="570">время недели →</text><text class="strong" transform="translate(15 355) rotate(-90)">usage, %</text>
         </g>
-        <path id="sol-boundary" class="sol-boundary"/>
-        <path id="luna-boundary" class="luna-boundary"/>
-        <line id="cursor-x" class="cursor"/><line id="cursor-y" class="cursor"/>
-        <g id="current-point"><path class="current-diamond" d="M0 -12 L12 0 L0 12 L-12 0 Z"/><text class="strong" x="16" y="5">текущая точка</text></g>
-        <g id="point-sol"><circle class="model-dot" r="10"/><rect class="point-label" rx="7" width="126" height="32"/><text class="point-text" y="21">Sol</text></g>
-        <g id="point-luna"><circle class="model-dot" r="10"/><rect class="point-label" rx="7" width="126" height="32"/><text class="point-text" y="21">Luna</text></g>
-        <line id="spark-guide" class="spark-line"/>
-        <g id="point-spark"><circle class="model-dot" r="10"/><rect class="point-label" x="16" y="-16" rx="7" width="146" height="32"/><text class="point-text" x="27" y="5">Spark · отдельный pool</text></g>
-        <g id="boundary-labels"><rect id="sol-label-bg" class="point-label" rx="6" width="108" height="28"/><text id="sol-label" class="point-text" y="19">Sol</text><rect id="luna-label-bg" class="point-label" rx="6" width="116" height="28"/><text id="luna-label" class="point-text" y="19">Luna</text></g>
+        <path id="target-line" class="target"/><path id="sol-corridor" class="corridor-sol"/><path id="luna-corridor" class="corridor-luna"/><line id="sol-fit" class="fit"/><line id="luna-fit" class="fit"/>
+        <g id="zone-labels" aria-hidden="true"><text id="normal-label" class="zone-label">normal</text><text id="middle-label" class="zone-label">Sol HOLD / Luna ALLOW</text><text id="hold-label" class="zone-label">both HOLD</text></g>
+        <line id="cursor-x" class="cursor"/><line id="cursor-y" class="cursor"/><g id="current-point"><path class="current" d="M0 -12 L12 0 L0 12 L-12 0 Z"/><rect class="point-label" x="16" y="-25" rx="6" width="156" height="27"/><text class="point-text" x="27" y="-7">текущая точка</text></g>
+        <g id="line-labels"><rect class="point-label" x="100" y="82" rx="6" width="150" height="26"/><text class="point-text" x="112" y="100">target(h)</text><rect class="point-label" x="100" y="112" rx="6" width="190" height="26"/><text class="point-text" x="112" y="130">+10 / +15 pp — пример</text><rect class="point-label" x="650" y="420" rx="6" width="205" height="26"/><text class="point-text" x="662" y="438">q95 + guard — hard fit</text></g>
       </svg>
     </div>
     <aside class="side" aria-label="Статус моделей">
-      <article id="card-luna" class="model"><div class="model-top"><h3>gpt-5.6-luna · Fast</h3><span class="model-state">—</span></div><p class="model-copy"></p><div class="metric"><span>граница сейчас</span><strong class="model-boundary">—</strong></div></article>
-      <article id="card-sol" class="model"><div class="model-top"><h3>gpt-5.6-sol</h3><span class="model-state">—</span></div><p class="model-copy"></p><div class="metric"><span>граница сейчас</span><strong class="model-boundary">—</strong></div></article>
-      <article id="card-spark" class="model available"><div class="model-top"><h3>gpt-5.3-codex-spark</h3><span class="model-state">available</span></div><p>Отдельный недельный бакет: живой снимок 9%. Ползунок Codex primary на него не влияет.</p><div class="metric"><span>живой usage</span><strong>9%</strong></div></article>
+      <article id="card-sol" class="model"><div class="model-top"><h3>Sol · сложная линия</h3><span class="model-state">—</span></div><p class="model-copy"></p><div class="metric"><span>кандидат q95 + guard</span><strong>2,9 pp</strong></div><div class="metric"><span>точная причина</span><strong class="model-reason">—</strong></div></article>
+      <article id="card-luna" class="model"><div class="model-top"><h3>Luna · закрытая линия</h3><span class="model-state">—</span></div><p class="model-copy"></p><div class="metric"><span>кандидат q95 + guard</span><strong>1,2 pp</strong></div><div class="metric"><span>точная причина</span><strong class="model-reason">—</strong></div></article>
+      <article class="model allow"><div class="model-top"><h3>Spark · отдельный бакет</h3><span class="model-state">отдельно</span></div><p>Codex Spark не двигается ползунком Codex primary: собственный бакет и собственный telemetry gate.</p><div class="metric"><span>иллюстративный usage</span><strong>9%</strong></div></article>
     </aside>
   </section>
 
-  <section class="readout" aria-live="polite">
-    <div class="readout-item"><span>Текущая точка</span><strong id="read-point">96% · 121 ч</strong></div>
-    <div class="readout-item"><span>До границы Luna</span><strong id="read-luna">—</strong></div>
-    <div class="readout-item"><span>До границы Sol</span><strong id="read-sol">—</strong></div>
-    <div class="readout-item"><span>Темп до цели 99%</span><strong id="read-rate">—</strong></div>
-  </section>
+  <section class="formula-band"><div><div class="formula">u<sub>eff</sub> + q95(next turn) + guard ≤ B</div><p><code>B = 99 − reserve</code>; <code>u_eff = reported utilization + unsettled reservations</code>. Target — это плановая траектория, а hard fit проверяет конкретную следующую работу и считается один раз.</p><div class="notice"><strong>Иллюстративная карта до калибровки #318.</strong> Для читаемого preview коридоры заданы как target + 10 pp (Sol) и target + 15 pp (Luna). Это не измеренный факт и не production contract; полный p50/p90/p95 moving-block bootstrap из #285 здесь не подменяется. В правой части недели линии коридоров визуально обрезаются рамкой 100%; решение всё равно считает исходные target + 10/15 pp и отдельно применяет hard fit.</div></div><ul class="facts"><li><strong id="reason-ahead">—</strong> — разница между фактическим и плановым usage.</li><li><strong id="reason-target">—</strong> — <code>target(h) = B × elapsed / W</code>, где <code>W = 168 ч</code>.</li><li><strong id="reason-fit">—</strong> — текущая lane может удержаться даже ниже визуального коридора, если hard fit не проходит.</li></ul></section>
 
-  <section class="explain">
-    <div><div class="formula">u<sub>eff</sub> + q95(next turn) + guard ≤ 99 − reserve</div><p id="formula-copy">В preview граница каждой модели пересчитывается на выбранном часе. Чем больше времени до сброса, тем больше временный резерв; чем тяжелее q95 модели, тем левее её линия.</p></div>
-    <ul class="facts"><li><strong>Зелёная зона</strong> — помещаются и Sol, и Luna.</li><li><strong>Бирюзовая зона</strong> — Sol уже тяжёлая, Luna ещё проходит.</li><li><strong>Красная зона</strong> — новые ходы Codex primary удерживаются.</li></ul>
-  </section>
-  <footer class="foot"><span>Live defaults: Codex 96%, Spark 9%, reset 23.08. В режиме «Новая система» q95 — явно демонстрационный до накопления калибровки.</span><span>Источник: <code>docs/tasks/321/source.json</code></span></footer>
+  <section class="comparison"><h2>Маленькое сравнение политики</h2><table><thead><tr><th>Сейчас</th><th>Новая система</th><th>Что меняется</th></tr></thead><tbody><tr><td>статичные 95/98%</td><td>траектория к 99% к reset</td><td>одинаковые 80% в начале и конце недели дают разный риск</td></tr><tr><td>порог не видит runway</td><td>target + reserve + q95-fit</td><td>решение объясняется точной причиной для lane</td></tr></tbody></table></section>
+  <footer class="foot"><span>Только предпросмотр · reserve = 1 pp · иллюстративные значения q95/guard</span><span>Источник фактов: <code>docs/tasks/321/source.json</code></span></footer>
 </main>
-
 <script>
 (() => {
   'use strict';
-  const $ = selector => document.querySelector(selector);
-  const usage = $('#usage');
-  const hours = $('#hours');
-  const usageOut = $('#usage-output');
-  const hoursOut = $('#hours-output');
-  const svg = $('#quota-map');
-  const X0=82, X1=900, Y0=552, Y1=72;
-  const sx = pct => X0 + pct/100*(X1-X0);
-  const sy = hrs => Y0 - hrs/168*(Y0-Y1);
-  const clamp = (v,min,max) => Math.max(min,Math.min(max,v));
-  let mode='adaptive';
-
-  const boundary = (model, hrs) => {
-    if(mode==='static') return model==='sol' ? 95 : 98;
-    const reserve=1.5*(hrs/168);
-    const q95=model==='sol' ? 2.4 : .35;
-    return 99-.5-q95-reserve;
-  };
-  const curve = model => {
-    const pts=[];
-    for(let h=0;h<=168;h+=12) pts.push([boundary(model,h),h]);
-    return pts;
-  };
-  const line = pts => pts.map((p,i)=>`${i?'L':'M'} ${sx(p[0]).toFixed(1)} ${sy(p[1]).toFixed(1)}`).join(' ');
-  const zoneLeft = pts => `M ${X0} ${Y0} L ${sx(pts[0][0])} ${sy(pts[0][1])} ${pts.slice(1).map(p=>`L ${sx(p[0])} ${sy(p[1])}`).join(' ')} L ${X0} ${Y1} Z`;
-  const zoneBetween = (left,right) => `${line(left)} ${right.slice().reverse().map(p=>`L ${sx(p[0])} ${sy(p[1])}`).join(' ')} Z`;
-  const zoneRight = pts => `${line(pts)} L ${X1} ${Y1} L ${X1} ${Y0} Z`;
-
-  function setSliderFill(input){
-    const pct=(Number(input.value)-Number(input.min))/(Number(input.max)-Number(input.min))*100;
-    input.style.setProperty('--fill',`${pct}%`);
+  const $ = s => document.querySelector(s);
+  const usage = $('#usage'), hours = $('#hours');
+  const W=168, reserve=1, B=99-reserve, guard=.5, q95={sol:2.4,luna:.7};
+  const X0=84,X1=900,Y0=500,Y1=60;
+  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+  const sx=elapsed=>X0+elapsed/W*(X1-X0);
+  const sy=pct=>Y0-pct/100*(Y0-Y1);
+  const target=(h)=>B*(W-h)/W;
+  const corridor=(lane,h)=>target(h)+(lane==='sol'?10:15);
+  const hardFit=lane=>B-q95[lane]-guard;
+  const path=pts=>pts.map((p,i)=>`${i?'L':'M'} ${sx(p[0]).toFixed(1)} ${sy(p[1]).toFixed(1)}`).join(' ');
+  const fillBelow=pts=>`${path(pts)} L ${X1} ${Y0} L ${X0} ${Y0} Z`;
+  const fillBetween=(low,high)=>`${path(low)} ${high.slice().reverse().map(p=>`L ${sx(p[0]).toFixed(1)} ${sy(p[1]).toFixed(1)}`).join(' ')} Z`;
+  const fillAbove=pts=>`${path(pts)} L ${X1} ${Y1} L ${X0} ${Y1} Z`;
+  const fmt=n=>`${n.toFixed(1)}%`;
+  function sliderFill(input){input.style.setProperty('--fill',`${(Number(input.value)-Number(input.min))/(Number(input.max)-Number(input.min))*100}%`)}
+  function setCard(id,lane,allow,reason,delta){const card=$(id);card.className=`model ${allow?'allow':'hold'}`;card.querySelector('.model-state').textContent=allow?'ALLOW':'HOLD';card.querySelector('.model-copy').textContent=allow?`${lane==='sol'?'Sol':'Luna'} проходит: запас ${fmt(delta)} до hard fit.`:`${lane==='sol'?'Sol':'Luna'} удерживается: ${reason}`;card.querySelector('.model-reason').textContent=reason}
+  function update(){
+    const u=Number(usage.value), h=Number(hours.value), elapsed=W-h, t=target(h), ahead=u-t;
+    const solCorr=corridor('sol',h), lunaCorr=corridor('luna',h), solLimit=Math.min(solCorr,hardFit('sol')), lunaLimit=Math.min(lunaCorr,hardFit('luna'));
+    const solFit=u+q95.sol+guard<=B, lunaFit=u+q95.luna+guard<=B;
+    const solCorrOk=u<=solCorr, lunaCorrOk=u<=lunaCorr;
+    const solReason=!solFit?`hard fit: ${fmt(u+q95.sol+guard)} > ${fmt(B)}`:`коридор: ${fmt(u)} > ${fmt(solCorr)} (target + 10 pp)`;
+    const lunaReason=!lunaFit?`hard fit: ${fmt(u+q95.luna+guard)} > ${fmt(B)}`:`коридор: ${fmt(u)} > ${fmt(lunaCorr)} (target + 15 pp)`;
+    const solAllow=solFit&&solCorrOk, lunaAllow=lunaFit&&lunaCorrOk;
+    sliderFill(usage);sliderFill(hours);
+    $('#usage-output').innerHTML=`${u}<small>%</small>`;$('#hours-output').innerHTML=`${h}<small> ч</small>`;
+    $('#read-target').textContent=fmt(t);$('#read-ahead').textContent=`${ahead>=0?'+':''}${fmt(ahead)} ${ahead>=0?'позади':'впереди'}`;$('#read-point').textContent=`${u}% · ${h} ч`;$('#read-headroom').textContent=fmt(B-u);
+    $('#reason-ahead').textContent=`${ahead>=0?'+':''}${fmt(ahead)} ${ahead>=0?'позади':'впереди'} плана`;$('#reason-target').textContent=`target ${fmt(t)} при ${h} ч до reset`;$('#reason-fit').textContent=`B = ${fmt(B)}; hard fit Luna ${fmt(hardFit('luna'))}, Sol ${fmt(hardFit('sol'))}`;
+    setCard('#card-sol','sol',solAllow,solAllow?'проходит hard fit и находится в normal-коридоре':solReason,hardFit('sol')-u);
+    setCard('#card-luna','luna',lunaAllow,lunaAllow?'проходит hard fit и находится в допустимом коридоре':lunaReason,hardFit('luna')-u);
+    const pts=[],solPts=[],lunaPts=[],solLimitPts=[],lunaLimitPts=[];
+    for(let e=0;e<=W;e+=2){const hh=W-e;pts.push([e,target(hh)]);solPts.push([e,clamp(corridor('sol',hh),0,100)]);lunaPts.push([e,clamp(corridor('luna',hh),0,100)]);solLimitPts.push([e,clamp(Math.min(corridor('sol',hh),hardFit('sol')),0,100)]);lunaLimitPts.push([e,clamp(Math.min(corridor('luna',hh),hardFit('luna')),0,100)])}
+    $('#target-line').setAttribute('d',path(pts));$('#sol-corridor').setAttribute('d',path(solPts));$('#luna-corridor').setAttribute('d',path(lunaPts));$('#zone-normal').setAttribute('d',fillBelow(solLimitPts));$('#zone-middle').setAttribute('d',fillBetween(solLimitPts,lunaLimitPts));$('#zone-hold').setAttribute('d',fillAbove(lunaLimitPts));
+    $('#sol-fit').setAttribute('x1',X0);$('#sol-fit').setAttribute('x2',X1);$('#sol-fit').setAttribute('y1',sy(hardFit('sol')));$('#sol-fit').setAttribute('y2',sy(hardFit('sol')));$('#luna-fit').setAttribute('x1',X0);$('#luna-fit').setAttribute('x2',X1);$('#luna-fit').setAttribute('y1',sy(hardFit('luna')));$('#luna-fit').setAttribute('y2',sy(hardFit('luna')));
+    $('#normal-label').setAttribute('x',sx(clamp(elapsed+20,12,150)));$('#normal-label').setAttribute('y',sy(clamp(target(h)+3,8,92)));$('#middle-label').setAttribute('x',sx(clamp(elapsed+10,12,145)));$('#middle-label').setAttribute('y',sy(clamp((solCorr+lunaCorr)/2,8,92)));$('#hold-label').setAttribute('x',sx(clamp(elapsed-42,12,145)));$('#hold-label').setAttribute('y',sy(clamp(lunaCorr+8,8,96)));
+    const cx=sx(elapsed),cy=sy(u);$('#cursor-x').setAttribute('x1',cx);$('#cursor-x').setAttribute('x2',cx);$('#cursor-x').setAttribute('y1',Y1);$('#cursor-x').setAttribute('y2',Y0);$('#cursor-y').setAttribute('x1',X0);$('#cursor-y').setAttribute('x2',X1);$('#cursor-y').setAttribute('y1',cy);$('#cursor-y').setAttribute('y2',cy);$('#current-point').setAttribute('transform',`translate(${cx} ${cy})`);$('#map-desc').textContent=`Текущая точка ${u}% usage и ${h} часов до reset; target ${fmt(t)}. Sol ${solAllow?'ALLOW':'HOLD'}, Luna ${lunaAllow?'ALLOW':'HOLD'}.`;
   }
-  function setCard(id, ok, edge, current, model){
-    const card=$(id);
-    card.className=`model ${ok?'available':'blocked'}`;
-    card.querySelector('.model-state').textContent=ok?'available':'hold';
-    const delta=edge-current;
-    card.querySelector('.model-copy').textContent=ok
-      ? `${model} проходит: запас ${delta.toFixed(1)} п.п. до её границы.`
-      : `${model} удерживается: текущая точка выше границы на ${Math.abs(delta).toFixed(1)} п.п.`;
-    card.querySelector('.model-boundary').textContent=`${edge.toFixed(1)}%`;
-  }
-  function placeModel(groupId,pct,hrs,label,ok,offset){
-    const group=$(groupId), gx=sx(pct), gy=sy(clamp(hrs+offset,0,168));
-    group.setAttribute('transform',`translate(${gx.toFixed(1)} ${gy.toFixed(1)})`);
-    const circle=group.querySelector('circle');
-    circle.style.fill=ok?'var(--s3)':'var(--bad)';
-    const rect=group.querySelector('rect'), text=group.querySelector('text');
-    const left=pct>72;
-    rect.setAttribute('x',left?-142:16);rect.setAttribute('y','-16');
-    text.setAttribute('x',left?-132:27);text.setAttribute('y','5');
-    text.textContent=`${label} · ${ok?'OK':'HOLD'}`;
-  }
-  function placeBoundaryLabel(prefix,edge,hrs,text){
-    const px=sx(edge), py=sy(hrs);
-    const bg=$(`#${prefix}-label-bg`), label=$(`#${prefix}-label`);
-    const bx=clamp(px-112,X0+4,X1-120), by=clamp(py-44,Y1+4,Y0-32);
-    bg.setAttribute('x',bx);bg.setAttribute('y',by);
-    label.setAttribute('x',bx+10);label.setAttribute('y',by+19);label.textContent=text;
-  }
-  function render(){
-    const u=Number(usage.value), h=Number(hours.value);
-    usageOut.innerHTML=`${u}<small>%</small>`;
-    hoursOut.innerHTML=`${h}<small> ч</small>`;
-    setSliderFill(usage);setSliderFill(hours);
-    const solCurve=curve('sol'), lunaCurve=curve('luna');
-    $('#zone-all').setAttribute('d',zoneLeft(solCurve));
-    $('#zone-luna').setAttribute('d',zoneBetween(solCurve,lunaCurve));
-    $('#zone-stop').setAttribute('d',zoneRight(lunaCurve));
-    $('#sol-boundary').setAttribute('d',line(solCurve));
-    $('#luna-boundary').setAttribute('d',line(lunaCurve));
-    const px=sx(u),py=sy(h);
-    $('#cursor-x').setAttribute('x1',px);$('#cursor-x').setAttribute('x2',px);$('#cursor-x').setAttribute('y1',Y1);$('#cursor-x').setAttribute('y2',Y0);
-    $('#cursor-y').setAttribute('x1',X0);$('#cursor-y').setAttribute('x2',X1);$('#cursor-y').setAttribute('y1',py);$('#cursor-y').setAttribute('y2',py);
-    $('#current-point').setAttribute('transform',`translate(${px.toFixed(1)} ${py.toFixed(1)})`);
-    const currentText=$('#current-point text');
-    currentText.setAttribute('x',u>75?'-16':'16');
-    currentText.setAttribute('text-anchor',u>75?'end':'start');
-    const solEdge=boundary('sol',h),lunaEdge=boundary('luna',h);
-    const solOK=u<solEdge,lunaOK=u<lunaEdge;
-    placeModel('#point-sol',u,h,'Sol',solOK,-9);
-    placeModel('#point-luna',u,h,'Luna',lunaOK,9);
-    const sparkX=sx(9),sparkY=sy(122);
-    $('#point-spark').setAttribute('transform',`translate(${sparkX.toFixed(1)} ${sparkY.toFixed(1)})`);
-    $('#point-spark circle').style.fill='var(--s5)';
-    $('#spark-guide').setAttribute('x1',sparkX);$('#spark-guide').setAttribute('x2',sparkX);$('#spark-guide').setAttribute('y1',sparkY);$('#spark-guide').setAttribute('y2',Y0);
-    const solLabelHour=156,lunaLabelHour=143;
-    placeBoundaryLabel('sol',boundary('sol',solLabelHour),solLabelHour,'граница Sol');
-    placeBoundaryLabel('luna',boundary('luna',lunaLabelHour),lunaLabelHour,'граница Luna');
-    setCard('#card-luna',lunaOK,lunaEdge,u,'Luna');setCard('#card-sol',solOK,solEdge,u,'Sol');
-    $('#read-point').textContent=`${u}% · ${h} ч`;
-    const lunaDelta=lunaEdge-u,solDelta=solEdge-u;
-    $('#read-luna').textContent=`${lunaDelta>=0?'+':''}${lunaDelta.toFixed(1)} п.п.`;
-    $('#read-sol').textContent=`${solDelta>=0?'+':''}${solDelta.toFixed(1)} п.п.`;
-    $('#read-rate').textContent=h>0?`${(Math.max(0,99-u)/h).toFixed(3)} п.п./ч`:'сброс сейчас';
-    $('#map-desc').textContent=`Текущая точка ${u} процентов и ${h} часов. Luna ${lunaOK?'доступна':'заблокирована'}, Sol ${solOK?'доступна':'заблокирована'}, Spark доступна в отдельном бакете.`;
-    svg.dataset.ready='true';
-  }
-  document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{
-    mode=button.dataset.mode;
-    document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
-    $('#mode-note').textContent=mode==='static'
-      ? 'Живой временный override #320: Sol 95%, Luna 98%. Время до сброса видно, но круглые пороги от него пока не зависят.'
-      : 'Preview #318: граница изгибается по runway, q95 и резерву. q95 пока демонстрационный — live-калибровка ещё не накоплена.';
-    $('#formula-copy').textContent=mode==='static'
-      ? 'Сейчас это вертикальные пороги: Sol <95%, Luna <98%. Hot-config #320 позволит менять их без рестарта.'
-      : 'В preview граница каждой модели пересчитывается на выбранном часе. Чем больше времени до сброса, тем больше временный резерв; чем тяжелее q95 модели, тем левее её линия.';
-    render();
-  }));
-  usage.addEventListener('input',render);hours.addEventListener('input',render);
-  render();
+  usage.addEventListener('input',update);hours.addEventListener('input',update);
+  document.querySelectorAll('[data-preset]').forEach(btn=>btn.addEventListener('click',()=>{if(btn.dataset.preset==='early'){usage.value=80;hours.value=160}else{usage.value=80;hours.value=8}update()}));
+  update();
 })();
 </script>
 </body>
