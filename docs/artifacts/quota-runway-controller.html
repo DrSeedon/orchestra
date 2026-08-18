@@ -2,881 +2,470 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Quota Runway Controller</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Quota runway — как дожить до сброса</title>
   <style>
-    :root {
+    /* костяк производен от visualize.css, (c) OpenAI, Apache-2.0;
+       изменено: убран внешний JS, добавлены печать и вторая шрифтовая семья */
+    :root{
       color-scheme: light dark;
+      /* акцент: бирюзовый — про запас воздуха и управляемый runway */
+      --accent: light-dark(#087a74, #62d3c8);
       --fs: 15px;
       --radius: 12px;
       --font: ui-sans-serif, system-ui, sans-serif;
       --font-head: ui-serif, Georgia, serif;
-      --accent: light-dark(rgba(14, 116, 196, 1), rgba(64, 196, 216, 1));
-      --bg: light-dark(#ecf2f8, #0f141a);
-      --ink: light-dark(#10151b, #f2f4f7);
+      --bg: light-dark(#fff, #181818);
+      --ink: light-dark(#1a1c1f, #f2f2f0);
       --mut: color-mix(in srgb, var(--ink) 48%, transparent);
-      --card: light-dark(rgba(18, 49, 74, 0.07), rgba(255, 255, 255, 0.04));
-      --border: color-mix(in srgb, var(--ink) 15%, transparent);
-      --shadow: 0 10px 30px -20px rgba(6, 22, 42, 0.52);
+      --card: color-mix(in oklab, var(--ink) 5%, transparent);
+      --border: color-mix(in srgb, var(--ink) 12%, transparent);
       --ring: var(--accent);
-      --ok: color-mix(in oklab, var(--accent) 70%, #1ea972);
-      --warn: #e2a24a;
-      --bad: #d96a58;
-      --allow: color-mix(in oklab, #1ea972 60%, #0f172a 40%);
-      --hold: color-mix(in oklab, #e8b63f 55%, #0f172a 45%);
-      --reroute: #2d8fff;
-      --fail: #ef6e4a;
-      --fs-sm: 12px;
-      --fs-h1: calc(var(--fs) * 1.66);
-      --fs-h2: calc(var(--fs) * 1.33);
-      --fs-h3: calc(var(--fs) * 1.07);
-      --shadow: 0 8px 22px -16px color-mix(in srgb, var(--ink) 55%, transparent);
+      --bad: light-dark(#c0341a, #ff7a63);
+      --fs-sm: max(11px, calc(var(--fs) - 2px));
+      --fs-h3: calc(var(--fs) * 1.29);
+      --fs-h2: calc(var(--fs) * 1.43);
+      --fs-h1: calc(var(--fs) * 1.72);
+      --r-sm: calc(var(--radius) * .6);
+      --r-lg: calc(var(--radius) * 1.6);
+      --shadow: 0 1px 2px -1px rgb(0 0 0 / 8%);
+      --s1: var(--accent);
+      --s2: light-dark(#c26a1f, #f59a56);
+      --s3: light-dark(#2f7d46, #74d58b);
+      --s4: light-dark(#b8457f, #f08fc0);
+      --s5: light-dark(#6b57c4, #aa91ef);
+      --s6: light-dark(#1f7a72, #5acbc2);
     }
+    *{box-sizing:border-box}
+    body{margin:0;padding:clamp(16px,4vw,40px);background:var(--bg);color:var(--ink);
+         font:430 var(--fs)/1.5 var(--font);letter-spacing:0}
+    h1,h2,h3{margin:0;font-family:var(--font-head);font-weight:500;line-height:1.25}
+    h1{font-size:var(--fs-h1)} h2{font-size:var(--fs-h2)} h3{font-size:var(--fs-h3)}
+    small,.sm{font-size:var(--fs-sm)} .mut{color:var(--mut)}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 24px 10px 0;border-bottom:1px solid var(--border);
+          text-align:start;vertical-align:top;overflow-wrap:anywhere}
+    th{font-weight:600;border-bottom-color:color-mix(in srgb,var(--ink) 16%,transparent)}
+    tbody tr:last-child :is(th,td){border-bottom:0}
+    .num{text-align:end;font-variant-numeric:tabular-nums}
+    .scroll{overflow-x:auto;scrollbar-width:thin}
+    .card{padding:12px;border-radius:var(--r-lg);background:var(--card)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(max(180px,24%),1fr));gap:12px}
+    .badge{padding:3px 8px;border-radius:9999px;font-size:var(--fs-sm);
+           background:color-mix(in srgb,var(--accent) 15%,transparent)}
+    code{padding:1px 6px;border-radius:var(--r-sm);font-size:.92em;
+         font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+         background:color-mix(in srgb,var(--ink) 10%,transparent);
+         box-decoration-break:clone;-webkit-box-decoration-break:clone;overflow-wrap:anywhere}
+    :is(a,button,summary,input,select,[tabindex]):focus-visible{
+         outline:2px solid var(--ring);outline-offset:2px}
+    :is([aria-pressed="true"],[aria-selected="true"]){background:var(--accent);color:var(--bg)}
+    svg{display:block;max-width:100%;height:auto}
+    .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: clamp(14px, 3vw, 36px);
-      font: 430 var(--fs)/1.45 var(--font);
-      background: radial-gradient(1100px 470px at 84% -22%, color-mix(in oklab, var(--accent) 9%, transparent), transparent),
-        var(--bg);
-      color: var(--ink);
-      min-height: 100vh;
+    .shell{width:min(1220px,100%);margin-inline:auto}
+    .topline{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding-bottom:24px}
+    .lede{max-width:760px;margin:8px 0 0;color:var(--mut);font-size:1.04rem}
+    .snapshot{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:end;white-space:nowrap}
+    .live-strip{display:grid;grid-template-columns:minmax(220px,1.5fr) repeat(3,minmax(130px,1fr));
+      gap:2px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow)}
+    .live-cell{min-height:104px;padding:16px;background:var(--card);display:flex;flex-direction:column;justify-content:space-between}
+    .live-cell strong{font-family:var(--font-head);font-weight:500;font-size:clamp(1.45rem,3vw,2.25rem);line-height:1}
+    .live-cell.primary{background:color-mix(in srgb,var(--accent) 11%,var(--card))}
+    .state-ok{color:var(--s3)} .state-stop{color:var(--bad)} .state-warn{color:var(--s2)}
+    .section{padding:40px 0;border-bottom:1px solid var(--border)}
+    .section-head{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:16px}
+    .section-head p{max-width:670px;margin:4px 0 0;color:var(--mut)}
+    .scenario-tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    button{border:1px solid var(--border);border-radius:9999px;padding:6px 12px;background:transparent;
+      color:inherit;font:600 var(--fs-sm)/1.4 var(--font);cursor:pointer}
+    button:hover{border-color:color-mix(in srgb,var(--accent) 65%,var(--border))}
+    .chart-wrap{border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;background:var(--card);overflow:hidden}
+    .chart-caption{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-top:12px}
+    .chart-caption strong{display:block;font-family:var(--font-head);font-size:var(--fs-h3);font-weight:500}
+    .chart-caption p{margin:2px 0 0;color:var(--mut);max-width:720px}
+    .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:var(--fs-sm);color:var(--mut)}
+    .legend span{display:inline-flex;align-items:center;gap:6px}
+    .swatch{width:18px;height:3px;border-radius:3px;background:var(--s1)}
+    .swatch.target{background:var(--s2)} .swatch.unknown{background:var(--mut)}
+    .rail-key{display:flex;justify-content:flex-end;gap:16px;flex-wrap:wrap;margin:24px 0 8px;
+      color:var(--mut);font-size:var(--fs-sm)}
+    .rail-key span{display:inline-flex;align-items:center;gap:6px}
+    .rail-key i{display:inline-block;width:12px;height:3px;border-radius:3px;background:currentColor}
+    .rail-key .sol-key{color:var(--bad)}.rail-key .luna-key{color:var(--s3)}.rail-key .target-key{color:var(--s2)}
+    .quota-rail{position:relative;height:64px;margin:8px 0 24px;border-radius:var(--r-sm);
+      background:color-mix(in srgb,var(--ink) 8%,transparent);overflow:visible}
+    .quota-used{height:100%;width:96%;border-radius:var(--r-sm) 0 0 var(--r-sm);
+      background:color-mix(in srgb,var(--accent) 58%,transparent);position:relative}
+    .quota-used::after{content:"96%";position:absolute;right:10px;top:50%;translate:0 -50%;
+      font-family:var(--font-head);font-size:var(--fs-h2);font-weight:500;color:var(--ink)}
+    .marker{position:absolute;top:-8px;height:80px;width:2px;background:currentColor}
+    .marker.sol{left:95%;color:var(--bad)} .marker.luna{left:98%;color:var(--s3)} .marker.target{left:99%;color:var(--s2)}
+    .rail-labels{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .rail-labels strong{display:block;font-family:var(--font-head);font-size:var(--fs-h3);font-weight:500}
+    .lane-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:24px}
+    .lane{padding:16px;border-top:3px solid var(--border);background:var(--card);border-radius:0 0 var(--r-lg) var(--r-lg)}
+    .lane.luna{border-color:var(--s3)} .lane.sol{border-color:var(--bad)}
+    .lane-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .lane h3{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1rem}
+    .lane-status{font-size:var(--fs-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+    .lane p{margin:8px 0 0;color:var(--mut)}
+    .mini-track{height:10px;background:color-mix(in srgb,var(--ink) 9%,transparent);border-radius:9999px;margin-top:16px;position:relative}
+    .mini-track::before{content:"";position:absolute;inset:0 auto 0 0;width:60%;border-radius:9999px;background:var(--accent)}
+    .mini-track::after{content:"";position:absolute;top:-5px;left:60%;width:2px;height:20px;background:var(--ink)}
+    .lane.sol .mini-track::before{width:60%}.lane.sol .mini-track::after{left:50%;background:var(--bad)}
+    .lane.luna .mini-track::after{left:80%;background:var(--s3)}
+    .track-scale{display:flex;justify-content:space-between;margin-top:5px;color:var(--mut);font-size:var(--fs-sm)}
+    .formula-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:24px;align-items:start}
+    .equation{padding:24px;border-left:4px solid var(--accent);background:var(--card);border-radius:0 var(--r-lg) var(--r-lg) 0}
+    .equation-main{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:clamp(1rem,2vw,1.35rem);font-weight:600;overflow-wrap:anywhere}
+    .budget{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;margin-top:24px;border-radius:var(--r-sm);overflow:hidden}
+    .budget-part{min-height:92px;padding:12px;background:color-mix(in srgb,var(--ink) 7%,transparent)}
+    .budget-part strong{display:block;font-family:var(--font-head);font-size:var(--fs-h2);font-weight:500}
+    .budget-part.q95{background:color-mix(in srgb,var(--s5) 16%,transparent)}
+    .budget-part.guard{background:color-mix(in srgb,var(--s2) 16%,transparent)}
+    .budget-part.reserve{background:color-mix(in srgb,var(--s4) 14%,transparent)}
+    .budget-part.result{background:color-mix(in srgb,var(--s3) 16%,transparent)}
+    .explain-list{margin:0;padding:0;list-style:none}
+    .explain-list li{padding:12px 0;border-bottom:1px solid var(--border)}
+    .explain-list li:first-child{padding-top:0}.explain-list li:last-child{border:0}
+    .explain-list strong{display:block;font-weight:650}
+    .truth-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .truth{padding:16px;border:1px solid var(--border);border-radius:var(--r-lg)}
+    .truth .kicker{font-size:var(--fs-sm);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+    .truth h3{margin-top:6px}.truth p{margin:8px 0 0;color:var(--mut)}
+    .truth.current{border-top:4px solid var(--accent)}
+    .truth.next{border-top:4px solid var(--s2)}
+    .truth.limit{border-top:4px solid var(--s4)}
+    .foot{display:flex;justify-content:space-between;gap:24px;padding-top:24px;color:var(--mut);font-size:var(--fs-sm)}
+    .foot a{color:inherit}
+    .download{white-space:nowrap}
+    #window-chart text{font-family:var(--font);fill:var(--mut);font-size:13px}
+    #window-chart .label-strong{fill:var(--ink);font-weight:650}
+    #window-chart .grid-line{stroke:var(--border);stroke-width:1}
+    #window-chart .axis-line{stroke:color-mix(in srgb,var(--ink) 28%,transparent);stroke-width:1}
+    #window-chart .target-line{stroke:var(--s2);stroke-width:2;stroke-dasharray:7 6}
+    #window-chart .reset-line{stroke:var(--s4);stroke-width:2;stroke-dasharray:3 6}
+    #window-chart .series{fill:none;stroke:var(--s1);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+    #window-chart .fan{fill:color-mix(in srgb,var(--s5) 20%,transparent);stroke:none}
+    #window-chart .unknown-zone{fill:url(#unknownHatch);stroke:var(--mut);stroke-dasharray:6 5;stroke-width:1}
+    #window-chart .hold-line{stroke:var(--bad);stroke-width:3;stroke-dasharray:4 5}
+    #window-chart .current-dot{fill:var(--bg);stroke:var(--s1);stroke-width:5}
+    #window-chart .target-band{fill:color-mix(in srgb,var(--s2) 10%,transparent)}
+
+    @media (max-width:820px){
+      .topline,.section-head,.chart-caption,.foot{align-items:flex-start;flex-direction:column}
+      .snapshot{text-align:start}.live-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .formula-layout{grid-template-columns:1fr}.truth-grid{grid-template-columns:1fr}.lane-grid{grid-template-columns:1fr}
+      .rail-labels{grid-template-columns:1fr}.scenario-tabs{justify-content:flex-start}
     }
-
-    h1, h2, h3 {
-      margin: 0;
-      font-family: var(--font-head);
-      font-weight: 500;
-      line-height: 1.24;
+    @media (max-width:540px){
+      .live-strip{grid-template-columns:1fr}.budget{grid-template-columns:repeat(2,1fr)}
+      .chart-wrap{padding:8px}.section{padding:24px 0}
     }
-
-    h1 { font-size: var(--fs-h1); }
-    h2 { font-size: var(--fs-h2); }
-    h3 { font-size: var(--fs-h3); }
-
-    .layout {
-      width: min(1260px, 100%);
-      margin: 0 auto;
-      display: grid;
-      gap: 12px;
-    }
-
-    .panel {
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px;
-      background: var(--card);
-      box-shadow: var(--shadow);
-    }
-
-    .top {
-      display: grid;
-      gap: 8px;
-    }
-
-    .title-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .badges {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .badge {
-      border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-      color: color-mix(in srgb, var(--accent) 94%, white 6%);
-      border-radius: 999px;
-      padding: 4px 10px;
-      background: color-mix(in srgb, var(--accent) 12%, transparent);
-      font-size: var(--fs-sm);
-    }
-
-    .muted { color: var(--mut); }
-    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
-
-    button {
-      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
-      background: color-mix(in srgb, var(--ink) 4%, transparent);
-      color: inherit;
-      padding: 8px 12px;
-      border-radius: 999px;
-      cursor: pointer;
-      font: inherit;
-      font-size: var(--fs-sm);
-    }
-
-    button:hover { border-color: color-mix(in srgb, var(--accent) 52%, transparent); }
-    button:focus-visible, input:focus-visible, select:focus-visible, .toggle:focus-visible {
-      outline: 3px solid var(--ring);
-      outline-offset: 1px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-    }
-
-    .control {
-      display: grid;
-      gap: 6px;
-      padding: 10px;
-      border: 1px dashed color-mix(in srgb, var(--ink) 16%, transparent);
-      border-radius: 10px;
-      background: color-mix(in oklab, var(--bg) 72%, transparent);
-    }
-
-    label { display: grid; gap: 6px; font-size: 0.95rem; }
-    .label-inline { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
-    .value-small { color: var(--mut); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-    input[type="range"] {
-      width: 100%;
-      accent-color: color-mix(in srgb, var(--accent) 70%, white 30%);
-    }
-    .toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 10px;
-      border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
-      border-radius: 10px;
-      background: color-mix(in srgb, var(--ink) 3%, transparent);
-    }
-
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 10px;
-    }
-
-    .summary-item {
-      border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
-      border-radius: 10px;
-      padding: 10px;
-      background: color-mix(in oklab, var(--card) 90%, transparent);
-    }
-
-    .summary-item dt {
-      margin: 0 0 4px;
-      color: var(--mut);
-      font-size: var(--fs-sm);
-    }
-
-    .summary-item dd {
-      margin: 0;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 1.03rem;
-      line-height: 1.3;
-    }
-
-    .lane-zone {
-      display: grid;
-      gap: 10px;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    }
-
-    .lane {
-      border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
-      border-radius: 12px;
-      padding: 10px;
-      background: color-mix(in srgb, var(--bg) 86%, transparent);
-      min-height: 100%;
-    }
-
-    .lane h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-    .status {
-      font-size: var(--fs-sm);
-      padding: 3px 8px;
-      border-radius: 999px;
-      font-weight: 600;
-      display: inline-flex;
-    }
-    .status.allow { background: color-mix(in srgb, var(--allow) 25%, transparent); color: var(--allow); }
-    .status.hold { background: color-mix(in srgb, var(--hold) 22%, transparent); color: var(--hold); }
-    .status.reroute { background: color-mix(in srgb, var(--reroute) 18%, transparent); color: var(--reroute); }
-    .status.fail { background: color-mix(in srgb, var(--fail) 20%, transparent); color: var(--fail); }
-
-    .lane ul {
-      margin: 8px 0 0 16px;
-      padding: 0;
-      color: var(--mut);
-      font-size: var(--fs-sm);
-      min-height: 80px;
-    }
-
-    .lane ul li { margin: 4px 0; }
-    .lane .formula {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      background: color-mix(in srgb, var(--ink) 12%, transparent);
-      border: 1px dashed color-mix(in srgb, var(--ink) 30%, transparent);
-      padding: 6px 8px;
-      border-radius: 8px;
-      margin-top: 6px;
-    }
-
-    .meta {
-      display: grid;
-      gap: 8px;
-      font-size: var(--fs-sm);
-    }
-
-    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-    .spark {
-      display: grid;
-      gap: 10px;
-      padding: 10px;
-      border: 1px dashed color-mix(in srgb, var(--accent) 35%, transparent);
-      border-radius: 10px;
-      background: color-mix(in srgb, var(--accent) 6%, transparent);
-    }
-
-    .note {
-      font-size: 0.95rem;
-      color: var(--mut);
-    }
-
-    footer {
-      color: var(--mut);
-      font-size: 0.87rem;
-      padding-bottom: 4px;
-    }
-    footer a {
-      color: color-mix(in srgb, var(--accent) 60%, white 40%);
-    }
-
-    .pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
-
-    @media print {
-      :root { color-scheme: light; }
-      body {
-        background: #fff;
-        color: #000;
-      }
-      .no-print {
-        display: none !important;
-      }
-      .panel {
-        border-color: #9ca3af;
-        box-shadow: none;
-      }
-      * { print-color-adjust: exact; }
-    }
-
-    .spark-meter {
-      height: 18px;
-      width: 100%;
-      border-radius: 999px;
-      border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
-      overflow: hidden;
-      background: color-mix(in oklab, var(--card) 70%, transparent);
-      position: relative;
-    }
-
-    .spark-meter .fill {
-      height: 100%;
-      background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 20%, #60a5fa 80%), color-mix(in srgb, var(--accent) 55%, #06b6d4 45%));
-    }
-
-    .spark-meter .line {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: var(--fail);
-      opacity: 0.8;
-    }
-
-    .zone-bar {
-      display: flex;
-      height: 12px;
-      border-radius: 999px;
-      overflow: hidden;
-      border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent);
-    }
-
-    .zone-bar span {
-      flex: 1;
-      text-indent: -9999px;
-    }
-
-    .zone-accelerate { background: var(--ok); }
-    .zone-track { background: #46c1ff; }
-    .zone-reserve { background: var(--warn); }
-    .zone-throttle { background: var(--bad); }
-    .zone-fail { background: #6b7280; }
-
-    .sr-only { position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap; }
-
-    @media (max-width: 780px) {
-      body { padding: 10px; }
-      .lane-zone { grid-template-columns: 1fr; }
-      .summary { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    @media print{
+      :root{color-scheme:light}
+      body{padding:0;background:#fff;color:#000}
+      .no-print{display:none}
+      tr,li{break-inside:avoid}
+      .section{break-inside:avoid}
+      *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
     }
   </style>
 </head>
 <body>
-  <main class="layout">
-    <section class="panel top">
-      <div class="title-row">
+  <main class="shell">
+    <header class="topline">
+      <div>
+        <h1>Дожить до сброса, не сжечь запас</h1>
+        <p class="lede">Не один общий рубильник, а две разные полосы движения: дешёвая Luna работает дольше, тяжёлая Sol останавливается раньше. Ниже — живой снимок после рестарта и то, как будет принимать решение скользящий контроллер.</p>
+      </div>
+      <div class="snapshot sm mut">Снимок<br><strong>18.08.2026 · 08:14 CEST</strong></div>
+    </header>
+
+    <section class="live-strip" aria-label="Текущее состояние квоты">
+      <div class="live-cell primary">
+        <span class="sm mut">Codex · недельное окно</span>
+        <strong>96%</strong>
+        <span class="sm">До сброса ≈ 121 ч</span>
+      </div>
+      <div class="live-cell">
+        <span class="sm mut">Luna Fast</span>
+        <strong class="state-ok">доступна</strong>
+        <span class="sm">временный порог 98%</span>
+      </div>
+      <div class="live-cell">
+        <span class="sm mut">Sol</span>
+        <strong class="state-stop">стоп</strong>
+        <span class="sm">порог 95%</span>
+      </div>
+      <div class="live-cell">
+        <span class="sm mut">Умный прогноз</span>
+        <strong class="state-warn">не готов</strong>
+        <span class="sm">q95 следующего хода неизвестен</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
         <div>
-          <h1>Quota Runway Controller (промежуточный макет)</h1>
-          <p class="muted">Визуальный offline-полигон для будущего Usage Analytics: формула и объяснения, без production JS.</p>
+          <h2>Окно до сброса</h2>
+          <p>По оси X — оставшееся время, по Y — расход недельного пула. Переключите сценарий: текущий честно показывает неизвестность, два других объясняют будущую механику.</p>
         </div>
-        <div class="badges">
-          <span class="badge">current formula: u_eff + q95(next_turn) + guard &lt;= 99 - reserve</span>
-          <span class="badge">target 99 · no fixed 90/95/98</span>
-          <span class="badge no-print">orchestrator · EXEMPT but observed</span>
+        <div class="scenario-tabs no-print" role="group" aria-label="Сценарий графика">
+          <button type="button" data-scenario="live" aria-pressed="true">Сейчас</button>
+          <button type="button" data-scenario="calibrated" aria-pressed="false">После калибровки</button>
+          <button type="button" data-scenario="hold" aria-pressed="false">Запас кончился</button>
         </div>
       </div>
-
-      <div class="actions no-print">
-        <button id="preset-live" type="button" aria-pressed="true">Preset: current-live (ILLUSTRATIVE)</button>
-        <button id="preset-calibrated" type="button" aria-pressed="false">Preset: calibrated lanes</button>
-        <button id="preset-both-held" type="button" aria-pressed="false">Preset: both held (ILLUSTRATIVE)</button>
-        <button id="download-json" class="no-print" type="button">Скачать JSON</button>
-      </div>
-
-      <div class="grid no-print" id="controls">
-        <label class="control" for="utilization">
-          <span class="label-inline"><span>utilization, pp</span><span class="value-small" id="utilizationValue"></span></span>
-          <input id="utilization" type="range" min="0" max="140" step="0.1" value="95" aria-label="utilization">
-          <input class="sr-only" type="number" min="0" max="140" step="0.1" value="95" id="utilizationN" aria-label="utilization number">
-        </label>
-
-        <label class="control" for="hoursToReset">
-          <span class="label-inline"><span>hours to reset</span><span class="value-small" id="hoursToResetValue"></span></span>
-          <input id="hoursToReset" type="range" min="1" max="240" step="1" value="119" aria-label="hours to reset">
-          <input class="sr-only" type="number" min="1" max="240" step="1" value="119" id="hoursToResetN" aria-label="hours to reset number">
-        </label>
-
-        <label class="control" for="observedBurn">
-          <span class="label-inline"><span>observed burn, pp/h</span><span class="value-small" id="observedBurnValue"></span></span>
-          <input id="observedBurn" type="range" min="0" max="4" step="0.01" value="0.16" aria-label="observed burn">
-          <input class="sr-only" type="number" min="0" max="4" step="0.01" value="0.16" id="observedBurnN" aria-label="observed burn number">
-        </label>
-
-        <label class="control" for="lunaQ95">
-          <span class="label-inline"><span>Luna q95, pp/turn</span><span class="value-small" id="lunaQ95Value"></span></span>
-          <input id="lunaQ95" type="range" min="0" max="20" step="0.1" value="1.6" aria-label="Luna q95">
-          <input class="sr-only" type="number" min="0" max="20" step="0.1" value="1.6" id="lunaQ95N" aria-label="Luna q95 number">
-        </label>
-
-        <label class="control" for="solQ95">
-          <span class="label-inline"><span>Sol q95, pp/turn</span><span class="value-small" id="solQ95Value"></span></span>
-          <input id="solQ95" type="range" min="0" max="20" step="0.1" value="12.0" aria-label="Sol q95">
-          <input class="sr-only" type="number" min="0" max="20" step="0.1" value="12.0" id="solQ95N" aria-label="Sol q95 number">
-        </label>
-
-        <label class="control" for="guard">
-          <span class="label-inline"><span>guard, pp</span><span class="value-small" id="guardValue"></span></span>
-          <input id="guard" type="range" min="0" max="4" step="0.1" value="0.5" aria-label="guard">
-          <input class="sr-only" type="number" min="0" max="4" step="0.1" value="0.5" id="guardN" aria-label="guard number">
-        </label>
-
-        <label class="control" for="reserve">
-          <span class="label-inline"><span>reserve, pp</span><span class="value-small" id="reserveValue"></span></span>
-          <input id="reserve" type="range" min="0" max="8" step="0.1" value="2" aria-label="reserve">
-          <input class="sr-only" type="number" min="0" max="8" step="0.1" value="2" id="reserveN" aria-label="reserve number">
-        </label>
-
-        <label class="control" for="inflight">
-          <span class="label-inline"><span>unsettled/inflight, pp</span><span class="value-small" id="inflightValue"></span></span>
-          <input id="inflight" type="range" min="0" max="12" step="0.1" value="0" aria-label="inflight">
-          <input class="sr-only" type="number" min="0" max="12" step="0.1" value="0" id="inflightN" aria-label="inflight number">
-        </label>
-      </div>
-
-      <label class="toggle no-print" for="q95Known">
-        <input id="q95Known" type="checkbox" checked>
-        <span>q95 known (для всех lanes)</span>
-      </label>
-
-      <p class="note no-print">Пресеты и все q95 ниже — иллюстративные, это не live-измерения.</p>
+      <figure class="chart-wrap" aria-labelledby="chart-title">
+        <svg id="window-chart" viewBox="0 0 1080 510" role="img" aria-labelledby="chart-title chart-desc">
+          <title id="chart-title">Прогноз расхода Codex до сброса недельного окна</title>
+          <desc id="chart-desc">Текущий расход 96 процентов, целевой потолок 99 процентов, сброс через 121 час. В текущем режиме q95 неизвестен, поэтому точный прогноз отсутствует.</desc>
+          <defs>
+            <pattern id="unknownHatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+              <line x1="0" y1="0" x2="0" y2="10" stroke="currentColor" stroke-opacity=".16" stroke-width="4"/>
+            </pattern>
+          </defs>
+          <rect class="target-band" x="76" y="70" width="924" height="62" rx="6"/>
+          <g aria-hidden="true">
+            <line class="grid-line" x1="76" y1="442" x2="1000" y2="442"/><text x="28" y="447">90%</text>
+            <line class="grid-line" x1="76" y1="380" x2="1000" y2="380"/><text x="28" y="385">92%</text>
+            <line class="grid-line" x1="76" y1="318" x2="1000" y2="318"/><text x="28" y="323">94%</text>
+            <line class="grid-line" x1="76" y1="256" x2="1000" y2="256"/><text x="28" y="261">96%</text>
+            <line class="grid-line" x1="76" y1="194" x2="1000" y2="194"/><text x="28" y="199">98%</text>
+            <line class="target-line" x1="76" y1="101" x2="1000" y2="101"/><text class="label-strong" x="82" y="92">99% · целевой потолок</text>
+            <line class="grid-line" x1="76" y1="70" x2="1000" y2="70"/><text x="20" y="75">100%</text>
+            <line class="axis-line" x1="76" y1="70" x2="76" y2="442"/>
+            <line class="axis-line" x1="76" y1="442" x2="1000" y2="442"/>
+            <line class="grid-line" x1="307" y1="70" x2="307" y2="442"/><text x="288" y="475">30 ч</text>
+            <line class="grid-line" x1="538" y1="70" x2="538" y2="442"/><text x="519" y="475">61 ч</text>
+            <line class="grid-line" x1="769" y1="70" x2="769" y2="442"/><text x="746" y="475">91 ч</text>
+            <line class="reset-line" x1="1000" y1="58" x2="1000" y2="450"/><text class="label-strong" x="902" y="40">сброс · 23 августа</text>
+          </g>
+          <path id="fan-path" class="unknown-zone" d=""/>
+          <path id="series-path" class="series" d=""/>
+          <path id="hold-path" class="hold-line" d="" visibility="hidden"/>
+          <circle id="current-dot" class="current-dot" cx="76" cy="256" r="8"/>
+          <g id="annotation">
+            <rect id="annotation-bg" x="104" y="222" width="292" height="72" rx="8" fill="var(--bg)" stroke="var(--border)"/>
+            <text id="annotation-title" class="label-strong" x="120" y="247">Сейчас: 96%</text>
+            <text id="annotation-line1" x="120" y="269">q95 неизвестен → прогноз нечестен</text>
+            <text id="annotation-line2" x="120" y="288">показываем область неопределённости</text>
+          </g>
+        </svg>
+        <figcaption class="chart-caption">
+          <div>
+            <strong id="scenario-title">Честный live-режим: коридор, а не выдуманная линия</strong>
+            <p id="scenario-copy">Система знает текущие 96% и время сброса, но ещё не знает q95 размера следующего хода. Поэтому любой точный прогноз сейчас был бы декоративной ложью.</p>
+          </div>
+          <div class="legend" aria-label="Легенда">
+            <span><i class="swatch"></i>траектория</span>
+            <span><i class="swatch target"></i>потолок 99%</span>
+            <span><i class="swatch unknown"></i>неопределённость</span>
+          </div>
+        </figcaption>
+      </figure>
     </section>
 
-    <section class="panel">
-      <h2>Расчёт и сигналы</h2>
-      <div class="summary">
-        <dl class="summary-item">
-          <dt>u_eff</dt>
-          <dd id="uEff"></dd>
-        </dl>
-        <dl class="summary-item">
-          <dt>H (до reset)</dt>
-          <dd id="hoursLeft"></dd>
-        </dl>
-        <dl class="summary-item">
-          <dt>required average burn H/h</dt>
-          <dd id="requiredBurn"></dd>
-        </dl>
-        <dl class="summary-item">
-          <dt>projected end from burn*h</dt>
-          <dd id="projectedEnd"></dd>
-        </dl>
-        <dl class="summary-item">
-          <dt>confidence</dt>
-          <dd id="confidence"></dd>
-        </dl>
-        <dl class="summary-item">
-          <dt>early-exhaust warning</dt>
-          <dd id="earlyWarning"></dd>
-        </dl>
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>Почему Luna работает, а Sol уже нет</h2>
+          <p>Сейчас действует временный, очень простой слой #320. Он не блокирует весь Codex-пул одновременно: у моделей отдельные пороги.</p>
+        </div>
+        <span class="badge">живой ответ readiness API</span>
       </div>
-      <p class="meta"><strong>Точная формула:</strong> <span class="mono">u_eff + q95(next_turn) + guard <= 99 - reserve</span>, где <span class="mono">u_eff = utilization + unsettled/inflight</span>.</p>
-      <div class="zone-bar" aria-label="область зон" style="margin-top:8px;">
-        <span class="zone-accelerate" style="flex:2"></span>
-        <span class="zone-track" style="flex:2.5"></span>
-        <span class="zone-reserve" style="flex:2.5"></span>
-        <span class="zone-throttle" style="flex:1"></span>
+      <div class="rail-key" aria-label="Обозначения порогов">
+        <span class="sol-key"><i></i>Sol · 95%</span>
+        <span class="luna-key"><i></i>Luna · 98%</span>
+        <span class="target-key"><i></i>цель · 99%</span>
       </div>
-      <p class="note" id="zoneHint">Зона по итоговой метрике текущего шага.</p>
-    </section>
-
-    <section class="panel">
-      <h2>Ланы и решения</h2>
-      <div class="lane-zone" id="laneZone">
-        <article class="lane" id="laneLuna">
-          <h3>
-            <span>Luna lane</span>
-            <span class="status hold" id="decisionLuna" data-role="decision-luna">--</span>
-          </h3>
-          <p class="formula" id="laneLunaFormula"></p>
-          <div id="laneLunaZone" class="note"></div>
-          <ul id="laneLunaReasons"></ul>
+      <div class="quota-rail" aria-label="Использовано 96 процентов из 100">
+        <div class="quota-used"></div>
+        <div class="marker sol" title="Порог Sol 95%"></div>
+        <div class="marker luna" title="Порог Luna 98%"></div>
+        <div class="marker target" title="Целевой потолок 99%"></div>
+      </div>
+      <div class="rail-labels">
+        <div><strong>96% использовано</strong><span class="mut">Живой provider counter после рестарта.</span></div>
+        <div><strong>2 п.п. для Luna</strong><span class="mut">Можно запускать до достижения 98%.</span></div>
+        <div><strong>3 п.п. до цели</strong><span class="mut">99%, а не физические 100%, оставляет страховку.</span></div>
+      </div>
+      <div class="lane-grid">
+        <article class="lane luna">
+          <div class="lane-top"><h3>gpt-5.6-luna · Fast</h3><span class="lane-status state-ok">allow</span></div>
+          <p>Текущие 96% ниже её временного порога 98%. Новая закрытая работа и Codex-review могут продолжаться.</p>
+          <div class="mini-track" aria-hidden="true"></div>
+          <div class="track-scale"><span>90</span><span>сейчас 96</span><span>порог 98</span><span>100</span></div>
         </article>
-
-        <article class="lane" id="laneSol">
-          <h3>
-            <span>Sol lane</span>
-            <span class="status hold" id="decisionSol" data-role="decision-sol">--</span>
-          </h3>
-          <p class="formula" id="laneSolFormula"></p>
-          <div id="laneSolZone" class="note"></div>
-          <ul id="laneSolReasons"></ul>
+        <article class="lane sol">
+          <div class="lane-top"><h3>gpt-5.6-sol</h3><span class="lane-status state-stop">hold</span></div>
+          <p>Текущие 96% уже выше порога 95%. Тяжёлые Sol-ходы не должны съедать остаток, предназначенный Luna.</p>
+          <div class="mini-track" aria-hidden="true"></div>
+          <div class="track-scale"><span>90</span><span>порог 95</span><span>сейчас 96</span><span>100</span></div>
         </article>
       </div>
+    </section>
 
-      <div class="spark">
-        <h3>Spark bucket (отдельный bucket)</h3>
-        <p class="note">Spark не участвует в решении Luna/Sol gate и имеет отдельный лимит-контур. Ниже показан только наблюдаемый тренд по инференсу для иллюстрации.</p>
-        <div class="spark-meter" aria-label="Spark utilization progress">
-          <div class="fill" id="sparkFill"></div>
-          <div class="line" id="sparkLimit"></div>
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>Как будет решать скользящий контроллер</h2>
+          <p>Процент — только начало. Безопасное решение учитывает размер следующего хода, параллельные запуски, телеметрическую погрешность и операторский резерв.</p>
         </div>
-        <p class="meta" id="sparkText"></p>
+        <span class="badge state-warn">сейчас: precalibration</span>
+      </div>
+      <div class="formula-layout">
+        <div class="equation">
+          <div class="equation-main">u<sub>eff</sub> + q95(next turn) + guard ≤ 99 − reserve</div>
+          <p class="mut">Разрешить новый ход можно только если консервативная верхняя оценка всё ещё помещается под целевым потолком.</p>
+          <div class="budget" aria-label="Состав решения контроллера">
+            <div class="budget-part"><span class="sm mut">уже занято</span><strong>u<sub>eff</sub></strong><span class="sm">provider + inflight</span></div>
+            <div class="budget-part q95"><span class="sm mut">следующий ход</span><strong>q95</strong><span class="sm">по модели и режиму</span></div>
+            <div class="budget-part guard"><span class="sm mut">погрешность</span><strong>guard</strong><span class="sm">минимум 0.5 п.п.</span></div>
+            <div class="budget-part result"><span class="sm mut">решение</span><strong>allow / hold</strong><span class="sm">по каждой полосе</span></div>
+          </div>
+        </div>
+        <ul class="explain-list">
+          <li><strong>13 решений наблюдались</strong><span class="mut">И 13 исходов сохранены в shadow telemetry.</span></li>
+          <li><strong>13 из 13 пока indeterminate</strong><span class="mut">Причина одна: <code>unknown_q95</code>.</span></li>
+          <li><strong>Fail-safe — не общий стоп</strong><span class="mut">Статический model-aware слой продолжает разрешать Luna.</span></li>
+          <li><strong>Затем пороги исчезнут</strong><span class="mut">Их заменит фактический runway каждого типа хода.</span></li>
+        </ul>
       </div>
     </section>
 
-    <section class="panel">
-      <h2>Привязанные правила binding</h2>
-      <p class="note" id="bindingText"></p>
-      <ul id="bindingList"></ul>
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>Три уровня правды</h2>
+          <p>Чтобы интерфейс не выдавал планы за работающий прод, состояние разделено прямо на странице.</p>
+        </div>
+      </div>
+      <div class="truth-grid">
+        <article class="truth current">
+          <div class="kicker">Работает сейчас</div>
+          <h3>Разные пороги Luna и Sol</h3>
+          <p>Коммит <code>5a9ff796</code> загружен рестартом. Live API: Luna available @98, Sol blocked @95.</p>
+        </article>
+        <article class="truth next">
+          <div class="kicker">Следующий слой</div>
+          <h3>Hot-config без рестарта</h3>
+          <p>SQLite + operator API + аудит + rollback. Для его первичной загрузки потребуется отдельный код и ещё один согласованный рестарт.</p>
+        </article>
+        <article class="truth limit">
+          <div class="kicker">После калибровки</div>
+          <h3>Настоящее скользящее окно</h3>
+          <p>Контроллер #318 заменит круглые 95/98 на q95 каждого класса хода. Пока q95 неизвестен — это план, не активное обещание.</p>
+        </article>
+      </div>
     </section>
 
-    <section class="panel">
-      <h2>Наследование и контекст</h2>
-      <p class="note">orchestrator помечен <strong>EXEMPT</strong> по текущему worker gate, но наблюдается в telemetry как отдельный lane с флагом observed: если его сценарий включён, это отражается в выводе статуса.</p>
-    </section>
-
-    <footer class="no-print">
-      Источники: <a href="docs/tasks/291/plan.md">docs/tasks/291/plan.md</a> · текущая постановка task #318 (входящее описание задачи: расчёт формулой и interactive макет, без production JS).
+    <footer class="foot">
+      <span>Источник: живые <code>/api/usage</code>, <code>/api/usage/readiness</code> и <code>/api/usage/quota-controller</code>. Данные сохранены в <code>docs/tasks/321/source.json</code>.</span>
+      <button class="download no-print" id="download-json" type="button">Скачать снимок JSON</button>
     </footer>
   </main>
 
-<script>
-  const presets = {
-    live: {
-      utilization: 95,
-      hoursToReset: 119,
-      observedBurn: 0.16,
-      lunaQ95: 2.3,
-      solQ95: 2.8,
-      guard: 0.5,
-      reserve: 2,
-      inflight: 0,
-      q95Known: false,
-      note: 'current-live: q95 unknown -> FAIL-SAFE/static fallback'
-    },
-    calibrated: {
-      utilization: 85,
-      hoursToReset: 119,
-      observedBurn: 0.14,
-      lunaQ95: 1.4,
-      solQ95: 11.8,
-      guard: 1.0,
-      reserve: 1.5,
-      inflight: 0.6,
-      q95Known: true,
-      note: 'ИЛЛЮСТРАТИВНЫЙ: Luna fit, Sol hold'
-    },
-    bothHeld: {
-      utilization: 88,
-      hoursToReset: 119,
-      observedBurn: 0.26,
-      lunaQ95: 14.2,
-      solQ95: 13.1,
-      guard: 1.2,
-      reserve: 1.0,
-      inflight: 0.9,
-      q95Known: true,
-      note: 'ИЛЛЮСТРАТИВНЫЙ: оба HOLD'
-    }
-  };
-
-  const controls = ['utilization','hoursToReset','observedBurn','lunaQ95','solQ95','guard','reserve','inflight'];
-  const numInputs = {
-    utilization: ['utilizationN','utilization'],
-    hoursToReset: ['hoursToResetN','hoursToReset'],
-    observedBurn: ['observedBurnN','observedBurn'],
-    lunaQ95: ['lunaQ95N','lunaQ95'],
-    solQ95: ['solQ95N','solQ95'],
-    guard: ['guardN','guard'],
-    reserve: ['reserveN','reserve'],
-    inflight: ['inflightN','inflight']
-  };
-
-  const state = {
-    utilization: 95,
-    hoursToReset: 119,
-    observedBurn: 0.16,
-    lunaQ95: 2.3,
-    solQ95: 2.8,
-    guard: 0.5,
-    reserve: 2,
-    inflight: 0,
-    q95Known: false
-  };
-
-  function syncInput(name) {
-    const range = document.getElementById(name);
-    const num = document.getElementById(numInputs[name][0]);
-    const valueLabel = document.getElementById(name + 'Value');
-    range.addEventListener('input', () => {
-      num.value = range.value;
-      state[name] = Number(range.value);
-      render();
-    });
-    num.addEventListener('input', () => {
-      range.value = num.value;
-      state[name] = Number(num.value);
-      render();
-    });
-    range.value = state[name];
-    num.value = state[name];
-    valueLabel.textContent = Number(state[name]).toFixed(2);
-  }
-
-  Object.entries(numInputs).forEach(([name]) => syncInput(name));
-
-  function setPreset(presetName) {
-    const preset = presets[presetName];
-    if (!preset) return;
-    state.utilization = preset.utilization;
-    state.hoursToReset = preset.hoursToReset;
-    state.observedBurn = preset.observedBurn;
-    state.lunaQ95 = preset.lunaQ95;
-    state.solQ95 = preset.solQ95;
-    state.guard = preset.guard;
-    state.reserve = preset.reserve;
-    state.inflight = preset.inflight;
-    state.q95Known = preset.q95Known;
-    document.getElementById('q95Known').checked = preset.q95Known;
-    for (const name of controls) {
-      document.getElementById(name).value = state[name];
-      document.getElementById(numInputs[name][0]).value = state[name];
-      document.getElementById(name + 'Value').textContent = Number(state[name]).toFixed(2);
-    }
-    render();
-  }
-
-  document.getElementById('preset-live').addEventListener('click', () => {
-    document.getElementById('preset-live').setAttribute('aria-pressed', 'true');
-    document.getElementById('preset-calibrated').setAttribute('aria-pressed', 'false');
-    document.getElementById('preset-both-held').setAttribute('aria-pressed', 'false');
-    setPreset('live');
-  });
-
-  document.getElementById('preset-calibrated').addEventListener('click', () => {
-    document.getElementById('preset-calibrated').setAttribute('aria-pressed', 'true');
-    document.getElementById('preset-live').setAttribute('aria-pressed', 'false');
-    document.getElementById('preset-both-held').setAttribute('aria-pressed', 'false');
-    setPreset('calibrated');
-  });
-
-  document.getElementById('preset-both-held').addEventListener('click', () => {
-    document.getElementById('preset-both-held').setAttribute('aria-pressed', 'true');
-    document.getElementById('preset-calibrated').setAttribute('aria-pressed', 'false');
-    document.getElementById('preset-live').setAttribute('aria-pressed', 'false');
-    setPreset('bothHeld');
-  });
-
-  document.getElementById('q95Known').addEventListener('change', (event) => {
-    state.q95Known = event.target.checked;
-    render();
-  });
-
-  function clamp(v, lo, hi) {
-    return Math.min(hi, Math.max(lo, v));
-  }
-
-  function computeDecision(laneName, q95) {
-    const uEff = state.utilization + state.inflight;
-    const rhs = 99 - state.reserve;
-    const lhs = uEff + (state.q95Known ? q95 : 0) + state.guard;
-    const H = clamp(state.hoursToReset, 0.01, 240);
-    const projectedBase = uEff + state.observedBurn * H;
-    const projectedWithTurn = projectedBase + (state.q95Known ? q95 : 0) + state.guard;
-    const requiredBurn = state.q95Known
-      ? Math.max(0, (rhs - state.guard - q95 - uEff) / H)
-      : Math.max(0, (rhs - state.guard - uEff) / H);
-
-    let zone = 'FAIL_SAFE';
-    if (!state.q95Known) {
-      zone = 'FAIL_SAFE';
-    } else if (projectedWithTurn <= rhs - 8) {
-      zone = 'ACCELERATE';
-    } else if (projectedWithTurn <= rhs - 3) {
-      zone = 'TRACK';
-    } else if (projectedWithTurn <= rhs) {
-      zone = 'RESERVE';
-    } else {
-      zone = 'THROTTLE';
-    }
-
-    return {
-      laneName,
-      uEff,
-      rhs,
-      lhs: state.q95Known ? lhs : null,
-      projectedBase,
-      projectedWithTurn,
-      requiredBurn,
-      formulaText: state.q95Known
-        ? `u_eff=${uEff.toFixed(2)} | q95=${q95.toFixed(2)} | guard=${state.guard.toFixed(2)} | 99-reserve=${rhs.toFixed(2)}`
-        : `u_eff=${uEff.toFixed(2)} | q95=unknown | guard=${state.guard.toFixed(2)} | 99-reserve=${rhs.toFixed(2)}`,
-      passes: state.q95Known && lhs <= rhs,
-      zone
+  <script>
+  (() => {
+    'use strict';
+    const source = {
+      capturedAt: '2026-08-18T06:14:00Z',
+      utilization: 96,
+      resetAt: '2026-08-23T07:26:39Z',
+      runwayHours: 121.2,
+      luna: { threshold: 98, state: 'available' },
+      sol: { threshold: 95, state: 'blocked' },
+      controller: { target: 99, decisions: 13, outcomes: 13, q95: null, reason: 'unknown_q95' }
     };
-  }
+    const svg = document.getElementById('window-chart');
+    const series = document.getElementById('series-path');
+    const fan = document.getElementById('fan-path');
+    const hold = document.getElementById('hold-path');
+    const title = document.getElementById('scenario-title');
+    const copy = document.getElementById('scenario-copy');
+    const annTitle = document.getElementById('annotation-title');
+    const ann1 = document.getElementById('annotation-line1');
+    const ann2 = document.getElementById('annotation-line2');
+    const desc = document.getElementById('chart-desc');
+    const x = hour => 76 + (hour / source.runwayHours) * 924;
+    const y = pct => 442 - ((pct - 90) / 10) * 372;
+    const line = pts => pts.map((p, i) => `${i ? 'L' : 'M'} ${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join(' ');
+    const area = (upper, lower) => `${line(upper)} ${lower.slice().reverse().map(p => `L ${x(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join(' ')} Z`;
 
-  function setStatusEl(el, status) {
-    const map = {
-      'ALLOW': 'allow',
-      'REROUTE': 'reroute',
-      'HOLD': 'hold',
-      'FAIL-SAFE': 'fail',
-    };
-    el.className = 'status ' + (map[status] || 'hold');
-    el.textContent = status;
-  }
-
-  function reasonForLane(name, decision, otherCanPass) {
-    const items = [];
-    if (!state.q95Known) {
-      items.push('q95 неизвестен: используется FAIL-SAFE с static fallback и conservative наблюдаемым режимом.');
-      return items;
-    }
-
-    if (decision.passes && otherCanPass === false) {
-      items.push('PASS по формуле и по всем известным компонентам: u_eff + q95 + guard <= 99 - reserve. Альтернативный lane не проходит, значит ALLOW для текущей пары остается рабочим.');
-    } else if (decision.passes && otherCanPass === true) {
-      items.push('PASS по формуле; параллельно другая lane тоже проходит, reroute не нужен.');
-    } else if (!decision.passes && otherCanPass === true) {
-      items.push('Линия не проходит формулу. Альтернативный lane проходит, поэтому предлагается REROUTE на альтернативный lane.');
-    } else {
-      items.push('Линия не проходит формулу и в паре не найден альтернативный lane: HOLD как защитная реакция.');
-    }
-
-    const delta = (decision.rhs - (decision.lhs ?? 0));
-    if (state.q95Known) {
-      items.push(`Остаток до порога: ${delta.toFixed(2)} pp. Если delta <= 0, то действие блокируется по этой lane.`);
-      items.push(`Зона на основе раннего прогноза: ${decision.zone}.`);
-      items.push(`projected_end = u_eff + burn*H + q95 + guard = ${decision.projectedWithTurn.toFixed(2)} pp.`);
-    }
-
-    return items;
-  }
-
-  function zoneClass(zone) {
-    switch(zone) {
-      case 'ACCELERATE': return 'zone-accelerate';
-      case 'TRACK': return 'zone-track';
-      case 'RESERVE': return 'zone-reserve';
-      case 'THROTTLE':
-      case 'FAIL_SAFE': return zone === 'FAIL_SAFE' ? 'zone-fail' : 'zone-throttle';
-      default: return 'zone-fail';
-    }
-  }
-
-  function render() {
-    for (const name of controls) {
-      document.getElementById(name + 'Value').textContent = Number(state[name]).toFixed(2);
-    }
-
-    const uEff = state.utilization + state.inflight;
-    const rhs = 99 - state.reserve;
-    const H = state.hoursToReset;
-    const projectedNoTurn = uEff + state.observedBurn * H;
-
-    const luna = computeDecision('Luna', state.lunaQ95);
-    const sol = computeDecision('Sol', state.solQ95);
-    const bothPass = {
-      luna: luna.passes,
-      sol: sol.passes
-    };
-
-    let decisionLuna;
-    let decisionSol;
-
-    if (!state.q95Known) {
-      decisionLuna = 'FAIL-SAFE';
-      decisionSol = 'FAIL-SAFE';
-    } else if (luna.passes && sol.passes) {
-      decisionLuna = 'ALLOW';
-      decisionSol = 'ALLOW';
-    } else if (luna.passes && !sol.passes) {
-      decisionLuna = 'ALLOW';
-      decisionSol = 'REROUTE';
-    } else if (!luna.passes && sol.passes) {
-      decisionLuna = 'REROUTE';
-      decisionSol = 'ALLOW';
-    } else {
-      decisionLuna = 'HOLD';
-      decisionSol = 'HOLD';
-    }
-
-    const projectedWithTurnLuna = luna.projectedBase + (state.q95Known ? state.lunaQ95 : 0) + state.guard;
-    const projectedWithTurnSol = sol.projectedBase + (state.q95Known ? state.solQ95 : 0) + state.guard;
-
-    const earliestExhaust = Math.min(
-      projectedWithTurnLuna, projectedWithTurnSol
-    );
-
-    document.getElementById('uEff').textContent = `${uEff.toFixed(2)} pp`;
-    document.getElementById('hoursLeft').textContent = `${H.toFixed(0)} h`;
-    document.getElementById('requiredBurn').textContent = `${Math.max(0, (rhs - uEff - state.guard - (state.q95Known ? Math.min(state.lunaQ95, state.solQ95) : 0)) / Math.max(1, H)).toFixed(3)} pp/h`;
-    document.getElementById('confidence').textContent = state.q95Known ? 'pilot (иллюстративные q95)' : 'fail-safe';
-    document.getElementById('projectedEnd').textContent = `Luna ${projectedWithTurnLuna.toFixed(2)} • Sol ${projectedWithTurnSol.toFixed(2)} pp`;
-
-    const overfillLuna = projectedWithTurnLuna > rhs ? projectedWithTurnLuna - rhs : 0;
-    const overfillSol = projectedWithTurnSol > rhs ? projectedWithTurnSol - rhs : 0;
-    const minOverfill = Math.min(overfillLuna, overfillSol);
-    const warning = !state.q95Known
-      ? 'unknown q95, fail-safe fallback active'
-      : (projectedNoTurn > rhs
-          ? 'прогноз показывает риск перегруза до reset без компенсации'
-          : minOverfill > 0
-            ? `порог target-${rhs.toFixed(2)} пересекается только с учетом next-turn risk; headroom ${minOverfill.toFixed(2)} pp`
-            : `проекция до reset держит headroom ${(rhs - projectedNoTurn).toFixed(2)} pp`);
-    document.getElementById('earlyWarning').textContent = warning;
-
-    const zone = !state.q95Known
-      ? 'FAIL_SAFE'
-      : (projectedWithTurnLuna > rhs && projectedWithTurnSol > rhs)
-        ? 'THROTTLE'
-        : 'TRACK';
-    document.getElementById('zoneHint').textContent = `Текущая зона: ${zone}`;
-
-    const decisionLunaEl = document.getElementById('decisionLuna');
-    const decisionSolEl = document.getElementById('decisionSol');
-    setStatusEl(decisionLunaEl, decisionLuna);
-    setStatusEl(decisionSolEl, decisionSol);
-
-    document.getElementById('laneLunaFormula').textContent = luna.formulaText;
-    document.getElementById('laneSolFormula').textContent = sol.formulaText;
-
-    const laneLunaZone = luna.zone;
-    const laneSolZone = sol.zone;
-    document.getElementById('laneLunaZone').textContent = `zone: ${laneLunaZone}`;
-    document.getElementById('laneSolZone').textContent = `zone: ${laneSolZone}`;
-
-    const zoneHint = {
-      ACCELERATE: 'Ожидаемый расход далёк от порога 99, можно ускорять поток.',
-      TRACK: 'Текущий расход в рабочей зоне наблюдаемости.',
-      RESERVE: 'Идёт расход headroom, нужно удерживать стабильный dispatch.',
-      THROTTLE: 'Риск раннего исчерпания, включать throttling.',
-      FAIL_SAFE: 'Без надежного q95 включается fail-safe fallback.'
-    };
-    document.getElementById('laneLunaZone').title = zoneHint[laneLunaZone] || '';
-    document.getElementById('laneSolZone').title = zoneHint[laneSolZone] || '';
-
-    const reasonsLuna = reasonForLane('Luna', luna, bothPass.sol);
-    const reasonsSol = reasonForLane('Sol', sol, bothPass.luna);
-    renderList('laneLunaReasons', reasonsLuna);
-    renderList('laneSolReasons', reasonsSol);
-
-    const sparkFill = document.getElementById('sparkFill');
-    const sparkLimit = document.getElementById('sparkLimit');
-    const sparkUtil = clamp(uEff + state.observedBurn * 0.6 * state.hoursToReset * 0.2, 0, 140);
-    const sparkText = state.utilization >= 100
-      ? 'Spark в отдельном bucket может пересекать внутренний ceiling даже при стабильных worker-lanes.'
-      : 'Spark-сценарий показателен, но не участвует в пересчете решений Luna/Sol.';
-    sparkFill.style.width = `${Math.min(100, sparkUtil)}%`;
-    sparkLimit.style.left = `72%`;
-    document.getElementById('sparkText').textContent = `Spark (иллюстративно): projected end ${sparkUtil.toFixed(2)} pp, зона threshold 72/100.`;
-
-    document.getElementById('bindingText').textContent =
-      `binding: u_eff + q95(next_turn) + guard <= 99 - reserve. Lane-level gate делается на constraint уровне bucket с учетом unsettled и guard. FAIL-SAFE применяется только при неизвестном/неконсистентном q95.`;
-
-    const bindingItems = [
-      `utilization input используется напрямую в u_eff только после сложения с unsettled/inflight.`,
-      `guard всегда сохраняет дополнительный буфер на коррекцию задержек телеметрии.`,
-      `reserve защищает рабочий план при drift, not as hard-stop.`,
-      `target и решение опираются на 99, без порогов 90/95/98.`,
-    ];
-    if (!state.q95Known) {
-      bindingItems.push('q95 в этой симуляции отмечен as unknown, поэтому действует FAIL-SAFE/ static fallback.');
-    }
-    renderList('bindingList', bindingItems);
-
-    const presetNote = state.q95Known ? 'q95 known' : 'q95 unknown';
-    document.title = `Quota Runway Controller · ${presetNote}`;
-
-    document.querySelectorAll('.no-print .status').forEach((el) => {
-      el.setAttribute('aria-live', 'polite');
-    });
-  }
-
-  function renderList(id, items) {
-    const node = document.getElementById(id);
-    node.innerHTML = '';
-    items.forEach((item) => {
-      const li = document.createElement('li');
-      li.textContent = item;
-      node.appendChild(li);
-    });
-  }
-
-  document.getElementById('download-json').addEventListener('click', () => {
-    const payload = {
-      createdAt: new Date().toISOString(),
-      inputs: { ...state },
-      decisions: {
-        luna: document.getElementById('decisionLuna').textContent,
-        sol: document.getElementById('decisionSol').textContent,
+    const scenarios = {
+      live: {
+        series: [[0,96],[121.2,96]],
+        upper: [[0,96],[30,100],[61,100],[91,100],[121.2,100]],
+        lower: [[0,96],[30,96],[61,96],[91,96],[121.2,96]],
+        fanClass: 'unknown-zone', hold: null,
+        title: 'Честный live-режим: коридор, а не выдуманная линия',
+        copy: 'Система знает текущие 96% и время сброса, но ещё не знает q95 размера следующего хода. Поэтому любой точный прогноз сейчас был бы декоративной ложью.',
+        ann: ['Сейчас: 96%','q95 неизвестен → прогноз нечестен','показываем область неопределённости'],
+        desc: 'Текущий расход 96 процентов. От 96 до 100 процентов показана область неопределённости, потому что q95 следующего хода неизвестен.'
       },
-      formula: 'u_eff + q95(next_turn) + guard <= 99 - reserve'
+      calibrated: {
+        series: [[0,96],[24,96.4],[48,97.1],[72,97.5],[96,98.0],[121.2,98.2]],
+        upper: [[0,96],[24,96.8],[48,97.5],[72,98.1],[96,98.7],[121.2,98.8]],
+        lower: [[0,96],[24,96.1],[48,96.6],[72,97.0],[96,97.4],[121.2,97.6]],
+        fanClass: 'fan', hold: null,
+        title: 'После калибровки: управляемый коридор заканчивается ниже 99%',
+        copy: 'Это объясняющий сценарий, не live-прогноз: q95, guard и inflight известны, поэтому контроллер дозирует новые ходы и сохраняет запас до цели.',
+        ann: ['Пример: q95 известен','коридор p50–p95 остаётся ниже 99%','значения иллюстративные, не live'],
+        desc: 'Иллюстративная траектория после калибровки заканчивается на 98.2 процента, а верхняя граница коридора — на 98.8 процента.'
+      },
+      hold: {
+        series: [[0,96],[24,97.1],[48,98.1],[65,98.7],[72,99],[121.2,99]],
+        upper: [[0,96],[24,97.5],[48,98.6],[65,99],[72,99],[121.2,99]],
+        lower: [[0,96],[24,96.7],[48,97.6],[65,98.2],[72,98.5],[121.2,98.5]],
+        fanClass: 'fan', hold: [[72,99],[121.2,99]],
+        title: 'Запас исчерпан: новые ходы держатся до сброса',
+        copy: 'Когда консервативная оценка достигает 99%, контроллер перестаёт открывать новые ходы. Идущая работа не убивается, а свободный пул не падает в физический ноль.',
+        ann: ['72 ч: достигнут потолок','новые ходы → HOLD','работающие ходы не прерываются'],
+        desc: 'Иллюстративная траектория достигает 99 процентов через 72 часа, после чего новые ходы удерживаются до сброса.'
+      }
     };
-    const text = JSON.stringify(payload, null, 2);
-    const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'quota-runway-controller-sim.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  });
 
-  render();
-</script>
+    function renderScenario(key) {
+      const s = scenarios[key];
+      series.setAttribute('d', line(s.series));
+      fan.setAttribute('d', area(s.upper, s.lower));
+      fan.setAttribute('class', s.fanClass);
+      if (s.hold) {
+        hold.setAttribute('d', line(s.hold));
+        hold.setAttribute('visibility', 'visible');
+      } else {
+        hold.setAttribute('visibility', 'hidden');
+      }
+      title.textContent = s.title;
+      copy.textContent = s.copy;
+      annTitle.textContent = s.ann[0];
+      ann1.textContent = s.ann[1];
+      ann2.textContent = s.ann[2];
+      desc.textContent = s.desc;
+      document.querySelectorAll('[data-scenario]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.scenario === key));
+      });
+    }
+
+    document.querySelectorAll('[data-scenario]').forEach(button => {
+      button.addEventListener('click', () => renderScenario(button.dataset.scenario));
+    });
+    document.getElementById('download-json').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(source, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'quota-runway-snapshot-2026-08-18.json';
+      anchor.click();
+      URL.revokeObjectURL(url);
+    });
+    renderScenario('live');
+    svg.dataset.ready = 'true';
+  })();
+  </script>
 </body>
 </html>

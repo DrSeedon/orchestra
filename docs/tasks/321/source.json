@@ -1,0 +1,51 @@
+{
+  "artifact": "quota-runway-controller",
+  "captured_at": "2026-08-18T06:14:00Z",
+  "source_endpoints": [
+    "/api/usage",
+    "/api/usage/readiness?model=gpt-5.6-luna",
+    "/api/usage/readiness?model=gpt-5.6-sol",
+    "/api/usage/quota-controller"
+  ],
+  "codex_primary": {
+    "utilization_pct": 96,
+    "window_minutes": 10080,
+    "resets_at": "2026-08-23T07:26:39Z",
+    "runway_hours": 121.2
+  },
+  "current_static_gate": {
+    "luna": {
+      "model": "gpt-5.6-luna",
+      "threshold_pct": 98,
+      "decision": "available",
+      "temporary_policy_commit": "5a9ff796"
+    },
+    "sol": {
+      "model": "gpt-5.6-sol",
+      "threshold_pct": 95,
+      "decision": "blocked"
+    }
+  },
+  "adaptive_controller": {
+    "target_pct": 99,
+    "formula": "u_eff + q95(next_turn) + guard <= target - reserve",
+    "mode": "shadow",
+    "enforcement_tier": "precalibration",
+    "decision_count": 13,
+    "outcome_count": 13,
+    "indeterminate_count": 13,
+    "latest_reason": "unknown_q95",
+    "codex_primary_shadow_utilization_pct": 95,
+    "guard_pct_points": 0.5,
+    "q95_next_turn_pct_points": null,
+    "note": "The live readiness observation was 96%, while the latest controller bucket snapshot still contained 95%. The visual keeps both facts distinct instead of silently merging them."
+  },
+  "illustrative_calibrated_scenario": {
+    "label": "explanatory only — not live telemetry",
+    "luna_q95_pct_points": 0.35,
+    "sol_q95_pct_points": 2.4,
+    "guard_pct_points": 0.5,
+    "reserve_pct_points": 0,
+    "remaining_to_target_pct_points": 3
+  }
+}
