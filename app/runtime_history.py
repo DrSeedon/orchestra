@@ -92,6 +92,8 @@ class PreparationResult:
     packet_sha256: str = ""
     snapshot_log_id: int = 0
     pending_effects: int = 0
+    pending_effect_details: tuple[dict[str, Any], ...] = ()
+    unresolved_effects: int = 0
     expected_capability_sha256: str = ""
     expected_capability: dict[str, Any] | None = None
     project_docs: tuple[dict[str, Any], ...] = ()
@@ -333,12 +335,26 @@ def build_runtime_state_packet(
         recent_budget -= cost
     recent_messages.reverse()
 
+    # Log rows are inserted through a shared DB thread pool, so autoincrement `id` is
+    # the INSERT order, not the event order: 4266 of 42661 tool/result pairs in the
+    # live database carry a result whose id is BELOW its own call's, while `ts` (taken
+    # in the event loop before the write is submitted) was correct in all 42661 (#340).
+    # Pairing on `id` therefore leaves 79% of the blocking effects unpaired forever.
+    # `ordered` keeps its id order: the snapshot hash and raw refs are frozen on it.
+    event_ordered = sorted(
+        ordered, key=lambda row: (str(row.get("ts") or ""), int(row["id"]))
+    )
+    last_event_key = (
+        (str(event_ordered[-1].get("ts") or ""), int(event_ordered[-1]["id"]))
+        if event_ordered else None
+    )
+
     pending: dict[str, dict[str, Any]] = {}
     pending_legacy: deque[tuple[str, dict[str, Any]]] = deque()
     tool_effects: list[dict[str, Any]] = []
     anonymous_sequence = 0
     portable_identifiers = 0
-    for row in ordered:
+    for row in event_ordered:
         row_type = str(row.get("type") or "")
         if row_type not in {"tool", "tool_result"}:
             continue
@@ -360,6 +376,7 @@ def build_runtime_state_packet(
             effect = {
                 "call_id": visible_source_id,
                 "call_log_id": int(row["id"]),
+                "call_ts": str(row.get("ts") or ""),
                 "tool_name": tool_name,
                 "call_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
                 "status": "pending",
@@ -394,6 +411,9 @@ def build_runtime_state_packet(
             }
             tool_effects.append(effect)
         else:
+            # `call_ts` is diagnostic ballast once the pair is closed, and the packet is
+            # counted against the target context window in the preflight manifest.
+            effect.pop("call_ts", None)
             effect["status"] = "completed"
         effect["result_log_id"] = int(row["id"])
         effect["result_sha256"] = hashlib.sha256(content.encode("utf-8")).hexdigest()
@@ -413,6 +433,20 @@ def build_runtime_state_packet(
                     for value in identifiers
                 ]
                 portable_identifiers += len(identifiers)
+
+    # Rows following a call do NOT prove its turn ended — 4615 of 43096 live pairs
+    # (10.7%) have rows between the call and its own result. What they do rule out is
+    # the one state worth blocking on: a call with nothing logged after it is the only
+    # one whose tool may be running at this very moment, and freezing a snapshot under
+    # a running tool is unsound. Everything earlier is terminal for THIS window — the
+    # log-write drain ran before the snapshot, so no result for it is still in flight —
+    # and it travels named instead of locking the session out of every future handoff.
+    for effect in tool_effects:
+        if effect["status"] != "pending":
+            continue
+        key = (str(effect["call_ts"]), int(effect["call_log_id"]))
+        if key != last_event_key:
+            effect["status"] = "unresolved"
 
     visible_ids = [
         int(row["id"])
@@ -467,6 +501,45 @@ def build_runtime_state_packet(
         "snapshot_sha256": snapshot_sha256,
     }
     return packet
+
+
+def classify_handoff_effects(
+    packet: dict[str, Any],
+) -> tuple[tuple[dict[str, Any], ...], int]:
+    """Split effects into the ones that can still resolve and the terminal ones.
+
+    `pending` means the call is the last event of the snapshot: its tool may still be
+    running, so the snapshot is not safe to move. `unresolved` means the transcript
+    continued past the call, so no result can ever arrive for it — it travels with the
+    packet, named, instead of locking the session out of every future handoff.
+    """
+    effects = packet.get("tool_effects") or ()
+    blocking = tuple(
+        {
+            "call_id": effect.get("call_id"),
+            "tool_name": effect.get("tool_name"),
+            "call_log_id": effect.get("call_log_id"),
+            "call_ts": effect.get("call_ts"),
+        }
+        for effect in effects
+        if effect.get("status") == "pending"
+    )
+    unresolved = sum(effect.get("status") == "unresolved" for effect in effects)
+    return blocking, unresolved
+
+
+def describe_handoff_effects(details: Sequence[dict[str, Any]]) -> str:
+    """Name what is holding a blocked handoff, so the operator needs no source dive."""
+    named = "; ".join(
+        f"{item.get('tool_name') or 'unknown'} call {item.get('call_id')}"
+        f" (log {item.get('call_log_id')}, {item.get('call_ts')})"
+        for item in list(details)[:5]
+    )
+    more = f" (+{len(details) - 5} more)" if len(details) > 5 else ""
+    return (
+        f"{len(details)} tool call(s) may still be running, "
+        f"nothing was logged after them: {named}{more}"
+    )
 
 
 def build_runtime_packet_fallback(packet: dict[str, Any]) -> dict[str, Any]:

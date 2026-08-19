@@ -45,7 +45,9 @@ from app.runtime_history import (
     build_model_visible_manifest,
     build_runtime_packet_fallback,
     build_runtime_state_packet,
+    classify_handoff_effects,
     classify_handoff_failure,
+    describe_handoff_effects,
     preflight_runtime_handoff,
     runtime_packet_sha256,
     render_codex_history,
@@ -78,6 +80,20 @@ _SHADOW_CURRENT_TURN = object()
 _HANDOFF_STAGING_ROOT = (
     Path(__file__).parent.parent / "data" / "runtime-handoff-staging"
 )
+
+
+def _handoff_blocked_result(prepared) -> dict:
+    """One refusal payload for both switch paths, naming what actually blocks it."""
+    code = str(getattr(prepared, "error_code", None) or "handoff_prepare_failed")
+    details = tuple(getattr(prepared, "pending_effect_details", ()) or ())
+    return {
+        "ok": False,
+        "error": describe_handoff_effects(details) if details else code,
+        "error_code": code,
+        "handoff_id": getattr(prepared, "handoff_id", None),
+        "pending_effects": [dict(item) for item in details],
+        "history_transfer": {"mode": "blocked"},
+    }
 
 
 class DrainingRefused(RuntimeError):
@@ -1801,11 +1817,8 @@ class AgentSession:
                 project_docs=project_docs,
                 expected_target_capability=expected_capability,
             )
-            pending_effects = sum(
-                effect["status"] != "completed"
-                for effect in packet["tool_effects"]
-            )
-            if pending_effects:
+            blocking, unresolved = classify_handoff_effects(packet)
+            if blocking:
                 return None, PreparationResult(
                     ok=False,
                     error_code="handoff_pending_effect",
@@ -1813,7 +1826,8 @@ class AgentSession:
                     packet=packet,
                     packet_sha256=packet["integrity"]["canonical_sha256"],
                     snapshot_log_id=snapshot_id,
-                    pending_effects=pending_effects,
+                    pending_effects=len(blocking),
+                    pending_effect_details=blocking,
                 )
             now = datetime.now(timezone.utc).isoformat()
             result = PreparationResult(
@@ -1823,6 +1837,7 @@ class AgentSession:
                 packet_sha256=packet["integrity"]["canonical_sha256"],
                 snapshot_log_id=snapshot_id,
                 pending_effects=0,
+                unresolved_effects=unresolved,
                 expected_capability_sha256=capability_sha,
                 expected_capability=expected_capability,
                 project_docs=tuple(dict(item) for item in project_docs),
@@ -1852,6 +1867,16 @@ class AgentSession:
             }
             return record, result
 
+        def journal_unresolved(handoff_id: str, unresolved: int) -> None:
+            """These effects travel instead of blocking, so the trace must be loud."""
+            if not unresolved:
+                return
+            logger.warning(
+                "[%s] handoff %s carries %d unresolved tool effect(s): "
+                "their calls have no result row and the snapshot continued past them",
+                self.name, handoff_id, unresolved,
+            )
+
         record, result = await asyncio.get_running_loop().run_in_executor(
             _db_executor(),
             partial(
@@ -1862,6 +1887,13 @@ class AgentSession:
             ),
         )
         if result is not None:
+            # The normal path returns right here: `build_record` already produced the
+            # whole result, so anything journalled below it would only ever be seen on
+            # an idempotent replay.
+            journal_unresolved(
+                str(getattr(result, "handoff_id", "") or ""),
+                int(getattr(result, "unresolved_effects", 0)),
+            )
             return result
         if record is None:
             return PreparationResult(
@@ -1888,6 +1920,8 @@ class AgentSession:
             sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")).hexdigest()
+        _, unresolved = classify_handoff_effects(packet)
+        journal_unresolved(str(record["handoff_id"]), unresolved)
         return PreparationResult(
             ok=True,
             handoff_id=record["handoff_id"],
@@ -1895,6 +1929,7 @@ class AgentSession:
             packet_sha256=record["packet_sha256"],
             snapshot_log_id=int(record["snapshot_log_id"]),
             pending_effects=0,
+            unresolved_effects=unresolved,
             expected_capability_sha256=capability_sha,
             expected_capability=stored_capability,
             project_docs=frozen_project_docs,
@@ -3839,13 +3874,7 @@ class AgentSession:
             project_docs=project_docs,
         )
         if getattr(prepared, "ok", True) is False:
-            return {
-                "ok": False,
-                "error": getattr(prepared, "error_code", "handoff_prepare_failed"),
-                "error_code": getattr(prepared, "error_code", "handoff_prepare_failed"),
-                "handoff_id": getattr(prepared, "handoff_id", None),
-                "history_transfer": {"mode": "blocked"},
-            }
+            return _handoff_blocked_result(prepared)
         operation_status = str(
             getattr(prepared, "operation_status", "prepared")
         )
@@ -3864,14 +3893,6 @@ class AgentSession:
                 ),
                 "error_code": error_code,
                 "handoff_id": getattr(prepared, "handoff_id", None),
-                "history_transfer": {"mode": "blocked"},
-            }
-        if int(getattr(prepared, "pending_effects", 0)):
-            return {
-                "ok": False,
-                "error": "handoff has an unresolved historical tool effect",
-                "error_code": "handoff_pending_effect",
-                "handoff_id": None,
                 "history_transfer": {"mode": "blocked"},
             }
 
@@ -4322,15 +4343,7 @@ class AgentSession:
             project_docs=project_docs,
         )
         if getattr(prepared, "ok", True) is False:
-            return {
-                "ok": False,
-                "error": getattr(prepared, "error_code", "handoff_prepare_failed"),
-                "error_code": getattr(
-                    prepared, "error_code", "handoff_prepare_failed"
-                ),
-                "handoff_id": getattr(prepared, "handoff_id", None),
-                "history_transfer": {"mode": "blocked"},
-            }
+            return _handoff_blocked_result(prepared)
         if native_preflight is None:
             return {
                 "ok": False,
