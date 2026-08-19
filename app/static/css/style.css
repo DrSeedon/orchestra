@@ -152,15 +152,36 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
     display: flex;
     min-width: 0;
     flex: 1 1 auto;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 14px;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 2px;
 }
 .usage-provider-group {
-    display: inline-flex;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px 10px;
     max-width: 100%;
+    min-width: 0;
+    line-height: 12px;
+}
+.usage-provider-title {
+    flex: 0 0 auto;
+    width: 86px;
+    min-width: 86px;
+    max-width: 86px;
+    white-space: nowrap;
+    font-size: 11px;
+}
+.usage-provider-values {
+    display: inline-flex;
     align-items: center;
-    gap: 14px;
+    gap: 10px 10px;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+.usage-provider-values > span {
+    white-space: nowrap;
 }
 .usage-actions {
     display: inline-flex;

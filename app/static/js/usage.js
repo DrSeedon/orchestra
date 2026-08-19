@@ -250,25 +250,31 @@ function renderUsageBar() {
         claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     if (claudeParts.length) {
-        groups.push(`<span class="usage-provider-group" data-usage-compact-provider="claude">${claudeParts.join('')}</span>`);
+        groups.push(
+            '<span class="usage-provider-group" data-usage-compact-provider="claude">'
+            + '<span class="usage-provider-title" style="color:#38bdf8;font-weight:600">Claude</span>'
+            + `<span class="usage-provider-values">${claudeParts.join('')}</span>`
+            + '</span>',
+        );
     }
 
     const compactProviders = [
         {id:'codex', bucketId:'codex', windows:_usageProviderWindows('codex', cx)},
-        {id:'codex', bucketId:'codex_spark', windows:_usageProviderWindows('codex', cx.spark), compactTitle:'Codex Spark'},
+        {id:'codex-spark', bucketId:'codex_spark', windows:_usageProviderWindows('codex', cx.spark), compactTitle:'Codex Spark'},
         {id:'grok', bucketId:'grok', windows:_usageProviderWindows('grok', gx), showUnavailable:true},
     ].filter(provider => provider.windows.length || provider.showUnavailable);
     if (compactProviders.length) {
         for (const provider of compactProviders) {
             const meta = _PROVIDER_META[provider.id];
             const color = _usageProviderAccent(provider.id);
-            const providerParts = [
-                '<span style="height:14px;border-left:1px solid rgba(71,85,105,0.6)"></span>',
-                `<span style="color:${color};font-weight:600">${provider.compactTitle || meta.compactTitle || meta.title}</span>`,
-            ];
+            const providerParts = [];
             if (!provider.windows.length) {
-                providerParts.push('<span style="color:#64748b">: нет данных</span>');
-                groups.push(`<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">${providerParts.join('')}</span>`);
+                groups.push(
+                    `<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">`
+                    + `<span class="usage-provider-title" style="color:${color};font-weight:600">${provider.compactTitle || meta.compactTitle || meta.title}</span>`
+                    + '<span class="usage-provider-values"><span style="color:#64748b">нет данных</span></span>'
+                    + '</span>'
+                );
                 continue;
             }
             for (const item of provider.windows) {
@@ -279,11 +285,15 @@ function renderUsageBar() {
                 const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
                 const cd = _resetCountdown(window.resets_at);
                 const release = _quotaMapLaneStatusText(window, provider.bucketId);
-                const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
                 const label = _codexWindowLabel(window.window_minutes);
                 providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
             }
-            groups.push(`<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">${providerParts.join('')}</span>`);
+            groups.push(
+                `<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">`
+                + `<span class="usage-provider-title" style="color:${color};font-weight:600">${provider.compactTitle || meta.compactTitle || meta.title}</span>`
+                + `<span class="usage-provider-values">${providerParts.join('')}</span>`
+                + '</span>',
+            );
         }
     }
 

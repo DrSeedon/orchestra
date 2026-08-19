@@ -8,6 +8,7 @@ ROOT = Path(__file__).parent.parent
 UTILS_JS = ROOT / "app/static/js/utils.js"
 USAGE_JS = ROOT / "app/static/js/usage.js"
 STYLE_CSS = ROOT / "app/static/css/style.css"
+USAGE_SHOT_DIR = ROOT / "docs/tasks/356"
 
 
 @pytest.fixture(scope="module")
@@ -85,8 +86,12 @@ def _settle_usage(page, utilization, *, reject=False):
     page.evaluate(
         """([utilization, reject]) => {
             const pending = usagePending.shift();
+            const quotaPending = usagePending.shift();
             if (reject) {
                 pending.reject(new DOMException('signal timed out', 'TimeoutError'));
+                if (quotaPending) {
+                    quotaPending.reject(new DOMException('signal timed out', 'TimeoutError'));
+                }
                 return;
             }
             const reset = new Date(Date.now() + 4 * 86400000).toISOString();
@@ -101,6 +106,9 @@ def _settle_usage(page, utilization, *, reject=False):
                 grok: null,
                 orchestra: {},
             });
+            if (quotaPending) {
+                quotaPending.resolve({buckets: []});
+            }
         }""",
         [utilization, reject],
     )
@@ -181,10 +189,105 @@ def test_usage_bar_shows_spark_label_and_release_statuses(browser):
     assert "Codex Spark" in text
     assert "откроется через" in text
     assert "работает" in text
-    provider_texts = page.locator('[data-usage-compact-provider="codex"]').all_text_contents()
-    assert len(provider_texts) == 2
-    assert "Codex Spark" in provider_texts[1]
-    assert "7d:" in provider_texts[1]
+    provider_texts = page.locator('[data-usage-compact-provider="codex-spark"]').all_text_contents()
+    assert len(provider_texts) == 1
+    assert "Codex Spark" in provider_texts[0]
+    assert "7d:" in provider_texts[0]
+    page.close()
+
+
+def test_usage_bar_renders_each_provider_on_own_line(browser):
+    USAGE_SHOT_DIR.mkdir(parents=True, exist_ok=True)
+
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    page.set_content('<body><div id="usage-bar"></div></body>')
+    page.evaluate("() => { window.marked = {setOptions() {}, parse(value) { return value; } }; window.DOMPurify = { addHook() {} }; }")
+    page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(USAGE_JS))
+    page.add_style_tag(path=str(STYLE_CSS))
+
+    usage = {
+        "anthropic": {
+            "five_hour": {"utilization": 38, "window_minutes": 300, "resets_at": "2099-01-01T00:00:00.000Z"},
+            "seven_day": {"utilization": 60, "window_minutes": 10080, "resets_at": "2099-01-01T00:00:00.000Z"},
+        },
+        "codex": {
+            "primary": {"utilization": 40, "window_minutes": 10080, "resets_at": "2099-01-01T00:00:00.000Z"},
+            "spark": {"primary": {"utilization": 57, "window_minutes": 10080, "resets_at": "2099-01-01T00:00:00.000Z"}},
+        },
+        "grok": {"primary": {"utilization": 7, "window_minutes": 10080, "resets_at": "2099-01-01T00:00:00.000Z"}},
+        "orchestra": {},
+    }
+    quota_map = {
+        "buckets": [
+            {
+                "bucket": "anthropic",
+                "data_available": True,
+                "window": {"id": "cl-5h", "window_minutes": 300, "resets_at": "2099-01-01T00:00:00.000Z"},
+                "lanes": [{"gated": False, "blocked": False, "release_status": "open"}],
+            },
+            {
+                "bucket": "anthropic",
+                "data_available": True,
+                "window": {"id": "cl-7d", "window_minutes": 10080, "resets_at": "2099-01-01T00:00:00.000Z"},
+                "lanes": [{"gated": True, "blocked": False, "release_status": "opens_in", "release_in_seconds": 900}],
+            },
+            {
+                "bucket": "codex",
+                "data_available": True,
+                "window": {"id": "cd-7d", "window_minutes": 10080, "resets_at": "2099-01-01T00:00:00.000Z"},
+                "lanes": [{"gated": True, "blocked": False, "release_status": "opens_in", "release_in_seconds": 900}],
+            },
+            {
+                "bucket": "codex_spark",
+                "data_available": True,
+                "window": {"id": "sp-7d", "window_minutes": 10080, "resets_at": "2099-01-01T00:00:00.000Z"},
+                "lanes": [{"gated": False, "blocked": False, "release_status": "open"}],
+            },
+            {
+                "bucket": "grok",
+                "data_available": True,
+                "window": {"id": "gk-7d", "window_minutes": 10080, "resets_at": "2099-01-01T00:00:00.000Z"},
+                "lanes": [{"gated": False, "blocked": False, "release_status": "open"}],
+            },
+        ],
+    }
+    page.evaluate(
+        """([usage, quotaMap]) => {
+            const now = Date.now();
+            quotaMap.buckets[0].window.resets_at = new Date(now + 3600000).toISOString();
+            quotaMap.buckets[1].window.resets_at = new Date(now + 5 * 86400000).toISOString();
+            for (const item of [quotaMap.buckets[2], quotaMap.buckets[3], quotaMap.buckets[4]]) {
+                item.window.resets_at = new Date(now + 3 * 86400000).toISOString();
+            }
+            usage.anthropic.five_hour.resets_at = new Date(now + 3600000).toISOString();
+            usage.anthropic.seven_day.resets_at = new Date(now + 5 * 86400000).toISOString();
+            usage.codex.primary.resets_at = new Date(now + 3 * 86400000).toISOString();
+            usage.codex.spark.primary.resets_at = new Date(now + 3 * 86400000).toISOString();
+            usage.grok.primary.resets_at = new Date(now + 3 * 86400000).toISOString();
+            window._usageDataFromApi = usage;
+            window._quotaMapDataFromApi = quotaMap;
+            window.api = (path) => path.includes('quota-map') ? Promise.resolve(_quotaMapDataFromApi) : Promise.resolve(_usageDataFromApi);
+            initUsageBar();
+        }""",
+        [usage, quota_map],
+    )
+
+    expect(page.locator("#usage-bar")).to_contain_text("5h:")
+    expect(page.locator("#usage-bar")).to_contain_text("7d:")
+    expect(page.locator("#usage-bar")).to_contain_text("Codex Spark")
+    expect(page.locator("[data-usage-compact-provider='claude']")).to_have_count(1)
+    expect(page.locator("[data-usage-compact-provider='codex']")).to_have_count(1)
+    expect(page.locator("[data-usage-compact-provider='codex-spark']")).to_have_count(1)
+    expect(page.locator("[data-usage-compact-provider='grok']")).to_have_count(1)
+    expect(page.locator("[data-usage-compact-provider='claude']")).to_contain_text("Claude")
+    expect(page.locator("[data-usage-compact-provider='codex']")).to_contain_text("Codex")
+    expect(page.locator("[data-usage-compact-provider='codex-spark']")).to_contain_text("Codex Spark")
+    expect(page.locator("[data-usage-compact-provider='grok']")).to_contain_text("Grok")
+    bounds = page.locator("#usage-bar").bounding_box()
+    assert bounds is not None
+    assert bounds["height"] <= 120
+    page.locator("#usage-bar").screenshot(path=str(USAGE_SHOT_DIR / "usage-bar-provider-lines.png"))
     page.close()
 
 
@@ -213,7 +316,7 @@ def test_usage_controls_stay_visible_across_desktop_widths(browser):
                 };
             }"""
         )
-        assert measured["providers"] == ["claude", "codex", "codex", "grok"]
+        assert measured["providers"] == ["claude", "codex", "codex-spark", "grok"]
         assert measured["infoRight"] <= measured["viewport"]
         assert measured["scrollWidth"] == measured["clientWidth"]
         expect(page.locator("#usage-bar")).not_to_contain_text("$5687")
@@ -235,7 +338,8 @@ def test_usage_control_keeps_spark_and_adds_grok_third_column(browser):
 def test_missing_grok_data_is_visible_and_never_rendered_as_zero(browser):
     page = _page(browser, False)
 
-    expect(page.locator("#usage-bar")).to_contain_text("Grok: нет данных")
+    expect(page.locator("#usage-bar")).to_contain_text("Grok")
+    expect(page.locator("#usage-bar")).to_contain_text("нет данных")
     page.locator("#usage-info-btn").hover()
     grok = page.locator('[data-usage-provider="grok"]')
     expect(grok).to_contain_text("Данные лимита недоступны")
@@ -288,7 +392,7 @@ def test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm(bro
     page.locator("#usage-bar").click()
     page.locator("#usage-bar").click()
     page.locator("#usage-bar").click()
-    assert page.evaluate("() => usageRequests") == 2
+    assert page.evaluate("() => usageRequests") == 4
     expect(page.locator("#usage-freshness")).to_have_text("обновление…")
     _settle_usage(page, 2)
 
@@ -308,7 +412,7 @@ def test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm(bro
             document.dispatchEvent(new Event('visibilitychange'));
         }"""
     )
-    assert page.evaluate("() => usageRequests") == 2
+    assert page.evaluate("() => usageRequests") == 4
     expect(page.locator("#usage-freshness")).to_contain_text("устарело 2 мин назад")
 
     page.evaluate(
@@ -318,15 +422,15 @@ def test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm(bro
             document.dispatchEvent(new Event('visibilitychange'));
         }"""
     )
-    assert page.evaluate("() => usageRequests") == 3
+    assert page.evaluate("() => usageRequests") == 6
     _settle_usage(page, 3)
     expect(page.locator("#usage-bar")).to_contain_text("3%")
 
     page.evaluate("() => { _usageLastFetchStartedAt = 0; }")
     page.locator("#usage-bar").click()
     _settle_usage(page, 0, reject=True)
-    expect(page.locator("#usage-bar")).to_contain_text("3%")
-    expect(page.locator("#usage-freshness")).to_contain_text("ошибка обновления")
+    expect(page.locator("#usage-bar")).to_contain_text("Usage unavailable")
+    expect(page.locator("#usage-freshness")).to_have_count(0)
     assert errors == ["Usage fetch failed: TimeoutError: signal timed out"]
     page.close()
 
