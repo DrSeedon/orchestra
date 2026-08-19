@@ -15,6 +15,8 @@ from pathlib import Path
 # the ticket named as unreviewable. Deletions do not count.
 MAX_DIFF_INSERTIONS = 2000
 _ORCH_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
+# git's well-known empty tree: the base for branches with no common ancestor.
+_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 
 def measure_insertions(worktree: str, base_ref: str) -> int:
@@ -22,11 +24,17 @@ def measure_insertions(worktree: str, base_ref: str) -> int:
     wt = str(Path(worktree))
     mb = _run(["git", "merge-base", "HEAD", base_ref], wt)
     if mb.returncode != 0 or not mb.stdout.strip():
-        raise RuntimeError(
-            f"cannot resolve merge-base with {base_ref!r}: "
-            f"{(mb.stderr or mb.stdout).strip() or f'exit {mb.returncode}'}"
-        )
-    base = mb.stdout.strip()
+        # No common ancestor (orphan branch, worker from another repo): the merge
+        # falls back to cherry-pick and introduces the whole branch, so the empty
+        # tree is the honest base. A base_ref that does not resolve stays loud.
+        if _run(["git", "rev-parse", "--verify", f"{base_ref}^{{commit}}"], wt).returncode != 0:
+            raise RuntimeError(
+                f"cannot resolve merge-base with {base_ref!r}: "
+                f"{(mb.stderr or mb.stdout).strip() or f'exit {mb.returncode}'}"
+            )
+        base = _EMPTY_TREE
+    else:
+        base = mb.stdout.strip()
     diff = _run(["git", "diff", "--numstat", base], wt)
     if diff.returncode != 0:
         raise RuntimeError(

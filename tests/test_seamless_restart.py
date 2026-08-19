@@ -447,7 +447,7 @@ async def test_t2_complete_inherited_pair_adopts_even_with_null_native_session_i
 
     manager = SessionManager()
 
-    async def load(row):
+    async def load(row, *, recovery_handoff=None):
         loaded.append(row["id"])
         session = Session(row)
         manager.sessions[session.id] = session
