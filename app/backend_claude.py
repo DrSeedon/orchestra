@@ -164,9 +164,17 @@ def _make_auto_approve(is_orchestrator: bool = False):
     return _auto_approve
 
 
-_BASH_CLASSIFICATIONS = {"recursive_rm", "world_writable", "curl_pipe_shell"}
+_BASH_CLASSIFICATIONS = {
+    "recursive_rm",
+    "world_writable",
+    "curl_pipe_shell",
+    "regex_blowup",
+}
 _BASH_SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "\n"}
 _BASH_PUNCTUATION = set("();<>|&\n")
+_REGEX_BOUNDED_QUANTIFIER = re.compile(
+    r"(?:\\[A-Za-z]|\[[^\]]+\]|\.)\{\s*\d+\s*,\s*(?P<upper>\d+)\s*\}"
+)
 
 
 class _InvalidBashClassification(Exception):
@@ -268,6 +276,13 @@ def _heredoc_declarations(
     return declarations, quote
 
 
+def _has_large_bounded_quantifier(pattern: str) -> bool:
+    for match in _REGEX_BOUNDED_QUANTIFIER.finditer(pattern):
+        if int(match.group("upper")) >= 20:
+            return True
+    return False
+
+
 def _without_heredoc_bodies(command: str) -> str:
     pending: list[tuple[str, bool]] = []
     quote: str | None = None
@@ -353,6 +368,10 @@ def _classify_bash_payload(tool_input: dict) -> str | None:
                 if token in {"777", "0777"}:
                     return "world_writable"
                 break
+        elif name in {"grep", "egrep", "ugrep", "rg"}:
+            for token in segment[1:]:
+                if _has_large_bounded_quantifier(token):
+                    return "regex_blowup"
 
     for index in range(len(segments) - 1):
         if leading_separators[index + 1] != "|":
@@ -371,6 +390,12 @@ def _pretool_output(classification: str | None = None) -> dict:
         "recursive_rm": "Recursive rm is blocked; move targets to trash instead.",
         "world_writable": "World-writable chmod is blocked; use a least-privilege mode.",
         "curl_pipe_shell": "Direct curl-to-shell is blocked; inspect downloaded content first.",
+        "regex_blowup": (
+            "Bounded quantifier {0,N} in a grep pattern is blocked: grep here runs "
+            "inside the claude binary (V8 heap) and this shape has eaten 5.9 GB on a "
+            "60 KB file (claude-code#54394). Use `grep -aboF '<literal>' <file>` "
+            "and slice context by byte offset in Python."
+        ),
     }
     if classification in reasons:
         decision["permissionDecision"] = "deny"

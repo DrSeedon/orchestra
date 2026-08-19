@@ -15,7 +15,7 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import ToolResultBlock, UserMessage
 
 import app.backend_claude as backend_claude
-from app.backend_claude import ClaudeBackend
+from app.backend_claude import ClaudeBackend, _classify_bash_payload
 from app.runtime_history import (
     HISTORICAL_TOOL_INSTRUCTION,
     NativeHistoryRejected,
@@ -609,3 +609,33 @@ async def test_connected_normal_handoff_receipt_uses_live_complete_context(
     assert receipt["live_context_preflight"]["candidate_upper_tokens"] == total_tokens
     if not expected:
         assert receipt["failure"]["kind"] == "context_overflow"
+
+
+def test_classify_bash_payload_flags_large_bounded_quantifier():
+    commands = {
+        "grep -oE '.{0,100}школа.{0,100}' f.txt": "regex_blowup",
+        "ugrep -oE '.{0,100}школа' f.txt": "regex_blowup",
+        "rg '.{0,100}школа.{0,100}' f.txt": "regex_blowup",
+    }
+    for command, expected in commands.items():
+        assert _classify_bash_payload({"command": command}) == expected, command
+
+
+def test_classify_bash_payload_keeps_narrow_pattern_boundary():
+    for command in (
+        "grep -oE 'foo.*bar' f.txt",
+        "grep -c 'школа' f.txt",
+        "rg '\\w{1,5}' f.txt",
+    ):
+        assert _classify_bash_payload({"command": command}) is None, command
+
+
+@pytest.mark.asyncio
+async def test_classify_fail_open_on_classifier_exception():
+    hook = backend_claude._make_pretooluse_hooks(
+        lambda _tool_input: (_ for _ in ()).throw(RuntimeError("fail"))
+    )[0].hooks[0]
+
+    result = await hook({"tool_input": {"command": "grep -oE '.{0,100}школа.{0,100}' f.txt"}})
+
+    assert result["hookSpecificOutput"].get("permissionDecision") is None

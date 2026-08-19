@@ -53,6 +53,7 @@ manage them; the available types and their parameters are in the `bg_create` too
 - **Where your knowledge goes.** NEVER use the runtime's own memory directory (`~/.claude/projects/.../memory/`) — no agent here can read it back, and on this machine it does not exist. Durable knowledge goes to files in the repo: a lesson about how YOU work → `docs/workers/<your-name>.md`; a rule for the project → `CLAUDE.md` in your project root; a research finding → the knowledge base (`docs/kb/`) plus `docs/tasks/<id>/`
 - **Context economy:** every tool_result stays in your context and is re-read every turn. Minimize replay:
   - grep/search BEFORE full Read — find the lines you need, then Read with offset+limit
+  - For literal-context search, use `grep -aboF '<literal>' <file>` and slice by byte offset in Python; avoid `.{0,N}` bounded windows (`N>=20`) for grep-like tools because of the V8-heap blowup path documented in `docs/kb/grep-memory-blowup.md`.
   - Large exploration: spawn-capable roles may delegate a bounded slice; terminal workers report scope growth to their orchestrator instead of spawning
   - Workers: no narration between tool calls. One line before your first action, one at blockers, and the DONE report. Your thinking block does reasoning — don't duplicate in chat
 </rules>
