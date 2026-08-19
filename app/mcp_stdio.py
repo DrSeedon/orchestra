@@ -795,11 +795,9 @@ async def _post_initial_delivery(
     return normalized
 
 
-# Server-owned default: omitted-model reviews use Luna Fast; Sol is an explicit lane.
+# Server-owned default: Luna is always the Fast lane, and omitted-model reviews
+# take it. Sol is an explicit, opt-in choice.
 _CODEX_REVIEW_DEFAULT_MODEL = "gpt-5.6-luna"
-_READINESS_POLICY = "worker-weekly-v1"
-_READINESS_MAX_AGE_SECONDS = 300.0
-_READINESS_CLOCK_SKEW_SECONDS = 5.0
 
 
 def _resolve_codex_review_model(model: str) -> str:
@@ -821,15 +819,6 @@ def _resolve_codex_review_model(model: str) -> str:
             message=str(error),
             details={"field": "model", "requested_model": model},
         ) from error
-
-    try:
-        from app.quota_controller import get_quota_controller, route_codex_model_for_runway
-
-        resolved, _route_reason = route_codex_model_for_runway(
-            resolved, get_quota_controller().status(),
-        )
-    except Exception:
-        pass
 
     spec = get_model_spec(resolved)
     if spec.runtime != "codex":
@@ -863,144 +852,24 @@ def _resolve_codex_review_model(model: str) -> str:
     return resolved
 
 
-def _readiness_timestamp(value: object) -> float | None:
-    if isinstance(value, bool):
+def _quota_refusal_from_readiness(model: str, readiness: object) -> ApiToolError | None:
+    """Отказать только состоявшемуся блоку.
+
+    Неизвестная и неразбираемая квота ПРОПУСКАЕТ — тем же сквозным решением, что и
+    `app/quota_gate.require_worker_admission`: иначе разные точки одного правила
+    расходятся, и ревью упирается в 429 там, где спавн прошёл (#227).
+    """
+    if not isinstance(readiness, dict) or readiness.get("state") != "blocked":
         return None
-    if isinstance(value, (int, float)):
-        result = float(value)
-    elif isinstance(value, str):
-        try:
-            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except ValueError:
-            return None
-        if parsed.tzinfo is None:
-            return None
-        result = parsed.timestamp()
-    else:
+    label = str(readiness.get("provider_label") or readiness.get("provider") or "provider")
+    utilization = readiness.get("utilization")
+    if isinstance(utilization, bool) or not isinstance(utilization, (int, float)):
         return None
-    return result if math.isfinite(result) and result > 0 else None
-
-
-def _weekly_quota_unknown(
-    model: str,
-    reason: str,
-    details: dict | None = None,
-) -> ApiToolError:
-    return ApiToolError(
-        code="weekly_quota_unknown",
-        message=(
-            f"New Codex worker turn blocked: weekly quota status for {model} "
-            f"is unavailable or stale ({reason}). Stop/model change remain available."
-        ),
-        retryable=False,
-        details={"model": model, "reason": reason, **(details or {})},
-    )
-
-
-def _readiness_freshness_error(readiness: dict, *, now: float) -> str | None:
-    observed_at = _readiness_timestamp(readiness.get("observed_at"))
-    valid_until = _readiness_timestamp(readiness.get("valid_until"))
-    if observed_at is None or valid_until is None:
-        return "missing or malformed freshness timestamps"
-    if observed_at > now + _READINESS_CLOCK_SKEW_SECONDS:
-        return "observation timestamp is in the future"
-    if valid_until <= now:
-        return "readiness observation has expired"
-    validity = valid_until - observed_at
-    if validity <= 0 or validity > _READINESS_MAX_AGE_SECONDS:
-        return "readiness validity exceeds the 300s policy budget"
-    return None
-
-
-def _quota_refusal_from_readiness(
-    model: str,
-    readiness: object,
-    *,
-    now: float,
-) -> ApiToolError | None:
-    if not isinstance(readiness, dict):
-        return _weekly_quota_unknown(model, "malformed readiness response")
-    if readiness.get("policy") != _READINESS_POLICY:
-        return ApiToolError(
-            code="weekly_quota_upgrade_required",
-            message=(
-                "New Codex worker turn blocked: the FastAPI readiness server does not "
-                f"provide {_READINESS_POLICY}. Deploy the compatible FastAPI server "
-                "before this MCP client; stop/model change remain available."
-            ),
-            retryable=False,
-            details={"model": model, "required_policy": _READINESS_POLICY,
-                     "response": readiness},
-        )
-    wire_version = readiness.get("wire_version")
-    if wire_version is None:
-        if "decision_state" in readiness:
-            return _weekly_quota_unknown(
-                model, "decision_state requires readiness wire version 2", readiness,
-            )
-        state = readiness.get("state")
-    elif (
-        isinstance(wire_version, bool)
-        or not isinstance(wire_version, int)
-        or wire_version != 2
-    ):
-        return _weekly_quota_unknown(
-            model, f"unsupported readiness wire version {wire_version!r}", readiness,
-        )
-    else:
-        if "decision_state" not in readiness:
-            return _weekly_quota_unknown(
-                model, "wire version 2 is missing decision_state", readiness,
-            )
-        state = readiness.get("decision_state")
-    if state == "not_applicable":
-        if readiness.get("provider") == "grok" and readiness.get("model") == model:
-            return None
-        return _weekly_quota_unknown(
-            model, "not_applicable does not match the requested runtime", readiness,
-        )
-    if state == "unknown":
-        return _weekly_quota_unknown(
-            model, str(readiness.get("reason") or "unknown observation"), readiness,
-        )
-    if state not in {"available", "blocked"}:
-        return _weekly_quota_unknown(
-            model, f"unrecognized readiness state {state!r}", readiness,
-        )
-    freshness_error = _readiness_freshness_error(readiness, now=now)
-    if freshness_error:
-        return _weekly_quota_unknown(model, freshness_error, readiness)
-    if state == "available":
-        return None
-    provider = str(readiness.get("provider") or "").strip()
-    label = str(readiness.get("provider_label") or provider).strip()
-    utilization = readiness.get("weekly_utilization")
-    threshold = readiness.get("threshold")
-    if (
-        not provider
-        or not isinstance(utilization, (int, float))
-        or isinstance(utilization, bool)
-        or not isinstance(threshold, (int, float))
-        or isinstance(threshold, bool)
-    ):
-        return _weekly_quota_unknown(
-            model, "blocked response is missing provider/utilization", readiness,
-        )
-    alternatives = readiness.get("alternatives")
-    alternative_labels = [
-        str(item.get("label")) for item in alternatives or []
-        if isinstance(item, dict) and item.get("label")
-    ]
-    next_step = (
-        f"Available provider: {', '.join(alternative_labels)}."
-        if alternative_labels
-        else "No fresh alternative provider is currently known; wait for reset/telemetry."
-    )
     return ApiToolError(
         code="weekly_quota_blocked",
         message=(
-            f"New Codex worker turn blocked: {label} weekly quota is "
-            f"{utilization:g}% (threshold {threshold:g}%). {next_step} "
+            f"New Codex worker turn blocked: {label} quota is {utilization:g}% — "
+            f"{readiness.get('reason') or 'above the admission line'}. "
             "Stop/model change remain available."
         ),
         retryable=False,
@@ -1009,16 +878,16 @@ def _quota_refusal_from_readiness(
 
 
 async def _quota_refusal(model: str) -> ApiToolError | None:
-    """Consume the central worker-weekly decision; unknown is fail-closed."""
+    """Consume the central worker admission decision; unknown fails open."""
     try:
         readiness = await _api("GET", "/api/usage/readiness", params={"model": model})
     except Exception as error:
-        return _weekly_quota_unknown(
-            model, f"{type(error).__name__}: {err_text(error)}",
+        logger.warning(
+            "quota readiness unavailable for %s; allowing: %s: %s",
+            model, type(error).__name__, err_text(error),
         )
-    return _quota_refusal_from_readiness(
-        model, readiness, now=time.time(),
-    )
+        return None
+    return _quota_refusal_from_readiness(model, readiness)
 
 
 @mcp.tool()
@@ -1032,7 +901,6 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        mcp_servers: str = "",
                        owned_dirs: str = "",
                        tg_topic: bool = False,
-                       model_policy_override_reason: str = "",
                        delivery_id: str = "") -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose it by the `<model-routing>` block in your own prompt, which is the single source of truth for routing (model ids are deliberately not repeated here: a duplicated list rots).
     base_branch — от какой локальной ветки ответвить worktree. Пусто ("") = авто по
@@ -1040,8 +908,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     При неоднозначности spawn требует явную ветку.
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
     owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → БЛОК (spawn fails).
-    tg_topic — если True, агент получит собственный TG топик для логов и сообщений.
-    model_policy_override_reason — явное исключение из серверной model policy. Пусто = исключения нет; непустая причина записывается в лог."""
+    tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -1100,8 +967,6 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         body["description"] = description
     if tg_topic:
         body["tg_topic"] = True
-    if model_policy_override_reason:
-        body["model_policy_override_reason"] = model_policy_override_reason
     result = await _api("POST", "/api/sessions", json=body)
     if isinstance(result, dict) and result.get("error"):
         raise ApiToolError(code="domain_error", message=f"Spawn failed: {result['error']}")

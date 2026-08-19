@@ -1,276 +1,287 @@
+"""#343: единственное правило допуска — диагональ с допуском плюс жёсткие 99%."""
+
 from datetime import datetime, timezone
 
 import pytest
 
 from app.quota_gate import (
+    HARD_STOP_PCT,
+    QuotaDecision,
     QuotaGateError,
+    TOLERANCE_END_PP,
+    TOLERANCE_START_PP,
     evaluate_worker_admission,
+    line_limit,
     require_worker_admission,
-    worker_readiness_envelope,
+    tolerance_pp,
 )
 
-
-NOW = 2_000_000_000.0
-
-
-def _provider(label: str, utilization=10, *, extra=None):
-    windows = [
-        {
-            "id": "weekly",
-            "window_minutes": 10080,
-            "utilization": utilization,
-            "resets_at": "2033-05-18T04:33:20+00:00",
-        }
-    ]
-    if extra:
-        windows.extend(extra)
-    return {"label": label, "windows": windows}
+NOW = 1_770_000_000.0
+WEEK_SECONDS = 10080 * 60
+CODEX_WINDOW_MINUTES = 300
 
 
-def _snapshot(*, anthropic=10, codex=10, spark=10, timestamp=NOW - 10):
-    return (
-        {
-            "anthropic": _provider("Claude", anthropic),
-            "codex": _provider("Codex", codex),
-            "codex_spark": _provider("Codex Spark", spark),
-        },
-        {"anthropic": timestamp, "codex": timestamp, "codex_spark": timestamp},
-    )
+def _iso(timestamp: float) -> str:
+    return datetime.fromtimestamp(timestamp, timezone.utc).isoformat()
 
 
-# Пороги стоят литералами намеренно: тест обязан краснеть при смене политики,
-# а не подстраиваться под неё. Claude режется на 90 (абсолютный worker-стоп #227).
-@pytest.mark.parametrize(
-    ("model", "bucket", "threshold"),
-    [
-        ("claude-opus-5[1m]", "anthropic", 90),
-        ("gpt-5.6-sol", "codex", 95),
-        ("gpt-5.3-codex-spark", "codex_spark", 95),
-    ],
-)
-def test_exact_weekly_threshold_for_each_bucket(model, bucket, threshold):
-    providers, observed = _snapshot()
-    providers[bucket] = _provider(providers[bucket]["label"], threshold - 0.1)
-    assert evaluate_worker_admission(model, providers, observed, now=NOW).state == "available"
-
-    providers[bucket] = _provider(providers[bucket]["label"], threshold)
-    decision = evaluate_worker_admission(model, providers, observed, now=NOW)
-    assert decision.state == "blocked"
-    assert decision.weekly_utilization == threshold
-    assert decision.threshold == threshold
-
-
-@pytest.mark.parametrize("utilization", [94, 95, 97, 97.999])
-def test_luna_temporary_threshold_allows_below_98(utilization):
-    providers, observed = _snapshot(codex=utilization)
-
-    decision = evaluate_worker_admission(
-        "gpt-5.6-luna", providers, observed, now=NOW,
-    )
-
-    assert decision.state == "available"
-    assert decision.threshold == 98
-    assert decision.to_dict()["threshold"] == 98
-
-
-def test_luna_temporary_threshold_blocks_at_98_with_exact_message():
-    providers, observed = _snapshot(codex=98)
-    decision = evaluate_worker_admission(
-        "gpt-5.6-luna", providers, observed, now=NOW,
-    )
-
-    assert decision.state == "blocked"
-    assert decision.threshold == 98
-    assert "stop at 98%" in str(QuotaGateError(decision))
-
-
-def test_sol_keeps_95_threshold_while_luna_uses_98():
-    providers, observed = _snapshot(codex=97)
-
-    sol = evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW)
-    luna = evaluate_worker_admission("gpt-5.6-luna", providers, observed, now=NOW)
-
-    assert (sol.state, sol.threshold) == ("blocked", 95)
-    assert (luna.state, luna.threshold) == ("available", 98)
-
-
-def test_dual_envelope_preserves_exact_threshold_for_legacy_and_new_clients():
-    providers, observed = _snapshot(codex=94.999)
-    allowed = worker_readiness_envelope(
-        evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW),
-        now=NOW,
-    )
-    assert allowed["decision_state"] == "available"
-    assert allowed["state"] == "available"
-    assert allowed["wire_version"] == 2
-
-    providers["codex"] = _provider("Codex", 95)
-    blocked = worker_readiness_envelope(
-        evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW),
-        now=NOW,
-    )
-    assert blocked["decision_state"] == "blocked"
-    assert blocked["state"] == "reset"
-    assert blocked["decision_reset_at"] == "2033-05-18T04:33:20+00:00"
-    assert blocked["reset_at"] == blocked["decision_reset_at"]
-
-
-def test_dual_envelope_unknown_gets_only_synthetic_legacy_retry():
-    providers, observed = _snapshot()
-    observed["codex"] = None
-    decision = evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW)
-
-    payload = worker_readiness_envelope(decision, now=NOW)
-
-    assert payload["decision_state"] == "unknown"
-    assert payload["state"] == "reset"
-    assert payload["decision_reset_at"] is None
-    expected = datetime.fromtimestamp(
-        NOW + 60, timezone.utc,
-    ).isoformat()
-    assert payload["reset_at"] == expected
-
-
-def test_dual_envelope_not_applicable_has_no_synthetic_timestamps():
-    decision = evaluate_worker_admission("grok-4.5", {}, {}, now=NOW)
-
-    payload = worker_readiness_envelope(decision, now=NOW)
-
-    assert payload["decision_state"] == "not_applicable"
-    assert payload["state"] == "available"
-    assert payload["observed_at"] is None
-    assert payload["valid_until"] is None
-    assert payload["decision_reset_at"] is None
-    assert payload["reset_at"] is None
-
-
-def test_short_window_does_not_block_weekly_headroom():
-    # 89 — под порогом Claude 90: окно недели по-прежнему с запасом, а
-    # пятичасовое стоит на 100% и допуск решать не должно.
-    providers, observed = _snapshot(anthropic=89)
-    providers["anthropic"]["windows"].insert(0, {
-        "id": "five_hour", "window_minutes": 300, "utilization": 100,
-    })
-    decision = evaluate_worker_admission(
-        "claude-opus-5[1m]", providers, observed, now=NOW,
-    )
-    assert decision.state == "available"
-    assert decision.weekly_utilization == 89
-
-
-@pytest.mark.parametrize(
-    "observed",
-    [None, "bad", datetime(2033, 5, 18), NOW - 300, NOW + 1],
-)
-def test_missing_malformed_stale_and_future_observations_fail_closed(observed):
-    providers, timestamps = _snapshot()
-    timestamps["codex"] = observed
-    decision = evaluate_worker_admission("gpt-5.6-sol", providers, timestamps, now=NOW)
-    assert decision.state == "unknown"
-    assert not decision.allowed
-
-
-@pytest.mark.parametrize("utilization", [None, "95", float("nan"), float("inf"), -1, True])
-def test_malformed_weekly_utilization_fails_closed(utilization):
-    providers, observed = _snapshot()
-    providers["codex"] = _provider("Codex", utilization)
-    assert evaluate_worker_admission(
-        "gpt-5.6-sol", providers, observed, now=NOW,
-    ).state == "unknown"
-
-
-def test_missing_weekly_window_fails_closed_even_with_five_hour_data():
-    providers, observed = _snapshot()
-    providers["codex"] = {
-        "label": "Codex",
-        "windows": [{"window_minutes": 300, "utilization": 0}],
+def _window(window_id: str, minutes: int, utilization, progress: float | None):
+    window = {
+        "id": window_id,
+        "label": window_id,
+        "window_minutes": minutes,
+        "utilization": utilization,
     }
-    assert evaluate_worker_admission(
-        "gpt-5.6-sol", providers, observed, now=NOW,
-    ).state == "unknown"
+    if progress is not None:
+        window["resets_at"] = _iso(NOW + minutes * 60 * (1.0 - progress))
+    return window
 
 
-def test_codex_and_spark_are_independent_buckets():
-    providers, observed = _snapshot(codex=95, spark=1)
-    sol = evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW)
-    spark = evaluate_worker_admission("gpt-5.3-codex-spark", providers, observed, now=NOW)
+def _providers(*, claude=None, codex=None, spark=None, progress=0.5, extra_claude=()):
+    """Один снимок телеметрии; `progress` — доля пройденного окна во всех пулах."""
+    providers = {}
+    if claude is not None:
+        providers["anthropic"] = {"label": "Claude", "windows": [
+            _window("seven_day", 10080, claude, progress), *extra_claude,
+        ]}
+    if codex is not None:
+        providers["codex"] = {"label": "Codex", "windows": [
+            _window("primary", CODEX_WINDOW_MINUTES, codex, progress),
+        ]}
+    if spark is not None:
+        providers["codex_spark"] = {"label": "Codex Spark", "windows": [
+            _window("primary", CODEX_WINDOW_MINUTES, spark, progress),
+        ]}
+    return providers
+
+
+def _decide(model, providers, *, observed_at=NOW, now=NOW):
+    stamps = {bucket: observed_at for bucket in
+              ("anthropic", "anthropic_fable", "codex", "codex_spark")}
+    return evaluate_worker_admission(model, providers, stamps, now=now)
+
+
+# ── сама линия ────────────────────────────────────────────────────────────────
+
+def test_tolerance_runs_from_ten_points_to_one_across_the_window():
+    assert tolerance_pp(0.0) == TOLERANCE_START_PP == 10.0
+    assert tolerance_pp(1.0) == TOLERANCE_END_PP == 1.0
+    assert tolerance_pp(0.5) == pytest.approx(5.5)
+
+
+def test_line_is_norm_plus_tolerance_and_never_exceeds_the_hard_stop():
+    assert line_limit(0.0) == pytest.approx(10.0)
+    assert line_limit(0.5) == pytest.approx(55.5)
+    # 0.95 → 95 + 1.45 = 96.45, ещё под жёстким стопом
+    assert line_limit(0.95) == pytest.approx(96.45)
+    # у самого сброса норма 100 — линия упирается в жёсткие 99, а не уходит выше
+    assert line_limit(1.0) == HARD_STOP_PCT
+
+
+# ── обе стороны диагонали для гейтящихся полос ────────────────────────────────
+
+@pytest.mark.parametrize("model, key", [
+    ("gpt-5.6-sol", "codex"),
+    ("claude-opus-5[1m]", "claude"),
+])
+@pytest.mark.parametrize("progress", [0.1, 0.5, 0.9])
+def test_gated_lane_blocks_just_above_the_line_and_admits_just_below(
+    model, key, progress,
+):
+    """Обе стороны, а не только отказ: гейт, блокирующий всё, прошёл бы проверку из одной."""
+    limit = line_limit(progress)
+
+    below = _decide(model, _providers(progress=progress, **{key: limit - 0.5}))
+    above = _decide(model, _providers(progress=progress, **{key: limit + 0.5}))
+
+    assert below.state == "available" and below.allowed, below.reason
+    assert above.state == "blocked" and not above.allowed, above.reason
+    assert above.limit_pct == pytest.approx(limit)
+    assert above.progress == pytest.approx(progress)
+
+
+def test_exactly_on_the_line_is_admitted():
+    """Отказ строго ВЫШЕ линии: `>`, не `>=`. Граница принадлежит разрешению."""
+    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=line_limit(0.5)))
+    assert decision.state == "available"
+
+
+def test_the_same_percent_flips_verdict_as_the_window_advances():
+    """Правило смотрит на точку, а не на процент: 40% рано — блок, поздно — норма."""
+    early = _decide("gpt-5.6-sol", _providers(progress=0.2, codex=40.0))
+    late = _decide("gpt-5.6-sol", _providers(progress=0.8, codex=40.0))
+
+    assert early.state == "blocked"
+    assert late.state == "available"
+
+
+# ── Luna и Spark: диагонали нет вовсе ─────────────────────────────────────────
+
+@pytest.mark.parametrize("model, key", [
+    ("gpt-5.6-luna", "codex"),
+    ("gpt-5.3-codex-spark", "spark"),
+])
+def test_luna_and_spark_ignore_the_line_and_stop_only_at_the_hard_limit(model, key):
+    over_the_line = _decide(model, _providers(progress=0.1, **{key: 90.0}))
+    at_hard_stop = _decide(model, _providers(progress=0.1, **{key: HARD_STOP_PCT}))
+    # Sol на том же значении и в той же точке окна — заблокирован.
+    sol = _decide("gpt-5.6-sol", _providers(progress=0.1, codex=90.0))
+
+    assert over_the_line.state == "available", over_the_line.reason
+    assert over_the_line.gated is False and over_the_line.limit_pct is None
+    assert at_hard_stop.state == "blocked"
     assert sol.state == "blocked"
-    assert spark.state == "available"
-
-    providers, observed = _snapshot(codex=2, spark=95)
-    assert evaluate_worker_admission(
-        "gpt-5.6-sol", providers, observed, now=NOW,
-    ).state == "available"
-    assert evaluate_worker_admission(
-        "gpt-5.3-codex-spark", providers, observed, now=NOW,
-    ).state == "blocked"
 
 
-def test_only_positively_resolved_grok_is_exempt_and_unknown_model_fails_closed():
-    grok = evaluate_worker_admission("grok-4.5", {}, {}, now=NOW)
-    unknown = evaluate_worker_admission("grok-future-unknown", {}, {}, now=NOW)
-    assert grok.state == "not_applicable"
-    assert grok.allowed
-    assert unknown.state == "unknown"
-    assert not unknown.allowed
+@pytest.mark.parametrize("model", [
+    "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.3-codex-spark", "claude-opus-5[1m]",
+])
+def test_hard_stop_applies_to_every_worker_lane(model):
+    providers = _providers(progress=0.99, claude=99.4, codex=99.4, spark=99.4)
+    assert _decide(model, providers).state == "blocked"
 
 
-def test_alternatives_require_fresh_available_weekly_bucket():
-    providers, observed = _snapshot(anthropic=95, codex=2, spark=1)
-    observed["codex"] = NOW - 300
-    decision = evaluate_worker_admission(
-        "claude-opus-5[1m]", providers, observed, now=NOW,
+@pytest.mark.parametrize("model", ["gpt-5.6-luna", "gpt-5.6-sol"])
+def test_just_under_the_hard_stop_at_the_end_of_the_window_is_admitted(model):
+    """Стоп именно `>= 99`, и линия у сброса совпадает с ним, а не режет раньше."""
+    decision = _decide(model, _providers(progress=1.0, codex=98.9))
+    assert decision.state == "available", decision.reason
+
+
+# ── пулы и окна ───────────────────────────────────────────────────────────────
+
+def test_spark_is_measured_by_its_own_counter_not_by_the_shared_codex_one():
+    """Живой случай: Codex 100%, Spark 39%. Одним числом их мерить нельзя."""
+    providers = _providers(progress=0.5, codex=100.0, spark=39.0)
+
+    assert _decide("gpt-5.6-sol", providers).state == "blocked"
+    assert _decide("gpt-5.6-luna", providers).state == "blocked"
+    spark = _decide("gpt-5.3-codex-spark", providers)
+    assert spark.state == "available" and spark.utilization == 39.0
+
+
+def test_window_start_is_reset_minus_window_length_for_both_pool_shapes():
+    claude = _decide("claude-opus-5[1m]", _providers(progress=0.25, claude=10.0))
+    codex = _decide("gpt-5.6-sol", _providers(progress=0.25, codex=10.0))
+
+    assert claude.progress == pytest.approx(0.25)
+    assert codex.progress == pytest.approx(0.25)
+    # Начало недели Claude ровно на 7 суток раньше сброса.
+    started = datetime.fromisoformat(claude.window_starts_at).timestamp()
+    reset = datetime.fromisoformat(claude.reset_at).timestamp()
+    assert reset - started == pytest.approx(WEEK_SECONDS)
+
+
+def test_claude_decides_by_the_weekly_window_and_ignores_the_five_hour_one():
+    providers = _providers(
+        progress=0.9, claude=50.0,
+        extra_claude=[_window("five_hour", 300, 99.9, 0.9)],
     )
-    assert decision.state == "blocked"
-    assert decision.alternatives == ({"provider": "codex_spark", "label": "Codex Spark"},)
+    assert _decide("claude-opus-5[1m]", providers).state == "available"
 
 
-def test_multiple_weekly_windows_block_on_any_and_keep_latest_future_reset():
-    providers, observed = _snapshot()
-    providers["codex"] = _provider("Codex", 10, extra=[
-        {
-            "window_minutes": 10080,
-            "utilization": 97,
-            "resets_at": "2034-01-01T00:00:00+00:00",
-        }
-    ])
-    decision = evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW)
-    assert decision.state == "blocked"
-    assert decision.weekly_utilization == 97
-    assert decision.reset_at == "2034-01-01T00:00:00+00:00"
+def test_a_reset_already_in_the_past_collapses_the_line_onto_the_hard_stop():
+    """Окно пройдено целиком: `progress` зажат в 1.0, и линия равна жёсткому стопу."""
+    window = _window("primary", CODEX_WINDOW_MINUTES, 97.0, None)
+    window["resets_at"] = _iso(NOW - 60)
+    providers = {"codex": {"label": "Codex", "windows": [window]}}
+
+    decision = _decide("gpt-5.6-sol", providers)
+
+    assert decision.progress == 1.0
+    assert decision.limit_pct == HARD_STOP_PCT
+    assert decision.state == "available"
 
 
-def test_blocked_reset_ignores_later_reset_from_available_weekly_window():
-    providers, observed = _snapshot()
-    providers["codex"] = _provider("Codex", 95, extra=[
-        {
-            "window_minutes": 10080,
-            "utilization": 10,
-            "resets_at": "2034-01-01T00:00:00+00:00",
-        }
-    ])
+def test_window_without_a_parseable_reset_falls_back_to_the_hard_stop_only():
+    providers = {"codex": {"label": "Codex", "windows": [
+        _window("primary", CODEX_WINDOW_MINUTES, 80.0, None),
+    ]}}
 
-    decision = evaluate_worker_admission("gpt-5.6-sol", providers, observed, now=NOW)
+    decision = _decide("gpt-5.6-sol", providers)
 
-    assert decision.state == "blocked"
-    assert decision.reset_at == "2033-05-18T04:33:20+00:00"
+    assert decision.progress is None and decision.limit_pct is None
+    assert decision.state == "available"
+    assert "no parseable reset" in decision.reason
 
 
-def test_non_string_model_is_unknown_not_exempt():
-    decision = evaluate_worker_admission(None, {}, {}, now=NOW)
+# ── неизвестная квота пропускает ──────────────────────────────────────────────
+
+@pytest.mark.parametrize("observed_at", [None, "", "not-a-time", NOW - 301, NOW + 60])
+def test_missing_stale_and_future_observations_fail_open(observed_at):
+    """Сквозное решение #343: `unknown` ПРОПУСКАЕТ.
+
+    Отказ на неизвестной квоте создавал сессию, которую первый же обязательный
+    `/send` отбивал 429 — мёртвую (#227).
+    """
+    decision = _decide(
+        "gpt-5.6-sol", _providers(progress=0.5, codex=10.0), observed_at=observed_at,
+    )
 
     assert decision.state == "unknown"
-    assert decision.provider == ""
+    assert decision.allowed
+    require_worker_admission(decision)  # не поднимает
 
 
-def test_quota_error_is_non_retryable_and_names_dynamic_alternative():
-    providers, observed = _snapshot(anthropic=95, codex=2, spark=95)
-    decision = evaluate_worker_admission(
-        "claude-opus-5[1m]", providers, observed, now=NOW,
-    )
-    with pytest.raises(QuotaGateError) as caught:
+@pytest.mark.parametrize("utilization", [None, "97", float("nan"), -1, True])
+def test_malformed_utilization_is_unknown_and_fails_open(utilization):
+    providers = {"codex": {"label": "Codex", "windows": [
+        _window("primary", CODEX_WINDOW_MINUTES, utilization, 0.5),
+    ]}}
+
+    decision = _decide("gpt-5.6-sol", providers)
+
+    assert decision.state == "unknown" and decision.allowed
+
+
+def test_missing_provider_and_missing_window_are_unknown_not_blocked():
+    assert _decide("gpt-5.6-sol", {}).state == "unknown"
+    empty = {"codex": {"label": "Codex", "windows": []}}
+    assert _decide("gpt-5.6-sol", empty).state == "unknown"
+
+
+# ── модели вне политики ───────────────────────────────────────────────────────
+
+def test_only_positively_resolved_grok_is_exempt():
+    grok = _decide("grok-4.6", _providers(progress=0.5, codex=100.0))
+    assert grok.state == "not_applicable" and grok.allowed
+    assert grok.lane is None and grok.gated is False
+
+
+@pytest.mark.parametrize("model", [None, 42, "", "no-such-model"])
+def test_unknown_model_is_unknown_not_exempt(model):
+    decision = evaluate_worker_admission(model, {}, {}, now=NOW)
+    assert decision.state == "unknown"
+
+
+# ── форма отказа ──────────────────────────────────────────────────────────────
+
+def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
+    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=70.0))
+    with pytest.raises(QuotaGateError) as error:
         require_worker_admission(decision)
-    assert caught.value.code == "weekly_quota_blocked"
-    assert caught.value.retryable is False
-    assert "Codex" in str(caught.value)
-    assert caught.value.envelope()["error"]["details"]["provider"] == "anthropic"
+
+    assert error.value.retryable is False
+    assert error.value.status_code == 429
+    envelope = error.value.envelope()["error"]
+    assert envelope["code"] == "weekly_quota_blocked"
+    assert envelope["retryable"] is False
+    assert envelope["details"]["limit_pct"] == pytest.approx(55.5)
+    assert envelope["details"]["utilization"] == 70.0
+    assert "55.5" in str(error.value) and "70%" in str(error.value)
+
+
+def test_a_non_blocked_decision_cannot_be_turned_into_a_refusal():
+    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=10.0))
+    with pytest.raises(ValueError):
+        QuotaGateError(decision)
+
+
+def test_decision_serializes_every_field_the_panel_draws():
+    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=70.0))
+    payload = decision.to_dict()
+
+    assert payload["state"] == "blocked" and payload["allowed"] is False
+    assert payload["lane"] == "sol" and payload["gated"] is True
+    assert payload["hard_limit_pct"] == HARD_STOP_PCT
+    assert set(payload) == set(QuotaDecision.__dataclass_fields__) | {"allowed"}

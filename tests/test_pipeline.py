@@ -109,38 +109,6 @@ class TestLoadPipeline:
         assert second is not first
         assert second.roles["hand"].effort == "high"
 
-    def test_worker_model_policy_rejects_spend_fields(self, pipelines_root):
-        """Логику пулов в манифесте не принимаем: у неё один владелец — контроллер (#329)."""
-        manifest = _MINIMAL.format(name="demo").replace(
-            "    defaults:\n",
-            "    worker_model_policy:\n"
-            "      always_allowed: [gpt-5.6-sol]\n"
-            "      alternatives: [gpt-5.6-sol]\n"
-            "      quota_guarded:\n"
-            "        model: 'claude-opus-5[1m]'\n"
-            "        absolute_block_pct: 90\n"
-            "    defaults:\n",
-        )
-        _write_pipeline(pipelines_root, "demo", manifest)
-
-        with pytest.raises(ValueError, match="quota_guarded"):
-            P.load_pipeline("demo")
-
-    def test_worker_model_policy_rejects_suggesting_a_model_it_does_not_admit(
-        self, pipelines_root,
-    ):
-        manifest = _MINIMAL.format(name="demo").replace(
-            "    defaults:\n",
-            "    worker_model_policy:\n"
-            "      always_allowed: [gpt-5.6-sol]\n"
-            "      alternatives: [gpt-5.6-luna]\n"
-            "    defaults:\n",
-        )
-        _write_pipeline(pipelines_root, "demo", manifest)
-
-        with pytest.raises(ValueError, match="alternatives must be always allowed"):
-            P.load_pipeline("demo")
-
     def test_file_changed_during_read_is_not_cached(self, pipelines_root, monkeypatch):
         """Неатомарная запись извне: содержимое не должно попасть в кеш и наружу.
 

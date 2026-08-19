@@ -111,11 +111,16 @@ def _quota_decision(state="available", model="claude-sonnet-5[1m]", *, valid_for
         model=model,
         provider=provider,
         provider_label="Claude" if provider == "anthropic" else "Codex",
-        weekly_utilization=97 if state == "blocked" else 1,
+        lane="claude" if provider == "anthropic" else "sol",
+        gated=True,
+        utilization=97 if state == "blocked" else 1,
+        progress=0.5,
+        tolerance_pp=5.5,
+        limit_pct=55.5,
         observed_at=time.time(),
         valid_until=time.time() + valid_for,
         reset_at=None,
-        alternatives=(),
+        window_starts_at=None,
         reason="test decision",
     )
 

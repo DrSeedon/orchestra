@@ -427,11 +427,11 @@
   ]
  ],
  [
- "/api/sessions/{name}/wip",
- [
-  "GET"
- ]
-],
+  "/api/sessions/{name}/wip",
+  [
+   "GET"
+  ]
+ ],
  [
   "/api/sessions/{session_id}/handoffs/{handoff_id}/events",
   [
@@ -589,42 +589,6 @@
   ]
  ],
  [
-  "/api/usage/quota-controller",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/usage/quota-controller/policy",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/usage/quota-controller/policy",
-  [
-   "PUT"
-  ]
- ],
- [
-  "/api/usage/quota-controller/policy/rollback",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/usage/quota-controller/reserve",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/usage/quota-controller/reserve/{intent_id}",
-  [
-   "DELETE"
-  ]
- ],
- [
   "/api/usage/quota-map",
   [
    "GET"
@@ -634,24 +598,6 @@
   "/api/usage/readiness",
   [
    "GET"
-  ]
- ],
- [
-  "/api/usage/routing-policy",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/usage/routing-policy",
-  [
-   "PUT"
-  ]
- ],
- [
-  "/api/usage/routing-policy/explain",
-  [
-   "POST"
   ]
  ],
  [

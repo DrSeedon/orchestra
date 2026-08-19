@@ -178,45 +178,6 @@ class PromptLayers(BaseModel):
         return v
 
 
-class WorkerModelPolicy(BaseModel):
-    """Static, spend-independent model admission for roles whose kind is worker.
-
-    One mechanism, fail-closed: a model absent from `always_allowed` is refused,
-    so a model newly added to the registry is denied to workers until someone
-    admits it deliberately. There is deliberately no second deny list — two gates
-    over one thought diverge (#329).
-
-    Everything about pools — utilization, pace, reserve — belongs to the quota
-    controller (hot policy in `quota_controller_policy` + `app/quota_gate.py`) and
-    does not exist here at all.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-    always_allowed: list[str]
-    alternatives: list[str]
-
-    @field_validator("always_allowed", "alternatives")
-    @classmethod
-    def _canonical_models(cls, values: list[str]) -> list[str]:
-        result: list[str] = []
-        for value in values:
-            if not _model_is_known(value):
-                logger.warning("worker model policy: unknown model '%s'", value)
-            model = _canon_model(value)
-            if model in result:
-                raise ValueError(f"worker model policy contains duplicate model '{model}'")
-            result.append(model)
-        return result
-
-    @model_validator(mode="after")
-    def _valid_sets(self) -> "WorkerModelPolicy":
-        missing = set(self.alternatives) - set(self.always_allowed)
-        if missing:
-            raise ValueError(
-                f"worker model policy alternatives must be always allowed: {sorted(missing)}"
-            )
-        return self
-
 
 class Defaults(BaseModel):
     """Дефолты пайплайна. Роль переопределяет: скаляр — replace, список — union."""
@@ -355,7 +316,6 @@ class PipelineConfig(BaseModel):
     description: str = ""
     validation: ValidationMode = "fail-closed"
     defaults: Defaults = Field(default_factory=Defaults)
-    worker_model_policy: WorkerModelPolicy | None = None
     roles: dict[str, RoleSpec]
 
     @model_validator(mode="after")

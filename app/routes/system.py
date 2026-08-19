@@ -4,7 +4,6 @@ orchestrators, test-lock, restart, GitHub webhook."""
 import asyncio
 import hashlib
 import hmac
-import inspect
 import json
 import logging
 import os
@@ -22,9 +21,9 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response, Form
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
-from app.auth import is_auth_enabled, is_owner_mode, require_operator_session
+from app.auth import is_auth_enabled, is_owner_mode
 from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
 from app.deps import build_id, manager, templates
 from app.errtext import err_text
@@ -38,23 +37,10 @@ from app.models import (
 )
 from app.pipeline import list_pipelines
 from app.runtime_registry import get_runtime
-from app.runtime_router import (
-    PolicyRevisionError,
-    ROUTING_CONTRACT_VERSION,
-    explain_inputs_from_dict,
-    get_runtime_router,
-)
 
 logger = logging.getLogger("orchestra.system")
 
 router = APIRouter()
-
-
-def get_quota_controller():
-    """Return the process-owned, non-enforcing shadow observer."""
-    from app.quota_controller import get_quota_controller as get_controller
-
-    return get_controller()
 
 
 class ProfileRequest(BaseModel):
@@ -928,57 +914,11 @@ async def _get_usage_data(
     }
 
 
-def _quota_headroom(anthropic: dict | None) -> dict | None:
-    """Реальный потолок 5h с учётом остатка недельного окна (#162).
-
-    Пятичасовой процент сам по себе вводит в заблуждение: в недельный лимит влезает
-    ≈7 полных пятичасовых расходов (замерено двумя независимыми методами,
-    docs/tasks/162/research.md), поэтому недельный кончается раньше, чем пятичасовой
-    успевает упереться в себя. При 5h = 9 % и 7d = 92 % свободными выглядят 91 п.п.,
-    а взять можно 58.
-
-    None — когда посчитать нечем: курса нет или окон нет. Молчим, а не показываем
-    последнее известное: курс за месяц дважды менялся вдвое.
-    """
-    from app.db import usage_exchange_rate
-
-    five = (anthropic or {}).get("five_hour") or {}
-    seven = (anthropic or {}).get("seven_day") or {}
-    p5, p7 = five.get("utilization"), seven.get("utilization")
-    if not isinstance(p5, (int, float)) or not isinstance(p7, (int, float)):
-        return None
-    try:
-        measured = usage_exchange_rate()
-    except Exception as error:
-        # Производное число не имеет права уронить весь /api/usage: на нём висят
-        # дашборд и гейты, а это лишь подсказка на одной шкале. Причину — в журнал,
-        # с классом исключения, иначе «просто перестало показываться».
-        logger.warning("quota headroom: история недоступна — %s: %s",
-                       type(error).__name__, error)
-        return None
-    if not measured:
-        return None
-    weekly_room = max(0.0, 100.0 - p7) / measured["rate"]  # в п.п. пятичасового окна
-    visible = max(0.0, 100.0 - p5)
-    available = min(visible, weekly_room)
-    return {
-        "rate": round(measured["rate"], 4),
-        "available_pct": round(available, 1),
-        "locked_pct": round(visible - available, 1),
-        "windows_left": round(weekly_room / 100.0, 2),
-        "window_hours": measured["window_hours"],
-        "sample_five_hour_pct": round(measured["five_hour_pct_sum"], 1),
-    }
-
-
 @router.get("/api/usage")
 async def get_usage():
     if not is_owner_mode():
         return None
-    data = await _get_usage_data()
-    # Считаем только здесь: гейтам и limit_wake, которые ходят через
-    # current_provider_usage, этот вывод не нужен, а он стоит запроса к истории.
-    return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
+    return await _get_usage_data()
 
 
 @router.get("/api/usage/card")
@@ -991,8 +931,7 @@ async def get_usage_card():
     """
     if not is_owner_mode():
         raise HTTPException(status_code=404, detail="not found")
-    data = await _get_usage_data()
-    usage = {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
+    usage = await _get_usage_data()
     from app.limits_card import render_limits_card
 
     path = await render_limits_card(usage)
@@ -1177,12 +1116,6 @@ async def _collect_usage_snapshot() -> None:
         fh.get("resets_at", ""), sd.get("resets_at", ""),
         round(cost, 4), active, providers=providers,
     )
-    # Строго ПОСЛЕ записи снимка и намеренно без `await`: оценка недельной квоты (#186)
-    # уходит в фон и не может задержать сбор — на снимках висят дашборд, `quota_headroom`
-    # и вход #187. Планирование не делает ни одного запроса и возвращается мгновенно.
-    from app.quota_alert import schedule_evaluation
-
-    schedule_evaluation(anthropic_data)
 
 
 async def _usage_snapshot_loop():
@@ -1254,20 +1187,6 @@ async def usage_analytics_endpoint(days: int = 7):
         key in current for key in ("anthropic", "codex", "orchestra")
     ) else {}
     payload = build_usage_analytics(days=days, capacity=capacity)
-    try:
-        payload["quota_controller"] = get_quota_controller().status()
-        # Наблюдение скользящего окна кладём в тот же блок: панель различает причину
-        # допуска (`binding_constraint`) и обязана видеть обе величины сразу (#314).
-        _attach_runway_observation(payload["quota_controller"])
-    except Exception as error:
-        # Cost history remains useful when the optional controller telemetry is
-        # unavailable; the frontend renders this as an explicit error state.
-        payload["quota_controller"] = {
-            "data_available": False,
-            "reason": "quota_controller_error",
-            "error": type(error).__name__,
-            "enforcement_active": False,
-        }
     # Карта едет в том же снимке: модалка держит контракт «один запрос на
     # открытие», а телеметрия уже прогрета вызовом get_usage() выше.
     try:
@@ -1292,14 +1211,14 @@ async def wake_after_reset_endpoint():
 
 @router.get("/api/usage/readiness")
 async def usage_readiness(model: str):
-    """Return the same weekly worker admission decision used at execution time."""
-    from app.quota_gate import get_worker_admission, worker_readiness_envelope
+    """Return the same worker admission decision used at execution time."""
+    from app.quota_gate import get_worker_admission
 
     decision = await get_worker_admission(
         model,
         observation_loader=current_quota_observation,
     )
-    return worker_readiness_envelope(decision)
+    return decision.to_dict()
 
 
 @router.get("/api/usage/quota-map")
@@ -1308,23 +1227,28 @@ async def quota_map():
 
 
 async def build_quota_map() -> dict:
-    """One live picture of who is admitted right now and by which threshold.
+    """Одна живая картина: кто допущен прямо сейчас и по какой линии.
 
-    The verdicts come from `evaluate_worker_admission` itself, so the dashboard
-    cannot drift from the gate: no threshold arithmetic is repeated in JS.
+    Вердикты приходят из `evaluate_worker_admission`, то есть панель не может
+    разойтись с гейтом: арифметика правила в JS не повторяется.
     """
     # Те же ворота, что у /api/usage: подписочные проценты — owner-only.
     if not is_owner_mode():
         return {"data_available": False, "error": "owner_mode_only"}
     from app.models import MODELS
-    from app.quota_controller import adaptive_enforcement_enabled
     from app.quota_gate import (
+        HARD_STOP_PCT,
         QUOTA_OBSERVATION_MAX_AGE,
-        WEEKLY_WINDOW_MINUTES,
+        TOLERANCE_END_PP,
+        TOLERANCE_START_PP,
+        GATED_LANES,
+        LANE_LABELS,
+        deciding_window,
         evaluate_worker_admission,
-        lane_threshold,
+        line_limit,
         parse_quota_timestamp,
-        policy_lane_for_model,
+        tolerance_pp,
+        window_progress,
     )
 
     await _get_usage_data()
@@ -1333,18 +1257,6 @@ async def build_quota_map() -> dict:
     timestamps = observation.get("observed_at_by_provider") or {}
     now = time.time()
 
-    policy = None
-    policy_error = ""
-    try:
-        from app.db import quota_policy_snapshot
-
-        policy = quota_policy_snapshot()
-    except Exception as error:
-        policy_error = f"{type(error).__name__}: {err_text(error)}"
-
-    lane_labels = {
-        "claude": "Claude", "sol": "Sol", "luna": "Luna Fast", "spark": "Spark",
-    }
     bucket_labels = {
         "anthropic": "Claude", "codex": "Codex", "codex_spark": "Codex Spark",
         "grok": "Grok", "anthropic_fable": "Claude Fable",
@@ -1353,37 +1265,46 @@ async def build_quota_map() -> dict:
     lanes_by_bucket: dict[str, dict[str, dict]] = {}
     outside_policy = []
     for model_id, model_label in MODELS.items():
-        decision = evaluate_worker_admission(
-            model_id, providers, timestamps, now=now, policy=policy,
-        )
-        lane = policy_lane_for_model(decision.model, decision.provider or None)
+        decision = evaluate_worker_admission(model_id, providers, timestamps, now=now)
         item = {
-            "model": decision.model,
+            **decision.to_dict(),
             "label": model_label,
             "bucket": decision.provider,
-            "lane": lane,
-            "state": decision.state,
-            "allowed": decision.allowed,
-            # Порог существует только там, где есть полоса; у Grok его нет вовсе,
-            # и печатать чужой дефолт означало бы выдать пустоту за число.
-            "threshold": decision.threshold if lane else None,
-            "utilization": decision.weekly_utilization,
-            "reason": decision.reason,
         }
-        if lane is None:
+        if decision.lane is None:
             outside_policy.append(item)
             continue
         models_by_bucket.setdefault(decision.provider, []).append(item)
         entry = lanes_by_bucket.setdefault(decision.provider, {}).setdefault(
-            lane,
+            decision.lane,
             {
-                "lane": lane,
-                "label": lane_labels.get(lane, lane),
-                "threshold": lane_threshold(policy, lane),
+                "lane": decision.lane,
+                "label": LANE_LABELS.get(decision.lane, decision.lane),
+                "gated": decision.lane in GATED_LANES,
+                "blocked": False,
+                "reason": decision.reason,
                 "models": [],
             },
         )
+        # Полоса блокируется целиком: у всех её моделей один бакет и одно правило.
+        if decision.state == "blocked":
+            entry["blocked"] = True
+            entry["reason"] = decision.reason
         entry["models"].append(decision.model)
+
+    def _window_item(window: dict) -> dict:
+        parsed = parse_quota_timestamp(window.get("resets_at"))
+        progress, started_at = window_progress(window, now)
+        return {
+            "id": window.get("id"),
+            "label": window.get("label"),
+            "window_minutes": window.get("window_minutes"),
+            "utilization": window.get("utilization"),
+            "resets_at": window.get("resets_at"),
+            "reset_in_seconds": None if parsed is None else max(0.0, parsed - now),
+            "starts_at": started_at,
+            "progress": progress,
+        }
 
     buckets = []
     for bucket in sorted(set(models_by_bucket) | set(lanes_by_bucket)):
@@ -1391,27 +1312,17 @@ async def build_quota_map() -> dict:
         data = data if isinstance(data, dict) else {}
         observed_at = timestamps.get(bucket)
         observed_at = float(observed_at) if isinstance(observed_at, (int, float)) else None
-        gating = None
-        reference = []
-        for window in data.get("windows") or []:
-            if not isinstance(window, dict):
-                continue
-            resets_at = window.get("resets_at")
-            parsed = parse_quota_timestamp(resets_at)
-            item = {
-                "id": window.get("id"),
-                "label": window.get("label"),
-                "window_minutes": window.get("window_minutes"),
-                "utilization": window.get("utilization"),
-                "resets_at": resets_at,
-                "reset_in_seconds": None if parsed is None else max(0.0, parsed - now),
-            }
-            # Решение принимается только по недельному окну: пятичасовое Claude
-            # остаётся справочным и в пороги не входит (решение юзера, #318).
-            if window.get("window_minutes") == WEEKLY_WINDOW_MINUTES and gating is None:
-                gating = item
-            else:
-                reference.append(item)
+        gating_raw = deciding_window(data, bucket)
+        gating = _window_item(dict(gating_raw)) if gating_raw is not None else None
+        reference = [
+            _window_item(window)
+            for window in data.get("windows") or []
+            if isinstance(window, dict) and window is not gating_raw
+        ]
+        # Точка правила у бакета одна и берётся из решающего окна. Отдаём её и там,
+        # где гейтящихся полос нет (Spark): применяется линия или нет — свойство
+        # ПОЛОСЫ (`lanes[].gated`), а не пула, и панель рисует их раздельно.
+        progress = None if gating is None else gating["progress"]
         buckets.append({
             "bucket": bucket,
             "label": data.get("label") or bucket_labels.get(bucket, bucket),
@@ -1424,9 +1335,11 @@ async def build_quota_map() -> dict:
             and isinstance(gating.get("utilization"), (int, float)),
             "window": gating,
             "reference_windows": reference,
+            "tolerance_pp": None if progress is None else tolerance_pp(progress),
+            "limit_pct": None if progress is None else line_limit(progress),
             "lanes": sorted(
                 lanes_by_bucket.get(bucket, {}).values(),
-                key=lambda item: item["threshold"],
+                key=lambda item: item["lane"],
             ),
             "models": models_by_bucket.get(bucket, []),
         })
@@ -1434,204 +1347,16 @@ async def build_quota_map() -> dict:
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "observation_max_age_seconds": QUOTA_OBSERVATION_MAX_AGE,
-        "mode": {
-            "deciding": "static_thresholds",
-            "policy_available": policy is not None,
-            "policy_error": policy_error,
-            "source": (policy or {}).get("source", ""),
-            "label": (policy or {}).get("label", ""),
-            "revision": (policy or {}).get("revision"),
-            "reason": (policy or {}).get("reason", ""),
-            "updated_at": (policy or {}).get("updated_at", ""),
-            # Адаптивный контроллер держит ход только при свежей и уверенной
-            # телеметрии; иначе решает статический порог (enforce_new_worker_turn).
-            "adaptive_kill_switch_enabled": adaptive_enforcement_enabled(),
-            "adaptive_tier": "precalibration",
+        "rule": {
+            "hard_stop_pct": HARD_STOP_PCT,
+            "tolerance_start_pp": TOLERANCE_START_PP,
+            "tolerance_end_pp": TOLERANCE_END_PP,
         },
-        "policy": policy or {},
         "buckets": buckets,
         "outside_policy": outside_policy,
     }
 
 
-@router.get("/api/usage/quota-controller")
-def _attach_runway_observation(controller: dict) -> None:
-    """Положить последнее наблюдение окна Claude в снимок для панели.
-
-    Учёт побочен: не смогли измерить — панель просто не покажет блок, а расход и
-    статический гейт не страдают.
-    """
-    try:
-        from app.db import runway_decision_rows
-
-        rows = runway_decision_rows(limit=1)
-        if not rows:
-            return
-        row = rows[0]
-        controller["runway"] = {
-            "binding_constraint": row.get("binding_constraint"),
-            "deficit": row.get("deficit"),
-            "pace": row.get("pace"),
-            "work_used": row.get("work_used"),
-            "work_hours_left": row.get("work_hours_left"),
-            "utilization": row.get("utilization"),
-            "threshold": row.get("threshold"),
-            "window_id": row.get("window_id"),
-            "observed_at": row.get("created_at"),
-        }
-    except Exception:
-        return
-
-
-async def quota_controller_status():
-    try:
-        result = get_quota_controller().status()
-        if inspect.isawaitable(result):
-            result = await result
-        if isinstance(result, dict):
-            return result
-    except Exception as error:
-        from app.quota_controller import empty_status, record_shadow_error
-
-        record_shadow_error()
-        result = empty_status()
-        result["status_error"] = f"{type(error).__name__}: {err_text(error)}"
-        return result
-    from app.quota_controller import empty_status
-
-    return empty_status()
-
-
-def _operator_actor() -> str:
-    """Use the authenticated server identity; never trust a request body actor."""
-    return os.environ.get("DASHBOARD_USER", "operator") or "operator"
-
-
-@router.get("/api/usage/quota-controller/policy")
-async def quota_controller_policy(request: Request):
-    require_operator_session(request)
-    from app.db import quota_policy_audit, quota_policy_snapshot
-
-    result = quota_policy_snapshot()
-    result["audit"] = quota_policy_audit()
-    return result
-
-
-@router.put("/api/usage/quota-controller/policy")
-async def replace_quota_controller_policy(request: Request, payload: dict):
-    require_operator_session(request)
-    from app.db import QuotaPolicyRevisionMismatch, replace_quota_policy
-
-    values = payload.get("thresholds", payload.get("lanes", payload))
-    if not isinstance(values, dict):
-        raise HTTPException(status_code=422, detail="thresholds must be an object")
-    aliases = {
-        "sol": "sol", "sol_threshold": "sol",
-        "luna": "luna", "luna_threshold": "luna",
-        "spark": "spark", "spark_threshold": "spark",
-        "claude": "claude", "claude_threshold": "claude",
-    }
-    parsed = {}
-    for key, value in values.items():
-        lane = aliases.get(str(key))
-        if lane is not None:
-            parsed[lane] = value
-    if not parsed:
-        raise HTTPException(status_code=422, detail="at least one quota threshold is required")
-    expected = payload.get("expected_revision", payload.get("revision"))
-    if expected is not None and (
-        isinstance(expected, bool) or not isinstance(expected, int)
-    ):
-        raise HTTPException(status_code=422, detail="expected_revision must be an integer")
-    try:
-        result = replace_quota_policy(
-            parsed,
-            actor=_operator_actor(),
-            reason=str(payload.get("reason") or "").strip(),
-            expected_revision=expected,
-        )
-    except QuotaPolicyRevisionMismatch as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
-    except (TypeError, ValueError) as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
-    result["audit"] = __import__("app.db", fromlist=["quota_policy_audit"]).quota_policy_audit()
-    return result
-
-
-@router.post("/api/usage/quota-controller/policy/rollback")
-async def rollback_quota_controller_policy(request: Request, payload: dict | None = None):
-    require_operator_session(request)
-    from app.db import quota_policy_audit, rollback_quota_policy
-
-    payload = payload or {}
-    result = rollback_quota_policy(
-        actor=_operator_actor(),
-        reason=str(payload.get("reason") or "operator rollback to defaults"),
-    )
-    result["audit"] = quota_policy_audit()
-    return result
-
-
-@router.post("/api/usage/quota-controller/reserve")
-async def create_quota_reserve_intent(request: Request, payload: dict):
-    require_operator_session(request)
-    result = get_quota_controller().create_reserve_intent(payload)
-    if inspect.isawaitable(result):
-        result = await result
-    return result
-
-
-@router.delete("/api/usage/quota-controller/reserve/{intent_id}")
-async def cancel_quota_reserve_intent(request: Request, intent_id: str):
-    require_operator_session(request)
-    result = get_quota_controller().cancel_reserve_intent(intent_id)
-    if inspect.isawaitable(result):
-        result = await result
-    if result is None:
-        raise HTTPException(status_code=404, detail="reserve intent not found")
-    return result
-
-
-@router.get("/api/usage/routing-policy")
-async def routing_policy_status():
-    return await get_runtime_router().status()
-
-
-@router.put("/api/usage/routing-policy")
-async def replace_routing_policy(request: Request, payload: dict):
-    require_operator_session(request)
-    try:
-        policy = await get_runtime_router().replace_policy(payload)
-    except ValidationError as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
-    except PolicyRevisionError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
-    return {
-        "contract_version": ROUTING_CONTRACT_VERSION,
-        "policy": policy.model_dump(mode="json", exclude_none=True),
-    }
-
-
-@router.post("/api/usage/routing-policy/explain")
-async def explain_routing_policy(payload: dict):
-    try:
-        request, observation, baseline, latches, terminal, now = (
-            explain_inputs_from_dict(payload)
-        )
-        decision = await get_runtime_router().explain(
-            request,
-            observation,
-            claude_baseline=baseline,
-            latched_window_ids=latches,
-            terminal_limited_buckets=terminal,
-            now=now,
-        )
-    except (TypeError, ValueError, ValidationError) as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
-    return {
-        "contract_version": ROUTING_CONTRACT_VERSION,
-        "decision": decision.to_dict(),
-    }
 
 
 # ── Misc ──

@@ -72,10 +72,8 @@ async def test_usage_visible_to_owner_with_login(monkeypatch):
         return {"anthropic": {"five_hour": {"utilization": 7}}}
 
     monkeypatch.setattr(system_routes, "_get_usage_data", _fake_usage_data)
-    # quota_headroom (#162) — None без недельного окна: считать курс не из чего.
     assert await system_routes.get_usage() == {
         "anthropic": {"five_hour": {"utilization": 7}},
-        "quota_headroom": None,
     }
 
 

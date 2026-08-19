@@ -3343,13 +3343,9 @@ async def stream_logs(orch_name: str, thread_id: int):
 
 
 async def _get_limits_usage() -> dict:
-    # `quota_headroom` роут `/api/usage` считает у себя, а мы зовём `_get_usage_data`
-    # напрямую — без этой строки на пути картинки не было бы главного числа, «сколько
-    # полных пятичасовых окон осталось» (#274). Считаем ровно тем же вызовом, что и роут.
-    from app.routes.system import _get_usage_data, _quota_headroom
+    from app.routes.system import _get_usage_data
 
-    data = await _get_usage_data()
-    return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
+    return await _get_usage_data()
 
 
 async def _is_limits_owner(msg: types.Message) -> bool:

@@ -55,10 +55,15 @@ class TestCreateSession:
 
         async def blocked(_model, observation_loader=None):
             now = datetime.now(timezone.utc).timestamp()
+            # Середина недельного окна: линия 55.5%, факт 95% — выше неё.
+            reset_at = datetime.fromtimestamp(
+                now + 10080 * 60 / 2, timezone.utc,
+            ).isoformat()
             return evaluate_worker_admission(
                 "claude-sonnet-5[1m]",
                 {"anthropic": {"label": "Claude", "windows": [{
-                    "window_minutes": 10080, "utilization": 95,
+                    "id": "seven_day", "window_minutes": 10080,
+                    "utilization": 95, "resets_at": reset_at,
                 }]}},
                 {"anthropic": now},
                 now=now,
@@ -69,7 +74,6 @@ class TestCreateSession:
             await mgr.create_session(
                 name="blocked-worker", scope="/s", cwd="/tmp",
                 model="claude-sonnet-5[1m]", planned_initial_turn=True,
-                model_policy_override_reason="exercise weekly quota gate in isolation",
             )
 
         assert mgr.sessions == {}
@@ -124,10 +128,10 @@ class TestCreateSession:
         now = datetime.now(timezone.utc).timestamp()
         error = QuotaGateError(QuotaDecision(
             state="blocked", model=worker.model, provider="codex",
-            provider_label="Codex", weekly_utilization=95,
+            provider_label="Codex", lane="sol", gated=True, utilization=95,
+            progress=0.5, tolerance_pp=5.5, limit_pct=55.5,
             observed_at=now, valid_until=now + 60, reset_at=None,
-            alternatives=({"provider": "anthropic", "label": "Claude"},),
-            reason="test",
+            window_starts_at=None, reason="test",
         ))
 
         await mgr._make_quota_blocked_callback("/s")(worker, error, 2)
@@ -135,7 +139,7 @@ class TestCreateSession:
         mgr.send.assert_awaited_once()
         assert mgr.send.await_args.args[0] == parent.id
         assert "2 queued message(s) retained" in mgr.send.await_args.args[1]
-        assert "Claude" in mgr.send.await_args.args[1]
+        assert "Codex" in mgr.send.await_args.args[1]
 
     @pytest.mark.asyncio
     async def test_quota_block_notice_falls_back_when_exact_parent_missing(
@@ -150,10 +154,11 @@ class TestCreateSession:
         )
         now = datetime.now(timezone.utc).timestamp()
         error = QuotaGateError(QuotaDecision(
-            state="unknown", model=worker.model, provider="codex",
-            provider_label="Codex", weekly_utilization=None,
-            observed_at=None, valid_until=None, reset_at=None,
-            alternatives=(), reason="stale",
+            state="blocked", model=worker.model, provider="codex",
+            provider_label="Codex", lane="sol", gated=True, utilization=99.5,
+            progress=0.1, tolerance_pp=9.1, limit_pct=19.1,
+            observed_at=now, valid_until=now + 60, reset_at=None,
+            window_starts_at=None, reason="hard stop",
         ))
         fallback = AsyncMock(return_value="recorded")
         monkeypatch.setattr("app.notify.report_undelivered", fallback)

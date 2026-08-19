@@ -136,7 +136,6 @@ class CreateSessionRequest(BaseModel):
     owned_dirs: list[str] = []
     tg_topic: bool = False
     planned_initial_turn: bool = False
-    model_policy_override_reason: str = ""
 
     @field_validator("name")
     @classmethod
@@ -249,7 +248,6 @@ async def create_session(req: CreateSessionRequest):
             owned_dirs=req.owned_dirs,
             tg_topic=req.tg_topic,
             planned_initial_turn=req.planned_initial_turn,
-            model_policy_override_reason=req.model_policy_override_reason,
         )
         d = session.to_dict()
         if req.use_worktree:

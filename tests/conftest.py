@@ -10,6 +10,7 @@
 import os
 import sqlite3
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from urllib.parse import unquote, urlsplit
@@ -72,30 +73,31 @@ def _stable_worker_quota(request, monkeypatch):
         return
     from app import quota_gate
 
+    def _window(window_id, minutes):
+        # Начало окна и нулевой расход: любая полоса заведомо под линией (#343).
+        return {
+            "id": window_id, "window_minutes": minutes, "utilization": 0,
+            "resets_at": datetime.fromtimestamp(
+                time.time() + minutes * 60, timezone.utc,
+            ).isoformat(),
+        }
+
     async def available(model: str, observation_loader=None):
-        try:
-            resolved = quota_gate.evaluate_worker_admission(
-                model,
-                {
-                    "anthropic": {"label": "Claude", "windows": [{
-                        "window_minutes": 10080, "utilization": 0,
-                    }]},
-                    "codex": {"label": "Codex", "windows": [{
-                        "window_minutes": 10080, "utilization": 0,
-                    }]},
-                    "codex_spark": {"label": "Codex Spark", "windows": [{
-                        "window_minutes": 10080, "utilization": 0,
-                    }]},
+        return quota_gate.evaluate_worker_admission(
+            model,
+            {
+                "anthropic": {"label": "Claude", "windows": [_window("seven_day", 10080)]},
+                "codex": {"label": "Codex", "windows": [_window("primary", 300)]},
+                "codex_spark": {
+                    "label": "Codex Spark", "windows": [_window("primary", 300)],
                 },
-                {
-                    "anthropic": time.time(),
-                    "codex": time.time(),
-                    "codex_spark": time.time(),
-                },
-            )
-        except Exception:
-            raise
-        return resolved
+            },
+            {
+                "anthropic": time.time(),
+                "codex": time.time(),
+                "codex_spark": time.time(),
+            },
+        )
 
     monkeypatch.setattr(quota_gate, "get_worker_admission", available)
 

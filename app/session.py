@@ -75,7 +75,6 @@ from app.errtext import err_text
 
 
 logger = logging.getLogger(__name__)
-_SHADOW_CURRENT_TURN = object()
 
 _HANDOFF_STAGING_ROOT = (
     Path(__file__).parent.parent / "data" / "runtime-handoff-staging"
@@ -390,8 +389,6 @@ class AgentSession:
     base_branch: str = ""
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     role: str = "worker"
-    task_class: str = "worker"
-    fast_mode: bool = False
     parent_id: str = ""
     parent_name: str = ""
     pipeline: str = ""
@@ -474,9 +471,6 @@ class AgentSession:
     _admission_service: Optional[Callable[[str], Awaitable["QuotaDecision"]]] = field(
         default=None, repr=False,
     )
-    _quota_shadow_controller: object = field(default=None, repr=False)
-    _active_shadow_reservation: object = field(default=None, repr=False)
-    _shadow_settlement_tasks: set[asyncio.Task] = field(default_factory=set, repr=False)
     _turn_start_cancel_gen: int = field(default=0, repr=False)
     _handoff_config_dir: str = field(default="", repr=False)
     _handoff_recovery_required: bool = field(default=False, repr=False)
@@ -783,10 +777,6 @@ class AgentSession:
         self._cost = CostTracker(self)
         self._turns = TurnManager(self)
         self._hibernate = HibernateManager(self)
-        if self._quota_shadow_controller is None:
-            from app.quota_controller import get_quota_controller
-
-            self._quota_shadow_controller = get_quota_controller()
 
     @property
     def is_orchestrator(self) -> bool:
@@ -797,19 +787,6 @@ class AgentSession:
     @is_orchestrator.setter
     def is_orchestrator(self, value: bool) -> None:
         self._is_orchestrator = value
-
-    def _server_owned_role(self) -> str:
-        return "orchestrator" if is_orchestrator_role(self.role) else "worker"
-
-    def _server_task_class(self) -> str:
-        if self.is_orchestrator:
-            return "orchestrator"
-        return self.role if self.role in {"critical", "noncritical"} else "worker"
-
-    def _server_fast_mode(self) -> bool:
-        return self.fast_mode or self.model.lower() in {
-            "gpt-5.6-luna", "gpt-5.6-luna-fast", "luna-fast",
-        }
 
     def _make_backend(
         self,
@@ -1063,199 +1040,6 @@ class AgentSession:
 
         return await get_worker_admission(model)
 
-    async def _shadow_reserve(
-        self,
-        decision,
-        intent_kind: str,
-        *,
-        turn_gen=_SHADOW_CURRENT_TURN,
-    ):
-        observer = self._quota_shadow_controller
-        try:
-            reserve = getattr(observer, "reserve_before_submit", None)
-            if reserve is None:
-                return None
-            from app.quota_controller import ShadowDispatchContext
-
-            context = ShadowDispatchContext(
-                session_id=self.id,
-                turn_gen=(
-                    self._turn_gen
-                    if turn_gen is _SHADOW_CURRENT_TURN
-                    else turn_gen
-                ),
-                model=self.model,
-                intent_kind=intent_kind,
-                task_id=self.task_id,
-                task_class=self._server_task_class(),
-                fast_mode=self._server_fast_mode(),
-                started_at=datetime.now(timezone.utc).isoformat(),
-            )
-            reservation = reserve(
-                context, decision if not self.is_orchestrator else None,
-            )
-            if inspect.isawaitable(reservation):
-                reservation = await reservation
-            self._active_shadow_reservation = reservation
-            return reservation
-        except asyncio.CancelledError as error:
-            task = asyncio.current_task()
-            if task is not None and task.cancelling():
-                raise
-            from app.quota_controller import record_shadow_error
-
-            record_shadow_error()
-            self._log(
-                "error",
-                f"quota_shadow_error {type(error).__name__}: {err_text(error)}",
-            )
-            return None
-        except Exception as error:
-            from app.quota_controller import record_shadow_error
-
-            record_shadow_error()
-            self._log(
-                "error",
-                f"quota_shadow_error {type(error).__name__}: {err_text(error)}",
-            )
-            return None
-
-    async def _shadow_mark_submitted(self, reservation) -> None:
-        if reservation is None:
-            return
-        try:
-            result = self._quota_shadow_controller.mark_submitted(reservation)
-            if inspect.isawaitable(result):
-                result = await result
-            if result is not None:
-                self._active_shadow_reservation = result
-        except asyncio.CancelledError as error:
-            from app.quota_controller import record_shadow_error
-
-            record_shadow_error()
-            self._log(
-                "error",
-                f"quota_shadow_error {type(error).__name__}: {err_text(error)}",
-            )
-        except Exception as error:
-            from app.quota_controller import record_shadow_error
-
-            record_shadow_error()
-            self._log(
-                "error",
-                f"quota_shadow_error {type(error).__name__}: {err_text(error)}",
-            )
-
-    async def _shadow_mark_submit_failed(self, reservation, error: Exception) -> None:
-        if reservation is None:
-            return
-        try:
-            mark_failed = getattr(
-                self._quota_shadow_controller, "mark_submit_failed", None,
-            )
-            if mark_failed is None:
-                return
-            result = mark_failed(reservation, error)
-            if inspect.isawaitable(result):
-                await result
-            self._active_shadow_reservation = None
-        except asyncio.CancelledError as observer_error:
-            from app.quota_controller import record_shadow_error
-
-            record_shadow_error()
-            self._log(
-                "error",
-                "quota_shadow_error "
-                f"{type(observer_error).__name__}: {err_text(observer_error)}",
-            )
-        except Exception as observer_error:
-            from app.quota_controller import record_shadow_error
-
-            record_shadow_error()
-            self._log(
-                "error",
-                "quota_shadow_error "
-                f"{type(observer_error).__name__}: {err_text(observer_error)}",
-            )
-
-    def _shadow_settle(
-        self,
-        reservation,
-        event_id: str,
-        ended_at: str,
-        *,
-        actual: dict | None = None,
-        status: str = "unscorable",
-    ) -> None:
-        if reservation is None or not event_id:
-            return
-        try:
-            settle = getattr(
-                self._quota_shadow_controller, "settle_shadow_dispatch", None,
-            )
-            if settle is not None:
-                result = settle(
-                    reservation,
-                    event_id,
-                    ended_at,
-                    status=status,
-                    actual=actual or {},
-                )
-                if inspect.isawaitable(result):
-                    task = asyncio.ensure_future(result)
-                    self._shadow_settlement_tasks.add(task)
-                    task.add_done_callback(self._shadow_settlement_done)
-        except Exception as error:
-            from app.quota_controller import record_shadow_error
-
-            record_shadow_error()
-            self._log(
-                "error",
-                f"quota_shadow_error {type(error).__name__}: {err_text(error)}",
-            )
-        finally:
-            if self._active_shadow_reservation is reservation:
-                self._active_shadow_reservation = None
-
-    def _shadow_settlement_done(self, task: asyncio.Task) -> None:
-        self._shadow_settlement_tasks.discard(task)
-        if task.cancelled():
-            return
-        try:
-            task.result()
-        except Exception as error:
-            from app.quota_controller import record_shadow_error
-
-            record_shadow_error()
-            self._log(
-                "error",
-                f"quota_shadow_error {type(error).__name__}: {err_text(error)}",
-            )
-
-    @staticmethod
-    def _shadow_intent_kind(message: str) -> str:
-        if message.startswith("[system] Retrying"):
-            return "retry"
-        if message.startswith("[system] Turn limit reached"):
-            return "auto_continue"
-        return "idle_send"
-
-    def _adaptive_admission_result(self, decision, reservation) -> dict:
-        from app.quota_controller import adaptive_enforcement_enabled, enforce_new_worker_turn
-
-        return enforce_new_worker_turn(
-            context={
-                **(dict(getattr(reservation, "context", {})) if reservation is not None else {}),
-                "server_role": self._server_owned_role(),
-                "model": self.model,
-                "task_class": self._server_task_class(),
-                "fast_mode": self._server_fast_mode(),
-            },
-            adaptive=reservation,
-            static_decision=decision,
-            enforcement_enabled=adaptive_enforcement_enabled(),
-        )
-
     async def send(self, message: str, *, delivery=None) -> None:
         original_user_message = message
         history_user_message = original_user_message
@@ -1266,7 +1050,6 @@ class AgentSession:
         decision = None
         admitted_model = ""
         admitted_stop_gen = -1
-        shadow_reservation = None
 
         while True:
             await self._lifecycle_lock.acquire()
@@ -1497,30 +1280,6 @@ class AgentSession:
                     f"{message}\n"
                     "</current-user-message>"
                 )
-            shadow_reservation = await self._shadow_reserve(
-                decision, self._shadow_intent_kind(original_user_message),
-            )
-            adaptive_result = self._adaptive_admission_result(decision, shadow_reservation)
-            if adaptive_result["action"] == "hold":
-                if shadow_reservation is not None:
-                    self._shadow_settle(
-                        shadow_reservation,
-                        f"adaptive-hold:{shadow_reservation.decision_id}",
-                        datetime.now(timezone.utc).isoformat(),
-                        status="adaptive_hold",
-                        actual={"reason": adaptive_result["reason"]},
-                    )
-                self._log("status", f"new worker turn held: {adaptive_result['reason']}")
-                if self.status == AgentStatus.RUNNING:
-                    self.status = AgentStatus.IDLE
-                    self._persist()
-                    self._turns.publish_turn_finished()
-                held = replace(
-                    decision,
-                    state="blocked",
-                    reason=f"adaptive:{adaptive_result['reason']}",
-                )
-                raise QuotaGateError(held, code="adaptive_quota_hold")
             dispatch_started = False
             try:
                 if delivery is not None:
@@ -1543,13 +1302,11 @@ class AgentSession:
             except Exception as error:
                 if delivery is not None and dispatch_started:
                     await delivery.mark_unknown(error)
-                await self._shadow_mark_submit_failed(shadow_reservation, error)
                 if self.status == AgentStatus.RUNNING:
                     self.status = AgentStatus.IDLE
                     self._persist()
                     self._turns.publish_turn_finished()
                 raise
-            await self._shadow_mark_submitted(shadow_reservation)
             self._ack_pending_facts(fact_keys)
             if pending_handoff and self.runtime_handoff == pending_handoff:
                 self.runtime_handoff = ""
@@ -2357,7 +2114,7 @@ class AgentSession:
                 signature = json.dumps({
                     "provider": error.decision.provider,
                     "state": error.decision.state,
-                    "utilization": error.decision.weekly_utilization,
+                    "utilization": error.decision.utilization,
                     "observed_at": error.decision.observed_at,
                     "count": retained,
                 }, sort_keys=True)
@@ -2417,33 +2174,7 @@ class AgentSession:
                         tuple(msgs),
                     )
                 combined, fact_keys = self._attach_pending_facts(combined)
-                shadow_reservation = await self._shadow_reserve(
-                    decision, "queued_flush",
-                )
-                adaptive_result = self._adaptive_admission_result(
-                    decision, shadow_reservation,
-                )
-                if adaptive_result["action"] == "hold":
-                    if shadow_reservation is not None:
-                        self._shadow_settle(
-                            shadow_reservation,
-                            f"adaptive-hold:{shadow_reservation.decision_id}",
-                            datetime.now(timezone.utc).isoformat(),
-                            actual={"reason": adaptive_result["reason"]},
-                        )
-                    self._pending_messages[0:0] = msgs
-                    self._spawn_bg(self._retry_adaptive_hold())
-                    self._log("status", f"queued worker turns held: {adaptive_result['reason']}")
-                    self.status = AgentStatus.IDLE
-                    self._persist()
-                    self._turns.publish_turn_finished()
-                    return
-                try:
-                    await backend.send(combined)
-                except Exception as error:
-                    await self._shadow_mark_submit_failed(shadow_reservation, error)
-                    raise
-                await self._shadow_mark_submitted(shadow_reservation)
+                await backend.send(combined)
                 self._ack_pending_facts(fact_keys)
                 if get_runtime(self.backend_type).capabilities.event_stream == "per_turn":
                     self._listen_task = asyncio.create_task(self._turn_event_loop())
@@ -2470,11 +2201,6 @@ class AgentSession:
                 self._turns.publish_turn_finished()
         finally:
             self._lifecycle_lock.release()
-
-    async def _retry_adaptive_hold(self) -> None:
-        await asyncio.sleep(5)
-        if self.status == AgentStatus.IDLE and self._pending_messages and not self._compacting:
-            await self._flush_pending()
 
     def _on_task_done(self, task: asyncio.Task) -> None:
         try:
@@ -2602,39 +2328,21 @@ class AgentSession:
             self._cancel_precompact_timer("manual_compact")
         before_pct = self._last_context.get("percentage", 0)
         thread_id = self.session_id
-        shadow_reservation = None
         self._log(
             "status",
             f"compact started (native Codex, context {before_pct}%, thread={thread_id})",
         )
         try:
             async def start_native_compact():
-                nonlocal shadow_reservation
                 backend = await self._ensure_backend()
                 compact_context = getattr(backend, "compact_context", None)
                 if not callable(compact_context):
                     raise RuntimeError("Codex backend does not support native compact")
                 self._hibernated = False
-                shadow_reservation = await self._shadow_reserve(
-                    permit[0], "compaction", turn_gen=None,
-                )
-                try:
-                    task = asyncio.create_task(compact_context())
-                except Exception as error:
-                    await self._shadow_mark_submit_failed(shadow_reservation, error)
-                    raise
-                await self._shadow_mark_submitted(shadow_reservation)
-                return task
+                return asyncio.create_task(compact_context())
 
             compact_task = await self._run_compaction_start(permit, start_native_compact)
             result = await compact_task
-            if shadow_reservation is not None:
-                self._shadow_settle(
-                    shadow_reservation,
-                    f"compact:{shadow_reservation.decision_id}",
-                    datetime.now(timezone.utc).isoformat(),
-                    actual={"ok": True, "mode": "native"},
-                )
 
             context_tokens = result.get("context_tokens")
             max_tokens = result.get("max_tokens")
@@ -2674,13 +2382,6 @@ class AgentSession:
         except QuotaGateError:
             raise
         except Exception as exc:
-            if shadow_reservation is not None:
-                self._shadow_settle(
-                    shadow_reservation,
-                    f"compact:{shadow_reservation.decision_id}",
-                    datetime.now(timezone.utc).isoformat(),
-                    actual={"ok": False, "error_class": type(exc).__name__},
-                )
             self._log("error", f"native Codex compact failed: {exc}")
             return {
                 "ok": False,
@@ -2776,7 +2477,6 @@ class AgentSession:
         summary = ""
         last_error = ""
         for attempt in range(1, COMPACT_MAX_RETRIES + 1):
-            shadow_reservation = None
             if attempt > 1:
                 if self._turn_start_cancel_gen != compact_stop_gen:
                     return abort_compact("compaction cancelled by stop", flush_pending=False)
@@ -2798,21 +2498,10 @@ class AgentSession:
                     backend = self._make_backend()
 
                 async def start_summary_turn():
-                    nonlocal shadow_reservation
                     if need_connect:
                         await backend.connect()
                         self._backend = backend
-                    shadow_reservation = await self._shadow_reserve(
-                        permit[0], "compaction", turn_gen=None,
-                    )
-                    try:
-                        await backend.send(COMPACT_PROMPT)
-                    except Exception as error:
-                        await self._shadow_mark_submit_failed(
-                            shadow_reservation, error,
-                        )
-                        raise
-                    await self._shadow_mark_submitted(shadow_reservation)
+                    await backend.send(COMPACT_PROMPT)
 
                 await self._run_compaction_start(permit, start_summary_turn)
                 async for event in backend.events():
@@ -2827,31 +2516,11 @@ class AgentSession:
                     elif event.type == "turn_end":
                         if event.metadata.get("session_id"):
                             self.session_id = event.metadata["session_id"]
-                        if shadow_reservation is not None:
-                            self._shadow_settle(
-                                shadow_reservation,
-                                str(
-                                    event.metadata.get("event_id")
-                                    or f"compact:{shadow_reservation.decision_id}"
-                                ),
-                                str(
-                                    event.metadata.get("ended_at")
-                                    or datetime.now(timezone.utc).isoformat()
-                                ),
-                                actual={"ok": True, "mode": "handoff"},
-                            )
                         break
             except QuotaGateError:
                 abort_compact("weekly quota blocked compact summary", flush_pending=False)
                 raise
             except Exception as e:
-                if shadow_reservation is not None:
-                    self._shadow_settle(
-                        shadow_reservation,
-                        f"compact:{shadow_reservation.decision_id}",
-                        datetime.now(timezone.utc).isoformat(),
-                        actual={"ok": False, "error_class": type(e).__name__},
-                    )
                 last_error = str(e)
                 self._log("error", f"compact attempt {attempt}/{COMPACT_MAX_RETRIES} failed: {e}")
                 try:

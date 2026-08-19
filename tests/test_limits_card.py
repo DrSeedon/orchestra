@@ -25,36 +25,9 @@ def _usage(**over) -> dict:
                                   "resets_at": _iso(8400)}},
         },
         "grok": {},
-        "quota_headroom": {"rate": 0.1319, "available_pct": 91.0, "locked_pct": 5.0,
-                           "windows_left": 0.91, "window_hours": 72},
     }
     usage.update(over)
     return usage
-
-
-def test_headroom_gives_the_headline_and_the_nested_scale():
-    html = build_html(collect(_usage(), now=NOW))
-
-    # 12% недельного остатка при курсе 13.19% за окно = 0.9 окна, и это заголовок.
-    assert "Недели хватит на" in html and ">0.9</span> окна" in html
-    assert "их помещается 7.6" in html
-    # связь двух окон: видно 96%, взять можно 91%, 5% заперто неделей
-    assert "свободно на 96%" in html and "только 91%" in html
-    assert "заперто неделей 5%" in html
-
-
-def test_without_headroom_the_card_says_rate_is_not_measured():
-    """Курса нет — картинка молчит про окна, а не рисует ноль.
-
-    Ноль здесь врёт в самую опасную сторону: «окон не осталось» вместо «мы не знаем».
-    """
-    html = build_html(collect(_usage(quota_headroom=None), now=NOW))
-
-    assert "Курс не измерен" in html
-    assert "Недели хватит" not in html
-    assert "окна</div>" not in html
-    # сами окна при этом на месте — потеряна только производная величина
-    assert "занято 88%" in html and "Claude · неделя" in html
 
 
 @pytest.mark.parametrize(
@@ -110,16 +83,15 @@ def test_every_pool_shows_burn_against_elapsed_window():
 
 
 @pytest.mark.asyncio
-async def test_limits_usage_carries_quota_headroom(monkeypatch):
-    """Дыра, ради которой всё: `/limits` зовёт `_get_usage_data` напрямую, а headroom
-    считает только роут `/api/usage` — без этого на картинке нет главного числа."""
+async def test_limits_usage_reads_the_same_source_as_the_route(monkeypatch):
+    """`/limits` и `/api/usage` обязаны собирать картинку из ОДНОГО вызова."""
     import app.routes.system as system
     import app.tg_bridge as tb
 
-    monkeypatch.setattr(system, "_get_usage_data", AsyncMock(return_value={"anthropic": {}}))
-    monkeypatch.setattr(system, "_quota_headroom", lambda anthropic: {"rate": 0.13})
+    raw = {"anthropic": {"five_hour": {"utilization": 4.0}}}
+    monkeypatch.setattr(system, "_get_usage_data", AsyncMock(return_value=raw))
 
-    assert (await tb._get_limits_usage())["quota_headroom"] == {"rate": 0.13}
+    assert await tb._get_limits_usage() == raw
 
 
 @pytest.mark.asyncio
@@ -133,13 +105,12 @@ async def test_usage_card_endpoint_uses_the_canonical_renderer(monkeypatch, tmp_
     raw = {"anthropic": {}}
     monkeypatch.setattr(system, "is_owner_mode", lambda: True)
     monkeypatch.setattr(system, "_get_usage_data", AsyncMock(return_value=raw))
-    monkeypatch.setattr(system, "_quota_headroom", lambda anthropic: {"rate": 0.13})
     render = AsyncMock(return_value=str(png))
     monkeypatch.setattr(card, "render_limits_card", render)
 
     response = await system.get_usage_card()
 
-    render.assert_awaited_once_with({"anthropic": {}, "quota_headroom": {"rate": 0.13}})
+    render.assert_awaited_once_with(raw)
     assert response.path == str(png)
     assert response.media_type == "image/png"
     assert response.filename == "limits.png"

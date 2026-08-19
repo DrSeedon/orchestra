@@ -520,44 +520,6 @@ class SessionManager:
 
     # ── Session CRUD ──
 
-    async def _enforce_worker_model_policy(
-        self,
-        pipeline: str,
-        role: str,
-        model: str,
-        override_reason: str,
-    ) -> None:
-        cfg = load_pipeline(pipeline)
-        # Исключение оркестраторов живёт ОДНИМ владельцем — в вызывающем коде
-        # (`if planned_initial_turn and not is_orch`), тем же условием пропускающем
-        # и quota-гейт. Копии здесь нет намеренно: она была недостижима через
-        # единственный call site и давала иллюзию покрытия — мутация «снять
-        # исключение» оставляла тест зелёным (#329).
-        if role not in cfg.roles:
-            return
-        policy = cfg.worker_model_policy
-        if policy is None:
-            return
-
-        reason = override_reason.strip()
-        if reason:
-            logger.warning(
-                "worker model policy overridden: pipeline=%s role=%s model=%s reason=%s",
-                pipeline, role, model, reason,
-            )
-            return
-        if model in policy.always_allowed:
-            return
-        # Расход здесь не читается вовсе: потолок пула принуждает quota-гейт
-        # (полоса в `quota_controller_policy`), он зовётся строкой ниже по тому же
-        # спавну. Здесь остаётся только допуск, не зависящий от расхода.
-        raise ValueError(
-            f"worker model '{model}' is not admitted for workers by pipeline '{pipeline}' "
-            f"(models outside the admitted set are refused by default). "
-            f"Use {', '.join(policy.alternatives)}, or pass model_policy_override_reason "
-            "with a non-empty reason."
-        )
-
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
                              system_prompt: str = "", use_worktree: bool = False,
                              repo_path: str | None = None, is_orchestrator: bool = False,
@@ -569,8 +531,7 @@ class SessionManager:
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
                              tg_topic: bool = False,
-                             planned_initial_turn: bool = False,
-                             model_policy_override_reason: str = "") -> AgentSession:
+                             planned_initial_turn: bool = False) -> AgentSession:
         normalized_scope = scope.rstrip("/")
         key = (normalized_scope, name)
         lock = self._spawn_locks.setdefault(key, asyncio.Lock())
@@ -597,7 +558,6 @@ class SessionManager:
                 owned_dirs=owned_dirs,
                 tg_topic=tg_topic,
                 planned_initial_turn=planned_initial_turn,
-                model_policy_override_reason=model_policy_override_reason,
             )
 
     async def _create_session_locked(self, name: str, scope: str, cwd: str, model: str,
@@ -611,8 +571,7 @@ class SessionManager:
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
                              tg_topic: bool = False,
-                             planned_initial_turn: bool = False,
-                             model_policy_override_reason: str = "") -> AgentSession:
+                             planned_initial_turn: bool = False) -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -716,21 +675,6 @@ class SessionManager:
             if p_session:
                 parent_id = p_session.id
 
-        if not is_orch:
-            # Server-owned runway routing applies before a new worker/review
-            # session is admitted.  Missing telemetry leaves the requested lane
-            # untouched; a tight Codex lane routes Sol work to Luna Fast.
-            try:
-                from app.quota_controller import get_quota_controller, route_codex_model_for_runway
-
-                model, route_reason = route_codex_model_for_runway(
-                    model, get_quota_controller().status(),
-                )
-                if route_reason == "sol_suppressed_route_luna_fast":
-                    logger.info("server routing: Sol suppressed; using Luna Fast for %s", name)
-            except Exception as error:
-                logger.warning("server quota route unavailable for %s: %s: %s", name, type(error).__name__, error)
-
         # R2: валидация спавна ДО любых side-effects (worktree/start). Единственный
         # источник прав — манифест пайплайна: другого пути принятия решения о спавне
         # в коде нет. Нет манифеста → FileNotFoundError пробрасывается
@@ -739,11 +683,11 @@ class SessionManager:
         validate_spawn(pipeline, parent_role, role if explicit_role else "")
 
         if planned_initial_turn and not is_orch:
-            await self._enforce_worker_model_policy(
-                pipeline, role, model, model_policy_override_reason,
-            )
             from app.quota_gate import get_worker_admission, require_worker_admission
 
+            # Неизвестная квота пропускает — и здесь, и на последующем `/send`.
+            # Иначе спавн создавал бы сессию, которую первый же обязательный
+            # `/send` отбивал 429: мёртвую (#227).
             try:
                 quota_decision = await get_worker_admission(model)
             except Exception as error:
@@ -758,8 +702,7 @@ class SessionManager:
                         "provider=%s reason=%s",
                         model, quota_decision.provider, quota_decision.reason,
                     )
-                else:
-                    require_worker_admission(quota_decision)
+                require_worker_admission(quota_decision)
 
         # Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
         # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.
@@ -1821,14 +1764,11 @@ class SessionManager:
 
     def _make_quota_blocked_callback(self, scope: str):
         async def _on_turn_blocked(worker, error, retained_count: int) -> None:
-            alternatives = ", ".join(
-                item.get("label", "") for item in error.decision.alternatives
-                if item.get("label")
-            ) or "none"
             message = (
-                f"[from:{worker.name}] New worker turn blocked by weekly quota; "
+                f"[from:{worker.name}] New worker turn blocked by the quota line; "
                 f"{retained_count} queued message(s) retained. {error} "
-                f"Fresh alternatives: {alternatives}. Stop and model change remain available."
+                "Luna and Spark are outside the line. "
+                "Stop and model change remain available."
             )
             parent = None
             if worker.parent_id:
