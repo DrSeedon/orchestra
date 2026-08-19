@@ -2,13 +2,22 @@
 ## Semantic memory — `search_memory` tool
 
 **Mandatory pre-work order:** `pwd` → this memory gate → frame/restate → first
-`Read`/`Grep`/code scan. At the gate, MUST call `search_memory("<goal + subsystem or symptom>")` for:
+`Read`/`Grep`/code scan. The gate has TWO steps, both before your first `Read`/`Grep`.
+
+**Step 1 — the knowledge base, `docs/kb/`.** Read `docs/kb/README.md`, pick every topic that
+touches your task, and read its **Установлено** and **Отвергнуто** sections. This is not optional
+and not "if it looks relevant": `Отвергнуто` exists to stop you from re-walking a circle somebody
+already walked, and `Пробелы` tells you where the real unknown is. Name in your first message which
+topics you read, or that no topic matched.
+
+**Step 2 — `search_memory("<goal + subsystem or symptom>")`,** for:
 - research, investigation, audit, diagnosis, comparison, architecture, or planning;
 - implementation/fix unless the task names the exact file and line/function to change;
 - continuation after compact/restart.
 
-Past tasks may already contain the answer, failed approaches, and decisions; skipping this
-search repeats work and burns quota. Open attributed hits; no useful hit → inspect code normally.
+The KB holds conclusions with their evidence; `search_memory` finds the raw task write-ups behind
+them. Past tasks may already contain the answer, failed approaches, and decisions; skipping either
+step repeats work and burns quota. Open attributed hits; no useful hit → inspect code normally.
 
 **Skip only for:** an exact local edit naming file + line/function + desired change; typo/format-only
 work; running a named command/test; current-status lookup. Use grep for exact strings/current lines.

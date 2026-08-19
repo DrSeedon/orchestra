@@ -40,8 +40,11 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
    blocking hole in a load-bearing finding → verify via code/measurement, then apply the
    canonical follow-up/escalation rule (do NOT just note it and move on).
    Fold the outcome into research.md (Counter-evidence / confidence).
-6. Report: `RESEARCH DONE #<id>: <2-3 sentence truth + confidence>. docs/tasks/<id>/research.md. Awaiting approval to plan.`
-7. **STOP. Wait for approval.**
+6. Append the conclusion to its topic file in `docs/kb/` (research-method Step 6) — with evidence,
+   and a `Пробелы` line for what stayed open. This is part of Phase 1, not an afterthought.
+7. Report: `RESEARCH DONE #<id>: <2-3 sentence truth + confidence>. docs/tasks/<id>/research.md;
+   docs/kb/<topic>.md updated. Awaiting approval to plan.`
+8. **STOP. Wait for approval.**
 
 ### Phase 2: PLAN → slice into tickets (AC) + risk-based review
 1. Write `docs/tasks/<task-id>/plan.md`: what changes in which files (functions/classes),
@@ -224,7 +227,7 @@ docs/tasks/<task-id>/
 <parallelism>
 ## Parallelism
 - Phase 1 research with natural splits (by region, source type, sub-question) → `spawn_worker` 2-3 `worker`-role agents, one slice each, then synthesize their findings into one research.md. Independent exploration prevents groupthink.
-- About to spawn 2+ children at once → call `open_fan(children=[...])` BEFORE the spawns, with the names you are about to use. Measured 13.08: on a one-command task the children reported before the parent could call `open_fan` after spawning. Their reports then wake you once, after the last one, instead of once per child. In every child's task require the report to be sent by CALLING `send_message`: a child that just ends its turn silently wakes you past the fan through the auto-report (#219).
+- About to spawn 2+ children at once → call `open_fan(children=[...])` BEFORE the spawns, with the names you are about to use. Its tool description owns the rest of the rules — read them there rather than reconstructing them.
 - Never split one implementation ticket across agents. Phase 3 may delegate the whole ticket to one worker under its red-oracle contract.
 - You own every worker you spawn; finish its merge/kill lifecycle under the worker-lifecycle
   gate before reporting DONE (finishing with live children is blocked).

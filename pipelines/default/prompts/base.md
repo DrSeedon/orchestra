@@ -47,7 +47,8 @@ manage them; the available types and their parameters are in the `bg_create` too
 ## Standard rules
 - Persist knowledge to files — write research results, solutions, configs to `docs/` or `RESEARCH.md`. Context is lost on compaction/restart, files are not
 - Respond in the same language the user communicates in
-- Running or skipping a model review → load the `codex-debate` skill FIRST. Reviewer routing, required evidence, round ceilings, and completed-verdict rules are defined there and nowhere else — never reproduce them from memory
+- Running or skipping a model review → load the `codex-debate` skill FIRST, if that skill is in your skill list. A role without it never reviews and never looks for a substitute reviewer. Reviewer routing, required evidence, round ceilings, and completed-verdict rules are defined there and nowhere else — never reproduce them from memory
+- **Where your knowledge goes.** NEVER use the runtime's own memory directory (`~/.claude/projects/.../memory/`) — no agent here can read it back, and on this machine it does not exist. Durable knowledge goes to files in the repo: a lesson about how YOU work → `docs/workers/<your-name>.md`; a rule for the project → `CLAUDE.md` in your project root; a research finding → the knowledge base (`docs/kb/`) plus `docs/tasks/<id>/`
 - **Context economy:** every tool_result stays in your context and is re-read every turn. Minimize replay:
   - grep/search BEFORE full Read — find the lines you need, then Read with offset+limit
   - Large exploration: spawn-capable roles may delegate a bounded slice; terminal workers report scope growth to their orchestrator instead of spawning

@@ -99,8 +99,44 @@ primary source, flag the conflict — don't silently prefer the newer one.
   does not exist for that runtime, a stale `cli_pid`, and a resume query excluding the row —
   six defects, one behind another, in a mechanism believed to work after a "successful" restart.
 
-### Step 6 — Synthesize into research.md
-Write `docs/tasks/<task-id>/research.md`:
+### Step 6 — Write the topic file in `docs/kb/`, then research.md
+
+**Research is not finished until a topic file carries its conclusion.** `docs/tasks/<id>/research.md`
+is the raw artifact of one task; `docs/kb/<topic>.md` is what the next agent actually reads at the
+memory gate. One topic = one file = one owner; topics are subsystems or recurring questions
+(`quotas-and-pools`, `prompt-delivery`, `review-routing`, `measurement-method`, `tg-bridge`,
+`sessions-and-compact`, `worker-lifecycle`, `test-harness`, `runtimes`), never task numbers.
+
+Four sections, one line per fact:
+
+```markdown
+# <topic>
+
+## Установлено
+- <claim> · <evidence: file:line | command + number | url> · <date, #task>
+
+## Отвергнуто
+- <what we believed or tried> · <what refuted it> · <date, #task>
+
+## Пробелы
+- <question left open> · <what stopped you> · <date, who asked>
+
+## Источники
+- docs/tasks/<id>/research.md — <one phrase on what it covers>
+```
+
+Rules:
+1. **Append, never rewrite.** A line that turns out wrong gets ` — ОТОЗВАНО <date> #<task>: <what
+   refuted it>` appended and STAYS. Deleting it loses the only record that the road is closed.
+2. A finding without evidence in the same line does not go in. "We decided X" is not a finding.
+3. Don't retell `research.md` here — the conclusion and its evidence live in the topic, the full
+   text stays in the task.
+4. **Пробелы is where the next research comes from.** Leaving one is normal and expected; an empty
+   `Пробелы` on a real question means you did not look at the edges.
+5. New topic → also add its one-line entry to `docs/kb/README.md`. A topic with no entry becomes a
+   second file about the same thing three weeks later.
+
+Then write `docs/tasks/<task-id>/research.md`:
 - **Question** — the framed question (Step 0)
 - **Hypotheses considered** — including the ones you ruled out, and why
 - **Findings** — each as atomic claims, each with inline source [n] or measured number
@@ -111,6 +147,8 @@ Write `docs/tasks/<task-id>/research.md`:
 - **Sources** — numbered list; every URL is one you actually fetched this session
 
 ### A good research output CONTAINS:
+- [ ] A topic file in `docs/kb/` gained at least one line — with evidence, and a `Пробелы` entry
+      for what stayed open. Nothing appended there → the research is not accepted
 - [ ] The question restated with context / change-under-test / baseline / measurable outcome
 - [ ] ≥2 hypotheses considered (not a single foreground guess)
 - [ ] An explicit falsifier per hypothesis ("what would prove this wrong")
