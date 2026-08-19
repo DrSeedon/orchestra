@@ -255,7 +255,7 @@ function renderUsageBar() {
 
     const compactProviders = [
         {id:'codex', bucketId:'codex', windows:_usageProviderWindows('codex', cx)},
-        {id:'codex', bucketId:'codex_spark', windows:_usageProviderWindows('codex', _c.spark)},
+        {id:'codex', bucketId:'codex_spark', windows:_usageProviderWindows('codex', cx.spark)},
         {id:'grok', bucketId:'grok', windows:_usageProviderWindows('grok', gx), showUnavailable:true},
     ].filter(provider => provider.windows.length || provider.showUnavailable);
     if (compactProviders.length) {
