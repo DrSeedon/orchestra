@@ -244,6 +244,37 @@ function _analyticsRenderOverview(body) {
     _analyticsRenderChart(data.daily || []);
 }
 
+// Что именно связало допуск: дефицит рабочих часов или процентный предел (#314).
+// Обе величины показываем ВСЕГДА — оператор, видящий только «закрыл дефицит», не знает,
+// близок ли процент к пределу. Слепота гейта — отдельный узел: без неё тишина читается
+// как «всё хорошо», то есть панель давала бы одинаковый вид при успехе и при провале.
+const _ANALYTICS_BINDING_LABEL = {
+    runway_deficit: 'закрыл дефицит',
+    static_pct: 'отказал процент',
+    blind_no_pace: 'окно ещё не созрело',
+    runway_unavailable: 'измерить нечем',
+    none: 'ничто не связывает',
+};
+
+function _analyticsRunwayPanel(controller) {
+    const runway = controller.runway;
+    if (!runway) return '';
+    const binding = runway.binding_constraint || 'none';
+    const label = _ANALYTICS_BINDING_LABEL[binding] || binding;
+    const deficit = runway.deficit == null ? '—' : _analyticsNumber(runway.deficit) + ' ч';
+    const threshold = runway.threshold == null ? '—' : _analyticsNumber(runway.threshold) + ' ч';
+    const util = runway.utilization == null ? '—' : _analyticsNumber(runway.utilization) + ' %';
+    const staticLimit = runway.static_threshold == null
+        ? '—' : _analyticsNumber(runway.static_threshold) + ' %';
+    const blind = binding === 'blind_no_pace'
+        ? `<p class="analytics-quota-blind" data-runway-blind>Дефицит сейчас сработать не может: темп считается с ${_analyticsNumber(runway.min_work_hours)} рабочих часов окна, набрано ${_analyticsNumber(runway.work_used)}. Вооружится ${_analyticsDateTime(runway.blind_until)}.</p>`
+        : '';
+    return `<div class="analytics-quota-runway" data-binding-constraint="${_analyticsEsc(binding)}">
+        <p>Дефицит ${deficit} (порог ${threshold}) · квота ${util} (предел ${staticLimit}) → <b>${_analyticsEsc(label)}</b></p>
+        ${blind}
+    </div>`;
+}
+
 function _analyticsQuotaPanel(data) {
     const controller = data.quota_controller || {};
     const shadow = controller.shadow || controller;
@@ -252,6 +283,7 @@ function _analyticsQuotaPanel(data) {
         return `<section class="analytics-panel analytics-quota-error" data-quota-controller>
             <div class="analytics-section-head"><div><span class="analytics-kicker">Quota controller</span><h3>Квоты недоступны</h3></div></div>
             <p>Не удалось прочитать телеметрию контроллера. Статический гейт сохранён.</p>
+            ${_analyticsRunwayPanel(controller)}
             ${staticPolicy}
         </section>`;
     }
@@ -260,6 +292,7 @@ function _analyticsQuotaPanel(data) {
             <div class="analytics-section-head"><div><span class="analytics-kicker">Quota controller</span><h3>Теневая телеметрия ещё не накоплена</h3></div></div>
             <p>Нет shadow telemetry (<code>no_shadow_telemetry</code>). Сегодняшнюю волну Codex нельзя классифицировать как hold или allow.</p>
             <p class="analytics-quota-routing">Luna Fast: по умолчанию · Sol: fallback к static · ${_analyticsEsc(controller.sol_suppression_reason || 'codex_telemetry_unavailable_static_fallback')}</p>
+            ${_analyticsRunwayPanel(controller)}
             ${staticPolicy}
         </section>`;
     }
@@ -281,6 +314,7 @@ function _analyticsQuotaPanel(data) {
     return `<section class="analytics-panel analytics-quota-history" data-quota-controller>
         <div class="analytics-section-head"><div><span class="analytics-kicker">Quota controller</span><h3>Квоты и история решений</h3></div><span>${controller.enforcement_active ? 'Адаптивный pre-calibration' : 'Только статический гейт'}</span></div>
         <p class="analytics-quota-routing" data-quota-routing>${routingLine}</p>
+        ${_analyticsRunwayPanel(controller)}
         ${staticPolicy}
         <div class="analytics-kpi-grid"><article><span>Would allow</span><strong>${_analyticsNumber(counts.would_allow)}</strong><small>теневые решения</small></article><article><span>Would hold</span><strong>${_analyticsNumber(counts.would_hold)}</strong><small>фактических hold ${_analyticsNumber(shadow.actual_hold_count)}</small></article><article><span>Indeterminate</span><strong>${_analyticsNumber(counts.indeterminate)}</strong><small>fallback к static</small></article></div>
         <div class="analytics-provider-grid">${buckets || '<div class="analytics-empty">Нет bucket-снимков.</div>'}</div>

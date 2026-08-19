@@ -1256,6 +1256,9 @@ async def usage_analytics_endpoint(days: int = 7):
     payload = build_usage_analytics(days=days, capacity=capacity)
     try:
         payload["quota_controller"] = get_quota_controller().status()
+        # Наблюдение скользящего окна кладём в тот же блок: панель различает причину
+        # допуска (`binding_constraint`) и обязана видеть обе величины сразу (#314).
+        _attach_runway_observation(payload["quota_controller"])
     except Exception as error:
         # Cost history remains useful when the optional controller telemetry is
         # unavailable; the frontend renders this as an explicit error state.
@@ -1452,6 +1455,34 @@ async def build_quota_map() -> dict:
 
 
 @router.get("/api/usage/quota-controller")
+def _attach_runway_observation(controller: dict) -> None:
+    """Положить последнее наблюдение окна Claude в снимок для панели.
+
+    Учёт побочен: не смогли измерить — панель просто не покажет блок, а расход и
+    статический гейт не страдают.
+    """
+    try:
+        from app.db import runway_decision_rows
+
+        rows = runway_decision_rows(limit=1)
+        if not rows:
+            return
+        row = rows[0]
+        controller["runway"] = {
+            "binding_constraint": row.get("binding_constraint"),
+            "deficit": row.get("deficit"),
+            "pace": row.get("pace"),
+            "work_used": row.get("work_used"),
+            "work_hours_left": row.get("work_hours_left"),
+            "utilization": row.get("utilization"),
+            "threshold": row.get("threshold"),
+            "window_id": row.get("window_id"),
+            "observed_at": row.get("created_at"),
+        }
+    except Exception:
+        return
+
+
 async def quota_controller_status():
     try:
         result = get_quota_controller().status()

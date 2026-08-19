@@ -1,75 +1,113 @@
-# #314 implementation report
+# #314 отчёт: ревизия research после BLOCKED + реализация T1/T6/T7/T8
 
-## Scope and data fact
+Ветка `task-314/feat-runway-gate`. Коммиты: `a8d23247` (ревизия 2 артефакта),
+`354c9a93` (реализация). Прод не трогался, `uvicorn` не поднимался, боевая БД читалась
+только read-only.
 
-Release A adds conservative pre-calibration enforcement for new worker provider turns and
-Usage Analytics quota visibility. Orchestrator sessions are server-role exempt; mid-turn,
-submitted, and in-flight operations remain unchanged. The read-only live-shaped check in
-`data-facts.md` found no `quota_controller_*` tables and therefore no shadow decision counts,
-binding constraints, or answer for today's Codex wave; the API now exposes that gap as
-`no_shadow_telemetry` rather than inventing zeroes.
+## 1. Что сделано
 
-## Implemented
+**Ревизия 2 `research.md`** — приняты все 5 blocking и все 3 ошибки факта ревью
+`rev314-opus`, каждая перепроверена своими скриптами (`verify_review.py`) до правки. Ни одно
+замечание не оспорено. Разбор — §13 артефакта; ниже только то, чего в нём нет.
 
-- `app/quota_controller.py`: fresh-known adaptive gate, static-denial preservation, hot disable,
-  server-owned Luna Fast status, Sol suppression only from fresh `codex:primary`, and redacted
-  history/bucket cards.
-- `app/session.py` / `app/quota_gate.py`: real-session server-role/task-class/tier propagation,
-  explicit `adaptive_quota_hold` instead of false direct-send success, queued hold retry, and
-  unconditional lifecycle-lock release.
-- `app/manager.py`: new worker/review Sol sessions route to Luna Fast when the fresh Codex lane
-  is tight; missing telemetry leaves the requested lane unchanged.
-- `app/mcp_stdio.py`: omitted `codex_review` model is now server-owned `gpt-5.6-luna`.
-- `app/routes/system.py`, `app/static/js/analytics.js`, and CSS from the implementation commit:
-  analytics endpoint/panel show utilization, q95, inflight, guard, reserve/headroom, runway,
-  enforcement state, shadow counts/history, Luna default, and Sol suppression reason without
-  prompts, secrets, or high-cardinality IDs.
+**Реализация T1/T6/T7/T8** — наблюдающая половина механизма. Порог НИЧЕГО не решает: он
+проставляет `binding_constraint`, пишет строку журнала и рисуется в панели. Это буквально
+рамка «сначала shadow с журналом, порог принимает решения потом».
 
-The earlier generic Fast-off rule is superseded by
-`docs/tasks/314/policy-correction.md`; #291 evidence and frozen oracles are unchanged.
+| тикет | что появилось |
+|---|---|
+| T1 | `QuotaDecision.binding_constraint` (5 значений) + `QuotaDecision.runway`; оба в `to_dict` и envelope |
+| T6 | таблица `runway_decisions` (append-only, триггеры) + `record_runway_decision` / `runway_decision_rows` |
+| T7 | `_analyticsRunwayPanel` в `analytics.js`: обе величины всегда, `data-binding-constraint`, отдельный узел `data-runway-blind` |
+| T8 | колонки `deficit_hours` / `min_work_hours` в `quota_controller_policy` + `set_runway_policy` с записью в аудит |
 
-## Verification
+Врезка одна — `_apply_runway_observation` в `get_worker_admission`, единственном производителе
+`QuotaDecision`. Четыре точки допуска (`manager.py:762`, `session.py:1288,2319,2526`) не
+перечислялись и не правились.
 
-Exact scoped suites:
+Файлы: `app/quota_gate.py` (+180), `app/db.py` (+150), `app/routes/system.py` (+30),
+`app/static/js/analytics.js` (+35), оракулы и `conftest.py` (+45).
 
-```text
-uv run python -m pytest -q docs/tasks/314/oracles/test_t314_enforcement.py docs/tasks/314/oracles/test_t314_session_integration.py docs/tasks/314/oracles/test_t314_analytics.py
-24 passed in 1.27s
-uv run python -m pytest -q tests/test_t314_analytics_browser.py
-3 passed in 8.10s
-uv run python -m pytest -q tests/test_mcp_stdio.py
-96 passed in 10.10s
-uv run python -m pytest -q docs/tasks/291/oracles/test_t1_schema_and_topology.py docs/tasks/291/oracles/test_t2_adaptive_gate.py docs/tasks/291/oracles/test_t3_shadow_delivery.py docs/tasks/291/oracles/test_t4_replay_evidence.py
-21 passed
+## 2. Что НЕ сделано и почему
+
+**T3/T4/T5 не реализованы** — держатся до вердикта по порогу. Практическое следствие: сегодня
+`binding_constraint` может принять значение `runway_deficit`, но **никто на него не действует** —
+ни отказа, ни увода на Luna. Это наблюдение, а не гейт.
+
+**Деградация выключена по умолчанию.** `deficit_hours` в политике = `NULL`, и при `NULL` вся
+ветка наблюдения не выполняется вовсе. Включение — одна запись `set_runway_policy`.
+
+## 3. Проверка
+
+```
+docs/tasks/314/oracles/            36 passed      (включая 24 оракула прежнего релиза #314)
+tests/test_t314_runway_panel_browser.py   4 passed
+целевая регрессия, 18 файлов       1 failed, 493 passed in 467s
 ```
 
-The relevant regression run supplied by the parent completed `769 passed, 12 skipped`.
-The all-files collection command separately stops at the pre-existing
-`tests/test_system_chat_entry.py` import of `_goto_dashboard_or_skip`, absent from the
-current `tests/test_frontend.py`; no #314 test is implicated.
+Единственное падение — `tests/test_mcp_quota_gate.py::test_spawn_uses_role_aware_server_preflight_and_execution_recheck`.
+**Предсуществующее, проверено на чистом `main`**, а не только на базе своей ветки: отдельный
+`git worktree add --detach` от `main` (`d3496ef2`) → тот же `1 failed`. К #314 отношения не имеет
+(падает на приёмке receipt доставки начальной задачи в `mcp_stdio`).
 
-Mutation evidence:
+### Мутации
 
-- replacing the Luna review default with Sol → `test_codex_review_default_is_server_owned_luna_fast`
-  failed (`rc=1`);
-- replacing both fresh `codex:primary` checks with Grok → enforcement status oracle failed
-  (`rc=1`);
-- making session admission trust the mutable `task_class` field → real-session spoof oracle
-  failed (`rc=1`).
+| мутация | ожидание | результат |
+|---|---|---|
+| `state="blocked"` при `runway_deficit` (деградация становится отказом) | T8 краснеет | `1 failed, 2 passed` ✅ |
+| политика читается один раз и кешируется | T8 краснеет | `2 failed, 1 passed` ✅ |
+| журнал пишет `threshold_revision=None` | T6 краснеет | `2 failed, 2 passed` ✅ |
 
-After each mutation the original file was restored and touched; `git diff --check` is clean.
-`git diff --exit-code f1a5460b24eb91b7408d11b0ecaa93bbdbb2571b -- docs/tasks/291/oracles` exits 0.
+Каждая мутация откачена, файл `touch`-нут (инвалидация `__pycache__`), после отката прогон
+повторён зелёным.
 
-## Review
+**Про мутацию M3 честно: я испортил собственный откат.** Сделал `cp` бэкапа ПОСЛЕ первой правки
+файла, поэтому «восстановленная» версия содержала мутант, и следующий прогон дал `1 failed`
+там, где ждал зелёное. Поймал сравнением с `grep`, восстановил вручную. Это ровно тот случай,
+против которого в `CLAUDE.md` написано «бэкап одноразовый: каждая следующая мутация начинается
+со своего `cp`» — правило знал, порядок всё равно нарушил.
 
-Sol review artifact: `docs/tasks/314/codex-review-impl.md`. Rounds 1–3 are preserved; round 3
-ends `REJECT` on the then-unfixed Sol review default. The orchestrator explicitly authorized
-the two post-round-3 surgical fixes and mechanical evidence above, with no fourth Sol round.
-The artifact records this distinction and the exact green commands; it is not represented as a
-new reviewer approval.
+## 4. Находка, которая важнее самих тикетов
 
-## Safety and rollout
+**Оракулы под `docs/` не получают гарда боевой БД.** `pyproject.toml` объявляет
+`testpaths = ["tests"]`, и `tests/conftest.py` с autouse-фикстурой `_isolate_production_db`
+на `docs/tasks/*/oracles/` НЕ распространяется. Обнаружено не рассуждением: оракул T6 писал
+в `data/orchestra.db` рабочего дерева, строки копились между прогонами, и `assert len(rows) == 1`
+упал на 46 записях.
 
-`ORCHESTRA_ADAPTIVE_ENFORCEMENT=0|false|off|no` immediately returns to static behavior. No
-deployment, restart, or production mutation was performed. No T5 calibrated enforcement enable
-path or feature flag was added.
+Боевая БД не пострадала: `_DEFAULT_DB_PATH` резолвится от файла модуля, то есть внутри worktree,
+и запись ушла в dev-копию (её я вычистил). Но повезло из-за расположения, а не из-за защиты —
+у оракулов, запущенных из главного чекаута, `_DEFAULT_DB_PATH` указывает на боевую БД.
+
+Ни у одного набора оракулов в `docs/tasks/*/oracles/` своего `conftest.py` нет. Я завёл его
+только для #314; остальные наборы остаются без изоляции — это стоит отдельной задачи, сам не
+трогал.
+
+## 5. Перезаморозки (обе объявлены, обе — имена, не поведение)
+
+По правилу «правка замороженного оракула = перезаморозка» называю обе явно. Реплеев от коммита
+`91e6cf47` не было, поэтому excluded помечать нечего.
+
+1. **`db.quota_policy_audit_rows` → `db.quota_policy_audit`.** Функция с этой семантикой уже
+   существовала; заводить второе имя — нарушение «один owner». Исправлено имя в оракуле.
+2. **Ассерт формата даты в T7.** Требовал `«20.08»` или `«2026-08-20»`, то есть приколачивал
+   формат. Панель везде печатает через `_analyticsDateTime` (`«20 авг., 15:00»`), и подгонять
+   общий формат под один тест значило бы чинить не то. Ассерт переписан на смысл: назван момент
+   вооружения и требуемые часы.
+
+## 6. Открытое
+
+- Вердикт ревьюера по ПЕРЕПИСАННОМУ артефакту не получен: §3.2, §3.5, §5.5 переписаны уже
+  после его прогона. Кросс-семейной проверки по-прежнему нет (Codex 100 % до 23.08).
+- Фальсификатор §5.5 предрегистрирован на **20.08 13:29 UTC** — момент вооружения гейта M=34 в
+  идущем окне. Проверять после 25.08.
+- `binding_constraint` пишется в журнал с `outcome="observed_shadow"`; когда появится T4,
+  значение обязано начать различать наблюдение и действие.
+
+## 7. Урок
+
+Ошибки B3 и F1 из ревью — одного класса: **величина посчитана при одном условии, а описана
+словами про другое** (максимум при `wu>=34` назван «максимумом за остаток недели»; знаменатель
+8 окон назван знаменателем 6 полных). Оба раза сдвиг был в мою пользу. Проверка «посчитанное и
+написанное — про одно и то же условие?» стоит одну минуту и ловит ровно этот класс; она дешевле
+любого пересчёта и её не заменяет ни аккуратность арифметики, ни второй источник.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import time
 from dataclasses import dataclass, replace
@@ -11,6 +12,7 @@ from typing import Awaitable, Callable, Mapping
 from app.models import backend_for_model, resolve_model
 from app.runtime_registry import get_runtime
 
+logger = logging.getLogger(__name__)
 
 WEEKLY_WINDOW_MINUTES = 10080
 WORKER_WEEKLY_LIMIT_PCT = 95.0
@@ -34,6 +36,14 @@ LANE_DEFAULT_THRESHOLDS = {
     "claude": CLAUDE_WORKER_WEEKLY_LIMIT_PCT,
 }
 QUOTA_OBSERVATION_MAX_AGE = 300.0
+# Значения `QuotaDecision.binding_constraint` — что именно связало решение.
+# `runway_deficit` НЕ является отказом: по нему полоса деградирует, а отказывает только
+# процент (#314). Замер, стоящий за этим разделением, — `docs/tasks/314/research.md`.
+BINDING_NONE = "none"
+BINDING_STATIC_PCT = "static_pct"
+BINDING_RUNWAY_DEFICIT = "runway_deficit"
+BINDING_BLIND_NO_PACE = "blind_no_pace"
+BINDING_RUNWAY_UNAVAILABLE = "runway_unavailable"
 SPARK_MODEL = "gpt-5.3-codex-spark"
 READINESS_POLICY = "worker-weekly-v1"
 READINESS_WIRE_VERSION = 2
@@ -53,6 +63,12 @@ class QuotaDecision:
     alternatives: tuple[dict[str, str], ...]
     reason: str
     threshold: float = WORKER_WEEKLY_LIMIT_PCT
+    # Что именно связало решение. Отдельным полем, а не разбором `reason`: панель обязана
+    # различать «отказал процент» и «закрыл дефицит», а свободный текст для этого негоден.
+    # Значение ортогонально `state` — деградация по дефициту НЕ является отказом (#314).
+    binding_constraint: str = BINDING_NONE
+    # Измерение скользящего окна, если оно было доступно. Решения не несёт.
+    runway: dict | None = None
 
     @property
     def allowed(self) -> bool:
@@ -71,6 +87,8 @@ class QuotaDecision:
             "reset_at": self.reset_at,
             "alternatives": [dict(item) for item in self.alternatives],
             "reason": self.reason,
+            "binding_constraint": self.binding_constraint,
+            "runway": dict(self.runway) if self.runway else None,
         }
 
 
@@ -386,6 +404,9 @@ def evaluate_worker_admission(
         alternatives=alternatives,
         reason=reason,
         threshold=threshold,
+        # Связывает только состоявшийся отказ по проценту. Все прочие состояния
+        # (`available`, `unknown`, `not_applicable`) ничего не связывают.
+        binding_constraint=BINDING_STATIC_PCT if state == "blocked" else BINDING_NONE,
     )
 
 
@@ -430,7 +451,166 @@ async def get_worker_admission(
         policy = quota_policy_snapshot()
     except Exception:
         policy = None
-    return evaluate_worker_admission(model, providers, timestamps, policy=policy)
+    decision = evaluate_worker_admission(model, providers, timestamps, policy=policy)
+    return _apply_runway_observation(decision, policy)
+
+
+def current_runway_verdict(decision: QuotaDecision):
+    """Измерение окна для полосы Claude: `(вердикт, набранные рабочие часы)` или None.
+
+    Ничего не решает: сравнение с порогом делает `_apply_runway_observation`.
+    """
+    if decision.provider != "anthropic" or decision.weekly_utilization is None:
+        return None
+    from datetime import datetime, timezone
+
+    from app.db import runway_window_start_pct
+    from app.quota_runway import next_weekly_reset, weekly_runway, working_hours_between
+
+    now = datetime.now(timezone.utc)
+    reset_at = None
+    if decision.reset_at:
+        try:
+            parsed = datetime.fromisoformat(decision.reset_at)
+            reset_at = parsed if parsed > now else None
+        except ValueError:
+            reset_at = None
+    if reset_at is None:
+        reset_at = next_weekly_reset(now)
+    baseline = runway_window_start_pct(reset_at)
+    start_pct, start_at = baseline if baseline is not None else (None, None)
+    if isinstance(start_at, str):
+        start_at = datetime.fromisoformat(start_at)
+    verdict = weekly_runway(
+        utilization=decision.weekly_utilization,
+        window_start_pct=start_pct,
+        window_start_at=start_at,
+        now=now,
+        reset_at=reset_at,
+    )
+    # `work_used` из вердикта не выводится — в нём его нет, а восстановить его из
+    # `runway_hours * pace` невозможно: это тождество, дающее обратно `runway_hours`.
+    # Поэтому считаем здесь, где ещё видна база окна.
+    work_used = (
+        working_hours_between(start_at, now) if start_at is not None else None
+    )
+    return verdict, work_used
+
+
+def current_runway_deficit(decision: QuotaDecision, observed=None) -> float | None:
+    """Число, по которому принимается решение о деградации.
+
+    Единственный seam, через который тест подменяет решающую величину, не подделывая всю
+    историю `usage_snapshots`. Поэтому он обязан быть самодостаточным: если вердикт не
+    передан, функция добывает его сама.
+    """
+    if observed is None:
+        observed = current_runway_verdict(decision)
+    verdict = observed[0] if isinstance(observed, tuple) else observed
+    return None if verdict is None else verdict.deficit
+
+
+def _apply_runway_observation(
+    decision: QuotaDecision,
+    policy: Mapping[str, object] | None,
+) -> QuotaDecision:
+    """Наблюдение скользящего окна: НАБЛЮДЕНИЕ, а не действие.
+
+    Проставляет `binding_constraint` и блок `runway`, пишет строку журнала — и НИЧЕГО
+    не меняет в `state`. Отказ остаётся исключительно за процентом: порог дефицита не
+    откалиброван (правая половина матрицы ошибок пуста, `docs/tasks/314/research.md` §5.2),
+    поэтому действовать по нему сейчас нельзя, а собирать наблюдения — нужно.
+    """
+    lane = policy_lane_for_model(decision.model, decision.provider)
+    if lane != "claude" or decision.binding_constraint == BINDING_STATIC_PCT:
+        return decision
+    lanes = policy.get("lanes") if isinstance(policy, Mapping) else None
+    item = lanes.get(lane) if isinstance(lanes, Mapping) else None
+    deficit_limit = item.get("deficit_hours") if isinstance(item, Mapping) else None
+    if not isinstance(deficit_limit, (int, float)) or isinstance(deficit_limit, bool):
+        # Оператор не задал порог — механизм выключен, и это законное состояние.
+        return decision
+    min_work_hours = item.get("min_work_hours") if isinstance(item, Mapping) else None
+    if not isinstance(min_work_hours, (int, float)) or isinstance(min_work_hours, bool):
+        min_work_hours = 0.0
+
+    # Деталь для панели — best-effort: её отсутствие не должно менять РЕШЕНИЕ.
+    try:
+        observed = current_runway_verdict(decision)
+    except Exception as error:
+        logger.warning("runway observation failed: %s: %s", type(error).__name__, error)
+        observed = None
+    verdict, work_used = observed if observed is not None else (None, None)
+
+    deficit = current_runway_deficit(decision, observed)
+    if deficit is None:
+        # Различаем «окно ещё не созрело» и «измерить нечем»: оператору это разные строки.
+        binding = BINDING_BLIND_NO_PACE if verdict is not None else BINDING_RUNWAY_UNAVAILABLE
+    elif work_used is not None and work_used < float(min_work_hours):
+        binding = BINDING_BLIND_NO_PACE
+    elif deficit > float(deficit_limit):
+        binding = BINDING_RUNWAY_DEFICIT
+    else:
+        binding = BINDING_NONE
+
+    runway = {
+        "deficit": deficit,
+        "pace": getattr(verdict, "pace", None),
+        "runway_hours": getattr(verdict, "runway_hours", None),
+        "work_hours_left": getattr(verdict, "work_hours_left", None),
+        "work_used": work_used,
+        "window_id": getattr(verdict, "window_id", None),
+        "threshold": float(deficit_limit),
+        "min_work_hours": float(min_work_hours),
+        "static_threshold": decision.threshold,
+        "utilization": decision.weekly_utilization,
+        "blind_until": _runway_blind_until(work_used, float(min_work_hours)),
+    }
+    _log_runway_decision(runway, binding, item)
+    return replace(decision, binding_constraint=binding, runway=runway)
+
+
+def _runway_blind_until(work_used: float | None, min_work_hours: float) -> str | None:
+    """Момент, когда гейт по дефициту сможет впервые высказаться.
+
+    Показывать обязательно: без него тишина гейта читается оператором как «всё хорошо»,
+    то есть проверка даёт одинаковый вывод при успехе и при провале.
+    """
+    if min_work_hours <= 0:
+        return None
+    if work_used is not None and work_used >= min_work_hours:
+        return None
+    from datetime import datetime, timezone
+
+    from app.quota_runway import moment_after_working_hours
+
+    missing = min_work_hours - (work_used or 0.0)
+    moment = moment_after_working_hours(datetime.now(timezone.utc), missing)
+    return moment.isoformat() if moment is not None else None
+
+
+def _log_runway_decision(runway: dict, binding: str, policy_item: object) -> None:
+    """Журнал не имеет права уронить допуск: учёт побочен, результат — нет."""
+    try:
+        from app.db import record_runway_decision
+
+        revision = policy_item.get("revision") if isinstance(policy_item, Mapping) else None
+        record_runway_decision(
+            window_id=str(runway.get("window_id") or ""),
+            binding_constraint=binding,
+            deficit=runway.get("deficit"),
+            pace=runway.get("pace"),
+            work_used=runway.get("work_used"),
+            work_hours_left=runway.get("work_hours_left"),
+            utilization=runway.get("utilization"),
+            threshold=runway.get("threshold"),
+            threshold_revision=int(revision) if isinstance(revision, int) else None,
+            outcome="observed_shadow",
+        )
+    except Exception as error:
+        logger.warning(
+            "runway decision log failed: %s: %s", type(error).__name__, error,
+        )
 
 
 def require_worker_admission(decision: QuotaDecision) -> None:

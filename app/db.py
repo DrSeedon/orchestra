@@ -39,8 +39,12 @@ _QUOTA_CONTROLLER_TABLE_COLUMNS = {
         "regime_set_hash", "source_digest", "prospective", "metrics_json",
         "reasons_json", "eligible",
     ),
+    # Порядок и состав ОБЯЗАНЫ совпадать с `_QUOTA_POLICY_TABLE_SQL` и со списком
+    # переносимых колонок в дрейф-починке — это три копии одного перечня, и
+    # расхождение любой пары ловится здесь громко (#314).
     "quota_controller_policy": (
         "lane", "threshold", "revision", "source", "reason", "updated_at",
+        "deficit_hours", "min_work_hours",
     ),
     "quota_controller_policy_audit": (
         "audit_id", "actor", "created_at", "old_json", "new_json", "reason",
@@ -81,7 +85,13 @@ _QUOTA_POLICY_TABLE_SQL = """
             revision INTEGER NOT NULL CHECK (revision >= 1),
             source TEXT NOT NULL,
             reason TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            updated_at TEXT NOT NULL,
+            -- Порог дефицита рабочих часов и окно применимости темпа (#314).
+            -- NULL = деградация по дефициту выключена; это и есть аварийный выключатель.
+            -- Отдельные колонки, а не переиспользование `threshold`: у того CHECK 0..100 —
+            -- инвариант ПРОЦЕНТА, и расширять его под часы значило бы его потерять.
+            deficit_hours REAL CHECK (deficit_hours IS NULL OR deficit_hours >= 0),
+            min_work_hours REAL CHECK (min_work_hours IS NULL OR min_work_hours >= 0)
         )
         """
 
@@ -437,18 +447,26 @@ def _migrate_quota_policy_lanes(c: sqlite3.Connection) -> None:
         return
     c.execute("BEGIN IMMEDIATE")
     try:
+        # Перечень колонок ОБЯЗАН совпадать с `_QUOTA_POLICY_TABLE_SQL`. Забыть здесь новую
+        # колонку — значит молча обнулить операторские значения при первом же дрейфе:
+        # таблица на месте, строки на месте, а деградация выключена (#314).
+        existing = {row[1] for row in c.execute("PRAGMA table_info(quota_controller_policy)")}
+        carried = [
+            name for name in (
+                "lane", "threshold", "revision", "source", "reason", "updated_at",
+                "deficit_hours", "min_work_hours",
+            ) if name in existing
+        ]
         rows = [
             tuple(item) for item in c.execute(
-                "SELECT lane, threshold, revision, source, reason, updated_at "
-                "FROM quota_controller_policy"
+                f"SELECT {', '.join(carried)} FROM quota_controller_policy"
             )
         ]
         c.execute("DROP TABLE quota_controller_policy")
         c.execute(_QUOTA_POLICY_TABLE_SQL)
         c.executemany(
-            "INSERT INTO quota_controller_policy "
-            "(lane, threshold, revision, source, reason, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            f"INSERT INTO quota_controller_policy ({', '.join(carried)}) "
+            f"VALUES ({', '.join('?' * len(carried))})",
             rows,
         )
         c.commit()
@@ -504,9 +522,14 @@ class QuotaPolicyRevisionMismatch(RuntimeError):
     """The operator policy changed after a caller read its revision."""
 
 
+def _opt_float(value: object) -> float | None:
+    return None if value is None else float(value)
+
+
 def _quota_policy_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute(
-        "SELECT lane, threshold, revision, source, reason, updated_at "
+        "SELECT lane, threshold, revision, source, reason, updated_at, "
+        "deficit_hours, min_work_hours "
         "FROM quota_controller_policy ORDER BY CASE lane "
         "WHEN 'claude' THEN 0 WHEN 'sol' THEN 1 WHEN 'luna' THEN 2 ELSE 3 END"
     ).fetchall()
@@ -545,6 +568,8 @@ def quota_policy_snapshot() -> dict:
             "source": row["source"],
             "reason": row["reason"],
             "updated_at": row["updated_at"],
+            "deficit_hours": _opt_float(row["deficit_hours"]),
+            "min_work_hours": _opt_float(row["min_work_hours"]),
         }
         for row in rows
     }
@@ -639,6 +664,152 @@ def rollback_quota_policy(*, actor: str, reason: str = "operator rollback to def
     return replace_quota_policy(
         dict(QUOTA_POLICY_DEFAULTS), actor=actor, reason=reason, action="rollback",
     )
+
+
+def set_runway_policy(
+    *,
+    lane: str,
+    deficit_hours: float | None,
+    min_work_hours: float | None,
+    source: str = "operator",
+    reason: str,
+    actor: str = "operator",
+) -> dict:
+    """Записать порог дефицита для полосы. `deficit_hours=None` — выключить деградацию.
+
+    Читается на КАЖДОЕ решение (`quota_policy_snapshot` без кеша), поэтому запись здесь —
+    и есть обратимость без рестарта. Пишем в ту же аудит-таблицу, что и пороги процента:
+    окно без срабатываний обязано быть отличимо от окна, в котором механизм выключили.
+    """
+    if lane not in QUOTA_POLICY_DEFAULTS:
+        raise ValueError(f"unknown quota policy lane: {lane}")
+    reason = str(reason or "").strip()
+    if not reason:
+        raise ValueError("runway policy reason is required")
+    for name, value in (("deficit_hours", deficit_hours), ("min_work_hours", min_work_hours)):
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"runway policy {name} must be numeric")
+        if not math.isfinite(float(value)) or float(value) < 0:
+            raise ValueError(f"runway policy {name} must be a finite non-negative number")
+    with _conn() as conn:
+        _ensure_quota_controller_schema(conn)
+        _ensure_quota_policy_defaults(conn)
+        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        rows = _quota_policy_rows(conn)
+        old = {
+            row["lane"]: {
+                "deficit_hours": _opt_float(row["deficit_hours"]),
+                "min_work_hours": _opt_float(row["min_work_hours"]),
+            }
+            for row in rows
+        }
+        revision = max(int(row["revision"]) for row in rows) + 1
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "UPDATE quota_controller_policy SET deficit_hours=?, min_work_hours=?, "
+            "revision=?, source=?, reason=?, updated_at=? WHERE lane=?",
+            (deficit_hours, min_work_hours, revision, source, reason, now, lane),
+        )
+        new = dict(old)
+        new[lane] = {"deficit_hours": deficit_hours, "min_work_hours": min_work_hours}
+        conn.execute(
+            "INSERT INTO quota_controller_policy_audit "
+            "(actor, created_at, old_json, new_json, reason, revision, action) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (actor, now, json.dumps(old, sort_keys=True), json.dumps(new, sort_keys=True),
+             reason, revision, "update"),
+        )
+        conn.commit()
+    return quota_policy_snapshot()
+
+
+def record_runway_decision(
+    *,
+    window_id: str,
+    binding_constraint: str,
+    deficit: float | None,
+    pace: float | None,
+    work_used: float | None,
+    work_hours_left: float | None,
+    utilization: float | None,
+    threshold: float | None,
+    threshold_revision: int | None,
+    outcome: str,
+) -> None:
+    """Записать ОДНУ оценку скользящего окна — сработавшую или нет.
+
+    Пишутся и несработавшие: доля ложных считается от числа ОЦЕНОК, и журнал, хранящий
+    только срабатывания, завышает её произвольно. `threshold_revision` обязателен — без
+    него задним числом не отличить «порог ошибся» от «порог был другой» (#314).
+    """
+    with _conn() as conn:
+        _ensure_runway_decision_schema(conn)
+        conn.execute(
+            "INSERT INTO runway_decisions (created_at, window_id, binding_constraint, "
+            "deficit, pace, work_used, work_hours_left, utilization, threshold, "
+            "threshold_revision, outcome) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (datetime.now(timezone.utc).isoformat(), window_id, binding_constraint,
+             deficit, pace, work_used, work_hours_left, utilization, threshold,
+             threshold_revision, outcome),
+        )
+        conn.commit()
+
+
+def runway_decision_rows(limit: int = 50) -> list[dict]:
+    with _conn() as conn:
+        _ensure_runway_decision_schema(conn)
+        rows = conn.execute(
+            "SELECT * FROM runway_decisions ORDER BY decision_id DESC LIMIT ?",
+            (max(1, min(int(limit), 500)),),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+_RUNWAY_DECISION_SQL = (
+    """
+    CREATE TABLE IF NOT EXISTS runway_decisions (
+        decision_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at         TEXT NOT NULL,
+        window_id          TEXT NOT NULL,
+        binding_constraint TEXT NOT NULL,
+        deficit            REAL,
+        pace               REAL,
+        work_used          REAL,
+        work_hours_left    REAL,
+        utilization        REAL,
+        threshold          REAL,
+        threshold_revision INTEGER,
+        outcome            TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_runway_decisions_created
+    ON runway_decisions(created_at DESC, decision_id DESC)
+    """,
+    # Ретроспектива через два месяца имеет смысл, только если строку нельзя переписать.
+    """
+    CREATE TRIGGER IF NOT EXISTS runway_decisions_no_update
+    BEFORE UPDATE ON runway_decisions
+    BEGIN
+        SELECT RAISE(ABORT, 'runway decision log is immutable');
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS runway_decisions_no_delete
+    BEFORE DELETE ON runway_decisions
+    BEGIN
+        SELECT RAISE(ABORT, 'runway decision log is immutable');
+    END
+    """,
+)
+
+
+def _ensure_runway_decision_schema(conn: sqlite3.Connection) -> None:
+    for statement in _RUNWAY_DECISION_SQL:
+        conn.execute(statement)
 
 
 def quota_policy_audit(limit: int = 50) -> list[dict]:
