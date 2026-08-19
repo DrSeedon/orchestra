@@ -111,8 +111,80 @@ def test_compact_bar_replaces_spark_with_grok(browser):
     page = _page(browser, True)
 
     expect(page.locator("#usage-bar")).to_contain_text("Grok")
-    expect(page.locator("#usage-bar")).not_to_contain_text("Spark")
+    expect(page.locator("#usage-bar")).to_contain_text("Codex")
+    expect(page.locator("#usage-bar")).to_contain_text("Codex Spark")
     expect(page.locator("#usage-bar")).to_contain_text("7d")
+    page.close()
+
+
+def test_usage_bar_shows_spark_label_and_release_statuses(browser):
+    page = _page(browser, True)
+    page.evaluate(
+        """() => {
+            const now = Date.now();
+            const fiveHReset = new Date(now + 1 * 3600000 + 45 * 60000).toISOString();
+            const sevenDReset = new Date(now + 5 * 86400000 + 15 * 3600000 + 46 * 60000).toISOString();
+            const sparkReset = new Date(now + 3 * 86400000 + 16 * 3600000 + 26 * 60000).toISOString();
+            _usageData = {
+                anthropic: {
+                    five_hour: {id: 'cl-5h', utilization: 58, window_minutes: 300, resets_at: fiveHReset},
+                    seven_day: {id: 'cl-7d', utilization: 100, window_minutes: 10080, resets_at: sevenDReset},
+                },
+                codex: {
+                    primary: {id: 'cd-7d', utilization: 100, window_minutes: 10080, resets_at: sevenDReset},
+                    spark: {
+                        primary: {id: 'sp-7d', utilization: 57, window_minutes: 10080, resets_at: sparkReset},
+                    },
+                },
+                grok: {
+                    primary: {utilization: 12, window_minutes: 10080, resets_at: sevenDReset},
+                },
+                orchestra: {},
+            };
+            _quotaMapData = {
+                buckets: [
+                    {
+                        bucket: 'anthropic',
+                        data_available: true,
+                        window: {id: 'cl-5h', window_minutes: 300, resets_at: fiveHReset},
+                        lanes: [{gated: false, blocked: false, release_status: 'open'}],
+                    },
+                    {
+                        bucket: 'anthropic',
+                        data_available: true,
+                        window: {id: 'cl-7d', window_minutes: 10080, resets_at: sevenDReset},
+                        lanes: [{gated: true, blocked: false, release_status: 'opens_in', release_in_seconds: 17300}],
+                    },
+                    {
+                        bucket: 'codex',
+                        data_available: true,
+                        window: {id: 'cd-7d', window_minutes: 10080, resets_at: sevenDReset},
+                        lanes: [{gated: true, blocked: false, release_status: 'opens_in', release_in_seconds: 17300}],
+                    },
+                    {
+                        bucket: 'codex_spark',
+                        data_available: true,
+                        window: {id: 'sp-7d', window_minutes: 10080, resets_at: sparkReset},
+                        lanes: [{gated: false, blocked: false, release_status: 'open'}],
+                    },
+                ],
+            };
+            renderUsageBar();
+        }"""
+    )
+    text = page.locator("#usage-bar").text_content() or ""
+    assert "5h:" in text
+    five_start = text.index("5h:")
+    seven_start = text.index("7d:")
+    assert "откроется" not in text[five_start:seven_start]
+    assert text.count("Codex") >= 1
+    assert "Codex Spark" in text
+    assert "откроется через" in text
+    assert "работает" in text
+    provider_texts = page.locator('[data-usage-compact-provider="codex"]').all_text_contents()
+    assert len(provider_texts) == 2
+    assert "Codex Spark" in provider_texts[1]
+    assert "7d:" in provider_texts[1]
     page.close()
 
 
@@ -141,7 +213,7 @@ def test_usage_controls_stay_visible_across_desktop_widths(browser):
                 };
             }"""
         )
-        assert measured["providers"] == ["claude", "codex", "grok"]
+        assert measured["providers"] == ["claude", "codex", "codex", "grok"]
         assert measured["infoRight"] <= measured["viewport"]
         assert measured["scrollWidth"] == measured["clientWidth"]
         expect(page.locator("#usage-bar")).not_to_contain_text("$5687")

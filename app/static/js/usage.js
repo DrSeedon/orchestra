@@ -237,7 +237,7 @@ function renderUsageBar() {
         const c = _usageColor(fh.utilization, rpNum);
         const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         const cd = _resetCountdown(fh.resets_at);
-        const release = _quotaMapLaneStatusText(fh, 'anthropic');
+        const release = '';
         claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     const sd = a.seven_day;
@@ -255,7 +255,7 @@ function renderUsageBar() {
 
     const compactProviders = [
         {id:'codex', bucketId:'codex', windows:_usageProviderWindows('codex', cx)},
-        {id:'codex', bucketId:'codex_spark', windows:_usageProviderWindows('codex', cx.spark)},
+        {id:'codex', bucketId:'codex_spark', windows:_usageProviderWindows('codex', cx.spark), compactTitle:'Codex Spark'},
         {id:'grok', bucketId:'grok', windows:_usageProviderWindows('grok', gx), showUnavailable:true},
     ].filter(provider => provider.windows.length || provider.showUnavailable);
     if (compactProviders.length) {
@@ -264,7 +264,7 @@ function renderUsageBar() {
             const color = _usageProviderAccent(provider.id);
             const providerParts = [
                 '<span style="height:14px;border-left:1px solid rgba(71,85,105,0.6)"></span>',
-                `<span style="color:${color};font-weight:600">${meta.compactTitle || meta.title}</span>`,
+                `<span style="color:${color};font-weight:600">${provider.compactTitle || meta.compactTitle || meta.title}</span>`,
             ];
             if (!provider.windows.length) {
                 providerParts.push('<span style="color:#64748b">: нет данных</span>');
