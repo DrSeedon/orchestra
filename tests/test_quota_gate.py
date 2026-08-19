@@ -10,6 +10,7 @@ import app.quota_gate as quota_gate
 from app.quota_gate import (
     HARD_STOP_PCT,
     QuotaDecision,
+    _line_release_in_seconds,
     TOLERANCE_END_PP,
     TOLERANCE_START_PP,
     evaluate_worker_admission,
@@ -143,6 +144,81 @@ def test_line_is_norm_plus_tolerance_and_never_exceeds_the_hard_stop():
     assert line_limit(0.95) == pytest.approx(96.45)
     # у самого сброса норма 100 — линия упирается в жёсткие 99, а не уходит выше
     assert line_limit(1.0) == HARD_STOP_PCT
+
+
+def _line_release_expected(
+    utilization: float,
+    progress: float,
+    reset_at: float,
+    now: float,
+    window_minutes: float,
+) -> tuple[str, float | None]:
+    if utilization >= HARD_STOP_PCT:
+        return "at_reset", reset_at - now
+    line_denominator = 100.0 + TOLERANCE_END_PP - TOLERANCE_START_PP
+    p_release = (utilization - TOLERANCE_START_PP) / line_denominator
+    if p_release <= progress:
+        return "open", None
+    if p_release <= 1.0:
+        return "opens_in", (p_release - progress) * window_minutes * 60.0
+    return "at_reset", reset_at - now
+
+
+def test_release_status_for_gated_lane_has_all_three_outcomes():
+    reset_at = NOW + 600
+    now = NOW
+    for utilization, expected_status in [
+        (55.5, "open"),
+        (60.0, "opens_in"),
+        (HARD_STOP_PCT, "at_reset"),
+    ]:
+        status, seconds = _line_release_in_seconds(
+            utilization=utilization,
+            progress=0.5,
+            gated=True,
+            hard_stop_pct=HARD_STOP_PCT,
+            window_minutes=300,
+            reset_at=reset_at,
+            now=now,
+        )
+        expected = _line_release_expected(utilization, 0.5, reset_at, now, 300)
+        assert status == expected_status == expected[0]
+        if expected_status == "open":
+            assert seconds is None
+        else:
+            assert seconds == pytest.approx(expected[1])
+
+
+def test_release_boundary_at_the_hard_stop():
+    reset_at = NOW + 1200
+    status, seconds = _line_release_in_seconds(
+        utilization=HARD_STOP_PCT,
+        progress=0.9,
+        gated=True,
+        hard_stop_pct=HARD_STOP_PCT,
+        window_minutes=300,
+        reset_at=reset_at,
+        now=NOW,
+    )
+
+    assert status == "at_reset"
+    assert seconds == pytest.approx(reset_at - NOW)
+
+
+def test_release_formula_depends_on_tolerance_start_offset():
+    status, _ = _line_release_in_seconds(
+        utilization=55.5,
+        progress=0.5,
+        gated=True,
+        hard_stop_pct=HARD_STOP_PCT,
+        window_minutes=300,
+        reset_at=NOW + 60,
+        now=NOW,
+    )
+
+    # Это ровно порог при START=10 END=1, без `- START` в формуле
+    # статус стал бы `opens_in`.
+    assert status == "open"
 
 
 # ── обе стороны диагонали для гейтящихся полос ────────────────────────────────

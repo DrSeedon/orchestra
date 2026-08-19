@@ -8288,6 +8288,40 @@ function _qlNum(value, digits = 0) {
     return Number(value).toFixed(digits);
 }
 
+function _qlDurationFromSeconds(totalSeconds) {
+    const rounded = Math.max(0, Math.round(Number(totalSeconds)));
+    if (!Number.isFinite(rounded)) return '';
+    const minutes = Math.floor((rounded % 3600) / 60);
+    const hours = Math.floor((rounded % 86400) / 3600);
+    const days = Math.floor(rounded / 86400);
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+}
+
+function _qlReleaseText(lane) {
+    const status = String(lane.release_status || '').trim();
+    const seconds = Number(lane.release_in_seconds);
+    const hasSeconds = Number.isFinite(seconds);
+
+    if (status === 'opens_in') {
+        return hasSeconds ? `откроется через ${_qlDurationFromSeconds(seconds)}` : 'откроется скоро';
+    }
+    if (status === 'at_reset') {
+        return hasSeconds
+            ? `откроется при сбросе, через ${_qlDurationFromSeconds(seconds)}`
+            : 'откроется при сбросе';
+    }
+    if (status === 'no_data') {
+        return 'нет данных';
+    }
+    return 'работает';
+}
+
+function _qlLaneSummary(lane) {
+    return _qlReleaseText(lane);
+}
+
 function _qlTrace(bucket) {
     const trace = bucket?.trace;
     const points = trace && Array.isArray(trace.points) ? trace.points : [];
@@ -8509,7 +8543,7 @@ function _qlPanelHtml(panel) {
     const lanes = _qlLanes(panel).map(lane => {
         const nodata = !lane.bucket?.data_available;
         const state = nodata ? 'nodata' : lane.blocked ? 'blocked' : 'open';
-        const word = nodata ? 'нет данных' : lane.blocked ? (lane.gated ? 'блок' : 'блок (99%)') : 'работает';
+        const word = _qlLaneSummary(lane);
         return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(lane.lane)}">${_escHtml(lane.label || lane.lane)}: <b>${word}</b>${lane.gated ? '' : ' <i>без диагонали</i>'}</span>`;
     }).join('');
     const reasons = _qlLanes(panel).filter(l => l.blocked && l.reason)

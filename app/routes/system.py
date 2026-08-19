@@ -1284,6 +1284,8 @@ async def build_quota_map() -> dict:
                 "label": LANE_LABELS.get(decision.lane, decision.lane),
                 "gated": decision.lane in GATED_LANES,
                 "blocked": False,
+                "release_status": decision.release_status,
+                "release_in_seconds": decision.release_in_seconds,
                 "reason": decision.reason,
                 "models": [],
             },
@@ -1292,6 +1294,8 @@ async def build_quota_map() -> dict:
         if decision.state == "blocked":
             entry["blocked"] = True
             entry["reason"] = decision.reason
+        entry["release_status"] = decision.release_status
+        entry["release_in_seconds"] = decision.release_in_seconds
         entry["models"].append(decision.model)
 
     def _window_item(window: dict) -> dict:

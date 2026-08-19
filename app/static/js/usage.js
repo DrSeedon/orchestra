@@ -1,6 +1,7 @@
 /* usage.js — usage bar rendering, sparklines, countdown. Loaded before app.js. */
 
 let _usageData = null;
+let _quotaMapData = null;
 let _usageError = false;
 let _usageCountdownInterval = null;
 let _usageFetchPromise = null;
@@ -57,6 +58,86 @@ function _paceIndicator(currentPct, isoStr, windowMs) {
     else if (cooldownMin < 1440) label = `${Math.floor(cooldownMin/60)}h ${cooldownMin%60}m`;
     else label = `${Math.floor(cooldownMin/1440)}d ${Math.floor((cooldownMin%1440)/60)}h ${cooldownMin%60}m`;
     return `<span style="color:${color}" title="Локальная оценка опережения линейного темпа. Это не отдельное лимитное окно и не официальный таймер провайдера.">темп +${label}</span>`;
+}
+
+function _releaseDurationFromSeconds(totalSeconds) {
+    const rounded = Math.max(0, Math.round(Number(totalSeconds)));
+    if (!Number.isFinite(rounded)) return '';
+    if (rounded < 60) return `${rounded}m`;
+    const minutes = Math.floor((rounded % 3600) / 60);
+    const hours = Math.floor((rounded % 86400) / 3600);
+    const days = Math.floor(rounded / 86400);
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+}
+
+function _quotaWindowMatch(bucketWindow, candidate) {
+    if (!bucketWindow || !candidate || !candidate.id) return false;
+    if (String(bucketWindow.id) !== String(candidate.id)) return false;
+    if (Number(bucketWindow.window_minutes) !== Number(candidate.window_minutes)) return false;
+
+    const bucketReset = Date.parse(bucketWindow.resets_at);
+    const candidateReset = Date.parse(candidate.resets_at);
+    if (Number.isFinite(bucketReset) && Number.isFinite(candidateReset)) {
+        return Math.abs(bucketReset - candidateReset) <= 1000;
+    }
+    return String(bucketWindow.resets_at || '') === String(candidate.resets_at || '');
+}
+
+function _quotaMapLaneRelease(windowData, bucketId = null) {
+    if (!_quotaMapData || !_quotaMapData.buckets) {
+        return {status: 'no_data', release_in_seconds: null};
+    }
+    const buckets = _quotaMapData.buckets.filter(item => !bucketId || item.bucket === bucketId);
+    const chooseLane = (bucket) => Array.isArray(bucket?.lanes)
+        ? (bucket.lanes.find(item => item?.gated) || bucket.lanes[0])
+        : null;
+    const laneRelease = (bucket) => {
+        if (!bucket) return {status: 'no_data', release_in_seconds: null};
+        const lane = chooseLane(bucket);
+        if (!lane) return {status: 'open', release_in_seconds: null};
+        return {
+            status: String(lane.release_status || (lane.blocked ? 'at_reset' : 'open')),
+            release_in_seconds: Number(lane.release_in_seconds),
+        };
+    };
+    if (!windowData) {
+        const bucket = buckets[0];
+        return bucket && bucket.data_available && bucket.window ? laneRelease(bucket) : {status: 'no_data', release_in_seconds: null};
+    }
+
+    const exact = buckets.filter(item => _quotaWindowMatch(item.window, windowData));
+    const throughReference = exact.length
+        ? exact
+        : buckets.filter(item => (item.reference_windows || [])
+            .some(window => _quotaWindowMatch(window, windowData)));
+
+    const bucket = throughReference.length === 1
+        ? throughReference[0]
+        : throughReference.find(item => item.data_available && item.window && String(item.window.id) === String(windowData.id))
+            || buckets.find(item => item.data_available && item.bucket === bucketId && item.window && item.window.id);
+    if (!bucket) return {status: 'no_data', release_in_seconds: null};
+    if (!bucket.data_available || !bucket.window || !bucket.window.id) {
+        return {status: 'no_data', release_in_seconds: null};
+    }
+    return laneRelease(bucket);
+}
+
+function _quotaMapLaneStatusText(windowData, bucketId = null) {
+    const {status, release_in_seconds} = _quotaMapLaneRelease(windowData, bucketId);
+    const seconds = Number(release_in_seconds);
+    const hasSeconds = Number.isFinite(seconds);
+    if (status === 'opens_in') {
+        return hasSeconds ? `откроется через ${_releaseDurationFromSeconds(seconds)}` : 'откроется скоро';
+    }
+    if (status === 'at_reset') {
+        return hasSeconds ? `откроется при сбросе, через ${_releaseDurationFromSeconds(seconds)}` : 'откроется при сбросе';
+    }
+    if (status === 'no_data') {
+        return 'нет данных';
+    }
+    return 'работает';
 }
 
 function _etaToLimit(currentPct, isoStr, windowMs) {
@@ -156,8 +237,8 @@ function renderUsageBar() {
         const c = _usageColor(fh.utilization, rpNum);
         const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         const cd = _resetCountdown(fh.resets_at);
-        const pace = _paceIndicator(fh.utilization, fh.resets_at, 5 * 3600000);
-        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+        const release = _quotaMapLaneStatusText(fh, 'anthropic');
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
@@ -165,16 +246,17 @@ function renderUsageBar() {
         const c = _usageColor(sd.utilization, rpNum);
         const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
         const cd = _resetCountdown(sd.resets_at);
-        const pace = _paceIndicator(sd.utilization, sd.resets_at, 7 * 86400000);
-        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+        const release = _quotaMapLaneStatusText(sd, 'anthropic');
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     if (claudeParts.length) {
         groups.push(`<span class="usage-provider-group" data-usage-compact-provider="claude">${claudeParts.join('')}</span>`);
     }
 
     const compactProviders = [
-        {id:'codex', windows:_usageProviderWindows('codex', cx)},
-        {id:'grok', windows:_usageProviderWindows('grok', gx), showUnavailable:true},
+        {id:'codex', bucketId:'codex', windows:_usageProviderWindows('codex', cx)},
+        {id:'codex', bucketId:'codex_spark', windows:_usageProviderWindows('codex', _c.spark)},
+        {id:'grok', bucketId:'grok', windows:_usageProviderWindows('grok', gx), showUnavailable:true},
     ].filter(provider => provider.windows.length || provider.showUnavailable);
     if (compactProviders.length) {
         for (const provider of compactProviders) {
@@ -196,9 +278,10 @@ function renderUsageBar() {
                 const c = _usageColor(window.utilization, rpNum);
                 const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
                 const cd = _resetCountdown(window.resets_at);
+                const release = _quotaMapLaneStatusText(window, provider.bucketId);
                 const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
                 const label = _codexWindowLabel(window.window_minutes);
-                providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${pace ? ` <span style="font-size:10px">·</span> ${pace}` : ''}</span>`);
+                providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
             }
             groups.push(`<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">${providerParts.join('')}</span>`);
         }
@@ -659,8 +742,23 @@ async function fetchUsage() {
     _usageLastFetchStartedAt = Date.now();
     _usageFetchPromise = (async () => {
         try {
-            _usageData = await api('/api/usage');
-            _usageError = false;
+            const [usage, quotaMap] = await Promise.allSettled([
+                api('/api/usage'),
+                api('/api/usage/quota-map'),
+            ]);
+            _usageData = usage.status === 'fulfilled' ? usage.value : null;
+            _quotaMapData = quotaMap.status === 'fulfilled' ? quotaMap.value : null;
+            _usageError = usage.status !== 'fulfilled';
+            if (!_usageError && quotaMap.status !== 'fulfilled') {
+                console.error(`quota-map fetch failed: ${quotaMap.reason && quotaMap.reason.message || 'unknown'}`);
+            }
+            if (_usageError) {
+                const reason = usage.reason || null;
+                const detail = reason instanceof Error
+                    ? `${reason.name}: ${reason.message || '(no message)'}`
+                    : String(reason);
+                console.error(`Usage fetch failed: ${detail}`);
+            }
             _usageLastSuccessAt = Date.now();
         } catch (error) {
             _usageError = true;

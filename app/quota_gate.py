@@ -104,6 +104,61 @@ def line_limit(progress: float) -> float:
     return min(HARD_STOP_PCT, progress * 100.0 + tolerance_pp(progress))
 
 
+def line_release_progress(utilization: float) -> float:
+    """Доля окна, где линия достигает `utilization`."""
+    line_denominator = 100.0 + TOLERANCE_END_PP - TOLERANCE_START_PP
+    if line_denominator == 0:
+        return float("inf")
+    return (utilization - TOLERANCE_START_PP) / line_denominator
+
+
+def _line_release_in_seconds(
+    utilization: float,
+    progress: float | None,
+    gated: bool,
+    hard_stop_pct: float,
+    window_minutes: float | None,
+    reset_at: float | None,
+    *,
+    now: float,
+) -> tuple[str, float | None]:
+    """Возвращает статус открытия и секунды до открытия/сброса окна.
+
+    - open: уже открыто или не гейтингуется;
+    - opens_in: откроется до конца окна;
+    - at_reset: откроется только после сброса окна;
+    - no_data: нельзя посчитать.
+    """
+    if utilization >= hard_stop_pct:
+        if reset_at is None:
+            return "at_reset", 0.0
+        return "at_reset", max(0.0, reset_at - now)
+
+    if not gated:
+        return "open", None
+    if not gated_window_open(progress, window_minutes):
+        return "no_data", None
+
+    p_release = line_release_progress(utilization)
+    if p_release <= progress:
+        return "open", None
+    if p_release <= 1.0:
+        return "opens_in", (p_release - progress) * window_minutes * 60.0
+    if reset_at is None:
+        return "at_reset", None
+    return "at_reset", max(0.0, reset_at - now)
+
+
+def gated_window_open(progress: float | None, window_minutes: float | None) -> bool:
+    """Есть ли параметры окна для вычисления времени до открытия полосы."""
+    return (
+        progress is not None
+        and window_minutes is not None
+        and progress >= 0
+        and window_minutes > 0
+    )
+
+
 @dataclass(frozen=True)
 class QuotaDecision:
     state: str
@@ -122,6 +177,8 @@ class QuotaDecision:
     window_starts_at: str | None
     reason: str
     hard_limit_pct: float = HARD_STOP_PCT
+    release_status: str = "open"
+    release_in_seconds: float | None = None
 
     @property
     def allowed(self) -> bool:
@@ -146,6 +203,8 @@ class QuotaDecision:
             "reset_at": self.reset_at,
             "window_starts_at": self.window_starts_at,
             "reason": self.reason,
+            "release_status": self.release_status,
+            "release_in_seconds": self.release_in_seconds,
         }
 
 
@@ -316,6 +375,7 @@ def evaluate_worker_admission(
             provider_label=label or bucket or "Unknown provider",
             lane=lane, gated=lane in GATED_LANES,
             utilization=utilization, progress=None, tolerance_pp=None, limit_pct=None,
+            release_status="no_data", release_in_seconds=None,
             observed_at=observed_at, valid_until=None, reset_at=None,
             window_starts_at=None, reason=reason,
         )
@@ -329,7 +389,8 @@ def evaluate_worker_admission(
             state="not_applicable", model=resolved, provider="grok", provider_label="Grok",
             lane=None, gated=False, utilization=None, progress=None,
             tolerance_pp=None, limit_pct=None, observed_at=None, valid_until=None,
-            reset_at=None, window_starts_at=None,
+            reset_at=None, window_starts_at=None, release_status="not_applicable",
+            release_in_seconds=None,
             reason="Grok is outside the subscription quota policy",
         )
 
@@ -361,10 +422,25 @@ def evaluate_worker_admission(
                        bucket=bucket, label=label, lane=lane, observed_at=observed_at)
 
     progress, started_at = window_progress(window, checked_at)
-    reset_at = window.get("resets_at")
-    reset_at = str(reset_at) if reset_at else None
+    reset_at = parse_quota_timestamp(window.get("resets_at"))
+    reset_at_str = str(window.get("resets_at")) if reset_at else None
+    window_minutes = window.get("window_minutes")
+    window_minutes = (
+        float(window_minutes)
+        if isinstance(window_minutes, (int, float)) and not isinstance(window_minutes, bool) and window_minutes > 0
+        else None
+    )
     tolerance = None if progress is None else tolerance_pp(progress)
     limit = None if (progress is None or not gated) else line_limit(progress)
+    release_status, release_in_seconds = _line_release_in_seconds(
+        utilization=utilization,
+        progress=progress,
+        gated=gated,
+        hard_stop_pct=HARD_STOP_PCT,
+        window_minutes=window_minutes,
+        reset_at=reset_at,
+        now=checked_at,
+    )
 
     if utilization >= HARD_STOP_PCT:
         state = "blocked"
@@ -399,7 +475,8 @@ def evaluate_worker_admission(
         lane=lane, gated=gated, utilization=utilization, progress=progress,
         tolerance_pp=tolerance, limit_pct=limit, observed_at=observed_at,
         valid_until=observed_at + QUOTA_OBSERVATION_MAX_AGE,
-        reset_at=reset_at, window_starts_at=started_at, reason=reason,
+        reset_at=reset_at_str, window_starts_at=started_at, reason=reason,
+        release_status=release_status, release_in_seconds=release_in_seconds,
     )
 
 

@@ -137,6 +137,26 @@ def _providers_snapshot(*, codex_reset: float, spark_reset: float, claude_reset:
     }
 
 
+def _expected_release_status(
+    utilization: float,
+    progress: float,
+    resets_at: str,
+) -> tuple[str, float | None]:
+    hard_stop = 99.0
+    start = 10.0
+    end = 1.0
+    if utilization >= hard_stop:
+        return "at_reset", (datetime.fromisoformat(resets_at).timestamp() - NOW)
+
+    line_denominator = 100.0 + end - start
+    p_release = (utilization - start) / line_denominator
+    if p_release <= progress:
+        return "open", None
+    if p_release <= 1.0:
+        return "opens_in", (p_release - progress) * 300 * 60.0
+    return "at_reset", datetime.fromisoformat(resets_at).timestamp() - NOW
+
+
 @pytest.mark.asyncio
 async def test_rule_constants_travel_with_the_payload(mapped):
     """Панель не хардкодит числа правила — иначе она разойдётся с гейтом молча."""
@@ -372,6 +392,35 @@ async def test_trace_is_downsampled(mapped):
 
     points = _pool(payload, "codex")["trace"]["points"]
     assert 1 <= len(points) <= 200
+
+
+@pytest.mark.asyncio
+async def test_release_fields_arrive_for_each_gating_status(mapped):
+    progress = 0.5
+    resets_at = _iso(NOW + 300 * 60 * (1.0 - progress))
+
+    payload_open = await mapped(_observation(
+        codex=[_window(300, 55.5, window_id="primary", label="5h", progress=progress)],
+    ))
+    lane_open = _lane(_pool(payload_open, "codex"), "sol")
+    assert lane_open["release_status"] == "open"
+    assert lane_open["release_in_seconds"] is None
+
+    payload_opens_in = await mapped(_observation(
+        codex=[_window(300, 60.0, window_id="primary", label="5h", progress=progress)],
+    ))
+    lane_opens_in = _lane(_pool(payload_opens_in, "codex"), "sol")
+    expected_status, expected_seconds = _expected_release_status(60.0, progress, resets_at)
+    assert lane_opens_in["release_status"] == expected_status
+    assert lane_opens_in["release_in_seconds"] == pytest.approx(expected_seconds)
+
+    payload_at_reset = await mapped(_observation(
+        codex=[_window(300, 99.0, window_id="primary", label="5h", progress=progress)],
+    ))
+    lane_at_reset = _lane(_pool(payload_at_reset, "codex"), "sol")
+    expected_status, expected_seconds = _expected_release_status(99.0, progress, resets_at)
+    assert lane_at_reset["release_status"] == expected_status
+    assert lane_at_reset["release_in_seconds"] == pytest.approx(expected_seconds)
 
 
 @pytest.mark.asyncio
