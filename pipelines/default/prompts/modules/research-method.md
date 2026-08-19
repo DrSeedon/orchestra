@@ -73,6 +73,11 @@ primary source, flag the conflict — don't silently prefer the newer one.
   measurement you actually ran. No source/measurement → it's a hypothesis, label it so.
 
 ### Step 5 — Experiment when the task needs empirical proof
+- **A candidate you rule out on paper is not ruled out.** An option the research REJECTS gets run,
+  not argued with — and the one you like least goes first, because that is the one your reasoning
+  is biased against. Did not run it → it is `непроверен` plus the reason that stopped you, never
+  "closed" (#224: a conclusion built on an un-run alternative was demolished by external review in
+  a single round).
 - Define **metrics + pass/fail BEFORE running.** Do not move goalposts after seeing results (p-hacking).
 - Before a full run, pilot the complete measurement path on 2–3 candidates. If candidates can
   change external state, give blind judges each candidate's measured side effects/artifact diffs;

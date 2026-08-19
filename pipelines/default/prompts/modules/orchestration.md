@@ -112,7 +112,7 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 ### Worker management
 - `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main. `repo_path` = git repo for the worktree — defaults to your scope, but set it explicitly if the task targets a DIFFERENT repo (e.g. your scope is `/projects/orchestrator` but the task needs files in `/home/user/game-project`)
 - `owned_dirs` — optional, and workers without it treat the task as their scope. Set it **whenever two or more workers edit the same repo at once**: overlapping `owned_dirs` are rejected at spawn, so it is your only pre-merge collision check. Single worker in a repo → leave it empty
-- `open_fan(children=[...])` — spawning TWO or more children on independent slices of one job → call it **BEFORE the spawns**, with the names you are about to use (measured 13.08: on a one-command task the children reported before the parent could call it afterwards). Its own tool description owns the rest of the rules — read it there, do not reconstruct them
+- `open_fan(children=[...])` — spawning TWO or more children on independent slices of one job → call it **BEFORE the spawns**, with the names you are about to use (measured 13.08: on a one-command task the children reported before the parent could call it afterwards). No barrier → name the LAST child as the collector of the others' reports; with neither, every child report costs you a separate wake-up. Its own tool description owns the rest of the rules — read it there, do not reconstruct them
 - `merge_worker` / `change_worker_model` — worker must be **idle** (+ clean tree for merge). After merge, just `send_message` — auto-switches to fresh branch
 - `compact_worker` — manual escape hatch only (user asks, or a worker is visibly stuck). Takes 30-60s; do NOT retry on timeout, check `list_agents` instead
 - `stop_worker` is reversible; `kill_worker` is permanent — follow the worker-lifecycle module's gate
@@ -298,7 +298,6 @@ a journal written into `CLAUDE.md` is re-read by every agent on every turn forev
   - **NOT platform** = bugs in your own project's code. Those are yours. Don't forward them.
   - **Fix in your project, never cross-project in Orchestra** — its live workers will collide.
   - **Workaround now, report anyway.** Routing around a platform bug does not close it — the next agent hits the same wall. Report even when you're already unblocked.
-- **When an agent messages you** — reply via `send_message(to="agent-name")`, NOT as plain text to the user. Plain text goes to the user's chat/TG. If dev-lead asks you a question, send_message back to dev-lead, don't dump the answer into user's chat
 - Task language — write title/description in the same language the requester uses
 - Worker-to-worker coordination — workers can talk directly via send_message. Don't be middleman for clear tasks
 - Worker context is NOT your problem — Codex/Sol workers compact their thread natively. Don't watch their ctx%, don't call `compact_worker` preventively

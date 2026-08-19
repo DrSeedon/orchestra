@@ -379,6 +379,61 @@ class TestTelegramFormattingOwnership:
             assert block not in assembled, f"Telegram rules leaked into {role}"
 
 
+class TestBehaviourRulesLandedAtOwners:
+    """#348: шесть правил про поведение агентов переехали из CLAUDE.md к владельцам в pipelines/.
+
+    Каждая строка — правило: якорь в промпте, файл-владелец, роли-адресаты и снятая
+    формулировка из CLAUDE.md. Утечка проверяется по всем остальным ролям.
+    """
+
+    ALL_ROLES = ("orchestrator", "sub-orchestrator", "worker", "full-cycle")
+    ORCH = ("orchestrator", "sub-orchestrator")
+    SPAWNERS = ("orchestrator", "sub-orchestrator", "full-cycle")
+
+    RULES = (
+        ("Finished research is retold, not linked.",
+         "roles/orchestrator.md", ("orchestrator",), "Завершённый research пересказывай"),
+        ("Facts from a command arrive as a file, never retyped.",
+         "modules/worker-lifecycle.md", SPAWNERS, "требуй `cmd > path.txt 2>&1`"),
+        ("No barrier → name the LAST child as the collector",
+         "modules/orchestration.md", ORCH, "барьер `open_fan`"),
+        ("Two children check each other only across a VERBATIM overlap.",
+         "modules/worker-lifecycle.md", SPAWNERS, "пересекающиеся задания ради взаимной проверки"),
+        ("Plain text in your chat reaches the USER",
+         "base.md", ALL_ROLES, "plain text в чате = сообщение ЮЗЕРУ"),
+        ("A candidate you rule out on paper is not ruled out.",
+         "modules/research-method.md", ("full-cycle",), "Ресёрч ОТВЕРГАЕТ вариант"),
+    )
+
+    @pytest.mark.parametrize("anchor,owner,audience,_old", RULES)
+    def test_rule_text_lives_in_exactly_one_owner_file(self, anchor, owner, audience, _old):
+        """Владелец один: якорь есть в назначенном файле и больше нигде в промптах пайплайна."""
+        assert anchor in P.prompt_path(PIPELINE, owner).read_text(encoding="utf-8"), owner
+        root = P.prompt_path(PIPELINE, "base.md").parent
+        holders = [f.name for f in sorted(root.rglob("*.md"))
+                   if anchor in f.read_text(encoding="utf-8")]
+        assert holders == [Path(owner).name], f"{anchor!r} лежит в {holders}"
+
+    @pytest.mark.parametrize("anchor,owner,audience,_old", RULES)
+    def test_rule_reaches_its_audience_once(self, anchor, owner, audience, _old):
+        for role in audience:
+            assembled = P.build_system_prompt(PIPELINE, role)
+            assert assembled.count(anchor) == 1, f"{role}: {assembled.count(anchor)} копий {anchor!r}"
+
+    @pytest.mark.parametrize("anchor,owner,audience,_old", RULES)
+    def test_rule_does_not_leak_to_other_roles(self, anchor, owner, audience, _old):
+        for role in self.ALL_ROLES:
+            if role in audience:
+                continue
+            assert anchor not in P.build_system_prompt(PIPELINE, role), f"утечка в {role}: {anchor!r}"
+
+    @pytest.mark.parametrize("anchor,_owner,_audience,old", RULES)
+    def test_moved_rule_is_gone_from_claude_md(self, anchor, _owner, _audience, old):
+        """Правило про ПОВЕДЕНИЕ агента не должно остаться второй копией в CLAUDE.md."""
+        claude = Path(__file__).resolve().parents[1] / "CLAUDE.md"
+        assert old not in claude.read_text(encoding="utf-8"), old
+
+
 class TestUserAnswerFormatOwnership:
     """#346: формат ответа ЮЗЕРУ доезжает до роли, которая говорит с ним, и только до неё."""
 

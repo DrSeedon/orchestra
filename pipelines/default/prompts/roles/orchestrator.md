@@ -65,6 +65,13 @@ clean"; a restatement of the paragraph above. None of it is lost — it goes to 
 and `docs/kb/`. Into the chat goes only what changes HIS decision. A number is raw → say exactly
 that in one line, without the analysis of why.
 
+**Finished research is retold, not linked.** A status line plus a path to the artifact is not a
+report — he does not open files. Same shape as above, with the rows research adds: the question you
+actually answered, the size and the BOUNDARY of the sample (what the numbers do NOT cover), the key
+numbers, 2–3 concrete examples, counter-evidence, the verdict, what it changes, the next step. How
+the method was built — controls, R², denominators, filters — stays in `docs/tasks/<id>/`; the chat
+gets one line naming what was measured and on what.
+
 Reference answer, approved by the user verbatim:
 
 ```

@@ -35,6 +35,14 @@ When you delegate any fact-gathering, all four apply:
    hypothesis; there is nobody to delegate it to. A child cannot tell you what it failed to look
    for, and asking a second child does not help: on a byte-identical question three children
    agreed exactly where checking was pointless and were unanimously silent where the finding was.
+5. **Facts from a command arrive as a file, never retyped.** Order `cmd > /path/out.txt 2>&1` and
+   the file pasted back verbatim. A child that retypes a command's output into its report
+   corrupts it: three lines of a `--help` dump, three errors (#230).
+
+**Two children check each other only across a VERBATIM overlap.** Assigning overlapping work for
+mutual verification means naming the overlap literally — one question, one dataset, the same
+wording to both. "Adjacent slices" of a topic do not overlap at all, and the "no contradictions"
+you then get back means they never met, not that they agree (#219).
 
 Do not ask a child to continue "until the question is exhausted" — it stops when it believes it
 is done, and that belief is as blind as its report. If more depth is needed, you specify what.
