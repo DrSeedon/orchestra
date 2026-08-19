@@ -114,10 +114,26 @@ def test_select_tests_maps_stem_and_routes(tmp_path):
     assert select_tests(["docs/a.md"], worktree=str(tmp_path)) == []
 
 
-def test_large_mapped_subset_runs_all_files_in_bounded_batches(monkeypatch):
+def test_large_mapped_subset_reaches_a_verdict_at_measured_file_costs(monkeypatch):
+    """Набор из РЕАЛЬНО дорогих файлов обязан получить вердикт, а не таймаут.
+
+    Стоимости взяты из замера #336, а не выдуманы: `tests/test_manager.py` — 219.5 с
+    (283 с под нагрузкой), `tests/test_frontend.py` — 71–148 с по пяти прод-замерам.
+    Каждый из них дороже всего прежнего фиксированного бюджета 180 с сам по себе, а батч
+    не может быть меньше одного файла — поэтому при фиксированном бюджете такой набор
+    не получал вердикта ни при какой раскладке (замер: #290 отбит семь раз подряд).
+
+    Проверяется ПОВЕДЕНИЕ, а не литерал: батч ограничен, каждый файл прогнан, бюджет
+    растёт с размером набора, вердикт выдан. Тест переживает смену любой из трёх констант
+    и краснеет на возврате к бюджету, не зависящему от размера набора.
+    """
     from app import merge_test_gate as gate
 
-    tests = [f"tests/test_{n:02d}.py" for n in range(14)]
+    costs = {"tests/test_manager.py": 283.0, "tests/test_frontend.py": 148.0}
+    tests = ["tests/test_manager.py", "tests/test_frontend.py"] + [
+        f"tests/test_{n:02d}.py" for n in range(12)
+    ]
+    tests.sort()
     calls = []
     clock = [0.0]
 
@@ -127,29 +143,31 @@ def test_large_mapped_subset_runs_all_files_in_bounded_batches(monkeypatch):
 
     def fake_run(worktree, batch, *, timeout=None):
         calls.append((list(batch), timeout))
-        cost = {2: 36.82, 4: 48.0, 5: 60.0, 12: 240.0}[len(batch)]
+        cost = sum(costs.get(test, 10.0) for test in batch)
         clock[0] += min(cost, timeout)
         status = gate.PASSED if cost <= timeout else gate.INCONCLUSIVE
         return {
             "status": status,
             "reason": "" if status == gate.PASSED else "timeout",
             "exit_code": 0 if status == gate.PASSED else None,
-            "output": "passed " + ", ".join(batch),
+            "output": "ran " + ", ".join(batch),
             "tests": list(batch),
         }
 
     monkeypatch.setattr(gate, "run_pytest", fake_run)
     result = gate.evaluate_test_gate("/worktree")
 
-    assert result["status"] == gate.PASSED
+    assert result["status"] == gate.PASSED, "набор зелёный — гейт обязан это установить"
     assert [test for batch, _timeout in calls for test in batch] == tests
     batch_sizes = [len(batch) for batch, _timeout in calls]
-    assert batch_sizes == [5, 5, 4]
-    assert max(batch_sizes) < gate.MAX_TEST_FILES
-    assert sum({4: 48.0, 5: 60.0}[size] for size in batch_sizes) <= gate.DEFAULT_TIMEOUT_SECONDS
-    assert 36.82 + 240.0 > gate.DEFAULT_TIMEOUT_SECONDS  # old [2, 12] profile
-    assert [timeout for _batch, timeout in calls] == [60.0, 60.0, 60.0]
-    assert clock[0] == pytest.approx(168.0)
+    assert min(batch_sizes) >= 1 and max(batch_sizes) < gate.MAX_TEST_FILES
+    # Бюджет обязан зависеть от размера набора: иначе тяжёлый файл не помещается никогда.
+    assert gate.budget_for(len(tests)) > gate.budget_for(1) > gate.budget_for(0)
+    assert gate.budget_for(1) >= max(costs.values()), (
+        "бюджет обязан вмещать самый дорогой ОДИНОЧНЫЙ файл — батч меньше файла невозможен"
+    )
+    # Самый дорогой файл не помещается ни в один батч при прежнем фиксированном бюджете.
+    assert costs["tests/test_manager.py"] > 180.0 / len(calls)
 
 
 def test_each_batch_is_attempted_when_non_final_batch_fails(monkeypatch):
@@ -431,6 +449,119 @@ def test_run_pytest_timeout_truncates_to_last_4000_chars(tmp_path, monkeypatch):
     assert result["reason"] == "timeout"
     assert len(result["output"]) == 4000
     assert result["output"] == payload[-4000:]
+
+
+# Дословно снято с убитого прогона (#336): `-q -vv`, kill на 10 с. Формат фикстуры не
+# сочинён — иначе разбор проверялся бы против выдумки, а не против того, что печатает pytest.
+_KILLED_WITH_RED = (
+    "test_probe.py::test_a_ok PASSED                                          [ 25%]\n"
+    "test_probe.py::test_b_red FAILED                                         [ 50%]\n"
+    "test_probe.py::test_c_slow "
+)
+
+
+def _timeout_raiser(payload: str):
+    def _raise(*_args, **_kwargs):
+        raise subprocess.TimeoutExpired(
+            cmd=["pytest"], timeout=1, output=payload, stderr=None,
+        )
+    return _raise
+
+
+def test_timeout_that_saw_a_red_test_is_failed_not_inconclusive(tmp_path, monkeypatch):
+    """Убитый прогон, успевший показать красное, — это FAILED, а не «не успели».
+
+    Замер #336 на живой операции #248: в убитом выходе стояло девять `F`, гейт доложил
+    `inconclusive`, то есть «повтори» — а повторять было нечего, тесты были красные.
+    Красный тест красен независимо от того, доехал ли остаток набора.
+    """
+    from app import merge_test_gate as gate
+    from app.acceptance import FAILED
+
+    monkeypatch.setattr(gate.subprocess, "run", _timeout_raiser(_KILLED_WITH_RED))
+
+    result = gate.run_pytest(str(tmp_path), ["test_probe.py"], timeout=1)
+
+    assert result["status"] == FAILED
+    assert result["reason"] == "timeout_with_failures"
+    assert result["failed_tests"] == ["test_probe.py::test_b_red"]
+    assert "test_probe.py::test_b_red" in gate.describe_progress(result)
+
+
+def test_timeout_without_red_says_what_was_verified_and_what_was_not(tmp_path, monkeypatch):
+    """Случай #329: набор зелёный, просто не доехал — отказ обязан это сказать.
+
+    Раньше и он, и красный приходили как FAILED с советом «почини падающие тесты»,
+    которых нет; из-за этого #329 смержили руками.
+    """
+    from app import merge_test_gate as gate
+    from app.acceptance import INCONCLUSIVE
+
+    payload = (
+        "tests/test_a.py::test_one PASSED   [ 33%]\n"
+        "tests/test_a.py::test_two PASSED   [ 66%]\n"
+        "tests/test_a.py::test_slow "
+    )
+    monkeypatch.setattr(gate.subprocess, "run", _timeout_raiser(payload))
+
+    result = gate.run_pytest(
+        str(tmp_path), ["tests/test_a.py", "tests/test_never.py"], timeout=1,
+    )
+
+    assert result["status"] == INCONCLUSIVE
+    assert result["reason"] == "timeout"
+    assert result["failed_tests"] == []
+    assert result["passed_count"] == 2
+    assert result["stopped_in"] == "tests/test_a.py::test_slow"
+    assert result["unreached"] == ["tests/test_never.py"]
+
+
+def test_parametrised_nodeid_cannot_disguise_a_red_test():
+    """Красное не должно читаться как зелёное из-за текста внутри имени теста.
+
+    nodeid параметризованного теста содержит произвольный текст, включая пробелы и сами
+    слова-вердикты. Замер #336: нежадный разбор на строке
+    `tests/test_a.py::t2[a b PASSED c] FAILED` возвращал PASSED — то есть гейт пропустил бы
+    красноту в main. Поэтому вердикт берётся последний на строке.
+    Итоговая сводка (`FAILED nodeid - ...`) не должна считаться вторым провалом.
+    """
+    from app.merge_test_gate import _partial_progress
+
+    progress = _partial_progress(
+        "FAILED tests/test_a.py::t2[a b PASSED c] - assert 1 == 2\n"
+        "tests/test_a.py::t1 PASSED [ 1%]\n"
+        "tests/test_a.py::t2[a b PASSED c] FAILED [ 2%]\n"
+        "tests/test_a.py::t3_inflight ",
+        ["tests/test_a.py", "tests/test_b.py"],
+    )
+
+    assert progress["failed_tests"] == ["tests/test_a.py::t2[a b PASSED c]"]
+    assert progress["passed_count"] == 1
+    assert progress["stopped_in"] == "tests/test_a.py::t3_inflight"
+    assert progress["unreached"] == ["tests/test_b.py"]
+
+
+def test_argv_verbosity_really_prints_per_test_lines(tmp_path):
+    """Гварда на неочевидную арифметику флагов, без которой всё выше — пустышка.
+
+    `-q` это −1, `-vv` это +2; сумма +1 даёт потестовые строки. Замена на «более
+    аккуратное» `-q -v` даёт сумму 0 — снова безымянные точки, и разбор перестаёт
+    что-либо находить, оставаясь зелёным на моках. Поэтому здесь настоящий pytest.
+    """
+    from app.merge_test_gate import pytest_argv
+
+    (tmp_path / "test_two.py").write_text(
+        "def test_first():\n    assert True\n\n\ndef test_second():\n    assert True\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        pytest_argv(["test_two.py"]),
+        cwd=str(tmp_path), capture_output=True, text=True, timeout=120, check=False,
+    )
+
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "test_two.py::test_first PASSED" in proc.stdout
+    assert "test_two.py::test_second PASSED" in proc.stdout
 
 
 @pytest.mark.asyncio

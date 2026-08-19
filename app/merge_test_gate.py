@@ -16,12 +16,18 @@ on quota and provider outages instead of on the diff. They stay runnable by hand
 
 Mapped files are run in sequential batches of MAX_TEST_FILES. The batches share one
 wall-clock budget and never turn into a full-suite invocation.
-Timeout → inconclusive. Does not close bash: the worker can rewrite this file.
+
+Killed by the budget → the partial pytest output decides, because "the tests are red" and
+"we did not finish" arrive as the same TimeoutExpired and must not be answered the same way:
+a verdict pytest already printed (`FAILED`/`ERROR`) makes it FAILED — a red test is red whether
+or not the rest ran — and only a kill with no verdict at all is INCONCLUSIVE, reported with what
+was verified and what was never reached. Does not close bash: the worker can rewrite this file.
 """
 
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import time
@@ -31,8 +37,39 @@ from app.acceptance import FAILED, INCONCLUSIVE, PASSED, SKIPPED
 
 MAX_TEST_FILES = 12
 MAX_BATCH_TESTS = 6
-DEFAULT_TIMEOUT_SECONDS = 180.0
+
+# Бюджет ВЫВЕДЕН ИЗ ЗАМЕРА (#336), а не назначен. Прежние фиксированные 180 с числом про
+# pytest никогда не были: `git log -S` показывает, что это дефолт операторской команды
+# приёмки (#240), скопированный в гейт вместе с ним (#255). Каждое число ниже — с источником,
+# иначе через месяц оно станет вторым таким же 180.
+#
+# ПОЛ = BASE + PER_FILE = 330 с. Самый дорогой одиночный тест-файл замерен в 219.5 с
+#   (`tests/test_manager.py`; под нагрузкой 15+ тот же файл дал 283 с) — взят полуторный
+#   запас. Батч не может быть меньше одного файла, поэтому при бюджете ниже этого числа
+#   дифф, задевающий `app/manager.py`, не получает вердикта ни при какой раскладке батчей.
+# ШАГ = 150 с на файл. Медиана тест-файла ≈33 с, среднее ≈68 с, хвост тяжёлый
+#   (`tests/test_frontend.py` — 71–148 с по пяти прод-замерам). Шаг взят от среднего с
+#   двойным запасом, чтобы набор средних файлов укладывался, а не впритык.
+# ПОТОЛОК = 1200 с. Худший правдоподобный набор из замеренных (manager+frontend+db+session+
+#   mcp_stdio+tg_bridge) = 682 с суммой одиночных прогонов, полуторный запас. Потолок нужен,
+#   потому что число файлов со стоимостью коррелирует слабо: один и тот же файл замерен
+#   14.3 и 149.5 с (10.5×) — разброс задаёт конкурентная загрузка машины, и подобрать
+#   «точный» бюджет нельзя в принципе. Отсюда же второй контур защиты: отказ по времени
+#   обязан оставаться информативным (см. `_partial_progress`), а не только редким.
+BASE_TIMEOUT_SECONDS = 180.0
+PER_FILE_TIMEOUT_SECONDS = 150.0
+MAX_TIMEOUT_SECONDS = 1200.0
 _BATCH_DIAGNOSTIC_LIMIT = 4000
+
+
+def budget_for(file_count: int) -> float:
+    """Бюджет всего гейта под набор из `file_count` файлов."""
+    return min(
+        MAX_TIMEOUT_SECONDS,
+        BASE_TIMEOUT_SECONDS + PER_FILE_TIMEOUT_SECONDS * max(0, file_count),
+    )
+
+
 ROUTE_TEST = "tests/test_routes_surface.py"
 _ROUTE_EXACT = frozenset({
     "app/main.py",
@@ -120,15 +157,90 @@ def pytest_argv(tests: list[str]) -> list[str]:
     # краснеют от квоты и недоступности, а не от диффа, и блокируют чужие мержи (18.08:
     # codex-проба стояла красной по rate_limit в самом main). Умолчание безопасное — новая
     # проба БЕЗ маркера гоняется гейтом и падает громко; исчезнуть незаметно она не может.
+    #
+    # `-vv` рядом с `-q` — не косметика, а единственный источник, по которому «набор
+    # красный» отличимо от «мы не успели»: pytest печатает вердикт КАЖДОГО теста отдельной
+    # строкой сразу по его окончании и успевает это сделать до убийства по таймауту, тогда
+    # как `-q` даёт безымянные точки (а при убийстве в фазе сбора — пустой выход вовсе).
+    # Замер #336: убитый прогон отдал `test_b_red FAILED` и имя висящего теста, тогда как
+    # `-q` на том же прогоне — 0 символов.
+    # Арифметика флагов проверена прогоном и неочевидна: `-q` это −1, `-vv` это +2, сумма
+    # +1 — тот же режим, что голый `-v`. Писать `-q -v` НЕЛЬЗЯ: сумма 0, снова точки.
     return [
-        sys.executable, "-m", "pytest", "-q",
+        sys.executable, "-m", "pytest", "-q", "-vv",
         "-m", f"not {LIVE_PROBE_MARKER}",
         *tests,
     ]
 
 
+# `tests/test_x.py::test_name[param] PASSED [ 12%]`.
+# Строка обязана НАЧИНАТЬСЯ с nodeid: тогда строки итоговой сводки (`FAILED tests/x.py::y - ...`)
+# сюда не попадают и провал не считается дважды.
+# Вердикт берётся ПОСЛЕДНИЙ на строке, а не первый: nodeid параметризованного теста содержит
+# произвольный текст, в том числе пробелы и сами эти слова. Замер #336 — на строке
+# `tests/test_a.py::t2[a b PASSED c] FAILED [2%]` нежадный разбор возвращал PASSED, то есть
+# КРАСНЫЙ тест читался как зелёный; это ровно то направление ошибки, которого быть не должно.
+# Требование пробела перед вердиктом отсекает `nodeid[FAILED]` у теста, который ещё идёт.
+_NODEID_RE = re.compile(r"^\S+\.py::\S")
+_VERDICT_RE = re.compile(r"\s(?P<verdict>PASSED|FAILED|ERROR|XFAIL|XPASS|SKIPPED)(?=\s|$)")
+
+
+def _partial_progress(output: str, tests: list[str]) -> dict:
+    """Что pytest успел сообщить до убийства по таймауту.
+
+    Обе неудачи приходят одним и тем же `TimeoutExpired`, и без разбора этого выхода они
+    неразличимы. Замер #336 на живых операциях: у #248 в убитом выходе стояли девять `F`
+    (настоящая краснота), у #329 — сплошные точки (набор зелёный, просто не доехал); гейт
+    доложил обоим одно и то же «inconclusive».
+    """
+    failed: list[str] = []
+    passed = 0
+    seen_files: set[str] = set()
+    stopped_in = ""
+    for raw in output.splitlines():
+        line = raw.rstrip()
+        if not _NODEID_RE.match(line):
+            continue
+        verdicts = list(_VERDICT_RE.finditer(line))
+        if not verdicts:
+            # Имя напечатано, вердикта ещё нет — на этом тесте нас и прервали.
+            stopped_in = line.strip()
+            seen_files.add(stopped_in.split("::", 1)[0])
+            continue
+        last = verdicts[-1]
+        nodeid = line[:last.start()].strip()
+        seen_files.add(nodeid.split("::", 1)[0])
+        if last.group("verdict") in {"FAILED", "ERROR"}:
+            failed.append(nodeid)
+        elif last.group("verdict") == "PASSED":
+            passed += 1
+        stopped_in = ""
+    return {
+        "failed_tests": failed,
+        "passed_count": passed,
+        "stopped_in": stopped_in,
+        "unreached": [test for test in tests if test not in seen_files],
+    }
+
+
+def describe_progress(result: dict) -> str:
+    """Одна строка для человека: что проверено, что нет. Пусто — сказать нечего."""
+    if "passed_count" not in result:
+        return ""
+    parts = [f"verified green: {result['passed_count']}"]
+    if result.get("failed_tests"):
+        shown = ", ".join(result["failed_tests"][:5])
+        extra = len(result["failed_tests"]) - 5
+        parts.append(f"RED: {shown}" + (f" (+{extra} more)" if extra > 0 else ""))
+    if result.get("stopped_in"):
+        parts.append(f"ran out of budget inside {result['stopped_in']}")
+    if result.get("unreached"):
+        parts.append(f"never reached: {', '.join(result['unreached'])}")
+    return "; ".join(parts)
+
+
 def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None) -> dict:
-    budget = DEFAULT_TIMEOUT_SECONDS if timeout is None else timeout
+    budget = budget_for(len(tests)) if timeout is None else timeout
     argv = pytest_argv(tests)
     env = os.environ.copy()
     root = str(Path(worktree).resolve())
@@ -151,9 +263,20 @@ def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None)
         }
     except subprocess.TimeoutExpired as exc:
         out = _normalize_output(exc.stdout) + _normalize_output(exc.stderr)
+        progress = _partial_progress(out, tests)
+        # Красный тест красен независимо от того, доехал ли остаток набора: мерж такого
+        # состояния посадил бы красноту в main. Поэтому увиденный провал — это FAILED
+        # (окончательно, повтор не поможет), и только отсутствие провалов — INCONCLUSIVE.
+        if progress["failed_tests"]:
+            return {
+                "status": FAILED, "reason": "timeout_with_failures",
+                "exit_code": None, "output": out[-4000:], "tests": tests,
+                **progress,
+            }
         return {
             "status": INCONCLUSIVE, "reason": "timeout",
             "exit_code": None, "output": out[-4000:], "tests": tests,
+            **progress,
         }
     except OSError as exc:
         return {
@@ -209,7 +332,7 @@ def _ordered_batches(tests: list[str]) -> list[list[str]]:
 
 def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
     """Run every mapped batch under one deadline and combine its evidence."""
-    deadline = time.monotonic() + DEFAULT_TIMEOUT_SECONDS
+    deadline = time.monotonic() + budget_for(sum(len(batch) for batch in batches))
     batches_left = len(batches)
     results: list[dict] = []
     for batch in batches:
@@ -268,6 +391,16 @@ def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
         "exit_code": exit_code,
         "output": "\n".join(sections),
         "tests": list(sum(batches, [])),
+        "failed_tests": [
+            node for result in results for node in result.get("failed_tests", [])
+        ],
+        "passed_count": sum(result.get("passed_count", 0) for result in results),
+        "stopped_in": next(
+            (result["stopped_in"] for result in results if result.get("stopped_in")), ""
+        ),
+        "unreached": [
+            test for result in results for test in result.get("unreached", [])
+        ],
     }
 
 

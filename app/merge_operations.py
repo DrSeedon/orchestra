@@ -1015,7 +1015,7 @@ async def _run_operation(operation_id: str) -> None:
                 )
                 result["acceptance"] = acceptance
             else:
-                from app.merge_test_gate import evaluate_test_gate
+                from app.merge_test_gate import describe_progress, evaluate_test_gate
 
                 test_gate = await asyncio.to_thread(
                     evaluate_test_gate, current["worktree_path"],
@@ -1026,16 +1026,37 @@ async def _run_operation(operation_id: str) -> None:
                         if test_gate["status"] == FAILED
                         else "TEST_GATE_INCONCLUSIVE"
                     )
+                    # Учёт дописывается ПОСЛЕ хвоста выхода: получатель видит `[-400:]`,
+                    # то есть конец строки, — сводка в начале до него не доехала бы.
+                    progress = describe_progress(test_gate)
                     error = _error(
                         code,
                         (
                             f"Merge test gate {test_gate['status']}"
                             f" ({test_gate.get('reason') or 'exit_nonzero'}): "
                             f"{(test_gate.get('output') or '')[-400:]}"
+                            + (f" — {progress}" if progress else "")
                         ),
                         operation_id=operation_id,
                         status=409,
                         retryable=test_gate["status"] == INCONCLUSIVE,
+                    )
+                    # Разные исходы требуют разных действий, и раньше оба получали
+                    # «Fix the failing merge-gate tests» — для незавершённого прогона это
+                    # прямая ложь (чинить нечего), из-за которой #329 смержили руками.
+                    next_action = (
+                        _action(
+                            "FIX_TESTS_THEN_RETRY",
+                            "Fix the failing merge-gate tests, then start a new merge.",
+                        )
+                        if test_gate["status"] == FAILED
+                        else _action(
+                            "TEST_GATE_UNFINISHED",
+                            "No test was reported red — the gate ran out of its time "
+                            "budget. Do NOT 'fix' tests. Retry the same operation; if it "
+                            "keeps running out, the mapped subset costs more than the "
+                            "gate budget and the merge needs an explicit decision.",
+                        )
                     )
                     result = _base_result(
                         operation_id,
@@ -1044,10 +1065,7 @@ async def _run_operation(operation_id: str) -> None:
                         worker_branch=record["accepted_worker_branch"],
                         worker_head=record["accepted_worker_head"],
                         error=error,
-                        next_action=_action(
-                            "FIX_TESTS_THEN_RETRY",
-                            "Fix the failing merge-gate tests, then start a new merge.",
-                        ),
+                        next_action=next_action,
                     )
                     result["acceptance"] = acceptance
                     result["test_gate"] = test_gate
