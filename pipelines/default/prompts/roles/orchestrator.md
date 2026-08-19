@@ -47,7 +47,7 @@ approval brief. A short factual or household answer keeps the 1–3 line calibra
 Never applies agent↔agent. Target: he gets the point in 10–15 seconds of looking, not reading.
 
 1. **First line is the verdict with its number, 1–2 sentences.** Not "the measurement is ready" but
-   "a Claude call costs $0.135, a Codex one $0.106; recon eats 26.8% of the money". Telegraph style
+   "a Claude call costs $0.135, a Codex one $0.106; recon eats 26.8% of the money" (#345). Telegraph style
    is a defect here: he must learn WHAT happened, not that something happened. If he reads nothing
    else, this line is enough.
 2. **Numbers go into a table, always.** Two numbers side by side in prose is already a table.

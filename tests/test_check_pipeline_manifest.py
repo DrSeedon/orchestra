@@ -172,3 +172,64 @@ def test_review_policy_rejects_duplicate_owner_clause(tmp_path):
 
     errors = _policy_errors(manifest)
     assert any("duplicates canonical review policy" in error for error in errors), errors
+
+
+def test_review_policy_rejects_dropping_the_optional_review_contract(tmp_path):
+    """#349: якорь снятого правила заменён якорем нового — проверка осталась утверждающей."""
+    manifest = _policy_copy(tmp_path)
+    owner = manifest.parent / "prompts" / "skills" / "codex-debate.md"
+    owner.write_text(
+        owner.read_text().replace("Codex недоступен → ревью НЕ делается", "Ревью обязательно")
+    )
+
+    errors = _policy_errors(manifest)
+    assert any("Codex недоступен" in error for error in errors), errors
+
+
+def test_review_policy_rejects_returning_the_opus_substitute_route(tmp_path):
+    """Маршрут «поднять Opus вместо Codex» не должен вернуться ни в один промпт (#346)."""
+    manifest = _policy_copy(tmp_path)
+    role = manifest.parent / "prompts" / "roles" / "full-cycle.md"
+    role.write_text(role.read_text() + "\nCodex молчит → targeted Opus cross-family review.\n")
+
+    errors = _policy_errors(manifest)
+    assert any("stale review policy wording" in error for error in errors), errors
+
+
+def test_example_block_may_show_numbers_but_must_name_their_source(tmp_path):
+    """Содержимое примера не утверждение — но пример на выдуманных числах учит их выдумывать."""
+    prompts = tmp_path / "prompts"
+    (prompts / "roles").mkdir(parents=True)
+    sourced = "Пример:\n\n```\n# Замер #345\nцена вызова: $0.135\n```\n"
+    invented = "Пример:\n\n```\nцена вызова: $0.135\n```\n"
+
+    (prompts / "roles" / "a.md").write_text(sourced, encoding="utf-8")
+    assert check._prompt_metric_errors(prompts) == []
+
+    (prompts / "roles" / "a.md").write_text(invented, encoding="utf-8")
+    errors = check._prompt_metric_errors(prompts)
+    assert any("without naming their source" in error for error in errors), errors
+
+
+def test_unterminated_example_block_does_not_swallow_the_rest_of_the_file(tmp_path):
+    """Открытый и незакрытый забор — самый дешёвый способ обойти проверку."""
+    prompts = tmp_path / "prompts"
+    (prompts / "roles").mkdir(parents=True)
+    (prompts / "roles" / "a.md").write_text(
+        "Пример:\n\n```\nцена вызова: $0.135\n", encoding="utf-8"
+    )
+
+    errors = check._prompt_metric_errors(prompts)
+    assert any("without naming their source" in error for error in errors), errors
+
+
+def test_placeholder_template_is_not_a_measured_claim(tmp_path):
+    """Негативный контроль: шаблон с `100% coverage` — плейсхолдер, а не замер."""
+    prompts = tmp_path / "prompts"
+    (prompts / "modules").mkdir(parents=True)
+    (prompts / "modules" / "a.md").write_text(
+        "Шаблон:\n\n```\n- What does NOT matter: {e.g. enterprise patterns, 100% coverage}\n```\n",
+        encoding="utf-8",
+    )
+
+    assert check._prompt_metric_errors(prompts) == []

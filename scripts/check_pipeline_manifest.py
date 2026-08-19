@@ -54,9 +54,12 @@ _REVIEW_POLICY_ANCHORS = (
     "**NO MODEL REVIEW**",
     "**one fresh Luna review**",
     "**one targeted Sol escalation**",
-    "**Sol review is mandatory regardless of size**",
-    "**targeted Opus cross-family review**",
-    "`cross-family verdict unavailable`",
+    # Ревью перестало быть обязательным, а замена недоступного Codex другой моделью
+    # запрещена (#346, решение юзера 19.08). Якоря снятого контракта заменены якорями
+    # нового: вычеркнуть их значило бы оставить проверку без утверждения на этом месте.
+    "**Ревью доступно, но не обязательно",
+    "Codex недоступен → ревью НЕ делается",
+    "Замену ревьюеру не искать",
     "**Docs / fact extraction**",
     "**One round by default.**",
 )
@@ -67,6 +70,15 @@ _STALE_REVIEW_POLICY = (
     "runs required Codex review",
     "Second opinion (Codex)",
     "Codex review the plan + tickets",
+    # Отрицательная половина #346: ни обязательность, ни маршрут «поднять Opus вместо
+    # Codex» не должны вернуться ни в один промпт — тот маршрут стоил четырёх платных
+    # ревьюеров за день. Совпадает со списком `forbidden` в
+    # tests/test_default_pipeline.py::test_review_is_optional_and_has_no_substitute_reviewer.
+    "review is mandatory regardless of size",
+    "targeted Opus cross-family review",
+    "cross-family verdict unavailable",
+    "Opus запускается свежей reviewer-сессией",
+    "review route unavailable",
 )
 
 
@@ -137,27 +149,59 @@ def _review_policy_errors(
     return errors
 
 
+def _is_measured_claim(line: str) -> bool:
+    """Одно определение «строка утверждает замер» — для прозы и для содержимого примера."""
+    if _PROCEDURAL_VALUE.search(line):
+        return False
+    if not _MEASURED_VALUE.search(line):
+        return False
+    return bool(
+        _MEASURED_WORDS.search(line)
+        or re.search(r"(?i)\b(?:rounds?|раунд|diff|дифф|threshold|порог)\b", line)
+    )
+
+
 def _prompt_metric_errors(prompt_root: Path) -> list[str]:
-    """Require an inline source on empirical numeric claims, not all numbers."""
+    """Require an inline source on empirical numeric claims, not all numbers.
+
+    Fenced blocks are shown output, not assertions: a reference answer has to look like a
+    real answer, so its numbers stay bare instead of carrying a citation in every cell.
+    The block as a whole is still on the hook — an example running on invented numbers
+    teaches inventing them — so it must name its source somewhere inside (#349).
+    """
     errors: list[str] = []
     for md in sorted(prompt_root.rglob("*.md")):
+        fence_open = 0  # 0 = вне забора, иначе номер строки, которой забор открыт
+        fence_value = fence_source = False
         for line_no, line in enumerate(md.read_text().splitlines(), 1):
-            if _PROCEDURAL_VALUE.search(line):
+            if line.lstrip().startswith("```"):
+                if fence_open:
+                    if fence_value and not fence_source:
+                        rel = md.relative_to(prompt_root.parent)
+                        errors.append(
+                            f"{rel}:{fence_open}: example block shows measured numbers "
+                            f"without naming their source"
+                        )
+                    fence_open = 0
+                else:
+                    fence_open, fence_value, fence_source = line_no, False, False
                 continue
-            if _MEASURED_WORDS.search(line) and _MEASURED_VALUE.search(line):
-                if not _SOURCE_MARKER.search(line):
-                    rel = md.relative_to(prompt_root.parent)
-                    errors.append(
-                        f"{rel}:{line_no}: measured numeric claim lacks inline source marker"
-                    )
-            elif _MEASURED_VALUE.search(line) and re.search(
-                r"(?i)\b(?:rounds?|раунд|diff|дифф|threshold|порог)\b", line
-            ):
-                if not _SOURCE_MARKER.search(line):
-                    rel = md.relative_to(prompt_root.parent)
-                    errors.append(
-                        f"{rel}:{line_no}: measured numeric claim lacks inline source marker"
-                    )
+            if fence_open:
+                # Незакрытый забор проглотил бы остаток файла — итог считается после цикла.
+                fence_value = fence_value or _is_measured_claim(line)
+                fence_source = fence_source or bool(_SOURCE_MARKER.search(line))
+                continue
+            if _is_measured_claim(line) and not _SOURCE_MARKER.search(line):
+                rel = md.relative_to(prompt_root.parent)
+                errors.append(
+                    f"{rel}:{line_no}: measured numeric claim lacks inline source marker"
+                )
+        if fence_open and fence_value and not fence_source:
+            rel = md.relative_to(prompt_root.parent)
+            errors.append(
+                f"{rel}:{fence_open}: example block shows measured numbers "
+                f"without naming their source"
+            )
     return errors
 
 
