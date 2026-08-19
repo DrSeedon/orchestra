@@ -379,6 +379,51 @@ class TestTelegramFormattingOwnership:
             assert block not in assembled, f"Telegram rules leaked into {role}"
 
 
+class TestUserAnswerFormatOwnership:
+    """#346: формат ответа ЮЗЕРУ доезжает до роли, которая говорит с ним, и только до неё."""
+
+    OPEN = "<user-answer-format>"
+    CLOSE = "</user-answer-format>"
+    USER_ROLE = "orchestrator"
+    OTHER_ROLES = ("sub-orchestrator", "worker", "full-cycle")
+    # Разметочный шум (заборы, разделители таблиц) якорем быть не может: он есть в любом промпте.
+    NOISE = ("```", "|---|--:|--:|")
+
+    def _source_block(self) -> tuple[str, list[str]]:
+        source = P.prompt_path(PIPELINE, "roles/orchestrator.md").read_text(encoding="utf-8")
+        start = source.find(self.OPEN)
+        end = source.find(self.CLOSE, start)
+        assert start != -1 and end != -1, "User answer format section is missing from its owner"
+        block = source[start:end + len(self.CLOSE)]
+        clauses = [
+            line.strip() for line in block.splitlines()
+            if line.strip() and line.strip() not in self.NOISE
+        ]
+        assert len(clauses) >= 20, "User answer format section is unexpectedly short"
+        return block, clauses
+
+    def test_every_source_clause_reaches_the_assembled_user_prompt(self):
+        """Якоря даёт файл-источник, а не выписанные руками фразы."""
+        _block, clauses = self._source_block()
+        assembled = P.build_system_prompt(PIPELINE, self.USER_ROLE)
+        for clause in clauses:
+            assert clause in assembled, f"User answer format clause did not assemble: {clause!r}"
+
+    def test_user_answer_format_does_not_leak_to_non_user_roles(self):
+        block, _clauses = self._source_block()
+        assert self.OPEN in P.build_system_prompt(PIPELINE, self.USER_ROLE)
+        for role in self.OTHER_ROLES:
+            assembled = P.build_system_prompt(PIPELINE, role)
+            assert self.OPEN not in assembled, f"User answer format leaked into {role}"
+            assert block not in assembled, f"User answer format leaked into {role}"
+
+    def test_no_role_still_carries_the_withdrawn_no_tables_rule(self):
+        """Снятая формулировка не должна вернуться: она противоречит правилу «числа — в таблицу»."""
+        for role in (self.USER_ROLE, *self.OTHER_ROLES):
+            assembled = P.build_system_prompt(PIPELINE, role)
+            assert "Tables are hard to read on a phone" not in assembled, role
+
+
 # ── modules: инлайн переиспользуемых блоков после слоёв роли ────────────────
 
 class TestDefaultModulesInline:
