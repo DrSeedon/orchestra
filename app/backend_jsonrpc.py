@@ -120,7 +120,7 @@ class JsonRpcStdioTransport:
             return self._proc.pid
         return self._adopted_pid
 
-    async def quiesce_for_handover(self, drain_budget_s: float = 1.0) -> bool:
+    async def quiesce_for_handover(self) -> bool:
         """Stop reading, THEN let the buffer settle, before anyone snapshots it (#230 T4).
 
         INVARIANT — `False` means NOT QUIESCED. Every path that returns False leaves this
@@ -134,8 +134,16 @@ class JsonRpcStdioTransport:
 
         Snapshotting while the reader is alive is a race: it can pull more bytes out of the
         kernel into a process that is about to die, and it can move whole notifications into an
-        in-memory queue that nothing transfers. So: cancel the reader first, then give the
-        consumer a bounded moment to drain what it already parsed.
+        in-memory queue that nothing transfers. So the reader is cancelled first, and whatever
+        it had already parsed is carried forward rather than waited on.
+
+        NOTHING IS WAITED FOR HERE, deliberately (#230 T1). There used to be a bounded pause
+        giving the consumer a moment to drain the queue, and it cost the full budget every
+        time: measured 1014 ms with a non-empty queue against 0.1 ms with an empty one, and the
+        same 1014 ms for 5 events as for 50 — a timer, not work. It bought nothing, because
+        everything still queued is carried forward below in either case. Multiplied by a
+        sequential fleet it was ~10 s per ten agents (measured on `prepare_restart_handover`),
+        i.e. the single largest term in how long a restart took.
         """
         # FAIL-CLOSED FIRST: a pending JSON-RPC request (a mid-turn `turn/steer`, a compact)
         # has an unknown outcome — the CLI may have acted on it and we would never see the
@@ -172,10 +180,6 @@ class JsonRpcStdioTransport:
         queue = getattr(self, "_notifications", None)
         if queue is None:
             return True
-        loop = asyncio.get_running_loop()
-        deadline = loop.time() + drain_budget_s
-        while not queue.empty() and loop.time() < deadline:
-            await asyncio.sleep(0.02)
         if queue.empty():
             return True
         # Anything still queued is a PARSED event of a live turn — possibly `turn/completed`.

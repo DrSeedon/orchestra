@@ -348,7 +348,7 @@ async def test_impl_quiesce_does_not_fabricate_process_death_and_carries_events(
         await asyncio.sleep(0.3)
         assert not backend._notifications.empty(), "precondition: an event is queued"
 
-        assert await backend.quiesce_for_handover(drain_budget_s=0.2) is True
+        assert await backend.quiesce_for_handover() is True
 
         # The queue is EMPTY after quiescing BY DESIGN, so asserting on it proves nothing —
         # the first version of this guard stayed green with the flag removed. What actually
@@ -386,12 +386,12 @@ async def test_impl_handover_refused_while_a_request_is_in_flight():
         pending = asyncio.get_running_loop().create_future()
         backend._pending_requests[99] = pending
 
-        assert await backend.quiesce_for_handover(drain_budget_s=0.1) is False, (
+        assert await backend.quiesce_for_handover() is False, (
             "a handover that would orphan an in-flight request must be refused")
         assert not pending.done(), "the pending request must not be failed by the refusal"
 
         pending.cancel()
-        assert await backend.quiesce_for_handover(drain_budget_s=0.1) is True, (
+        assert await backend.quiesce_for_handover() is True, (
             "with nothing in flight the handover proceeds")
     finally:
         await backend.teardown_adopted()
@@ -469,7 +469,7 @@ async def test_impl_failed_handover_does_not_leave_quiescing_stuck_on():
         # make the re-encoding path fail: an unserialisable object in the queue
         await backend._notifications.put({"method": "x", "params": {"bad": object()}})
 
-        assert await backend.quiesce_for_handover(drain_budget_s=0.05) is False
+        assert await backend.quiesce_for_handover() is False
         assert backend._handover_quiescing is False, (
             "a refused handover must not leave the backend in the quiescing state — "
             "its real death would then be silent")

@@ -3,6 +3,7 @@
 import asyncio
 import itertools
 import json
+import contextlib
 import logging
 import os
 import re
@@ -1125,6 +1126,9 @@ class SessionManager:
                 session.scope,
                 session.worktree_path,
             )
+        # Сессии больше нет — снять её имена из FD store (#230 T2). Иначе store дорастает до
+        # `FileDescriptorStoreMax=256`, и новые агенты молча перестают быть защищёнными.
+        retire_backend_fds(session)
         archive_session(session_id)
         self.sessions.pop(session_id, None)
 
@@ -2090,7 +2094,10 @@ class SessionManager:
                         cli_pid=int(row.get("cli_pid") or 0),
                         cli_started_at=int(row.get("cli_started_at") or 0),
                     )
-                    logger.info("[%s] adopted a live CLI; its turn keeps running", session.name)
+                    logger.info(
+                        "[%s] adopted a live CLI; %s", session.name,
+                        "its turn keeps running" if row.get("active_turn_id")
+                        else "no turn was in flight")
                     continue  # no restart notice: nothing was interrupted
                 if row["id"] in was_waiting:
                     from app.bg_jobs import bg_manager
@@ -2121,7 +2128,10 @@ class SessionManager:
                         cli_pid=int(row.get("cli_pid") or 0),
                         cli_started_at=int(row.get("cli_started_at") or 0),
                     )
-                    logger.info("[%s] adopted a live CLI; its turn keeps running", session.name)
+                    logger.info(
+                        "[%s] adopted a live CLI; %s", session.name,
+                        "its turn keeps running" if row.get("active_turn_id")
+                        else "no turn was in flight")
                     continue  # no restart notice: nothing was interrupted
                 if row["id"] in was_waiting:
                     from app.bg_jobs import bg_manager
@@ -2347,6 +2357,56 @@ class SessionManager:
             )
         self.sessions.clear()
         self._session_locks.clear()
+
+
+def publish_backend_fds(session) -> bool:
+    """Отдать пайпы агента systemd СРАЗУ при спавне, а не в момент выключения (#230 T2).
+
+    До этого `store_fds` звался ровно из одного места — с пути выключения, — и потому
+    независимость агента была условной: она существовала, только если сервер успел провести
+    транзакцию. При `kill -9`/OOM CLI переживает нас, а дескрипторы умирают вместе с нами, и
+    подхватить его становится нечем.
+
+    Всё или ничего: половина пары выглядит как защищённый агент, которого нельзя принять —
+    для adopt нужны обе стороны. Поэтому упавшая вторая сторона снимает уже положенную первую.
+    """
+    from app import fdstore
+
+    backend = getattr(session, "_backend", None)
+    fd_in = getattr(backend, "fd_in", None)
+    fd_out = getattr(backend, "fd_out", None)
+    if fd_in is None or fd_out is None:
+        return False  # рантайм без собственных пайпов (Claude): передавать нечего
+
+    stored: list[str] = []
+    try:
+        for name, fd in ((fd_store_name(session.id, "stdin"), fd_in),
+                         (fd_store_name(session.id, "stdout"), fd_out)):
+            fdstore.store_fds(name, [fd])
+            stored.append(name)
+    except Exception as error:
+        # Громко: молчаливый отказ вернул бы прежнюю условную независимость, ничего об этом
+        # не сказав, то есть тот же дефект, но уже невидимый.
+        logger.error("[%s] could not publish agent pipes to systemd: %s",
+                     getattr(session, "name", session.id), err_text(error))
+        for name in stored:
+            with contextlib.suppress(Exception):
+                fdstore.remove_fds(name)
+        return False
+    return True
+
+
+def retire_backend_fds(session) -> None:
+    """Снять имена, когда сессия закончилась штатно (#230 T2).
+
+    Без этого store упирается в `FileDescriptorStoreMax=256`, и новые сессии молча перестают
+    быть защищёнными — то есть защита исчезает ровно тогда, когда агентов стало много.
+    """
+    from app import fdstore
+
+    for side in ("stdin", "stdout"):
+        with contextlib.suppress(Exception):
+            fdstore.remove_fds(fd_store_name(session.id, side))
 
 
 def fd_store_name(session_id: str, side: str) -> str:

@@ -990,6 +990,12 @@ class AgentSession:
         # turn had already finished, so claiming RUNNING would strand the session forever.
         self.status = AgentStatus.RUNNING if active_turn_id else AgentStatus.IDLE
         self._persist()
+        # Опубликовать дескрипторы ЗАНОВО (#230 T2). systemd отдал их этому поколению и
+        # больше за них не отвечает, поэтому без повторной публикации защита действовала бы
+        # ровно один раз — до первого рестарта, — а дальше `kill -9` снова терял бы агента.
+        # Найдено живым стендом: `NFileDescriptorStore=0` при усыновлённом агенте.
+        from app.manager import publish_backend_fds
+        publish_backend_fds(self)
         self._activate_backend_tasks()
         # A per-turn runtime (codex) consumes events only inside a turn loop started by
         # send(); nothing else reads the stream. An adopted session is ALREADY mid-turn, so
@@ -1975,6 +1981,12 @@ class AgentSession:
             if not getattr(candidate, "has_owned_processes", False):
                 self._backend = None
             raise
+        # Отдать пайпы systemd СРАЗУ, а не в момент выключения (#230 T2): иначе живучесть
+        # агента держится на том, что сервер успел попрощаться, и `kill -9` её отменяет.
+        # Отказ не мешает агенту работать — он лишь возвращает прежнюю условную
+        # независимость, поэтому логируется внутри и наружу не поднимается.
+        from app.manager import publish_backend_fds
+        publish_backend_fds(self)
         if activate:
             self._activate_backend_tasks()
         return self._backend

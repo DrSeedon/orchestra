@@ -2194,14 +2194,31 @@ async def _abort_restart(reason: str) -> None:
     logger.warning("restart aborted (%s): no signal sent", reason)
 
 
+def _can_be_handed_over(session) -> bool:
+    """Может ли живой ход этой сессии пережить рестарт (#230 T5).
+
+    Спрашиваем СПОСОБНОСТЬ, а не имя рантайма. Раньше здесь стоял литерал
+    `backend_type != "codex"`, и он требовал ручной правки ровно в тот момент, когда очередной
+    рантайм научится передаваться, — то есть забыть его означало ждать до 900 с того, кого
+    ждать уже не нужно.
+
+    FAIL-CLOSED, когда бэкенда нет: ход идёт (`is_busy`), а передавать нечего, значит рестарт
+    его оборвёт — такую сессию надо ждать, а не считать безопасной.
+    """
+    backend = getattr(session, "_backend", None)
+    if backend is None:
+        return False
+    return callable(getattr(backend, "adopt", None))
+
+
 def _blocking_runtimes() -> list:
     """Live turns that CANNOT be handed over, so the restart must wait for them (#237 T3).
 
-    Only Codex survives a restart today; Claude and Grok are separate trains. Their live turn
-    is the one thing a restart may never cut, so it blocks instead.
+    Сегодня это Claude и Grok: у их бэкендов нет `adopt`. Как только он появляется, ожидание
+    для этого рантайма исчезает само — без правки этой функции (#230 T5).
     """
     return [s for s in _drain_sessions()
-            if s.is_busy and getattr(s, "backend_type", "") != "codex"]
+            if s.is_busy and not _can_be_handed_over(s)]
 
 
 async def _do_restart_service() -> dict:

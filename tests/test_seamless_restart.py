@@ -46,6 +46,20 @@ class _OwnedPipeProcess:
         self.terminate()
 
 
+
+def _adoptable_backend():
+    """Двойник бэкенда, УМЕЮЩЕГО передаваться (#230 T5).
+
+    Рестарт спрашивает способность (`adopt`), а не имя рантайма, поэтому двойник, который
+    изображает Codex, обязан её иметь: без неё он изображает рантайм, чей ход рестарт обязан
+    ждать, и тест мерил бы не то, что называется в его имени.
+    """
+    async def _adopt(*a, **k):
+        return None
+
+    return SimpleNamespace(adopt=_adopt)
+
+
 async def _wait_until(predicate, *, timeout: float = 2.0, message: str):
     deadline = asyncio.get_running_loop().time() + timeout
     while asyncio.get_running_loop().time() < deadline:
@@ -187,7 +201,7 @@ def test_t1_codex_uvloop_parent_pipes_preserve_two_generation_cutpoints(monkeypa
             # Preserve the parsed-but-unconsumed frame as a prefix. The following complete
             # frames are written only after the reader is quiesced, so they remain in kernel.
             assert await asyncio.wait_for(
-                second.quiesce_for_handover(drain_budget_s=0), timeout=1
+                second.quiesce_for_handover(), timeout=1
             ) is True
             tool = {"method": "item/completed", "params": {"seq": 2, "item": {"type": "toolCall"}}}
             terminal = {
@@ -531,7 +545,8 @@ async def test_t3_active_codex_is_handed_over_without_waiting_for_idle(monkeypat
     from app.routes import system
 
     active_codex = SimpleNamespace(
-        id="codex-active", name="codex-active", backend_type="codex", is_busy=True
+        id="codex-active", name="codex-active", backend_type="codex", is_busy=True,
+        _backend=_adoptable_backend(),
     )
     order = []
 
@@ -561,7 +576,8 @@ async def test_t3_handover_refusal_aborts_restart_and_reopens_both_admissions(mo
     from app.routes import system
 
     stuck = SimpleNamespace(
-        id="stuck", name="stuck", backend_type="codex", is_busy=True
+        id="stuck", name="stuck", backend_type="codex", is_busy=True,
+        _backend=_adoptable_backend(),
     )
     kill = MagicMock()
     monkeypatch.setattr(system, "_drain_sessions", lambda: [stuck])
@@ -676,7 +692,7 @@ async def test_t3_aborted_handover_replays_prefix_and_resumes_reader():
             lambda: len(getattr(backend._out, "_buffer", b"")) >= len(head),
             message="partial frame did not reach the reader buffer before quiesce",
         )
-        assert await backend.quiesce_for_handover(drain_budget_s=0) is True
+        assert await backend.quiesce_for_handover() is True
 
         resume = getattr(backend, "resume_after_aborted_handover", None)
         assert resume is not None, "rollback must restore the reader, not only clear a flag"
@@ -736,7 +752,9 @@ async def test_t3_signal_failure_rolls_back_the_complete_prepared_fleet(monkeypa
     backends = []
     sessions = []
     for suffix in ("one", "two"):
-        backend = SimpleNamespace(_handover_quiescing=False)
+        # `adopt` — то, по чему рестарт решает, можно ли не ждать эту сессию (#230 T5)
+        backend = SimpleNamespace(_handover_quiescing=False,
+                                  adopt=_adoptable_backend().adopt)
 
         async def resume(backend=backend):
             backend._handover_quiescing = False
@@ -795,7 +813,8 @@ async def test_t3_late_unsupported_turn_after_codex_prepare_rolls_back_without_s
     from app.routes import system
 
     codex = SimpleNamespace(
-        id="codex-prepared", name="codex-prepared", backend_type="codex", is_busy=True
+        id="codex-prepared", name="codex-prepared", backend_type="codex", is_busy=True,
+        _backend=_adoptable_backend(),
     )
     claude = SimpleNamespace(
         id="claude-late", name="claude-late", backend_type="claude", is_busy=False
@@ -897,7 +916,7 @@ async def test_guard_refused_quiesce_leaves_the_backend_untouched():
         # путь 1: незавершённый JSON-RPC запрос — исход неизвестен, передача запрещена
         loop = asyncio.get_running_loop()
         backend._pending_requests[4242] = loop.create_future()
-        assert await backend.quiesce_for_handover(drain_budget_s=0) is False
+        assert await backend.quiesce_for_handover() is False
         backend._pending_requests.pop(4242)
 
         os.write(cli_out_w, (json.dumps({"method": "a", "params": {"seq": 1}}) + "\n").encode())
@@ -909,7 +928,7 @@ async def test_guard_refused_quiesce_leaves_the_backend_untouched():
 
         # путь 2: перенесённые события не сериализуются — тоже отказ, тоже без последствий
         backend._notifications.put_nowait({"method": "b", "params": {"bad": object()}})
-        assert await backend.quiesce_for_handover(drain_budget_s=0) is False
+        assert await backend.quiesce_for_handover() is False
 
         while not backend._notifications.empty():
             backend._notifications.get_nowait()
