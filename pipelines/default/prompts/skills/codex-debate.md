@@ -1,13 +1,13 @@
 ---
 name: codex-debate
-description: "Risk-based model review routing: deterministic skip, Luna first pass, Sol technical escalation, targeted Opus cross-family review, and evidence-backed debate. Luna and Sol run through codex_review. Triggers: 'review', 'кодекс ревью', 'второе мнение', 'cross-review', 'adversarial review', '/codex', '/codex-debate'."
+description: "Optional risk-based review routing: deterministic skip, Luna first pass, Sol technical escalation, and evidence-backed debate. Luna and Sol run through codex_review; no Codex means no review. Triggers: 'review', 'кодекс ревью', 'второе мнение', 'cross-review', 'adversarial review', '/codex', '/codex-debate'."
 ---
 
 # Review Routing and Codex Debate
 
 Этот файл — единственный владелец выбора reviewer, доказательств для skip и потолка раундов.
-`codex_review` запускает Luna или Sol в явном reviewer model; Opus требует свежей
-reviewer-сессии через Orchestra.
+`codex_review` запускает Luna или Sol в явном reviewer model. Другого ревьюера у нас нет:
+ревью существует ровно настолько, насколько доступен Codex.
 Основание маршрута и его границы измерений: `docs/tasks/289/research.md`.
 
 ## Главный принцип — ВТОРОЕ МНЕНИЕ, НЕ ИСТИНА
@@ -46,7 +46,16 @@ admission/authorization/lifecycle gate, чей bypass отключает кон�
 оркестратором тоже взводит floor. Автор может добавить класс риска, но не снять сработавший; неясны
 consumer или последствия → high-risk до решения независимого reviewer/оркестратора.
 
-Применяй сверху вниз; более высокий risk floor всегда побеждает дешёвый маршрут:
+**Ревью доступно, но не обязательно (решение юзера 19.08.2026).** Есть Codex — ревью полезно и
+маршруты ниже говорят, какое именно. **Codex недоступен → ревью НЕ делается: пиши в отчёт
+`Review: none — Codex unavailable` и продолжай работу.** Замену ревьюеру не искать: не поднимать
+Opus, не спавнить ревьюера-агента, не звать другую модель «вместо». Отсутствие ревью — законный
+исход, а не долг; вместо него отчёт опирается на собственную самопроверку (pre-mortem, мутации
+оракула) и на просмотр диффа тем, кто ставил задачу. Раньше здесь стоял обязательный floor и
+маршрут «поднять Opus вместо Codex» — оба сняты: они стоили четырёх платных ревьюеров за день,
+которых юзер не заказывал.
+
+Применяй сверху вниз, ЕСЛИ Codex доступен; более высокий risk floor побеждает дешёвый маршрут:
 
 1. **NO MODEL REVIEW** — только trivial fully closed leaf: точные file/symbol и AC известны до
    работы, неизвестных решений и внешних контрактов нет, diff не затрагивает high-risk floor,
@@ -60,14 +69,11 @@ consumer или последствия → high-risk до решения нез�
    только этот seam/спор; Luna второй раз не запускай. Иди сразу в один targeted Sol technical
    pass без Luna, если strong oracle отсутствует, diff не compact или high-risk floor выше
    сработал.
-4. **Sol review is mandatory regardless of size** — shared runtime, auth, security, secrets или
-   migrations. Малый diff и зелёный тест не снижают этот floor. Здесь Luna не является gate.
-5. **targeted Opus cross-family review** — high-risk код authored Sol/Luna получает его на
-   load-bearing seams, когда Claude доступен, в дополнение к Sol technical pass. Luna и Sol
-   — одна model family; ни fresh thread, ни согласие двух её checkpoints не делают review
-   независимым. Если Opus недоступен, пиши дословно `cross-family verdict unavailable`; не называй
-   Luna/Sol independent review.
-6. **Docs / fact extraction** — сначала mechanical completeness checks. Для короткой
+4. **Sol pass on a high-risk surface** — shared runtime, auth, security, secrets, migrations.
+   Малый diff и зелёный тест сами по себе не переводят такой diff на дешёвый маршрут; Luna здесь
+   не gate. Это выбор МАРШРУТА при доступном Codex, а не обязанность провести ревью: Codex нет —
+   см. правило выше, ревью не делается и замена не поднимается.
+5. **Docs / fact extraction** — сначала mechanical completeness checks. Для короткой
    low-consequence fact extraction они могут быть финальным gate; иначе один Luna completeness
    pass. Causal/statistical спор или high-risk вывод поднимается по правилам выше.
 
@@ -75,16 +81,13 @@ consumer или последствия → high-risk до решения нез�
 
 - Luna запускается напрямую через `codex_review(model="gpt5.6luna", ...)`; Sol — через
   `model="codex"`. Устаревший вызов без `model` детерминированно остаётся Sol.
-- Opus запускается свежей reviewer-сессией через spawn-capable родителя с точным target, AC,
-  PROJECT CONTEXT и запретом реализации. Terminal worker отправляет этот review handoff своему
-  оркестратору; он не подменяет выбранную модель молча. Для других моделей exact id берётся из
-  live Orchestra registry, не копируется в этот skill.
 - `codex_review` принимает только зарегистрированные модели Codex runtime; Spark запрещён для
-  review политикой. Luna/Sol остаются одной model family и не дают Opus independence.
-- Отсутствие выбранного reviewer — громкий `review route unavailable`, а не skip и не ложный
-  verdict. Дальнейший fallback решает оркестратор.
-- Explicit user request на конкретного reviewer выполняется; safety floors выше всё равно
-  сохраняются. Review сверх gate требует approval постановщика.
+  review политикой.
+- Выбранный reviewer недоступен → `Review: none — Codex unavailable` в отчёте, и работа идёт
+  дальше. Не поднимать ревьюера на другой модели, не спавнить агента-ревьюера, не откладывать
+  задачу до появления Codex.
+- Explicit user request на конкретного reviewer выполняется. Ревью сверх маршрута — тоже по
+  запросу постановщика, а не по своей инициативе: лишний ревьюер стоит денег юзера.
 
 ## MCP tool: codex_review
 
@@ -214,7 +217,7 @@ norm = lambda s: re.sub(r"\s+", " ", re.sub(r"^[ \t]*>?[ \t]*", "", s, flags=re.
 Нет ни одного из двух признаков → пиши в отчёте **«вердикта нет, ревью без доказательств»**, а не «review approved». Это законный исход, а не провал.
 
 Размер сам по себе не выбирает маршрут: trivial skip требует всех доказательств gate, а
-shared-runtime/security floor требует Sol при любом размере.
+shared-runtime/security поверхность идёт к Sol при любом размере — когда Codex доступен.
 
 **Спор, а не молчание.** Не согласен с blocking после проверки кода → один evidence-backed
 follow-up в пределах потолка. Recorded-and-ignored blocking = провал; упереться в потолок с
@@ -222,12 +225,11 @@ follow-up в пределах потолка. Recorded-and-ignored blocking = п
 
 ## Show Result to User
 ```
-Review route: <skip / Luna / Sol / Sol + Opus cross-family>
+Review route: <none — Codex unavailable / skip / Luna / Sol>
 Rounds: N
-Verdict: <APPROVED / needs work / reject>
+Verdict: <APPROVED / needs work / reject / вердикта нет>
 Findings: blocking X (Y fixed, Z rejected + причина) · suggestion M (K accepted) · nit skipped
 Evidence: <named command + output + AC; reviewer artifact path>
-Independence: <cross-family / same-family / cross-family verdict unavailable>
 ```
 
 ## Prompt Templates (для `context`)

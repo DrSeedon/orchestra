@@ -16,7 +16,25 @@ P1 внесён ЧАСТИЧНО: `modules/background-jobs.md` сведён к �
 (владелец типов — описание тула, владелец «не поллить» — `base.md`), но модуль остался в
 `modules:` у обеих ролей.
 
-**НЕ внесено, блокировано тестом, который мне не разрешено править:**
+**ДОБРАНО после авторизации оркестратора (коммит «ревью не обязательно…»):** снятие
+обязательности ревью и P8. Блокеры ниже закрыты, текст оставлен как история.
+
+- `skills/codex-debate.md`: маршрут «targeted Opus cross-family» и запуск Opus-ревьюера удалены
+  целиком; `**Sol review is mandatory regardless of size**` → `**Sol pass on a high-risk surface**`;
+  `review route unavailable` → `Review: none — Codex unavailable` и явный запрет искать замену.
+- Тест не выродился в пустой: `test_canonical_contract_covers_skip_routes_and_independence`
+  потерял три якоря и получил новый, а рядом заведён
+  `test_review_is_optional_and_has_no_substitute_reviewer` — он проверяет ОБЕ половины
+  (новый контракт присутствует; `mandatory`, `cross-family`, `Opus запускается…`,
+  `review route unavailable` отсутствуют) плюс доставку запрета в промпт оркестратора.
+  Мутация «вернуть `mandatory` в скилл» → 2 failed; откат + `touch` → 102 passed.
+- P8: `modules/code-quality.md` — единственный владелец, блок удалён из `roles/worker.md` и
+  `roles/full-cycle.md`, модуль подписан обеим рабочим ролям в `pipeline.yaml` (тронуты только
+  списки `modules:`). Тест `test_code_quality_has_one_owner_and_reaches_both_working_roles`
+  проверяет доставку И отсутствие копии в файлах ролей; мутация «вернуть блок в `worker.md`»
+  → 1 failed, откат → 103 passed. Глобальный `~/.claude/CLAUDE.md` не тронут.
+
+**История блокировки (закрыта, оставлено для протокола):**
 - **P1 (убрать модуль из манифеста) и P8 (вынести `<code-quality>` в модуль)** —
   `tests/test_default_pipeline.py:191-206` перечисляет `modules:` каждой роли дословно.
 - **Снятие обязательности ревью (все 8 правок)** — `tests/test_default_pipeline.py:512-530`

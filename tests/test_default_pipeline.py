@@ -199,12 +199,35 @@ class TestDefaultRolesResolve:
             "background-jobs", "task-management", "self-improvement", "memory-search",
         ]
         assert P.get_role(PIPELINE, "worker").modules == [
-            "git-workflow", "report-format", "self-improvement", "memory-search",
+            "code-quality", "git-workflow", "report-format", "self-improvement", "memory-search",
         ]
         assert P.get_role(PIPELINE, "full-cycle").modules == [
-            "model-routing", "research-method", "git-workflow", "worker-lifecycle",
+            "model-routing", "research-method", "code-quality", "git-workflow", "worker-lifecycle",
             "report-format", "self-improvement", "memory-search",
         ]
+
+    def test_code_quality_has_one_owner_and_reaches_both_working_roles(self):
+        """#prompt-cleanup: блок жил ДВУМЯ дословными копиями в roles/worker.md и
+        roles/full-cycle.md. Копия расходится молча, поэтому владелец теперь модуль.
+
+        Проверяются обе стороны: текст доезжает до рабочих ролей ровно один раз И его
+        больше нет в файлах ролей. Без второй половины тест зелёный и на возвращённой копии.
+        """
+        module = P.prompt_path(PIPELINE, "modules/code-quality.md").read_text().strip()
+        bullets = [ln.strip() for ln in module.splitlines() if ln.startswith("- ")]
+        assert len(bullets) >= 12, "модуль потерял пункты — якоря стали слабее"
+
+        for role in ("worker", "full-cycle"):
+            out = P.build_system_prompt(PIPELINE, role)
+            assert out.count(module) == 1, f"{role}: code-quality должен прийти ровно из модуля"
+            src = P.prompt_path(PIPELINE, f"roles/{role}.md").read_text()
+            assert "<code-quality>" not in src, (
+                f"roles/{role}.md: копия блока вернулась в файл роли"
+            )
+
+        for role in ("orchestrator", "sub-orchestrator"):
+            out = P.build_system_prompt(PIPELINE, role)
+            assert "<code-quality>" not in out, f"{role}: правила написания кода протекли"
 
     def test_model_routing_reaches_only_spawn_capable_roles(self):
         """Маршрутизация инлайнится ровно тем, кто умеет спавнить, и ровно из модуля (#203).
@@ -520,14 +543,54 @@ class TestRiskBasedReviewRouting:
             "**NO MODEL REVIEW**",
             "**one fresh Luna review**",
             "**one targeted Sol escalation**",
-            "**Sol review is mandatory regardless of size**",
-            "**targeted Opus cross-family review**",
-            "`cross-family verdict unavailable`",
+            "**Sol pass on a high-risk surface**",
             "**Docs / fact extraction**",
             "**One round by default.**",
         )
         for anchor in anchors:
             assert policy.count(anchor) == 1, f"canonical review contract lacks {anchor!r}"
+
+    def test_review_is_optional_and_has_no_substitute_reviewer(self):
+        """Решение юзера 19.08: ревью полезно, но НЕ обязательно, и заменять недоступный
+        Codex другой моделью запрещено — маршрут «поднять Opus вместо Codex» стоил четырёх
+        платных ревьюеров за один день.
+
+        Проверяются обе половины: новый контракт присутствует И старый отсутствует. Одна
+        половина без другой ложно-зелёная: текст можно дописать, не убрав обязательность,
+        и можно убрать маршрут замены, оставив floor, который заставит искать его заново.
+        """
+        policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()
+        present = (
+            "**Ревью доступно, но не обязательно",
+            "Codex недоступен → ревью НЕ делается",
+            "не поднимать\nOpus, не спавнить ревьюера-агента",
+        )
+        for anchor in present:
+            assert policy.count(anchor) == 1, f"новый контракт ревью потерял {anchor!r}"
+        # Формулировка отчёта при недоступном Codex названа и в правиле, и в инструкции
+        # запуска — здесь проверяется наличие, а не единственность.
+        assert "`Review: none — Codex unavailable`" in policy, (
+            "не назван исход, который агент обязан записать вместо ревью"
+        )
+
+        # Обязательность и маршрут замены не должны вернуться ни в одной из форм,
+        # которые этот файл уже использовал.
+        forbidden = (
+            "mandatory",
+            "targeted Opus cross-family review",
+            "cross-family verdict unavailable",
+            "Opus запускается свежей reviewer-сессией",
+            "review route unavailable",
+        )
+        for stale in forbidden:
+            assert stale not in policy, f"вернулась обязательность/замена ревьюера: {stale!r}"
+
+        # И то же самое там, где правило реально исполняется: спавнит ревьюера оркестратор,
+        # а скилл он грузит отдельно — запрет обязан доехать в сам промпт.
+        out = P.build_system_prompt(PIPELINE, "orchestrator")
+        assert "you never spawn a\nreviewer agent as a substitute" in out, (
+            "оркестратор — тот, кто спавнит; без этой строки запрет ничем не принуждается"
+        )
 
     def test_canonical_skill_exposes_direct_luna_review_and_sol_default(self):
         policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()

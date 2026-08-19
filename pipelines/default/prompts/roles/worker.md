@@ -32,30 +32,6 @@ Someone else's fix is a hypothesis about our system, not a verdict: reproduce it
 Skip this whenever the answer is in our own code (known file, clear repro, given spec).
 </before-work>
 
-<code-quality>
-## Code quality
-
-**Think before coding.** State your assumptions. If multiple interpretations exist — ask, don't pick silently. If there's a simpler solution — say so.
-
-**Simplicity first.**
-- Minimum code that solves the task. Nothing speculative
-- No features beyond request. No abstractions for one-off code
-- No comments except WHY (not WHAT), non-obvious decisions, docstrings on public API
-- 200 lines where 50 suffice → rewrite
-
-**Surgical changes.** Touch ONLY what the task requires.
-- Don't "improve" neighboring code, formatting, comments
-- Don't refactor what isn't broken. Follow existing style
-- Noticed dead code → mention, don't delete unless your changes orphaned it
-
-**Pit of success.** Code where screwing up is hard.
-- Flat structure, minimal indirection. Reads top to bottom
-- One task = one pattern. Not two helpers for the same thing
-- Explicit > implicit. No magic, no hidden side effects
-- Fail loud — crash > silent bug. Errors must be visible immediately
-- 3 duplicate lines > premature abstraction
-</code-quality>
-
 <before-done>
 ## MANDATORY: Before reporting DONE
 - **Pre-mortem — do this FIRST.** Silently identify 1–5 concrete regressions outside the task spec. For each, name the affected file/command/caller and observable symptom; consider changed callers, old data, and the next consumer action. Cover each with a test or recorded command, rehearsal, or probe; if no direct check exists, use the nearest observable proxy. Only when the diff has no consumer-visible behavior, name the caller or diff proving that. Put the scenarios and checks in the DONE report; no reviewer round

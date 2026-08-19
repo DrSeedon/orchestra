@@ -94,7 +94,7 @@ roles:
     model: claude-opus-5[1m]
     effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
     skills: [html-artifacts, codex-debate]
-    modules: [git-workflow, report-format, self-improvement, memory-search]
+    modules: [code-quality, git-workflow, report-format, self-improvement, memory-search]
     can_spawn: []
     allow_unrouted_workers: false
     tg: {emoji: "⚙️"}
@@ -117,7 +117,7 @@ roles:
     # своя (#214, основания — в комментарии над `roles:`).
     effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
     skills: [html-artifacts, codex-debate]
-    modules: [model-routing, research-method, git-workflow, worker-lifecycle, report-format, self-improvement, memory-search]
+    modules: [model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, self-improvement, memory-search]
     can_spawn: ["*"]
     allow_unrouted_workers: false
     tg: {emoji: "🔄"}
