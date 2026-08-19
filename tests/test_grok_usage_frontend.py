@@ -196,16 +196,8 @@ def test_usage_bar_shows_spark_label_and_release_statuses(browser):
     page.close()
 
 
-def test_usage_bar_renders_each_provider_on_own_line(browser):
+def test_usage_bar_renders_each_provider_as_two_columns(browser):
     USAGE_SHOT_DIR.mkdir(parents=True, exist_ok=True)
-
-    page = browser.new_page(viewport={"width": 1440, "height": 900})
-    page.set_content('<body><div id="usage-bar"></div></body>')
-    page.evaluate("() => { window.marked = {setOptions() {}, parse(value) { return value; } }; window.DOMPurify = { addHook() {} }; }")
-    page.add_script_tag(path=str(UTILS_JS))
-    page.add_script_tag(path=str(USAGE_JS))
-    page.add_style_tag(path=str(STYLE_CSS))
-
     usage = {
         "anthropic": {
             "five_hour": {"utilization": 38, "window_minutes": 300, "resets_at": "2099-01-01T00:00:00.000Z"},
@@ -252,43 +244,62 @@ def test_usage_bar_renders_each_provider_on_own_line(browser):
             },
         ],
     }
-    page.evaluate(
-        """([usage, quotaMap]) => {
-            const now = Date.now();
-            quotaMap.buckets[0].window.resets_at = new Date(now + 3600000).toISOString();
-            quotaMap.buckets[1].window.resets_at = new Date(now + 5 * 86400000).toISOString();
-            for (const item of [quotaMap.buckets[2], quotaMap.buckets[3], quotaMap.buckets[4]]) {
-                item.window.resets_at = new Date(now + 3 * 86400000).toISOString();
-            }
-            usage.anthropic.five_hour.resets_at = new Date(now + 3600000).toISOString();
-            usage.anthropic.seven_day.resets_at = new Date(now + 5 * 86400000).toISOString();
-            usage.codex.primary.resets_at = new Date(now + 3 * 86400000).toISOString();
-            usage.codex.spark.primary.resets_at = new Date(now + 3 * 86400000).toISOString();
-            usage.grok.primary.resets_at = new Date(now + 3 * 86400000).toISOString();
-            window._usageDataFromApi = usage;
-            window._quotaMapDataFromApi = quotaMap;
-            window.api = (path) => path.includes('quota-map') ? Promise.resolve(_quotaMapDataFromApi) : Promise.resolve(_usageDataFromApi);
-            initUsageBar();
-        }""",
-        [usage, quota_map],
-    )
 
-    expect(page.locator("#usage-bar")).to_contain_text("5h:")
-    expect(page.locator("#usage-bar")).to_contain_text("7d:")
-    expect(page.locator("#usage-bar")).to_contain_text("Codex Spark")
-    expect(page.locator("[data-usage-compact-provider='claude']")).to_have_count(1)
-    expect(page.locator("[data-usage-compact-provider='codex']")).to_have_count(1)
-    expect(page.locator("[data-usage-compact-provider='codex-spark']")).to_have_count(1)
-    expect(page.locator("[data-usage-compact-provider='grok']")).to_have_count(1)
-    expect(page.locator("[data-usage-compact-provider='claude']")).to_contain_text("Claude")
-    expect(page.locator("[data-usage-compact-provider='codex']")).to_contain_text("Codex")
-    expect(page.locator("[data-usage-compact-provider='codex-spark']")).to_contain_text("Codex Spark")
-    expect(page.locator("[data-usage-compact-provider='grok']")).to_contain_text("Grok")
-    bounds = page.locator("#usage-bar").bounding_box()
-    assert bounds is not None
-    assert bounds["height"] <= 120
-    page.locator("#usage-bar").screenshot(path=str(USAGE_SHOT_DIR / "usage-bar-provider-lines.png"))
-    page.close()
+    for width in (1280, 1920):
+        page = browser.new_page(viewport={"width": width, "height": 900})
+        page.set_content('<body><div id="usage-bar"></div></body>')
+        page.evaluate("() => { window.marked = {setOptions() {}, parse(value) { return value; } }; window.DOMPurify = { addHook() {} }; }")
+        page.add_script_tag(path=str(UTILS_JS))
+        page.add_script_tag(path=str(USAGE_JS))
+        page.add_style_tag(path=str(STYLE_CSS))
+
+        page.evaluate(
+            """([usage, quotaMap]) => {
+                const now = Date.now();
+                quotaMap.buckets[0].window.resets_at = new Date(now + 3600000).toISOString();
+                quotaMap.buckets[1].window.resets_at = new Date(now + 5 * 86400000).toISOString();
+                for (const item of [quotaMap.buckets[2], quotaMap.buckets[3], quotaMap.buckets[4]]) {
+                    item.window.resets_at = new Date(now + 3 * 86400000).toISOString();
+                }
+                usage.anthropic.five_hour.resets_at = new Date(now + 3600000).toISOString();
+                usage.anthropic.seven_day.resets_at = new Date(now + 5 * 86400000).toISOString();
+                usage.codex.primary.resets_at = new Date(now + 3 * 86400000).toISOString();
+                usage.codex.spark.primary.resets_at = new Date(now + 3 * 86400000).toISOString();
+                usage.grok.primary.resets_at = new Date(now + 3 * 86400000).toISOString();
+                window._usageDataFromApi = usage;
+                window._quotaMapDataFromApi = quotaMap;
+                window.api = (path) => path.includes('quota-map')
+                    ? Promise.resolve(_quotaMapDataFromApi)
+                    : Promise.resolve(_usageDataFromApi);
+                initUsageBar();
+            }""",
+            [usage, quota_map],
+        )
+
+        expect(page.locator("#usage-bar")).to_contain_text("5h:")
+        expect(page.locator("#usage-bar")).to_contain_text("7d:")
+
+        claude = page.locator('[data-usage-compact-provider="claude"]').bounding_box()
+        codex = page.locator('[data-usage-compact-provider="codex"]').bounding_box()
+        spark = page.locator('[data-usage-compact-provider="codex-spark"]').bounding_box()
+        grok = page.locator('[data-usage-compact-provider="grok"]').bounding_box()
+        assert all([claude, codex, spark, grok])
+
+        assert codex["x"] - claude["x"] > 80
+        assert abs(spark["x"] - claude["x"]) <= 20
+        assert abs(grok["x"] - codex["x"]) <= 20
+
+        expect(page.locator('[data-usage-compact-provider="claude"]')).to_contain_text("Claude")
+        expect(page.locator('[data-usage-compact-provider="codex"]')).to_contain_text("Codex")
+        expect(page.locator('[data-usage-compact-provider="codex-spark"]')).to_contain_text("Codex Spark")
+        expect(page.locator('[data-usage-compact-provider="grok"]')).to_contain_text("Grok")
+
+        bounds = page.locator("#usage-bar").bounding_box()
+        assert bounds is not None
+        assert bounds["height"] < 63
+
+        page.locator("#usage-bar").screenshot(path=str(USAGE_SHOT_DIR / f"usage-bar-provider-grid-{width}.png"))
+        page.close()
 
 
 def test_usage_controls_stay_visible_across_desktop_widths(browser):
