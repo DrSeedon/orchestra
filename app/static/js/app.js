@@ -8248,12 +8248,12 @@ async function loadProfilesList() {
 const _QL_W = 960, _QL_H = 470, _QL_ML = 54, _QL_MR = 20, _QL_MT = 18, _QL_MB = 44;
 const _QL_PW = _QL_W - _QL_ML - _QL_MR, _QL_PH = _QL_H - _QL_MT - _QL_MB;
 const _QL_REFRESH_MS = 120000;
+const _QL_LABEL_STEP = 12;
+const _QL_LABEL_TOP_PAD = 8;
 
 const _QL_PANELS = [
-    {key: 'codex', title: 'Пул Codex', sub: 'окно скользящее — 7 суток от первого использования',
-     buckets: ['codex', 'codex_spark']},
-    {key: 'claude', title: 'Пул Claude', sub: 'окно фиксированное — сброс во вторник 07:00 UTC',
-     buckets: ['anthropic']},
+    {key: 'all', title: 'Квоты пула', sub: 'одна шкала: доля пройденного окна, 0–100%',
+     buckets: ['codex', 'codex_spark', 'anthropic']},
 ];
 
 const _QL_NO_RULE = 'нет данных — сервер не прислал константы правила';
@@ -8265,6 +8265,13 @@ let _quotaLinesTimer = null;
 
 const _qlX = t => _QL_ML + t * _QL_PW;
 const _qlY = p => _QL_MT + (1 - p / 100) * _QL_PH;
+const _QL_LANE_MARKERS = [
+    {dx: 12, dy: -14},
+    {dx: -12, dy: -22},
+    {dx: 12, dy: 17},
+    {dx: -12, dy: 26},
+];
+const _QL_LANE_COLORS = {sol: '#f472b6', luna: '#38bdf8', spark: '#c084fc', claude: '#fb923c'};
 
 // Форма диагонали допуска между началом и концом окна. Значение В ТЕКУЩЕЙ точке
 // берётся из bucket.limit_pct сервера, а не отсюда, — иначе панель и гейт разойдутся.
@@ -8281,8 +8288,42 @@ function _qlNum(value, digits = 0) {
     return Number(value).toFixed(digits);
 }
 
+function _qlTrace(bucket) {
+    const trace = bucket?.trace;
+    const points = trace && Array.isArray(trace.points) ? trace.points : [];
+    const cleaned = [];
+    for (const point of points) {
+        const util = Number(point?.utilization);
+        const progress = Number(point?.progress);
+        if (!Number.isFinite(util) || !Number.isFinite(progress)) continue;
+        cleaned.push({
+            util,
+            progress: Math.max(0, Math.min(1, progress)),
+            x: _qlX(Math.max(0, Math.min(1, progress))),
+            y: _qlY(util),
+        });
+    }
+    return cleaned;
+}
+
 function _qlTone(verdict) {
     return verdict.nodata ? 'ql-nodata' : verdict.blocked ? 'ql-verdict-blocked' : 'ql-verdict-open';
+}
+
+function _qlPlaceY(baseY, usedBands, step = _QL_LABEL_STEP) {
+    let y = Math.max(_QL_MT + _QL_LABEL_TOP_PAD, baseY);
+    for (let tries = 0; tries < 8; tries++) {
+        const top = y - 10;
+        const bottom = y + 30;
+        const collided = usedBands.some(([from, to]) => !(bottom < from || top > to));
+        if (!collided) {
+            usedBands.push([top, bottom]);
+            return y;
+        }
+        y += step;
+    }
+    usedBands.push([y - 10, y + 30]);
+    return y;
 }
 
 // Точка рисуется, только когда сервер сказал, что данные есть. utilization=0 при
@@ -8311,19 +8352,16 @@ function _qlLanes(panel) {
 }
 
 function _qlChartSvg(panel, rule) {
-    const primary = _qlBucket(panel.buckets[0]);
-    const windowMinutes = Number(primary?.window?.window_minutes) || 10080;
-    const days = Math.max(1, Math.min(14, Math.round(windowMinutes / 1440)));
     const p = [];
 
     for (let pct = 0; pct <= 100; pct += 20) {
         p.push(`<line class="ql-grid" x1="${_QL_ML}" y1="${_qlY(pct)}" x2="${_QL_ML + _QL_PW}" y2="${_qlY(pct)}"/>`);
         p.push(`<text class="ql-axis" x="${_QL_ML - 10}" y="${_qlY(pct) + 4}" text-anchor="end">${pct}%</text>`);
     }
-    for (let d = 0; d <= days; d++) {
-        const t = d / days;
+    for (let d = 0; d <= 10; d++) {
+        const t = d / 10;
         p.push(`<line class="ql-grid" x1="${_qlX(t)}" y1="${_QL_MT}" x2="${_qlX(t)}" y2="${_QL_MT + _QL_PH}"/>`);
-        p.push(`<text class="ql-axis" x="${_qlX(t)}" y="${_QL_MT + _QL_PH + 19}" text-anchor="middle">${d} сут</text>`);
+        p.push(`<text class="ql-axis" x="${_qlX(t)}" y="${_QL_MT + _QL_PH + 19}" text-anchor="middle">${d * 10}%</text>`);
     }
     p.push(`<text class="ql-axis" x="${_QL_ML + _QL_PW / 2}" y="${_QL_H - 7}" text-anchor="middle">доля пройденного окна</text>`);
 
@@ -8341,27 +8379,68 @@ function _qlChartSvg(panel, rule) {
     p.push(`<line class="ql-orch" x1="${_qlX(0)}" y1="${_qlY(100)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
     p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe">оркестратор работает всегда — предела нет</text>`);
 
-    // Каждый пул рисуется своей точкой: Spark считается по СВОЕМУ счётчику и стоит
-    // на своей доле окна, поэтому одной линией с Sol его рисовать нельзя.
-    panel.buckets.forEach((id, index) => {
+    const byBucket = [];
+    for (const id of panel.buckets) {
         const bucket = _qlBucket(id);
+        if (!bucket) continue;
+        byBucket.push(bucket);
+    }
+    const lanes = _qlLanes(panel);
+    const traceNotices = [];
+    const traces = new Set();
+    const usedLabelBands = [];
+    // Пути строим по pool-решению (решающее окно): один пул — одна ломаная.
+    for (const bucket of byBucket) {
+        if (traces.has(bucket.bucket)) continue;
+        traces.add(bucket.bucket);
         const point = _qlPoint(bucket);
-        if (!point) return;
-        const secondary = index > 0;
-        const label = _escHtml(String(bucket.label || id));
+        const points = _qlTrace(bucket);
+        if (points.length < 2) {
+            traceNotices.push({
+                bucket: bucket.bucket,
+                label: bucket.label || bucket.bucket,
+            });
+            if (point && point.progress === null) {
+                p.push(`<line class="ql-noprogress" data-ql-flat="${_escHtml(bucket.bucket)}" x1="${_qlX(0)}" y1="${_qlY(point.util)}" x2="${_qlX(1)}" y2="${_qlY(point.util)}"/>`);
+            }
+            continue;
+        }
+        const traceClass = `ql-trace ql-trace-${bucket.bucket.replace('_', '-')}`;
+        const tracePoints = points.map(item => `${item.x},${item.y}`).join(' ');
+        p.push(`<polyline class="${traceClass}" points="${tracePoints}"/>`);
+        if (point && point.progress === null) {
+            p.push(`<line class="ql-noprogress" data-ql-flat="${_escHtml(bucket.bucket)}" x1="${_qlX(0)}" y1="${_qlY(point.util)}" x2="${_qlX(1)}" y2="${_qlY(point.util)}"/>`);
+        }
+    }
+
+    for (let i = 0; i < lanes.length; i++) {
+        const lane = lanes[i];
+        const bucket = lane.bucket;
+        const point = _qlPoint(bucket);
+        if (!point) continue;
         if (point.progress === null) {
-            p.push(`<line class="ql-noprogress" data-ql-flat="${_escHtml(id)}" x1="${_qlX(0)}" y1="${_qlY(point.util)}" x2="${_qlX(1)}" y2="${_qlY(point.util)}"/>`);
-            p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${label} ${_qlNum(point.util)}% · срок сброса неизвестен — только жёсткие ${_qlNum(hard)}%</text>`);
-            return;
+            if (i === 0) {
+                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${_escHtml(bucket.label || bucket.bucket)}: срок сброса неизвестен — только жёсткие ${_qlNum(hard)}%</text>`);
+            }
+            continue;
         }
         const x = _qlX(point.progress), y = _qlY(point.util);
         p.push(`<line class="ql-cursor" x1="${x}" y1="${_QL_MT}" x2="${x}" y2="${_QL_MT + _QL_PH}"/>`);
-        p.push(secondary
-            ? `<circle data-ql-point="${_escHtml(id)}" cx="${x}" cy="${y}" r="5.5" fill="none" stroke="var(--accent-alt)" stroke-width="2.5"/>`
-            : `<circle data-ql-point="${_escHtml(id)}" cx="${x}" cy="${y}" r="5" fill="var(--ink)"/>`);
-        const right = point.progress > 0.6, dx = right ? -12 : 12, anchor = right ? 'end' : 'start';
-        const high = point.util > 85;
-        const y1 = high ? y + (secondary ? 35 : 18) : y - (secondary ? 31 : 13);
+        const offset = _QL_LANE_MARKERS[i] || _QL_LANE_MARKERS[0];
+        const right = point.progress > 0.6;
+        const dx = right ? -Math.abs(offset.dx) : offset.dx;
+        const dy = offset.dy;
+        const color = _QL_LANE_COLORS[lane.lane] || 'var(--ink)';
+        const label = _escHtml(String(lane.label || lane.lane));
+        const markerClass = `ql-point-${lane.lane || 'lane'}`;
+        const anchor = right ? 'end' : 'start';
+        const hardY = _qlY(hard);
+        const baseY = _qlY(point.util + 0);
+        const rawLabelY = y + dy;
+        const avoidHardY = Math.abs(baseY - hardY) < 8 || Math.abs(rawLabelY - hardY) < 28;
+        const stackedLabelY = _qlPlaceY(avoidHardY ? hardY + 22 : rawLabelY, usedLabelBands);
+        const stackedDetailY = _qlPlaceY(stackedLabelY + 15, usedLabelBands);
+        p.push(`<circle data-ql-point="${_escHtml(lane.lane)}" class="${markerClass}" cx="${x}" cy="${y}" r="5.5" fill="none" stroke="${color}" stroke-width="2.5"/>`);
         // Порог диагонали печатается только там, где он ДЕЙСТВУЕТ. У пула без
         // гейтящихся полос (Spark) допуск считается, но никого не останавливает —
         // напечатать его значило бы приписать Spark ограничение, которого нет.
@@ -8372,11 +8451,14 @@ function _qlChartSvg(panel, rule) {
             : point.limit === null
             ? `${head} · порога нет`
             : `${head} · допуск ${_qlNum(point.tolerance, 1)} п.п. · порог ${_qlNum(point.limit, 1)}%`;
-        p.push(`<text class="ql-halo ql-point-label" data-ql-label="${_escHtml(id)}" x="${x + dx}" y="${y1}" text-anchor="${anchor}" fill="${secondary ? 'var(--accent-alt)' : 'var(--ink)'}">${label}${point.fresh ? '' : ' (телеметрия устарела)'}</text>`);
-        p.push(`<text class="ql-axis ql-halo" x="${x + dx}" y="${y1 + (high ? 17 : 17)}" text-anchor="${anchor}">${detail}</text>`);
-    });
+        p.push(`<text class="ql-halo ql-point-label" data-ql-label="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY}" text-anchor="${anchor}" fill="${color}">${label}${point.fresh ? '' : ' (телеметрия устарела)'}</text>`);
+        p.push(`<text class="ql-axis ql-halo" data-ql-detail="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedDetailY}" text-anchor="${anchor}">${detail}</text>`);
+    }
 
-    return `<svg class="ql-chart" data-ql-chart="${_escHtml(panel.key)}" viewBox="0 0 ${_QL_W} ${_QL_H}" preserveAspectRatio="xMidYMid meet">${p.join('')}</svg>`;
+    return {
+        svg: `<svg class="ql-chart" data-ql-chart="${_escHtml(panel.key)}" viewBox="0 0 ${_QL_W} ${_QL_H}" preserveAspectRatio="xMidYMid meet">${p.join('')}</svg>`,
+        traceNotices,
+    };
 }
 
 // ЕДИНСТВЕННЫЙ владелец вердикта: и сводка в свёрнутой строке, и тело панели
@@ -8398,14 +8480,17 @@ function _qlVerdict(panel) {
     const known = lanes.filter(l => l.bucket?.data_available);
     if (!lanes.length) return {text: 'нет данных — сервер не прислал полосы допуска', nodata: true};
     if (!known.length) return {text: 'нет данных — телеметрии пула нет, гейт отвечает unknown', nodata: true};
+    const partial = known.length < lanes.length;
+    if (partial) {
+        return {text: 'нет данных — часть полос без телеметрии', nodata: true, blocked: false};
+    }
     const blocked = known.filter(l => l.blocked).map(l => l.label || l.lane);
     const open = known.filter(l => !l.blocked).map(l => l.label || l.lane);
     const parts = [];
     if (blocked.length) parts.push(`${blocked.join(', ')} — стоят`);
     if (open.length) parts.push(`${open.join(', ')} — работают`);
-    const partial = known.length < lanes.length;
     return {
-        text: parts.join(' · ') + (partial ? ' · часть полос без данных' : ''),
+        text: parts.join(' · '),
         nodata: false,
         blocked: blocked.length > 0,
     };
@@ -8429,15 +8514,20 @@ function _qlPanelHtml(panel) {
     }).join('');
     const reasons = _qlLanes(panel).filter(l => l.blocked && l.reason)
         .map(l => `<li><b>${_escHtml(l.label || l.lane)}</b> — ${_escHtml(l.reason)}</li>`).join('');
+    const chart = _qlChartSvg(panel, rule);
+    const traceNotices = (chart.traceNotices || [])
+        .map(item => `<div class="ql-trace-msg" data-ql-trace-msg="${_escHtml(item.bucket)}">${_escHtml(item.label)}: истории за это окно нет</div>`)
+        .join('');
     return `<section class="ql-panel" data-ql-panel="${_escHtml(panel.key)}">
         <div class="ql-head"><h3>${_escHtml(panel.title)}</h3><span>${_escHtml(panel.sub)}</span></div>
-        ${_qlChartSvg(panel, rule)}
+        ${chart.svg}
         <div class="ql-legend">
             <span><i style="background:#8595ab"></i>равномерный расход</span>
             <span><i style="background:#f472b6"></i>порог гейтящихся полос</span>
             <span><i style="background:#fb923c"></i>жёсткие ${_qlNum(rule.hard_stop_pct)}%</span>
             <span><i style="background:#818cf8"></i>оркестратор — без предела</span>
         </div>
+        ${traceNotices ? `<div class="ql-trace-notices">${traceNotices}</div>` : ''}
         <p class="ql-verdict ${_qlTone(verdict)}" data-ql-verdict>${_escHtml(verdict.text)}</p>
         <div class="ql-badges">${lanes}<span class="ql-badge ql-badge-always" data-ql-lane="orchestrator">Оркестратор: <b>всегда работает</b></span></div>
         ${reasons ? `<ul class="ql-reasons">${reasons}</ul>` : ''}
@@ -8475,7 +8565,8 @@ function renderQuotaLines() {
 
 async function fetchQuotaLines() {
     try {
-        const data = await api('/api/usage/quota-map', {pollKey: 'quota-lines'});
+        const dataRaw = await api('/api/usage/quota-map', {pollKey: 'quota-lines'});
+        const data = typeof dataRaw === 'string' ? JSON.parse(dataRaw) : dataRaw;
         if (data && data.data_available === false) {
             _quotaLinesData = null;
             _quotaLinesError = `нет данных — ${data.error || 'сервер не отдал карту квот'}`;

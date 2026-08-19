@@ -54,7 +54,7 @@ def _lane(lane: str, label: str, gated: bool, blocked: bool, reason: str = "") -
 
 
 def _bucket(bucket: str, label: str, utilization, progress, lanes,
-            data_available: bool = True, window_minutes: int = 10080) -> dict:
+            data_available: bool = True, window_minutes: int = 10080, trace: list | None = None) -> dict:
     limit = None if progress is None else round(_limit(progress), 2)
     tolerance = None if progress is None else round(TOL_START + (TOL_END - TOL_START) * progress, 2)
     window = None
@@ -65,7 +65,12 @@ def _bucket(bucket: str, label: str, utilization, progress, lanes,
                   "progress": progress}
     return {"bucket": bucket, "label": label, "observed_at": 1755600000.0, "fresh": True,
             "data_available": data_available, "window": window, "reference_windows": [],
-            "tolerance_pp": tolerance, "limit_pct": limit, "lanes": lanes, "models": []}
+            "tolerance_pp": tolerance, "limit_pct": limit, "lanes": lanes, "models": [],
+            "trace": trace}
+
+
+def _trace(*points):
+    return {"points": [{"ts": f"2026-08-19T12:3{i}:00+00:00", "progress": p[0], "utilization": p[1]} for i, p in enumerate(points)]}
 
 
 def _payload(codex_util=30.0, codex_progress=0.5, spark_util=39.0, spark_progress=0.5,
@@ -98,7 +103,7 @@ def _payload(codex_util=30.0, codex_progress=0.5, spark_util=39.0, spark_progres
     return data
 
 
-def _render(browser: Browser, payload) -> "tuple":
+def _render(browser: Browser, payload, as_json: bool = False) -> "tuple":
     """Открыть страницу, подменить api() и отрисовать панель РАСКРЫТОЙ."""
     errors: list = []
     page = browser.new_page()
@@ -114,24 +119,41 @@ def _render(browser: Browser, payload) -> "tuple":
     page.add_script_tag(path=str(APP_JS))
     # Символа нет в main: зелень на старом коде исключена.
     assert page.evaluate("typeof initQuotaLines") == "function"
+    if payload is None:
+        page_payload = None
+    elif as_json:
+        page_payload = json.dumps(payload)
+    else:
+        page_payload = payload
     page.evaluate(
         """async raw => {
-            api = async () => (raw === null ? Promise.reject(new Error('boom')) : JSON.parse(raw));
+            api = async () => (raw === null ? Promise.reject(new Error('boom')) : raw);
             initQuotaLines();
             await fetchQuotaLines();
         }""",
-        None if payload is None else json.dumps(payload),
+        page_payload,
     )
     page.click("#quota-lines-toggle")
     return page, errors
 
 
-def test_both_pools_are_drawn_without_console_errors(browser):
+def test_unified_panel_has_four_points_without_console_errors(browser):
     page, errors = _render(browser, _payload())
     assert page.locator("#quota-lines").count() == 1
-    assert page.locator("[data-ql-chart='codex']").count() == 1
-    assert page.locator("[data-ql-chart='claude']").count() == 1
-    assert page.locator(".ql-chart").count() == 2
+    assert page.locator("[data-ql-chart='all']").count() == 1
+    assert page.locator(".ql-chart").count() == 1
+    for lane in ("sol", "luna", "spark", "claude"):
+        assert page.locator(f"[data-ql-point='{lane}']").count() == 1
+    assert errors == [], errors
+    page.close()
+
+
+def test_panel_renders_when_api_returns_object_payload(browser):
+    """Баг-орда #353: `/api/usage/quota-map` уже отдаёт объект, повторный JSON.parse ломал всё."""
+    payload = _payload()
+    page, errors = _render(browser, payload, as_json=False)
+    assert page.locator("[data-ql-chart='all']").count() == 1
+    assert "not valid JSON" not in page.locator("#quota-lines").inner_text()
     assert errors == [], errors
     page.close()
 
@@ -154,10 +176,10 @@ def test_panel_curve_matches_the_limit_the_server_computed(browser):
 def test_point_moves_with_utilization(browser):
     """Точка «где мы сейчас» обязана ехать за фактом, а не стоять картинкой."""
     low, _ = _render(browser, _payload(codex_util=20.0))
-    y_low = float(low.get_attribute("[data-ql-point='codex']", "cy"))
+    y_low = float(low.get_attribute("[data-ql-point='sol']", "cy"))
     low.close()
     high, _ = _render(browser, _payload(codex_util=80.0))
-    y_high = float(high.get_attribute("[data-ql-point='codex']", "cy"))
+    y_high = float(high.get_attribute("[data-ql-point='sol']", "cy"))
     high.close()
     # Ось перевёрнута: больший процент — меньший y.
     assert y_high < y_low, (y_high, y_low)
@@ -165,7 +187,7 @@ def test_point_moves_with_utilization(browser):
 
 def test_calm_window_says_everyone_works(browser):
     page, _ = _render(browser, _payload(codex_util=20.0, claude_util=20.0))
-    verdict = page.locator("[data-ql-panel='codex'] [data-ql-verdict]").inner_text()
+    verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
     assert "работают" in verdict
     assert "стоят" not in verdict
     page.close()
@@ -175,11 +197,11 @@ def test_above_the_diagonal_stops_sol_but_not_luna_and_spark(browser):
     """Диагональ гейтит Sol; Luna и Spark живут до жёстких 99%."""
     payload = _payload(codex_util=80.0, codex_progress=0.5, spark_util=39.0)
     page, _ = _render(browser, payload)
-    verdict = page.locator("[data-ql-panel='codex'] [data-ql-verdict]").inner_text()
+    verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
     assert "Sol" in verdict and "стоят" in verdict
-    sol = page.locator("[data-ql-panel='codex'] [data-ql-lane='sol']").inner_text()
-    luna = page.locator("[data-ql-panel='codex'] [data-ql-lane='luna']").inner_text()
-    spark = page.locator("[data-ql-panel='codex'] [data-ql-lane='spark']").inner_text()
+    sol = page.locator("[data-ql-panel='all'] [data-ql-lane='sol']").inner_text()
+    luna = page.locator("[data-ql-panel='all'] [data-ql-lane='luna']").inner_text()
+    spark = page.locator("[data-ql-panel='all'] [data-ql-lane='spark']").inner_text()
     assert "блок" in sol
     assert "работает" in luna and "без диагонали" in luna
     assert "работает" in spark and "без диагонали" in spark
@@ -188,12 +210,12 @@ def test_above_the_diagonal_stops_sol_but_not_luna_and_spark(browser):
 
 def test_hard_99_stops_everyone_and_orchestrator_still_works(browser):
     page, _ = _render(browser, _payload(codex_util=99.5, spark_util=99.5))
-    sol = page.locator("[data-ql-panel='codex'] [data-ql-lane='sol']").inner_text()
-    luna = page.locator("[data-ql-panel='codex'] [data-ql-lane='luna']").inner_text()
-    spark = page.locator("[data-ql-panel='codex'] [data-ql-lane='spark']").inner_text()
+    sol = page.locator("[data-ql-panel='all'] [data-ql-lane='sol']").inner_text()
+    luna = page.locator("[data-ql-panel='all'] [data-ql-lane='luna']").inner_text()
+    spark = page.locator("[data-ql-panel='all'] [data-ql-lane='spark']").inner_text()
     assert "блок" in sol and "блок" in luna and "блок" in spark
     assert "99" in luna and "99" in spark, (luna, spark)
-    orch = page.locator("[data-ql-panel='codex'] [data-ql-lane='orchestrator']").inner_text()
+    orch = page.locator("[data-ql-panel='all'] [data-ql-lane='orchestrator']").inner_text()
     assert "всегда работает" in orch
     page.close()
 
@@ -202,10 +224,10 @@ def test_spark_is_drawn_by_its_own_counter_not_together_with_sol(browser):
     """Spark считается по СВОЕМУ счётчику — своя точка, своя доля окна."""
     page, _ = _render(browser, _payload(codex_util=100.0, codex_progress=0.6,
                                         spark_util=39.0, spark_progress=0.3))
-    sol_x = float(page.get_attribute("[data-ql-point='codex']", "cx"))
-    spark_x = float(page.get_attribute("[data-ql-point='codex_spark']", "cx"))
-    sol_y = float(page.get_attribute("[data-ql-point='codex']", "cy"))
-    spark_y = float(page.get_attribute("[data-ql-point='codex_spark']", "cy"))
+    sol_x = float(page.get_attribute("[data-ql-point='sol']", "cx"))
+    spark_x = float(page.get_attribute("[data-ql-point='spark']", "cx"))
+    sol_y = float(page.get_attribute("[data-ql-point='sol']", "cy"))
+    spark_y = float(page.get_attribute("[data-ql-point='spark']", "cy"))
     assert sol_x != spark_x, "Spark стоит на своей доле окна, а не на доле Codex"
     assert sol_y != spark_y, "Spark считается по своему счётчику, а не по общему Codex"
     page.close()
@@ -218,13 +240,14 @@ def test_spark_point_does_not_advertise_a_threshold_that_does_not_bind_it(browse
     хотя единственный стоп Spark — жёсткие 99%.
     """
     page, _ = _render(browser, _payload(spark_util=39.0, spark_progress=0.62))
-    chart = page.locator("[data-ql-chart='codex']").text_content()
+    chart = page.locator("[data-ql-chart='all']").text_content()
     assert "диагональ не применяется" in chart
     # У Sol порог печатается — иначе проверка была бы вакуумной.
     assert "порог" in chart
-    spark_label_idx = chart.index("Codex Spark")
-    spark_tail = chart[spark_label_idx:spark_label_idx + 160]
-    assert "порог" not in spark_tail, spark_tail
+    spark_detail = page.locator("[data-ql-detail='spark']").text_content()
+    assert "порог" not in spark_detail
+    sol_detail = page.locator("[data-ql-detail='sol']").text_content()
+    assert "порог" in sol_detail
     page.close()
 
 
@@ -242,10 +265,10 @@ def test_missing_telemetry_says_no_data_not_works(browser):
             bucket["limit_pct"] = None
             bucket["tolerance_pp"] = None
     page, _ = _render(browser, payload)
-    verdict = page.locator("[data-ql-panel='codex'] [data-ql-verdict]").inner_text()
+    verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
     assert "нет данных" in verdict
     assert "работают" not in verdict
-    assert page.locator("[data-ql-point='codex']").count() == 0
+    assert page.locator("[data-ql-point='sol']").count() == 0
     page.close()
 
 
@@ -253,9 +276,9 @@ def test_unknown_reset_time_drops_the_diagonal_and_keeps_hard_stop(browser):
     """`progress=null` при известном utilization: диагонали нет, 99% остаются."""
     page, _ = _render(browser, _payload(codex_progress=None, codex_util=40.0))
     assert page.locator("[data-ql-flat='codex']").count() == 1
-    assert page.locator("[data-ql-point='codex']").count() == 0
+    assert page.locator("[data-ql-point='sol']").count() == 0
     # SVG-узел не HTMLElement — inner_text() на нём падает, нужен text_content().
-    chart = page.locator("[data-ql-chart='codex']").text_content()
+    chart = page.locator("[data-ql-chart='all']").text_content()
     assert "срок сброса неизвестен" in chart
     page.close()
 
@@ -295,10 +318,34 @@ def test_summary_repeats_the_body_verdict_when_the_rule_arrives(browser):
     сводка обязана печатать ДОСЛОВНО вердикт тела, а не свой пересчёт."""
     page, _ = _render(browser, _payload(codex_util=80.0, codex_progress=0.5, claude_util=20.0))
     summary = page.locator("#quota-lines .ql-sum").inner_text()
-    for key in ("codex", "claude"):
-        body = page.locator(f"[data-ql-panel='{key}'] [data-ql-verdict]").inner_text()
-        assert body and body in summary, (key, body, summary)
+    body = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
+    assert body and body in summary, (body, summary)
     assert "Sol" in summary and "стоят" in summary, summary
+    page.close()
+
+
+def test_unified_panel_renders_trace_and_history_empty_notice(browser):
+    payload = _payload(codex_progress=0.46, spark_progress=0.37, claude_progress=0.17)
+    page, _ = _render(browser, payload)
+    body_text = page.locator("[data-ql-panel='all']").inner_text()
+    assert isinstance(body_text, str) and "истории за это окно нет" in body_text
+    assert page.locator(".ql-trace-codex").count() == 0
+    assert page.locator(".ql-trace-codex-spark").count() == 0
+    assert page.locator(".ql-trace-anthropic").count() == 0
+    page.close()
+
+
+def test_unified_panel_renders_trace_when_present(browser):
+    payload = _payload(codex_progress=0.46, spark_progress=0.37, claude_progress=0.17)
+    payload["buckets"][0]["trace"] = _trace((0.2, 46.0), (0.3, 47.0))
+    payload["buckets"][1]["trace"] = _trace((0.1, 18.0), (0.2, 24.0))
+    payload["buckets"][2]["trace"] = _trace((0.05, 80.0), (0.07, 82.0))
+    page, _ = _render(browser, payload)
+    panel = page.locator("[data-ql-panel='all']")
+    assert panel.locator(".ql-trace-codex").count() == 1
+    assert panel.locator(".ql-trace-codex-spark").count() == 1
+    assert panel.locator(".ql-trace-anthropic").count() == 1
+    assert "истории за это окно нет" not in panel.inner_text()
     page.close()
 
 

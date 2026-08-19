@@ -901,10 +901,16 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .ql-gated { fill: none; stroke: #f472b6; stroke-width: 2; }
 .ql-hard { stroke: #fb923c; stroke-width: 1.5; stroke-dasharray: 2 4; }
 .ql-orch { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 8 5; opacity: .75; }
+.ql-trace { fill: none; stroke-width: 1.8; stroke-linecap: round; opacity: .92; }
+.ql-trace-codex { stroke: #f472b6; }
+.ql-trace-codex-spark { stroke: #c084fc; }
+.ql-trace-anthropic { stroke: #fb923c; }
 .ql-cursor { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; opacity: .6; }
 .ql-noprogress { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 5 5; opacity: .7; }
 .ql-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; color: var(--ink-faint); font-size: 10.5px; }
 .ql-legend i { display: inline-block; width: 14px; height: 3px; margin-right: 5px; border-radius: 2px; vertical-align: middle; }
+.ql-trace-notices { margin-top: 8px; display: grid; gap: 6px; }
+.ql-trace-msg { padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); color: var(--ink-soft); font-size: 11.5px; }
 .ql-verdict { margin: 8px 0 0; font-size: 12px; }
 .ql-verdict-open { color: #86efac; }
 .ql-verdict-blocked { color: #fca5a5; }

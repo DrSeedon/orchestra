@@ -7,6 +7,7 @@ import hmac
 import json
 import logging
 import os
+import sqlite3
 import re
 import signal
 import stat
@@ -1250,6 +1251,7 @@ async def build_quota_map() -> dict:
         tolerance_pp,
         window_progress,
     )
+    import app.db as db
 
     await _get_usage_data()
     observation = _quota_observation_from_cache()
@@ -1306,6 +1308,143 @@ async def build_quota_map() -> dict:
             "progress": progress,
         }
 
+    def _extract_provider_usage(row: dict) -> dict:
+        raw = row.get("provider_usage")
+        providers = {}
+        if isinstance(raw, dict):
+            providers = raw
+        elif isinstance(raw, str):
+            try:
+                providers = json.loads(raw)
+            except json.JSONDecodeError:
+                providers = {}
+        if not isinstance(providers, dict):
+            providers = {}
+        if providers:
+            return providers
+        # Fallback для строк до внедрения provider_usage: для Claude-окна есть
+        # отдельные legacy-столбцы (5h и 7d), Codex/Spark в них не восстанавливаются.
+        windows = []
+        fh_pct = row.get("five_hour_pct")
+        sd_pct = row.get("seven_day_pct")
+        if isinstance(fh_pct, (int, float)) and not isinstance(fh_pct, bool):
+            windows.append({
+                "id": "five_hour", "label": "5h", "utilization": fh_pct,
+                "window_minutes": 300, "resets_at": row.get("five_hour_resets_at"),
+            })
+        if isinstance(sd_pct, (int, float)) and not isinstance(sd_pct, bool):
+            windows.append({
+                "id": "seven_day", "label": "7d", "utilization": sd_pct,
+                "window_minutes": 10080, "resets_at": row.get("seven_day_resets_at"),
+            })
+        return {"anthropic": {"label": "Claude", "windows": windows}} if windows else {}
+
+    def _load_bucket_trace_points(current_by_bucket: dict) -> dict[str, list[dict]]:
+        if not current_by_bucket:
+            return {}
+        min_window_start = min(meta["start"] for meta in current_by_bucket.values())
+        traces: dict[str, list[dict]] = {
+            key: [] for key in current_by_bucket
+        }
+        with db._conn() as c:
+            if not c.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='usage_snapshots'"
+            ).fetchone():
+                return traces
+            try:
+                window_start_iso = datetime.fromtimestamp(min_window_start, tz=timezone.utc).isoformat()
+                window_end_iso = datetime.fromtimestamp(now, tz=timezone.utc).isoformat()
+                rows = c.execute(
+                    """SELECT ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
+                              seven_day_resets_at, provider_usage
+                       FROM usage_snapshots
+                       WHERE (
+                           (ts >= ? AND ts <= ?)
+                           OR (
+                               (ts NOT LIKE '%-%' AND ts NOT LIKE '%T%')
+                               AND (CAST(ts AS REAL) BETWEEN ? AND ?)
+                           )
+                       )
+                       ORDER BY ts ASC""",
+                    (window_start_iso, window_end_iso, min_window_start, now),
+                ).fetchall()
+            except sqlite3.OperationalError:
+                return traces
+        if not rows:
+            return traces
+
+        parsed_rows = []
+        for row in rows:
+            ts = parse_quota_timestamp(row["ts"])
+            if ts is not None and ts > 0:
+                parsed_rows.append((ts, row["ts"], row))
+        if not parsed_rows:
+            return traces
+
+        parsed_rows.sort(key=lambda item: item[0])
+        window_rows = [
+            (ts, raw_ts, row)
+            for ts, raw_ts, row in parsed_rows
+            if min_window_start <= ts <= now
+        ]
+        if not window_rows:
+            return traces
+
+        logger.info(
+            "quota-map trace: %s rows in %s..%s window (raw ts %s..%s) for %s",
+            len(window_rows),
+            window_start_iso,
+            window_end_iso,
+            window_rows[0][1], window_rows[-1][1],
+            ",".join(sorted(current_by_bucket)),
+        )
+
+        for ts, _, row in window_rows:
+            snapshot_providers = _extract_provider_usage(dict(row))
+            for bucket, current in current_by_bucket.items():
+                bucket_data = snapshot_providers.get(bucket)
+                if not isinstance(bucket_data, dict):
+                    continue
+                window = deciding_window(bucket_data, bucket)
+                if not isinstance(window, dict):
+                    continue
+                reset_at = parse_quota_timestamp(window.get("resets_at"))
+                if reset_at is None or abs(reset_at - current["reset"]) > 1.0:
+                    continue
+                minutes = window.get("window_minutes")
+                if not isinstance(minutes, (int, float)) or minutes <= 0 or isinstance(minutes, bool):
+                    continue
+                utilization = window.get("utilization")
+                if not isinstance(utilization, (int, float)) or isinstance(utilization, bool):
+                    continue
+                span = float(minutes) * 60.0
+                start = reset_at - span
+                progress = (ts - start) / span
+                if progress < 0.0:
+                    continue
+                if progress > 1.0:
+                    progress = 1.0
+                traces[bucket].append({
+                    "ts": row["ts"],
+                    "progress": progress,
+                    "utilization": utilization,
+                })
+        return traces
+
+    def _downsample_trace(points: list[dict], max_points: int = 200) -> list[dict]:
+        if len(points) <= max_points:
+            return points
+        step = (len(points) + max_points - 1) // max_points
+        sampled = points[::step]
+        if sampled[-1] is not points[-1]:
+            sampled.append(points[-1])
+        return sampled
+
+    # Всякий раз, пока у провайдера текущий `deciding window` живёт, нужна трасса
+    # от его начала этого окна до «сейчас» в тех же координатах, что и точка.
+    # Пустая трасса — честный «есть только текущая точка / нет данных» без лома.
+    bucket_meta: dict[str, dict] = {}
+
     buckets = []
     for bucket in sorted(set(models_by_bucket) | set(lanes_by_bucket)):
         data = providers.get(bucket)
@@ -1323,6 +1462,14 @@ async def build_quota_map() -> dict:
         # где гейтящихся полос нет (Spark): применяется линия или нет — свойство
         # ПОЛОСЫ (`lanes[].gated`), а не пула, и панель рисует их раздельно.
         progress = None if gating is None else gating["progress"]
+        if gating is not None and gating.get("resets_at"):
+            resets_at = parse_quota_timestamp(gating["resets_at"])
+            minutes = gating.get("window_minutes")
+            if resets_at is not None and isinstance(minutes, (int, float)) and minutes > 0:
+                bucket_meta[bucket] = {
+                    "reset": resets_at,
+                    "start": resets_at - float(minutes) * 60.0,
+                }
         buckets.append({
             "bucket": bucket,
             "label": data.get("label") or bucket_labels.get(bucket, bucket),
@@ -1337,12 +1484,18 @@ async def build_quota_map() -> dict:
             "reference_windows": reference,
             "tolerance_pp": None if progress is None else tolerance_pp(progress),
             "limit_pct": None if progress is None else line_limit(progress),
+                "trace": {},
             "lanes": sorted(
                 lanes_by_bucket.get(bucket, {}).values(),
                 key=lambda item: item["lane"],
             ),
             "models": models_by_bucket.get(bucket, []),
         })
+
+    traces = _load_bucket_trace_points(bucket_meta)
+    for bucket_item in buckets:
+        points = traces.get(bucket_item["bucket"], [])
+        bucket_item["trace"]["points"] = _downsample_trace(points)
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),

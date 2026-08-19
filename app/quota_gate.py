@@ -181,8 +181,17 @@ def parse_quota_timestamp(value: object) -> float | None:
             return None
         result = value.timestamp()
     elif isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed:
+            return None
         try:
-            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            result = float(trimmed)
+        except ValueError:
+            parsed = None
+        else:
+            return result if math.isfinite(result) and result > 0 else None
+        try:
+            parsed = datetime.fromisoformat(trimmed.replace("Z", "+00:00"))
         except ValueError:
             return None
         if parsed.tzinfo is None:

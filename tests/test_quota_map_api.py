@@ -5,6 +5,8 @@
 """
 
 import pytest
+import json
+from datetime import datetime, timezone
 
 import app.db as db
 import app.routes.system as system
@@ -71,6 +73,52 @@ def _lane(pool, lane):
     return found[0]
 
 
+def _iso(ts: float) -> str:
+    return datetime.fromtimestamp(ts, timezone.utc).isoformat()
+
+
+def _providers_snapshot(*, codex_reset: float, spark_reset: float, claude_reset: float,
+                       codex_util: float, spark_util: float, claude_util: float):
+    return {
+        "codex": {
+            "label": "Codex",
+            "windows": [
+                {
+                    "id": "primary",
+                    "label": "5h",
+                    "window_minutes": 300,
+                    "utilization": codex_util,
+                    "resets_at": _iso(codex_reset),
+                },
+            ],
+        },
+        "codex_spark": {
+            "label": "Codex Spark",
+            "windows": [
+                {
+                    "id": "primary",
+                    "label": "5h",
+                    "window_minutes": 300,
+                    "utilization": spark_util,
+                    "resets_at": _iso(spark_reset),
+                },
+            ],
+        },
+        "anthropic": {
+            "label": "Claude",
+            "windows": [
+                {
+                    "id": "seven_day",
+                    "label": "7d",
+                    "window_minutes": 10080,
+                    "utilization": claude_util,
+                    "resets_at": _iso(claude_reset),
+                },
+            ],
+        },
+    }
+
+
 @pytest.mark.asyncio
 async def test_rule_constants_travel_with_the_payload(mapped):
     """Панель не хардкодит числа правила — иначе она разойдётся с гейтом молча."""
@@ -84,6 +132,205 @@ async def test_rule_constants_travel_with_the_payload(mapped):
         "tolerance_end_pp": 1.0,
     }
     assert payload["observation_max_age_seconds"] == 300.0
+
+
+@pytest.mark.asyncio
+async def test_bucket_trace_points_use_usage_snapshot_history(mapped):
+    db.init_db()
+    codex_progress = 0.46
+    spark_progress = 0.37
+    claude_progress = 0.17
+    codex_reset = NOW + 300 * 60 * (1.0 - codex_progress)
+    spark_reset = NOW + 300 * 60 * (1.0 - spark_progress)
+    claude_reset = NOW + 10080 * 60 * (1.0 - claude_progress)
+
+    with db._conn() as conn:
+        for idx, point in enumerate((21.0, 23.0, 25.0)):
+            conn.execute(
+                """INSERT INTO usage_snapshots
+                   (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
+                    seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
+                   VALUES (?, 0, 0, '', '', 0, 0, ?)""",
+                (
+                    _iso(NOW - (idx + 1) * 2000),
+                    json.dumps(
+                        _providers_snapshot(
+                            codex_reset=codex_reset,
+                            spark_reset=spark_reset,
+                            claude_reset=claude_reset,
+                            codex_util=point,
+                            spark_util=point + 0.5,
+                            claude_util=point + 1.0,
+                        ),
+                        ensure_ascii=False,
+                    ),
+                ),
+            )
+
+    payload = await mapped(_observation(
+        codex=[_window(300, 30.0, window_id="primary", label="5h", progress=codex_progress)],
+        codex_spark=[_window(300, 19.0, window_id="primary", label="5h", progress=spark_progress)],
+        anthropic=[_window(10080, 5.0, window_id="seven_day", label="7d", progress=claude_progress)],
+    ))
+
+    codex = _pool(payload, "codex")
+    spark = _pool(payload, "codex_spark")
+    claude = _pool(payload, "anthropic")
+
+    assert "trace" in codex and isinstance(codex["trace"], dict)
+    assert list(codex["trace"].keys()) == ["points"]
+    assert len(codex["trace"]["points"]) == 3
+    assert len(spark["trace"]["points"]) == 3
+    assert len(claude["trace"]["points"]) == 3
+    assert all(
+        0.0 <= point["progress"] <= 1.0
+        for point in codex["trace"]["points"]
+    )
+    assert codex["trace"]["points"][0]["utilization"] != codex["trace"]["points"][-1]["utilization"]
+
+
+@pytest.mark.asyncio
+async def test_trace_filters_rows_from_iso_and_numeric_timestamps(mapped):
+    db.init_db()
+    progress = 0.5
+    codex_reset = NOW + 300 * 60 * (1.0 - progress)
+
+    with db._conn() as conn:
+        # Один row в ISO, второй row в UNIX-времени: оба в окне текущего 5h-времени.
+        conn.execute(
+            """INSERT INTO usage_snapshots
+               (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
+                seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
+               VALUES (?, 0, 0, '', '', 0, 0, ?)""",
+            (
+                _iso(NOW - 1000),
+                json.dumps(
+                    _providers_snapshot(
+                        codex_reset=codex_reset,
+                        spark_reset=codex_reset,
+                        claude_reset=NOW + 10080 * 60,
+                        codex_util=21.0,
+                        spark_util=10.0,
+                        claude_util=2.0,
+                    ),
+                    ensure_ascii=False,
+                ),
+            ),
+        )
+        conn.execute(
+            """INSERT INTO usage_snapshots
+               (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
+                seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
+               VALUES (?, 0, 0, '', '', 0, 0, ?)""",
+            (
+                float(NOW - 800),
+                json.dumps(
+                    _providers_snapshot(
+                        codex_reset=codex_reset,
+                        spark_reset=codex_reset,
+                        claude_reset=NOW + 10080 * 60,
+                        codex_util=22.0,
+                        spark_util=10.0,
+                        claude_util=2.0,
+                    ),
+                    ensure_ascii=False,
+                ),
+            ),
+        )
+        # Старые/будущие snapshot'ы не должны попадать в trace.
+        conn.execute(
+            """INSERT INTO usage_snapshots
+               (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
+                seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
+               VALUES (?, 0, 0, '', '', 0, 0, ?)""",
+            (
+                _iso(NOW - 36000),
+                json.dumps(
+                    _providers_snapshot(
+                        codex_reset=codex_reset,
+                        spark_reset=codex_reset,
+                        claude_reset=NOW + 10080 * 60,
+                        codex_util=23.0,
+                        spark_util=10.0,
+                        claude_util=2.0,
+                    ),
+                    ensure_ascii=False,
+                ),
+            ),
+        )
+        conn.execute(
+            """INSERT INTO usage_snapshots
+               (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
+                seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
+               VALUES (?, 0, 0, '', '', 0, 0, ?)""",
+            (
+                float(NOW + 50),
+                json.dumps(
+                    _providers_snapshot(
+                        codex_reset=codex_reset,
+                        spark_reset=codex_reset,
+                        claude_reset=NOW + 10080 * 60,
+                        codex_util=99.0,
+                        spark_util=10.0,
+                        claude_util=2.0,
+                    ),
+                    ensure_ascii=False,
+                ),
+            ),
+        )
+
+    payload = await mapped(_observation(
+        codex=[_window(300, 21.0, window_id="primary", label="5h", progress=progress)],
+    ))
+
+    codex = _pool(payload, "codex")
+    assert codex["data_available"] is True
+    assert len(codex["trace"]["points"]) == 2
+    assert codex["trace"]["points"][0]["utilization"] == 21.0
+    assert codex["trace"]["points"][1]["utilization"] == 22.0
+
+
+@pytest.mark.asyncio
+async def test_trace_is_downsampled(mapped):
+    db.init_db()
+    progress = 0.5
+    reset = NOW + 300 * 60 * (1.0 - progress)
+
+    with db._conn() as conn:
+        for idx in range(520):
+            conn.execute(
+                """INSERT INTO usage_snapshots
+                   (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
+                    seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
+                   VALUES (?, 0, 0, '', '', 0, 0, ?)""",
+                (
+                    _iso(NOW - idx * 10),
+                    json.dumps(
+                        {
+                            "codex": {
+                                "label": "Codex",
+                                "windows": [
+                                    {
+                                        "id": "primary",
+                                        "label": "5h",
+                                        "window_minutes": 300,
+                                        "utilization": 10.0 + idx / 20,
+                                        "resets_at": _iso(reset),
+                                    }
+                                ],
+                            },
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+            )
+
+    payload = await mapped(_observation(
+        codex=[_window(300, 5.0, window_id="primary", label="5h", progress=progress)],
+    ))
+
+    points = _pool(payload, "codex")["trace"]["points"]
+    assert 1 <= len(points) <= 200
 
 
 @pytest.mark.asyncio
