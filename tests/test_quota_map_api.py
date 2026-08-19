@@ -10,8 +10,26 @@ from datetime import datetime, timezone
 
 import app.db as db
 import app.routes.system as system
+import importlib
+
+import app.quota_gate as quota_gate
 
 NOW = 2_000_000_000.0
+
+
+def _reload_quota_gate_with_env(monkeypatch, **overrides: str | None):
+    for name in (
+        "QUOTA_TOLERANCE_START_PP",
+        "QUOTA_TOLERANCE_END_PP",
+        "QUOTA_HARD_STOP_PCT",
+        "QUOTA_GATED_LANES",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in overrides.items():
+        if value is None:
+            continue
+        monkeypatch.setenv(name, value)
+    return importlib.reload(quota_gate)
 
 
 def _window(minutes, utilization, *, window_id="w", label="w", progress=0.5):
@@ -132,6 +150,29 @@ async def test_rule_constants_travel_with_the_payload(mapped):
         "tolerance_end_pp": 1.0,
     }
     assert payload["observation_max_age_seconds"] == 300.0
+
+
+@pytest.mark.asyncio
+async def test_rule_constants_reflect_environment_overrides(mapped, monkeypatch):
+    gate = _reload_quota_gate_with_env(
+        monkeypatch,
+        QUOTA_HARD_STOP_PCT="92",
+        QUOTA_TOLERANCE_START_PP="13",
+        QUOTA_TOLERANCE_END_PP="2",
+        QUOTA_GATED_LANES="",
+    )
+    payload = await mapped(_observation(
+        codex=[_window(300, 98.0, window_id="primary", label="5h", progress=0.3)],
+    ))
+
+    assert payload["rule"] == {
+        "hard_stop_pct": gate.HARD_STOP_PCT,
+        "tolerance_start_pp": gate.TOLERANCE_START_PP,
+        "tolerance_end_pp": gate.TOLERANCE_END_PP,
+    }
+    codex = _pool(payload, "codex")
+    assert all(not lane["gated"] for lane in codex["lanes"] if lane["lane"] in ("sol", "luna"))
+    _reload_quota_gate_with_env(monkeypatch)
 
 
 @pytest.mark.asyncio

@@ -1,13 +1,15 @@
 """#343: единственное правило допуска — диагональ с допуском плюс жёсткие 99%."""
 
+import importlib
 from datetime import datetime, timezone
 
 import pytest
 
+import app.quota_gate as quota_gate
+
 from app.quota_gate import (
     HARD_STOP_PCT,
     QuotaDecision,
-    QuotaGateError,
     TOLERANCE_END_PP,
     TOLERANCE_START_PP,
     evaluate_worker_admission,
@@ -61,7 +63,72 @@ def _decide(model, providers, *, observed_at=NOW, now=NOW):
     return evaluate_worker_admission(model, providers, stamps, now=now)
 
 
+def _reload_quota_gate_with_env(monkeypatch, **overrides: str | None):
+    for name in (
+        "QUOTA_TOLERANCE_START_PP",
+        "QUOTA_TOLERANCE_END_PP",
+        "QUOTA_HARD_STOP_PCT",
+        "QUOTA_GATED_LANES",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in overrides.items():
+        if value is None:
+            continue
+        monkeypatch.setenv(name, value)
+    return importlib.reload(quota_gate)
+
+
 # ── сама линия ────────────────────────────────────────────────────────────────
+
+
+def test_environment_configuration_defaults(monkeypatch):
+    gate = _reload_quota_gate_with_env(monkeypatch)
+    assert gate.TOLERANCE_START_PP == 10.0
+    assert gate.TOLERANCE_END_PP == 1.0
+    assert gate.HARD_STOP_PCT == 99.0
+    assert gate.GATED_LANES == frozenset({"claude", "sol"})
+
+
+def test_environment_overrides_are_honored(monkeypatch):
+    gate = _reload_quota_gate_with_env(
+        monkeypatch,
+        QUOTA_TOLERANCE_START_PP="17.0",
+        QUOTA_TOLERANCE_END_PP="3.0",
+        QUOTA_HARD_STOP_PCT="93.0",
+        QUOTA_GATED_LANES="spark,luna",
+    )
+    assert gate.TOLERANCE_START_PP == 17.0
+    assert gate.TOLERANCE_END_PP == 3.0
+    assert gate.HARD_STOP_PCT == 93.0
+    assert gate.GATED_LANES == frozenset({"spark", "luna"})
+
+
+def test_empty_gated_lanes_config_disables_gating(monkeypatch):
+    gate = _reload_quota_gate_with_env(monkeypatch, QUOTA_GATED_LANES="")
+    assert gate.GATED_LANES == frozenset()
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("QUOTA_TOLERANCE_START_PP", ""),
+        ("QUOTA_TOLERANCE_START_PP", "abc"),
+        ("QUOTA_TOLERANCE_START_PP", "-1"),
+        ("QUOTA_TOLERANCE_END_PP", ""),
+        ("QUOTA_TOLERANCE_END_PP", "abc"),
+        ("QUOTA_TOLERANCE_END_PP", "101"),
+        ("QUOTA_HARD_STOP_PCT", ""),
+        ("QUOTA_HARD_STOP_PCT", "abc"),
+        ("QUOTA_HARD_STOP_PCT", "0"),
+        ("QUOTA_HARD_STOP_PCT", "101"),
+        ("QUOTA_GATED_LANES", "sol,,"),
+    ],
+)
+def test_invalid_quota_env_values_raise(monkeypatch, name, value):
+    with pytest.raises(ValueError, match=name):
+        _reload_quota_gate_with_env(monkeypatch, **{name: value})
+    _reload_quota_gate_with_env(monkeypatch)
+
 
 def test_tolerance_runs_from_ten_points_to_one_across_the_window():
     assert tolerance_pp(0.0) == TOLERANCE_START_PP == 10.0
@@ -258,7 +325,7 @@ def test_unknown_model_is_unknown_not_exempt(model):
 
 def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
     decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=70.0))
-    with pytest.raises(QuotaGateError) as error:
+    with pytest.raises(quota_gate.QuotaGateError) as error:
         require_worker_admission(decision)
 
     assert error.value.retryable is False
@@ -274,7 +341,7 @@ def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
 def test_a_non_blocked_decision_cannot_be_turned_into_a_refusal():
     decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=10.0))
     with pytest.raises(ValueError):
-        QuotaGateError(decision)
+        quota_gate.QuotaGateError(decision)
 
 
 def test_decision_serializes_every_field_the_panel_draws():

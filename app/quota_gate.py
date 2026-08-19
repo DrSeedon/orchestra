@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import math
 import time
+import os
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Awaitable, Callable, Mapping
@@ -31,11 +32,49 @@ from typing import Awaitable, Callable, Mapping
 from app.models import backend_for_model, resolve_model
 from app.runtime_registry import get_runtime
 
+
+def _env_float_var(name: str, default: float, *, minimum: float, maximum: float) -> float:
+    if name not in os.environ:
+        return default
+    raw = os.environ[name].strip()
+    if not raw:
+        raise ValueError(f"{name}: value must be a finite number in [{minimum}, {maximum}]")
+    try:
+        value = float(raw)
+    except ValueError as error:
+        raise ValueError(f"{name}: value must be a finite number in [{minimum}, {maximum}], got {raw!r}") from error
+    if not math.isfinite(value) or not (minimum <= value <= maximum):
+        raise ValueError(f"{name}: value must be in [{minimum}, {maximum}], got {raw!r}")
+    return value
+
+
+def _env_gated_lanes(name: str, default: tuple[str, ...]) -> frozenset[str]:
+    if name not in os.environ:
+        return frozenset(default)
+    raw = os.environ[name]
+    if raw == "":
+        return frozenset()
+    raw_parts = [part.strip() for part in raw.split(",")]
+    if any(part == "" for part in raw_parts):
+        raise ValueError(f"{name}: empty lane name in {raw!r}")
+    return frozenset(part.lower() for part in raw_parts)
+
+_ENV_TOLERANCE_START_DEFAULT = 10.0
+_ENV_TOLERANCE_END_DEFAULT = 1.0
+_ENV_HARD_STOP_DEFAULT = 99.0
+_ENV_GATED_LANES_DEFAULT = ("claude", "sol")
+
 # Жёсткий стоп для ВСЕХ воркеров в обоих пулах, поверх диагонали.
-HARD_STOP_PCT = 99.0
+HARD_STOP_PCT = _env_float_var(
+    "QUOTA_HARD_STOP_PCT", _ENV_HARD_STOP_DEFAULT, minimum=1.0, maximum=100.0,
+)
 # Допуск: линейная интерполяция от начала окна к моменту сброса.
-TOLERANCE_START_PP = 10.0
-TOLERANCE_END_PP = 1.0
+TOLERANCE_START_PP = _env_float_var(
+    "QUOTA_TOLERANCE_START_PP", _ENV_TOLERANCE_START_DEFAULT, minimum=0.0, maximum=100.0,
+)
+TOLERANCE_END_PP = _env_float_var(
+    "QUOTA_TOLERANCE_END_PP", _ENV_TOLERANCE_END_DEFAULT, minimum=0.0, maximum=100.0,
+)
 # Наблюдение старше этого возраста считается отсутствующим.
 QUOTA_OBSERVATION_MAX_AGE = 300.0
 
@@ -45,7 +84,7 @@ LUNA_MODEL = "gpt-5.6-luna"
 
 # Полосы, которым диагональ применяется. Всё, чего здесь нет, ограничено только
 # жёстким стопом.
-GATED_LANES = frozenset({"claude", "sol"})
+GATED_LANES = _env_gated_lanes("QUOTA_GATED_LANES", _ENV_GATED_LANES_DEFAULT)
 
 LANE_LABELS = {
     "claude": "Claude-воркеры",
