@@ -8256,6 +8256,8 @@ const _QL_PANELS = [
      buckets: ['anthropic']},
 ];
 
+const _QL_NO_RULE = 'нет данных — сервер не прислал константы правила';
+
 let _quotaLinesData = null;
 let _quotaLinesError = '';
 let _quotaLinesOpen = false;
@@ -8277,6 +8279,10 @@ function _qlBucket(bucketId) {
 
 function _qlNum(value, digits = 0) {
     return Number(value).toFixed(digits);
+}
+
+function _qlTone(verdict) {
+    return verdict.nodata ? 'ql-nodata' : verdict.blocked ? 'ql-verdict-blocked' : 'ql-verdict-open';
 }
 
 // Точка рисуется, только когда сервер сказал, что данные есть. utilization=0 при
@@ -8373,12 +8379,24 @@ function _qlChartSvg(panel, rule) {
     return `<svg class="ql-chart" data-ql-chart="${_escHtml(panel.key)}" viewBox="0 0 ${_QL_W} ${_QL_H}" preserveAspectRatio="xMidYMid meet">${p.join('')}</svg>`;
 }
 
+// ЕДИНСТВЕННЫЙ владелец вердикта: и сводка в свёрнутой строке, и тело панели
+// печатают текст ОТСЮДА. Разойтись по смыслу они не могут по построению — раньше
+// у сводки была своя ветка, и на ответе без блока `rule` она рисовала «работают»,
+// пока тело честно говорило «нет данных».
 // Подпись обязана прямо говорить, кто работает, а кто стоит, — и не выдумывать
 // «работает», когда сервер сказал data_available=false.
 function _qlVerdict(panel) {
+    if (_quotaLinesError) return {text: _quotaLinesError, nodata: true};
+    if (!_quotaLinesData) return {text: 'правило допуска — загрузка…', nodata: true};
+    // Без констант правила неизвестно само правило: вердикт не считается ни для
+    // кого, включая полосы, у которых сервер прислал готовый `blocked`.
+    if (!_quotaLinesData.rule) return {text: _QL_NO_RULE, nodata: true};
+    if (!panel.buckets.map(_qlBucket).filter(Boolean).length) {
+        return {text: 'нет данных — пул отсутствует в ответе сервера', nodata: true};
+    }
     const lanes = _qlLanes(panel);
     const known = lanes.filter(l => l.bucket?.data_available);
-    if (!lanes.length) return {text: 'нет данных', nodata: true};
+    if (!lanes.length) return {text: 'нет данных — сервер не прислал полосы допуска', nodata: true};
     if (!known.length) return {text: 'нет данных — телеметрии пула нет, гейт отвечает unknown', nodata: true};
     const blocked = known.filter(l => l.blocked).map(l => l.label || l.lane);
     const open = known.filter(l => !l.blocked).map(l => l.label || l.lane);
@@ -8393,15 +8411,16 @@ function _qlVerdict(panel) {
     };
 }
 
-function _qlPanelHtml(panel, rule) {
+function _qlPanelHtml(panel) {
+    const rule = _quotaLinesData?.rule;
+    const verdict = _qlVerdict(panel);
     const buckets = panel.buckets.map(_qlBucket).filter(Boolean);
-    if (!buckets.length) {
+    if (!rule || !buckets.length) {
         return `<section class="ql-panel" data-ql-panel="${_escHtml(panel.key)}">
             <div class="ql-head"><h3>${_escHtml(panel.title)}</h3><span>${_escHtml(panel.sub)}</span></div>
-            <p class="ql-nodata" data-ql-verdict>нет данных — пул отсутствует в ответе сервера</p>
+            <p class="ql-nodata" data-ql-verdict>${_escHtml(verdict.text)}</p>
         </section>`;
     }
-    const verdict = _qlVerdict(panel);
     const lanes = _qlLanes(panel).map(lane => {
         const nodata = !lane.bucket?.data_available;
         const state = nodata ? 'nodata' : lane.blocked ? 'blocked' : 'open';
@@ -8419,31 +8438,29 @@ function _qlPanelHtml(panel, rule) {
             <span><i style="background:#fb923c"></i>жёсткие ${_qlNum(rule.hard_stop_pct)}%</span>
             <span><i style="background:#818cf8"></i>оркестратор — без предела</span>
         </div>
-        <p class="ql-verdict ${verdict.nodata ? 'ql-nodata' : verdict.blocked ? 'ql-verdict-blocked' : 'ql-verdict-open'}" data-ql-verdict>${_escHtml(verdict.text)}</p>
+        <p class="ql-verdict ${_qlTone(verdict)}" data-ql-verdict>${_escHtml(verdict.text)}</p>
         <div class="ql-badges">${lanes}<span class="ql-badge ql-badge-always" data-ql-lane="orchestrator">Оркестратор: <b>всегда работает</b></span></div>
         ${reasons ? `<ul class="ql-reasons">${reasons}</ul>` : ''}
     </section>`;
 }
 
+// Сводка — те же вердикты, только короче. Общий отказ (ошибка, загрузка, нет
+// правила) даёт обоим пулам ОДИН текст: печатать его дважды нечего.
 function _qlSummary() {
-    if (_quotaLinesError) return `<b class="ql-nodata">квоты недоступны</b> · ${_escHtml(_quotaLinesError)}`;
-    if (!_quotaLinesData) return 'правило допуска — загрузка…';
-    return _QL_PANELS.map(panel => {
-        const verdict = _qlVerdict(panel);
-        const tone = verdict.nodata ? 'ql-nodata' : verdict.blocked ? 'ql-verdict-blocked' : 'ql-verdict-open';
-        return `<span class="ql-sum-item"><b>${_escHtml(panel.title)}:</b> <span class="${tone}">${_escHtml(verdict.text)}</span></span>`;
-    }).join('');
+    const items = _QL_PANELS.map(panel => ({panel, verdict: _qlVerdict(panel)}));
+    if (items.every(i => i.verdict.text === items[0].verdict.text)) {
+        const verdict = items[0].verdict;
+        return `<span class="ql-sum-item" data-ql-sum><span class="${_qlTone(verdict)}">${_escHtml(verdict.text)}</span></span>`;
+    }
+    return items.map(({panel, verdict}) =>
+        `<span class="ql-sum-item" data-ql-sum><b>${_escHtml(panel.title)}:</b> <span class="${_qlTone(verdict)}">${_escHtml(verdict.text)}</span></span>`
+    ).join('');
 }
 
 function renderQuotaLines() {
     const root = document.getElementById('quota-lines');
     if (!root) return;
-    const rule = _quotaLinesData?.rule;
-    const body = !_quotaLinesData
-        ? `<p class="ql-nodata" data-ql-verdict>${_escHtml(_quotaLinesError || 'нет данных — ответ сервера не получен')}</p>`
-        : !rule
-        ? '<p class="ql-nodata" data-ql-verdict>нет данных — сервер не прислал константы правила</p>'
-        : _QL_PANELS.map(panel => _qlPanelHtml(panel, rule)).join('');
+    const body = _QL_PANELS.map(_qlPanelHtml).join('');
     root.innerHTML = `
         <div class="ql-bar">
             <button type="button" id="quota-lines-toggle" aria-expanded="${_quotaLinesOpen}">${_quotaLinesOpen ? '▾' : '▸'} правило допуска</button>

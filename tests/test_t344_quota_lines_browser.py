@@ -273,6 +273,35 @@ def test_old_payload_without_rule_block_says_no_data(browser):
     page.close()
 
 
+def test_summary_without_rule_block_says_no_data_not_works(browser):
+    """Свёрнутая сводка на живом ответе без `rule` (сейчас так отвечает прод).
+
+    Ловится именно расхождение сводки с телом: тело говорило «нет данных», а
+    сводка при Codex 100% печатала «Sol, Luna Fast, Spark — работают», потому что
+    считала вердикт своей веткой. Вердикт один — источник один.
+    """
+    payload = _payload(codex_util=100.0, spark_util=100.0, claude_util=20.0)
+    del payload["rule"]
+    page, _ = _render(browser, payload)
+    summary = page.locator("#quota-lines .ql-sum").inner_text()
+    assert "нет данных" in summary, summary
+    assert "работают" not in summary, summary
+    assert "стоят" not in summary, summary
+    page.close()
+
+
+def test_summary_repeats_the_body_verdict_when_the_rule_arrives(browser):
+    """Обратная сторона того же: `rule` пришёл (состояние после мержа #343) —
+    сводка обязана печатать ДОСЛОВНО вердикт тела, а не свой пересчёт."""
+    page, _ = _render(browser, _payload(codex_util=80.0, codex_progress=0.5, claude_util=20.0))
+    summary = page.locator("#quota-lines .ql-sum").inner_text()
+    for key in ("codex", "claude"):
+        body = page.locator(f"[data-ql-panel='{key}'] [data-ql-verdict]").inner_text()
+        assert body and body in summary, (key, body, summary)
+    assert "Sol" in summary and "стоят" in summary, summary
+    page.close()
+
+
 def test_failed_request_says_no_data_and_does_not_pretend_to_work(browser):
     page, _ = _render(browser, None)
     text = page.locator("#quota-lines").inner_text()
