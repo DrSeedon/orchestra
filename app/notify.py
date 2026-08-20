@@ -5,22 +5,39 @@
 потому что создаёт ложное ощущение, что кто-то узнал. Нет оркестратора — так и говорим.
 """
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def platform_scope() -> str:
+    """Scope самой Orchestra — корень репозитория, в котором лежит этот файл.
+
+    Спрашиваем расположение кода, а не конфиг: копия платформы всегда знает, где она
+    установлена, а конфиг может отсутствовать или протухнуть (#362).
+    """
+    return str(Path(__file__).resolve().parents[1])
 
 
 def orchestrator_for_scope(scope: str) -> dict | None:
     from app.db import get_all_sessions
 
     scope = (scope or "").rstrip("/")
-    for row in get_all_sessions():
-        if (
-            bool(row.get("is_orchestrator"))
-            and (row.get("scope") or "").rstrip("/") == scope
-            and (row.get("status") or "") != "archived"
-        ):
-            return row
-    return None
+    candidates = [
+        row for row in get_all_sessions()
+        if bool(row.get("is_orchestrator"))
+        and (row.get("scope") or "").rstrip("/") == scope
+        and (row.get("status") or "") != "archived"
+    ]
+    if not candidates:
+        return None
+    # Владелец scope — корневой оркестратор. Саб-оркестратор адресат только когда
+    # корневого нет: #362 — репорты seedon уходили саб-оркестратору dev-lead просто
+    # потому, что он шёл раньше в списке сессий.
+    return next(
+        (row for row in candidates if (row.get("role") or "") == "orchestrator"),
+        candidates[0],
+    )
 
 
 async def report_undelivered(session_manager, *, scope: str, worker: str,
@@ -59,27 +76,34 @@ async def report_undelivered(session_manager, *, scope: str, worker: str,
 
 async def notify_bug_report(session_manager, *, scope: str, reporter: str,
                             title: str, record_id: str) -> str:
-    """Сказать оркестратору scope, что в его проекте подан баг-репорт (#56).
+    """Сказать оркестратору САМОЙ Orchestra, что подан баг-репорт (#56, адресат — #362).
 
     Раньше репорт просто ложился в приватный стор: ни уведомления, ни отметки о прочтении.
     Семь штук пролежали двое суток, включая репорты оркестраторов чужих проектов.
+
+    Адресат — владелец платформы, а не оркестратор scope репортёра (решение юзера 20.08,
+    дословно: «баг репорты должны идти ТОЛЬКО ОРКЕСТРА ОВНЕРУ ОРКЕСТРАТОРУ»). `report_bug`
+    принимает ТОЛЬКО сбои платформы, чинит их владелец Orchestra; чужому оркестратору репорт
+    про MCP или worktree сделать нечего. До этого адресовалось по scope и уходило кому попало:
+    56 репортов scope orchestra не уведомили никого, а seedon'овские получал саб-оркестратор.
 
     Уведомление шлётся РОВНО один раз, при публикации записи; ретраев нет намеренно —
     повтор POST создаёт вторую запись, и два уведомления на два репорта это правда,
     а не дубль. Автору собственного репорта не шлём: он и так знает.
     """
-    orch = orchestrator_for_scope(scope)
+    owner_scope = platform_scope()
+    orch = orchestrator_for_scope(owner_scope)
     if not orch:
-        outcome = f"некому сообщить: в scope {scope} нет оркестратора"
+        outcome = f"некому сообщить: в scope платформы {owner_scope} нет оркестратора"
         logger.warning("bug report %s from %s: %s", record_id, reporter, outcome)
         return outcome
     if orch["name"] == reporter:
         return f"не отправлено: {reporter} — автор репорта и адресат одновременно"
     text = (
-        f"BUG REPORT в твоём scope: «{title}»\n"
-        f"Подал: {reporter}. Запись: {record_id}.\n"
-        f"Полный текст — GET /api/report_bug. Разбор и приоритет — на тебе; "
-        f"платформа его только зарегистрировала."
+        f"BUG REPORT платформы: «{title}»\n"
+        f"Подал: {reporter} (scope {scope}). Запись: {record_id}.\n"
+        f"Полный текст — GET /api/report_bug. Разбор и приоритет — на тебе как на владельце "
+        f"Orchestra; платформа его только зарегистрировала."
     )
     try:
         await session_manager.send(orch["id"], text)
