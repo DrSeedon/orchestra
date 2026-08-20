@@ -1,0 +1,40 @@
+# Probe evidence #192 — collected 2026-08-20T08:42:51Z
+# Vantage: laptop maxim-911aird, forced onto physical wlp4s0 (RU channel, TSPU-exposed)
+# VPN tun0 BYPASSED via --interface wlp4s0. Verified: conn=0.06s (real Moscow RTT) vs 0.001s (tunnel)
+# Backend byte asserted: 'favicon.svg' in 2851-byte Orchestra login page
+
+## Test 1: orc.seedon.ru serial x20 -> ok=20 fail=0 backend_byte=20
+## Test 2: concurrent 5x6=30 dashboard-pattern -> 30/30 ok
+## Test 3: sustained 10 over 40s -> 10/10 ok
+## Test 4: cold TLS no-keepalive x15 -> 0 failures
+## Test 5: seedon.ru x8 -> 8/8 200
+## Test 6: 459206-byte app.js via relay x8 -> 8/8 COMPLETE
+## Test 7: 459206-byte app.js DIRECT Contabo x10 -> 10/10 COMPLETE
+##   (Test 7 refutes registry claim 'Contabo blocked, cut at 16384 bytes')
+
+## Re-verification run at 08:42:51Z:
+  probe1 code=200 conn=0.065339 size=2851 byte=BACKEND
+  probe2 code=200 conn=0.061162 size=2851 byte=BACKEND
+  probe3 code=200 conn=0.060776 size=2851 byte=BACKEND
+  probe4 code=200 conn=0.063733 size=2851 byte=BACKEND
+  probe5 code=200 conn=0.064395 size=2851 byte=BACKEND
+  probe6 code=200 conn=0.061521 size=2851 byte=BACKEND
+  probe7 code=200 conn=0.061149 size=2851 byte=BACKEND
+  probe8 code=200 conn=0.067341 size=2851 byte=BACKEND
+  probe9 code=200 conn=0.061688 size=2851 byte=BACKEND
+  probe10 code=200 conn=0.067405 size=2851 byte=BACKEND
+  probe11 code=200 conn=0.079017 size=2851 byte=BACKEND
+  probe12 code=200 conn=0.068297 size=2851 byte=BACKEND
+
+## Test 8 (added): mixed workload 15 rounds x 3 requests = 45 checks
+##   login 200/2851 + app.js 459206 complete + seedon.ru 200 -> DEGRADED_ROUNDS=0 of 15
+## Test 9: truncation hunt on 459KB asset x12 -> FULL=12 SHORT=0
+##   (refutes the "middleman confirms 165KB, delivers 19-23KB" mechanism documented in app.js:6846)
+## Test 10: SSE streaming through nginx orc-mirror settings (on relay host)
+##   baseline origin: ticks at 1.000s intervals
+##   through nginx (proxy_buffering off, Connection ""): ticks at 1.000s intervals, ~1ms added
+##   -> SSE passes UNBUFFERED. Temp vhost sse-probe-192 removed, prod verified intact.
+## Cert on relay: CN=*.seedon.ru notAfter=Nov 2 16:17:16 2026 GMT
+##   (registry ~/.claude/docs/vps-registry.md says "до 03.09.2026" -> registry is STALE)
+##
+## TOTAL: 144 probes on the genuine TSPU-exposed channel, 0 failures.
