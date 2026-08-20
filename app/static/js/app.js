@@ -1168,24 +1168,36 @@ async function loadMoreLogs() {
 
 
 // === Models ===
+function _renderModels(data) {
+    const models = data.models || [];
+    _MODELS = models.map(m => ({ ...m, label: m.name }));
+    _modelsLoaded = true;
+    const select = $('#orch-model');
+    if (select) {
+        select.innerHTML = '';
+        for (const m of models) {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = `${m.name} (${m.id})`;
+            select.appendChild(opt);
+        }
+    }
+    _updateProxyStatus(data.proxy_connected);
+}
+
 async function _loadModelsNow() {
     try {
         const data = await api('/api/models', {pollKey: 'models'});
-        const models = data.models || [];
-        _MODELS = models.map(m => ({ ...m, label: m.name }));
-        _modelsLoaded = true;
-        const select = $('#orch-model');
-        if (select) {
-            select.innerHTML = '';
-            for (const m of models) {
-                const opt = document.createElement('option');
-                opt.value = m.id;
-                opt.textContent = `${m.name} (${m.id})`;
-                select.appendChild(opt);
-            }
-        }
-        _updateProxyStatus(data.proxy_connected);
-    } catch {}
+        _renderModels(data);
+        snapshotSave('models', data);
+    } catch (e) {
+        // Каталог моделей почти статичен — снимок тут не «может пригодиться», а закрывает
+        // дыру целиком: без него пустой селектор не даёт создать оркестратора вовсе.
+        console.warn(`models: ${e.name}: ${e.message}`);
+        if (_modelsLoaded) return;
+        const snapshot = snapshotLoad('models');
+        if (snapshot) _renderModels(snapshot.data);
+    }
 }
 
 function loadModels() {
@@ -1615,50 +1627,67 @@ async function deleteOrchestrator() {
 let orchData = [];
 const _unreadTabs = new Set();
 
+function _renderOrchestrators(allOrchs) {
+    // Sub-orchestrators (have parent) get TG topics but don't show in top tab bar
+    orchData = allOrchs.filter(o => !o.parent_name);
+    const picker = $('#orch-picker');
+    picker.innerHTML = '';
+    for (const o of orchData) {
+        const opt = document.createElement('option');
+        opt.value = o.scope;
+        opt.dataset.id = o.id;
+        opt.dataset.name = o.name;
+        opt.textContent = o.name;
+        picker.appendChild(opt);
+    }
+
+    const lastScope = localStorage.getItem('lastOrchScope');
+    const lastName = localStorage.getItem('lastOrchName');
+    const recentRaw = localStorage.getItem('recentOrchs');
+    const recent = recentRaw ? JSON.parse(recentRaw) : [];
+
+    const sorted = [...orchData].sort((a, b) => {
+        const ai = recent.indexOf(a.name);
+        const bi = recent.indexOf(b.name);
+        if (ai >= 0 && bi >= 0) return ai - bi;
+        if (ai >= 0) return -1;
+        if (bi >= 0) return 1;
+        return 0;
+    });
+
+    renderOrchTabs(sorted);
+
+    if (orchData.length > 0 && !currentScope) {
+        const match = orchData.find(o => o.scope === lastScope && o.name === lastName);
+        if (match) {
+            selectOrchestrator(match.name, match.scope);
+        } else {
+            selectOrchestrator(sorted[0].name, sorted[0].scope);
+        }
+    }
+}
+
 async function _loadOrchestratorsNow() {
     try {
         const allOrchs = await api('/api/orchestrators', {pollKey: 'orchestrators'});
         // Данные только что получены. Без этой отметки дроссель в refreshSessions считает
         // их протухшими и через полсекунды тянет тот же список второй раз (#71).
         _orchFreshAt = Date.now();
-        // Sub-orchestrators (have parent) get TG topics but don't show in top tab bar
-        orchData = allOrchs.filter(o => !o.parent_name);
-        const picker = $('#orch-picker');
-        picker.innerHTML = '';
-        for (const o of orchData) {
-            const opt = document.createElement('option');
-            opt.value = o.scope;
-            opt.dataset.id = o.id;
-            opt.dataset.name = o.name;
-            opt.textContent = o.name;
-            picker.appendChild(opt);
+        _renderOrchestrators(allOrchs);
+        snapshotSave('orchestrators', allOrchs);
+        _clearStaleNotice('orchestrators');
+    } catch (e) {
+        // Пустые вкладки без причины — это то, на что юзер и жалуется. Молчать нельзя:
+        // без вкладок дашборд не выбирает scope, и не работает ВООБЩЕ ничего.
+        console.warn(`orchestrators: ${e.name}: ${e.message}`);
+        const snapshot = orchData.length ? null : snapshotLoad('orchestrators');
+        if (snapshot) {
+            _renderOrchestrators(snapshot.data);
+            _showStaleNotice('orchestrators', snapshot.ts);
+        } else if (!orchData.length) {
+            _showErrorNotice('orchestrators', 'Список оркестраторов не загрузился', e);
         }
-
-        const lastScope = localStorage.getItem('lastOrchScope');
-        const lastName = localStorage.getItem('lastOrchName');
-        const recentRaw = localStorage.getItem('recentOrchs');
-        const recent = recentRaw ? JSON.parse(recentRaw) : [];
-
-        const sorted = [...orchData].sort((a, b) => {
-            const ai = recent.indexOf(a.name);
-            const bi = recent.indexOf(b.name);
-            if (ai >= 0 && bi >= 0) return ai - bi;
-            if (ai >= 0) return -1;
-            if (bi >= 0) return 1;
-            return 0;
-        });
-
-        renderOrchTabs(sorted);
-
-        if (orchData.length > 0 && !currentScope) {
-            const match = orchData.find(o => o.scope === lastScope && o.name === lastName);
-            if (match) {
-                selectOrchestrator(match.name, match.scope);
-            } else {
-                selectOrchestrator(sorted[0].name, sorted[0].scope);
-            }
-        }
-    } catch {}
+    }
 }
 
 function loadOrchestrators() {
@@ -2680,7 +2709,13 @@ async function _fetchAgentContextNow(name) {
         const text = formatContext(ctx);
         contextCache[`${currentScope}:${name}`] = text;
         if (name === selectedAgent) setContextDisplay(text);
-    } catch {}
+    } catch (e) {
+        console.warn(`context ${name}: ${e.name}: ${e.message}`);
+        // Прошлое значение показать честнее, чем прочерк: контекст растёт медленно, и
+        // цифра минутной давности осмысленна, а «-» неотличим от «агент только что создан».
+        const known = contextCache[`${currentScope}:${name}`];
+        if (known && name === selectedAgent) setContextDisplay(`${known} (не обновлено)`);
+    }
 }
 
 function fetchAgentContext(name) {
@@ -6881,8 +6916,9 @@ async function refreshSessions() {
         if (capturedScope !== currentScope) return;
         _onServerOk();
 
-        $('#stats-line').innerHTML = `${stats.active} active · ${stats.total_sessions} total<br><span style="color:#64748b;font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd} (w/o cache)</span>`;
-        renderAgentList(sessions);
+        _renderSessionsAndStats(sessions, stats);
+        snapshotSave(`sessions:${capturedScope}`, {sessions, stats});
+        _clearStaleNotice('sessions');
 
         // Список оркестраторов нужен для меток непрочитанного по ЧУЖИМ вкладкам, но он
         // весит 55 КБ и раньше тянулся каждые 3 с вместе с сессиями — 1.1 МБ в минуту на
@@ -6900,7 +6936,11 @@ async function refreshSessions() {
                 }
             }
             updateOrchTabDots();
-        } catch {}
+        } catch (e) {
+            // Метки непрочитанного — украшение, но их пропажа не должна быть немой:
+            // юзер иначе решит, что чужие вкладки молчат, а они просто не доехали.
+            console.warn(`orchestrator dots: ${e.name}: ${e.message}`);
+        }
 
         if (selectedAgent) {
             const agentSession = sessions.find(s => s.name === selectedAgent);
@@ -6913,10 +6953,35 @@ async function refreshSessions() {
             if (!eventSource) connectSSE();
         }
     } catch (e) {
-        if (e.name !== 'AbortError') { console.warn('refresh error:', e); _onFetchFail(e); }
+        if (e.name !== 'AbortError') {
+            console.warn('refresh error:', e);
+            _onFetchFail(e);
+            _restoreSessionsSnapshot(capturedScope, e);
+        }
     } finally {
         refreshInProgress = false;
     }
+}
+
+function _renderSessionsAndStats(sessions, stats) {
+    $('#stats-line').innerHTML = `${stats.active} active · ${stats.total_sessions} total<br><span style="color:#64748b;font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd} (w/o cache)</span>`;
+    renderAgentList(sessions);
+}
+
+// Список агентов — то, из чего заполняются Model/Role/Cost/Branch/Scope. Пока он пуст,
+// пуста и панель, и юзер видит прочерки вместо интерфейса. Снимок закрывает окно между
+// загрузкой страницы и первым дошедшим ответом; когда список уже нарисован, не трогаем
+// его вовсе — свежее в памяти всегда лучше снимка с диска.
+function _restoreSessionsSnapshot(scope, error) {
+    if (!scope || scope !== currentScope) return;
+    if ($('#agent-list')?.children.length) return;
+    const snapshot = snapshotLoad(`sessions:${scope}`);
+    if (!snapshot?.data?.sessions || !snapshot.data.stats) {
+        _showErrorNotice('sessions', 'Список агентов не загрузился', error);
+        return;
+    }
+    _renderSessionsAndStats(snapshot.data.sessions, snapshot.data.stats);
+    _showStaleNotice('sessions', snapshot.ts);
 }
 
 // === API ===
@@ -6932,6 +6997,17 @@ async function refreshSessions() {
 // вторая `wire=2009 Б dur=228`. Повтор отработал штатно — дорого стоило ожидание.
 const _API_TIMEOUT_MS = 2000;
 const _API_ATTEMPTS = 3;
+// #197: канал юзера рвёт не передачу, а УСТАНОВКУ соединения — `conn=0.000000s`, `code=000`,
+// висит 8-12 с. Замер: 12 попыток, 10 прошли, 2 умерли наглухо (~17%). Отсюда два следствия,
+// оба противоположные тому, что подсказывает слово «медленный канал»:
+// 1) ждать дольше бесполезно. Соединение либо встаёт быстро, либо не встаёт вовсе, поэтому
+//    2 с остаются — растить бюджет значит просто дольше сидеть на заведомо мёртвой попытке;
+// 2) а вот подряд повторять вредно. ТСПУ режет пачками, и три попытки вплотную попадают в
+//    одно окно потерь. Джиттер разносит их: пауза случайна в [0, _API_RETRY_JITTER_MS],
+//    и одна дешёвая пауза меняет три коррелированные попытки на три независимые.
+// Верхняя граница выбрана так, чтобы худший случай (2 попытки × 2 с + 2 паузы) укладывался
+// в ~5.6 с — меньше, чем те 6 с, что юзер и так ждал раньше без всякого джиттера.
+const _API_RETRY_JITTER_MS = 800;
 // Мутации остаются на прежних 5 с: повтора у них нет (не идемпотентны), и работу на сервере
 // они делают ДО ответа — оборвать спавн воркера раньше значит соврать юзеру про неудачу.
 const _API_MUTATION_TIMEOUT_MS = 5000;
@@ -6984,7 +7060,9 @@ async function api(url, opts = {}) {
                 if (broken && attempts > 1) _showNetFailBanner(url, attempts);
                 throw e;
             }
-            console.warn(`api ${url}: попытка ${attempt}/${attempts} — ${e.name}`);
+            const pause = Math.round(Math.random() * _API_RETRY_JITTER_MS);
+            console.warn(`api ${url}: попытка ${attempt}/${attempts} — ${e.name}, пауза ${pause} мс`);
+            await new Promise(resolve => setTimeout(resolve, pause));
         }
     }
 }
@@ -7012,6 +7090,60 @@ function _hideNetFailBanner(url) {
     if (!banner) return;
     banner.classList.add('hidden');
     banner.classList.remove('flex');
+}
+
+// === Полоса «показано из кеша» / «не загрузилось» (#197) ===
+// Строится в JS, а не в шаблоне: шаблон отдаётся главным чекаутом и доехал бы до юзера
+// только рестартом. Полос две по СМЫСЛУ, а не по вкусу: «данные старые, но они есть» и
+// «данных нет вовсе» лечатся по-разному, и путать их — то же, что молчащий catch.
+function _noticeStrip() {
+    let strip = document.getElementById('stale-notice-strip');
+    if (strip) return strip;
+    strip = document.createElement('div');
+    strip.id = 'stale-notice-strip';
+    strip.className = 'flex flex-col';
+    const usageBar = document.getElementById('usage-bar');
+    if (usageBar?.parentNode) usageBar.parentNode.insertBefore(strip, usageBar);
+    else document.body.prepend(strip);
+    return strip;
+}
+
+function _noticeRow(key) {
+    const strip = _noticeStrip();
+    let row = document.getElementById(`notice-${key}`);
+    if (!row) {
+        row = document.createElement('div');
+        row.id = `notice-${key}`;
+        row.className = 'flex items-center justify-center gap-2 px-4 py-1 text-xs border-b';
+        strip.appendChild(row);
+    }
+    return row;
+}
+
+// Данные на экране есть, но они из снимка. Жёлтый: работать можно, доверять частично.
+function _showStaleNotice(key, ts) {
+    const row = _noticeRow(key);
+    row.className = 'flex items-center justify-center gap-2 px-4 py-1 text-xs border-b '
+        + 'bg-amber-500/10 border-amber-500/30 text-amber-200';
+    row.dataset.staleKey = key;
+    row.textContent = `🕒 ${key}: показано из кеша — ${snapshotAgeLabel(ts)}. Обновим, как только ответ дойдёт.`;
+}
+
+// Данных нет и подставить нечего. Красный, и с КЛАССОМ исключения: «не загрузилось»
+// без причины отправляет юзера гадать, а причины у обрыва и у 500 разные.
+function _showErrorNotice(key, what, error) {
+    const row = _noticeRow(key);
+    row.className = 'flex items-center justify-center gap-2 px-4 py-1 text-xs border-b '
+        + 'bg-red-500/10 border-red-500/30 text-red-200';
+    delete row.dataset.staleKey;
+    const reason = error?.status
+        ? `сервер ответил ${error.status}`
+        : `${error?.name || 'Error'}: ${error?.message || 'без текста'}`;
+    row.textContent = `⚠ ${what} — ${reason}`;
+}
+
+function _clearStaleNotice(key) {
+    document.getElementById(`notice-${key}`)?.remove();
 }
 
 // === Usage Bar ===

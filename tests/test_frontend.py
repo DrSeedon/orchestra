@@ -3628,3 +3628,199 @@ def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: B
     page.locator("#voice-btn").click()
     expect(page.locator("#voice-error")).to_contain_text("Доступ к микрофону запрещён")
     context.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# #197 — интерфейс переживает канал, где часть запросов не доходит
+# ─────────────────────────────────────────────────────────────────────────────
+
+_LOSSY_SCOPE = "/tmp/fe-scope"
+_LOSSY_SESSIONS = [
+    {
+        "id": "fe-orch-id", "name": "fe-orch", "scope": _LOSSY_SCOPE, "status": "idle",
+        "model": "claude-opus-5[1m]", "role": "orchestrator", "cost_usd": 1.25,
+        "branch": "main", "is_orchestrator": True,
+    },
+    {
+        "id": "fe-worker-id", "name": "fe-worker", "scope": _LOSSY_SCOPE, "status": "idle",
+        "model": "claude-opus-5[1m]", "role": "worker", "cost_usd": 0.5,
+        "branch": "task-197/fe-worker", "parent_name": "fe-orch",
+    },
+]
+_LOSSY_STATS = {"active": 0, "total_sessions": 2, "total_cost_usd": 1.75}
+_LOSSY_ORCHS = [
+    {"id": "fe-orch-id", "name": "fe-orch", "scope": _LOSSY_SCOPE, "status": "idle"},
+]
+_LOSSY_USAGE = {
+    "anthropic": {
+        "five_hour": {"utilization": 41, "resets_at": None},
+        "seven_day": {"utilization": 62, "resets_at": None},
+    },
+    "codex": {}, "grok": None, "orchestra": {}, "voice_cost_usd": 0.0,
+    "subscription_cost": "",
+}
+
+
+def _lossy_payload(path: str):
+    """Тело ответа для путей первой загрузки. Неизвестный путь — пустой объект."""
+    if path == "/api/sessions":
+        return _LOSSY_SESSIONS
+    if path == "/api/stats":
+        return _LOSSY_STATS
+    if path == "/api/orchestrators":
+        return _LOSSY_ORCHS
+    if path == "/api/usage":
+        return _LOSSY_USAGE
+    if path == "/api/models":
+        return {"models": [{"id": "claude-opus-5[1m]", "name": "Opus 5"}],
+                "proxy_connected": True}
+    if path == "/api/logs/sync":
+        return {"logs": [], "max_log_id": 0, "live_sessions": []}
+    if path.endswith("/context"):
+        return {"percentage": 12, "total_tokens": 1200, "max_tokens": 10000}
+    if path.endswith("/logs"):
+        return []
+    return {}
+
+
+def _install_lossy_api(page: Page, drop: dict):
+    """Маршрут /api/: `drop['on']` — множество путей, которые НЕ доходят.
+
+    Недошедший запрос эмулируется `route.abort()` — это TypeError в fetch, ровно то,
+    что видит браузер при обрыве TLS-хендшейка (ТСПУ роняет ~17% коннектов). Ответ
+    сервера с ошибкой — это ДРУГОЕ состояние, и в этом тесте оно не проверяется.
+    """
+    def api_route(route):
+        path = route.request.url.split("?")[0].split("/api")[-1]
+        path = "/api" + path
+        if path.endswith("/stream"):
+            route.fulfill(status=200, content_type="text/event-stream", body="")
+            return
+        if path in drop["on"]:
+            drop.setdefault("dropped", []).append(path)
+            route.abort()
+            return
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(_lossy_payload(path)),
+        )
+
+    page.route(re.compile(r"/api/"), api_route)
+
+
+def test_dashboard_survives_lossy_channel_from_snapshot(dashboard_browser: Browser):
+    """Пункт 2 #197: недошедший запрос показывает прошлые данные, а не пустоту.
+
+    Два захода в ОДНОМ browser context — иначе localStorage не переживает перезагрузку
+    и снимок проверять было бы негде. Первый заход всё получает и сохраняет снимок,
+    второй теряет ровно те запросы, из которых строится интерфейс.
+    """
+    context = dashboard_browser.new_context()
+    try:
+        warm = context.new_page()
+        drop = {"on": set()}
+        _install_lossy_api(warm, drop)
+        _route_frontend_sources(warm)
+        _goto_dashboard(warm)
+        warm.wait_for_function("() => typeof snapshotSave === 'function'")
+        # Положительный контроль: без него «снимок пуст» и «снимок не читается»
+        # выглядели бы одинаково зелёными на сломанном кеше.
+        warm.wait_for_function(
+            "() => document.querySelectorAll('#agent-list .agent-item').length >= 2",
+            timeout=8000,
+        )
+        warm.wait_for_function("() => !!snapshotLoad('usage')", timeout=8000)
+        warm.wait_for_function(
+            f"() => !!snapshotLoad('sessions:{_LOSSY_SCOPE}')", timeout=8000
+        )
+        saved = warm.evaluate(
+            """() => Object.keys(localStorage)
+                .filter(k => k.startsWith('orchestra_snapshot:'))"""
+        )
+        warm.close()
+
+        assert saved, "первый заход обязан сохранить хоть один снимок"
+
+        cold = context.new_page()
+        lossy = {"on": {"/api/sessions", "/api/stats", "/api/usage", "/api/orchestrators"}}
+        _install_lossy_api(cold, lossy)
+        _route_frontend_sources(cold)
+        _goto_dashboard(cold)
+        cold.wait_for_function("() => typeof snapshotLoad === 'function'")
+
+        cold.wait_for_function(
+            "() => document.querySelectorAll('#agent-list .agent-item').length >= 2",
+            timeout=15000,
+        )
+        cold.wait_for_function(
+            "() => (document.querySelector('#usage-bar')?.innerText || '').includes('5h')",
+            timeout=15000,
+        )
+        state = cold.evaluate(
+            """() => ({
+                agents: document.querySelectorAll('#agent-list .agent-item').length,
+                usageText: document.querySelector('#usage-bar')?.innerText || '',
+                statsText: document.querySelector('#stats-line')?.innerText || '',
+                tabs: document.querySelectorAll('#orch-tabs [data-scope]').length,
+                notice: document.querySelector('#stale-notice-strip')?.innerText || '',
+                usageUnavailable:
+                    (document.querySelector('#usage-bar')?.innerText || '')
+                        .includes('Usage unavailable'),
+            })"""
+        )
+        cold.close()
+    finally:
+        context.close()
+
+    assert lossy["dropped"], "тест обязан реально ронять запросы, иначе он ничего не мерит"
+    # Главное утверждение задачи: панели заполнены, хотя ни один из этих запросов не дошёл.
+    assert state["agents"] >= 2, f"список агентов пуст на потерянном канале: {state}"
+    assert not state["usageUnavailable"], f"usage показал пустоту вместо снимка: {state}"
+    assert "5h" in state["usageText"], f"usage не восстановлен из снимка: {state}"
+    assert "total" in state["statsText"], f"stats не восстановлен из снимка: {state}"
+    # Честность: данные показаны, но помечены как несвежие с меткой времени.
+    assert "из кеша" in state["notice"], f"нет пометки о кеше: {state}"
+    assert "данные от" in state["notice"], f"нет метки времени: {state}"
+
+
+def test_dashboard_shows_error_class_when_nothing_cached(dashboard_browser: Browser):
+    """Пункт 5 #197: нечего показать — назови ПРИЧИНУ, а не молчи.
+
+    Отдельный context: пустой localStorage — это и есть проверяемое условие.
+    """
+    context = dashboard_browser.new_context()
+    try:
+        page = context.new_page()
+        lossy = {"on": {"/api/sessions", "/api/stats", "/api/orchestrators"}}
+        _install_lossy_api(page, lossy)
+        _route_frontend_sources(page)
+        _goto_dashboard(page)
+        page.wait_for_function("() => typeof snapshotLoad === 'function'")
+        page.wait_for_function(
+            "() => (document.querySelector('#stale-notice-strip')?.innerText || '')"
+            ".includes('не загрузился')",
+            timeout=15000,
+        )
+        notice = page.evaluate(
+            "() => document.querySelector('#stale-notice-strip').innerText"
+        )
+        page.close()
+    finally:
+        context.close()
+
+    assert "не загрузился" in notice
+    # Класс исключения обязателен: «не загрузилось» без причины отправляет юзера гадать.
+    assert "TypeError" in notice or "Failed to fetch" in notice, notice
+
+
+def test_api_retry_spaces_attempts_with_jitter():
+    """Пункт 1 #197: повторы не идут вплотную — иначе все три попадают в одно окно потерь."""
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    body = source.split("async function api(url, opts = {})", 1)[1].split(
+        "function _showNetFailBanner", 1,
+    )[0]
+
+    assert "_API_RETRY_JITTER_MS" in body, "между попытками нет джиттера"
+    assert "Math.random()" in body, "пауза обязана быть случайной, иначе она не разносит попытки"
+    assert "await new Promise" in body, "пауза должна реально ждать, а не только считаться"

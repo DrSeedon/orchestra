@@ -12,6 +12,59 @@ const _PROVIDER_COLORS = {
     unknown: '#94a3b8',
 };
 
+// === Кеш последнего успешного ответа (#197) ===
+// Канал юзера теряет ~17% TLS-хендшейков. Провал в середине сессии переживают те панели,
+// что держат данные в памяти, а вот ЗАГРУЗКА страницы не переживает ничего: память пуста,
+// и первый же недошедший запрос даёт «нет данных» вместо интерфейса. Поэтому снимок
+// последнего успеха живёт в localStorage — он и есть то, что рисуется, пока сеть молчит.
+// Возраст снимка показывается всегда: тихо подсунуть вчерашние цифры хуже, чем не подсунуть.
+const _SNAPSHOT_PREFIX = 'orchestra_snapshot:';
+// Старше суток не показываем даже с меткой: за сутки меняется всё, включая состав агентов.
+const _SNAPSHOT_MAX_AGE_MS = 86400000;
+
+function snapshotSave(key, data) {
+    try {
+        localStorage.setItem(_SNAPSHOT_PREFIX + key, JSON.stringify({ts: Date.now(), data}));
+    } catch (e) {
+        // Переполнение квоты localStorage — не повод ронять обновление интерфейса,
+        // но и молчать нельзя: кеш просто перестал бы работать без единого слова.
+        console.warn(`snapshot ${key}: не сохранён — ${e.name}: ${e.message}`);
+    }
+}
+
+// null = снимка нет или он протух. Иначе {data, ts, ageMs}.
+function snapshotLoad(key) {
+    let raw;
+    try {
+        raw = localStorage.getItem(_SNAPSHOT_PREFIX + key);
+    } catch (e) {
+        console.warn(`snapshot ${key}: не прочитан — ${e.name}: ${e.message}`);
+        return null;
+    }
+    if (!raw) return null;
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    } catch (e) {
+        console.warn(`snapshot ${key}: битый JSON — ${e.name}`);
+        return null;
+    }
+    const ts = Number(parsed?.ts);
+    if (!ts || parsed?.data === undefined) return null;
+    const ageMs = Date.now() - ts;
+    if (ageMs < 0 || ageMs > _SNAPSHOT_MAX_AGE_MS) return null;
+    return {data: parsed.data, ts, ageMs};
+}
+
+// «данные от 14:32» — метка времени, а не относительный возраст: юзер и так знает,
+// который час, а «5 минут назад» надо держать в голове и пересчитывать.
+function snapshotAgeLabel(ts) {
+    const when = new Date(ts);
+    const hh = String(when.getHours()).padStart(2, '0');
+    const mm = String(when.getMinutes()).padStart(2, '0');
+    return `данные от ${hh}:${mm}`;
+}
+
 // One table owns provider labels, capacity routing and window shapes for every usage view.
 const _PROVIDER_META = {
     claude: {

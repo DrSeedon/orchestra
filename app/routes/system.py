@@ -399,8 +399,12 @@ async def stats(scope: Optional[str] = None):
 _USAGE_CACHE_FILE = Path(__file__).parent.parent.parent / "data" / "usage_cache.json"
 _usage_cache: dict = {"data": None, "ts": 0.0, "token": None}
 _codex_usage_cache: dict = {"data": None, "ts": 0.0}
-_grok_usage_cache: dict = {"data": None, "ts": 0.0}
+_grok_usage_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
 _USAGE_CACHE_TTL = 300
+# Провал провайдера кешируется отдельно и короче успеха (#197): держать отказ 5 минут
+# значит не заметить починку токена, а ходить за ним каждый раз — платить 0.88 с на
+# каждом `/api/usage`. Минута закрывает опрос дашборда (раз в 2 мин) с запасом.
+_USAGE_FAILURE_TTL = 60
 _quota_refresh_locks = {
     "anthropic": asyncio.Lock(),
     "codex": asyncio.Lock(),
@@ -881,6 +885,19 @@ async def _get_usage_data(
         and (now - _grok_usage_cache["ts"]) < _USAGE_CACHE_TTL
     ):
         grok_data = _grok_usage_cache["data"]
+    elif (
+        # Провал провайдера тоже кешируется (#197). Без этого протухший токен Grok стоил
+        # 0.88 с ЖИВОГО сетевого вызова на КАЖДЫЙ `/api/usage`: ветка провала обнуляет
+        # `ts`, а обнулённый `ts` не проходит проверку TTL никогда — то есть TTL для
+        # сбойного провайдера не действовал вовсе. Замер: /api/usage 0.88-1.21 с при
+        # /api/models 0.002 с. Окно короче успеха: токен могут починить в любой момент,
+        # и ждать полные 5 минут после починки незачем.
+        not force_refresh
+        # `.get`, а не `[...]`: словарь целиком подменяется извне (session_turns и тесты),
+        # и жёсткий ключ уронил бы `/api/usage` на чужой подмене без этого поля.
+        and (now - _grok_usage_cache.get("failed_at", 0.0)) < _USAGE_FAILURE_TTL
+    ):
+        grok_data = _grok_usage_cache["data"]
     else:
         token = _read_grok_token()
         if token:
@@ -896,9 +913,14 @@ async def _get_usage_data(
         if grok_fetched:
             _grok_usage_cache["data"] = grok_data
             _grok_usage_cache["ts"] = now
+            _grok_usage_cache["failed_at"] = 0.0
         elif required_provider == "grok" or not required_provider:
+            # `data=None, ts=0` сохраняем: «данных по Grok нет» должно оставаться видимым,
+            # подставлять вместо этого вчерашние проценты нельзя. Кешируется только САМ
+            # ФАКТ провала — чтобы не ходить в сеть за тем же отказом каждую секунду.
             _grok_usage_cache["data"] = None
             _grok_usage_cache["ts"] = 0.0
+            _grok_usage_cache["failed_at"] = now
     if required_provider == "grok" and not grok_fetched:
         raise RuntimeError("fresh Grok usage is unavailable")
 

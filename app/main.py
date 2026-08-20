@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 
 from app.auth import is_auth_enabled, validate_session, requires_auth, check_internal_token
 from app.db import init_db
@@ -464,3 +465,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(RequestCensusMiddleware)
 app.add_middleware(AuthMiddleware)
+# Статика первой загрузки — 814 КБ против 68 КБ у всех API вместе (#197). Отдавалась
+# несжатой: `curl --compressed` возвращал те же 434 627 байт для app.js. gzip даёт 3.7×
+# (814 -> 221 КБ), а на канале с ~17% потерь вчетверо меньше байт — это ещё и вчетверо
+# меньше шансов поймать обрыв посреди передачи.
+# Добавлен ПОСЛЕДНИМ, а значит стоит САМЫМ ВНЕШНИМ (add_middleware делает insert(0)).
+# Так и надо: gzip придерживает кадр `http.response.start` до первого куска тела, а
+# RequestCensusMiddleware именно на этом кадре читает `content-type`, чтобы отличить
+# поток от обычного ответа. Стой gzip внутри — счётчик дренажа узнавал бы о потоке с
+# опозданием. Снаружи он сжимает уже посчитанный ответ и ничего не сдвигает.
+# SSE не сжимается: DEFAULT_EXCLUDED_CONTENT_TYPES в Starlette 1.1.0 — ('text/event-stream',).
+app.add_middleware(GZipMiddleware, minimum_size=1024)

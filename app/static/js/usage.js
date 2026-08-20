@@ -747,6 +747,17 @@ function _renderSparklines(slot, providerFilter = null) {
     });
 }
 
+// Снимок с прошлой загрузки страницы. Без него первый недошедший `/api/usage` на дырявом
+// канале давал «⚠ Usage unavailable» — не потому, что данных нет, а потому, что их негде
+// было взять: память пуста, пока не ответит сеть.
+function _restoreUsageSnapshot() {
+    if (_usageData) return;
+    const snapshot = snapshotLoad('usage');
+    if (!snapshot) return;
+    _usageData = snapshot.data;
+    _usageLastSuccessAt = snapshot.ts;
+}
+
 async function fetchUsage() {
     if (_usageFetchPromise) return _usageFetchPromise;
     _usageLastFetchStartedAt = Date.now();
@@ -770,12 +781,15 @@ async function fetchUsage() {
                 console.error(`Usage fetch failed: ${detail}`);
             }
             _usageLastSuccessAt = Date.now();
+            snapshotSave('usage', _usageData);
         } catch (error) {
             _usageError = true;
             const detail = error instanceof Error
                 ? `${error.name}: ${error.message || '(no message)'}`
                 : String(error);
             console.error(`Usage fetch failed: ${detail}`);
+            // Своих данных ещё нет — показываем прошлые с меткой возраста вместо пустоты.
+            _restoreUsageSnapshot();
         }
     })();
     renderUsageBar();
@@ -788,6 +802,11 @@ async function fetchUsage() {
 }
 
 function initUsageBar() {
+    // Сперва снимок, потом сеть: полоса заполнена с первого кадра, а свежий ответ её
+    // молча заменит. Обратный порядок показывал пустоту ровно на время запроса — на
+    // канале юзера это 2-6 с, а при провале навсегда.
+    _restoreUsageSnapshot();
+    renderUsageBar();
     fetchUsage();
     const bar = document.getElementById('usage-bar');
     if (bar) {
