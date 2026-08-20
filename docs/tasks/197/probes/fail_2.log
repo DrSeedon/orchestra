@@ -1,0 +1,75 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_silent_turn_marker_is_hidden_only_when_exact_text_in_history _______
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/maxim/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_silent_turn_marker_is_hidden_only_when_exact_text_in_history(
+        dashboard_browser: Browser,
+    ):
+        rows = [
+            _silent_turn_row(51001),
+            _silent_turn_row(51002, content=f" {_SILENT_TURN_MARKER}"),
+            _silent_turn_row(51003, content=f"{_SILENT_TURN_MARKER}\n"),
+            _silent_turn_row(51004, content=f"prefix {_SILENT_TURN_MARKER}"),
+            _silent_turn_row(51005, content=f"{_SILENT_TURN_MARKER} suffix"),
+            _silent_turn_row(51006, content=_SILENT_TURN_MARKER.replace("TURN", "TURN_")),
+            _silent_turn_row(51007, "user_message"),
+            _silent_turn_row(51008, "error"),
+            _silent_turn_row(51009, "status", "turn ended"),
+        ]
+        page, _ = _open_notify_stream_page(
+            dashboard_browser,
+            "granted",
+            history_rows=rows,
+            stream_pages=[[]],
+            stable_sse=True,
+        )
+        try:
+>           state = page.wait_for_function("""() => {
+                const ids = [...document.querySelectorAll('#chat [data-chat-log-id]')]
+                    .map(node => node.dataset.chatLogId);
+                if (!ids.includes('51009')) return false;
+                return {markerType: typeof _isSilentTurnMarker, ids,
+                    lastId: chatLogs['notify-268-probe']?.lastId};
+            }""", timeout=8000).json_value()
+
+tests/test_frontend.py:1441: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:12436: in wait_for_function
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:1136: in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:910: in wait_for_function
+    await self._channel.send("waitForFunction", self._timeout, params)
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7654a5528d10>
+cb = <function Channel.send.<locals>.<lambda> at 0x76549eb1f600>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 8000ms exceeded.
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: TimeoutError
+=========================== short test summary info ============================
+FAILED tests/test_frontend.py::test_silent_turn_marker_is_hidden_only_when_exact_text_in_history
+1 failed in 13.36s
