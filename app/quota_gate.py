@@ -312,23 +312,37 @@ def _utilization(value: object) -> float | None:
 def deciding_window(provider: object, bucket: str) -> Mapping | None:
     """Окно, по которому принимается решение для бакета.
 
-    Claude — недельное (пятичасовое остаётся справочным). Codex и Spark — `primary`,
-    каждый по СВОЕМУ счётчику: общим числом их мерить нельзя, они расходятся вдвое.
+    Решает НЕДЕЛЬНОЕ окно — оно длиннее и упирается первым; пятичасовое остаётся
+    справочным. Выбор идёт по `window_minutes`, а НЕ по имени поля: 19.08.2026 OpenAI
+    переставил Spark с одного окна (`primary` = 7d) на два (`primary` = 5h,
+    `secondary` = 7d), и выбор по имени показал 0% при выжранном на 100% недельном —
+    гейт пропускал воркеров в мёртвый пул (#360). Имена принадлежат провайдеру,
+    длина принадлежит смыслу.
+
+    У Claude недельное окно обязательно: его отсутствие — «данных нет», подставлять
+    пятичасовое нельзя. У пулов Codex состав окон задаёт провайдер, поэтому берём
+    самое ДЛИННОЕ из присланных — оно и упирается первым.
     """
     if not isinstance(provider, Mapping):
         return None
     windows = provider.get("windows")
     if not isinstance(windows, list):
         return None
-    for item in windows:
-        if not isinstance(item, Mapping):
-            continue
-        if bucket in {"anthropic", "anthropic_fable"}:
+    candidates = [item for item in windows if isinstance(item, Mapping)]
+
+    def _length(item: Mapping) -> float:
+        value = item.get("window_minutes")
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+            return float(value)
+        return 0.0
+
+    if bucket in {"anthropic", "anthropic_fable"}:
+        for item in candidates:
             if item.get("window_minutes") == WEEKLY_WINDOW_MINUTES:
                 return item
-        elif item.get("id") == "primary":
-            return item
-    return None
+        return None
+    sized = [item for item in candidates if _length(item) > 0]
+    return max(sized, key=_length) if sized else None
 
 
 def window_progress(window: Mapping, now: float) -> tuple[float | None, str | None]:

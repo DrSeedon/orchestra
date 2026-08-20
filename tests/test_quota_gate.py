@@ -11,6 +11,7 @@ from app.quota_gate import (
     HARD_STOP_PCT,
     QuotaDecision,
     _line_release_in_seconds,
+    deciding_window,
     TOLERANCE_END_PP,
     TOLERANCE_START_PP,
     evaluate_worker_admission,
@@ -428,3 +429,31 @@ def test_decision_serializes_every_field_the_panel_draws():
     assert payload["lane"] == "sol" and payload["gated"] is True
     assert payload["hard_limit_pct"] == HARD_STOP_PCT
     assert set(payload) == set(QuotaDecision.__dataclass_fields__) | {"allowed"}
+
+
+def test_deciding_window_follows_length_not_field_name():
+    """#360: 19.08 OpenAI переставил Spark на два окна (primary=5h, secondary=7d).
+
+    Выбор по имени поля показывал 0% при выжранном на 100% недельном — гейт пускал
+    воркеров в мёртвый пул. Решает длина окна, а не его имя.
+    """
+    spark_after_provider_change = {
+        "windows": [
+            {"id": "primary", "window_minutes": 300, "utilization": 0},
+            {"id": "secondary", "window_minutes": 10080, "utilization": 100},
+        ]
+    }
+    chosen = deciding_window(spark_after_provider_change, "codex_spark")
+    assert chosen is not None
+    assert chosen["window_minutes"] == 10080
+    assert chosen["utilization"] == 100
+
+    spark_before_provider_change = {
+        "windows": [{"id": "primary", "window_minutes": 10080, "utilization": 62}]
+    }
+    assert deciding_window(spark_before_provider_change, "codex_spark")["utilization"] == 62
+
+    five_hour_only = {"windows": [{"id": "primary", "window_minutes": 300, "utilization": 42}]}
+    assert deciding_window(five_hour_only, "codex")["utilization"] == 42
+    claude_without_weekly = {"windows": [{"id": "five_hour", "window_minutes": 300, "utilization": 26}]}
+    assert deciding_window(claude_without_weekly, "anthropic") is None
