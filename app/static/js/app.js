@@ -5088,10 +5088,8 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 const d = JSON.parse(body);
                 setCodexToolTitle(header, 'Web search', '🌐');
                 header.style.color = '#38bdf8';
-                if (rawName === 'WebSearch') {
-                    div.dataset.isCodexWebSearch = '1';
-                    updateCodexWebSearchActivity(div, codexWebSearchSpec(d));
-                }
+                div.dataset.isCodexWebSearch = '1';
+                updateCodexWebSearchActivity(div, codexWebSearchSpec(d));
                 if (d.model) {
                     const badge = document.createElement('span');
                     badge.textContent = d.model;
@@ -5723,10 +5721,16 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
         if (lastTool) {
             if (lastTool.dataset.isCodexWebSearch) {
-                updateCodexWebSearchActivity(lastTool, codexWebSearchSpec(content));
-                delete lastTool.dataset.lastTool;
-                addTimestamp(lastTool, ts);
-                return;
+                // Codex шлёт результатом ту же структуру с action/queries — ею обновляем шапку.
+                // Встроенный WebSearch и MCP-поиск отдают ТЕКСТ: spec=null, и его надо
+                // отрисовать обычным телом результата, а не проглотить ранним return.
+                const resultSpec = codexWebSearchSpec(content);
+                if (resultSpec) {
+                    updateCodexWebSearchActivity(lastTool, resultSpec);
+                    delete lastTool.dataset.lastTool;
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
             }
             if (lastTool.dataset.isSpawnWorker) {
                 const hdr = lastTool.querySelector('.flex.items-center');
