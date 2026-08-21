@@ -493,8 +493,12 @@ function _restoreChatAnchor(key) {
     divider.className = 'chat-unread-divider';
     divider.textContent = 'Непрочитанные';
     chat.insertBefore(divider, firstUnread);
-    divider.scrollIntoView({block: 'start'});
-    _chatHasNewBelow = true;
+    // Разделитель — МЕТКА для того, кто листает вверх, а не цель прыжка. Прыжок к нему
+    // открывал чат на сообщениях многодневной давности, и свежие «дорисовывались ниже»
+    // (жалоба юзера 21.08). Открываем внизу, у последнего сообщения; кнопка «вниз»
+    // при этом не нужна — ниже ничего не осталось.
+    _scrollChatToBottom();
+    _chatHasNewBelow = false;
     _syncChatJumpButton();
 }
 
@@ -520,6 +524,7 @@ const _CHAT_PAGE = 100;  // столько строк показываем пр�
 // Столько строк рисуем в ПЕРВОМ кадре; остальное — после него. Двадцать — это ровно то,
 // что раньше лежало в зеркале и давало чат за 871 мс против 1186 мс на сотне строк.
 const _CHAT_FIRST_PAINT = 20;
+const _CHAT_MIRROR_DEADLINE = 250;  // сколько ждём IndexedDB, прежде чем идти в сеть
 // Порция добора истории — И по строкам, И по байтам. Одних строк мало: замер по живой БД
 // дал на 25 строках от 5.2 до 46.6 КБ gzip в разных чатах, потому что размер сообщения
 // гуляет на три порядка. Бюджет 24 КБ content держит худшую порцию в пределах ~10 КБ по
@@ -2311,8 +2316,21 @@ async function _showChatFor(name, scope) {
     scrollAfterLoad = true;
     _chatLoading = true;
     try {
-        const sid = await _storeSessionId(scope, name);
-        let rows = sid ? await _storeRead(sid, _CHAT_PAGE) : [];
+        // Зеркало быстрее сети, но только пока оно свободно: холодная синхронизация
+        // (/api/logs/sync?after_id=0 — 2.23 с на замере 21.08) держит readwrite-транзакцию,
+        // и наши чтения стоят за ней в очереди. Замер того же дня: переключение на агента
+        // без зеркала = 3.08 с пустого чата при том, что /api/sessions/<name>/logs отвечает
+        // за 10–20 мс. Поэтому ждём зеркало ограниченно и уходим в сеть, не дожидаясь.
+        const mirror = (async () => {
+            const id = await _storeSessionId(scope, name);
+            return {id, rows: id ? await _storeRead(id, _CHAT_PAGE) : []};
+        })();
+        const hit = await Promise.race([
+            mirror,
+            new Promise((res) => setTimeout(() => res(null), _CHAT_MIRROR_DEADLINE)),
+        ]);
+        const sid = hit ? hit.id : null;
+        let rows = hit ? hit.rows : [];
         // Обрезанная строка раньше делала всю историю непригодной: пометить её было нечем,
         // и битую картинку показывать нельзя. Теперь у обрезки есть видимый маркер и кнопка
         // «загрузить целиком» (#74), а сервер режет тем же потолком, что и зеркало, — так что

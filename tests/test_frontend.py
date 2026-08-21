@@ -2975,10 +2975,10 @@ def test_chat_restores_last_read_boundary_only_when_unread(
     assert page.evaluate(
         """() => Number($('.chat-unread-divider').nextElementSibling.dataset.chatLogId)"""
     ) == read_id + 1
-    expect(page.locator("#chat-jump-latest")).to_be_visible()
-    expect(page.locator("#chat-jump-latest")).to_have_text("↓ Новые ниже")
-    page.locator("#chat-jump-latest").click()
-    page.wait_for_function("() => _chatAtBottom()")
+    # Чат открывается ВНИЗУ, у последнего сообщения: разделитель — метка для того, кто
+    # листает вверх, а не цель прыжка (жалоба юзера 21.08 «показывает далёкие сообщения»).
+    # Кнопки «вниз» при этом быть не должно — ниже ничего не осталось.
+    assert page.evaluate("() => _chatAtBottom()")
     expect(page.locator("#chat-jump-latest")).to_be_hidden()
 
     # If the saved boundary fell outside the loaded window, start at the first
