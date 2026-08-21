@@ -933,6 +933,9 @@ document.addEventListener('DOMContentLoaded', () => {
 let eventSource = null;
 
 const _POLL_MAX_BACKOFF_MS = 120000;
+// Ширина разведения фаз. Меньше самого частого интервала (3 с), чтобы сдвиг не
+// превращался в заметную задержку обновления.
+const _POLL_PHASE_SPREAD_MS = 900;
 const _pollers = new Map();
 const _pollTimers = new Map();
 const _pollInFlight = new Map();
@@ -942,9 +945,22 @@ function _pollCanRun() {
     return !document.hidden && navigator.onLine !== false;
 }
 
+// Фазовый сдвиг: у поллеров базы кратны друг другу (3000/5000/8000/10000/15000/60000),
+// поэтому они регулярно совпадают и бьют пачкой в шесть соединений браузера, одно из
+// которых навсегда держит SSE. Сдвиг детерминирован по имени ключа — он не «размазывает
+// случайностью», а разводит поллеры по постоянным фазам, так что совпадение перестаёт
+// быть периодическим. Замер 21.08: сам туннель прогоняет 20 параллельных запросов за
+// 0.43 с, то есть узкое место — одновременность, а не канал.
+function _pollPhase(key) {
+    let h = 0;
+    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+    return Math.abs(h) % _POLL_PHASE_SPREAD_MS;
+}
+
 function _pollDelay(key, base) {
     const failures = _pollFailures.get(key) || 0;
-    return Math.min(base * (2 ** failures), _POLL_MAX_BACKOFF_MS);
+    if (failures) return Math.min(base * (2 ** failures), _POLL_MAX_BACKOFF_MS);
+    return base + _pollPhase(key);
 }
 
 function _pollNoteFailure(key, error) {

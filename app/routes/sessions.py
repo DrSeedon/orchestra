@@ -1,6 +1,8 @@
 """Session routes: CRUD, send, stream, merge/switch, model/prompt/description management."""
 
 import asyncio
+import hashlib
+import json
 import logging
 import math
 import re
@@ -216,9 +218,27 @@ class OpenFanRequest(BaseModel):
         return v
 
 
+def _conditional(request: Request, payload) -> JSONResponse:
+    """Отдать payload с ETag, а при совпадении If-None-Match — пустой 304.
+
+    Дашборд опрашивает `/api/sessions` каждые 3 секунды, и ответ весит 48.8 КБ даже когда
+    ничего не изменилось (замер 21.08) — почти мегабайт в минуту и один из ШЕСТИ браузерных
+    слотов, из которых один навсегда занят SSE. Условный запрос убирает тело целиком, пока
+    состояние агентов не поменялось; ключ считается от самого ответа, поэтому рассинхрон
+    невозможен by design. `no-cache` означает «кешируй, но всегда переспрашивай» — без него
+    браузер не пришлёт If-None-Match.
+    """
+    body = json.dumps(payload, ensure_ascii=False, default=str, sort_keys=True)
+    tag = '"' + hashlib.md5(body.encode()).hexdigest() + '"'
+    headers = {"ETag": tag, "Cache-Control": "no-cache"}
+    if request.headers.get("if-none-match") == tag:
+        return JSONResponse(None, status_code=304, headers=headers)
+    return JSONResponse(payload, headers=headers)
+
+
 @router.get("/api/sessions")
-async def list_sessions(scope: Optional[str] = None):
-    return manager.list_sessions(scope)
+async def list_sessions(request: Request, scope: Optional[str] = None):
+    return _conditional(request, manager.list_sessions(scope))
 
 
 @router.post("/api/sessions", status_code=201)
