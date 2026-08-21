@@ -2207,13 +2207,56 @@ async def bg_list() -> str:
         "timer": "⏰", "file": "📄", "command": "🖥️", "ssh": "🔗",
         "run": "🚀", "cron": "🔁", "cron_command": "🔎",
     }
+
+    def _when(job: dict) -> str:
+        """Когда сработает — в абсолютном виде и «через сколько».
+
+        Раньше тул печатал только id, статус, адресата и 60 символов сообщения. Понять
+        «что этот джоб делает и когда» по такой строке нельзя, поэтому агенты шли читать
+        `bg_jobs` напрямую в боевой БД (21.08, seedon-orchestrator). Все поля ниже API
+        отдавал и тогда — их просто выбрасывали.
+        """
+        raw = job.get("trigger_at")
+        if not raw:
+            return ""
+        try:
+            moment = datetime.fromisoformat(str(raw))
+        except ValueError:
+            return str(raw)[:16]
+        left = moment - datetime.now(moment.tzinfo)
+        hours = left.total_seconds() / 3600
+        if hours < 0:
+            near = "просрочен"
+        elif hours < 48:
+            near = f"через {hours:.1f} ч"
+        else:
+            near = f"через {hours / 24:.0f} сут"
+        return f"{moment.isoformat()[:16]} ({near})"
+
     lines = []
     for j in jobs:
         icon = icons.get(j["type"], "❓")
-        status = j["status"]
-        target = j.get("target_name", "?")
-        msg = j.get("message", "")[:60]
-        lines.append(f"{icon} **{j['id']}** | {status} | → {target} | {msg}")
+        try:
+            cfg = json.loads(j.get("config") or "{}")
+        except (TypeError, ValueError):
+            cfg = {}
+        rule = cfg.get("cron_expr") or cfg.get("pattern") or ""
+        if not rule and cfg.get("delay_seconds"):
+            rule = f"+{int(cfg['delay_seconds']) // 3600} ч"
+        head = f"{icon} **{j['id']}** | {j['type']}"
+        if rule:
+            head += f" `{rule}`"
+        when = _when(j)
+        if when:
+            head += f" | {when}"
+        head += f" | {j['status']} | → {j.get('target_name', '?')}"
+        lines.append(head)
+        command = str(cfg.get("command") or cfg.get("path") or "")
+        if command:
+            lines.append(f"   ⚙ {command[:110]}")
+        msg = " ".join((j.get("message") or "").split())
+        if msg:
+            lines.append(f"   {msg[:180]}")
     return "\n".join(lines)
 
 
