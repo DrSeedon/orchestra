@@ -2417,6 +2417,12 @@ class AgentSession:
             "DECISIONS\n"
             "- Only active decisions and reversals needed to continue; retain provisional/final state "
             "and rationale.\n\n"
+            "FILES AND ARTIFACTS\n"
+            "- Exact path; read/changed/created state; the material change or measured diff; whether "
+            "committed, merged, or deployed. Never invent a path.\n\n"
+            "COMMANDS AND TOOL OUTCOMES\n"
+            "- Only what is needed to continue: the exact non-secret command, exit status, the measured "
+            "value, the relevant error string, and what it proves. Drop redundant raw output.\n\n"
             "BLOCKER / NEXT\n"
             "- Current blocker and owner if known; then the single next executable action. If "
             "continuity is uncertain, write `UNKNOWN — source gap` instead of guessing.\n\n"
@@ -2430,7 +2436,7 @@ class AgentSession:
             "tool event means the outcome is unknown, not that the action did not happen. Write "
             "`no evidence of X` rather than `X did not happen`. A measured empty diff supports only "
             "`not modified`; it never supports `not read`. Omit redundant tool output and all "
-            "credentials. Output only these four short sections."
+            "credentials. Output only these six short sections."
         )
         PREAMBLE = "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n[END OF SUMMARY — continue naturally]\n\n"
         COMPACT_MAX_RETRIES = 3
