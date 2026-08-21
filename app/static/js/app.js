@@ -1,5 +1,10 @@
 // Cap DOM nodes to avoid memory growth during long agent sessions
-const MAX_CHAT_NODES = 500;
+// Потолок узлов в живой вкладке. 500 держалось «на глаз» и для чата оркестратора значит
+// ≈109 000 px: замер 21.08 — 100 сообщений его журнала это 21 861 px, а за 12 часов
+// набегает 554 строки, то есть вкладка упирается в потолок за полдня и дальше тормозит
+// на каждом кадре. 200 узлов ≈ 44 000 px при той же странице входа в 100 сообщений;
+// старшее уходит из DOM, но не из истории — оно возвращается кнопкой «загрузить ещё».
+const MAX_CHAT_NODES = 200;
 function fmtCost(v) { v = Number(v) || 0; if (v === 0) return MODEL_COST_CURRENCY + '0.00'; if (v < 0.01) return MODEL_COST_CURRENCY + v.toFixed(4); return MODEL_COST_CURRENCY + v.toFixed(2); }
 const _MODEL_COLORS = {
     'claude-opus-5[1m]': '#d8b4fe',
@@ -223,6 +228,14 @@ let _followPinRaf = null;
 let _userScrolled = false;
 function _pinChatBottom(chat) {
     chat.scrollTop = chat.scrollHeight;
+}
+
+// Срезать самые старые узлы. Режем ТОЛЬКО когда юзер внизу и следует за потоком:
+// иначе кнопка «загрузить ещё» бессмысленна — добранная история исчезала бы от первого
+// же нового сообщения, и текст под курсором прыгал бы вверх на высоту срезанного.
+function _trimChatNodes(chat) {
+    if (!chat || !_chatFollow) return;
+    while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
 }
 function _keepPinnedIfFollowing() {
     if (!_chatFollow || _followPinRaf) return;
@@ -4632,7 +4645,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const wasAtBottom = _chatAtBottom(chat);
         _insert(line);
         // Trim oldest nodes to cap memory — loses old history but prevents unbounded DOM growth
-        while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
+        _trimChatNodes(chat);
         if (type === 'tool') _adoptOrphanResults(chat, line.dataset.toolUseId);
         if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return;
@@ -6771,7 +6784,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     addTimestamp(div, ts);
     const wasAtBottom = _chatAtBottom(chat);
     _insert(div);
-    while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
+    _trimChatNodes(chat);
     if (type === 'tool') _adoptOrphanResults(chat, div.dataset.toolUseId);
     if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
 }
