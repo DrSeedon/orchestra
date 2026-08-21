@@ -537,6 +537,12 @@ const _CHAT_CHUNK_BYTES = 16000;
 // Страховка от бесконечного добора. Двадцать, а не двенадцать: с меньшим бюджетом порций
 // нужно больше, и на двенадцати два самых тяжёлых чата (bizdev, payroll) не добирали сотню.
 const _CHAT_MAX_CHUNKS = 20;
+// Пока идёт НАЧАЛЬНАЯ загрузка чата, низ держим безусловно. История дорисовывается
+// порциями ВВЕРХ (первый кадр 20 строк, потом добор до 100 по 25), и каждая порция
+// меняет scrollHeight; решение «остаться внизу» принималось по _chatAtBottom, а он
+// на промежуточном кадре легко отвечает «нет» — юзер видел, как сообщения сперва
+// появляются сверху, а бабли доезжают ниже (жалоба 21.08, второй заход).
+let _chatInitialLoad = false;
 
 // === Зеркало журнала в IndexedDB (#8) ===
 // Строки logs неизменяемы (в app/db.py ровно один INSERT и оптовый DELETE по возрасту,
@@ -2261,7 +2267,8 @@ function _prependHistory(name, scope, rows) {
     } finally { _replayingHistory = false; }
     // Дорисовка уходит ВВЕРХ. Юзер внизу — держим его внизу; читает выше — компенсируем
     // прирост высоты, чтобы текст под курсором не уехал (иначе добор из #38 сам себе рывок).
-    if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+    // Начальная загрузка — всегда низ: там «выше» ещё некому читать.
+    if (wasAtBottom || _chatInitialLoad) chat.scrollTop = chat.scrollHeight;
     else chat.scrollTop = desiredTop + (chat.scrollHeight - heightBefore);
     updateLoadMoreBtn();
     return rows.length;
@@ -2314,6 +2321,7 @@ async function _showChatFor(name, scope) {
     $('#chat').innerHTML = '';
     chatLogs[name] = {lastId: 0, firstId: null, initialCount: 0};
     scrollAfterLoad = true;
+    _chatInitialLoad = true;
     _chatLoading = true;
     try {
         // Зеркало быстрее сети, но только пока оно свободно: холодная синхронизация
@@ -2349,9 +2357,16 @@ async function _showChatFor(name, scope) {
         connectSSE(true);
         // Остаток страницы и добор с сервера идут строго по очереди: и то и другое
         // вставляет НАД первой строкой, а серверные строки старше остатка зеркала.
-        _afterPaint(() => {
+        _afterPaint(async () => {
             _prependHistory(name, scope, head);
-            _completeChatPage(name, scope);   // и после промаха зеркала: _fetchHistory берёт одну порцию
+            await _completeChatPage(name, scope);   // и после промаха зеркала: _fetchHistory берёт одну порцию
+            // Страница добрана — начальная фаза кончилась. Снимаем флаг только здесь:
+            // добор идёт дольше, чем таймер _scheduleChatInitialSettle, и снятие по
+            // таймеру возвращало прыжки на последних порциях.
+            if (name === selectedAgent && scope === currentScope) {
+                _chatInitialLoad = false;
+                if (_chatAtBottom()) $('#chat').scrollTop = $('#chat').scrollHeight;
+            }
         });
         return fromStore;
     } finally {
