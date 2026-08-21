@@ -1,0 +1,25 @@
+# Права агента Orchestra на СВОИ сервисы. Только orchestra*, telegram-bot-api и чтение
+# их журналов — ни установки пакетов, ни записи в систему, ни чужих юнитов.
+# Ставить: sudo bash deploy/install-sudoers.sh
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart orchestra
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop orchestra
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl start orchestra
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl status orchestra
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active orchestra
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl cat orchestra
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart orchestra.socket
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop orchestra.socket
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl start orchestra.socket
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl status orchestra.socket
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active orchestra.socket
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable orchestra.socket
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl disable orchestra.socket
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart telegram-bot-api
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop telegram-bot-api
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl start telegram-bot-api
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl status telegram-bot-api
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active telegram-bot-api
+maxim ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+maxim ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u orchestra *
+maxim ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u orchestra.socket *
+maxim ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u telegram-bot-api *
