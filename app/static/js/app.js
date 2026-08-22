@@ -3945,6 +3945,13 @@ function buildCompactToolLine(type, content, ts, payload) {
             else if (rawName === 'mcp__orchestra__update_worker_description') preview = `✏️ ${parsed.name || '?'} — description`;
             else if (rawName === 'mcp__orchestra__merge_worker') preview = `🔀 Merge: ${parsed.name || '?'}`;
             else if (rawName === 'Glob') preview = `🔎 ${parsed.pattern || '?'}`;
+            else if (rawName === 'TodoWrite') {
+                const _tds = Array.isArray(parsed.todos) ? parsed.todos : [];
+                const _dn = _tds.filter(t => t.status === 'completed').length;
+                const _cur = _tds.find(t => t.status === 'in_progress');
+                preview = `📝 ${_dn}/${_tds.length} todos${_cur ? ' · ' + String(_cur.content || '').slice(0, 40) : ''}`;
+            }
+            else if (rawName === 'Review') preview = `🧠 ${(parsed.focus || 'review').slice(0, 60)}`;
             else if (rawName === 'Skill') preview = `⚡ ${parsed.skill || '?'}`;
             else if (rawName === 'FileChange') {
                 const changes = parsed.changes || [];
@@ -5465,6 +5472,46 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 header.style.color = '#94a3b8';
             } catch {}
         }
+        const isTodoWrite = rawName === 'TodoWrite';
+        if (isTodoWrite) {
+            try {
+                const d = JSON.parse(body);
+                const todos = Array.isArray(d.todos) ? d.todos : [];
+                const done = todos.filter(t => t.status === 'completed').length;
+                header.textContent = `📝 Todos ${done}/${todos.length}`;
+                header.style.color = '#38bdf8';
+                const listEl = document.createElement('div');
+                listEl.className = 'text-xs mt-1';
+                listEl.style.cssText = 'display:flex;flex-direction:column;gap:2px';
+                const _todoMark = (st) => st === 'completed' ? ['✅', '#4ade80', 'line-through']
+                    : st === 'in_progress' ? ['◔', '#fbbf24', 'none'] : ['☐', '#64748b', 'none'];
+                for (const t of todos) {
+                    const [mark, color, deco] = _todoMark(t.status);
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex;gap:6px;align-items:baseline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                    const m = document.createElement('span');
+                    m.textContent = mark;
+                    m.style.minWidth = '1.2em';
+                    const c = document.createElement('span');
+                    c.textContent = t.content || '';
+                    c.style.cssText = `color:${color};text-decoration:${deco}`;
+                    row.append(m, c);
+                    listEl.appendChild(row);
+                }
+                if (todos.length) div.appendChild(listEl);
+                div.dataset.isEdit = '1';   // swallow the raw JSON result
+            } catch {}
+        }
+        const isReviewTool = rawName === 'Review';
+        if (isReviewTool) {
+            try {
+                const d = JSON.parse(body);
+                const focus = String(d.focus || '').trim();
+                header.textContent = `🧠 Review${focus ? ': ' + focus.slice(0, 100) : ''}`;
+                header.title = focus;
+                header.style.color = '#a78bfa';
+            } catch {}
+        }
         const isAgentTool = rawName === 'Agent';
         if (isAgentTool) {
             try {
@@ -5575,7 +5622,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                    !isToolSearchCall && !isBugReport && !isWebFetch &&
                    !isSendFile && !isOrchSimple && !isGlob && !isSkill &&
                    !isYougile && !isFileChangeTool && !isViewImageTool &&
-                   !isImageGenerationTool && !isSleepTool) {
+                   !isImageGenerationTool && !isSleepTool && !isTodoWrite && !isReviewTool) {
             let _inputJsonRendered = false;
             if (body) {
                 try {
@@ -6520,9 +6567,24 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 }
             }
             if (lastTool.dataset.isBash) {
+                // harness bash (#369) prefixes the result with "exit_code=N" — surface it as a
+                // status mark in the header instead of a glued first output line.
+                let resText = clean;
+                const rcMatch = resText.match(/^exit_code=(-?\d+)[ \t]*\r?\n?/);
+                if (rcMatch) {
+                    const rc = parseInt(rcMatch[1], 10);
+                    const hdrEl = lastTool.querySelector('.flex.items-center');
+                    if (hdrEl) {
+                        const st = document.createElement('span');
+                        st.textContent = rc === 0 ? '✓ 0' : `✗ exit ${rc}`;
+                        st.style.cssText = `font-size:10px;font-weight:normal;margin-left:auto;color:${rc === 0 ? '#4ade80' : '#f87171'}`;
+                        hdrEl.appendChild(st);
+                    }
+                    if (rc === 0) resText = resText.slice(rcMatch[0].length);
+                }
                 const sep = document.createElement('div');
                 sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
-                const resLines = clean.split('\n');
+                const resLines = resText.split('\n');
                 const BASH_PREVIEW = 5;
                 const resWrap = document.createElement('div');
                 resWrap.className = 'diff-view';
