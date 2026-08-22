@@ -393,9 +393,10 @@ register_runtime(RuntimeDefinition(
     id="harness",
     capabilities=RuntimeCapabilities(
         # In-process agent loop over the OpenRouter HTTP API: one send() feeds exactly one
-        # events() turn, and a message arriving mid-turn is rejected rather than steered.
+        # events() turn. A message arriving mid-turn is steered — the loop picks it up at
+        # the top of its next round, never between tool_calls and their results.
         event_stream="per_turn",
-        mid_turn_inject=False,
+        mid_turn_inject=True,
         reconnect=True,
         hibernate=False,
     ),
