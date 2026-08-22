@@ -31,6 +31,7 @@ from app.errtext import err_text
 from app.models import (
     MODELS,
     cache_policy_for_runtime,
+    get_model_flags,
     get_model_spec,
     is_proxy_connected,
     provider_metadata_payload,
@@ -353,6 +354,8 @@ async def list_models(response: Response):
     response.headers["X-Orchestra-Build"] = build_id()
     models = []
     for mid, name in MODELS.items():
+        if not get_model_flags(mid)["dashboard"]:
+            continue  # #366: hidden by the user on the catalog screen
         spec = get_model_spec(mid)
         entry = {
             "id": mid,
@@ -387,6 +390,81 @@ async def refresh_models_endpoint():
     from app.models import refresh_models
     await refresh_models()
     return {"ok": True, "proxy_connected": is_proxy_connected(), "model_count": len(MODELS)}
+
+
+@router.post("/api/models/refresh")
+async def refresh_models_endpoint():
+    from app.models import refresh_models
+    await refresh_models()
+    return {"ok": True, "proxy_connected": is_proxy_connected(), "model_count": len(MODELS)}
+
+
+@router.get("/api/models/catalog")
+async def get_models_catalog():
+    """Every registered model (all runtimes) with catalog metadata + flags (#366).
+
+    The screen controls ALL models uniformly: manifest models carry their
+    declared spec, OpenRouter cache entries carry normalized catalog fields;
+    cache entries that failed registration stay invisible (dropped counter)."""
+    from app.model_catalog import catalog_cache_payload
+    from app.models import MODEL_SPECS
+
+    payload = catalog_cache_payload()
+    cached = {entry.get("id"): entry for entry in payload["models"]}
+    catalog = []
+    for model_id, spec in MODEL_SPECS.items():
+        entry = cached.get(model_id, {})
+        catalog.append({
+            "id": model_id,
+            "name": spec.name,
+            "context_length": spec.context_length,
+            "price_prompt": entry.get(
+                "price_prompt", spec.price_input if spec.price_input is not None else None
+            ),
+            "price_completion": entry.get(
+                "price_completion",
+                spec.price_output if spec.price_output is not None else None,
+            ),
+            "input_modalities": entry.get("input_modalities", []),
+            "supports_tools": entry.get("supports_tools", True),
+            "runtime": spec.runtime,
+            "provider": spec.provider,
+            "flags": get_model_flags(model_id),
+        })
+    return {"catalog": catalog, "fetched_at": payload["fetched_at"]}
+
+
+@router.post("/api/models/catalog/refresh")
+async def refresh_models_catalog():
+    from app.model_catalog import refresh_catalog
+
+    result = await refresh_catalog()
+    return {"ok": True, **result}
+
+
+@router.patch("/api/models/catalog/flags")
+async def patch_model_flags(request: Request):
+    import json as _json
+
+    from app.models import MODEL_SPECS, set_model_flags
+
+    try:
+        body = await request.json()
+    except _json.JSONDecodeError:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+    model_id = str(body.get("id") or "").strip()
+    if not model_id:
+        return JSONResponse({"error": "id required"}, status_code=400)
+    if model_id not in MODEL_SPECS:
+        return JSONResponse({"error": f"unknown model: {model_id}"}, status_code=400)
+    dashboard = body.get("dashboard")
+    agents = body.get("agents")
+    flags = set_model_flags(
+        model_id,
+        dashboard=bool(dashboard) if dashboard is not None else None,
+        agents=bool(agents) if agents is not None else None,
+    )
+    return JSONResponse({"ok": True, "id": model_id, "flags": flags})
 
 
 @router.get("/api/stats")

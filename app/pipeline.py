@@ -198,8 +198,14 @@ class Defaults(BaseModel):
     @classmethod
     def _model_known(cls, v: str) -> str:
         if not _model_is_known(v):
+            # #366: the registry can now hold 400+ catalog models — don't dump
+            # them all into the error, list aliases plus a bounded id sample.
+            ids = sorted(MODELS)
+            sample = ids[:20]
+            suffix = f" … (+{len(ids) - 20} more)" if len(ids) > 20 else ""
             raise ValueError(
-                f"unknown model '{v}'. aliases={sorted(ALIASES)} ids={sorted(MODELS)}")
+                f"unknown model '{v}'. aliases={sorted(ALIASES)} "
+                f"ids={sample}{suffix}")
         return v
 
     @field_validator("skills")

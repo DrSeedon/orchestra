@@ -38,6 +38,8 @@ from app.models import (
     available_models_block,
     backend_for_model,
     cache_policy_for_runtime,
+    ensure_dashboard_visible,
+    ensure_spawn_allowed,
     get_model_spec,
     resolve_model,
     runtime_for_record,
@@ -575,6 +577,13 @@ class SessionManager:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
+        # #366: agent-spawned workers are gated by the `agents` level; anything
+        # created from the dashboard (orchestrators, manual sessions) — by the
+        # `dashboard` level. Internal routes never pass through here.
+        if parent_name:
+            ensure_spawn_allowed(model)
+        else:
+            ensure_dashboard_visible(model)
         if not Path(cwd).is_dir():
             raise ValueError(f"cwd does not exist: {cwd}")
         spawn_repo_path = ""

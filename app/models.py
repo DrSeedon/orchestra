@@ -4,9 +4,11 @@ Hardcoded dicts are the fallback for dev mode. In enterprise (is_auth_enabled),
 fetch_models_from_proxy() replaces them with proxy-only models.
 """
 
+import json
 import logging
 import os
 import re
+import sqlite3
 from dataclasses import dataclass
 
 import httpx
@@ -393,6 +395,75 @@ def get_model_spec(model_id: str) -> ModelSpec:
     )
 
 
+# ── Availability flags (two levels, #366) ──────────────────────────────────────
+# Overlay over the registry: flags only gate entry points (dashboard list, agent
+# spawn, change-model). They NEVER unregister a model, so a live session on a
+# disabled model keeps resolving, resuming, and costing correctly.
+
+MODEL_FLAGS_KV_KEY = "model_flags"
+
+
+def _load_model_flags() -> dict:
+    from app.db import kv_get
+
+    try:
+        data = json.loads(kv_get(MODEL_FLAGS_KV_KEY, "{}"))
+    except json.JSONDecodeError:
+        return {}
+    except sqlite3.OperationalError:
+        # No kv table (e.g. a test DB created before init_db) = no stored state
+        # = pure defaults; never let availability checks hard-fail on it.
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def get_model_flags(model_id: str) -> dict[str, bool]:
+    """Dashboard/agents visibility; manifest models default to both-true, catalog
+    models registered later default to both-false until the user enables them."""
+    default = any(spec.id == model_id for spec in SELECTABLE_MODEL_SPECS)
+    stored = _load_model_flags().get(model_id) or {}
+    return {
+        "dashboard": bool(stored.get("dashboard", default)),
+        "agents": bool(stored.get("agents", default)),
+    }
+
+
+def set_model_flags(
+    model_id: str, *, dashboard: bool | None = None, agents: bool | None = None
+) -> dict[str, bool]:
+    if model_id not in MODEL_SPECS:
+        raise ValueError(f"unknown model '{model_id}'")
+    from app.db import kv_set
+
+    flags_store = _load_model_flags()
+    entry = flags_store.get(model_id) or {}
+    if dashboard is not None:
+        entry["dashboard"] = bool(dashboard)
+    if agents is not None:
+        entry["agents"] = bool(agents)
+    flags_store[model_id] = entry
+    kv_set(MODEL_FLAGS_KV_KEY, json.dumps(flags_store))
+    return get_model_flags(model_id)
+
+
+def ensure_spawn_allowed(model_id: str) -> None:
+    """Hard gate for agent-side usage (worker spawn, MCP change-model)."""
+    if not get_model_flags(model_id)["agents"]:
+        raise ValueError(
+            f"model '{model_id}' is disabled for agents — re-enable it in the "
+            "Models catalog screen"
+        )
+
+
+def ensure_dashboard_visible(model_id: str) -> None:
+    """Hard gate for user-side actions (UI session creation, change-model from UI)."""
+    if not get_model_flags(model_id)["dashboard"]:
+        raise ValueError(
+            f"model '{model_id}' is hidden from the dashboard — re-enable it in "
+            "the Models catalog screen"
+        )
+
+
 def _seed_model_specs() -> None:
     """Populate MODEL_SPECS and every derived view from SELECTABLE_MODEL_SPECS."""
     for spec in SELECTABLE_MODEL_SPECS:
@@ -603,6 +674,12 @@ async def fetch_models_from_proxy(enterprise_mode: bool = False) -> bool:
                 ALIASES[alias] = spec.id
 
     _generate_semantic_aliases()
+    # #366: the enterprise/dev reload above may have cleared the registry — the
+    # catalog is re-applied HERE, inside the rebuild path, so ordering can never
+    # silently drop it.
+    from app.model_catalog import apply_model_catalog
+
+    apply_model_catalog()
     validate_model_registry()
     _proxy_connected = True
     mode_label = "enterprise (proxy-only)" if enterprise_mode else "dev (merged)"
@@ -638,6 +715,9 @@ def _generate_semantic_aliases():
 
 async def refresh_models() -> None:
     """Startup helper — fetch models, enterprise-aware."""
+    from app.model_catalog import apply_model_catalog
+
+    apply_model_catalog()
     from app.auth import is_auth_enabled
     enterprise = is_auth_enabled()
     has_proxy = bool(os.environ.get("HTTPS_PROXY") or os.environ.get("ANTHROPIC_BASE_URL"))
@@ -687,9 +767,11 @@ def runtime_for_record(record: dict) -> str:
 
 
 def available_models_block() -> str:
-    """Prompt block listing all available models for spawn_worker."""
+    """Prompt block listing agent-allowed models for spawn_worker (#366)."""
     lines = ["## Available models for spawn_worker(model=...)"]
     for model_id, label in MODELS.items():
+        if not get_model_flags(model_id)["agents"]:
+            continue
         spec = get_model_spec(model_id)
         ctx = spec.context_length
         ctx_k = f"{ctx // 1000}k"

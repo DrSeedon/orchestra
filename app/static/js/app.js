@@ -8900,3 +8900,106 @@ function initQuotaLines() {
     if (_quotaLinesTimer) clearInterval(_quotaLinesTimer);
     _quotaLinesTimer = setInterval(fetchQuotaLines, _QL_REFRESH_MS);
 }
+
+
+// ── #366: model catalog screen ──────────────────────────────────────────────
+let _CATALOG = [];
+
+function openCatalogModal() {
+  const modal = $('#catalog-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  loadCatalog();
+}
+
+function closeCatalogModal() {
+  const modal = $('#catalog-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function loadCatalog() {
+  try {
+    const data = await api('/api/models/catalog');
+    _CATALOG = data.catalog || [];
+    renderCatalogList();
+  } catch (e) { console.warn('catalog load failed:', e); }
+}
+
+async function refreshCatalog() {
+  const btn = $('#catalog-refresh-btn');
+  btn.disabled = true; btn.textContent = '…';
+  try { await api('/api/models/catalog/refresh', { method: 'POST' }); } catch {}
+  btn.disabled = false; btn.textContent = '↻ обновить';
+  await loadCatalog();
+}
+
+function _catalogMatches(m) {
+  const q = ($('#catalog-search')?.value || '').trim().toLowerCase();
+  if (q && !(`${m.id} ${m.name}`.toLowerCase().includes(q))) return false;
+  if ($('#catalog-free')?.checked && !(m.price_prompt === 0 && m.price_completion === 0)) return false;
+  if ($('#catalog-tools')?.checked && !m.supports_tools) return false;
+  if ($('#catalog-image')?.checked && !(m.input_modalities || []).includes('image')) return false;
+  return true;
+}
+
+function _fmtPrice(p) { return p == null ? '—' : (p === 0 ? 'free' : `$${p}/M`); }
+
+function _catalogToggle(flag, m) {
+  const label = document.createElement('label');
+  label.className = 'text-[10px] text-slate-400 flex items-center gap-1 cursor-pointer';
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.setAttribute('data-flag', flag);
+  box.dataset.id = m.id;
+  box.checked = !!m.flags[flag];
+  label.appendChild(box);
+  label.appendChild(document.createTextNode(flag === 'dashboard' ? 'дашборд' : 'агентам'));
+  return label;
+}
+
+function _catalogRow(m) {
+  const row = document.createElement('div');
+  row.className = 'flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-800/60';
+  const info = document.createElement('div');
+  info.className = 'flex-1 min-w-0';
+  const nameEl = document.createElement('div');
+  nameEl.className = 'text-slate-300 truncate';
+  nameEl.textContent = m.name;
+  const metaEl = document.createElement('div');
+  metaEl.className = 'text-[10px] text-slate-500 truncate';
+  metaEl.textContent = `${m.id} · ${Math.round(m.context_length / 1000)}k · ${_fmtPrice(m.price_prompt)} in / ${_fmtPrice(m.price_completion)} out · ${m.runtime}`;
+  info.append(nameEl, metaEl);
+  row.append(info, _catalogToggle('dashboard', m), _catalogToggle('agents', m));
+  return row;
+}
+
+function renderCatalogList() {
+  const list = $('#catalog-list');
+  list.innerHTML = '';
+  const matches = _CATALOG.filter(_catalogMatches);
+  for (const m of matches) list.appendChild(_catalogRow(m));
+  if (!matches.length) {
+    const empty = document.createElement('div');
+    empty.className = 'text-slate-500 text-center py-6';
+    empty.textContent = 'Ничего не найдено';
+    list.appendChild(empty);
+  }
+}
+
+document.addEventListener('change', async (e) => {
+  const t = e.target;
+  if (t instanceof HTMLInputElement && t.dataset.flag && t.dataset.id) {
+    try {
+      await api('/api/models/catalog/flags', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.dataset.id, [t.dataset.flag]: t.checked }) });
+      const m = _CATALOG.find((x) => x.id === t.dataset.id);
+      if (m) m.flags[t.dataset.flag] = t.checked;
+    } catch (err) { t.checked = !t.checked; console.warn('flag set failed:', err); }
+    return;
+  }
+  if (['catalog-free', 'catalog-tools', 'catalog-image'].includes(e.target.id)) renderCatalogList();
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'catalog-search') renderCatalogList();
+});

@@ -1516,7 +1516,7 @@ async def update_progress(percent: int, status: str) -> str:
 @mcp.tool()
 async def change_worker_model(name: str, model: str) -> str:
     """Change an idle worker's model and start a fresh dialog on the target runtime."""
-    result = await _api("POST", f"/api/sessions/{name}/change-model", json={"scope": SCOPE, "model": model, "fresh": True})
+    result = await _api("POST", f"/api/sessions/{name}/change-model", json={"scope": SCOPE, "model": model, "fresh": True, "via": "mcp"})
     if isinstance(result, dict) and result.get("error"):
         return f"Model change failed: {result['error']}"
     if isinstance(result, dict) and result.get("changed"):

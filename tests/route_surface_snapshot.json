@@ -151,6 +151,24 @@
   ]
  ],
  [
+  "/api/models/catalog",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/models/catalog/flags",
+  [
+   "PATCH"
+  ]
+ ],
+ [
+  "/api/models/catalog/refresh",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/models/refresh",
   [
    "POST"

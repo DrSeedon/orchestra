@@ -36,6 +36,7 @@
         </div>
         <div class="flex items-center gap-3 text-xs text-slate-600 shrink-0">
             <span id="stats-line"></span>
+            <button id="models-catalog-btn" onclick="openCatalogModal()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Каталог моделей — доступность для дашборда и для агентов">🧠</button>
             {% if is_auth_enabled %}<span id="proxy-status" class="text-xs cursor-default" title="Proxy status">⏳</span>{% endif %}
             {% if is_owner_mode %}
             <div class="relative">
@@ -171,6 +172,20 @@
     </div>
 
     <!-- Analytics Modal -->
+    <div id="catalog-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden" onclick="if(event.target===this)closeCatalogModal()">
+        <div class="glass glow rounded-2xl p-4 w-[900px] max-w-[92vw] max-h-[85vh] flex flex-col gap-3">
+            <div class="flex items-center gap-2 flex-wrap">
+                <h2 class="text-sm font-semibold text-slate-200 mr-auto">Каталог моделей</h2>
+                <input id="catalog-search" type="text" placeholder="Поиск по имени…" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-300 w-44">
+                <label class="text-[11px] text-slate-400 flex items-center gap-1"><input type="checkbox" id="catalog-free"> бесплатные</label>
+                <label class="text-[11px] text-slate-400 flex items-center gap-1"><input type="checkbox" id="catalog-tools"> тулы</label>
+                <label class="text-[11px] text-slate-400 flex items-center gap-1"><input type="checkbox" id="catalog-image"> картинки</label>
+                <button id="catalog-refresh-btn" onclick="refreshCatalog()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400">↻ обновить</button>
+                <button onclick="closeCatalogModal()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400">✕</button>
+            </div>
+            <div id="catalog-list" class="flex-1 overflow-y-auto text-xs space-y-1 pr-1"></div>
+        </div>
+    </div>
     <div id="analytics-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden" data-chart-src="{{ g.asset('css/vendor/chart.umd.min.js') }}" onclick="if(event.target===this)closeAnalyticsModal()">
       <div class="analytics-shell">
         <div class="analytics-topbar">
