@@ -241,7 +241,7 @@ def _model_target(model: str) -> tuple[str, str | None, str]:
     resolved = resolve_model(model)
     runtime = backend_for_model(resolved)
     get_runtime(runtime)
-    if runtime == "grok":
+    if runtime in ("grok", "harness"):
         return resolved, None, runtime
     if runtime == "claude":
         return resolved, "anthropic", runtime
@@ -398,14 +398,15 @@ def evaluate_worker_admission(
         resolved, bucket, runtime = _model_target(model)
     except (TypeError, ValueError) as error:
         return unknown(str(error))
-    if runtime == "grok" and bucket is None:
+    if runtime in ("grok", "harness") and bucket is None:
+        label = "Grok" if runtime == "grok" else "OpenRouter"
         return QuotaDecision(
-            state="not_applicable", model=resolved, provider="grok", provider_label="Grok",
+            state="not_applicable", model=resolved, provider=runtime, provider_label=label,
             lane=None, gated=False, utilization=None, progress=None,
             tolerance_pp=None, limit_pct=None, observed_at=None, valid_until=None,
             reset_at=None, window_starts_at=None, release_status="not_applicable",
             release_in_seconds=None,
-            reason="Grok is outside the subscription quota policy",
+            reason=f"{label} is outside the subscription quota policy",
         )
 
     lane = lane_for_model(resolved, bucket)

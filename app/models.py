@@ -119,6 +119,40 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         id="grok-4.5", name="Grok 4.5",
         runtime="grok", provider="x-ai", context_length=500000,
     ),
+    # OpenRouter free tier through Orchestra's own harness. Only `:free` ids with tool
+    # calling are listed — the harness agent loop is useless without tools. Prices are 0
+    # by definition; the daily ceiling is a request count (1000/day after a lifetime $10
+    # purchase, 50/day before it), not tokens, so it lives outside TOKEN_PRICES.
+    ModelSpec(
+        id="z-ai/glm-5.2:free", name="GLM 5.2 (free)",
+        runtime="harness", provider="openrouter", context_length=256000,
+        price_input=0.0, price_output=0.0,
+    ),
+    ModelSpec(
+        id="nvidia/nemotron-3-ultra-550b-a55b:free", name="Nemotron 3 Ultra (free)",
+        runtime="harness", provider="openrouter", context_length=1000000,
+        price_input=0.0, price_output=0.0,
+    ),
+    ModelSpec(
+        id="nvidia/nemotron-3-super-120b-a12b:free", name="Nemotron 3 Super (free)",
+        runtime="harness", provider="openrouter", context_length=262144,
+        price_input=0.0, price_output=0.0,
+    ),
+    ModelSpec(
+        id="thinkingmachines/inkling:free", name="Inkling (free)",
+        runtime="harness", provider="openrouter", context_length=262144,
+        price_input=0.0, price_output=0.0,
+    ),
+    ModelSpec(
+        id="poolside/laguna-s-2.1:free", name="Laguna S 2.1 (free)",
+        runtime="harness", provider="openrouter", context_length=262144,
+        price_input=0.0, price_output=0.0,
+    ),
+    ModelSpec(
+        id="cohere/north-mini-code:free", name="North Mini Code (free)",
+        runtime="harness", provider="openrouter", context_length=256000,
+        price_input=0.0, price_output=0.0,
+    ),
 )
 
 # Derived views. They stay plain dicts with the same contract because callers
@@ -212,6 +246,14 @@ PROVIDER_METADATA: dict[str, ProviderMetadata] = {
         cache_ttl_seconds=0,
         cache_ttl_approximate=True,
         model_providers=("openrouter", "deepseek", "x-ai", "opencode"),
+    ),
+    "harness": ProviderMetadata(
+        id="harness",
+        title="OpenRouter",
+        ui_provider="openrouter",
+        cache_ttl_seconds=0,
+        cache_ttl_approximate=True,
+        model_providers=("openrouter",),
     ),
     "unknown": ProviderMetadata(
         id="unknown",

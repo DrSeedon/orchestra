@@ -137,7 +137,7 @@ def test_builtin_runtime_cannot_be_overwritten_accidentally():
     original = get_runtime("codex")
     with pytest.raises(ValueError, match="already registered"):
         register_runtime(replace(original, factory=lambda _ctx: object()))
-    assert set(BUILTIN_RUNTIMES) == {"claude", "codex", "grok", "opencode"}
+    assert set(BUILTIN_RUNTIMES) == {"claude", "codex", "grok", "opencode", "harness"}
 
 
 @pytest.mark.parametrize("runtime_id", ["claude", "codex", "grok", "opencode"])

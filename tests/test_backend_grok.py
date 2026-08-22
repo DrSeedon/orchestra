@@ -558,10 +558,10 @@ def test_provider_buckets_match_runtime_ids():
     from app.models import cache_policy_for_runtime
     from app.usage_analytics import _PROVIDERS
 
-    assert {"claude", "codex", "grok", "opencode", "unknown"} == set(_PROVIDERS)
+    assert {"claude", "codex", "grok", "opencode", "harness", "unknown"} == set(_PROVIDERS)
     for provider in _PROVIDERS:
         policy = cache_policy_for_runtime(provider)
-        if provider in {"opencode", "unknown"}:
+        if provider in {"opencode", "harness", "unknown"}:
             assert policy == {
                 "cache_ttl_seconds": 0,
                 "cache_ttl_approximate": True,
