@@ -321,7 +321,21 @@ def _opencode_factory(context: BackendBuildContext) -> BackendLike:
     )
 
 
-BUILTIN_RUNTIMES = ("claude", "codex", "grok", "opencode")
+def _harness_factory(context: BackendBuildContext) -> BackendLike:
+    from app.backend_harness import HarnessBackend
+
+    return HarnessBackend(
+        model=context.model,
+        cwd=context.cwd,
+        system_prompt=context.system_prompt,
+        resume_session_id=context.resume_session_id,
+        mcp_servers=context.mcp_servers,
+        is_orchestrator=context.is_orchestrator,
+        provider_id=context.provider,
+    )
+
+
+BUILTIN_RUNTIMES = ("claude", "codex", "grok", "opencode", "harness")
 
 register_runtime(RuntimeDefinition(
     id="claude",
@@ -374,4 +388,16 @@ register_runtime(RuntimeDefinition(
         process_liveness=True,
     ),
     factory=_opencode_factory,
+))
+register_runtime(RuntimeDefinition(
+    id="harness",
+    capabilities=RuntimeCapabilities(
+        # In-process agent loop over the OpenRouter HTTP API: one send() feeds exactly one
+        # events() turn, and a message arriving mid-turn is rejected rather than steered.
+        event_stream="per_turn",
+        mid_turn_inject=False,
+        reconnect=True,
+        hibernate=False,
+    ),
+    factory=_harness_factory,
 ))
