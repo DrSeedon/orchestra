@@ -304,9 +304,12 @@ def glob(pattern: str, cwd: str, limit: int = 200) -> str:
     return "\n".join(rel) + tail
 
 
+# `worktrees` is the expensive one, not a nicety: Orchestra keeps a full checkout per live
+# agent under it — measured 18 GB and ~285k files against 2.8k tracked files in the repo
+# itself. Walking it made every repo-wide grep take 25-29 s and blow the time budget below.
 GREP_EXCLUDE_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", "dist",
                      "build", ".mypy_cache", ".ruff_cache", ".pytest_cache", ".tox",
-                     "target", "vendor"}
+                     "target", "vendor", "worktrees"}
 GREP_MAX_FILE_BYTES = 1_000_000
 GREP_TIME_BUDGET = 25.0
 
