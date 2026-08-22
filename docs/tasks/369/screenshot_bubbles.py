@@ -1,4 +1,10 @@
-"""#369: screenshots of harness tool bubbles for the user (live :8888 + route substitution)."""
+"""#369: screenshots of harness tool bubbles for the user (live :8888 + route substitution).
+
+Урок после пустого первого снимка: фоновый код дашборда умеет вычищать чат между
+проверкой и снимком, поэтому порядок такой — инжект → ПОЛОЖИТЕЛЬНАЯ проверка
+(видимость конкретного баббла) → заморозка DOM клоном (его никто не тронет) →
+пост-проверка клона → element.screenshot чата → пиксельная самопроверка файла.
+"""
 
 import os
 import sys
@@ -35,10 +41,32 @@ CALLS_COMPACT = [
 ]
 
 
+def shoot(page, calls, compact: bool, marker_sel: str, out_name: str) -> None:
+    """Инжект + заморозка одним ходом, проверки ДО и ПОСЛЕ заморозки, снимок узла."""
+    page.evaluate("""(args) => {
+        const [calls, compact] = args;
+        const chat = document.querySelector('#chat, #chat-frozen');
+        chat.id = 'chat';
+        selectedAgent = null;
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        window.compactMode = compact;
+        chat.innerHTML = '';
+        for (const [type, content] of calls) {
+            addChatEntry(type, content, null, null, {});
+        }
+        const k = chat.cloneNode(true);
+        k.id = 'chat-frozen';
+        chat.parentNode.replaceChild(k, chat);
+    }""", [calls, compact])
+    # положительный признак отрисовки — уже на замороженном клоне
+    page.locator(f"#chat-frozen {marker_sel}").first.wait_for(state="visible", timeout=10000)
+    page.locator("#chat-frozen").screenshot(path=str(OUT / out_name))
+
+
 def main() -> int:
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 900, "height": 1000})
+        page = browser.new_page(viewport={"width": 1500, "height": 1000})
         for rel, ctype in [
             ("app/static/js/tool-renderers.js", "application/javascript"),
             ("app/static/js/app.js", "application/javascript"),
@@ -57,35 +85,28 @@ def main() -> int:
             page.fill('input[name="password"]', os.environ["DASHBOARD_PASSWORD"])
             page.click('button[type="submit"]')
         page.wait_for_selector("#agent-list", timeout=20000)
+        # Гейт: подменённый код жив (символа в main нет)
         page.wait_for_function("() => typeof HARNESS_TOOL_ALIASES !== 'undefined'",
                                timeout=10000)
-        page.evaluate("""(calls) => {
-            selectedAgent = null;
-            if (eventSource) { eventSource.close(); eventSource = null; }
-            window.compactMode = false;
-            const chat = document.querySelector('#chat');
-            chat.innerHTML = '';
-            for (const [type, content] of calls) {
-                addChatEntry(type, content, null, null, {});
-            }
-        }""", CALLS_FULL)
-        page.evaluate("() => { const c = document.querySelector('#chat'); c.scrollTop = c.scrollHeight; }")
-        page.wait_for_timeout(400)
-        page.screenshot(path=str(OUT / "bubbles-full.png"), full_page=False)
 
-        page.evaluate("""(calls) => {
-            window.compactMode = true;
-            const chat = document.querySelector('#chat');
-            chat.innerHTML = '';
-            for (const [type, content] of calls) {
-                addChatEntry(type, content, null, null, {});
-            }
-        }""", CALLS_COMPACT)
-        page.wait_for_timeout(300)
-        page.screenshot(path=str(OUT / "bubbles-compact.png"), full_page=False)
+        shoot(page, CALLS_FULL, False, "[data-is-bash]", "bubbles-full.png")
+        shoot(page, CALLS_COMPACT, True, '[data-tool-raw="Bash"]', "bubbles-compact.png")
         browser.close()
-    print("saved:", OUT / "bubbles-full.png", OUT / "bubbles-compact.png")
-    return 0
+
+    # Скриншот — артефакт: проверяем пиксели, а не верим в ожидаемое.
+    from PIL import Image
+    ok = True
+    for name in ("bubbles-full.png", "bubbles-compact.png"):
+        im = Image.open(OUT / name).convert("RGB")
+        colors = im.getcolors(maxcolors=1_000_000)
+        n_colors = len(colors)
+        top = max(colors, key=lambda c: c[0])[0]
+        non_bg = 1 - top / (im.width * im.height)
+        good = im.height > 200 and n_colors >= 500 and non_bg >= 0.05
+        ok &= good
+        print(f"{name}: {im.width}x{im.height}, colors={n_colors}, "
+              f"non-background={non_bg:.1%} -> {'OK' if good else 'BLANK?'}")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
