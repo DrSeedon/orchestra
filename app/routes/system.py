@@ -400,6 +400,15 @@ _USAGE_CACHE_FILE = Path(__file__).parent.parent.parent / "data" / "usage_cache.
 _usage_cache: dict = {"data": None, "ts": 0.0, "token": None}
 _codex_usage_cache: dict = {"data": None, "ts": 0.0}
 _grok_usage_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
+
+# #368: сверка вчерашнего дня OpenRouter с /activity. Успех живёт час, провал —
+# 10 минут (паттерн #197: без кеша провала каждая отрисовка полосы ходила бы в
+# сеть за одним и тем же отказом).
+_or_reconcile_cache: dict = {"data": None, "ts": 0.0, "failed_at": 0.0}
+_OR_RECONCILE_TTL = 3600.0
+_OR_RECONCILE_FAILURE_TTL = 600.0
+_OPENROUTER_DAILY_LIMIT = 1000
+_OPENROUTER_MINUTE_LIMIT = 20
 _USAGE_CACHE_TTL = 300
 # Провал провайдера кешируется отдельно и короче успеха (#197): держать отказ 5 минут
 # значит не заметить починку токена, а ходить за ним каждый раз — платить 0.88 с на
@@ -793,12 +802,74 @@ def _get_voice_cost_usd() -> float:
     return voice_cost_total_usd()
 
 
+def _yesterday_utc() -> str:
+    return (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+async def _maybe_refresh_openrouter_reconciliation() -> None:
+    """Обновить сверку «вчера: провайдер vs локальный счёт» с учётом TTL.
+
+    Сеть — только здесь, в to_thread: sync-читалка `_get_openrouter_usage`
+    вызывается и вне event loop, поэтому сама сети не касается.
+    """
+    from app import openrouter_activity, openrouter_counter
+
+    now = time.time()
+    cache = _or_reconcile_cache
+    if cache["data"] is not None and (now - cache["ts"]) < _OR_RECONCILE_TTL:
+        return
+    if cache["data"] is None and (now - cache.get("failed_at", 0.0)) < _OR_RECONCILE_FAILURE_TTL:
+        return
+    day = _yesterday_utc()
+    try:
+        result = await asyncio.to_thread(openrouter_activity.fetch_day_sync, day)
+    except Exception as e:
+        result = {"available": False, "reason": f"fetch error: {e}"}
+    if not result.get("available"):
+        cache["data"] = None
+        cache["ts"] = 0.0
+        cache["failed_at"] = now
+        return
+    local_count = max(openrouter_counter.local_day_count(day), 0)
+    cache["data"] = openrouter_activity.reconcile(
+        day,
+        int(result["requests"]),
+        local_count,
+        openrouter_counter.status_breakdown(day),
+    )
+    cache["ts"] = now
+    cache["failed_at"] = 0.0
+
+
+def _get_openrouter_usage() -> dict:
+    """Ветка OpenRouter для /api/usage (#368). Сломанный счётчик →
+    available False, НИКОГДА ноль: ноль читается как «квота свободна»."""
+    from app import openrouter_counter
+
+    try:
+        daily = openrouter_counter.today_count()
+        minute = openrouter_counter.minute_count()
+        healthy = openrouter_counter.healthy()
+    except Exception as e:
+        return {"available": False, "reason": f"counter error: {e}"}
+    if not healthy or daily < 0 or minute < 0:
+        return {"available": False, "reason": "openrouter counter unhealthy"}
+    return {
+        "available": True,
+        "source": "local",
+        "daily": {"count": daily, "limit": _OPENROUTER_DAILY_LIMIT},
+        "minute": {"count": minute, "limit": _OPENROUTER_MINUTE_LIMIT, "window_sec": 60},
+        "reconciliation": _or_reconcile_cache["data"],
+    }
+
+
 async def _get_usage_data(
     *,
     force_refresh: bool = False,
     required_provider: str = "",
 ) -> dict:
     now = time.time()
+    await _maybe_refresh_openrouter_reconciliation()
 
     anthropic_data = None
     anthropic_fetched = False
@@ -928,6 +999,7 @@ async def _get_usage_data(
         "anthropic": anthropic_data,
         "codex": codex_data,
         "grok": grok_data,
+        "openrouter": _get_openrouter_usage(),
         "orchestra": _get_agents_cost(),
         "voice_cost_usd": round(_get_voice_cost_usd(), 4),
         # Единственное РЕАЛЬНОЕ число в этой панели (остальные — API-эквивалент).

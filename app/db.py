@@ -451,6 +451,15 @@ def init_db() -> None:
                 WHERE resolved_at IS NULL
                   AND state IN ('PENDING','RUNNING','PARTIAL','UNKNOWN');
 
+            CREATE TABLE IF NOT EXISTS openrouter_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts REAL NOT NULL,
+                day TEXT NOT NULL,
+                status INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS idx_or_attempts_ts ON openrouter_attempts(ts);
+            CREATE INDEX IF NOT EXISTS idx_or_attempts_day ON openrouter_attempts(day);
+
             CREATE TABLE IF NOT EXISTS turn_usage (
                 id INTEGER PRIMARY KEY,
                 event_id TEXT NOT NULL UNIQUE,
