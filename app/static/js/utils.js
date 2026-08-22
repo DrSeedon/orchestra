@@ -95,6 +95,15 @@ const _PROVIDER_META = {
         historyProviders: ['openrouter', 'deepseek'],
         windows: () => [],
     },
+    harness: {
+        title: 'OpenRouter', usageTitle: 'OpenRouter',
+        runtime: 'Own agent loop · free models', provider: 'openrouter', capacityKey: null,
+        tone: 'violet', windowAccent: '#a78bfa',
+        historyProviders: ['openrouter'],
+        // Quota here is a REQUEST count per UTC day, not a rolling token window —
+        // the openrouter bar in usage.js owns it (#368), so no window rows.
+        windows: () => [],
+    },
     unknown: {
         title: 'Unknown', usageTitle: 'Unknown runtime',
         runtime: 'Unclassified historical rows', provider: 'unknown', capacityKey: null,
