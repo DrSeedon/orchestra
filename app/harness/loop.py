@@ -65,7 +65,8 @@ class AgentLoop:
                  history: list[dict], tool_schemas: list[dict], max_context: int,
                  abort: Callable[[], bool] | None = None, effort: str | None = None,
                  todo_store=None, allow_review: bool = False, review_ctx=None,
-                 readonly_mode: bool = False, max_rounds: int = MAX_TOOL_ROUNDS):
+                 readonly_mode: bool = False, max_rounds: int = MAX_TOOL_ROUNDS,
+                 drain_injected: Callable[[], list[str]] | None = None):
         self.llm = llm
         self.mcp = mcp
         self.cwd = cwd
@@ -80,6 +81,10 @@ class AgentLoop:
         self.review_ctx = review_ctx      # ReviewCtx(llm, cwd, max_context) for the sub-loop, or None
         self.readonly_mode = readonly_mode  # reviewer sub-loop: dispatch rejects non-READONLY tools
         self.max_rounds = max_rounds      # round ceiling (reviewer gets a tighter one)
+        # Mid-turn steering: returns messages that arrived while this turn was running.
+        # Drained at the TOP of a round, never between an assistant tool_calls message
+        # and its tool results — a gap there makes the next request malformed.
+        self._drain_injected = drain_injected or (lambda: [])
         # terminal state read by the backend after run() exhausts
         self.stop_reason = "end_turn"
         self.ok = True
@@ -100,6 +105,12 @@ class AgentLoop:
             if self._abort():
                 self._terminal("aborted", ok=False, detail="aborted by interrupt")
                 return
+
+            for injected in self._drain_injected():
+                entry = {"role": "user", "content": injected}
+                self.history.append(entry)
+                self.new_messages.append(entry)
+                yield AgentEvent("status", "message steered into active turn")
 
             if not self._fit_context():
                 self._terminal("context_limit", ok=False,

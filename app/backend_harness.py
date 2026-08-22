@@ -95,6 +95,7 @@ class HarnessBackend:
         self._pending_msg: Optional[str] = None
         self._turn_active = False
         self._abort_flag = False
+        self._injected: list[str] = []   # steering messages awaiting the next round
 
         self._cumulative_cost: float = 0.0
         self._cumulative_input: int = 0
@@ -124,6 +125,14 @@ class HarnessBackend:
             else:
                 extra.append(builtin.todo_write_schema())
         return self._tool_schemas + extra if extra else self._tool_schemas
+
+    def _drain_injected(self) -> list[str]:
+        """Hand the running loop everything that arrived mid-turn, and forget it here.
+        One owner of the queue at a time — the loop appends them to history itself."""
+        if not self._injected:
+            return []
+        taken, self._injected = self._injected, []
+        return taken
 
     def _review_ctx(self) -> ReviewCtx:
         return ReviewCtx(llm=self._llm, cwd=self.cwd, max_context=self._max_context())
@@ -183,7 +192,11 @@ class HarnessBackend:
         if self._llm is None:
             raise RuntimeError("HarnessBackend not connected")
         if self._turn_active:
-            raise RuntimeError("HarnessBackend turn already in progress")
+            # Steering, not an error: the running loop picks this up at the top of its
+            # next round. Without it a correction waits for the whole turn to finish —
+            # up to MAX_TOOL_ROUNDS rounds of work done against stale instructions.
+            self._injected.append(message)
+            return
         self._pending_msg = message
         self._abort_flag = False
         self._turn_active = True
@@ -204,12 +217,14 @@ class HarnessBackend:
 
         user_msg = self._pending_msg
         self._pending_msg = None
+        self._injected.clear()   # nothing steered yet; leftovers would replay stale text
         effort = classify_effort(user_msg, self._is_orchestrator)  # once per turn
         loop = AgentLoop(
             llm=self._llm, mcp=self._mcp, cwd=self.cwd, history=self._history,
             tool_schemas=self._turn_tool_schemas(effort), max_context=self._max_context(),
             abort=lambda: self._abort_flag, effort=effort, todo_store=self._todos,
             allow_review=True, review_ctx=self._review_ctx(),
+            drain_injected=self._drain_injected,
         )
 
         error_out: str | None = None
