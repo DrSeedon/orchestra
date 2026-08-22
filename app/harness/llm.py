@@ -30,6 +30,10 @@ REQUEST_TIMEOUT = 600        # per-HTTP-request ceiling (distinct from turn time
 CONNECT_TIMEOUT = 30
 MAX_RETRIES = 3
 BACKOFF_BASE = 1.5           # seconds; exponential with jitter
+# #368 T5: потолок ОЖИДАНИЯ одной паузы (не числа попыток). Платформенная минутная
+# стена важнее занятого провайдера — ей позволено ждать дольше.
+RETRY_CEILING_PLATFORM = 120.0
+RETRY_CEILING_UPSTREAM = 30.0
 
 
 @dataclass
@@ -203,8 +207,15 @@ class OpenRouterClient:
                     # mid-stream is impossible here (status checked before reading body),
                     # but guard anyway: never resume a partially-yielded attempt.
                     raise
-                delay = self._retry_delay(attempt, e.retry_after)
-                logger.warning(f"OpenRouter {e.status} (attempt {attempt + 1}/{MAX_RETRIES}), retry in {delay:.1f}s")
+                ceiling = RETRY_CEILING_PLATFORM if e.kind == "platform" else RETRY_CEILING_UPSTREAM
+                if e.retry_after is not None and e.retry_after > ceiling:
+                    raise RuntimeError(
+                        f"OpenRouter {e.kind} rate limit: нужно ждать {e.retry_after:.0f}s, "
+                        f"потолок ожидания {ceiling:.0f}s исчерпан — повторите запрос позже"
+                    )
+                delay = self._retry_delay(attempt, e.retry_after, ceiling)
+                logger.warning(
+                    f"OpenRouter {e.kind} rate limit (attempt {attempt + 1}/{MAX_RETRIES}), retry in {delay:.1f}s")
                 await asyncio.sleep(delay)
             except (httpx.TransportError, httpx.StreamError) as e:
                 last_err = e
@@ -216,10 +227,12 @@ class OpenRouterClient:
         raise RuntimeError(f"OpenRouter request failed after {MAX_RETRIES} attempts: {last_err}")
 
     @staticmethod
-    def _retry_delay(attempt: int, retry_after: float | None) -> float:
+    def _retry_delay(attempt: int, retry_after: float | None,
+                     ceiling: float | None = None) -> float:
         if retry_after is not None:
-            return retry_after
-        return BACKOFF_BASE * (2 ** attempt) + random.uniform(0, 0.5)
+            return min(retry_after, ceiling) if ceiling else retry_after
+        delay = BACKOFF_BASE * (2 ** attempt) + random.uniform(0, 0.5)
+        return min(delay, ceiling) if ceiling else delay
 
     async def _one_attempt(self, body: dict, headers: dict,
                            attempt_row: int | None = None) -> AsyncIterator[LLMEvent]:
@@ -241,7 +254,8 @@ class OpenRouterClient:
                     pass
             if resp.status_code == 429 or resp.status_code >= 500:
                 await resp.aread()
-                raise _RetryableStatus(resp.status_code, _parse_retry_after(resp))
+                kind = _classify_rate_limit(resp.headers) if resp.status_code == 429 else "upstream"
+                raise _RetryableStatus(resp.status_code, _parse_retry_after(resp), kind)
             if resp.status_code >= 400:
                 detail = (await resp.aread()).decode(errors="replace")[:500]
                 raise httpx.HTTPStatusError(
@@ -289,10 +303,19 @@ class OpenRouterClient:
 
 
 class _RetryableStatus(Exception):
-    def __init__(self, status: int, retry_after: float | None):
+    def __init__(self, status: int, retry_after: float | None, kind: str = "upstream"):
         self.status = status
         self.retry_after = retry_after
-        super().__init__(f"retryable status {status}")
+        self.kind = kind  # "platform" (наша минутная/суточная стена) | "upstream" (занят провайдер)
+        super().__init__(f"retryable {kind} rate limit, status {status}")
+
+
+def _classify_rate_limit(headers) -> str:
+    """Платформенный 429 несёт X-RateLimit-*; upstream-429 провайдера модели — нет (#368 F6)."""
+    for name in headers.keys():
+        if name.lower().startswith("x-ratelimit"):
+            return "platform"
+    return "upstream"
 
 
 _DONE = object()
