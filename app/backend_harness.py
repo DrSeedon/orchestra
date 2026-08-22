@@ -134,6 +134,26 @@ class HarnessBackend:
         taken, self._injected = self._injected, []
         return taken
 
+    def build_handoff_manifest(self, prepared, *, validation_profile: bool):
+        """What the model will actually see after a runtime switch.
+
+        Required by session.py's model-change preflight for EVERY runtime — a backend
+        without it blocks the switch with a bare AttributeError, which is what happened
+        the first time a harness agent was moved to another model.
+        """
+        from app.runtime_history import build_model_visible_manifest
+
+        return build_model_visible_manifest(
+            runtime="harness",
+            model=self.model,
+            effective_window=self._max_context(),
+            system_prompt=self.system_prompt,
+            prepared=prepared,
+            validation_profile=validation_profile,
+            project_docs=getattr(prepared, "project_docs", ()),
+            mcp_servers=self._mcp_servers,
+        )
+
     def _review_ctx(self) -> ReviewCtx:
         return ReviewCtx(llm=self._llm, cwd=self.cwd, max_context=self._max_context())
 
