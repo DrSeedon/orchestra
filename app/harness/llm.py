@@ -161,6 +161,8 @@ class OpenRouterClient:
         if tools:
             body["tools"] = tools
             body["tool_choice"] = "auto"
+            body["parallel_tool_calls"] = True   # request-economy flag (#367): several tool
+                                                 # calls per response cost ONE request instead of N
         if effort:
             # OpenRouter unified reasoning knob (provider-agnostic). Omitted → body unchanged.
             body["reasoning"] = {"effort": effort}
@@ -217,6 +219,17 @@ class OpenRouterClient:
                 logger.warning(
                     f"OpenRouter {e.kind} rate limit (attempt {attempt + 1}/{MAX_RETRIES}), retry in {delay:.1f}s")
                 await asyncio.sleep(delay)
+            except httpx.HTTPStatusError as e:
+                last_err = e
+                if started:
+                    raise
+                # Some providers reject unmapped body fields with 400 (#367 T7): strip the
+                # economy flag once and retry; anything else stays a hard error.
+                if "parallel_tool_calls" in str(e) and body.get("parallel_tool_calls"):
+                    logger.warning("OpenRouter 400 mentions parallel_tool_calls — retrying without it")
+                    body = {k: v for k, v in body.items() if k != "parallel_tool_calls"}
+                    continue
+                raise
             except (httpx.TransportError, httpx.StreamError) as e:
                 last_err = e
                 if started:

@@ -50,3 +50,5 @@
   где брать число запросов: /api/v1/key не даёт, analytics API даёт но нужен management key.
 - [grep-memory-blowup](grep-memory-blowup.md) — почему `grep` в сессии Claude Code съедает
   гигабайты на шаблоне `.{0,N}литерал.{0,M}`, чем это грозит на VPS и чем заменять.
+- [harness-tools](harness-tools.md) — аудит шести встроенных тулов рантайма harness: grep,
+  read, write/edit, glob, dispatch — что молча врёт и что проверено замерами.

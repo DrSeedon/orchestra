@@ -32,8 +32,14 @@ from app.harness.mcp import MCPClient
 
 logger = logging.getLogger(__name__)
 
-MAX_TOOL_ROUNDS = 50          # ceiling on tool-call rounds in a single turn
+MAX_TOOL_ROUNDS = 100         # ceiling on tool-call rounds in a single turn (#367):
+                              # 2× the highest observed demand (>50, censored) on the OLD
+                              # lying tools; measured defect-fixes cut rounds up to 4×;
+                              # worst case = 10% of the daily OpenRouter budget per turn.
+                              # Exhaustion is graceful: two wind-down warnings precede it.
 REVIEW_MAX_ROUNDS = 15        # tighter ceiling for a reviewer sub-loop (#126)
+WIND_DOWN_AT = (10, 3)        # warn the agent N rounds before the cap so it can finish
+                              # with a report instead of dying silently (#367)
 CONTEXT_GUARD_RATIO = 0.85    # truncate when estimated tokens exceed this × max_context
 CHARS_PER_TOKEN = 3.5         # crude estimator (no tiktoken dependency)
 KEEP_RECENT_MESSAGES = 8      # messages preserved at the tail during truncation
@@ -94,6 +100,8 @@ class AgentLoop:
         # round with native cost and a round with only tokens are each handled correctly.
         self.round_usages: list[dict] = []
         self.error_detail = ""
+        self.truncated_history = False     # set by _fit_context; surfaced as a warning event
+        self.truncated_dropped = 0
         self.new_messages: list[dict] = []  # messages produced this turn (for persistence)
 
     async def run(self, user_msg: str) -> AsyncIterator[AgentEvent]:
@@ -101,63 +109,94 @@ class AgentLoop:
         self.history.append(user_entry)
         self.new_messages.append(user_entry)
 
-        for _ in range(self.max_rounds):
-            if self._abort():
-                self._terminal("aborted", ok=False, detail="aborted by interrupt")
-                return
+        warned_positions: list[int] = []   # turn-scoped guard entries, removed in finally
+        try:
+            for round_no in range(self.max_rounds):
+                remaining = self.max_rounds - round_no
+                if remaining in WIND_DOWN_AT and self.max_rounds > max(WIND_DOWN_AT):
+                    msg = (f"[round guard] {remaining} tool rounds remain THIS TURN — "
+                           f"wrap up and report your findings now.")
+                    entry = {"role": "user", "content": msg}
+                    self.history.append(entry)
+                    self.new_messages.append(entry)
+                    warned_positions.append(len(self.history) - 1)
+                    logger.warning(f"round guard: {remaining} rounds left (cap {self.max_rounds})")
+                    yield AgentEvent("warning", msg)
 
-            for injected in self._drain_injected():
-                entry = {"role": "user", "content": injected}
-                self.history.append(entry)
-                self.new_messages.append(entry)
-                yield AgentEvent("status", "message steered into active turn")
+                if self._abort():
+                    self._terminal("aborted", ok=False, detail="aborted by interrupt")
+                    return
 
-            if not self._fit_context():
-                self._terminal("context_limit", ok=False,
-                               detail="history exceeds context window even after truncation")
-                return
+                for injected in self._drain_injected():
+                    entry = {"role": "user", "content": injected}
+                    self.history.append(entry)
+                    self.new_messages.append(entry)
+                    yield AgentEvent("status", "message steered into active turn")
 
-            assistant_msg = {"role": "assistant", "content": None}  # filled by _one_round
-            try:
-                # _one_round yields text live AND fills assistant_msg in place.
-                async for ev in self._one_round(assistant_msg):
-                    yield ev
-            except Exception as e:
-                logger.error(f"harness loop round failed: {e}")
-                yield AgentEvent("error", f"llm round failed: {e}")
-                self._terminal("error", ok=False, detail=f"llm_error: {e}")
-                return
+                if not self._fit_context():
+                    self._terminal("context_limit", ok=False,
+                                   detail="history exceeds context window even after truncation")
+                    return
+                if self.truncated_history:
+                    self.truncated_history = False
+                    msg = (f"[context guard] history truncated: {self.truncated_dropped} middle "
+                           f"messages dropped to fit the window")
+                    logger.warning(msg)
+                    yield AgentEvent("warning", msg)
+                    self.new_messages.append({"role": "user", "content": msg})
 
-            self.history.append(assistant_msg)
-            self.new_messages.append(assistant_msg)
+                assistant_msg = {"role": "assistant", "content": None}  # filled by _one_round
+                try:
+                    # _one_round yields text live AND fills assistant_msg in place.
+                    async for ev in self._one_round(assistant_msg):
+                        yield ev
+                except Exception as e:
+                    logger.error(f"harness loop round failed: {e}")
+                    yield AgentEvent("error", f"llm round failed: {e}")
+                    self._terminal("error", ok=False, detail=f"llm_error: {e}")
+                    return
 
-            tool_calls = assistant_msg.get("tool_calls") or []
-            if not tool_calls:
-                # No tools requested → turn is done. Normalize the OpenAI "stop"/""
-                # finish to "end_turn" (parity with other backends); pass through other
-                # explicit reasons (e.g. "length", "content_filter").
-                fr = self.stop_reason
-                stop = "end_turn" if fr in ("stop", "tool_calls", "") else fr
-                self._terminal(stop, ok=True)
-                return
+                self.history.append(assistant_msg)
+                self.new_messages.append(assistant_msg)
 
-            # Abort that arrives AFTER tool_calls are known: do NOT execute the tools
-            # (could be destructive). Append synthetic aborted tool results so the
-            # assistant tool_calls message is never left dangling (else the next request
-            # is rejected), then end the turn.
-            if self._abort():
+                tool_calls = assistant_msg.get("tool_calls") or []
+                if not tool_calls:
+                    # No tools requested → turn is done. Normalize the OpenAI "stop"/""
+                    # finish to "end_turn" (parity with other backends); pass through other
+                    # explicit reasons (e.g. "length", "content_filter").
+                    fr = self.stop_reason
+                    stop = "end_turn" if fr in ("stop", "tool_calls", "") else fr
+                    self._terminal(stop, ok=True)
+                    return
+
+                # Abort that arrives AFTER tool_calls are known: do NOT execute the tools
+                # (could be destructive). Append synthetic aborted tool results so the
+                # assistant tool_calls message is never left dangling (else the next request
+                # is rejected), then end the turn.
+                if self._abort():
+                    for tc in tool_calls:
+                        self._append_tool_result(tc.get("id", ""), "[aborted by interrupt]")
+                    self._terminal("aborted", ok=False, detail="aborted before tool dispatch")
+                    return
+
+                # Dispatch tools sequentially, preserving tool_call ids.
                 for tc in tool_calls:
-                    self._append_tool_result(tc.get("id", ""), "[aborted by interrupt]")
-                self._terminal("aborted", ok=False, detail="aborted before tool dispatch")
-                return
+                    async for ev in self._dispatch_tool(tc):
+                        yield ev
 
-            # Dispatch tools sequentially, preserving tool_call ids.
-            for tc in tool_calls:
-                async for ev in self._dispatch_tool(tc):
-                    yield ev
-
-        # ran out of rounds
-        self._terminal("max_turns", ok=False, detail=f"exceeded {self.max_rounds} tool rounds")
+            # ran out of rounds
+            self._terminal("max_turns", ok=False,
+                           detail=f"exceeded {self.max_rounds} tool rounds")
+        finally:
+            # Turn-scoped wind-down guards NEVER persist in the shared session history — a
+            # stale "3 rounds remain" in future turns is the same lie this task fights (#367 B3).
+            for pos in sorted(warned_positions, reverse=True):
+                if 0 <= pos < len(self.history) and \
+                        str(self.history[pos].get("content", "")).startswith("[round guard]"):
+                    del self.history[pos]
+            self.new_messages[:] = [m for m in self.new_messages
+                                    if not str(m.get("content", "")).startswith("[round guard]")]
+            warned_positions.clear()
 
     async def _one_round(self, assistant_msg: dict) -> AsyncIterator[AgentEvent]:
         """Stream one LLM completion. Yields text AgentEvents LIVE (so the session sees
@@ -330,7 +369,9 @@ class AgentLoop:
     def _fit_context(self) -> bool:
         """Truncate history from the MIDDLE to fit the context guard. Preserve the
         system message, the recent tail, and tool_call/tool_result integrity.
-        Returns False if it cannot be made to fit (caller → context_limit)."""
+        Returns False if it cannot be made to fit (caller → context_limit).
+        Truncation is NEVER silent (#367 T9): the caller reports it via a warning event —
+        an agent that silently lost half its task context is worse than a loud cap."""
         guard = int(self.max_context * CONTEXT_GUARD_RATIO)
         if self._estimate_tokens() <= guard:
             return True
@@ -339,7 +380,10 @@ class AgentLoop:
         # Never start the tail with an orphan tool result (no preceding tool_call).
         while tail and tail[0].get("role") == "tool":
             tail = tail[1:]
+        dropped = len(self.history) - len(head) - len(tail)
         self.history[:] = head + tail
+        self.truncated_history = True
+        self.truncated_dropped = dropped
         return self._estimate_tokens() <= self.max_context
 
     def _terminal(self, stop_reason: str, ok: bool, detail: str = "") -> None:
