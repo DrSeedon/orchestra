@@ -93,7 +93,7 @@ def test_spark_context_limit_matches_local_codex_metadata():
 def test_gpt56_prices_present():
     # Standard-tier list prices, https://platform.openai.com/docs/pricing, verified 11.08.2026.
     assert CODEX_TOKEN_PRICES["gpt-5.6-sol"] == {
-        "input": 5.0, "cached": 0.5, "write": 6.25, "output": 30.0,
+        "input": 4.0, "cached": 0.4, "write": 5.0, "output": 20.0,
     }
     assert CODEX_TOKEN_PRICES["gpt-5.6-terra"] == {
         "input": 2.0, "cached": 0.2, "write": 2.5, "output": 12.0,
@@ -121,17 +121,17 @@ def test_sol_price_and_ctx_not_zero_fallback():
     # Sol has an explicit runtime limit and price rather than relying on fallbacks.
     b = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
     assert CODEX_CONTEXT_LIMITS[b.model] == 258400
-    assert CODEX_TOKEN_PRICES[b.model]["output"] == 30.0
+    assert CODEX_TOKEN_PRICES[b.model]["output"] == 20.0
 
 
 def test_codex_cost_applies_cached_input_discount():
-    # 100 fresh × $5/M + 900 cached × $0.5/M + 10 output × $30/M.
-    assert _codex_cost("gpt-5.6-sol", 1000, 900, 0, 10) == pytest.approx(0.00125)
+    # 100 fresh × $4/M + 900 cached × $0.4/M + 10 output × $20/M.
+    assert _codex_cost("gpt-5.6-sol", 1000, 900, 0, 10) == pytest.approx(0.00096)
 
 
 def test_codex_cost_charges_cache_writes_once_at_their_own_rate():
-    # 100 fresh × $5/M + 700 cached × $0.5/M + 200 writes × $6.25/M + output.
-    assert _codex_cost("gpt-5.6-sol", 1000, 700, 200, 10) == pytest.approx(0.0024)
+    # 100 fresh × $4/M + 700 cached × $0.4/M + 200 writes × $5/M + output.
+    assert _codex_cost("gpt-5.6-sol", 1000, 700, 200, 10) == pytest.approx(0.00188)
 
 
 def test_spark_cost_fails_loud_without_a_published_price():
@@ -1325,7 +1325,7 @@ def test_turn_usage_keeps_codex_delta_and_last_call_context_distinct():
 
     assert end.usage.aggregate.input_tokens == 60_000
     assert end.usage.aggregate.cache_create_tokens == 3_000
-    assert end.metadata["cost_usd"] == pytest.approx(0.12375)
+    assert end.metadata["cost_usd"] == pytest.approx(0.093)
     assert isinstance(end.usage.current, KnownContext)
     assert end.metadata["context_tokens"] == 33_124
     assert end.metadata["context_known"] is True
