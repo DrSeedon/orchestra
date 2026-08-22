@@ -8,11 +8,12 @@ model never has to guess which "this tool" a bullet refers to).
 _TOOL_GUIDELINES = """
 You operate in a workspace directory with these tools:
 - bash: run shell commands (git, tests, build). Runs in the workspace cwd.
-- read: read a file (line-numbered). Use before editing.
+- read: read a file (line-numbered, 1-based offset). Use before editing.
 - write: create or overwrite a file.
 - edit: replace an exact unique string in a file.
-- glob: find files by pattern.
-- grep: search file contents.
+- glob: find files by pattern ('**/*.py' for recursive search).
+- grep: search file contents (Python re syntax; '|' alternates).
+Independent tool calls (several reads, several greps) go in ONE reply — each reply costs one API request.
 Prefer read before write/edit. Keep changes minimal and verify with bash when useful.
 """.strip()
 

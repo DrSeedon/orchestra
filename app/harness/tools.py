@@ -17,17 +17,55 @@ Each tool returns a plain string (tool result). Errors are returned as strings
 import ast
 import asyncio
 import contextlib
+import logging
 import os
-import shutil
+import re
 import signal
-import subprocess
+import stat
 import tempfile
+import time
 from pathlib import Path
 
 BASH_DEFAULT_TIMEOUT = 120
 BASH_MAX_TIMEOUT = 600
 OUTPUT_CAP = 30_000
 READ_MAX_BYTES = 256 * 1024
+
+logger = logging.getLogger(__name__)
+
+
+def _umask_from_status(status_text: str) -> int | None:
+    """Parse the Umask line of a /proc/<pid>/status dump → int, else None.
+    The kernel prints it as %04o — OCTAL (measured: `sh -c 'umask 077'` shows Umask: 0077;
+    parsing it as hex silently yields 34 and corrupts the mode — caught by test #367)."""
+    for line in status_text.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0] == "Umask:":
+            try:
+                return int(parts[1], 8)
+            except ValueError:
+                return None
+    return None
+
+
+def _read_umask_nondestructive() -> int:
+    """Read the process umask WITHOUT changing it: os.umask(x) is destructive, so prefer
+    /proc/self/status; fall back to os.umask with immediate restore (#367 D8)."""
+    try:
+        u = _umask_from_status(open("/proc/self/status").read())
+        if u is not None:
+            return u
+    except OSError:
+        pass
+    old = os.umask(0o022)
+    os.umask(old)
+    return old
+
+
+# Computed ONCE at import — the machine's umask decides what mode agent-written NEW files get.
+_CURRENT_UMASK = _read_umask_nondestructive()
+NEW_FILE_MODE = 0o666 & ~_CURRENT_UMASK
+logger.info("harness tools: umask %04o → new-file mode %04o", _CURRENT_UMASK, NEW_FILE_MODE)
 
 
 # ── ACI syntax guard (#122) ──
@@ -130,29 +168,51 @@ async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> s
 
 
 def read(path: str, cwd: str, offset: int = 0, limit: int = 0) -> str:
-    """Read a file with 1-based line numbers. Binary files report a marker.
-    offset/limit (lines) for ranges; large files truncated by byte cap."""
+    """Read a REGULAR file with 1-based line numbers. Binary files report a marker.
+    offset is a DISPLAY line number (1-based; 0 = start); limit caps the line count.
+    Reads at most READ_MAX_BYTES+1 bytes (never loads huge files whole); an oversize
+    text file is returned truncated WITH an explicit marker stating the full size."""
     try:
         p = _resolve_in_workspace(path, cwd)
     except PathPolicyError as e:
         return f"[read error] {e}"
-    if not p.exists():
-        return f"[read error] file not found: {path}"
-    if p.is_dir():
-        return f"[read error] is a directory: {path}"
     try:
-        raw = p.read_bytes()[:READ_MAX_BYTES]
+        st = p.stat()
     except OSError as e:
         return f"[read error] {e}"
+    if not stat.S_ISREG(st.st_mode):
+        return f"[read error] not a regular file: {path}"
     try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        return f"[binary file, {p.stat().st_size} bytes — not shown]"
+        with open(p, "rb") as f:
+            raw = f.read(READ_MAX_BYTES + 1)
+    except OSError as e:
+        return f"[read error] {e}"
+    if b"\0" in raw[:8192]:
+        return f"[binary file, {st.st_size} bytes — not shown]"
+    truncated = len(raw) > READ_MAX_BYTES
+    raw = raw[:READ_MAX_BYTES]
+    # Byte cap may split a multibyte char — replace instead of falsely declaring binary (#367 D4).
+    text = raw.decode("utf-8", errors="replace")
     lines = text.splitlines()
+    total_lines = len(lines)
+    shown_note = ""
+    if truncated:
+        shown_note = (f"\n(truncated at {READ_MAX_BYTES} bytes of {st.st_size}; "
+                      f"{total_lines} lines in shown portion)")
     start = max(0, int(offset or 0))
-    end = start + int(limit) if limit else len(lines)
-    numbered = [f"{i + 1}\t{ln}" for i, ln in enumerate(lines) if start <= i < end]
-    return _cap("\n".join(numbered)) if numbered else "(empty)"
+    idx_start = start - 1 if start > 0 else 0          # offset is a display line number
+    if idx_start >= total_lines:
+        if truncated:
+            return (f"[read error] offset {offset} beyond shown portion "
+                    f"(truncated at {READ_MAX_BYTES} bytes of {st.st_size}; "
+                    f"{total_lines} lines in shown portion)")
+        return f"[read error] offset {offset} past EOF (file has {total_lines} lines)"
+    end = idx_start + int(limit) if limit else total_lines
+    numbered = [f"{i + 1}\t{ln}" for i, ln in enumerate(lines) if idx_start <= i < end]
+    out = _cap("\n".join(numbered)) if numbered else "(empty)"
+    if shown_note:
+        out += shown_note          # AFTER _cap: the marker must survive output capping
+    return out
 
 
 def write(path: str, content: str, cwd: str) -> str:
@@ -175,6 +235,11 @@ def write(path: str, content: str, cwd: str) -> str:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+            # Preserve the existing file's access mode across the atomic replace (#367 D8):
+            # mkstemp creates 0600 and os.replace would silently make that final. Only
+            # permission bits move — an edit must never mint a setuid/setgid file.
+            mode = (stat.S_IMODE(p.stat().st_mode) if p.exists() else NEW_FILE_MODE)
+            os.chmod(tmp, mode)
             os.replace(tmp, p)  # atomic on same filesystem
         finally:
             if os.path.exists(tmp):
@@ -203,7 +268,13 @@ def edit(path: str, old: str, new: str, cwd: str, replace_all: bool = False) -> 
     if count > 1 and not replace_all:
         return f"[edit error] old string occurs {count}× in {path} — not unique (use replace_all or add context)"
     updated = content.replace(old, new) if replace_all else content.replace(old, new, 1)
-    return write(path, updated, cwd)
+    result = write(path, updated, cwd)
+    if not result.startswith("wrote"):
+        return result                      # write blocked (e.g. syntax guard) — surface as-is
+    # Own success feedback stating HOW MANY occurrences moved (#367 C3) — "wrote N chars" hides it.
+    n = count if replace_all else 1
+    suffix = " (replace_all)" if replace_all and count > 1 else ""
+    return f"replaced {n}× in {path}{suffix}"
 
 
 def glob(pattern: str, cwd: str, limit: int = 200) -> str:
@@ -233,26 +304,89 @@ def glob(pattern: str, cwd: str, limit: int = 200) -> str:
     return "\n".join(rel) + tail
 
 
-def grep(pattern: str, cwd: str, glob_filter: str = "", limit: int = 200) -> str:
-    """Search file contents. Uses ripgrep if available, else falls back to grep -r."""
-    rg = shutil.which("rg")
-    if rg:
-        cmd = [rg, "--line-number", "--no-heading", "--color=never", pattern]
-        if glob_filter:
-            cmd += ["--glob", glob_filter]
-        cmd.append(".")
-    else:
-        cmd = ["grep", "-rn", pattern, "."]
+GREP_EXCLUDE_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", "dist",
+                     "build", ".mypy_cache", ".ruff_cache", ".pytest_cache", ".tox",
+                     "target", "vendor"}
+GREP_MAX_FILE_BYTES = 1_000_000
+GREP_TIME_BUDGET = 25.0
+
+
+def grep(pattern: str, cwd: str, glob_filter: str = "", limit: int = 200,
+         context: int = 0) -> str:
+    """Search file contents. Single deterministic Python engine (no external rg/grep —
+    the silent engine switch was the root cause of #367's false "(no matches)").
+
+    `pattern` is Python `re` syntax (alternation is a plain `|`; BRE habits like `a\\|b`
+    now mean the literal string "a|b"). `glob_filter` matches path segments anchored at
+    cwd (Path.match): "app/*.py" does NOT descend into app/sub/. Hidden files are searched;
+    VCS/cache dirs in GREP_EXCLUDE_DIRS, binary files (NUL in first 8 KiB) and files over
+    1 MiB are skipped — each skip class is COUNTED and reported in the tail. The walk is
+    bounded by GREP_TIME_BUDGET seconds; exhaustion returns partial results with an
+    explicit note."""
     try:
-        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.TimeoutExpired) as e:
+        rx = re.compile(pattern)
+    except re.error as e:
+        return f"[grep error] invalid pattern {pattern!r}: {e}"
+    base = Path(cwd).resolve()
+    flt = glob_filter or None
+    limit = max(1, int(limit or 200))
+    context = max(0, min(int(context or 0), 5))
+    out_lines: list[str] = []
+    skipped_binary = skipped_large = 0
+    budget_exhausted = False
+    deadline = time.monotonic() + GREP_TIME_BUDGET
+    try:
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if d not in GREP_EXCLUDE_DIRS]
+            if time.monotonic() > deadline:
+                budget_exhausted = True
+                break
+            if len(out_lines) >= limit * 4:
+                break
+            for name in files:
+                fp = Path(root) / name
+                rel = fp.relative_to(base)
+                if flt is not None and not rel.match(flt):
+                    continue
+                try:
+                    if fp.stat().st_size > GREP_MAX_FILE_BYTES:
+                        skipped_large += 1
+                        continue
+                    raw = fp.read_bytes()
+                except OSError:
+                    continue
+                if b"\0" in raw[:8192]:
+                    skipped_binary += 1
+                    continue
+                # Non-UTF-8 text decodes with replacement chars — the MATCH IS SHOWN,
+                # never silently dropped into discarded stderr (#367 D3).
+                text = raw.decode("utf-8", errors="replace")
+                file_lines = text.splitlines()
+                for i, line in enumerate(file_lines):
+                    if rx.search(line):
+                        s = max(0, i - context)
+                        for j in range(s, min(len(file_lines), i + context + 1)):
+                            out_lines.append(f"{rel}:{j + 1}:{file_lines[j]}")
+                if len(out_lines) >= limit * 4:
+                    break
+    except OSError as e:
         return f"[grep error] {e}"
-    out = r.stdout.strip()
-    if not out:
-        return "(no matches)"
-    lines = out.splitlines()[:limit]
-    tail = f"\n... (more matches truncated)" if len(out.splitlines()) > limit else ""
-    return _cap("\n".join(lines) + tail)
+    if not out_lines:
+        notes = []
+        if skipped_binary or skipped_large or budget_exhausted:
+            notes.append(f"skipped {skipped_binary} binary / {skipped_large} oversize files"
+                         + ("; search budget exhausted" if budget_exhausted else ""))
+        return "(no matches)" + (f" ({'; '.join(notes)})" if notes else "")
+    shown = out_lines[:limit * 4]
+    tail_parts = []
+    if len(out_lines) > len(shown):
+        tail_parts.append("more matches truncated")
+    if skipped_binary or skipped_large:
+        tail_parts.append(f"skipped {skipped_binary} binary / {skipped_large} oversize files")
+    if budget_exhausted:
+        tail_parts.append("search budget exhausted — results PARTIAL")
+    tail = f"\n... ({'; '.join(tail_parts)})" if tail_parts else ""
+    return _cap("\n".join(shown) + tail)
 
 
 # ── OpenAI tool schemas ──
@@ -278,10 +412,16 @@ def tool_schemas() -> list[dict]:
         fn("edit", "Replace an exact (unique) string in a file. Python files are syntax-checked; "
                    "an edit that breaks the syntax is rejected and the file is left unchanged.",
            {"path": s, "old": s, "new": s, "replace_all": b}, ["path", "old", "new"]),
-        fn("glob", "Find files by glob pattern (newest first).",
-           {"pattern": s}, ["pattern"]),
-        fn("grep", "Search file contents (ripgrep).",
-           {"pattern": s, "glob_filter": s}, ["pattern"]),
+        fn("glob", "Find files by glob pattern (newest first). Patterns are NOT recursive "
+                    "by default — use '**' for recursion, e.g. '**/*.py' finds nested files; "
+                    "'*.py' matches only the workspace top level.",
+           {"pattern": s, "limit": i}, ["pattern"]),
+        fn("grep", "Search file contents. Pattern is Python re syntax (alternation '|', "
+                   "\\d, \\b...); BRE habits like 'a\\|b' mean the LITERAL string 'a|b'. "
+                   "Hidden files searched; VCS/cache dirs skipped.",
+           {"pattern": s, "glob_filter": s, "limit": i,
+            "context": {"type": "integer",
+                        "description": "Lines of context around each match (0-5)."}}, ["pattern"]),
     ]
 
 
@@ -320,22 +460,33 @@ REVIEWER_PROMPT = (
 )
 
 
+_MUTATION_LOCK = asyncio.Lock()   # serializes write/edit across concurrent sessions (#367 B2):
+                                  # inline-on-the-loop execution used to give them that for free
+
+
 async def dispatch(name: str, args: dict, cwd: str) -> tuple[str, bool]:
     """Execute a built-in tool. Returns (result_text, is_file_change).
-    Never raises — tool errors come back as strings."""
+    Never raises — tool errors come back as strings.
+    Sync tools run in a worker thread: inline execution blocked the SERVER event loop for
+    the whole subprocess/file duration (measured: 10ms sleep took 2008ms under grep, #367 D6)."""
     try:
         if name == "bash":
             return await bash(args.get("command", ""), cwd, args.get("timeout", BASH_DEFAULT_TIMEOUT)), False
         if name == "read":
-            return read(args.get("path", ""), cwd, args.get("offset", 0), args.get("limit", 0)), False
+            return await asyncio.to_thread(read, args.get("path", ""), cwd,
+                                           args.get("offset", 0), args.get("limit", 0)), False
         if name == "write":
-            return write(args.get("path", ""), args.get("content", ""), cwd), True
+            async with _MUTATION_LOCK:
+                return await asyncio.to_thread(write, args.get("path", ""), args.get("content", ""), cwd), True
         if name == "edit":
-            return edit(args.get("path", ""), args.get("old", ""), args.get("new", ""), cwd, args.get("replace_all", False)), True
+            async with _MUTATION_LOCK:
+                return await asyncio.to_thread(edit, args.get("path", ""), args.get("old", ""),
+                                               args.get("new", ""), cwd, args.get("replace_all", False)), True
         if name == "glob":
-            return glob(args.get("pattern", ""), cwd), False
+            return await asyncio.to_thread(glob, args.get("pattern", ""), cwd, args.get("limit", 200)), False
         if name == "grep":
-            return grep(args.get("pattern", ""), cwd, args.get("glob_filter", "")), False
+            return await asyncio.to_thread(grep, args.get("pattern", ""), cwd, args.get("glob_filter", ""),
+                                           args.get("limit", 200), args.get("context", 0)), False
     except Exception as e:  # defensive — a tool bug must not crash the loop
         return f"[{name} error] {e}", False
     return f"[error] unknown built-in tool: {name}", False
