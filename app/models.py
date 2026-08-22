@@ -141,26 +141,6 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="harness", provider="openrouter", context_length=1000000,
         price_input=0.0, price_output=0.0,
     ),
-    ModelSpec(
-        id="nvidia/nemotron-3-super-120b-a12b:free", name="Nemotron 3 Super (free)",
-        runtime="harness", provider="openrouter", context_length=262144,
-        price_input=0.0, price_output=0.0,
-    ),
-    ModelSpec(
-        id="thinkingmachines/inkling:free", name="Inkling (free)",
-        runtime="harness", provider="openrouter", context_length=262144,
-        price_input=0.0, price_output=0.0,
-    ),
-    ModelSpec(
-        id="poolside/laguna-s-2.1:free", name="Laguna S 2.1 (free)",
-        runtime="harness", provider="openrouter", context_length=262144,
-        price_input=0.0, price_output=0.0,
-    ),
-    ModelSpec(
-        id="cohere/north-mini-code:free", name="North Mini Code (free)",
-        runtime="harness", provider="openrouter", context_length=256000,
-        price_input=0.0, price_output=0.0,
-    ),
 )
 
 # Derived views. They stay plain dicts with the same contract because callers
