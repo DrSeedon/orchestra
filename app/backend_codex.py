@@ -58,7 +58,10 @@ CODEX_CONTEXT_LIMITS = {
 # The long-context tier is per request, while Codex's measured 258,400-token request window
 # is below its 272K threshold. Spark is listed explicitly but has no published final price.
 CODEX_TOKEN_PRICES = {
-    "gpt-5.6-sol":   {"input": 5.0, "cached": 0.5, "write": 6.25, "output": 30.0},
+    # Promotional pricing from 22.08.2026, published "at least through November 21, 2026":
+    # input −20%, output −33%. Verified in the source table, not from the announcement.
+    # Rows already in `turn_usage` keep their own day's price, as with Terra/Luna below.
+    "gpt-5.6-sol":   {"input": 4.0, "cached": 0.4, "write": 5.0, "output": 20.0},
     "gpt-5.6-terra": {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 12.0},
     "gpt-5.6-luna":  {"input": 0.2, "cached": 0.02, "write": 0.25, "output": 1.2},
     "gpt-5.5":      {"input": 5.0, "cached": 0.5, "output": 30.0},
