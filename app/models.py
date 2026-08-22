@@ -123,6 +123,14 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     # calling are listed — the harness agent loop is useless without tools. Prices are 0
     # by definition; the daily ceiling is a request count (1000/day after a lifetime $10
     # purchase, 50/day before it), not tokens, so it lives outside TOKEN_PRICES.
+    # Stealth preview: an anonymous third-party provider, free during the preview, and it
+    # RETAINS prompts and completions. Fine for this repo's own work, not for anything the
+    # user would not publish.
+    ModelSpec(
+        id="stealth/ox-alpha", name="Ox Alpha (free preview)",
+        runtime="harness", provider="openrouter", context_length=1048576,
+        price_input=0.0, price_output=0.0,
+    ),
     ModelSpec(
         id="z-ai/glm-5.2:free", name="GLM 5.2 (free)",
         runtime="harness", provider="openrouter", context_length=256000,
