@@ -7,6 +7,7 @@ const TOOL_ICONS = {
     'ViewImage': '🖼️', 'ImageGeneration': '🎨',
     'Agent': '🤖', 'Task': '🤖', 'TodoWrite': '📝', 'NotebookEdit': '📓',
     'ToolSearch': '🔍', 'AskUserQuestion': '❓', 'SendMessage': '💬',
+    'Review': '🧠',
 };
 const MCP_ICONS = {
     'orchestra': '🎼', 'websearch': '🌐', 'kesha': '🦜',
@@ -15,8 +16,17 @@ const MCP_ICONS = {
     'openaiDeveloperDocs': '📚',
 };
 
+// Harness runtime (#369) ships its own lowercase tool names with slightly different
+// arg keys than the Claude SDK tools the chat renderer was built around. Canonicalize
+// the NAME so every existing rawName branch (icon, label, bubble, result) applies.
+const HARNESS_TOOL_ALIASES = {
+    'bash': 'Bash', 'read': 'Read', 'write': 'Write', 'edit': 'Edit',
+    'glob': 'Glob', 'grep': 'Grep', 'todo_write': 'TodoWrite', 'review': 'Review',
+};
+
 function canonicalToolName(name) {
     const clean = String(name || '').trim();
+    if (HARNESS_TOOL_ALIASES[clean]) return HARNESS_TOOL_ALIASES[clean];
     if (!clean || clean.startsWith('mcp__')) return clean;
     return clean.includes('__') ? `mcp__${clean}` : clean;
 }
@@ -246,6 +256,10 @@ function _buildDiffEl(lines) {
 function renderEditDiff(body) {
     let data;
     try { data = JSON.parse(body); } catch { return null; }
+    // harness edit/write (#369): path/old/new instead of file_path/old_string/new_string
+    if (data.old !== undefined && data.old_string === undefined) data.old_string = data.old;
+    if (data.new !== undefined && data.new_string === undefined) data.new_string = data.new;
+    if (!data.file_path && data.path) data.file_path = data.path;
     const isWrite = data.content !== undefined && data.old_string === undefined;
     if (!isWrite && data.old_string === undefined && data.new_string === undefined) return null;
 
@@ -359,6 +373,7 @@ function renderCodexFileChange(body) {
 function renderReadView(body) {
     let data;
     try { data = JSON.parse(body); } catch { return null; }
+    if (!data.file_path && data.path) data.file_path = data.path;  // harness read (#369)
     if (!data.file_path) return null;
 
     const fp = data.file_path || '';

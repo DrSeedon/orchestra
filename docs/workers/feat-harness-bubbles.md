@@ -1,0 +1,23 @@
+# feat-harness-bubbles — personal notes
+
+## Playwright в этом проекте (live :8888)
+- Установленный playwright вызывает route-handler как `handler(route, request)` —
+  лямбда с одним параметром `route` и default-args после него молча съест Request
+  в `body=` → `TypeError: Object of type Request is not JSON serializable`.
+  Пиши `def serve(route, _request, ...)`. Готовый рабочий шаблон:
+  `docs/tasks/369/verify_bubbles.py` (логин из .env, подмена app.js/tool-renderers.js/
+  style.css, гейт на символ, которого нет в main).
+- Живой дашборд имеет РЕАЛЬНЫЙ SSE-трафик: инжекть и ассерть DOM одним
+  `page.evaluate`, иначе ассерты между Python-вызовами гоняют с чужими вставками.
+- `page.evaluate(fn_str)(arg)` не работает — аргумент передаётся вторым параметром
+  `page.evaluate(fn_str, arg)`.
+
+## Тесты
+- `tests/test_frontend.py` флейкает на текущей машине ПОСЛЕ ~25-31 теста: fixture-
+  сервер перестаёт отвечать, дальше все F по таймауту goto. Воспроизводится и на
+  чистом main (проверено #369) → это окружение/нагрузка, не твой диф. Изоляция
+  падающего теста проходит. Не лечи по первому взгляду — сравни с main.
+
+## Разное
+- Скриншоты/картинки через read недоступны (binary) — работай от текстового
+  описания задачи.
