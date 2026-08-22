@@ -27,7 +27,7 @@ from app.db import (
 )
 from app.deps import manager
 from app.errtext import err_text
-from app.models import resolve_model, MODELS
+from app.models import ensure_dashboard_visible, ensure_spawn_allowed, resolve_model, MODELS
 from app.quota_gate import QuotaGateError
 from app.session import AgentStatus
 
@@ -863,11 +863,21 @@ async def update_prompt(name: str, req: dict):
 async def change_model(name: str, req: dict):
     scope = req.get("scope", "")
     new_model = req.get("model", "").strip()
+    # #366: the level depends on WHO changes. MCP tool calls act as an agent and
+    # are gated by the `agents` level; UI calls by the `dashboard` level.
+    via = req.get("via", "dashboard")
     if not new_model:
         return JSONResponse({"error": "model required"}, status_code=400)
     new_model = resolve_model(new_model)
     if new_model not in MODELS:
         return JSONResponse({"error": f"unknown model: {new_model}"}, status_code=400)
+    try:
+        if via == "mcp":
+            ensure_spawn_allowed(new_model)
+        else:
+            ensure_dashboard_visible(new_model)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=409)
     found = await manager.ensure_loaded(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)

@@ -513,6 +513,20 @@ def kv_get(key: str, default: str = "") -> str:
         return row["value"] if row else default
 
 
+def kv_set(key: str, value: str) -> None:
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO kv(key, value) VALUES(?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value),
+        )
+
+
+def kv_delete(key: str) -> None:
+    with _conn() as c:
+        c.execute("DELETE FROM kv WHERE key=?", (key,))
+
+
 def _reconstruct_costs(c) -> None:
     import re as _re
     sessions = c.execute("SELECT id FROM sessions").fetchall()
