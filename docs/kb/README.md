@@ -46,5 +46,7 @@
   приоритет пулов и отозванные сравнения по квоте.
 - [repo-ops](repo-ops.md) — git, деплой, systemd, секреты в артефактах, дубли одной мысли в двух
   файлах, воркеры, чужая машина.
+- [openrouter-quotas](openrouter-quotas.md) — лимиты бесплатных моделей OpenRouter (1000/сутки, 20/мин),
+  где брать число запросов: /api/v1/key не даёт, analytics API даёт но нужен management key.
 - [grep-memory-blowup](grep-memory-blowup.md) — почему `grep` в сессии Claude Code съедает
   гигабайты на шаблоне `.{0,N}литерал.{0,M}`, чем это грозит на VPS и чем заменять.

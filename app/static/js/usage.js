@@ -258,6 +258,38 @@ function renderUsageBar() {
         );
     }
 
+    const or = _usageData.openrouter || null;
+    if (or) {
+        const accent = '#a78bfa';
+        if (!or.available) {
+            // #368: недоступный счётчик — явное «нет данных», не ноль: ноль
+            // читается как «квота свободна».
+            groups.push(
+                `<span class="usage-provider-group" data-usage-compact-provider="openrouter">`
+                + `<span class="usage-provider-title" style="color:${accent};font-weight:600">OpenRouter</span>`
+                + '<span class="usage-provider-values"><span style="color:#64748b">нет данных</span></span>'
+                + '</span>',
+            );
+        } else {
+            const d = or.daily || {};
+            const m = or.minute || {};
+            const dailyLimit = d.limit || 1000;
+            const minuteLimit = m.limit || 20;
+            const used = Math.max(d.count || 0, 0);
+            const util = Math.round(used / dailyLimit * 1000) / 10;
+            const c = _usageColor(util, null);
+            const resetIso = new Date(Date.now() + 86400000).toISOString().slice(0, 13) + ':00:00Z';
+            const cd = _resetCountdown(resetIso);
+            groups.push(
+                `<span class="usage-provider-group" data-usage-compact-provider="openrouter">`
+                + `<span class="usage-provider-title" style="color:${accent};font-weight:600">OpenRouter</span>`
+                + `<span class="usage-provider-values"><span style="display:inline-flex;align-items:center;gap:3px">сутки: ${_miniBar(util, c)} <span style="color:#64748b">${used}/${dailyLimit}</span>${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}</span>`
+                + ` <span style="display:inline-flex;align-items:center;gap:3px">минута: <span style="color:${(m.count || 0) >= minuteLimit ? '#f87171' : '#94a3b8'}">${m.count || 0}/${minuteLimit}</span></span></span>`
+                + '</span>',
+            );
+        }
+    }
+
     const compactProviders = [
         {id:'codex', bucketId:'codex', windows:_usageProviderWindows('codex', cx)},
         {id:'codex-spark', bucketId:'codex_spark', windows:_usageProviderWindows('codex', cx.spark), compactTitle:'Codex Spark'},
@@ -375,9 +407,31 @@ function renderUsageBar() {
                 }
                 grokHtml += '</section>';
 
-                let h = '<div style="color:#e2e8f0;font-weight:700;margin-bottom:10px">📊 Usage control</div>';
+                const orMeta = _usageData?.openrouter || null;
+                let orHtml = '';
+                if (orMeta) {
+                    orHtml = '<section data-usage-provider="openrouter" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
+                    orHtml += '<div style="color:#a78bfa;font-weight:700;margin-bottom:7px">OpenRouter (free)</div>';
+                    if (!orMeta.available) {
+                        orHtml += `<div style="color:#64748b;font-style:italic">${escHtml(orMeta.reason || 'Данные недоступны')}</div>`;
+                    } else {
+                        const d = orMeta.daily || {}, m = orMeta.minute || {};
+                        orHtml += _row('Сутки', `${d.count}/${d.limit}`, '#cbd5e1');
+                        orHtml += _row('Минута', `${m.count}/${m.limit}`, '#cbd5e1');
+                        orHtml += _row('Источник счёта', 'локальный', '#64748b');
+                        const rec = orMeta.reconciliation;
+                        if (rec) {
+                            orHtml += `<div style="margin-top:4px;color:#94a3b8">Вчера (${escHtml(rec.day)}): провайдер ${rec.provider_requests}, локально ${rec.local_requests}, Δ ${rec.delta}</div>`;
+                            const bs = rec.local_by_status || {};
+                            const parts = Object.keys(bs).map(k => `${k}×${bs[k]}`).join(', ');
+                            if (parts) orHtml += `<div style="color:#64748b;font-size:10px">Локальные попытки вчера: ${escHtml(parts)}</div>`;
+                        }
+                    }
+                    orHtml += '</section>';
+                }
+
                 h += '<div id="usage-sparkline-slot" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">';
-                h += claudeHtml + codexHtml + grokHtml + '</div>';
+                h += claudeHtml + codexHtml + grokHtml + orHtml + '</div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row('💰 Стоимость', `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toFixed(0)}`, '#22c55e');

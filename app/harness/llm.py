@@ -21,6 +21,8 @@ from typing import AsyncIterator
 
 import httpx
 
+from app import openrouter_counter as _counter
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
@@ -178,8 +180,20 @@ class OpenRouterClient:
             if abort and abort():
                 return
             started = False  # True once we yield anything — disables retry (no resume)
+            # #368: каждая попытка = единица квоты, считаем ДО исхода (ретраи и
+            # неудачи тоже). Сбой счётчика не роняет стрим — вызовы тотальны,
+            # но страхуемся try/except: оплаченный результат дороже учёта.
             try:
-                async for ev in self._one_attempt(body, headers):
+                attempt_row = _counter.record_attempt_start()
+            except Exception as e:  # pragma: no cover — страховка от любого сбоя учёта
+                logger.warning(f"openrouter counter hook failed: {e}")
+                try:
+                    _counter.mark_unhealthy(f"start hook: {e}")
+                except Exception:
+                    pass
+                attempt_row = None
+            try:
+                async for ev in self._one_attempt(body, headers, attempt_row):
                     started = True
                     yield ev
                 return  # stream completed
@@ -207,7 +221,8 @@ class OpenRouterClient:
             return retry_after
         return BACKOFF_BASE * (2 ** attempt) + random.uniform(0, 0.5)
 
-    async def _one_attempt(self, body: dict, headers: dict) -> AsyncIterator[LLMEvent]:
+    async def _one_attempt(self, body: dict, headers: dict,
+                           attempt_row: int | None = None) -> AsyncIterator[LLMEvent]:
         http = await self._client()
         acc = _ToolCallAccumulator()
         racc = _ReasoningAccumulator()
@@ -216,6 +231,14 @@ class OpenRouterClient:
         emitted_tool_calls = False
         async with http.stream("POST", f"{self.base_url}/chat/completions",
                                json=body, headers=headers) as resp:
+            try:
+                _counter.record_attempt_status(attempt_row, resp.status_code)
+            except Exception as e:  # pragma: no cover — сбой учёта не роняет стрим (#368)
+                logger.warning(f"openrouter counter hook failed: {e}")
+                try:
+                    _counter.mark_unhealthy(f"status hook: {e}")
+                except Exception:
+                    pass
             if resp.status_code == 429 or resp.status_code >= 500:
                 await resp.aread()
                 raise _RetryableStatus(resp.status_code, _parse_retry_after(resp))
