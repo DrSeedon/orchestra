@@ -32,6 +32,9 @@
 - **На matched no-tool PONG transport/app-server/wrapper не объясняют болезненный разрыв:** A=`codex exec`, B=bare app-server дали B−A total-to-final +0.270/+0.756 с; local Python JSON-RPC median 0.058 ms; D−C managed-turn wall +0.012/−0.584/+1.272 с при одинаковых CLI/model/xhigh/Standard/cwd/proxy и нуле tools · `docs/tasks/240/analysis.json`, `docs/tasks/240/measurements.md` · 2026-08-23, #240
 - **Managed static surfaces увеличивают input, но не дали устойчивого latency sign:** role prompt 58 188 Б добавил ≈13.6K input tokens, `AGENTS.md` 104 615 Б — ≈21.5K; удаление каждого слоя ускорило один прогон и замедлило второй. Positive control увидел `orchestra: ready` и ровно 41/41 tool через `mcpServerStatus/list`; D против no-MCP различался лишь на 65–75 input tokens. Реальная архивная история дала 218 468 input, TTFT 9.948 с, final 10.071 с, но без синхронного fresh-контроля history effect остаётся UNCERTAIN · `docs/tasks/240/measurements.md`, `docs/tasks/240/raw-mcp-control.jsonl` · 2026-08-23, #240
 - **Config lifecycle ограничен измеренными долями секунды:** unchanged digest check 1.236/1.514 ms, принудительный reconnect persisted thread 0.452/0.499 с; app-server initialize+thread/start 1.3–2.6 с — one-time connect, не recurring model wall · `docs/tasks/240/raw-reconnect.jsonl`, `docs/tasks/240/measurements.md` · 2026-08-23, #240
+- **Число Codex processes/sessions нельзя читать как active model concurrency:** в 1 280 native rollout-интервалах exact max=12; на границе #111 было 62 Codex-related process / 109 sessions при 4 active turns, через 7 минут 49 процессов при 8 active turns. DB `codex turn=... started` после рестарта может replay-запаздывать до 13 507.561 с, поэтому интервалы берутся из rollout `task_started→task_complete` по `ts` · `docs/tasks/255/turns.csv`, `bucket-summary.json`, `docs/tasks/111/research.md` · 2026-08-23, #255
+- **При observed 10–12 active turns резкой provider/model деградации нет:** TTFT median/p90 11.684/18.372 с против 9.273/35.575 при одном; xhigh 9.827→9.691, full-cycle 9.403→9.708; output throughput 28.296→32.107 token/s. Final wall 3.83× объясняется 5.5× tool rounds и 4.69× output; все 22 high-concurrency turns успешны при quota 18–56% · `docs/tasks/255/measurements.md`, `bucket-summary.json` · 2026-08-23, #255
+- **Local process pressure реален, но его вклад в один model turn не измерен:** сохранённые #111 snapshots дают 3.3–3.4 GiB RSS, 10–11 GiB swap и load до 13; high-concurrency dispatch→native start остаётся median/p90 0.133/0.623 с. Это поддерживает system-wide/UI slowness от memory/swap и отвергает большой stdio delay, но synchronous CPU/RAM per-turn series нет · `docs/tasks/111/research.md`, `docs/tasks/255/measurements.md` · 2026-08-23, #255
 
 ### Модели и лимиты
 
@@ -58,6 +61,8 @@
 - «Orchestra медленнее standalone из-за Python wrapper или самого app-server» как достаточная причина · A/B/A/B на одном CLI 0.149.0 дал только +0.270/+0.756 с total-to-final у app-server; D−C latency меняла знак, turn ack 6–21 ms · 2026-08-23, #240
 - «Текущий `AGENTS.md` обрезан и поэтому тормозит/ломается» · live cap/file = 262 144/104 615 Б; обрыва нет. Исторический #323 при cap 131 072 остаётся верен для своего среза · 2026-08-23, #240
 - «Fast tier достаточен для всего наблюдаемого разрыва» · пользовательский negative control без Fast сохраняет симптом; #240 на Standard не воспроизвёл крупный harness gap · 2026-08-23, #240
+- «~30 живых Codex процессов/сессий = ~30 одновременных provider calls» · exact rollout max=12; один root размножается в Node/native/code-mode/MCP helpers, а idle roots до #111 не hibernate · 2026-08-23, #255
+- «Observed 10–12 active turns резко упираются в account/provider queue» · 0/22 ошибок, quota 18–56%, TTFT p90 ниже single-turn, throughput выше; ошибки концентрируются в low-concurrency/quota≈100% · 2026-08-23, #255
 
 ## Пробелы
 
@@ -65,6 +70,7 @@
   дословно, слияние формулировок делалось только в `CLAUDE.md` · 2026-08-19, #347
 - Причина разрыва на обычных tool-using задачах остаётся открыта: #240 специально запретил tools и изолировал harness latency, поэтому не проверил, добавляет ли full role model/tool round-trips. Нужен один exact user-task D/A/D/A с per-round model/tool wall · 2026-08-23, #240
 - Latency у истории измерена до 218 468 input tokens; область около effective window 828 400 и auto-compact threshold не запускалась · 2026-08-23, #240
+- Active 20+ не наблюдался; historical proxy-manager counters и synchronous per-turn CPU/MemAvailable/PSI/swap/process snapshots отсутствуют, поэтому proxy saturation и точные секунды local contention остаются открыты · 2026-08-23, #255
 
 ## Источники
 
@@ -72,3 +78,4 @@
 - `docs/tasks/347/inventory-before.md` — инвентарь всех пунктов до сокращения
 - `docs/archive/sessions/` — хроника сессий, из которых эти пункты выросли
 - `docs/tasks/240/research.md` — layered A/B/A/B standalone→app-server→Python→managed prompt/MCP→warm history
+- `docs/tasks/255/research.md` — retrospective active-turn concurrency vs processes, host/proxy/provider/stdio hypotheses

@@ -1,0 +1,22 @@
+{
+  "active_connections": 22,
+  "captured_at": "2026-08-23T14:15:52.572785+00:00",
+  "max_connections": 512,
+  "process": {
+    "load_15m": 21.49,
+    "load_1m": 5.39,
+    "load_5m": 21.89,
+    "pid": 2597651,
+    "rss_mib": 24.1
+  },
+  "proxy_endpoint": "127.0.0.1:12339",
+  "rejected_connections": 0,
+  "route_accepted": 4206,
+  "route_active": 22,
+  "route_failed": 0,
+  "selected_route": "contabo",
+  "semantic": true,
+  "semantic_latency_ms": 1780,
+  "semantic_status": 401,
+  "uptime_seconds": 4944
+}
