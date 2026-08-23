@@ -161,6 +161,38 @@ def test_state_seed_refuses_unpinned_cli_version(tmp_path):
     assert not (home / "state_5.sqlite").exists()
 
 
+def test_healthy_state_with_validated_older_prefix_is_left_for_provider_migration(
+    tmp_path,
+):
+    import app.backend_codex as module
+
+    migrations = module._CODEX_STATE_MIGRATIONS_BY_CLI[CODEX_CLI_HISTORY_VERSION]
+    assert len(migrations) > 4
+    home = tmp_path / "managed"
+    home.mkdir()
+    target = home / "state_5.sqlite"
+    _state_db(target, migrations=migrations[:-4], threads=("old-thread",))
+
+    assert module._managed_codex_state_needs_seed(
+        home,
+        CODEX_CLI_HISTORY_VERSION,
+    ) is False
+    assert _thread_ids(target) == ["old-thread"]
+
+
+def test_fresh_state_can_seed_from_validated_older_prefix(tmp_path):
+    import app.backend_codex as module
+
+    migrations = module._CODEX_STATE_MIGRATIONS_BY_CLI[CODEX_CLI_HISTORY_VERSION]
+    source = tmp_path / "source.sqlite"
+    _state_db(source, migrations=migrations[:-4], threads=("old-thread",))
+    home = tmp_path / "managed"
+    home.mkdir()
+
+    assert _prepare(home, source) == "seeded"
+    assert _thread_ids(home / "state_5.sqlite") == ["old-thread"]
+
+
 @pytest.mark.parametrize("mutation", ["changed", "extra"])
 def test_state_seed_refuses_unsupported_pinned_migration_signature(
     tmp_path, mutation,
@@ -412,6 +444,11 @@ async def test_newer_cli_defers_managed_state_migration_to_provider(
 
     monkeypatch.setattr(module, "_CODEX_HOME_ROOT", root)
     monkeypatch.setattr(module.CodexBackend, "_prepare_codex_home", prepare_home)
+    monkeypatch.setattr(
+        module.CodexBackend,
+        "_refresh_managed_config_sha256",
+        lambda _self: "newer-cli-config",
+    )
     monkeypatch.setattr(module.CodexBackend, "_connect_unlocked", connect_unlocked)
     monkeypatch.setattr(
         module.CodexBackend,
