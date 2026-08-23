@@ -1,0 +1,337 @@
+{
+  "meta": {
+    "ts": "2026-08-23T12:19:02.429358+00:00",
+    "model": "gpt-5.6-sol",
+    "binary": "/usr/bin/codex",
+    "version": "codex-cli 0.149.0",
+    "order": [
+      "high",
+      "high",
+      "high",
+      "xhigh",
+      "high",
+      "xhigh"
+    ],
+    "sequential": true
+  },
+  "rows": [
+    {
+      "interface": "exec",
+      "started_at": "2026-08-23T12:17:17.057749+00:00",
+      "loadavg": [
+        0.39,
+        0.5,
+        0.84
+      ],
+      "status": "completed",
+      "exit_code": 0,
+      "first_event_ms": 1831.053989,
+      "first_model_event_ms": 24073.049782,
+      "first_text_ms": 24073.049782,
+      "total_ms": 24142.508771,
+      "peak_rss_kib": 238868,
+      "usage": {
+        "input_tokens": 25065,
+        "cached_input_tokens": 12032,
+        "output_tokens": 585,
+        "reasoning_output_tokens": 343
+      },
+      "event_counts": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 1,
+        "turn.completed": 1
+      },
+      "final_sha256": "af161d3af7744bb668d5f20458b1c2cbbc7bcd77d715e4fbc7623bf7290c7726",
+      "stderr_tail": "",
+      "sequence": 1,
+      "phase": "aa_noise",
+      "effort": "high",
+      "grade": {
+        "score": 14,
+        "total": 14,
+        "items": {
+          "default_effective_window": true,
+          "override_effective_window": true,
+          "default_auto_compact_limit": true,
+          "override_auto_compact_limit": true,
+          "dashboard_pct": true,
+          "cumulative_input": true,
+          "provider_calls": true,
+          "mean_input_per_call": true,
+          "cache_percent": true,
+          "primary_cause": true,
+          "smaller_window_counterexample": true,
+          "configured_window_effect": true,
+          "counter_evidence": true,
+          "falsifier": true
+        }
+      }
+    },
+    {
+      "interface": "exec",
+      "started_at": "2026-08-23T12:17:41.768096+00:00",
+      "loadavg": [
+        1.58,
+        0.8,
+        0.93
+      ],
+      "status": "completed",
+      "exit_code": 0,
+      "first_event_ms": 875.590467,
+      "first_model_event_ms": 14108.975069,
+      "first_text_ms": 14108.975069,
+      "total_ms": 14221.567323,
+      "peak_rss_kib": 235220,
+      "usage": {
+        "input_tokens": 12532,
+        "cached_input_tokens": 0,
+        "output_tokens": 463,
+        "reasoning_output_tokens": 311
+      },
+      "event_counts": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 1,
+        "turn.completed": 1
+      },
+      "final_sha256": "af161d3af7744bb668d5f20458b1c2cbbc7bcd77d715e4fbc7623bf7290c7726",
+      "stderr_tail": "",
+      "sequence": 2,
+      "phase": "aa_noise",
+      "effort": "high",
+      "grade": {
+        "score": 14,
+        "total": 14,
+        "items": {
+          "default_effective_window": true,
+          "override_effective_window": true,
+          "default_auto_compact_limit": true,
+          "override_auto_compact_limit": true,
+          "dashboard_pct": true,
+          "cumulative_input": true,
+          "provider_calls": true,
+          "mean_input_per_call": true,
+          "cache_percent": true,
+          "primary_cause": true,
+          "smaller_window_counterexample": true,
+          "configured_window_effect": true,
+          "counter_evidence": true,
+          "falsifier": true
+        }
+      }
+    },
+    {
+      "interface": "exec",
+      "started_at": "2026-08-23T12:17:56.552004+00:00",
+      "loadavg": [
+        1.85,
+        0.9,
+        0.96
+      ],
+      "status": "completed",
+      "exit_code": 0,
+      "first_event_ms": 1141.435824,
+      "first_model_event_ms": 15634.185391,
+      "first_text_ms": 15634.185391,
+      "total_ms": 15675.447174,
+      "peak_rss_kib": 231612,
+      "usage": {
+        "input_tokens": 13299,
+        "cached_input_tokens": 0,
+        "output_tokens": 409,
+        "reasoning_output_tokens": 257
+      },
+      "event_counts": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 1,
+        "turn.completed": 1
+      },
+      "final_sha256": "af161d3af7744bb668d5f20458b1c2cbbc7bcd77d715e4fbc7623bf7290c7726",
+      "stderr_tail": "",
+      "sequence": 3,
+      "phase": "confirmatory",
+      "effort": "high",
+      "grade": {
+        "score": 14,
+        "total": 14,
+        "items": {
+          "default_effective_window": true,
+          "override_effective_window": true,
+          "default_auto_compact_limit": true,
+          "override_auto_compact_limit": true,
+          "dashboard_pct": true,
+          "cumulative_input": true,
+          "provider_calls": true,
+          "mean_input_per_call": true,
+          "cache_percent": true,
+          "primary_cause": true,
+          "smaller_window_counterexample": true,
+          "configured_window_effect": true,
+          "counter_evidence": true,
+          "falsifier": true
+        }
+      }
+    },
+    {
+      "interface": "exec",
+      "started_at": "2026-08-23T12:18:12.681609+00:00",
+      "loadavg": [
+        1.52,
+        0.89,
+        0.96
+      ],
+      "status": "completed",
+      "exit_code": 0,
+      "first_event_ms": 832.83079,
+      "first_model_event_ms": 16494.086685,
+      "first_text_ms": 16494.086685,
+      "total_ms": 16551.786109,
+      "peak_rss_kib": 208100,
+      "usage": {
+        "input_tokens": 12532,
+        "cached_input_tokens": 0,
+        "output_tokens": 368,
+        "reasoning_output_tokens": 216
+      },
+      "event_counts": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 1,
+        "turn.completed": 1
+      },
+      "final_sha256": "af161d3af7744bb668d5f20458b1c2cbbc7bcd77d715e4fbc7623bf7290c7726",
+      "stderr_tail": "",
+      "sequence": 4,
+      "phase": "confirmatory",
+      "effort": "xhigh",
+      "grade": {
+        "score": 14,
+        "total": 14,
+        "items": {
+          "default_effective_window": true,
+          "override_effective_window": true,
+          "default_auto_compact_limit": true,
+          "override_auto_compact_limit": true,
+          "dashboard_pct": true,
+          "cumulative_input": true,
+          "provider_calls": true,
+          "mean_input_per_call": true,
+          "cache_percent": true,
+          "primary_cause": true,
+          "smaller_window_counterexample": true,
+          "configured_window_effect": true,
+          "counter_evidence": true,
+          "falsifier": true
+        }
+      }
+    },
+    {
+      "interface": "exec",
+      "started_at": "2026-08-23T12:18:29.893733+00:00",
+      "loadavg": [
+        1.26,
+        0.86,
+        0.95
+      ],
+      "status": "completed",
+      "exit_code": 0,
+      "first_event_ms": 898.550221,
+      "first_model_event_ms": 17111.8409,
+      "first_text_ms": 17111.8409,
+      "total_ms": 17359.748922,
+      "peak_rss_kib": 232672,
+      "usage": {
+        "input_tokens": 12532,
+        "cached_input_tokens": 0,
+        "output_tokens": 430,
+        "reasoning_output_tokens": 278
+      },
+      "event_counts": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 1,
+        "turn.completed": 1
+      },
+      "final_sha256": "af161d3af7744bb668d5f20458b1c2cbbc7bcd77d715e4fbc7623bf7290c7726",
+      "stderr_tail": "",
+      "sequence": 5,
+      "phase": "confirmatory",
+      "effort": "high",
+      "grade": {
+        "score": 14,
+        "total": 14,
+        "items": {
+          "default_effective_window": true,
+          "override_effective_window": true,
+          "default_auto_compact_limit": true,
+          "override_auto_compact_limit": true,
+          "dashboard_pct": true,
+          "cumulative_input": true,
+          "provider_calls": true,
+          "mean_input_per_call": true,
+          "cache_percent": true,
+          "primary_cause": true,
+          "smaller_window_counterexample": true,
+          "configured_window_effect": true,
+          "counter_evidence": true,
+          "falsifier": true
+        }
+      }
+    },
+    {
+      "interface": "exec",
+      "started_at": "2026-08-23T12:18:47.970548+00:00",
+      "loadavg": [
+        1.38,
+        0.92,
+        0.96
+      ],
+      "status": "completed",
+      "exit_code": 0,
+      "first_event_ms": 859.448761,
+      "first_model_event_ms": 13480.879186,
+      "first_text_ms": 13480.879186,
+      "total_ms": 13547.084736,
+      "peak_rss_kib": 236888,
+      "usage": {
+        "input_tokens": 12532,
+        "cached_input_tokens": 0,
+        "output_tokens": 347,
+        "reasoning_output_tokens": 195
+      },
+      "event_counts": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 1,
+        "turn.completed": 1
+      },
+      "final_sha256": "af161d3af7744bb668d5f20458b1c2cbbc7bcd77d715e4fbc7623bf7290c7726",
+      "stderr_tail": "",
+      "sequence": 6,
+      "phase": "confirmatory",
+      "effort": "xhigh",
+      "grade": {
+        "score": 14,
+        "total": 14,
+        "items": {
+          "default_effective_window": true,
+          "override_effective_window": true,
+          "default_auto_compact_limit": true,
+          "override_auto_compact_limit": true,
+          "dashboard_pct": true,
+          "cumulative_input": true,
+          "provider_calls": true,
+          "mean_input_per_call": true,
+          "cache_percent": true,
+          "primary_cause": true,
+          "smaller_window_counterexample": true,
+          "configured_window_effect": true,
+          "counter_evidence": true,
+          "falsifier": true
+        }
+      }
+    }
+  ]
+}
