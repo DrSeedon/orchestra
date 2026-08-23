@@ -1,0 +1,245 @@
+{
+  "schema": 1,
+  "window_epoch": [
+    1787482766.849867,
+    1787483226.216553
+  ],
+  "correlation": [
+    {
+      "marker": "q234-http-local-1-d44b1b04",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T18:00:32.554424+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:41584 - \"GET /api/usage/quota-map?probe=q234-http-local-1-d44b1b04 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-local-11-5787a598",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T18:00:59.980080+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:36186 - \"GET /api/usage/quota-map?probe=q234-http-local-11-5787a598 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-local-3-175ab6ee",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T18:00:33.723465+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:41584 - \"GET /api/usage/quota-map?probe=q234-http-local-3-175ab6ee HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-local-9-9a6082d2",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T18:00:50.980195+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:49788 - \"GET /api/usage/quota-map?probe=q234-http-local-9-9a6082d2 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-public-10-082ea5fc",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:00:52.070198+02:00 vmi3407579 python[1092440]: INFO:     89.23.102.244:0 - \"GET /api/usage/quota-map?probe=q234-http-public-10-082ea5fc HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-public-12-e254267a",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:01:03.958512+02:00 vmi3407579 python[1092440]: INFO:     89.23.102.244:0 - \"GET /api/usage/quota-map?probe=q234-http-public-12-e254267a HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-public-5-9d77db09",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:00:36.281226+02:00 vmi3407579 python[1092440]: INFO:     89.23.102.244:0 - \"GET /api/usage/quota-map?probe=q234-http-public-5-9d77db09 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-public-7-fc4a7bc4",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:00:48.860435+02:00 vmi3407579 python[1092440]: INFO:     89.23.102.244:0 - \"GET /api/usage/quota-map?probe=q234-http-public-7-fc4a7bc4 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-tunnel-2-2fcc88cc",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:00:33.249241+02:00 vmi3407579 python[1092440]: INFO:     127.0.0.1:37414 - \"GET /api/usage/quota-map?probe=q234-http-tunnel-2-2fcc88cc HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-tunnel-4-1a8b7ac5",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:00:34.131926+02:00 vmi3407579 python[1092440]: INFO:     127.0.0.1:37414 - \"GET /api/usage/quota-map?probe=q234-http-tunnel-4-1a8b7ac5 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-tunnel-6-3e5e2261",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:00:42.201692+02:00 vmi3407579 python[1092440]: INFO:     127.0.0.1:59494 - \"GET /api/usage/quota-map?probe=q234-http-tunnel-6-3e5e2261 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-http-tunnel-8-16c9b2ca",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:00:50.681261+02:00 vmi3407579 python[1092440]: INFO:     127.0.0.1:55886 - \"GET /api/usage/quota-map?probe=q234-http-tunnel-8-16c9b2ca HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-local-1-121115e9",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T18:01:47.618455+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:33968 - \"GET /api/usage/quota-map?probe=q234-local-1-121115e9 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-local-11-c5093915",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T18:02:20.349925+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:59556 - \"GET /api/usage/quota-map?probe=q234-local-11-c5093915 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-local-3-18591fb8",
+      "server_completion_lines": 0,
+      "lines": []
+    },
+    {
+      "marker": "q234-local-9-11e26c9e",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T18:02:06.981304+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:52606 - \"GET /api/usage/quota-map?probe=q234-local-9-11e26c9e HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-local-cdp2500-1-0a03c2f0",
+      "server_completion_lines": 3,
+      "lines": [
+        "2026-08-23T18:04:45.563167+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:44598 - \"GET /api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0 HTTP/1.1\" 200 OK",
+        "2026-08-23T18:04:48.167885+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:44578 - \"GET /api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0 HTTP/1.1\" 200 OK",
+        "2026-08-23T18:04:50.837850+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:38346 - \"GET /api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-local-idb-9b8265e3",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T18:04:44.262083+07:00 maxim-911aird python3[1294601]: INFO:     127.0.0.1:44590 - \"GET /api/usage/quota-map?probe=q234-local-idb-9b8265e3 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-local-idb-before-1-676a739c",
+      "server_completion_lines": 0,
+      "lines": []
+    },
+    {
+      "marker": "q234-local-sixslots-db7ce863",
+      "server_completion_lines": 0,
+      "lines": []
+    },
+    {
+      "marker": "q234-public-10-979b1059",
+      "server_completion_lines": 0,
+      "lines": []
+    },
+    {
+      "marker": "q234-public-12-dad0c382",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:02:21.473272+02:00 vmi3407579 python[1092440]: INFO:     89.23.102.244:0 - \"GET /api/usage/quota-map?probe=q234-public-12-dad0c382 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-public-5-edeb5b49",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:02:03.878073+02:00 vmi3407579 python[1092440]: INFO:     89.23.102.244:0 - \"GET /api/usage/quota-map?probe=q234-public-5-edeb5b49 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-public-7-10a182ec",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:02:06.363677+02:00 vmi3407579 python[1092440]: INFO:     89.23.102.244:0 - \"GET /api/usage/quota-map?probe=q234-public-7-10a182ec HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-tunnel-2-2dcb5fac",
+      "server_completion_lines": 2,
+      "lines": [
+        "2026-08-23T13:01:51.446209+02:00 vmi3407579 python[1092440]: INFO:     127.0.0.1:38598 - \"GET /api/usage/quota-map?probe=q234-tunnel-2-2dcb5fac HTTP/1.1\" 200 OK",
+        "2026-08-23T13:01:52.287842+02:00 vmi3407579 python[1092440]: INFO:     127.0.0.1:33960 - \"GET /api/usage/quota-map?probe=q234-tunnel-2-2dcb5fac HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-tunnel-4-a9c2a1dc",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:02:02.048855+02:00 vmi3407579 python[1092440]: INFO:     127.0.0.1:45348 - \"GET /api/usage/quota-map?probe=q234-tunnel-4-a9c2a1dc HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-tunnel-6-35fc6cb2",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:02:04.611557+02:00 vmi3407579 python[1092440]: INFO:     127.0.0.1:45388 - \"GET /api/usage/quota-map?probe=q234-tunnel-6-35fc6cb2 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-tunnel-8-71b9eba4",
+      "server_completion_lines": 1,
+      "lines": [
+        "2026-08-23T13:02:06.822611+02:00 vmi3407579 python[1092440]: INFO:     127.0.0.1:34028 - \"GET /api/usage/quota-map?probe=q234-tunnel-8-71b9eba4 HTTP/1.1\" 200 OK"
+      ]
+    },
+    {
+      "marker": "q234-tunnel-sixslots-79efdf46",
+      "server_completion_lines": 0,
+      "lines": []
+    }
+  ],
+  "db": {
+    "local": {
+      "path": "/mnt/data/Projects/Python/orchestra/data/orchestra.db",
+      "journal_mode": "wal",
+      "total_rows": 11964,
+      "seven_day_rows": 1038,
+      "query_ms": [
+        10.622,
+        4.571,
+        2.997
+      ],
+      "query_plan": [
+        [
+          4,
+          0,
+          223,
+          "SCAN usage_snapshots USING INDEX idx_usage_ts"
+        ]
+      ]
+    },
+    "remote": {
+      "path": "/home/kesha/orchestra/data/orchestra.db",
+      "journal_mode": "wal",
+      "total_rows": 12247,
+      "seven_day_rows": 1976,
+      "query_ms": [
+        16.241,
+        12.283,
+        10.318
+      ],
+      "query_plan": [
+        [
+          4,
+          0,
+          0,
+          "SCAN usage_snapshots USING INDEX idx_usage_ts"
+        ]
+      ]
+    }
+  }
+}
