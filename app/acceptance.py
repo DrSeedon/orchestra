@@ -16,12 +16,40 @@ SKIPPED = "skipped"
 
 DEFAULT_TIMEOUT_SECONDS = 180.0
 _OUTPUT_TAIL = 4000
+_SHELL_CONTROL_CHARS = frozenset(";&|<>")
+ACCEPTANCE_COMMAND_CONTRACT = (
+    "acceptance_command must be one argv command; shell operators are not allowed "
+    "unwrapped. Wrap intentional shell semantics explicitly as bash -lc '<chain>'."
+)
 
 
 def _tail(text: str) -> str:
     if len(text) <= _OUTPUT_TAIL:
         return text
     return text[-_OUTPUT_TAIL:]
+
+
+def _command_tokens(command: str) -> list[str]:
+    # Keep quote markers so a literal argument such as ``echo '&&'`` is not
+    # mistaken for an unwrapped shell operator. Execution still uses posix
+    # splitting below, after this contract check.
+    lexer = shlex.shlex(command, posix=False, punctuation_chars=";&|<>")
+    lexer.whitespace_split = True
+    return list(lexer)
+
+
+def acceptance_command_error(command: str) -> str | None:
+    """Return a contract error for an unsafe unwrapped shell command."""
+    try:
+        argv = _command_tokens(command)
+    except ValueError as exc:
+        return f"{ACCEPTANCE_COMMAND_CONTRACT} Invalid quoting: {exc}."
+    if len(argv) >= 3 and argv[0] == "bash" and argv[1] == "-lc":
+        return None
+    for token in argv:
+        if token and all(char in _SHELL_CONTROL_CHARS for char in token):
+            return ACCEPTANCE_COMMAND_CONTRACT
+    return None
 
 
 def run_command(
@@ -41,6 +69,14 @@ def run_command(
     cmd = (command or "").strip()
     if not cmd:
         return {"status": SKIPPED, "reason": "no_command", "exit_code": None, "output": ""}
+    contract_error = acceptance_command_error(cmd)
+    if contract_error:
+        return {
+            "status": INCONCLUSIVE,
+            "reason": "invalid_contract",
+            "exit_code": None,
+            "output": contract_error,
+        }
     if not cwd or not Path(cwd).is_dir():
         return {
             "status": INCONCLUSIVE, "reason": "cwd_missing",
@@ -61,6 +97,7 @@ def run_command(
             cwd=cwd,
             capture_output=True,
             text=True,
+            shell=False,
             timeout=budget,
             check=False,
         )

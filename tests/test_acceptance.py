@@ -143,6 +143,22 @@ async def test_inconclusive_is_not_passed_or_failed(acc_db, monkeypatch):
     assert result["error"]["code"] != "ACCEPTANCE_FAILED"
 
 
+@pytest.mark.asyncio
+async def test_legacy_invalid_command_is_inconclusive_before_executor(acc_db, monkeypatch):
+    import app.tm as tm
+
+    with tm._conn() as conn:
+        conn.execute(
+            "UPDATE tm_tasks SET acceptance_command=? WHERE par_number=42",
+            ("test -f marker && echo passed",),
+        )
+    result, calls = await _run_with_spy(monkeypatch, worktree=str(acc_db))
+    assert calls == []
+    assert result["error"]["code"] == "ACCEPTANCE_INCONCLUSIVE"
+    assert result["acceptance"]["reason"] == "invalid_contract"
+    assert "bash -lc '<chain>'" in result["acceptance"]["output"]
+
+
 def test_run_command_classifies_exit_and_timeout(tmp_path, monkeypatch):
     from app.acceptance import run_command, PASSED, FAILED, INCONCLUSIVE
 
@@ -158,6 +174,29 @@ def test_run_command_classifies_exit_and_timeout(tmp_path, monkeypatch):
     missing = run_command("python3 -c 'pass'", str(tmp_path / "no-such-dir"))
     assert missing["status"] == INCONCLUSIVE
     assert missing["reason"] == "cwd_missing"
+
+
+def test_acceptance_command_rejects_unwrapped_shell_control_tokens(tmp_path):
+    from app.acceptance import INCONCLUSIVE, run_command
+
+    rejected = run_command("test -f marker && echo passed", str(tmp_path))
+    assert rejected["status"] == INCONCLUSIVE
+    assert rejected["reason"] == "invalid_contract"
+    assert "bash -lc '<chain>'" in rejected["output"]
+
+    quoted = run_command(
+        "python3 -c 'print(\"quoted && payload\")'", str(tmp_path),
+    )
+    assert quoted["status"] == "passed"
+    assert run_command("echo '&&'", str(tmp_path))["status"] == "passed"
+
+
+def test_explicit_bash_lc_acceptance_command_executes_chain(tmp_path):
+    from app.acceptance import run_command
+
+    result = run_command("bash -lc 'printf first && printf second'", str(tmp_path))
+    assert result["status"] == "passed"
+    assert result["output"] == "firstsecond"
 
 
 @pytest.mark.asyncio
@@ -257,3 +296,41 @@ async def test_orchestrator_task_create_stores_acceptance_command(acc_db, monkey
         ).fetchone()
     assert stored is not None
     assert stored["acceptance_command"] == "uv run python -m pytest -q tests/x.py"
+
+
+def test_task_persistence_rejects_unwrapped_acceptance_command(acc_db):
+    import app.tm as tm
+
+    with tm._conn() as conn:
+        with pytest.raises(ValueError, match="bash -lc '<chain>'"):
+            tm.create_task(
+                conn, "proj", "invalid-command", par_number=43,
+                acceptance_command="test -f marker && echo passed",
+            )
+        task = tm.get_task_by_par(conn, 42, "proj")
+        with pytest.raises(ValueError, match="bash -lc '<chain>'"):
+            tm.update_task(
+                conn, task["id"], acceptance_command="test -f marker || echo passed",
+            )
+        assert tm.get_task_by_id(conn, task["id"])["acceptance_command"] == (
+            "python3 -c 'import sys; print(\"ACC240-RED\", file=sys.stderr); raise SystemExit(2)'"
+        )
+
+
+def test_task_persistence_rejects_malformed_acceptance_command(acc_db):
+    import app.tm as tm
+
+    with tm._conn() as conn:
+        with pytest.raises(ValueError, match="Invalid quoting: No closing quotation"):
+            tm.create_task(
+                conn, "proj", "malformed-command", par_number=44,
+                acceptance_command="python3 -c 'unterminated",
+            )
+        task = tm.get_task_by_par(conn, 42, "proj")
+        with pytest.raises(ValueError, match="bash -lc '<chain>'"):
+            tm.update_task(
+                conn, task["id"], acceptance_command="python3 -c 'unterminated",
+            )
+        assert tm.get_task_by_id(conn, task["id"])["acceptance_command"].startswith(
+            "python3 -c 'import sys"
+        )

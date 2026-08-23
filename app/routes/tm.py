@@ -31,6 +31,7 @@ class TmTaskUpdate(BaseModel):
     status: str | None = None
     assignee: str | None = None
     priority: int | None = None
+    acceptance_command: str | None = None
 
 
 class TmPaymentReceive(BaseModel):
@@ -128,13 +129,24 @@ async def tm_get_task(par: str, project: str = "", scope: str = ""):
 
 
 @router.put("/tasks/{par}")
-async def tm_update_task(par: str, req: TmTaskUpdate, project: str = "", scope: str = ""):
+async def tm_update_task(
+    par: str, req: TmTaskUpdate, request: Request, project: str = "", scope: str = "",
+):
+    if req.acceptance_command is not None:
+        from app.mcp_proof import caller_may_use_orchestrator_privilege
+
+        if not caller_may_use_orchestrator_privilege(request):
+            return JSONResponse(
+                {"error": "acceptance_command is orchestrator-only"},
+                status_code=403,
+            )
     try:
         def _do():
             resolved_project = _resolve_task_project_id(project, scope)
             return _tm.api_update_task(
                 par, req.title, req.description, req.price, req.status, req.assignee,
                 project=resolved_project, priority=req.priority,
+                acceptance_command=req.acceptance_command,
             )
         return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:

@@ -2060,10 +2060,13 @@ async def task_create(title: str, project: str = "", price: int = 0,
 async def task_update(par: str, title: str = "", description: str = "",
                       price: int = -1, status: str = "",
                       assignee: str = "", priority: int = -1,
+                      acceptance_command: str | None = None,
                       project: str = "") -> str:
     """Update an existing task. Only provided fields are changed.
     par: '42' or 'PAR-42' (legacy). price in exact currency units (-1 = don't change, 0 = set to zero).
-    Empty string = don't change for text fields. priority: 0-3 or -1=don't change.
+    Empty string leaves ordinary text fields unchanged; acceptance_command is
+    omitted when None and explicitly cleared by an empty string.
+    acceptance_command is orchestrator-only. priority: 0-3 or -1=don't change.
     project: explicit project returned by task_list; omitted uses the caller's mapped scope."""
     body: dict = {}
     if title:
@@ -2078,6 +2081,8 @@ async def task_update(par: str, title: str = "", description: str = "",
         body["assignee"] = assignee
     if 0 <= priority <= 3:
         body["priority"] = priority
+    if acceptance_command is not None:
+        body["acceptance_command"] = acceptance_command
     if not body:
         return "Nothing to update"
     params = {"project": project} if project else ({"scope": SCOPE} if SCOPE else None)
