@@ -63,7 +63,7 @@ sudo systemctl status orchestra
 - Default route — Contabo. Автоматический failover и балансировка по IP запрещены; switch вручную проверяет ChatGPT backend и рвёт активные соединения
 - `PROXY_LIST`, `scripts/check-proxies.sh`, `proxy_manager.py` и старая панель Orchestra больше не являются источниками истины и не должны менять маршрут
 - Положительный health-check = JSON от ChatGPT backend. `403 text/html` от Cloudflare означает только доступность CDN и не считается рабочим AI-маршрутом
-- **TG bot** (telegram-bot-api) — через proxychains, C++ бинарник не читает `.env`. При смене прокси обновлять ОБА файла: `/etc/proxychains4.conf` И `~/.proxychains/proxychains.conf` (user-config имеет приоритет)
+- **TG bot** (telegram-bot-api) — через proxychains, C++ бинарник не читает `.env`. ОБА файла (`/etc/proxychains4.conf` и `~/.proxychains/proxychains.conf`) указывают `http 127.0.0.1 12339`; systemd `ExecStartPre` требует JSON-ответ Telegram backend через новый gateway
 
 ## Pricing
 - **Claude Max 20× + Codex Pro** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты
