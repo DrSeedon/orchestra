@@ -1151,7 +1151,7 @@ _ORCH_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 
 def _acceptance_command_from_caller(requested: str) -> str:
     """Кто пишет команду приёмки. Закрывает ЛЁГКИЙ путь: заполнить параметр
-    `task_create` и закрыть свой пункт самообъявленным `true`.
+    `task_create`/`task_update` и закрыть свой пункт самообъявленным `true`.
 
     HTTP больше не верит одному INTERNAL_TOKEN + поддельному session-id:
     privileged-поля требуют MCP-proof (см. app/mcp_proof.py). НЕ закрывает
@@ -2060,10 +2060,13 @@ async def task_create(title: str, project: str = "", price: int = 0,
 async def task_update(par: str, title: str = "", description: str = "",
                       price: int = -1, status: str = "",
                       assignee: str = "", priority: int = -1,
-                      project: str = "") -> str:
+                      project: str = "", acceptance_command: str = "",
+                      clear_acceptance_command: bool = False) -> str:
     """Update an existing task. Only provided fields are changed.
     par: '42' or 'PAR-42' (legacy). price in exact currency units (-1 = don't change, 0 = set to zero).
     Empty string = don't change for text fields. priority: 0-3 or -1=don't change.
+    acceptance_command is orchestrator-only; empty means don't change.
+    clear_acceptance_command=true explicitly clears it.
     project: explicit project returned by task_list; omitted uses the caller's mapped scope."""
     body: dict = {}
     if title:
@@ -2078,6 +2081,13 @@ async def task_update(par: str, title: str = "", description: str = "",
         body["assignee"] = assignee
     if 0 <= priority <= 3:
         body["priority"] = priority
+    command = _acceptance_command_from_caller(acceptance_command)
+    if clear_acceptance_command and command:
+        return "Error: acceptance_command and clear_acceptance_command are mutually exclusive"
+    if command:
+        body["acceptance_command"] = command
+    elif clear_acceptance_command and ROLE in _ORCH_ROLES:
+        body["clear_acceptance_command"] = True
     if not body:
         return "Nothing to update"
     params = {"project": project} if project else ({"scope": SCOPE} if SCOPE else None)
