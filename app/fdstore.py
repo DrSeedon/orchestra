@@ -6,6 +6,7 @@ turn to the NEXT supervisor generation (docs/tasks/230/research.md, F1).
 """
 
 import array
+import fcntl
 import os
 import re
 import socket
@@ -76,13 +77,7 @@ def _notify(payload: str, fds) -> None:
         sock.close()
 
 
-def acquire_fds() -> dict[str, int]:
-    """Return inherited descriptors keyed by their FDNAME.
-
-    Keyed by NAME only: systemd does not preserve the order in which the descriptors were
-    handed over (measured — stdin,stdout came back as stdout,stdin), so trusting the position
-    attaches an agent's stdin to its stdout.
-    """
+def _activation_fds() -> dict[str, int]:
     count = int(os.environ.get("LISTEN_FDS") or 0)
     if count <= 0:
         return {}
@@ -113,3 +108,22 @@ def acquire_fds() -> dict[str, int]:
         raise ValueError(f"duplicate FDNAME(s) inherited: {sorted(duplicates)}")
 
     return {name: SD_LISTEN_FDS_START + index for index, name in enumerate(names)}
+
+
+def acquire_fds() -> dict[str, int]:
+    """Return inherited descriptors keyed by their FDNAME.
+
+    Keyed by NAME only: systemd does not preserve the order in which the descriptors were
+    handed over (measured — stdin,stdout came back as stdout,stdin), so trusting the position
+    attaches an agent's stdin to its stdout.
+    """
+    return _activation_fds()
+
+
+def seal_activation_fds() -> dict[str, int]:
+    """Set close-on-exec on every inherited systemd descriptor without closing it."""
+    fds = _activation_fds()
+    for fd in fds.values():
+        flags = fcntl.fcntl(fd, fcntl.F_GETFD)
+        fcntl.fcntl(fd, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC)
+    return fds

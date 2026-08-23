@@ -2238,6 +2238,18 @@ class SessionManager:
         prepared, self._prepared_restart = self._prepared_restart, []
         await self._rollback_handover(prepared)
 
+    async def drain_restart_persistence(self) -> dict:
+        """Flush every current session's queued persistence before restart signalling."""
+        sessions = list(self.sessions.values())
+        results = await asyncio.gather(
+            *(session._drain_handoff_log_writes() for session in sessions),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
+        return {"ok": True, "drained": len(sessions)}
+
     async def _rollback_handover(self, prepared: list) -> None:
         """Take these sessions back out of systemd's store and give them their readers back.
 

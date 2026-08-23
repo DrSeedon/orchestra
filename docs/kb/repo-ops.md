@@ -52,16 +52,31 @@
 - Загружена ли ML-модель в процесс → anonymous RSS (`/proc/<pid>/smaps_rollup`) + лог загрузки, НЕ `find` по `.onnx`: ONNX читает веса в heap. Кеш по дефолту в `/tmp` — при ребуте умрёт
 - `killpg` по СОХРАНЁННОМУ числовому PGID после выхода лидера убьёт чужую группу (PGID переиспользуются) → сигналить по живому handle; `pkill -f` матчит процессы всей системы
 
+### Socket-activated restart
+
+- **Строка Uvicorn `Finished server process` не доказывает exit supervisor:** 23.08 `/api/restart` дал 200 в 15:56:02, PID 1092440 написал `Finished` в 15:56:04, но тот же PID исполнил hibernate timer в 16:06:04; следующий PID появился только в 16:53:28. Пока старый main жил без acceptor, `orchestra.socket` законно копил connect в `Recv-Q`, а systemd оставлял service active · `journalctl -u orchestra.service --since '2026-08-23 15:55:45' --until '2026-08-23 17:00:35'`; `docs/tasks/379/research.md` · 2026-08-23, #379
+- **Pending accept queue — не поломка сама по себе:** локальный Uvicorn на том же listener при `Recv-Q=350` в 3/3 прогонах отдал свежий HTTP 200 за 443.3–600.2 мс и свёл queue в 0; systemd `FlushPending=no` именно для этого сохраняет connections между поколениями · `/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python docs/tasks/379/socket_stand.py`; systemd.socket `FlushPending=` · 2026-08-23, #379
+- **Activation listener реально течёт в direct children production uvloop:** incident `ss` показал 11 Node launchers + Python на одном LISTEN `:8888`; текущий inode census — 12 Node + 1 sh, native Codex owners 0. A/B: stdlib asyncio закрыл inheritable FD, uvloop передал тот же inode; `FD_CLOEXEC` снял leak в обоих · `docs/tasks/379/socket_stand.py`; `/proc/<pid>/fd`; Uvicorn 0.48.0 + uvloop 0.22.1 · 2026-08-23, #379
+- **Leaked listener FD не блокирует service-only accept, но блокирует настоящий socket rebind:** при живом holder повторный bind дал `EADDRINUSE` 3/3 и прошёл после exit; non-inheritable control прошёл при живом child. Полный stop socket/service поэтому не равноценен restart: он очищает queue и освобождает FD store, но теряет seamless guarantee #230/#237 · `docs/tasks/379/socket_stand.py`; `docs/tasks/230/research.md` F2 · 2026-08-23, #379
+- **Код #379 закрывает listener leak без socket recycle:** `seal_activation_fds()` ставит `FD_CLOEXEC` на весь `LISTEN_FDS` range до manager import, сохраняя exact fd 3/4/5 targets и name→fd mapping; combined holder+queue 350 остаётся 200/queue 0, Node/MCP census пуст · `32 passed` T1+T2+seamless; `docs/tasks/379/report.md` · 2026-08-23, #379
+- **Self-SIGINT теперь имеет независимую post-teardown сходимость:** same-UID helper ждёт READY после verified pidfd, не может force до `application_teardown_complete`, затем даёт 5 с на clean exit и только потом SIGKILL target через pidfd; любой unproven helper disarm держит handover/gates fail-closed · `287 passed` focused + 7/7 caught mutations; `docs/tasks/379/report.md` · 2026-08-23, #379
+
 ## Отвергнуто
 
 - (пусто на момент переноса #347 — отозванные утверждения помечены прямо внутри пунктов выше)
+- «Обычный restart service не помог, потому что socket сохранил старую очередь» · новый PID 1191988 до полного recycle обслужил `/api/usage/readiness` → 200 и `/` → 302; stand с queue 350 дал свежий 200 в 3/3 · 2026-08-23, #379
 
 ## Пробелы
 
 - Пункты выше не проверялись на дубли между собой построчно: перенос #347 сохранял текст
   дословно, слияние формулировок делалось только в `CLAUDE.md` · 2026-08-19, #347
+- Точный blocking asyncio/default-executor work item PID 1092440 не снят до hard recovery; journal доказывает живой loop через +600 с, но thread/task stack отсутствует · 2026-08-23, #379
+- Локальные 200/302 доказывают, что service-only поколение начало принимать, но не объясняют, какой consumer desktop/SSE ещё выглядел мёртвым до полного recycle · 2026-08-23, #379
+- Реализация #379 закоммичена, но на живом process ещё не активирована: Python-код требует отдельного явно разрешённого restart · 2026-08-23, #379
 
 ## Источники
+
+- docs/tasks/379/research.md — causal postmortem socket queue, post-Uvicorn hang и uvloop listener-FD leak
 
 - `CLAUDE.md` — короткие правила «триггер → действие», ссылающиеся сюда
 - `docs/tasks/347/inventory-before.md` — инвентарь всех пунктов до сокращения
