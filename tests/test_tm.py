@@ -250,6 +250,106 @@ def test_unqualified_core_update_fails_before_side_effects(db):
         assert (row["title"], row["sync_revision"]) == ("original", 0)
 
 
+def test_acceptance_command_update_changes_revision_once_and_can_clear(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        project = tm.ensure_project(conn, "proj", scope=str(db))
+        task = tm.create_task(
+            conn,
+            project["id"],
+            "acceptance recovery",
+            par_number=383,
+            acceptance_command="definitely-not-a-command",
+        )
+        before = tm.get_task_by_id(conn, task["id"])
+
+    result = tm.api_update_task(
+        "383",
+        project="proj",
+        acceptance_command="  python3 -c 'raise SystemExit(0)'  ",
+    )
+
+    assert result["updated"] == ["acceptance_command"]
+    assert set(result) == {"par", "project", "updated"}
+    with tm._conn() as conn:
+        corrected = tm.get_task_by_id(conn, task["id"])
+    assert corrected["acceptance_command"] == "python3 -c 'raise SystemExit(0)'"
+    assert corrected["sync_revision"] == before["sync_revision"] + 1
+    assert corrected["updated_at"] != before["updated_at"]
+
+    omitted = tm.api_update_task("383", project="proj")
+    assert omitted["updated"] == []
+    with tm._conn() as conn:
+        unchanged = tm.get_task_by_id(conn, task["id"])
+    assert unchanged["acceptance_command"] == corrected["acceptance_command"]
+    assert unchanged["sync_revision"] == corrected["sync_revision"]
+    assert unchanged["updated_at"] == corrected["updated_at"]
+
+    cleared = tm.api_update_task("383", project="proj", acceptance_command="")
+    assert cleared["updated"] == ["acceptance_command"]
+    with tm._conn() as conn:
+        after_clear = tm.get_task_by_id(conn, task["id"])
+    assert after_clear["acceptance_command"] == ""
+    assert after_clear["sync_revision"] == corrected["sync_revision"] + 1
+
+
+def test_acceptance_command_update_rejects_wrong_project_and_task(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        project = tm.ensure_project(conn, "proj", scope=str(db / "proj"))
+        tm.ensure_project(conn, "other", scope=str(db / "other"))
+        task = tm.create_task(
+            conn,
+            project["id"],
+            "scoped acceptance",
+            par_number=383,
+            acceptance_command="original",
+        )
+
+    with pytest.raises(ValueError, match="not found"):
+        tm.api_update_task(
+            "383", project="other", acceptance_command="python3 -c 'pass'",
+        )
+    with pytest.raises(ValueError, match="not found"):
+        tm.api_update_task(
+            "999", project="proj", acceptance_command="python3 -c 'pass'",
+        )
+
+    with tm._conn() as conn:
+        unchanged = tm.get_task_by_id(conn, task["id"])
+    assert unchanged["acceptance_command"] == "original"
+    assert unchanged["sync_revision"] == 0
+
+
+def test_combined_acceptance_and_status_update_keeps_status_metadata(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        project = tm.ensure_project(conn, "proj", scope=str(db))
+        tm.create_task(
+            conn,
+            project["id"],
+            "combined update",
+            par_number=383,
+            acceptance_command="original",
+        )
+
+    result = tm.api_update_task(
+        "383",
+        project="proj",
+        status="in_progress",
+        acceptance_command="python3 -c 'pass'",
+    )
+
+    assert result["updated"] == ["acceptance_command", "status"]
+    assert result["old_status"] == "new"
+    assert result["new_status"] == "in_progress"
+    assert result["price_rub"] == 0
+    assert result["paid_rub"] == 0
+
+
 def test_status_prepayment_uses_resolved_task_db_id(db):
     from app import tm
 

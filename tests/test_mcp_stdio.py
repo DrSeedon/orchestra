@@ -696,6 +696,67 @@ async def test_task_get_and_update_fall_back_to_authoritative_scope(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_task_update_sends_orchestrator_acceptance_command_in_caller_scope(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "ROLE", "orchestrator")
+    monkeypatch.setattr(m, "SCOPE", "/lower")
+    api = AsyncMock(return_value={
+        "project": "lower",
+        "par": "383",
+        "updated": ["acceptance_command"],
+    })
+    monkeypatch.setattr(m, "_api", api)
+
+    result = json.loads(await m.task_update(
+        "383", acceptance_command="  uv run pytest -q tests/test_acceptance.py  ",
+    ))
+
+    api.assert_awaited_once_with(
+        "PUT",
+        "/api/tm/tasks/383",
+        json={"acceptance_command": "uv run pytest -q tests/test_acceptance.py"},
+        params={"scope": "/lower"},
+    )
+    assert result["updated"] == ["acceptance_command"]
+    assert "acceptance_command" not in result
+
+
+@pytest.mark.asyncio
+async def test_task_update_empty_acceptance_is_omitted_and_clear_is_explicit(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "ROLE", "orchestrator")
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+    api = AsyncMock(return_value={"updated": ["acceptance_command"]})
+    monkeypatch.setattr(m, "_api", api)
+
+    assert await m.task_update("383", acceptance_command="") == "Nothing to update"
+    api.assert_not_awaited()
+
+    await m.task_update("383", clear_acceptance_command=True)
+    api.assert_awaited_once_with(
+        "PUT",
+        "/api/tm/tasks/383",
+        json={"clear_acceptance_command": True},
+        params={"scope": "/scope"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_worker_task_update_cannot_change_acceptance_command(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "ROLE", "worker")
+    api = AsyncMock()
+    monkeypatch.setattr(m, "_api", api)
+
+    assert await m.task_update("383", acceptance_command="true") == "Nothing to update"
+    assert await m.task_update("383", clear_acceptance_command=True) == "Nothing to update"
+    api.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_spawn_passes_base_branch(monkeypatch):
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")

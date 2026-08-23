@@ -257,3 +257,96 @@ async def test_orchestrator_task_create_stores_acceptance_command(acc_db, monkey
         ).fetchone()
     assert stored is not None
     assert stored["acceptance_command"] == "uv run python -m pytest -q tests/x.py"
+
+
+@pytest.mark.asyncio
+async def test_public_update_corrects_command_used_by_merge_resolver(acc_db, monkeypatch):
+    from starlette.requests import Request
+
+    import app.tm as tm
+    from app.acceptance import FAILED, PASSED, SKIPPED, evaluate_for_merge
+    from app.routes.tm import TmTaskUpdate, tm_update_task
+
+    request = Request({"type": "http", "headers": []})
+    before_result = evaluate_for_merge(
+        session_id="merge-session", worktree_path=str(acc_db),
+    )
+    assert before_result["status"] == FAILED
+    with tm._conn() as conn:
+        before = tm.get_task_by_par(conn, 42, "proj")
+
+    def unexpected_privilege_check(_request):
+        raise AssertionError("legacy empty acceptance_command must remain an omission")
+
+    monkeypatch.setattr(
+        "app.mcp_proof.caller_may_use_orchestrator_privilege",
+        unexpected_privilege_check,
+    )
+    omitted = await tm_update_task(
+        "42", TmTaskUpdate(acceptance_command=""), request, scope="/scope",
+    )
+    assert omitted["updated"] == []
+    with tm._conn() as conn:
+        after_omission = tm.get_task_by_par(conn, 42, "proj")
+    assert after_omission["acceptance_command"] == before["acceptance_command"]
+    assert after_omission["sync_revision"] == before["sync_revision"]
+    assert after_omission["updated_at"] == before["updated_at"]
+
+    monkeypatch.setattr(
+        "app.mcp_proof.caller_may_use_orchestrator_privilege", lambda _request: True,
+    )
+    updated = await tm_update_task(
+        "42",
+        TmTaskUpdate(acceptance_command="python3 -c 'raise SystemExit(0)'"),
+        request,
+        scope="/scope",
+    )
+    assert updated["updated"] == ["acceptance_command"]
+    assert set(updated) == {"par", "project", "updated"}
+    with tm._conn() as conn:
+        corrected = tm.get_task_by_par(conn, 42, "proj")
+    assert corrected["sync_revision"] == before["sync_revision"] + 1
+    assert corrected["updated_at"] != before["updated_at"]
+
+    resolved = evaluate_for_merge(
+        session_id="merge-session", worktree_path=str(acc_db),
+    )
+    assert resolved["status"] == PASSED
+    assert resolved["command"] == "python3 -c 'raise SystemExit(0)'"
+
+    cleared = await tm_update_task(
+        "42", TmTaskUpdate(clear_acceptance_command=True), request, scope="/scope",
+    )
+    assert cleared["updated"] == ["acceptance_command"]
+    assert evaluate_for_merge(
+        session_id="merge-session", worktree_path=str(acc_db),
+    )["status"] == SKIPPED
+
+
+@pytest.mark.asyncio
+async def test_public_acceptance_update_rejects_wrong_scope_and_task(acc_db, monkeypatch):
+    import json
+
+    from starlette.requests import Request
+
+    import app.tm as tm
+    from app.routes.tm import TmTaskUpdate, tm_update_task
+
+    monkeypatch.setattr(
+        "app.mcp_proof.caller_may_use_orchestrator_privilege", lambda _request: True,
+    )
+    request = Request({"type": "http", "headers": []})
+    update = TmTaskUpdate(acceptance_command="python3 -c 'raise SystemExit(0)'")
+
+    wrong_scope = await tm_update_task("42", update, request, scope="/wrong")
+    assert wrong_scope.status_code == 400
+    assert "no task project" in json.loads(wrong_scope.body)["error"]
+
+    wrong_task = await tm_update_task("999", update, request, scope="/scope")
+    assert wrong_task.status_code == 404
+    assert "not found" in json.loads(wrong_task.body)["error"]
+
+    with tm._conn() as conn:
+        unchanged = tm.get_task_by_par(conn, 42, "proj")
+    assert unchanged["acceptance_command"].startswith("python3 -c 'import sys")
+    assert unchanged["sync_revision"] == 0

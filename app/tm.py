@@ -266,7 +266,8 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
                 assignee: str | None = None, worker_session_id: str | None = None,
                 git_commits: str | None = None,
                 yougile_task_id: str | None = None,
-                priority: int | None = None) -> dict:
+                priority: int | None = None,
+                acceptance_command: str | None = None) -> dict:
     task = get_task_by_id(conn, task_id)
     if not task:
         raise ValueError(f"Task {task_id} not found")
@@ -294,6 +295,13 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
         updates.append("priority = ?")
         params.append(priority)
         changed.append("priority")
+
+    if acceptance_command is not None:
+        command = acceptance_command.strip()
+        if command != (task.get("acceptance_command") or ""):
+            updates.append("acceptance_command = ?")
+            params.append(command)
+            changed.append("acceptance_command")
 
     if worker_session_id is not None:
         updates.append("worker_session_id = ?")
@@ -968,7 +976,8 @@ def api_update_task(par: str, title: str | None = None,
                     status: str | None = None,
                     assignee: str | None = None,
                     project: str = "",
-                    priority: int | None = None) -> dict:
+                    priority: int | None = None,
+                    acceptance_command: str | None = None) -> dict:
     task_id = None
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -984,6 +993,7 @@ def api_update_task(par: str, title: str | None = None,
                 title=title, description=description,
                 price_rub=price_rub, status=status,
                 assignee=assignee, priority=priority,
+                acceptance_command=acceptance_command,
             )
 
             if status == "done":
@@ -997,10 +1007,15 @@ def api_update_task(par: str, title: str | None = None,
             raise
 
     _fire_sync(task_id)
-    return {
+    response = {
         "par": task_ref,
         "project": updated["project_id"],
         "updated": result["changed"],
+    }
+    if result["changed"] == ["acceptance_command"]:
+        return response
+    return {
+        **response,
         "old_status": result.get("old_status", updated["status"]),
         "new_status": updated["status"],
         "price_rub": updated["price_rub"],

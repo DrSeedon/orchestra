@@ -31,6 +31,8 @@ class TmTaskUpdate(BaseModel):
     status: str | None = None
     assignee: str | None = None
     priority: int | None = None
+    acceptance_command: str | None = None
+    clear_acceptance_command: bool = False
 
 
 class TmPaymentReceive(BaseModel):
@@ -128,13 +130,58 @@ async def tm_get_task(par: str, project: str = "", scope: str = ""):
 
 
 @router.put("/tasks/{par}")
-async def tm_update_task(par: str, req: TmTaskUpdate, project: str = "", scope: str = ""):
+async def tm_update_task(
+    par: str,
+    req: TmTaskUpdate,
+    request: Request,
+    project: str = "",
+    scope: str = "",
+):
     try:
+        caller_scope = ""
+        requested_command = (req.acceptance_command or "").strip()
+        if req.clear_acceptance_command and requested_command:
+            raise ValueError(
+                "acceptance_command and clear_acceptance_command are mutually exclusive"
+            )
+        command_update = "" if req.clear_acceptance_command else (requested_command or None)
+        if command_update is not None:
+            from app.mcp_proof import caller_may_use_orchestrator_privilege
+
+            if not caller_may_use_orchestrator_privilege(request):
+                return JSONResponse(
+                    {"error": "acceptance_command is orchestrator-only"},
+                    status_code=403,
+                )
+            session_id = request.headers.get("x-orchestra-session-id", "").strip()
+            if session_id:
+                from app.db import get_session
+
+                caller = get_session(session_id)
+                caller_scope = str((caller or {}).get("scope") or "").strip()
+                if not caller_scope:
+                    return JSONResponse(
+                        {"error": "acceptance_command caller has no project scope"},
+                        status_code=403,
+                    )
+
         def _do():
-            resolved_project = _resolve_task_project_id(project, scope)
+            if command_update is not None and caller_scope:
+                resolved_project = _resolve_task_project_id("", caller_scope)
+                if project and _resolve_task_project_id(project, "") != resolved_project:
+                    raise ValueError(
+                        "acceptance_command update is limited to caller's project"
+                    )
+                if scope and _resolve_task_project_id("", scope) != resolved_project:
+                    raise ValueError(
+                        "acceptance_command update is limited to caller's project"
+                    )
+            else:
+                resolved_project = _resolve_task_project_id(project, scope)
             return _tm.api_update_task(
                 par, req.title, req.description, req.price, req.status, req.assignee,
                 project=resolved_project, priority=req.priority,
+                acceptance_command=command_update,
             )
         return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:

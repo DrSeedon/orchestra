@@ -80,6 +80,85 @@ async def test_spoofed_session_id_cannot_store_acceptance_command(proof_db):
     assert stored is None or stored["acceptance_command"] == ""
 
 
+@pytest.mark.asyncio
+async def test_spoofed_session_id_cannot_update_acceptance_command(proof_db):
+    import app.tm as tm
+    from app.routes.tm import TmTaskUpdate, tm_update_task
+
+    with tm._conn() as conn:
+        task = tm.create_task(
+            conn, "proj", "spoof-update", par_number=383,
+            acceptance_command="original",
+        )
+
+    result = await tm_update_task(
+        "383",
+        TmTaskUpdate(acceptance_command="true"),
+        _req(session_id="orch-session"),
+        scope="/scope",
+    )
+    assert result.status_code == 403
+    with tm._conn() as conn:
+        stored = tm.get_task_by_id(conn, task["id"])
+    assert stored["acceptance_command"] == "original"
+    assert stored["sync_revision"] == 0
+
+
+@pytest.mark.asyncio
+async def test_bound_orchestrator_proof_may_update_acceptance_command(proof_db):
+    import app.tm as tm
+    from app.mcp_proof import issue_mcp_proof
+    from app.routes.tm import TmTaskUpdate, tm_update_task
+
+    with tm._conn() as conn:
+        task = tm.create_task(
+            conn, "proj", "valid-update", par_number=383,
+            acceptance_command="original",
+        )
+    proof = issue_mcp_proof("orch-session")
+
+    result = await tm_update_task(
+        "383",
+        TmTaskUpdate(acceptance_command="python3 -c 'pass'"),
+        _req(session_id="orch-session", proof=proof),
+        scope="/scope",
+    )
+
+    assert result["updated"] == ["acceptance_command"]
+    with tm._conn() as conn:
+        stored = tm.get_task_by_id(conn, task["id"])
+    assert stored["acceptance_command"] == "python3 -c 'pass'"
+    assert stored["sync_revision"] == 1
+
+
+@pytest.mark.asyncio
+async def test_bound_orchestrator_proof_cannot_update_foreign_acceptance(proof_db):
+    import app.tm as tm
+    from app.mcp_proof import issue_mcp_proof
+    from app.routes.tm import TmTaskUpdate, tm_update_task
+
+    with tm._conn() as conn:
+        tm.ensure_project(conn, "other", scope="/other")
+        foreign = tm.create_task(
+            conn, "other", "foreign", par_number=383,
+            acceptance_command="foreign-original",
+        )
+    proof = issue_mcp_proof("orch-session")
+
+    result = await tm_update_task(
+        "383",
+        TmTaskUpdate(acceptance_command="true"),
+        _req(session_id="orch-session", proof=proof),
+        project="other",
+    )
+
+    assert result.status_code == 400
+    with tm._conn() as conn:
+        stored = tm.get_task_by_id(conn, foreign["id"])
+    assert stored["acceptance_command"] == "foreign-original"
+    assert stored["sync_revision"] == 0
+
+
 def test_bound_orchestrator_proof_may_waive(proof_db):
     from app.diff_budget import request_may_waive_diff_budget
     from app.mcp_proof import issue_mcp_proof
