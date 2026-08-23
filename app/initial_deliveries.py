@@ -28,20 +28,50 @@ def _next_action(row: sqlite3.Row | dict) -> dict | None:
         return {
             "code": "WAIT_FOR_DELIVERY",
             "tool": "delivery_status",
-            "delivery_id": delivery_id,
+            "arguments": {"delivery_id": delivery_id},
+            "retryable": False,
             "message": "Wait for this accepted delivery and check the same delivery_id.",
+        }
+    if state == "FAILED_BEFORE_SUBMIT":
+        return {
+            "code": "RETRY_SAME_DELIVERY",
+            "tool": "retry_initial_delivery",
+            "arguments": {
+                "name": row["worker_name"],
+                "task": row["message"],
+                "delivery_id": delivery_id,
+            },
+            "retryable": True,
+            "message": "Retry only this known-not-submitted delivery with the same id.",
         }
     if state in {"DISPATCHING", "DELIVERY_UNKNOWN"}:
         return {
             "code": "CHECK_DELIVERY_STATUS",
             "tool": "delivery_status",
-            "delivery_id": delivery_id,
+            "arguments": {"delivery_id": delivery_id},
+            "retryable": False,
             "message": (
                 "Provider acceptance may have occurred. Check this delivery_id; "
                 "do not resend the initial task automatically."
             ),
         }
-    return None
+    if state == "SUBMITTED":
+        return {
+            "code": "NONE",
+            "tool": None,
+            "arguments": {},
+            "retryable": False,
+            "message": "Provider submission is recorded; no retry is allowed.",
+        }
+    return {
+        "code": "QUARANTINED_DELIVERY_STATE",
+        "tool": None,
+        "arguments": {"delivery_id": delivery_id},
+        "retryable": False,
+        "message": (
+            f"Delivery state {state!r} is unsupported; do not retry automatically."
+        ),
+    }
 
 
 def _payload_hash(
@@ -130,7 +160,7 @@ async def accept_initial_delivery(
     )
     now = _now()
     connection = db._conn()
-    inserted = False
+    wake_runner = False
     resource = None
     try:
         connection.execute("BEGIN IMMEDIATE")
@@ -149,41 +179,56 @@ async def accept_initial_delivery(
                         "message": "delivery id is already bound to another payload",
                     },
                 }, 409
+            if row["state"] == "FAILED_BEFORE_SUBMIT":
+                cursor = connection.execute(
+                    """UPDATE initial_deliveries
+                       SET state='PREPARING', error_json=NULL, updated_at=?
+                       WHERE delivery_id=? AND state='FAILED_BEFORE_SUBMIT'""",
+                    (now, delivery_id),
+                )
+                row = connection.execute(
+                    "SELECT * FROM initial_deliveries WHERE delivery_id=?",
+                    (delivery_id,),
+                ).fetchone()
+                resource = _resource(row)
+                connection.commit()
+                wake_runner = cursor.rowcount == 1
+            else:
+                connection.commit()
+                return _resource(row), 202
+        else:
+            connection.execute(
+                """INSERT INTO initial_deliveries (
+                       delivery_id, schema_version, session_id, worker_name, scope,
+                       sender, message, payload_hash, state, created_at, updated_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?)""",
+                (
+                    delivery_id,
+                    SCHEMA_VERSION,
+                    session_id,
+                    worker_name,
+                    scope,
+                    sender,
+                    message,
+                    payload_hash,
+                    now,
+                    now,
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM initial_deliveries WHERE delivery_id=?",
+                (delivery_id,),
+            ).fetchone()
+            resource = _resource(row)
             connection.commit()
-            return _resource(row), 202
-
-        connection.execute(
-            """INSERT INTO initial_deliveries (
-                   delivery_id, schema_version, session_id, worker_name, scope,
-                   sender, message, payload_hash, state, created_at, updated_at
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?)""",
-            (
-                delivery_id,
-                SCHEMA_VERSION,
-                session_id,
-                worker_name,
-                scope,
-                sender,
-                message,
-                payload_hash,
-                now,
-                now,
-            ),
-        )
-        row = connection.execute(
-            "SELECT * FROM initial_deliveries WHERE delivery_id=?",
-            (delivery_id,),
-        ).fetchone()
-        resource = _resource(row)
-        connection.commit()
-        inserted = True
+            wake_runner = True
     except Exception:
         connection.rollback()
         raise
     finally:
         connection.close()
 
-    if inserted:
+    if wake_runner:
         ensure_delivery_runner(delivery_id)
     return resource, 202
 
@@ -312,8 +357,60 @@ def _unknown_error(error: BaseException, *, orphaned: bool = False) -> dict:
         ),
         "retryable": False,
         "outcome_unknown": True,
-        "details": {"exception_type": type(error).__name__},
+        "details": {
+            "phase": "PROVIDER_CALL_STARTED",
+            "exception_type": type(error).__name__,
+        },
     }
+
+
+def _not_submitted_error(error: BaseException) -> dict:
+    return {
+        "code": "DELIVERY_NOT_SUBMITTED",
+        "message": f"Provider submission did not begin: {err_text(error)}",
+        "retryable": True,
+        "outcome_unknown": False,
+        "details": {
+            "phase": "PRE_PROVIDER",
+            "exception_type": type(error).__name__,
+        },
+    }
+
+
+def mark_initial_delivery_failed_before_submit(
+    delivery_id: str, error: BaseException,
+) -> dict:
+    """Record a committed delivery whose provider call provably did not begin."""
+    delivery_id = _validate_delivery_id(delivery_id)
+    error_json = json.dumps(
+        _not_submitted_error(error),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    with db._conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT * FROM initial_deliveries WHERE delivery_id=?",
+            (delivery_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"initial delivery not found: {delivery_id}")
+        if row["state"] == "FAILED_BEFORE_SUBMIT":
+            return _resource(row)
+        if row["state"] != "PREPARING":
+            return _resource(row)
+        connection.execute(
+            """UPDATE initial_deliveries
+               SET state='FAILED_BEFORE_SUBMIT', error_json=?, updated_at=?
+               WHERE delivery_id=? AND state='PREPARING'""",
+            (error_json, _now(), delivery_id),
+        )
+        row = connection.execute(
+            "SELECT * FROM initial_deliveries WHERE delivery_id=?",
+            (delivery_id,),
+        ).fetchone()
+        return _resource(row)
 
 
 def mark_initial_delivery_unknown(
@@ -400,10 +497,14 @@ async def run_initial_delivery(delivery_id: str, *, manager=None) -> None:
     except asyncio.CancelledError as error:
         if context.dispatched:
             mark_initial_delivery_unknown(delivery_id, error)
+        else:
+            mark_initial_delivery_failed_before_submit(delivery_id, error)
         raise
     except Exception as error:
         if context.dispatched:
             mark_initial_delivery_unknown(delivery_id, error)
+        else:
+            mark_initial_delivery_failed_before_submit(delivery_id, error)
         raise
 
 

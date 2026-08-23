@@ -595,3 +595,358 @@ def test_t2_startup_orders_recovery_before_background_delivery_sources():
     assert positions == sorted(positions), (
         "#311 delivery recovery must run after auto-resume and before background sources"
     )
+
+
+T381_SHARED_ERROR_TEXT = "'NoneType' object has no attribute 'send'"
+
+
+def _t381_session():
+    from app.session import AgentSession
+
+    session = AgentSession(
+        id=SESSION_ID,
+        name=WORKER,
+        scope=SCOPE,
+        cwd="/tmp/worker-381",
+        model="claude-sonnet-5[1m]",
+        system_prompt="",
+        created_at=datetime.now(timezone.utc),
+        is_orchestrator=True,
+    )
+    session._log = MagicMock()
+    session._persist = MagicMock()
+    session._note_next_precompact_activity = MagicMock()
+    session._refresh_stale_backend = AsyncMock()
+    session._apply_pending_identity_restart = AsyncMock()
+    session._apply_manifest_effort = AsyncMock()
+    session._notify_scope_running = AsyncMock()
+    session._attach_pending_facts = lambda message: (message, [])
+    session._ack_pending_facts = MagicMock()
+    return session
+
+
+class _T381SessionManager:
+    def __init__(self, session):
+        self.session = session
+
+    async def send_initial_delivery(self, session_id, message, *, delivery):
+        assert session_id == SESSION_ID
+        await self.session.send(message, delivery=delivery)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_mode", ["backend-none", "raised-before-call"])
+async def test_t381_backend_none_before_provider_is_known_retryable(
+    delivery_db, monkeypatch, failure_mode,
+):
+    module = _delivery_module()
+    monkeypatch.setattr(module, "ensure_delivery_runner", lambda _delivery_id: None)
+    await _accept(module)
+    session = _t381_session()
+    if failure_mode == "backend-none":
+        session._ensure_backend = AsyncMock(return_value=None)
+    else:
+        session._ensure_backend = AsyncMock(
+            side_effect=AttributeError(T381_SHARED_ERROR_TEXT),
+        )
+
+    run = _required_callable(module, "run_initial_delivery")
+    with pytest.raises(Exception):
+        await run(DELIVERY_ID, manager=_T381SessionManager(session))
+    await asyncio.sleep(0)
+
+    row = _delivery_row(delivery_db)
+    assert row["state"] == "FAILED_BEFORE_SUBMIT", (
+        "#381 pre-provider failure must stay known and retryable"
+    )
+    error = json.loads(row["error_json"])
+    assert error["code"] == "DELIVERY_NOT_SUBMITTED"
+    assert error["outcome_unknown"] is False
+    assert error["retryable"] is True
+    assert error["details"]["phase"] == "PRE_PROVIDER"
+    assert session._ensure_backend.await_count == 1
+    assert len(_user_messages(delivery_db)) == 1
+
+
+@pytest.mark.asyncio
+async def test_t381_retry_after_backend_recovery_submits_once_without_duplicate_input(
+    delivery_db, monkeypatch,
+):
+    import threading
+
+    module = _delivery_module()
+    monkeypatch.setattr(module, "ensure_delivery_runner", lambda _delivery_id: None)
+    await _accept(module)
+    failed_session = _t381_session()
+    failed_session._ensure_backend = AsyncMock(
+        side_effect=AttributeError(T381_SHARED_ERROR_TEXT),
+    )
+    with pytest.raises(AttributeError, match="NoneType"):
+        await module.run_initial_delivery(
+            DELIVERY_ID,
+            manager=_T381SessionManager(failed_session),
+        )
+    await asyncio.sleep(0)
+    failed = _delivery_row(delivery_db)
+    assert failed["state"] == "FAILED_BEFORE_SUBMIT"
+    original_user_log_id = failed["user_log_id"]
+    assert original_user_log_id is not None
+    assert len(_user_messages(delivery_db)) == 1
+
+    conflict, conflict_status = await _accept(module, message=MESSAGE + " changed")
+    assert conflict_status == 409
+    assert conflict["error"]["code"] == "IDEMPOTENCY_CONFLICT"
+
+    wake_attempts = []
+
+    def lose_first_wake(delivery_id):
+        wake_attempts.append(delivery_id)
+        raise RuntimeError("simulated crash between retry claim and runner wake")
+
+    monkeypatch.setattr(module, "ensure_delivery_runner", lose_first_wake)
+    barrier = threading.Barrier(2)
+
+    def retry_same_delivery():
+        barrier.wait()
+        return asyncio.run(_accept(module))
+
+    results = await asyncio.gather(
+        asyncio.to_thread(retry_same_delivery),
+        asyncio.to_thread(retry_same_delivery),
+        return_exceptions=True,
+    )
+    failures = [result for result in results if isinstance(result, Exception)]
+    receipts = [result for result in results if not isinstance(result, Exception)]
+    assert len(failures) == 1
+    assert "simulated crash" in str(failures[0])
+    assert len(receipts) == 1 and receipts[0][1] == 202
+    assert wake_attempts == [DELIVERY_ID]
+
+    claimed = _delivery_row(delivery_db)
+    assert claimed["state"] == "PREPARING"
+    assert claimed["error_json"] is None
+    assert claimed["user_log_id"] == original_user_log_id
+
+    recovered = []
+    monkeypatch.setattr(
+        module,
+        "ensure_delivery_runner",
+        lambda delivery_id: recovered.append(delivery_id),
+    )
+    await module.recover_initial_deliveries()
+    assert recovered == [DELIVERY_ID]
+
+    provider_calls = []
+    prompt_preparations = []
+
+    class _T381RecoveredBackend:
+        active_turn_id = "native-turn-381"
+
+        async def send(self, message):
+            provider_calls.append(message)
+
+    recovered_session = _t381_session()
+    recovered_session._ensure_backend = AsyncMock(return_value=_T381RecoveredBackend())
+
+    def prepare_prompt(message):
+        prompt_preparations.append(message)
+        return message, []
+
+    recovered_session._attach_pending_facts = prepare_prompt
+    await module.run_initial_delivery(
+        DELIVERY_ID,
+        manager=_T381SessionManager(recovered_session),
+    )
+    await asyncio.sleep(0)
+    row = _delivery_row(delivery_db)
+    assert row["state"] == "SUBMITTED"
+    assert row["user_log_id"] == original_user_log_id
+    assert row["provider_ref"] == "native-turn-381"
+    assert provider_calls == [MESSAGE]
+    assert prompt_preparations == [MESSAGE]
+    assert recovered_session._ensure_backend.await_args.kwargs == {
+        "exclude_history_users": (MESSAGE,),
+    }
+    assert [entry["content"] for entry in _user_messages(delivery_db)] == [MESSAGE]
+
+
+@pytest.mark.asyncio
+async def test_t381_provider_accept_then_transport_loss_stays_unknown_quarantined(
+    delivery_db, monkeypatch,
+):
+    module = _delivery_module()
+    monkeypatch.setattr(module, "ensure_delivery_runner", lambda _delivery_id: None)
+    await _accept(module)
+    dispatching_id = "00000000-0000-4000-8000-000000000387"
+    historical_unknown_id = "00000000-0000-4000-8000-000000000388"
+    await _accept(module, delivery_id=dispatching_id)
+    await _accept(module, delivery_id=historical_unknown_id)
+    module.prepare_initial_delivery(dispatching_id)
+    module.mark_initial_delivery_dispatching(dispatching_id)
+    module.prepare_initial_delivery(historical_unknown_id)
+    historical_error_json = json.dumps(
+        {
+            "code": "DELIVERY_OUTCOME_UNKNOWN",
+            "message": "historical quarantine sentinel",
+            "outcome_unknown": True,
+            "retryable": False,
+            "details": {"exception_type": "LegacyError"},
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    with delivery_db._conn() as connection:
+        connection.execute(
+            "UPDATE initial_deliveries SET state='DELIVERY_UNKNOWN', error_json=? "
+            "WHERE delivery_id=?",
+            (historical_error_json, historical_unknown_id),
+        )
+
+    dispatching_wakes = []
+    monkeypatch.setattr(
+        module,
+        "ensure_delivery_runner",
+        lambda delivery_id: dispatching_wakes.append(delivery_id),
+    )
+    dispatching_receipt, dispatching_status = await _accept(
+        module,
+        delivery_id=dispatching_id,
+    )
+    assert dispatching_status == 202
+    assert dispatching_receipt["delivery_state"] == "DISPATCHING"
+    assert dispatching_wakes == []
+    external_acceptances = []
+
+    class _T381AcceptedThenLostBackend:
+        active_turn_id = None
+
+        async def send(self, message):
+            external_acceptances.append(message)
+            raise AttributeError(T381_SHARED_ERROR_TEXT)
+
+    session = _t381_session()
+    session._ensure_backend = AsyncMock(return_value=_T381AcceptedThenLostBackend())
+    run = _required_callable(module, "run_initial_delivery")
+    with pytest.raises(AttributeError, match="NoneType"):
+        await run(DELIVERY_ID, manager=_T381SessionManager(session))
+    await asyncio.sleep(0)
+
+    row = _delivery_row(delivery_db)
+    error = json.loads(row["error_json"])
+    fresh_unknown_error_json = row["error_json"]
+    assert external_acceptances == [MESSAGE]
+    assert row["state"] == "DELIVERY_UNKNOWN"
+    assert error["outcome_unknown"] is True
+    assert error["retryable"] is False
+
+    scheduled = []
+    monkeypatch.setattr(
+        module,
+        "ensure_delivery_runner",
+        lambda delivery_id: scheduled.append(delivery_id),
+    )
+    await module.recover_initial_deliveries()
+    repeated, repeated_status = await _accept(module)
+    historical_repeated, historical_status = await _accept(
+        module,
+        delivery_id=historical_unknown_id,
+    )
+    assert repeated_status == 202
+    assert repeated["delivery_state"] == "DELIVERY_UNKNOWN"
+    assert historical_status == 202
+    assert historical_repeated["delivery_state"] == "DELIVERY_UNKNOWN"
+    assert _delivery_row(delivery_db, dispatching_id)["state"] == "DELIVERY_UNKNOWN"
+    assert _delivery_row(delivery_db)["error_json"] == fresh_unknown_error_json
+    assert (
+        _delivery_row(delivery_db, historical_unknown_id)["error_json"]
+        == historical_error_json
+    )
+    assert scheduled == []
+    assert external_acceptances == [MESSAGE]
+    assert error["details"].get("phase") == "PROVIDER_CALL_STARTED", (
+        "#381 ambiguous outcome must be classified by provider-call phase"
+    )
+
+
+@pytest.mark.asyncio
+async def test_t381_next_action_structurally_permits_only_known_safe_retry(
+    delivery_db, monkeypatch,
+):
+    module = _delivery_module()
+    monkeypatch.setattr(module, "ensure_delivery_runner", lambda _delivery_id: None)
+    delivery_ids = {
+        "QUEUED": "00000000-0000-4000-8000-000000000381",
+        "PREPARING": "00000000-0000-4000-8000-000000000382",
+        "FAILED_BEFORE_SUBMIT": "00000000-0000-4000-8000-000000000383",
+        "DISPATCHING": "00000000-0000-4000-8000-000000000384",
+        "DELIVERY_UNKNOWN": "00000000-0000-4000-8000-000000000385",
+        "SUBMITTED": "00000000-0000-4000-8000-000000000386",
+    }
+    for delivery_id in delivery_ids.values():
+        await _accept(module, delivery_id=delivery_id)
+
+    for state in ("PREPARING", "FAILED_BEFORE_SUBMIT", "DISPATCHING",
+                  "DELIVERY_UNKNOWN", "SUBMITTED"):
+        module.prepare_initial_delivery(delivery_ids[state])
+    module.mark_initial_delivery_dispatching(delivery_ids["DISPATCHING"])
+    module.mark_initial_delivery_dispatching(delivery_ids["DELIVERY_UNKNOWN"])
+    module.mark_initial_delivery_unknown(
+        delivery_ids["DELIVERY_UNKNOWN"],
+        AttributeError(T381_SHARED_ERROR_TEXT),
+    )
+    module.mark_initial_delivery_dispatching(delivery_ids["SUBMITTED"])
+    module.mark_initial_delivery_submitted(
+        delivery_ids["SUBMITTED"], provider_ref="native-turn-381",
+    )
+    known_error = json.dumps({
+        "code": "DELIVERY_NOT_SUBMITTED",
+        "message": "backend unavailable before provider call",
+        "outcome_unknown": False,
+        "retryable": True,
+        "details": {"phase": "PRE_PROVIDER", "exception_type": "RuntimeError"},
+    })
+    with delivery_db._conn() as connection:
+        connection.execute(
+            "UPDATE initial_deliveries SET state='FAILED_BEFORE_SUBMIT', error_json=? "
+            "WHERE delivery_id=?",
+            (known_error, delivery_ids["FAILED_BEFORE_SUBMIT"]),
+        )
+
+    expected = {
+        "QUEUED": ("WAIT_FOR_DELIVERY", "delivery_status", False),
+        "PREPARING": ("WAIT_FOR_DELIVERY", "delivery_status", False),
+        "FAILED_BEFORE_SUBMIT": (
+            "RETRY_SAME_DELIVERY", "retry_initial_delivery", True,
+        ),
+        "DISPATCHING": ("CHECK_DELIVERY_STATUS", "delivery_status", False),
+        "DELIVERY_UNKNOWN": (
+            "CHECK_DELIVERY_STATUS", "delivery_status", False,
+        ),
+        "SUBMITTED": ("NONE", None, False),
+    }
+    for state, delivery_id in delivery_ids.items():
+        resource = module.get_initial_delivery(delivery_id, SCOPE)
+        action = resource["next_action"]
+        code, tool, retryable = expected[state]
+        arguments = (
+            {"name": WORKER, "task": MESSAGE, "delivery_id": delivery_id}
+            if state == "FAILED_BEFORE_SUBMIT"
+            else ({"delivery_id": delivery_id} if tool else {})
+        )
+        assert isinstance(action, dict), f"#381 {state} must expose a next_action object"
+        assert action.get("code") == code
+        assert action.get("tool") == tool
+        assert action.get("arguments") == arguments
+        assert action.get("retryable") is retryable
+        assert isinstance(action.get("message"), str) and action["message"]
+        assert set(action) == {"code", "tool", "arguments", "retryable", "message"}
+        error = resource["error"]
+        if error is not None:
+            assert error["retryable"] is action["retryable"]
+
+    retry_actions = [
+        state for state, delivery_id in delivery_ids.items()
+        if module.get_initial_delivery(delivery_id, SCOPE)["next_action"]["tool"]
+        == "retry_initial_delivery"
+    ]
+    assert retry_actions == ["FAILED_BEFORE_SUBMIT"]
