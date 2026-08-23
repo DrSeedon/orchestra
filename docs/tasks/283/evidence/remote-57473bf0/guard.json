@@ -1,0 +1,746 @@
+[
+  {
+    "task": "closed_edit",
+    "attempt": 1,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 2,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 3,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 4,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 5,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 6,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 7,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 8,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 9,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 10,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 11,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 12,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "open_audit",
+    "attempt": 13,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "open_audit",
+    "attempt": 14,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "open_audit",
+    "attempt": 15,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "open_audit",
+    "attempt": 16,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "open_audit",
+    "attempt": 17,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "open_audit",
+    "attempt": 18,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "open_audit",
+    "attempt": 19,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "open_audit",
+    "attempt": 20,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 21,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 22,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 23,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 24,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 25,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_trace",
+    "attempt": 26,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 27,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 28,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 29,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 30,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  },
+  {
+    "task": "closed_edit",
+    "attempt": 31,
+    "url": "https://openrouter.ai/api/v1/model/stealth/ox-alpha",
+    "id": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "supported_parameters": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "reasoning_effort",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_k",
+      "top_p"
+    ],
+    "context_length": 1048576,
+    "allowed": true
+  }
+]
