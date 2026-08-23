@@ -111,6 +111,19 @@ code, pre, kbd, samp, .font-mono,
 }
 .chat-user { background: rgba(99, 102, 241, 0.15); border-left: 3px solid var(--accent); }
 .chat-bot { border-left: 3px solid rgba(99,102,241,0.1); }
+.chat-inline-image { display: block; max-width: 100%; max-height: 200px; margin-top: 6px; border-radius: 8px; cursor: zoom-in; }
+.chat-image-gallery { width: min(100%, 440px); margin-top: 8px; padding: 6px; border: 1px solid rgba(99,102,241,.28); border-radius: 12px; background: rgba(5,10,22,.45); }
+.chat-image-gallery-header { display: flex; align-items: center; justify-content: space-between; min-height: 26px; padding: 0 2px 5px; gap: 10px; }
+.chat-image-gallery-count { color: #cbd5e1; font-size: 11px; font-weight: 650; letter-spacing: .01em; }
+.chat-image-gallery-toggle { color: #a5b4fc; font-size: 11px; line-height: 1; border: 0; background: transparent; cursor: pointer; white-space: nowrap; }
+.chat-image-gallery-toggle:hover { color: #e0e7ff; text-decoration: underline; }
+.chat-image-gallery-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; overflow: hidden; border-radius: 8px; }
+.chat-image-gallery-thumb { position: relative; min-width: 0; aspect-ratio: 4 / 3; padding: 0; overflow: hidden; border: 0; background: #070b14; cursor: zoom-in; }
+.chat-image-gallery-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .16s ease, filter .16s ease; }
+.chat-image-gallery-thumb:hover img { transform: scale(1.025); filter: brightness(1.08); }
+.chat-image-gallery-more { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5,10,22,.66); color: #fff; font-size: 28px; font-weight: 750; text-shadow: 0 1px 10px #000; cursor: pointer; }
+.chat-image-gallery.is-expanded .chat-image-gallery-grid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); max-height: 56vh; overflow-y: auto; scrollbar-gutter: stable; }
+.chat-image-gallery.is-expanded .chat-image-gallery-thumb { aspect-ratio: 1; }
 .chat-tool { background: rgba(56, 189, 248, 0.05); border-left: 3px solid rgba(56, 189, 248, 0.3); font-size: 12px; }
 .chat-tool-result { background: rgba(34, 197, 94, 0.05); border-left: 3px solid rgba(34, 197, 94, 0.2); font-size: 12px; }
 /* Идёт ПОСЛЕ .chat-tool намеренно: у них одинаковая специфичность, и порядок решает,

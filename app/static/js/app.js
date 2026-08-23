@@ -3592,16 +3592,85 @@ function renderImages(el, content) {
     const re = /(\/\S+\.(png|jpg|jpeg|gif|webp|svg))/gi;
     const matches = content.match(re);
     if (!matches) return;
-    for (const path of matches) {
-        const url = `/api/files/raw?path=${encodeURIComponent(path)}`;
+
+    const imageUrl = (path) => `/api/files/raw?path=${encodeURIComponent(path)}`;
+    const makeImage = (path, className = '', openOnClick = true) => {
         const img = document.createElement('img');
-        img.src = url;
+        img.src = imageUrl(path);
         img.loading = 'lazy';
-        img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
+        img.className = className;
+        if (openOnClick) {
+            img.addEventListener('click', () => openImageLightbox(imageUrl(path)));
+        }
+        return img;
+    };
+
+    if (matches.length === 1) {
+        const img = makeImage(matches[0], 'chat-inline-image');
         img.onerror = () => img.remove();
-        img.addEventListener('click', () => openImageLightbox(url));
         el.appendChild(img);
+        return;
     }
+
+    const previewCount = 4;
+    const gallery = document.createElement('section');
+    gallery.className = 'chat-image-gallery';
+    gallery.dataset.imageCount = String(matches.length);
+    gallery.setAttribute('aria-label', `Галерея: ${matches.length} фото`);
+
+    const header = document.createElement('div');
+    header.className = 'chat-image-gallery-header';
+    const count = document.createElement('span');
+    count.className = 'chat-image-gallery-count';
+    count.textContent = `📷 ${matches.length} фото`;
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'chat-image-gallery-toggle';
+    toggle.hidden = matches.length <= previewCount;
+    header.append(count, toggle);
+
+    const grid = document.createElement('div');
+    grid.className = 'chat-image-gallery-grid';
+
+    const renderGallery = (expanded) => {
+        gallery.classList.toggle('is-expanded', expanded);
+        toggle.setAttribute('aria-expanded', String(expanded));
+        toggle.textContent = expanded ? 'Свернуть' : `Показать все ${matches.length}`;
+        grid.replaceChildren();
+        const shown = expanded ? matches : matches.slice(0, previewCount);
+        shown.forEach((path, index) => {
+            const thumb = document.createElement('button');
+            thumb.type = 'button';
+            thumb.className = 'chat-image-gallery-thumb';
+            thumb.setAttribute('aria-label', `Открыть фото ${index + 1} из ${matches.length}`);
+            const img = makeImage(path, '', false);
+            img.alt = `Фото ${index + 1} из ${matches.length}`;
+            img.onerror = () => thumb.remove();
+            thumb.appendChild(img);
+
+            const hiddenCount = matches.length - previewCount;
+            const expandsGallery = !expanded && index === previewCount - 1 && hiddenCount > 0;
+            if (expandsGallery) {
+                const more = document.createElement('span');
+                more.className = 'chat-image-gallery-more';
+                more.textContent = `+${hiddenCount}`;
+                thumb.appendChild(more);
+                thumb.setAttribute('aria-label', `Показать остальные ${hiddenCount} фото`);
+            }
+            thumb.addEventListener('click', () => {
+                if (expandsGallery) renderGallery(true);
+                else openImageLightbox(imageUrl(path));
+            });
+            grid.appendChild(thumb);
+        });
+    };
+
+    toggle.addEventListener('click', () => {
+        renderGallery(!gallery.classList.contains('is-expanded'));
+    });
+    gallery.append(header, grid);
+    renderGallery(false);
+    el.appendChild(gallery);
 }
 
 function removeWaitingIndicator() {
