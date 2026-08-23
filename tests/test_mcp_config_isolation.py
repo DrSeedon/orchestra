@@ -224,6 +224,8 @@ def test_t4_foreign_global_servers_not_copied(tmp_path, monkeypatch):
     base_home.mkdir()
     (base_home / "config.toml").write_text(
         'project_doc_max_bytes = 131072\n'
+        'model_context_window = 872000\n'
+        'model_auto_compact_token_limit = 784800\n'
         '\n[projects."/home/kesha/projects/seedon"]\ntrust_level = "trusted"\n'
         '\n[mcp_servers.yandex-direct]\ncommand = "node"\nargs = ["/y/index.js"]\n'
         '\n[mcp_servers.yandex-direct.env]\nYANDEX_DIRECT_TOKEN = "foreign-secret-value"\n'
@@ -245,6 +247,8 @@ def test_t4_foreign_global_servers_not_copied(tmp_path, monkeypatch):
     }, "нужен trust только собственного cwd, не чужих [projects.*] из base config"
     # разрешённый скаляр обязан переехать — иначе воркер молча теряет потолок обрезки AGENTS.md
     assert "project_doc_max_bytes = 131072" in text
+    assert data["model_context_window"] == 872000
+    assert data["model_auto_compact_token_limit"] == 784800
 
 
 def test_t4_trusts_canonical_cwd_and_escapes_it_as_toml_key(tmp_path):
