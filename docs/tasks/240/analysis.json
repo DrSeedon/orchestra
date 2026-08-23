@@ -1,0 +1,54 @@
+{
+  "A_exec_final_median_seconds": 11.7062585,
+  "A_exec_final_range_seconds": [
+    10.734572,
+    12.677945
+  ],
+  "B_appserver_final_median_seconds": 10.3066495,
+  "B_appserver_final_range_seconds": [
+    9.634455,
+    10.978844
+  ],
+  "C_wrapper_final_median_seconds": 8.055453,
+  "C_wrapper_final_range_seconds": [
+    6.714997,
+    8.931949
+  ],
+  "D_managed_full_final_median_seconds": 8.348327,
+  "D_managed_full_final_range_seconds": [
+    6.727123,
+    9.327298
+  ],
+  "E_warm_resume_final_median_seconds": 9.160329,
+  "E_warm_resume_final_range_seconds": [
+    9.140399,
+    10.997033
+  ],
+  "authoritative_ab_total_to_final_delta_b_minus_a_seconds": [
+    0.269923,
+    0.755597
+  ],
+  "authoritative_ab_total_to_ttft_delta_b_minus_a_seconds": [
+    -0.010169,
+    0.303151
+  ],
+  "authoritative_input_total_to_ttft_r": 0.12564531989224664,
+  "authoritative_input_ttft_r": 0.0011062705946938726,
+  "authoritative_load1_total_to_ttft_r": -0.4118022014952417,
+  "authoritative_load1_ttft_r": -0.5050216217586896,
+  "d_minus_c_connect_seconds": [
+    0.192528,
+    0.062765,
+    0.161292
+  ],
+  "d_minus_c_final_seconds": [
+    0.012126,
+    -0.583622,
+    1.271845
+  ],
+  "e_minus_d_final_seconds": [
+    4.26991,
+    0.792072,
+    -0.166969
+  ]
+}

@@ -28,6 +28,10 @@
 - **Одна модель, написавшая постановку, отревьюившая её и реализовавшая — это петля усиления, а не три проверки.** На открытой задаче она расширяет объём сама себе и сама же одобряет расширение. Замер: #176 — весь контур на `gpt-5.6-sol`, итог 364 мёртвые строки из 843 (43.2%) и три круга переделок. Разрывать петлю в самом дешёвом месте: постановку или ревью уводить на ДРУГОЙ рантайм
 - Ревью уползает читать посторонние файлы / Serena-онбординг и падает по таймауту → ограничивать ПЕРВЫЙ вызов: точные файлы/хунки, запрет logs/BUGS/TODO/git-history. Счёт несостоявшихся попыток и «вердикта нет» — только в `skills/codex-debate.md`
 - Sol получает project skills нативно из `.codex/skills/`, которые Orchestra синхронизирует перед backend connect. Bounded generated index — только fallback, когда native skill home недоступен; `.claude/skills/` остаётся механизмом Claude
+- **Production Codex в Orchestra — установленный CLI `app-server --stdio`, не Python Codex SDK:** `AgentSession._make_backend` → `_codex_factory` → `CodexBackend` → `asyncio.create_subprocess_exec`, затем `initialize/thread/start|resume/turn/start`; живой `/proc` показал Node launcher и native CLI 0.149.0 с этим argv · `docs/tasks/240/architecture-snapshot.md`, `app/session.py:791`, `app/runtime_registry.py:205`, `app/backend_codex.py:918` · 2026-08-23, #240
+- **На matched no-tool PONG transport/app-server/wrapper не объясняют болезненный разрыв:** A=`codex exec`, B=bare app-server дали B−A total-to-final +0.270/+0.756 с; local Python JSON-RPC median 0.058 ms; D−C managed-turn wall +0.012/−0.584/+1.272 с при одинаковых CLI/model/xhigh/Standard/cwd/proxy и нуле tools · `docs/tasks/240/analysis.json`, `docs/tasks/240/measurements.md` · 2026-08-23, #240
+- **Managed static surfaces увеличивают input, но не дали устойчивого latency sign:** role prompt 58 188 Б добавил ≈13.6K input tokens, `AGENTS.md` 104 615 Б — ≈21.5K; удаление каждого слоя ускорило один прогон и замедлило второй. Positive control увидел `orchestra: ready` и ровно 41/41 tool через `mcpServerStatus/list`; D против no-MCP различался лишь на 65–75 input tokens. Реальная архивная история дала 218 468 input, TTFT 9.948 с, final 10.071 с, но без синхронного fresh-контроля history effect остаётся UNCERTAIN · `docs/tasks/240/measurements.md`, `docs/tasks/240/raw-mcp-control.jsonl` · 2026-08-23, #240
+- **Config lifecycle ограничен измеренными долями секунды:** unchanged digest check 1.236/1.514 ms, принудительный reconnect persisted thread 0.452/0.499 с; app-server initialize+thread/start 1.3–2.6 с — one-time connect, не recurring model wall · `docs/tasks/240/raw-reconnect.jsonl`, `docs/tasks/240/measurements.md` · 2026-08-23, #240
 
 ### Модели и лимиты
 
@@ -51,14 +55,20 @@
 ## Отвергнуто
 
 - (пусто на момент переноса #347 — отозванные утверждения помечены прямо внутри пунктов выше)
+- «Orchestra медленнее standalone из-за Python wrapper или самого app-server» как достаточная причина · A/B/A/B на одном CLI 0.149.0 дал только +0.270/+0.756 с total-to-final у app-server; D−C latency меняла знак, turn ack 6–21 ms · 2026-08-23, #240
+- «Текущий `AGENTS.md` обрезан и поэтому тормозит/ломается» · live cap/file = 262 144/104 615 Б; обрыва нет. Исторический #323 при cap 131 072 остаётся верен для своего среза · 2026-08-23, #240
+- «Fast tier достаточен для всего наблюдаемого разрыва» · пользовательский negative control без Fast сохраняет симптом; #240 на Standard не воспроизвёл крупный harness gap · 2026-08-23, #240
 
 ## Пробелы
 
 - Пункты выше не проверялись на дубли между собой построчно: перенос #347 сохранял текст
   дословно, слияние формулировок делалось только в `CLAUDE.md` · 2026-08-19, #347
+- Причина разрыва на обычных tool-using задачах остаётся открыта: #240 специально запретил tools и изолировал harness latency, поэтому не проверил, добавляет ли full role model/tool round-trips. Нужен один exact user-task D/A/D/A с per-round model/tool wall · 2026-08-23, #240
+- Latency у истории измерена до 218 468 input tokens; область около effective window 828 400 и auto-compact threshold не запускалась · 2026-08-23, #240
 
 ## Источники
 
 - `CLAUDE.md` — короткие правила «триггер → действие», ссылающиеся сюда
 - `docs/tasks/347/inventory-before.md` — инвентарь всех пунктов до сокращения
 - `docs/archive/sessions/` — хроника сессий, из которых эти пункты выросли
+- `docs/tasks/240/research.md` — layered A/B/A/B standalone→app-server→Python→managed prompt/MCP→warm history
