@@ -4032,6 +4032,60 @@ class TestRuntimeCapabilities:
         backend.connect.assert_not_awaited()
 
     @pytest.mark.asyncio
+    async def test_fresh_model_switch_discards_source_context_without_handoff(
+            self, session, monkeypatch):
+        from app.session import AgentStatus
+
+        session.model = "claude-opus-5[1m]"
+        session.backend_type = "claude"
+        session.session_id = "quota-exhausted-claude-session"
+        session.status = AgentStatus.IDLE
+        session.runtime_handoff = "old packet"
+        session.history_import_source = "native_claude_jsonl"
+        session.last_summary = "old summary"
+        session._last_context = {
+            "percentage": 38, "total_tokens": 98_192, "max_tokens": 258_400,
+        }
+        session._session_limit_hit = True
+        source = AsyncMock()
+        session._backend = source
+        session._log = MagicMock()
+        session._prepare_runtime_handoff = AsyncMock(
+            side_effect=AssertionError("fresh switch must not build a handoff"),
+        )
+        session._make_backend = MagicMock(
+            side_effect=AssertionError("target starts on the next user turn"),
+        )
+        save = MagicMock()
+        monkeypatch.setattr("app.session.save_session", save)
+
+        result = await session.change_model("gpt-5.6-sol", fresh=True)
+
+        assert result["ok"] is True
+        assert result["runtime_changed"] is True
+        assert result["native_session_reset"] is True
+        assert result["history_transfer"] == {
+            "mode": "fresh", "previous_dialog_discarded": True,
+        }
+        assert session.model == "gpt-5.6-sol"
+        assert session.backend_type == "codex"
+        assert session.session_id == ""
+        assert session.runtime_handoff == ""
+        assert session.history_import_source is None
+        assert session.last_summary == ""
+        assert session._last_context == {
+            "percentage": 0, "total_tokens": 0, "max_tokens": 0,
+        }
+        assert session._session_limit_hit is False
+        assert session._backend is None
+        assert session.session_id_history[-1]["session_id"] == (
+            "quota-exhausted-claude-session"
+        )
+        source.disconnect.assert_awaited_once()
+        session._prepare_runtime_handoff.assert_not_awaited()
+        save.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_codex_model_switch_preserves_native_thread(
             self, session, monkeypatch):
         from app.session import AgentStatus

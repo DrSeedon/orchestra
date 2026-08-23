@@ -35,7 +35,7 @@ async def test_change_model_loads_unloaded_idle_worker(monkeypatch):
     assert body["ok"] is True
     assert body["model"] == "gpt-5.6-sol"
     routes.manager.ensure_loaded.assert_awaited_once_with("feat-charts", "/s")
-    live.change_model.assert_awaited_once_with("gpt-5.6-sol")
+    live.change_model.assert_awaited_once_with("gpt-5.6-sol", fresh=True)
 
 
 @pytest.mark.asyncio

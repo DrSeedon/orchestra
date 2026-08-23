@@ -2564,6 +2564,12 @@ function _historyTransferMessage(transfer) {
             text: 'native provider thread resumed after total-context preflight',
         };
     }
+    if (transfer.mode === 'fresh') {
+        return {
+            type: 'status',
+            text: 'fresh target session started; previous dialog discarded',
+        };
+    }
     if (transfer.mode === 'summary') {
         return {
             type: 'warning',
@@ -2610,7 +2616,7 @@ async function _showModelPicker(agentName, currentModel, anchor) {
                 e.stopPropagation();
                 dd.remove();
                 try {
-                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope }) });
+                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope, fresh: true }) });
                     if (resp && !resp.error) {
                         $('#ai-model').textContent = m.id;
                         _showHistoryTransfer(resp.history_transfer);

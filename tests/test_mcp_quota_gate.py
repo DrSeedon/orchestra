@@ -185,3 +185,4 @@ async def test_change_model_is_control_action_even_when_target_bucket_blocked(ap
     assert "Model changed" in result
     assert not [path for path, _body in api.calls if path == "/api/usage/readiness"]
     assert [path for path, _body in api.calls] == ["/api/sessions/w/change-model"]
+    assert api.calls[0][1]["fresh"] is True
