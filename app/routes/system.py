@@ -38,6 +38,7 @@ from app.models import (
     runtime_for_record,
 )
 from app.pipeline import list_pipelines
+from app import restart_guard
 from app.runtime_registry import get_runtime
 
 logger = logging.getLogger("orchestra.system")
@@ -2128,6 +2129,7 @@ _restart_tasks: set[asyncio.Task] = set()
 # Дедлайн БЕЗУСЛОВНЫЙ: гарантии сходимости нет вовсе, потому что ходы порождаются
 # изнутри контура (send_message между агентами, автоотчёт родителю).
 _DRAIN_DEADLINE_S = 900
+RESTART_DURABLE_STATE_BUDGET_S = 30.0
 
 
 def _drain_sessions() -> list:
@@ -2153,6 +2155,52 @@ def _record_restart_outcome(outcome: dict) -> None:
     for session_id in outcome["cut_ids"]:
         add_log(session_id, ts, "system",
                 f"{summary}. Твой ход разорван — автоматического повтора нет.")
+
+
+async def _drain_restart_durable_state() -> dict:
+    """Bound the final session DB/log flush before the restart becomes irreversible."""
+    try:
+        return await asyncio.wait_for(
+            manager.drain_restart_persistence(),
+            timeout=RESTART_DURABLE_STATE_BUDGET_S,
+        )
+    except TimeoutError:
+        return {
+            "ok": False,
+            "phase": "session_db",
+            "task_class": "AgentSession._drain_handoff_log_writes",
+            "reason": (
+                "TimeoutError: deadline exceeded after "
+                f"{RESTART_DURABLE_STATE_BUDGET_S}s"
+            ),
+        }
+    except Exception as error:
+        return {
+            "ok": False,
+            "phase": "session_db",
+            "task_class": "AgentSession._drain_handoff_log_writes",
+            "reason": f"{type(error).__name__}: {error}",
+        }
+
+
+def _arm_supervisor_exit_guard(
+    *,
+    target_pid: int | None = None,
+    start_ticks: int | None = None,
+    post_cleanup_budget: float = restart_guard.RESTART_POST_CLEANUP_EXIT_BUDGET_S,
+    event_log: str | Path | None = None,
+) -> restart_guard.GuardHandle:
+    """Arm the independent helper after all pre-signal durability barriers pass."""
+    from app.backend_jsonrpc import process_start_time
+
+    target_pid = os.getpid() if target_pid is None else target_pid
+    start_ticks = process_start_time(target_pid) if start_ticks is None else start_ticks
+    return restart_guard.arm_guard(
+        target_pid=target_pid,
+        start_ticks=start_ticks,
+        post_cleanup_budget=post_cleanup_budget,
+        event_log=event_log,
+    )
 
 
 async def restart_preflight() -> dict:
@@ -2269,6 +2317,18 @@ async def _abort_restart(reason: str) -> None:
     """Give every prepared agent back its reader, and reopen both gates (#237 T3)."""
     from app import main as app_main
 
+    # One owner for every abort, including the watchdog's normal-return path. Leaving a helper
+    # armed while resuming the old generation lets a later teardown marker kill a recovered
+    # supervisor from an attempt that no longer owns it.
+    try:
+        await restart_guard.abort_guard(reason)
+    except BaseException as error:
+        logger.critical(
+            "restart guard disarm unproven; refusing rollback/gate reopen: %s: %s",
+            type(error).__name__,
+            error,
+        )
+        raise
     try:
         await manager.rollback_restart_handover()
     except Exception as error:
@@ -2365,6 +2425,20 @@ async def _do_restart_service() -> dict:
         "cut_names": [],
         "cut_ids": [],
     }
+    durable_state = await _drain_restart_durable_state()
+    if isinstance(durable_state, dict) and durable_state.get("ok") is False:
+        logger.error(
+            "restart durable-state barrier failed: pid=%d phase=%s task_class=%s reason=%s",
+            os.getpid(),
+            durable_state["phase"],
+            durable_state["task_class"],
+            durable_state["reason"],
+        )
+        await _abort_restart(durable_state["reason"])
+        return {
+            **outcome,
+            **durable_state,
+        }
     try:
         _record_restart_outcome(outcome)
     except Exception as error:
@@ -2372,6 +2446,7 @@ async def _do_restart_service() -> dict:
         # безусловным, и сбой записи не делает рестарт менее обязательным (класс #215).
         logger.warning("could not record restart outcome: %s: %s",
                        type(error).__name__, error)
+    _arm_supervisor_exit_guard()
     from app.live_broker import broker
     broker.close_subscribers()
     os.kill(os.getpid(), signal.SIGINT)

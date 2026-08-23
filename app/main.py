@@ -14,8 +14,13 @@ from starlette.middleware.gzip import GZipMiddleware
 
 from app.auth import is_auth_enabled, validate_session, requires_auth, check_internal_token
 from app.db import init_db
+
+from app import fdstore as _fdstore
+_fdstore.seal_activation_fds()
+
 from app.deps import manager
 from app.initial_deliveries import recover_initial_deliveries
+from app import restart_guard
 
 logger = logging.getLogger("orchestra")
 # Uvicorn настраивает только свои логгеры, рутовый остаётся без хендлера → всё, что Orchestra
@@ -277,6 +282,57 @@ async def drain_mutating_requests(budget_s: float = MUTATING_DRAIN_BUDGET_S) -> 
     return inflight_mutating_count() == 0
 
 
+async def _shutdown_runtime(
+    restart_inbox_drain: "asyncio.Task | None",
+    snapshot_task: asyncio.Task,
+    tunnel_started: bool,
+    bridge_task: asyncio.Task,
+) -> None:
+    startup_tasks = {
+        task for task in (restart_inbox_drain, snapshot_task)
+        if task is not None and not task.done()
+    }
+    for task in startup_tasks:
+        task.cancel()
+    if startup_tasks:
+        await asyncio.gather(*startup_tasks, return_exceptions=True)
+
+    from app.merge_operations import shutdown_merge_operations
+    restart_guard.note_shutdown_phase("merge_operations", "shutdown_merge_operations")
+    await shutdown_merge_operations()
+
+    from app import rag_service
+    restart_guard.note_shutdown_phase("rag", "rag_service.shutdown")
+    rag_service.shutdown()
+
+    if tunnel_started:
+        from app.ssh_tunnel import stop_tunnel
+        restart_guard.note_shutdown_phase("tunnel", "ssh_tunnel.stop_tunnel")
+        await stop_tunnel()
+
+    bridge_task.cancel()
+    restart_guard.note_shutdown_phase("bridge_task", "asyncio.Task[bridge]")
+    try:
+        await bridge_task
+    except (asyncio.CancelledError, Exception):
+        pass
+
+    from app.tg_bridge import stop_bridge
+    restart_guard.note_shutdown_phase("tg_bridge", "stop_bridge")
+    await stop_bridge()
+
+    from app.bg_jobs import bg_manager
+    restart_guard.note_shutdown_phase("bg_jobs", "BgJobManager.shutdown")
+    await bg_manager.shutdown()
+
+    restart_guard.note_shutdown_phase("session_handoff", "SessionManager.shutdown_all")
+    await manager.shutdown_all()
+    restart_guard.note_shutdown_phase(
+        "application_teardown_complete",
+        "post_lifespan_runtime",
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
@@ -346,25 +402,12 @@ async def lifespan(app: FastAPI):
     from app.merge_operations import restore_merge_operations
     await restore_merge_operations()
     yield
-    if _restart_inbox_drain is not None:
-        _restart_inbox_drain.cancel()
-    snapshot_task.cancel()
-    from app import rag_service as _rs
-    from app.merge_operations import shutdown_merge_operations
-    await shutdown_merge_operations()
-    _rs.shutdown()
-    if _tunnel_started:
-        await stop_tunnel()
-    # Мост мог ещё не подняться — гасим задачу и только потом просим его остановиться
-    bridge_task.cancel()
-    try:
-        await bridge_task
-    except (asyncio.CancelledError, Exception):
-        pass
-    from app.tg_bridge import stop_bridge
-    await stop_bridge()
-    await bg_manager.shutdown()
-    await manager.shutdown_all()
+    await _shutdown_runtime(
+        _restart_inbox_drain,
+        snapshot_task,
+        _tunnel_started,
+        bridge_task,
+    )
 
 
 class VersionedStatic(StaticFiles):
