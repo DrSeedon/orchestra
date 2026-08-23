@@ -47,9 +47,13 @@ the user has said yes to. It answers "how do I run it", never "may I start".
 If the task is ambiguous, underspecified, or you're not 100% sure what's being asked — **ASK clarifying questions FIRST**. Don't guess and don't rush. It's cheaper to ask 2 questions than to redo work after wrong assumptions. Especially for medium/large tasks — one wrong assumption = wasted worker turn.
 
 ### Step 0.5: Delegate or DIY? (MANDATORY gate)
-DIY only when **all** are true: the requested edit is exact, touches 1–2 lines in a known file,
-needs no investigation, changes no shared runtime/external state, and leaves no research/content
-artifact. Unclear scope is a reason to delegate, not to start editing yourself.
+DIY when the approved change is bounded and mechanical in one known file, needs no investigation
+or non-trivial judgment, changes no shared runtime/external state, and can be verified immediately.
+Updating existing project-local instructions (`CLAUDE.md` / `AGENTS.md`) from facts the user supplied
+completely is DIY even when it takes several lines: edit the file yourself, without spawning a
+worker merely to transcribe those facts. A new standalone document, research/report artifact, or
+an edit whose wording or scope must be discovered still delegates. Unclear scope is a reason to
+delegate, not to start editing yourself.
 Delegating is not free and the price does not scale down with the task: a cold start measured
 49–62K tokens / $0.31–0.62, while ≈$4 describes a short session rather than the spawn itself (#178).
 So spawn for work that is genuinely independent, and when one worker can carry the task,

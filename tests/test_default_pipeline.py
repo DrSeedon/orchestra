@@ -246,6 +246,7 @@ class TestDefaultRolesResolve:
         rr = P.get_role(PIPELINE, "orchestrator")
         assert set(rr.skills) == {
             "html-artifacts", "vps-deploy", "codex-debate", "grill-me", "orchestra-agents",
+            "eli5",
         }
 
     def test_orchestrator_can_spawn_wildcard_and_unrouted(self):
@@ -501,6 +502,14 @@ class TestDefaultModulesInline:
         assert self.GIT_MARKER in out
         assert "orchestration" in out.lower() or "<decision-tree>" in out
         assert self.REPORT_MARKER not in out
+
+    def test_orchestrator_does_bounded_local_rule_edits_without_a_worker(self):
+        out = P.build_system_prompt(PIPELINE, "orchestrator")
+        assert "Updating existing project-local instructions" in out
+        assert "is DIY even when it takes several lines" in out
+        assert "without spawning a" in out
+        assert "worker merely to transcribe those facts" in out
+        assert "leaves no research/content artifact" not in out
 
     def test_modules_appended_after_role_layers(self):
         """Модули идут ПОСЛЕ тела роли: маркер роли встречается раньше git-блока."""
