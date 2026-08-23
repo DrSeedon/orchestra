@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "default_effective_window": {"type": "integer"},
+    "override_effective_window": {"type": "integer"},
+    "default_auto_compact_limit": {"type": "integer"},
+    "override_auto_compact_limit": {"type": "integer"},
+    "dashboard_pct": {"type": "integer"},
+    "cumulative_input": {"type": "integer"},
+    "provider_calls": {"type": "integer"},
+    "mean_input_per_call": {"type": "number"},
+    "cache_percent": {"type": "number"},
+    "primary_cause": {"type": "string"},
+    "smaller_window_counterexample": {"type": "boolean"},
+    "configured_window_effect": {"type": "string"},
+    "counter_evidence": {"type": "string"},
+    "falsifier": {"type": "string"}
+  },
+  "required": [
+    "default_effective_window", "override_effective_window",
+    "default_auto_compact_limit", "override_auto_compact_limit",
+    "dashboard_pct", "cumulative_input", "provider_calls",
+    "mean_input_per_call", "cache_percent", "primary_cause",
+    "smaller_window_counterexample", "configured_window_effect",
+    "counter_evidence", "falsifier"
+  ],
+  "additionalProperties": false
+}
