@@ -781,6 +781,8 @@ async def restart_cli(name: str, req: ScopeRequest):
     await session._disconnect_backend()
     session.status = AgentStatus.IDLE
     session._persist()
+    if session._pending_messages:
+        session._spawn_bg(session._flush_pending())
     return {"ok": True}
 
 

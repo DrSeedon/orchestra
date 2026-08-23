@@ -19,6 +19,7 @@ from app.backend_codex import (
     CodexBackend,
     CodexProtocolError,
     CODEX_CONTEXT_LIMITS,
+    CODEX_STREAM_LIMIT,
     CODEX_TOKEN_PRICES,
     CODEX_REASONING_EFFORTS,
     _codex_cost,
@@ -500,6 +501,82 @@ async def test_startup_exit_surfaces_sanitized_stderr_after_drain():
     assert "[redacted]" in detail
     exited = backend._notifications.get_nowait()
     assert exited["params"]["stderr"] in detail
+
+
+@pytest.mark.asyncio
+async def test_reader_discards_oversized_record_and_processes_following_turn_completed():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    stdout = asyncio.StreamReader(limit=CODEX_STREAM_LIMIT)
+    backend._owned_reader = stdout
+    backend._thread_id = "thread-1"
+    backend._active_turn_id = "turn-1"
+    backend._proc = SimpleNamespace(
+        returncode=None,
+        wait=AsyncMock(return_value=0),
+    )
+    completed = {
+        "method": "turn/completed",
+        "params": {
+            "threadId": "thread-1",
+            "turn": {"id": "turn-1", "status": "completed"},
+        },
+    }
+    stdout.feed_data(
+        b"x" * (CODEX_STREAM_LIMIT + 1)
+        + b"\n"
+        + (json.dumps(completed) + "\n").encode()
+    )
+    stdout.feed_eof()
+
+    await backend._read_stdout()
+
+    assert backend._notifications.qsize() == 1
+    event = backend._convert_notification(backend._notifications.get_nowait())
+    assert [item.type for item in event] == ["turn_end"]
+    assert backend._active_turn_id is None
+
+
+@pytest.mark.asyncio
+async def test_non_oversize_reader_value_error_is_loud():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+
+    class BrokenReader:
+        async def readline(self):
+            raise ValueError("different reader failure")
+
+    backend._owned_reader = BrokenReader()
+    backend._proc = SimpleNamespace(
+        returncode=0,
+        wait=AsyncMock(return_value=0),
+    )
+
+    with pytest.raises(ValueError, match="different reader failure"):
+        await backend._read_stdout()
+
+
+@pytest.mark.asyncio
+async def test_oversize_eof_exit_zero_emits_reader_failure_turn_end():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    stdout = asyncio.StreamReader(limit=CODEX_STREAM_LIMIT)
+    backend._owned_reader = stdout
+    backend._thread_id = "thread-1"
+    backend._active_turn_id = "turn-1"
+    backend._events_active = True
+    backend._proc = SimpleNamespace(
+        returncode=0,
+        wait=AsyncMock(return_value=0),
+    )
+    stdout.feed_data(b"x" * (CODEX_STREAM_LIMIT + 1))
+    stdout.feed_eof()
+
+    await backend._read_stdout()
+
+    message = backend._notifications.get_nowait()
+    event = backend._convert_notification(message)[0]
+    assert event.type == "turn_end"
+    assert event.metadata["ok"] is False
+    assert event.metadata["model_error"] == "reader_failure"
+    assert event.metadata["reader_failure"]
 
 
 @pytest.mark.asyncio
