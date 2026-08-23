@@ -1,0 +1,12 @@
+RUN=warmup-app ARM=app-server PHASE=before loadavg=3.65/4.13/4.38 MemAvailable=17718616kB utc=2026-08-23T17:23:28.563028Z
+RUN=warmup-app ARM=app-server PHASE=after loadavg=3.52/4.09/4.37 MemAvailable=17706480kB utc=2026-08-23T17:23:33.601207Z
+RUN=warmup-exec ARM=exec PHASE=before loadavg=3.52/4.09/4.37 MemAvailable=17725928kB utc=2026-08-23T17:23:34.904373Z
+RUN=warmup-exec ARM=exec PHASE=after loadavg=3.21/4.00/4.34 MemAvailable=17669512kB utc=2026-08-23T17:23:42.686830Z
+RUN=ab-app-1 ARM=app-server PHASE=before loadavg=3.21/4.00/4.34 MemAvailable=17691628kB utc=2026-08-23T17:23:44.203242Z
+RUN=ab-app-1 ARM=app-server PHASE=after loadavg=3.03/3.95/4.32 MemAvailable=17678384kB utc=2026-08-23T17:23:50.618700Z
+RUN=ab-exec-1 ARM=exec PHASE=before loadavg=2.87/3.91/4.30 MemAvailable=17703748kB utc=2026-08-23T17:23:51.983339Z
+RUN=ab-exec-1 ARM=exec PHASE=after loadavg=3.04/3.92/4.31 MemAvailable=17699072kB utc=2026-08-23T17:23:58.477719Z
+RUN=ab-app-2 ARM=app-server PHASE=before loadavg=3.04/3.92/4.31 MemAvailable=17707392kB utc=2026-08-23T17:23:59.608344Z
+RUN=ab-app-2 ARM=app-server PHASE=after loadavg=4.60/4.24/4.41 MemAvailable=17702864kB utc=2026-08-23T17:24:06.514761Z
+RUN=ab-exec-2 ARM=exec PHASE=before loadavg=4.60/4.24/4.41 MemAvailable=17701972kB utc=2026-08-23T17:24:08.243762Z
+RUN=ab-exec-2 ARM=exec PHASE=after loadavg=4.39/4.20/4.39 MemAvailable=17687036kB utc=2026-08-23T17:24:14.967460Z

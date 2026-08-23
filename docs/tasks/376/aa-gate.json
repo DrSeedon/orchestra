@@ -1,0 +1,23 @@
+{
+  "all_ac_pass": true,
+  "expected_removable_effect_s": 1.9899498978629708,
+  "handshake_values_s": [
+    1.900517736095935,
+    2.582916788989678,
+    1.9899498978629708
+  ],
+  "metric": "client_overhead_s",
+  "noise_range_s": 0.9374368898570538,
+  "pass": true,
+  "rule": "pass iff all AC pass and client-overhead range < median exec process/handshake",
+  "runs": [
+    "aa-exec-1",
+    "aa-exec-2",
+    "aa-exec-3"
+  ],
+  "values_s": [
+    2.9686867899727076,
+    3.751650635851547,
+    2.8142137459944934
+  ]
+}

@@ -1,0 +1,237 @@
+{
+  "ac_detail": "exact JSON match",
+  "ac_pass": true,
+  "arm": "exec",
+  "calls": 1,
+  "cwd": "/var/tmp/orchestra-376-fixture",
+  "effort": "medium",
+  "final_text": "{\"answer\":\"ORCHESTRA-376-OK\"}",
+  "label": "aa-exec-2",
+  "load_after": {
+    "loadavg_1": 5.13,
+    "loadavg_15": 4.4,
+    "loadavg_5": 4.2,
+    "mem_available_kb": 16944192,
+    "utc": "2026-08-23T17:15:22.866494Z"
+  },
+  "load_before": {
+    "loadavg_1": 5.35,
+    "loadavg_15": 4.41,
+    "loadavg_5": 4.2,
+    "mem_available_kb": 16942188,
+    "utc": "2026-08-23T17:15:15.821885Z"
+  },
+  "model": "gpt-5.6-sol",
+  "process_returncode": 0,
+  "quota_after": {
+    "rateLimitResetCredits": {
+      "availableCount": 1,
+      "credits": [
+        {
+          "description": "Thanks for using Codex! You've been granted one free rate limit reset.",
+          "expiresAt": 1789949363,
+          "grantedAt": 1787357363,
+          "id": "RateLimitResetCredit_7e744590064481918ff4cced20c47311",
+          "resetType": "codexRateLimits",
+          "status": "available",
+          "title": "Full reset"
+        }
+      ]
+    },
+    "rateLimits": {
+      "credits": {
+        "balance": "0",
+        "hasCredits": false,
+        "unlimited": false
+      },
+      "individualLimit": null,
+      "limitId": "codex",
+      "limitName": null,
+      "planType": "pro",
+      "primary": {
+        "resetsAt": 1788074922,
+        "usedPercent": 50,
+        "windowDurationMins": 10080
+      },
+      "rateLimitReachedType": null,
+      "secondary": null,
+      "spendControlReached": false
+    },
+    "rateLimitsByLimitId": {
+      "codex": {
+        "credits": {
+          "balance": "0",
+          "hasCredits": false,
+          "unlimited": false
+        },
+        "individualLimit": null,
+        "limitId": "codex",
+        "limitName": null,
+        "planType": "pro",
+        "primary": {
+          "resetsAt": 1788074922,
+          "usedPercent": 50,
+          "windowDurationMins": 10080
+        },
+        "rateLimitReachedType": null,
+        "secondary": null,
+        "spendControlReached": false
+      },
+      "codex_bengalfox": {
+        "credits": null,
+        "individualLimit": null,
+        "limitId": "codex_bengalfox",
+        "limitName": "GPT-5.3-Codex-Spark",
+        "planType": "pro",
+        "primary": {
+          "resetsAt": 1787523323,
+          "usedPercent": 0,
+          "windowDurationMins": 300
+        },
+        "rateLimitReachedType": null,
+        "secondary": {
+          "resetsAt": 1788110123,
+          "usedPercent": 0,
+          "windowDurationMins": 10080
+        },
+        "spendControlReached": null
+      }
+    }
+  },
+  "quota_before": {
+    "rateLimitResetCredits": {
+      "availableCount": 1,
+      "credits": [
+        {
+          "description": "Thanks for using Codex! You've been granted one free rate limit reset.",
+          "expiresAt": 1789949363,
+          "grantedAt": 1787357363,
+          "id": "RateLimitResetCredit_7e744590064481918ff4cced20c47311",
+          "resetType": "codexRateLimits",
+          "status": "available",
+          "title": "Full reset"
+        }
+      ]
+    },
+    "rateLimits": {
+      "credits": {
+        "balance": "0",
+        "hasCredits": false,
+        "unlimited": false
+      },
+      "individualLimit": null,
+      "limitId": "codex",
+      "limitName": null,
+      "planType": "pro",
+      "primary": {
+        "resetsAt": 1788074922,
+        "usedPercent": 50,
+        "windowDurationMins": 10080
+      },
+      "rateLimitReachedType": null,
+      "secondary": null,
+      "spendControlReached": false
+    },
+    "rateLimitsByLimitId": {
+      "codex": {
+        "credits": {
+          "balance": "0",
+          "hasCredits": false,
+          "unlimited": false
+        },
+        "individualLimit": null,
+        "limitId": "codex",
+        "limitName": null,
+        "planType": "pro",
+        "primary": {
+          "resetsAt": 1788074922,
+          "usedPercent": 50,
+          "windowDurationMins": 10080
+        },
+        "rateLimitReachedType": null,
+        "secondary": null,
+        "spendControlReached": false
+      },
+      "codex_bengalfox": {
+        "credits": null,
+        "individualLimit": null,
+        "limitId": "codex_bengalfox",
+        "limitName": "GPT-5.3-Codex-Spark",
+        "planType": "pro",
+        "primary": {
+          "resetsAt": 1787523315,
+          "usedPercent": 0,
+          "windowDurationMins": 300
+        },
+        "rateLimitReachedType": null,
+        "secondary": {
+          "resetsAt": 1788110115,
+          "usedPercent": 0,
+          "windowDurationMins": 10080
+        },
+        "spendControlReached": null
+      }
+    }
+  },
+  "rollout": {
+    "base_instructions_bytes": 18014,
+    "base_instructions_sha256": "a8d58d5edc49863793a2c1edb7b59c3a9077a85f78b115500ed8a3dfc37a1cff",
+    "cli_version": "0.149.0",
+    "model_visible_prefix_items": [
+      {
+        "content_bytes": 3283,
+        "role": "developer",
+        "type": "message"
+      },
+      {
+        "content_bytes": 2335,
+        "role": "developer",
+        "type": "message"
+      },
+      {
+        "content_bytes": 307,
+        "role": "developer",
+        "type": "message"
+      },
+      {
+        "content_bytes": 497,
+        "role": "user",
+        "type": "message"
+      }
+    ],
+    "model_visible_prefix_sha256": "15d92d12cbe34c987250abf025dc674c4ef4460187c82d55e89123f489efe81e",
+    "originator": "codex_exec",
+    "rollout_found": true,
+    "rollout_model_calls": 1,
+    "rollout_name": "rollout-2026-08-23T19-15-18-01a02f9e-986f-7ad3-b108-7c08f3d7892d.jsonl",
+    "source": "exec",
+    "turn_context": {
+      "current_date": "2026-08-23",
+      "cwd": "/var/tmp/orchestra-376-fixture",
+      "effort": "medium",
+      "model": "gpt-5.6-sol",
+      "personality": "pragmatic",
+      "timezone": "Europe/Berlin"
+    }
+  },
+  "schema_sha256": "24c4b491bf5dc59b526935090a1d0dfd4b469dc2059ef069494f48d0258dd295",
+  "task_sha256": "427f09e3b481eab8f5e43aabdc5189aa58b5611932d8eb767561bef822132ba8",
+  "thread_id": "01a02f9e-986f-7ad3-b108-7c08f3d7892d",
+  "timing_s": {
+    "model_wait": 3.515697604045272,
+    "post_processing": 0.7436558189801872,
+    "process_handshake": 2.4677440428640693,
+    "queue": 0.3135879719629884,
+    "tool_work": 0.0,
+    "total": 7.040685437852517,
+    "turn_completed_after_agent": 0.1465444250497967
+  },
+  "tools": 0,
+  "usage": {
+    "cache_write_input_tokens": 0,
+    "cached_input_tokens": 0,
+    "input_tokens": 9476,
+    "output_tokens": 21,
+    "reasoning_output_tokens": 0
+  }
+}
