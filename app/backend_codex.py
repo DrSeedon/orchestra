@@ -886,10 +886,16 @@ class CodexBackend(JsonRpcStdioTransport):
             await _run_home_io(self._prepare_codex_home)
             cli_version = await self._managed_state_cli_version()
             if cli_version != CODEX_CLI_HISTORY_VERSION:
-                raise RuntimeError(
-                    "managed Codex state is validated only for CLI "
-                    f"{CODEX_CLI_HISTORY_VERSION}, got {cli_version or 'unknown'}"
+                # The provider owns forward migrations.  Blocking before the app-server
+                # starts strands every fresh worker after a CLI upgrade; let that binary
+                # migrate its own managed state under the per-home lock.
+                logger.warning(
+                    "skipping pinned managed Codex state seed for CLI %s; "
+                    "provider will migrate state on startup",
+                    cli_version or "unknown",
                 )
+                await self._connect_unlocked()
+                return
             if await _run_home_io(
                 _managed_codex_state_needs_seed,
                 home,
