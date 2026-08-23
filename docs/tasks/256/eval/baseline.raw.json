@@ -1,0 +1,1475 @@
+{
+  "schema": "orchestra-kb-baseline-v1",
+  "created_at": "2026-08-23T14:36:09.744574+00:00",
+  "git_head": "10881ebc2569b55c8973dbcef54fa120a18dc6a2",
+  "scope": "/mnt/data/Projects/Python/orchestra",
+  "endpoint": "http://127.0.0.1:8888/api/memory/search",
+  "limit": 5,
+  "holdout_sha256": "9e7c737dd5f58a91572e49a25cb80861b13b28fee12a3bbd392fd1c0579e466b",
+  "token_measurement": "proxy only: Unicode characters / 3, rounded up; no tokenizer installed",
+  "items": [
+    {
+      "id": "E01",
+      "class": "exact",
+      "query": "Как программно проверить итоговый системный промпт конкретной роли Orchestra?",
+      "gold_path": "docs/kb/prompt-delivery.md",
+      "gold_anchor_sha256": "f93c84c3aa97140037d957575c3dd358854ad0851511d161e364619bd57e9852",
+      "fact_rank": null,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 682.775,
+      "response_bytes": 5822,
+      "chars_before_first_fact": 3141,
+      "token_proxy_before_first_fact_chars_div_3": 1047,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/118/audit.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "729b72c6a9026c1e9c21291285f449960393d49eac299e9dbb3a468231ec721d",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "docs/tasks/self-improve-survey/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "e8fad2854d1778dd5d00a94ac8ac16e88377ac9717e7be930224b439f5e74b08",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/tasks/126/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "4d1c927e4b8c75e81cdae3c2cdffead433ee824ecc239adc5e13c82b28261af4",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 403407,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "b95f06487d7fedb5d5f800bb40b7aebf4647d34545bfbc0ceeef16a072e63e2b",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 374845,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "f06082d7705edd0a26350a370d07ceb5701c277424cad497b5150e3dc9ece540",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "E02",
+      "class": "exact",
+      "query": "Какой безопасной командой искать литерал с байтовыми смещениями вместо regex с широким контекстом?",
+      "gold_path": "docs/kb/grep-memory-blowup.md",
+      "gold_anchor_sha256": "cf1b8f0e04a9f9b032d0d6221548a4a2f9785abd4ee0caa6b3a4257dc945fd95",
+      "fact_rank": null,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 625.804,
+      "response_bytes": 5782,
+      "chars_before_first_fact": 3397,
+      "token_proxy_before_first_fact_chars_div_3": 1133,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 297253,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "6499aed6f46c02d936adf315d53a9ddb532b1526254aad2cc6c8d707c26bf8f4",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "log",
+          "path": null,
+          "kind": "user_msg",
+          "log_id": 297250,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "799f8b268037b2171e8830908f978995b62049f4e460e498df3ea140986db8e2",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/tasks/120/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "84c0cffe19092879c5c78a0c35733da72a27f0939e0610f563de080ad3796626",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "file",
+          "path": "docs/tasks/rag-orchestra/plan.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "ba3c558d9d9ca2c0b268303f37ddb387326094243be4b3ce32c81a94ef2ba02d",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 234060,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "edf0ae34bfc1a985f31568fcff6145abf648639a4ca5b21050b18e5b7a676218",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "E03",
+      "class": "exact",
+      "query": "Какое исключение поднимает _api и почему обработчик ошибок search_memory обязан ловить его явно?",
+      "gold_path": "docs/kb/test-oracles.md",
+      "gold_anchor_sha256": "e90e2732ced9297c457b35ebfe7c75e80aa84b2a798ded862d516cd4fc469744",
+      "fact_rank": 1,
+      "canonical_path_rank": 1,
+      "canonical_fact_match": true,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": true,
+      "latency_ms": 492.304,
+      "response_bytes": 6405,
+      "chars_before_first_fact": 0,
+      "token_proxy_before_first_fact_chars_div_3": 0,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/kb/test-oracles.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "87356be197fcf94adf189270d3f084acb9974ddedb1ab15e6f98e528fd36e643",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "docs/tasks/18/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "63a362dcc2f59242d33f41a523482fbc9b8a87cdbc19513e4f218cba5fadf09a",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/tasks/18/plan.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "7310e904a068ffc4abcb38d6fbe5a18d6473b2bf3cfa46637c5e7f678e5c28e3",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "file",
+          "path": "docs/kb/test-oracles.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "3c54d90777ea08c80750e5bf662a580d87277acda9109abe89377f4b5d144fa9",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "file",
+          "path": "docs/tasks/18/plan.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "fa2c37225a80ede2f93a7e0bb963b0b5641cdbf9b3f1417da04701e0cda80c99",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "E04",
+      "class": "exact",
+      "query": "Почему worker_wip у отставшей ветки показывал 155 изменённых файлов и фантомные удаления?",
+      "gold_path": "docs/kb/evidence-methods.md",
+      "gold_anchor_sha256": "5c622e9d39621370a3601ed2ed6452e60350de89d1d3dcbe7f0aaa022da4927e",
+      "fact_rank": null,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 387.431,
+      "response_bytes": 4422,
+      "chars_before_first_fact": 2413,
+      "token_proxy_before_first_fact_chars_div_3": 805,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "CLAUDE.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "8dcd677f7ec6243315586d90c052b699d7af0cab8647ae6bdbd17fd1bdd1ebdd",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "docs/orchestrator-vps-onboarding.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "a627c7153aa1e80089e9e78051852907935e7f93a4727b87d27fcee43f32d426",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/tasks/55/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "11b5e173a2c84e50216777fa90258b3dd265b33442bf253c68bf7a2f42a6e3cb",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 337872,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "b414d9860026241f993cba6b2b57176747da12392c25e9b04ca77a3e3065d547",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 336914,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "70b49c92069c14264a561c5ea0759f245c67b812022a412459078faed088ecd4",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "E05",
+      "class": "exact",
+      "query": "Где лежит канонический source pipeline skills, а где только runtime-проекция Codex skills?",
+      "gold_path": "docs/kb/model-routing-selection.md",
+      "gold_anchor_sha256": "8e82c596939867ece03bcded03ffd277f710128194dc84f3173cf9361f473608",
+      "fact_rank": 3,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": true,
+      "latency_ms": 284.939,
+      "response_bytes": 4189,
+      "chars_before_first_fact": 1209,
+      "token_proxy_before_first_fact_chars_div_3": 403,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/89/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "7c2defa61b21f5e1a803b72722aa48693b5b5326e0d661d8637c95abf2077585",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "docs/tasks/89/plan.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "0494d5983391982db056bec325ecdf340ecddfbf9e94c47999191bbc640a1e7f",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/tasks/229/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "f6779b84e0b2887eef20731dd6c0d92c219c7e7a16b7c3b3ec7ac8333f112458",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 257317,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "9143cb4fa0e2cfd40abe2d453ba309048ea3734f15bea5342ea673d29f2605b0",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 224813,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "65449a4d006baf20ea65652f696d0228367b1bf6cb79321a73519d066400097f",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "E06",
+      "class": "exact",
+      "query": "Сколько браузерных проверок test_frontend раньше молча пропускалось при включённом auth?",
+      "gold_path": "docs/tasks/145/report.md",
+      "gold_anchor_sha256": "6cb505c57ad76e89c3a35a93104f49af2014f1e334ac87e126667bcd1f9765ff",
+      "fact_rank": null,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 349.882,
+      "response_bytes": 3861,
+      "chars_before_first_fact": 2246,
+      "token_proxy_before_first_fact_chars_div_3": 749,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/8/report.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "7ce4d510192fc05ef9bd19e6f78a2841cd1479031246ec6f1c4da3e53e22a429",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "docs/tasks/9/report.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "0916cc4ba92fd72b6b7f702536f597018e757915dc6222f862d7d86fa5d5e5a8",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 386414,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "accec3e499f577dc7e767b90705c6f9a3833d79e976c63d193f43ec115d629f7",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "file",
+          "path": "docs/tasks/22/report.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "fc3ed5c192c594dcda77c207b295a30625da1742321e8879cf54a4b4cd25c925",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "file",
+          "path": "CHANGELOG.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "1f8d686a357eace98ed6e7ee2dadb97dd89748339d418cba2a986da008639462",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "C01",
+      "class": "current",
+      "query": "Какая модель сейчас используется, если в codex_review не передать model?",
+      "gold_path": "docs/kb/model-routing-selection.md",
+      "gold_anchor_sha256": "e33230db3dd7d2f0153debcbb9fabc3386faac005477571931af855d70c4ae9b",
+      "fact_rank": 5,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 1,
+      "task_success_proxy": false,
+      "latency_ms": 280.573,
+      "response_bytes": 5147,
+      "chars_before_first_fact": 2481,
+      "token_proxy_before_first_fact_chars_div_3": 827,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/codex-cost/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "e28a41bf038f3e81515fbc9c1f6858a22a86c63617c5ef25cfb0e0d9e4759630",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "pipelines/default/prompts/skills/codex-debate.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "9835fcf9c7e00e69211250ecac112f1a1c7a7f98e4b64c7fe4dd7bcf6da85738",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 1
+        },
+        {
+          "rank": 3,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 444673,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "ab34655d0a82319a7eb6e4b36950b474d203a745a88e6c0a0312ccabeef0ec67",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "file",
+          "path": "docs/tasks/codex-review-value/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "b3f9cf5c643daf1b3270d8e180ee6ef22e1b58799ff90f671ce433029954901c",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "file",
+          "path": "docs/tasks/229/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "0cd93871265c4c0380845f66dc52cc3684e72d8b02fc870e74d3cb35e304e704",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "class": "current",
+      "query": "Что сейчас делает spawn_worker при пустом или отсутствующем model: берёт default роли или отказывает?",
+      "gold_path": "docs/kb/model-routing-selection.md",
+      "gold_anchor_sha256": "220a29d7313709f8faaa6e408181a93b09e0ac22d572b4fc012f96c2cb498234",
+      "fact_rank": null,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 401.781,
+      "response_bytes": 4553,
+      "chars_before_first_fact": 3202,
+      "token_proxy_before_first_fact_chars_div_3": 1068,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 270373,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "d82a6eedb8e5b3c697409e03d016fdfe51f07c524971e47864c2b88d1c47f00e",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 270414,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "cf6949b5cd349ae350b6f95cef9f4bc940a8ac91c0b9527f8052b8d0ecafaf9d",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/archive/research/git-branching-design.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "24692325647af12106b4cddab9bdd94c66efe3cf5b908e0030f0526a819661fe",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "file",
+          "path": "docs/tasks/229/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "8447533ffced35cb6c7ccf62bf3724723d3a235b6b61588610cc8741eb1ff477",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "file",
+          "path": "docs/tasks/25/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "0ae9ca56c9ab94f0dd09aca5727594168b9f33a66c56e18ba4377b73059f5c78",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "class": "current",
+      "query": "Есть ли сейчас исполняемый quota router, который сам выбирает Luna Sol Opus при spawn?",
+      "gold_path": "docs/kb/model-routing-selection.md",
+      "gold_anchor_sha256": "f32f1888a82a0eeefe7dac713f21d8385049395e5572bae86026e38fadd3baef",
+      "fact_rank": null,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 337.06,
+      "response_bytes": 5040,
+      "chars_before_first_fact": 3773,
+      "token_proxy_before_first_fact_chars_div_3": 1258,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/229/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "d8e841ae8b1006733c491c8d9ec9f45475864b24c85d45339c0e82cb4b02b866",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 270414,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "cf6949b5cd349ae350b6f95cef9f4bc940a8ac91c0b9527f8052b8d0ecafaf9d",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/tasks/229/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "a6544c016678c8e726715233ed140399c7964786434b5912d80b455f632a8160",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 379601,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "5b8f80bea0cfb4fcef5fbe01b931f706adb2e13f029a3ffda9bb6439ae331944",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "file",
+          "path": "docs/tasks/229/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "8447533ffced35cb6c7ccf62bf3724723d3a235b6b61588610cc8741eb1ff477",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "C04",
+      "class": "current",
+      "query": "Каков подтверждённый текущий механизм browser-only TimeoutError при quota refresh?",
+      "gold_path": "docs/kb/dashboard-quota-map.md",
+      "gold_anchor_sha256": "44306cd8eae003f465455f1e5b1837f953a7ba12d8d177a01b6e1f4a2bb8f152",
+      "fact_rank": 1,
+      "canonical_path_rank": 1,
+      "canonical_fact_match": true,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": true,
+      "latency_ms": 372.406,
+      "response_bytes": 5240,
+      "chars_before_first_fact": 0,
+      "token_proxy_before_first_fact_chars_div_3": 0,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/kb/dashboard-quota-map.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "17de022ec62db3c65d0a710b9fa3615a030e54a59ec663ea6cd8ef8926a7ae44",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 457105,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "04d3a07091bbccc06dcc3ef2a6ad05b3870e75c87b75c5b2faa65dccff65af3e",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/tasks/234/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "f10a1617045e84676c54d56189e2c69debd516ab3540e073fd678648e09f734f",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "file",
+          "path": "docs/kb/dashboard-quota-map.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "92065ed08c14945a9ccfb48fd93b13f47ecdffc6bd4c2e0e637015ec1e498ac8",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "file",
+          "path": "docs/kb/dashboard-quota-map.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "61937b1284779339945efff534a72d5a9179072866155f9bd8dd2590b7064ecb",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "C05",
+      "class": "current",
+      "query": "Какой суточный лимит OpenRouter free моделей действует для нашего аккаунта с lifetime purchases выше 10 долларов?",
+      "gold_path": "docs/kb/openrouter-quotas.md",
+      "gold_anchor_sha256": "f92d2db8199cf25c804f5625cc064f0a59e609fce3b3e504064e3989669a341b",
+      "fact_rank": null,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 316.61,
+      "response_bytes": 6842,
+      "chars_before_first_fact": 3895,
+      "token_proxy_before_first_fact_chars_div_3": 1299,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 408620,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "d62f94f9be5f91fc2d65d69d3059d01e7eaedf091be70f2af5174f0381c3769b",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "CLAUDE.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "1c7cb5fe30873a134595984572144fd35df771015ec4fb9cc1665be72c12525e",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/codex-subscription-usage-research-2026-07.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "471a06dcb5f21ace2b922a0fc1780b259ab8b8993686c86a306168f0638d94a8",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "file",
+          "path": "docs/tasks/codex-limits-abuse/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "fe4816be6c29a9d7e122f170a801aae542b7477c52a8fc2f3dfc42f949c44094",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "file",
+          "path": "docs/kb/README.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "40f280854fc1f6483033a56717c93119d5df853aac86b89da063035c151d98d7",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "C06",
+      "class": "current",
+      "query": "Что реально исполняется как grep в сессии Claude Code на этой машине?",
+      "gold_path": "docs/kb/grep-memory-blowup.md",
+      "gold_anchor_sha256": "060f0ea1d762670bed7ba6dfd4f45864c62adf19478a403e5012dd1152b4f4c1",
+      "fact_rank": null,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 334.209,
+      "response_bytes": 5921,
+      "chars_before_first_fact": 3667,
+      "token_proxy_before_first_fact_chars_div_3": 1223,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/kb/README.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "40f280854fc1f6483033a56717c93119d5df853aac86b89da063035c151d98d7",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "docs/codex-field-guide.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "6d051cef902634f32637e2b437495d9fc98d7f1502613e15510534d50200557e",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/workers/review237-opus-r3.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "0df0b67eb7ec1219c9040c0397395b435ecccd81ebeaffb4038bc66d901f3b1b",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "log",
+          "path": null,
+          "kind": "user_msg",
+          "log_id": 303351,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "c233c9b7aa9cfa6e175c49470a1274a1d9ea03169e0a42c3555c607bc1350bd6",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "log",
+          "path": null,
+          "kind": "user_msg",
+          "log_id": 240493,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "772eafc24cb7b7a315537fee75458c092de419f107b7645d4881f05cf0177a04",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "R01",
+      "class": "rejected",
+      "query": "Почему уже отказались переносить Orchestra embeddings с локальной bge-m3 на API?",
+      "gold_path": "docs/tasks/133/research.md",
+      "gold_anchor_sha256": "e772f254f9ef24f0e916437374006deaee3fe3eb2ba42ad094e48ea77b336a32",
+      "fact_rank": 4,
+      "canonical_path_rank": 1,
+      "canonical_fact_match": true,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": true,
+      "latency_ms": 323.695,
+      "response_bytes": 6470,
+      "chars_before_first_fact": 1911,
+      "token_proxy_before_first_fact_chars_div_3": 637,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/133/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "defe31b08b279c71769591a98bc531b6f20a72eb118618da07474031e1c3c796",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 407793,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "149536350bc763c1c8cf300455353dfdf64c79d2ab4e3424d2e0b3e3f64248f1",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/tasks/133/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "e16ffec178be344dfa29e75cbd225cf29313e86d53945696ec6a586e56e7b552",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "file",
+          "path": "docs/tasks/133/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "f0a8b970f6235e3a1b247ba1ac456c9cb88ebbcfd3a1dc8ef02f8caf1f32a4de",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "log",
+          "path": null,
+          "kind": "user_msg",
+          "log_id": 410438,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "689825af40bbd5dcfa815003733661ddb3f14622b73d183d1099f483e41b47cf",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "R02",
+      "class": "rejected",
+      "query": "Почему увеличение POOL_MULT и глубины candidate pool уже отвергнуто для search_memory?",
+      "gold_path": "docs/tasks/135/research.md",
+      "gold_anchor_sha256": "c8b7024e72cf2adb21616fcc8fb8e31bfc4992de78486d3ea7eb45615881dfb4",
+      "fact_rank": null,
+      "canonical_path_rank": 1,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 328.867,
+      "response_bytes": 6750,
+      "chars_before_first_fact": 3598,
+      "token_proxy_before_first_fact_chars_div_3": 1200,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/135/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "d3cbc343d76c9b49b56983cd3f9609020bb29b607543e6a0fa16283b3c69af55",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "docs/tasks/135/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "c509d93d14fc794109401cc172c9fd7d8b78cee0e88fe190eec7b30a614c08f3",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 414013,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "267c5a720a245404fcd66ca429be3df9f14b4d29a4bb2afd99ad2f2fd6160f75",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 412315,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "1cedbbbb4345d19f62a34127d2ea4995f65abe5ea76d000e6cf0c4c538b18ea4",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 412348,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "7723f5247fca3acd1929b472ecec204bb9d455aa715a1a742eca45d5bb6b3fc8",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "R03",
+      "class": "rejected",
+      "query": "Почему раздельные списки логов и файлов уже отвергнуты при равном бюджете выдачи?",
+      "gold_path": "docs/tasks/138/research.md",
+      "gold_anchor_sha256": "2ee59c45a0b312ab8bc07223df95a9c436cda86d0205cd14416991c7edb4d3a3",
+      "fact_rank": 1,
+      "canonical_path_rank": 1,
+      "canonical_fact_match": true,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": true,
+      "latency_ms": 348.917,
+      "response_bytes": 7227,
+      "chars_before_first_fact": 0,
+      "token_proxy_before_first_fact_chars_div_3": 0,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/138/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "0db42b8ab6dbefbabee69c080f2e10cd1ee14875e90cdb338368ac4f483219c6",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 415529,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "c46406d22bb036d27aa406906dbd0fa74c60e622708d00e5946c2d2ebb6613e2",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 415529,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "840ee2ac16de0a68e3e06c7d10523f885bd0881d410395f3914dd8ad88c0e28a",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "file",
+          "path": "docs/tasks/138/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "b5f175d78dcdce1aa70ed0a28cae05f03863303de604813c4bba3ca124f00886",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "file",
+          "path": "docs/tasks/138/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "632d7dc283f8a489cd29b33b5a1b399e05a52847690a82a31c6b7ee348c8e44b",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "R04",
+      "class": "rejected",
+      "query": "Почему runtime memory directory нельзя считать рабочим хранилищем знаний Orchestra?",
+      "gold_path": "docs/kb/prompt-delivery.md",
+      "gold_anchor_sha256": "30df9bd782c3f5061b8fce479f3359d067925cdefcb10981e8c5e87a4b0ba92a",
+      "fact_rank": null,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 302.415,
+      "response_bytes": 5398,
+      "chars_before_first_fact": 3633,
+      "token_proxy_before_first_fact_chars_div_3": 1211,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/grok-build/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "541e9c442dfff158409034b1997d47043df87fdcb6a6930905c4079fbeb4b23e",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "docs/tasks/110/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "6af9dcae69dee0ee232ba5916820c5ce0bc5a099cd3a5ede2df12d2e27663fa8",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "CLAUDE.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "3478e03e5ff372903b98487375a45eb8d606269ee5b82f5886e04d0f4b6363f9",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "log",
+          "path": null,
+          "kind": "agent_msg",
+          "log_id": 403808,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "94580c25a2131bd8b3e971a5248f08c58fc5663f16b2b7a77d74c19465c9e2f6",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 423099,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "1cbd1d5341859c5a5b664af097e2b6ed152bdf44e794e6b4e8788a5d1692e054",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "R05",
+      "class": "rejected",
+      "query": "Почему гипотеза что memory blowup является багом самого ugrep была отвергнута?",
+      "gold_path": "docs/kb/grep-memory-blowup.md",
+      "gold_anchor_sha256": "74d34ed93a7076def857aeecc70240e149dd1b889dfa2d5f207123f043f05095",
+      "fact_rank": null,
+      "canonical_path_rank": null,
+      "canonical_fact_match": false,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": false,
+      "latency_ms": 283.561,
+      "response_bytes": 4952,
+      "chars_before_first_fact": 2868,
+      "token_proxy_before_first_fact_chars_div_3": 956,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/3/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "07e97144d5b6a95dbbd71830d47f002bbeef5c33b1520fe94ab5fe1ee7f5c5b2",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 438679,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "65e41bd6eec35a9ab226346c3095c2413cbdd700132d7ecfde17d8369d0310b2",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 438704,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "24e08a087e3bd9c72565288f64094ff7fb149e07245eaf19457c8c645bfa4a47",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "log",
+          "path": null,
+          "kind": "user_msg",
+          "log_id": 438655,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "010e2b100f491a7b837b98c41b7d58e590d6ed2042fb2414441686601aad8b9d",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "file",
+          "path": "docs/tasks/rag-orchestra/report.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "225232e28092c7c227b4c3fd52cfbf179933454ad3572e91a7fe3866a422ad5e",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    },
+    {
+      "id": "R06",
+      "class": "rejected",
+      "query": "Какое устаревшее утверждение про default codex_review Sol уже явно отвергнуто?",
+      "gold_path": "docs/kb/model-routing-selection.md",
+      "gold_anchor_sha256": "24c98b74e3dd185af72e1dbd41847fcd32e97e842fa4b72a24c36a9059e9df37",
+      "fact_rank": 3,
+      "canonical_path_rank": 3,
+      "canonical_fact_match": true,
+      "forbidden_hit_count": 0,
+      "task_success_proxy": true,
+      "latency_ms": 315.266,
+      "response_bytes": 4489,
+      "chars_before_first_fact": 1606,
+      "token_proxy_before_first_fact_chars_div_3": 536,
+      "cross_project_result_count": 0,
+      "index": {
+        "pending_files": 545,
+        "indexing": true
+      },
+      "results": [
+        {
+          "rank": 1,
+          "source": "file",
+          "path": "docs/tasks/229/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "a6544c016678c8e726715233ed140399c7964786434b5912d80b455f632a8160",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 2,
+          "source": "file",
+          "path": "docs/tasks/229/research.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "329e822d7d5dec6ffbdb2420daa999c8c8bc544c43f8ec0da41ccf9863c93702",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 3,
+          "source": "file",
+          "path": "docs/kb/model-routing-selection.md",
+          "kind": null,
+          "log_id": null,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "5e8259621bdacce006aaf63faa0b06ce922af737a55b1c073ea0af614d51c1e3",
+          "contains_gold_anchor": true,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 4,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 256604,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "a968eb82b1202202d8824eec6d72d07e14ff16e38569357b1dd63aa4bf7104eb",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        },
+        {
+          "rank": 5,
+          "source": "log",
+          "path": null,
+          "kind": "text",
+          "log_id": 309369,
+          "project": "/mnt/data/Projects/Python/orchestra",
+          "content_sha256": "600f56eb53b4f260009ff5b9ae33df8b09d4b74199c619fb6f82b74c8c19d250",
+          "contains_gold_anchor": false,
+          "forbidden_anchor_count": 0
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "all": {
+      "n": 18,
+      "fact_recall": 0.3888888888888889,
+      "canonical_path_recall": 0.3333333333333333,
+      "task_success_proxy": 0.3333333333333333,
+      "mrr": 0.2287037037037037,
+      "recall_at_1": 0.16666666666666666,
+      "recall_at_3": 0.2777777777777778,
+      "recall_at_5": 0.3888888888888889
+    },
+    "by_class": {
+      "current": {
+        "n": 6,
+        "fact_recall": 0.3333333333333333,
+        "canonical_path_recall": 0.16666666666666666,
+        "task_success_proxy": 0.16666666666666666,
+        "mrr": 0.19999999999999998,
+        "recall_at_1": 0.16666666666666666,
+        "recall_at_3": 0.16666666666666666,
+        "recall_at_5": 0.3333333333333333
+      },
+      "exact": {
+        "n": 6,
+        "fact_recall": 0.3333333333333333,
+        "canonical_path_recall": 0.16666666666666666,
+        "task_success_proxy": 0.3333333333333333,
+        "mrr": 0.2222222222222222,
+        "recall_at_1": 0.16666666666666666,
+        "recall_at_3": 0.3333333333333333,
+        "recall_at_5": 0.3333333333333333
+      },
+      "rejected": {
+        "n": 6,
+        "fact_recall": 0.5,
+        "canonical_path_recall": 0.6666666666666666,
+        "task_success_proxy": 0.5,
+        "mrr": 0.2638888888888889,
+        "recall_at_1": 0.16666666666666666,
+        "recall_at_3": 0.3333333333333333,
+        "recall_at_5": 0.5
+      }
+    },
+    "stale_contradiction_rate_current": 0.16666666666666666,
+    "canonical_provenance_accuracy_when_fact_found": 0.7142857142857143,
+    "cross_project_leak_rate": 0.0,
+    "latency_ms": {
+      "median": 335.6345,
+      "p95_nearest_rank": 682.775,
+      "max": 682.775
+    },
+    "median_chars_before_first_fact": 1209,
+    "median_token_proxy_before_first_fact_chars_div_3": 403,
+    "tool_calls_to_first_fact_protocol": {
+      "retrieval_only": 1,
+      "cold_memory_gate_plus_retrieval": 2,
+      "note": "README read + one search_memory call; excludes pwd, which is setup rather than knowledge retrieval"
+    }
+  }
+}
