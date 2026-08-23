@@ -86,12 +86,8 @@ def _settle_usage(page, utilization, *, reject=False):
     page.evaluate(
         """([utilization, reject]) => {
             const pending = usagePending.shift();
-            const quotaPending = usagePending.shift();
             if (reject) {
                 pending.reject(new DOMException('signal timed out', 'TimeoutError'));
-                if (quotaPending) {
-                    quotaPending.reject(new DOMException('signal timed out', 'TimeoutError'));
-                }
                 return;
             }
             const reset = new Date(Date.now() + 4 * 86400000).toISOString();
@@ -106,11 +102,18 @@ def _settle_usage(page, utilization, *, reject=False):
                 grok: null,
                 orchestra: {},
             });
-            if (quotaPending) {
-                quotaPending.resolve({buckets: []});
-            }
         }""",
         [utilization, reject],
+    )
+    # Cache-only quota-map starts only after the usage refresh owner settles.
+    page.wait_for_function("() => usagePending.length === 1")
+    page.evaluate(
+        """reject => {
+            const quotaPending = usagePending.shift();
+            if (reject) quotaPending.reject(new DOMException('signal timed out', 'TimeoutError'));
+            else quotaPending.resolve({buckets: []});
+        }""",
+        reject,
     )
     page.wait_for_function("() => _usageFetchPromise === null")
 
@@ -425,9 +428,10 @@ def test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm(bro
     page.locator("#usage-bar").click()
     page.locator("#usage-bar").click()
     page.locator("#usage-bar").click()
-    assert page.evaluate("() => usageRequests") == 4
+    assert page.evaluate("() => usageRequests") == 3
     expect(page.locator("#usage-freshness")).to_have_text("обновление…")
     _settle_usage(page, 2)
+    assert page.evaluate("() => usageRequests") == 4
 
     expect(page.locator("#usage-bar")).to_contain_text("2%")
     expect(page.locator("#usage-freshness")).to_have_text("обновлено сейчас")
@@ -455,15 +459,18 @@ def test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm(bro
             document.dispatchEvent(new Event('visibilitychange'));
         }"""
     )
-    assert page.evaluate("() => usageRequests") == 6
+    assert page.evaluate("() => usageRequests") == 5
     _settle_usage(page, 3)
+    assert page.evaluate("() => usageRequests") == 6
     expect(page.locator("#usage-bar")).to_contain_text("3%")
 
     page.evaluate("() => { _usageLastFetchStartedAt = 0; }")
     page.locator("#usage-bar").click()
     _settle_usage(page, 0, reject=True)
-    expect(page.locator("#usage-bar")).to_contain_text("Usage unavailable")
-    expect(page.locator("#usage-freshness")).to_have_count(0)
+    expect(page.locator("#usage-bar")).to_contain_text("3%")
+    expect(page.locator("#usage-bar")).not_to_contain_text("Usage unavailable")
+    expect(page.locator("#usage-freshness")).to_contain_text("ошибка обновления")
+    expect(page.locator("#usage-freshness")).to_contain_text("данные от сейчас")
     assert errors == ["Usage fetch failed: TimeoutError: signal timed out"]
     page.close()
 

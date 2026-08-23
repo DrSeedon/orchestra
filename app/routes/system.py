@@ -1425,7 +1425,6 @@ async def build_quota_map() -> dict:
     )
     import app.db as db
 
-    await _get_usage_data()
     observation = _quota_observation_from_cache()
     providers = observation.get("providers") or {}
     timestamps = observation.get("observed_at_by_provider") or {}

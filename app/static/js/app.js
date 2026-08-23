@@ -7222,6 +7222,66 @@ const _API_RETRY_JITTER_MS = 800;
 // Мутации остаются на прежних 5 с: повтора у них нет (не идемпотентны), и работу на сервере
 // они делают ДО ответа — оборвать спавн воркера раньше значит соврать юзеру про неудачу.
 const _API_MUTATION_TIMEOUT_MS = 5000;
+const _API_MAX_CONCURRENT_GETS = 4;
+
+let _apiActiveGets = 0;
+const _apiGetQueue = [];
+
+function _apiAcquireGetPermit(signal) {
+    return new Promise((resolve, reject) => {
+        const waiter = {signal, resolve, reject, cancelled: false, onAbort: null};
+        waiter.grant = () => {
+            if (waiter.cancelled) return;
+            waiter.onAbort && signal.removeEventListener('abort', waiter.onAbort);
+            _apiActiveGets++;
+            let released = false;
+            resolve(() => {
+                if (released) return;
+                released = true;
+                _apiReleaseGetPermit();
+            });
+        };
+        if (signal?.aborted) {
+            reject(signal.reason);
+            return;
+        }
+        if (signal) {
+            waiter.onAbort = () => {
+                waiter.cancelled = true;
+                reject(signal.reason);
+            };
+            signal.addEventListener('abort', waiter.onAbort, {once: true});
+        }
+        if (_apiActiveGets < _API_MAX_CONCURRENT_GETS) waiter.grant();
+        else _apiGetQueue.push(waiter);
+    });
+}
+
+function _apiReleaseGetPermit() {
+    _apiActiveGets--;
+    while (_apiActiveGets < _API_MAX_CONCURRENT_GETS && _apiGetQueue.length) {
+        const waiter = _apiGetQueue.shift();
+        if (waiter.cancelled || waiter.signal?.aborted) {
+            waiter.cancelled = true;
+            waiter.onAbort && waiter.signal.removeEventListener('abort', waiter.onAbort);
+            continue;
+        }
+        waiter.grant();
+    }
+}
+
+let _quotaMapFetchPromise = null;
+
+function _fetchQuotaMapShared() {
+    if (_quotaMapFetchPromise) return _quotaMapFetchPromise;
+    const request = api('/api/usage/quota-map', {pollKey: 'quota-map'});
+    const flight = request.finally(() => {
+        if (_quotaMapFetchPromise === flight) _quotaMapFetchPromise = null;
+    });
+    _quotaMapFetchPromise = flight;
+    return flight;
+}
+
 // Таймаут ставится ВСЕГДА, даже когда вызывающий передал свой signal. Раньше здесь было
 // `opts.signal || AbortSignal.timeout(5000)`: свой signal (у нас это AbortController для
 // single-flight) молча отменял таймаут, и зависший ответ висел вечно. В refreshSessions
@@ -7238,43 +7298,51 @@ async function api(url, opts = {}) {
     const requestOpts = {...opts};
     delete requestOpts.pollKey;
     for (let attempt = 1; ; attempt++) {
-        const timeout = AbortSignal.timeout(opts.timeoutMs ?? (isGet ? _API_TIMEOUT_MS : _API_MUTATION_TIMEOUT_MS));
-        const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
+        const releaseGetPermit = isGet ? await _apiAcquireGetPermit(opts.signal) : null;
+        let data;
+        let error;
         try {
-            const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...requestOpts, signal });
-            if (!resp.ok) {
-                const text = await resp.text();
-                // Отказ на время перезапуска — штатный и повторяемый: вызов отклонён ДО
-                // побочного эффекта. Юзер до этого получал в чат сырой служебный JSON.
-                if (_restartPendingFromBody(resp.status, text)) {
-                    _setRestartPending(true);
-                    const refused = new Error('Orchestra перезапускается — вызов отклонён до изменений. Повтори через несколько секунд.');
-                    refused.name = 'RestartPendingError';
-                    throw refused;
+            try {
+                const timeout = AbortSignal.timeout(opts.timeoutMs ?? (isGet ? _API_TIMEOUT_MS : _API_MUTATION_TIMEOUT_MS));
+                const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
+                const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...requestOpts, signal });
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    // Отказ на время перезапуска — штатный и повторяемый: вызов отклонён ДО
+                    // побочного эффекта. Юзер до этого получал в чат сырой служебный JSON.
+                    if (_restartPendingFromBody(resp.status, text)) {
+                        _setRestartPending(true);
+                        const refused = new Error('Orchestra перезапускается — вызов отклонён до изменений. Повтори через несколько секунд.');
+                        refused.name = 'RestartPendingError';
+                        throw refused;
+                    }
+                    const serverError = new Error(`${resp.status}: ${text}`);
+                    serverError.status = resp.status;
+                    throw serverError;
                 }
-                const serverError = new Error(`${resp.status}: ${text}`);
-                serverError.status = resp.status;
-                throw serverError;
+                data = await resp.json();
+                _pollNoteSuccess(pollKey);
+                _hideNetFailBanner(url);
+            } catch (e) {
+                error = e;
             }
-            const data = await resp.json();
-            _pollNoteSuccess(pollKey);
-            _hideNetFailBanner(url);
-            return data;
-        } catch (e) {
-            // Отмена вызывающим (смена scope, single-flight) — намеренная, повтор воскресил бы
-            // запрос, который уже никому не нужен.
-            if (opts.signal?.aborted) throw e;
-            const broken = e.name === 'TimeoutError' || e.name === 'TypeError';
-            const transient = broken || (Number(e.status) >= 500 && Number(e.status) < 600);
-            if (!broken || attempt >= attempts) {
-                if (transient) _pollNoteFailure(pollKey, e);
-                if (broken && attempts > 1) _showNetFailBanner(url, attempts);
-                throw e;
-            }
-            const pause = Math.round(Math.random() * _API_RETRY_JITTER_MS);
-            console.warn(`api ${url}: попытка ${attempt}/${attempts} — ${e.name}, пауза ${pause} мс`);
-            await new Promise(resolve => setTimeout(resolve, pause));
+        } finally {
+            releaseGetPermit?.();
         }
+        if (!error) return data;
+        // Отмена вызывающим (смена scope, single-flight) — намеренная, повтор воскресил бы
+        // запрос, который уже никому не нужен.
+        if (opts.signal?.aborted) throw error;
+        const broken = error.name === 'TimeoutError' || error.name === 'TypeError';
+        const transient = broken || (Number(error.status) >= 500 && Number(error.status) < 600);
+        if (!broken || attempt >= attempts) {
+            if (transient) _pollNoteFailure(pollKey, error);
+            if (broken && attempts > 1) _showNetFailBanner(url, attempts);
+            throw error;
+        }
+        const pause = Math.round(Math.random() * _API_RETRY_JITTER_MS);
+        console.warn(`api ${url}: попытка ${attempt}/${attempts} — ${error.name}, пауза ${pause} мс`);
+        await new Promise(resolve => setTimeout(resolve, pause));
     }
 }
 
@@ -8854,7 +8922,9 @@ function _qlVerdict(panel) {
         return {text: 'нет данных — пул отсутствует в ответе сервера', nodata: true};
     }
     const lanes = _qlLanes(panel);
-    const known = lanes.filter(l => l.bucket?.data_available);
+    const known = lanes.filter(l => l.bucket?.data_available
+        && l.bucket.fresh !== false
+        && l.release_status !== 'no_data');
     if (!lanes.length) return {text: 'нет данных — сервер не прислал полосы допуска', nodata: true};
     if (!known.length) return {text: 'нет данных — телеметрии пула нет, гейт отвечает unknown', nodata: true};
     const partial = known.length < lanes.length;
@@ -8884,7 +8954,9 @@ function _qlPanelHtml(panel) {
         </section>`;
     }
     const lanes = _qlLanes(panel).map(lane => {
-        const nodata = !lane.bucket?.data_available;
+        const nodata = !lane.bucket?.data_available
+            || lane.bucket.fresh === false
+            || lane.release_status === 'no_data';
         const state = nodata ? 'nodata' : lane.blocked ? 'blocked' : 'open';
         const word = _qlLaneSummary(lane);
         return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(lane.lane)}">${_escHtml(lane.label || lane.lane)}: <b>${word}</b>${lane.gated ? '' : ' <i>без диагонали</i>'}</span>`;
@@ -8942,7 +9014,17 @@ function renderQuotaLines() {
 
 async function fetchQuotaLines() {
     try {
-        const dataRaw = await api('/api/usage/quota-map', {pollKey: 'quota-lines'});
+        const usageInFlight = typeof _usageFetchPromise !== 'undefined'
+            ? _usageFetchPromise
+            : null;
+        let dataRaw;
+        if (usageInFlight) {
+            await usageInFlight;
+            if (!_quotaMapData) throw new Error('quota-map request failed');
+            dataRaw = _quotaMapData;
+        } else {
+            dataRaw = await _fetchQuotaMapShared();
+        }
         const data = typeof dataRaw === 'string' ? JSON.parse(dataRaw) : dataRaw;
         if (data && data.data_available === false) {
             _quotaLinesData = null;
