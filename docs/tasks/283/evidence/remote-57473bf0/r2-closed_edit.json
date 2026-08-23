@@ -1,0 +1,141 @@
+{
+  "run_id": "r2-closed_edit",
+  "repetition": 2,
+  "task": "closed_edit",
+  "model": "stealth/ox-alpha",
+  "elapsed_seconds": 34.893,
+  "ok": true,
+  "stop_reason": "end_turn",
+  "effort": "high",
+  "http_attempts": 5,
+  "tool_calls": 4,
+  "event_round_markers": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "empty_response": false,
+  "grade": {
+    "score": 1.0,
+    "passed": 6,
+    "total": 6,
+    "exit_code": 0,
+    "tail": "test_all_required_features (test_registry.RegistryTests.test_all_required_features) ... ok\ntest_boolean_price_rejected (test_registry.RegistryTests.test_boolean_price_rejected) ... ok\ntest_disabled_rejected (test_registry.RegistryTests.test_disabled_rejected) ... ok\ntest_expired_rejected (test_registry.RegistryTests.test_expired_rejected) ... ok\ntest_positive_and_string_price_rejected (test_registry.RegistryTests.test_positive_and_string_price_rejected) ... ok\ntest_preserves_order (test_registry.RegistryTests.test_preserves_order) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.001s\n\nOK\n"
+  },
+  "events": [
+    {
+      "type": "tool_use",
+      "content": "glob: {\"pattern\": \"**/registry.py\"}",
+      "metadata": {
+        "tool_name": "glob",
+        "short_name": "glob"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "registry.py",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"registry.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tdef eligible(entries, required_features):\n2\t    \"\"\"Return entries safe for the requested feature set.\"\"\"\n3\t    return [entry for entry in entries if entry.get(\"enabled\", True)]",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "write: {\"path\": \"registry.py\", \"content\": \"import math\\nimport numbers\\n\\n\\ndef _is_zero_price(value):\\n    \\\"\\\"\\\"True only for a numeric (non-bool) price exactly equal to zero.\\\"\\\"\\\"\\n    if isinstance(value, bool) or not isinstance(value, numbers.Number):\\n        return False\\n    return value == 0 and not (isinstance(value, float) and math.isnan(value))\\n\\n\\ndef eligible(entries, required_features):\\n    \\\"\\\"\\\"Return entries safe for the requested feature set.\\n\\n    Preserves input order. Keeps only entries that are:\\n      - enabled,\\n      - not expired,\\n      - priced at exactly numeric zero (booleans excluded),\\n      - containing every required feature.\\n    \\\"\\\"\\\"\\n    required = set(required_features)\\n    result = []\\n    for entry in entries:\\n        if not isinstance(entry, dict):\\n            continue\\n        if not entry.get(\\\"enabled\\\", True):\\n            continue\\n        if entry.get(\\\"expired\\\", False):\\n            continue\\n        if \\\"price\\\" not in entry:\\n            continue\\n        if not _is_zero_price(entry[\\\"price\\\"]):\\n            continue\\n        features = set(entry.get(\\\"features\\\") or ())\\n        if not required.issubset(features):\\n            continue\\n        result.append(entry)\\n    return result\\n\"}",
+      "metadata": {
+        "tool_name": "write",
+        "short_name": "write"
+      },
+      "usage": {}
+    },
+    {
+      "type": "file_change",
+      "content": "add registry.py",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "wrote registry.py (1163 chars)",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "test: {}",
+      "metadata": {
+        "tool_name": "test",
+        "short_name": "test"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "exit_code=0\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "text",
+      "content": "All 6 tests pass. Summary of the fix in `registry.py`:\n\n- **Order preserved**: builds the result by iterating `entries` in input order (list append, no sorting/set conversion of entries).\n- **Enabled check**: keeps default `entry.get(\"enabled\", True)` behavior — disabled entries are dropped.\n- **Expired check**: drops entries with a truthy `\"expired\"` flag (default not expired).\n- **Price exactly numeric zero**: added `_is_zero_price()` helper that accepts only real numeric types (`numbers.Number`) equal to `0`, explicitly rejecting `bool` (so `True`/`False` can't masquerade as prices) and non-numeric values; missing or nonzero prices fail.\n- **Feature superset**: requires every feature in `required_features` to be present in the entry's `\"features\"` set via `required.issubset(features)`, treating a missing/None features list as empty.",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "turn_end",
+      "content": "stop_reason=end_turn",
+      "metadata": {
+        "session_id": "283-memory-session",
+        "ok": true,
+        "stop_reason": "end_turn",
+        "num_turns": 1,
+        "cost_usd": 0.0,
+        "cost_usd_cached": 0.0,
+        "cache_hit": 0,
+        "input_tokens": 5494,
+        "output_tokens": 492,
+        "cached_input_tokens": 0,
+        "cache_read": 0,
+        "cache_create": 0,
+        "model_calls": null,
+        "context_pct": 0,
+        "context_tokens": 1311,
+        "context_known": true,
+        "max_tokens": 1048576
+      },
+      "usage": {
+        "input_tokens": 5494,
+        "output_tokens": 492,
+        "cached_input_tokens": 0,
+        "cache_read": 0,
+        "cache_create": 0,
+        "model_calls": null,
+        "context_pct": 0,
+        "context_tokens": 1311,
+        "context_known": true,
+        "max_tokens": 1048576
+      }
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "run_id": "r1-closed_trace",
+  "repetition": 1,
+  "task": "closed_trace",
+  "model": "stealth/ox-alpha",
+  "elapsed_seconds": 41.788,
+  "ok": true,
+  "stop_reason": "end_turn",
+  "effort": "high",
+  "http_attempts": 5,
+  "tool_calls": 9,
+  "event_round_markers": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "empty_response": false,
+  "grade": {
+    "score": 0.0,
+    "matched": 0,
+    "total": 4,
+    "error": "ValueError: 'HarnessBackend.send' is not in list"
+  },
+  "events": [
+    {
+      "type": "tool_use",
+      "content": "glob: {\"pattern\": \"**/*\"}",
+      "metadata": {
+        "tool_name": "glob",
+        "short_name": "glob"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "decoy.py\nclient.py\nbackend.py\nregistry.py\napi.py",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "grep: {\"pattern\": \"def create|api\\\\.create\"}",
+      "metadata": {
+        "tool_name": "grep",
+        "short_name": "grep"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "api.py:2:def create(name):",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"api.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tfrom registry import build\n2\tdef create(name):\n3\t    return build(name).send()",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"client.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tclass Client:\n2\t    def __init__(self, runtime): self.runtime = runtime\n3\t    def complete(self): return self.post('/v1/chat/completions')\n4\t    def post(self, url): return {'runtime': self.runtime, 'url': url}",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"backend.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tfrom client import Client\n2\tclass HarnessBackend:\n3\t    def __init__(self, runtime): self.runtime = runtime\n4\t    def send(self): return Client(self.runtime).complete()",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"registry.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tfrom backend import HarnessBackend\n2\tROUTES = {'alpha': ('harness', HarnessBackend)}\n3\tdef build(name):\n4\t    runtime, factory = ROUTES[name]\n5\t    return factory(runtime)",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"decoy.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tdef paid_fallback():\n2\t    return 'paid/model'",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "text",
+      "content": "The trace is clear:\n\n- `api.create('alpha')` → `registry.build('alpha')` → returns `HarnessBackend('harness')` → `.send()` → `Client('harness').complete()` → `self.post('/v1/chat/completions')`\n- runtime is `'harness'`, post URL is `'/v1/chat/completions'`\n- `paid_fallback` exists only in decoy.py and is never called from the production path → not reachable",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "write: {\"path\": \"answer.json\", \"content\": \"{\\n  \\\"path\\\": [\\\"create\\\", \\\"build\\\", \\\"send\\\", \\\"complete\\\", \\\"post\\\"],\\n  \\\"runtime\\\": \\\"harness\\\",\\n  \\\"post_url\\\": \\\"/v1/chat/completions\\\",\\n  \\\"paid_fallback_reachable\\\": false\\n}\\n\"}",
+      "metadata": {
+        "tool_name": "write",
+        "short_name": "write"
+      },
+      "usage": {}
+    },
+    {
+      "type": "file_change",
+      "content": "add answer.json",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "wrote answer.json (160 chars)",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "test: {}",
+      "metadata": {
+        "tool_name": "test",
+        "short_name": "test"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "shape_valid",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "text",
+      "content": "Answer written and validated. Summary of the production call path for `api.create('alpha')`:\n\n1. **`create`** (api.py) — calls `build(name).send()`\n2. **`build`** (registry.py) — looks up `ROUTES['alpha'] = ('harness', HarnessBackend)`, instantiates the backend with runtime `'harness'`\n3. **`send`** (backend.py, `HarnessBackend`) — creates a `Client('harness')` and calls `.complete()`\n4. **`complete`** (client.py) — calls `self.post('/v1/chat/completions')`\n5. **`post`** (client.py) — final call, posting to `/v1/chat/completions`\n\n- **runtime**: `\"harness\"`\n- **post_url**: `\"/v1/chat/completions\"`\n- **paid_fallback_reachable**: `false` — `paid_fallback` lives only in decoy.py and nothing in the production path references it.\n\n`answer.json` contains these values under keys `path`, `runtime`, `post_url`, and `paid_fallback_reachable`, and the shape check passed (`shape_valid`).",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "turn_end",
+      "content": "stop_reason=end_turn",
+      "metadata": {
+        "session_id": "283-memory-session",
+        "ok": true,
+        "stop_reason": "end_turn",
+        "num_turns": 1,
+        "cost_usd": 0.0,
+        "cost_usd_cached": 0.0,
+        "cache_hit": 0,
+        "input_tokens": 6683,
+        "output_tokens": 845,
+        "cached_input_tokens": 0,
+        "cache_read": 0,
+        "cache_create": 0,
+        "model_calls": null,
+        "context_pct": 0,
+        "context_tokens": 1760,
+        "context_known": true,
+        "max_tokens": 1048576
+      },
+      "usage": {
+        "input_tokens": 6683,
+        "output_tokens": 845,
+        "cached_input_tokens": 0,
+        "cache_read": 0,
+        "cache_create": 0,
+        "model_calls": null,
+        "context_pct": 0,
+        "context_tokens": 1760,
+        "context_known": true,
+        "max_tokens": 1048576
+      }
+    }
+  ]
+}

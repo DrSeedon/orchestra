@@ -1,0 +1,17 @@
+{
+  "task": "283",
+  "model": "stealth/ox-alpha",
+  "protocol_frozen_before_calls": true,
+  "http_metadata_calls": 0,
+  "inference_http_attempts": 0,
+  "model_calls": 0,
+  "reported_usage_costs": [],
+  "api_key_present": false,
+  "mem_available_kib": 3666888,
+  "minimum_mem_available_kib": 4194304,
+  "stop_reason": "MemAvailable<4GiB",
+  "fallback_models": [],
+  "production_mutations": false,
+  "raw_events": [],
+  "note": "Terminal guard fired before metadata or inference HTTP; no live model result was collected."
+}
