@@ -24,6 +24,12 @@ EXPLICIT_MODEL = "gpt-5.6-terra"
 READINESS_MODEL = "gpt-5.6-sol"
 
 
+def _review_text(result):
+    if isinstance(result, str):
+        return result
+    return "\n".join(block.text for block in result.content if block.type == "text")
+
+
 def readiness_response():
     return {
         "policy": "worker-weekly-v1", "state": "available",
@@ -67,12 +73,13 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
         target="research.md", output="docs/review.md", mode=mode,
     )
 
-    assert "bg-test" in result
-    assert "END YOUR TURN NOW" in result
-    assert "required, not optional" in result
-    assert "Orchestra will wake you" in result
-    assert "do NOT poll" not in result
-    assert "just wait" not in result
+    text = _review_text(result)
+    assert "bg-test" in text
+    assert "END YOUR TURN NOW" in text
+    assert "required, not optional" in text
+    assert "Orchestra will wake you" in text
+    assert "do NOT poll" not in text
+    assert "just wait" not in text
     config = captured["config"]
     assert "target_session_id" not in captured
     assert set(config) == {"command", "success_file", "success_pattern"}
@@ -147,7 +154,7 @@ async def test_codex_review_explicit_model_overrides_default_and_readiness(
     assert f"--usage-model {EXPLICIT_MODEL}" in command
     assert DEFAULT_MODEL not in command
     assert READINESS_MODEL not in command
-    assert EXPLICIT_MODEL in result
+    assert EXPLICIT_MODEL in _review_text(result)
     # The quota gate is asked about the model that will actually run.
     assert readiness_params == [{"model": EXPLICIT_MODEL}]
 
@@ -331,7 +338,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":100,"cached_inpu
     )
     await jobs.bg_manager._tasks[created["job_id"]]
 
-    assert "started" in result
+    assert "started" in _review_text(result)
     assert "target_session_id" not in created
     assert set(created["config"]) == {"command", "success_file", "success_pattern"}
     with sqlite3.connect(db_path) as conn:
@@ -343,3 +350,83 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":100,"cached_inpu
     assert row["model"] == EXPLICIT_MODEL
     assert row["input_tokens"] > 0
     assert row["output_tokens"] > 0
+
+
+@pytest.mark.asyncio
+async def test_t1_385_codex_review_success_returns_exact_deferred_control_provenance(
+    tmp_path, monkeypatch,
+):
+    """RED #385 R1: only a successfully created job may arm app-server control."""
+    import app.mcp_stdio as mcp
+
+    async def fake_api(method, path, **kwargs):
+        if path == "/api/usage/readiness":
+            return readiness_response()
+        if method == "GET":
+            return {
+                "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+                "scope": str(tmp_path), "task_id": "385", "id": "requester-id",
+            }
+        return {"id": "bg-review-385"}
+
+    monkeypatch.setattr(mcp, "_api", fake_api)
+    monkeypatch.setattr(mcp, "WORKER_NAME", "review-requester")
+    monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+
+    result = await mcp.codex_review(
+        context=PROJECT_CONTEXT,
+        target="docs/tasks/385/plan.md",
+        output="docs/tasks/385/codex-review-plan.md",
+        mode="exec",
+    )
+
+    assert not isinstance(result, str), (
+        "successful codex_review still returns flattened prose instead of a structured result"
+    )
+    assert result.isError is False
+    text = "\n".join(block.text for block in result.content if block.type == "text")
+    assert "bg-review-385" in text
+    assert "END YOUR TURN NOW" in text
+    assert result.structuredContent == {
+        "result": {
+            "kind": "deferred_job",
+            "origin": "orchestra.bg_jobs",
+            "job_id": "bg-review-385",
+            "event_id": "bgjob:v1:bg-review-385:completed",
+            "turn_control": "interrupt",
+        },
+        "error": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_t1_385_codex_review_creation_failure_has_no_deferred_control(
+    tmp_path, monkeypatch,
+):
+    """#385 negative control: a heading/error string never arms deferred control."""
+    import app.mcp_stdio as mcp
+
+    async def fake_api(method, path, **kwargs):
+        if path == "/api/usage/readiness":
+            return readiness_response()
+        if method == "GET":
+            return {
+                "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+                "scope": str(tmp_path), "task_id": "385", "id": "requester-id",
+            }
+        return {"error": "job creation refused"}
+
+    monkeypatch.setattr(mcp, "_api", fake_api)
+    monkeypatch.setattr(mcp, "WORKER_NAME", "review-requester")
+    monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+
+    result = await mcp.codex_review(
+        context=PROJECT_CONTEXT,
+        target="docs/tasks/385/plan.md",
+        output="docs/tasks/385/codex-review-plan.md",
+        mode="exec",
+    )
+
+    structured = getattr(result, "structuredContent", None)
+    assert "turn_control" not in str(structured)
+    assert "bgjob:v1:" not in str(structured)

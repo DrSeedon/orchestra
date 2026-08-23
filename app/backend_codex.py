@@ -78,6 +78,7 @@ CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh", "max"}
 CODEX_SILENCE_HEARTBEAT_SECONDS = 30
 CODEX_COMPACT_TIMEOUT_SECONDS = 120
 CODEX_PROCESS_TIMEOUT_SECONDS = 5
+DEFERRED_INTERRUPT_TERMINAL_TIMEOUT_SECONDS = 5.0
 
 _scope_support_cache: tuple[bool, dict[str, str], str] | None = None
 
@@ -797,6 +798,9 @@ class CodexBackend(JsonRpcStdioTransport):
         self._write_lock = asyncio.Lock()
         self._active_turn_id: str | None = None
         self._events_active = False
+        self._deferred_control: dict | None = None
+        self._deferred_control_turn_id: str | None = None
+        self._deferred_terminal_deadline: float | None = None
         self._disconnecting = False
         self._last_stderr = ""
         self._last_turn_error: dict = {}
@@ -836,6 +840,19 @@ class CodexBackend(JsonRpcStdioTransport):
     def active_turn_id(self) -> Optional[str]:
         """The turn the adopted bytes belong to (#230 T4)."""
         return self._active_turn_id
+
+    @property
+    def deferred_interrupt_pending(self) -> bool:
+        return bool(
+            self._deferred_control
+            and self._deferred_control_turn_id
+            and self._deferred_control_turn_id == self._active_turn_id
+        )
+
+    def _clear_deferred_control(self) -> None:
+        self._deferred_control = None
+        self._deferred_control_turn_id = None
+        self._deferred_terminal_deadline = None
 
     @property
     def hibernate_safe(self) -> bool:
@@ -1112,6 +1129,7 @@ class CodexBackend(JsonRpcStdioTransport):
             # iterator yet. Queue at the session layer so the new turn gets a listener.
             raise RuntimeError("Codex turn is settling; queue this message")
 
+        self._clear_deferred_control()
         await self._reload_stale_managed_config_before_turn()
 
         self._last_turn_error = {}
@@ -1140,12 +1158,32 @@ class CodexBackend(JsonRpcStdioTransport):
         self._events_active = True
         try:
             while True:
+                timeout = CODEX_SILENCE_HEARTBEAT_SECONDS
+                if self.deferred_interrupt_pending:
+                    deadline = self._deferred_terminal_deadline
+                    if deadline is not None:
+                        remaining = deadline - asyncio.get_running_loop().time()
+                        if remaining <= 0:
+                            for event in await self._fail_deferred_interrupt(
+                                "deferred_interrupt_timeout",
+                                "Deferred interrupt did not produce a native terminal in time",
+                            ):
+                                yield event
+                            return
+                        timeout = min(timeout, remaining)
                 try:
                     message = await asyncio.wait_for(
                         self._notifications.get(),
-                        timeout=CODEX_SILENCE_HEARTBEAT_SECONDS,
+                        timeout=timeout,
                     )
                 except asyncio.TimeoutError:
+                    if self.deferred_interrupt_pending:
+                        for event in await self._fail_deferred_interrupt(
+                            "deferred_interrupt_timeout",
+                            "Deferred interrupt did not produce a native terminal in time",
+                        ):
+                            yield event
+                        return
                     if not self._active_turn_id:
                         return
                     yield AgentEvent(
@@ -1161,12 +1199,139 @@ class CodexBackend(JsonRpcStdioTransport):
                     continue
                 if not self._lifecycle_belongs_to_turn(message, expected_turn_id):
                     continue
+                if self._quarantine_deferred_assistant(message):
+                    continue
+                control = None
+                if not self._deferred_control:
+                    control = self._deferred_control_from_notification(
+                        message, expected_turn_id,
+                    )
+                    if control:
+                        self._deferred_control = control
+                        self._deferred_control_turn_id = str(params.get("turnId") or "")
                 for event in self._convert_notification(message):
                     yield event
+                if control:
+                    if not await self.interrupt():
+                        for event in await self._fail_deferred_interrupt(
+                            "deferred_interrupt_failed",
+                            "Deferred interrupt request was not acknowledged",
+                        ):
+                            yield event
+                        return
+                    self._deferred_terminal_deadline = (
+                        asyncio.get_running_loop().time()
+                        + DEFERRED_INTERRUPT_TERMINAL_TIMEOUT_SECONDS
+                    )
                 if method in ("turn/completed", "_process/exited"):
                     return
         finally:
             self._events_active = False
+
+    def _deferred_control_from_notification(
+        self, message: dict, expected_turn_id: str | None,
+    ) -> dict | None:
+        if message.get("method") != "item/completed":
+            return None
+        params = message.get("params") or {}
+        thread_id = str(params.get("threadId") or "")
+        turn_id = str(params.get("turnId") or "")
+        if (
+            not thread_id
+            or thread_id != self._thread_id
+            or not turn_id
+            or turn_id != expected_turn_id
+            or turn_id != self._active_turn_id
+        ):
+            return None
+        item = params.get("item") or {}
+        if (
+            item.get("type") != "mcpToolCall"
+            or item.get("server") != "orchestra"
+            or item.get("tool") != "codex_review"
+            or item.get("error")
+        ):
+            return None
+        result = item.get("result")
+        if not isinstance(result, dict) or result.get("isError") is True:
+            return None
+        structured = result.get("structuredContent")
+        if not isinstance(structured, dict) or structured.get("error") is not None:
+            return None
+        control = structured.get("result")
+        expected_keys = {"kind", "origin", "job_id", "event_id", "turn_control"}
+        if not isinstance(control, dict) or set(control) != expected_keys:
+            return None
+        job_id = control.get("job_id")
+        if not isinstance(job_id, str) or not job_id:
+            return None
+        if control != {
+            "kind": "deferred_job",
+            "origin": "orchestra.bg_jobs",
+            "job_id": job_id,
+            "event_id": f"bgjob:v1:{job_id}:completed",
+            "turn_control": "interrupt",
+        }:
+            return None
+        return dict(control)
+
+    def _quarantine_deferred_assistant(self, message: dict) -> bool:
+        turn_id = self._deferred_control_turn_id
+        if not turn_id:
+            return False
+        params = message.get("params") or {}
+        if str(params.get("turnId") or "") != turn_id:
+            return False
+        method = message.get("method")
+        if method == "item/agentMessage/delta":
+            return True
+        return bool(
+            method == "item/completed"
+            and (params.get("item") or {}).get("type") == "agentMessage"
+        )
+
+    async def _fail_deferred_interrupt(
+        self, stop_reason: str, message: str,
+    ) -> list[AgentEvent]:
+        turn_id = self._deferred_control_turn_id or self._active_turn_id or ""
+        control = dict(self._deferred_control or {})
+        self._active_turn_id = None
+        self._clear_deferred_control()
+        disconnect_error = ""
+        try:
+            await self.disconnect()
+        except Exception as exc:
+            disconnect_error = f"; disconnect failed: {type(exc).__name__}: {exc}"
+        detail = f"{message}{disconnect_error}"
+        usage = TurnUsage(
+            AggregateUsage.normalized(),
+            current_context(
+                None,
+                self._model_context_window,
+                unknown_reason="Codex deferred interrupt ended without native usage",
+            ),
+        )
+        metadata = {
+            "event_id": turn_id,
+            "session_id": self._thread_id,
+            "ok": False,
+            "stop_reason": stop_reason,
+            "cost_usd": 0,
+            "cost_unaccounted": True,
+            **usage.metadata(),
+            "model_error": "error",
+            "errors": [detail],
+            "deferred_control": control,
+        }
+        return [
+            AgentEvent("error", detail, {"model_error": "error"}),
+            AgentEvent(
+                "turn_end",
+                f"stop_reason={stop_reason}",
+                metadata=metadata,
+                usage=usage,
+            ),
+        ]
 
     @staticmethod
     def _lifecycle_belongs_to_turn(message: dict, expected_turn_id: str | None) -> bool:
@@ -1375,6 +1540,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self._reader_task = None
         self._stderr_task = None
         self._active_turn_id = None
+        self._clear_deferred_control()
         self._teardown_error = None
 
     async def disconnect(self) -> None:
@@ -2020,13 +2186,29 @@ class CodexBackend(JsonRpcStdioTransport):
     def _turn_completed(self, turn: dict) -> list[AgentEvent]:
         status = turn.get("status", "failed")
         error = turn.get("error") or self._last_turn_error or {}
-        ok = status == "completed"
-        model_error = "" if ok else self._classify_error(error)
-        stop_reason = {
-            "completed": "end_turn",
-            "interrupted": "interrupted",
-            "failed": "error",
-        }.get(status, status)
+        turn_id = str(turn.get("id") or "")
+        deferred_control = (
+            dict(self._deferred_control)
+            if self._deferred_control
+            and self._deferred_control_turn_id == turn_id
+            else None
+        )
+        if deferred_control and status == "interrupted":
+            ok = False
+            model_error = ""
+            stop_reason = "interrupted"
+        elif deferred_control:
+            ok = False
+            model_error = "error"
+            stop_reason = "deferred_interrupt_not_honored"
+        else:
+            ok = status == "completed"
+            model_error = "" if ok else self._classify_error(error)
+            stop_reason = {
+                "completed": "end_turn",
+                "interrupted": "interrupted",
+                "failed": "error",
+            }.get(status, status)
 
         totals = self._thread_usage_total or self._runtime_totals() or {}
         delta = _usage_delta(totals, self._usage_baseline)
@@ -2067,7 +2249,7 @@ class CodexBackend(JsonRpcStdioTransport):
             cost_error = f"{type(cost_exception).__name__}: {cost_exception}"
             logger.error("Codex usage unaccounted: %s", cost_error)
         metadata = {
-            "event_id": str(turn.get("id") or ""),
+            "event_id": turn_id,
             "session_id": self._thread_id,
             "ok": ok,
             "stop_reason": stop_reason,
@@ -2080,6 +2262,14 @@ class CodexBackend(JsonRpcStdioTransport):
             "errors": [model_error] if model_error else [],
         }
         events = []
+        if deferred_control:
+            metadata["deferred_control"] = deferred_control
+            if status != "interrupted":
+                events.append(AgentEvent(
+                    "error",
+                    f"Deferred interrupt ended with native status {status!r}",
+                    {"model_error": "error"},
+                ))
         if not ok and error.get("message"):
             events.append(AgentEvent("error", error["message"], {"model_error": model_error}))
         if cost_error:
@@ -2097,6 +2287,8 @@ class CodexBackend(JsonRpcStdioTransport):
             usage=normalized_usage,
         ))
         self._last_turn_error = {}
+        if deferred_control:
+            self._clear_deferred_control()
         return events
 
     @staticmethod

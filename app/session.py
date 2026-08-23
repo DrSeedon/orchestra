@@ -19,7 +19,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app.events import AgentEvent
+from app.events import AgentEvent, InjectedMessage
 from app.models import backend_for_model, get_model_spec
 from app.prompting import (
     codex_project_doc_preflight, inject_skills_to_worktree,
@@ -1040,7 +1040,9 @@ class AgentSession:
 
         return await get_worker_admission(model)
 
-    async def send(self, message: str, *, delivery=None) -> None:
+    async def send(self, message: str | InjectedMessage, *, delivery=None) -> None:
+        message_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
+        message = message.text if isinstance(message, InjectedMessage) else message
         original_user_message = message
         history_user_message = original_user_message
         if delivery is not None:
@@ -1108,11 +1110,23 @@ class AgentSession:
             capabilities = get_runtime(self.backend_type).capabilities
             if self._compacting:
                 self._pending_messages.append(message)
-                self._log("user_message", message)
+                self._log("user_message", message, event_id=message_event_id)
                 self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
                 return
             if self.status == AgentStatus.RUNNING:
-                self._log("user_message", message)
+                self._log("user_message", message, event_id=message_event_id)
+                if (
+                    self.backend_type == "codex"
+                    and self._backend is not None
+                    and getattr(self._backend, "deferred_interrupt_pending", False) is True
+                ):
+                    self._pending_messages.append(message)
+                    self._log(
+                        "status",
+                        f"message queued (deferred interrupt pending, "
+                        f"{len(self._pending_messages)} pending)",
+                    )
+                    return
                 if not capabilities.mid_turn_inject:
                     self._pending_messages.append(message)
                     self._log("status", f"message queued ({len(self._pending_messages)} pending)")
@@ -1144,7 +1158,7 @@ class AgentSession:
             self.progress_pct = 0
             self.progress_status = ""
             if delivery is None:
-                self._log("user_message", message)
+                self._log("user_message", message, event_id=message_event_id)
 
             did_inject = False
             pending_th = ""

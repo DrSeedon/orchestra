@@ -5299,3 +5299,228 @@ async def test_idempotent_handoff_reuses_frozen_project_bytes(
     assert second.project_docs == (
         {"path": "AGENTS.md", "content": "frozen policy"},
     )
+
+
+@pytest.mark.asyncio
+async def test_t1_385_deferred_interrupt_waits_for_native_terminal_and_accounts_once(
+    session, monkeypatch,
+):
+    """RED #385 R4: deferred control is native accounting, not manual stop/end_turn."""
+    from app.backend_codex import CodexBackend
+    from app.session import AgentStatus
+    from app import bg_jobs
+
+    provenance = {
+        "kind": "deferred_job",
+        "origin": "orchestra.bg_jobs",
+        "job_id": "bg-session-385",
+        "event_id": "bgjob:v1:bg-session-385:completed",
+        "turn_control": "interrupt",
+    }
+    result = {
+        "content": [{"type": "text", "text": "END YOUR TURN NOW"}],
+        "structuredContent": {"result": provenance, "error": None},
+        "isError": False,
+    }
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/fake")
+    backend._proc = SimpleNamespace(returncode=None)
+    backend._thread_id = "thread-session-385"
+    backend._active_turn_id = "turn-session-385"
+    backend._request = AsyncMock(return_value={})
+    backend._usage_baseline = {
+        "input_tokens": 100,
+        "cached_input_tokens": 40,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 10,
+    }
+    backend._thread_usage_total = {
+        "input_tokens": 160,
+        "cached_input_tokens": 50,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 15,
+    }
+    backend._last_call_usage = {
+        "input_tokens": 90,
+        "model_context_window": 258_400,
+    }
+
+    session.model = "gpt-5.6-sol"
+    session.backend_type = "codex"
+    session._backend = backend
+    session.status = AgentStatus.RUNNING
+    session._turn_start = 1.0
+    session._manually_interrupted = False
+    persisted_statuses = []
+    session._persist = MagicMock(side_effect=lambda: persisted_statuses.append(session.status))
+    session._log = MagicMock()
+    session._submit_db_write = MagicMock()
+    session._cancel_precompact_timer = MagicMock()
+    session._hibernate.schedule = MagicMock()
+
+    def discard_background(coro):
+        coro.close()
+        return MagicMock()
+
+    session._spawn_bg = MagicMock(side_effect=discard_background)
+    monkeypatch.setattr(
+        bg_jobs,
+        "bg_manager",
+        SimpleNamespace(has_active_jobs=lambda session_id: session_id == session.id),
+    )
+
+    for message in (
+        {
+            "method": "item/completed",
+            "params": {
+                "threadId": "thread-session-385", "turnId": "turn-session-385",
+                "item": {
+                    "id": "tool-session-385", "type": "mcpToolCall",
+                    "server": "orchestra", "tool": "codex_review",
+                    "arguments": {}, "result": result,
+                },
+            },
+        },
+        {
+            "method": "turn/completed",
+            "params": {
+                "threadId": "thread-session-385",
+                "turn": {
+                    "id": "turn-session-385", "status": "interrupted", "items": [],
+                },
+            },
+        },
+    ):
+        await backend._notifications.put(message)
+
+    await asyncio.wait_for(session._turn_event_loop(), timeout=0.5)
+
+    backend._request.assert_awaited_once_with("turn/interrupt", {
+        "threadId": "thread-session-385",
+        "turnId": "turn-session-385",
+    })
+    assert session.status == AgentStatus.WAITING
+    assert AgentStatus.IDLE not in persisted_statuses
+    assert session._manually_interrupted is False
+    usage_calls = [
+        call for call in session._submit_db_write.call_args_list
+        if call.args and getattr(call.args[0], "__name__", "") == "turn_usage_add"
+    ]
+    assert len(usage_calls) == 1
+    assert usage_calls[0].kwargs["event_id"] == "turn-session-385"
+    assert usage_calls[0].kwargs["stop_reason"] == "interrupted"
+    assert usage_calls[0].kwargs["input_tokens"] == 60
+    assert usage_calls[0].kwargs["output_tokens"] == 5
+    logged = [(call.args[0], call.args[1]) for call in session._log.call_args_list]
+    assert ("status", "waiting for bg jobs") in logged
+    assert not [content for _kind, content in logged if content.startswith("turn FAILED")]
+
+
+@pytest.mark.asyncio
+async def test_t1_385_message_during_deferred_interrupt_queues_until_native_terminal(
+    session, monkeypatch,
+):
+    """RED #385 R4: a real wake racing the interrupt cannot steer the dying turn."""
+    from app.backend_codex import CodexBackend
+    from app.session import AgentStatus
+    from app import bg_jobs
+
+    interrupt_seen = asyncio.Event()
+    release_interrupt = asyncio.Event()
+
+    async def request(method, params):
+        assert method == "turn/interrupt"
+        assert params == {
+            "threadId": "thread-race-385",
+            "turnId": "turn-race-385",
+        }
+        interrupt_seen.set()
+        await release_interrupt.wait()
+        return {}
+
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/fake")
+    backend._proc = SimpleNamespace(returncode=None)
+    backend._thread_id = "thread-race-385"
+    backend._active_turn_id = "turn-race-385"
+    backend._request = AsyncMock(side_effect=request)
+
+    session.model = "gpt-5.6-sol"
+    session.backend_type = "codex"
+    session._backend = backend
+    session._ensure_backend = AsyncMock(return_value=backend)
+    session.status = AgentStatus.RUNNING
+    session._turn_start = 1.0
+    session._log = MagicMock()
+    session._persist = MagicMock()
+    session._submit_db_write = MagicMock()
+    session._cancel_precompact_timer = MagicMock()
+    session._hibernate.schedule = MagicMock()
+
+    def discard_background(coro):
+        coro.close()
+        return MagicMock()
+
+    session._spawn_bg = MagicMock(side_effect=discard_background)
+    monkeypatch.setattr(
+        bg_jobs,
+        "bg_manager",
+        SimpleNamespace(has_active_jobs=lambda session_id: session_id == session.id),
+    )
+
+    control = {
+        "kind": "deferred_job",
+        "origin": "orchestra.bg_jobs",
+        "job_id": "bg-race-385",
+        "event_id": "bgjob:v1:bg-race-385:completed",
+        "turn_control": "interrupt",
+    }
+    await backend._notifications.put({
+        "method": "item/completed",
+        "params": {
+            "threadId": "thread-race-385", "turnId": "turn-race-385",
+            "item": {
+                "id": "tool-race-385", "type": "mcpToolCall",
+                "server": "orchestra", "tool": "codex_review", "arguments": {},
+                "result": {
+                    "content": [{"type": "text", "text": "END YOUR TURN NOW"}],
+                    "structuredContent": {"result": control, "error": None},
+                    "isError": False,
+                },
+            },
+        },
+    })
+
+    listener = asyncio.create_task(session._turn_event_loop())
+    try:
+        try:
+            await asyncio.wait_for(interrupt_seen.wait(), timeout=0.2)
+        except asyncio.TimeoutError:
+            pytest.fail("structured deferred control did not request turn/interrupt")
+
+        assert session.status == AgentStatus.RUNNING
+        wake = "[Background job completed] Codex review NEEDS WORK"
+        await session.send(wake)
+        assert session._pending_messages == [wake]
+        assert backend._request.await_count == 1
+        assert session._manually_interrupted is False
+        assert session.status == AgentStatus.RUNNING
+
+        await backend._notifications.put({
+            "method": "turn/completed",
+            "params": {
+                "threadId": "thread-race-385",
+                "turn": {
+                    "id": "turn-race-385", "status": "interrupted", "items": [],
+                },
+            },
+        })
+        release_interrupt.set()
+        await asyncio.wait_for(listener, timeout=0.5)
+
+        methods = [call.args[0] for call in backend._request.await_args_list]
+        assert methods == ["turn/interrupt"]
+        assert session.status == AgentStatus.WAITING
+    finally:
+        release_interrupt.set()
+        if not listener.done():
+            listener.cancel()
+        await asyncio.gather(listener, return_exceptions=True)

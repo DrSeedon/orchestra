@@ -2291,7 +2291,12 @@ async def test_codex_review_model_reaches_quota_cli_job_and_accounting(
     assert command.count(f"-m {expected_model}") == (2 if resume else 1)
     assert f"--usage-model {expected_model}" in command
     assert expected_model in job["message"]
-    assert expected_model in result
+    result_text = (
+        result
+        if isinstance(result, str)
+        else "\n".join(block.text for block in result.content if block.type == "text")
+    )
+    assert expected_model in result_text
     if resume:
         assert "exec resume review-thread" in command
 

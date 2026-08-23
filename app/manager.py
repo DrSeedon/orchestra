@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
 from app.session import AgentSession, AgentStatus
+from app.events import InjectedMessage
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
     prompt_template_hash, inject_skills_to_worktree, load_worker_memory,
@@ -1011,7 +1012,7 @@ class SessionManager:
                 "auto-switch %s to %s before delivery", session.name, switched_branch,
             )
 
-    async def send(self, session_id: str, message: str) -> None:
+    async def send(self, session_id: str, message: str | InjectedMessage) -> None:
         session = self.sessions.get(session_id)
         if not session:
             raise KeyError(f"session not found: {session_id}")
