@@ -250,6 +250,26 @@ def test_unqualified_core_update_fails_before_side_effects(db):
         assert (row["title"], row["sync_revision"]) == ("original", 0)
 
 
+def test_acceptance_command_update_replaces_and_clears(db):
+    from app import tm
+
+    with tm._conn() as conn:
+        tm.ensure_project(conn, "proj", scope="/scope")
+        tm.create_task(conn, "proj", "editable", par_number=7, acceptance_command="true")
+
+    tm.api_update_task("7", project="proj")
+    with tm._conn() as conn:
+        assert tm.get_task_by_par(conn, 7, "proj")["acceptance_command"] == "true"
+
+    tm.api_update_task("7", project="proj", acceptance_command="false")
+    with tm._conn() as conn:
+        assert tm.get_task_by_par(conn, 7, "proj")["acceptance_command"] == "false"
+
+    tm.api_update_task("7", project="proj", acceptance_command="")
+    with tm._conn() as conn:
+        assert tm.get_task_by_par(conn, 7, "proj")["acceptance_command"] == ""
+
+
 def test_status_prepayment_uses_resolved_task_db_id(db):
     from app import tm
 
