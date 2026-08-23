@@ -79,8 +79,9 @@ def _resolve_task_project_id(project: str, scope: str) -> str:
 
 @router.post("/tasks")
 async def tm_create_task(req: TmTaskCreate, request: Request):
-    command = req.acceptance_command
-    if (command or "").strip():
+    command = (req.acceptance_command or "").strip()
+    caller_scope = ""
+    if command:
         from app.mcp_proof import caller_may_use_orchestrator_privilege
 
         if not caller_may_use_orchestrator_privilege(request):
@@ -88,15 +89,45 @@ async def tm_create_task(req: TmTaskCreate, request: Request):
                 {"error": "acceptance_command is orchestrator-only"},
                 status_code=403,
             )
+        session_id = request.headers.get("x-orchestra-session-id", "").strip()
+        if session_id:
+            from app.db import get_session
+
+            caller = get_session(session_id)
+            caller_scope = str((caller or {}).get("scope") or "").strip()
+            if not caller_scope:
+                return JSONResponse(
+                    {"error": "acceptance_command caller has no project scope"},
+                    status_code=403,
+                )
     try:
-        return await asyncio.to_thread(
-            _tm.api_create_task,
-            req.project, req.title, req.price, req.description, req.assignee, req.status,
-            scope=req.scope, priority=req.priority,
-            acceptance_command=command,
-        )
+        def _do():
+            project = req.project
+            scope = req.scope
+            if command and caller_scope:
+                resolved_project = _resolve_task_project_id("", caller_scope)
+                if project and _resolve_task_project_id(project, "") != resolved_project:
+                    raise ValueError(
+                        "acceptance_command create is limited to caller's project"
+                    )
+                if scope and _resolve_task_project_id("", scope) != resolved_project:
+                    raise ValueError(
+                        "acceptance_command create is limited to caller's project"
+                    )
+                project = resolved_project
+                scope = ""
+            return _tm.api_create_task(
+                project, req.title, req.price, req.description, req.assignee, req.status,
+                scope=scope, priority=req.priority,
+                acceptance_command=command,
+            )
+        return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
+        payload = {"error": str(e)}
+        reason = getattr(e, "reason", "")
+        if reason:
+            payload["reason"] = reason
+        return JSONResponse(payload, status_code=400)
 
 
 @router.get("/tasks")
@@ -186,7 +217,11 @@ async def tm_update_task(
         return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:
         code = 404 if "not found" in str(e).lower() else 400
-        return JSONResponse({"error": str(e)}, status_code=code)
+        payload = {"error": str(e)}
+        reason = getattr(e, "reason", "")
+        if reason:
+            payload["reason"] = reason
+        return JSONResponse(payload, status_code=code)
 
 
 @router.post("/payments")

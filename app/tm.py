@@ -231,6 +231,9 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
     par = par_number if par_number is not None else _next_par(conn, project_id)
 
     command = (acceptance_command or "").strip()
+    from app.acceptance import parse_acceptance_command
+
+    parse_acceptance_command(command)
     conn.execute(
         """INSERT INTO tm_tasks
            (par_number, project_id, title, description, price_rub, paid_rub,
@@ -298,6 +301,9 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
 
     if acceptance_command is not None:
         command = acceptance_command.strip()
+        from app.acceptance import parse_acceptance_command
+
+        parse_acceptance_command(command)
         if command != (task.get("acceptance_command") or ""):
             updates.append("acceptance_command = ?")
             params.append(command)

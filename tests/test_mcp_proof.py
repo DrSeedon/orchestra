@@ -132,6 +132,49 @@ async def test_bound_orchestrator_proof_may_update_acceptance_command(proof_db):
 
 
 @pytest.mark.asyncio
+async def test_bound_orchestrator_create_is_limited_to_proof_project(proof_db):
+    import app.tm as tm
+    from app.mcp_proof import issue_mcp_proof
+    from app.routes.tm import TmTaskCreate, tm_create_task
+
+    with tm._conn() as conn:
+        tm.ensure_project(conn, "other", scope="/other")
+    proof = issue_mcp_proof("orch-session")
+    request = _req(session_id="orch-session", proof=proof)
+
+    own = await tm_create_task(
+        TmTaskCreate(
+            title="own-acceptance-create",
+            project="proj",
+            scope="/scope",
+            acceptance_command="python3 -c 'pass'",
+        ),
+        request,
+    )
+    assert own["project"] == "proj"
+
+    foreign = await tm_create_task(
+        TmTaskCreate(
+            title="foreign-acceptance-create",
+            project="other",
+            acceptance_command="python3 -c 'pass'",
+        ),
+        request,
+    )
+    assert foreign.status_code == 400
+
+    with tm._conn() as conn:
+        own_row = conn.execute(
+            "SELECT project_id FROM tm_tasks WHERE title='own-acceptance-create'"
+        ).fetchone()
+        foreign_row = conn.execute(
+            "SELECT project_id FROM tm_tasks WHERE title='foreign-acceptance-create'"
+        ).fetchone()
+    assert own_row["project_id"] == "proj"
+    assert foreign_row is None
+
+
+@pytest.mark.asyncio
 async def test_bound_orchestrator_proof_cannot_update_foreign_acceptance(proof_db):
     import app.tm as tm
     from app.mcp_proof import issue_mcp_proof
