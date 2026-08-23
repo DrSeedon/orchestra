@@ -1,0 +1,34 @@
+{
+  "run_id": "r1-closed_edit-stealth__ox-alpha",
+  "repetition": 1,
+  "task": "closed_edit",
+  "model": "stealth/ox-alpha",
+  "elapsed_seconds": 7.102,
+  "loadavg": [
+    1.3447265625,
+    0.82666015625,
+    0.646484375
+  ],
+  "ok": true,
+  "stop_reason": "end_turn",
+  "error": "",
+  "http_attempts": 1,
+  "successful_rounds": 0,
+  "tool_calls": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [],
+  "grade": {
+    "score": 0.3333333333333333,
+    "passed": 2,
+    "total": 6,
+    "exit_code": 1,
+    "tail": "e': False, 'features': ['tools']}] != []\n\nFirst list contains 1 additional elements.\nFirst extra element 0:\n{'id': 'x', 'price': False, 'features': ['tools']}\n\n- [{'features': ['tools'], 'id': 'x', 'price': False}]\n+ []\n\n======================================================================\nFAIL: test_expired_rejected (test_registry.RegistryTests.test_expired_rejected)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r1-closed_edit-stealth__ox-alpha/test_registry.py\", line 11, in test_expired_rejected\n    self.assertEqual(eligible([{\"id\": \"x\", \"expired\": True, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\nAssertionError: Lists differ: [{'id': 'x', 'expired': True, 'price': 0, 'features': ['tools']}] != []\n\nFirst list contains 1 additional elements.\nFirst extra element 0:\n{'id': 'x', 'expired': True, 'price': 0, 'features': ['tools']}\n\n- [{'expired': True, 'features': ['tools'], 'id': 'x', 'price': 0}]\n+ []\n\n======================================================================\nFAIL: test_positive_and_string_prices_rejected (test_registry.RegistryTests.test_positive_and_string_prices_rejected)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r1-closed_edit-stealth__ox-alpha/test_registry.py\", line 14, in test_positive_and_string_prices_rejected\n    self.assertEqual(eligible(rows, {\"tools\"}), [])\nAssertionError: Lists differ: [{'id': 'p', 'price': 0.01, 'features': ['[54 chars]s']}] != []\n\nFirst list contains 2 additional elements.\nFirst extra element 0:\n{'id': 'p', 'price': 0.01, 'features': ['tools']}\n\n+ []\n- [{'features': ['tools'], 'id': 'p', 'price': 0.01},\n-  {'features': ['tools'], 'id': 's', 'price': '0'}]\n\n----------------------------------------------------------------------\nRan 6 tests in 0.003s\n\nFAILED (failures=4)\n"
+  },
+  "events": [],
+  "artifacts": {
+    "registry.py": "def eligible(entries, required_features):\n    \"\"\"Return entries safe for the requested feature set.\"\"\"\n    return [entry for entry in entries if entry.get(\"enabled\", True)]\n"
+  }
+}

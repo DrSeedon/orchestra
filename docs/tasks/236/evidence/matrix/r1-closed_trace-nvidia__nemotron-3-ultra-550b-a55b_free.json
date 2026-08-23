@@ -1,0 +1,33 @@
+{
+  "run_id": "r1-closed_trace-nvidia__nemotron-3-ultra-550b-a55b_free",
+  "repetition": 1,
+  "task": "closed_trace",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "elapsed_seconds": 0.5,
+  "loadavg": [
+    0.78173828125,
+    0.85009765625,
+    0.6826171875
+  ],
+  "ok": true,
+  "stop_reason": "end_turn",
+  "error": "",
+  "http_attempts": 1,
+  "successful_rounds": 0,
+  "tool_calls": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [],
+  "grade": {
+    "score": 0.0,
+    "matched": 0,
+    "total": 4,
+    "error": "FileNotFoundError: [Errno 2] No such file or directory: '/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r1-closed_trace-nvidia__nemotron-3-ultra-550b-a55b_free/answer.json'"
+  },
+  "events": [],
+  "artifacts": {
+    "registry.py": "from backend import HarnessBackend\nROUTES = {\"alpha\": (\"harness\", HarnessBackend)}\ndef build(name):\n    runtime, factory = ROUTES[name]\n    return factory(runtime)\n"
+  }
+}

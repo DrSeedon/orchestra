@@ -1,0 +1,37 @@
+{
+  "run_id": "r2-open_audit-z-ai__glm-5.2_free",
+  "repetition": 2,
+  "task": "open_audit",
+  "model": "z-ai/glm-5.2:free",
+  "elapsed_seconds": 16.49,
+  "loadavg": [
+    0.669921875,
+    0.673828125,
+    0.6796875
+  ],
+  "ok": false,
+  "stop_reason": "error",
+  "error": "llm_error: OpenRouter request failed after 3 attempts: retryable upstream rate limit, status 429",
+  "http_attempts": 3,
+  "successful_rounds": 0,
+  "tool_calls": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 3
+  },
+  "reported_costs": [],
+  "grade": {
+    "score": 0,
+    "tp": 0,
+    "fp": 0,
+    "error": "FileNotFoundError: [Errno 2] No such file or directory: '/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r2-open_audit-z-ai__glm-5.2_free/findings.json'"
+  },
+  "events": [
+    {
+      "type": "error",
+      "content": "llm round failed: OpenRouter request failed after 3 attempts: retryable upstream rate limit, status 429",
+      "metadata": {}
+    }
+  ],
+  "artifacts": {}
+}

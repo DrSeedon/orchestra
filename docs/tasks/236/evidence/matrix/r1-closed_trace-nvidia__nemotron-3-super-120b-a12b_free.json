@@ -1,0 +1,63 @@
+{
+  "run_id": "r1-closed_trace-nvidia__nemotron-3-super-120b-a12b_free",
+  "repetition": 1,
+  "task": "closed_trace",
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
+  "elapsed_seconds": 13.686,
+  "loadavg": [
+    1.236328125,
+    0.95458984375,
+    0.720703125
+  ],
+  "ok": true,
+  "stop_reason": "end_turn",
+  "error": "",
+  "http_attempts": 3,
+  "successful_rounds": 2,
+  "tool_calls": 2,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [
+    0.0,
+    0.0
+  ],
+  "grade": {
+    "score": 0.0,
+    "matched": 0,
+    "total": 4,
+    "error": "FileNotFoundError: [Errno 2] No such file or directory: '/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r1-closed_trace-nvidia__nemotron-3-super-120b-a12b_free/answer.json'"
+  },
+  "events": [
+    {
+      "type": "tool_use",
+      "content": "glob: {\"pattern\": \"*.py\", \"limit\": 20}",
+      "metadata": {
+        "tool_name": "glob",
+        "short_name": "glob"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "decoy.py\nclient.py\nbackend.py\nregistry.py\napi.py",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"api.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tfrom registry import build\n2\tdef create(name):\n3\t    return build(name).send()",
+      "metadata": {}
+    }
+  ],
+  "artifacts": {
+    "registry.py": "from backend import HarnessBackend\nROUTES = {\"alpha\": (\"harness\", HarnessBackend)}\ndef build(name):\n    runtime, factory = ROUTES[name]\n    return factory(runtime)\n"
+  }
+}

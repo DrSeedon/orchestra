@@ -1,0 +1,81 @@
+{
+  "run_id": "r2-open_audit-nvidia__nemotron-3-ultra-550b-a55b_free",
+  "repetition": 2,
+  "task": "open_audit",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "elapsed_seconds": 25.054,
+  "loadavg": [
+    0.6787109375,
+    0.67431640625,
+    0.6796875
+  ],
+  "ok": true,
+  "stop_reason": "end_turn",
+  "error": "",
+  "http_attempts": 3,
+  "successful_rounds": 3,
+  "tool_calls": 2,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "grade": {
+    "score": 10,
+    "tp": 5,
+    "fp": 0,
+    "missed": [],
+    "reported": [
+      "incomplete_price_check",
+      "late_count",
+      "local_timezone",
+      "paid_fallback",
+      "unhealthy_remaining"
+    ]
+  },
+  "events": [
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"budget.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tfrom datetime import datetime\n2\t\n3\tLIMIT = 1000\n4\tattempts = []\n5\thealthy = True\n6\t\n7\tdef request(client, model, body):\n8\t    try:\n9\t        response = client.post(model=model, body=body)\n10\t        attempts.append((datetime.now().date().isoformat(), response.status_code))\n11\t        return response\n12\t    except OSError:\n13\t        return None\n14\t\n15\tdef free_metadata(pricing):\n16\t    return float(pricing.get(\"prompt\", 0)) == 0 and float(pricing.get(\"completion\", 0)) == 0\n17\t\n18\tdef fallback(model):\n19\t    return model.removesuffix(\":free\")\n20\t\n21\tdef remaining():\n22\t    return max(LIMIT - len(attempts), 0)",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "write: {\"path\": \"findings.json\", \"content\": \"{\\\"categories\\\": [\\\"late_count\\\", \\\"local_timezone\\\", \\\"incomplete_price_check\\\", \\\"paid_fallback\\\", \\\"unhealthy_remaining\\\"]}\"}",
+      "metadata": {
+        "tool_name": "write",
+        "short_name": "write"
+      }
+    },
+    {
+      "type": "file_change",
+      "content": "add findings.json",
+      "metadata": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "wrote findings.json (114 chars)",
+      "metadata": {}
+    },
+    {
+      "type": "text",
+      "content": "**Verdict:** Found 5 correctness/paid-request risks in budget.py:\n\n1. **late_count** - Attempts recorded *after* request (line 10), allowing limit overrun\n2. **local_timezone** - `datetime.now()` uses local time not UTC (line 10)\n3. **incomplete_price_check** - Only checks prompt/completion pricing, ignores other dimensions (line 16)\n4. **paid_fallback** - `fallback()` strips `:free` suffix, converting free→paid models (line 19)\n5. **unhealthy_remaining** - `healthy` flag defined but never consulted in `remaining()` (lines 5, 22)\n\nNo lock_contention, integer_overflow, or duplicate_retry issues present.",
+      "metadata": {}
+    }
+  ],
+  "artifacts": {
+    "findings.json": "{\"categories\": [\"late_count\", \"local_timezone\", \"incomplete_price_check\", \"paid_fallback\", \"unhealthy_remaining\"]}"
+  }
+}

@@ -102,3 +102,18 @@ stderr выбрасывался; кириллица объявлялась дв�
 Что это меняет в практике: **Ox Alpha годится как основной исполнитель**, но приёмка по
 артефакту (открыть файл, запустить прогон, посмотреть скриншот) не необязательный шаг, а
 условие. Дешевле требовать доказательство сразу, чем ловить расхождение на мерже.
+
+## Обновление 23.08.2026 — #236
+
+- Identity по-прежнему НЕ раскрыта: OpenRouter прямо называет third-party provider anonymous, а exact Models API вернул `benchmarks=null` · https://openrouter.ai/stealth/ox-alpha + `docs/tasks/236/evidence/free-model-metadata-2026-08-23.json` · #236
+- В frozen no-effort матрице exact route был доступен и дал 0/6 429, но шесть из шести ответов были пустыми: 0 text, 0 tool calls, 0 usage rounds, 0/6 полезных задач, median 5.551 s · `docs/tasks/236/evidence/matrix/r*-stealth__ox-alpha.json` · #236
+- Вывод «основной исполнитель» ОТОЗВАН как БЕЗУСЛОВНЫЙ: вчерашние 858 tool calls остаются прямым evidence capability, но сегодняшняя endpoint drift требует daily production-shaped canary; после canary — только public/non-confidential work и acceptance по артефакту · два измерения 22.08/23.08, #236
+- Даже зелёный canary НЕ допускает Ox в production free-only pool: ID без `:free`, а нулевая metadata перед POST имеет TOCTOU и не запрещает провайдеру сменить цену; нужен доказанный provider-side atomic zero-spend, которого сейчас нет · review #236 + exact id `stealth/ox-alpha` · 23.08.2026, #236
+
+## Пробелы (обновление #236)
+
+- Frozen matrix намеренно не передавала `reasoning.effort`, тогда как production `HarnessBackend` передаёт; это может объяснять пустые Ox ответы, но добор после раскрытия результата был бы exploratory и не меняет frozen verdict · 23.08.2026, #236
+
+## Источники (обновление #236)
+
+- docs/tasks/236/research.md — current identity/metadata, free-only guard and frozen cross-model comparison

@@ -1,0 +1,12 @@
+# Fetched 2026-08-23 from https://openrouter.ai/docs/api-reference/limits.md
+89: export const FREE_MODEL_RATE_LIMIT_RPM = 20;
+91: export const FREE_MODEL_NO_CREDITS_RPD = 50;
+93: export const FREE_MODEL_HAS_CREDITS_RPD = 1000;
+95: export const FREE_MODEL_CREDITS_THRESHOLD = 10;
+128:         usage: number; // Number of credits used (all time)
+129:         usage_daily: number; // Number of credits used (current UTC day)
+224:   Making additional accounts or API keys will not affect your rate limits, as we
+225:   govern capacity globally. We do however have different rate limits for
+226:   different models, so you can share the load that way if you do run into issues.
+332: | Less than {FREE_MODEL_CREDITS_THRESHOLD} | {FREE_MODEL_RATE_LIMIT_RPM} | {FREE_MODEL_NO_CREDITS_RPD}  |
+333: | At least {FREE_MODEL_CREDITS_THRESHOLD}  | {FREE_MODEL_RATE_LIMIT_RPM} | {FREE_MODEL_HAS_CREDITS_RPD} |
