@@ -1004,6 +1004,66 @@ def _open_tool_fixture_page(browser: Browser) -> Page:
     return page
 
 
+def test_photo_batch_renders_as_compact_expandable_gallery(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_fixture_page(dashboard_browser)
+    page.route(
+        "**/api/files/raw?**",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="image/svg+xml",
+            body='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12"/>',
+        ),
+    )
+    paths = [f"/tmp/telegram-photo-{i:02}.jpg" for i in range(85)]
+    content = "\n".join(f"[photo: {path}]" for path in paths)
+    page.evaluate(
+        "([content]) => addChatEntry('user_message', content, null)",
+        [content],
+    )
+
+    gallery = page.locator("#chat .chat-image-gallery")
+    expect(gallery).to_have_count(1)
+    expect(gallery.locator(".chat-image-gallery-count")).to_have_text("📷 85 фото")
+    expect(gallery.locator(".chat-image-gallery-thumb")).to_have_count(4)
+    expect(gallery.locator(".chat-image-gallery-more")).to_have_text("+81")
+    assert gallery.bounding_box()["height"] < 500
+
+    toggle = gallery.locator(".chat-image-gallery-toggle")
+    expect(toggle).to_have_attribute("aria-expanded", "false")
+    toggle.click()
+    expect(gallery.locator(".chat-image-gallery-thumb")).to_have_count(85)
+    expect(toggle).to_have_attribute("aria-expanded", "true")
+    grid_metrics = gallery.locator(".chat-image-gallery-grid").evaluate(
+        "el => ({clientHeight: el.clientHeight, scrollHeight: el.scrollHeight})"
+    )
+    assert grid_metrics["scrollHeight"] > grid_metrics["clientHeight"]
+
+    toggle.click()
+    expect(gallery.locator(".chat-image-gallery-thumb")).to_have_count(4)
+    page.close()
+
+
+def test_single_chat_photo_keeps_plain_preview(dashboard_browser: Browser):
+    page = _open_tool_fixture_page(dashboard_browser)
+    page.route(
+        "**/api/files/raw?**",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="image/svg+xml",
+            body='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12"/>',
+        ),
+    )
+    page.evaluate(
+        "() => addChatEntry('user_message', '[photo: /tmp/only-photo.jpg]', null)"
+    )
+
+    expect(page.locator("#chat .chat-image-gallery")).to_have_count(0)
+    expect(page.locator("#chat img.chat-inline-image")).to_have_count(1)
+    page.close()
+
+
 def _route_frontend_sources(page: Page, source_path: Path | None = None) -> None:
     """Живой сервер отдаёт статику из ГЛАВНОГО чекаута — подменяем её своей.
 
