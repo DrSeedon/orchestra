@@ -12,6 +12,11 @@ from pathlib import Path
 import pytest
 
 
+REPORTED_LITERAL_SHELL_COMMAND = (
+    'test "$(find . -type f | wc -l)" -eq 7 && python3 check.py'
+)
+
+
 def _session_row(worktree: str, task_id: str = "42") -> dict:
     return {
         "id": "merge-session",
@@ -158,6 +163,256 @@ def test_run_command_classifies_exit_and_timeout(tmp_path, monkeypatch):
     missing = run_command("python3 -c 'pass'", str(tmp_path / "no-such-dir"))
     assert missing["status"] == INCONCLUSIVE
     assert missing["reason"] == "cwd_missing"
+    empty_executable = run_command("''", str(tmp_path))
+    assert empty_executable["status"] == INCONCLUSIVE
+    assert empty_executable["reason"] == "invalid_acceptance_command"
+    assert empty_executable["validation_error"] == "empty_executable"
+    assert empty_executable["guidance"] == "FIX_ACCEPTANCE_THEN_RETRY"
+
+
+def test_parser_preserves_safe_argv_and_requires_structural_shell():
+    from app.acceptance import AcceptanceCommandError, parse_acceptance_command
+
+    assert parse_acceptance_command(
+        "python3 -c 'print(\"ordinary argument with spaces\")'"
+    ) == ["python3", "-c", 'print("ordinary argument with spaces")']
+    assert parse_acceptance_command(
+        "printf '%s\\n' 'quoted | ordinary > argument'"
+    ) == ["printf", "%s\\n", "quoted | ordinary > argument"]
+    assert parse_acceptance_command(
+        "printf '%s\\n' '$HOME && literal > text'"
+    ) == ["printf", "%s\\n", "$HOME && literal > text"]
+    assert parse_acceptance_command("./bash --check") == ["./bash", "--check"]
+
+    script = 'test "$(find . -type f | wc -l)" -eq 7 && python3 check.py'
+    assert parse_acceptance_command(f"bash -lc '{script}'") == [
+        "bash", "-lc", script,
+    ]
+    assert parse_acceptance_command("/bin/sh -c 'exit 0'") == [
+        "/bin/sh", "-c", "exit 0",
+    ]
+
+    with pytest.raises(AcceptanceCommandError) as reported:
+        parse_acceptance_command(REPORTED_LITERAL_SHELL_COMMAND)
+    assert reported.value.reason == "shell_syntax_requires_explicit_shell"
+    assert "literal-argv" in str(reported.value)
+    assert "bash -lc" in str(reported.value)
+
+    for apparent_shell in (
+        "python3 check.py && python3 other.py",
+        "python3 check.py || true",
+        "printf x | wc -c",
+        "python3 check.py; true",
+        "python3 check.py > result.txt",
+        "python3 check.py 2>> result.txt",
+        "echo $HOME",
+        'echo "${HOME}"',
+        "echo `pwd`",
+    ):
+        with pytest.raises(AcceptanceCommandError) as rejected:
+            parse_acceptance_command(apparent_shell)
+        assert rejected.value.reason == "shell_syntax_requires_explicit_shell"
+
+    with pytest.raises(AcceptanceCommandError) as malformed:
+        parse_acceptance_command("python3 -c 'unterminated")
+    assert malformed.value.reason == "malformed_quoting"
+
+    with pytest.raises(AcceptanceCommandError) as empty_executable:
+        parse_acceptance_command("''")
+    assert empty_executable.value.reason == "empty_executable"
+
+    for command in (
+        "bash -c",
+        "sh -lc ''",
+        "bash script.sh",
+        "bash -lc 'true' extra",
+        "/bin/bash script.sh",
+    ):
+        with pytest.raises(AcceptanceCommandError) as invalid_shell:
+            parse_acceptance_command(command)
+        assert invalid_shell.value.reason == "invalid_shell_wrapper"
+
+
+@pytest.mark.parametrize(
+    "invalid_command",
+    [REPORTED_LITERAL_SHELL_COMMAND, "python3 -c 'unterminated"],
+)
+def test_create_and_update_reject_invalid_command_before_db_write(
+    acc_db, invalid_command,
+):
+    import app.tm as tm
+    from app.acceptance import AcceptanceCommandError
+
+    with tm._conn() as conn:
+        before = tm.get_task_by_par(conn, 42, "proj")
+
+        with pytest.raises(AcceptanceCommandError):
+            tm.create_task(
+                conn,
+                "proj",
+                "invalid-create",
+                par_number=384,
+                acceptance_command=invalid_command,
+            )
+        assert conn.execute(
+            "SELECT 1 FROM tm_tasks WHERE title='invalid-create'"
+        ).fetchone() is None
+
+        with pytest.raises(AcceptanceCommandError):
+            tm.update_task(
+                conn,
+                before["id"],
+                title="must-not-change",
+                acceptance_command=invalid_command,
+            )
+        after = tm.get_task_by_id(conn, before["id"])
+
+    assert after["title"] == before["title"]
+    assert after["acceptance_command"] == before["acceptance_command"]
+    assert after["sync_revision"] == before["sync_revision"]
+
+
+def _install_rejecting_parser(monkeypatch):
+    from app import acceptance
+
+    def reject(_command):
+        raise acceptance.AcceptanceCommandError(
+            "sentinel_validator", "sentinel validator rejection",
+        )
+
+    monkeypatch.setattr(acceptance, "parse_acceptance_command", reject)
+    return acceptance
+
+
+def test_create_is_wired_to_canonical_validator(acc_db, monkeypatch):
+    import app.tm as tm
+
+    acceptance = _install_rejecting_parser(monkeypatch)
+    with tm._conn() as conn:
+        with pytest.raises(acceptance.AcceptanceCommandError, match="sentinel"):
+            tm.create_task(
+                conn, "proj", "sentinel-create", par_number=384,
+                acceptance_command="true",
+            )
+        assert conn.execute(
+            "SELECT 1 FROM tm_tasks WHERE title='sentinel-create'"
+        ).fetchone() is None
+
+
+def test_update_is_wired_to_canonical_validator(acc_db, monkeypatch):
+    import app.tm as tm
+
+    acceptance = _install_rejecting_parser(monkeypatch)
+    with tm._conn() as conn:
+        before = tm.get_task_by_par(conn, 42, "proj")
+        with pytest.raises(acceptance.AcceptanceCommandError, match="sentinel"):
+            tm.update_task(conn, before["id"], acceptance_command="true")
+        after = tm.get_task_by_id(conn, before["id"])
+
+    assert after["acceptance_command"] == before["acceptance_command"]
+    assert after["sync_revision"] == before["sync_revision"]
+
+
+def test_runner_is_wired_to_canonical_validator(acc_db, monkeypatch):
+    acceptance = _install_rejecting_parser(monkeypatch)
+
+    def must_not_execute(*_args, **_kwargs):
+        raise AssertionError("runner bypassed canonical acceptance parser")
+
+    monkeypatch.setattr(acceptance.subprocess, "run", must_not_execute)
+    result = acceptance.run_command("true", str(acc_db))
+    assert result["status"] == acceptance.INCONCLUSIVE
+    assert result["reason"] == "invalid_acceptance_command"
+    assert result["validation_error"] == "sentinel_validator"
+    assert result["guidance"] == "FIX_ACCEPTANCE_THEN_RETRY"
+
+
+@pytest.mark.asyncio
+async def test_existing_invalid_command_blocks_merge_with_repair_guidance(
+    acc_db, monkeypatch,
+):
+    import app.tm as tm
+
+    with tm._conn() as conn:
+        conn.execute(
+            "UPDATE tm_tasks SET acceptance_command=? WHERE par_number=42",
+            (REPORTED_LITERAL_SHELL_COMMAND,),
+        )
+
+    result, calls = await _run_with_spy(monkeypatch, worktree=str(acc_db))
+
+    assert calls == []
+    assert result["operation_state"] == "FAILED"
+    assert result["error"]["code"] == "ACCEPTANCE_INCONCLUSIVE"
+    assert result["next_action"]["code"] == "FIX_ACCEPTANCE_THEN_RETRY"
+    assert result["acceptance"]["reason"] == "invalid_acceptance_command"
+    assert (
+        result["acceptance"]["validation_error"]
+        == "shell_syntax_requires_explicit_shell"
+    )
+    assert result["acceptance"]["guidance"] == "FIX_ACCEPTANCE_THEN_RETRY"
+    assert "literal-argv" in result["acceptance"]["output"]
+    assert "bash -lc" in result["acceptance"]["output"]
+
+
+@pytest.mark.asyncio
+async def test_public_create_and_update_reject_before_persistence(
+    acc_db, monkeypatch,
+):
+    import json
+
+    from starlette.requests import Request
+
+    import app.tm as tm
+    from app.routes.tm import (
+        TmTaskCreate,
+        TmTaskUpdate,
+        tm_create_task,
+        tm_update_task,
+    )
+
+    monkeypatch.setattr(
+        "app.mcp_proof.caller_may_use_orchestrator_privilege", lambda _request: True,
+    )
+    request = Request({"type": "http", "headers": []})
+
+    created = await tm_create_task(
+        TmTaskCreate(
+            title="invalid-public-create",
+            scope="/scope",
+            acceptance_command=REPORTED_LITERAL_SHELL_COMMAND,
+        ),
+        request,
+    )
+    assert created.status_code == 400
+    create_error = json.loads(created.body)
+    assert create_error["reason"] == "shell_syntax_requires_explicit_shell"
+    assert "bash -lc" in create_error["error"]
+
+    with tm._conn() as conn:
+        before = tm.get_task_by_par(conn, 42, "proj")
+        assert conn.execute(
+            "SELECT 1 FROM tm_tasks WHERE title='invalid-public-create'"
+        ).fetchone() is None
+
+    updated = await tm_update_task(
+        "42",
+        TmTaskUpdate(
+            title="must-not-change",
+            acceptance_command=REPORTED_LITERAL_SHELL_COMMAND,
+        ),
+        request,
+        scope="/scope",
+    )
+    assert updated.status_code == 400
+    update_error = json.loads(updated.body)
+    assert update_error["reason"] == "shell_syntax_requires_explicit_shell"
+
+    with tm._conn() as conn:
+        after = tm.get_task_by_par(conn, 42, "proj")
+    assert after["title"] == before["title"]
+    assert after["acceptance_command"] == before["acceptance_command"]
+    assert after["sync_revision"] == before["sync_revision"]
 
 
 @pytest.mark.asyncio
