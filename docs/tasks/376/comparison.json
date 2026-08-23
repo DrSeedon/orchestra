@@ -1,0 +1,43 @@
+{
+  "aa_noise_range_s": 0.9374368898570538,
+  "app_values_s": [
+    0.08143686293624341,
+    0.3846160122193396
+  ],
+  "cache_ratios": {
+    "ab-app-1": 0.7325137770241628,
+    "ab-app-2": 0.0,
+    "ab-exec-1": 0.0,
+    "ab-exec-2": 0.0
+  },
+  "effect_exceeds_aa_noise": true,
+  "exec_values_s": [
+    3.114522023824975,
+    3.1337128200102597
+  ],
+  "invariant_checks": {
+    "all_ac_pass": true,
+    "cache_arm_medians_within_2pp": false,
+    "cache_full_range_within_5pp": false,
+    "same_base_instructions_hash": true,
+    "same_calls": true,
+    "same_input_tokens": true,
+    "same_model_effort_task_schema_cwd": true,
+    "same_model_visible_prefix_hash": true,
+    "zero_tools": true
+  },
+  "median_effect_s": 2.891090984339826,
+  "order": [
+    "ab-app-1",
+    "ab-exec-1",
+    "ab-app-2",
+    "ab-exec-2"
+  ],
+  "paired_exec_minus_app_s": [
+    3.0330851608887315,
+    2.74909680779092
+  ],
+  "primary_metric": "client_overhead_s",
+  "valid_causal_comparison": false,
+  "verdict": "no-path-verdict"
+}

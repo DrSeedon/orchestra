@@ -1,0 +1,8 @@
+RUN=warmup-exec ARM=exec PHASE=before loadavg=5.99/4.24/4.42 MemAvailable=16454072kB utc=2026-08-23T17:14:53.149909Z
+RUN=warmup-exec ARM=exec PHASE=after loadavg=5.77/4.25/4.42 MemAvailable=16955428kB utc=2026-08-23T17:15:04.280949Z
+RUN=aa-exec-1 ARM=exec PHASE=before loadavg=5.47/4.21/4.41 MemAvailable=16907060kB utc=2026-08-23T17:15:06.167512Z
+RUN=aa-exec-1 ARM=exec PHASE=after loadavg=5.35/4.20/4.41 MemAvailable=16925884kB utc=2026-08-23T17:15:14.527172Z
+RUN=aa-exec-2 ARM=exec PHASE=before loadavg=5.35/4.20/4.41 MemAvailable=16942188kB utc=2026-08-23T17:15:15.821885Z
+RUN=aa-exec-2 ARM=exec PHASE=after loadavg=5.13/4.20/4.40 MemAvailable=16944192kB utc=2026-08-23T17:15:22.866494Z
+RUN=aa-exec-3 ARM=exec PHASE=before loadavg=5.13/4.20/4.40 MemAvailable=16536436kB utc=2026-08-23T17:15:24.587443Z
+RUN=aa-exec-3 ARM=exec PHASE=after loadavg=5.41/4.29/4.43 MemAvailable=16759396kB utc=2026-08-23T17:15:33.137426Z

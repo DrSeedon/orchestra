@@ -1,0 +1,6 @@
+{"observed_utc": "2026-08-23T17:23:37.245342Z", "payload": {"thread_id": "01a02fa6-35be-7331-a8d4-61ed20035257", "type": "thread.started"}, "stream": "stdout", "t_s": 2.3407235839404166}
+{"observed_utc": "2026-08-23T17:23:37.270324Z", "payload": {"item": {"id": "item_0", "message": "Configured service tier `standard` is not advertised as supported for model `gpt-5.6-sol` and will be omitted from requests.", "type": "error"}, "type": "item.completed"}, "stream": "stdout", "t_s": 2.365705446107313}
+{"observed_utc": "2026-08-23T17:23:37.647347Z", "payload": {"type": "turn.started"}, "stream": "stdout", "t_s": 2.7427276400849223}
+{"observed_utc": "2026-08-23T17:23:41.987318Z", "payload": {"item": {"id": "item_1", "text": "{\"answer\":\"ORCHESTRA-376-OK\"}", "type": "agent_message"}, "type": "item.completed"}, "stream": "stdout", "t_s": 7.082695699064061}
+{"observed_utc": "2026-08-23T17:23:42.080504Z", "payload": {"type": "turn.completed", "usage": {"cache_write_input_tokens": 0, "cached_input_tokens": 0, "input_tokens": 9436, "output_tokens": 21, "reasoning_output_tokens": 0}}, "stream": "stdout", "t_s": 7.175885894102976}
+{"observed_utc": "2026-08-23T17:23:42.686263Z", "payload": {"returncode": 0}, "stream": "process", "t_s": 7.781643626047298}
