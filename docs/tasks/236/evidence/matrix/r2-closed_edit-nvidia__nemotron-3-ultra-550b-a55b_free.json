@@ -1,0 +1,122 @@
+{
+  "run_id": "r2-closed_edit-nvidia__nemotron-3-ultra-550b-a55b_free",
+  "repetition": 2,
+  "task": "closed_edit",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "elapsed_seconds": 42.577,
+  "loadavg": [
+    0.30810546875,
+    0.71484375,
+    0.69287109375
+  ],
+  "ok": true,
+  "stop_reason": "end_turn",
+  "error": "",
+  "http_attempts": 6,
+  "successful_rounds": 6,
+  "tool_calls": 5,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "grade": {
+    "score": 1.0,
+    "passed": 6,
+    "total": 6,
+    "exit_code": 0,
+    "tail": "test_all_required_features (test_registry.RegistryTests.test_all_required_features) ... ok\ntest_boolean_price_rejected (test_registry.RegistryTests.test_boolean_price_rejected) ... ok\ntest_disabled_rejected (test_registry.RegistryTests.test_disabled_rejected) ... ok\ntest_expired_rejected (test_registry.RegistryTests.test_expired_rejected) ... ok\ntest_positive_and_string_prices_rejected (test_registry.RegistryTests.test_positive_and_string_prices_rejected) ... ok\ntest_preserves_order (test_registry.RegistryTests.test_preserves_order) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.005s\n\nOK\n"
+  },
+  "events": [
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"registry.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tdef eligible(entries, required_features):\n2\t    \"\"\"Return entries safe for the requested feature set.\"\"\"\n3\t    return [entry for entry in entries if entry.get(\"enabled\", True)]",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "glob: {\"pattern\": \"**/*.py\"}",
+      "metadata": {
+        "tool_name": "glob",
+        "short_name": "glob"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "test_registry.py\nregistry.py",
+      "metadata": {}
+    },
+    {
+      "type": "warning",
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"test_registry.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "1\timport unittest\n2\tfrom registry import eligible\n3\t\n4\tclass RegistryTests(unittest.TestCase):\n5\t    def test_preserves_order(self):\n6\t        rows = [{\"id\": \"b\", \"price\": 0, \"features\": [\"tools\"]}, {\"id\": \"a\", \"price\": 0, \"features\": [\"tools\"]}]\n7\t        self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\"})], [\"b\", \"a\"])\n8\t    def test_disabled_rejected(self):\n9\t        self.assertEqual(eligible([{\"id\": \"x\", \"enabled\": False, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\n10\t    def test_expired_rejected(self):\n11\t        self.assertEqual(eligible([{\"id\": \"x\", \"expired\": True, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\n12\t    def test_positive_and_string_prices_rejected(self):\n13\t        rows = [{\"id\": \"p\", \"price\": 0.01, \"features\": [\"tools\"]}, {\"id\": \"s\", \"price\": \"0\", \"features\": [\"tools\"]}]\n14\t        self.assertEqual(eligible(rows, {\"tools\"}), [])\n15\t    def test_boolean_price_rejected(self):\n16\t        self.assertEqual(eligible([{\"id\": \"x\", \"price\": False, \"features\": [\"tools\"]}], {\"tools\"}), [])\n17\t    def test_all_required_features(self):\n18\t        rows = [{\"id\": \"one\", \"price\": 0, \"features\": [\"tools\"]}, {\"id\": \"both\", \"price\": 0.0, \"features\": [\"tools\", \"json\"]}]\n19\t        self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\", \"json\"})], [\"both\"])",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "write: {\"path\": \"registry.py\", \"content\": \"def eligible(entries, required_features):\\n    \\\"\\\"\\\"Return entries safe for the requested feature set.\\\"\\\"\\\"\\n    result = []\\n    for entry in entries:\\n        # Must be enabled\\n        if not entry.get(\\\"enabled\\\", True):\\n            continue\\n        # Must not be expired\\n        if entry.get(\\\"expired\\\", False):\\n            continue\\n        # Price must be exactly numeric zero (0 or 0.0), not boolean, not string\\n        price = entry.get(\\\"price\\\")\\n        if not isinstance(price, (int, float)) or isinstance(price, bool):\\n            continue\\n        if price != 0:\\n            continue\\n        # Must contain all required features\\n        features = set(entry.get(\\\"features\\\", []))\\n        if not required_features.issubset(features):\\n            continue\\n        result.append(entry)\\n    return result\"}",
+      "metadata": {
+        "tool_name": "write",
+        "short_name": "write"
+      }
+    },
+    {
+      "type": "file_change",
+      "content": "add registry.py",
+      "metadata": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "wrote registry.py (797 chars)",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "test: {}",
+      "metadata": {
+        "tool_name": "test",
+        "short_name": "test"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "exit_code=0\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n",
+      "metadata": {}
+    },
+    {
+      "type": "text",
+      "content": "All tests pass. The fix implements the required filtering logic in `eligible()`:\n\n1. **Preserves input order** - iterates through entries sequentially and appends matching ones\n2. **Enabled only** - skips entries where `enabled` is False (defaults to True)\n3. **Non-expired only** - skips entries where `expired` is True (defaults to False)\n4. **Price exactly numeric zero** - checks `isinstance(price, (int, float))` but excludes `bool` (since `bool` is a subclass of `int`), then verifies `price == 0`\n5. **Contains all required features** - uses set subset check on the entry's features",
+      "metadata": {}
+    }
+  ],
+  "artifacts": {
+    "registry.py": "def eligible(entries, required_features):\n    \"\"\"Return entries safe for the requested feature set.\"\"\"\n    result = []\n    for entry in entries:\n        # Must be enabled\n        if not entry.get(\"enabled\", True):\n            continue\n        # Must not be expired\n        if entry.get(\"expired\", False):\n            continue\n        # Price must be exactly numeric zero (0 or 0.0), not boolean, not string\n        price = entry.get(\"price\")\n        if not isinstance(price, (int, float)) or isinstance(price, bool):\n            continue\n        if price != 0:\n            continue\n        # Must contain all required features\n        features = set(entry.get(\"features\", []))\n        if not required_features.issubset(features):\n            continue\n        result.append(entry)\n    return result"
+  }
+}
