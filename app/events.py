@@ -5,6 +5,25 @@ from dataclasses import dataclass, field
 from app.usage_contract import TurnUsage
 
 
+@dataclass(frozen=True)
+class InjectedMessage:
+    """Server-owned user input with provenance unavailable to model-authored text."""
+
+    text: str
+    origin: str
+    job_id: str
+    event_id: str
+
+    def __contains__(self, value: object) -> bool:
+        return isinstance(value, str) and value in self.text
+
+    def lower(self) -> str:
+        return self.text.lower()
+
+    def __str__(self) -> str:
+        return self.text
+
+
 @dataclass
 class AgentEvent:
     type: str

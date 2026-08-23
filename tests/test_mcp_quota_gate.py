@@ -7,6 +7,12 @@ import app.mcp_stdio as mcp
 NOW = 2_000_000_000.0
 
 
+def _review_text(result):
+    if isinstance(result, str):
+        return result
+    return "\n".join(block.text for block in result.content if block.type == "text")
+
+
 def _readiness(state="available", provider="codex"):
     """Ровно то, что отдаёт `/api/usage/readiness` — `QuotaDecision.to_dict()`."""
     return {
@@ -142,7 +148,7 @@ async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
     """
     api.state["readiness"] = answer
 
-    assert "bg-test" in await _review(api)
+    assert "bg-test" in _review_text(await _review(api))
     assert "/api/bg/jobs" in [path for path, _body in api.calls]
 
 
@@ -165,7 +171,7 @@ def test_blocked_without_a_usable_number_does_not_invent_a_refusal(utilization):
 @pytest.mark.asyncio
 async def test_available_review_starts_job(api):
     result = await _review(api)
-    assert "bg-test" in result
+    assert "bg-test" in _review_text(result)
     assert "/api/bg/jobs" in [path for path, _body in api.calls]
 
 

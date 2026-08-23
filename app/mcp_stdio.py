@@ -2421,7 +2421,7 @@ async def codex_review(
     mode: str = "review",
     resume: bool = False,
     model: str = _CODEX_REVIEW_DEFAULT_MODEL,
-) -> str:
+) -> CallToolResult:
     """Run a registered Codex model review in background. Returns immediately.
     After calling, END YOUR TURN NOW; Orchestra wakes you when the job completes.
     target: file path for review, or empty for git diff review.
@@ -2454,10 +2454,16 @@ async def codex_review(
         raise refusal
     info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
     if isinstance(info, dict) and info.get("error"):
-        return f"Error resolving worker cwd: {info['error']}"
+        return mcp_tool_result(
+            result=None,
+            text=f"Error resolving worker cwd: {info['error']}",
+        )
     requesting_session_id = str(info.get("id") or "").strip()
     if not requesting_session_id:
-        return "Error resolving worker session id: respawn the worker"
+        return mcp_tool_result(
+            result=None,
+            text="Error resolving worker session id: respawn the worker",
+        )
     cwd = info.get("worktree_path") or info.get("cwd") or info.get("scope", SCOPE)
     output_abs = f"{cwd}/{output}" if not output.startswith("/") else output
 
@@ -2485,7 +2491,7 @@ async def codex_review(
     # возвращается голым exit 127 из фоновой джобы, где его никто не связывает с причиной.
     codex_bin = _codex_bin()
     if not codex_bin:
-        return _CODEX_MISSING_HINT
+        return mcp_tool_result(result=None, text=_CODEX_MISSING_HINT)
     codex_cli = f"{q(codex_bin)} -m {q(review_model)}"
 
     if mode == "review":
@@ -2644,16 +2650,34 @@ async def codex_review(
         "created_by": WORKER_NAME,
     })
     if isinstance(result, dict) and result.get("error"):
-        return f"Error creating bg job: {result['error']}"
-    job_id = result.get("id", "?")
+        return mcp_tool_result(
+            result=None,
+            text=f"Error creating bg job: {result['error']}",
+        )
+    job_id = str(result.get("id") or "").strip()
+    if not job_id:
+        return mcp_tool_result(
+            result=None,
+            text="Error creating bg job: response has no job id",
+        )
     resumed_note = f" (resumed session {prev_uuid[:8]})" if is_resume else ""
-    return (
+    text = (
         f"Codex {action} started with reviewer model {review_model}{resumed_note} "
         f"(bg job {job_id}, 10-min timeout). "
         f"END YOUR TURN NOW — this is required, not optional. Orchestra will wake you "
         f"when the job succeeds, times out, or fails. "
         f"On success: read {output}. To continue this debate, call codex_review again with the "
         f"SAME output and resume=True. Do not start another codex_review until this one reports back."
+    )
+    return mcp_tool_result(
+        result={
+            "kind": "deferred_job",
+            "origin": "orchestra.bg_jobs",
+            "job_id": job_id,
+            "event_id": f"bgjob:v1:{job_id}:completed",
+            "turn_control": "interrupt",
+        },
+        text=text,
     )
 
 

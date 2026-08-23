@@ -1092,3 +1092,274 @@ class TestWakeByImmutableId:
 
         assert await manager.ensure_loaded_by_id("arch-1") is None
         assert await manager.ensure_loaded_by_id("does-not-exist") is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "outcome,expected_status",
+    [
+        ("completed", "triggered"),
+        ("failed", "failed"),
+        ("timed_out", "expired"),
+    ],
+)
+async def test_t2_385_real_bg_result_uses_immutable_provenance_through_history(
+    db, outcome, expected_status,
+):
+    """RED #385 R3: real bg results carry app-owned provenance, never a heading."""
+    from dataclasses import FrozenInstanceError
+
+    from app.bg_jobs import BgJobManager
+    from app.db import (
+        bg_get_job,
+        bg_save_job,
+        get_history_logs,
+        get_logs_sync,
+        save_session,
+    )
+    from app.session import AgentSession, AgentStatus
+
+    now = datetime.now(timezone.utc)
+    job_id = f"bg-provenance-385-{outcome}"
+    session = AgentSession(
+        id=f"session-provenance-385-{outcome}",
+        name=f"worker-provenance-385-{outcome}",
+        scope="/scope-385",
+        cwd="/scope-385",
+        model="gpt-5.6-sol",
+        system_prompt="test",
+        created_at=now,
+    )
+    session.is_orchestrator = True
+    session.backend_type = "codex"
+    session.status = AgentStatus.IDLE
+    session._prompt_injected = True
+    save_session(session._to_db_dict())
+
+    class FakeBackend:
+        def __init__(self):
+            self.sent = []
+            self.never = asyncio.Event()
+
+        async def send(self, message):
+            self.sent.append(message)
+
+        async def events(self):
+            await self.never.wait()
+            if False:
+                yield None
+
+    backend = FakeBackend()
+    session._backend = backend
+    session._ensure_backend = AsyncMock(return_value=backend)
+    session._refresh_stale_backend = AsyncMock()
+    session._apply_pending_identity_restart = AsyncMock()
+    session._apply_manifest_effort = AsyncMock()
+    session._notify_scope_running = AsyncMock()
+    session._persist = MagicMock()
+    session._hibernate.schedule = MagicMock()
+
+    deliveries = []
+
+    class FakeManager:
+        async def ensure_loaded_by_id(self, session_id):
+            assert session_id == session.id
+            return session
+
+        async def send(self, session_id, message):
+            assert session_id == session.id
+            deliveries.append(message)
+            await session.send(message)
+
+    jobs = BgJobManager()
+    jobs.set_session_manager(FakeManager())
+    bg_save_job({
+        "id": job_id,
+        "type": "run",
+        "config": json.dumps({"command": "true"}),
+        "message": "Codex review",
+        "target_session_id": session.id,
+        "target_name": session.name,
+        "target_scope": session.scope,
+        "created_by_name": session.name,
+        "status": "active",
+        "expires_at": (now + timedelta(hours=1)).isoformat(),
+        "trigger_at": None,
+        "created_at": now.isoformat(),
+        "last_output": "",
+    })
+
+    try:
+        if outcome == "completed":
+            await jobs._trigger(
+                job_id, "Codex review\nExit code: 0", session.name, session.scope,
+                "## Verdict\nNEEDS WORK",
+            )
+            # The active -> triggering CAS remains the duplicate guard in this scope.
+            await jobs._trigger(
+                job_id, "Codex review\nExit code: 0", session.name, session.scope,
+                "## Verdict\nNEEDS WORK",
+            )
+        elif outcome == "failed":
+            await jobs._fail_notify(
+                job_id, "Codex review", session.name, session.scope,
+                "Process exited with exit code 7", "review failed",
+            )
+        else:
+            await jobs._expire_notify(
+                job_id, "Codex review", session.name, session.scope,
+                600, "review timed out",
+            )
+
+        if session._log_futures:
+            await asyncio.gather(*tuple(session._log_futures))
+
+        assert len(deliveries) == 1
+        delivery = deliveries[0]
+        assert not isinstance(delivery, str)
+        assert delivery.text.startswith("[Background job")
+        assert delivery.origin == "orchestra.bg_jobs"
+        assert delivery.job_id == job_id
+        assert delivery.event_id == f"bgjob:v1:{job_id}:{outcome}"
+        with pytest.raises((FrozenInstanceError, AttributeError)):
+            delivery.origin = "model-authored"
+
+        assert len(backend.sent) == 1
+        assert isinstance(backend.sent[0], str)
+        assert "Codex review" in backend.sent[0]
+
+        _snapshot, history = get_history_logs(session.id)
+        user_rows = [row for row in history if row["type"] == "user_message"]
+        assert len(user_rows) == 1
+        assert user_rows[0]["event_id"] == delivery.event_id
+        synced = [
+            row for row in get_logs_sync(after_id=0, tail=20)["logs"]
+            if row["session_id"] == session.id and row["type"] == "user_message"
+        ]
+        assert len(synced) == 1
+        assert synced[0]["event_id"] == delivery.event_id
+        assert bg_get_job(job_id)["status"] == expected_status
+    finally:
+        if session._listen_task and not session._listen_task.done():
+            session._listen_task.cancel()
+            await asyncio.gather(session._listen_task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_t2_385_running_bg_delivery_logs_provenance_once_then_queues_text(db):
+    """RED #385: a real bg result racing deferred interrupt keeps one provenanced row."""
+    from app.bg_jobs import BgJobManager
+    from app.db import bg_save_job, get_history_logs, get_logs_sync, save_session
+    from app.session import AgentSession, AgentStatus
+
+    now = datetime.now(timezone.utc)
+    job_id = "bg-provenance-385-queued"
+    session = AgentSession(
+        id="session-provenance-385-queued",
+        name="worker-provenance-385-queued",
+        scope="/scope-385",
+        cwd="/scope-385",
+        model="gpt-5.6-sol",
+        system_prompt="test",
+        created_at=now,
+    )
+    session.is_orchestrator = True
+    session.backend_type = "codex"
+    session.status = AgentStatus.RUNNING
+    session._prompt_injected = True
+    save_session(session._to_db_dict())
+
+    class FakeBackend:
+        def __init__(self):
+            self.deferred_interrupt_pending = True
+            self.sent = []
+            self.never = asyncio.Event()
+
+        async def send(self, message):
+            self.sent.append(message)
+
+        async def events(self):
+            await self.never.wait()
+            if False:
+                yield None
+
+    backend = FakeBackend()
+    session._backend = backend
+    session._ensure_backend = AsyncMock(return_value=backend)
+    session._refresh_stale_backend = AsyncMock()
+    session._apply_pending_identity_restart = AsyncMock()
+    session._apply_manifest_effort = AsyncMock()
+    session._persist = MagicMock()
+    session._hibernate.schedule = MagicMock()
+
+    deliveries = []
+
+    class FakeManager:
+        async def ensure_loaded_by_id(self, session_id):
+            assert session_id == session.id
+            return session
+
+        async def send(self, session_id, message):
+            assert session_id == session.id
+            deliveries.append(message)
+            await session.send(message)
+
+    jobs = BgJobManager()
+    jobs.set_session_manager(FakeManager())
+    bg_save_job({
+        "id": job_id,
+        "type": "run",
+        "config": json.dumps({"command": "true"}),
+        "message": "Codex review",
+        "target_session_id": session.id,
+        "target_name": session.name,
+        "target_scope": session.scope,
+        "created_by_name": session.name,
+        "status": "active",
+        "expires_at": (now + timedelta(hours=1)).isoformat(),
+        "trigger_at": None,
+        "created_at": now.isoformat(),
+        "last_output": "",
+    })
+
+    try:
+        await jobs._trigger(
+            job_id, "Codex review\nExit code: 0", session.name, session.scope,
+            "## Verdict\nNEEDS WORK",
+        )
+        if session._log_futures:
+            await asyncio.gather(*tuple(session._log_futures))
+
+        assert len(deliveries) == 1
+        delivery = deliveries[0]
+        assert not isinstance(delivery, str)
+        assert delivery.event_id == f"bgjob:v1:{job_id}:completed"
+        assert session._pending_messages == [delivery.text]
+        assert backend.sent == []
+
+        _snapshot, before = get_history_logs(session.id)
+        before_users = [row for row in before if row["type"] == "user_message"]
+        assert len(before_users) == 1
+        assert before_users[0]["event_id"] == delivery.event_id
+
+        backend.deferred_interrupt_pending = False
+        session.status = AgentStatus.IDLE
+        await session._flush_pending()
+        if session._log_futures:
+            await asyncio.gather(*tuple(session._log_futures))
+
+        assert session._pending_messages == []
+        assert backend.sent == [delivery.text]
+        _snapshot, after = get_history_logs(session.id)
+        after_users = [row for row in after if row["type"] == "user_message"]
+        assert after_users == before_users
+        synced = [
+            row for row in get_logs_sync(after_id=0, tail=20)["logs"]
+            if row["session_id"] == session.id and row["type"] == "user_message"
+        ]
+        assert len(synced) == 1
+        assert synced[0]["event_id"] == delivery.event_id
+    finally:
+        if session._listen_task and not session._listen_task.done():
+            session._listen_task.cancel()
+            await asyncio.gather(session._listen_task, return_exceptions=True)

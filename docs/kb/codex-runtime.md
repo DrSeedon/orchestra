@@ -28,6 +28,9 @@
 - **Одна модель, написавшая постановку, отревьюившая её и реализовавшая — это петля усиления, а не три проверки.** На открытой задаче она расширяет объём сама себе и сама же одобряет расширение. Замер: #176 — весь контур на `gpt-5.6-sol`, итог 364 мёртвые строки из 843 (43.2%) и три круга переделок. Разрывать петлю в самом дешёвом месте: постановку или ревью уводить на ДРУГОЙ рантайм
 - Ревью уползает читать посторонние файлы / Serena-онбординг и падает по таймауту → ограничивать ПЕРВЫЙ вызов: точные файлы/хунки, запрет logs/BUGS/TODO/git-history. Счёт несостоявшихся попыток и «вердикта нет» — только в `skills/codex-debate.md`
 - Sol получает project skills нативно из `.codex/skills/`, которые Orchestra синхронизирует перед backend connect. Bounded generated index — только fallback, когда native skill home недоступен; `.claude/skills/` остаётся механизмом Claude
+- Текст `END YOUR TURN NOW` в результате MCP-тула не завершает Codex-turn: fake app-server последовательность `mcpToolCall result → agentMessage → turn/completed` дала `tool_result,text,turn_end` и **0** control RPC; настоящий bg result отдельно входит через `SessionManager.send` как user input · `docs/tasks/385/research.md` §Deterministic fake-only reproduction · 2026-08-23, #385
+- У `codex-cli 0.149.0` нет клиентского clean-end RPC: version-matched schema перечисляет только `turn/start,turn/steer,turn/interrupt`, а принудительный терминал имеет `status=interrupted`; usage надо принимать из последующего `turn/completed`, не синтезировать `end_turn` · `docs/tasks/385/research.md` §What the app-server can actually enforce · 2026-08-23, #385
+- Минимальный seam provenance для настоящего bg result не требует миграции: immutable internal message несёт `origin/job_id/event_id`, а versioned projection помещается в уже существующий `logs.event_id`, который доезжает в history и incremental UI sync; assistant `text` это поле из контента выставить не может · `docs/tasks/385/research.md` §Smallest code-enforced contract · 2026-08-23, #385
 
 ### Модели и лимиты
 
@@ -51,14 +54,19 @@
 ## Отвергнуто
 
 - (пусто на момент переноса #347 — отозванные утверждения помечены прямо внутри пунктов выше)
+- «Магический заголовок, роль-теги, `SILENT_TURN` или глобальный фильтр прозы могут быть lifecycle authority» · task #385: те же байты лежали в native `role=assistant`; только отдельный `type=user_message` совпал с `bg.triggered_at` · 2026-08-23, #385
+- «Codex `clientUserMessageId` дедуплицирует повторную доставку» · официальный контракт обещает только echo/correlation, openai/codex#32254 просит idempotency как отсутствующую фичу · 2026-08-23, #385
 
 ## Пробелы
 
 - Пункты выше не проверялись на дубли между собой построчно: перенос #347 сохранял текст
   дословно, слияние формулировок делалось только в `CLAUDE.md` · 2026-08-19, #347
+- Сохраняется ли поздний `agentMessage` в native history, если он успел появиться до обработки `turn/interrupt` · live/provider canary запрещён постановкой; fake доказывает только Orchestra quarantine · 2026-08-23, #385
+- Crash-safe exactly-once для окна `bg status=triggering → send → triggered` не доказан: namespaced event id даёт correlation, но stale-trigger replay остаётся отдельным delivery protocol · 2026-08-23, #385
 
 ## Источники
 
 - `CLAUDE.md` — короткие правила «триггер → действие», ссылающиеся сюда
 - `docs/tasks/347/inventory-before.md` — инвентарь всех пунктов до сокращения
 - `docs/archive/sessions/` — хроника сессий, из которых эти пункты выросли
+- `docs/tasks/385/research.md` — fake-only доказательство spoof, реальная app-server control surface и минимальный provenance seam

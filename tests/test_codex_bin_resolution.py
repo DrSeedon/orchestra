@@ -9,6 +9,12 @@ import asyncio
 import pytest
 
 
+def _review_text(result):
+    if isinstance(result, str):
+        return result
+    return "\n".join(block.text for block in result.content if block.type == "text")
+
+
 @pytest.fixture
 def mcp(monkeypatch):
     from app import mcp_stdio
@@ -74,6 +80,7 @@ def test_missing_binary_gives_actionable_text_instead_of_exit_127(mcp, monkeypat
     out = asyncio.run(mcp.codex_review(
         context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
     ))
+    out = _review_text(out)
 
     assert "codex не найден" in out
     assert "CODEX_BIN" in out and "which codex" in out
@@ -101,6 +108,6 @@ def test_resolved_binary_reaches_the_shell_command(mcp, monkeypatch, tmp_path):
         context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
     ))
 
-    assert "bg-test" in result
+    assert "bg-test" in _review_text(result)
     assert "/usr/bin/codex" in started["command"]
     assert "/home/maxim" not in started["command"]
