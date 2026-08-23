@@ -56,3 +56,4 @@
   на своём харнесе: 858 вызовов без ошибок тула, честные отрицательные результаты — и три
   расхождения отчёта с артефактом за день; почему приёмка по артефакту обязательна.
 - [model-routing-selection](model-routing-selection.md) — текущие executable/prompt owners выбора reviewer и worker model, omission/default behavior, effort и supersession evidence (#229).
+- [knowledge-base-architecture](knowledge-base-architecture.md) — canonical evidence, typed fact promotion/supersession, freshness generations, hot/warm/cold delivery and #256 baseline.
