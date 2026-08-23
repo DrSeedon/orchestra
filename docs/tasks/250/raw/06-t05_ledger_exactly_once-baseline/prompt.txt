@@ -1,0 +1,11 @@
+Write the smallest focused regression test(s) for the task below.
+
+Edit only `tests/test_target.py`; do not change production code, fixtures, configuration, or test selection. Run `python3 -m pytest -q` and report the result.
+
+
+# T05 — distant domain: idempotent invoice debit
+
+Retrying the same invoice charge must create exactly one debit for that invoice and preserve its amount. A future implementation may add non-debit audit entries to the ledger; those are valid and must not break the test.
+
+Write the smallest regression test through `charge_invoice`. This is deliberately a case where exact cardinality is the business contract, but only after filtering to the contract event.
+

@@ -1,0 +1,9 @@
+Пустой список больше не маскируется под успех — добавлен focused regression test в [tests/test_target.py](</mnt/data/task250-eval-scratch-250/07-t04_prompt_collection-baseline/tests/test_target.py>).
+
+Проверка:
+
+```text
+1 passed in 0.01s
+```
+
+Новый clause попадёт в planner-проверку автоматически; утечка в worker зафейлит тест. Теперь лазейка закрыта, как дверь с табличкой «не входить», которую наконец-то читают.

@@ -1,0 +1,1302 @@
+{
+  "rows": [
+    {
+      "task": "t03_fallback_classifier",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": true,
+        "scope_integrity": true
+      },
+      "score": 5,
+      "nonblank_test_loc": 9,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.339,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_primary_signal_removed": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.371,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_hides_explicit_and_legacy_local_bash_events _______________\n\n    def test_hides_explicit_and_legacy_local_bash_events():\n        events = [\n            {\"task_type\": \"local_bash\", \"task_id\": \"opaque-new\"},\n            {\"task_id\": \"bash-legacy\"},\n            {\"task_type\": \"agent\", \"task_id\": \"opaque-visible\"},\n        ]\n    \n>       assert visible_subagents(events) == [\"opaque-visible\"]\nE       AssertionError: assert ['opaque-new'...aque-visible'] == ['opaque-visible']\nE         \nE         At index 0 diff: 'opaque-new' != 'opaque-visible'\nE         Left contains one more item: 'opaque-visible'\nE         Use -v to get more diff\n\ntests/test_target.py:13: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_hides_explicit_and_legacy_local_bash_events\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_compound_fallback_masks_primary": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.341,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_hides_explicit_and_legacy_local_bash_events _______________\n\n    def test_hides_explicit_and_legacy_local_bash_events():\n        events = [\n            {\"task_type\": \"local_bash\", \"task_id\": \"opaque-new\"},\n            {\"task_id\": \"bash-legacy\"},\n            {\"task_type\": \"agent\", \"task_id\": \"opaque-visible\"},\n        ]\n    \n>       assert visible_subagents(events) == [\"opaque-visible\"]\nE       AssertionError: assert ['opaque-new'...aque-visible'] == ['opaque-visible']\nE         \nE         At index 0 diff: 'opaque-new' != 'opaque-visible'\nE         Left contains one more item: 'opaque-visible'\nE         Use -v to get more diff\n\ntests/test_target.py:13: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_hides_explicit_and_legacy_local_bash_events\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_boolean_refactor": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.367,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_new_opaque_id": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.349,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "path_public_list_bypasses_classifier": {
+          "tags": [
+            "path"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.341,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_hides_explicit_and_legacy_local_bash_events _______________\n\n    def test_hides_explicit_and_legacy_local_bash_events():\n        events = [\n            {\"task_type\": \"local_bash\", \"task_id\": \"opaque-new\"},\n            {\"task_id\": \"bash-legacy\"},\n            {\"task_type\": \"agent\", \"task_id\": \"opaque-visible\"},\n        ]\n    \n>       assert visible_subagents(events) == [\"opaque-visible\"]\nE       AssertionError: assert ['opaque-new'...aque-visible'] == ['opaque-visible']\nE         \nE         At index 0 diff: 'opaque-new' != 'opaque-visible'\nE         Left contains 2 more items, first extra item: 'bash-legacy'\nE         Use -v to get more diff\n\ntests/test_target.py:13: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_hides_explicit_and_legacy_local_bash_events\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "control_public_list_always_empty": {
+          "tags": [
+            "positive_control"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.288,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_hides_explicit_and_legacy_local_bash_events _______________\n\n    def test_hides_explicit_and_legacy_local_bash_events():\n        events = [\n            {\"task_type\": \"local_bash\", \"task_id\": \"opaque-new\"},\n            {\"task_id\": \"bash-legacy\"},\n            {\"task_type\": \"agent\", \"task_id\": \"opaque-visible\"},\n        ]\n    \n>       assert visible_subagents(events) == [\"opaque-visible\"]\nE       AssertionError: assert [] == ['opaque-visible']\nE         \nE         Right contains one more item: 'opaque-visible'\nE         Use -v to get more diff\n\ntests/test_target.py:13: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_hides_explicit_and_legacy_local_bash_events\n1 failed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "01-t03_fallback_classifier-candidate",
+      "arm": "candidate",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 61.037,
+      "tool_calls": 5
+    },
+    {
+      "task": "t03_fallback_classifier",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": false,
+        "scope_integrity": true
+      },
+      "score": 4,
+      "nonblank_test_loc": 12,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.208,
+          "passed": 2,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_primary_signal_removed": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.216,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F.                                                                       [100%]\n=================================== FAILURES ===================================\n___ test_local_bash_events_are_hidden_with_explicit_or_legacy_signal[event0] ___\n\nevent = {'task_id': 'opaque-7', 'task_type': 'local_bash'}\n\n    @pytest.mark.parametrize(\n        \"event\",\n        [\n            {\"task_type\": \"local_bash\", \"task_id\": \"opaque-7\"},\n            {\"task_id\": \"bash-legacy\"},\n        ],\n    )\n    def test_local_bash_events_are_hidden_with_explicit_or_legacy_signal(event):\n>       assert visible_subagents([event]) == []\nE       AssertionError: assert ['opaque-7'] == []\nE         \nE         Left contains one more item: 'opaque-7'\nE         Use -v to get more diff\n\ntests/test_target.py:16: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_local_bash_events_are_hidden_with_explicit_or_legacy_signal[event0]\n1 failed, 1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_compound_fallback_masks_primary": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.217,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F.                                                                       [100%]\n=================================== FAILURES ===================================\n___ test_local_bash_events_are_hidden_with_explicit_or_legacy_signal[event0] ___\n\nevent = {'task_id': 'opaque-7', 'task_type': 'local_bash'}\n\n    @pytest.mark.parametrize(\n        \"event\",\n        [\n            {\"task_type\": \"local_bash\", \"task_id\": \"opaque-7\"},\n            {\"task_id\": \"bash-legacy\"},\n        ],\n    )\n    def test_local_bash_events_are_hidden_with_explicit_or_legacy_signal(event):\n>       assert visible_subagents([event]) == []\nE       AssertionError: assert ['opaque-7'] == []\nE         \nE         Left contains one more item: 'opaque-7'\nE         Use -v to get more diff\n\ntests/test_target.py:16: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_local_bash_events_are_hidden_with_explicit_or_legacy_signal[event0]\n1 failed, 1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_boolean_refactor": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.212,
+          "passed": 2,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_new_opaque_id": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.212,
+          "passed": 2,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "path_public_list_bypasses_classifier": {
+          "tags": [
+            "path"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.215,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "FF                                                                       [100%]\n=================================== FAILURES ===================================\n___ test_local_bash_events_are_hidden_with_explicit_or_legacy_signal[event0] ___\n\nevent = {'task_id': 'opaque-7', 'task_type': 'local_bash'}\n\n    @pytest.mark.parametrize(\n        \"event\",\n        [\n            {\"task_type\": \"local_bash\", \"task_id\": \"opaque-7\"},\n            {\"task_id\": \"bash-legacy\"},\n        ],\n    )\n    def test_local_bash_events_are_hidden_with_explicit_or_legacy_signal(event):\n>       assert visible_subagents([event]) == []\nE       AssertionError: assert ['opaque-7'] == []\nE         \nE         Left contains one more item: 'opaque-7'\nE         Use -v to get more diff\n\ntests/test_target.py:16: AssertionError\n___ test_local_bash_events_are_hidden_with_explicit_or_legacy_signal[event1] ___\n\nevent = {'task_id': 'bash-legacy'}\n\n    @pytest.mark.parametrize(\n        \"event\",\n        [\n            {\"task_type\": \"local_bash\", \"task_id\": \"opaque-7\"},\n            {\"task_id\": \"bash-legacy\"},\n        ],\n    )\n    def test_local_bash_events_are_hidden_with_explicit_or_legacy_signal(event):\n>       assert visible_subagents([event]) == []\nE       AssertionError: assert ['bash-legacy'] == []\nE         \nE         Left contains one more item: 'bash-legacy'\nE         Use -v to get more diff\n\ntests/test_target.py:16: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_local_bash_events_are_hidden_with_explicit_or_legacy_signal[event0]\nFAILED tests/test_target.py::test_local_bash_events_are_hidden_with_explicit_or_legacy_signal[event1]\n2 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "control_public_list_always_empty": {
+          "tags": [
+            "positive_control"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.213,
+          "passed": 2,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "02-t03_fallback_classifier-baseline",
+      "arm": "baseline",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 56.528,
+      "tool_calls": 7
+    },
+    {
+      "task": "t01_route_switch",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": false,
+        "scope_integrity": true
+      },
+      "score": 4,
+      "nonblank_test_loc": 13,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.216,
+          "passed": 2,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_allows_dead_route": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.217,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F.                                                                       [100%]\n=================================== FAILURES ===================================\n______ test_switch_rejects_unavailable_route_without_dropping_connections ______\n\n    def test_switch_rejects_unavailable_route_without_dropping_connections():\n        gateway = default_gateway()\n    \n        result = gateway.switch(\"hiddify\")\n    \n>       assert result == {\"ok\": False, \"error\": \"route unavailable\"}\nE       AssertionError: assert {'dropped_con...d': 'hiddify'} == {'error': 'ro..., 'ok': False}\nE         \nE         Differing items:\nE         {'ok': True} != {'ok': False}\nE         Left contains 2 more items:\nE         {'dropped_connections': 4, 'selected': 'hiddify'}\nE         Right contains 1 more item:\nE         {'error': 'route unavailable'}\nE         Use -v to get more diff\n\ntests/test_target.py:9: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_switch_rejects_unavailable_route_without_dropping_connections\n1 failed, 1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_keeps_connections": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.22,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": ".F                                                                       [100%]\n=================================== FAILURES ===================================\n___________ test_switch_selects_healthy_route_and_drops_connections ____________\n\n    def test_switch_selects_healthy_route_and_drops_connections():\n        gateway = default_gateway()\n    \n        result = gateway.switch(\"direct\")\n    \n        assert result == {\"ok\": True, \"selected\": \"direct\", \"dropped_connections\": 4}\n        assert gateway.selected == \"direct\"\n>       assert gateway.active_connections == 0\nE       assert 4 == 0\nE        +  where 4 = <src.gateway.Gateway object at 0x79461857b610>.active_connections\n\ntests/test_target.py:21: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_switch_selects_healthy_route_and_drops_connections\n1 failed, 1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_fourth_card": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.212,
+          "passed": 2,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "path_success_without_state": {
+          "tags": [
+            "path"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.222,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": ".F                                                                       [100%]\n=================================== FAILURES ===================================\n___________ test_switch_selects_healthy_route_and_drops_connections ____________\n\n    def test_switch_selects_healthy_route_and_drops_connections():\n        gateway = default_gateway()\n    \n        result = gateway.switch(\"direct\")\n    \n        assert result == {\"ok\": True, \"selected\": \"direct\", \"dropped_connections\": 4}\n>       assert gateway.selected == \"direct\"\nE       AssertionError: assert 'contabo' == 'direct'\nE         \nE         - direct\nE         + contabo\n\ntests/test_target.py:20: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_switch_selects_healthy_route_and_drops_connections\n1 failed, 1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "control_empty_cards": {
+          "tags": [
+            "positive_control"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.205,
+          "passed": 2,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "03-t01_route_switch-baseline",
+      "arm": "baseline",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 43.501,
+      "tool_calls": 6
+    },
+    {
+      "task": "t01_route_switch",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": false,
+        "scope_integrity": true
+      },
+      "score": 4,
+      "nonblank_test_loc": 14,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.218,
+          "passed": 2,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_allows_dead_route": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.219,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F.                                                                       [100%]\n=================================== FAILURES ===================================\n_________ test_switch_rejects_unavailable_route_without_changing_state _________\n\n    def test_switch_rejects_unavailable_route_without_changing_state():\n        gateway = default_gateway()\n    \n        result = gateway.switch(\"hiddify\")\n    \n>       assert result == {\"ok\": False, \"error\": \"route unavailable\"}\nE       AssertionError: assert {'dropped_con...d': 'hiddify'} == {'error': 'ro..., 'ok': False}\nE         \nE         Differing items:\nE         {'ok': True} != {'ok': False}\nE         Left contains 2 more items:\nE         {'dropped_connections': 4, 'selected': 'hiddify'}\nE         Right contains 1 more item:\nE         {'error': 'route unavailable'}\nE         Use -v to get more diff\n\ntests/test_target.py:11: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_switch_rejects_unavailable_route_without_changing_state\n1 failed, 1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_keeps_connections": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.214,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": ".F                                                                       [100%]\n=================================== FAILURES ===================================\n___________ test_switch_selects_healthy_route_and_drops_connections ____________\n\n    def test_switch_selects_healthy_route_and_drops_connections():\n        gateway = default_gateway()\n    \n        result = gateway.switch(\"direct\")\n    \n        assert result == {\"ok\": True, \"selected\": \"direct\", \"dropped_connections\": 4}\n        assert gateway.selected == \"direct\"\n>       assert gateway.active_connections == 0\nE       assert 4 == 0\nE        +  where 4 = <src.gateway.Gateway object at 0x792b46867610>.active_connections\n\ntests/test_target.py:23: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_switch_selects_healthy_route_and_drops_connections\n1 failed, 1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_fourth_card": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.216,
+          "passed": 2,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "path_success_without_state": {
+          "tags": [
+            "path"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.217,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": ".F                                                                       [100%]\n=================================== FAILURES ===================================\n___________ test_switch_selects_healthy_route_and_drops_connections ____________\n\n    def test_switch_selects_healthy_route_and_drops_connections():\n        gateway = default_gateway()\n    \n        result = gateway.switch(\"direct\")\n    \n        assert result == {\"ok\": True, \"selected\": \"direct\", \"dropped_connections\": 4}\n>       assert gateway.selected == \"direct\"\nE       AssertionError: assert 'contabo' == 'direct'\nE         \nE         - direct\nE         + contabo\n\ntests/test_target.py:22: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_switch_selects_healthy_route_and_drops_connections\n1 failed, 1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "control_empty_cards": {
+          "tags": [
+            "positive_control"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.211,
+          "passed": 2,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "..                                                                       [100%]\n2 passed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "04-t01_route_switch-candidate",
+      "arm": "candidate",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 63.139,
+      "tool_calls": 6
+    },
+    {
+      "task": "t05_ledger_exactly_once",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": false,
+        "production_path_exercised": true,
+        "positive_control": true,
+        "scope_integrity": true
+      },
+      "score": 4,
+      "nonblank_test_loc": 14,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.206,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.00s\n",
+          "stderr": ""
+        },
+        "target_duplicate_debit": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.217,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_____ test_retrying_invoice_charge_creates_one_debit_with_original_amount ______\n\n    def test_retrying_invoice_charge_creates_one_debit_with_original_amount():\n        ledger = Ledger()\n        ledger.entries.append({\"kind\": \"audit\", \"invoice_id\": \"inv-1\"})\n    \n        first = charge_invoice(ledger, \"inv-1\", 1250)\n        second = charge_invoice(ledger, \"inv-1\", 9999)\n    \n        debits = [\n            entry\n            for entry in ledger.entries\n            if entry.get(\"kind\") == \"debit\" and entry.get(\"invoice_id\") == \"inv-1\"\n        ]\n        assert first == {\"ok\": True, \"duplicate\": False}\n>       assert second == {\"ok\": True, \"duplicate\": True}\nE       AssertionError: assert {'duplicate':...e, 'ok': True} == {'duplicate':...e, 'ok': True}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing items:\nE         {'duplicate': False} != {'duplicate': True}\nE         Use -v to get more diff\n\ntests/test_target.py:17: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_retrying_invoice_charge_creates_one_debit_with_original_amount\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_audit_entry": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.213,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.00s\n",
+          "stderr": ""
+        },
+        "valid_debit_metadata": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.218,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_____ test_retrying_invoice_charge_creates_one_debit_with_original_amount ______\n\n    def test_retrying_invoice_charge_creates_one_debit_with_original_amount():\n        ledger = Ledger()\n        ledger.entries.append({\"kind\": \"audit\", \"invoice_id\": \"inv-1\"})\n    \n        first = charge_invoice(ledger, \"inv-1\", 1250)\n        second = charge_invoice(ledger, \"inv-1\", 9999)\n    \n        debits = [\n            entry\n            for entry in ledger.entries\n            if entry.get(\"kind\") == \"debit\" and entry.get(\"invoice_id\") == \"inv-1\"\n        ]\n        assert first == {\"ok\": True, \"duplicate\": False}\n        assert second == {\"ok\": True, \"duplicate\": True}\n>       assert debits == [{\"kind\": \"debit\", \"invoice_id\": \"inv-1\", \"amount_cents\": 1250}]\nE       AssertionError: assert [{'amount_cen...': 'billing'}] == [{'amount_cen...nd': 'debit'}]\nE         \nE         At index 0 diff: {'kind': 'debit', 'invoice_id': 'inv-1', 'amount_cents': 1250, 'recorded_by': 'billing'} != {'kind': 'debit', 'invoice_id': 'inv-1', 'amount_cents': 1250}\nE         Use -v to get more diff\n\ntests/test_target.py:18: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_retrying_invoice_charge_creates_one_debit_with_original_amount\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "path_success_without_debit": {
+          "tags": [
+            "path",
+            "positive_control"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.211,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_____ test_retrying_invoice_charge_creates_one_debit_with_original_amount ______\n\n    def test_retrying_invoice_charge_creates_one_debit_with_original_amount():\n        ledger = Ledger()\n        ledger.entries.append({\"kind\": \"audit\", \"invoice_id\": \"inv-1\"})\n    \n        first = charge_invoice(ledger, \"inv-1\", 1250)\n        second = charge_invoice(ledger, \"inv-1\", 9999)\n    \n        debits = [\n            entry\n            for entry in ledger.entries\n            if entry.get(\"kind\") == \"debit\" and entry.get(\"invoice_id\") == \"inv-1\"\n        ]\n        assert first == {\"ok\": True, \"duplicate\": False}\n>       assert second == {\"ok\": True, \"duplicate\": True}\nE       AssertionError: assert {'duplicate':...e, 'ok': True} == {'duplicate':...e, 'ok': True}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing items:\nE         {'duplicate': False} != {'duplicate': True}\nE         Use -v to get more diff\n\ntests/test_target.py:17: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_retrying_invoice_charge_creates_one_debit_with_original_amount\n1 failed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "05-t05_ledger_exactly_once-candidate",
+      "arm": "candidate",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 52.771,
+      "tool_calls": 5
+    },
+    {
+      "task": "t05_ledger_exactly_once",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": true,
+        "scope_integrity": true
+      },
+      "score": 5,
+      "nonblank_test_loc": 12,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.222,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.00s\n",
+          "stderr": ""
+        },
+        "target_duplicate_debit": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.242,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_____ test_retrying_invoice_charge_creates_one_debit_with_original_amount ______\n\n    def test_retrying_invoice_charge_creates_one_debit_with_original_amount():\n        ledger = Ledger()\n    \n        charge_invoice(ledger, \"inv-1\", 1250)\n        charge_invoice(ledger, \"inv-1\", 1250)\n    \n        debits = [\n            entry\n            for entry in ledger.entries\n            if entry.get(\"kind\") == \"debit\" and entry.get(\"invoice_id\") == \"inv-1\"\n        ]\n    \n>       assert len(debits) == 1\nE       AssertionError: assert 2 == 1\nE        +  where 2 = len([{'amount_cents': 1250, 'invoice_id': 'inv-1', 'kind': 'debit'}, {'amount_cents': 1250, 'invoice_id': 'inv-1', 'kind': 'debit'}])\n\ntests/test_target.py:16: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_retrying_invoice_charge_creates_one_debit_with_original_amount\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_audit_entry": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.21,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.00s\n",
+          "stderr": ""
+        },
+        "valid_debit_metadata": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.207,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.00s\n",
+          "stderr": ""
+        },
+        "path_success_without_debit": {
+          "tags": [
+            "path",
+            "positive_control"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.226,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_____ test_retrying_invoice_charge_creates_one_debit_with_original_amount ______\n\n    def test_retrying_invoice_charge_creates_one_debit_with_original_amount():\n        ledger = Ledger()\n    \n        charge_invoice(ledger, \"inv-1\", 1250)\n        charge_invoice(ledger, \"inv-1\", 1250)\n    \n        debits = [\n            entry\n            for entry in ledger.entries\n            if entry.get(\"kind\") == \"debit\" and entry.get(\"invoice_id\") == \"inv-1\"\n        ]\n    \n>       assert len(debits) == 1\nE       assert 0 == 1\nE        +  where 0 = len([])\n\ntests/test_target.py:16: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_retrying_invoice_charge_creates_one_debit_with_original_amount\n1 failed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "06-t05_ledger_exactly_once-baseline",
+      "arm": "baseline",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 52.322,
+      "tool_calls": 7
+    },
+    {
+      "task": "t04_prompt_collection",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": true,
+        "scope_integrity": true
+      },
+      "score": 5,
+      "nonblank_test_loc": 9,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.209,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.00s\n",
+          "stderr": ""
+        },
+        "target_empty_source": {
+          "tags": [
+            "target",
+            "positive_control"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.213,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_source_clauses_reach_planner_and_not_worker _______________\n\n    def test_source_clauses_reach_planner_and_not_worker():\n        clauses = source_clauses()\n>       assert clauses\nE       assert []\n\ntests/test_target.py:8: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_source_clauses_reach_planner_and_not_worker\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_new_clause_leaks": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.213,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_source_clauses_reach_planner_and_not_worker _______________\n\n    def test_source_clauses_reach_planner_and_not_worker():\n        clauses = source_clauses()\n        assert clauses\n    \n        planner = build_prompt(\"planner\")\n        worker = build_prompt(\"worker\")\n        assert all(clause in planner for clause in clauses)\n>       assert all(clause not in worker for clause in clauses)\nE       assert False\nE        +  where False = all(<generator object test_source_clauses_reach_planner_and_not_worker.<locals>.<genexpr> at 0x74158bb96340>)\n\ntests/test_target.py:13: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_source_clauses_reach_planner_and_not_worker\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_new_clause": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.212,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.00s\n",
+          "stderr": ""
+        },
+        "valid_rule_reordering": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.217,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.00s\n",
+          "stderr": ""
+        },
+        "path_worker_prompt_leaks": {
+          "tags": [
+            "path"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.222,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_source_clauses_reach_planner_and_not_worker _______________\n\n    def test_source_clauses_reach_planner_and_not_worker():\n        clauses = source_clauses()\n        assert clauses\n    \n        planner = build_prompt(\"planner\")\n        worker = build_prompt(\"worker\")\n        assert all(clause in planner for clause in clauses)\n>       assert all(clause not in worker for clause in clauses)\nE       assert False\nE        +  where False = all(<generator object test_source_clauses_reach_planner_and_not_worker.<locals>.<genexpr> at 0x78127d596340>)\n\ntests/test_target.py:13: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_source_clauses_reach_planner_and_not_worker\n1 failed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "07-t04_prompt_collection-baseline",
+      "arm": "baseline",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 37.137,
+      "tool_calls": 4
+    },
+    {
+      "task": "t04_prompt_collection",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": true,
+        "scope_integrity": true
+      },
+      "score": 5,
+      "nonblank_test_loc": 9,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.208,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.00s\n",
+          "stderr": ""
+        },
+        "target_empty_source": {
+          "tags": [
+            "target",
+            "positive_control"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.221,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_source_clauses_reach_planner_but_not_worker _______________\n\n    def test_source_clauses_reach_planner_but_not_worker():\n        clauses = source_clauses()\n        planner = build_prompt(\"planner\")\n        worker = build_prompt(\"worker\")\n    \n>       assert clauses\nE       assert []\n\ntests/test_target.py:11: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_source_clauses_reach_planner_but_not_worker\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_new_clause_leaks": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.219,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_source_clauses_reach_planner_but_not_worker _______________\n\n    def test_source_clauses_reach_planner_but_not_worker():\n        clauses = source_clauses()\n        planner = build_prompt(\"planner\")\n        worker = build_prompt(\"worker\")\n    \n        assert clauses\n        assert all(clause in planner for clause in clauses)\n>       assert all(clause not in worker for clause in clauses)\nE       assert False\nE        +  where False = all(<generator object test_source_clauses_reach_planner_but_not_worker.<locals>.<genexpr> at 0x79b87cefa340>)\n\ntests/test_target.py:13: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_source_clauses_reach_planner_but_not_worker\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_new_clause": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.214,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.00s\n",
+          "stderr": ""
+        },
+        "valid_rule_reordering": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.213,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "path_worker_prompt_leaks": {
+          "tags": [
+            "path"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.213,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ test_source_clauses_reach_planner_but_not_worker _______________\n\n    def test_source_clauses_reach_planner_but_not_worker():\n        clauses = source_clauses()\n        planner = build_prompt(\"planner\")\n        worker = build_prompt(\"worker\")\n    \n        assert clauses\n        assert all(clause in planner for clause in clauses)\n>       assert all(clause not in worker for clause in clauses)\nE       assert False\nE        +  where False = all(<generator object test_source_clauses_reach_planner_but_not_worker.<locals>.<genexpr> at 0x7eada161e340>)\n\ntests/test_target.py:13: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_source_clauses_reach_planner_but_not_worker\n1 failed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "08-t04_prompt_collection-candidate",
+      "arm": "candidate",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 43.2,
+      "tool_calls": 4
+    },
+    {
+      "task": "t02_kill_path",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": true,
+        "scope_integrity": true
+      },
+      "score": 5,
+      "nonblank_test_loc": 8,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.211,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_unwired_remove": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.215,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n___________ test_remove_archives_session_and_publishes_killed_token ____________\n\n    def test_remove_archives_session_and_publishes_killed_token():\n        manager, barrier = default_manager()\n        assert \"worker-1\" in manager.sessions\n    \n        assert manager.remove(\"worker-1\") is True\n    \n        assert manager.sessions[\"worker-1\"].archived is True\n>       assert barrier.tokens == [(\"worker-1\", \"killed\")]\nE       AssertionError: assert [] == [('worker-1', 'killed')]\nE         \nE         Right contains one more item: ('worker-1', 'killed')\nE         Use -v to get more diff\n\ntests/test_target.py:13: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_remove_archives_session_and_publishes_killed_token\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_inlined_primitive": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.225,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "path_does_not_archive": {
+          "tags": [
+            "path"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.217,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n___________ test_remove_archives_session_and_publishes_killed_token ____________\n\n    def test_remove_archives_session_and_publishes_killed_token():\n        manager, barrier = default_manager()\n        assert \"worker-1\" in manager.sessions\n    \n        assert manager.remove(\"worker-1\") is True\n    \n>       assert manager.sessions[\"worker-1\"].archived is True\nE       AssertionError: assert False is True\nE        +  where False = Session(name='worker-1', archived=False).archived\n\ntests/test_target.py:12: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_remove_archives_session_and_publishes_killed_token\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "control_token_collection_dead": {
+          "tags": [
+            "positive_control"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.23,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n___________ test_remove_archives_session_and_publishes_killed_token ____________\n\n    def test_remove_archives_session_and_publishes_killed_token():\n        manager, barrier = default_manager()\n        assert \"worker-1\" in manager.sessions\n    \n        assert manager.remove(\"worker-1\") is True\n    \n        assert manager.sessions[\"worker-1\"].archived is True\n>       assert barrier.tokens == [(\"worker-1\", \"killed\")]\nE       AssertionError: assert [] == [('worker-1', 'killed')]\nE         \nE         Right contains one more item: ('worker-1', 'killed')\nE         Use -v to get more diff\n\ntests/test_target.py:13: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_remove_archives_session_and_publishes_killed_token\n1 failed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "09-t02_kill_path-candidate",
+      "arm": "candidate",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 50.967,
+      "tool_calls": 5
+    },
+    {
+      "task": "t02_kill_path",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": true,
+        "scope_integrity": true
+      },
+      "score": 5,
+      "nonblank_test_loc": 7,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.218,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_unwired_remove": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.227,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_remove_archives_child_and_publishes_killed_token _____________\n\n    def test_remove_archives_child_and_publishes_killed_token():\n        manager, barrier = default_manager()\n    \n        assert manager.remove(\"worker-1\") is True\n        assert manager.sessions[\"worker-1\"].archived is True\n>       assert barrier.tokens == [(\"worker-1\", \"killed\")]\nE       AssertionError: assert [] == [('worker-1', 'killed')]\nE         \nE         Right contains one more item: ('worker-1', 'killed')\nE         Use -v to get more diff\n\ntests/test_target.py:11: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_remove_archives_child_and_publishes_killed_token\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_inlined_primitive": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.213,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "path_does_not_archive": {
+          "tags": [
+            "path"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.215,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_remove_archives_child_and_publishes_killed_token _____________\n\n    def test_remove_archives_child_and_publishes_killed_token():\n        manager, barrier = default_manager()\n    \n        assert manager.remove(\"worker-1\") is True\n>       assert manager.sessions[\"worker-1\"].archived is True\nE       AssertionError: assert False is True\nE        +  where False = Session(name='worker-1', archived=False).archived\n\ntests/test_target.py:10: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_remove_archives_child_and_publishes_killed_token\n1 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "control_token_collection_dead": {
+          "tags": [
+            "positive_control"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.216,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_remove_archives_child_and_publishes_killed_token _____________\n\n    def test_remove_archives_child_and_publishes_killed_token():\n        manager, barrier = default_manager()\n    \n        assert manager.remove(\"worker-1\") is True\n        assert manager.sessions[\"worker-1\"].archived is True\n>       assert barrier.tokens == [(\"worker-1\", \"killed\")]\nE       AssertionError: assert [] == [('worker-1', 'killed')]\nE         \nE         Right contains one more item: ('worker-1', 'killed')\nE         Use -v to get more diff\n\ntests/test_target.py:11: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_remove_archives_child_and_publishes_killed_token\n1 failed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "10-t02_kill_path-baseline",
+      "arm": "baseline",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 46.361,
+      "tool_calls": 6
+    },
+    {
+      "task": "t06_manifest_parser",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": true,
+        "scope_integrity": true
+      },
+      "score": 5,
+      "nonblank_test_loc": 10,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.222,
+          "passed": 3,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "...                                                                      [100%]\n3 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_ignores_requested_port": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.225,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "FFF                                                                      [100%]\n=================================== FAILURES ===================================\n________ test_load_manifest_returns_endpoint_and_ignores_extra_metadata ________\n\n    def test_load_manifest_returns_endpoint_and_ignores_extra_metadata():\n>       assert load_manifest(\n            '{\"endpoint\":{\"host\":\"api.example\",\"port\":8443},\"name\":\"api\"}'\n        ) == Endpoint(host=\"api.example\", port=8443)\nE       AssertionError: assert Endpoint(host...ple', port=80) == Endpoint(host...e', port=8443)\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing attributes:\nE         ['port']\nE         \nE         Drill down into differing attribute port:\nE           port: 80 != 8443\n\ntests/test_target.py:7: AssertionError\n_______________ test_load_manifest_rejects_out_of_range_port[0] ________________\n\nport = 0\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:14: Failed\n_____________ test_load_manifest_rejects_out_of_range_port[65536] ______________\n\nport = 65536\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:14: Failed\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_load_manifest_returns_endpoint_and_ignores_extra_metadata\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[0]\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[65536]\n3 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_extra_metadata": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.209,
+          "passed": 3,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "...                                                                      [100%]\n3 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "path_returns_constant": {
+          "tags": [
+            "path"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.217,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "FFF                                                                      [100%]\n=================================== FAILURES ===================================\n________ test_load_manifest_returns_endpoint_and_ignores_extra_metadata ________\n\n    def test_load_manifest_returns_endpoint_and_ignores_extra_metadata():\n>       assert load_manifest(\n            '{\"endpoint\":{\"host\":\"api.example\",\"port\":8443},\"name\":\"api\"}'\n        ) == Endpoint(host=\"api.example\", port=8443)\nE       AssertionError: assert Endpoint(host...le', port=443) == Endpoint(host...e', port=8443)\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing attributes:\nE         ['port']\nE         \nE         Drill down into differing attribute port:\nE           port: 443 != 8443\n\ntests/test_target.py:7: AssertionError\n_______________ test_load_manifest_rejects_out_of_range_port[0] ________________\n\nport = 0\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:14: Failed\n_____________ test_load_manifest_rejects_out_of_range_port[65536] ______________\n\nport = 65536\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:14: Failed\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_load_manifest_returns_endpoint_and_ignores_extra_metadata\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[0]\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[65536]\n3 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "control_accepts_invalid_port": {
+          "tags": [
+            "positive_control"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.216,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": ".FF                                                                      [100%]\n=================================== FAILURES ===================================\n_______________ test_load_manifest_rejects_out_of_range_port[0] ________________\n\nport = 0\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:14: Failed\n_____________ test_load_manifest_rejects_out_of_range_port[65536] ______________\n\nport = 65536\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:14: Failed\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[0]\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[65536]\n2 failed, 1 passed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "11-t06_manifest_parser-baseline",
+      "arm": "baseline",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 36.191,
+      "tool_calls": 5
+    },
+    {
+      "task": "t06_manifest_parser",
+      "criteria": {
+        "intended_mutant_caught": true,
+        "valid_alternate_accepted": true,
+        "production_path_exercised": true,
+        "positive_control": true,
+        "scope_integrity": true
+      },
+      "score": 5,
+      "nonblank_test_loc": 10,
+      "whale": false,
+      "variants": {
+        "current": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.21,
+          "passed": 3,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "...                                                                      [100%]\n3 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "target_ignores_requested_port": {
+          "tags": [
+            "target"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.224,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "FFF                                                                      [100%]\n=================================== FAILURES ===================================\n______ test_load_manifest_returns_requested_endpoint_with_extra_metadata _______\n\n    def test_load_manifest_returns_requested_endpoint_with_extra_metadata():\n        manifest = '{\"endpoint\":{\"host\":\"deploy.example\",\"port\":8443},\"metadata\":{\"region\":\"test\"}}'\n    \n>       assert load_manifest(manifest) == Endpoint(host=\"deploy.example\", port=8443)\nE       AssertionError: assert Endpoint(host...ple', port=80) == Endpoint(host...e', port=8443)\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing attributes:\nE         ['port']\nE         \nE         Drill down into differing attribute port:\nE           port: 80 != 8443\n\ntests/test_target.py:9: AssertionError\n_______________ test_load_manifest_rejects_out_of_range_port[0] ________________\n\nport = 0\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n        manifest = f'{{\"endpoint\":{{\"host\":\"deploy.example\",\"port\":{port}}}}}'\n    \n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:16: Failed\n_____________ test_load_manifest_rejects_out_of_range_port[65536] ______________\n\nport = 65536\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n        manifest = f'{{\"endpoint\":{{\"host\":\"deploy.example\",\"port\":{port}}}}}'\n    \n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:16: Failed\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_load_manifest_returns_requested_endpoint_with_extra_metadata\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[0]\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[65536]\n3 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "valid_extra_metadata": {
+          "tags": [
+            "valid"
+          ],
+          "returncode": 0,
+          "timed_out": false,
+          "elapsed_seconds": 0.207,
+          "passed": 3,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": true,
+          "meaningful_red": false,
+          "stdout": "...                                                                      [100%]\n3 passed in 0.01s\n",
+          "stderr": ""
+        },
+        "path_returns_constant": {
+          "tags": [
+            "path"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.217,
+          "passed": 0,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": "FFF                                                                      [100%]\n=================================== FAILURES ===================================\n______ test_load_manifest_returns_requested_endpoint_with_extra_metadata _______\n\n    def test_load_manifest_returns_requested_endpoint_with_extra_metadata():\n        manifest = '{\"endpoint\":{\"host\":\"deploy.example\",\"port\":8443},\"metadata\":{\"region\":\"test\"}}'\n    \n>       assert load_manifest(manifest) == Endpoint(host=\"deploy.example\", port=8443)\nE       AssertionError: assert Endpoint(host...le', port=443) == Endpoint(host...e', port=8443)\nE         \nE         Differing attributes:\nE         ['host', 'port']\nE         \nE         Drill down into differing attribute host:\nE           host: 'api.example' != 'deploy.example'\nE           - deploy.example...\nE         \nE         ...Full output truncated (4 lines hidden), use '-vv' to show\n\ntests/test_target.py:9: AssertionError\n_______________ test_load_manifest_rejects_out_of_range_port[0] ________________\n\nport = 0\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n        manifest = f'{{\"endpoint\":{{\"host\":\"deploy.example\",\"port\":{port}}}}}'\n    \n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:16: Failed\n_____________ test_load_manifest_rejects_out_of_range_port[65536] ______________\n\nport = 65536\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n        manifest = f'{{\"endpoint\":{{\"host\":\"deploy.example\",\"port\":{port}}}}}'\n    \n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:16: Failed\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_load_manifest_returns_requested_endpoint_with_extra_metadata\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[0]\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[65536]\n3 failed in 0.01s\n",
+          "stderr": ""
+        },
+        "control_accepts_invalid_port": {
+          "tags": [
+            "positive_control"
+          ],
+          "returncode": 1,
+          "timed_out": false,
+          "elapsed_seconds": 0.229,
+          "passed": 1,
+          "skipped": 0,
+          "xfailed": 0,
+          "green": false,
+          "meaningful_red": true,
+          "stdout": ".FF                                                                      [100%]\n=================================== FAILURES ===================================\n_______________ test_load_manifest_rejects_out_of_range_port[0] ________________\n\nport = 0\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n        manifest = f'{{\"endpoint\":{{\"host\":\"deploy.example\",\"port\":{port}}}}}'\n    \n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:16: Failed\n_____________ test_load_manifest_rejects_out_of_range_port[65536] ______________\n\nport = 65536\n\n    @pytest.mark.parametrize(\"port\", [0, 65536])\n    def test_load_manifest_rejects_out_of_range_port(port):\n        manifest = f'{{\"endpoint\":{{\"host\":\"deploy.example\",\"port\":{port}}}}}'\n    \n>       with pytest.raises(ValueError):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE <class 'ValueError'>\n\ntests/test_target.py:16: Failed\n=========================== short test summary info ============================\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[0]\nFAILED tests/test_target.py::test_load_manifest_rejects_out_of_range_port[65536]\n2 failed, 1 passed in 0.01s\n",
+          "stderr": ""
+        }
+      },
+      "run_id": "12-t06_manifest_parser-candidate",
+      "arm": "candidate",
+      "model_returncode": 0,
+      "model_timed_out": false,
+      "model_elapsed_seconds": 117.014,
+      "tool_calls": 7
+    }
+  ],
+  "arms": {
+    "baseline": {
+      "tasks": 6,
+      "score": 28,
+      "max_score": 30,
+      "whale_cells": 0,
+      "nonblank_test_loc": 63,
+      "tool_calls": 35,
+      "median_tool_calls": 6.0
+    },
+    "candidate": {
+      "tasks": 6,
+      "score": 28,
+      "max_score": 30,
+      "whale_cells": 0,
+      "nonblank_test_loc": 64,
+      "tool_calls": 32,
+      "median_tool_calls": 5.0
+    }
+  },
+  "score_gain": 0,
+  "tool_whale": false
+}

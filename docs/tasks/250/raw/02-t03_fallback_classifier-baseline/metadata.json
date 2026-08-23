@@ -1,0 +1,15 @@
+{
+  "run_id": "02-t03_fallback_classifier-baseline",
+  "task": "t03_fallback_classifier",
+  "arm": "baseline",
+  "model": "gpt-5.6-luna",
+  "returncode": 0,
+  "timed_out": false,
+  "elapsed_seconds": 56.528,
+  "tool_calls": 7,
+  "changed_files": [
+    "tests/test_target.py"
+  ],
+  "production_sha256": "94cb1b11afadff8171cf0c9605c84516de5b67ba4b0d1b8439fbb54db15542f1",
+  "fixture_production_sha256": "94cb1b11afadff8171cf0c9605c84516de5b67ba4b0d1b8439fbb54db15542f1"
+}

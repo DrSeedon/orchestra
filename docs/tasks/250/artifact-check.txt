@@ -1,0 +1,20 @@
+PASS corpus exact columns: ['case/source', 'user-visible or API contract', 'brittle test pattern', 'valid future change that should remain green', 'target regression/mutant that must turn red', 'whether existing test distinguishes both', 'strongest minimal replacement', 'proof command/output']
+PASS corpus real-case rows: 13
+PASS raw run directories: 12
+PASS 01-t03_fallback_classifier-candidate raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 02-t03_fallback_classifier-baseline raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 03-t01_route_switch-baseline raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 04-t01_route_switch-candidate raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 05-t05_ledger_exactly_once-candidate raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 06-t05_ledger_exactly_once-baseline raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 07-t04_prompt_collection-baseline raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 08-t04_prompt_collection-candidate raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 09-t02_kill_path-candidate raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 10-t02_kill_path-baseline raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 11-t06_manifest_parser-baseline raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS 12-t06_manifest_parser-candidate raw file set: ['diff.patch', 'events.jsonl', 'last-message.txt', 'metadata.json', 'prompt.txt', 'stderr.txt', 'test_target.py']
+PASS candidate six answers before edit: 6/6
+PASS paired model cells: 6
+PASS behavioral score measured: [28, 28]
+PASS frozen input hashes: 38
+PASS raw secret-form scan: []

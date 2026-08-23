@@ -1,0 +1,15 @@
+{
+  "run_id": "09-t02_kill_path-candidate",
+  "task": "t02_kill_path",
+  "arm": "candidate",
+  "model": "gpt-5.6-luna",
+  "returncode": 0,
+  "timed_out": false,
+  "elapsed_seconds": 50.967,
+  "tool_calls": 5,
+  "changed_files": [
+    "tests/test_target.py"
+  ],
+  "production_sha256": "95ad21bae51f2c53a7cb434f0957769c1e0b26d43fc23125141570b6100c6b27",
+  "fixture_production_sha256": "95ad21bae51f2c53a7cb434f0957769c1e0b26d43fc23125141570b6100c6b27"
+}

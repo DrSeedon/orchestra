@@ -1,0 +1,10 @@
+Apparently the manifest must mean something, not merely look familiar 😏
+
+Added focused regression tests in [tests/test_target.py](/mnt/data/task250-eval-scratch-250/11-t06_manifest_parser-baseline/tests/test_target.py):
+
+- Parses the requested endpoint and ignores extra metadata.
+- Rejects ports `0` and `65536`.
+
+Result: `3 passed in 0.01s`.
+
+The JSON can now grow metadata without throwing a tantrum.

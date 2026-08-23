@@ -1,0 +1,10 @@
+Ну наконец-то фикстуры проверяют именно классификатор 😏
+
+Добавлены два регрессионных кейса в [tests/test_target.py](/mnt/data/task250-eval-scratch-250/02-t03_fallback_classifier-baseline/tests/test_target.py):
+
+- explicit `task_type="local_bash"` с opaque id;
+- legacy event без `task_type` с `bash-` id.
+
+Проверка: `2 passed`.
+
+Теперь `bash-` больше не маскирует сломанный основной сигнал — тесты перестали играть в прятки.

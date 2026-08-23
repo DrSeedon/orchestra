@@ -1,0 +1,11 @@
+Before writing a test, answer six questions in one line each:
+
+1. What observable user/API behavior or incident does this test protect?
+2. What plausible regression must make it fail?
+3. What valid future implementation or UI change must stay green?
+4. Does the test enter through the production path, rather than calling a helper directly?
+5. What positive control proves the fixture, collection, and path are alive?
+6. What targeted mutation models the defect, and—when another signal or fallback could hide it—what decoy or compound mutation checks that masking risk?
+
+Then write the smallest deterministic behavioral test that answers only the relevant questions. Assert public outcomes, not today's source text, literal argv, helper calls, or incidental counts; an exact count is correct when cardinality itself is the contract. Mock external boundaries such as network, quota, clock, and load with explicit fakes/events/fake time. Use mutation or the decoy/compound check only where it can distinguish the intended behavior; do not inflate every test with every technique. Run the narrowest command that proves the test, and stop.
+

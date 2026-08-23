@@ -1,0 +1,15 @@
+{
+  "run_id": "05-t05_ledger_exactly_once-candidate",
+  "task": "t05_ledger_exactly_once",
+  "arm": "candidate",
+  "model": "gpt-5.6-luna",
+  "returncode": 0,
+  "timed_out": false,
+  "elapsed_seconds": 52.771,
+  "tool_calls": 5,
+  "changed_files": [
+    "tests/test_target.py"
+  ],
+  "production_sha256": "494a3da2a1f1be44053a9ce83ce2b34e44e4939eacbee3c0aafa6ffb2bb40473",
+  "fixture_production_sha256": "494a3da2a1f1be44053a9ce83ce2b34e44e4939eacbee3c0aafa6ffb2bb40473"
+}

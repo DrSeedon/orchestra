@@ -1,0 +1,15 @@
+{
+  "run_id": "06-t05_ledger_exactly_once-baseline",
+  "task": "t05_ledger_exactly_once",
+  "arm": "baseline",
+  "model": "gpt-5.6-luna",
+  "returncode": 0,
+  "timed_out": false,
+  "elapsed_seconds": 52.322,
+  "tool_calls": 7,
+  "changed_files": [
+    "tests/test_target.py"
+  ],
+  "production_sha256": "494a3da2a1f1be44053a9ce83ce2b34e44e4939eacbee3c0aafa6ffb2bb40473",
+  "fixture_production_sha256": "494a3da2a1f1be44053a9ce83ce2b34e44e4939eacbee3c0aafa6ffb2bb40473"
+}
