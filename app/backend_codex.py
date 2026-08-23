@@ -344,7 +344,11 @@ _CODEX_STATE_MIGRATIONS_BY_CLI = {
 }
 # Из базового конфига переносим ТОЛЬКО это. Расширять список осознанно: каждая строка
 # здесь — копия, которая начинает расходиться с оригиналом.
-_CARRIED_BASE_KEYS = ("project_doc_max_bytes",)
+_CARRIED_BASE_KEYS = (
+    "project_doc_max_bytes",
+    "model_context_window",
+    "model_auto_compact_token_limit",
+)
 
 
 def _write_private(path: Path, text: str) -> None:
