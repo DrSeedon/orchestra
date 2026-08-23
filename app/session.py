@@ -1282,10 +1282,13 @@ class AgentSession:
                 )
             dispatch_started = False
             try:
+                provider_send = getattr(backend, "send", None)
+                if not callable(provider_send):
+                    raise RuntimeError("backend is unavailable before provider submission")
                 if delivery is not None:
                     await delivery.before_submit()
                     dispatch_started = True
-                await backend.send(outbound_message)
+                await provider_send(outbound_message)
                 if delivery is not None:
                     provider_ref = getattr(backend, "active_turn_id", None)
                     await delivery.mark_submitted(
@@ -1773,6 +1776,8 @@ class AgentSession:
             if not getattr(candidate, "has_owned_processes", False):
                 self._backend = None
             raise
+        if self._backend is not candidate:
+            raise RuntimeError("backend changed while connection was being established")
         # Отдать пайпы systemd СРАЗУ, а не в момент выключения (#230 T2): иначе живучесть
         # агента держится на том, что сервер успел попрощаться, и `kill -9` её отменяет.
         # Отказ не мешает агенту работать — он лишь возвращает прежнюю условную
@@ -1781,7 +1786,7 @@ class AgentSession:
         publish_backend_fds(self)
         if activate:
             self._activate_backend_tasks()
-        return self._backend
+        return candidate
 
     def _activate_backend_tasks(self) -> None:
         capabilities = get_runtime(self.backend_type).capabilities
