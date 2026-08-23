@@ -824,13 +824,26 @@ async function fetchUsage() {
     _usageLastFetchStartedAt = Date.now();
     _usageFetchPromise = (async () => {
         try {
-            const [usage, quotaMap] = await Promise.allSettled([
+            const [usage] = await Promise.allSettled([
                 api('/api/usage'),
-                api('/api/usage/quota-map'),
             ]);
-            _usageData = usage.status === 'fulfilled' ? usage.value : null;
+            // `/api/usage` — единственный владелец provider refresh. Карта читает уже
+            // обновлённый кеш, иначе два параллельных GET снова увидят старую точку.
+            const [quotaMap] = await Promise.allSettled([
+                typeof _fetchQuotaMapShared === 'function'
+                    ? _fetchQuotaMapShared()
+                    : api('/api/usage/quota-map'),
+            ]);
             _quotaMapData = quotaMap.status === 'fulfilled' ? quotaMap.value : null;
-            _usageError = usage.status !== 'fulfilled';
+            if (usage.status === 'fulfilled') {
+                _usageData = usage.value;
+                _usageError = false;
+                _usageLastSuccessAt = Date.now();
+                snapshotSave('usage', _usageData);
+            } else {
+                _usageError = true;
+                if (!_usageData) _restoreUsageSnapshot();
+            }
             if (!_usageError && quotaMap.status !== 'fulfilled') {
                 console.error(`quota-map fetch failed: ${quotaMap.reason && quotaMap.reason.message || 'unknown'}`);
             }
@@ -841,8 +854,6 @@ async function fetchUsage() {
                     : String(reason);
                 console.error(`Usage fetch failed: ${detail}`);
             }
-            _usageLastSuccessAt = Date.now();
-            snapshotSave('usage', _usageData);
         } catch (error) {
             _usageError = true;
             const detail = error instanceof Error
