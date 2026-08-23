@@ -386,6 +386,28 @@ def test_usage_fetch_failure_stays_visible_and_logs_exception(browser):
     page.close()
 
 
+def test_usage_info_click_opens_details_without_refreshing_usage(browser):
+    page = _interactive_page(browser)
+    _settle_usage(page, 42)
+    page.evaluate(
+        """() => {
+            _usageLastFetchStartedAt = 0;
+            const originalApi = api;
+            window.usageRefreshCalls = 0;
+            window.api = (url, opts) => {
+                if (url === '/api/usage') usageRefreshCalls += 1;
+                return originalApi(url, opts);
+            };
+        }"""
+    )
+
+    page.locator("#usage-info-btn").click()
+
+    expect(page.locator('[data-usage-provider="claude"]')).to_be_visible()
+    assert page.evaluate("() => usageRefreshCalls") == 0
+    page.close()
+
+
 def test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm(browser):
     page = _interactive_page(browser)
     errors = []
