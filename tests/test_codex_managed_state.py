@@ -270,7 +270,9 @@ def test_source_selection_prefers_fullest_healthy_matching_index(monkeypatch, tm
     assert selected == fullest / "state_5.sqlite"
 
 
-def test_source_selection_refuses_corrupt_base_authority(monkeypatch, tmp_path):
+def test_source_selection_uses_valid_managed_state_when_base_is_corrupt(
+    monkeypatch, tmp_path,
+):
     import app.backend_codex as module
 
     base = tmp_path / "base"
@@ -283,11 +285,12 @@ def test_source_selection_refuses_corrupt_base_authority(monkeypatch, tmp_path):
     monkeypatch.setattr(module, "_CODEX_HOME_ROOT", root)
     monkeypatch.setattr(module, "_base_codex_home", lambda: base)
 
-    with pytest.raises(RuntimeError):
-        module._select_managed_codex_state_source(
-            root / "new-home",
-            CODEX_CLI_HISTORY_VERSION,
-        )
+    selected = module._select_managed_codex_state_source(
+        root / "new-home",
+        CODEX_CLI_HISTORY_VERSION,
+    )
+
+    assert selected == healthy / "state_5.sqlite"
 
 
 @pytest.mark.asyncio
@@ -383,6 +386,55 @@ async def test_same_managed_home_connect_is_single_flight_and_repeatable(
         await asyncio.gather(*(backend.connect() for backend in backends))
 
     assert max_active == 1
+
+
+@pytest.mark.asyncio
+async def test_newer_cli_defers_managed_state_migration_to_provider(
+    monkeypatch, tmp_path,
+):
+    import app.backend_codex as module
+
+    root = tmp_path / "managed-root"
+    session_id = "newer-cli-home"
+    home = root / session_id
+    connected = 0
+
+    def prepare_home(_self):
+        home.mkdir(parents=True)
+        return home
+
+    async def connect_unlocked(_self):
+        nonlocal connected
+        connected += 1
+
+    def unexpected_seed_check(*_args):
+        pytest.fail("an unvalidated CLI state must be migrated by Codex itself")
+
+    monkeypatch.setattr(module, "_CODEX_HOME_ROOT", root)
+    monkeypatch.setattr(module.CodexBackend, "_prepare_codex_home", prepare_home)
+    monkeypatch.setattr(module.CodexBackend, "_connect_unlocked", connect_unlocked)
+    monkeypatch.setattr(
+        module.CodexBackend,
+        "_managed_state_cli_version",
+        lambda _self: asyncio.sleep(0, result="999.0.0"),
+    )
+    monkeypatch.setattr(
+        module,
+        "_managed_codex_state_needs_seed",
+        unexpected_seed_check,
+    )
+    backend = module.CodexBackend(
+        model="gpt-5.6-sol",
+        cwd=str(tmp_path),
+        mcp_servers={"orchestra": {
+            "command": "python",
+            "env": {"ORCHESTRA_SESSION_ID": session_id},
+        }},
+    )
+
+    await backend.connect()
+
+    assert connected == 1
 
 
 @pytest.mark.asyncio

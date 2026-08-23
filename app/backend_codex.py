@@ -288,7 +288,7 @@ _SAFE_HOME_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$")
 _CODEX_HOME_ROOT = Path.home() / ".orchestra" / "codex-home"
 _MANAGED_HOME_LOCKS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 _CODEX_STATE_MIGRATIONS_BY_CLI = {
-    # Captured from a read-only Codex 0.146.0 state DB. Checksums are SQLx's
+    # Captured from a fresh Codex 0.147.0 app-server state DB. Checksums are SQLx's
     # provider-owned migration identity; a mutable base DB is not schema authority.
     CODEX_CLI_HISTORY_VERSION: (
         (1, bytes.fromhex("627ef19164c9bb298a0cd99945981c9b7bda3d9e6cf12eb35145e3b1d3bf7cf8740f0dbaa0b475185fc2993397078049")),
@@ -335,6 +335,8 @@ _CODEX_STATE_MIGRATIONS_BY_CLI = {
         (42, bytes.fromhex("cfdc4fd47328d1b67c0c7555125de4fb4add5b3b57fd31ac1987e4d8b0c99b1f5418db9ee7ec2158aed8a2e3dfcfd636")),
         (43, bytes.fromhex("605128e722bd2521c7e979e9961c16706435e442b3e3a8efa36f6b16c42e3833090906d9a62fde097a109b78e29da830")),
         (44, bytes.fromhex("5d29223bd1cafe456a4af992a545e8ec420b71331eb12a7427e26512b8a44117d9445b83562f095b3a5a0f11c4f091d2")),
+        (45, bytes.fromhex("a7fadc8caea8b6abeb108f588a91b8e5d1c9e2645ce990f2251b9f0234e6e53d78fc854f1c88c7217cc143016539d691")),
+        (46, bytes.fromhex("63addf6115c3fb1a22a886108ce6ebff5cd8408f219606dc2f8396836418e56d5be2a6de7b0df877119a28096ee67d22")),
     ),
 }
 # Из базового конфига переносим ТОЛЬКО это. Расширять список осознанно: каждая строка
@@ -552,30 +554,27 @@ def _backup_codex_state(source: Path, destination: Path) -> None:
 
 def _select_managed_codex_state_source(target_home: Path, cli_version: str) -> Path:
     base = _base_codex_home() / "state_5.sqlite"
-    base_info = _inspect_codex_state(base, check_integrity=True)
-    _validate_codex_state_migrations(base_info, cli_version)
-    if base_info.status != "complete" or base_info.last_success_at is None:
-        raise RuntimeError(
-            "refusing incomplete base Codex state source: "
-            f"status={base_info.status!r}, "
-            f"last_success_at={base_info.last_success_at!r}"
-        )
-    candidates = [(base_info.thread_count, base_info.last_success_at, base)]
+    candidates: list[tuple[int, int, Path]] = []
+    sources = [base]
     if _CODEX_HOME_ROOT.is_dir():
-        for candidate in _CODEX_HOME_ROOT.glob("*/state_5.sqlite"):
-            if candidate.parent == target_home:
-                continue
-            try:
-                info = _inspect_codex_state(candidate, check_integrity=False)
-            except RuntimeError as exc:
-                logger.warning("ignoring invalid managed Codex state %s: %s", candidate, exc)
-                continue
-            if (
-                info.status == "complete"
-                and info.last_success_at is not None
-                and info.migrations == base_info.migrations
-            ):
-                candidates.append((info.thread_count, info.last_success_at, candidate))
+        sources.extend(
+            candidate
+            for candidate in _CODEX_HOME_ROOT.glob("*/state_5.sqlite")
+            if candidate.parent != target_home
+        )
+    for candidate in sources:
+        try:
+            info = _inspect_codex_state(candidate, check_integrity=True)
+            _validate_codex_state_migrations(info, cli_version)
+        except RuntimeError as exc:
+            logger.warning("ignoring invalid Codex state source %s: %s", candidate, exc)
+            continue
+        if info.status == "complete" and info.last_success_at is not None:
+            candidates.append((info.thread_count, info.last_success_at, candidate))
+    if not candidates:
+        raise RuntimeError(
+            f"no healthy Codex state source validated for CLI {cli_version}"
+        )
     return max(candidates, key=lambda item: (item[0], item[1], str(item[2])))[2]
 
 

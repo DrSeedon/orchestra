@@ -586,7 +586,7 @@ async def test_history_connect_fails_before_spawn_on_version_mismatch(monkeypatc
     monkeypatch.setattr(
         module,
         "_run_process",
-        AsyncMock(return_value=(0, "codex-cli 0.147.0", "")),
+        AsyncMock(return_value=(0, "codex-cli 0.148.0", "")),
     )
     spawn = AsyncMock(return_value=_FakeProcess())
     monkeypatch.setattr(module.asyncio, "create_subprocess_exec", spawn)
@@ -594,7 +594,7 @@ async def test_history_connect_fails_before_spawn_on_version_mismatch(monkeypatc
     backend._drain_stderr = AsyncMock()
     backend._request = AsyncMock(side_effect=AssertionError("app-server started"))
 
-    with pytest.raises(NativeHistoryUnsupported, match="0.147.0"):
+    with pytest.raises(NativeHistoryUnsupported, match="0.148.0"):
         await backend.connect()
 
     spawn.assert_not_awaited()
