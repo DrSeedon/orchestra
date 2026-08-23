@@ -1230,6 +1230,7 @@ async def execute_merge_session(
                 http_status=409,
             )
         found = live or manager._hydrate_row(row)
+        prior_task_id = str(getattr(found, "task_id", "") or row.get("task_id") or "")
         worktree_path = row.get("worktree_path") or ""
         if not worktree_path:
             return _merge_not_reached(
@@ -1441,12 +1442,13 @@ async def execute_merge_session(
                 if switch_result.get("ok"):
                     switched_branch = switch_result.get("branch", new_branch)
                     try:
-                        await manager.persist_lifecycle(
+                        await manager.transition_lifecycle(
                             found,
                             branch=switched_branch,
                             base_branch=target,
                             task_id=par,
                             needs_switch=False,
+                            owned_dirs=[] if str(par) != prior_task_id else None,
                         )
                     except Exception as persist_error:
                         detail = err_text(persist_error)
@@ -1570,6 +1572,20 @@ async def switch_branch(name: str, req: dict):
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     par = str(task_identity["par_number"])
+    new_task = str(getattr(found, "task_id", "") or "") != par
+    requested_owned_dirs = None
+    if new_task:
+        raw_owned_dirs = req.get("owned_dirs", [])
+        if raw_owned_dirs is None:
+            raw_owned_dirs = []
+        if not isinstance(raw_owned_dirs, list):
+            return JSONResponse({"error": "owned_dirs must be a JSON array"}, status_code=400)
+        try:
+            requested_owned_dirs = manager.validate_owned_dirs_transition(
+                found, raw_owned_dirs,
+            )
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=409)
     worktree_path = found.worktree_path
     session_id = found.id
     if not worktree_path:
@@ -1607,19 +1623,6 @@ async def switch_branch(name: str, req: dict):
                             status_code=400,
                         )
                 try:
-                    old_lifecycle = {
-                        "branch": getattr(found, "branch", "") or "",
-                        "base_branch": getattr(found, "base_branch", "") or "",
-                        "task_id": getattr(found, "task_id", "") or "",
-                        "needs_switch": bool(getattr(found, "needs_switch", False)),
-                    }
-                    await manager.persist_lifecycle(
-                        found,
-                        branch=old_lifecycle["branch"],
-                        base_branch=old_lifecycle["base_branch"],
-                        task_id="",
-                        needs_switch=True,
-                    )
                     verdict = await asyncio.to_thread(
                         _existing_branch_verdict, worktree_path, new_branch,
                         found.scope or scope, force,
@@ -1643,12 +1646,13 @@ async def switch_branch(name: str, req: dict):
                     if result.get("ok"):
                         switched_branch = result.get("branch", new_branch)
                         try:
-                            await manager.persist_lifecycle(
+                            await manager.transition_lifecycle(
                                 found,
                                 branch=switched_branch,
                                 base_branch=from_ref,
                                 task_id=par,
                                 needs_switch=False,
+                                owned_dirs=requested_owned_dirs,
                             )
                         except Exception as persist_error:
                             detail = err_text(persist_error)
@@ -1706,18 +1710,15 @@ async def switch_branch(name: str, req: dict):
                     elif result.get("state") == "rollback_failed":
                         quarantine_status = await _persist_lifecycle_quarantine(
                             found,
-                            branch=result.get("actual_branch") or old_lifecycle["branch"],
+                            branch=result.get("actual_branch") or getattr(found, "branch", "") or "",
                             base_branch=from_ref,
                         )
                         if not quarantine_status["ok"]:
                             result["persistence_error"] = quarantine_status["error"]
                     else:
-                        try:
-                            await manager.persist_lifecycle(found, **old_lifecycle)
-                        except Exception as persist_error:
-                            found.task_id = ""
-                            found.needs_switch = True
-                            result["persistence_error"] = str(persist_error)
+                        # Failed/rolled-back Git leaves the previous lifecycle and
+                        # ownership untouched. A rollback failure is quarantined above.
+                        pass
                     return result
                 except Exception as e:
                     return JSONResponse({"error": str(e)}, status_code=500)

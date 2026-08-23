@@ -216,6 +216,31 @@ async def test_own_current_branch_stays_idempotent_success(git_repo, wt_root, db
     assert db.get_session(sid)["branch"] == mine
 
 
+@pytest.mark.asyncio
+async def test_auto_switch_clears_owned_dirs_and_prompt(git_repo, wt_root, db, monkeypatch):
+    from app.manager import SessionManager
+    from app.workspace import create_worktree
+
+    wt = create_worktree(str(git_repo), "worker", "17", base_branch="main")
+    old_prompt = "BASE" + SessionManager._ownership_prompt(["old/path"])
+    sid = str(uuid.uuid4())
+    row = _row(sid, str(git_repo), wt.path, "task-17/worker")
+    row.update(
+        task_id="17", system_prompt=old_prompt,
+        prompt_overlay=SessionManager._ownership_prompt(["old/path"]),
+        owned_dirs='["old/path"]',
+    )
+    db.save_session(row)
+
+    error, result = await _auto_switch(db, git_repo, wt, sid)
+
+    assert error == ""
+    assert result["ok"] is True
+    saved = db.get_session(sid)
+    assert saved["owned_dirs"] in (None, "", "[]")
+    assert "old/path" not in saved["system_prompt"]
+
+
 class TestLockWaitIsVisible:
     """T3: ожидание лока обязано быть видно снаружи и кончаться раньше клиентского таймаута."""
 

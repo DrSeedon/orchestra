@@ -1891,18 +1891,30 @@ async def switch_worker_branch(
     task_id: str,
     from_ref: str = "",
     force: bool = False,
+    owned_dirs: str = "",
 ) -> str:
     """After merge, switch worker to a new branch for a new task.
     from_ref — optional local base override; empty uses the worker's persisted base.
     force=True explicitly discards committed content not verified in the base.
+    owned_dirs — optional JSON array replacing the worker's ownership on a new task;
+    omitted or [] clears it.
     Worker must be idle with clean working tree."""
+    payload = {
+        "scope": SCOPE,
+        "task_id": task_id,
+        "from_ref": from_ref,
+        "force": force,
+    }
+    if owned_dirs:
+        try:
+            parsed_owned_dirs = json.loads(owned_dirs)
+        except (TypeError, ValueError) as error:
+            return f"Switch failed: owned_dirs is not valid JSON: {error}"
+        if not isinstance(parsed_owned_dirs, list):
+            return "Switch failed: owned_dirs must be a JSON array"
+        payload["owned_dirs"] = parsed_owned_dirs
     result = await _api("POST", f"/api/sessions/{name}/switch-branch",
-                        json={
-                            "scope": SCOPE,
-                            "task_id": task_id,
-                            "from_ref": from_ref,
-                            "force": force,
-                        })
+                        json=payload)
     if isinstance(result, dict) and result.get("error"):
         return f"Switch failed: {result['error']}"
     if isinstance(result, dict) and result.get("ok"):

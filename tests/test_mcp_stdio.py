@@ -1756,6 +1756,24 @@ async def test_switch_worker_branch_forwards_explicit_force(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_switch_worker_branch_forwards_owned_dirs_json(monkeypatch):
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    captured = {}
+
+    async def fake_api(_method, _path, **kwargs):
+        captured.update(kwargs["json"])
+        return {"ok": True, "branch": "task-91/coder"}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.switch_worker_branch(
+            name="coder", task_id="91", owned_dirs='["new/path"]',
+        )
+
+    assert captured["owned_dirs"] == ["new/path"]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("payload", [
     {"ok": False, "error": "target branch is busy"},
     {

@@ -58,7 +58,7 @@ from app.pipeline import (
 )
 from app.db import (
     get_session, get_session_by_name, get_all_sessions, publish_ready_session,
-    archive_session, get_stats, update_session_lifecycle,
+    archive_session, get_stats, save_session, update_session_lifecycle,
     get_confirmed_runtime_handoff_attempt, get_latest_runtime_handoff_for_session,
     list_latest_runtime_handoffs,
     list_runtime_handoff_attempts, update_runtime_handoff_status,
@@ -520,6 +520,72 @@ class SessionManager:
                 "Do NOT touch files outside your owned directories. "
                 "If the task requires it — STOP and ask the orchestrator.")
 
+    @classmethod
+    def _without_ownership_prompt(cls, prompt: str) -> str:
+        """Remove the generated ownership suffix while preserving other prompt text."""
+        marker = "\n\n## Directory ownership\n"
+        before, separator, _rest = prompt.partition(marker)
+        return before.rstrip() if separator else prompt.rstrip()
+
+    def validate_owned_dirs_transition(
+        self, session: AgentSession, owned_dirs: list[str],
+    ) -> list[str]:
+        """Normalize and collision-check ownership for a new task.
+
+        The current session is excluded so a worker may keep or replace its own
+        directories without colliding with its previous DB row.
+        """
+        normalized = parse_owned_dirs(owned_dirs)
+        if not normalized:
+            return normalized
+        seen_ids: set[str] = set()
+        for candidate in self.sessions.values():
+            if candidate.id == session.id:
+                continue
+            if (
+                candidate.scope == session.scope
+                and candidate.status.value in ("idle", "running", "waiting")
+                and candidate.owned_dirs
+            ):
+                seen_ids.add(candidate.id)
+                overlap = dirs_overlap(normalized, candidate.owned_dirs)
+                if overlap:
+                    raise ValueError(
+                        f"owned_dirs overlap with '{candidate.name}': {', '.join(overlap)}. "
+                        f"Use different dirs or kill '{candidate.name}' first"
+                    )
+        for row in get_all_sessions(session.scope):
+            if row["id"] in seen_ids or row["id"] == session.id:
+                continue
+            if (row.get("status") or "") not in ("idle", "running", "waiting"):
+                continue
+            row_dirs = parse_owned_dirs(row.get("owned_dirs"))
+            overlap = dirs_overlap(normalized, row_dirs)
+            if overlap:
+                raise ValueError(
+                    f"owned_dirs overlap with '{row['name']}': {', '.join(overlap)}. "
+                    f"Use different dirs or kill '{row['name']}' first"
+                )
+        return normalized
+
+    def _transition_prompt(
+        self, session: AgentSession, owned_dirs: list[str],
+    ) -> tuple[str, str | None]:
+        """Build a prompt with only the ownership block for the new task."""
+        old_prompt = session._current_prompt or session.system_prompt or ""
+        prompt_without_memory = strip_worker_memory(old_prompt)
+        new_ownership = self._ownership_prompt(owned_dirs)
+        prompt = self._without_ownership_prompt(prompt_without_memory) + new_ownership
+        if session.prompt_overlay is None:
+            new_overlay = None
+        else:
+            new_overlay = self._without_ownership_prompt(session.prompt_overlay) + new_ownership
+        prompt = refresh_worker_memory(
+            prompt, session.name, session.role, session.scope,
+            session.worktree_path or "",
+        )
+        return prompt, new_overlay
+
     # ── Session CRUD ──
 
     async def create_session(self, name: str, scope: str, cwd: str, model: str,
@@ -923,8 +989,6 @@ class SessionManager:
                 )
             except Exception as error:
                 detail = err_text(error)
-                session.task_id = ""
-                session.needs_switch = True
                 try:
                     actual_branch, _actual_head = await asyncio.to_thread(
                         inspect_worktree_identity, session.worktree_path,
@@ -933,23 +997,22 @@ class SessionManager:
                     inspect_detail = err_text(inspect_error)
                     detail = f"{detail}; actual Git state unavailable: {inspect_detail}"
                 else:
-                    try:
-                        await self.persist_lifecycle(
-                            session,
-                            branch=actual_branch,
-                            base_branch=base_branch,
-                            task_id="",
-                            needs_switch=True,
-                        )
-                    except Exception as persist_error:
-                        session.branch = actual_branch
-                        session.base_branch = base_branch
-                        session.task_id = ""
-                        session.needs_switch = True
-                        persist_detail = err_text(persist_error)
-                        detail = (
-                            f"{detail}; quarantine persistence failed: {persist_detail}"
-                        )
+                    # A failed Git operation is expected to roll back. Do not rewrite
+                    # ownership or lifecycle unless Git reports that rollback itself failed.
+                    if actual_branch != session.branch:
+                        try:
+                            await self.persist_lifecycle(
+                                session,
+                                branch=actual_branch,
+                                base_branch=base_branch,
+                                task_id="",
+                                needs_switch=True,
+                            )
+                        except Exception as persist_error:
+                            persist_detail = err_text(persist_error)
+                            detail = (
+                                f"{detail}; quarantine persistence failed: {persist_detail}"
+                            )
                 raise RuntimeError(
                     f"auto-switch failed: Git switch raised {detail}"
                 ) from error
@@ -976,12 +1039,13 @@ class SessionManager:
 
             switched_branch = result.get("branch") or new_branch
             try:
-                await self.persist_lifecycle(
+                await self.transition_lifecycle(
                     session,
                     branch=switched_branch,
                     base_branch=base_branch,
                     task_id="",
                     needs_switch=False,
+                    owned_dirs=[],
                 )
             except Exception as persist_error:
                 first_detail = err_text(persist_error)
@@ -1404,6 +1468,83 @@ class SessionManager:
                 task_id=task_id,
                 needs_switch=int(needs_switch),
             )
+
+    async def transition_lifecycle(
+        self,
+        session: AgentSession,
+        *,
+        branch: str,
+        base_branch: str,
+        task_id: str,
+        needs_switch: bool,
+        owned_dirs: list[str] | None = None,
+    ) -> None:
+        """Atomically publish a successful branch/task transition.
+
+        Git is deliberately completed by the caller first. Until this DB transaction
+        succeeds, the in-memory and durable lifecycle remain untouched. ``owned_dirs``
+        is ``None`` for same-task continuation and a list (including ``[]``) for a new
+        task, which also replaces the ownership prompt.
+        """
+        # A few lifecycle callers use lightweight detached doubles in tests and
+        # integrations. They have no full session snapshot; retain the old lifecycle
+        # seam for those data-only objects while real AgentSession transitions use one
+        # complete save_session transaction below.
+        if not hasattr(session, "_to_db_dict"):
+            await self.persist_lifecycle(
+                session,
+                branch=branch,
+                base_branch=base_branch,
+                task_id=task_id,
+                needs_switch=needs_switch,
+            )
+            return
+        if session.loaded:
+            await session._drain_persist()
+        snapshot = session._to_db_dict()
+        snapshot.update(
+            branch=branch,
+            base_branch=base_branch,
+            task_id=task_id,
+            needs_switch=int(needs_switch),
+        )
+        new_prompt = None
+        new_overlay = session.prompt_overlay
+        normalized = None
+        if owned_dirs is not None:
+            normalized = parse_owned_dirs(owned_dirs)
+            new_prompt, new_overlay = self._transition_prompt(session, normalized)
+            snapshot.update(
+                owned_dirs=json.dumps(normalized) if normalized else "",
+                system_prompt=new_prompt,
+                prompt_overlay=new_overlay,
+            )
+        await asyncio.to_thread(save_session, snapshot)
+
+        session.branch = branch
+        session.base_branch = base_branch
+        session.task_id = task_id
+        session.needs_switch = needs_switch
+        if normalized is not None:
+            session.owned_dirs = normalized
+            session.system_prompt = new_prompt or ""
+            session.prompt_overlay = new_overlay
+            session._current_prompt = new_prompt or ""
+            # The next turn must deliver the new ownership prompt at the idle boundary.
+            session._prompt_injected = False
+        if session.db_row is not None:
+            session.db_row.update(
+                branch=branch,
+                base_branch=base_branch,
+                task_id=task_id,
+                needs_switch=int(needs_switch),
+            )
+            if normalized is not None:
+                session.db_row.update(
+                    owned_dirs=json.dumps(normalized) if normalized else "",
+                    system_prompt=new_prompt or "",
+                    prompt_overlay=new_overlay,
+                )
 
     def _resolve_role(self, name: str, scope: str) -> str | None:
         for s in self.sessions.values():
