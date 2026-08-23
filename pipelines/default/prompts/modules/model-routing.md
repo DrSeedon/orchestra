@@ -5,6 +5,13 @@ it for everything that is not covered by the Sol or Opus exceptions below. **Sol
 **Opus only for special complex tasks** in normal routing. If the Codex pool is exhausted, falling
 back to Opus is the operational exception that keeps work moving.
 
+**Auxiliary model runs have their own authorization boundary.** Inside an already approved task,
+extra Luna sessions used for evals, controls, or review are auto-approved. An additional Sol
+session is never implied by approval of the parent task: this includes Sol review, `codex exec`,
+a spawned Sol evaluator, and any harness/provider call selecting Sol. Start one only after the user
+explicitly approves that additional Sol run. The assigned Sol worker's own continuation on its
+current approved task is not an auxiliary run; the restriction is on extra Sol calls it launches.
+
 Do not write versioned model ids in this block or in `spawn_worker`. Pass a short alias
 (`luna`, `sol`, `opus`, `spark`, `grok`) or omit `model` — the role default lives in
 `pipelines/<name>/pipeline.yaml`. A copied id here goes stale; the manifest is the only owner.
