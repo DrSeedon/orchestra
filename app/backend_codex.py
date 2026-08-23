@@ -78,6 +78,15 @@ CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh", "max"}
 CODEX_SILENCE_HEARTBEAT_SECONDS = 30
 CODEX_COMPACT_TIMEOUT_SECONDS = 120
 CODEX_PROCESS_TIMEOUT_SECONDS = 5
+CODEX_STREAM_LIMIT = 16 * 1024 * 1024
+CODEX_STREAM_DISCARD_CHUNK = 64 * 1024
+CODEX_OVERSIZE_READLINE_ERROR = (
+    "Separator is not found, and chunk exceed the limit"
+)
+CODEX_OVERSIZE_READLINE_ERRORS = frozenset({
+    CODEX_OVERSIZE_READLINE_ERROR,
+    "Separator is found, but chunk is longer than limit",
+})
 
 _scope_support_cache: tuple[bool, dict[str, str], str] | None = None
 
@@ -815,6 +824,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self._hibernate_safe = False
         self._scope_reason = "scope preflight has not run"
         self._teardown_error: str | None = None
+        self._reader_failure: BaseException | None = None
 
     @property
     def session_id(self) -> Optional[str]:
@@ -906,13 +916,14 @@ class CodexBackend(JsonRpcStdioTransport):
         self._notifications = asyncio.Queue()
         self._disconnecting = False
         self._last_stderr = ""
-        await self.adopt_pipes(fd_in, fd_out, limit=16 * 1024 * 1024,
+        await self.adopt_pipes(fd_in, fd_out, limit=CODEX_STREAM_LIMIT,
                                leftover=leftover, cli_pid=cli_pid,
                                cli_started_at=cli_started_at)
         self._thread_id = thread_id
         self._loaded_config_sha256 = None
         self._active_turn_id = active_turn_id
         self._teardown_error = None
+        self._reader_failure = None
         self._reader_task = asyncio.create_task(self._read_stdout())
 
     async def connect(self) -> None:
@@ -967,6 +978,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self._notifications = asyncio.Queue()
         self._disconnecting = False
         self._last_stderr = ""
+        self._reader_failure = None
         codex_cmd = self._codex_command()
 
         scope_ok, scope_env, scope_reason = await _codex_scope_support()
@@ -1014,7 +1026,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
                 cwd=self.cwd,
-                limit=16 * 1024 * 1024,
+                limit=CODEX_STREAM_LIMIT,
             )
             if our_stdin is not None:
                 # Ownership passes at the CALL, not on success: half-attached, one of these
@@ -1022,7 +1034,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 attach_in, attach_out = our_stdin, our_stdout
                 our_stdin = our_stdout = None
                 await self.attach_owned_pipes(attach_in, attach_out,
-                                              limit=16 * 1024 * 1024)
+                                              limit=CODEX_STREAM_LIMIT)
                 # Only now drop our copies of the CLI's own ends: the child has had them
                 # since the spawn, and keeping ours open would stop it from ever seeing EOF.
                 # Closing them AFTER wiring also means a failed wiring leaves them in hand,
@@ -1405,7 +1417,26 @@ class CodexBackend(JsonRpcStdioTransport):
             return
         try:
             while True:
-                raw = await stream.readline()
+                try:
+                    raw = await stream.readline()
+                except ValueError as exc:
+                    error_text = str(exc)
+                    if error_text not in CODEX_OVERSIZE_READLINE_ERRORS:
+                        self._reader_failure = exc
+                        raise
+                    failure = RuntimeError(
+                        "Codex app-server emitted an oversized JSONL record; "
+                        f"discarding it at the {CODEX_STREAM_LIMIT} byte limit"
+                    )
+                    self._reader_failure = failure
+                    logger.error("%s", failure)
+                    if not await self._discard_oversized_record(
+                        stream,
+                        already_consumed=error_text
+                        == "Separator is found, but chunk is longer than limit",
+                    ):
+                        break
+                    continue
                 if not raw:
                     break
                 try:
@@ -1450,7 +1481,11 @@ class CodexBackend(JsonRpcStdioTransport):
         except asyncio.CancelledError:
             return
         except Exception as exc:
+            if self._reader_failure is None:
+                self._reader_failure = exc
             logger.exception("Codex app-server reader failed: %s", exc)
+            if isinstance(exc, ValueError):
+                raise
         finally:
             # ONE gate over the whole "the process died" story. A handover cancels this reader
             # on a process that is very much alive, so none of it may run: not the pending
@@ -1482,20 +1517,83 @@ class CodexBackend(JsonRpcStdioTransport):
                 )
                 if stderr:
                     message = f"{message}: {stderr}"
+                queued = getattr(self._notifications, "_queue", ())
+                terminal_queued = False
+                if self._reader_failure is not None and self._active_turn_id:
+                    terminal_queued = any(
+                        item.get("method") == "turn/completed"
+                        and str(
+                            (((item.get("params") or {}).get("turn") or {}).get("id"))
+                            or ""
+                        ) == self._active_turn_id
+                        for item in queued
+                    )
+                    if terminal_queued:
+                        self._reader_failure = None
+                reader_failure = self._reader_failure
+                if reader_failure is not None and not terminal_queued:
+                    self._active_turn_id = None
+                if reader_failure is not None:
+                    message = f"{message}; reader failure: {reader_failure}"
                 error = RuntimeError(message)
                 for future in self._pending_requests.values():
                     if not future.done():
                         future.set_exception(error)
                 if self._compact_future and not self._compact_future.done():
                     self._compact_future.set_exception(error)
-                if not self._disconnecting:
+                if not self._disconnecting and (
+                    self._events_active
+                    or self._active_turn_id
+                    or reader_failure is not None
+                    or returncode not in (None, 0)
+                ) and not terminal_queued:
                     await self._notifications.put({
                         "method": "_process/exited",
                         "params": {
                             "returncode": returncode,
                             "stderr": stderr,
+                            "reader_failure": str(reader_failure) if reader_failure else "",
                         },
                     })
+
+    async def _discard_oversized_record(
+        self,
+        stream: asyncio.StreamReader,
+        *,
+        already_consumed: bool = False,
+    ) -> bool:
+        """Drop one poisoned JSONL record without reading beyond a bounded chunk."""
+        if already_consumed:
+            return True
+        while True:
+            buffered = getattr(stream, "_buffer", None)
+            if isinstance(buffered, bytearray) and buffered:
+                chunk = bytes(buffered[:CODEX_STREAM_DISCARD_CHUNK])
+                newline = chunk.find(b"\n")
+                consumed = newline + 1 if newline >= 0 else len(chunk)
+                del buffered[:consumed]
+                resume = getattr(stream, "_maybe_resume_transport", None)
+                if callable(resume):
+                    resume()
+                if newline >= 0:
+                    return True
+                continue
+
+            chunk = await stream.read(CODEX_STREAM_DISCARD_CHUNK)
+            if not chunk:
+                return False
+            newline = chunk.find(b"\n")
+            if newline < 0:
+                continue
+            remainder = chunk[newline + 1:]
+            if remainder:
+                buffered = getattr(stream, "_buffer", None)
+                if not isinstance(buffered, bytearray):
+                    raise RuntimeError(
+                        "cannot preserve bytes after oversized Codex JSONL record"
+                    )
+                buffered[:0] = remainder
+            return True
 
     def _record_token_usage(self, params: dict) -> None:
         usage = params.get("tokenUsage") or {}
@@ -1699,10 +1797,15 @@ class CodexBackend(JsonRpcStdioTransport):
         if method == "turn/completed":
             turn = params.get("turn") or {}
             self._active_turn_id = None
+            # A terminal lifecycle event proves that the poisoned record was not the
+            # turn terminator; later clean EOF must not replay a stale failure.
+            self._reader_failure = None
             return self._turn_completed(turn)
 
         if method == "_process/exited":
             self._active_turn_id = None
+            reader_failure = params.get("reader_failure") or ""
+            model_error = "reader_failure" if reader_failure else "server_error"
             normalized_usage = TurnUsage(
                 AggregateUsage.normalized(),
                 current_context(
@@ -1717,8 +1820,9 @@ class CodexBackend(JsonRpcStdioTransport):
                 "stop_reason": f"process_exit_{params.get('returncode')}",
                 "returncode": params.get("returncode"),
                 "stderr_tail": params.get("stderr", ""),
-                "model_error": "server_error",
-                "errors": ["server_error"],
+                "model_error": model_error,
+                "errors": [model_error],
+                "reader_failure": reader_failure,
                 "cost_usd": 0,
                 **normalized_usage.metadata(),
             }, usage=normalized_usage)]
