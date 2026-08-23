@@ -1,0 +1,15 @@
+{
+  "run_id": "12-t06_manifest_parser-candidate",
+  "task": "t06_manifest_parser",
+  "arm": "candidate",
+  "model": "gpt-5.6-luna",
+  "returncode": 0,
+  "timed_out": false,
+  "elapsed_seconds": 117.014,
+  "tool_calls": 7,
+  "changed_files": [
+    "tests/test_target.py"
+  ],
+  "production_sha256": "f772833538343fea9cbf0baf97f5a9516eaa65a07dcac23b8ce3df56dd9a0382",
+  "fixture_production_sha256": "f772833538343fea9cbf0baf97f5a9516eaa65a07dcac23b8ce3df56dd9a0382"
+}

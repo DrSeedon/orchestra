@@ -1,0 +1,97 @@
+{
+  "frozen_input": {
+    "freeze_commit": "ce600426",
+    "candidate_sha256": "cdcc1a99308601eb3d68b8a78455db281492949809034625532604bfaf6969b9",
+    "baseline_sha256": "6c44d6143eb4cd083b29167db157a5822e63c355393494d04538faf6793adac4",
+    "manifest_entries": 38,
+    "grader_self_test": {
+      "strong": "30/30",
+      "weak": "14/30"
+    }
+  },
+  "paired_task_scores": {
+    "t03_fallback_classifier": {
+      "candidate": 5,
+      "baseline": 4
+    },
+    "t01_route_switch": {
+      "baseline": 4,
+      "candidate": 4
+    },
+    "t05_ledger_exactly_once": {
+      "candidate": 4,
+      "baseline": 5
+    },
+    "t04_prompt_collection": {
+      "baseline": 5,
+      "candidate": 5
+    },
+    "t02_kill_path": {
+      "candidate": 5,
+      "baseline": 5
+    },
+    "t06_manifest_parser": {
+      "baseline": 5,
+      "candidate": 5
+    }
+  },
+  "paired_outcome": {
+    "candidate_wins": 1,
+    "candidate_losses": 1,
+    "ties": 4,
+    "two_sided_exact_sign_p": 1.0
+  },
+  "arms": {
+    "baseline": {
+      "tasks": 6,
+      "score": 28,
+      "max_score": 30,
+      "whale_cells": 0,
+      "nonblank_test_loc": 63,
+      "tool_calls": 35,
+      "median_tool_calls": 6.0,
+      "criteria": {
+        "intended_mutant_caught": 6,
+        "valid_alternate_accepted": 6,
+        "production_path_exercised": 6,
+        "positive_control": 4,
+        "scope_integrity": 6
+      },
+      "model_seconds_total": 272.04,
+      "model_seconds_max": 56.528,
+      "grader_seconds_max": 0.242,
+      "max_nonblank_test_loc": 13
+    },
+    "candidate": {
+      "tasks": 6,
+      "score": 28,
+      "max_score": 30,
+      "whale_cells": 0,
+      "nonblank_test_loc": 64,
+      "tool_calls": 32,
+      "median_tool_calls": 5.0,
+      "criteria": {
+        "intended_mutant_caught": 6,
+        "valid_alternate_accepted": 5,
+        "production_path_exercised": 6,
+        "positive_control": 5,
+        "scope_integrity": 6
+      },
+      "model_seconds_total": 388.128,
+      "model_seconds_max": 117.014,
+      "grader_seconds_max": 0.371,
+      "max_nonblank_test_loc": 14
+    }
+  },
+  "candidate_six_answers_before_edit": {
+    "01-t03_fallback_classifier-candidate": true,
+    "04-t01_route_switch-candidate": true,
+    "05-t05_ledger_exactly_once-candidate": true,
+    "08-t04_prompt_collection-candidate": true,
+    "09-t02_kill_path-candidate": true,
+    "12-t06_manifest_parser-candidate": true
+  },
+  "candidate_adherence_count": "6/6",
+  "score_gain": 0,
+  "tool_whale": false
+}

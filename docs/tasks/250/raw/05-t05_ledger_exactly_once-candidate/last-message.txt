@@ -1,0 +1,11 @@
+Ну да, один invoice — одна запись, какая роскошь 🧾
+
+Добавлен тест в [tests/test_target.py](/mnt/data/task250-eval-scratch-250/05-t05_ledger_exactly_once-candidate/tests/test_target.py):
+
+- повторный `charge_invoice` не создаёт второй debit;
+- сохраняется исходная сумма;
+- audit-запись не маскирует поведение.
+
+Проверка: `python3 -m pytest -q` → **1 passed**.
+
+Ledger теперь не ведёт себя как принтер чеков при каждой попытке оплаты.

@@ -1,0 +1,18 @@
+diff --git a/tests/test_target.py b/tests/test_target.py
+index 5ede69a..7a21e03 100644
+--- a/tests/test_target.py
++++ b/tests/test_target.py
+@@ -1,2 +1,13 @@
+ """Add focused regression tests here."""
+ 
++from src.prompts import build_prompt, source_clauses
++
++
++def test_source_clauses_reach_planner_and_not_worker():
++    clauses = source_clauses()
++    assert clauses
++
++    planner = build_prompt("planner")
++    worker = build_prompt("worker")
++    assert all(clause in planner for clause in clauses)
++    assert all(clause not in worker for clause in clauses)

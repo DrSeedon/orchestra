@@ -1,0 +1,20 @@
+The old card-count smoke test has been replaced with two focused behavioral regressions—because apparently routes need to demonstrate behavior, not just exist 🛣️
+
+- Rejects unavailable routes without changing selection or connections.
+- Confirms healthy switching selects the route and drops existing connections.
+- Uses `default_gateway().switch()` through the public path.
+- Adding a fourth healthy route will not affect these tests.
+
+Changed only [tests/test_target.py](/mnt/data/task250-eval-scratch-250/04-t01_route_switch-candidate/tests/test_target.py).
+
+Verification:
+
+```text
+python3 -m pytest -q tests/test_target.py
+2 passed
+
+python3 -m pytest -q
+2 passed
+```
+
+Теперь маршрут проверяется по назначению, а не по количеству открыток в витрине.
