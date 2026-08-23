@@ -586,7 +586,7 @@ async def test_history_connect_fails_before_spawn_on_version_mismatch(monkeypatc
     monkeypatch.setattr(
         module,
         "_run_process",
-        AsyncMock(return_value=(0, "codex-cli 0.148.0", "")),
+        AsyncMock(return_value=(0, "codex-cli 0.150.0", "")),
     )
     spawn = AsyncMock(return_value=_FakeProcess())
     monkeypatch.setattr(module.asyncio, "create_subprocess_exec", spawn)
@@ -594,7 +594,7 @@ async def test_history_connect_fails_before_spawn_on_version_mismatch(monkeypatc
     backend._drain_stderr = AsyncMock()
     backend._request = AsyncMock(side_effect=AssertionError("app-server started"))
 
-    with pytest.raises(NativeHistoryUnsupported, match="0.148.0"):
+    with pytest.raises(NativeHistoryUnsupported, match="0.150.0"):
         await backend.connect()
 
     spawn.assert_not_awaited()
@@ -894,6 +894,66 @@ async def test_send_starts_turn_when_idle():
         "effort": "high",
     })
     assert backend._active_turn_id == "turn-2"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("loaded", [None, "old-config"])
+async def test_idle_turn_reconnects_stale_managed_config_and_preserves_thread(loaded):
+    backend = CodexBackend(
+        model="gpt-5.6-sol",
+        cwd="/tmp",
+        mcp_servers={"orchestra": {
+            "command": "python",
+            "env": {"ORCHESTRA_SESSION_ID": "config-refresh"},
+        }},
+    )
+    backend._proc = SimpleNamespace(returncode=None)
+    backend._thread_id = "thread-1"
+    backend._loaded_config_sha256 = loaded
+    backend._refresh_managed_config_sha256 = MagicMock(return_value="new-config")
+    backend.disconnect = AsyncMock()
+
+    async def reconnect():
+        backend._loaded_config_sha256 = "new-config"
+
+    backend.connect = AsyncMock(side_effect=reconnect)
+    backend._request = AsyncMock(return_value={"turn": {"id": "turn-2"}})
+
+    await backend.send("do it")
+
+    backend.disconnect.assert_awaited_once()
+    backend.connect.assert_awaited_once()
+    backend._request.assert_awaited_once_with("turn/start", {
+        "threadId": "thread-1",
+        "input": [{"type": "text", "text": "do it"}],
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+    })
+
+
+@pytest.mark.asyncio
+async def test_idle_turn_keeps_app_server_when_managed_config_matches():
+    backend = CodexBackend(
+        model="gpt-5.6-sol",
+        cwd="/tmp",
+        mcp_servers={"orchestra": {
+            "command": "python",
+            "env": {"ORCHESTRA_SESSION_ID": "config-current"},
+        }},
+    )
+    backend._proc = SimpleNamespace(returncode=None)
+    backend._thread_id = "thread-1"
+    backend._loaded_config_sha256 = "current-config"
+    backend._refresh_managed_config_sha256 = MagicMock(return_value="current-config")
+    backend.disconnect = AsyncMock()
+    backend.connect = AsyncMock()
+    backend._request = AsyncMock(return_value={"turn": {"id": "turn-2"}})
+
+    await backend.send("do it")
+
+    backend.disconnect.assert_not_awaited()
+    backend.connect.assert_not_awaited()
+    backend._request.assert_awaited_once()
 
 
 @pytest.mark.asyncio

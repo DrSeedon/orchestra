@@ -291,7 +291,7 @@ _SAFE_HOME_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$")
 _CODEX_HOME_ROOT = Path.home() / ".orchestra" / "codex-home"
 _MANAGED_HOME_LOCKS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 _CODEX_STATE_MIGRATIONS_BY_CLI = {
-    # Captured from a fresh Codex 0.147.0 app-server state DB. Checksums are SQLx's
+    # Captured from a fresh Codex 0.149.0 app-server state DB. Checksums are SQLx's
     # provider-owned migration identity; a mutable base DB is not schema authority.
     CODEX_CLI_HISTORY_VERSION: (
         (1, bytes.fromhex("627ef19164c9bb298a0cd99945981c9b7bda3d9e6cf12eb35145e3b1d3bf7cf8740f0dbaa0b475185fc2993397078049")),
@@ -340,6 +340,10 @@ _CODEX_STATE_MIGRATIONS_BY_CLI = {
         (44, bytes.fromhex("5d29223bd1cafe456a4af992a545e8ec420b71331eb12a7427e26512b8a44117d9445b83562f095b3a5a0f11c4f091d2")),
         (45, bytes.fromhex("a7fadc8caea8b6abeb108f588a91b8e5d1c9e2645ce990f2251b9f0234e6e53d78fc854f1c88c7217cc143016539d691")),
         (46, bytes.fromhex("63addf6115c3fb1a22a886108ce6ebff5cd8408f219606dc2f8396836418e56d5be2a6de7b0df877119a28096ee67d22")),
+        (47, bytes.fromhex("1ae117e4ab40813de2b6cfed521585a5396a8dcb7277923d539ed111f5e76424787131ef1de353be5dd78e8228f204cc")),
+        (48, bytes.fromhex("9d298333f7523010502044685009ffe1ed18c3fed7f01fb200d62252f90ab0d897ccf05e478f90150b941ea6c0bd459c")),
+        (49, bytes.fromhex("faf45c392bb8572062bbd52f9702966cf62e3d195a1633f54cfe1b7dcb5865a3f951dc75c975179dc9a0ee639f7426a7")),
+        (50, bytes.fromhex("d2802e96f5fc1900fc6d3d595f040ebca8d25310ae9d1499a12b91f1635617adf5d2b4a93d0807203a22f4a6d4edb77e")),
     ),
 }
 # Из базового конфига переносим ТОЛЬКО это. Расширять список осознанно: каждая строка
@@ -519,13 +523,20 @@ def _inspect_codex_state(path: Path, *, check_integrity: bool) -> _CodexStateInf
 def _validate_codex_state_migrations(
     info: _CodexStateInfo,
     cli_version: str,
+    *,
+    allow_older_prefix: bool = False,
 ) -> None:
     expected = _CODEX_STATE_MIGRATIONS_BY_CLI.get(cli_version)
     if expected is None:
         raise RuntimeError(
             f"no validated Codex state migration signature for CLI {cli_version or 'unknown'}"
         )
-    if info.migrations != expected:
+    matches_known_older_schema = (
+        allow_older_prefix
+        and len(info.migrations) < len(expected)
+        and expected[:len(info.migrations)] == info.migrations
+    )
+    if info.migrations != expected and not matches_known_older_schema:
         raise RuntimeError(
             "refusing unsupported Codex state migration signature: "
             f"CLI={cli_version}, expected={len(expected)} migrations through "
@@ -539,7 +550,10 @@ def _managed_codex_state_needs_seed(home: Path, cli_version: str) -> bool:
     if not target.exists():
         return True
     info = _inspect_codex_state(target, check_integrity=False)
-    _validate_codex_state_migrations(info, cli_version)
+    # A pinned newer CLI may encounter the exact validated prefix produced by the
+    # previous release. Preserve it and let SQLx apply only the missing provider-owned
+    # migrations on app-server startup; changed, reordered, or extra rows still fail.
+    _validate_codex_state_migrations(info, cli_version, allow_older_prefix=True)
     if info.status == "complete" and info.last_success_at is not None:
         return False
     if info.status == "running" and info.last_success_at is None:
@@ -572,7 +586,11 @@ def _select_managed_codex_state_source(target_home: Path, cli_version: str) -> P
     for candidate in sources:
         try:
             info = _inspect_codex_state(candidate, check_integrity=True)
-            _validate_codex_state_migrations(info, cli_version)
+            _validate_codex_state_migrations(
+                info,
+                cli_version,
+                allow_older_prefix=True,
+            )
         except RuntimeError as exc:
             logger.warning("ignoring invalid Codex state source %s: %s", candidate, exc)
             continue
@@ -599,7 +617,11 @@ def _prepare_managed_codex_state(
     target = home / "state_5.sqlite"
     if target.exists():
         target_info = _inspect_codex_state(target, check_integrity=False)
-        _validate_codex_state_migrations(target_info, cli_version)
+        _validate_codex_state_migrations(
+            target_info,
+            cli_version,
+            allow_older_prefix=True,
+        )
         if target_info.status == "complete" and target_info.last_success_at is not None:
             return "healthy"
         if not (
@@ -614,15 +636,20 @@ def _prepare_managed_codex_state(
         target_info = None
 
     source_info = _inspect_codex_state(source, check_integrity=True)
-    _validate_codex_state_migrations(source_info, cli_version)
+    _validate_codex_state_migrations(
+        source_info,
+        cli_version,
+        allow_older_prefix=True,
+    )
     if source_info.status != "complete" or source_info.last_success_at is None:
         raise RuntimeError(
             "refusing incomplete Codex state source: "
             f"status={source_info.status!r}, "
             f"last_success_at={source_info.last_success_at!r}"
         )
-    if target_info is not None and target_info.migrations != source_info.migrations:
-        raise RuntimeError("refusing Codex state recovery across migration signatures")
+    # Both sides are independently validated as the current schema or an exact older
+    # prefix. Replacing a never-successful target with a healthy source is safe even when
+    # their prefix lengths differ: the pinned provider applies the remaining migrations.
 
     temporary = home / f".state_5.seed-{uuid.uuid4().hex}.sqlite"
     recovery: Path | None = None
@@ -749,6 +776,10 @@ class CodexBackend(JsonRpcStdioTransport):
         # #224: приватный CODEX_HOME этого агента; готовится лениво в _prepare_codex_home,
         # чтобы конструктор оставался безопасным для вызова без session id.
         self._codex_home: Path | None = None
+        # Digest of the managed config actually loaded by the current app-server.
+        # Adopted pre-restart processes deliberately start unknown and reconnect before
+        # their next idle turn, so config/context upgrades cannot leave them behind.
+        self._loaded_config_sha256: str | None = None
         self._is_orchestrator = is_orchestrator
         if history_import is not None and not isinstance(history_import, CodexHistoryImport):
             raise TypeError("history_import must be CodexHistoryImport")
@@ -879,6 +910,7 @@ class CodexBackend(JsonRpcStdioTransport):
                                leftover=leftover, cli_pid=cli_pid,
                                cli_started_at=cli_started_at)
         self._thread_id = thread_id
+        self._loaded_config_sha256 = None
         self._active_turn_id = active_turn_id
         self._teardown_error = None
         self._reader_task = asyncio.create_task(self._read_stdout())
@@ -889,7 +921,9 @@ class CodexBackend(JsonRpcStdioTransport):
             await self._connect_unlocked()
             return
         async with _managed_home_lock(home):
-            await _run_home_io(self._prepare_codex_home)
+            config_sha256 = await _run_home_io(
+                self._refresh_managed_config_sha256
+            )
             cli_version = await self._managed_state_cli_version()
             if cli_version != CODEX_CLI_HISTORY_VERSION:
                 # The provider owns forward migrations.  Blocking before the app-server
@@ -901,6 +935,7 @@ class CodexBackend(JsonRpcStdioTransport):
                     cli_version or "unknown",
                 )
                 await self._connect_unlocked()
+                self._loaded_config_sha256 = config_sha256
                 return
             if await _run_home_io(
                 _managed_codex_state_needs_seed,
@@ -920,6 +955,7 @@ class CodexBackend(JsonRpcStdioTransport):
                     cli_version,
                 )
             await self._connect_unlocked()
+            self._loaded_config_sha256 = config_sha256
 
     async def _connect_unlocked(self) -> None:
         if self.is_alive and not self._teardown_error:
@@ -1075,6 +1111,8 @@ class CodexBackend(JsonRpcStdioTransport):
             # The server completed the old turn but session.py has not left its event
             # iterator yet. Queue at the session layer so the new turn gets a listener.
             raise RuntimeError("Codex turn is settling; queue this message")
+
+        await self._reload_stale_managed_config_before_turn()
 
         self._last_turn_error = {}
         self._last_call_usage = None
@@ -2353,6 +2391,40 @@ class CodexBackend(JsonRpcStdioTransport):
 
         self._codex_home = home
         return home
+
+    def _refresh_managed_config_sha256(self) -> str:
+        """Rewrite the desired managed config and return its content identity."""
+        home = self._prepare_codex_home()
+        return hashlib.sha256((home / "config.toml").read_bytes()).hexdigest()
+
+    async def _reload_stale_managed_config_before_turn(self) -> None:
+        """Reconnect an idle managed app-server when its launch config is stale.
+
+        Codex reads `config.toml` when the app-server starts.  Merely rewriting the file
+        does not update an already-running worker, and restart adoption intentionally keeps
+        those processes alive.  Reconnect here preserves the thread id through
+        `thread/resume` while making the next turn use current context/config settings.
+        """
+        if self._managed_codex_home_path() is None:
+            return
+        desired = await _run_home_io(self._refresh_managed_config_sha256)
+        if desired == self._loaded_config_sha256:
+            return
+        thread_id = self._thread_id
+        logger.info(
+            "reconnecting Codex before idle turn to load current managed config: "
+            "thread=%s old=%s new=%s",
+            thread_id,
+            (self._loaded_config_sha256 or "unknown")[:12],
+            desired[:12],
+        )
+        await self.disconnect()
+        await self.connect()
+        if self._thread_id != thread_id:
+            raise RuntimeError(
+                "Codex config refresh resumed a different thread: "
+                f"requested={thread_id}, returned={self._thread_id}"
+            )
 
     def _build_env(self) -> dict:
         env = dict(os.environ)
