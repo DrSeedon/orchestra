@@ -49,8 +49,11 @@ async def _start_bridge_background(manager) -> None:
     """
     logger.info("TG bridge: starting in background (HTTP is already serving)")
     try:
-        from app.tg_bridge import start_bridge
-        await start_bridge(manager)
+        from app import tg_bridge
+        await tg_bridge.start_bridge(manager)
+        if tg_bridge.bot is not None:
+            from app.tg_file_deliveries import start_file_delivery_service
+            await start_file_delivery_service()
         logger.info("TG bridge: ready")
     except asyncio.CancelledError:
         raise
@@ -304,6 +307,12 @@ async def _shutdown_runtime(
     from app import rag_service
     restart_guard.note_shutdown_phase("rag", "rag_service.shutdown")
     rag_service.shutdown()
+
+    from app.tg_file_deliveries import shutdown_file_delivery_service
+    restart_guard.note_shutdown_phase(
+        "tg_file_deliveries", "shutdown_file_delivery_service"
+    )
+    await shutdown_file_delivery_service()
 
     bridge_task.cancel()
     restart_guard.note_shutdown_phase("bridge_task", "asyncio.Task[bridge]")

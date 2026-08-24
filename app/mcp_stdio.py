@@ -96,6 +96,7 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "search_memory",
     "delivery_status",
     "message_delivery_status",
+    "file_delivery_status",
 })
 
 REDUCER_MCP_TOOLS = frozenset({
@@ -638,6 +639,10 @@ def _delivery_status_path(delivery_id: str) -> str:
 
 def _message_delivery_status_path(delivery_id: str) -> str:
     return f"/api/message-deliveries/{delivery_id}"
+
+
+def _file_delivery_status_path(event_id: str) -> str:
+    return f"/api/tg/file-deliveries/{event_id}"
 
 
 def _delivery_receipt_text(
@@ -1508,36 +1513,153 @@ async def rename_worker(old_name: str, new_name: str) -> str:
     return f"Worker '{old_name}' renamed to '{new_name}'."
 
 
+def _is_file_delivery_receipt(value: Any, event_id: str) -> bool:
+    return (
+        isinstance(value, dict)
+        and value.get("ok") is True
+        and value.get("event_id") == event_id
+        and bool(value.get("acceptance"))
+        and bool(value.get("delivery_state"))
+    )
+
+
+def _file_delivery_receipt_text(receipt: dict[str, Any]) -> str:
+    event_id = str(receipt["event_id"])
+    state = str(receipt.get("delivery_state") or "UNKNOWN")
+    return (
+        f"File accepted; event_id={event_id}; state={state}. "
+        f"Check with file_delivery_status('{event_id}'); do not retry with a new id."
+    )
+
+
+def _ambiguous_file_delivery_error(
+    cause: ApiToolError,
+    event_id: str,
+    *,
+    status: Any = None,
+    status_error: ApiToolError | None = None,
+) -> ApiToolError:
+    reconciliation = (
+        status_error.envelope()
+        if status_error is not None
+        else {"status": "missing", "response": status}
+    )
+    details = dict(cause.details)
+    details["reconciliation"] = reconciliation
+    return ApiToolError(
+        code="FILE_DELIVERY_OUTCOME_UNKNOWN",
+        message=(
+            f"File delivery outcome is ambiguous for event_id={event_id}: "
+            f"{cause.message}"
+        ),
+        status=cause.status,
+        retryable=False,
+        request_id=cause.request_id,
+        retry_after_seconds=cause.retry_after_seconds,
+        outcome_unknown=True,
+        details=details,
+        result={
+            "event_id": event_id,
+            "next_action": {
+                "tool": "file_delivery_status",
+                "arguments": {"event_id": event_id},
+                "message": "Check this event id; never retry with a fresh id.",
+            },
+        },
+    )
+
+
 @mcp.tool()
-async def send_file(path: str, caption: str = "", as_document: bool = False) -> str:
-    """Send a file to the user via Telegram. Path must be absolute. Images are sent as inline photos by default; set as_document=True to force file attachment."""
-    # Delivery goes through the reliable TG queue, which waits out flood control
-    # (429 retry_after is routinely 20-30s) — 30s here timed out mid-retry.
-    result = await _api("POST", "/api/tg/send_file", json={
-        "path": path, "caption": caption, "scope": SCOPE, "sender": WORKER_NAME or ROLE,
-        "as_document": as_document,
-    }, timeout=180)
+async def file_delivery_status(event_id: str) -> dict[str, Any]:
+    """Look up one durable Telegram file delivery by its immutable event id."""
+    event_id = event_id.strip() if isinstance(event_id, str) else ""
+    if not event_id:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="event_id is required",
+            details={"field": "event_id"},
+        )
+    try:
+        event_id = str(uuid.UUID(event_id))
+    except ValueError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="event_id must be a UUID",
+            details={"field": "event_id"},
+        ) from error
+    result = await _api("GET", _file_delivery_status_path(event_id))
     if not isinstance(result, dict):
         raise ApiToolError(
             code="invalid_response",
-            message=f"Send file API returned {type(result).__name__}, expected object",
+            message="File delivery status API returned a non-object response",
+            status=200,
+            details={"response_type": type(result).__name__},
+        )
+    return result
+
+
+@mcp.tool()
+async def send_file(
+    path: str,
+    caption: str = "",
+    as_document: bool = False,
+    event_id: str = "",
+) -> str:
+    """Accept a file for durable Telegram delivery and return its status id."""
+    event_id = event_id.strip() if isinstance(event_id, str) else ""
+    if event_id:
+        try:
+            event_id = str(uuid.UUID(event_id))
+        except ValueError as error:
+            raise ApiToolError(
+                code="invalid_argument",
+                message="event_id must be a UUID",
+                details={"field": "event_id"},
+            ) from error
+    else:
+        event_id = str(uuid.uuid4())
+    payload = {
+        "path": path,
+        "caption": caption,
+        "scope": SCOPE,
+        "sender": WORKER_NAME or ROLE,
+        "as_document": as_document,
+        "event_id": event_id,
+    }
+    try:
+        result = await _api("POST", "/api/tg/send_file", json=payload, timeout=180)
+    except ApiToolError as cause:
+        if not cause.outcome_unknown and not (
+            cause.status is not None and cause.status >= 500
+        ):
+            raise
+        try:
+            status = await _api("GET", _file_delivery_status_path(event_id))
+        except ApiToolError as status_error:
+            raise _ambiguous_file_delivery_error(
+                cause, event_id, status_error=status_error,
+            ) from cause
+        if _is_file_delivery_receipt(status, event_id):
+            return _file_delivery_receipt_text(status)
+        raise _ambiguous_file_delivery_error(
+            cause, event_id, status=status,
+        ) from cause
+    if not _is_file_delivery_receipt(result, event_id):
+        raise ApiToolError(
+            code="invalid_response",
+            message="Send file API returned no matching durable receipt",
             status=200,
             outcome_unknown=True,
-            details={"response": result},
+            details={"event_id": event_id, "response": result},
+            result={
+                "event_id": event_id,
+                "next_action": {
+                    "tool": "file_delivery_status",
+                    "arguments": {"event_id": event_id},
+                },
+            },
         )
-    if result.get("error"):
-        raise ApiToolError(code="domain_error", message=f"Send failed: {result['error']}")
-    if result.get("ok"):
-        msg_id = result.get("message_id")
-        chat_id = result.get("chat_id")
-        return f"File sent to TG: {path} (msg_id={msg_id} chat_id={chat_id})"
-    raise ApiToolError(
-        code="invalid_response",
-        message="Send file API response had neither ok nor error",
-        status=200,
-        outcome_unknown=True,
-        details={"response": result},
-    )
+    return _file_delivery_receipt_text(result)
 
 
 @mcp.tool()

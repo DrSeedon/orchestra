@@ -2382,6 +2382,46 @@ async def _tg_send_file_safe(
     )
 
 
+async def _submit_file_snapshot_once(
+    chat_id: int,
+    snapshot_path: str,
+    caption: str,
+    thread_id: int | None,
+    *,
+    is_photo: bool,
+):
+    """Cross the Bot API boundary once for a durable file-delivery receipt."""
+    if bot is None:
+        raise RuntimeError("TG bridge not active")
+    from aiogram.types import FSInputFile
+
+    tg_file = FSInputFile(snapshot_path, filename=Path(snapshot_path).name)
+    async with asyncio.timeout(_TG_RELIABLE_CALL_TIMEOUT):
+        if is_photo:
+            return await bot.send_photo(
+                chat_id,
+                tg_file,
+                caption=caption,
+                message_thread_id=thread_id,
+            )
+        return await bot.send_document(
+            chat_id,
+            tg_file,
+            caption=caption,
+            message_thread_id=thread_id,
+        )
+
+
+async def _reserve_file_snapshot_slot(chat_id: int) -> bool:
+    """Reserve the shared per-chat rate slot before a durable provider boundary."""
+    if bot is None:
+        return False
+    if not isinstance(bot, Bot):
+        return True
+    state = await _tg_delivery_state_for(chat_id)
+    return bool(await _tg_reserve_rate_slot(chat_id, state, wait_for_slot=True))
+
+
 _TG_TOOL_ICONS = {
     'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️',
     'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',

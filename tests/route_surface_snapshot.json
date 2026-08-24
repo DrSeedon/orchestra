@@ -487,6 +487,12 @@
   ]
  ],
  [
+  "/api/tg/file-deliveries/{event_id}",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/tg/send_file",
   [
    "POST"
