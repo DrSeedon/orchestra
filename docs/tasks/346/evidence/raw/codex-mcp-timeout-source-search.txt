@@ -1,0 +1,2 @@
+/home/maxim/.orchestra/codex-home/9005b705-8976-4d21-a491-b6d37529eb45/config.toml:8:[mcp_servers."orchestra"]
+/home/maxim/.orchestra/codex-home/9005b705-8976-4d21-a491-b6d37529eb45/config.toml:14:[mcp_servers."orchestra".env]

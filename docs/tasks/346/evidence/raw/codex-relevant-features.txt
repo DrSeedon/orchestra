@@ -1,0 +1,22 @@
+apps_mcp_path_override                   removed            false
+code_mode                                under development  false
+code_mode_buffered_exec                  removed            false
+code_mode_host                           stable             true
+code_mode_interrupt                      under development  false
+code_mode_only                           under development  false
+deferred_executor                        under development  false
+deferred_tool_world_state                under development  false
+enable_mcp_apps                          under development  false
+executed_tool_call_metadata              under development  false
+js_repl_tools_only                       removed            false
+mcp_2026_07_28                           under development  false
+non_prefixed_mcp_tool_names              under development  false
+request_permissions_tool                 under development  false
+search_tool                              removed            false
+shell_tool                               stable             true
+skill_mcp_dependency_install             stable             true
+tool_call_mcp_elicitation                stable             true
+tool_search                              removed            false
+tool_search_always_defer_mcp_tools       removed            true
+tool_suggest                             stable             true
+unavailable_dummy_tools                  removed            false

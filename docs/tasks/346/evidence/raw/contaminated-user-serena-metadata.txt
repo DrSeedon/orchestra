@@ -1,0 +1,6 @@
+/home/maxim/.local/bin/uv
+/home/maxim/.local/bin/uvx
+2026-08-24T23:29:32.0515278400 d /home/maxim/.serena 4096
+2026-08-24T23:29:31.1345308150 d /home/maxim/.serena/logs/2026-08-24 4096
+2026-08-24T23:29:34.9275185080 f /home/maxim/.serena/logs/2026-08-24/mcp_20260824-232931_2074146.txt 83914
+2026-08-24T23:29:32.0515278400 f /home/maxim/.serena/serena_config.yml 15450

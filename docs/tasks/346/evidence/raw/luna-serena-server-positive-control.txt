@@ -1,0 +1,6 @@
+/mnt/data/task346-serena.tHyHCU/serena-home-b1-valid
+/mnt/data/task346-serena.tHyHCU/serena-home-b1-valid/logs/2026-08-24/mcp_20260824-233042_2079147.txt 1674
+1:INFO  2026-08-24 23:30:42,818 [MainThread] serena.cli:start_mcp_server:355 - Initializing Serena MCP server
+/mnt/data/task346-serena.tHyHCU/serena-home-b2-valid
+/mnt/data/task346-serena.tHyHCU/serena-home-b2-valid/logs/2026-08-24/mcp_20260824-233635_2095317.txt 1674
+1:INFO  2026-08-24 23:36:35,379 [MainThread] serena.cli:start_mcp_server:355 - Initializing Serena MCP server

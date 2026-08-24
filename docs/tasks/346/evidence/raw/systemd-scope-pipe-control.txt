@@ -1,0 +1,2 @@
+--pty/--pty-late/--pipe is not compatible in trigger (path/socket/timer units) or --scope mode.
+pipeline_exit=1

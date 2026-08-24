@@ -1,0 +1,118 @@
+[
+  [
+    "b1-valid",
+    133840896,
+    137838592,
+    661700608,
+    714182656,
+    849108992,
+    [
+      {
+        "pid": 2079147,
+        "ppid": 1524,
+        "rss_bytes": 106201088,
+        "name": "serena"
+      },
+      {
+        "pid": 2079259,
+        "ppid": 2079147,
+        "rss_bytes": 44068864,
+        "name": "uv"
+      },
+      {
+        "pid": 2079508,
+        "ppid": 2079259,
+        "rss_bytes": 26918912,
+        "name": "python"
+      },
+      {
+        "pid": 2079511,
+        "ppid": 2079508,
+        "rss_bytes": 142667776,
+        "name": "MainThread"
+      },
+      {
+        "pid": 2079589,
+        "ppid": 2079147,
+        "rss_bytes": 63590400,
+        "name": "MainThread"
+      },
+      {
+        "pid": 2079602,
+        "ppid": 2079589,
+        "rss_bytes": 178028544,
+        "name": "MainThread"
+      },
+      {
+        "pid": 2079603,
+        "ppid": 2079589,
+        "rss_bytes": 188010496,
+        "name": "MainThread"
+      },
+      {
+        "pid": 2079619,
+        "ppid": 2079603,
+        "rss_bytes": 99622912,
+        "name": "MainThread"
+      }
+    ]
+  ],
+  [
+    "b2-valid",
+    147439616,
+    147456000,
+    723554304,
+    772153344,
+    813174784,
+    [
+      {
+        "pid": 2095317,
+        "ppid": 1524,
+        "rss_bytes": 69677056,
+        "name": "serena"
+      },
+      {
+        "pid": 2095433,
+        "ppid": 2095317,
+        "rss_bytes": 42004480,
+        "name": "uv"
+      },
+      {
+        "pid": 2095609,
+        "ppid": 2095317,
+        "rss_bytes": 63352832,
+        "name": "MainThread"
+      },
+      {
+        "pid": 2095623,
+        "ppid": 2095609,
+        "rss_bytes": 181690368,
+        "name": "MainThread"
+      },
+      {
+        "pid": 2095624,
+        "ppid": 2095609,
+        "rss_bytes": 185884672,
+        "name": "MainThread"
+      },
+      {
+        "pid": 2095641,
+        "ppid": 2095433,
+        "rss_bytes": 26714112,
+        "name": "python"
+      },
+      {
+        "pid": 2095644,
+        "ppid": 2095624,
+        "rss_bytes": 99762176,
+        "name": "MainThread"
+      },
+      {
+        "pid": 2095650,
+        "ppid": 2095641,
+        "rss_bytes": 144089088,
+        "name": "MainThread"
+      }
+    ]
+  ]
+]

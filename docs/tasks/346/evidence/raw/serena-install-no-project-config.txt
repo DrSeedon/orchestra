@@ -1,0 +1,110 @@
+Using Python 3.13.11 environment at: venv
+Resolved 72 packages in 9.24s
+Downloading pydantic-core (2.0MiB)
+Downloading cryptography (4.5MiB)
+Downloading pillow (6.6MiB)
+Downloading tiktoken (1.1MiB)
+   Building proxy-tools==0.1.0
+      Built proxy-tools==0.1.0
+ Downloaded tiktoken
+ Downloaded pydantic-core
+ Downloaded cryptography
+ Downloaded pillow
+Prepared 72 packages in 2.16s
+Installed 72 packages in 332ms
+ + annotated-types==0.8.0
+ + anthropic==0.117.0
+ + anyio==4.14.2
+ + attrs==26.1.0
+ + beautifulsoup4==4.14.2
+ + blinker==1.9.0
+ + bottle==0.13.4
+ + cattrs==26.1.0
+ + certifi==2026.7.22
+ + cffi==2.1.1
+ + charset-normalizer==3.5.1
+ + click==8.4.2
+ + cryptography==50.0.0
+ + distro==1.9.0
+ + docstring-parser==0.17.0
+ + dotenv==0.9.9
+ + filelock==3.25.2
+ + flask==3.1.3
+ + h11==0.16.0
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + httpx-sse==0.4.3
+ + idna==3.19
+ + itsdangerous==2.2.0
+ + jinja2==3.1.6
+ + jiter==0.16.0
+ + joblib==1.5.1
+ + jsonschema==4.26.0
+ + jsonschema-specifications==2025.9.1
+ + lsprotocol==2025.0.0
+ + markupsafe==3.0.3
+ + mcp==1.28.1
+ + mslex==1.3.0
+ + oslex==2.0.0
+ + overrides==7.7.0
+ + pathspec==0.12.1
+ + pillow==12.3.0
+ + proxy-tools==0.1.0
+ + psutil==7.0.0
+ + pycparser==3.0
+ + pydantic==2.12.5
+ + pydantic-core==2.41.5
+ + pydantic-settings==2.15.0
+ + pygls==2.1.1
+ + pyjwt==2.13.0
+ + pystray==0.19.5
+ + python-dotenv==1.2.2
+ + python-multipart==0.0.31
+ + python-xlib==0.33
+ + pywebview==6.2
+ + pyyaml==6.0.2
+ + referencing==0.37.0
+ + regex==2026.2.28
+ + requests==2.33.0
+ + rpds-py==2026.6.3
+ + ruamel-yaml==0.18.14
+ + ruamel-yaml-clib==0.2.15
+ + sensai-utils==1.5.0
+ + serena-agent==1.7.0 (from file:///mnt/data/task346-serena.tHyHCU/serena_agent-1.7.0-py3-none-any.whl)
+ + six==1.17.0
+ + sniffio==1.3.1
+ + soupsieve==2.9.2
+ + sse-starlette==3.4.8
+ + starlette==1.3.1
+ + tiktoken==0.12.0
+ + tqdm==4.67.1
+ + types-pyyaml==6.0.12.20250516
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + urllib3==2.7.0
+ + uvicorn==0.52.4
+ + werkzeug==3.1.7
+	Command being timed: "env UV_CACHE_DIR=/mnt/data/task346-serena.tHyHCU/uv-cache uv pip install --no-config --default-index https://pypi.org/simple --python /mnt/data/task346-serena.tHyHCU/venv/bin/python /mnt/data/task346-serena.tHyHCU/serena_agent-1.7.0-py3-none-any.whl"
+	User time (seconds): 1.28
+	System time (seconds): 0.56
+	Percent of CPU this job got: 15%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:11.81
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 153204
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 290
+	Minor (reclaiming a frame) page faults: 64525
+	Voluntary context switches: 17211
+	Involuntary context switches: 1250
+	Swaps: 0
+	File system inputs: 56992
+	File system outputs: 228696
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+Serena 1.7.0

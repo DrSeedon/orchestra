@@ -1,0 +1,21 @@
+ app/backend_harness.py          | 194 +++++++---------------------------------
+ app/harness/bestofn.py          | 176 ------------------------------------
+ app/harness/llm.py              |  72 ++++++++++-----
+ app/harness/loop.py             |  98 ++++++++++++++------
+ app/harness/mcp.py              |  16 +++-
+ app/harness/sessions.py         |  77 +++++++++++++---
+ app/model_catalog.py            |  96 ++++++++++++++++----
+ app/models.py                   |  70 +++++++++++----
+ app/routes/system.py            |  27 +++++-
+ app/static/js/app.js            |  10 ++-
+ tests/test_catalog_api.py       |  54 +++++++----
+ tests/test_harness_inject.py    |  13 ++-
+ tests/test_harness_tools.py     |  16 ++--
+ tests/test_model_catalog.py     |  92 ++++++++++++++++---
+ tests/test_model_flags.py       |  15 +++-
+ tests/test_model_gates.py       |  40 ++++-----
+ tests/test_openrouter_retry.py  |  14 ++-
+ tests/test_runtime_registry.py  |   2 +-
+ tests/test_session.py           |   4 +-
+ tests/test_toggle_live_agent.py |  24 ++---
+ 20 files changed, 585 insertions(+), 525 deletions(-)

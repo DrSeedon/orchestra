@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "semantic_reference_queries": [
+    {
+      "id": "R1",
+      "symbol": "plain_target",
+      "definition_path": "python/plain.py",
+      "definition_name_path": "plain_target",
+      "relevant_markers": ["G346_R1_IMPORT", "G346_R1_CALL"],
+      "irrelevant_markers": [
+        "G346_R1_DEF",
+        "G346_R1_UNRELATED_METHOD",
+        "G346_R1_NOISE_STRING",
+        "G346_R1_NOISE_COMMENT"
+      ]
+    },
+    {
+      "id": "R4-semantic",
+      "symbol": "openDeleteOrchModal",
+      "definition_path": "web/app.js",
+      "definition_name_path": "openDeleteOrchModal",
+      "relevant_markers": ["G346_R4_JS_CALLBACK"],
+      "irrelevant_markers": [
+        "G346_R4_DEF",
+        "G346_R4_HTML_EDGE",
+        "G346_R4_NOISE_STRING",
+        "G346_R4_NOISE_COMMENT"
+      ]
+    }
+  ],
+  "production_edge_queries": [
+    {
+      "id": "R2-route",
+      "symbol": "refresh_models_endpoint",
+      "definition_path": "python/registry.py",
+      "definition_name_path": "refresh_models_endpoint",
+      "relevant_markers": ["G346_R2_ROUTE_DECORATOR", "G346_R2_ROUTER_MOUNT"]
+    },
+    {
+      "id": "R2-tool",
+      "symbol": "update_progress",
+      "definition_path": "python/registry.py",
+      "definition_name_path": "update_progress",
+      "relevant_markers": ["G346_R2_TOOL_DECORATOR", "G346_R2_TOOL_MOUNT"]
+    },
+    {
+      "id": "R3",
+      "symbol": "dynamic_target",
+      "definition_path": "python/dynamic_dispatch.py",
+      "definition_name_path": "dynamic_target",
+      "relevant_markers": ["G346_R3_GETATTR", "G346_R3_STRING_EDGE"]
+    },
+    {
+      "id": "R4-production",
+      "symbol": "openDeleteOrchModal",
+      "definition_path": "web/app.js",
+      "definition_name_path": "openDeleteOrchModal",
+      "relevant_markers": ["G346_R4_JS_CALLBACK", "G346_R4_HTML_EDGE"]
+    }
+  ],
+  "cluster_labels": {
+    "dead_root": "dead",
+    "dead_leaf": "dead",
+    "live_root": "live"
+  },
+  "stale_rename": {
+    "path": "python/stale.py",
+    "old_symbol": "stale_target",
+    "new_symbol": "stale_renamed",
+    "old_markers": ["G346_R6_OLD_DEF", "G346_R6_OLD_CALL"]
+  }
+}
+

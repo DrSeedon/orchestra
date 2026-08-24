@@ -1,0 +1,2 @@
+{"type":"agent_message","name":null,"server":null,"tool":null,"arguments":null,"text":"Проверяю конфигурацию Serena единственным разрешённым вызовом и сразу верну три запрошенных значения."}
+{"type":"agent_message","name":null,"server":null,"tool":null,"arguments":null,"text":"SERENA_UNAVAILABLE"}

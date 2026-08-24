@@ -1,0 +1,462 @@
+{
+  "name": "c1",
+  "scenario": "light",
+  "cwd": "/mnt/data/task346-serena.tHyHCU/run-c1",
+  "command": [
+    "systemd-run",
+    "--user",
+    "--pipe",
+    "--wait",
+    "--collect",
+    "--quiet",
+    "--unit=task346-light-c1",
+    "-p",
+    "MemoryMax=128M",
+    "-p",
+    "CPUQuota=100%",
+    "-p",
+    "TasksMax=32",
+    "-p",
+    "WorkingDirectory=/mnt/data/task346-serena.tHyHCU/run-c1",
+    "--",
+    "python3",
+    "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-serena-agents/docs/tasks/346/eval/light_codeintel_mcp.py"
+  ],
+  "loadavg_start": [
+    4.3779296875,
+    4.2275390625,
+    3.369140625
+  ],
+  "started_wall": 1787589425.047864,
+  "initialize": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+      "protocolVersion": "2025-06-18",
+      "capabilities": {
+        "tools": {}
+      },
+      "serverInfo": {
+        "name": "light-codeintel-346",
+        "version": "1"
+      },
+      "instructions": "Use code_outline/code_references for structured navigation; keep native search for wider text and edits."
+    }
+  },
+  "initialize_elapsed_s": 0.0551665610037162,
+  "tools_list": {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {
+      "tools": [
+        {
+          "name": "code_outline",
+          "description": "Return a compact top-level/nested symbol outline for one Python/JS/TS file. Read-only, no index.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        },
+        {
+          "name": "code_references",
+          "description": "Find and classify exact-name Python/JS/TS/HTML occurrences. Includes definitions, imports, decorators, strings and comments; syntactic/lexical, not binding-resolved. Read-only, no index.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "definition_path": {
+                "type": "string",
+                "default": ""
+              }
+            },
+            "required": [
+              "symbol"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "tools_list_elapsed_s": 6.0834994656033814e-05,
+  "ready_elapsed_s": 0.0564710480030044,
+  "ready_sample": {
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/task346-light-c1.service",
+    "rss_bytes": 14090240,
+    "processes": [
+      {
+        "pid": 2096976,
+        "ppid": 1524,
+        "rss_bytes": 14090240,
+        "name": "python3"
+      }
+    ],
+    "memory_current": 6844416,
+    "memory_peak": 6959104,
+    "memory_swap_current": 0,
+    "memory_swap_peak": 0,
+    "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0\n"
+  },
+  "calls": [
+    {
+      "tool": "code_outline",
+      "arguments": {
+        "path": "python/plain.py"
+      },
+      "elapsed_s": 0.0005679210007656366,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"path\": \"python/plain.py\",\n  \"symbols\": [\n    {\n      \"name\": \"plain_target\",\n      \"kind\": \"FunctionDef\",\n      \"line\": 4,\n      \"end_line\": 5,\n      \"owner\": null\n    },\n    {\n      \"name\": \"Unrelated\",\n      \"kind\": \"ClassDef\",\n      \"line\": 8,\n      \"end_line\": 10,\n      \"owner\": null\n    },\n    {\n      \"name\": \"plain_target\",\n      \"kind\": \"FunctionDef\",\n      \"line\": 9,\n      \"end_line\": 10,\n      \"owner\": \"Unrelated\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"path\": \"python/plain.py\",\n  \"symbols\": [\n    {\n      \"name\": \"plain_target\",\n      \"kind\": \"FunctionDef\",\n      \"line\": 4,\n      \"end_line\": 5,\n      \"owner\": null\n    },\n    {\n      \"name\": \"Unrelated\",\n      \"kind\": \"ClassDef\",\n      \"line\": 8,\n      \"end_line\": 10,\n      \"owner\": null\n    },\n    {\n      \"name\": \"plain_target\",\n      \"kind\": \"FunctionDef\",\n      \"line\": 9,\n      \"end_line\": 10,\n      \"owner\": \"Unrelated\"\n    }\n  ]\n}"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "plain_target",
+        "definition_path": "python/plain.py"
+      },
+      "elapsed_s": 0.0014793660011491738,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"plain_target\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/plain.py\",\n      \"line\": 4,\n      \"kind\": \"definition\",\n      \"text\": \"def plain_target(value: int) -> int:  # G346_R1_DEF\"\n    },\n    {\n      \"path\": \"python/plain.py\",\n      \"line\": 9,\n      \"kind\": \"definition\",\n      \"text\": \"def plain_target(self, value: int) -> int:  # G346_R1_UNRELATED_METHOD\"\n    },\n    {\n      \"path\": \"python/plain.py\",\n      \"line\": 13,\n      \"kind\": \"string\",\n      \"text\": \"PLAIN_NAME = \\\"plain_target\\\"  # G346_R1_NOISE_STRING\"\n    },\n    {\n      \"path\": \"python/plain_consumer.py\",\n      \"line\": 1,\n      \"kind\": \"import\",\n      \"text\": \"from python.plain import plain_target  # G346_R1_IMPORT\"\n    },\n    {\n      \"path\": \"python/plain_consumer.py\",\n      \"line\": 5,\n      \"kind\": \"name_load\",\n      \"text\": \"return plain_target(4)  # G346_R1_CALL\"\n    },\n    {\n      \"path\": \"python/plain_consumer.py\",\n      \"line\": 8,\n      \"kind\": \"comment_or_text\",\n      \"text\": \"# plain_target is intentionally mentioned in prose.  # G346_R1_NOISE_COMMENT\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"plain_target\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/plain.py\",\n      \"line\": 4,\n      \"kind\": \"definition\",\n      \"text\": \"def plain_target(value: int) -> int:  # G346_R1_DEF\"\n    },\n    {\n      \"path\": \"python/plain.py\",\n      \"line\": 9,\n      \"kind\": \"definition\",\n      \"text\": \"def plain_target(self, value: int) -> int:  # G346_R1_UNRELATED_METHOD\"\n    },\n    {\n      \"path\": \"python/plain.py\",\n      \"line\": 13,\n      \"kind\": \"string\",\n      \"text\": \"PLAIN_NAME = \\\"plain_target\\\"  # G346_R1_NOISE_STRING\"\n    },\n    {\n      \"path\": \"python/plain_consumer.py\",\n      \"line\": 1,\n      \"kind\": \"import\",\n      \"text\": \"from python.plain import plain_target  # G346_R1_IMPORT\"\n    },\n    {\n      \"path\": \"python/plain_consumer.py\",\n      \"line\": 5,\n      \"kind\": \"name_load\",\n      \"text\": \"return plain_target(4)  # G346_R1_CALL\"\n    },\n    {\n      \"path\": \"python/plain_consumer.py\",\n      \"line\": 8,\n      \"kind\": \"comment_or_text\",\n      \"text\": \"# plain_target is intentionally mentioned in prose.  # G346_R1_NOISE_COMMENT\"\n    }\n  ]\n}",
+      "case": "R1"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "refresh_models_endpoint",
+        "definition_path": "python/registry.py"
+      },
+      "elapsed_s": 0.0010548899954301305,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"refresh_models_endpoint\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/registry.py\",\n      \"line\": 4,\n      \"kind\": \"decorator_on_definition\",\n      \"text\": \"@router.post(\\\"/api/models/refresh\\\")  # G346_R2_ROUTE_DECORATOR\"\n    },\n    {\n      \"path\": \"python/registry.py\",\n      \"line\": 5,\n      \"kind\": \"definition\",\n      \"text\": \"def refresh_models_endpoint() -> dict:  # G346_R2_ROUTE_DEF\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"refresh_models_endpoint\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/registry.py\",\n      \"line\": 4,\n      \"kind\": \"decorator_on_definition\",\n      \"text\": \"@router.post(\\\"/api/models/refresh\\\")  # G346_R2_ROUTE_DECORATOR\"\n    },\n    {\n      \"path\": \"python/registry.py\",\n      \"line\": 5,\n      \"kind\": \"definition\",\n      \"text\": \"def refresh_models_endpoint() -> dict:  # G346_R2_ROUTE_DEF\"\n    }\n  ]\n}",
+      "case": "R2-route"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "update_progress",
+        "definition_path": "python/registry.py"
+      },
+      "elapsed_s": 0.0014381110013346188,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"update_progress\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/registry.py\",\n      \"line\": 9,\n      \"kind\": \"decorator_on_definition\",\n      \"text\": \"@mcp.tool()  # G346_R2_TOOL_DECORATOR\"\n    },\n    {\n      \"path\": \"python/registry.py\",\n      \"line\": 10,\n      \"kind\": \"definition\",\n      \"text\": \"def update_progress(percent: int) -> dict:  # G346_R2_TOOL_DEF\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"update_progress\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/registry.py\",\n      \"line\": 9,\n      \"kind\": \"decorator_on_definition\",\n      \"text\": \"@mcp.tool()  # G346_R2_TOOL_DECORATOR\"\n    },\n    {\n      \"path\": \"python/registry.py\",\n      \"line\": 10,\n      \"kind\": \"definition\",\n      \"text\": \"def update_progress(percent: int) -> dict:  # G346_R2_TOOL_DEF\"\n    }\n  ]\n}",
+      "case": "R2-tool"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "dynamic_target",
+        "definition_path": "python/dynamic_dispatch.py"
+      },
+      "elapsed_s": 0.001521309997770004,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"dynamic_target\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/dynamic_dispatch.py\",\n      \"line\": 4,\n      \"kind\": \"definition\",\n      \"text\": \"def dynamic_target() -> str:  # G346_R3_DEF\"\n    },\n    {\n      \"path\": \"python/dynamic_dispatch.py\",\n      \"line\": 12,\n      \"kind\": \"string\",\n      \"text\": \"DYNAMIC_ACTION = \\\"dynamic_target\\\"  # G346_R3_STRING_EDGE\"\n    },\n    {\n      \"path\": \"python/dynamic_dispatch.py\",\n      \"line\": 13,\n      \"kind\": \"comment_or_text\",\n      \"text\": \"# dynamic_target is also mentioned here but this comment is noise.  # G346_R3_NOISE_COMMENT\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"dynamic_target\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/dynamic_dispatch.py\",\n      \"line\": 4,\n      \"kind\": \"definition\",\n      \"text\": \"def dynamic_target() -> str:  # G346_R3_DEF\"\n    },\n    {\n      \"path\": \"python/dynamic_dispatch.py\",\n      \"line\": 12,\n      \"kind\": \"string\",\n      \"text\": \"DYNAMIC_ACTION = \\\"dynamic_target\\\"  # G346_R3_STRING_EDGE\"\n    },\n    {\n      \"path\": \"python/dynamic_dispatch.py\",\n      \"line\": 13,\n      \"kind\": \"comment_or_text\",\n      \"text\": \"# dynamic_target is also mentioned here but this comment is noise.  # G346_R3_NOISE_COMMENT\"\n    }\n  ]\n}",
+      "case": "R3"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "openDeleteOrchModal",
+        "definition_path": "web/app.js"
+      },
+      "elapsed_s": 0.0021990059976815246,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 8,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"openDeleteOrchModal\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"web/app.js\",\n      \"line\": 1,\n      \"kind\": \"definition\",\n      \"text\": \"function openDeleteOrchModal() { // G346_R4_DEF\"\n    },\n    {\n      \"path\": \"web/app.js\",\n      \"line\": 6,\n      \"kind\": \"code\",\n      \"text\": \"deleteButton.addEventListener(\\\"click\\\", openDeleteOrchModal); // G346_R4_JS_CALLBACK\"\n    },\n    {\n      \"path\": \"web/app.js\",\n      \"line\": 8,\n      \"kind\": \"string\",\n      \"text\": \"const helpText = \\\"openDeleteOrchModal\\\"; // G346_R4_NOISE_STRING\"\n    },\n    {\n      \"path\": \"web/app.js\",\n      \"line\": 9,\n      \"kind\": \"comment_or_text\",\n      \"text\": \"// openDeleteOrchModal is intentionally mentioned in a comment. // G346_R4_NOISE_COMMENT\"\n    },\n    {\n      \"path\": \"web/dashboard.html\",\n      \"line\": 2,\n      \"kind\": \"html\",\n      \"text\": \"<button id=\\\"delete-orch\\\" onclick=\\\"openDeleteOrchModal()\\\">Delete</button> <!-- G346_R4_HTML_EDGE -->\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"openDeleteOrchModal\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"web/app.js\",\n      \"line\": 1,\n      \"kind\": \"definition\",\n      \"text\": \"function openDeleteOrchModal() { // G346_R4_DEF\"\n    },\n    {\n      \"path\": \"web/app.js\",\n      \"line\": 6,\n      \"kind\": \"code\",\n      \"text\": \"deleteButton.addEventListener(\\\"click\\\", openDeleteOrchModal); // G346_R4_JS_CALLBACK\"\n    },\n    {\n      \"path\": \"web/app.js\",\n      \"line\": 8,\n      \"kind\": \"string\",\n      \"text\": \"const helpText = \\\"openDeleteOrchModal\\\"; // G346_R4_NOISE_STRING\"\n    },\n    {\n      \"path\": \"web/app.js\",\n      \"line\": 9,\n      \"kind\": \"comment_or_text\",\n      \"text\": \"// openDeleteOrchModal is intentionally mentioned in a comment. // G346_R4_NOISE_COMMENT\"\n    },\n    {\n      \"path\": \"web/dashboard.html\",\n      \"line\": 2,\n      \"kind\": \"html\",\n      \"text\": \"<button id=\\\"delete-orch\\\" onclick=\\\"openDeleteOrchModal()\\\">Delete</button> <!-- G346_R4_HTML_EDGE -->\"\n    }\n  ]\n}",
+      "case": "R4"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "dead_leaf",
+        "definition_path": "python/dead_cluster.py"
+      },
+      "elapsed_s": 0.0019867740047629923,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 9,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"dead_leaf\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/dead_cluster.py\",\n      \"line\": 4,\n      \"kind\": \"definition\",\n      \"text\": \"def dead_leaf() -> str:  # G346_R5_DEAD_LEAF_DEF\"\n    },\n    {\n      \"path\": \"python/dead_cluster.py\",\n      \"line\": 9,\n      \"kind\": \"name_load\",\n      \"text\": \"return dead_leaf()  # G346_R5_DEAD_INTERNAL_EDGE\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"dead_leaf\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/dead_cluster.py\",\n      \"line\": 4,\n      \"kind\": \"definition\",\n      \"text\": \"def dead_leaf() -> str:  # G346_R5_DEAD_LEAF_DEF\"\n    },\n    {\n      \"path\": \"python/dead_cluster.py\",\n      \"line\": 9,\n      \"kind\": \"name_load\",\n      \"text\": \"return dead_leaf()  # G346_R5_DEAD_INTERNAL_EDGE\"\n    }\n  ]\n}",
+      "case": "R5-dead-leaf"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "dead_root",
+        "definition_path": "python/dead_cluster.py"
+      },
+      "elapsed_s": 0.0015558259983663447,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 10,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"dead_root\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/dead_cluster.py\",\n      \"line\": 8,\n      \"kind\": \"definition\",\n      \"text\": \"def dead_root() -> str:  # G346_R5_DEAD_ROOT_DEF\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"dead_root\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/dead_cluster.py\",\n      \"line\": 8,\n      \"kind\": \"definition\",\n      \"text\": \"def dead_root() -> str:  # G346_R5_DEAD_ROOT_DEF\"\n    }\n  ]\n}",
+      "case": "R5-dead-root"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "live_root",
+        "definition_path": "python/dead_cluster.py"
+      },
+      "elapsed_s": 0.0010396600046078674,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"live_root\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/dead_cluster.py\",\n      \"line\": 12,\n      \"kind\": \"decorator_on_definition\",\n      \"text\": \"@router.post(\\\"/live\\\")  # G346_R5_LIVE_ROOT_EDGE\"\n    },\n    {\n      \"path\": \"python/dead_cluster.py\",\n      \"line\": 13,\n      \"kind\": \"definition\",\n      \"text\": \"def live_root() -> str:  # G346_R5_LIVE_ROOT_DEF\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"live_root\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/dead_cluster.py\",\n      \"line\": 12,\n      \"kind\": \"decorator_on_definition\",\n      \"text\": \"@router.post(\\\"/live\\\")  # G346_R5_LIVE_ROOT_EDGE\"\n    },\n    {\n      \"path\": \"python/dead_cluster.py\",\n      \"line\": 13,\n      \"kind\": \"definition\",\n      \"text\": \"def live_root() -> str:  # G346_R5_LIVE_ROOT_DEF\"\n    }\n  ]\n}",
+      "case": "R5-live-root"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "stale_target",
+        "definition_path": "python/stale.py"
+      },
+      "elapsed_s": 0.000999883995973505,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 12,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"stale_target\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/stale.py\",\n      \"line\": 1,\n      \"kind\": \"definition\",\n      \"text\": \"def stale_target() -> str:  # G346_R6_OLD_DEF\"\n    },\n    {\n      \"path\": \"python/stale.py\",\n      \"line\": 6,\n      \"kind\": \"name_load\",\n      \"text\": \"return stale_target()  # G346_R6_OLD_CALL\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"stale_target\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/stale.py\",\n      \"line\": 1,\n      \"kind\": \"definition\",\n      \"text\": \"def stale_target() -> str:  # G346_R6_OLD_DEF\"\n    },\n    {\n      \"path\": \"python/stale.py\",\n      \"line\": 6,\n      \"kind\": \"name_load\",\n      \"text\": \"return stale_target()  # G346_R6_OLD_CALL\"\n    }\n  ]\n}",
+      "case": "R6-old-before"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "stale_target",
+        "definition_path": "python/stale.py"
+      },
+      "elapsed_s": 0.0013542169981519692,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 13,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"stale_target\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": []\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"stale_target\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": []\n}",
+      "case": "R6-old-immediate"
+    },
+    {
+      "tool": "code_references",
+      "arguments": {
+        "symbol": "stale_renamed",
+        "definition_path": "python/stale.py"
+      },
+      "elapsed_s": 0.0015859680061112158,
+      "envelope": {
+        "jsonrpc": "2.0",
+        "id": 14,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"symbol\": \"stale_renamed\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/stale.py\",\n      \"line\": 1,\n      \"kind\": \"definition\",\n      \"text\": \"def stale_renamed() -> str:  # G346_R6_OLD_DEF\"\n    },\n    {\n      \"path\": \"python/stale.py\",\n      \"line\": 6,\n      \"kind\": \"name_load\",\n      \"text\": \"return stale_renamed()  # G346_R6_OLD_CALL\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      },
+      "text": "{\n  \"symbol\": \"stale_renamed\",\n  \"scope\": \"exact-name syntactic and lexical, not binding-resolved\",\n  \"rows\": [\n    {\n      \"path\": \"python/stale.py\",\n      \"line\": 1,\n      \"kind\": \"definition\",\n      \"text\": \"def stale_renamed() -> str:  # G346_R6_OLD_DEF\"\n    },\n    {\n      \"path\": \"python/stale.py\",\n      \"line\": 6,\n      \"kind\": \"name_load\",\n      \"text\": \"return stale_renamed()  # G346_R6_OLD_CALL\"\n    }\n  ]\n}",
+      "case": "R6-new-immediate"
+    }
+  ],
+  "post_query_sample": {
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/task346-light-c1.service",
+    "rss_bytes": 14352384,
+    "processes": [
+      {
+        "pid": 2096976,
+        "ppid": 1524,
+        "rss_bytes": 14352384,
+        "name": "python3"
+      }
+    ],
+    "memory_current": 7303168,
+    "memory_peak": 7368704,
+    "memory_swap_current": 0,
+    "memory_swap_peak": 0,
+    "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0\n"
+  },
+  "status": "ok",
+  "server_exit_code": 0,
+  "stderr": [],
+  "raw_protocol_lines": [
+    "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"protocolVersion\": \"2025-06-18\", \"capabilities\": {\"tools\": {}}, \"serverInfo\": {\"name\": \"light-codeintel-346\", \"version\": \"1\"}, \"instructions\": \"Use code_outline/code_references for structured navigation; keep native search for wider text and edits.\"}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 2, \"result\": {\"tools\": [{\"name\": \"code_outline\", \"description\": \"Return a compact top-level/nested symbol outline for one Python/JS/TS file. Read-only, no index.\", \"inputSchema\": {\"type\": \"object\", \"properties\": {\"path\": {\"type\": \"string\"}}, \"required\": [\"path\"]}}, {\"name\": \"code_references\", \"description\": \"Find and classify exact-name Python/JS/TS/HTML occurrences. Includes definitions, imports, decorators, strings and comments; syntactic/lexical, not binding-resolved. Read-only, no index.\", \"inputSchema\": {\"type\": \"object\", \"properties\": {\"symbol\": {\"type\": \"string\"}, \"definition_path\": {\"type\": \"string\", \"default\": \"\"}}, \"required\": [\"symbol\"]}}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 3, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"path\\\": \\\"python/plain.py\\\",\\n  \\\"symbols\\\": [\\n    {\\n      \\\"name\\\": \\\"plain_target\\\",\\n      \\\"kind\\\": \\\"FunctionDef\\\",\\n      \\\"line\\\": 4,\\n      \\\"end_line\\\": 5,\\n      \\\"owner\\\": null\\n    },\\n    {\\n      \\\"name\\\": \\\"Unrelated\\\",\\n      \\\"kind\\\": \\\"ClassDef\\\",\\n      \\\"line\\\": 8,\\n      \\\"end_line\\\": 10,\\n      \\\"owner\\\": null\\n    },\\n    {\\n      \\\"name\\\": \\\"plain_target\\\",\\n      \\\"kind\\\": \\\"FunctionDef\\\",\\n      \\\"line\\\": 9,\\n      \\\"end_line\\\": 10,\\n      \\\"owner\\\": \\\"Unrelated\\\"\\n    }\\n  ]\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 4, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"plain_target\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": [\\n    {\\n      \\\"path\\\": \\\"python/plain.py\\\",\\n      \\\"line\\\": 4,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"def plain_target(value: int) -> int:  # G346_R1_DEF\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/plain.py\\\",\\n      \\\"line\\\": 9,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"def plain_target(self, value: int) -> int:  # G346_R1_UNRELATED_METHOD\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/plain.py\\\",\\n      \\\"line\\\": 13,\\n      \\\"kind\\\": \\\"string\\\",\\n      \\\"text\\\": \\\"PLAIN_NAME = \\\\\\\"plain_target\\\\\\\"  # G346_R1_NOISE_STRING\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/plain_consumer.py\\\",\\n      \\\"line\\\": 1,\\n      \\\"kind\\\": \\\"import\\\",\\n      \\\"text\\\": \\\"from python.plain import plain_target  # G346_R1_IMPORT\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/plain_consumer.py\\\",\\n      \\\"line\\\": 5,\\n      \\\"kind\\\": \\\"name_load\\\",\\n      \\\"text\\\": \\\"return plain_target(4)  # G346_R1_CALL\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/plain_consumer.py\\\",\\n      \\\"line\\\": 8,\\n      \\\"kind\\\": \\\"comment_or_text\\\",\\n      \\\"text\\\": \\\"# plain_target is intentionally mentioned in prose.  # G346_R1_NOISE_COMMENT\\\"\\n    }\\n  ]\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 5, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"refresh_models_endpoint\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": [\\n    {\\n      \\\"path\\\": \\\"python/registry.py\\\",\\n      \\\"line\\\": 4,\\n      \\\"kind\\\": \\\"decorator_on_definition\\\",\\n      \\\"text\\\": \\\"@router.post(\\\\\\\"/api/models/refresh\\\\\\\")  # G346_R2_ROUTE_DECORATOR\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/registry.py\\\",\\n      \\\"line\\\": 5,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"def refresh_models_endpoint() -> dict:  # G346_R2_ROUTE_DEF\\\"\\n    }\\n  ]\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 6, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"update_progress\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": [\\n    {\\n      \\\"path\\\": \\\"python/registry.py\\\",\\n      \\\"line\\\": 9,\\n      \\\"kind\\\": \\\"decorator_on_definition\\\",\\n      \\\"text\\\": \\\"@mcp.tool()  # G346_R2_TOOL_DECORATOR\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/registry.py\\\",\\n      \\\"line\\\": 10,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"def update_progress(percent: int) -> dict:  # G346_R2_TOOL_DEF\\\"\\n    }\\n  ]\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 7, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"dynamic_target\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": [\\n    {\\n      \\\"path\\\": \\\"python/dynamic_dispatch.py\\\",\\n      \\\"line\\\": 4,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"def dynamic_target() -> str:  # G346_R3_DEF\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/dynamic_dispatch.py\\\",\\n      \\\"line\\\": 12,\\n      \\\"kind\\\": \\\"string\\\",\\n      \\\"text\\\": \\\"DYNAMIC_ACTION = \\\\\\\"dynamic_target\\\\\\\"  # G346_R3_STRING_EDGE\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/dynamic_dispatch.py\\\",\\n      \\\"line\\\": 13,\\n      \\\"kind\\\": \\\"comment_or_text\\\",\\n      \\\"text\\\": \\\"# dynamic_target is also mentioned here but this comment is noise.  # G346_R3_NOISE_COMMENT\\\"\\n    }\\n  ]\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 8, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"openDeleteOrchModal\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": [\\n    {\\n      \\\"path\\\": \\\"web/app.js\\\",\\n      \\\"line\\\": 1,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"function openDeleteOrchModal() { // G346_R4_DEF\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"web/app.js\\\",\\n      \\\"line\\\": 6,\\n      \\\"kind\\\": \\\"code\\\",\\n      \\\"text\\\": \\\"deleteButton.addEventListener(\\\\\\\"click\\\\\\\", openDeleteOrchModal); // G346_R4_JS_CALLBACK\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"web/app.js\\\",\\n      \\\"line\\\": 8,\\n      \\\"kind\\\": \\\"string\\\",\\n      \\\"text\\\": \\\"const helpText = \\\\\\\"openDeleteOrchModal\\\\\\\"; // G346_R4_NOISE_STRING\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"web/app.js\\\",\\n      \\\"line\\\": 9,\\n      \\\"kind\\\": \\\"comment_or_text\\\",\\n      \\\"text\\\": \\\"// openDeleteOrchModal is intentionally mentioned in a comment. // G346_R4_NOISE_COMMENT\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"web/dashboard.html\\\",\\n      \\\"line\\\": 2,\\n      \\\"kind\\\": \\\"html\\\",\\n      \\\"text\\\": \\\"<button id=\\\\\\\"delete-orch\\\\\\\" onclick=\\\\\\\"openDeleteOrchModal()\\\\\\\">Delete</button> <!-- G346_R4_HTML_EDGE -->\\\"\\n    }\\n  ]\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 9, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"dead_leaf\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": [\\n    {\\n      \\\"path\\\": \\\"python/dead_cluster.py\\\",\\n      \\\"line\\\": 4,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"def dead_leaf() -> str:  # G346_R5_DEAD_LEAF_DEF\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/dead_cluster.py\\\",\\n      \\\"line\\\": 9,\\n      \\\"kind\\\": \\\"name_load\\\",\\n      \\\"text\\\": \\\"return dead_leaf()  # G346_R5_DEAD_INTERNAL_EDGE\\\"\\n    }\\n  ]\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 10, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"dead_root\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": [\\n    {\\n      \\\"path\\\": \\\"python/dead_cluster.py\\\",\\n      \\\"line\\\": 8,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"def dead_root() -> str:  # G346_R5_DEAD_ROOT_DEF\\\"\\n    }\\n  ]\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 11, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"live_root\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": [\\n    {\\n      \\\"path\\\": \\\"python/dead_cluster.py\\\",\\n      \\\"line\\\": 12,\\n      \\\"kind\\\": \\\"decorator_on_definition\\\",\\n      \\\"text\\\": \\\"@router.post(\\\\\\\"/live\\\\\\\")  # G346_R5_LIVE_ROOT_EDGE\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/dead_cluster.py\\\",\\n      \\\"line\\\": 13,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"def live_root() -> str:  # G346_R5_LIVE_ROOT_DEF\\\"\\n    }\\n  ]\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 12, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"stale_target\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": [\\n    {\\n      \\\"path\\\": \\\"python/stale.py\\\",\\n      \\\"line\\\": 1,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"def stale_target() -> str:  # G346_R6_OLD_DEF\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/stale.py\\\",\\n      \\\"line\\\": 6,\\n      \\\"kind\\\": \\\"name_load\\\",\\n      \\\"text\\\": \\\"return stale_target()  # G346_R6_OLD_CALL\\\"\\n    }\\n  ]\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 13, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"stale_target\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": []\\n}\"}]}}",
+    "{\"jsonrpc\": \"2.0\", \"id\": 14, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"{\\n  \\\"symbol\\\": \\\"stale_renamed\\\",\\n  \\\"scope\\\": \\\"exact-name syntactic and lexical, not binding-resolved\\\",\\n  \\\"rows\\\": [\\n    {\\n      \\\"path\\\": \\\"python/stale.py\\\",\\n      \\\"line\\\": 1,\\n      \\\"kind\\\": \\\"definition\\\",\\n      \\\"text\\\": \\\"def stale_renamed() -> str:  # G346_R6_OLD_DEF\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"python/stale.py\\\",\\n      \\\"line\\\": 6,\\n      \\\"kind\\\": \\\"name_load\\\",\\n      \\\"text\\\": \\\"return stale_renamed()  # G346_R6_OLD_CALL\\\"\\n    }\\n  ]\\n}\"}]}}"
+  ],
+  "samples": [
+    {
+      "rss_bytes": 7254016,
+      "processes": [
+        {
+          "pid": 2096966,
+          "ppid": 2096965,
+          "rss_bytes": 7254016,
+          "name": "systemd-run"
+        }
+      ],
+      "cgroup": {
+        "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/task346-light-c1.service",
+        "rss_bytes": 13254656,
+        "processes": [
+          {
+            "pid": 2096976,
+            "ppid": 1524,
+            "rss_bytes": 13254656,
+            "name": "python3"
+          }
+        ],
+        "memory_current": 6135808,
+        "memory_peak": 6135808,
+        "memory_swap_current": 0,
+        "memory_swap_peak": 0,
+        "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0\n"
+      },
+      "elapsed_s": 0.04886688799888361
+    },
+    {
+      "rss_bytes": 0,
+      "processes": [
+        {
+          "pid": 2096966,
+          "ppid": 2096965,
+          "rss_bytes": 0,
+          "name": "systemd-run"
+        }
+      ],
+      "cgroup": null,
+      "elapsed_s": 0.12368378700193716
+    }
+  ],
+  "peak_tree_rss_bytes": 7254016,
+  "peak_cgroup_rss_bytes": 13254656,
+  "peak_cgroup_memory_bytes": 6135808,
+  "loadavg_end": [
+    4.3779296875,
+    4.2275390625,
+    3.369140625
+  ],
+  "wall_elapsed_s": 0.12886361900018528,
+  "ended_wall": 1787589425.176734
+}

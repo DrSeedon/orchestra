@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"01a034c4-e0d7-7832-b7a0-e1d0e39ddc37"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Проверяю конфигурацию Serena единственным разрешённым вызовом и сразу верну три запрошенных значения."}}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"SERENA_UNAVAILABLE"}}
+{"type":"turn.completed","usage":{"input_tokens":35959,"cached_input_tokens":26112,"cache_write_input_tokens":0,"output_tokens":171,"reasoning_output_tokens":90}}

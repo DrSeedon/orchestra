@@ -1,0 +1,9 @@
+run=c2-valid
+arm=c
+repo=/mnt/data/task346-serena.tHyHCU/luna-c2-valid
+loadavg_start=3.06 4.35 5.14 3/3152 2217669
+codex_version=codex-cli 0.149.1
+command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-c2-valid -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+command_extra=-c mcp_servers.light346.command=\"systemd-run\" -c mcp_servers.light346.args=\[\"--user\"\,\"--pipe\"\,\"--wait\"\,\"--collect\"\,\"--quiet\"\,\"--unit=task346-eval-c2-valid-light\"\,\"-p\"\,\"MemoryMax=128M\"\,\"-p\"\,\"CPUQuota=100%\"\,\"-p\"\,\"TasksMax=32\"\,\"-p\"\,\"WorkingDirectory=/mnt/data/task346-serena.tHyHCU/luna-c2-valid\"\,\"--\"\,\"python3\"\,\"/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-serena-agents/docs/tasks/346/eval/light_codeintel_mcp.py\"\] -c mcp_servers.light346.startup_timeout_sec=30 -c mcp_servers.light346.tool_timeout_sec=120 
+codex_exit=0
+loadavg_end=5.55 4.92 5.27 2/3072 2227423

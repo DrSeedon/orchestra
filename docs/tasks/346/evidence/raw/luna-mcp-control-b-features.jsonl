@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"01a034c7-5435-7a51-9622-acff7b66f125"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Ну конечно, конфигурация сама себя не покажет 🙂 Сейчас запрошу её единственным допустимым способом."}}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"SERENA_UNAVAILABLE"}}
+{"type":"turn.completed","usage":{"input_tokens":35961,"cached_input_tokens":26112,"cache_write_input_tokens":0,"output_tokens":171,"reasoning_output_tokens":92}}

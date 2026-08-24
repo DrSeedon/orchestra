@@ -1,0 +1,177 @@
+/mnt/data/task346-serena.tHyHCU/wheel/serena/constants.py:7:SERENA_MANAGED_DIR_NAME = ".serena"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/constants.py:19:SERENA_DASHBOARD_DIR = str(_resources_path / "dashboard")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/constants.py:20:SERENA_ICON_DIR = str(_resources_path / "icons")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/constants.py:26:SERENA_FILE_ENCODING = "utf-8"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/constants.py:31:SERENA_CONFIG_TEMPLATE_FILE = str(_resources_path / "serena_config.template.yml")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/constants.py:33:SERENA_LOG_FORMAT = "%(levelname)-5s %(asctime)-15s [%(threadName)s] %(name)s:%(funcName)s:%(lineno)d - %(message)s"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/tools/memory_tools.py:29:            max_chars = self.agent.serena_config.default_max_tool_answer_chars
+/mnt/data/task346-serena.tHyHCU/wheel/serena/mcp.py:27:from serena.config.serena_config import LanguageBackend, ModeSelectionDefinition, SerenaConfig
+/mnt/data/task346-serena.tHyHCU/wheel/serena/mcp.py:28:from serena.constants import DEFAULT_CONTEXT, SERENA_LOG_FORMAT
+/mnt/data/task346-serena.tHyHCU/wheel/serena/mcp.py:40:        logging.basicConfig(level=logging.INFO, stream=sys.stderr, format=SERENA_LOG_FORMAT)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/ls_manager.py:10:from serena.config.serena_config import ProjectConfig, SerenaPaths
+/mnt/data/task346-serena.tHyHCU/wheel/serena/ls_manager.py:64:                solidlsp_dir=SerenaPaths().serena_user_home_dir,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/dashboard.py:25:from serena.config.serena_config import SerenaConfig, SerenaPaths
+/mnt/data/task346-serena.tHyHCU/wheel/serena/dashboard.py:26:from serena.constants import SERENA_DASHBOARD_DIR, SerenaPorts
+/mnt/data/task346-serena.tHyHCU/wheel/serena/dashboard.py:259:            return send_from_directory(SERENA_DASHBOARD_DIR, filename)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/dashboard.py:263:            return send_from_directory(SERENA_DASHBOARD_DIR, "index.html")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/dashboard.py:541:        for proj in self._agent.serena_config.projects:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/dashboard.py:697:        config_path = self._agent.serena_config.config_file_path
+/mnt/data/task346-serena.tHyHCU/wheel/serena/dashboard.py:708:            config_path = self._agent.serena_config.config_file_path
+/mnt/data/task346-serena.tHyHCU/wheel/serena/dashboard.py:887:        dashboard_path = Path(SERENA_DASHBOARD_DIR)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/dashboard.py:904:            app_id="oraios.serena",
+/mnt/data/task346-serena.tHyHCU/wheel/serena/dashboard.py:1182:        dashboard_path = Path(SERENA_DASHBOARD_DIR)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/serena_config.template.yml:197:# template for the location of the per-project .serena data folder (memories, caches, etc.).
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/serena_config.template.yml:201:# Default: "$projectDir/.serena" (data stored inside the project directory)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/serena_config.template.yml:202:# Example for a central location: "/projects-metadata/$projectFolderName/.serena"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/serena_config.template.yml:203:project_serena_folder_location: "$projectDir/.serena"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/tools/query_project_tools.py:3:from serena.config.serena_config import LanguageBackend
+/mnt/data/task346-serena.tHyHCU/wheel/serena/tools/query_project_tools.py:22:        registered_projects = self.agent.serena_config.projects
+/mnt/data/task346-serena.tHyHCU/wheel/serena/tools/query_project_tools.py:61:            registered_project = self.agent.serena_config.get_registered_project(project_name)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/tools/query_project_tools.py:63:            project = registered_project.get_project_instance(self.agent.serena_config)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project.py:12:from serena.config.serena_config import (
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project.py:44:        self.serena_config = serena_config
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project.py:71:                f.write(f"/{ProjectConfig.SERENA_LOCAL_PROJECT_FILE}\n")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project.py:83:                global_ignored_paths = self.serena_config.ignored_paths
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project.py:134:            return self.serena_config.determine_language_backend(self.project_config)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project.py:160:        return self.serena_config.get_project_yml_location(self.project_root)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project.py:168:        return self.serena_config.is_trusted_project_path(self.project_root)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project.py:503:            tool_timeout = self.serena_config.tool_timeout
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project.py:519:            ls_specific_settings = dict(self.serena_config.ls_specific_settings)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project.py:536:                trace_lsp_communication=self.serena_config.trace_lsp_communication,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:31:    SERENA_CONFIG_TEMPLATE_FILE,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:32:    SERENA_FILE_ENCODING,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:33:    SERENA_MANAGED_DIR_NAME,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:63:        home_dir = os.getenv("SERENA_HOME")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:65:            home_dir = str(Path.home() / SERENA_MANAGED_DIR_NAME)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:72:        self.serena_user_home_dir: str = home_dir
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:75:        This is ~/.serena by default, but it can be overridden via the SERENA_HOME environment variable.
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:77:        self.user_prompt_templates_dir: str = os.path.join(self.serena_user_home_dir, "prompt_templates")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:82:        self.user_contexts_dir: str = os.path.join(self.serena_user_home_dir, "contexts")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:88:        self.user_modes_dir: str = os.path.join(self.serena_user_home_dir, "modes")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:94:        self.news_legacy_last_read_id_file: str = os.path.join(self.serena_user_home_dir, "last_read_news_snippet_id.txt")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:98:        self.news_read_items_file: str = os.path.join(self.serena_user_home_dir, "news_read.pkl")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:102:        self.news_etag_file: str = os.path.join(self.serena_user_home_dir, "news_etag.txt")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:106:        self.news_file: str = os.path.join(self.serena_user_home_dir, "news.json")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:114:        global_memories_path = Path(os.path.join(self.serena_user_home_dir, "memories", "global"))
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:131:        log_dir = os.path.join(self.serena_user_home_dir, "logs", datetime.now().strftime("%Y-%m-%d"))
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:295:DEFAULT_PROJECT_SERENA_FOLDER_LOCATION = "$projectDir/" + SERENA_MANAGED_DIR_NAME
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:339:    SERENA_PROJECT_FILE = "project.yml"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:340:    SERENA_LOCAL_PROJECT_FILE = "project.local.yml"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:467:                project_local_yml_path = os.path.join(os.path.dirname(project_yml_path), cls.SERENA_LOCAL_PROJECT_FILE)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:510:        :return: the default path to the project.yml file (inside ``$projectDir/.serena/``).
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:514:        return os.path.join(str(project_root), SERENA_MANAGED_DIR_NAME, cls.SERENA_PROJECT_FILE)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:680:        return os.path.join(os.path.dirname(project_yml_path), cls.SERENA_LOCAL_PROJECT_FILE)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:913:    project_serena_folder_location: str = DEFAULT_PROJECT_SERENA_FOLDER_LOCATION
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:915:    Template for the location of the per-project .serena data folder (memories, caches, etc.).
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:920:      - "$projectDir/.serena" (default, stores data inside the project)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:921:      - "/projects-metadata/$projectFolderName/.serena" (stores data in a central location)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:964:    CONFIG_FILE = "serena_config.yml"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1006:        loaded_commented_yaml = load_yaml(SERENA_CONFIG_TEMPLATE_FILE)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1014:        config_path = os.path.join(SerenaPaths().serena_user_home_dir, cls.CONFIG_FILE)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1064:            raise SerenaConfigError("`projects` key not found in Serena configuration. Please update your `serena_config.yml` file.")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1087:                    ".serena/project.yml (or remove it from "
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1088:                    "serena_config.yml) to re-enable it.",
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1154:            with open(path, encoding=SERENA_FILE_ENCODING) as f:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1158:                with open(path, "a", encoding=SERENA_FILE_ENCODING) as f:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1346:        template_yaml = load_yaml(SERENA_CONFIG_TEMPLATE_FILE, comment_normalisation=YamlCommentNormalisation.LEADING)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1357:        :param template: the template string (e.g. ``"$projectDir/.serena"``)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1377:        Returns the resolved absolute path to the .serena data folder for a project,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1382:        :return: the resolved absolute path to the project's .serena folder
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1394:        Resolves the location of the project's .serena data folder using fallback logic:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1401:        :return: the resolved absolute path to the .serena data folder
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1407:        default_path = os.path.join(str(project_root), SERENA_MANAGED_DIR_NAME)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1415:        based on the resolved .serena data folder (with fallback logic).
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/serena_config.py:1421:        return os.path.join(serena_folder, ProjectConfig.SERENA_PROJECT_FILE)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/gui_log_viewer.py:234:                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("oraios.serena")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/gui_log_viewer.py:246:            dashboard_path = Path(constants.SERENA_DASHBOARD_DIR)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/tools/config_tools.py:53:        self.agent.serena_config.remove_project(project_name)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/context_mode.py:14:from serena.config.serena_config import SerenaPaths, ToolInclusionDefinition
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/context_mode.py:18:    SERENA_FILE_ENCODING,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/context_mode.py:72:        with Path(yaml_as_path).open(encoding=SERENA_FILE_ENCODING) as f:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/config/context_mode.py:199:        with yaml_as_path.open(encoding=SERENA_FILE_ENCODING) as f:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/util/pywebview.py:80:            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("oraios.serena")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/util/yaml.py:12:from serena.constants import SERENA_FILE_ENCODING
+/mnt/data/task346-serena.tHyHCU/wheel/serena/util/yaml.py:71:    with open(path, encoding=SERENA_FILE_ENCODING) as f:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/util/yaml.py:224:        with os.fdopen(fd, "w", encoding=SERENA_FILE_ENCODING) as f:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/tools/tools_base.py:16:from serena.config.serena_config import LanguageBackend
+/mnt/data/task346-serena.tHyHCU/wheel/serena/tools/tools_base.py:296:            max_answer_chars = self.agent.serena_config.default_max_tool_answer_chars
+/mnt/data/task346-serena.tHyHCU/wheel/serena/tools/tools_base.py:371:                            + f"{self.agent.serena_config.project_names}"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/tools/tools_base.py:424:        timeout = self.agent.serena_config.tool_timeout
+/mnt/data/task346-serena.tHyHCU/wheel/serena/util/logging.py:9:from serena.constants import LOG_MESSAGES_BUFFER_SIZE, SERENA_LOG_FORMAT
+/mnt/data/task346-serena.tHyHCU/wheel/serena/util/logging.py:29:        self.setFormatter(logging.Formatter(SERENA_LOG_FORMAT))
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/project.template.yml:63:# If not set, the global setting from serena_config.yml is used.
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/project.template.yml:109:# Note: global ignored_paths from serena_config.yml are also applied additively.
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/project.template.yml:134:# If the setting is undefined/empty, the default_modes from the global configuration (serena_config.yml) apply.
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/project.template.yml:135:# Otherwise, this overrides the setting from the global configuration (serena_config.yml).
+/mnt/data/task346-serena.tHyHCU/wheel/serena/memories/memory_manager.py:9:from serena.config.serena_config import (
+/mnt/data/task346-serena.tHyHCU/wheel/serena/memories/memory_manager.py:12:from serena.constants import SERENA_FILE_ENCODING
+/mnt/data/task346-serena.tHyHCU/wheel/serena/memories/memory_manager.py:37:        :param serena_data_folder: the absolute path to the project's .serena data folder
+/mnt/data/task346-serena.tHyHCU/wheel/serena/memories/memory_manager.py:47:        self._encoding = SERENA_FILE_ENCODING
+/mnt/data/task346-serena.tHyHCU/wheel/serena/memories/memory_manager.py:256:        (e.g. a monorepo whose ``.serena/memories`` folder symlinks each submodule's memory
+/mnt/data/task346-serena.tHyHCU/wheel/serena/hooks.py:18:serena_home_dir = os.getenv("SERENA_HOME", "").strip() or str(Path.home() / ".serena")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/hooks.py:52:    _NON_SYMBOLIC_SERENA_TOOL_NAME_SUBSTRINGS = frozenset(
+/mnt/data/task346-serena.tHyHCU/wheel/serena/hooks.py:111:            substring in self._tool_name for substring in self._NON_SYMBOLIC_SERENA_TOOL_NAME_SUBSTRINGS
+/mnt/data/task346-serena.tHyHCU/wheel/serena/prompt_factory.py:3:from serena.config.serena_config import SerenaPaths
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project_server.py:11:from serena.config.serena_config import LanguageBackend, SerenaConfig
+/mnt/data/task346-serena.tHyHCU/wheel/serena/project_server.py:89:        serena_config = self._agent.serena_config
+/mnt/data/task346-serena.tHyHCU/wheel/serena/symbol.py:626:        symbol_info_budget = self.project.serena_config.symbol_info_budget
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:23:from serena.config.serena_config import (
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:35:    SERENA_LOG_FORMAT,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:70:    (contains .serena/project.yml) or a git root (contains .git, which may be a
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:72:    such directory wins; a .serena/project.yml at the same level takes priority
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:76:    .serena/project.yml first and only then for .git) ensures a git worktree
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:78:    of being hijacked by the ancestor project's .serena/project.yml.
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:96:    # Serena project (.serena/project.yml) or a git root (.git, a dir or a worktree
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:98:    # ancestor's .serena/project.yml.
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:100:        if (directory / ".serena" / "project.yml").is_file() or (directory / ".git").exists():
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:316:        help="Auto-detect project from current working directory (nearest ancestor containing .serena/project.yml or .git). If none is found, no project is activated. Intended for CLI-based agents like Claude Code, Gemini and Codex.",
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:344:        formatter = logging.Formatter(SERENA_LOG_FORMAT)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:368:                    f"No project root found from cwd={os.getcwd()} (no .serena/project.yml or .git found); "
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:477:        formatter = logging.Formatter(SERENA_LOG_FORMAT)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:674:        help="Edit serena_config.yml in your default editor. Will create a config file from the template if no config is found.",
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:810:            log_file = os.path.join(proj.project_root, ".serena", "logs", "indexing.txt")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:941:        log_dir = os.path.join(project_path, ".serena", "logs", "health-checks")
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:1126:        Requires the project to already be a Serena project (``.serena/project.yml`` must
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:1127:        exist at the configured location). Never auto-creates the ``.serena`` directory —
+/mnt/data/task346-serena.tHyHCU/wheel/serena/cli.py:1142:            "this command does not create a `.serena` directory on its own. "
+/mnt/data/task346-serena.tHyHCU/wheel/serena/jetbrains/jetbrains_plugin_client.py:20:from serena.config.serena_config import RegisteredProject
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:32:from serena.config.serena_config import (
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:574:        self.serena_config = serena_config or SerenaConfig.from_config_file()
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:577:        self.serena_config.propagate_settings()
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:581:            self.serena_config.get_registered_project(project, autoregister=True) if project is not None else None
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:585:        serena_log_level = self.serena_config.log_level
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:598:        if self.serena_config.gui_log_window:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:630:        token_count_estimator = RegisteredTokenCountEstimator[self.serena_config.token_count_estimator]
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:637:            f"language backend={self.serena_config.language_backend.name}); Python version={platform.python_version()}, platform={platform.platform()}"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:639:        log.info("Configuration file: %s", self.serena_config.config_file_path)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:640:        log.info("Available projects: {}".format(", ".join(self.serena_config.project_names)))
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:648:        self._language_backend = self.serena_config.determine_language_backend(
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:679:        self._base_toolset = self._create_base_toolset(self.serena_config, self._context, self._active_modes, self._active_project)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:689:        if self.serena_config.web_dashboard:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:695:                host=self.serena_config.web_dashboard_listen_address,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:696:                trusted_hosts=self.serena_config.web_dashboard_trusted_hosts,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:712:                self.serena_config.web_dashboard_listen_address,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:713:                self.serena_config.web_dashboard_open_on_launch,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:715:                mode_str=self.serena_config.web_dashboard_interface,
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:725:        if os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true" or os.getenv("SERENA_USAGE_REPORTING") == "false":
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:729:            "dashboard": int(self.serena_config.web_dashboard),
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:846:        if self.serena_config.web_dashboard:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:1008:        return MemoryManager(serena_data_folder=None, read_only_memory_patterns=self.serena_config.read_only_memory_patterns)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:1120:        self._active_modes.apply(self.serena_config)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:1330:                if self.serena_config.jetbrains_launch_command:
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:1331:                    cmd = subprocess_util.convert_shell_cmd([self.serena_config.jetbrains_launch_command, project.project_root])
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:1349:        project_instance: Project | None = self.serena_config.get_project(project_root_or_name)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:1353:            project_instance = self.serena_config.add_project_from_path(project_root_or_name, asynchronous_autogen=True)
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:1359:                f"Existing project names: {self.serena_config.project_names}"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:1390:        result_str += f"Loglevel: {self.serena_config.log_level}, trace_lsp_communication={self.serena_config.trace_lsp_communication}\n"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:1398:        result_str += f" (global default: {self.serena_config.language_backend.value})\n"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/agent.py:1401:        result_str += "Available projects:\n" + "\n".join(list(self.serena_config.project_names)) + "\n"
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/dashboard/dashboard.js:261:        this.serenaConfigContentDirty = false;
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/dashboard/dashboard.js:621:            html += '<div class="config-label">Version:</div><div class="config-value">' + config.serena_version;
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/dashboard/dashboard.js:631:                const configPath = config.active_project.path + '/.serena/project.yml';
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/dashboard/dashboard.js:2299:        this.serenaConfigContentDirty = false;
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/dashboard/dashboard.js:2310:                self.serenaConfigContentDirty = false;
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/dashboard/dashboard.js:2321:            self.serenaConfigContentDirty = (currentContent !== self.originalSerenaConfigContent);
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/dashboard/dashboard.js:2327:        if (this.serenaConfigContentDirty) {
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/dashboard/dashboard.js:2335:        this.serenaConfigContentDirty = false;
+/mnt/data/task346-serena.tHyHCU/wheel/serena/resources/dashboard/dashboard.js:2352:                    self.serenaConfigContentDirty = false;

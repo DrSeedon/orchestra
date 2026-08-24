@@ -1,0 +1,9 @@
+run=b2-valid
+arm=b
+repo=/mnt/data/task346-serena.tHyHCU/luna-b2-valid
+loadavg_start=4.15 5.60 5.82 4/3072 2173500
+codex_version=codex-cli 0.149.1
+command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-b2-valid -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+command_extra=-c mcp_servers.serena346.command=\"systemd-run\" -c mcp_servers.serena346.args=\[\"--user\"\,\"--pipe\"\,\"--wait\"\,\"--collect\"\,\"--quiet\"\,\"--unit=task346-eval-b2-valid-serena\"\,\"-p\"\,\"MemoryMax=1G\"\,\"-p\"\,\"CPUQuota=200%\"\,\"-p\"\,\"TasksMax=128\"\,\"-p\"\,\"WorkingDirectory=/mnt/data/task346-serena.tHyHCU/luna-b2-valid\"\,\"--\"\,\"env\"\,\"SERENA_HOME=/mnt/data/task346-serena.tHyHCU/serena-home-b2-valid\"\,\"SERENA_USAGE_REPORTING=false\"\,\"UV_CACHE_DIR=/mnt/data/task346-serena.tHyHCU/uv-cache-b2-valid\"\,\"PATH=/home/maxim/.local/bin:/usr/local/bin:/usr/bin:/bin\"\,\"/mnt/data/task346-serena.tHyHCU/venv/bin/serena\"\,\"start-mcp-server\"\,\"--context\"\,\"codex\"\,\"--project\"\,\"/mnt/data/task346-serena.tHyHCU/luna-b2-valid\"\,\"--enable-web-dashboard\"\,\"false\"\,\"--open-web-dashboard\"\,\"false\"\,\"--log-level\"\,\"ERROR\"\,\"--tool-timeout\"\,\"120\"\] -c mcp_servers.serena346.startup_timeout_sec=120 -c mcp_servers.serena346.tool_timeout_sec=120 
+codex_exit=0
+loadavg_end=4.25 5.31 5.69 10/3053 2182669

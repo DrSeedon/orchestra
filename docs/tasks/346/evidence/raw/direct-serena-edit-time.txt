@@ -1,0 +1,23 @@
+	Command being timed: "python3 docs/tasks/346/eval/mcp_measure.py --name direct-serena-edit --scenario serena-edit --cwd /mnt/data/task346-serena.tHyHCU/direct-serena-edit --command-json ["systemd-run","--user","--pipe","--wait","--collect","--quiet","--unit=task346-direct-serena-edit","-p","MemoryMax=1G","-p","CPUQuota=200%","-p","TasksMax=128","-p","WorkingDirectory=/mnt/data/task346-serena.tHyHCU/direct-serena-edit","--","env","SERENA_HOME=/mnt/data/task346-serena.tHyHCU/serena-home-direct-edit","SERENA_USAGE_REPORTING=false","UV_CACHE_DIR=/mnt/data/task346-serena.tHyHCU/uv-cache-direct-edit","PATH=/home/maxim/.local/bin:/usr/local/bin:/usr/bin:/bin","/mnt/data/task346-serena.tHyHCU/venv/bin/serena","start-mcp-server","--context","codex","--project","/mnt/data/task346-serena.tHyHCU/direct-serena-edit","--enable-web-dashboard","false","--open-web-dashboard","false","--log-level","ERROR","--tool-timeout","120"] --systemd-unit task346-direct-serena-edit"
+	User time (seconds): 2.58
+	System time (seconds): 1.47
+	Percent of CPU this job got: 43%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:09.26
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 18848
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 6
+	Minor (reclaiming a frame) page faults: 4023
+	Voluntary context switches: 2030
+	Involuntary context switches: 777
+	Swaps: 0
+	File system inputs: 368
+	File system outputs: 480
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

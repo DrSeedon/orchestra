@@ -1,0 +1,2 @@
+{"type":"agent_message","name":null,"server":null,"tool":null,"arguments":null,"text":"Проверяю состояние Serena через единственный разрешённый вызов конфигурации."}
+{"type":"agent_message","name":null,"server":null,"tool":null,"arguments":null,"text":"SERENA_UNAVAILABLE"}

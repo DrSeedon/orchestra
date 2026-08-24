@@ -1,0 +1,40 @@
+docs/tasks/346/evidence/raw/luna-a1-valid.jsonl
+      5 agent_message
+      9 command_execution
+      3 file_change
+{"input_tokens":482672,"cached_input_tokens":422400,"cache_write_input_tokens":0,"output_tokens":5971,"reasoning_output_tokens":1974}
+docs/tasks/346/evidence/raw/luna-b1-valid.jsonl
+      6 agent_message
+      6 command_execution
+      1 file_change
+{"input_tokens":409289,"cached_input_tokens":370688,"cache_write_input_tokens":0,"output_tokens":3076,"reasoning_output_tokens":1318}
+docs/tasks/346/evidence/raw/luna-a2-valid.jsonl
+      6 agent_message
+     14 command_execution
+     34 file_change
+{"input_tokens":758876,"cached_input_tokens":687360,"cache_write_input_tokens":0,"output_tokens":9089,"reasoning_output_tokens":2357}
+docs/tasks/346/evidence/raw/luna-b2-valid.jsonl
+      8 agent_message
+      9 command_execution
+     29 file_change
+{"input_tokens":543702,"cached_input_tokens":492544,"cache_write_input_tokens":0,"output_tokens":6919,"reasoning_output_tokens":1470}
+docs/tasks/346/evidence/raw/luna-a3-valid.jsonl
+      6 agent_message
+      9 command_execution
+      2 file_change
+{"input_tokens":413575,"cached_input_tokens":361472,"cache_write_input_tokens":0,"output_tokens":5126,"reasoning_output_tokens":1065}
+docs/tasks/346/evidence/raw/luna-c1-valid.jsonl
+      7 agent_message
+      8 command_execution
+      2 file_change
+{"input_tokens":414271,"cached_input_tokens":372480,"cache_write_input_tokens":0,"output_tokens":4171,"reasoning_output_tokens":1717}
+docs/tasks/346/evidence/raw/luna-a4-valid.jsonl
+      6 agent_message
+      8 command_execution
+      3 file_change
+{"input_tokens":576750,"cached_input_tokens":514304,"cache_write_input_tokens":0,"output_tokens":6769,"reasoning_output_tokens":1898}
+docs/tasks/346/evidence/raw/luna-c2-valid.jsonl
+      5 agent_message
+      6 command_execution
+      1 file_change
+{"input_tokens":327994,"cached_input_tokens":296192,"cache_write_input_tokens":0,"output_tokens":2881,"reasoning_output_tokens":1106}

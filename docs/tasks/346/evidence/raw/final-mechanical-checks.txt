@@ -1,0 +1,27 @@
+PY_COMPILE
+BASH_SYNTAX
+JSON_PARSE
+Extra data: line 9 column 1 (char 107)
+Extra data: line 59 column 1 (char 987)
+REQUIRED_SECTIONS
+3:## Question
+21:## Hypotheses considered
+34:## Findings
+163:## Counter-evidence
+180:## Verdict and recommendation
+197:## Affected files, risks, and edge cases for any future phase
+225:## Sources
+KB_SECTIONS
+3:## Установлено
+15:## Отвергнуто
+22:## Пробелы
+29:## Источники
+PROTOCOL_SHA
+59e9ab52411ef04f9f35668306257205cb807ed4921cd811aa8b50acdec2181b  docs/tasks/346/protocol.md
+SECRET_SCAN
+secret_scan_exit=1 (1 means no matches)
+DIFF_CHECK
+STATUS
+?? docs/kb/agent-code-intelligence.md
+?? docs/tasks/346/
+?? docs/workers/research-serena-agents.md

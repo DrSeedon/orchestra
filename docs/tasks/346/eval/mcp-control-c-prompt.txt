@@ -1,0 +1,4 @@
+Do not inspect or edit files with native shell tools. Call the light code-intelligence MCP tool
+`code_outline` exactly once for `app/limits_card.py`, then report whether `pace_text` appears in
+its result. If the tool is unavailable, say exactly `LIGHT_UNAVAILABLE`.
+

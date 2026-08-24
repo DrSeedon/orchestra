@@ -1,0 +1,8 @@
+CACHED_DIFF_CHECK
+UNSTAGED
+UNTRACKED
+docs/tasks/346/evidence/raw/precommit-final.txt
+STAGED_FILES
+208
+STAGED_STAT
+ 208 files changed, 60643 insertions(+)

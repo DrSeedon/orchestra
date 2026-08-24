@@ -1,0 +1,12 @@
+PY_COMPILE
+BASH_SYNTAX
+JSON_PARSE
+SECRET_SCAN
+LOCAL_LINKS
+exit_code=0
+STATUS
+?? docs/kb/agent-code-intelligence.md
+?? docs/tasks/346/
+?? docs/workers/research-serena-agents.md
+SIZE
+4.6M	docs/tasks/346

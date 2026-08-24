@@ -1,0 +1,1751 @@
+docs/kb/agent-code-intelligence.md:34: new blank line at EOF.
+docs/tasks/346/corpus/fixture/python/dead_cluster.py:15: new blank line at EOF.
+docs/tasks/346/corpus/fixture/python/dynamic_dispatch.py:14: new blank line at EOF.
+docs/tasks/346/corpus/fixture/python/framework.py:20: new blank line at EOF.
+docs/tasks/346/corpus/fixture/python/plain.py:14: new blank line at EOF.
+docs/tasks/346/corpus/fixture/python/plain_consumer.py:9: new blank line at EOF.
+docs/tasks/346/corpus/fixture/python/registry.py:16: new blank line at EOF.
+docs/tasks/346/corpus/fixture/python/stale.py:7: new blank line at EOF.
+docs/tasks/346/corpus/fixture/web/app.js:10: new blank line at EOF.
+docs/tasks/346/corpus/fixture/web/dashboard.html:4: new blank line at EOF.
+docs/tasks/346/corpus/ground-truth.json:73: new blank line at EOF.
+docs/tasks/346/eval/analyze_luna.py:121: new blank line at EOF.
+docs/tasks/346/eval/baseline_measure.py:144: new blank line at EOF.
+docs/tasks/346/eval/evaluator-prompt.md:17: new blank line at EOF.
+docs/tasks/346/eval/light_codeintel_mcp.py:267: new blank line at EOF.
+docs/tasks/346/eval/mcp-control-b-prompt.txt:4: new blank line at EOF.
+docs/tasks/346/eval/mcp-control-c-prompt.txt:4: new blank line at EOF.
+docs/tasks/346/eval/score_static.py:145: new blank line at EOF.
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:49: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:61: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:90: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:124: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:180: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:192: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:221: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:255: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:268: trailing whitespace.
++  list    
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:269: trailing whitespace.
++  get     
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:270: trailing whitespace.
++  add     
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:271: trailing whitespace.
++  remove  
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:272: trailing whitespace.
++  login   
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:273: trailing whitespace.
++  logout  
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:281: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-config-debug-help.txt:300: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-eval-environment.txt:24: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-eval-environment.txt:56: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/codex-eval-environment.txt:96: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:61: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:68: trailing whitespace.
++tests/test_legacy_pipeline_skills.py:39: 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:69: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:72: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:108: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:112: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:119: trailing whitespace.
++tests/test_legacy_pipeline_skills.py:68: 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:120: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:123: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:150: trailing whitespace.
++tests/test_manager.py:908: 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:151: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:158: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:165: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:168: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:175: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:178: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:198: trailing whitespace.
++tests/test_manager.py:914: 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:199: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:206: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:213: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:216: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:223: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:226: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:247: trailing whitespace.
++tests/test_manager.py:922: 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:248: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:255: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:262: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:265: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:272: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:275: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:299: trailing whitespace.
++tests/test_manager.py:935: 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:300: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:307: trailing whitespace.
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:314: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:317: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:324: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt:327: trailing whitespace.
++    
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:7: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:8: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:26: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:33: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:42: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:43: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:81: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:90: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:113: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:116: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:120: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:129: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:130: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:133: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:141: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:144: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:158: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:161: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:176: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:179: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:190: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:193: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:197: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:205: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:208: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:211: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:218: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:222: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:223: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:226: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:231: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:234: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:238: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:244: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:247: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:262: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:265: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:275: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:278: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:292: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:298: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:300: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:306: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:309: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:327: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/direct-serena-edit.patch:331: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1-metadata.txt:6: trailing whitespace.
++command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-a-eval1 -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+docs/tasks/346/evidence/raw/luna-a-eval1-metadata.txt:7: trailing whitespace.
++command_extra='' 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:6: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:14: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:25: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:46: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:48: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:72: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:78: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:100: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:105: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:111: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:255: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:267: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:461: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:463: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:465: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:480: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:599: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:602: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:620: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:621: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:636: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:637: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:642: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:654: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:663: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:679: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:683: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:685: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:700: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:773: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:786: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:787: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:797: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:839: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:849: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:850: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:854: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:858: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:877: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:919: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:960: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:970: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:974: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:980: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:981: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:985: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1015: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1016: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1019: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1020: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1039: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1066: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1093: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1100: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1101: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1139: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1140: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1180: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1188: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1192: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1193: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1232: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1233: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1235: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1245: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1262: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1263: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1324: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1327: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1384: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1401: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1402: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1417: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1418: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1448: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1449: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1473: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1501: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1502: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1508: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1510: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1511: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1516: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1519: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1537: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1543: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1550: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1551: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1558: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1559: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1562: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1571: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1573: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1588: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1595: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1611: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1628: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1629: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1650: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1651: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1719: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1720: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1730: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1748: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1749: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1769: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1770: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1773: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1777: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1784: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1791: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1792: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1802: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1803: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1811: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1812: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1824: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1825: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1834: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1835: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1919: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1920: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1935: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1936: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1943: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a-eval1.patch:1944: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid-metadata.txt:6: trailing whitespace.
++command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-a1-valid -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+docs/tasks/346/evidence/raw/luna-a1-valid-metadata.txt:7: trailing whitespace.
++command_extra='' 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:20: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:21: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:39: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:46: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:55: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:56: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:94: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:102: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:115: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:122: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:124: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:131: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:147: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:170: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:173: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:177: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:186: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:187: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:190: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:198: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:201: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:215: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:218: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:233: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:236: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:247: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:250: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:254: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:262: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:265: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:268: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:275: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:279: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:280: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:283: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:288: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:291: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:295: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:301: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:304: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:319: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:322: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:332: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:335: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:349: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:355: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:357: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:363: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:366: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:384: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a1-valid.patch:388: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid-metadata.txt:6: trailing whitespace.
++command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-a2-valid -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+docs/tasks/346/evidence/raw/luna-a2-valid-metadata.txt:7: trailing whitespace.
++command_extra='' 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:20: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:21: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:41: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:48: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:57: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:58: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:100: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:108: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:121: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:128: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:130: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:137: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:153: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:176: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:179: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:183: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:192: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:193: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:196: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:204: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:207: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:221: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:224: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:239: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:242: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:253: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:256: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:260: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:268: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:271: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:274: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:281: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:285: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:286: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:289: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:294: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:297: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:301: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:307: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:310: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:325: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:328: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:338: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:341: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:355: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:361: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:363: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:369: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:372: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:390: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a2-valid.patch:394: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid-metadata.txt:6: trailing whitespace.
++command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-a3-valid -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+docs/tasks/346/evidence/raw/luna-a3-valid-metadata.txt:7: trailing whitespace.
++command_extra='' 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:20: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:21: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:41: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:48: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:57: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:58: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:96: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:104: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:117: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:124: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:126: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:133: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:149: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:172: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:175: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:179: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:188: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:189: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:192: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:200: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:203: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:217: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:220: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:235: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:238: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:249: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:252: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:256: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:264: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:267: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:270: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:277: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:281: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:282: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:285: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:290: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:293: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:297: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:303: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:306: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:321: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:324: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:334: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:337: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:351: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:357: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:359: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:365: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:368: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:386: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a3-valid.patch:390: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid-metadata.txt:6: trailing whitespace.
++command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-a4-valid -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+docs/tasks/346/evidence/raw/luna-a4-valid-metadata.txt:7: trailing whitespace.
++command_extra='' 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:20: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:21: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:41: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:48: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:57: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:58: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:96: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:104: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:117: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:124: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:126: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:133: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:149: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:172: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:175: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:179: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:188: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:189: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:192: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:200: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:203: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:217: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:220: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:235: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:238: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:249: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:252: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:256: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:264: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:267: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:270: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:277: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:281: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:282: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:285: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:290: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:293: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:297: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:303: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:306: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:321: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:324: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:334: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:337: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:351: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:357: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:359: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:365: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:368: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:386: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-a4-valid.patch:390: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid-metadata.txt:6: trailing whitespace.
++command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-b1-valid -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+docs/tasks/346/evidence/raw/luna-b1-valid-metadata.txt:7: trailing whitespace.
++command_extra=-c mcp_servers.serena346.command=\"systemd-run\" -c mcp_servers.serena346.args=\[\"--user\"\,\"--pipe\"\,\"--wait\"\,\"--collect\"\,\"--quiet\"\,\"--unit=task346-eval-b1-valid-serena\"\,\"-p\"\,\"MemoryMax=1G\"\,\"-p\"\,\"CPUQuota=200%\"\,\"-p\"\,\"TasksMax=128\"\,\"-p\"\,\"WorkingDirectory=/mnt/data/task346-serena.tHyHCU/luna-b1-valid\"\,\"--\"\,\"env\"\,\"SERENA_HOME=/mnt/data/task346-serena.tHyHCU/serena-home-b1-valid\"\,\"SERENA_USAGE_REPORTING=false\"\,\"UV_CACHE_DIR=/mnt/data/task346-serena.tHyHCU/uv-cache-b1-valid\"\,\"PATH=/home/maxim/.local/bin:/usr/local/bin:/usr/bin:/bin\"\,\"/mnt/data/task346-serena.tHyHCU/venv/bin/serena\"\,\"start-mcp-server\"\,\"--context\"\,\"codex\"\,\"--project\"\,\"/mnt/data/task346-serena.tHyHCU/luna-b1-valid\"\,\"--enable-web-dashboard\"\,\"false\"\,\"--open-web-dashboard\"\,\"false\"\,\"--log-level\"\,\"ERROR\"\,\"--tool-timeout\"\,\"120\"\] -c mcp_servers.serena346.startup_timeout_sec=120 -c mcp_servers.serena346.tool_timeout_sec=120 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:20: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:21: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:39: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:46: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:55: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:56: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:94: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:102: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:115: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:122: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:124: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:131: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:147: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:170: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:173: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:177: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:186: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:187: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:190: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:198: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:201: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:215: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:218: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:233: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:236: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:247: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:250: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:254: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:262: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:265: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:268: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:275: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:279: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:280: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:283: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:288: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:291: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:295: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:301: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:304: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:319: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:322: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:332: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:335: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:349: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:355: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:357: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:363: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:366: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:384: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b1-valid.patch:388: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid-metadata.txt:6: trailing whitespace.
++command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-b2-valid -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+docs/tasks/346/evidence/raw/luna-b2-valid-metadata.txt:7: trailing whitespace.
++command_extra=-c mcp_servers.serena346.command=\"systemd-run\" -c mcp_servers.serena346.args=\[\"--user\"\,\"--pipe\"\,\"--wait\"\,\"--collect\"\,\"--quiet\"\,\"--unit=task346-eval-b2-valid-serena\"\,\"-p\"\,\"MemoryMax=1G\"\,\"-p\"\,\"CPUQuota=200%\"\,\"-p\"\,\"TasksMax=128\"\,\"-p\"\,\"WorkingDirectory=/mnt/data/task346-serena.tHyHCU/luna-b2-valid\"\,\"--\"\,\"env\"\,\"SERENA_HOME=/mnt/data/task346-serena.tHyHCU/serena-home-b2-valid\"\,\"SERENA_USAGE_REPORTING=false\"\,\"UV_CACHE_DIR=/mnt/data/task346-serena.tHyHCU/uv-cache-b2-valid\"\,\"PATH=/home/maxim/.local/bin:/usr/local/bin:/usr/bin:/bin\"\,\"/mnt/data/task346-serena.tHyHCU/venv/bin/serena\"\,\"start-mcp-server\"\,\"--context\"\,\"codex\"\,\"--project\"\,\"/mnt/data/task346-serena.tHyHCU/luna-b2-valid\"\,\"--enable-web-dashboard\"\,\"false\"\,\"--open-web-dashboard\"\,\"false\"\,\"--log-level\"\,\"ERROR\"\,\"--tool-timeout\"\,\"120\"\] -c mcp_servers.serena346.startup_timeout_sec=120 -c mcp_servers.serena346.tool_timeout_sec=120 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:20: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:21: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:41: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:48: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:57: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:58: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:96: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:104: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:117: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:124: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:126: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:133: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:149: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:172: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:175: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:179: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:188: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:189: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:192: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:200: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:203: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:217: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:220: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:235: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:238: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:249: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:252: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:256: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:264: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:267: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:270: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:277: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:281: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:282: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:285: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:290: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:293: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:297: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:303: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:306: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:321: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:324: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:334: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:337: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:351: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:357: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:359: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:365: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:368: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:386: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-b2-valid.patch:390: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid-metadata.txt:6: trailing whitespace.
++command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-c1-valid -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+docs/tasks/346/evidence/raw/luna-c1-valid-metadata.txt:7: trailing whitespace.
++command_extra=-c mcp_servers.light346.command=\"systemd-run\" -c mcp_servers.light346.args=\[\"--user\"\,\"--pipe\"\,\"--wait\"\,\"--collect\"\,\"--quiet\"\,\"--unit=task346-eval-c1-valid-light\"\,\"-p\"\,\"MemoryMax=128M\"\,\"-p\"\,\"CPUQuota=100%\"\,\"-p\"\,\"TasksMax=32\"\,\"-p\"\,\"WorkingDirectory=/mnt/data/task346-serena.tHyHCU/luna-c1-valid\"\,\"--\"\,\"python3\"\,\"/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-serena-agents/docs/tasks/346/eval/light_codeintel_mcp.py\"\] -c mcp_servers.light346.startup_timeout_sec=30 -c mcp_servers.light346.tool_timeout_sec=120 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:20: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:21: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:39: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:46: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:55: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:56: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:94: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:102: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:115: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:122: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:124: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:131: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:147: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:170: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:173: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:177: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:186: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:187: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:190: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:198: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:201: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:215: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:218: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:233: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:236: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:247: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:250: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:254: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:262: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:265: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:268: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:275: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:279: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:280: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:283: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:288: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:291: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:295: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:301: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:304: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:319: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:322: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:332: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:335: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:349: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:355: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:357: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:363: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:366: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:384: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c1-valid.patch:388: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid-metadata.txt:6: trailing whitespace.
++command_common=codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-c2-valid -m gpt-5.6-luna -c model_reasoning_effort=\"medium\" -s danger-full-access - 
+docs/tasks/346/evidence/raw/luna-c2-valid-metadata.txt:7: trailing whitespace.
++command_extra=-c mcp_servers.light346.command=\"systemd-run\" -c mcp_servers.light346.args=\[\"--user\"\,\"--pipe\"\,\"--wait\"\,\"--collect\"\,\"--quiet\"\,\"--unit=task346-eval-c2-valid-light\"\,\"-p\"\,\"MemoryMax=128M\"\,\"-p\"\,\"CPUQuota=100%\"\,\"-p\"\,\"TasksMax=32\"\,\"-p\"\,\"WorkingDirectory=/mnt/data/task346-serena.tHyHCU/luna-c2-valid\"\,\"--\"\,\"python3\"\,\"/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-serena-agents/docs/tasks/346/eval/light_codeintel_mcp.py\"\] -c mcp_servers.light346.startup_timeout_sec=30 -c mcp_servers.light346.tool_timeout_sec=120 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:20: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:21: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:39: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:46: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:55: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:56: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:94: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:102: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:115: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:122: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:124: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:131: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:147: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:170: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:173: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:177: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:186: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:187: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:190: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:198: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:201: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:215: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:218: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:233: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:236: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:247: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:250: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:254: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:262: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:265: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:268: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:275: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:279: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:280: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:283: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:288: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:291: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:295: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:301: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:304: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:319: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:322: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:332: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:335: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:349: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:355: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:357: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:363: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:366: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:384: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/luna-c2-valid.patch:388: trailing whitespace.
++ 
+docs/tasks/346/evidence/raw/serena-config-source-search.txt:85: trailing whitespace.
++/mnt/data/task346-serena.tHyHCU/wheel/serena/gui_log_viewer.py:234:                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("oraios.serena")
+docs/tasks/346/evidence/raw/serena-config-source-search.txt:86: trailing whitespace.
++/mnt/data/task346-serena.tHyHCU/wheel/serena/gui_log_viewer.py:246:            dashboard_path = Path(constants.SERENA_DASHBOARD_DIR)
+docs/tasks/346/evidence/raw/serena-start-help.txt:13: trailing whitespace.
++  --mode TEXT                     Built-in mode names or paths to custom mode YAMLs with which to 
+docs/tasks/346/evidence/raw/serena-start-help.txt:14: trailing whitespace.
++                                  override the default_modes defined in the global Serena configuration or 
+docs/tasks/346/evidence/raw/serena-start-help.txt:16: trailing whitespace.
++                                  For details on mode configuration, see 
+docs/tasks/346/evidence/raw/serena-start-help.txt:20: trailing whitespace.
++                                  For details on mode configuration, see 
+docs/tasks/346/evidence/raw/user-serena-config-preservation-check2.txt:2: trailing whitespace.
++INFO  2026-04-24 10:22:34,019 [MainThread] serena.agent:__init__:346 - Available projects: 
+docs/tasks/346/evidence/raw/uv-pip-install-help.txt:42: trailing whitespace.
++          
+docs/tasks/346/evidence/raw/uv-pip-install-help.txt:90: trailing whitespace.
++          
+docs/tasks/346/protocol.md:184: new blank line at EOF.
+A  docs/kb/agent-code-intelligence.md
+A  docs/tasks/346/corpus/fixture/python/dead_cluster.py
+A  docs/tasks/346/corpus/fixture/python/dynamic_dispatch.py
+A  docs/tasks/346/corpus/fixture/python/framework.py
+A  docs/tasks/346/corpus/fixture/python/plain.py
+A  docs/tasks/346/corpus/fixture/python/plain_consumer.py
+A  docs/tasks/346/corpus/fixture/python/registry.py
+A  docs/tasks/346/corpus/fixture/python/stale.py
+A  docs/tasks/346/corpus/fixture/web/app.js
+A  docs/tasks/346/corpus/fixture/web/dashboard.html
+A  docs/tasks/346/corpus/ground-truth.json
+A  docs/tasks/346/eval/analyze_luna.py
+A  docs/tasks/346/eval/baseline_measure.py
+A  docs/tasks/346/eval/evaluator-prompt.md
+A  docs/tasks/346/eval/light_codeintel_mcp.py
+A  docs/tasks/346/eval/mcp-control-b-prompt.txt
+A  docs/tasks/346/eval/mcp-control-c-prompt.txt
+A  docs/tasks/346/eval/mcp_measure.py
+A  docs/tasks/346/eval/prepare_eval_repo.sh
+A  docs/tasks/346/eval/run_luna_eval.sh
+A  docs/tasks/346/eval/run_mcp_positive_control.sh
+A  docs/tasks/346/eval/score_static.py
+A  docs/tasks/346/evidence/README.md
+A  docs/tasks/346/evidence/raw/anthropic-pin-availability.txt
+A  docs/tasks/346/evidence/raw/artifact-inventory-before-synthesis.txt
+A  docs/tasks/346/evidence/raw/codex-code-mode-feature-control.txt
+A  docs/tasks/346/evidence/raw/codex-config-debug-help.txt
+A  docs/tasks/346/evidence/raw/codex-config-feature-values.txt
+A  docs/tasks/346/evidence/raw/codex-eval-environment.txt
+A  docs/tasks/346/evidence/raw/codex-feature-control.txt
+A  docs/tasks/346/evidence/raw/codex-mcp-list-override.stderr
+A  docs/tasks/346/evidence/raw/codex-mcp-timeout-source-search.txt
+A  docs/tasks/346/evidence/raw/codex-relevant-features.txt
+A  docs/tasks/346/evidence/raw/contaminated-user-serena-metadata.txt
+A  docs/tasks/346/evidence/raw/direct-serena-edit-acceptance.txt
+A  docs/tasks/346/evidence/raw/direct-serena-edit-command.json
+A  docs/tasks/346/evidence/raw/direct-serena-edit-diffstat.txt
+A  docs/tasks/346/evidence/raw/direct-serena-edit-setup.txt
+A  docs/tasks/346/evidence/raw/direct-serena-edit-time.txt
+A  docs/tasks/346/evidence/raw/direct-serena-edit.json
+A  docs/tasks/346/evidence/raw/direct-serena-edit.patch
+A  docs/tasks/346/evidence/raw/eval-control-setup.txt
+A  docs/tasks/346/evidence/raw/eval-control-tests-correct.txt
+A  docs/tasks/346/evidence/raw/eval-control-tests.txt
+A  docs/tasks/346/evidence/raw/eval-frozen-hash-control.txt
+A  docs/tasks/346/evidence/raw/eval-frozen-setup-control.txt
+A  docs/tasks/346/evidence/raw/eval-scripts-pycompile.txt
+A  docs/tasks/346/evidence/raw/final-mechanical-checks-v2.txt
+A  docs/tasks/346/evidence/raw/final-mechanical-checks.txt
+A  docs/tasks/346/evidence/raw/findmnt-tmp.txt
+A  docs/tasks/346/evidence/raw/git-status-before-synthesis.txt
+A  docs/tasks/346/evidence/raw/invalid-json-files.txt
+A  docs/tasks/346/evidence/raw/largest-artifacts.txt
+A  docs/tasks/346/evidence/raw/light-context-size.json
+A  docs/tasks/346/evidence/raw/light-context-size.stderr
+A  docs/tasks/346/evidence/raw/local-link-check.txt
+A  docs/tasks/346/evidence/raw/luna-a-eval1-acceptance.txt
+A  docs/tasks/346/evidence/raw/luna-a-eval1-diffstat.txt
+A  docs/tasks/346/evidence/raw/luna-a-eval1-metadata.txt
+A  docs/tasks/346/evidence/raw/luna-a-eval1-setup.txt
+A  docs/tasks/346/evidence/raw/luna-a-eval1-snapshot-check.txt
+A  docs/tasks/346/evidence/raw/luna-a-eval1.jsonl
+A  docs/tasks/346/evidence/raw/luna-a-eval1.patch
+A  docs/tasks/346/evidence/raw/luna-a-eval1.stderr
+A  docs/tasks/346/evidence/raw/luna-a1-valid-acceptance.txt
+A  docs/tasks/346/evidence/raw/luna-a1-valid-diffstat.txt
+A  docs/tasks/346/evidence/raw/luna-a1-valid-metadata.txt
+A  docs/tasks/346/evidence/raw/luna-a1-valid-setup.txt
+A  docs/tasks/346/evidence/raw/luna-a1-valid.jsonl
+A  docs/tasks/346/evidence/raw/luna-a1-valid.patch
+A  docs/tasks/346/evidence/raw/luna-a1-valid.stderr
+A  docs/tasks/346/evidence/raw/luna-a2-valid-acceptance.txt
+A  docs/tasks/346/evidence/raw/luna-a2-valid-diffstat.txt
+A  docs/tasks/346/evidence/raw/luna-a2-valid-metadata.txt
+A  docs/tasks/346/evidence/raw/luna-a2-valid-setup.txt
+A  docs/tasks/346/evidence/raw/luna-a2-valid.jsonl
+A  docs/tasks/346/evidence/raw/luna-a2-valid.patch
+A  docs/tasks/346/evidence/raw/luna-a2-valid.stderr
+A  docs/tasks/346/evidence/raw/luna-a3-valid-acceptance.txt
+A  docs/tasks/346/evidence/raw/luna-a3-valid-diffstat.txt
+A  docs/tasks/346/evidence/raw/luna-a3-valid-metadata.txt
+A  docs/tasks/346/evidence/raw/luna-a3-valid-setup.txt
+A  docs/tasks/346/evidence/raw/luna-a3-valid.jsonl
+A  docs/tasks/346/evidence/raw/luna-a3-valid.patch
+A  docs/tasks/346/evidence/raw/luna-a3-valid.stderr
+A  docs/tasks/346/evidence/raw/luna-a4-valid-acceptance.txt
+A  docs/tasks/346/evidence/raw/luna-a4-valid-diffstat.txt
+A  docs/tasks/346/evidence/raw/luna-a4-valid-metadata.txt
+A  docs/tasks/346/evidence/raw/luna-a4-valid-setup.txt
+A  docs/tasks/346/evidence/raw/luna-a4-valid.jsonl
+A  docs/tasks/346/evidence/raw/luna-a4-valid.patch
+A  docs/tasks/346/evidence/raw/luna-a4-valid.stderr
+A  docs/tasks/346/evidence/raw/luna-b1-valid-acceptance.txt
+A  docs/tasks/346/evidence/raw/luna-b1-valid-diffstat.txt
+A  docs/tasks/346/evidence/raw/luna-b1-valid-metadata.txt
+A  docs/tasks/346/evidence/raw/luna-b1-valid-setup.txt
+A  docs/tasks/346/evidence/raw/luna-b1-valid.jsonl
+A  docs/tasks/346/evidence/raw/luna-b1-valid.patch
+A  docs/tasks/346/evidence/raw/luna-b1-valid.stderr
+A  docs/tasks/346/evidence/raw/luna-b2-valid-acceptance.txt
+A  docs/tasks/346/evidence/raw/luna-b2-valid-diffstat.txt
+A  docs/tasks/346/evidence/raw/luna-b2-valid-metadata.txt
+A  docs/tasks/346/evidence/raw/luna-b2-valid-setup.txt
+A  docs/tasks/346/evidence/raw/luna-b2-valid.jsonl
+A  docs/tasks/346/evidence/raw/luna-b2-valid.patch
+A  docs/tasks/346/evidence/raw/luna-b2-valid.stderr
+A  docs/tasks/346/evidence/raw/luna-c1-valid-acceptance.txt
+A  docs/tasks/346/evidence/raw/luna-c1-valid-diffstat.txt
+A  docs/tasks/346/evidence/raw/luna-c1-valid-metadata.txt
+A  docs/tasks/346/evidence/raw/luna-c1-valid-setup.txt
+A  docs/tasks/346/evidence/raw/luna-c1-valid.jsonl
+A  docs/tasks/346/evidence/raw/luna-c1-valid.patch
+A  docs/tasks/346/evidence/raw/luna-c1-valid.stderr
+A  docs/tasks/346/evidence/raw/luna-c2-valid-acceptance.txt
+A  docs/tasks/346/evidence/raw/luna-c2-valid-diffstat.txt
+A  docs/tasks/346/evidence/raw/luna-c2-valid-metadata.txt
+A  docs/tasks/346/evidence/raw/luna-c2-valid-setup.txt
+A  docs/tasks/346/evidence/raw/luna-c2-valid.jsonl
+A  docs/tasks/346/evidence/raw/luna-c2-valid.patch
+A  docs/tasks/346/evidence/raw/luna-c2-valid.stderr
+A  docs/tasks/346/evidence/raw/luna-event-type-distribution.txt
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-codemode-items.jsonl
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-codemode-setup.txt
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-codemode.jsonl
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-codemode.stderr
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-features-items.jsonl
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-features-setup.txt
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-features.jsonl
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-features.stderr
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-items.jsonl
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-setup.txt
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-usercfg-items.jsonl
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-usercfg-setup.txt
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-usercfg.jsonl
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b-usercfg.stderr
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b.jsonl
+A  docs/tasks/346/evidence/raw/luna-mcp-control-b.stderr
+A  docs/tasks/346/evidence/raw/luna-mcp-startup-stderr.txt
+A  docs/tasks/346/evidence/raw/luna-serena-server-positive-control.txt
+A  docs/tasks/346/evidence/raw/luna-summary.json
+A  docs/tasks/346/evidence/raw/luna-summary.stderr
+A  docs/tasks/346/evidence/raw/orchestra-proof-scan-files.txt
+A  docs/tasks/346/evidence/raw/patch-sha256.txt
+A  docs/tasks/346/evidence/raw/post-run-disk.txt
+A  docs/tasks/346/evidence/raw/run-luna-eval-bash-n.txt
+A  docs/tasks/346/evidence/raw/run-luna-path-control.txt
+A  docs/tasks/346/evidence/raw/scratch-path.txt
+A  docs/tasks/346/evidence/raw/secret-shape-scan-files.txt
+A  docs/tasks/346/evidence/raw/serena-config-source-search.txt
+A  docs/tasks/346/evidence/raw/serena-context-size.json
+A  docs/tasks/346/evidence/raw/serena-context-size.stderr
+A  docs/tasks/346/evidence/raw/serena-generated-project-yml.txt
+A  docs/tasks/346/evidence/raw/serena-home-after-help.txt
+A  docs/tasks/346/evidence/raw/serena-index-ready-summary.json
+A  docs/tasks/346/evidence/raw/serena-install-disk.txt
+A  docs/tasks/346/evidence/raw/serena-install-no-project-config.txt
+A  docs/tasks/346/evidence/raw/serena-install-public-best-match.txt
+A  docs/tasks/346/evidence/raw/serena-install-public-index.txt
+A  docs/tasks/346/evidence/raw/serena-install-wheel.txt
+A  docs/tasks/346/evidence/raw/serena-install.txt
+A  docs/tasks/346/evidence/raw/serena-memory-phase-summary.json
+A  docs/tasks/346/evidence/raw/serena-pypi-pin.txt
+A  docs/tasks/346/evidence/raw/serena-rename-schema.json
+A  docs/tasks/346/evidence/raw/serena-start-help.txt
+A  docs/tasks/346/evidence/raw/serena-wheel-sha256.txt
+A  docs/tasks/346/evidence/raw/static-a1-time.txt
+A  docs/tasks/346/evidence/raw/static-a1.json
+A  docs/tasks/346/evidence/raw/static-a2-time.txt
+A  docs/tasks/346/evidence/raw/static-a2.json
+A  docs/tasks/346/evidence/raw/static-a3-time.txt
+A  docs/tasks/346/evidence/raw/static-a3.json
+A  docs/tasks/346/evidence/raw/static-a4-time.txt
+A  docs/tasks/346/evidence/raw/static-a4.json
+A  docs/tasks/346/evidence/raw/static-b1-time.txt
+A  docs/tasks/346/evidence/raw/static-b1-valid-command.json
+A  docs/tasks/346/evidence/raw/static-b1-valid-time.txt
+A  docs/tasks/346/evidence/raw/static-b1-valid.json
+A  docs/tasks/346/evidence/raw/static-b1.json
+A  docs/tasks/346/evidence/raw/static-b2-valid-command.json
+A  docs/tasks/346/evidence/raw/static-b2-valid-time.txt
+A  docs/tasks/346/evidence/raw/static-b2-valid.json
+A  docs/tasks/346/evidence/raw/static-c1-command.json
+A  docs/tasks/346/evidence/raw/static-c1-time.txt
+A  docs/tasks/346/evidence/raw/static-c1.json
+A  docs/tasks/346/evidence/raw/static-c2-command.json
+A  docs/tasks/346/evidence/raw/static-c2-time.txt
+A  docs/tasks/346/evidence/raw/static-c2.json
+A  docs/tasks/346/evidence/raw/static-resource-summary.json
+A  docs/tasks/346/evidence/raw/static-score.json
+A  docs/tasks/346/evidence/raw/static-score.stderr
+A  docs/tasks/346/evidence/raw/systemd-scope-pipe-control.txt
+A  docs/tasks/346/evidence/raw/systemd-service-pipe-control.txt
+A  docs/tasks/346/evidence/raw/user-serena-cleanup-verification.txt
+A  docs/tasks/346/evidence/raw/user-serena-config-backup-search.txt
+A  docs/tasks/346/evidence/raw/user-serena-config-preservation-check.txt
+A  docs/tasks/346/evidence/raw/user-serena-config-preservation-check2.txt
+A  docs/tasks/346/evidence/raw/user-serena-prior-config-evidence.txt
+A  docs/tasks/346/evidence/raw/uv-pip-install-help.txt
+A  docs/tasks/346/measurements.md
+A  docs/tasks/346/protocol.md
+A  docs/tasks/346/research.md
+A  docs/workers/research-serena-agents.md
+?? docs/tasks/346/evidence/raw/staged-check.txt
+ docs/kb/agent-code-intelligence.md                 |    34 +
+ .../346/corpus/fixture/python/dead_cluster.py      |    15 +
+ .../346/corpus/fixture/python/dynamic_dispatch.py  |    14 +
+ docs/tasks/346/corpus/fixture/python/framework.py  |    20 +
+ docs/tasks/346/corpus/fixture/python/plain.py      |    14 +
+ .../346/corpus/fixture/python/plain_consumer.py    |     9 +
+ docs/tasks/346/corpus/fixture/python/registry.py   |    16 +
+ docs/tasks/346/corpus/fixture/python/stale.py      |     7 +
+ docs/tasks/346/corpus/fixture/web/app.js           |    10 +
+ docs/tasks/346/corpus/fixture/web/dashboard.html   |     4 +
+ docs/tasks/346/corpus/ground-truth.json            |    73 +
+ docs/tasks/346/eval/analyze_luna.py                |   121 +
+ docs/tasks/346/eval/baseline_measure.py            |   144 +
+ docs/tasks/346/eval/evaluator-prompt.md            |    17 +
+ docs/tasks/346/eval/light_codeintel_mcp.py         |   267 +
+ docs/tasks/346/eval/mcp-control-b-prompt.txt       |     4 +
+ docs/tasks/346/eval/mcp-control-c-prompt.txt       |     4 +
+ docs/tasks/346/eval/mcp_measure.py                 |   364 +
+ docs/tasks/346/eval/prepare_eval_repo.sh           |    28 +
+ docs/tasks/346/eval/run_luna_eval.sh               |   146 +
+ docs/tasks/346/eval/run_mcp_positive_control.sh    |    64 +
+ docs/tasks/346/eval/score_static.py                |   145 +
+ docs/tasks/346/evidence/README.md                  |    43 +
+ .../evidence/raw/anthropic-pin-availability.txt    |     6 +
+ .../raw/artifact-inventory-before-synthesis.txt    |   194 +
+ .../raw/codex-code-mode-feature-control.txt        |     7 +
+ .../346/evidence/raw/codex-config-debug-help.txt   |   314 +
+ .../evidence/raw/codex-config-feature-values.txt   |     0
+ .../346/evidence/raw/codex-eval-environment.txt    |   111 +
+ .../346/evidence/raw/codex-feature-control.txt     |     8 +
+ .../evidence/raw/codex-mcp-list-override.stderr    |     1 +
+ .../raw/codex-mcp-timeout-source-search.txt        |     2 +
+ .../346/evidence/raw/codex-relevant-features.txt   |    22 +
+ .../raw/contaminated-user-serena-metadata.txt      |     6 +
+ .../evidence/raw/direct-serena-edit-acceptance.txt |   353 +
+ .../evidence/raw/direct-serena-edit-command.json   |     1 +
+ .../evidence/raw/direct-serena-edit-diffstat.txt   |     8 +
+ .../346/evidence/raw/direct-serena-edit-setup.txt  |     2 +
+ .../346/evidence/raw/direct-serena-edit-time.txt   |    23 +
+ .../tasks/346/evidence/raw/direct-serena-edit.json |  6760 ++++++++
+ .../346/evidence/raw/direct-serena-edit.patch      |   333 +
+ docs/tasks/346/evidence/raw/eval-control-setup.txt |     1 +
+ .../evidence/raw/eval-control-tests-correct.txt    |    14 +
+ docs/tasks/346/evidence/raw/eval-control-tests.txt |    15 +
+ .../346/evidence/raw/eval-frozen-hash-control.txt  |     4 +
+ .../346/evidence/raw/eval-frozen-setup-control.txt |     2 +
+ .../346/evidence/raw/eval-scripts-pycompile.txt    |     2 +
+ .../evidence/raw/final-mechanical-checks-v2.txt    |    12 +
+ .../346/evidence/raw/final-mechanical-checks.txt   |    27 +
+ docs/tasks/346/evidence/raw/findmnt-tmp.txt        |     2 +
+ .../evidence/raw/git-status-before-synthesis.txt   |     1 +
+ docs/tasks/346/evidence/raw/invalid-json-files.txt |     2 +
+ docs/tasks/346/evidence/raw/largest-artifacts.txt  |    30 +
+ .../tasks/346/evidence/raw/light-context-size.json |    10 +
+ .../346/evidence/raw/light-context-size.stderr     |     0
+ docs/tasks/346/evidence/raw/local-link-check.txt   |     4 +
+ .../346/evidence/raw/luna-a-eval1-acceptance.txt   |    97 +
+ .../346/evidence/raw/luna-a-eval1-diffstat.txt     |    21 +
+ .../346/evidence/raw/luna-a-eval1-metadata.txt     |     9 +
+ docs/tasks/346/evidence/raw/luna-a-eval1-setup.txt |     1 +
+ .../evidence/raw/luna-a-eval1-snapshot-check.txt   |    14 +
+ docs/tasks/346/evidence/raw/luna-a-eval1.jsonl     |    37 +
+ docs/tasks/346/evidence/raw/luna-a-eval1.patch     |  1950 +++
+ docs/tasks/346/evidence/raw/luna-a-eval1.stderr    |    28 +
+ .../346/evidence/raw/luna-a1-valid-acceptance.txt  |    48 +
+ .../346/evidence/raw/luna-a1-valid-diffstat.txt    |    11 +
+ .../346/evidence/raw/luna-a1-valid-metadata.txt    |     9 +
+ .../tasks/346/evidence/raw/luna-a1-valid-setup.txt |     2 +
+ docs/tasks/346/evidence/raw/luna-a1-valid.jsonl    |    32 +
+ docs/tasks/346/evidence/raw/luna-a1-valid.patch    |   390 +
+ docs/tasks/346/evidence/raw/luna-a1-valid.stderr   |    23 +
+ .../346/evidence/raw/luna-a2-valid-acceptance.txt  |    42 +
+ .../346/evidence/raw/luna-a2-valid-diffstat.txt    |    11 +
+ .../346/evidence/raw/luna-a2-valid-metadata.txt    |     9 +
+ .../tasks/346/evidence/raw/luna-a2-valid-setup.txt |     2 +
+ docs/tasks/346/evidence/raw/luna-a2-valid.jsonl    |   105 +
+ docs/tasks/346/evidence/raw/luna-a2-valid.patch    |   396 +
+ docs/tasks/346/evidence/raw/luna-a2-valid.stderr   |    43 +
+ .../346/evidence/raw/luna-a3-valid-acceptance.txt  |    48 +
+ .../346/evidence/raw/luna-a3-valid-diffstat.txt    |    11 +
+ .../346/evidence/raw/luna-a3-valid-metadata.txt    |     9 +
+ .../tasks/346/evidence/raw/luna-a3-valid-setup.txt |     2 +
+ docs/tasks/346/evidence/raw/luna-a3-valid.jsonl    |    31 +
+ docs/tasks/346/evidence/raw/luna-a3-valid.patch    |   392 +
+ docs/tasks/346/evidence/raw/luna-a3-valid.stderr   |    23 +
+ .../346/evidence/raw/luna-a4-valid-acceptance.txt  |    48 +
+ .../346/evidence/raw/luna-a4-valid-diffstat.txt    |    11 +
+ .../346/evidence/raw/luna-a4-valid-metadata.txt    |     9 +
+ .../tasks/346/evidence/raw/luna-a4-valid-setup.txt |     2 +
+ docs/tasks/346/evidence/raw/luna-a4-valid.jsonl    |    31 +
+ docs/tasks/346/evidence/raw/luna-a4-valid.patch    |   392 +
+ docs/tasks/346/evidence/raw/luna-a4-valid.stderr   |    40 +
+ .../346/evidence/raw/luna-b1-valid-acceptance.txt  |    42 +
+ .../346/evidence/raw/luna-b1-valid-diffstat.txt    |    11 +
+ .../346/evidence/raw/luna-b1-valid-metadata.txt    |     9 +
+ .../tasks/346/evidence/raw/luna-b1-valid-setup.txt |     2 +
+ docs/tasks/346/evidence/raw/luna-b1-valid.jsonl    |    23 +
+ docs/tasks/346/evidence/raw/luna-b1-valid.patch    |   390 +
+ docs/tasks/346/evidence/raw/luna-b1-valid.stderr   |    23 +
+ .../346/evidence/raw/luna-b2-valid-acceptance.txt  |    48 +
+ .../346/evidence/raw/luna-b2-valid-diffstat.txt    |    11 +
+ .../346/evidence/raw/luna-b2-valid-metadata.txt    |     9 +
+ .../tasks/346/evidence/raw/luna-b2-valid-setup.txt |     2 +
+ docs/tasks/346/evidence/raw/luna-b2-valid.jsonl    |    87 +
+ docs/tasks/346/evidence/raw/luna-b2-valid.patch    |   392 +
+ docs/tasks/346/evidence/raw/luna-b2-valid.stderr   |    27 +
+ .../346/evidence/raw/luna-c1-valid-acceptance.txt  |    42 +
+ .../346/evidence/raw/luna-c1-valid-diffstat.txt    |    11 +
+ .../346/evidence/raw/luna-c1-valid-metadata.txt    |     9 +
+ .../tasks/346/evidence/raw/luna-c1-valid-setup.txt |     2 +
+ docs/tasks/346/evidence/raw/luna-c1-valid.jsonl    |    30 +
+ docs/tasks/346/evidence/raw/luna-c1-valid.patch    |   390 +
+ docs/tasks/346/evidence/raw/luna-c1-valid.stderr   |    24 +
+ .../346/evidence/raw/luna-c2-valid-acceptance.txt  |    42 +
+ .../346/evidence/raw/luna-c2-valid-diffstat.txt    |    11 +
+ .../346/evidence/raw/luna-c2-valid-metadata.txt    |     9 +
+ .../tasks/346/evidence/raw/luna-c2-valid-setup.txt |     2 +
+ docs/tasks/346/evidence/raw/luna-c2-valid.jsonl    |    22 +
+ docs/tasks/346/evidence/raw/luna-c2-valid.patch    |   390 +
+ docs/tasks/346/evidence/raw/luna-c2-valid.stderr   |    23 +
+ .../evidence/raw/luna-event-type-distribution.txt  |    40 +
+ .../raw/luna-mcp-control-b-codemode-items.jsonl    |     3 +
+ .../raw/luna-mcp-control-b-codemode-setup.txt      |     2 +
+ .../evidence/raw/luna-mcp-control-b-codemode.jsonl |     6 +
+ .../raw/luna-mcp-control-b-codemode.stderr         |    23 +
+ .../raw/luna-mcp-control-b-features-items.jsonl    |     2 +
+ .../raw/luna-mcp-control-b-features-setup.txt      |     2 +
+ .../evidence/raw/luna-mcp-control-b-features.jsonl |     5 +
+ .../raw/luna-mcp-control-b-features.stderr         |    23 +
+ .../evidence/raw/luna-mcp-control-b-items.jsonl    |     2 +
+ .../346/evidence/raw/luna-mcp-control-b-setup.txt  |     2 +
+ .../raw/luna-mcp-control-b-usercfg-items.jsonl     |     2 +
+ .../raw/luna-mcp-control-b-usercfg-setup.txt       |     2 +
+ .../evidence/raw/luna-mcp-control-b-usercfg.jsonl  |     5 +
+ .../evidence/raw/luna-mcp-control-b-usercfg.stderr |    23 +
+ .../346/evidence/raw/luna-mcp-control-b.jsonl      |     5 +
+ .../346/evidence/raw/luna-mcp-control-b.stderr     |    23 +
+ .../346/evidence/raw/luna-mcp-startup-stderr.txt   |    11 +
+ .../raw/luna-serena-server-positive-control.txt    |     6 +
+ docs/tasks/346/evidence/raw/luna-summary.json      |   364 +
+ docs/tasks/346/evidence/raw/luna-summary.stderr    |     1 +
+ .../evidence/raw/orchestra-proof-scan-files.txt    |     1 +
+ docs/tasks/346/evidence/raw/patch-sha256.txt       |     9 +
+ docs/tasks/346/evidence/raw/post-run-disk.txt      |    20 +
+ .../346/evidence/raw/run-luna-eval-bash-n.txt      |     1 +
+ .../346/evidence/raw/run-luna-path-control.txt     |     3 +
+ docs/tasks/346/evidence/raw/scratch-path.txt       |     1 +
+ .../346/evidence/raw/secret-shape-scan-files.txt   |     1 +
+ .../evidence/raw/serena-config-source-search.txt   |   177 +
+ .../346/evidence/raw/serena-context-size.json      |    13 +
+ .../346/evidence/raw/serena-context-size.stderr    |     0
+ .../evidence/raw/serena-generated-project-yml.txt  |   171 +
+ .../346/evidence/raw/serena-home-after-help.txt    |     3 +
+ .../evidence/raw/serena-index-ready-summary.json   |    18 +
+ .../tasks/346/evidence/raw/serena-install-disk.txt |     6 +
+ .../raw/serena-install-no-project-config.txt       |   110 +
+ .../raw/serena-install-public-best-match.txt       |    32 +
+ .../evidence/raw/serena-install-public-index.txt   |    32 +
+ .../346/evidence/raw/serena-install-wheel.txt      |    32 +
+ docs/tasks/346/evidence/raw/serena-install.txt     |    56 +
+ .../evidence/raw/serena-memory-phase-summary.json  |   118 +
+ docs/tasks/346/evidence/raw/serena-pypi-pin.txt    |     3 +
+ .../346/evidence/raw/serena-rename-schema.json     |    49 +
+ docs/tasks/346/evidence/raw/serena-start-help.txt  |    56 +
+ .../tasks/346/evidence/raw/serena-wheel-sha256.txt |     1 +
+ docs/tasks/346/evidence/raw/static-a1-time.txt     |    23 +
+ docs/tasks/346/evidence/raw/static-a1.json         |   401 +
+ docs/tasks/346/evidence/raw/static-a2-time.txt     |    23 +
+ docs/tasks/346/evidence/raw/static-a2.json         |   401 +
+ docs/tasks/346/evidence/raw/static-a3-time.txt     |    23 +
+ docs/tasks/346/evidence/raw/static-a3.json         |   401 +
+ docs/tasks/346/evidence/raw/static-a4-time.txt     |    23 +
+ docs/tasks/346/evidence/raw/static-a4.json         |   401 +
+ docs/tasks/346/evidence/raw/static-b1-time.txt     |    23 +
+ .../346/evidence/raw/static-b1-valid-command.json  |     1 +
+ .../346/evidence/raw/static-b1-valid-time.txt      |    23 +
+ docs/tasks/346/evidence/raw/static-b1-valid.json   | 15470 +++++++++++++++++++
+ docs/tasks/346/evidence/raw/static-b1.json         |  4759 ++++++
+ .../346/evidence/raw/static-b2-valid-command.json  |     1 +
+ .../346/evidence/raw/static-b2-valid-time.txt      |    23 +
+ docs/tasks/346/evidence/raw/static-b2-valid.json   | 13848 +++++++++++++++++
+ docs/tasks/346/evidence/raw/static-c1-command.json |     1 +
+ docs/tasks/346/evidence/raw/static-c1-time.txt     |    23 +
+ docs/tasks/346/evidence/raw/static-c1.json         |   462 +
+ docs/tasks/346/evidence/raw/static-c2-command.json |     1 +
+ docs/tasks/346/evidence/raw/static-c2-time.txt     |    23 +
+ docs/tasks/346/evidence/raw/static-c2.json         |   462 +
+ .../346/evidence/raw/static-resource-summary.json  |   162 +
+ docs/tasks/346/evidence/raw/static-score.json      |  2744 ++++
+ docs/tasks/346/evidence/raw/static-score.stderr    |     1 +
+ .../evidence/raw/systemd-scope-pipe-control.txt    |     2 +
+ .../evidence/raw/systemd-service-pipe-control.txt  |     2 +
+ .../raw/user-serena-cleanup-verification.txt       |     4 +
+ .../raw/user-serena-config-backup-search.txt       |     1 +
+ .../raw/user-serena-config-preservation-check.txt  |    97 +
+ .../raw/user-serena-config-preservation-check2.txt |    83 +
+ .../raw/user-serena-prior-config-evidence.txt      |    20 +
+ .../tasks/346/evidence/raw/uv-pip-install-help.txt |   218 +
+ docs/tasks/346/measurements.md                     |   168 +
+ docs/tasks/346/protocol.md                         |   184 +
+ docs/tasks/346/research.md                         |   252 +
+ docs/workers/research-serena-agents.md             |     5 +
+ 202 files changed, 58476 insertions(+)

@@ -1,0 +1,11 @@
+ app/backend_claude.py                |  2 +-
+ app/limits_card.py                   |  4 +--
+ app/manager.py                       |  4 +--
+ app/prompting.py                     |  2 +-
+ app/session.py                       |  4 +--
+ app/tg_bridge.py                     |  2 +-
+ tests/test_default_pipeline.py       |  2 +-
+ tests/test_legacy_pipeline_skills.py |  4 +--
+ tests/test_manager.py                | 64 ++++++++++++++++++------------------
+ tests/test_workspace.py              |  4 +--
+ 10 files changed, 46 insertions(+), 46 deletions(-)

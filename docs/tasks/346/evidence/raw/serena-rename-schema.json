@@ -1,0 +1,49 @@
+{
+  "name": "rename_symbol",
+  "title": "Rename Symbol",
+  "description": "Renames the symbol with the given `name_path` to `new_name` throughout the entire codebase.\nNote: for languages with method overloading, like Java, name_path may have to include a method's\nsignature to uniquely identify a method. Returns result summary indicating success or failure.",
+  "inputSchema": {
+    "properties": {
+      "name_path": {
+        "title": "Name Path",
+        "type": "string",
+        "description": "Name path of the symbol to rename."
+      },
+      "relative_path": {
+        "title": "Relative Path",
+        "type": "string",
+        "description": "The relative path to the file containing the symbol to rename."
+      },
+      "new_name": {
+        "title": "New Name",
+        "type": "string",
+        "description": "The new name for the symbol."
+      }
+    },
+    "required": [
+      "name_path",
+      "relative_path",
+      "new_name"
+    ],
+    "title": "applyArguments",
+    "type": "object"
+  },
+  "outputSchema": {
+    "properties": {
+      "result": {
+        "title": "Result",
+        "type": "string"
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "title": "applyOutput",
+    "type": "object"
+  },
+  "annotations": {
+    "title": "Rename Symbol",
+    "readOnlyHint": false,
+    "destructiveHint": true
+  }
+}

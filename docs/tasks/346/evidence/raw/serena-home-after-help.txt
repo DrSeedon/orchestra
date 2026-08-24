@@ -1,0 +1,3 @@
+d /mnt/data/task346-serena.tHyHCU/serena-home 4096
+d /mnt/data/task346-serena.tHyHCU/serena-home/memories 4096
+d /mnt/data/task346-serena.tHyHCU/serena-home/memories/global 4096

@@ -1,0 +1,4 @@
+Do not inspect or edit files with native shell tools. Call the Serena MCP tool
+`get_current_config` exactly once, then report the Serena version, active project, and language
+server status from its result. If the tool is unavailable, say exactly `SERENA_UNAVAILABLE`.
+

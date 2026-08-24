@@ -1,0 +1,97 @@
+E1_OLD_SYMBOL
+app/limits_card.py:63:def pace_text(utilization: float, reset: dt.datetime, window_minutes: int | None,
+app/tg_bridge.py:3446:    from app.limits_card import pace_text as _pace_of
+E1_OLD_SYMBOL_EXIT=0
+E1_NEW_DEF
+E1_NEW_DEF_EXIT=1
+E1_ALIAS
+E1_ALIAS_EXIT=1
+E1_TESTS
+........                                                                 [100%]
+8 passed in 2.98s
+E1_TESTS_EXIT=0
+E2_OLD_SYMBOL
+tests/test_default_pipeline.py:565:        их читает inject_skills_to_worktree)."""
+app/manager.py:25:    prompt_template_hash, inject_skills_to_worktree, load_worker_memory,
+app/manager.py:852:                    await asyncio.to_thread(inject_skills_to_worktree, _skills, wt.path)
+app/prompting.py:311:def inject_skills_to_worktree(
+tests/test_workspace.py:177:        from app.prompting import inject_skills_to_worktree
+tests/test_workspace.py:186:        inject_skills_to_worktree(["codex-debate"], wt.path)
+app/session.py:25:    codex_project_doc_preflight, inject_skills_to_worktree,
+app/session.py:1443:                    inject_skills_to_worktree, skills, path, home_dir,
+tests/test_manager.py:897:             patch("app.manager.inject_skills_to_worktree", inject), \
+tests/test_manager.py:945:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:948:        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+tests/test_manager.py:958:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:966:        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+tests/test_manager.py:973:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:976:        inject_skills_to_worktree([], str(wt))
+tests/test_manager.py:994:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1000:        written = inject_skills_to_worktree(["codex-debate"], str(wt))
+tests/test_manager.py:1008:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1010:        inject_skills_to_worktree(["codex-debate"], str(wt))
+tests/test_manager.py:1014:        written = inject_skills_to_worktree(["codex-debate"], str(wt))
+tests/test_manager.py:1023:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1031:        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+tests/test_manager.py:1041:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1045:        inject_skills_to_worktree(["codex-debate"], str(wt))
+tests/test_manager.py:1054:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1059:        assert inject_skills_to_worktree(["no-such-skill-anywhere"], str(wt)) == 0
+tests/test_manager.py:1066:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1070:        assert inject_skills_to_worktree(["codex-debate"], str(plain)) == 0
+tests/test_manager.py:1086:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1089:        assert inject_skills_to_worktree(["codex-debate"], str(wt), ".codex") == 1
+tests/test_manager.py:1097:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1100:        inject_skills_to_worktree(["codex-debate"], str(wt))
+tests/test_manager.py:1109:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1117:        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt), ".codex")
+tests/test_manager.py:1126:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1129:        inject_skills_to_worktree(["codex-debate"], str(wt), ".codex")
+tests/test_manager.py:1143:            inject_skills_to_worktree, inject_skills_to_worktree_report,
+tests/test_manager.py:1154:            written = inject_skills_to_worktree(
+tests/test_manager.py:1174:        from app.prompting import inject_skills_to_worktree
+tests/test_manager.py:1177:        inject_skills_to_worktree(["codex-debate"], str(wt), ".codex")
+tests/test_legacy_pipeline_skills.py:40:        "app.session.inject_skills_to_worktree",
+tests/test_legacy_pipeline_skills.py:69:        "app.session.inject_skills_to_worktree",
+E2_OLD_SYMBOL_EXIT=0
+E2_NEW_DEF
+E2_NEW_DEF_EXIT=1
+E2_REPORT_GUARD
+app/prompting.py:195:def inject_skills_to_worktree_report(
+app/prompting.py:315:    return inject_skills_to_worktree_report(
+tests/test_manager.py:1143:            inject_skills_to_worktree, inject_skills_to_worktree_report,
+tests/test_manager.py:1160:        report = inject_skills_to_worktree_report(
+app/session.py:26:    inject_skills_to_worktree_report, is_orchestrator_role,
+app/session.py:1426:                    inject_skills_to_worktree_report,
+E2_REPORT_GUARD_EXIT=0
+E2_TESTS
+..............                                                           [100%]
+14 passed, 278 deselected in 3.69s
+E2_TESTS_EXIT=0
+DIFF_CHECK
+DIFF_CHECK_EXIT=0
+STATUS
+ M CLAUDE.md
+ M app/backend_harness.py
+ D app/harness/bestofn.py
+ M app/harness/llm.py
+ M app/harness/loop.py
+ M app/harness/mcp.py
+ M app/harness/sessions.py
+ M app/model_catalog.py
+ M app/models.py
+ M app/routes/system.py
+ M app/static/js/app.js
+ M docs/kb/harness-tools.md
+ M docs/kb/openrouter-quotas.md
+ M tests/test_catalog_api.py
+ M tests/test_harness_inject.py
+ M tests/test_harness_tools.py
+ M tests/test_model_catalog.py
+ M tests/test_model_flags.py
+ M tests/test_model_gates.py
+ M tests/test_openrouter_retry.py
+ M tests/test_runtime_registry.py
+ M tests/test_session.py
+ M tests/test_toggle_live_agent.py
+?? tests/test_harness_production.py

@@ -1,0 +1,2 @@
+TARGET SOURCE FSTYPE OPTIONS
+/tmp   tmpfs  tmpfs  rw,noatime,inode64

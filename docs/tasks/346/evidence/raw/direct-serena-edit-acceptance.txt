@@ -1,0 +1,353 @@
+E1_OLD_SYMBOL
+E1_OLD_SYMBOL_EXIT=1
+E1_NEW_DEF
+63:def format_pace_text(utilization: float, reset: dt.datetime, window_minutes: int | None,
+E1_NEW_DEF_EXIT=0
+E1_ALIAS
+3446:    from app.limits_card import format_pace_text as _pace_of
+E1_ALIAS_EXIT=0
+E1_TESTS
+Using CPython 3.13.11
+Creating virtual environment at: .venv
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 74 packages in 603ms
+........                                                                 [100%]
+8 passed in 4.34s
+E1_TESTS_EXIT=0
+E2_OLD_SYMBOL
+tests/test_default_pipeline.py:565:        их читает inject_skills_to_worktree)."""
+tests/test_legacy_pipeline_skills.py:40:        "app.session.inject_skills_to_worktree",
+tests/test_legacy_pipeline_skills.py:69:        "app.session.inject_skills_to_worktree",
+tests/test_manager.py:897:             patch("app.manager.inject_skills_to_worktree", inject), \
+E2_OLD_SYMBOL_EXIT=0
+E2_NEW_DEF
+311:def install_skills_to_worktree(
+E2_NEW_DEF_EXIT=0
+E2_REPORT_GUARD
+tests/test_manager.py:1143:            install_skills_to_worktree, inject_skills_to_worktree_report,
+tests/test_manager.py:1160:        report = inject_skills_to_worktree_report(
+app/prompting.py:195:def inject_skills_to_worktree_report(
+app/prompting.py:315:    return inject_skills_to_worktree_report(
+app/session.py:26:    inject_skills_to_worktree_report, is_orchestrator_role,
+app/session.py:1426:                    inject_skills_to_worktree_report,
+E2_REPORT_GUARD_EXIT=0
+E2_TESTS
+FF..FFFF......                                                           [100%]
+=================================== FAILURES ===================================
+_____________ test_legacy_empty_pipeline_still_injects_role_skills _____________
+
+obj = <module 'app.session' from '/mnt/data/task346-serena.tHyHCU/direct-serena-edit/app/session.py'>
+name = 'inject_skills_to_worktree', ann = 'app.session'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+>           obj = getattr(obj, name)
+                  ^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'app.session' has no attribute 'inject_skills_to_worktree'. Did you mean: 'install_skills_to_worktree'?
+
+.venv/lib/python3.13/site-packages/_pytest/monkeypatch.py:92: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x752884732ea0>
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-424/test_legacy_empty_pipeline_sti0')
+
+    @pytest.mark.asyncio
+    async def test_legacy_empty_pipeline_still_injects_role_skills(monkeypatch, tmp_path):
+        """Сессия, загруженная из легаси-строки, обязана получить скиллы своей роли."""
+        from app.session import AgentSession
+    
+        injected: list[list[str]] = []
+>       monkeypatch.setattr(
+            "app.session.inject_skills_to_worktree",
+            lambda skills, path, home: injected.append(list(skills)) or len(skills),
+        )
+
+tests/test_legacy_pipeline_skills.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/_pytest/monkeypatch.py:106: in derive_importpath
+    annotated_getattr(target, attr, ann=module)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+obj = <module 'app.session' from '/mnt/data/task346-serena.tHyHCU/direct-serena-edit/app/session.py'>
+name = 'inject_skills_to_worktree', ann = 'app.session'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+            obj = getattr(obj, name)
+        except AttributeError as e:
+>           raise AttributeError(
+                f"{type(obj).__name__!r} object at {ann} has no attribute {name!r}"
+            ) from e
+E           AttributeError: 'module' object at app.session has no attribute 'inject_skills_to_worktree'
+
+.venv/lib/python3.13/site-packages/_pytest/monkeypatch.py:94: AttributeError
+___________________ test_empty_pipeline_would_inject_nothing ___________________
+
+obj = <module 'app.session' from '/mnt/data/task346-serena.tHyHCU/direct-serena-edit/app/session.py'>
+name = 'inject_skills_to_worktree', ann = 'app.session'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+>           obj = getattr(obj, name)
+                  ^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'app.session' has no attribute 'inject_skills_to_worktree'. Did you mean: 'install_skills_to_worktree'?
+
+.venv/lib/python3.13/site-packages/_pytest/monkeypatch.py:92: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7528848ee030>
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-424/test_empty_pipeline_would_inje0')
+
+    @pytest.mark.asyncio
+    async def test_empty_pipeline_would_inject_nothing(monkeypatch, tmp_path):
+        """Обратная сторона: пока в сессии лежало '', не инъектилось НИЧЕГО.
+    
+        Проверка, дающая одинаковый вывод при успехе и провале, — не проверка.
+        """
+        from app.session import AgentSession
+    
+        injected: list[list[str]] = []
+>       monkeypatch.setattr(
+            "app.session.inject_skills_to_worktree",
+            lambda skills, path, home: injected.append(list(skills)) or len(skills),
+        )
+
+tests/test_legacy_pipeline_skills.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.13/site-packages/_pytest/monkeypatch.py:106: in derive_importpath
+    annotated_getattr(target, attr, ann=module)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+obj = <module 'app.session' from '/mnt/data/task346-serena.tHyHCU/direct-serena-edit/app/session.py'>
+name = 'inject_skills_to_worktree', ann = 'app.session'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+            obj = getattr(obj, name)
+        except AttributeError as e:
+>           raise AttributeError(
+                f"{type(obj).__name__!r} object at {ann} has no attribute {name!r}"
+            ) from e
+E           AttributeError: 'module' object at app.session has no attribute 'inject_skills_to_worktree'
+
+.venv/lib/python3.13/site-packages/_pytest/monkeypatch.py:94: AttributeError
+____________ TestInjectSkillsGating.test_skills_all_skips_injection ____________
+
+self = <tests.test_manager.TestInjectSkillsGating object at 0x75288520ce10>
+mgr = <app.manager.SessionManager object at 0x7528840b9fd0>
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-424/test_skills_all_skips_injectio0')
+
+    @pytest.mark.asyncio
+    async def test_skills_all_skips_injection(self, mgr, tmp_path):
+        rr = MagicMock(skills="all", is_orchestrator=False)
+>       inject = await self._run(mgr, tmp_path, lambda p, r: rr)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_manager.py:908: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_manager.py:897: in _run
+    patch("app.manager.inject_skills_to_worktree", inject), \
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:1497: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x75288406a210>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'app.manager' from '/mnt/data/task346-serena.tHyHCU/direct-serena-edit/app/manager.py'> does not have the attribute 'inject_skills_to_worktree'
+
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:1467: AttributeError
+_______________ TestInjectSkillsGating.test_skills_list_injects ________________
+
+self = <tests.test_manager.TestInjectSkillsGating object at 0x75288520cf50>
+mgr = <app.manager.SessionManager object at 0x75288406b610>
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-424/test_skills_list_injects0')
+
+    @pytest.mark.asyncio
+    async def test_skills_list_injects(self, mgr, tmp_path):
+        rr = MagicMock(skills=["foo", "bar"], is_orchestrator=False)
+>       inject = await self._run(mgr, tmp_path, lambda p, r: rr)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_manager.py:914: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_manager.py:897: in _run
+    patch("app.manager.inject_skills_to_worktree", inject), \
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:1497: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x752884281cd0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'app.manager' from '/mnt/data/task346-serena.tHyHCU/direct-serena-edit/app/manager.py'> does not have the attribute 'inject_skills_to_worktree'
+
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:1467: AttributeError
+________ TestInjectSkillsGating.test_codex_skills_list_does_not_inject _________
+
+self = <tests.test_manager.TestInjectSkillsGating object at 0x752884aa2c40>
+mgr = <app.manager.SessionManager object at 0x752884069f90>
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-424/test_codex_skills_list_does_no0')
+
+    @pytest.mark.asyncio
+    async def test_codex_skills_list_does_not_inject(self, mgr, tmp_path):
+        rr = MagicMock(skills=["foo", "bar"], is_orchestrator=False)
+>       inject = await self._run(
+            mgr, tmp_path, lambda p, r: rr, model="gpt5.6sol",
+        )
+
+tests/test_manager.py:922: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_manager.py:897: in _run
+    patch("app.manager.inject_skills_to_worktree", inject), \
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:1497: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x7528842c8950>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'app.manager' from '/mnt/data/task346-serena.tHyHCU/direct-serena-edit/app/manager.py'> does not have the attribute 'inject_skills_to_worktree'
+
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:1467: AttributeError
+________________ TestInjectSkillsGating.test_no_manifest_raises ________________
+
+self = <tests.test_manager.TestInjectSkillsGating object at 0x752884aa29e0>
+mgr = <app.manager.SessionManager object at 0x7528840c2520>
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-424/test_no_manifest_raises0')
+
+    @pytest.mark.asyncio
+    async def test_no_manifest_raises(self, mgr, tmp_path):
+        # Was test_no_manifest_injects: legacy fallback let a spawn proceed (and
+        # inject skills) when get_role raised FileNotFoundError. Fallback removed →
+        # missing manifest is fail loud, spawn aborts before skill injection.
+        def _raise(p, r):
+            raise FileNotFoundError("no manifest")
+        with pytest.raises((FileNotFoundError, ValueError)):
+>           await self._run(mgr, tmp_path, _raise)
+
+tests/test_manager.py:935: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_manager.py:897: in _run
+    patch("app.manager.inject_skills_to_worktree", inject), \
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:1497: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x752884087ac0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'app.manager' from '/mnt/data/task346-serena.tHyHCU/direct-serena-edit/app/manager.py'> does not have the attribute 'inject_skills_to_worktree'
+
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/unittest/mock.py:1467: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_legacy_pipeline_skills.py::test_legacy_empty_pipeline_still_injects_role_skills
+FAILED tests/test_legacy_pipeline_skills.py::test_empty_pipeline_would_inject_nothing
+FAILED tests/test_manager.py::TestInjectSkillsGating::test_skills_all_skips_injection
+FAILED tests/test_manager.py::TestInjectSkillsGating::test_skills_list_injects
+FAILED tests/test_manager.py::TestInjectSkillsGating::test_codex_skills_list_does_not_inject
+FAILED tests/test_manager.py::TestInjectSkillsGating::test_no_manifest_raises
+6 failed, 8 passed, 278 deselected in 3.84s
+E2_TESTS_EXIT=1
+DIFF_CHECK
+DIFF_CHECK_EXIT=0
+STATUS
+ M app/limits_card.py
+ M app/manager.py
+ M app/prompting.py
+ M app/session.py
+ M app/tg_bridge.py
+ M tests/test_manager.py
+ M tests/test_workspace.py

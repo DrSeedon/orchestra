@@ -1,0 +1,8 @@
+ app/limits_card.py      |  2 +-
+ app/manager.py          |  4 ++--
+ app/prompting.py        |  2 +-
+ app/session.py          |  4 ++--
+ app/tg_bridge.py        |  2 +-
+ tests/test_manager.py   | 62 ++++++++++++++++++++++++-------------------------
+ tests/test_workspace.py |  4 ++--
+ 7 files changed, 40 insertions(+), 40 deletions(-)

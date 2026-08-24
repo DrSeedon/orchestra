@@ -1,0 +1,1 @@
+2026-08-24T23:29:32.0515278400 /home/maxim/.serena/serena_config.yml 15450

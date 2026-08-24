@@ -1,0 +1,24 @@
+2026-08-24T17:05:16.906696Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find context '-22,7 +22,7 @@' in /mnt/data/task346-serena.tHyHCU/luna-c1-valid/app/session.py
+	Command being timed: "timeout 720 codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-c1-valid -m gpt-5.6-luna -c model_reasoning_effort="medium" -s danger-full-access -c mcp_servers.light346.command="systemd-run" -c mcp_servers.light346.args=["--user","--pipe","--wait","--collect","--quiet","--unit=task346-eval-c1-valid-light","-p","MemoryMax=128M","-p","CPUQuota=100%","-p","TasksMax=32","-p","WorkingDirectory=/mnt/data/task346-serena.tHyHCU/luna-c1-valid","--","python3","/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-serena-agents/docs/tasks/346/eval/light_codeintel_mcp.py"] -c mcp_servers.light346.startup_timeout_sec=30 -c mcp_servers.light346.tool_timeout_sec=120 -"
+	User time (seconds): 20.52
+	System time (seconds): 13.22
+	Percent of CPU this job got: 27%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:01.32
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 176644
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 2728
+	Minor (reclaiming a frame) page faults: 1314563
+	Voluntary context switches: 90958
+	Involuntary context switches: 9651
+	Swaps: 0
+	File system inputs: 448808
+	File system outputs: 1047760
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

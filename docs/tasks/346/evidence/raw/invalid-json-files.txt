@@ -1,0 +1,2 @@
+docs/tasks/346/evidence/raw/serena-index-ready-summary.json
+docs/tasks/346/evidence/raw/serena-memory-phase-summary.json
