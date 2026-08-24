@@ -1,0 +1,27 @@
+# Sanitized local telegram-bot-api / proxychains journal evidence
+
+Command:
+
+```sh
+journalctl -u telegram-bot-api.service \
+  --since '2026-08-24 15:03:30' --until '2026-08-24 15:11:30' \
+  -o short-iso-precise --no-pager
+```
+
+The usable lines in the window were repeated proxychains/telegram-bot-api stack-backtrace
+records, for example:
+
+```text
+2026-08-24T15:05:35.804450+07:00 proxychains4[<pid>]: [pid <pid>] [time <epoch>] <address>
+2026-08-24T15:05:35.804450+07:00 proxychains4[<pid>]: ------- Stack Backtrace -------
+2026-08-24T15:05:35.804826+07:00 proxychains4[<pid>]: ... libproxychains.so.4 ... poll ... connect_proxy_chain
+2026-08-24T15:05:35.804826+07:00 proxychains4[<pid>]: -------------------------------
+```
+
+There was no method-level `sendPhoto`/`sendDocument` success, Telegram `message_id`, upstream
+HTTP status, or request id in this service journal during the incident. This is evidence of an
+unusable local receipt, not evidence that upstream Telegram did or did not accept a file.
+
+The effective service was active with the proxy preflight successful before the incident. The
+configured chain was `http 127.0.0.1 12339`; no route switch or restart was issued during this
+research.
