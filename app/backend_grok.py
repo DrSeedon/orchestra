@@ -365,6 +365,22 @@ class GrokBackend(JsonRpcStdioTransport):
         """
         return getattr(self, "_active_turn_id", None)
 
+    async def retarget_model(self, model: str) -> None:
+        """Switch the active ACP session without replacing its native history."""
+        if not self.is_alive or not self._session_id:
+            raise RuntimeError("Grok backend is not connected")
+        if self._active_prompts or self._events_active:
+            raise RuntimeError("cannot retarget Grok model while a turn is active")
+        result = await self._request("session/set_model", {
+            "sessionId": self._session_id,
+            "modelId": model,
+        })
+        self.model = model
+        self._model_context_window = GROK_CONTEXT_LIMITS.get(
+            model, GROK_DEFAULT_CONTEXT,
+        )
+        self._absorb_models((result or {}).get("models") or {})
+
     def build_handoff_manifest(self, prepared, *, validation_profile: bool):
         return build_model_visible_manifest(
             runtime="grok",

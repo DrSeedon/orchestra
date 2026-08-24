@@ -161,6 +161,14 @@ class HarnessBackend:
     def session_id(self) -> Optional[str]:
         return self._store.session_id if self._store else self._resume_session_id
 
+    def retarget_model(self, model: str) -> None:
+        """Retarget later OpenRouter requests while keeping local history intact."""
+        if self._turn_active:
+            raise RuntimeError("cannot retarget harness model while a turn is active")
+        if self._llm is not None:
+            self._llm.model = model
+        self.model = model
+
     # ── lifecycle ──
 
     async def connect(self) -> None:

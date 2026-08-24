@@ -38,6 +38,25 @@ def test_model_bare_keeps_default_provider():
     assert b._transport_model_id == "mimo-v2.5-free"
 
 
+def test_retarget_model_changes_next_prompt_route_without_replacing_session():
+    b = OpenCodeBackend(
+        model="deepseek/deepseek-v4-flash",
+        cwd="/tmp",
+        resume_session_id="native-opencode-session",
+        provider_id="deepseek",
+        context_limit=128_000,
+    )
+
+    b.retarget_model("deepseek/deepseek-v4-pro")
+
+    assert b._upstream_model_id == "deepseek/deepseek-v4-pro"
+    assert b.provider_id == "deepseek"
+    assert b.model == "deepseek-v4-pro"
+    assert b._transport_provider_id == "openrouter"
+    assert b._transport_model_id == "deepseek/deepseek-v4-pro"
+    assert b.session_id == "native-opencode-session"
+
+
 # ── SSE parsing ──
 
 def test_parse_sse_strips_data_prefix():

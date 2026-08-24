@@ -88,6 +88,7 @@ def test_t1_namespaced_model_surface_and_runtime_capabilities_are_exact():
         "process_liveness": True,
         "resume": True,
         "resume_across_models": False,
+        "model_retarget": False,
         "subagents": False,
     }
 
