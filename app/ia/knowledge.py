@@ -10,17 +10,21 @@ import uuid
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from app.ia.evidence import EvidenceResolver
 from app.ia.events import EventConflictError, FactEventLog
-from app.ia.namespace import build_uri
+from app.ia.namespace import NamespaceError, build_uri, parse_uri
 from app.ia.schema import PrivacyViolationError, RecordValidationError, validate_record
 
 
 class KnowledgeNotConfiguredError(RuntimeError):
     """Raised when the module-level entry point has no configured service."""
+
+
+class CanonicalKnowledgeUnavailableError(RuntimeError):
+    """Raised when canonical JSON is absent or internally inconsistent."""
 
 
 class PromotionConflictError(RuntimeError):
@@ -33,6 +37,10 @@ class PromotionValidationError(ValueError):
 
 class TopicResolutionError(ValueError):
     """Raised when a topic resolves to zero or multiple registry entries."""
+
+
+class UnsupportedKnowledgeOperationError(ValueError):
+    """Raised when an agent requests a non-canonical storage operation."""
 
 
 _SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -63,9 +71,33 @@ _REQUEST_FIELDS = {
 }
 _QUERY_MODES = {"current", "rejected", "superseded", "disputed", "all", "as_of"}
 _ZERO_HEAD = "sha256:" + "0" * 64
+_DETAIL_LEVELS = {"summary", "record", "evidence"}
+_KNOWLEDGE_OPERATIONS = {"promote", "query", "import_evidence"}
+_FORBIDDEN_GENERATED_KEYS = {
+    "generated_markdown",
+    "human_projection",
+    "human_summary",
+    "readme_text",
+    "topic_markdown",
+}
+
+
+def _reject_human_projections(value: Any) -> None:
+    if isinstance(value, Mapping):
+        forbidden = _FORBIDDEN_GENERATED_KEYS.intersection(value)
+        if forbidden:
+            raise PromotionValidationError(
+                f"human-readable projection keys are forbidden: {sorted(forbidden)}"
+            )
+        for child in value.values():
+            _reject_human_projections(child)
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for child in value:
+            _reject_human_projections(child)
 
 
 def _canonical_bytes(value: Any) -> bytes:
+    _reject_human_projections(value)
     try:
         return json.dumps(
             value,
@@ -145,7 +177,6 @@ class KnowledgeService:
         else:
             self._registry = supplied
             _write_object(canonical_registry, self._registry)
-        self._write_topic_documents()
         self.evidence_resolver = EvidenceResolver(task_store)
         self.event_log = FactEventLog(self.canonical_root)
 
@@ -174,37 +205,6 @@ class KnowledgeService:
                 or len(aliases) != len(set(aliases))
             ):
                 raise PromotionValidationError("topic aliases must be unique canonical slugs")
-
-    def _write_topic_documents(self) -> None:
-        topics = sorted(
-            self._registry["topics"],
-            key=lambda item: (item["project_id"], item["topic_slug"]),
-        )
-        readme = ["# Knowledge topic registry", ""]
-        for topic in topics:
-            aliases = ", ".join(topic["aliases"]) or "none"
-            readme.append(
-                f"- `{topic['project_id']}/{topic['topic_slug']}` (aliases: {aliases}) — "
-                f"{topic['summary']}"
-            )
-            topic_path = (
-                self.canonical_root
-                / "projects"
-                / topic["project_id"]
-                / "knowledge"
-                / "topics"
-                / topic["topic_slug"]
-                / "topic.md"
-            )
-            topic_path.parent.mkdir(parents=True, exist_ok=True)
-            topic_path.write_text(
-                f"# {topic['topic_slug']}\n\n{topic['summary']}\n\nAliases: {aliases}\n",
-                encoding="utf-8",
-            )
-        (self.canonical_root / "README.md").write_text(
-            "\n".join(readme) + "\n",
-            encoding="utf-8",
-        )
 
     def _resolve_topic(self, project_id: str, requested: str) -> dict[str, Any]:
         if not isinstance(requested, str) or _SLUG.fullmatch(requested) is None:
@@ -267,7 +267,27 @@ class KnowledgeService:
             except RecordValidationError as exc:
                 raise PromotionValidationError(f"invalid canonical fact at {path}: {exc}") from exc
             facts.append(record)
+        if hasattr(self, "event_log"):
+            recorded_ids = {fact["stable_id"] for fact in facts}
+            required_ids = {
+                stable_id
+                for event in self.event_log.events()
+                for stable_id in event.get("changed_fact_ids", [])
+            }
+            missing = sorted(required_ids - recorded_ids)
+            if missing:
+                raise CanonicalKnowledgeUnavailableError(
+                    f"canonical fact records are missing: {missing}"
+                )
         return facts
+
+    def _fact(self, stable_id: str) -> dict[str, Any]:
+        matches = [fact for fact in self._facts() if fact["stable_id"] == stable_id]
+        if len(matches) != 1:
+            raise CanonicalKnowledgeUnavailableError(
+                f"canonical fact {stable_id!r} resolved to {len(matches)} records"
+            )
+        return matches[0]
 
     @staticmethod
     def _state_head(
@@ -570,7 +590,6 @@ class KnowledgeService:
         if registered:
             self._registry = next_registry
             _write_object(self.canonical_root / "registry.json", self._registry)
-            self._write_topic_documents()
         if self._state_head(self._registry, next_facts, self.event_log.events()) != next_head:
             raise PromotionValidationError("canonical knowledge generation did not converge")
         return {
@@ -652,6 +671,132 @@ class KnowledgeService:
             "projection_head": head,
         }
 
+    @staticmethod
+    def _cold_source_path(value: Any) -> PurePosixPath:
+        if not isinstance(value, str) or not value:
+            raise PromotionValidationError("evidence source path must be relative")
+        path = PurePosixPath(value)
+        if path.is_absolute() or ".." in path.parts or path.suffix.lower() != ".md":
+            raise PromotionValidationError("evidence source path is not approved cold Markdown")
+        approved = (
+            value == "TODO.md"
+            or path.parts[:2] == ("docs", "tasks")
+            or path.parts[:2] == ("docs", "kb")
+            or path.parts[:3] == ("docs", "archive", "sessions")
+        )
+        if not approved:
+            raise PromotionValidationError("evidence source path is outside the cold archive")
+        return path
+
+    def import_evidence(self, source: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Import a byte-bound reference to historical Markdown without copying its body."""
+
+        required = {
+            "path",
+            "class",
+            "project_id",
+            "stable_id",
+            "canonical_uri",
+            "git_commit",
+            "anchor",
+            "content_sha256",
+            "source_root",
+        }
+        if not isinstance(source, Mapping) or set(source) != required:
+            raise PromotionValidationError("evidence import source has an invalid shape")
+        value = _detached(dict(source))
+        source_path = self._cold_source_path(value["path"])
+        if value["class"] not in {"immutable-evidence", "cold-archive"}:
+            raise PromotionValidationError("evidence source class is not canonical")
+        if not isinstance(value["project_id"], str) or _SLUG.fullmatch(value["project_id"]) is None:
+            raise PromotionValidationError("evidence project_id is not a canonical slug")
+        stable_id = _canonical_uuid(value["stable_id"], "source.stable_id")
+        if not isinstance(value["git_commit"], str) or re.fullmatch(
+            r"[0-9a-f]{40}", value["git_commit"]
+        ) is None:
+            raise PromotionValidationError("evidence git_commit is not canonical")
+        if not isinstance(value["anchor"], str) or not value["anchor"]:
+            raise PromotionValidationError("evidence anchor must be non-empty")
+        try:
+            address = parse_uri(value["canonical_uri"])
+        except (NamespaceError, TypeError) as exc:
+            raise PromotionValidationError("evidence canonical_uri is invalid") from exc
+        if (
+            address.record_type != "task.evidence"
+            or address.project_id != value["project_id"]
+            or address.stable_id != stable_id
+        ):
+            raise PromotionValidationError("evidence URI crosses source identity")
+
+        root = Path(value["source_root"]).resolve()
+        path = (root / Path(*source_path.parts)).resolve()
+        try:
+            path.relative_to(root)
+            content = path.read_bytes()
+        except (OSError, ValueError) as exc:
+            raise PromotionValidationError("cannot read the declared import source") from exc
+        actual_sha = f"sha256:{hashlib.sha256(content).hexdigest()}"
+        if value["content_sha256"] != actual_sha:
+            raise PromotionValidationError("evidence source digest does not match its bytes")
+
+        record = {
+            "record_type": "knowledge.evidence-ref",
+            "schema_version": 1,
+            "stable_id": stable_id,
+            "uri": value["canonical_uri"],
+            "project_id": value["project_id"],
+            "source_path": value["path"],
+            "source_class": value["class"],
+            "source_sha256": actual_sha,
+            "git_commit": value["git_commit"],
+            "anchor": value["anchor"],
+            "storage": "cold-immutable-reference",
+        }
+        record_path = (
+            self.canonical_root
+            / "projects"
+            / value["project_id"]
+            / "evidence"
+            / f"{stable_id}.json"
+        )
+        index_path = self.canonical_root / "archive-index.json"
+        index = (
+            _read_object(index_path)
+            if index_path.exists()
+            else {"index_version": 1, "evidence_refs": []}
+        )
+        if index.get("index_version") != 1 or not isinstance(index.get("evidence_refs"), list):
+            raise CanonicalKnowledgeUnavailableError("canonical archive index is invalid")
+        indexed = [item for item in index["evidence_refs"] if item.get("stable_id") == stable_id]
+        if record_path.exists():
+            if _read_object(record_path) != record or indexed != [{
+                "stable_id": stable_id,
+                "uri": value["canonical_uri"],
+                "project_id": value["project_id"],
+                "source_path": value["path"],
+                "source_sha256": actual_sha,
+            }]:
+                raise CanonicalKnowledgeUnavailableError(
+                    "canonical evidence reference and archive index disagree"
+                )
+            return {**copy.deepcopy(record), "outcome": "noop"}
+        if indexed:
+            raise CanonicalKnowledgeUnavailableError(
+                "archive index references a missing canonical evidence record"
+            )
+        entry = {
+            "stable_id": stable_id,
+            "uri": value["canonical_uri"],
+            "project_id": value["project_id"],
+            "source_path": value["path"],
+            "source_sha256": actual_sha,
+        }
+        index["evidence_refs"].append(entry)
+        index["evidence_refs"].sort(key=lambda item: (item["project_id"], item["stable_id"]))
+        _write_object(record_path, record)
+        _write_object(index_path, index)
+        return {**copy.deepcopy(record), "outcome": "created"}
+
 
 _ACTIVE_SERVICE: KnowledgeService | None = None
 
@@ -720,3 +865,107 @@ def query_facts(
         as_of=as_of,
         now=now,
     )
+
+
+def _api_arguments(request: Mapping[str, Any]) -> dict[str, Any]:
+    arguments = copy.deepcopy(dict(request))
+    nested = arguments.pop("payload", {})
+    if not isinstance(nested, Mapping):
+        raise PromotionValidationError("knowledge payload must be a mapping")
+    overlap = set(arguments).intersection(nested) - {"operation", "detail"}
+    if overlap:
+        raise PromotionValidationError(f"knowledge payload duplicates fields: {sorted(overlap)}")
+    arguments.update(copy.deepcopy(dict(nested)))
+    return arguments
+
+
+def _fact_payload(service: KnowledgeService, fact: Mapping[str, Any], detail: str) -> dict[str, Any]:
+    if detail == "summary":
+        return {
+            "uri": fact["uri"],
+            "record_type": fact["record_type"],
+            "status": fact["status"],
+            "claim": fact["claim"],
+            "canonical_head": fact["canonical_head"],
+            "evidence_count": len(fact["provenance"]),
+        }
+    item = copy.deepcopy(dict(fact))
+    if detail == "evidence":
+        item["evidence"] = list(service.evidence_resolver.resolve(fact["provenance"]))
+    return item
+
+
+def knowledge_api(request: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Dispatch the sole typed agent knowledge API to the configured service."""
+
+    if not isinstance(request, Mapping):
+        raise PromotionValidationError("knowledge request must be a mapping")
+    _reject_human_projections(request)
+    arguments = _api_arguments(request)
+    operation = arguments.pop("operation", None)
+    detail = arguments.pop("detail", "summary")
+    if operation not in _KNOWLEDGE_OPERATIONS:
+        raise UnsupportedKnowledgeOperationError(f"unsupported knowledge operation: {operation!r}")
+    if detail not in _DETAIL_LEVELS:
+        raise PromotionValidationError(f"unsupported knowledge detail level: {detail!r}")
+
+    service = _service()
+    if operation == "promote":
+        promotion = arguments.get("request")
+        expected_head = arguments.get("expected_head")
+        result = dict(service.promote(promotion, expected_head=expected_head))
+        fact = service._fact(result["stable_id"])
+        response = {
+            "operation": operation,
+            "detail": detail,
+            **result,
+            "uri": fact["uri"],
+        }
+        if detail != "summary":
+            response["item"] = _fact_payload(service, fact, detail)
+        return response
+
+    if operation == "query":
+        allowed = {"project_id", "topic", "mode", "fact_key", "as_of", "now", "fallback"}
+        if set(arguments) - allowed:
+            raise PromotionValidationError("query contains unsupported fields")
+        result = dict(service.query(
+            project_id=arguments.get("project_id"),
+            topic=arguments.get("topic"),
+            mode=arguments.get("mode", "current"),
+            fact_key=arguments.get("fact_key", ""),
+            as_of=arguments.get("as_of"),
+            now=arguments.get("now"),
+        ))
+        facts = result.pop("facts")
+        return {
+            "operation": operation,
+            "detail": detail,
+            **result,
+            "items": [_fact_payload(service, fact, detail) for fact in facts],
+        }
+
+    if set(arguments) != {"source"}:
+        raise PromotionValidationError("import_evidence requires exactly one source")
+    result = dict(service.import_evidence(arguments["source"]))
+    response = {
+        "operation": operation,
+        "detail": detail,
+        "outcome": result.pop("outcome"),
+        **result,
+        "canonical_head": service.head(),
+    }
+    if detail == "summary":
+        return {
+            key: response[key]
+            for key in (
+                "operation",
+                "detail",
+                "outcome",
+                "uri",
+                "source_path",
+                "source_sha256",
+                "canonical_head",
+            )
+        }
+    return response

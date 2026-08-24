@@ -85,6 +85,12 @@
   ]
  ],
  [
+  "/api/knowledge",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/logs/sync",
   [
    "GET"
