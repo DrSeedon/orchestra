@@ -1,0 +1,3951 @@
+{
+  "schema": "orchestra-turbovec-pilot-v1",
+  "created_at": 1787567409.707319,
+  "git_head": "130f7720dedd7433448cac66622b3c3f81ab2ee3",
+  "project": "/home/kesha/orchestra",
+  "holdout_sha256": "9e7c737dd5f58a91572e49a25cb80861b13b28fee12a3bbd392fd1c0579e466b",
+  "hardware": {
+    "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "loadavg_start": [
+      1.2548828125,
+      0.97900390625,
+      0.83837890625
+    ],
+    "loadavg_end": [
+      1.6845703125,
+      1.12451171875,
+      0.89453125
+    ]
+  },
+  "versions": {
+    "turbovec": "1.0.0",
+    "dim": 1024
+  },
+  "corpus": {
+    "file_vectors": 19123,
+    "log_vectors": 15288,
+    "raw_fp32_bytes": 140947456,
+    "embed_18_queries_batch_s": 11.547040901845321
+  },
+  "candidates": {
+    "4": {
+      "build": {
+        "calibration_s": 0.37978749675676227,
+        "add_s": 1.7154942569322884,
+        "write_s": 0.94427101011388,
+        "persisted_bytes": 20277926
+      },
+      "latency_excluding_embedding_ms": {
+        "baseline_median": 364.9989690165967,
+        "baseline_control_median": 302.91109438985586,
+        "candidate_median": 128.0043839942664,
+        "aa_absolute_delta_median": 77.56633160170168,
+        "paired_gain_median": 213.53078837273642,
+        "baseline_samples": [
+          332.1735099889338,
+          420.14442500658333,
+          261.38660311698914,
+          221.72250086441636,
+          474.4270001538098,
+          380.41609595529735,
+          519.4064781535417,
+          630.2265869453549,
+          414.6273678634316,
+          456.43944782204926,
+          227.29238402098417,
+          326.55110815539956,
+          252.34838295727968,
+          705.5797879584134,
+          347.04241692088544,
+          349.581842077896,
+          262.53843680024147,
+          416.60329792648554
+        ],
+        "baseline_control_samples": [
+          299.53745286911726,
+          398.9663210231811,
+          267.342149047181,
+          223.0381090193987,
+          371.4380878955126,
+          301.09065887518227,
+          252.06030206754804,
+          753.4996231552213,
+          380.77927101403475,
+          304.73152990452945,
+          236.70502984896302,
+          672.4917548708618,
+          369.73913107067347,
+          272.4729119800031,
+          307.7266679611057,
+          273.7746159546077,
+          237.99911607056856,
+          509.86585998907685
+        ],
+        "candidate_samples": [
+          148.7538309302181,
+          36.55621409416199,
+          101.5158740337938,
+          64.23223996534944,
+          126.47105986252427,
+          221.64017497561872,
+          93.48610695451498,
+          204.32634185999632,
+          271.4327259454876,
+          164.3072401639074,
+          107.8698099590838,
+          187.49741604551673,
+          90.62491613440216,
+          149.72590887919068,
+          129.5377081260085,
+          100.89490097016096,
+          107.01861698180437,
+          232.0858018938452
+        ]
+      },
+      "vector_agreement": {
+        "files": {
+          "top1_in_top20": 1.0,
+          "top5_coverage_in_top20": 1.0,
+          "mean_overlap_at_20": 0.9416666666666667
+        },
+        "logs": {
+          "top1_in_top20": 1.0,
+          "top5_coverage_in_top20": 1.0,
+          "mean_overlap_at_20": 0.9555555555555555
+        }
+      },
+      "retrieval": {
+        "baseline": {
+          "all": {
+            "n": 18,
+            "fact_recall_at_5": 0.5555555555555556,
+            "canonical_path_recall_at_5": 0.5,
+            "task_success_proxy": 0.5555555555555556,
+            "mrr_at_5": 0.312037037037037
+          },
+          "by_class": {
+            "current": {
+              "n": 6,
+              "fact_recall_at_5": 0.5,
+              "canonical_path_recall_at_5": 0.3333333333333333,
+              "task_success_proxy": 0.5,
+              "mrr_at_5": 0.27777777777777773
+            },
+            "exact": {
+              "n": 6,
+              "fact_recall_at_5": 0.8333333333333334,
+              "canonical_path_recall_at_5": 0.6666666666666666,
+              "task_success_proxy": 0.8333333333333334,
+              "mrr_at_5": 0.4083333333333334
+            },
+            "rejected": {
+              "n": 6,
+              "fact_recall_at_5": 0.3333333333333333,
+              "canonical_path_recall_at_5": 0.5,
+              "task_success_proxy": 0.3333333333333333,
+              "mrr_at_5": 0.25
+            }
+          },
+          "stale_contradiction_rate_current": 0.0,
+          "items": [
+            {
+              "id": "E01",
+              "class": "exact",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/118/audit.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "729b72c6a9026c1e9c21291285f449960393d49eac299e9dbb3a468231ec721d"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/workers/research-opus5-migration.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "00f2365fac2974e3f43c17b17b8ec3e553c641281479c2c3ad394d14ca79e994"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/345/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "815f24eacd88b162eee234930398679e8f320c5e7cd7520b264e4a1763fc1e3b"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/198/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "2ac15487f08b5e75d402e411a92238c525f15023c3d41ffed868588112834e5f"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/126/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "4d1c927e4b8c75e81cdae3c2cdffead433ee824ecc239adc5e13c82b28261af4"
+                }
+              ]
+            },
+            {
+              "id": "E02",
+              "class": "exact",
+              "fact_rank": 2,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 169922,
+                  "content_sha256": "e6e50dbc0851de3f0f7b8c0f8f15669ca32ec6066aa8a9eb8d56d3b8e6edc607"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 170455,
+                  "content_sha256": "3518381df7ae59c6552629431fcb8ea12fae271e8ee66b1031500875c4396562"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/grep-memory-blowup.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6ce96fac758dcdcc7564a4ea0a72fec54ae0e730030da25eb643eaa8ca9ea57b"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 169922,
+                  "content_sha256": "67ce6178e5db6e2ee9b86f1625ce42941af7dfbdb4f12cecee2a8a594c06474e"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/231/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bbbdbc4c94f4f27fae1d32791d6e57186be19641dafea91e9a4d81de846d3bdf"
+                }
+              ]
+            },
+            {
+              "id": "E03",
+              "class": "exact",
+              "fact_rank": 1,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 9595,
+                  "content_sha256": "e0baef35a079a2996aacdbb9d940db5e072279816061db568b5d2d835880f5fd"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/76/rules-patch.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "df1dc031a564945ea35d0fdee4aabee866f9cdd56464ca8c38cff7656e8af36e"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/test-oracles.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "87356be197fcf94adf189270d3f084acb9974ddedb1ab15e6f98e528fd36e643"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 9595,
+                  "content_sha256": "30128a329851e2495f869d54ff1fb0f6a8b4cffd43e9202229b8c3bd5036eb0b"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/18/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "63a362dcc2f59242d33f41a523482fbc9b8a87cdbc19513e4f218cba5fadf09a"
+                }
+              ]
+            },
+            {
+              "id": "E04",
+              "class": "exact",
+              "fact_rank": 4,
+              "canonical_path_rank": 4,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "CLAUDE.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8dcd677f7ec6243315586d90c052b699d7af0cab8647ae6bdbd17fd1bdd1ebdd"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 79264,
+                  "content_sha256": "cd7bcb45b486e69cf07943d93ff0536a866387178b7d456e0eb3a2703eed508d"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/347/inventory-after.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6e66173983e5e7e0ab2c19e5cd6df3dbf0291f5f01772a613ee363054e1bad96"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/kb/evidence-methods.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "38c76e29d824e71c2315d6f303b1b5c769b7fc0911988b658441e54389958ba1"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 79309,
+                  "content_sha256": "7f40a2a12258ff391e198cc87fc4fc1856dfd4613e40a1d50775d0574e4cbd8e"
+                }
+              ]
+            },
+            {
+              "id": "E05",
+              "class": "exact",
+              "fact_rank": 5,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/89/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "7c2defa61b21f5e1a803b72722aa48693b5b5326e0d661d8637c95abf2077585"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 125104,
+                  "content_sha256": "84565d47ad837c2997a3910a971257baee22e3f47b2ae2ab29e211f65df00eb8"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/89/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0494d5983391982db056bec325ecdf340ecddfbf9e94c47999191bbc640a1e7f"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/89/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "b7de130e8352ee5ef8fb69d5f275445a432781f5214b39265502f2ee787c6735"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/html-effectiveness/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "c1a2c696930602ebd294f8142ef8dc65fedb563f47e91abfa9856f04193e888c"
+                }
+              ]
+            },
+            {
+              "id": "E06",
+              "class": "exact",
+              "fact_rank": 2,
+              "canonical_path_rank": 2,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 36509,
+                  "content_sha256": "f10317b61588beee3ab817feea62b2427bc3e19064b24ad98024f9bf51727016"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/145/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bac5b0bf4f826a5ff5f886a73d130929ef710b3bb828b39bf6a3fa2c34b02b1c"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/140/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "698ea01730956de442ecb9237ce7890d3cb134b82e2b73469fbf55539ef0333d"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 36755,
+                  "content_sha256": "8b5b1c2ca932e789ce2fb6073741b93f4058f23d771b7f62b99e5be977ec5358"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/145/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e319fbf2c80ae76010a65cbbda0d017479993cc2ad34424861d042968ff153da"
+                }
+              ]
+            },
+            {
+              "id": "C01",
+              "class": "current",
+              "fact_rank": 3,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 172013,
+                  "content_sha256": "5b8531b3cac9a388caed4b97335f1ddb4c9d9ed0c2fdcadf13f06b9985fb3226"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/codex-cost/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e28a41bf038f3e81515fbc9c1f6858a22a86c63617c5ef25cfb0e0d9e4759630"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 135008,
+                  "content_sha256": "2b0f062f619635b90b4e69689936593422ac0a461a120b367287292e3c651101"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/304/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "36c4da78c9eaaa510fbdc62531f265ca75151fb0d8247f98c66ca2e4e27c4a0f"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/154/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e91aedff459d90ea8478d79eb1c65d1052487eec61a15305cf2d997212ff2af6"
+                }
+              ]
+            },
+            {
+              "id": "C02",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 92251,
+                  "content_sha256": "c1c0095b74572c23f7366d313a227524741e6796bc47f4ba3d3f9712a72ecefc"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/374/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "9d2a494d7b5ec742e69f107c892f65e1470f17dc9a930cb3910d73cfc736c449"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 17477,
+                  "content_sha256": "7d82306838bd4291815e9ae99a5e2b26bd15134f01df9e530efa8205e6357fa7"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/247/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "ee79f6575897c0ff491ca4ace1fd684e7f5e4e46860785d3e895232d5cfb7627"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/247/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "08afa813d5fa66c86720e0bfed09286ad4d079652d1287f497e900df17ecf7d2"
+                }
+              ]
+            },
+            {
+              "id": "C03",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 73568,
+                  "content_sha256": "8f0c53b2222c246df04d6a72d1e0bf0fba398a1fea5d9f1c59487be930de7cfa"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "pipelines/default/prompts/modules/model-routing.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e5d20417b71bbe0bc569b016955f71ce3a27c9b7aeb9d96282aa902c46a5d99d"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/workers/quota-routing.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f8ef7b829eaab07d9da0638b43dbf21828ce7b5e4e872adb2697576e6271ddb6"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 158513,
+                  "content_sha256": "1c9db18599ead07d6805a70b675d7f8e7f75cf42c5bf4ae313604787d7e6d6a9"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 125048,
+                  "content_sha256": "fc74a44b7331e6753491cd2072a638eacbf82d2c00ac46eb663b25695f13a370"
+                }
+              ]
+            },
+            {
+              "id": "C04",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 93837,
+                  "content_sha256": "bab5aa46db13ea4e9a6b476854d7d4df9cd3eb1b354d0b19840d57a50dbc2afe"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/285/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0260b1d199a6ef63583360cd0a0ce4322cbe548d73234bef3fe54c2d4d937cce"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 93837,
+                  "content_sha256": "8d5a4a0c0465e13fe93619f7ed062b4bb8e2366ede1e6b0a99ba43bb056ddd22"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/227/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "3c56efaa32b9efac3bd8b4fae0d28c5145a6e667ed8b48be9d94c529f621f644"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 93847,
+                  "content_sha256": "51c529bfb915d340124da96ee903237f9804d4935be8fdc2a9c15a4d5c11749a"
+                }
+              ]
+            },
+            {
+              "id": "C05",
+              "class": "current",
+              "fact_rank": 1,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/kb/openrouter-quotas.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bf7ef3321e06916b25b757bad7be6f1f80ce0780233c724785bef4b869993f37"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/368/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d9be6cb31ac6ad14545726f297583ca050e9038ed54e7db39ee0b6ca0da66572"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 60166,
+                  "content_sha256": "a863983e40891cf363899bef5c322003f5d11909740106a46476dcd939eeb44f"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/kb/openrouter-quotas.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f79a18e70e2650762958addfe2e316484228995fcfc8d2f18becf80e41a053ed"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 60166,
+                  "content_sha256": "b118e0875a45140d869b47d3ac9d1a4be04ae90d43cd52b3f90919353ceb8045"
+                }
+              ]
+            },
+            {
+              "id": "C06",
+              "class": "current",
+              "fact_rank": 3,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 71424,
+                  "content_sha256": "b8334f6fbbcfd4cadb35579cb4649faefbe3d0f213c735015c8b81b23fa56a8a"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 71521,
+                  "content_sha256": "642371dd6852cabc4dc3898d2935fef1d0dd4cf801c3d29383642f628ef8bbf2"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/grep-memory-blowup.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "276e40e3e58e1a818f5b88a0dee2bc9821e52a500dccb2cffc624bce84dfa7af"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "429d2ccdd409fda2a69f62a95a8346e5631f19666a72f3fa1c12d5bf8d865913"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/168/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "541c8770924c70d28bcc9b95a9491ccd2b9adc19c0436aed37fca7ed3108e8b7"
+                }
+              ]
+            },
+            {
+              "id": "R01",
+              "class": "rejected",
+              "fact_rank": 2,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/133/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "defe31b08b279c71769591a98bc531b6f20a72eb118618da07474031e1c3c796"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/133/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f0a8b970f6235e3a1b247ba1ac456c9cb88ebbcfd3a1dc8ef02f8caf1f32a4de"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/113/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f93b80d62fbd4f462c89e97f1214d0599599540dbef1e031e43c1ecc066773aa"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "CHANGELOG.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "a73b21812eddd37998c817d4759a116aa96cfdfc9463a13ca65f85d4a70784b8"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 132167,
+                  "content_sha256": "26d559d0b4ec9879ae4a04aaaf0340c4a54e82f2c510cf9f6b32d25160a886cc"
+                }
+              ]
+            },
+            {
+              "id": "R02",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/135/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d3cbc343d76c9b49b56983cd3f9609020bb29b607543e6a0fa16283b3c69af55"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/135/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "c509d93d14fc794109401cc172c9fd7d8b78cee0e88fe190eec7b30a614c08f3"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 18152,
+                  "content_sha256": "376a7d80409d6a85d4bf8d07bc969861d7c245deaa7ea885ec3796e66d5bc8ea"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 181654,
+                  "content_sha256": "ad0be9911f9d4969bdbc4cc8d0ac1ab7fec5fa00028bbe7533460c5c08cba7da"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/134/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d8be5dad61af62be5c7e20c26b2e483481290c95a72dd94c208926c640078d1a"
+                }
+              ]
+            },
+            {
+              "id": "R03",
+              "class": "rejected",
+              "fact_rank": 1,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0db42b8ab6dbefbabee69c080f2e10cd1ee14875e90cdb338368ac4f483219c6"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "632d7dc283f8a489cd29b33b5a1b399e05a52847690a82a31c6b7ee348c8e44b"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "b5f175d78dcdce1aa70ed0a28cae05f03863303de604813c4bba3ca124f00886"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "a94f12e7302f1a7b1395a3924492f12ff313d504a3ca98ab5d838899f9a80acb"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 14387,
+                  "content_sha256": "7f759310ed9cbbe899b4f9c4953176986725693b9167a5aa983b6bbb8fb438bf"
+                }
+              ]
+            },
+            {
+              "id": "R04",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/308/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d4eef2c7ccacf83efb74b1f6d4d0112bc5facf3dfb31a214e28362880a209168"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/211/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8a38d1675f3630c079cc7b02f77675b62428ab7fa2b44d3b9b92dd30ea2d3fdf"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 76300,
+                  "content_sha256": "c8c67a6794609e475807a290964ee3c7fe957e886f9aabdb93b305aa1564184a"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 138295,
+                  "content_sha256": "bf9246c58df250561d473d7338293bc5157bc1b66a4d9c8f2a24b899dc8bf860"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/110/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6af9dcae69dee0ee232ba5916820c5ce0bc5a099cd3a5ede2df12d2e27663fa8"
+                }
+              ]
+            },
+            {
+              "id": "R05",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "43a035944f3937fdabf937cd98069311466f7a6b8a4e8348ec0575ddd0674def"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/239/incident-orc-seedon-hang.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8b0824ca03aad2423b0319178d11d486425745ddaece3c0d60dc58367104442f"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 71272,
+                  "content_sha256": "4e04319f9d2354ad9403a56e8ff296782b78932934e1e59d3bee067cf9bbfd2a"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "209fac03312b71edc186abdeeaf3a3bd82a6272a6907330877f683c0c57db517"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/3/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "07e97144d5b6a95dbbd71830d47f002bbeef5c33b1520fe94ab5fe1ee7f5c5b2"
+                }
+              ]
+            },
+            {
+              "id": "R06",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 159859,
+                  "content_sha256": "e1f44873fc92e55fc688f5936c4af4b152257090027f8eb924298a108617eea2"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 119831,
+                  "content_sha256": "f4db63dc048adbabda6363636771cc59bfca874aa497e0e5cc32df65fe328625"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 159875,
+                  "content_sha256": "3357556382aad883b1eca1df1b6a62f5e20533b8ac2f230bea8f6a67d4d9ab77"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 135456,
+                  "content_sha256": "5e0c843c055f831305a5bd72e44e40408987553f77325b9993d6da4c6f895f62"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/codex-cost/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "cb7e9ca168acbb1ac0716a4e1e329bc532e484f6e0a959385d26c006c482cfcf"
+                }
+              ]
+            }
+          ]
+        },
+        "candidate": {
+          "all": {
+            "n": 18,
+            "fact_recall_at_5": 0.5555555555555556,
+            "canonical_path_recall_at_5": 0.5,
+            "task_success_proxy": 0.5555555555555556,
+            "mrr_at_5": 0.3398148148148148
+          },
+          "by_class": {
+            "current": {
+              "n": 6,
+              "fact_recall_at_5": 0.5,
+              "canonical_path_recall_at_5": 0.3333333333333333,
+              "task_success_proxy": 0.5,
+              "mrr_at_5": 0.27777777777777773
+            },
+            "exact": {
+              "n": 6,
+              "fact_recall_at_5": 0.8333333333333334,
+              "canonical_path_recall_at_5": 0.6666666666666666,
+              "task_success_proxy": 0.8333333333333334,
+              "mrr_at_5": 0.4916666666666667
+            },
+            "rejected": {
+              "n": 6,
+              "fact_recall_at_5": 0.3333333333333333,
+              "canonical_path_recall_at_5": 0.5,
+              "task_success_proxy": 0.3333333333333333,
+              "mrr_at_5": 0.25
+            }
+          },
+          "stale_contradiction_rate_current": 0.0,
+          "items": [
+            {
+              "id": "E01",
+              "class": "exact",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/118/audit.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "729b72c6a9026c1e9c21291285f449960393d49eac299e9dbb3a468231ec721d"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/workers/research-opus5-migration.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "00f2365fac2974e3f43c17b17b8ec3e553c641281479c2c3ad394d14ca79e994"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/345/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "815f24eacd88b162eee234930398679e8f320c5e7cd7520b264e4a1763fc1e3b"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/198/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "2ac15487f08b5e75d402e411a92238c525f15023c3d41ffed868588112834e5f"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/126/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "4d1c927e4b8c75e81cdae3c2cdffead433ee824ecc239adc5e13c82b28261af4"
+                }
+              ]
+            },
+            {
+              "id": "E02",
+              "class": "exact",
+              "fact_rank": 1,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 170455,
+                  "content_sha256": "3518381df7ae59c6552629431fcb8ea12fae271e8ee66b1031500875c4396562"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 169922,
+                  "content_sha256": "e6e50dbc0851de3f0f7b8c0f8f15669ca32ec6066aa8a9eb8d56d3b8e6edc607"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/grep-memory-blowup.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6ce96fac758dcdcc7564a4ea0a72fec54ae0e730030da25eb643eaa8ca9ea57b"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 169922,
+                  "content_sha256": "67ce6178e5db6e2ee9b86f1625ce42941af7dfbdb4f12cecee2a8a594c06474e"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/231/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bbbdbc4c94f4f27fae1d32791d6e57186be19641dafea91e9a4d81de846d3bdf"
+                }
+              ]
+            },
+            {
+              "id": "E03",
+              "class": "exact",
+              "fact_rank": 1,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 9595,
+                  "content_sha256": "e0baef35a079a2996aacdbb9d940db5e072279816061db568b5d2d835880f5fd"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/76/rules-patch.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "df1dc031a564945ea35d0fdee4aabee866f9cdd56464ca8c38cff7656e8af36e"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/test-oracles.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "87356be197fcf94adf189270d3f084acb9974ddedb1ab15e6f98e528fd36e643"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 9595,
+                  "content_sha256": "30128a329851e2495f869d54ff1fb0f6a8b4cffd43e9202229b8c3bd5036eb0b"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/18/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "63a362dcc2f59242d33f41a523482fbc9b8a87cdbc19513e4f218cba5fadf09a"
+                }
+              ]
+            },
+            {
+              "id": "E04",
+              "class": "exact",
+              "fact_rank": 4,
+              "canonical_path_rank": 4,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "CLAUDE.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8dcd677f7ec6243315586d90c052b699d7af0cab8647ae6bdbd17fd1bdd1ebdd"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 79264,
+                  "content_sha256": "cd7bcb45b486e69cf07943d93ff0536a866387178b7d456e0eb3a2703eed508d"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/347/inventory-after.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6e66173983e5e7e0ab2c19e5cd6df3dbf0291f5f01772a613ee363054e1bad96"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/kb/evidence-methods.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "38c76e29d824e71c2315d6f303b1b5c769b7fc0911988b658441e54389958ba1"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 79309,
+                  "content_sha256": "7f40a2a12258ff391e198cc87fc4fc1856dfd4613e40a1d50775d0574e4cbd8e"
+                }
+              ]
+            },
+            {
+              "id": "E05",
+              "class": "exact",
+              "fact_rank": 5,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/89/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "7c2defa61b21f5e1a803b72722aa48693b5b5326e0d661d8637c95abf2077585"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 125104,
+                  "content_sha256": "84565d47ad837c2997a3910a971257baee22e3f47b2ae2ab29e211f65df00eb8"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/89/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0494d5983391982db056bec325ecdf340ecddfbf9e94c47999191bbc640a1e7f"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/89/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "b7de130e8352ee5ef8fb69d5f275445a432781f5214b39265502f2ee787c6735"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/html-effectiveness/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "c1a2c696930602ebd294f8142ef8dc65fedb563f47e91abfa9856f04193e888c"
+                }
+              ]
+            },
+            {
+              "id": "E06",
+              "class": "exact",
+              "fact_rank": 2,
+              "canonical_path_rank": 2,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 36509,
+                  "content_sha256": "f10317b61588beee3ab817feea62b2427bc3e19064b24ad98024f9bf51727016"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/145/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bac5b0bf4f826a5ff5f886a73d130929ef710b3bb828b39bf6a3fa2c34b02b1c"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/140/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "698ea01730956de442ecb9237ce7890d3cb134b82e2b73469fbf55539ef0333d"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 36755,
+                  "content_sha256": "8b5b1c2ca932e789ce2fb6073741b93f4058f23d771b7f62b99e5be977ec5358"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/145/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e319fbf2c80ae76010a65cbbda0d017479993cc2ad34424861d042968ff153da"
+                }
+              ]
+            },
+            {
+              "id": "C01",
+              "class": "current",
+              "fact_rank": 3,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 172013,
+                  "content_sha256": "5b8531b3cac9a388caed4b97335f1ddb4c9d9ed0c2fdcadf13f06b9985fb3226"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/codex-cost/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e28a41bf038f3e81515fbc9c1f6858a22a86c63617c5ef25cfb0e0d9e4759630"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 135008,
+                  "content_sha256": "2b0f062f619635b90b4e69689936593422ac0a461a120b367287292e3c651101"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/187/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "da3879b593bb92f83d595982e8196e4012d40861c22d3d6847688681fef553c2"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/154/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e91aedff459d90ea8478d79eb1c65d1052487eec61a15305cf2d997212ff2af6"
+                }
+              ]
+            },
+            {
+              "id": "C02",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 92251,
+                  "content_sha256": "c1c0095b74572c23f7366d313a227524741e6796bc47f4ba3d3f9712a72ecefc"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/374/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "9d2a494d7b5ec742e69f107c892f65e1470f17dc9a930cb3910d73cfc736c449"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 17477,
+                  "content_sha256": "7d82306838bd4291815e9ae99a5e2b26bd15134f01df9e530efa8205e6357fa7"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/247/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "ee79f6575897c0ff491ca4ace1fd684e7f5e4e46860785d3e895232d5cfb7627"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/247/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "08afa813d5fa66c86720e0bfed09286ad4d079652d1287f497e900df17ecf7d2"
+                }
+              ]
+            },
+            {
+              "id": "C03",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "pipelines/default/prompts/modules/model-routing.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e5d20417b71bbe0bc569b016955f71ce3a27c9b7aeb9d96282aa902c46a5d99d"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 73568,
+                  "content_sha256": "8f0c53b2222c246df04d6a72d1e0bf0fba398a1fea5d9f1c59487be930de7cfa"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 158513,
+                  "content_sha256": "1c9db18599ead07d6805a70b675d7f8e7f75cf42c5bf4ae313604787d7e6d6a9"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/workers/quota-routing.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f8ef7b829eaab07d9da0638b43dbf21828ce7b5e4e872adb2697576e6271ddb6"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 125048,
+                  "content_sha256": "fc74a44b7331e6753491cd2072a638eacbf82d2c00ac46eb663b25695f13a370"
+                }
+              ]
+            },
+            {
+              "id": "C04",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 93837,
+                  "content_sha256": "bab5aa46db13ea4e9a6b476854d7d4df9cd3eb1b354d0b19840d57a50dbc2afe"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/285/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0260b1d199a6ef63583360cd0a0ce4322cbe548d73234bef3fe54c2d4d937cce"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 93837,
+                  "content_sha256": "8d5a4a0c0465e13fe93619f7ed062b4bb8e2366ede1e6b0a99ba43bb056ddd22"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/227/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "3c56efaa32b9efac3bd8b4fae0d28c5145a6e667ed8b48be9d94c529f621f644"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 93847,
+                  "content_sha256": "51c529bfb915d340124da96ee903237f9804d4935be8fdc2a9c15a4d5c11749a"
+                }
+              ]
+            },
+            {
+              "id": "C05",
+              "class": "current",
+              "fact_rank": 1,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/kb/openrouter-quotas.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bf7ef3321e06916b25b757bad7be6f1f80ce0780233c724785bef4b869993f37"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/368/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d9be6cb31ac6ad14545726f297583ca050e9038ed54e7db39ee0b6ca0da66572"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 60166,
+                  "content_sha256": "a863983e40891cf363899bef5c322003f5d11909740106a46476dcd939eeb44f"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/kb/openrouter-quotas.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f79a18e70e2650762958addfe2e316484228995fcfc8d2f18becf80e41a053ed"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 60166,
+                  "content_sha256": "b118e0875a45140d869b47d3ac9d1a4be04ae90d43cd52b3f90919353ceb8045"
+                }
+              ]
+            },
+            {
+              "id": "C06",
+              "class": "current",
+              "fact_rank": 3,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 71424,
+                  "content_sha256": "b8334f6fbbcfd4cadb35579cb4649faefbe3d0f213c735015c8b81b23fa56a8a"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 71521,
+                  "content_sha256": "642371dd6852cabc4dc3898d2935fef1d0dd4cf801c3d29383642f628ef8bbf2"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/grep-memory-blowup.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "276e40e3e58e1a818f5b88a0dee2bc9821e52a500dccb2cffc624bce84dfa7af"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "429d2ccdd409fda2a69f62a95a8346e5631f19666a72f3fa1c12d5bf8d865913"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/188/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f1969e249c4e10feda147a64b4a497ab22ad9bd34243e9482357dab21860d163"
+                }
+              ]
+            },
+            {
+              "id": "R01",
+              "class": "rejected",
+              "fact_rank": 2,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/133/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "defe31b08b279c71769591a98bc531b6f20a72eb118618da07474031e1c3c796"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/133/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f0a8b970f6235e3a1b247ba1ac456c9cb88ebbcfd3a1dc8ef02f8caf1f32a4de"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/113/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f93b80d62fbd4f462c89e97f1214d0599599540dbef1e031e43c1ecc066773aa"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "CHANGELOG.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "a73b21812eddd37998c817d4759a116aa96cfdfc9463a13ca65f85d4a70784b8"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 125796,
+                  "content_sha256": "2638b58d62369ff1f7d85366396c2141ee1ace2fcc0677e4d801012d382ecbb1"
+                }
+              ]
+            },
+            {
+              "id": "R02",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/135/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d3cbc343d76c9b49b56983cd3f9609020bb29b607543e6a0fa16283b3c69af55"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/135/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "c509d93d14fc794109401cc172c9fd7d8b78cee0e88fe190eec7b30a614c08f3"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/18/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "c48584e6994a9b34cbdbe7eb7bad6651b0b0cb07a3648b005f6877dd425bd901"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 18152,
+                  "content_sha256": "376a7d80409d6a85d4bf8d07bc969861d7c245deaa7ea885ec3796e66d5bc8ea"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 181654,
+                  "content_sha256": "ad0be9911f9d4969bdbc4cc8d0ac1ab7fec5fa00028bbe7533460c5c08cba7da"
+                }
+              ]
+            },
+            {
+              "id": "R03",
+              "class": "rejected",
+              "fact_rank": 1,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0db42b8ab6dbefbabee69c080f2e10cd1ee14875e90cdb338368ac4f483219c6"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "632d7dc283f8a489cd29b33b5a1b399e05a52847690a82a31c6b7ee348c8e44b"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "b5f175d78dcdce1aa70ed0a28cae05f03863303de604813c4bba3ca124f00886"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "a94f12e7302f1a7b1395a3924492f12ff313d504a3ca98ab5d838899f9a80acb"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f867be833d2e62b20fa8181ef8daf62d871e6c1b9924006236c7cd5638ec918f"
+                }
+              ]
+            },
+            {
+              "id": "R04",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/308/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d4eef2c7ccacf83efb74b1f6d4d0112bc5facf3dfb31a214e28362880a209168"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/211/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8a38d1675f3630c079cc7b02f77675b62428ab7fa2b44d3b9b92dd30ea2d3fdf"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 76300,
+                  "content_sha256": "c8c67a6794609e475807a290964ee3c7fe957e886f9aabdb93b305aa1564184a"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 138295,
+                  "content_sha256": "bf9246c58df250561d473d7338293bc5157bc1b66a4d9c8f2a24b899dc8bf860"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/110/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6af9dcae69dee0ee232ba5916820c5ce0bc5a099cd3a5ede2df12d2e27663fa8"
+                }
+              ]
+            },
+            {
+              "id": "R05",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "43a035944f3937fdabf937cd98069311466f7a6b8a4e8348ec0575ddd0674def"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/239/incident-orc-seedon-hang.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8b0824ca03aad2423b0319178d11d486425745ddaece3c0d60dc58367104442f"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 71272,
+                  "content_sha256": "4e04319f9d2354ad9403a56e8ff296782b78932934e1e59d3bee067cf9bbfd2a"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "209fac03312b71edc186abdeeaf3a3bd82a6272a6907330877f683c0c57db517"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/3/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "07e97144d5b6a95dbbd71830d47f002bbeef5c33b1520fe94ab5fe1ee7f5c5b2"
+                }
+              ]
+            },
+            {
+              "id": "R06",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 159859,
+                  "content_sha256": "e1f44873fc92e55fc688f5936c4af4b152257090027f8eb924298a108617eea2"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 119831,
+                  "content_sha256": "f4db63dc048adbabda6363636771cc59bfca874aa497e0e5cc32df65fe328625"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 159875,
+                  "content_sha256": "3357556382aad883b1eca1df1b6a62f5e20533b8ac2f230bea8f6a67d4d9ab77"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 134635,
+                  "content_sha256": "036041ecefb5d636290519636117405947116c0a9db543521eccf60c6c01d96f"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 135456,
+                  "content_sha256": "5e0c843c055f831305a5bd72e44e40408987553f77325b9993d6da4c6f895f62"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "2": {
+      "build": {
+        "calibration_s": 0.09995010192506015,
+        "add_s": 0.8588023518677801,
+        "write_s": 0.15623688697814941,
+        "persisted_bytes": 10399206
+      },
+      "latency_excluding_embedding_ms": {
+        "baseline_median": 267.17700250446796,
+        "baseline_control_median": 329.31963715236634,
+        "candidate_median": 115.93885300680995,
+        "aa_absolute_delta_median": 27.7463486418128,
+        "paired_gain_median": 173.08670096099377,
+        "baseline_samples": [
+          276.8731480464339,
+          214.24775989726186,
+          232.2748270817101,
+          204.44270898588002,
+          506.63023605011404,
+          325.2646471373737,
+          255.80506399273872,
+          410.5404410511255,
+          345.1681181322783,
+          321.1303320713341,
+          225.80118593759835,
+          336.8630020413548,
+          249.62084903381765,
+          235.4236119426787,
+          276.0374550707638,
+          241.51456588879228,
+          258.3165499381721,
+          366.2974799517542
+        ],
+        "baseline_control_samples": [
+          343.6400971841067,
+          249.56364813260734,
+          251.0886660311371,
+          201.19592105038464,
+          350.5302630364895,
+          314.999177120626,
+          352.2165429312736,
+          481.82595102116466,
+          373.46996017731726,
+          402.38566510379314,
+          247.4661178421229,
+          365.2791508939117,
+          245.8197120577097,
+          250.0223401002586,
+          298.0850238818675,
+          570.2751430217177,
+          285.50740517675877,
+          379.45795501582325
+        ],
+        "candidate_samples": [
+          111.18484800681472,
+          31.41046199016273,
+          89.69133207574487,
+          44.28693000227213,
+          135.28228783980012,
+          120.69285800680518,
+          106.64438595995307,
+          398.6716391518712,
+          188.57675883919,
+          171.04723397642374,
+          92.8590390831232,
+          159.1988280415535,
+          97.41061995737255,
+          81.30181697197258,
+          218.05580100044608,
+          108.71194396167994,
+          131.92827394232154,
+          197.44659587740898
+        ]
+      },
+      "vector_agreement": {
+        "files": {
+          "top1_in_top20": 1.0,
+          "top5_coverage_in_top20": 1.0,
+          "mean_overlap_at_20": 0.8055555555555556
+        },
+        "logs": {
+          "top1_in_top20": 1.0,
+          "top5_coverage_in_top20": 1.0,
+          "mean_overlap_at_20": 0.8055555555555556
+        }
+      },
+      "retrieval": {
+        "baseline": {
+          "all": {
+            "n": 18,
+            "fact_recall_at_5": 0.5555555555555556,
+            "canonical_path_recall_at_5": 0.5,
+            "task_success_proxy": 0.5555555555555556,
+            "mrr_at_5": 0.312037037037037
+          },
+          "by_class": {
+            "current": {
+              "n": 6,
+              "fact_recall_at_5": 0.5,
+              "canonical_path_recall_at_5": 0.3333333333333333,
+              "task_success_proxy": 0.5,
+              "mrr_at_5": 0.27777777777777773
+            },
+            "exact": {
+              "n": 6,
+              "fact_recall_at_5": 0.8333333333333334,
+              "canonical_path_recall_at_5": 0.6666666666666666,
+              "task_success_proxy": 0.8333333333333334,
+              "mrr_at_5": 0.4083333333333334
+            },
+            "rejected": {
+              "n": 6,
+              "fact_recall_at_5": 0.3333333333333333,
+              "canonical_path_recall_at_5": 0.5,
+              "task_success_proxy": 0.3333333333333333,
+              "mrr_at_5": 0.25
+            }
+          },
+          "stale_contradiction_rate_current": 0.0,
+          "items": [
+            {
+              "id": "E01",
+              "class": "exact",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/118/audit.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "729b72c6a9026c1e9c21291285f449960393d49eac299e9dbb3a468231ec721d"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/workers/research-opus5-migration.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "00f2365fac2974e3f43c17b17b8ec3e553c641281479c2c3ad394d14ca79e994"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/345/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "815f24eacd88b162eee234930398679e8f320c5e7cd7520b264e4a1763fc1e3b"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/198/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "2ac15487f08b5e75d402e411a92238c525f15023c3d41ffed868588112834e5f"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/126/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "4d1c927e4b8c75e81cdae3c2cdffead433ee824ecc239adc5e13c82b28261af4"
+                }
+              ]
+            },
+            {
+              "id": "E02",
+              "class": "exact",
+              "fact_rank": 2,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 169922,
+                  "content_sha256": "e6e50dbc0851de3f0f7b8c0f8f15669ca32ec6066aa8a9eb8d56d3b8e6edc607"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 170455,
+                  "content_sha256": "3518381df7ae59c6552629431fcb8ea12fae271e8ee66b1031500875c4396562"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/grep-memory-blowup.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6ce96fac758dcdcc7564a4ea0a72fec54ae0e730030da25eb643eaa8ca9ea57b"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 169922,
+                  "content_sha256": "67ce6178e5db6e2ee9b86f1625ce42941af7dfbdb4f12cecee2a8a594c06474e"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/231/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bbbdbc4c94f4f27fae1d32791d6e57186be19641dafea91e9a4d81de846d3bdf"
+                }
+              ]
+            },
+            {
+              "id": "E03",
+              "class": "exact",
+              "fact_rank": 1,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 9595,
+                  "content_sha256": "e0baef35a079a2996aacdbb9d940db5e072279816061db568b5d2d835880f5fd"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/76/rules-patch.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "df1dc031a564945ea35d0fdee4aabee866f9cdd56464ca8c38cff7656e8af36e"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/test-oracles.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "87356be197fcf94adf189270d3f084acb9974ddedb1ab15e6f98e528fd36e643"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 9595,
+                  "content_sha256": "30128a329851e2495f869d54ff1fb0f6a8b4cffd43e9202229b8c3bd5036eb0b"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/18/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "63a362dcc2f59242d33f41a523482fbc9b8a87cdbc19513e4f218cba5fadf09a"
+                }
+              ]
+            },
+            {
+              "id": "E04",
+              "class": "exact",
+              "fact_rank": 4,
+              "canonical_path_rank": 4,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "CLAUDE.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8dcd677f7ec6243315586d90c052b699d7af0cab8647ae6bdbd17fd1bdd1ebdd"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 79264,
+                  "content_sha256": "cd7bcb45b486e69cf07943d93ff0536a866387178b7d456e0eb3a2703eed508d"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/347/inventory-after.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6e66173983e5e7e0ab2c19e5cd6df3dbf0291f5f01772a613ee363054e1bad96"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/kb/evidence-methods.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "38c76e29d824e71c2315d6f303b1b5c769b7fc0911988b658441e54389958ba1"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 79309,
+                  "content_sha256": "7f40a2a12258ff391e198cc87fc4fc1856dfd4613e40a1d50775d0574e4cbd8e"
+                }
+              ]
+            },
+            {
+              "id": "E05",
+              "class": "exact",
+              "fact_rank": 5,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/89/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "7c2defa61b21f5e1a803b72722aa48693b5b5326e0d661d8637c95abf2077585"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 125104,
+                  "content_sha256": "84565d47ad837c2997a3910a971257baee22e3f47b2ae2ab29e211f65df00eb8"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/89/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0494d5983391982db056bec325ecdf340ecddfbf9e94c47999191bbc640a1e7f"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/89/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "b7de130e8352ee5ef8fb69d5f275445a432781f5214b39265502f2ee787c6735"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/html-effectiveness/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "c1a2c696930602ebd294f8142ef8dc65fedb563f47e91abfa9856f04193e888c"
+                }
+              ]
+            },
+            {
+              "id": "E06",
+              "class": "exact",
+              "fact_rank": 2,
+              "canonical_path_rank": 2,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 36509,
+                  "content_sha256": "f10317b61588beee3ab817feea62b2427bc3e19064b24ad98024f9bf51727016"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/145/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bac5b0bf4f826a5ff5f886a73d130929ef710b3bb828b39bf6a3fa2c34b02b1c"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/140/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "698ea01730956de442ecb9237ce7890d3cb134b82e2b73469fbf55539ef0333d"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 36755,
+                  "content_sha256": "8b5b1c2ca932e789ce2fb6073741b93f4058f23d771b7f62b99e5be977ec5358"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/145/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e319fbf2c80ae76010a65cbbda0d017479993cc2ad34424861d042968ff153da"
+                }
+              ]
+            },
+            {
+              "id": "C01",
+              "class": "current",
+              "fact_rank": 3,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 172013,
+                  "content_sha256": "5b8531b3cac9a388caed4b97335f1ddb4c9d9ed0c2fdcadf13f06b9985fb3226"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/codex-cost/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e28a41bf038f3e81515fbc9c1f6858a22a86c63617c5ef25cfb0e0d9e4759630"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 135008,
+                  "content_sha256": "2b0f062f619635b90b4e69689936593422ac0a461a120b367287292e3c651101"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/304/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "36c4da78c9eaaa510fbdc62531f265ca75151fb0d8247f98c66ca2e4e27c4a0f"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/154/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e91aedff459d90ea8478d79eb1c65d1052487eec61a15305cf2d997212ff2af6"
+                }
+              ]
+            },
+            {
+              "id": "C02",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 92251,
+                  "content_sha256": "c1c0095b74572c23f7366d313a227524741e6796bc47f4ba3d3f9712a72ecefc"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/374/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "9d2a494d7b5ec742e69f107c892f65e1470f17dc9a930cb3910d73cfc736c449"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 17477,
+                  "content_sha256": "7d82306838bd4291815e9ae99a5e2b26bd15134f01df9e530efa8205e6357fa7"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/247/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "ee79f6575897c0ff491ca4ace1fd684e7f5e4e46860785d3e895232d5cfb7627"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/247/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "08afa813d5fa66c86720e0bfed09286ad4d079652d1287f497e900df17ecf7d2"
+                }
+              ]
+            },
+            {
+              "id": "C03",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 73568,
+                  "content_sha256": "8f0c53b2222c246df04d6a72d1e0bf0fba398a1fea5d9f1c59487be930de7cfa"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "pipelines/default/prompts/modules/model-routing.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e5d20417b71bbe0bc569b016955f71ce3a27c9b7aeb9d96282aa902c46a5d99d"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/workers/quota-routing.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f8ef7b829eaab07d9da0638b43dbf21828ce7b5e4e872adb2697576e6271ddb6"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 158513,
+                  "content_sha256": "1c9db18599ead07d6805a70b675d7f8e7f75cf42c5bf4ae313604787d7e6d6a9"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 125048,
+                  "content_sha256": "fc74a44b7331e6753491cd2072a638eacbf82d2c00ac46eb663b25695f13a370"
+                }
+              ]
+            },
+            {
+              "id": "C04",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 93837,
+                  "content_sha256": "bab5aa46db13ea4e9a6b476854d7d4df9cd3eb1b354d0b19840d57a50dbc2afe"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/285/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0260b1d199a6ef63583360cd0a0ce4322cbe548d73234bef3fe54c2d4d937cce"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 93837,
+                  "content_sha256": "8d5a4a0c0465e13fe93619f7ed062b4bb8e2366ede1e6b0a99ba43bb056ddd22"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/227/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "3c56efaa32b9efac3bd8b4fae0d28c5145a6e667ed8b48be9d94c529f621f644"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 93847,
+                  "content_sha256": "51c529bfb915d340124da96ee903237f9804d4935be8fdc2a9c15a4d5c11749a"
+                }
+              ]
+            },
+            {
+              "id": "C05",
+              "class": "current",
+              "fact_rank": 1,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/kb/openrouter-quotas.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bf7ef3321e06916b25b757bad7be6f1f80ce0780233c724785bef4b869993f37"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/368/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d9be6cb31ac6ad14545726f297583ca050e9038ed54e7db39ee0b6ca0da66572"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 60166,
+                  "content_sha256": "a863983e40891cf363899bef5c322003f5d11909740106a46476dcd939eeb44f"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/kb/openrouter-quotas.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f79a18e70e2650762958addfe2e316484228995fcfc8d2f18becf80e41a053ed"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 60166,
+                  "content_sha256": "b118e0875a45140d869b47d3ac9d1a4be04ae90d43cd52b3f90919353ceb8045"
+                }
+              ]
+            },
+            {
+              "id": "C06",
+              "class": "current",
+              "fact_rank": 3,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 71424,
+                  "content_sha256": "b8334f6fbbcfd4cadb35579cb4649faefbe3d0f213c735015c8b81b23fa56a8a"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 71521,
+                  "content_sha256": "642371dd6852cabc4dc3898d2935fef1d0dd4cf801c3d29383642f628ef8bbf2"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/grep-memory-blowup.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "276e40e3e58e1a818f5b88a0dee2bc9821e52a500dccb2cffc624bce84dfa7af"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "429d2ccdd409fda2a69f62a95a8346e5631f19666a72f3fa1c12d5bf8d865913"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/168/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "541c8770924c70d28bcc9b95a9491ccd2b9adc19c0436aed37fca7ed3108e8b7"
+                }
+              ]
+            },
+            {
+              "id": "R01",
+              "class": "rejected",
+              "fact_rank": 2,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/133/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "defe31b08b279c71769591a98bc531b6f20a72eb118618da07474031e1c3c796"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/133/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f0a8b970f6235e3a1b247ba1ac456c9cb88ebbcfd3a1dc8ef02f8caf1f32a4de"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/113/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f93b80d62fbd4f462c89e97f1214d0599599540dbef1e031e43c1ecc066773aa"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "CHANGELOG.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "a73b21812eddd37998c817d4759a116aa96cfdfc9463a13ca65f85d4a70784b8"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 132167,
+                  "content_sha256": "26d559d0b4ec9879ae4a04aaaf0340c4a54e82f2c510cf9f6b32d25160a886cc"
+                }
+              ]
+            },
+            {
+              "id": "R02",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/135/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d3cbc343d76c9b49b56983cd3f9609020bb29b607543e6a0fa16283b3c69af55"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/135/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "c509d93d14fc794109401cc172c9fd7d8b78cee0e88fe190eec7b30a614c08f3"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 18152,
+                  "content_sha256": "376a7d80409d6a85d4bf8d07bc969861d7c245deaa7ea885ec3796e66d5bc8ea"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 181654,
+                  "content_sha256": "ad0be9911f9d4969bdbc4cc8d0ac1ab7fec5fa00028bbe7533460c5c08cba7da"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/134/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d8be5dad61af62be5c7e20c26b2e483481290c95a72dd94c208926c640078d1a"
+                }
+              ]
+            },
+            {
+              "id": "R03",
+              "class": "rejected",
+              "fact_rank": 1,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0db42b8ab6dbefbabee69c080f2e10cd1ee14875e90cdb338368ac4f483219c6"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "632d7dc283f8a489cd29b33b5a1b399e05a52847690a82a31c6b7ee348c8e44b"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "b5f175d78dcdce1aa70ed0a28cae05f03863303de604813c4bba3ca124f00886"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "a94f12e7302f1a7b1395a3924492f12ff313d504a3ca98ab5d838899f9a80acb"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 14387,
+                  "content_sha256": "7f759310ed9cbbe899b4f9c4953176986725693b9167a5aa983b6bbb8fb438bf"
+                }
+              ]
+            },
+            {
+              "id": "R04",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/308/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d4eef2c7ccacf83efb74b1f6d4d0112bc5facf3dfb31a214e28362880a209168"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/211/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8a38d1675f3630c079cc7b02f77675b62428ab7fa2b44d3b9b92dd30ea2d3fdf"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 76300,
+                  "content_sha256": "c8c67a6794609e475807a290964ee3c7fe957e886f9aabdb93b305aa1564184a"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 138295,
+                  "content_sha256": "bf9246c58df250561d473d7338293bc5157bc1b66a4d9c8f2a24b899dc8bf860"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/110/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6af9dcae69dee0ee232ba5916820c5ce0bc5a099cd3a5ede2df12d2e27663fa8"
+                }
+              ]
+            },
+            {
+              "id": "R05",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "43a035944f3937fdabf937cd98069311466f7a6b8a4e8348ec0575ddd0674def"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/239/incident-orc-seedon-hang.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8b0824ca03aad2423b0319178d11d486425745ddaece3c0d60dc58367104442f"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 71272,
+                  "content_sha256": "4e04319f9d2354ad9403a56e8ff296782b78932934e1e59d3bee067cf9bbfd2a"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "209fac03312b71edc186abdeeaf3a3bd82a6272a6907330877f683c0c57db517"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/3/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "07e97144d5b6a95dbbd71830d47f002bbeef5c33b1520fe94ab5fe1ee7f5c5b2"
+                }
+              ]
+            },
+            {
+              "id": "R06",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 159859,
+                  "content_sha256": "e1f44873fc92e55fc688f5936c4af4b152257090027f8eb924298a108617eea2"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 119831,
+                  "content_sha256": "f4db63dc048adbabda6363636771cc59bfca874aa497e0e5cc32df65fe328625"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 159875,
+                  "content_sha256": "3357556382aad883b1eca1df1b6a62f5e20533b8ac2f230bea8f6a67d4d9ab77"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 135456,
+                  "content_sha256": "5e0c843c055f831305a5bd72e44e40408987553f77325b9993d6da4c6f895f62"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/codex-cost/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "cb7e9ca168acbb1ac0716a4e1e329bc532e484f6e0a959385d26c006c482cfcf"
+                }
+              ]
+            }
+          ]
+        },
+        "candidate": {
+          "all": {
+            "n": 18,
+            "fact_recall_at_5": 0.5555555555555556,
+            "canonical_path_recall_at_5": 0.5,
+            "task_success_proxy": 0.5555555555555556,
+            "mrr_at_5": 0.337037037037037
+          },
+          "by_class": {
+            "current": {
+              "n": 6,
+              "fact_recall_at_5": 0.5,
+              "canonical_path_recall_at_5": 0.3333333333333333,
+              "task_success_proxy": 0.5,
+              "mrr_at_5": 0.27777777777777773
+            },
+            "exact": {
+              "n": 6,
+              "fact_recall_at_5": 0.8333333333333334,
+              "canonical_path_recall_at_5": 0.6666666666666666,
+              "task_success_proxy": 0.8333333333333334,
+              "mrr_at_5": 0.48333333333333334
+            },
+            "rejected": {
+              "n": 6,
+              "fact_recall_at_5": 0.3333333333333333,
+              "canonical_path_recall_at_5": 0.5,
+              "task_success_proxy": 0.3333333333333333,
+              "mrr_at_5": 0.25
+            }
+          },
+          "stale_contradiction_rate_current": 0.0,
+          "items": [
+            {
+              "id": "E01",
+              "class": "exact",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/workers/research-opus5-migration.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "00f2365fac2974e3f43c17b17b8ec3e553c641281479c2c3ad394d14ca79e994"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/118/audit.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "729b72c6a9026c1e9c21291285f449960393d49eac299e9dbb3a468231ec721d"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/198/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "2ac15487f08b5e75d402e411a92238c525f15023c3d41ffed868588112834e5f"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/126/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "4d1c927e4b8c75e81cdae3c2cdffead433ee824ecc239adc5e13c82b28261af4"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 51590,
+                  "content_sha256": "31b3f160c4db766155b3625b7335d11071e9319be8a0a8ab4dd754fd96afb271"
+                }
+              ]
+            },
+            {
+              "id": "E02",
+              "class": "exact",
+              "fact_rank": 1,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 170455,
+                  "content_sha256": "3518381df7ae59c6552629431fcb8ea12fae271e8ee66b1031500875c4396562"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 169922,
+                  "content_sha256": "e6e50dbc0851de3f0f7b8c0f8f15669ca32ec6066aa8a9eb8d56d3b8e6edc607"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/grep-memory-blowup.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6ce96fac758dcdcc7564a4ea0a72fec54ae0e730030da25eb643eaa8ca9ea57b"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 169922,
+                  "content_sha256": "67ce6178e5db6e2ee9b86f1625ce42941af7dfbdb4f12cecee2a8a594c06474e"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/231/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bbbdbc4c94f4f27fae1d32791d6e57186be19641dafea91e9a4d81de846d3bdf"
+                }
+              ]
+            },
+            {
+              "id": "E03",
+              "class": "exact",
+              "fact_rank": 1,
+              "canonical_path_rank": 2,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 9595,
+                  "content_sha256": "e0baef35a079a2996aacdbb9d940db5e072279816061db568b5d2d835880f5fd"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/kb/test-oracles.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "87356be197fcf94adf189270d3f084acb9974ddedb1ab15e6f98e528fd36e643"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/76/rules-patch.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "df1dc031a564945ea35d0fdee4aabee866f9cdd56464ca8c38cff7656e8af36e"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 9595,
+                  "content_sha256": "30128a329851e2495f869d54ff1fb0f6a8b4cffd43e9202229b8c3bd5036eb0b"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/18/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "7310e904a068ffc4abcb38d6fbe5a18d6473b2bf3cfa46637c5e7f678e5c28e3"
+                }
+              ]
+            },
+            {
+              "id": "E04",
+              "class": "exact",
+              "fact_rank": 5,
+              "canonical_path_rank": 5,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "CLAUDE.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8dcd677f7ec6243315586d90c052b699d7af0cab8647ae6bdbd17fd1bdd1ebdd"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 79264,
+                  "content_sha256": "cd7bcb45b486e69cf07943d93ff0536a866387178b7d456e0eb3a2703eed508d"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/347/inventory-after.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "6e66173983e5e7e0ab2c19e5cd6df3dbf0291f5f01772a613ee363054e1bad96"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 79309,
+                  "content_sha256": "7f40a2a12258ff391e198cc87fc4fc1856dfd4613e40a1d50775d0574e4cbd8e"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/kb/evidence-methods.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "38c76e29d824e71c2315d6f303b1b5c769b7fc0911988b658441e54389958ba1"
+                }
+              ]
+            },
+            {
+              "id": "E05",
+              "class": "exact",
+              "fact_rank": 5,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/89/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "7c2defa61b21f5e1a803b72722aa48693b5b5326e0d661d8637c95abf2077585"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 125104,
+                  "content_sha256": "84565d47ad837c2997a3910a971257baee22e3f47b2ae2ab29e211f65df00eb8"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/89/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0494d5983391982db056bec325ecdf340ecddfbf9e94c47999191bbc640a1e7f"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/89/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "b7de130e8352ee5ef8fb69d5f275445a432781f5214b39265502f2ee787c6735"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/html-effectiveness/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "c1a2c696930602ebd294f8142ef8dc65fedb563f47e91abfa9856f04193e888c"
+                }
+              ]
+            },
+            {
+              "id": "E06",
+              "class": "exact",
+              "fact_rank": 2,
+              "canonical_path_rank": 2,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 36509,
+                  "content_sha256": "f10317b61588beee3ab817feea62b2427bc3e19064b24ad98024f9bf51727016"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/145/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bac5b0bf4f826a5ff5f886a73d130929ef710b3bb828b39bf6a3fa2c34b02b1c"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 36755,
+                  "content_sha256": "8b5b1c2ca932e789ce2fb6073741b93f4058f23d771b7f62b99e5be977ec5358"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/145/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e319fbf2c80ae76010a65cbbda0d017479993cc2ad34424861d042968ff153da"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/140/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "698ea01730956de442ecb9237ce7890d3cb134b82e2b73469fbf55539ef0333d"
+                }
+              ]
+            },
+            {
+              "id": "C01",
+              "class": "current",
+              "fact_rank": 3,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 172013,
+                  "content_sha256": "5b8531b3cac9a388caed4b97335f1ddb4c9d9ed0c2fdcadf13f06b9985fb3226"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/codex-cost/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e28a41bf038f3e81515fbc9c1f6858a22a86c63617c5ef25cfb0e0d9e4759630"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 135008,
+                  "content_sha256": "2b0f062f619635b90b4e69689936593422ac0a461a120b367287292e3c651101"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/304/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "36c4da78c9eaaa510fbdc62531f265ca75151fb0d8247f98c66ca2e4e27c4a0f"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/154/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e91aedff459d90ea8478d79eb1c65d1052487eec61a15305cf2d997212ff2af6"
+                }
+              ]
+            },
+            {
+              "id": "C02",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 92251,
+                  "content_sha256": "c1c0095b74572c23f7366d313a227524741e6796bc47f4ba3d3f9712a72ecefc"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/374/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "9d2a494d7b5ec742e69f107c892f65e1470f17dc9a930cb3910d73cfc736c449"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 17477,
+                  "content_sha256": "7d82306838bd4291815e9ae99a5e2b26bd15134f01df9e530efa8205e6357fa7"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/247/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "ee79f6575897c0ff491ca4ace1fd684e7f5e4e46860785d3e895232d5cfb7627"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/247/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "08afa813d5fa66c86720e0bfed09286ad4d079652d1287f497e900df17ecf7d2"
+                }
+              ]
+            },
+            {
+              "id": "C03",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 73568,
+                  "content_sha256": "8f0c53b2222c246df04d6a72d1e0bf0fba398a1fea5d9f1c59487be930de7cfa"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "pipelines/default/prompts/modules/model-routing.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e5d20417b71bbe0bc569b016955f71ce3a27c9b7aeb9d96282aa902c46a5d99d"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/workers/quota-routing.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f8ef7b829eaab07d9da0638b43dbf21828ce7b5e4e872adb2697576e6271ddb6"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 169172,
+                  "content_sha256": "9a44887070b67731b2a74461b0dd20560dee86c68dae999660c7e208923dacce"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 125048,
+                  "content_sha256": "fc74a44b7331e6753491cd2072a638eacbf82d2c00ac46eb663b25695f13a370"
+                }
+              ]
+            },
+            {
+              "id": "C04",
+              "class": "current",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 93837,
+                  "content_sha256": "bab5aa46db13ea4e9a6b476854d7d4df9cd3eb1b354d0b19840d57a50dbc2afe"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/285/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0260b1d199a6ef63583360cd0a0ce4322cbe548d73234bef3fe54c2d4d937cce"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 93837,
+                  "content_sha256": "8d5a4a0c0465e13fe93619f7ed062b4bb8e2366ede1e6b0a99ba43bb056ddd22"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/227/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "3c56efaa32b9efac3bd8b4fae0d28c5145a6e667ed8b48be9d94c529f621f644"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 93847,
+                  "content_sha256": "51c529bfb915d340124da96ee903237f9804d4935be8fdc2a9c15a4d5c11749a"
+                }
+              ]
+            },
+            {
+              "id": "C05",
+              "class": "current",
+              "fact_rank": 1,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/kb/openrouter-quotas.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "bf7ef3321e06916b25b757bad7be6f1f80ce0780233c724785bef4b869993f37"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/368/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d9be6cb31ac6ad14545726f297583ca050e9038ed54e7db39ee0b6ca0da66572"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 60166,
+                  "content_sha256": "a863983e40891cf363899bef5c322003f5d11909740106a46476dcd939eeb44f"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/366/report.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "de0c7db678029667f69ae6884e7b748b7653de795dd57aae3c809257fe4d941f"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/kb/openrouter-quotas.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f79a18e70e2650762958addfe2e316484228995fcfc8d2f18becf80e41a053ed"
+                }
+              ]
+            },
+            {
+              "id": "C06",
+              "class": "current",
+              "fact_rank": 3,
+              "canonical_path_rank": 3,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 71424,
+                  "content_sha256": "b8334f6fbbcfd4cadb35579cb4649faefbe3d0f213c735015c8b81b23fa56a8a"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 71521,
+                  "content_sha256": "642371dd6852cabc4dc3898d2935fef1d0dd4cf801c3d29383642f628ef8bbf2"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/kb/grep-memory-blowup.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "276e40e3e58e1a818f5b88a0dee2bc9821e52a500dccb2cffc624bce84dfa7af"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "429d2ccdd409fda2a69f62a95a8346e5631f19666a72f3fa1c12d5bf8d865913"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/188/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f1969e249c4e10feda147a64b4a497ab22ad9bd34243e9482357dab21860d163"
+                }
+              ]
+            },
+            {
+              "id": "R01",
+              "class": "rejected",
+              "fact_rank": 2,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/133/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "defe31b08b279c71769591a98bc531b6f20a72eb118618da07474031e1c3c796"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/133/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f0a8b970f6235e3a1b247ba1ac456c9cb88ebbcfd3a1dc8ef02f8caf1f32a4de"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 132167,
+                  "content_sha256": "26d559d0b4ec9879ae4a04aaaf0340c4a54e82f2c510cf9f6b32d25160a886cc"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 116240,
+                  "content_sha256": "554ec2992126228a85453d5e5b95923aa0d9aea45e95616dd7c0d56a2c5acbe6"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/133/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "e16ffec178be344dfa29e75cbd225cf29313e86d53945696ec6a586e56e7b552"
+                }
+              ]
+            },
+            {
+              "id": "R02",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/135/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d3cbc343d76c9b49b56983cd3f9609020bb29b607543e6a0fa16283b3c69af55"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/135/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "c509d93d14fc794109401cc172c9fd7d8b78cee0e88fe190eec7b30a614c08f3"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/135/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0f1705251b740822ff8ba6869da6dc409430e15af0af40df360e6d1912b4998b"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/18/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "c48584e6994a9b34cbdbe7eb7bad6651b0b0cb07a3648b005f6877dd425bd901"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 70210,
+                  "content_sha256": "7b65ae03f3396801b5290f3e02c3d8a8de0d076399a0353e19c8bda83561861e"
+                }
+              ]
+            },
+            {
+              "id": "R03",
+              "class": "rejected",
+              "fact_rank": 1,
+              "canonical_path_rank": 1,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": true,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "0db42b8ab6dbefbabee69c080f2e10cd1ee14875e90cdb338368ac4f483219c6"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "632d7dc283f8a489cd29b33b5a1b399e05a52847690a82a31c6b7ee348c8e44b"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "b5f175d78dcdce1aa70ed0a28cae05f03863303de604813c4bba3ca124f00886"
+                },
+                {
+                  "rank": 4,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "a94f12e7302f1a7b1395a3924492f12ff313d504a3ca98ab5d838899f9a80acb"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/138/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "f867be833d2e62b20fa8181ef8daf62d871e6c1b9924006236c7cd5638ec918f"
+                }
+              ]
+            },
+            {
+              "id": "R04",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 139622,
+                  "content_sha256": "7658247c262af28ce5e09ec1318f5b80106898d715e373e4981ec39cb19e315b"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/308/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "d4eef2c7ccacf83efb74b1f6d4d0112bc5facf3dfb31a214e28362880a209168"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/211/plan.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8a38d1675f3630c079cc7b02f77675b62428ab7fa2b44d3b9b92dd30ea2d3fdf"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 76300,
+                  "content_sha256": "c8c67a6794609e475807a290964ee3c7fe957e886f9aabdb93b305aa1564184a"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 138295,
+                  "content_sha256": "bf9246c58df250561d473d7338293bc5157bc1b66a4d9c8f2a24b899dc8bf860"
+                }
+              ]
+            },
+            {
+              "id": "R05",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "43a035944f3937fdabf937cd98069311466f7a6b8a4e8348ec0575ddd0674def"
+                },
+                {
+                  "rank": 2,
+                  "source": "file",
+                  "path": "docs/tasks/239/incident-orc-seedon-hang.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "8b0824ca03aad2423b0319178d11d486425745ddaece3c0d60dc58367104442f"
+                },
+                {
+                  "rank": 3,
+                  "source": "file",
+                  "path": "docs/tasks/211/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "209fac03312b71edc186abdeeaf3a3bd82a6272a6907330877f683c0c57db517"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "user_msg",
+                  "log_id": 71272,
+                  "content_sha256": "4e04319f9d2354ad9403a56e8ff296782b78932934e1e59d3bee067cf9bbfd2a"
+                },
+                {
+                  "rank": 5,
+                  "source": "file",
+                  "path": "docs/tasks/3/research.md",
+                  "kind": null,
+                  "log_id": null,
+                  "content_sha256": "07e97144d5b6a95dbbd71830d47f002bbeef5c33b1520fe94ab5fe1ee7f5c5b2"
+                }
+              ]
+            },
+            {
+              "id": "R06",
+              "class": "rejected",
+              "fact_rank": null,
+              "canonical_path_rank": null,
+              "forbidden_hit_count": 0,
+              "task_success_proxy": false,
+              "results": [
+                {
+                  "rank": 1,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 159859,
+                  "content_sha256": "e1f44873fc92e55fc688f5936c4af4b152257090027f8eb924298a108617eea2"
+                },
+                {
+                  "rank": 2,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 135456,
+                  "content_sha256": "5e0c843c055f831305a5bd72e44e40408987553f77325b9993d6da4c6f895f62"
+                },
+                {
+                  "rank": 3,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 119831,
+                  "content_sha256": "f4db63dc048adbabda6363636771cc59bfca874aa497e0e5cc32df65fe328625"
+                },
+                {
+                  "rank": 4,
+                  "source": "log",
+                  "path": null,
+                  "kind": "text",
+                  "log_id": 134635,
+                  "content_sha256": "036041ecefb5d636290519636117405947116c0a9db543521eccf60c6c01d96f"
+                },
+                {
+                  "rank": 5,
+                  "source": "log",
+                  "path": null,
+                  "kind": "agent_msg",
+                  "log_id": 159875,
+                  "content_sha256": "3357556382aad883b1eca1df1b6a62f5e20533b8ac2f230bea8f6a67d4d9ab77"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
