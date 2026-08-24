@@ -1,0 +1,333 @@
+{
+  "fixture_version": 1,
+  "registry": {
+    "registry_version": 1,
+    "topics": [
+      {
+        "project_id": "orchestra",
+        "topic_slug": "repo-ops",
+        "aliases": ["repository-operations"],
+        "summary": "Git, worktrees, merges, task evidence and recovery."
+      },
+      {
+        "project_id": "orchestra",
+        "topic_slug": "review-routing",
+        "aliases": ["review-policy"],
+        "summary": "Review selection, findings and escalation."
+      }
+    ]
+  },
+  "duplicate_topic_registry": {
+    "registry_version": 1,
+    "topics": [
+      {
+        "project_id": "orchestra",
+        "topic_slug": "repo-ops",
+        "aliases": ["shared-ops"],
+        "summary": "First owner of an intentionally duplicated alias."
+      },
+      {
+        "project_id": "orchestra",
+        "topic_slug": "operations-manual",
+        "aliases": ["shared-ops"],
+        "summary": "Second owner of an intentionally duplicated alias."
+      }
+    ]
+  },
+  "base_provenance": {
+    "task_id": "$task_101",
+    "evidence_uri": "$evidence_101",
+    "path": "docs/tasks/315/report.md",
+    "anchor": "## T2",
+    "git_commit": "1111111111111111111111111111111111111111",
+    "measurement": "fixture:t3:promotion"
+  },
+  "requests": {
+    "current": {
+      "event_id": "30000000-0000-4000-8000-000000000001",
+      "idempotency_key": "t3-current-repo-ops",
+      "topic": "repo-ops",
+      "new_topic": false,
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000001",
+        "fact_key": "worker-wip-scope",
+        "claim": "worker_wip commit lists are the reliable scope check",
+        "status": "current",
+        "confidence": "confirmed",
+        "valid_from": "2026-08-14T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-14T00:00:00Z",
+        "refresh_after": "2027-08-14T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": [],
+        "disputed_by": [],
+        "metadata": {"source_class": "measured"}
+      }
+    },
+    "bare_conflict": {
+      "event_id": "30000000-0000-4000-8000-000000000002",
+      "idempotency_key": "t3-bare-conflict",
+      "topic": "repo-ops",
+      "new_topic": false,
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000002",
+        "fact_key": "worker-wip-scope",
+        "claim": "worker_wip row deltas are the reliable scope check",
+        "status": "current",
+        "confidence": "confirmed",
+        "valid_from": "2026-08-14T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-15T00:00:00Z",
+        "refresh_after": "2027-08-15T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": [],
+        "disputed_by": [],
+        "metadata": {
+          "supersedes_hint": "31000000-0000-4000-8000-000000000001"
+        }
+      }
+    },
+    "supersede_one": {
+      "event_id": "30000000-0000-4000-8000-000000000003",
+      "idempotency_key": "t3-supersede-one",
+      "topic": "repo-ops",
+      "new_topic": false,
+      "resolution": "supersede",
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000003",
+        "fact_key": "worker-wip-scope",
+        "claim": "worker_wip commit lists and content grep jointly define the reliable scope check",
+        "status": "current",
+        "confidence": "confirmed",
+        "valid_from": "2026-08-16T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-16T00:00:00Z",
+        "refresh_after": "2027-08-16T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": ["31000000-0000-4000-8000-000000000001"],
+        "disputed_by": [],
+        "metadata": {"resolution_reason": "new direct measurement"}
+      }
+    },
+    "supersede_two_alternate": {
+      "event_id": "30000000-0000-4000-8000-000000000004",
+      "idempotency_key": "t3-supersede-two",
+      "topic": "repository-operations",
+      "new_topic": false,
+      "resolution": "supersede",
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000004",
+        "fact_key": "worker-wip-scope",
+        "claim": "worker_wip commit lists plus canonical content checks define the reliable scope check",
+        "status": "current",
+        "confidence": "confirmed",
+        "valid_from": "2026-08-18T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-18T00:00:00Z",
+        "refresh_after": "2027-08-18T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": ["31000000-0000-4000-8000-000000000003"],
+        "disputed_by": [],
+        "metadata": {
+          "future_projection_metadata": {"version": 2, "label": "safe"}
+        }
+      }
+    },
+    "rejected_one": {
+      "event_id": "30000000-0000-4000-8000-000000000005",
+      "idempotency_key": "t3-rejected-one",
+      "topic": "repo-ops",
+      "new_topic": false,
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000005",
+        "fact_key": "global-jsonl-task-log",
+        "claim": "Use one global JSONL file as canonical task history",
+        "status": "rejected",
+        "confidence": "confirmed",
+        "valid_from": "2026-08-23T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-23T00:00:00Z",
+        "refresh_after": "2027-08-23T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": [],
+        "disputed_by": [],
+        "metadata": {"rejection_reason": "one merge hotspot"}
+      }
+    },
+    "rejected_two": {
+      "event_id": "30000000-0000-4000-8000-000000000006",
+      "idempotency_key": "t3-rejected-two",
+      "topic": "repo-ops",
+      "new_topic": false,
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000006",
+        "fact_key": "sqlite-only-task-truth",
+        "claim": "Keep SQLite as the only canonical task store",
+        "status": "rejected",
+        "confidence": "confirmed",
+        "valid_from": "2026-08-23T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-23T00:00:00Z",
+        "refresh_after": "2027-08-23T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": [],
+        "disputed_by": [],
+        "metadata": {"rejection_reason": "not Git-portable"}
+      }
+    },
+    "additive_near_duplicate": {
+      "event_id": "30000000-0000-4000-8000-000000000007",
+      "idempotency_key": "t3-additive-near-duplicate",
+      "topic": "repo-ops",
+      "new_topic": false,
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000007",
+        "fact_key": "worker-wip-display",
+        "claim": "worker_wip row deltas are unsuitable for display totals",
+        "status": "current",
+        "confidence": "confirmed",
+        "valid_from": "2026-08-14T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-14T00:00:00Z",
+        "refresh_after": "2027-08-14T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": [],
+        "disputed_by": [],
+        "metadata": {"similar_words_are_not_identity": true}
+      }
+    },
+    "disputed": {
+      "event_id": "30000000-0000-4000-8000-000000000008",
+      "idempotency_key": "t3-disputed",
+      "topic": "repo-ops",
+      "new_topic": false,
+      "resolution": "disputed",
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000008",
+        "fact_key": "worker-wip-scope",
+        "claim": "worker_wip row deltas alone define the reliable scope check",
+        "status": "disputed",
+        "confidence": "likely",
+        "valid_from": "2026-08-14T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-17T00:00:00Z",
+        "refresh_after": "2027-08-17T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": [],
+        "disputed_by": ["$evidence_101"],
+        "metadata": {"conflict_class": "same-valid-time"}
+      }
+    },
+    "ttl": {
+      "event_id": "30000000-0000-4000-8000-000000000009",
+      "idempotency_key": "t3-ttl",
+      "topic": "review-routing",
+      "new_topic": false,
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000009",
+        "fact_key": "provider-window-state",
+        "claim": "Provider window state was measured at the recorded time",
+        "status": "current",
+        "confidence": "confirmed",
+        "valid_from": "2026-08-20T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-20T00:00:00Z",
+        "refresh_after": "2026-08-21T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": [],
+        "disputed_by": [],
+        "metadata": {"volatile": true}
+      }
+    },
+    "new_topic": {
+      "event_id": "30000000-0000-4000-8000-000000000010",
+      "idempotency_key": "t3-new-topic",
+      "topic": "runtime-safety",
+      "new_topic": true,
+      "topic_summary": "Runtime safety invariants and failure containment.",
+      "aliases": ["runtime-guards"],
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000010",
+        "fact_key": "fail-loud-boundary",
+        "claim": "Production safety guards fail loud at the owning boundary",
+        "status": "current",
+        "confidence": "confirmed",
+        "valid_from": "2026-08-24T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-24T00:00:00Z",
+        "refresh_after": "2027-08-24T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": [],
+        "disputed_by": [],
+        "metadata": {"topic_reason": "distinct runtime scope"}
+      }
+    },
+    "source_less": {
+      "event_id": "30000000-0000-4000-8000-000000000011",
+      "idempotency_key": "t3-source-less",
+      "topic": "repo-ops",
+      "new_topic": false,
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000011",
+        "fact_key": "source-less-fallback",
+        "claim": "A fallback metadata path can replace immutable evidence",
+        "status": "current",
+        "confidence": "uncertain",
+        "valid_from": "2026-08-24T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-24T00:00:00Z",
+        "refresh_after": "2027-08-24T00:00:00Z",
+        "provenance": [],
+        "supersedes": [],
+        "disputed_by": [],
+        "metadata": {
+          "fallback_path": "docs/tasks/315/report.md",
+          "fallback_anchor": "## T2"
+        }
+      }
+    },
+    "orphan": {
+      "event_id": "30000000-0000-4000-8000-000000000012",
+      "idempotency_key": "t3-orphan",
+      "topic": "orphan-topic",
+      "new_topic": false,
+      "fact": {
+        "stable_id": "31000000-0000-4000-8000-000000000012",
+        "fact_key": "orphan-fact",
+        "claim": "A standalone topic file is enough",
+        "status": "current",
+        "confidence": "uncertain",
+        "valid_from": "2026-08-24T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-24T00:00:00Z",
+        "refresh_after": "2027-08-24T00:00:00Z",
+        "provenance": ["$base_provenance"],
+        "supersedes": [],
+        "disputed_by": [],
+        "metadata": {"fallback_topic_slug": "repo-ops"}
+      }
+    }
+  },
+  "scenarios": [
+    {"id": "S01", "class": "update-existing", "setup": [], "action": "current", "expected": "current"},
+    {"id": "S02", "class": "update-existing", "setup": ["current"], "action": "current", "expected": "identical-noop"},
+    {"id": "S03", "class": "update-existing", "setup": ["current"], "action": "bare_conflict", "expected": "conflict-rejected"},
+    {"id": "S04", "class": "explicit-supersession", "setup": ["current"], "action": "supersede_one", "expected": "superseded-as-of"},
+    {"id": "S05", "class": "explicit-supersession", "setup": ["current", "supersede_one"], "action": "supersede_two_alternate", "expected": "superseded-valid-alternate"},
+    {"id": "S06", "class": "rejected-approach", "setup": [], "action": "rejected_one", "expected": "rejected-query"},
+    {"id": "S07", "class": "rejected-approach", "setup": [], "action": "rejected_two", "expected": "rejected-query"},
+    {"id": "S08", "class": "additive-near-duplicate", "setup": ["current"], "action": "additive_near_duplicate", "expected": "additive-no-false-supersede"},
+    {"id": "S09", "class": "disputed-values", "setup": ["current"], "action": "disputed", "expected": "disputed-visible"},
+    {"id": "S10", "class": "refresh-after-ttl", "setup": [], "action": "ttl", "expected": "validation-debt-only"},
+    {"id": "S11", "class": "genuine-new-topic", "setup": [], "action": "new_topic", "expected": "new-topic-atomic"},
+    {"id": "S12", "class": "orphan-trap", "setup": [], "action": "source_less", "expected": "source-orphan-duplicate-fail-closed"}
+  ],
+  "compatibility_mutations": {
+    "cross_kind_evidence_uri": "$resource_uri",
+    "private_metadata": {
+      "opaque": {
+        "credential_material": "T3_PRIVATE_CREDENTIAL_MUST_BE_REJECTED"
+      }
+    }
+  }
+}

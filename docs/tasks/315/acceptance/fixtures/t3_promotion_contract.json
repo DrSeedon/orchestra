@@ -1,0 +1,95 @@
+{
+  "contract_version": 1,
+  "fixture_sha256": "655027ac8ed170a193a5e58b9b82a60749ad8e8208e435f85a54fc98715f4707",
+  "t2_fixture_sha256": "88f3d2ca7ab8a5a75b2f2c87fb3fb1870d00e063a7d6e75ca4aec462b4d4b650",
+  "public_api": {
+    "app.ia.evidence": {
+      "classes": ["EvidenceResolver"],
+      "methods": ["resolve"],
+      "exceptions": ["EvidenceResolutionError"]
+    },
+    "app.ia.events": {
+      "classes": ["FactEventLog"],
+      "methods": ["append", "events"],
+      "exceptions": ["EventConflictError"]
+    },
+    "app.ia.knowledge": {
+      "callables": [
+        "knowledge_head",
+        "knowledge_service_mode",
+        "promote_fact",
+        "query_facts"
+      ],
+      "classes": ["KnowledgeService"],
+      "methods": ["promote", "query"],
+      "exceptions": [
+        "KnowledgeNotConfiguredError",
+        "PromotionConflictError",
+        "PromotionValidationError",
+        "TopicResolutionError"
+      ]
+    }
+  },
+  "production_entry": {
+    "context": "app.ia.knowledge.knowledge_service_mode(canonical_root, registry_path, task_store)",
+    "write": "app.ia.knowledge.promote_fact(request, expected_head=...)",
+    "read": "app.ia.knowledge.query_facts(project_id, topic, mode, fact_key, as_of, now)",
+    "required_chain": [
+      "promote_fact",
+      "KnowledgeService.promote",
+      "EvidenceResolver.resolve",
+      "FactEventLog.append"
+    ]
+  },
+  "canonical_layout": {
+    "registry": "registry.json",
+    "readme": "README.md",
+    "topic": "projects/{project_id}/knowledge/topics/{topic_slug}/topic.md",
+    "fact": "projects/{project_id}/knowledge/topics/{topic_slug}/facts/{fact_key}/{stable_id}.json",
+    "event": "projects/{project_id}/knowledge/topics/{topic_slug}/events/{event_id}.json"
+  },
+  "query_modes": [
+    "current",
+    "rejected",
+    "superseded",
+    "disputed",
+    "all",
+    "as_of"
+  ],
+  "scenario_ids": [
+    "S01",
+    "S02",
+    "S03",
+    "S04",
+    "S05",
+    "S06",
+    "S07",
+    "S08",
+    "S09",
+    "S10",
+    "S11",
+    "S12"
+  ],
+  "scenario_class_counts": {
+    "update-existing": 3,
+    "explicit-supersession": 2,
+    "rejected-approach": 2,
+    "additive-near-duplicate": 1,
+    "disputed-values": 1,
+    "refresh-after-ttl": 1,
+    "genuine-new-topic": 1,
+    "orphan-trap": 1
+  },
+  "status_contract": {
+    "canonical": [
+      "current",
+      "historical",
+      "rejected",
+      "disputed"
+    ],
+    "derived_debt": "stale-needs-validation"
+  },
+  "expected_controls": 4,
+  "expected_scenario_nodes": 12,
+  "expected_other_behavior_nodes": 2
+}
