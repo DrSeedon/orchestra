@@ -12,9 +12,9 @@ evaluated.
 | 4. Task store sequencing | Implement #299 task canonical/projection boundary first, then reuse it for knowledge links | Implement both behind separate projections, or knowledge first | #299 first settles stable ID/#N/head/merge semantics; it delays fact retrieval but avoids two incompatible migration seams | #299 user decision on lease/global #N remains unresolved, while a typed-fact pilot can prove value without task identity changes |
 | 5. Session memory | Immutable session/cold history; explicit promotion only after evidence validation | Automatic extraction of all session memories into current facts | Safe provenance and privacy cost more writes; auto extraction risks source-less/collateral facts | a frozen promotion audit shows automatic extraction has zero false promotion and complete provenance across all allowed memory classes |
 | 6. Private data and retention | Classify fields; keep private fields out of prompt/FTS/vector; use private Git or separately governed encrypted store; tombstone is not legal erase | Keep sensitive values in canonical Git with access controls only | Separate private store increases operational complexity; keeping values in Git can make legal purge/history rewrite unavoidable | documented legal policy plus secret-scan/restore measurements show private Git is acceptable and purge procedure is approved |
-| 7. Progressive delivery | Compact hot topic registry, warm typed facts, cold evidence/session details; heads and debt in every result | Load all Markdown/log context or adopt OpenViking L0/L1/L2 wholesale | Requires summary/projection generation and fallback; avoids prompt bloat and stale silent misses | A/B/A/B frozen workload shows no reduction in tool calls/footprint or causes task-success loss larger than accepted budget |
+| 7. Progressive delivery | One typed agent tool returns structured summary/record/evidence payload levels with heads/debt; cold archives only through evidence refs | Separate query/promotion tools, direct files/SQLite/vector, or generated human summaries | One owner and machine payloads minimize branches and dual truth; direct storage access makes stale fallback indistinguishable from canon | frozen tasks show one tool loses required evidence or materially increases agent failure/tool calls |
 | 8. Rollout and rollback | Fresh frozen manifest, shadow dual-read, replay parity, projection cutover, forward rollback/rebuild; no live service mutation during research | Direct cutover after migration script | Shadow mode costs storage/time; direct cutover risks loss of task/fact identity and stale projections | parity or rollback rehearsal fails; then keep old facade and redesign migration before any write |
-| 9. Existing documents and agent cutover | After core T3–T6, classify every legacy document; canonical task/fact/event/evidence-ref bodies are structured Git JSON, while historical reports remain immutable evidence and README/topic Markdown is generated projection; switch assembled prompts through legacy→shadow→canonical | Treat current Markdown or SQLite as continuing co-master, or rewrite evidence into new records | A strict owner removes dual truth but requires alias manifests, prompt delivery checks and a reversible compatibility window; early deletion makes rollback impossible | byte-preserving inventory, shadow parity or assembled-prompt checks cannot cover the corpus/runtimes, so retain legacy owner and redesign before cutover |
+| 9. Existing documents and agent cutover | After corrected T3b plus T4–T6, classify every legacy document; structured Git JSON/registry is canonical, historical Markdown is byte-preserved cold evidence/archive, and no README/topic/human projection is generated | Keep/generated Markdown or SQLite as co-master, or rewrite evidence into new records | A single agent-only owner removes duplicate output and truth paths but requires alias manifests, prompt delivery checks and reversible compatibility | byte-preserving inventory, shadow parity or assembled-prompt checks cannot cover the corpus/runtimes, so retain legacy owner and redesign before cutover |
 
 ## Immediate user decisions
 
@@ -26,9 +26,29 @@ open; each ticket's separately frozen behavioral oracle is still mandatory.
 Even after these choices, Phase 3 remains blocked until every ticket has a behavior-specific RED oracle
 designed and frozen. The smoke probes in acceptance/ are only missing-seam diagnostics.
 
-## User decision — final T7 boundary (2026-08-24)
+## User correction — agent-only knowledge boundary (2026-08-24)
 
-T7 occurs only after the T3–T6 core data plane is implemented and verified. Canonical task state,
+The earlier T7 choice that generated README/topic Markdown is superseded. The user wants no
+human-readable generated output: optimize for agents and maximum simplicity. Merged T3 currently passes
+its frozen suite (`18 passed`) but conflicts with this decision in measured, exact ways:
+
+- `KnowledgeService._write_topic_documents()` is called at initialization and new-topic promotion (2
+  call sites); the base two-topic registry generates 3 Markdown files, and adding one topic generates 4;
+- the frozen T3 contract owns 2 Markdown layout paths (`README.md`, `topic.md`), and its oracle has 2
+  behavior assertions requiring those outputs;
+- current inventory to retain rather than regenerate is 1,281 `docs/tasks/**/*.md`, 20 `docs/kb/*.md`,
+  3 session-archive Markdown files, 23 pipeline prompt Markdown files, 2 Codex skill Markdown files plus
+  TODO.md/CLAUDE.md/AGENTS.md.
+
+T3b preserves T3's evidence/idempotency/conflict/valid-time semantics but removes every Markdown/human
+projection write. One agent-facing `knowledge` tool/API owns promotion, query and evidence import with
+structured progressive payloads (`summary`, `record`, `evidence`). Missing canonical truth fails closed;
+caller-supplied file paths, SQLite payloads or vector hits can never serve as an alternate truth path.
+T4 is stopped until this corrective oracle and implementation are merged.
+
+## User decision — final T7 boundary (corrected 2026-08-24)
+
+T7 occurs only after corrected T3b and the T4–T6 core data plane are implemented and verified. Canonical task state,
 events and evidence references are structured Git records (JSON), not arbitrary Markdown. Typed fact
 and fact-event records follow the same rule. Existing `docs/tasks/*.md` research/plan/review/report
 bodies remain immutable evidence or human documentation; migration adds typed references and aliases
@@ -36,21 +56,21 @@ without rewriting their historical bytes or Git lineage.
 
 Existing documents are inventoried and assigned exactly one migration class:
 
-- canonical structured record — task/fact/event/evidence-ref/resource/skill identity owned by typed JSON;
-- immutable evidence/report — historical `docs/tasks/*.md`, measurements and review artifacts retained
-  at their paths and addressed by evidence URI + commit/blob/anchor;
-- generated human projection — `docs/kb/*.md`, topic Markdown and README derived from typed facts after
-  cutover and forbidden from independent edits/claims;
-- cold archive — session archives and retired TODO/instruction history, queryable only as archive until
-  explicit evidence-backed promotion.
+- canonical structured record/index — task/fact/event/evidence-ref/resource/skill identity owned by JSON;
+- immutable evidence/cold archive — existing `docs/tasks/*.md`, `docs/kb/*.md`, measurements, review
+  artifacts, session archives and retired TODO history retained at their paths and addressed by typed
+  evidence URI + commit/blob/anchor;
+- active skill/resource source — hand-authored instruction source tracked by content hash, not generated;
+- derived machine projection — SQLite current/FTS/vector state rebuilt from canonical JSON and never
+  queried by agents as an independent truth path.
 
 Active TODO/instruction/prompt/skill sources are classified deliberately, not bulk-promoted: an active
 instruction becomes a typed `skill`/`resource` record pointing to its owning source and content hash;
 assembled prompts are delivery projections. Agents must use typed `orch://` task/evidence/fact IDs and
-the promotion/evidence/query APIs, and must never treat SQLite, vector hits or Markdown projections as
-independent truth.
+the single typed knowledge tool, and must never read files, SQLite or vector hits as independent truth.
 
-Cutover is legacy→shadow→canonical. SQLite stays a rebuildable hot projection/compatibility layer and
+No README, topic Markdown, HTML/text summary or other human projection is generated. Cutover is
+legacy→shadow→canonical. SQLite stays a rebuildable hot projection/compatibility layer and
 is not destructively removed until shadow parity, privacy, rollback rehearsal, all-runtime assembled
 prompt verification and live cutover receipts pass. Rollback changes the active owner/generation and
 replays forward; it does not rewrite historical evidence or delete newer canonical events.
