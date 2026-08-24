@@ -2499,39 +2499,6 @@ def tool_error_add(
         return cursor.rowcount == 1
 
 
-def tool_errors_summary(days: int = 7) -> list[dict]:
-    """Return tool error counts and ranked distinct errors for the recent period."""
-    with _conn() as c:
-        rows = c.execute(
-            """SELECT tool_name, error_text, COUNT(*) AS error_count
-               FROM tool_errors
-               WHERE datetime(ts) >= datetime('now', ?)
-               GROUP BY tool_name, error_text
-               ORDER BY error_count DESC, error_text ASC""",
-            (f"-{days} days",),
-        ).fetchall()
-
-    tools: dict[str, dict] = {}
-    for row in rows:
-        item = tools.setdefault(
-            row["tool_name"],
-            {"tool_name": row["tool_name"], "error_count": 0, "top_errors": []},
-        )
-        item["error_count"] += row["error_count"]
-        item["top_errors"].append(row["error_text"])
-    return sorted(tools.values(), key=lambda item: (-item["error_count"], item["tool_name"]))
-
-
-def tool_errors_recent(limit: int = 50) -> list[dict]:
-    """Return the most recently recorded tool errors, newest first."""
-    with _conn() as c:
-        rows = c.execute(
-            "SELECT * FROM tool_errors ORDER BY id DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
-        return [dict(row) for row in rows]
-
-
 def turn_usage_add(
     *,
     event_id: str,

@@ -96,21 +96,6 @@ def _syntax_error(path: Path, content: str) -> str | None:
     checker = SYNTAX_CHECKERS.get(path.suffix.lower())
     return checker(content) if checker is not None else None
 
-def _resolve_agent_uid() -> int | None:
-    """Resolve ORCHESTRA_AGENT_UID to numeric uid. None if not set."""
-    raw = os.environ.get("ORCHESTRA_AGENT_UID", "")
-    if not raw:
-        return None
-    try:
-        return int(raw)
-    except ValueError:
-        import pwd
-        try:
-            return pwd.getpwnam(raw).pw_uid
-        except KeyError:
-            return None
-
-
 class PathPolicyError(Exception):
     pass
 

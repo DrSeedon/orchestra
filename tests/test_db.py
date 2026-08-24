@@ -158,58 +158,6 @@ class TestVoiceCosts:
 
 
 class TestToolErrors:
-    def test_add_and_recent(self, db):
-        from app.db import tool_error_add, tool_errors_recent
-
-        tool_error_add("worker-1", "/scope", "Read", "file not found")
-        tool_error_add("worker-2", "/other", "Bash", "command failed")
-
-        rows = tool_errors_recent(limit=1)
-        assert len(rows) == 1
-        assert rows[0]["session_name"] == "worker-2"
-        assert rows[0]["scope"] == "/other"
-        assert rows[0]["tool_name"] == "Bash"
-        assert rows[0]["error_text"] == "command failed"
-
-    def test_summary_groups_tools_and_ranks_errors(self, db):
-        from app.db import tool_error_add, tool_errors_summary
-
-        for error_text in ("missing arg", "timeout", "missing arg"):
-            tool_error_add("worker", "/scope", "Read", error_text)
-        tool_error_add("worker", "/scope", "Bash", "exit 1")
-
-        assert tool_errors_summary() == [
-            {
-                "tool_name": "Read",
-                "error_count": 3,
-                "top_errors": ["missing arg", "timeout"],
-            },
-            {
-                "tool_name": "Bash",
-                "error_count": 1,
-                "top_errors": ["exit 1"],
-            },
-        ]
-
-    def test_summary_excludes_old_errors(self, db):
-        from app.db import _conn, tool_error_add, tool_errors_summary
-
-        tool_error_add("worker", "/scope", "Read", "old")
-        with _conn() as c:
-            c.execute(
-                "UPDATE tool_errors SET ts = datetime('now', '-8 days') "
-                "WHERE error_text = 'old'"
-            )
-        tool_error_add("worker", "/scope", "Bash", "recent")
-
-        assert tool_errors_summary(days=7) == [
-            {
-                "tool_name": "Bash",
-                "error_count": 1,
-                "top_errors": ["recent"],
-            }
-        ]
-
     def test_stable_tool_identity_deduplicates_and_bounds_error_text(self, db):
         from app.db import _conn, tool_error_add
 

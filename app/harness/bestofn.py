@@ -57,21 +57,6 @@ def base_sha(cwd: str) -> "str | None":
     return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
 
 
-def has_test_suite(cwd: str) -> bool:
-    """Detect a runnable test suite (gate). Python: test_*.py / *_test.py anywhere (skipping
-    .venv/node_modules/.git), or a tests/ dir, or [tool.pytest...] in pyproject. JS: package.json
-    with a real scripts.test (not the npm stub). Else False."""
-    base = Path(cwd)
-    if (base / "tests").is_dir():
-        return True
-    py = _pyproject_has_pytest(base / "pyproject.toml")
-    if py:
-        return True
-    if _find_python_tests(base):
-        return True
-    return _package_json_has_test(base / "package.json")
-
-
 def resolve_test_cmd(cwd: str) -> "str | None":
     """The verifier command. HARNESS_TEST_CMD wins (verbatim). Else auto-detect a default ONLY for a
     recognized ecosystem WITH detectable tests. Else None → Best-of-N does not activate (fail-safe)."""

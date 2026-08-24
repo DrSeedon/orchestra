@@ -1565,54 +1565,6 @@ class TestLimitsCommand:
         tb.bot = AsyncMock()
         tb.bot.get_chat_member.return_value = SimpleNamespace(status="creator")
 
-    def test_formats_independent_windows_in_krasnoyarsk_time(self, tb):
-        usage = {
-            "anthropic": {
-                "five_hour": {
-                    "utilization": 97,
-                    "resets_at": "2026-08-01T11:30:00Z",
-                },
-                "seven_day": {
-                    "utilization": 48,
-                    "resets_at": "2026-08-03T08:15:00Z",
-                },
-                "extra_usage": {"spend_limit_reached": True},
-            },
-            "codex": {
-                "primary": {
-                    "utilization": 74.5,
-                    "resets_at": "2026-08-01T08:45:00Z",
-                },
-            },
-        }
-
-        text = tb._format_limits_message(
-            usage,
-            now=datetime(2026, 8, 1, 8, 0, tzinfo=timezone.utc),
-        )
-
-        assert text.splitlines() == [
-            "*Лимиты*",
-            (
-                "• Claude 5h — осталось 3%; сброс "
-                "01.08.2026 18:30 UTC+7, через 3 ч 30 мин"
-            ),
-            (
-                "• Claude 7d — осталось 52%; сброс "
-                "03.08.2026 15:15 UTC+7, через 2 д 15 мин"
-            ),
-            (
-                "• Codex — осталось 25.5%; сброс "
-                "01.08.2026 15:45 UTC+7, через 45 мин"
-            ),
-            "• Spark — нет данных",
-            "• Grok — нет данных",
-            (
-                "• Claude extra usage — лимит расходов достигнут "
-                "(базовые окна считаются отдельно)"
-            ),
-        ]
-
     def test_format_limits_chat_message_includes_consumed_window_and_pace(self, tb):
         usage = {
             "anthropic": {
