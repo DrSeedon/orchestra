@@ -57,7 +57,7 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
    proxy control experiment. YouGile/payments deletion occurs under #299 gates, not knowledge migration.
    #298 remains deferred.
 
-## Tickets (behavioral RED is frozen for T1 only)
+## Tickets (behavioral RED is frozen for T1 and T2)
 
 ### T1 — typed namespace, envelopes and private-field boundary
 
@@ -73,15 +73,25 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 
 ### T2 — #299 task canonical record and facade parity
 
-- Files: new app/ia/task_store.py, scripts/ia_migrate.py, app/tm.py, app/routes/tm.py,
-  app/mcp_stdio.py; test_smoke_t2_task_parity.py only as a missing-seam diagnostic. Behavioral oracle design:
-  acceptance/README.md T2 row; no RED test is frozen.
-- Smoke: uv run python -m pytest docs/tasks/315/acceptance/test_smoke_t2_task_parity.py -q
-- Smoke result: RED only because the future path is absent; this is not behavioral acceptance.
-- AC: command is green; fresh manifest replay has 0 duplicate stable IDs; every existing task keeps
-  project-scoped #N; task_list/task_get/route responses are normalized-parity; two-contour disjoint
-  events survive; rollback replay reproduces the manifest. Payment/YouGile rows are excluded and no
-  replacement writer is added.
+- Files: future app/ia/task_store.py, scripts/ia_migrate.py, app/tm.py, app/routes/tm.py and
+  app/mcp_stdio.py; frozen acceptance/test_t2_task_behavior.py plus
+  acceptance/fixtures/t2_task_store_*.json. The existing test_smoke_t2_task_parity.py remains a
+  missing-seam diagnostic only.
+- Test: uv run python -m pytest docs/tasks/315/acceptance/test_t2_task_behavior.py -q
+- RED result: five harness controls pass (including exact current `app.tm` output and real ASGI→app.tm
+  →MCP reachability); 15 behavior tests fail on the absent `app.ia.task_store` and
+  `app.tm.ia_task_store_mode` production hook. Commit
+  `529711a9feda296e361bc8a09fd8f7ec65be4a57` is superseded/excluded for Phase 3: it covered the direct
+  store but could not detect a dead parallel implementation.
+- AC: command is green; fresh content-bound manifest has 0 duplicate UUIDs and preserves every
+  project-scoped #N; per-task JSON bodies/events/evidence refs have no shared JSONL hotspot; same-manifest
+  replay is idempotent; task_create/list/get/update/status/acceptance/worker-session/commit-link outputs
+  preserve the normalized facade; two-contour disjoint fields survive while same-field/global-MAX+1
+  conflicts fail or dispute; a direct SQLite payload edit cannot become truth; rollback/forward replay
+  reproduces exact heads; source-less evidence and payment/YouGile events fail closed. Default legacy
+  mode preserves exact current output; shadow writes/compares through real app.tm and exposes mismatch;
+  canonical mode makes TaskStore authoritative only inside explicit test/rollout configuration. HTTP
+  and MCP must enter through the same app.tm owner, and removing app.tm→TaskStore keeps this command red.
 - blocked-by: T1.
 
 ### T3 — immutable evidence manifest and typed fact promotion
@@ -144,8 +154,8 @@ The user approved project-scoped #N with stable UUID, private/secret fields outs
 Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed with a human gate for
 conflicts and sensitive classes. Each ticket must still receive the exact
 fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
-behavioral RED test must be committed and independently verified before implementation. T1 has reached
-that oracle gate; T2–T6 have not. Smoke probes never satisfy this gate.
+behavioral RED test must be committed and independently verified before implementation. T1 and T2 have
+reached that oracle gate; T3–T6 have not. Smoke probes never satisfy this gate.
 
 The implementation report must include command output and frozen manifest for replay parity and 0
 duplicate identity; 0 source-less promoted facts; exact/current/rejected recall and stale contradiction

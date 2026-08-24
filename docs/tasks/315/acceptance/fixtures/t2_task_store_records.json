@@ -1,0 +1,310 @@
+{
+  "fixture_version": 1,
+  "snapshot": {
+    "source": {
+      "cutoff": "2026-08-24T01:00:00Z",
+      "source_head": "git:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "source_schema_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "projects": [
+      {
+        "id": "orchestra",
+        "name": "Orchestra",
+        "prefix": "ORC",
+        "scope": "/srv/orchestra",
+        "yougile_project_id": "T2_EXCLUDED_YOUGILE_PROJECT",
+        "yougile_board_id": "T2_EXCLUDED_YOUGILE_BOARD",
+        "yougile_enabled": 1,
+        "created_at": "2026-05-16T00:00:00Z"
+      },
+      {
+        "id": "client-alpha",
+        "name": "Client Alpha",
+        "prefix": "ALP",
+        "scope": "/srv/client-alpha",
+        "yougile_project_id": null,
+        "yougile_board_id": null,
+        "yougile_enabled": 0,
+        "created_at": "2026-05-17T00:00:00Z"
+      }
+    ],
+    "tasks": [
+      {
+        "id": 101,
+        "par_number": 315,
+        "project_id": "orchestra",
+        "title": "Canonical task boundary",
+        "description": "Preserve this legacy task body.",
+        "price_rub": 20000,
+        "paid_rub": 7000,
+        "status": "in_progress",
+        "assignee": "worker-alpha",
+        "yougile_task_id": "T2_EXCLUDED_YOUGILE_TASK",
+        "sync_revision": 0,
+        "worker_session_id": "session-t2-alpha",
+        "git_commits": [
+          {
+            "hash": "1111111111111111111111111111111111111111",
+            "subject": "#315: freeze architecture"
+          }
+        ],
+        "created_at": "2026-08-20T00:00:00Z",
+        "updated_at": "2026-08-24T00:30:00Z",
+        "completed_at": null,
+        "paid_at": null,
+        "priority": 1,
+        "acceptance_command": "uv run python -m pytest docs/tasks/315/acceptance/test_t2_task_behavior.py -q",
+        "acceptance_oracle_json": {
+          "version": 1,
+          "required": true,
+          "revision": 2,
+          "manifest_paths": [
+            "docs/tasks/315/acceptance/test_t2_task_behavior.py"
+          ],
+          "updated_at": "2026-08-24T00:20:00Z",
+          "updated_by": {
+            "session_id": "orchestrator-t2",
+            "name": "orchestrator",
+            "role": "orchestrator",
+            "scope": "/srv/orchestra"
+          }
+        }
+      },
+      {
+        "id": 102,
+        "par_number": 316,
+        "project_id": "orchestra",
+        "title": "Projection replay",
+        "description": "Second task in the same project.",
+        "price_rub": 0,
+        "paid_rub": 0,
+        "status": "new",
+        "assignee": "",
+        "yougile_task_id": null,
+        "sync_revision": 0,
+        "worker_session_id": null,
+        "git_commits": [
+          {
+            "hash": "2222222222222222222222222222222222222222",
+            "subject": "#315: add projection plan"
+          }
+        ],
+        "created_at": "2026-08-21T00:00:00Z",
+        "updated_at": "2026-08-23T00:00:00Z",
+        "completed_at": null,
+        "paid_at": null,
+        "priority": 2,
+        "acceptance_command": "",
+        "acceptance_oracle_json": {}
+      },
+      {
+        "id": 201,
+        "par_number": 315,
+        "project_id": "client-alpha",
+        "title": "Same number in another project",
+        "description": "Project-scoped display number control.",
+        "price_rub": 5000,
+        "paid_rub": 0,
+        "status": "done",
+        "assignee": "worker-beta",
+        "yougile_task_id": null,
+        "sync_revision": 0,
+        "worker_session_id": null,
+        "git_commits": [],
+        "created_at": "2026-08-19T00:00:00Z",
+        "updated_at": "2026-08-22T00:00:00Z",
+        "completed_at": "2026-08-22T00:00:00Z",
+        "paid_at": null,
+        "priority": 2,
+        "acceptance_command": "",
+        "acceptance_oracle_json": {}
+      }
+    ],
+    "evidence": [
+      {
+        "stable_id": "e1111111-1111-4111-8111-111111111111",
+        "source_task_row_id": 101,
+        "kind": "report",
+        "canonical_path": "docs/tasks/315/report.md",
+        "anchor": "## T2",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "content_sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      {
+        "stable_id": "e2222222-2222-4222-8222-222222222222",
+        "source_task_row_id": 102,
+        "kind": "research",
+        "canonical_path": "docs/tasks/299/research.md",
+        "anchor": "## 8. Migration/backfill/dual-read/cutover/rollback",
+        "git_commit": "2222222222222222222222222222222222222222",
+        "content_sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      }
+    ],
+    "clients": [
+      {
+        "id": "T2_EXCLUDED_CLIENT",
+        "name": "T2_EXCLUDED_CLIENT_NAME",
+        "project_id": "orchestra",
+        "balance_rub": 32000
+      }
+    ],
+    "payments": [
+      {
+        "id": 901,
+        "client_id": "T2_EXCLUDED_CLIENT",
+        "amount_rub": 39000,
+        "note": "T2_EXCLUDED_PAYMENT_NOTE"
+      }
+    ],
+    "payment_allocations": [
+      {
+        "id": 902,
+        "payment_id": 901,
+        "task_id": 101,
+        "amount_rub": 7000
+      }
+    ],
+    "sync_log": [
+      {
+        "id": 903,
+        "task_id": 101,
+        "action": "update",
+        "payload": "T2_EXCLUDED_YOUGILE_SYNC_PAYLOAD",
+        "status": "ok"
+      }
+    ]
+  },
+  "expected_denominators": {
+    "projects": 2,
+    "tasks": 3,
+    "evidence": 2,
+    "commit_links": 2,
+    "excluded_clients": 1,
+    "excluded_payments": 1,
+    "excluded_payment_allocations": 1,
+    "excluded_sync_rows": 1
+  },
+  "two_contour_disjoint_events": [
+    {
+      "event_id": "a1111111-1111-4111-8111-111111111111",
+      "event_type": "task.updated",
+      "task_source_row_id": 101,
+      "project_id": "orchestra",
+      "display_number": 315,
+      "base_revision": 0,
+      "base_head": "git:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "contour_id": "A",
+      "occurred_at": "2026-08-24T02:00:00Z",
+      "changes": {
+        "title": "Title written on contour A"
+      }
+    },
+    {
+      "event_id": "b1111111-1111-4111-8111-111111111111",
+      "event_type": "task.updated",
+      "task_source_row_id": 101,
+      "project_id": "orchestra",
+      "display_number": 315,
+      "base_revision": 0,
+      "base_head": "git:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "contour_id": "B",
+      "occurred_at": "2026-08-24T02:00:01Z",
+      "changes": {
+        "assignee": "worker-from-contour-b"
+      }
+    }
+  ],
+  "lww_conflict_events": [
+    {
+      "event_id": "a2222222-2222-4222-8222-222222222222",
+      "event_type": "task.updated",
+      "task_source_row_id": 101,
+      "project_id": "orchestra",
+      "display_number": 315,
+      "base_revision": 0,
+      "base_head": "git:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "contour_id": "A",
+      "occurred_at": "2026-08-24T03:00:00Z",
+      "changes": {
+        "title": "Conflicting title from A"
+      }
+    },
+    {
+      "event_id": "b2222222-2222-4222-8222-222222222222",
+      "event_type": "task.updated",
+      "task_source_row_id": 101,
+      "project_id": "orchestra",
+      "display_number": 315,
+      "base_revision": 0,
+      "base_head": "git:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "contour_id": "B",
+      "occurred_at": "2026-08-24T03:00:01Z",
+      "changes": {
+        "title": "Conflicting title from B"
+      }
+    }
+  ],
+  "global_max_plus_one_collision": [
+    {
+      "event_id": "a3333333-3333-4333-8333-333333333333",
+      "event_type": "task.created",
+      "stable_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0001",
+      "project_id": "orchestra",
+      "display_number": 317,
+      "display_ref": "#317",
+      "base_head": "git:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "contour_id": "A",
+      "occurred_at": "2026-08-24T04:00:00Z",
+      "record": {
+        "title": "Offline create A",
+        "description": "",
+        "price_rub": 0,
+        "status": "new",
+        "assignee": "",
+        "priority": 2
+      }
+    },
+    {
+      "event_id": "b3333333-3333-4333-8333-333333333333",
+      "event_type": "task.created",
+      "stable_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbb0002",
+      "project_id": "orchestra",
+      "display_number": 317,
+      "display_ref": "#317",
+      "base_head": "git:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "contour_id": "B",
+      "occurred_at": "2026-08-24T04:00:01Z",
+      "record": {
+        "title": "Offline create B",
+        "description": "",
+        "price_rub": 0,
+        "status": "new",
+        "assignee": "",
+        "priority": 2
+      }
+    }
+  ],
+  "db_second_truth_mutation": {
+    "task_source_row_id": 101,
+    "replace": {
+      "title": "T2_DB_BYPASS_MUST_NOT_WIN",
+      "status": "cancelled"
+    },
+    "extra_projection_metadata": {
+      "rank_hint": 0.875,
+      "backend_note": "T2_SAFE_EXTRA_PROJECTION_METADATA"
+    }
+  },
+  "source_less_evidence": {
+    "stable_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    "task_source_row_id": 101,
+    "kind": "report"
+  },
+  "excluded_event": {
+    "event_id": "eeeeeeee-0000-4000-8000-000000000001",
+    "event_type": "payment.received",
+    "task_source_row_id": 101,
+    "project_id": "orchestra",
+    "amount_rub": 1000
+  }
+}

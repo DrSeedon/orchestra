@@ -2,9 +2,14 @@
 
 PLAN READY here means architecture/discussion ready only. The three user decisions in discussion.md
 were resolved on 2026-08-24. Each ticket still requires a separately designed, behavior-specific RED
-acceptance test committed against the current base. T1 is now materialized by
-`test_t1_namespace_behavior.py` plus the two frozen JSON fixtures under `fixtures/`; T2–T6 remain at
-design only. No implementation is implied by this directory.
+acceptance test committed against the current base. T1 and T2 are now materialized by their
+`test_t*_behavior.py` files plus frozen JSON fixtures under `fixtures/`; T3–T6 remain at design only.
+No implementation is implied by this directory.
+
+T2 oracle history: commit `529711a9feda296e361bc8a09fd8f7ec65be4a57` is superseded and excluded
+from Phase 3. Its direct `TaskStore` tests could all pass with a dead parallel store that no production
+`app.tm`/HTTP/MCP path called. The replacement oracle retains those storage tests and additionally
+requires legacy/shadow/canonical entry through the shared `app.tm` owner plus ASGI and MCP paths.
 
 ## Smoke probes (not acceptance oracles)
 
@@ -23,8 +28,8 @@ reported as frozen oracles. They remain useful as early diagnostics.
 
 ## Required behavioral oracle design before Phase 3
 
-The following table is the design freeze target. T1's command is a committed behavioral RED gate;
-T2–T6 commands are still future commands. Each remaining ticket must turn its row into a real behavior
+The following table is the design freeze target. T1 and T2 commands are committed behavioral RED gates;
+T3–T6 commands are still future commands. Each remaining ticket must turn its row into a real behavior
 test, run it RED, commit that oracle, and only then implement. The smoke probe cannot satisfy any row.
 
 | Ticket | Fixture/data source | Production path | Red regression | Positive control | Valid future alternate | Compound/fallback mutation | Deterministic command | Remains unmeasured |
