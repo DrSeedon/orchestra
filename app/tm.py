@@ -9,7 +9,7 @@ import json
 import logging
 import sqlite3
 from datetime import datetime, date, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TypedDict
 
 logger = logging.getLogger("tm")
@@ -32,6 +32,81 @@ def _now() -> str:
 
 def _today() -> str:
     return date.today().isoformat()
+
+
+_PYTEST_CONFIG_NAMES = {
+    "pytest.toml", ".pytest.toml", "pytest.ini", ".pytest.ini",
+    "pyproject.toml", "tox.ini", "setup.cfg",
+}
+
+
+def _normalize_acceptance_manifest(paths: list[str] | None) -> list[str]:
+    if paths is None:
+        return []
+    if not isinstance(paths, list):
+        raise ValueError("acceptance_manifest must be a list of repo-relative paths")
+    normalized: list[str] = []
+    for raw in paths:
+        if not isinstance(raw, str) or not raw.strip():
+            raise ValueError("acceptance_manifest paths must be non-empty strings")
+        value = raw.strip().replace("\\", "/").rstrip("/")
+        path = PurePosixPath(value)
+        if path.is_absolute() or ".." in path.parts or any(
+            token in value for token in ("*", "?", "[")
+        ):
+            raise ValueError(f"invalid acceptance_manifest path: {raw}")
+        normalized.append(str(path))
+    if len(normalized) != len(set(normalized)):
+        raise ValueError("acceptance_manifest contains duplicate paths")
+    return sorted(normalized)
+
+
+def _normalize_acceptance_actor(actor: dict | None) -> dict:
+    if not isinstance(actor, dict):
+        raise ValueError("acceptance_actor must come from a verified orchestrator")
+    required = ("session_id", "name", "role", "scope")
+    normalized = {key: str(actor.get(key) or "").strip() for key in required}
+    if not all(normalized.values()):
+        raise ValueError("acceptance_actor is incomplete")
+    if normalized["role"] not in {"orchestrator", "sub-orchestrator"}:
+        raise ValueError("acceptance_actor is not an orchestrator")
+    return normalized
+
+
+def parse_acceptance_oracle(raw: str | None) -> dict:
+    text = (raw or "").strip()
+    if not text:
+        return {}
+    try:
+        value = json.loads(text)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("acceptance_oracle_json is malformed") from exc
+    if not isinstance(value, dict):
+        raise ValueError("acceptance_oracle_json must be an object")
+    return value
+
+
+def _acceptance_oracle_json(
+    *,
+    required: bool,
+    manifest: list[str],
+    revision: int,
+    actor: dict,
+) -> str:
+    if required:
+        if "tests" not in manifest:
+            raise ValueError("acceptance manifest must include the complete tests tree")
+        if not any(path in _PYTEST_CONFIG_NAMES for path in manifest):
+            raise ValueError("acceptance manifest must include pytest config")
+    payload = {
+        "version": 1,
+        "required": bool(required),
+        "revision": int(revision),
+        "manifest_paths": manifest,
+        "updated_at": _now(),
+        "updated_by": actor,
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
 def _fmt_amount(rub: int) -> str:
@@ -221,7 +296,10 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
                 price_rub: int = 0, description: str = "", assignee: str = "",
                 status: str = "new", yougile_task_id: str | None = None,
                 par_number: int | None = None, priority: int = 2,
-                acceptance_command: str = "") -> dict:
+                acceptance_command: str = "",
+                acceptance_manifest: list[str] | None = None,
+                acceptance_required: bool = False,
+                acceptance_actor: dict | None = None) -> dict:
     if status not in VALID_STATUSES:
         raise ValueError(f"Invalid status: {status}")
     if price_rub < 0:
@@ -234,14 +312,27 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
     from app.acceptance import parse_acceptance_command
 
     parse_acceptance_command(command)
+    manifest = _normalize_acceptance_manifest(acceptance_manifest)
+    oracle_json = "{}"
+    if acceptance_required or manifest:
+        if not command:
+            raise ValueError("required acceptance oracle has no command")
+        actor = _normalize_acceptance_actor(acceptance_actor)
+        oracle_json = _acceptance_oracle_json(
+            required=acceptance_required,
+            manifest=manifest,
+            revision=1,
+            actor=actor,
+        )
     conn.execute(
         """INSERT INTO tm_tasks
            (par_number, project_id, title, description, price_rub, paid_rub,
             status, assignee, yougile_task_id, sync_revision,
-            git_commits, created_at, updated_at, priority, acceptance_command)
-           VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, '[]', ?, ?, ?, ?)""",
+            git_commits, created_at, updated_at, priority, acceptance_command,
+            acceptance_oracle_json)
+           VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0, '[]', ?, ?, ?, ?, ?)""",
         (par, project_id, title, description, price_rub,
-         status, assignee, yougile_task_id, now, now, priority, command),
+         status, assignee, yougile_task_id, now, now, priority, command, oracle_json),
     )
     task_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     return {
@@ -258,6 +349,7 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         "sync_revision": 0,
         "priority": priority,
         "acceptance_command": command,
+        "acceptance_oracle_json": oracle_json,
         "created_at": now,
         "updated_at": now,
     }
@@ -270,7 +362,10 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
                 git_commits: str | None = None,
                 yougile_task_id: str | None = None,
                 priority: int | None = None,
-                acceptance_command: str | None = None) -> dict:
+                acceptance_command: str | None = None,
+                acceptance_manifest: list[str] | None = None,
+                acceptance_required: bool | None = None,
+                acceptance_actor: dict | None = None) -> dict:
     task = get_task_by_id(conn, task_id)
     if not task:
         raise ValueError(f"Task {task_id} not found")
@@ -299,7 +394,70 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
         params.append(priority)
         changed.append("priority")
 
-    if acceptance_command is not None:
+    acceptance_touched = (
+        acceptance_manifest is not None
+        or acceptance_required is not None
+        or acceptance_command is not None
+    )
+    current_oracle = (
+        parse_acceptance_oracle(task.get("acceptance_oracle_json"))
+        if acceptance_touched else {}
+    )
+    authoritative_oracle = bool(
+        current_oracle.get("version") == 1
+        and int(current_oracle.get("revision") or 0) > 0
+    )
+    oracle_update = (
+        acceptance_manifest is not None
+        or acceptance_required is not None
+        or (acceptance_command is not None and authoritative_oracle)
+    )
+    if oracle_update:
+        command = (
+            acceptance_command.strip()
+            if acceptance_command is not None
+            else str(task.get("acceptance_command") or "").strip()
+        )
+        from app.acceptance import parse_acceptance_command
+
+        parse_acceptance_command(command)
+        manifest = (
+            _normalize_acceptance_manifest(acceptance_manifest)
+            if acceptance_manifest is not None
+            else _normalize_acceptance_manifest(current_oracle.get("manifest_paths") or [])
+        )
+        required = (
+            bool(acceptance_required)
+            if acceptance_required is not None
+            else bool(current_oracle.get("required"))
+        )
+        if required and not command:
+            raise ValueError("required acceptance oracle has no command")
+        actor = _normalize_acceptance_actor(acceptance_actor)
+        previous_revision = int(current_oracle.get("revision") or 0)
+        previous_contract = {
+            "command": str(task.get("acceptance_command") or "").strip(),
+            "required": bool(current_oracle.get("required")),
+            "manifest_paths": _normalize_acceptance_manifest(
+                current_oracle.get("manifest_paths") or []
+            ),
+        }
+        next_contract = {
+            "command": command,
+            "required": required,
+            "manifest_paths": manifest,
+        }
+        if next_contract != previous_contract:
+            oracle_json = _acceptance_oracle_json(
+                required=required,
+                manifest=manifest,
+                revision=previous_revision + 1,
+                actor=actor,
+            )
+            updates.extend(("acceptance_command = ?", "acceptance_oracle_json = ?"))
+            params.extend((command, oracle_json))
+            changed.append("acceptance_oracle")
+    elif acceptance_command is not None:
         command = acceptance_command.strip()
         from app.acceptance import parse_acceptance_command
 
@@ -926,7 +1084,10 @@ def _fire_journal_sync(payment_result: dict, client_id: str) -> None:
 def api_create_task(project_id: str, title: str, price: int = 0,
                     description: str = "", assignee: str = "",
                     status: str = "new", scope: str = "",
-                    priority: int = 2, acceptance_command: str = "") -> dict:
+                    priority: int = 2, acceptance_command: str = "",
+                    acceptance_manifest: list[str] | None = None,
+                    acceptance_required: bool = False,
+                    acceptance_actor: dict | None = None) -> dict:
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
@@ -960,6 +1121,9 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 status=status,
                 priority=priority,
                 acceptance_command=acceptance_command,
+                acceptance_manifest=acceptance_manifest,
+                acceptance_required=acceptance_required,
+                acceptance_actor=acceptance_actor,
             )
             conn.commit()
         except Exception:
@@ -983,7 +1147,10 @@ def api_update_task(par: str, title: str | None = None,
                     assignee: str | None = None,
                     project: str = "",
                     priority: int | None = None,
-                    acceptance_command: str | None = None) -> dict:
+                    acceptance_command: str | None = None,
+                    acceptance_manifest: list[str] | None = None,
+                    acceptance_required: bool | None = None,
+                    acceptance_actor: dict | None = None) -> dict:
     task_id = None
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -1000,6 +1167,9 @@ def api_update_task(par: str, title: str | None = None,
                 price_rub=price_rub, status=status,
                 assignee=assignee, priority=priority,
                 acceptance_command=acceptance_command,
+                acceptance_manifest=acceptance_manifest,
+                acceptance_required=acceptance_required,
+                acceptance_actor=acceptance_actor,
             )
 
             if status == "done":
@@ -1018,7 +1188,7 @@ def api_update_task(par: str, title: str | None = None,
         "project": updated["project_id"],
         "updated": result["changed"],
     }
-    if result["changed"] == ["acceptance_command"]:
+    if result["changed"] in (["acceptance_command"], ["acceptance_oracle"]):
         return response
     return {
         **response,

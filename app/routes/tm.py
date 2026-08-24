@@ -4,7 +4,7 @@ import asyncio
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import tm as _tm
 from app.tm_yougile import yougile_sync_task
@@ -22,6 +22,8 @@ class TmTaskCreate(BaseModel):
     scope: str = ""
     priority: int = 2
     acceptance_command: str = ""
+    acceptance_manifest: list[str] = Field(default_factory=list)
+    acceptance_required: bool = False
 
 
 class TmTaskUpdate(BaseModel):
@@ -32,7 +34,10 @@ class TmTaskUpdate(BaseModel):
     assignee: str | None = None
     priority: int | None = None
     acceptance_command: str | None = None
+    acceptance_manifest: list[str] | None = None
+    acceptance_required: bool | None = None
     clear_acceptance_command: bool = False
+    clear_acceptance_oracle: bool = False
 
 
 class TmPaymentReceive(BaseModel):
@@ -77,11 +82,32 @@ def _resolve_task_project_id(project: str, scope: str) -> str:
     return resolved
 
 
+def _acceptance_actor(request: Request) -> tuple[dict, str]:
+    session_id = request.headers.get("x-orchestra-session-id", "").strip()
+    if not session_id:
+        raise ValueError("acceptance oracle caller has no session identity")
+    from app.db import get_session
+
+    caller = get_session(session_id)
+    caller_scope = str((caller or {}).get("scope") or "").strip()
+    if not caller_scope:
+        raise ValueError("acceptance oracle caller has no project scope")
+    actor = {
+        "session_id": session_id,
+        "name": str((caller or {}).get("name") or "").strip(),
+        "role": str((caller or {}).get("role") or "").strip(),
+        "scope": caller_scope,
+    }
+    return actor, caller_scope
+
+
 @router.post("/tasks")
 async def tm_create_task(req: TmTaskCreate, request: Request):
     command = (req.acceptance_command or "").strip()
     caller_scope = ""
-    if command:
+    actor = None
+    oracle_requested = bool(req.acceptance_required or req.acceptance_manifest)
+    if command or oracle_requested:
         from app.mcp_proof import caller_may_use_orchestrator_privilege
 
         if not caller_may_use_orchestrator_privilege(request):
@@ -89,17 +115,23 @@ async def tm_create_task(req: TmTaskCreate, request: Request):
                 {"error": "acceptance_command is orchestrator-only"},
                 status_code=403,
             )
-        session_id = request.headers.get("x-orchestra-session-id", "").strip()
-        if session_id:
-            from app.db import get_session
+        if oracle_requested:
+            try:
+                actor, caller_scope = _acceptance_actor(request)
+            except ValueError as exc:
+                return JSONResponse({"error": str(exc)}, status_code=403)
+        else:
+            session_id = request.headers.get("x-orchestra-session-id", "").strip()
+            if session_id:
+                from app.db import get_session
 
-            caller = get_session(session_id)
-            caller_scope = str((caller or {}).get("scope") or "").strip()
-            if not caller_scope:
-                return JSONResponse(
-                    {"error": "acceptance_command caller has no project scope"},
-                    status_code=403,
-                )
+                caller = get_session(session_id)
+                caller_scope = str((caller or {}).get("scope") or "").strip()
+                if not caller_scope:
+                    return JSONResponse(
+                        {"error": "acceptance_command caller has no project scope"},
+                        status_code=403,
+                    )
     try:
         def _do():
             project = req.project
@@ -120,6 +152,9 @@ async def tm_create_task(req: TmTaskCreate, request: Request):
                 project, req.title, req.price, req.description, req.assignee, req.status,
                 scope=scope, priority=req.priority,
                 acceptance_command=command,
+                acceptance_manifest=req.acceptance_manifest,
+                acceptance_required=req.acceptance_required,
+                acceptance_actor=actor,
             )
         return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:
@@ -171,12 +206,19 @@ async def tm_update_task(
     try:
         caller_scope = ""
         requested_command = (req.acceptance_command or "").strip()
-        if req.clear_acceptance_command and requested_command:
+        if (req.clear_acceptance_command or req.clear_acceptance_oracle) and requested_command:
             raise ValueError(
                 "acceptance_command and clear_acceptance_command are mutually exclusive"
             )
-        command_update = "" if req.clear_acceptance_command else (requested_command or None)
-        if command_update is not None:
+        command_update = (
+            "" if (req.clear_acceptance_command or req.clear_acceptance_oracle)
+            else (requested_command or None)
+        )
+        manifest_update = [] if req.clear_acceptance_oracle else req.acceptance_manifest
+        required_update = False if req.clear_acceptance_oracle else req.acceptance_required
+        oracle_update = manifest_update is not None or required_update is not None
+        actor = None
+        if command_update is not None or oracle_update:
             from app.mcp_proof import caller_may_use_orchestrator_privilege
 
             if not caller_may_use_orchestrator_privilege(request):
@@ -185,19 +227,19 @@ async def tm_update_task(
                     status_code=403,
                 )
             session_id = request.headers.get("x-orchestra-session-id", "").strip()
-            if session_id:
-                from app.db import get_session
-
-                caller = get_session(session_id)
-                caller_scope = str((caller or {}).get("scope") or "").strip()
-                if not caller_scope:
-                    return JSONResponse(
-                        {"error": "acceptance_command caller has no project scope"},
-                        status_code=403,
-                    )
+            if oracle_update:
+                try:
+                    actor, caller_scope = _acceptance_actor(request)
+                except ValueError as exc:
+                    return JSONResponse({"error": str(exc)}, status_code=403)
+            elif session_id:
+                try:
+                    actor, caller_scope = _acceptance_actor(request)
+                except ValueError as exc:
+                    return JSONResponse({"error": str(exc)}, status_code=403)
 
         def _do():
-            if command_update is not None and caller_scope:
+            if (command_update is not None or oracle_update) and caller_scope:
                 resolved_project = _resolve_task_project_id("", caller_scope)
                 if project and _resolve_task_project_id(project, "") != resolved_project:
                     raise ValueError(
@@ -213,6 +255,9 @@ async def tm_update_task(
                 par, req.title, req.description, req.price, req.status, req.assignee,
                 project=resolved_project, priority=req.priority,
                 acceptance_command=command_update,
+                acceptance_manifest=manifest_update,
+                acceptance_required=required_update,
+                acceptance_actor=actor,
             )
         return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:

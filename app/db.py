@@ -336,6 +336,7 @@ def init_db() -> None:
                 completed_at TEXT,
                 paid_at TEXT,
                 acceptance_command TEXT NOT NULL DEFAULT '',
+                acceptance_oracle_json TEXT NOT NULL DEFAULT '{}',
                 CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled'))
             );
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status);
@@ -453,6 +454,7 @@ def init_db() -> None:
                 accepted_base_branch TEXT NOT NULL DEFAULT '',
                 accepted_task_id TEXT NOT NULL DEFAULT '',
                 accepted_needs_switch INTEGER NOT NULL DEFAULT 0,
+                accepted_admission_json TEXT NOT NULL DEFAULT '{}',
                 state TEXT NOT NULL,
                 commit_point TEXT NOT NULL DEFAULT 'NOT_REACHED',
                 result_json TEXT NOT NULL,
@@ -830,9 +832,46 @@ def _migrate(c) -> None:
             worker_session_id TEXT, git_commits TEXT NOT NULL DEFAULT '[]',
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
             completed_at TEXT, paid_at TEXT,
+            acceptance_command TEXT NOT NULL DEFAULT '',
+            acceptance_oracle_json TEXT NOT NULL DEFAULT '{}',
+            priority INTEGER NOT NULL DEFAULT 2,
             CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled'))
         )""")
-        c.execute("INSERT INTO tm_tasks SELECT * FROM _tm_tasks_old")
+        target_columns = (
+            "id", "par_number", "project_id", "title", "description",
+            "price_rub", "paid_rub", "status", "assignee", "yougile_task_id",
+            "sync_revision", "worker_session_id", "git_commits", "created_at",
+            "updated_at", "completed_at", "paid_at", "acceptance_command",
+            "acceptance_oracle_json", "priority",
+        )
+        old_columns = {
+            row[1] for row in c.execute(
+                "PRAGMA table_info(_tm_tasks_old)"
+            ).fetchall()
+        }
+        defaults = {
+            "acceptance_command": "''",
+            "acceptance_oracle_json": "'{}'",
+            "priority": "2",
+        }
+        missing_required = [
+            column for column in target_columns
+            if column not in old_columns and column not in defaults
+        ]
+        if missing_required:
+            raise RuntimeError(
+                "tm_tasks recreation missing required columns: "
+                + ", ".join(missing_required)
+            )
+        column_list = ", ".join(target_columns)
+        select_list = ", ".join(
+            column if column in old_columns else defaults[column]
+            for column in target_columns
+        )
+        c.execute(
+            f"INSERT INTO tm_tasks ({column_list}) "
+            f"SELECT {select_list} FROM _tm_tasks_old"
+        )
         c.execute("DROP TABLE _tm_tasks_old")
     c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status)")
@@ -856,9 +895,25 @@ def _migrate(c) -> None:
             "ALTER TABLE tm_tasks ADD COLUMN acceptance_command TEXT NOT NULL DEFAULT ''"
         )
         task_cols.add("acceptance_command")
+    if task_cols and "acceptance_oracle_json" not in task_cols:
+        c.execute(
+            "ALTER TABLE tm_tasks ADD COLUMN "
+            "acceptance_oracle_json TEXT NOT NULL DEFAULT '{}'"
+        )
+        task_cols.add("acceptance_oracle_json")
     if task_cols and "priority" not in task_cols:
         # 0=critical, 1=high, 2=medium (default), 3=low — existing tasks land at medium
         c.execute("ALTER TABLE tm_tasks ADD COLUMN priority INTEGER NOT NULL DEFAULT 2")
+    merge_cols = {
+        row[1] for row in c.execute(
+            "PRAGMA table_info(merge_operations)"
+        ).fetchall()
+    }
+    if merge_cols and "accepted_admission_json" not in merge_cols:
+        c.execute(
+            "ALTER TABLE merge_operations ADD COLUMN "
+            "accepted_admission_json TEXT NOT NULL DEFAULT '{}'"
+        )
     client_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_clients)").fetchall()}
     if client_cols and "journal_yougile_id" not in client_cols:
         c.execute("ALTER TABLE tm_clients ADD COLUMN journal_yougile_id TEXT DEFAULT ''")
