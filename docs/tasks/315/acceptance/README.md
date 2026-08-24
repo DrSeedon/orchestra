@@ -3,7 +3,7 @@
 PLAN READY here means architecture/discussion ready only. The three user decisions in discussion.md
 were resolved on 2026-08-24. Each ticket still requires a separately designed, behavior-specific RED
 acceptance test committed against the current base. T1, T2 and T3 are now materialized by their
-`test_t*_behavior.py` files plus frozen JSON fixtures under `fixtures/`; T4–T6 remain at design only.
+`test_t*_behavior.py` files plus frozen JSON fixtures under `fixtures/`; T4–T7 remain at design only.
 No implementation is implied by this directory.
 
 T2 oracle history: commits `529711a9feda296e361bc8a09fd8f7ec65be4a57` and
@@ -20,6 +20,9 @@ The test_smoke_t*.py files are deliberately minimal missing-seam diagnostics. Ea
 path exists. They are not behavioral RED tests, do not prove an acceptance criterion, and must never be
 reported as frozen oracles. They remain useful as early diagnostics.
 
+T7 intentionally has no smoke probe: its first executable artifact must be the production-shaped
+behavioral RED, because path/symbol existence cannot prove document ownership, prompt delivery or cutover.
+
 | Ticket | Smoke command | Expected current result |
 |---|---|---|
 | T1 | uv run python -m pytest docs/tasks/315/acceptance/test_smoke_t1_namespace.py -q | RED: smoke: canonical typed namespace resolver is missing |
@@ -32,7 +35,7 @@ reported as frozen oracles. They remain useful as early diagnostics.
 ## Required behavioral oracle design before Phase 3
 
 The following table is the design freeze target. T1–T3 commands are committed behavioral RED gates;
-T4–T6 commands are still future commands. Each remaining ticket must turn its row into a real behavior
+T4–T7 commands are still future commands. Each remaining ticket must turn its row into a real behavior
 test, run it RED, commit that oracle, and only then implement. The smoke probe cannot satisfy any row.
 
 | Ticket | Fixture/data source | Production path | Red regression | Positive control | Valid future alternate | Compound/fallback mutation | Deterministic command | Remains unmeasured |
@@ -43,6 +46,7 @@ test, run it RED, commit that oracle, and only then implement. The smoke probe c
 | T4 heads/projections | frozen Git head + changed topic/task records; SQLite projection copy with deliberately stale FTS/vector heads | merge generation → synchronous SQLite fold → async FTS/vector queue → memory search/fallback | stale projection returning “not found”, missing head receipt, or vector failure erasing current result must fail | equal-head projection returns typed current result; stale vector still returns SQLite result with debt | alternate projection backend with identical head/fallback contract | delete canonical fallback and leave stale SQLite row; remove head comparison and rely on pending count; both must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t4_heads_behavior.py -q | real embedder latency, index size growth, production restart timing |
 | T5 session/pack/privacy | synthetic session archive with extraction failure; OVPack-like manifest/checksum/scope fixtures; secret-form corpus | session commit → immutable archive → background extraction; pack validate/restore; redacted projections | archive loss, write-before-manifest-validation, scope bypass, or secret in index/prompt must fail | successful archive and valid restore/rebuild with zero secret matches | alternate pack format with same validated manifest and restore semantics | skip archive then return extraction success; validate checksum only after write; restore redacted body through fallback; all must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t5_recovery_behavior.py -q | legal purge semantics, key-management operations, real backup duration/size |
 | T6 merge/cleanup | merge-operation fixtures covering target commit success + task-link/RAG/next-task partials; #309 route/duplicate inventories | pinned session merge → Git target commit → task/evidence receipt → projection queue → cleanup gates | treating secondary failure as no merge, losing link receipt, or deleting compatibility path before oracle must fail | target commit and partial states are distinct; existing v1 recovery path remains callable | alternate merge runner preserving same operation-state/receipt contract | remove partial-state branch while retaining success branch; route cleanup with stale legacy caller; both must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_behavior.py -q | live route/click telemetry, user-visible progress behavior, proxy-manager deployment behavior |
+| T7 prompt/document migration/cutover | frozen tracked inventory of every `docs/tasks/*.md`, `docs/kb/*.md`, TODO/instruction source and session archive plus legacy reference corpus and assembled-prompt matrix for every runtime | inventory classifier → byte-preserving alias/evidence migration → typed `orch://` task/evidence/promotion/query owners → project prompt/skill assembly → legacy/shadow/canonical cutover gate | arbitrary Markdown becoming canonical, rewritten historical evidence, missing typed prompt API, projection-as-truth or destructive SQLite removal before gates must fail | every path classified exactly once; historical hashes unchanged; all legacy refs resolve; assembled prompts in every runtime contain typed `orch://` ID/API anchors and one owner; rollback restores legacy-compatible reads | additional document classes/metadata and runtime prompt layouts are allowed when they preserve the same normalized classification, ownership and delivery contract | add structured stubs while retaining editable Markdown co-master; patch only a source prompt while one assembled runtime stays stale; forge parity then delete SQLite; rewrite evidence while updating its alias; let vector fallback claim not-found after canonical failure — each must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q | real authoring ergonomics, total corpus migration duration, live rollback duration and task success until separately measured |
 
 ## Quantitative gate (future implementation evidence)
 
@@ -51,3 +55,7 @@ Report against a fresh immutable manifest, not hard-coded historical counts:
 replay_parity, duplicate_identity_count == 0, source_less_promoted_fact_count == 0,
 exact/current/rejected recall, stale contradictions, projection read-after-write, task facade parity,
 conflict loss, A/B/A/B prompt footprint/tool calls/time, privacy secret scan, and rollback replay parity.
+T7 adds: classified_path_count equals frozen inventory count with no overlap/unclassified path; historical
+evidence byte hashes and Git refs unchanged; legacy reference resolution 100%; all assembled runtime
+prompts carry typed task/evidence/promotion/query anchors; shadow/canonical owner parity; no destructive
+SQLite removal before a live cutover receipt; reversible rollback reproduces the pre-cutover facade.
