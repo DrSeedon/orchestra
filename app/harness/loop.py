@@ -40,9 +40,8 @@ MAX_TOOL_ROUNDS = 100         # ceiling on tool-call rounds in a single turn (#3
 REVIEW_MAX_ROUNDS = 15        # tighter ceiling for a reviewer sub-loop (#126)
 WIND_DOWN_AT = (10, 3)        # warn the agent N rounds before the cap so it can finish
                               # with a report instead of dying silently (#367)
-CONTEXT_GUARD_RATIO = 0.85    # truncate when estimated tokens exceed this × max_context
-CHARS_PER_TOKEN = 3.5         # crude estimator (no tiktoken dependency)
-KEEP_RECENT_MESSAGES = 8      # messages preserved at the tail during truncation
+CONTEXT_GUARD_RATIO = 0.85    # compact when estimated tokens exceed this × max_context
+BYTES_PER_TOKEN = 3.5         # conservative across ASCII/Cyrillic; no tokenizer dependency
 
 
 class _NoopMCP:
@@ -109,7 +108,6 @@ class AgentLoop:
         self.history.append(user_entry)
         self.new_messages.append(user_entry)
 
-        warned_positions: list[int] = []   # turn-scoped guard entries, removed in finally
         try:
             for round_no in range(self.max_rounds):
                 remaining = self.max_rounds - round_no
@@ -119,7 +117,6 @@ class AgentLoop:
                     entry = {"role": "user", "content": msg}
                     self.history.append(entry)
                     self.new_messages.append(entry)
-                    warned_positions.append(len(self.history) - 1)
                     logger.warning(f"round guard: {remaining} rounds left (cap {self.max_rounds})")
                     yield AgentEvent("warning", msg)
 
@@ -143,7 +140,9 @@ class AgentLoop:
                            f"messages dropped to fit the window")
                     logger.warning(msg)
                     yield AgentEvent("warning", msg)
-                    self.new_messages.append({"role": "user", "content": msg})
+                    entry = {"role": "user", "content": msg}
+                    self.history.append(entry)
+                    self.new_messages.append(entry)
 
                 assistant_msg = {"role": "assistant", "content": None}  # filled by _one_round
                 try:
@@ -190,13 +189,10 @@ class AgentLoop:
         finally:
             # Turn-scoped wind-down guards NEVER persist in the shared session history — a
             # stale "3 rounds remain" in future turns is the same lie this task fights (#367 B3).
-            for pos in sorted(warned_positions, reverse=True):
-                if 0 <= pos < len(self.history) and \
-                        str(self.history[pos].get("content", "")).startswith("[round guard]"):
-                    del self.history[pos]
+            self.history[:] = [m for m in self.history
+                               if not str(m.get("content", "")).startswith("[round guard]")]
             self.new_messages[:] = [m for m in self.new_messages
                                     if not str(m.get("content", "")).startswith("[round guard]")]
-            warned_positions.clear()
 
     async def _one_round(self, assistant_msg: dict) -> AsyncIterator[AgentEvent]:
         """Stream one LLM completion. Yields text AgentEvents LIVE (so the session sees
@@ -360,31 +356,75 @@ class AgentLoop:
 
     # ── context management (plan B6) ──
 
+    @staticmethod
+    def _estimate_messages(messages: list[dict]) -> int:
+        total = sum(
+            len(json.dumps(m, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+            for m in messages
+        )
+        return int(total / BYTES_PER_TOKEN)
+
     def _estimate_tokens(self) -> int:
-        total = 0
-        for m in self.history:
-            total += len(json.dumps(m, ensure_ascii=False))
-        return int(total / CHARS_PER_TOKEN)
+        return self._estimate_messages(self.history)
 
     def _fit_context(self) -> bool:
-        """Truncate history from the MIDDLE to fit the context guard. Preserve the
-        system message, the recent tail, and tool_call/tool_result integrity.
-        Returns False if it cannot be made to fit (caller → context_limit).
-        Truncation is NEVER silent (#367 T9): the caller reports it via a warning event —
-        an agent that silently lost half its task context is worse than a loud cap."""
+        """Compact old assistant/tool rounds while preserving instructions and protocol.
+
+        Every system/user message is an anchor: dropping the task to keep an old tool result
+        is backwards. Assistant tool calls and all immediately following tool results are
+        indivisible units, so compaction never creates an orphan result. Newest units win.
+        Returns False when the anchors alone exceed the guard.
+        """
         guard = int(self.max_context * CONTEXT_GUARD_RATIO)
         if self._estimate_tokens() <= guard:
             return True
-        head = self.history[:1] if self.history and self.history[0].get("role") == "system" else []
-        tail = self.history[-KEEP_RECENT_MESSAGES:]
-        # Never start the tail with an orphan tool result (no preceding tool_call).
-        while tail and tail[0].get("role") == "tool":
-            tail = tail[1:]
-        dropped = len(self.history) - len(head) - len(tail)
-        self.history[:] = head + tail
+
+        anchor_indices = {
+            i for i, message in enumerate(self.history)
+            if message.get("role") in ("system", "user")
+        }
+        anchors = [m for i, m in enumerate(self.history) if i in anchor_indices]
+        if self._estimate_messages(anchors) > guard:
+            return False
+
+        units: list[list[int]] = []
+        i = 0
+        while i < len(self.history):
+            message = self.history[i]
+            if message.get("role") != "assistant":
+                i += 1
+                continue
+            unit = [i]
+            calls = message.get("tool_calls") or []
+            wanted = {tc.get("id") for tc in calls if tc.get("id")}
+            answered: set[str] = set()
+            j = i + 1
+            while j < len(self.history) and self.history[j].get("role") == "tool":
+                tool_id = self.history[j].get("tool_call_id")
+                if tool_id:
+                    answered.add(tool_id)
+                unit.append(j)
+                j += 1
+            # A broken/incomplete tool round is never copied into the compacted snapshot.
+            if not calls or (len(wanted) == len(calls) and answered == wanted):
+                units.append(unit)
+            i = j
+
+        keep = set(anchor_indices)
+        for unit in reversed(units):
+            candidate_indices = keep | set(unit)
+            candidate = [m for idx, m in enumerate(self.history) if idx in candidate_indices]
+            if self._estimate_messages(candidate) <= guard:
+                keep.update(unit)
+
+        compacted = [m for idx, m in enumerate(self.history) if idx in keep]
+        dropped = len(self.history) - len(compacted)
+        if dropped <= 0:
+            return False
+        self.history[:] = compacted
         self.truncated_history = True
-        self.truncated_dropped = dropped
-        return self._estimate_tokens() <= self.max_context
+        self.truncated_dropped += dropped
+        return self._estimate_tokens() <= guard
 
     def _terminal(self, stop_reason: str, ok: bool, detail: str = "") -> None:
         self.stop_reason = stop_reason

@@ -4330,7 +4330,7 @@ class TestRuntimeCapabilities:
     @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
         ("claude", "claude-sonnet-5[1m]", "claude-opus-5[1m]"),
         ("grok", "grok-4.5", "grok-4.6"),
-        ("harness", "stealth/ox-alpha", "z-ai/glm-5.2:free"),
+        ("harness", "nvidia/nemotron-3-ultra-550b-a55b:free", "z-ai/glm-5.2:free"),
     ])
     async def test_other_builtin_model_switches_retarget_in_place(
             self, session, monkeypatch, runtime, old_model, new_model):
@@ -4377,7 +4377,7 @@ class TestRuntimeCapabilities:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
         ("claude", "claude-opus-5[1m]", "claude-haiku-4-5"),
-        ("harness", "stealth/ox-alpha", "z-ai/glm-5.2:free"),
+        ("harness", "nvidia/nemotron-3-ultra-550b-a55b:free", "z-ai/glm-5.2:free"),
     ])
     async def test_in_place_switch_refuses_context_that_target_cannot_fit(
             self, session, monkeypatch, runtime, old_model, new_model):

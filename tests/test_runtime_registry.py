@@ -196,7 +196,7 @@ def test_backend_classes_satisfy_structural_contract(runtime_id, tmp_path, monke
             "claude": "claude-sonnet-5[1m]",
             "codex": "gpt-5.6-sol",
             "grok": "grok-4.5",
-            "harness": "stealth/ox-alpha",
+            "harness": "nvidia/nemotron-3-ultra-550b-a55b:free",
         }[runtime_id],
         provider={
             "claude": "anthropic",

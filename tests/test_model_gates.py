@@ -41,61 +41,61 @@ def _registry_snapshot():
 @pytest.fixture()
 def vendor_model():
     spec = ModelSpec(
-        id="test/vendor-x", name="Vendor X", runtime="harness",
+        id="test/vendor-x:free", name="Vendor X", runtime="harness",
         provider="openrouter", context_length=128000,
-        price_input=0.5, price_output=1.5,
+        price_input=0.0, price_output=0.0, supported_parameters=("tools",),
     )
     registry.register_model(spec)
     yield spec
-    registry.unregister_model("test/vendor-x")
+    registry.unregister_model("test/vendor-x:free")
 
 
 def test_t3_api_models_hides_dashboard_off(vendor_model, monkeypatch):
     from fastapi.testclient import TestClient
 
-    registry.set_model_flags("test/vendor-x", dashboard=False)
+    registry.set_model_flags("test/vendor-x:free", dashboard=False)
     from app.main import app, manager
 
     manager.sessions.clear()
     with TestClient(app) as client:
         ids = {m["id"] for m in client.get("/api/models").json()["models"]}
-    assert "test/vendor-x" not in ids
+    assert "test/vendor-x:free" not in ids
     assert "claude-haiku-4-5" in ids
 
-    registry.set_model_flags("test/vendor-x", dashboard=True)
+    registry.set_model_flags("test/vendor-x:free", dashboard=True)
     with TestClient(app) as client:
         ids = {m["id"] for m in client.get("/api/models").json()["models"]}
-    assert "test/vendor-x" in ids
+    assert "test/vendor-x:free" in ids
 
 
 def test_t3_available_models_block_respects_agents_flag(vendor_model):
-    registry.set_model_flags("test/vendor-x", agents=False)
-    assert "test/vendor-x" not in registry.available_models_block()
-    registry.set_model_flags("test/vendor-x", agents=True)
-    assert "test/vendor-x" in registry.available_models_block()
+    registry.set_model_flags("test/vendor-x:free", agents=False)
+    assert "test/vendor-x:free" not in registry.available_models_block()
+    registry.set_model_flags("test/vendor-x:free", agents=True)
+    assert "test/vendor-x:free" in registry.available_models_block()
 
 
 def test_t3_worker_spawn_rejected_on_agents_off(vendor_model):
-    registry.set_model_flags("test/vendor-x", agents=False)
+    registry.set_model_flags("test/vendor-x:free", agents=False)
     with pytest.raises(ValueError, match="agents"):
-        registry.ensure_spawn_allowed("test/vendor-x")
+        registry.ensure_spawn_allowed("test/vendor-x:free")
     registry.ensure_spawn_allowed("claude-haiku-4-5")
 
 
 def test_t3_dashboard_gate_blocks_user_actions_only(vendor_model):
-    registry.set_model_flags("test/vendor-x", dashboard=False)
+    registry.set_model_flags("test/vendor-x:free", dashboard=False)
     with pytest.raises(ValueError, match="dashboard"):
-        registry.ensure_dashboard_visible("test/vendor-x")
+        registry.ensure_dashboard_visible("test/vendor-x:free")
     # Levels are independent: hidden from the dashboard, still allowed to agents.
-    registry.set_model_flags("test/vendor-x", agents=True)
-    registry.ensure_spawn_allowed("test/vendor-x")
+    registry.set_model_flags("test/vendor-x:free", agents=True)
+    registry.ensure_spawn_allowed("test/vendor-x:free")
 
 
 def test_t3_resolve_model_unaffected_by_flags(vendor_model):
     """Overlay must never unregister: codex_review and session resume rely on this."""
-    registry.set_model_flags("test/vendor-x", agents=False, dashboard=False)
-    assert registry.resolve_model("test/vendor-x") == "test/vendor-x"
-    assert registry.get_model_spec("test/vendor-x").context_length == 128000
+    registry.set_model_flags("test/vendor-x:free", agents=False, dashboard=False)
+    assert registry.resolve_model("test/vendor-x:free") == "test/vendor-x:free"
+    assert registry.get_model_spec("test/vendor-x:free").context_length == 128000
 
 
 def test_t3_gates_are_wired_into_spawn_and_change_model():

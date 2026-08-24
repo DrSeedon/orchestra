@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 CALL_TIMEOUT = 120            # seconds per tool call
 INIT_TIMEOUT = 30            # seconds per-server handshake
 TERM_GRACE = 3              # SIGTERM → wait → SIGKILL
+STDIO_LIMIT = 16 * 1024 * 1024  # one JSON-RPC record; fail loud above this bound
 PROTOCOL_VERSION = "2025-06-18"
 
 
@@ -58,6 +59,7 @@ class _Server:
             stderr=asyncio.subprocess.DEVNULL,   # server logs to stderr; drop to avoid pipe-fill block
             env={k: str(v) for k, v in env.items()},
             start_new_session=True,              # own process group → killpg can reap grandchildren
+            limit=STDIO_LIMIT,
         )
         self._alive = True
         self._reader = asyncio.create_task(self._read_loop())
@@ -114,6 +116,7 @@ class _Server:
 
     async def _read_loop(self) -> None:
         assert self.proc is not None and self.proc.stdout is not None
+        failure: Exception | None = None
         try:
             while True:
                 line = await self.proc.stdout.readline()
@@ -121,18 +124,23 @@ class _Server:
                     break
                 try:
                     msg = json.loads(line)
-                except (ValueError, TypeError):
-                    continue               # tolerate a partial/garbage line, never fatal
+                except (ValueError, TypeError) as exc:
+                    raise MCPError(
+                        f"MCP server '{self.name}' emitted invalid JSON: "
+                        f"{line[:160].decode(errors='replace')}"
+                    ) from exc
                 req_id = msg.get("id") if isinstance(msg, dict) else None
                 fut = self._pending.pop(req_id, None) if req_id is not None else None
                 if fut is not None and not fut.done():
                     fut.set_result(msg)
                 # messages without a known id (server-initiated requests/notifications) → ignore
         except Exception as e:             # reader must never crash the loop
-            logger.debug(f"MCP '{self.name}' read loop error: {e}")
+            failure = e
+            logger.warning(f"MCP '{self.name}' read loop error: {e}")
         finally:
             self._alive = False
-            err = ConnectionError(f"MCP server '{self.name}' closed")
+            detail = f": {failure}" if failure is not None else ""
+            err = ConnectionError(f"MCP server '{self.name}' closed{detail}")
             for fut in self._pending.values():
                 if not fut.done():
                     fut.set_exception(err)

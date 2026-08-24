@@ -1,6 +1,11 @@
 # openrouter-quotas
 
 ## Установлено
+- **Нулевая цена prompt/completion НЕ доказывает бесплатность маршрута:** Lyria вернула
+  оба нуля в Models API, но тарифицируется отдельно за песню. Production Harness допускает
+  только exact `:free`, text output и tools; на 24.08 это 14 прямых маршрутов. Unsuffixed
+  Ox, обе Lyria, content-safety и случайный `openrouter/free` исключены · live Models API
+  + страницы Lyria + production guard `app/model_catalog.py`/`app/harness/llm.py` · 24.08.2026
 - На 23.08 аккаунт точно в тире 1000/сутки: `/credits` вернул `total_credits=97` при пороге 10; текущий source docs задаёт 20/мин и 1000/сутки · `docs/tasks/236/evidence/matrix/account-sanitized.json` + `openrouter-limits-source-2026-08-23.txt` · 23.08.2026, #236
 - Бесплатная платформенная квота глобальна для ключей аккаунта, а помодельная/provider capacity действует ДОПОЛНИТЕЛЬНО: GLM дал 22 upstream-429 из 24 попыток, Ultra 0/21, Super 0/37 · OpenRouter limits source lines 224–226 + `docs/tasks/236/evidence/matrix/summary.json` · 23.08.2026, #236
 - Живой text-каталог содержал 422 модели, 20 точных бесплатных маршрутов и 19 из них с `tools`; `inclusionai/ling-3.0-flash:free` в каталоге отсутствовал и exact lookup дал 404 · `docs/tasks/236/evidence/free-model-metadata-2026-08-23.json` + 6 guard failures · 23.08.2026, #236

@@ -7,13 +7,12 @@ turn_end (plan B2) carrying the full 15-key metadata parity of the other backend
 
 Cost contract (plan B5): _cumulative_cost is authoritative. A turn with no usage.cost
 does NOT reset it to 0 — that would corrupt session_cost's `max(0, new - last)` delta and
-overcount the next turn. We keep the previous cumulative, or grow it with a price-table
-estimate when token counts are available.
+overcount the next turn. Exact `:free` routes must report zero when cost is present;
+the HTTP client rejects a non-zero charge before tool dispatch.
 """
 
 import asyncio
 import contextlib
-import copy
 import logging
 import os
 import re
@@ -22,7 +21,7 @@ from typing import AsyncIterator, Optional
 
 from app.events import AgentEvent
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
-from app.harness import bestofn, prompts, tools as builtin
+from app.harness import prompts, tools as builtin
 from app.harness.llm import OpenRouterClient
 from app.harness.loop import AgentLoop, ReviewCtx
 from app.harness.mcp import MCPClient
@@ -75,10 +74,8 @@ class HarnessBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None,
                  mcp_servers: dict | None = None,
-                 is_orchestrator: bool = False,
-                 provider_id: str = "openrouter"):
+                 is_orchestrator: bool = False):
         self.model = model
-        self.provider_id = provider_id
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._mcp_servers = mcp_servers or {}
@@ -100,11 +97,6 @@ class HarnessBackend:
         self._cumulative_cost: float = 0.0
         self._cumulative_input: int = 0
         self._cumulative_output: int = 0
-
-        # Best-of-N (#124) — OFF by default; only activates when the flag is set AND the turn
-        # runs in a clean git worktree with a resolvable test suite (see _should_use_bestofn).
-        self._bestofn = os.environ.get("HARNESS_BESTOFN", "").lower() in ("1", "true", "yes")
-        self._bestofn_n = bestofn.clamp_n(os.environ.get("HARNESS_BESTOFN_N"))
 
         # Gated planning (#125) — a per-session todo list; the todo_write tool is hard-gated onto
         # complex (effort=="high") turns only (_turn_tool_schemas). Simple turns never see it.
@@ -165,22 +157,34 @@ class HarnessBackend:
         """Retarget later OpenRouter requests while keeping local history intact."""
         if self._turn_active:
             raise RuntimeError("cannot retarget harness model while a turn is active")
+        from app.models import get_model_spec, validate_harness_model_spec
+
+        spec = get_model_spec(model)
+        validate_harness_model_spec(spec)
         if self._llm is not None:
-            self._llm.model = model
+            self._llm.retarget(model, spec.supported_parameters)
         self.model = model
 
     # ── lifecycle ──
 
     async def connect(self) -> None:
         api_key = (os.environ.get("OPENROUTER_API_KEY")
-                   or os.environ.get("OPENROUTER_KEY")
-                   or os.environ.get("ANTHROPIC_API_KEY", ""))
+                   or os.environ.get("OPENROUTER_KEY", ""))
         if not api_key:
-            raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY, ANTHROPIC_API_KEY)")
-        base_url = os.environ.get("OPENROUTER_BASE_URL") or os.environ.get("ANTHROPIC_BASE_URL", "https://openrouter.ai/api/v1")
+            raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
+        from app.models import get_model_spec, validate_harness_model_spec
+
+        spec = get_model_spec(self.model)
+        validate_harness_model_spec(spec)
+        base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
         if base_url and not base_url.endswith("/v1"):
             base_url = base_url.rstrip("/") + "/v1"
-        self._llm = OpenRouterClient(api_key=api_key, model=self.model, base_url=base_url)
+        self._llm = OpenRouterClient(
+            api_key=api_key,
+            model=self.model,
+            base_url=base_url,
+            supported_parameters=spec.supported_parameters,
+        )
 
         # MCP must NEVER break backend startup. connect() is atomic (clears its own state on
         # a hard error), and merge_tool_schemas can itself raise on a builtin↔MCP name
@@ -235,14 +239,6 @@ class HarnessBackend:
         if not self._turn_active or self._pending_msg is None:
             return
 
-        # Best-of-N branch (#124) — guarded, off by default. When it doesn't apply, the ORIGINAL
-        # single-attempt path below runs byte-for-byte unchanged.
-        test_cmd = self._resolve_bestofn()
-        if test_cmd is not None:
-            async for ev in self._events_bestofn(self._pending_msg, test_cmd):
-                yield ev
-            return
-
         user_msg = self._pending_msg
         self._pending_msg = None
         self._injected.clear()   # nothing steered yet; leftovers would replay stale text
@@ -265,7 +261,7 @@ class HarnessBackend:
             # Persist only a CONSISTENT prefix: an assistant message with tool_calls whose
             # tool results never arrived would make the next request invalid, so drop it.
             with contextlib.suppress(Exception):
-                await self._persist(_consistent_prefix(loop.new_messages))
+                await self._persist_loop(loop, cancelled=True)
             self._turn_active = False
             raise
         except Exception as e:
@@ -276,7 +272,7 @@ class HarnessBackend:
 
         # Persist the turn's messages (best-effort) before emitting the terminal event.
         with contextlib.suppress(Exception):
-            await self._persist(loop.new_messages)
+            await self._persist_loop(loop)
 
         # ── terminal turn_end (exactly one, on every non-cancel path) ──
         # Accumulate EACH round independently: a round with native cost uses it; a round
@@ -289,157 +285,28 @@ class HarnessBackend:
         yield self._turn_end(loop, ok=loop.ok, stop_reason=loop.stop_reason,
                              detail=loop.error_detail if not loop.ok else "")
 
-    # ── Best-of-N (#124) ──
-
-    def _resolve_bestofn(self) -> Optional[str]:
-        """Return the verifier command if Best-of-N should run this turn, else None (→ default
-        single-attempt path). Gate: flag on AND git worktree AND clean tree AND resolvable HEAD
-        AND detectable test suite AND resolvable test command. Any miss → None (fail-safe)."""
-        if not self._bestofn:
-            return None
-        if not (bestofn.is_git_repo(self.cwd) and bestofn.clean_tree(self.cwd)):
-            return None
-        if bestofn.base_sha(self.cwd) is None:
-            return None
-        return bestofn.resolve_test_cmd(self.cwd)
-
-    async def _events_bestofn(self, user_msg: str, test_cmd: str) -> AsyncIterator[AgentEvent]:
-        """Run up to N sequential attempts, verifying each with test_cmd; yield the first passing
-        attempt's events + one turn_end. Early-exit on pass. All-failed → roll back to base and
-        report failure. Defensive rollback: reset only when the dirt is attempt-generated."""
-        self._pending_msg = None
-        assert self._llm is not None and self._mcp is not None    # events() checked before calling
-        base = bestofn.base_sha(self.cwd)
-        assert base is not None                      # guaranteed by _resolve_bestofn
-        base_history = copy.deepcopy(self._history)
-        base_todos = copy.deepcopy(self._todos.todos)   # planning state resets per attempt (#125)
-        effort = classify_effort(user_msg, self._is_orchestrator)
-        turn_schemas = self._turn_tool_schemas(effort, allow_review=False)  # attempts don't review (#126)
-        n = self._bestofn_n
-        winner: Optional[AgentLoop] = None
-        winner_events: list[AgentEvent] = []
-        touched: set = set()                          # paths the LAST attempt wrote (for rollback)
-        last_tail = ""
-        abort_reason: Optional[str] = None            # set → stop without a winner, distinct turn_end
-
-        try:
-            for i in range(1, n + 1):
-                if self._abort_flag:
-                    abort_reason = "aborted"
-                    break
-                if i > 1 and not self._rollback_attempt(base, touched):
-                    # unexpected worktree/HEAD state → do NOT destructively reset (no data loss).
-                    abort_reason = "bestofn_abort_dirty"
-                    yield AgentEvent("status", "[bestofn] unexpected worktree changes — stopping, tree left as-is")
-                    break
-                self._history = copy.deepcopy(base_history)
-                self._todos.todos = copy.deepcopy(base_todos)   # clean planning state per attempt
-                loop = AgentLoop(
-                    llm=self._llm, mcp=self._mcp, cwd=self.cwd, history=self._history,
-                    tool_schemas=turn_schemas, max_context=self._max_context(),
-                    abort=lambda: self._abort_flag, effort=effort, todo_store=self._todos,
-                )
-                buffered: list[AgentEvent] = []
-                loop_failed = False
-                try:
-                    async for ev in loop.run(user_msg):
-                        buffered.append(ev)
-                except Exception as e:
-                    logger.error(f"[bestofn] attempt {i} loop failed: {e}")
-                    loop_failed = True
-                for u in loop.round_usages:            # every attempt is billed (cost is cumulative)
-                    self._accumulate(u)
-                touched = self._attempt_touched(buffered)
-                if loop_failed:
-                    continue                           # retry (rollback at top of next iter)
-                yield AgentEvent("status", f"[bestofn] attempt {i}/{n} — running tests…")
-                verdict, tail = await bestofn.run_verifier(self.cwd, test_cmd)
-                last_tail = tail
-                logger.info(f"[bestofn] attempt {i}/{n}: {verdict} "
-                            f"(cost=${self._cumulative_cost:.4f} in={self._cumulative_input} out={self._cumulative_output})")
-                if verdict == "pass":
-                    winner, winner_events = loop, buffered
-                    break                             # early-exit — keep this attempt's tree
-                if verdict == "no_verifier":
-                    # broken runner (not a real fail): can't verify → keep NOTHing, roll back + report.
-                    abort_reason = "bestofn_no_verifier"
-                    break
-                # fail → next iteration rolls back and retries
-        except asyncio.CancelledError:
-            self._turn_active = False
-            raise
-
-        self._turn_active = False
-        if winner is not None:
-            # commit the winner: its history is already self._history (loop mutated it in place).
-            self._history = winner.history
-            with contextlib.suppress(Exception):
-                await self._persist(winner.new_messages)
-            for ev in winner_events:
-                yield ev
-            yield self._turn_end(winner, ok=winner.ok, stop_reason=winner.stop_reason,
-                                 detail=winner.error_detail if not winner.ok else "")
-            return
-
-        # No winner. Roll back to base UNLESS the tree is already in an unexpected state
-        # (abort_dirty). If the final rollback REFUSES or FAILS to verify, the tree is NOT clean —
-        # report bestofn_abort_dirty (honest) instead of claiming a clean all_failed rollback.
-        if abort_reason != "bestofn_abort_dirty":
-            rolled_back = False
-            with contextlib.suppress(Exception):
-                rolled_back = self._rollback_attempt(base, touched)
-            if not rolled_back:
-                abort_reason = "bestofn_abort_dirty"
-        self._history = base_history
-        self._todos.todos = base_todos                # no winner → restore pre-turn planning state
-        reason = abort_reason or "bestofn_all_failed"
-        msg = {
-            "aborted": "Best-of-N: interrupted before a passing attempt.",
-            "bestofn_no_verifier": "Best-of-N: the test command could not run (no verifier) — rolled back.",
-            "bestofn_abort_dirty": "Best-of-N: unexpected worktree changes — stopped, tree left as-is.",
-        }.get(reason, f"Best-of-N: all {n} attempts failed the test suite.")
-        yield AgentEvent("text", f"{msg}\n{last_tail}".rstrip())
-        yield self._error_turn_end(reason)
-
-    def _attempt_touched(self, events: list[AgentEvent]) -> set:
-        """Repo-relative paths the attempt's file tools wrote (from file_change events:
-        'add /abs/path' / 'update /abs/path')."""
-        touched: set = set()
-        base = os.path.abspath(self.cwd)
-        for ev in events or []:
-            if ev.type != "file_change":
-                continue
-            parts = ev.content.split(" ", 1)
-            if len(parts) != 2:
-                continue
-            raw = parts[1]
-            p = raw if os.path.isabs(raw) else os.path.abspath(os.path.join(self.cwd, raw))
-            try:
-                if os.path.commonpath([base, p]) == base:    # p is strictly inside the worktree
-                    touched.add(os.path.relpath(p, base))
-            except ValueError:
-                continue                                     # different drive / not comparable → skip
-        return touched
-
-    def _rollback_attempt(self, base: str, touched: set) -> bool:
-        """Defensive rollback (Option 1). Reset the worktree to `base` ONLY if it's safe (HEAD still
-        at base AND every dirty path is attempt-generated) AND the reset verifiably lands clean-at-
-        base. Returns False if we refused to reset OR the reset didn't verify — caller must stop."""
-        if not bestofn.dirt_is_attempt_only(self.cwd, base, touched):
-            return False
-        return bestofn.rollback_to_base(self.cwd, base)
-
     async def _persist(self, messages: list[dict]) -> None:
         if self._store and messages:
             await self._store.append_messages(messages)
 
+    async def _persist_loop(self, loop: AgentLoop, *, cancelled: bool = False) -> None:
+        """Persist one loop without resurrecting history discarded by context compaction."""
+        if self._store is None:
+            return
+        if loop.truncated_dropped:
+            await self._store.replace_messages(_consistent_prefix(self._history))
+            return
+        messages = _consistent_prefix(loop.new_messages) if cancelled else loop.new_messages
+        await self._persist(messages)
+
     # ── cost / tokens (plan B5) ──
 
     def _accumulate(self, usage: dict) -> None:
-        """Grow cumulative counters from ONE round's usage. Native cost is used when the
-        round reports it; otherwise the round's cost is estimated from tokens × price
-        table (so a mix of native and missing-cost rounds is each handled correctly).
-        NEVER reset to 0 on missing data — keep the previous cumulative monotonic."""
+        """Grow cumulative counters from one round without resetting missing usage.
+
+        The HTTP client rejects any non-zero provider cost before tool dispatch; keeping
+        the reported zero here preserves the shared cumulative-cost contract.
+        """
         if not usage:
             return  # no usage → keep previous cumulative (do not corrupt the delta)
         in_tok = int(usage.get("prompt_tokens", 0) or 0)
@@ -449,21 +316,6 @@ class HarnessBackend:
         cost = usage.get("cost")
         if cost is not None:
             self._cumulative_cost += float(cost)
-        else:
-            est = self._estimate_cost(in_tok, out_tok)
-            if est > 0:
-                self._cumulative_cost += est
-
-    def _estimate_cost(self, in_tok: int, out_tok: int) -> float:
-        """Fallback only — OpenRouter reports usage.cost for paid models, and every model
-        routed here today is `:free` (priced 0 in models.py). TOKEN_PRICES stays the single
-        owner of prices; no local copy."""
-        from app.models import TOKEN_PRICES
-
-        price = TOKEN_PRICES.get(self.model)
-        if not price:
-            return 0.0
-        return (in_tok / 1_000_000) * price["input"] + (out_tok / 1_000_000) * price["output"]
 
     def _max_context(self) -> int:
         from app.models import CONTEXT_LIMITS

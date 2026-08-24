@@ -21,7 +21,7 @@ def test_runtime_declares_mid_turn_inject():
 
 
 def test_send_during_active_turn_queues_instead_of_raising():
-    b = HarnessBackend(model="stealth/ox-alpha", cwd="/tmp")
+    b = HarnessBackend(model="nvidia/nemotron-3-ultra-550b-a55b:free", cwd="/tmp")
     b._llm = object()          # connect() not needed: send() only checks it is set
     b._turn_active = True
 
@@ -31,7 +31,7 @@ def test_send_during_active_turn_queues_instead_of_raising():
 
 
 def test_drain_hands_over_once_and_forgets():
-    b = HarnessBackend(model="stealth/ox-alpha", cwd="/tmp")
+    b = HarnessBackend(model="nvidia/nemotron-3-ultra-550b-a55b:free", cwd="/tmp")
     b._injected = ["first", "second"]
 
     assert b._drain_injected() == ["first", "second"]
@@ -40,11 +40,15 @@ def test_drain_hands_over_once_and_forgets():
 
 def test_retarget_model_keeps_history_and_session_store():
     b = HarnessBackend(
-        model="stealth/ox-alpha",
+        model="nvidia/nemotron-3-ultra-550b-a55b:free",
         cwd="/tmp",
         resume_session_id="native-harness-session",
     )
-    b._llm = OpenRouterClient(api_key="test", model="stealth/ox-alpha")
+    b._llm = OpenRouterClient(
+        api_key="test",
+        model="nvidia/nemotron-3-ultra-550b-a55b:free",
+        supported_parameters=("tools", "tool_choice", "reasoning", "reasoning_effort"),
+    )
     b._history = [{"role": "user", "content": "keep me"}]
     store = object()
     b._store = store
@@ -53,6 +57,7 @@ def test_retarget_model_keeps_history_and_session_store():
 
     assert b.model == "z-ai/glm-5.2:free"
     assert b._llm.model == "z-ai/glm-5.2:free"
+    assert "structured_outputs" in b._llm.supported_parameters
     assert b._history == [{"role": "user", "content": "keep me"}]
     assert b._store is store
 

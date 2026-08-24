@@ -27,6 +27,10 @@ class ModelSpec:
     context_length: int = 200000
     price_input: float | None = None
     price_output: float | None = None
+    supported_parameters: tuple[str, ...] = ()
+    default_dashboard: bool = True
+    default_agents: bool = True
+    available: bool = True
 
 
 @dataclass(frozen=True)
@@ -121,27 +125,26 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         id="grok-4.5", name="Grok 4.5",
         runtime="grok", provider="x-ai", context_length=500000,
     ),
-    # OpenRouter free tier through Orchestra's own harness. Only `:free` ids with tool
-    # calling are listed — the harness agent loop is useless without tools. Prices are 0
-    # by definition; the daily ceiling is a request count (1000/day after a lifetime $10
-    # purchase, 50/day before it), not tokens, so it lives outside TOKEN_PRICES.
-    # Stealth preview: an anonymous third-party provider, free during the preview, and it
-    # RETAINS prompts and completions. Fine for this repo's own work, not for anything the
-    # user would not publish.
-    ModelSpec(
-        id="stealth/ox-alpha", name="Ox Alpha (free preview)",
-        runtime="harness", provider="openrouter", context_length=1048576,
-        price_input=0.0, price_output=0.0,
-    ),
+    # OpenRouter through Orchestra's own harness. Admission is exact and fail-closed:
+    # only `:free` routes that advertise tools may reach the HTTP client. These two
+    # entries are offline fallbacks for a cold catalog; they start disabled until a user
+    # intentionally qualifies and enables them. Request-count quota lives outside prices.
     ModelSpec(
         id="z-ai/glm-5.2:free", name="GLM 5.2 (free)",
         runtime="harness", provider="openrouter", context_length=256000,
         price_input=0.0, price_output=0.0,
+        supported_parameters=(
+            "reasoning", "reasoning_effort", "response_format", "structured_outputs",
+            "tool_choice", "tools",
+        ),
+        default_dashboard=False, default_agents=False,
     ),
     ModelSpec(
         id="nvidia/nemotron-3-ultra-550b-a55b:free", name="Nemotron 3 Ultra (free)",
         runtime="harness", provider="openrouter", context_length=1000000,
         price_input=0.0, price_output=0.0,
+        supported_parameters=("reasoning", "reasoning_effort", "tool_choice", "tools"),
+        default_dashboard=False, default_agents=False,
     ),
 )
 
@@ -308,8 +311,6 @@ COMPAT_MODEL_SPECS: dict[str, ModelSpec] = {
 # not another family-wide catch-all.
 _REVIEWED_PROXY_ROUTES: dict[str, tuple[str, str]] = {
     **{spec.id: (spec.runtime, spec.provider) for spec in SELECTABLE_MODEL_SPECS},
-    "deepseek/deepseek-v4-flash": ("harness", "openrouter"),
-    "deepseek/deepseek-v4-pro": ("harness", "openrouter"),
 }
 
 _VERSION_RE = re.compile(r"[-.]v?\d[\d.]*$")
@@ -364,6 +365,26 @@ def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
     _apply_derived_views(spec)
 
 
+def validate_harness_model_spec(spec: ModelSpec) -> None:
+    """Production admission for Orchestra's OpenRouter runtime.
+
+    Zero token prices are not proof of a free route: request/song/image prices can live
+    outside those fields. The `:free` suffix is the provider's explicit routing contract.
+    Tool support is mandatory because Harness is an agent runtime, not a chat wrapper.
+    """
+    if spec.runtime != "harness":
+        raise ValueError(f"model '{spec.id}' is not a harness model")
+    if not spec.id.endswith(":free"):
+        raise ValueError(
+            f"harness model '{spec.id}' is not an exact :free route; "
+            "unsuffixed previews and paid routes are blocked"
+        )
+    if "tools" not in spec.supported_parameters:
+        raise ValueError(f"harness model '{spec.id}' does not advertise tool support")
+    if not spec.available:
+        raise ValueError(f"harness model '{spec.id}' is no longer available on OpenRouter")
+
+
 def unregister_model(model_id: str) -> None:
     MODEL_SPECS.pop(model_id, None)
     MODELS.pop(model_id, None)
@@ -412,11 +433,15 @@ def _load_model_flags() -> dict:
 def get_model_flags(model_id: str) -> dict[str, bool]:
     """Dashboard/agents visibility; manifest models default to both-true, catalog
     models registered later default to both-false until the user enables them."""
-    default = any(spec.id == model_id for spec in SELECTABLE_MODEL_SPECS)
+    manifest = next((spec for spec in SELECTABLE_MODEL_SPECS if spec.id == model_id), None)
     stored = _load_model_flags().get(model_id) or {}
     return {
-        "dashboard": bool(stored.get("dashboard", default)),
-        "agents": bool(stored.get("agents", default)),
+        "dashboard": bool(stored.get(
+            "dashboard", manifest.default_dashboard if manifest is not None else False
+        )),
+        "agents": bool(stored.get(
+            "agents", manifest.default_agents if manifest is not None else False
+        )),
     }
 
 
@@ -440,6 +465,9 @@ def set_model_flags(
 
 def ensure_spawn_allowed(model_id: str) -> None:
     """Hard gate for agent-side usage (worker spawn, MCP change-model)."""
+    spec = get_model_spec(model_id)
+    if spec.runtime == "harness":
+        validate_harness_model_spec(spec)
     if not get_model_flags(model_id)["agents"]:
         raise ValueError(
             f"model '{model_id}' is disabled for agents — re-enable it in the "
@@ -449,6 +477,9 @@ def ensure_spawn_allowed(model_id: str) -> None:
 
 def ensure_dashboard_visible(model_id: str) -> None:
     """Hard gate for user-side actions (UI session creation, change-model from UI)."""
+    spec = get_model_spec(model_id)
+    if spec.runtime == "harness":
+        validate_harness_model_spec(spec)
     if not get_model_flags(model_id)["dashboard"]:
         raise ValueError(
             f"model '{model_id}' is hidden from the dashboard — re-enable it in "
@@ -604,6 +635,10 @@ def _proxy_model_spec(raw: dict) -> ModelSpec | None:
         context_length=context_length,
         price_input=round(prompt_price, 4) if prompt_price else None,
         price_output=round(completion_price, 4) if completion_price else None,
+        supported_parameters=tuple(sorted({
+            str(item) for item in (raw.get("supported_parameters") or []) if item
+        })),
+        available=bool(raw.get("available", True)),
     )
 
 
@@ -771,6 +806,11 @@ def available_models_block() -> str:
         if not get_model_flags(model_id)["agents"]:
             continue
         spec = get_model_spec(model_id)
+        if spec.runtime == "harness":
+            try:
+                validate_harness_model_spec(spec)
+            except ValueError:
+                continue
         ctx = spec.context_length
         ctx_k = f"{ctx // 1000}k"
         alias_list = [a for a, m in ALIASES.items() if m == model_id]

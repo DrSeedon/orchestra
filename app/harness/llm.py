@@ -17,7 +17,7 @@ import json
 import logging
 import random
 from dataclasses import dataclass, field
-from typing import AsyncIterator
+from typing import AsyncIterator, Iterable
 
 import httpx
 
@@ -131,9 +131,11 @@ class _ReasoningAccumulator:
 
 class OpenRouterClient:
     def __init__(self, api_key: str, model: str, base_url: str = DEFAULT_BASE_URL,
-                 http: httpx.AsyncClient | None = None):
+                 http: httpx.AsyncClient | None = None,
+                 supported_parameters: Iterable[str] = ()):
         self.api_key = api_key
         self.model = model
+        self.supported_parameters = frozenset(str(p) for p in supported_parameters)
         self.base_url = base_url.rstrip("/")
         # Allow injecting a client (tests); otherwise own one.
         self._http = http
@@ -150,8 +152,26 @@ class OpenRouterClient:
             await self._http.aclose()
             self._http = None
 
+    def retarget(self, model: str, supported_parameters: Iterable[str]) -> None:
+        """Change the exact route and its request contract together.
+
+        Keeping these fields atomic prevents a seamless model switch from sending the
+        previous provider's optional parameters to the new one.
+        """
+        self.model = model
+        self.supported_parameters = frozenset(str(p) for p in supported_parameters)
+
+    def _validate_route(self) -> None:
+        # Provider-side atomic zero-spend does not exist for an unsuffixed preview.
+        # The explicit suffix is therefore the last-line guard immediately before POST.
+        if not self.model.endswith(":free"):
+            raise ValueError(
+                f"OpenRouter Harness accepts exact :free routes only, got '{self.model}'"
+            )
+
     def _build_body(self, messages: list[dict], tools: list[dict],
                     effort: str | None = None) -> dict:
+        self._validate_route()
         body: dict = {
             "model": self.model,
             "messages": messages,
@@ -159,11 +179,12 @@ class OpenRouterClient:
             "usage": {"include": True},   # OpenRouter: emit usage in the final chunk
         }
         if tools:
+            if "tools" not in self.supported_parameters:
+                raise ValueError(f"OpenRouter model '{self.model}' does not support tools")
             body["tools"] = tools
-            body["tool_choice"] = "auto"
-            body["parallel_tool_calls"] = True   # request-economy flag (#367): several tool
-                                                 # calls per response cost ONE request instead of N
-        if effort:
+            if "tool_choice" in self.supported_parameters:
+                body["tool_choice"] = "auto"
+        if effort and ({"reasoning", "reasoning_effort"} & self.supported_parameters):
             # OpenRouter unified reasoning knob (provider-agnostic). Omitted → body unchanged.
             body["reasoning"] = {"effort": effort}
         return body
@@ -215,25 +236,18 @@ class OpenRouterClient:
                         f"OpenRouter {e.kind} rate limit: нужно ждать {e.retry_after:.0f}s, "
                         f"потолок ожидания {ceiling:.0f}s исчерпан — повторите запрос позже"
                     )
+                if attempt == MAX_RETRIES - 1:
+                    break
                 delay = self._retry_delay(attempt, e.retry_after, ceiling)
                 logger.warning(
                     f"OpenRouter {e.kind} rate limit (attempt {attempt + 1}/{MAX_RETRIES}), retry in {delay:.1f}s")
                 await asyncio.sleep(delay)
-            except httpx.HTTPStatusError as e:
-                last_err = e
-                if started:
-                    raise
-                # Some providers reject unmapped body fields with 400 (#367 T7): strip the
-                # economy flag once and retry; anything else stays a hard error.
-                if "parallel_tool_calls" in str(e) and body.get("parallel_tool_calls"):
-                    logger.warning("OpenRouter 400 mentions parallel_tool_calls — retrying without it")
-                    body = {k: v for k, v in body.items() if k != "parallel_tool_calls"}
-                    continue
-                raise
             except (httpx.TransportError, httpx.StreamError) as e:
                 last_err = e
                 if started:
                     raise  # mid-stream network failure → discard, surface to loop
+                if attempt == MAX_RETRIES - 1:
+                    break
                 delay = self._retry_delay(attempt, None)
                 logger.warning(f"OpenRouter transport error (attempt {attempt + 1}): {e}, retry in {delay:.1f}s")
                 await asyncio.sleep(delay)
@@ -254,6 +268,7 @@ class OpenRouterClient:
         racc = _ReasoningAccumulator()
         finish_reason = ""
         usage: dict = {}
+        emitted_content = False
         emitted_tool_calls = False
         async with http.stream("POST", f"{self.base_url}/chat/completions",
                                json=body, headers=headers) as resp:
@@ -281,6 +296,13 @@ class OpenRouterClient:
                 if not isinstance(parsed, dict):
                     continue
                 chunk: dict = parsed
+                if chunk.get("error") is not None:
+                    error = chunk["error"]
+                    if isinstance(error, dict):
+                        message = error.get("message") or error.get("code") or error
+                    else:
+                        message = error
+                    raise RuntimeError(f"OpenRouter stream error: {message}")
                 # usage-only chunk (OpenRouter sends a trailing chunk with empty choices)
                 if chunk.get("usage"):
                     usage = chunk["usage"]
@@ -293,6 +315,7 @@ class OpenRouterClient:
                 delta = choice.get("delta") or {}
                 content = delta.get("content")
                 if content:
+                    emitted_content = True
                     yield LLMEvent("text_delta", text=content)
                 if delta.get("tool_calls"):
                     acc.add(delta["tool_calls"])
@@ -301,16 +324,30 @@ class OpenRouterClient:
                 fr = choice.get("finish_reason")
                 if fr:
                     finish_reason = fr
+        reported_cost = usage.get("cost")
+        if reported_cost is not None:
+            try:
+                billed = float(reported_cost)
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError(
+                    f"OpenRouter returned invalid usage.cost: {reported_cost!r}"
+                ) from exc
+            if billed != 0:
+                raise RuntimeError(
+                    f"OpenRouter zero-spend contract violated: usage.cost={billed}"
+                )
         # emit accumulated tool calls (one per completed call), then final
         for tc in acc.finished():
-            if not tc["name"]:
-                continue  # malformed fragment with no name — skip, don't crash the loop
+            if not tc["id"] or not tc["name"]:
+                raise RuntimeError("OpenRouter returned a malformed tool call without id or name")
             emitted_tool_calls = True
             yield LLMEvent("tool_call_done", tool_id=tc["id"],
                            tool_name=tc["name"], arguments=tc["arguments"])
         # finish_reason "tool_calls" wins when tool calls were emitted (plan: tool_calls win)
         if emitted_tool_calls and finish_reason != "tool_calls":
             finish_reason = "tool_calls"
+        if not emitted_content and not emitted_tool_calls:
+            raise RuntimeError("OpenRouter returned an empty completion")
         yield LLMEvent("final", finish_reason=finish_reason or "stop", usage=usage,
                        reasoning_details=racc.finished())
 
@@ -338,8 +375,8 @@ def _parse_sse(line: str):
     """Parse one SSE line → chunk dict, the _DONE sentinel, or None to skip.
 
     Lines without a `data:` prefix (comments/blank/event:) are ignored. `[DONE]`
-    terminates. Invalid JSON is skipped (never fatal) — a fragmented stream can hand
-    us a partial line.
+    terminates. A `data:` line is a complete SSE record; invalid JSON is a protocol
+    error and must be loud instead of turning into an apparently successful empty reply.
     """
     if not line or not line.startswith("data:"):
         return None
@@ -350,9 +387,8 @@ def _parse_sse(line: str):
         return _DONE
     try:
         return json.loads(payload)
-    except (ValueError, TypeError):
-        logger.debug(f"skipping unparseable SSE chunk: {payload[:120]}")
-        return None
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError(f"invalid OpenRouter SSE JSON: {payload[:120]}") from exc
 
 
 def _parse_retry_after(resp: httpx.Response) -> float | None:

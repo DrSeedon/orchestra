@@ -324,7 +324,6 @@ def _harness_factory(context: BackendBuildContext) -> BackendLike:
         resume_session_id=context.resume_session_id,
         mcp_servers=context.mcp_servers,
         is_orchestrator=context.is_orchestrator,
-        provider_id=context.provider,
     )
 
 

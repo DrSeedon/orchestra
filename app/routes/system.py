@@ -36,6 +36,7 @@ from app.models import (
     is_proxy_connected,
     provider_metadata_payload,
     runtime_for_record,
+    validate_harness_model_spec,
 )
 from app.pipeline import list_pipelines
 from app import restart_guard
@@ -358,6 +359,11 @@ async def list_models(response: Response):
         if not get_model_flags(mid)["dashboard"]:
             continue  # #366: hidden by the user on the catalog screen
         spec = get_model_spec(mid)
+        if spec.runtime == "harness":
+            try:
+                validate_harness_model_spec(spec)
+            except ValueError:
+                continue
         entry = {
             "id": mid,
             "name": name,
@@ -420,7 +426,21 @@ async def get_models_catalog():
                 spec.price_output if spec.price_output is not None else None,
             ),
             "input_modalities": entry.get("input_modalities", []),
+            "output_modalities": entry.get("output_modalities", []),
             "supports_tools": entry.get("supports_tools", True),
+            "supported_parameters": entry.get(
+                "supported_parameters", list(spec.supported_parameters)
+            ),
+            "is_free": entry.get(
+                "is_free", spec.runtime == "harness" and model_id.endswith(":free")
+            ),
+            "harness_eligible": entry.get(
+                "harness_eligible",
+                spec.runtime != "harness" or (
+                    model_id.endswith(":free") and "tools" in spec.supported_parameters
+                ),
+            ),
+            "available": entry.get("available", spec.available),
             "runtime": spec.runtime,
             "provider": spec.provider,
             "flags": get_model_flags(model_id),
@@ -440,7 +460,7 @@ async def refresh_models_catalog():
 async def patch_model_flags(request: Request):
     import json as _json
 
-    from app.models import MODEL_SPECS, set_model_flags
+    from app.models import MODEL_SPECS, set_model_flags, validate_harness_model_spec
 
     try:
         body = await request.json()
@@ -453,6 +473,12 @@ async def patch_model_flags(request: Request):
         return JSONResponse({"error": f"unknown model: {model_id}"}, status_code=400)
     dashboard = body.get("dashboard")
     agents = body.get("agents")
+    spec = MODEL_SPECS[model_id]
+    if agents is True and spec.runtime == "harness":
+        try:
+            validate_harness_model_spec(spec)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
     flags = set_model_flags(
         model_id,
         dashboard=bool(dashboard) if dashboard is not None else None,
