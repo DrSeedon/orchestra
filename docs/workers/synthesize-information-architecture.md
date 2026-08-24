@@ -14,3 +14,5 @@
   executes that branch's full setup; missing parent directories otherwise surface only after implementation.
 - When an oracle inventories a corpus that includes its own task artifacts, freeze the pre-oracle source
   commit and its blobs; hashing the post-oracle working paths creates an impossible self-reference.
+- After a prompt/tool cutover merges, verify a fresh consumer and the current live session separately;
+  prompt re-injection can arrive while the old MCP registry still requires reconnect.
