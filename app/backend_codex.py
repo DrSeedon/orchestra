@@ -13,13 +13,17 @@ import sys
 import tomllib
 import uuid
 import weakref
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
-from app.backend_jsonrpc import JsonRpcStdioTransport, bounded_tool_arguments
+from app.backend_jsonrpc import (
+    JsonRpcStdioTransport,
+    bounded_tool_arguments,
+    terminate_cli_process,
+)
 from app.events import AgentEvent
 from app.runtime_history import (
     CODEX_CLI_HISTORY_VERSION,
@@ -80,7 +84,6 @@ CODEX_COMPACT_TIMEOUT_SECONDS = 120
 CODEX_PROCESS_TIMEOUT_SECONDS = 5
 DEFERRED_INTERRUPT_TERMINAL_TIMEOUT_SECONDS = 5.0
 CODEX_STREAM_LIMIT = 16 * 1024 * 1024
-CODEX_STREAM_DISCARD_CHUNK = 64 * 1024
 CODEX_OVERSIZE_READLINE_ERROR = (
     "Separator is not found, and chunk exceed the limit"
 )
@@ -88,6 +91,11 @@ CODEX_OVERSIZE_READLINE_ERRORS = frozenset({
     CODEX_OVERSIZE_READLINE_ERROR,
     "Separator is found, but chunk is longer than limit",
 })
+
+
+class CodexOversizedRecordError(RuntimeError):
+    """The app-server JSONL framing was lost and this transport is unusable."""
+
 
 _scope_support_cache: tuple[bool, dict[str, str], str] | None = None
 
@@ -829,6 +837,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self._scope_reason = "scope preflight has not run"
         self._teardown_error: str | None = None
         self._reader_failure: BaseException | None = None
+        self._terminal_reader_failure = False
 
     @property
     def session_id(self) -> Optional[str]:
@@ -863,6 +872,11 @@ class CodexBackend(JsonRpcStdioTransport):
         self._deferred_control = None
         self._deferred_control_turn_id = None
         self._deferred_terminal_deadline = None
+
+    @property
+    def oversized_reader_failure(self) -> bool:
+        """Whether a JSONL record was lost and the native thread must be retired."""
+        return self._terminal_reader_failure
 
     @property
     def hibernate_safe(self) -> bool:
@@ -941,6 +955,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self._active_turn_id = active_turn_id
         self._teardown_error = None
         self._reader_failure = None
+        self._terminal_reader_failure = False
         self._reader_task = asyncio.create_task(self._read_stdout())
 
     async def connect(self) -> None:
@@ -996,6 +1011,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self._disconnecting = False
         self._last_stderr = ""
         self._reader_failure = None
+        self._terminal_reader_failure = False
         codex_cmd = self._codex_command()
 
         scope_ok, scope_env, scope_reason = await _codex_scope_support()
@@ -1061,6 +1077,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 child_stdin = child_stdout = None
             self._reader_task = asyncio.create_task(self._read_stdout())
             self._stderr_task = asyncio.create_task(self._drain_stderr())
+            metadata_only_resume = self._history_import is None and bool(self._thread_id)
             initialize_params = {
                 "clientInfo": {
                     "name": "orchestra",
@@ -1068,7 +1085,7 @@ class CodexBackend(JsonRpcStdioTransport):
                     "version": "1",
                 },
             }
-            if self._history_import:
+            if self._history_import or metadata_only_resume:
                 initialize_params["capabilities"] = {"experimentalApi": True}
             await self._request("initialize", initialize_params)
             await self._notify("initialized", {})
@@ -1094,6 +1111,10 @@ class CodexBackend(JsonRpcStdioTransport):
                 result = await self._request("thread/resume", params)
             elif requested_thread_id:
                 params["threadId"] = requested_thread_id
+                # The app-server otherwise reconstructs and serializes the complete native
+                # history into one JSONL response. Image-heavy threads have exceeded 16 MiB
+                # in production; Orchestra only needs the live subscription and thread id.
+                params["excludeTurns"] = True
                 result = await self._request("thread/resume", params)
             else:
                 result = await self._request("thread/start", params)
@@ -1393,13 +1414,16 @@ class CodexBackend(JsonRpcStdioTransport):
         self._compact_future = future
         self._compact_notifications = compact_notifications
         self._compact_context_tokens = None
+        stage = "request acknowledgement"
         try:
             async with asyncio.timeout(CODEX_COMPACT_TIMEOUT_SECONDS):
                 await self._request(
                     "thread/compact/start",
                     {"threadId": self._thread_id},
                 )
+                stage = "completion notification"
                 result = await future
+                stage = "turn lifecycle"
                 await self._drain_compact_lifecycle(compact_notifications)
                 # The usage notification normally precedes contextCompaction completion,
                 # but yield once for app-server versions that emit it immediately after.
@@ -1415,6 +1439,11 @@ class CodexBackend(JsonRpcStdioTransport):
             result["context_tokens"] = context_tokens
             result["max_tokens"] = self._model_context_window
             return result
+        except TimeoutError as exc:
+            raise TimeoutError(
+                f"Codex compact timed out after {CODEX_COMPACT_TIMEOUT_SECONDS:g}s "
+                f"while waiting for {stage}"
+            ) from exc
         finally:
             if self._compact_future is future:
                 self._compact_future = None
@@ -1590,19 +1619,17 @@ class CodexBackend(JsonRpcStdioTransport):
                     if error_text not in CODEX_OVERSIZE_READLINE_ERRORS:
                         self._reader_failure = exc
                         raise
-                    failure = RuntimeError(
+                    failure = CodexOversizedRecordError(
                         "Codex app-server emitted an oversized JSONL record; "
-                        f"discarding it at the {CODEX_STREAM_LIMIT} byte limit"
+                        f"aborting the poisoned transport at the "
+                        f"{CODEX_STREAM_LIMIT} byte limit"
                     )
                     self._reader_failure = failure
+                    self._terminal_reader_failure = True
+                    self._active_turn_id = None
                     logger.error("%s", failure)
-                    if not await self._discard_oversized_record(
-                        stream,
-                        already_consumed=error_text
-                        == "Separator is found, but chunk is longer than limit",
-                    ):
-                        break
-                    continue
+                    await self._abort_oversized_transport()
+                    return
                 if not raw:
                     break
                 try:
@@ -1694,7 +1721,7 @@ class CodexBackend(JsonRpcStdioTransport):
                         ) == self._active_turn_id
                         for item in queued
                     )
-                    if terminal_queued:
+                    if terminal_queued and not self._terminal_reader_failure:
                         self._reader_failure = None
                 reader_failure = self._reader_failure
                 if reader_failure is not None and not terminal_queued:
@@ -1702,11 +1729,16 @@ class CodexBackend(JsonRpcStdioTransport):
                 if reader_failure is not None:
                     message = f"{message}; reader failure: {reader_failure}"
                 error = RuntimeError(message)
+                pending_error = (
+                    reader_failure
+                    if isinstance(reader_failure, CodexOversizedRecordError)
+                    else error
+                )
                 for future in self._pending_requests.values():
                     if not future.done():
-                        future.set_exception(error)
+                        future.set_exception(pending_error)
                 if self._compact_future and not self._compact_future.done():
-                    self._compact_future.set_exception(error)
+                    self._compact_future.set_exception(pending_error)
                 if not self._disconnecting and (
                     self._events_active
                     or self._active_turn_id
@@ -1722,44 +1754,38 @@ class CodexBackend(JsonRpcStdioTransport):
                         },
                     })
 
-    async def _discard_oversized_record(
-        self,
-        stream: asyncio.StreamReader,
-        *,
-        already_consumed: bool = False,
-    ) -> bool:
-        """Drop one poisoned JSONL record without reading beyond a bounded chunk."""
-        if already_consumed:
-            return True
-        while True:
-            buffered = getattr(stream, "_buffer", None)
-            if isinstance(buffered, bytearray) and buffered:
-                chunk = bytes(buffered[:CODEX_STREAM_DISCARD_CHUNK])
-                newline = chunk.find(b"\n")
-                consumed = newline + 1 if newline >= 0 else len(chunk)
-                del buffered[:consumed]
-                resume = getattr(stream, "_maybe_resume_transport", None)
-                if callable(resume):
-                    resume()
-                if newline >= 0:
-                    return True
-                continue
+    async def _abort_oversized_transport(self) -> None:
+        """Stop only this app-server after JSONL framing becomes ambiguous."""
+        if self._adopted_writer is not None or self._adopted_read_transport is not None:
+            writer = self._adopted_writer
+            read_transport = self._adopted_read_transport
+            pid = self._adopted_pid
+            started_at = self._adopted_started_at
+            if writer is not None:
+                with suppress(Exception):
+                    writer.close()
+            if read_transport is not None:
+                with suppress(Exception):
+                    read_transport.close()
+            self._adopted_writer = None
+            self._adopted_reader = None
+            self._adopted_read_transport = None
+            self._adopted_fds = None
+            self._adopted_pid = None
+            self._adopted_started_at = 0
+            if pid:
+                terminate_cli_process(pid, self.RUNTIME_LABEL, started_at)
+            return
 
-            chunk = await stream.read(CODEX_STREAM_DISCARD_CHUNK)
-            if not chunk:
-                return False
-            newline = chunk.find(b"\n")
-            if newline < 0:
-                continue
-            remainder = chunk[newline + 1:]
-            if remainder:
-                buffered = getattr(stream, "_buffer", None)
-                if not isinstance(buffered, bytearray):
-                    raise RuntimeError(
-                        "cannot preserve bytes after oversized Codex JSONL record"
-                    )
-                buffered[:0] = remainder
-            return True
+        proc = self._proc
+        if self._scope_unit:
+            try:
+                await self._signal_scope("KILL")
+            except Exception as exc:
+                logger.error("could not kill poisoned Codex scope: %s", exc)
+        if proc is not None and proc.returncode is None:
+            with suppress(ProcessLookupError):
+                proc.kill()
 
     def _record_token_usage(self, params: dict) -> None:
         usage = params.get("tokenUsage") or {}

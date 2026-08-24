@@ -101,6 +101,20 @@ class _MockBackend:
         self._finish_event.set()
 
 
+class _OversizedResumeBackend(_MockBackend):
+    def __init__(self, *, oversized: bool):
+        from app.backend_codex import CodexOversizedRecordError
+
+        super().__init__(
+            connect_error=(
+                CodexOversizedRecordError("oversized thread/resume response")
+                if oversized else None
+            ),
+        )
+        self.oversized_reader_failure = oversized
+        self.has_owned_processes = False
+
+
 def _quota_decision(state="available", model="claude-sonnet-5[1m]", *, valid_for=60):
     import time
     from app.quota_gate import QuotaDecision
@@ -547,6 +561,125 @@ class TestTurn:
                 await session.send("task")
 
         assert session.status == AgentStatus.IDLE
+
+    @pytest.mark.asyncio
+    async def test_codex_oversized_resume_retries_fresh_once_with_log_handoff(
+        self, session, monkeypatch,
+    ):
+        session.backend_type = "codex"
+        session.model = "gpt-5.6-sol"
+        session.session_id = "poisoned-thread"
+        session.runtime_handoff = ""
+        first = _OversizedResumeBackend(oversized=True)
+        fresh = _OversizedResumeBackend(oversized=False)
+        session._make_backend = MagicMock(side_effect=[first, fresh])
+        session._refresh_skills = AsyncMock()
+        session._refresh_codex_project_doc = AsyncMock()
+        session._build_runtime_handoff = AsyncMock(return_value="bounded handoff")
+        session._activate_backend_tasks = MagicMock()
+        monkeypatch.setattr("app.manager.publish_backend_fds", MagicMock())
+
+        backend = await session._ensure_backend(
+            exclude_history_users=("current message",),
+        )
+
+        assert backend is fresh
+        assert session._make_backend.call_count == 2
+        assert session._make_backend.call_args_list[1].kwargs["force_fresh"] is True
+        session._build_runtime_handoff.assert_awaited_once_with(
+            exclude_user_messages=("current message",),
+        )
+        assert session.session_id is None
+        assert session.runtime_handoff == "bounded handoff"
+        assert session.session_id_history[-1]["session_id"] == "poisoned-thread"
+        assert session.session_id_history[-1]["reason"] == "oversized_reader_failure"
+
+    @pytest.mark.asyncio
+    async def test_codex_oversized_resume_fallback_is_bounded_to_one_retry(
+        self, session, monkeypatch,
+    ):
+        from app.backend_codex import CodexOversizedRecordError
+
+        session.backend_type = "codex"
+        session.model = "gpt-5.6-sol"
+        session.session_id = "poisoned-thread"
+        session._make_backend = MagicMock(side_effect=[
+            _OversizedResumeBackend(oversized=True),
+            _OversizedResumeBackend(oversized=True),
+        ])
+        session._refresh_skills = AsyncMock()
+        session._refresh_codex_project_doc = AsyncMock()
+        session._build_runtime_handoff = AsyncMock(return_value="bounded handoff")
+
+        with pytest.raises(CodexOversizedRecordError):
+            await session._ensure_backend()
+
+        assert session._make_backend.call_count == 2
+        assert session.session_id is None
+
+    @pytest.mark.asyncio
+    async def test_active_codex_oversized_turn_retires_backend_before_next_send(
+        self, session,
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        class TerminalBackend:
+            oversized_reader_failure = True
+            has_owned_processes = False
+            session_id = "poisoned-thread"
+
+            async def events(self):
+                yield AgentEvent(
+                    "turn_end",
+                    metadata={
+                        "ok": False,
+                        "stop_reason": "process_exit_0",
+                        "reader_failure": "oversized JSONL record",
+                    },
+                )
+
+        backend = TerminalBackend()
+        session.backend_type = "codex"
+        session.model = "gpt-5.6-sol"
+        session.session_id = "poisoned-thread"
+        session.status = AgentStatus.RUNNING
+        session._backend = backend
+        session._build_runtime_handoff = AsyncMock(return_value="bounded handoff")
+        session._handle_event = MagicMock(
+            side_effect=lambda _event: setattr(session, "status", AgentStatus.IDLE)
+        )
+
+        await session._turn_event_loop()
+
+        assert session._backend is None
+        assert session.session_id is None
+        assert session.runtime_handoff == "bounded handoff"
+        assert session.session_id_history[-1]["reason"] == "oversized_reader_failure"
+
+    @pytest.mark.asyncio
+    async def test_codex_compact_timeout_log_names_exception_and_stage(self, session):
+        session.backend_type = "codex"
+        session._backend = SimpleNamespace(
+            compact_context=AsyncMock(side_effect=TimeoutError(
+                "Codex compact timed out after 120s while waiting for completion notification"
+            )),
+        )
+        session._log = MagicMock()
+        session._hibernate.schedule = MagicMock()
+
+        result = await session._compact_codex_context()
+
+        assert result["ok"] is False
+        assert result["error"] == (
+            "TimeoutError: Codex compact timed out after 120s while waiting for "
+            "completion notification"
+        )
+        assert any(
+            call.args[0] == "error"
+            and "native Codex compact failed: TimeoutError:" in call.args[1]
+            for call in session._log.call_args_list
+        )
 
 
 class TestStop:

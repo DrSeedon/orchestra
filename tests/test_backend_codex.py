@@ -17,6 +17,7 @@ import pytest
 
 from app.backend_codex import (
     CodexBackend,
+    CodexOversizedRecordError,
     CodexProtocolError,
     CODEX_CONTEXT_LIMITS,
     CODEX_STREAM_LIMIT,
@@ -504,7 +505,7 @@ async def test_startup_exit_surfaces_sanitized_stderr_after_drain():
 
 
 @pytest.mark.asyncio
-async def test_reader_discards_oversized_record_and_processes_following_turn_completed():
+async def test_oversized_record_is_terminal_and_following_message_is_not_trusted():
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
     stdout = asyncio.StreamReader(limit=CODEX_STREAM_LIMIT)
     backend._owned_reader = stdout
@@ -528,12 +529,66 @@ async def test_reader_discards_oversized_record_and_processes_following_turn_com
     )
     stdout.feed_eof()
 
+    pending = asyncio.get_running_loop().create_future()
+    backend._pending_requests[7] = pending
+
     await backend._read_stdout()
 
     assert backend._notifications.qsize() == 1
     event = backend._convert_notification(backend._notifications.get_nowait())
     assert [item.type for item in event] == ["turn_end"]
+    assert event[0].metadata["model_error"] == "reader_failure"
+    assert backend.oversized_reader_failure is True
     assert backend._active_turn_id is None
+    with pytest.raises(CodexOversizedRecordError):
+        await pending
+
+
+@pytest.mark.asyncio
+async def test_oversized_record_without_eof_aborts_instead_of_waiting_for_newline():
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    stdout = asyncio.StreamReader(limit=CODEX_STREAM_LIMIT)
+    backend._owned_reader = stdout
+    backend._thread_id = "thread-poisoned"
+    backend._proc = SimpleNamespace(
+        returncode=None,
+        kill=MagicMock(),
+        wait=AsyncMock(return_value=0),
+    )
+    stdout.feed_data(b"x" * (CODEX_STREAM_LIMIT + 1))
+
+    await asyncio.wait_for(backend._read_stdout(), timeout=0.2)
+
+    assert backend.oversized_reader_failure is True
+    backend._proc.kill.assert_called_once()
+    event = backend._convert_notification(backend._notifications.get_nowait())
+    assert event[0].metadata["model_error"] == "reader_failure"
+
+
+@pytest.mark.asyncio
+async def test_oversized_record_closes_adopted_transport_and_verified_process(monkeypatch):
+    import app.backend_codex as module
+
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    stdout = asyncio.StreamReader(limit=CODEX_STREAM_LIMIT)
+    writer = SimpleNamespace(close=MagicMock())
+    read_transport = SimpleNamespace(close=MagicMock())
+    backend._adopted_reader = stdout
+    backend._adopted_writer = writer
+    backend._adopted_read_transport = read_transport
+    backend._adopted_pid = 12345
+    backend._adopted_started_at = 67890
+    terminate = MagicMock()
+    monkeypatch.setattr(module, "terminate_cli_process", terminate)
+    stdout.feed_data(b"x" * (CODEX_STREAM_LIMIT + 1))
+
+    await asyncio.wait_for(backend._read_stdout(), timeout=0.2)
+
+    writer.close.assert_called_once()
+    read_transport.close.assert_called_once()
+    terminate.assert_called_once_with(12345, backend.RUNTIME_LABEL, 67890)
+    assert backend._adopted_writer is None
+    assert backend._adopted_read_transport is None
 
 
 @pytest.mark.asyncio
@@ -614,8 +669,9 @@ async def test_resume_rejects_substituted_thread_before_turn(monkeypatch):
     backend.disconnect.assert_awaited_once()
     initialize_params = backend._request.await_args_list[0].args[1]
     resume_params = backend._request.await_args_list[1].args[1]
-    assert "capabilities" not in initialize_params
+    assert initialize_params["capabilities"] == {"experimentalApi": True}
     assert "history" not in resume_params
+    assert resume_params["excludeTurns"] is True
 
 
 def test_wrong_codex_history_import_type_fails_loud():
@@ -742,9 +798,10 @@ async def test_history_import_uses_experimental_resume_and_accepts_fresh_id(monk
     requests.clear()
     await backend.connect()
 
-    assert "capabilities" not in requests[0][1]
+    assert requests[0][1]["capabilities"] == {"experimentalApi": True}
     assert requests[1][0] == "thread/resume"
     assert requests[1][1]["threadId"] == "fresh-thread-id"
+    assert requests[1][1]["excludeTurns"] is True
     assert "history" not in requests[1][1]
     assert requests[1][1]["developerInstructions"] == "CURRENT ROLE"
 
@@ -1197,7 +1254,9 @@ async def test_native_compact_missing_terminal_times_out_and_detaches(monkeypatc
 
     backend._request = AsyncMock(side_effect=request)
     try:
-        with pytest.raises(TimeoutError):
+        with pytest.raises(TimeoutError, match=(
+            r"Codex compact timed out after 0\.03s while waiting for turn lifecycle"
+        )):
             await backend.compact_context()
     finally:
         backend._disconnecting = True

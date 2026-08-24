@@ -1791,6 +1791,7 @@ class AgentSession:
         history_import=None,
         exclude_history_users: tuple[str, ...] = (),
         activate: bool = True,
+        _allow_codex_oversize_retry: bool = True,
     ):
         if self._backend is not None:
             if not force_fresh:
@@ -1840,6 +1841,23 @@ class AgentSession:
         except Exception as e:
             logger.error(f"[{self.name}] backend connect failed: {err_text(e)}")
             self._log("error", f"connect failed: {err_text(e)}")
+            oversized_failure = (
+                self.backend_type == "codex"
+                and getattr(candidate, "oversized_reader_failure", False)
+            )
+            if oversized_failure and _allow_codex_oversize_retry:
+                await self._retire_codex_reader_failure(
+                    candidate,
+                    e,
+                    exclude_user_messages=exclude_history_users,
+                )
+                return await self._ensure_backend(
+                    force_fresh=True,
+                    history_import=None,
+                    exclude_history_users=exclude_history_users,
+                    activate=activate,
+                    _allow_codex_oversize_retry=False,
+                )
             if not getattr(candidate, "has_owned_processes", False):
                 self._backend = None
             self._finish_failed_running_turn(
@@ -1898,6 +1916,64 @@ class AgentSession:
         return await self._ensure_backend(force_fresh=True)
 
     # ── Event loops ──
+
+    async def _retire_codex_reader_failure(
+        self,
+        backend,
+        error: BaseException,
+        *,
+        exclude_user_messages: tuple[str, ...] = (),
+    ) -> None:
+        """Retire one poisoned native thread and preserve bounded DB context."""
+        stale_session_id = self.session_id or getattr(backend, "session_id", None)
+        handoff = self.runtime_handoff
+        if not handoff:
+            try:
+                handoff = await self._build_runtime_handoff(
+                    exclude_user_messages=exclude_user_messages,
+                )
+            except Exception as handoff_error:
+                self._log(
+                    "error",
+                    "Codex reader recovery could not preserve the DB handoff: "
+                    f"{err_text(handoff_error)}",
+                )
+                handoff = ""
+
+        if getattr(backend, "has_owned_processes", False):
+            await backend.disconnect()
+        if self._backend is backend:
+            self._backend = None
+
+        already_recorded = any(
+            entry.get("session_id") == stale_session_id
+            and entry.get("reason") == "oversized_reader_failure"
+            for entry in self.session_id_history
+        )
+        if stale_session_id and not already_recorded:
+            self.session_id_history.append({
+                "session_id": stale_session_id,
+                "runtime": "codex",
+                "model": self.model,
+                "reason": "oversized_reader_failure",
+                "failure": err_text(error),
+                "invalidated_at": datetime.now(timezone.utc).isoformat(),
+            })
+            self.session_id_history = self.session_id_history[-10:]
+        self.session_id = None
+        self.runtime_handoff = handoff
+        self.history_import_source = None
+        self._last_context = {
+            "percentage": 0,
+            "total_tokens": 0,
+            "max_tokens": 0,
+        }
+        self._log(
+            "warning",
+            "Codex native thread retired after an oversized JSONL record; "
+            "the next connection starts fresh with a bounded Orchestra handoff",
+        )
+        self._persist()
 
     def _finish_failed_running_turn(self, reason: str) -> None:
         """Never leave RUNNING behind when the backend lost its turn."""
@@ -2015,8 +2091,9 @@ class AgentSession:
 
     async def _turn_event_loop(self) -> None:
         logger.info(f"[{self.name}] {self.backend_type} turn started")
+        backend = self._backend
         try:
-            async for event in self._backend.events():
+            async for event in backend.events():
                 self._last_msg_time = asyncio.get_event_loop().time()
                 # thread.started is emitted before turn.completed. Store it now so an
                 # interrupted long turn can resume instead of silently starting fresh.
@@ -2024,6 +2101,15 @@ class AgentSession:
                 if early_session_id and early_session_id != self.session_id:
                     self.session_id = early_session_id
                     self._persist()
+                if (
+                    event.type == "turn_end"
+                    and event.metadata.get("reader_failure")
+                    and getattr(backend, "oversized_reader_failure", False)
+                ):
+                    await self._retire_codex_reader_failure(
+                        backend,
+                        RuntimeError(str(event.metadata["reader_failure"])),
+                    )
                 self._handle_event(event)
         except asyncio.CancelledError:
             return
@@ -2509,11 +2595,12 @@ class AgentSession:
         except QuotaGateError:
             raise
         except Exception as exc:
-            self._log("error", f"native Codex compact failed: {exc}")
+            detail = err_text(exc)
+            self._log("error", f"native Codex compact failed: {detail}")
             return {
                 "ok": False,
                 "mode": "native",
-                "error": str(exc),
+                "error": detail,
                 "before_pct": before_pct,
                 "thread_id": self.session_id,
             }
