@@ -8739,13 +8739,22 @@ async function refreshCatalog() {
 function _catalogMatches(m) {
   const q = ($('#catalog-search')?.value || '').trim().toLowerCase();
   if (q && !(`${m.id} ${m.name}`.toLowerCase().includes(q))) return false;
-  if ($('#catalog-free')?.checked && !(m.price_prompt === 0 && m.price_completion === 0)) return false;
+  if ($('#catalog-free')?.checked && !_catalogIsFree(m)) return false;
   if ($('#catalog-tools')?.checked && !m.supports_tools) return false;
   if ($('#catalog-image')?.checked && !(m.input_modalities || []).includes('image')) return false;
   return true;
 }
 
 function _fmtPrice(p) { return p == null ? '—' : (p === 0 ? 'free' : `$${p}/M`); }
+function _catalogIsFree(m) {
+  return typeof m.is_free === 'boolean' ? m.is_free : String(m.id || '').endsWith(':free');
+}
+function _catalogHarnessEligible(m) {
+  if (m.runtime !== 'harness') return true;
+  if (typeof m.harness_eligible === 'boolean') return m.harness_eligible;
+  return _catalogIsFree(m) && !!m.supports_tools;
+}
+function _catalogAvailable(m) { return m.available !== false; }
 
 function _catalogToggle(flag, m) {
   const label = document.createElement('label');
@@ -8755,6 +8764,11 @@ function _catalogToggle(flag, m) {
   box.setAttribute('data-flag', flag);
   box.dataset.id = m.id;
   box.checked = !!m.flags[flag];
+  if (m.runtime === 'harness' && (!_catalogHarnessEligible(m) || !_catalogAvailable(m))) {
+    box.disabled = true;
+    label.classList.add('opacity-40', 'cursor-not-allowed');
+    label.title = _catalogAvailable(m) ? 'Harness допускает только точные :free маршруты с tool calling' : 'Маршрут больше не доступен на OpenRouter';
+  }
   label.appendChild(box);
   label.appendChild(document.createTextNode(flag === 'dashboard' ? 'дашборд' : 'агентам'));
   return label;
@@ -8770,7 +8784,8 @@ function _catalogRow(m) {
   nameEl.textContent = m.name;
   const metaEl = document.createElement('div');
   metaEl.className = 'text-[10px] text-slate-500 truncate';
-  metaEl.textContent = `${m.id} · ${Math.round(m.context_length / 1000)}k · ${_fmtPrice(m.price_prompt)} in / ${_fmtPrice(m.price_completion)} out · ${m.runtime}`;
+  const admission = m.runtime === 'harness' && (!_catalogHarnessEligible(m) || !_catalogAvailable(m)) ? ' · blocked' : '';
+  metaEl.textContent = `${m.id} · ${Math.round(m.context_length / 1000)}k · ${_fmtPrice(m.price_prompt)} in / ${_fmtPrice(m.price_completion)} out · ${m.runtime}${admission}`;
   info.append(nameEl, metaEl);
   row.append(info, _catalogToggle('dashboard', m), _catalogToggle('agents', m));
   return row;

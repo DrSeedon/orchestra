@@ -55,7 +55,8 @@ def _transport(statuses, header_sets, calls: list):
 async def _run(statuses, header_sets):
     calls: list = []
     client = llm.OpenRouterClient(
-        api_key="k", model="m", http=httpx.AsyncClient(transport=_transport(statuses, header_sets, calls)))
+        api_key="k", model="test/model:free",
+        http=httpx.AsyncClient(transport=_transport(statuses, header_sets, calls)))
     kinds = []
     async for ev in client.stream(messages=[{"role": "user", "content": "hi"}], tools=[]):
         kinds.append(ev.kind)
@@ -123,3 +124,14 @@ async def test_t5_counter_counts_every_retry(fast_backoff, captured_sleep):
     assert counter.today_count() == 3
     breakdown = counter.status_breakdown(counter.today_utc())
     assert breakdown.get("429") == 2 and breakdown.get("200") == 1
+
+
+@pytest.mark.asyncio
+async def test_t5_does_not_sleep_after_the_last_failed_attempt(fast_backoff, captured_sleep):
+    with pytest.raises(RuntimeError, match="after 3 attempts"):
+        await _run(
+            [429, 429, 429],
+            [UPSTREAM_429, UPSTREAM_429, UPSTREAM_429],
+        )
+
+    assert len(captured_sleep) == 2

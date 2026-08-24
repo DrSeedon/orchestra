@@ -279,7 +279,7 @@ async def test_proxy_model_fetch_omits_empty_authorization_header(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_observed_proxy_models_use_reviewed_exact_harness_routes(
+async def test_paid_proxy_models_without_explicit_runtime_are_not_smuggled_into_harness(
     monkeypatch,
     isolated_model_registry,
 ):
@@ -318,18 +318,10 @@ async def test_observed_proxy_models_use_reviewed_exact_harness_routes(
 
     monkeypatch.setattr("app.models.httpx.AsyncClient", _Client)
 
-    assert await isolated_model_registry.fetch_models_from_proxy(
-        enterprise_mode=True
-    ) is True
-    assert set(isolated_model_registry.MODELS) == {
-        "deepseek/deepseek-v4-flash",
-        "deepseek/deepseek-v4-pro",
-    }
-    for model_id in isolated_model_registry.MODELS:
-        spec = isolated_model_registry.get_model_spec(model_id)
-        assert spec.runtime == "harness"
-        assert spec.provider == "openrouter"
-        assert spec.context_length == 1048576
+    before = dict(isolated_model_registry.MODEL_SPECS)
+    with pytest.raises(ValueError, match="must declare runtime/backend"):
+        await isolated_model_registry.fetch_models_from_proxy(enterprise_mode=True)
+    assert isolated_model_registry.MODEL_SPECS == before
 
 
 @pytest.mark.asyncio

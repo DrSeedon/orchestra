@@ -49,22 +49,29 @@ def test_t1_manifest_models_default_to_visible_and_allowed():
     }
 
 
+def test_t1_manifest_harness_models_start_fail_closed():
+    assert registry.get_model_flags("z-ai/glm-5.2:free") == {
+        "dashboard": False,
+        "agents": False,
+    }
+
+
 def test_t1_registered_catalog_model_defaults_to_hidden_and_forbidden():
     from app.models import ModelSpec
 
     spec = ModelSpec(
-        id="test/vendor-x", name="Vendor X", runtime="harness",
+        id="test/vendor-x:free", name="Vendor X", runtime="harness",
         provider="openrouter", context_length=128000,
-        price_input=0.5, price_output=1.5,
+        price_input=0.0, price_output=0.0, supported_parameters=("tools",),
     )
     registry.register_model(spec)
     try:
-        assert registry.get_model_flags("test/vendor-x") == {
+        assert registry.get_model_flags("test/vendor-x:free") == {
             "dashboard": False,
             "agents": False,
         }
     finally:
-        registry.unregister_model("test/vendor-x")
+        registry.unregister_model("test/vendor-x:free")
 
 
 def test_t1_set_flags_roundtrip_and_unknown_rejected():

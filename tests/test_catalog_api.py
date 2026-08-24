@@ -39,13 +39,18 @@ def _registry_snapshot():
 CATALOG_KV_KEY = "model_catalog_cache"
 
 NORMALIZED = {
-    "id": "vendor/model-x",
+    "id": "vendor/model-x:free",
     "name": "Vendor: Model X",
     "context_length": 128000,
-    "price_prompt": 0.5,
-    "price_completion": 1.5,
+    "price_prompt": 0.0,
+    "price_completion": 0.0,
     "input_modalities": ["text", "image"],
+    "output_modalities": ["text"],
     "supports_tools": True,
+    "supported_parameters": ["tool_choice", "tools"],
+    "is_free": True,
+    "harness_eligible": True,
+    "available": True,
 }
 
 
@@ -63,22 +68,22 @@ def client():
 @pytest.fixture()
 def vendor_model():
     spec = ModelSpec(
-        id="test/vendor-x", name="Vendor X", runtime="harness",
+        id="test/vendor-x:free", name="Vendor X", runtime="harness",
         provider="openrouter", context_length=128000,
-        price_input=0.5, price_output=1.5,
+        price_input=0.0, price_output=0.0, supported_parameters=("tools",),
     )
     registry.register_model(spec)
     yield spec
-    registry.unregister_model("test/vendor-x")
+    registry.unregister_model("test/vendor-x:free")
 
 
 def test_t4_catalog_list_carries_flags(vendor_model, client):
-    registry.set_model_flags("test/vendor-x", agents=True)
+    registry.set_model_flags("test/vendor-x:free", agents=True)
     body = client.get("/api/models/catalog").json()
-    entry = next(m for m in body["catalog"] if m["id"] == "test/vendor-x")
+    entry = next(m for m in body["catalog"] if m["id"] == "test/vendor-x:free")
     # Catalog default is false/false; the user enabled agents only.
     assert entry["flags"] == {"dashboard": False, "agents": True}
-    assert entry["price_prompt"] == 0.5
+    assert entry["price_prompt"] == 0.0
     assert entry["context_length"] == 128000
     manifest_entry = next(m for m in body["catalog"] if m["id"] == "claude-haiku-4-5")
     assert manifest_entry["flags"] == {"dashboard": True, "agents": True}
@@ -87,11 +92,11 @@ def test_t4_catalog_list_carries_flags(vendor_model, client):
 def test_t4_patch_flags_persists(vendor_model, client):
     resp = client.patch(
         "/api/models/catalog/flags",
-        json={"id": "test/vendor-x", "dashboard": True, "agents": False},
+        json={"id": "test/vendor-x:free", "dashboard": True, "agents": False},
     )
     assert resp.status_code == 200
     assert resp.json()["flags"] == {"dashboard": True, "agents": False}
-    assert registry.get_model_flags("test/vendor-x") == {
+    assert registry.get_model_flags("test/vendor-x:free") == {
         "dashboard": True,
         "agents": False,
     }
@@ -99,6 +104,24 @@ def test_t4_patch_flags_persists(vendor_model, client):
         "/api/models/catalog/flags", json={"id": "no/such-model", "agents": True},
     )
     assert unknown.status_code == 400
+
+
+def test_t4_cannot_enable_unsuffixed_harness_route(client):
+    spec = ModelSpec(
+        id="test/paid-preview", name="Paid preview", runtime="harness",
+        provider="openrouter", context_length=128000,
+        supported_parameters=("tools",),
+    )
+    registry.register_model(spec)
+    try:
+        resp = client.patch(
+            "/api/models/catalog/flags",
+            json={"id": spec.id, "agents": True},
+        )
+        assert resp.status_code == 400
+        assert ":free" in resp.json()["error"]
+    finally:
+        registry.unregister_model(spec.id)
 
 
 def test_t4_refresh_refetches_and_reregisters(vendor_model, client, monkeypatch):
@@ -123,12 +146,12 @@ def test_t4_refresh_refetches_and_reregisters(vendor_model, client, monkeypatch)
             return _FakeResponse()
 
     NORMALIZED_RAW = {
-        "id": "vendor/model-y",
+        "id": "vendor/model-y:free",
         "name": "Vendor: Model Y",
         "context_length": 64000,
         "pricing": {"prompt": "0", "completion": "0"},
-        "architecture": {"input_modalities": ["text"]},
-        "supported_parameters": ["tools"],
+        "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]},
+        "supported_parameters": ["tools", "tool_choice"],
     }
     monkeypatch.setattr(
         "app.model_catalog.httpx", SimpleNamespace(AsyncClient=_FakeAsyncClient)
@@ -138,6 +161,6 @@ def test_t4_refresh_refetches_and_reregisters(vendor_model, client, monkeypatch)
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["fetched"] == 1
-        assert "vendor/model-y" in registry.MODELS
+        assert "vendor/model-y:free" in registry.MODELS
     finally:
-        registry.unregister_model("vendor/model-y")
+        registry.unregister_model("vendor/model-y:free")

@@ -166,10 +166,10 @@ def test_t3_edit_preserves_mode(tmp_path):
     assert stat.S_IMODE(p.stat().st_mode) == 0o755, "edit clobbered file mode to 0600"
 
 
-def test_t3_new_file_mode_0644(tmp_path):
+def test_t3_new_file_mode_respects_process_umask(tmp_path):
     p = tmp_path / "new.txt"
     tools.write(str(p), "hi\n", str(tmp_path))
-    assert stat.S_IMODE(p.stat().st_mode) == 0o644
+    assert stat.S_IMODE(p.stat().st_mode) == tools.NEW_FILE_MODE
 
 
 def test_t3_write_preserves_mode(tmp_path):
@@ -308,7 +308,7 @@ async def test_t9_truncation_is_visible(tmp_path):
 
     # force truncation: stuff history far over the guard, then run one more turn
     for i in range(400):
-        loop.history.append({"role": "user", "content": "padding %d %s" % (i, "y" * 5000)})
+        loop.history.append({"role": "assistant", "content": "padding %d %s" % (i, "y" * 5000)})
     n_before = len(loop.history)
     async for ev in loop.run("one more"):
         if ev.type == "warning":
@@ -320,11 +320,15 @@ async def test_t9_truncation_is_visible(tmp_path):
 
 # ── T7 — request economy: flag + prompt line ────────────────────────────────
 
-def test_t7_body_sets_parallel_tool_calls():
+def test_t7_body_only_sets_advertised_optional_tool_parameters():
     from app.harness.llm import OpenRouterClient
-    c = OpenRouterClient("sk-test", "stealth/ox-alpha")
+    c = OpenRouterClient(
+        "sk-test", "poolside/laguna-s-2.1:free",
+        supported_parameters=("tools", "tool_choice"),
+    )
     body = c._build_body([{"role": "user", "content": "hi"}], [{"type": "function"}])
-    assert body.get("parallel_tool_calls") is True
+    assert body.get("tool_choice") == "auto"
+    assert "parallel_tool_calls" not in body
     bare = c._build_body([{"role": "user", "content": "hi"}], [])
     assert "parallel_tool_calls" not in bare
 

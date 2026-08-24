@@ -41,33 +41,33 @@ def _registry_snapshot():
 @pytest.fixture()
 def vendor_model():
     spec = ModelSpec(
-        id="test/vendor-x", name="Vendor X", runtime="harness",
+        id="test/vendor-x:free", name="Vendor X", runtime="harness",
         provider="openrouter", context_length=128000,
-        price_input=0.5, price_output=1.5,
+        price_input=0.0, price_output=0.0, supported_parameters=("tools",),
     )
     registry.register_model(spec)
     yield spec
-    registry.unregister_model("test/vendor-x")
+    registry.unregister_model("test/vendor-x:free")
 
 
 def test_t6_running_agent_resume_surface_intact(vendor_model):
-    registry.set_model_flags("test/vendor-x", dashboard=False, agents=False)
+    registry.set_model_flags("test/vendor-x:free", dashboard=False, agents=False)
     # Everything the resume/restart path touches must keep working.
-    assert registry.get_model_spec("test/vendor-x").runtime == "harness"
-    assert registry.resolve_model("test/vendor-x") == "test/vendor-x"
-    assert registry.CONTEXT_LIMITS["test/vendor-x"] == 128000
-    assert registry.TOKEN_PRICES["test/vendor-x"] == {"input": 0.5, "output": 1.5}
-    assert registry.backend_for_model("test/vendor-x") == "harness"
+    assert registry.get_model_spec("test/vendor-x:free").runtime == "harness"
+    assert registry.resolve_model("test/vendor-x:free") == "test/vendor-x:free"
+    assert registry.CONTEXT_LIMITS["test/vendor-x:free"] == 128000
+    assert registry.TOKEN_PRICES["test/vendor-x:free"] == {"input": 0.0, "output": 0.0}
+    assert registry.backend_for_model("test/vendor-x:free") == "harness"
 
 
 def test_t6_new_worker_spawn_rejected_with_actionable_error(vendor_model):
-    registry.set_model_flags("test/vendor-x", agents=False)
+    registry.set_model_flags("test/vendor-x:free", agents=False)
     with pytest.raises(ValueError, match="[Cc]atalog"):
-        registry.ensure_spawn_allowed("test/vendor-x")
+        registry.ensure_spawn_allowed("test/vendor-x:free")
 
 
 def test_t6_switching_away_from_disabled_model_is_allowed(vendor_model):
     """The escape hatch: a session ON the disabled model may change to any
     dashboard-visible model — only the TARGET model's level is checked."""
-    registry.set_model_flags("test/vendor-x", dashboard=False, agents=False)
+    registry.set_model_flags("test/vendor-x:free", dashboard=False, agents=False)
     registry.ensure_dashboard_visible("claude-haiku-4-5")  # target is fine → change proceeds
