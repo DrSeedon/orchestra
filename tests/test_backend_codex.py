@@ -513,6 +513,7 @@ async def test_oversized_record_is_terminal_and_following_message_is_not_trusted
     backend._active_turn_id = "turn-1"
     backend._proc = SimpleNamespace(
         returncode=None,
+        kill=MagicMock(),
         wait=AsyncMock(return_value=0),
     )
     completed = {
@@ -555,14 +556,19 @@ async def test_oversized_record_without_eof_aborts_instead_of_waiting_for_newlin
         kill=MagicMock(),
         wait=AsyncMock(return_value=0),
     )
+    pending = asyncio.get_running_loop().create_future()
+    backend._pending_requests[9] = pending
     stdout.feed_data(b"x" * (CODEX_STREAM_LIMIT + 1))
 
     await asyncio.wait_for(backend._read_stdout(), timeout=0.2)
 
     assert backend.oversized_reader_failure is True
     backend._proc.kill.assert_called_once()
+    backend._proc.wait.assert_not_awaited()
     event = backend._convert_notification(backend._notifications.get_nowait())
     assert event[0].metadata["model_error"] == "reader_failure"
+    with pytest.raises(CodexOversizedRecordError):
+        await pending
 
 
 @pytest.mark.asyncio

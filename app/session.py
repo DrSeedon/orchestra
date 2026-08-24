@@ -1858,6 +1858,10 @@ class AgentSession:
                     activate=activate,
                     _allow_codex_oversize_retry=False,
                 )
+            if oversized_failure:
+                for message in exclude_history_users:
+                    if message and message not in self._pending_messages:
+                        self._pending_messages.append(message)
             if not getattr(candidate, "has_owned_processes", False):
                 self._backend = None
             self._finish_failed_running_turn(
