@@ -80,11 +80,11 @@ def _ensure_workspace() -> None:
     subprocess.run(["chmod", "-R", "a+rwX", str(ws)], capture_output=True)
     # safe.directory for root (Orchestra main process) — workspace owned by agent
     subprocess.run(["git", "config", "--global", "safe.directory", "*"], capture_output=True)
-    # safe.directory for agent user (opencode daemon)
+    # safe.directory for agent-user CLI processes
     subprocess.run(["git", "config", "--global", "safe.directory", "*"], capture_output=True, **run_kwargs)
     subprocess.run(["bash", "-c", f"cat > {ws}/CLAUDE.md << 'EOF'\n{_DEFAULT_CLAUDE_MD}\nEOF"],
                    capture_output=True, **run_kwargs)
-    subprocess.run(["bash", "-c", f"printf 'opencode.json\\n.claude/\\n' > {ws}/.gitignore"],
+    subprocess.run(["bash", "-c", f"printf '.claude/\\n' > {ws}/.gitignore"],
                    capture_output=True, **run_kwargs)
     subprocess.run(
         ["git", "add", "CLAUDE.md", ".gitignore"],

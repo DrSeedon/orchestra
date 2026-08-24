@@ -77,7 +77,7 @@ Reviewer (GPT) ── cross-model review
 Merge ── squash to main
 ```
 
-Each worker is a full agent session in its own git worktree — Claude Code, Codex, Grok or OpenCode, chosen per worker. They don't share context, don't step on each other's code, and merge through squash PRs. The orchestrator coordinates. Not a graph engine. An actual AI deciding what to do next.
+Each worker is a full agent session in its own git worktree — Claude Code, Codex, Grok or Orchestra's OpenRouter Harness, chosen per worker. They don't share context, don't step on each other's code, and merge through squash PRs. The orchestrator coordinates. Not a graph engine. An actual AI deciding what to do next.
 
 Workers can talk to each other via `send_message`. The backend worker finishes an API endpoint and messages the frontend worker: "endpoint ready at /api/users, here's the schema." No human relay needed.
 
@@ -136,7 +136,7 @@ Numbers below come from the primary installation's own database, measured **2026
 These are **cumulative totals, not concurrency** — peak observed parallelism is up to 10 workers at once. A second, newer installation runs on a separate server and is counted separately, never added to these.
 
 ### ⚙️ Per-Role Model Policy
-Every role declares its model in the pipeline manifest, and the orchestrator routes new workers by task class and remaining quota rather than by name or habit. Runtimes are mixable per worker — Claude Code, Codex, Grok and OpenCode all run as workers behind one contract, so a task can be written by one vendor's model and reviewed by another's.
+Every role declares its model in the pipeline manifest, and the orchestrator routes new workers by task class and remaining quota rather than by name or habit. Runtimes are mixable per worker — Claude Code, Codex, Grok and Orchestra's OpenRouter Harness all run as workers behind one contract, so a task can be written by one vendor's model and reviewed by another's.
 
 ### 📋 Task Manager
 Built-in task management with priorities, assignments, and payment tracking. Agents create, update, and close tasks. No external project management tool needed.
@@ -215,7 +215,7 @@ DEEPGRAM_API_KEY=your_key
 
 - Python 3.12+, FastAPI, Jinja2, SSE
 - `claude-agent-sdk` — Claude Code SDK (persistent client per session)
-- Codex, Grok and OpenCode runtimes behind one backend contract (JSON-RPC over stdio)
+- Codex and Grok runtimes behind one backend contract (JSON-RPC over stdio), plus the in-process OpenRouter Harness
 - SQLite (WAL mode), git worktrees
 - fastembed + sqlite-vec — optional semantic memory (`--extra rag`)
 - Tailwind CSS, highlight.js, marked.js (bundled offline)

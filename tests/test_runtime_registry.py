@@ -1,4 +1,4 @@
-"""Runtime registry contract shared by Claude, Codex, OpenCode, and future adapters."""
+"""Runtime registry contract shared by built-in and future adapters."""
 
 from dataclasses import replace
 
@@ -22,7 +22,6 @@ def test_builtin_runtime_capabilities_are_explicit():
     claude = get_runtime("claude").capabilities
     codex = get_runtime("codex").capabilities
     grok = get_runtime("grok").capabilities
-    opencode = get_runtime("opencode").capabilities
     harness = get_runtime("harness").capabilities
 
     assert claude.event_stream == "persistent"
@@ -36,25 +35,22 @@ def test_builtin_runtime_capabilities_are_explicit():
     assert codex.resume_across_models is True
     assert all(
         runtime.model_retarget
-        for runtime in (claude, codex, grok, opencode, harness)
+        for runtime in (claude, codex, grok, harness)
     )
 
     assert {
         "claude": claude.hibernate,
         "codex": codex.hibernate,
         "grok": grok.hibernate,
-        "opencode": opencode.hibernate,
+        "harness": harness.hibernate,
     } == {
         "claude": True,
         "codex": True,
         "grok": False,
-        "opencode": False,
+        "harness": False,
     }
-
-    assert opencode.event_stream == "per_turn"
-    assert opencode.mid_turn_inject is False
-    assert opencode.reconnect is False
-    assert opencode.process_liveness is True
+    with pytest.raises(ValueError, match="unknown agent runtime 'opencode'"):
+        get_runtime("opencode")
 
 
 def test_runtime_registry_accepts_external_adapter_without_core_branch():
@@ -189,10 +185,10 @@ def test_builtin_runtime_cannot_be_overwritten_accidentally():
     original = get_runtime("codex")
     with pytest.raises(ValueError, match="already registered"):
         register_runtime(replace(original, factory=lambda _ctx: object()))
-    assert set(BUILTIN_RUNTIMES) == {"claude", "codex", "grok", "opencode", "harness"}
+    assert set(BUILTIN_RUNTIMES) == {"claude", "codex", "grok", "harness"}
 
 
-@pytest.mark.parametrize("runtime_id", ["claude", "codex", "grok", "opencode"])
+@pytest.mark.parametrize("runtime_id", ["claude", "codex", "grok", "harness"])
 def test_backend_classes_satisfy_structural_contract(runtime_id, tmp_path, monkeypatch):
     monkeypatch.setattr("app.pipeline.get_role", lambda *_args: None)
     ctx = BackendBuildContext(
@@ -200,13 +196,13 @@ def test_backend_classes_satisfy_structural_contract(runtime_id, tmp_path, monke
             "claude": "claude-sonnet-5[1m]",
             "codex": "gpt-5.6-sol",
             "grok": "grok-4.5",
-            "opencode": "x-ai/grok-4",
+            "harness": "stealth/ox-alpha",
         }[runtime_id],
         provider={
             "claude": "anthropic",
             "codex": "openai",
             "grok": "x-ai",
-            "opencode": "x-ai",
+            "harness": "openrouter",
         }[runtime_id],
         cwd=str(tmp_path),
         system_prompt="test",

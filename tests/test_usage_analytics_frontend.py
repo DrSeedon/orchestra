@@ -33,7 +33,7 @@ def test_frontend_provider_metadata_is_exhaustive():
 
     assert frontend_ids == set(PROVIDER_METADATA)
     assert "unknown" in frontend_ids
-    assert "opencode" in frontend_ids
+    assert "opencode" not in frontend_ids
     model_providers = {
         provider
         for metadata in PROVIDER_METADATA.values()

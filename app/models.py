@@ -229,14 +229,6 @@ PROVIDER_METADATA: dict[str, ProviderMetadata] = {
         legacy_model_prefixes=("grok-",),
         model_providers=("x-ai",),
     ),
-    "opencode": ProviderMetadata(
-        id="opencode",
-        title="OpenCode",
-        ui_provider="openrouter",
-        cache_ttl_seconds=0,
-        cache_ttl_approximate=True,
-        model_providers=("openrouter", "deepseek", "x-ai", "opencode"),
-    ),
     "harness": ProviderMetadata(
         id="harness",
         title="OpenRouter",
@@ -316,8 +308,8 @@ COMPAT_MODEL_SPECS: dict[str, ModelSpec] = {
 # not another family-wide catch-all.
 _REVIEWED_PROXY_ROUTES: dict[str, tuple[str, str]] = {
     **{spec.id: (spec.runtime, spec.provider) for spec in SELECTABLE_MODEL_SPECS},
-    "deepseek/deepseek-v4-flash": ("opencode", "deepseek"),
-    "deepseek/deepseek-v4-pro": ("opencode", "deepseek"),
+    "deepseek/deepseek-v4-flash": ("harness", "openrouter"),
+    "deepseek/deepseek-v4-pro": ("harness", "openrouter"),
 }
 
 _VERSION_RE = re.compile(r"[-.]v?\d[\d.]*$")
@@ -756,7 +748,13 @@ def runtime_for_record(record: dict) -> str:
     """Resolve legacy rows without treating missing or invalid data as Claude."""
     runtime = record.get("backend_type") or record.get("runtime") or record.get("backend")
     if runtime:
-        return str(runtime)
+        from app.runtime_registry import get_runtime
+
+        try:
+            get_runtime(str(runtime))
+            return str(runtime)
+        except ValueError:
+            pass
     model = record.get("model")
     if model:
         try:

@@ -15,7 +15,7 @@
 - На ПЛАТФОРМЕННОМ 429 ответ несёт X-RateLimit-Limit/-Remaining/-Reset (+Retry-After) · доки; живьём не воспроизведён — LIKELY #368
 - Бесплатные модели часто отвечают UPSTREAM-429 («temporarily rate-limited upstream», только Retry-After:5) — это не исчерпание нашей квоты; llm.py уже ретраит · burst-замер 26 запросов 22.08 #368
 - Единица расхода квоты — HTTP-вызов, не ход агента: harness делает вызов на каждый tool-раунд, потолок 50 раундов/ход (+15 у ревьюер-сублупа), app/harness/loop.py:35 · код #368
-- llm.py stream() — единственный владелец POST к OpenRouter в app/ (backend_opencode.py ходит в локальный opencode-daemon) · проверено ревьюером и grep 22.08 #368
+- `app/harness/llm.py:stream()` — единственный владелец POST к OpenRouter в `app/`; проверено ревьюером и grep 22.08 #368, повторно после удаления OpenCode 24.08
 - Масштаб реального расхода аккаунта: пик 662 зап/сутки (08.08), 92 (21.08, из них 7 stealth/ox-alpha) — юзер уже подходил к 2/3 лимита · GET /activity 22.08 #368
 
 ## Отвергнуто

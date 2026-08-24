@@ -20,9 +20,6 @@ from app.models import (
     unregister_model,
     validate_model_registry,
 )
-from app.backend_opencode import OpenCodeBackend
-
-
 @pytest.fixture
 def isolated_model_registry(monkeypatch):
     import app.models as registry
@@ -94,12 +91,12 @@ def test_registered_model_spec_wins_over_name_prefix():
     register_model(ModelSpec(
         id=model_id,
         name="GPT via OpenRouter",
-        runtime="opencode",
+        runtime="harness",
         provider="openrouter",
         context_length=123456,
     ))
     try:
-        assert backend_for_model(model_id) == "opencode"
+        assert backend_for_model(model_id) == "harness"
         assert get_model_spec(model_id).provider == "openrouter"
         assert get_model_spec(model_id).context_length == 123456
     finally:
@@ -118,7 +115,7 @@ def test_model_registration_rejects_unknown_runtime_and_provider():
         register_model(ModelSpec(
             id="vendor/model",
             name="Missing provider metadata",
-            runtime="opencode",
+            runtime="harness",
             provider="vendor",
         ))
 
@@ -218,7 +215,7 @@ def test_cache_policy_is_explicit_and_unknown_is_conservative():
         "cache_ttl_seconds": 1800,
         "cache_ttl_approximate": True,
     }
-    assert cache_policy_for_runtime("opencode") == {
+    assert cache_policy_for_runtime("harness") == {
         "cache_ttl_seconds": 0,
         "cache_ttl_approximate": True,
     }
@@ -282,7 +279,7 @@ async def test_proxy_model_fetch_omits_empty_authorization_header(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_observed_proxy_models_use_reviewed_exact_opencode_routes(
+async def test_observed_proxy_models_use_reviewed_exact_harness_routes(
     monkeypatch,
     isolated_model_registry,
 ):
@@ -330,8 +327,8 @@ async def test_observed_proxy_models_use_reviewed_exact_opencode_routes(
     }
     for model_id in isolated_model_registry.MODELS:
         spec = isolated_model_registry.get_model_spec(model_id)
-        assert spec.runtime == "opencode"
-        assert spec.provider == "deepseek"
+        assert spec.runtime == "harness"
+        assert spec.provider == "openrouter"
         assert spec.context_length == 1048576
 
 
@@ -370,7 +367,7 @@ async def test_unreviewed_proxy_model_without_route_fails_before_mutation(
 
 
 @pytest.mark.asyncio
-async def test_proxy_model_with_explicit_runtime_and_provider_is_accepted(
+async def test_proxy_model_with_removed_opencode_runtime_is_rejected(
     monkeypatch,
     isolated_model_registry,
 ):
@@ -401,31 +398,7 @@ async def test_proxy_model_with_explicit_runtime_and_provider_is_accepted(
 
     monkeypatch.setattr("app.models.httpx.AsyncClient", _Client)
 
-    assert await isolated_model_registry.fetch_models_from_proxy(
-        enterprise_mode=True
-    ) is True
-    assert isolated_model_registry.backend_for_model("x-ai/grok-4") == "opencode"
-
-
-# ── provider/model split for proxy IDs ──
-
-def test_opencode_split_deepseek():
-    b = OpenCodeBackend(model="deepseek/deepseek-v4-flash", cwd="/tmp")
-    assert b.provider_id == "deepseek"
-    assert b.model == "deepseek-v4-flash"
-
-
-def test_opencode_split_nested_provider_path():
-    # only the FIRST slash splits provider from model id
-    b = OpenCodeBackend(model="meta-llama/llama-4-maverick", cwd="/tmp")
-    assert b.provider_id == "meta-llama"
-    assert b.model == "llama-4-maverick"
-
-
-def test_opencode_bare_model_keeps_ctor_provider():
-    # Proxy IDs are always "provider/model"; a bare ID is degenerate and keeps the
-    # ctor provider_id verbatim (no split). Documents the contract, not an endorsement
-    # of bare IDs for opencode (the daemon needs a real providerID).
-    b = OpenCodeBackend(model="mistral-large", cwd="/tmp", provider_id="mistral")
-    assert b.provider_id == "mistral"
-    assert b.model == "mistral-large"
+    before = dict(isolated_model_registry.MODEL_SPECS)
+    with pytest.raises(ValueError, match="unknown agent runtime 'opencode'"):
+        await isolated_model_registry.fetch_models_from_proxy(enterprise_mode=True)
+    assert isolated_model_registry.MODEL_SPECS == before

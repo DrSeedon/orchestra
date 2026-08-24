@@ -1900,7 +1900,7 @@ class TestListSessions:
         assert runtime_for_record({
             "model": "gpt-misleading",
             "backend_type": "opencode",
-        }) == "opencode"
+        }) == "unknown"
 
     @pytest.mark.asyncio
     async def test_scope_filter(self, mgr):
