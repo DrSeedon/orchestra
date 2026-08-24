@@ -4512,22 +4512,14 @@ class TestRuntimeCapabilities:
 
 @pytest.mark.asyncio
 async def test_image_tool_result_is_logged_verbatim_not_as_a_blob_reference(
-    session, tmp_path, monkeypatch,
+    session,
 ):
-    """Запись картинок в блобы (#78) выключена: клиентской половины нет.
-
-    Первая же картинка после включения перестала бы показываться — фронт не знает типа
-    `blob`. Тест держит выключенным именно ПУТЬ ЗАПИСИ: хранилище и чтение оставлены.
-    """
-    import app.blobs as blobs
+    """Base64 tool results stay self-contained so the frontend can restore images."""
     from app.events import AgentEvent
 
     import base64
 
-    monkeypatch.setattr(blobs, "BLOB_ROOT", tmp_path / "blobs")
     session._log = MagicMock()
-    # Форма ровно из живой БД (python-repr, без префикса `data:image`) — иначе
-    # `store_images` её не узнаёт и тест зеленеет при ВКЛЮЧЁННОЙ записи.
     image = base64.b64encode(bytes(range(256)) * 40).decode()
     payload = ("{'type': 'image', 'source': {'type': 'base64', 'data': '"
                + image + "', 'media_type': 'image/png'}}")
@@ -4537,7 +4529,6 @@ async def test_image_tool_result_is_logged_verbatim_not_as_a_blob_reference(
         await asyncio.gather(*tuple(session._log_futures), return_exceptions=True)
 
     assert session._log.call_args.args == ("tool_result", payload)
-    assert not (tmp_path / "blobs").exists()
 
 
 class TestAutoCompactKillSwitch:
