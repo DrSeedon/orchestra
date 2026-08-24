@@ -1,0 +1,149 @@
+{
+  "contract_version": 1,
+  "fixture_sha256": "88f3d2ca7ab8a5a75b2f2c87fb3fb1870d00e063a7d6e75ca4aec462b4d4b650",
+  "supersedes_excluded_oracle_commit": "529711a9feda296e361bc8a09fd8f7ec65be4a57",
+  "public_api": {
+    "module": "app.ia.task_store",
+    "callables": [
+      "build_migration_manifest"
+    ],
+    "classes": [
+      "TaskStore"
+    ],
+    "exceptions": [
+      "ConcurrentTaskUpdateError",
+      "IdentityConflictError",
+      "MigrationManifestError",
+      "ProjectionDebtError",
+      "ProvenanceError",
+      "UnsupportedDomainError"
+    ],
+    "task_store_methods": [
+      "apply_events",
+      "link_commits_to_task",
+      "link_evidence_to_task",
+      "migrate",
+      "replay",
+      "task_create",
+      "task_get",
+      "task_list",
+      "task_update",
+      "task_update_if_current"
+    ]
+  },
+  "production_adapter": {
+    "module": "app.tm",
+    "mode_context": "ia_task_store_mode",
+    "default_mode": "legacy",
+    "modes": {
+      "legacy": "existing SQLite behavior and exact response shapes; no canonical receipts",
+      "shadow": "legacy write plus synchronous TaskStore write/compare; mismatch is visible and never ignored",
+      "canonical": "TaskStore is authoritative; legacy tm_tasks is projection/compatibility data only"
+    },
+    "required_entrypoints": [
+      "api_create_task",
+      "api_get_task",
+      "api_list_tasks",
+      "api_update_task",
+      "api_update_task_if_current",
+      "link_commits_to_task"
+    ],
+    "receipt_fields": [
+      "canonical_head",
+      "evidence_refs",
+      "ia_mode",
+      "projection_head",
+      "stable_id"
+    ],
+    "http_route": "/api/tm/tasks",
+    "mcp_tool": "task_create"
+  },
+  "legacy_uuid_v5_name": "orch://migration/task/{project_id}/tm_tasks/{source_row_id}",
+  "legacy_uuid_v5_namespace": "URL",
+  "canonical_layout": {
+    "manifest": "manifests/{manifest_id}.json",
+    "task_state": "projects/{project_id}/tasks/{stable_id}/state.json",
+    "task_event": "projects/{project_id}/tasks/{stable_id}/events/{event_id}.json",
+    "evidence_ref": "projects/{project_id}/tasks/{stable_id}/evidence/{evidence_id}.json"
+  },
+  "projection": {
+    "table": "ia_task_projection",
+    "required_columns": [
+      "stable_id",
+      "project_id",
+      "display_number",
+      "canonical_head",
+      "payload_sha256",
+      "payload_json",
+      "metadata_json"
+    ]
+  },
+  "excluded_source_domains": [
+    "tm_clients",
+    "tm_payments",
+    "tm_payment_allocations",
+    "tm_sync_log",
+    "tm_projects.yougile_*",
+    "tm_tasks.yougile_task_id"
+  ],
+  "forbidden_canonical_fragments": [
+    "T2_EXCLUDED_CLIENT",
+    "T2_EXCLUDED_CLIENT_NAME",
+    "T2_EXCLUDED_PAYMENT_NOTE",
+    "T2_EXCLUDED_YOUGILE_PROJECT",
+    "T2_EXCLUDED_YOUGILE_BOARD",
+    "T2_EXCLUDED_YOUGILE_TASK",
+    "T2_EXCLUDED_YOUGILE_SYNC_PAYLOAD"
+  ],
+  "normalized_facade": {
+    "create_fields": [
+      "par",
+      "title",
+      "project",
+      "price_rub",
+      "status"
+    ],
+    "list_task_fields": [
+      "par",
+      "title",
+      "project",
+      "price",
+      "status",
+      "assignee",
+      "priority"
+    ],
+    "get_fields": [
+      "par",
+      "title",
+      "description",
+      "project",
+      "price_rub",
+      "status",
+      "assignee",
+      "priority",
+      "created_at",
+      "completed_at",
+      "commits",
+      "sync_revision"
+    ],
+    "update_fields": [
+      "par",
+      "project",
+      "updated",
+      "old_status",
+      "new_status",
+      "price_rub"
+    ],
+    "allowed_additive_fields": [
+      "acceptance",
+      "canonical_head",
+      "display_ref",
+      "evidence_refs",
+      "projection_head",
+      "stable_id",
+      "worker_session_id"
+    ]
+  },
+  "expected_controls": 5,
+  "expected_behavior_tests": 15
+}
