@@ -240,6 +240,39 @@ class TestFatRowCap:
         assert len(rows[0]["content"].encode()) == 1024
         assert rows[0]["trunc"] == 50000          # исходная длина в байтах — её показывает маркер
 
+    def test_image_generation_projects_path_and_prompt_instead_of_base64_prefix(self, db):
+        """Истории нужен результат генерации, а не мегабайты уже сохранённого PNG."""
+        from app.db import add_log, get_logs_before, get_logs_sync, save_session
+
+        save_session(_session("s1", "back"))
+        source = json.dumps({
+            "result": "A" * 50000,
+            "saved_path": "/tmp/generated.png",
+            "status": "completed",
+            "revised_prompt": "Product hero: exact item on a warm neutral background",
+        })
+        add_log(
+            "s1", datetime.now(timezone.utc), "tool_result", source,
+            tool_use_id="image-1", tool_name="ImageGeneration",
+        )
+
+        page_row = get_logs_before(
+            "s1", 2 ** 31 - 1, limit=10, max_bytes=4096, cap=1024,
+        )[0]
+        sync_row = get_logs_sync(after_id=0, tail=10, cap=1024)["logs"][0]
+
+        for row in (page_row, sync_row):
+            projected = json.loads(row["content"])
+            assert projected == {
+                "status": "completed",
+                "saved_path": "/tmp/generated.png",
+                "revised_prompt": "Product hero: exact item on a warm neutral background",
+            }
+            assert row["projection"] == "image_generation"
+            assert row["source_bytes"] > 50000
+            assert "trunc" not in row
+            assert "result" not in projected
+
     def test_capped_row_no_longer_blows_the_budget(self, db):
         """Потолок строки и бюджет порции должны работать вместе, а не по отдельности."""
         from app.db import add_log, get_logs_before, save_session

@@ -1190,6 +1190,7 @@ async function loadMoreLogs() {
             _chatTrimLimit = previousTrimLimit;
             _replayingHistory = false;
         }
+        await _storePut(logs);
         chat.scrollTop = chat.scrollHeight - oldHeight;
         // Full page (500) returned → more may exist, re-add button. Fewer → reached the start.
         if (logs.length >= 500) _addLoadMoreBtn();
@@ -2294,13 +2295,33 @@ function _afterPaint(fn) {
 
 // Кладём в зеркало то, что уже скачали и показали. Отдельно от _storeSync: тот ходит
 // за инкрементом по watermark, а здесь строки СТАРШЕ watermark, и трогать отметку нельзя.
+function _compactImageGenerationLogRow(row) {
+    if (row?.type !== 'tool_result' || row?.tool_name !== 'ImageGeneration') return row;
+    try {
+        const data = JSON.parse(row.content || '{}');
+        if (!data.saved_path && !data.revised_prompt && !data.status) return row;
+        const compact = {
+            ...row,
+            content: JSON.stringify(_imageGenerationProjection(data)),
+            projection: 'image_generation',
+            source_bytes: Number(row.source_bytes) || new Blob([row.content || '']).size,
+        };
+        delete compact.trunc;
+        return compact;
+    } catch {
+        return row;
+    }
+}
+
 async function _storePut(rows) {
     const db = await _storeOpen();
     if (!db || !rows || !rows.length) return;
     try {
         await _storeTx('readwrite', ['logs'], (tx) => {
             const logs = tx.objectStore('logs');
-            for (const row of rows) if (Number.isFinite(row.id)) logs.put(row);
+            for (const row of rows) {
+                if (Number.isFinite(row.id)) logs.put(_compactImageGenerationLogRow(row));
+            }
         });
     } catch (e) { _storeDisable('не пишется в IndexedDB', e); }
 }
@@ -4301,6 +4322,69 @@ function _flushCodexToolUpdates(host, itemId) {
     }
 }
 
+function _imageGenerationProjection(data) {
+    return {
+        status: String(data?.status || ''),
+        saved_path: String(data?.saved_path || ''),
+        revised_prompt: String(data?.revised_prompt || ''),
+    };
+}
+
+function _completeImageGenerationTool(host, data) {
+    const projected = _imageGenerationProjection(data);
+    const header = host.querySelector('.flex.items-center');
+    const failed = projected.status === 'failed';
+    if (header) {
+        header.textContent = failed ? '❌ Image generation failed' : '✅ Image generated';
+        header.style.color = failed ? '#f87171' : '#f472b6';
+    }
+    host.querySelectorAll('.codex-tool-image, .codex-image-prompt').forEach(el => el.remove());
+    if (projected.saved_path) {
+        const img = document.createElement('img');
+        img.src = `/api/files/raw?path=${encodeURIComponent(projected.saved_path)}&t=${Date.now()}`;
+        img.loading = 'lazy';
+        img.className = 'codex-tool-image';
+        img.addEventListener('click', () => openImageLightbox(img.src));
+        host.appendChild(img);
+    }
+    if (projected.revised_prompt) {
+        const prompt = document.createElement('div');
+        prompt.className = 'codex-image-prompt';
+        prompt.textContent = projected.revised_prompt;
+        host.appendChild(prompt);
+    }
+    return projected;
+}
+
+async function _restoreImageGenerationResult(host, payload) {
+    const logId = Number(payload?.id);
+    if (!host || !Number.isFinite(logId) || host.dataset.imageRestore === 'loading') return;
+    host.dataset.imageRestore = 'loading';
+    const header = host.querySelector('.flex.items-center');
+    if (header) header.textContent = '↻ Restoring generated image';
+    try {
+        const row = await api(`/api/logs/${logId}`);
+        const data = JSON.parse(row.content || '{}');
+        const projected = _imageGenerationProjection(data);
+        if (host.isConnected) _completeImageGenerationTool(host, projected);
+        const compactRow = {
+            ...row,
+            content: JSON.stringify(projected),
+            projection: 'image_generation',
+            source_bytes: Number(payload.trunc) || String(row.content || '').length,
+        };
+        delete compactRow.trunc;
+        _storePut([compactRow]);
+    } catch (error) {
+        if (host.isConnected && header) {
+            header.textContent = `❌ Image unavailable · ${error.name}`;
+            header.style.color = '#f87171';
+        }
+    } finally {
+        delete host.dataset.imageRestore;
+    }
+}
+
 function _renderCodexThinking(content, label) {
     const card = document.createElement('div');
     card.className = 'codex-activity-card codex-thinking-card';
@@ -5688,27 +5772,13 @@ function addChatEntry(type, content, ts, anchor, payload) {
             if (lastTool.dataset.toolRawName === 'ImageGeneration') {
                 let data = {};
                 try { data = JSON.parse(content); } catch {}
-                const header = lastTool.querySelector('.flex.items-center');
-                if (header) {
-                    header.textContent = data.status === 'failed' ? '❌ Image generation failed' : '✅ Image generated';
-                    header.style.color = data.status === 'failed' ? '#f87171' : '#f472b6';
-                }
-                if (data.saved_path) {
-                    const img = document.createElement('img');
-                    img.src = `/api/files/raw?path=${encodeURIComponent(data.saved_path)}&t=${Date.now()}`;
-                    img.loading = 'lazy';
-                    img.className = 'codex-tool-image';
-                    img.addEventListener('click', () => openImageLightbox(img.src));
-                    lastTool.appendChild(img);
-                }
-                if (data.revised_prompt) {
-                    const prompt = document.createElement('div');
-                    prompt.className = 'codex-image-prompt';
-                    prompt.textContent = data.revised_prompt;
-                    lastTool.appendChild(prompt);
-                }
                 delete lastTool.dataset.lastTool;
                 addTimestamp(lastTool, ts);
+                if (payload?.trunc && payload?.id) {
+                    void _restoreImageGenerationResult(lastTool, payload);
+                    return;
+                }
+                _completeImageGenerationTool(lastTool, data);
                 return;
             }
             if (lastTool.dataset.toolRawName === 'ViewImage') {
