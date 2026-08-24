@@ -127,17 +127,16 @@ def test_provider_bucket_prefers_explicit_runtime_and_never_defaults_to_claude(
 
     now = datetime.now(timezone.utc).replace(microsecond=0)
     with sqlite3.connect(usage_db) as conn:
-        _seed_session(conn, "explicit-opencode", "gpt-misleading-name", "opencode")
+        _seed_session(conn, "retired-opencode", "gpt-misleading-name", "opencode")
         _seed_session(conn, "unclassified", "vendor/new-model", "retired-runtime")
         _seed_session(conn, "legacy-claude", "claude-sonnet-4-6", "")
-        for session_id in ("explicit-opencode", "unclassified", "legacy-claude"):
+        for session_id in ("retired-opencode", "unclassified", "legacy-claude"):
             _seed_turn(conn, session_id, now - timedelta(minutes=2))
 
     providers = daily_usage(days=1)[0]["providers"]
 
-    assert providers["opencode"]["turns"] == 1
-    assert providers["opencode"]["cache_ttl_seconds"] == 0
-    assert providers["unknown"]["turns"] == 1
+    assert "opencode" not in providers
+    assert providers["unknown"]["turns"] == 2
     assert providers["unknown"]["cache_ttl_seconds"] == 0
     assert providers["claude"]["turns"] == 1
 

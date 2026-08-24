@@ -1328,7 +1328,7 @@ class AgentSession:
                 self._log("status", "native Claude transcript missing — restored from Orchestra logs")
                 self._persist()
 
-            # send() can raise (e.g. opencode prompt_async 404/5xx) AFTER status=RUNNING and
+            # send() can raise AFTER status=RUNNING and
             # BEFORE the listen task is created — without this, a failed submit strands the
             # agent in RUNNING forever (task #97). Reset to IDLE on failure.
             message, fact_keys = self._attach_pending_facts(message)

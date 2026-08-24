@@ -261,7 +261,7 @@ class HarnessBackend:
                 yield ev
         except asyncio.CancelledError:
             # Hard cancel — session.py's finally sets IDLE. Do not yield after this
-            # (the generator is closing). No turn_end here, like opencode's hard cancel.
+            # (the generator is closing). No turn_end is emitted on this path.
             # Persist only a CONSISTENT prefix: an assistant message with tool_calls whose
             # tool results never arrived would make the next request invalid, so drop it.
             with contextlib.suppress(Exception):

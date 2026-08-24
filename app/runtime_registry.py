@@ -1,7 +1,7 @@
 """Agent runtime registry and backend construction.
 
 Models/providers describe what is called; runtimes describe the agent harness used
-to call it (Claude Code SDK, Codex CLI, OpenCode, or an external plugin).
+to call it (Claude Code SDK, Codex CLI, Orchestra Harness, or an external plugin).
 """
 
 from __future__ import annotations
@@ -314,21 +314,6 @@ def _grok_factory(context: BackendBuildContext) -> BackendLike:
     )
 
 
-def _opencode_factory(context: BackendBuildContext) -> BackendLike:
-    from app.backend_opencode import OpenCodeBackend
-
-    return OpenCodeBackend(
-        model=context.model,
-        cwd=context.cwd,
-        system_prompt=context.system_prompt,
-        resume_session_id=context.resume_session_id,
-        mcp_servers=context.mcp_servers,
-        is_orchestrator=context.is_orchestrator,
-        context_limit=context.context_limit,
-        provider_id=context.provider,
-    )
-
-
 def _harness_factory(context: BackendBuildContext) -> BackendLike:
     from app.backend_harness import HarnessBackend
 
@@ -343,7 +328,7 @@ def _harness_factory(context: BackendBuildContext) -> BackendLike:
     )
 
 
-BUILTIN_RUNTIMES = ("claude", "codex", "grok", "opencode", "harness")
+BUILTIN_RUNTIMES = ("claude", "codex", "grok", "harness")
 
 register_runtime(RuntimeDefinition(
     id="claude",
@@ -388,18 +373,6 @@ register_runtime(RuntimeDefinition(
         model_retarget=True,
     ),
     factory=_grok_factory,
-))
-register_runtime(RuntimeDefinition(
-    id="opencode",
-    capabilities=RuntimeCapabilities(
-        event_stream="per_turn",
-        mid_turn_inject=False,
-        reconnect=False,
-        hibernate=False,
-        process_liveness=True,
-        model_retarget=True,
-    ),
-    factory=_opencode_factory,
 ))
 register_runtime(RuntimeDefinition(
     id="harness",

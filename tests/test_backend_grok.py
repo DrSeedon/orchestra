@@ -85,7 +85,7 @@ def test_unregistered_grok_model_fails_loud():
         get_model_spec("grok-9.9-future")
 
 
-def test_unregistered_provider_qualified_grok_does_not_select_opencode():
+def test_unregistered_provider_qualified_grok_stays_unknown():
     with pytest.raises(ValueError, match="unknown model 'x-ai/grok-4'"):
         get_model_spec("x-ai/grok-4")
 
@@ -578,10 +578,10 @@ def test_provider_buckets_match_runtime_ids():
     from app.models import cache_policy_for_runtime
     from app.usage_analytics import _PROVIDERS
 
-    assert {"claude", "codex", "grok", "opencode", "harness", "unknown"} == set(_PROVIDERS)
+    assert {"claude", "codex", "grok", "harness", "unknown"} == set(_PROVIDERS)
     for provider in _PROVIDERS:
         policy = cache_policy_for_runtime(provider)
-        if provider in {"opencode", "harness", "unknown"}:
+        if provider in {"harness", "unknown"}:
             assert policy == {
                 "cache_ttl_seconds": 0,
                 "cache_ttl_approximate": True,

@@ -1366,7 +1366,7 @@ async def test_t380_r7_no_inject_turn_finalization_wakes_durable_receipt(
         task_id=TARGET_TASK_ID,
         branch=TARGET_BRANCH,
     )
-    session.backend_type = "opencode"
+    session.backend_type = "grok"
     session.status = AgentStatus.RUNNING
     session._backend = backend
     session._ensure_backend = AsyncMock(return_value=backend)

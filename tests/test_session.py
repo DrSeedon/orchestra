@@ -384,7 +384,7 @@ class TestSend:
 
 
 class TestTurn:
-    @pytest.mark.parametrize("runtime_id", ("claude", "codex", "grok", "opencode"))
+    @pytest.mark.parametrize("runtime_id", ("claude", "codex", "grok", "harness"))
     @pytest.mark.asyncio
     async def test_turn_completion_signal_follows_persist_for_every_runtime(
         self, session, monkeypatch, runtime_id,
@@ -4176,12 +4176,12 @@ class TestCodexTurnLifecycle:
 
 class TestRuntimeCapabilities:
     @pytest.mark.asyncio
-    async def test_per_turn_runtime_queues_mid_turn_message(self, session):
+    async def test_non_steering_runtime_queues_mid_turn_message(self, session):
         from app.session import AgentStatus
 
         backend = AsyncMock()
         backend.send = AsyncMock()
-        session.backend_type = "opencode"
+        session.backend_type = "grok"
         session.status = AgentStatus.RUNNING
         session._backend = backend
         session._log = lambda *_args, **_kwargs: None
@@ -4330,7 +4330,6 @@ class TestRuntimeCapabilities:
     @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
         ("claude", "claude-sonnet-5[1m]", "claude-opus-5[1m]"),
         ("grok", "grok-4.5", "grok-4.6"),
-        ("opencode", "deepseek/deepseek-v4-flash", "deepseek/deepseek-v4-pro"),
         ("harness", "stealth/ox-alpha", "z-ai/glm-5.2:free"),
     ])
     async def test_other_builtin_model_switches_retarget_in_place(
@@ -4358,13 +4357,6 @@ class TestRuntimeCapabilities:
         session._make_backend = MagicMock(
             side_effect=AssertionError("same native session needs no replacement backend"),
         )
-        if runtime == "opencode":
-            monkeypatch.setattr(
-                "app.session.get_model_spec",
-                lambda _model: SimpleNamespace(
-                    runtime="opencode", context_length=128_000,
-                ),
-            )
         save = MagicMock()
         monkeypatch.setattr("app.session.save_session", save)
 
