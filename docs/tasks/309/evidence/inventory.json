@@ -1,0 +1,2887 @@
+{
+  "generated_at_cutoff": "2026-08-24T06:12:06.860886+00:00",
+  "mcp_tools": [
+    {
+      "feature": "mcp_tool:acquire_test_lock",
+      "exact_surface": "acquire_test_lock",
+      "owner": "app/mcp_stdio.py:acquire_test_lock",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 610,
+      "schema_bytes": 799,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:bg_cancel",
+      "exact_surface": "bg_cancel",
+      "owner": "app/mcp_stdio.py:bg_cancel",
+      "last_use_90d": "2026-08-24T04:33:16.213794+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 32,
+      "schema_bytes": 211,
+      "30d_calls": 7,
+      "30d_unique_sessions": 3,
+      "30d_unique_agents": 3,
+      "30d_unique_projects_scopes": 3,
+      "30d_orchestrator_calls": 5,
+      "30d_worker_calls": 2,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 7,
+      "60d_unique_sessions": 3,
+      "60d_unique_agents": 3,
+      "60d_unique_projects_scopes": 3,
+      "60d_orchestrator_calls": 5,
+      "60d_worker_calls": 2,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 7,
+      "90d_unique_sessions": 3,
+      "90d_unique_agents": 3,
+      "90d_unique_projects_scopes": 3,
+      "90d_orchestrator_calls": 5,
+      "90d_worker_calls": 2,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 7,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:bg_create",
+      "exact_surface": "bg_create",
+      "owner": "app/mcp_stdio.py:bg_create",
+      "last_use_90d": "2026-08-24T06:07:35.172146+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 970,
+      "schema_bytes": 1786,
+      "30d_calls": 117,
+      "30d_unique_sessions": 13,
+      "30d_unique_agents": 13,
+      "30d_unique_projects_scopes": 5,
+      "30d_orchestrator_calls": 31,
+      "30d_worker_calls": 86,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 117,
+      "60d_unique_sessions": 13,
+      "60d_unique_agents": 13,
+      "60d_unique_projects_scopes": 5,
+      "60d_orchestrator_calls": 31,
+      "60d_worker_calls": 86,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 117,
+      "90d_unique_sessions": 13,
+      "90d_unique_agents": 13,
+      "90d_unique_projects_scopes": 5,
+      "90d_orchestrator_calls": 31,
+      "90d_worker_calls": 86,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 117,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:bg_list",
+      "exact_surface": "bg_list",
+      "owner": "app/mcp_stdio.py:bg_list",
+      "last_use_90d": "2026-08-24T04:33:11.740634+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 44,
+      "schema_bytes": 154,
+      "30d_calls": 19,
+      "30d_unique_sessions": 8,
+      "30d_unique_agents": 8,
+      "30d_unique_projects_scopes": 5,
+      "30d_orchestrator_calls": 14,
+      "30d_worker_calls": 5,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 19,
+      "60d_unique_sessions": 8,
+      "60d_unique_agents": 8,
+      "60d_unique_projects_scopes": 5,
+      "60d_orchestrator_calls": 14,
+      "60d_worker_calls": 5,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 19,
+      "90d_unique_sessions": 8,
+      "90d_unique_agents": 8,
+      "90d_unique_projects_scopes": 5,
+      "90d_orchestrator_calls": 14,
+      "90d_worker_calls": 5,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 19,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:change_worker_model",
+      "exact_surface": "change_worker_model",
+      "owner": "app/mcp_stdio.py:change_worker_model",
+      "last_use_90d": "2026-08-24T04:36:28.440235+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 77,
+      "schema_bytes": 320,
+      "30d_calls": 5,
+      "30d_unique_sessions": 3,
+      "30d_unique_agents": 3,
+      "30d_unique_projects_scopes": 3,
+      "30d_orchestrator_calls": 5,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 5,
+      "60d_unique_sessions": 3,
+      "60d_unique_agents": 3,
+      "60d_unique_projects_scopes": 3,
+      "60d_orchestrator_calls": 5,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 5,
+      "90d_unique_sessions": 3,
+      "90d_unique_agents": 3,
+      "90d_unique_projects_scopes": 3,
+      "90d_orchestrator_calls": 5,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 5,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:check_conflict",
+      "exact_surface": "check_conflict",
+      "owner": "app/mcp_stdio.py:check_conflict",
+      "last_use_90d": "2026-08-23T14:42:35.901038+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 180,
+      "schema_bytes": 435,
+      "30d_calls": 2,
+      "30d_unique_sessions": 2,
+      "30d_unique_agents": 2,
+      "30d_unique_projects_scopes": 1,
+      "30d_orchestrator_calls": 1,
+      "30d_worker_calls": 1,
+      "30d_runtimes": "codex",
+      "60d_calls": 2,
+      "60d_unique_sessions": 2,
+      "60d_unique_agents": 2,
+      "60d_unique_projects_scopes": 1,
+      "60d_orchestrator_calls": 1,
+      "60d_worker_calls": 1,
+      "60d_runtimes": "codex",
+      "90d_calls": 2,
+      "90d_unique_sessions": 2,
+      "90d_unique_agents": 2,
+      "90d_unique_projects_scopes": 1,
+      "90d_orchestrator_calls": 1,
+      "90d_worker_calls": 1,
+      "90d_runtimes": "codex",
+      "90d_successful": 2,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:codex_review",
+      "exact_surface": "codex_review",
+      "owner": "app/mcp_stdio.py:codex_review",
+      "last_use_90d": "2026-08-24T05:47:12.932524+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 1071,
+      "schema_bytes": 1587,
+      "30d_calls": 78,
+      "30d_unique_sessions": 28,
+      "30d_unique_agents": 28,
+      "30d_unique_projects_scopes": 4,
+      "30d_orchestrator_calls": 1,
+      "30d_worker_calls": 77,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 78,
+      "60d_unique_sessions": 28,
+      "60d_unique_agents": 28,
+      "60d_unique_projects_scopes": 4,
+      "60d_orchestrator_calls": 1,
+      "60d_worker_calls": 77,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 78,
+      "90d_unique_sessions": 28,
+      "90d_unique_agents": 28,
+      "90d_unique_projects_scopes": 4,
+      "90d_orchestrator_calls": 1,
+      "90d_worker_calls": 77,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 74,
+      "90d_errors": 4,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:compact_worker",
+      "exact_surface": "compact_worker",
+      "owner": "app/mcp_stdio.py:compact_worker",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 269,
+      "schema_bytes": 454,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:delivery_status",
+      "exact_surface": "delivery_status",
+      "owner": "app/mcp_stdio.py:delivery_status",
+      "last_use_90d": "2026-08-24T05:24:36.028937+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 62,
+      "schema_bytes": 268,
+      "30d_calls": 1,
+      "30d_unique_sessions": 1,
+      "30d_unique_agents": 1,
+      "30d_unique_projects_scopes": 1,
+      "30d_orchestrator_calls": 1,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "codex",
+      "60d_calls": 1,
+      "60d_unique_sessions": 1,
+      "60d_unique_agents": 1,
+      "60d_unique_projects_scopes": 1,
+      "60d_orchestrator_calls": 1,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "codex",
+      "90d_calls": 1,
+      "90d_unique_sessions": 1,
+      "90d_unique_agents": 1,
+      "90d_unique_projects_scopes": 1,
+      "90d_orchestrator_calls": 1,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "codex",
+      "90d_successful": 1,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:get_worker_info",
+      "exact_surface": "get_worker_info",
+      "owner": "app/mcp_stdio.py:get_worker_info",
+      "last_use_90d": "2026-08-23T15:25:20.184837+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 91,
+      "schema_bytes": 276,
+      "30d_calls": 4,
+      "30d_unique_sessions": 2,
+      "30d_unique_agents": 2,
+      "30d_unique_projects_scopes": 2,
+      "30d_orchestrator_calls": 3,
+      "30d_worker_calls": 1,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 4,
+      "60d_unique_sessions": 2,
+      "60d_unique_agents": 2,
+      "60d_unique_projects_scopes": 2,
+      "60d_orchestrator_calls": 3,
+      "60d_worker_calls": 1,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 4,
+      "90d_unique_sessions": 2,
+      "90d_unique_agents": 2,
+      "90d_unique_projects_scopes": 2,
+      "90d_orchestrator_calls": 3,
+      "90d_worker_calls": 1,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 4,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:get_worker_logs",
+      "exact_surface": "get_worker_logs",
+      "owner": "app/mcp_stdio.py:get_worker_logs",
+      "last_use_90d": "2026-08-23T17:14:45.022963+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 30,
+      "schema_bytes": 271,
+      "30d_calls": 16,
+      "30d_unique_sessions": 3,
+      "30d_unique_agents": 3,
+      "30d_unique_projects_scopes": 2,
+      "30d_orchestrator_calls": 5,
+      "30d_worker_calls": 11,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 16,
+      "60d_unique_sessions": 3,
+      "60d_unique_agents": 3,
+      "60d_unique_projects_scopes": 2,
+      "60d_orchestrator_calls": 5,
+      "60d_worker_calls": 11,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 16,
+      "90d_unique_sessions": 3,
+      "90d_unique_agents": 3,
+      "90d_unique_projects_scopes": 2,
+      "90d_orchestrator_calls": 5,
+      "90d_worker_calls": 11,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 16,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:kill_worker",
+      "exact_surface": "kill_worker",
+      "owner": "app/mcp_stdio.py:kill_worker",
+      "last_use_90d": "2026-08-24T05:51:32.059390+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 121,
+      "schema_bytes": 357,
+      "30d_calls": 44,
+      "30d_unique_sessions": 9,
+      "30d_unique_agents": 9,
+      "30d_unique_projects_scopes": 4,
+      "30d_orchestrator_calls": 28,
+      "30d_worker_calls": 16,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 44,
+      "60d_unique_sessions": 9,
+      "60d_unique_agents": 9,
+      "60d_unique_projects_scopes": 4,
+      "60d_orchestrator_calls": 28,
+      "60d_worker_calls": 16,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 44,
+      "90d_unique_sessions": 9,
+      "90d_unique_agents": 9,
+      "90d_unique_projects_scopes": 4,
+      "90d_orchestrator_calls": 28,
+      "90d_worker_calls": 16,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 42,
+      "90d_errors": 2,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:list_agents",
+      "exact_surface": "list_agents",
+      "owner": "app/mcp_stdio.py:list_agents",
+      "last_use_90d": "2026-08-24T06:06:06.046567+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 60,
+      "schema_bytes": 178,
+      "30d_calls": 131,
+      "30d_unique_sessions": 13,
+      "30d_unique_agents": 13,
+      "30d_unique_projects_scopes": 6,
+      "30d_orchestrator_calls": 123,
+      "30d_worker_calls": 8,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 131,
+      "60d_unique_sessions": 13,
+      "60d_unique_agents": 13,
+      "60d_unique_projects_scopes": 6,
+      "60d_orchestrator_calls": 123,
+      "60d_worker_calls": 8,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 131,
+      "90d_unique_sessions": 13,
+      "90d_unique_agents": 13,
+      "90d_unique_projects_scopes": 6,
+      "90d_orchestrator_calls": 123,
+      "90d_worker_calls": 8,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 131,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:list_orchestrators",
+      "exact_surface": "list_orchestrators",
+      "owner": "app/mcp_stdio.py:list_orchestrators",
+      "last_use_90d": "2026-08-24T05:12:33.596832+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 99,
+      "schema_bytes": 231,
+      "30d_calls": 7,
+      "30d_unique_sessions": 2,
+      "30d_unique_agents": 2,
+      "30d_unique_projects_scopes": 2,
+      "30d_orchestrator_calls": 7,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "codex",
+      "60d_calls": 7,
+      "60d_unique_sessions": 2,
+      "60d_unique_agents": 2,
+      "60d_unique_projects_scopes": 2,
+      "60d_orchestrator_calls": 7,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "codex",
+      "90d_calls": 7,
+      "90d_unique_sessions": 2,
+      "90d_unique_agents": 2,
+      "90d_unique_projects_scopes": 2,
+      "90d_orchestrator_calls": 7,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "codex",
+      "90d_successful": 7,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:merge_worker",
+      "exact_surface": "merge_worker",
+      "owner": "app/mcp_stdio.py:merge_worker",
+      "last_use_90d": "2026-08-24T05:50:46.294454+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 868,
+      "schema_bytes": 1340,
+      "30d_calls": 89,
+      "30d_unique_sessions": 9,
+      "30d_unique_agents": 9,
+      "30d_unique_projects_scopes": 5,
+      "30d_orchestrator_calls": 67,
+      "30d_worker_calls": 22,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 89,
+      "60d_unique_sessions": 9,
+      "60d_unique_agents": 9,
+      "60d_unique_projects_scopes": 5,
+      "60d_orchestrator_calls": 67,
+      "60d_worker_calls": 22,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 89,
+      "90d_unique_sessions": 9,
+      "90d_unique_agents": 9,
+      "90d_unique_projects_scopes": 5,
+      "90d_orchestrator_calls": 67,
+      "90d_worker_calls": 22,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 88,
+      "90d_errors": 1,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:notify_user",
+      "exact_surface": "notify_user",
+      "owner": "app/mcp_stdio.py:notify_user",
+      "last_use_90d": "2026-08-24T06:04:11.506762+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 1234,
+      "schema_bytes": 1428,
+      "30d_calls": 18,
+      "30d_unique_sessions": 4,
+      "30d_unique_agents": 4,
+      "30d_unique_projects_scopes": 4,
+      "30d_orchestrator_calls": 18,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 18,
+      "60d_unique_sessions": 4,
+      "60d_unique_agents": 4,
+      "60d_unique_projects_scopes": 4,
+      "60d_orchestrator_calls": 18,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 18,
+      "90d_unique_sessions": 4,
+      "90d_unique_agents": 4,
+      "90d_unique_projects_scopes": 4,
+      "90d_orchestrator_calls": 18,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 18,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:open_fan",
+      "exact_surface": "open_fan",
+      "owner": "app/mcp_stdio.py:open_fan",
+      "last_use_90d": "2026-08-23T15:56:14.667701+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 1437,
+      "schema_bytes": 1799,
+      "30d_calls": 7,
+      "30d_unique_sessions": 7,
+      "30d_unique_agents": 7,
+      "30d_unique_projects_scopes": 3,
+      "30d_orchestrator_calls": 2,
+      "30d_worker_calls": 5,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 7,
+      "60d_unique_sessions": 7,
+      "60d_unique_agents": 7,
+      "60d_unique_projects_scopes": 3,
+      "60d_orchestrator_calls": 2,
+      "60d_worker_calls": 5,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 7,
+      "90d_unique_sessions": 7,
+      "90d_unique_agents": 7,
+      "90d_unique_projects_scopes": 3,
+      "90d_orchestrator_calls": 2,
+      "90d_worker_calls": 5,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 7,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:payment_receive",
+      "exact_surface": "payment_receive",
+      "owner": "app/mcp_stdio.py:payment_receive",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 136,
+      "schema_bytes": 492,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:payment_status",
+      "exact_surface": "payment_status",
+      "owner": "app/mcp_stdio.py:payment_status",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 59,
+      "schema_bytes": 239,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:publish_artifact",
+      "exact_surface": "publish_artifact",
+      "owner": "app/mcp_stdio.py:publish_artifact",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 76,
+      "schema_bytes": 420,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:release_test_lock",
+      "exact_surface": "release_test_lock",
+      "owner": "app/mcp_stdio.py:release_test_lock",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 164,
+      "schema_bytes": 294,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:rename_worker",
+      "exact_surface": "rename_worker",
+      "owner": "app/mcp_stdio.py:rename_worker",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 22,
+      "schema_bytes": 274,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:report_bug",
+      "exact_surface": "report_bug",
+      "owner": "app/mcp_stdio.py:report_bug",
+      "last_use_90d": "2026-08-23T15:28:53.469821+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 824,
+      "schema_bytes": 1084,
+      "30d_calls": 16,
+      "30d_unique_sessions": 4,
+      "30d_unique_agents": 4,
+      "30d_unique_projects_scopes": 3,
+      "30d_orchestrator_calls": 15,
+      "30d_worker_calls": 1,
+      "30d_runtimes": "codex",
+      "60d_calls": 16,
+      "60d_unique_sessions": 4,
+      "60d_unique_agents": 4,
+      "60d_unique_projects_scopes": 3,
+      "60d_orchestrator_calls": 15,
+      "60d_worker_calls": 1,
+      "60d_runtimes": "codex",
+      "90d_calls": 16,
+      "90d_unique_sessions": 4,
+      "90d_unique_agents": 4,
+      "90d_unique_projects_scopes": 3,
+      "90d_orchestrator_calls": 15,
+      "90d_worker_calls": 1,
+      "90d_runtimes": "codex",
+      "90d_successful": 16,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:resolve_merge_operation",
+      "exact_surface": "resolve_merge_operation",
+      "owner": "app/mcp_stdio.py:resolve_merge_operation",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 419,
+      "schema_bytes": 703,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:retry_initial_delivery",
+      "exact_surface": "retry_initial_delivery",
+      "owner": "app/mcp_stdio.py:retry_initial_delivery",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 82,
+      "schema_bytes": 396,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:search_memory",
+      "exact_surface": "search_memory",
+      "owner": "app/mcp_stdio.py:search_memory",
+      "last_use_90d": "2026-08-24T06:10:21.945414+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 653,
+      "schema_bytes": 971,
+      "30d_calls": 164,
+      "30d_unique_sessions": 58,
+      "30d_unique_agents": 58,
+      "30d_unique_projects_scopes": 5,
+      "30d_orchestrator_calls": 87,
+      "30d_worker_calls": 77,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 164,
+      "60d_unique_sessions": 58,
+      "60d_unique_agents": 58,
+      "60d_unique_projects_scopes": 5,
+      "60d_orchestrator_calls": 87,
+      "60d_worker_calls": 77,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 164,
+      "90d_unique_sessions": 58,
+      "90d_unique_agents": 58,
+      "90d_unique_projects_scopes": 5,
+      "90d_orchestrator_calls": 87,
+      "90d_worker_calls": 77,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 164,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:send_chart",
+      "exact_surface": "send_chart",
+      "owner": "app/mcp_stdio.py:send_chart",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 1662,
+      "schema_bytes": 2134,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:send_file",
+      "exact_surface": "send_file",
+      "owner": "app/mcp_stdio.py:send_file",
+      "last_use_90d": "2026-08-24T06:03:31.208747+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 152,
+      "schema_bytes": 455,
+      "30d_calls": 52,
+      "30d_unique_sessions": 6,
+      "30d_unique_agents": 6,
+      "30d_unique_projects_scopes": 4,
+      "30d_orchestrator_calls": 43,
+      "30d_worker_calls": 9,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 52,
+      "60d_unique_sessions": 6,
+      "60d_unique_agents": 6,
+      "60d_unique_projects_scopes": 4,
+      "60d_orchestrator_calls": 43,
+      "60d_worker_calls": 9,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 52,
+      "90d_unique_sessions": 6,
+      "90d_unique_agents": 6,
+      "90d_unique_projects_scopes": 4,
+      "90d_orchestrator_calls": 43,
+      "90d_worker_calls": 9,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 45,
+      "90d_errors": 0,
+      "90d_unknown": 7
+    },
+    {
+      "feature": "mcp_tool:send_message",
+      "exact_surface": "send_message",
+      "owner": "app/mcp_stdio.py:send_message",
+      "last_use_90d": "2026-08-24T06:07:55.569417+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 57,
+      "schema_bytes": 286,
+      "30d_calls": 299,
+      "30d_unique_sessions": 61,
+      "30d_unique_agents": 61,
+      "30d_unique_projects_scopes": 6,
+      "30d_orchestrator_calls": 139,
+      "30d_worker_calls": 160,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 299,
+      "60d_unique_sessions": 61,
+      "60d_unique_agents": 61,
+      "60d_unique_projects_scopes": 6,
+      "60d_orchestrator_calls": 139,
+      "60d_worker_calls": 160,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 299,
+      "90d_unique_sessions": 61,
+      "90d_unique_agents": 61,
+      "90d_unique_projects_scopes": 6,
+      "90d_orchestrator_calls": 139,
+      "90d_worker_calls": 160,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 296,
+      "90d_errors": 2,
+      "90d_unknown": 1
+    },
+    {
+      "feature": "mcp_tool:spawn_worker",
+      "exact_surface": "spawn_worker",
+      "owner": "app/mcp_stdio.py:spawn_worker",
+      "last_use_90d": "2026-08-24T06:09:46.442197+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 1397,
+      "schema_bytes": 2349,
+      "30d_calls": 90,
+      "30d_unique_sessions": 9,
+      "30d_unique_agents": 9,
+      "30d_unique_projects_scopes": 4,
+      "30d_orchestrator_calls": 57,
+      "30d_worker_calls": 33,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 90,
+      "60d_unique_sessions": 9,
+      "60d_unique_agents": 9,
+      "60d_unique_projects_scopes": 4,
+      "60d_orchestrator_calls": 57,
+      "60d_worker_calls": 33,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 90,
+      "90d_unique_sessions": 9,
+      "90d_unique_agents": 9,
+      "90d_unique_projects_scopes": 4,
+      "90d_orchestrator_calls": 57,
+      "90d_worker_calls": 33,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 69,
+      "90d_errors": 21,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:stop_worker",
+      "exact_surface": "stop_worker",
+      "owner": "app/mcp_stdio.py:stop_worker",
+      "last_use_90d": "2026-08-24T05:26:10.761874+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 117,
+      "schema_bytes": 294,
+      "30d_calls": 4,
+      "30d_unique_sessions": 3,
+      "30d_unique_agents": 3,
+      "30d_unique_projects_scopes": 2,
+      "30d_orchestrator_calls": 3,
+      "30d_worker_calls": 1,
+      "30d_runtimes": "codex",
+      "60d_calls": 4,
+      "60d_unique_sessions": 3,
+      "60d_unique_agents": 3,
+      "60d_unique_projects_scopes": 2,
+      "60d_orchestrator_calls": 3,
+      "60d_worker_calls": 1,
+      "60d_runtimes": "codex",
+      "90d_calls": 4,
+      "90d_unique_sessions": 3,
+      "90d_unique_agents": 3,
+      "90d_unique_projects_scopes": 2,
+      "90d_orchestrator_calls": 3,
+      "90d_worker_calls": 1,
+      "90d_runtimes": "codex",
+      "90d_successful": 4,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:switch_worker_branch",
+      "exact_surface": "switch_worker_branch",
+      "owner": "app/mcp_stdio.py:switch_worker_branch",
+      "last_use_90d": "2026-08-23T15:20:35.940779+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 389,
+      "schema_bytes": 830,
+      "30d_calls": 3,
+      "30d_unique_sessions": 2,
+      "30d_unique_agents": 2,
+      "30d_unique_projects_scopes": 2,
+      "30d_orchestrator_calls": 3,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 3,
+      "60d_unique_sessions": 2,
+      "60d_unique_agents": 2,
+      "60d_unique_projects_scopes": 2,
+      "60d_orchestrator_calls": 3,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 3,
+      "90d_unique_sessions": 2,
+      "90d_unique_agents": 2,
+      "90d_unique_projects_scopes": 2,
+      "90d_orchestrator_calls": 3,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 3,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:task_create",
+      "exact_surface": "task_create",
+      "owner": "app/mcp_stdio.py:task_create",
+      "last_use_90d": "2026-08-24T06:08:57.204013+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 277,
+      "schema_bytes": 904,
+      "30d_calls": 102,
+      "30d_unique_sessions": 5,
+      "30d_unique_agents": 5,
+      "30d_unique_projects_scopes": 5,
+      "30d_orchestrator_calls": 102,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 102,
+      "60d_unique_sessions": 5,
+      "60d_unique_agents": 5,
+      "60d_unique_projects_scopes": 5,
+      "60d_orchestrator_calls": 102,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 102,
+      "90d_unique_sessions": 5,
+      "90d_unique_agents": 5,
+      "90d_unique_projects_scopes": 5,
+      "90d_orchestrator_calls": 102,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 99,
+      "90d_errors": 3,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:task_get",
+      "exact_surface": "task_get",
+      "owner": "app/mcp_stdio.py:task_get",
+      "last_use_90d": "2026-08-24T05:08:20.677020+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 80,
+      "schema_bytes": 307,
+      "30d_calls": 28,
+      "30d_unique_sessions": 7,
+      "30d_unique_agents": 7,
+      "30d_unique_projects_scopes": 3,
+      "30d_orchestrator_calls": 24,
+      "30d_worker_calls": 4,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 28,
+      "60d_unique_sessions": 7,
+      "60d_unique_agents": 7,
+      "60d_unique_projects_scopes": 3,
+      "60d_orchestrator_calls": 24,
+      "60d_worker_calls": 4,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 28,
+      "90d_unique_sessions": 7,
+      "90d_unique_agents": 7,
+      "90d_unique_projects_scopes": 3,
+      "90d_orchestrator_calls": 24,
+      "90d_worker_calls": 4,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 28,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:task_list",
+      "exact_surface": "task_list",
+      "owner": "app/mcp_stdio.py:task_list",
+      "last_use_90d": "2026-08-24T05:26:19.892367+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 59,
+      "schema_bytes": 349,
+      "30d_calls": 9,
+      "30d_unique_sessions": 5,
+      "30d_unique_agents": 5,
+      "30d_unique_projects_scopes": 5,
+      "30d_orchestrator_calls": 9,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 9,
+      "60d_unique_sessions": 5,
+      "60d_unique_agents": 5,
+      "60d_unique_projects_scopes": 5,
+      "60d_orchestrator_calls": 9,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 9,
+      "90d_unique_sessions": 5,
+      "90d_unique_agents": 5,
+      "90d_unique_projects_scopes": 5,
+      "90d_orchestrator_calls": 9,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 9,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:task_update",
+      "exact_surface": "task_update",
+      "owner": "app/mcp_stdio.py:task_update",
+      "last_use_90d": "2026-08-24T05:51:11.139466+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 477,
+      "schema_bytes": 1184,
+      "30d_calls": 92,
+      "30d_unique_sessions": 4,
+      "30d_unique_agents": 4,
+      "30d_unique_projects_scopes": 4,
+      "30d_orchestrator_calls": 92,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 92,
+      "60d_unique_sessions": 4,
+      "60d_unique_agents": 4,
+      "60d_unique_projects_scopes": 4,
+      "60d_orchestrator_calls": 92,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 92,
+      "90d_unique_sessions": 4,
+      "90d_unique_agents": 4,
+      "90d_unique_projects_scopes": 4,
+      "90d_orchestrator_calls": 92,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 92,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:test_lock_status",
+      "exact_surface": "test_lock_status",
+      "owner": "app/mcp_stdio.py:test_lock_status",
+      "last_use_90d": "",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 111,
+      "schema_bytes": 239,
+      "30d_calls": 0,
+      "30d_unique_sessions": 0,
+      "30d_unique_agents": 0,
+      "30d_unique_projects_scopes": 0,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "",
+      "60d_calls": 0,
+      "60d_unique_sessions": 0,
+      "60d_unique_agents": 0,
+      "60d_unique_projects_scopes": 0,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "",
+      "90d_calls": 0,
+      "90d_unique_sessions": 0,
+      "90d_unique_agents": 0,
+      "90d_unique_projects_scopes": 0,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "",
+      "90d_successful": 0,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:update_progress",
+      "exact_surface": "update_progress",
+      "owner": "app/mcp_stdio.py:update_progress",
+      "last_use_90d": "2026-08-23T14:22:53.593089+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 80,
+      "schema_bytes": 328,
+      "30d_calls": 5,
+      "30d_unique_sessions": 3,
+      "30d_unique_agents": 3,
+      "30d_unique_projects_scopes": 2,
+      "30d_orchestrator_calls": 0,
+      "30d_worker_calls": 5,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 5,
+      "60d_unique_sessions": 3,
+      "60d_unique_agents": 3,
+      "60d_unique_projects_scopes": 2,
+      "60d_orchestrator_calls": 0,
+      "60d_worker_calls": 5,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 5,
+      "90d_unique_sessions": 3,
+      "90d_unique_agents": 3,
+      "90d_unique_projects_scopes": 2,
+      "90d_orchestrator_calls": 0,
+      "90d_worker_calls": 5,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 5,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:update_worker_description",
+      "exact_surface": "update_worker_description",
+      "owner": "app/mcp_stdio.py:update_worker_description",
+      "last_use_90d": "2026-08-23T16:17:46.930888+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 91,
+      "schema_bytes": 364,
+      "30d_calls": 4,
+      "30d_unique_sessions": 2,
+      "30d_unique_agents": 2,
+      "30d_unique_projects_scopes": 2,
+      "30d_orchestrator_calls": 4,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "codex",
+      "60d_calls": 4,
+      "60d_unique_sessions": 2,
+      "60d_unique_agents": 2,
+      "60d_unique_projects_scopes": 2,
+      "60d_orchestrator_calls": 4,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "codex",
+      "90d_calls": 4,
+      "90d_unique_sessions": 2,
+      "90d_unique_agents": 2,
+      "90d_unique_projects_scopes": 2,
+      "90d_orchestrator_calls": 4,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "codex",
+      "90d_successful": 4,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:update_worker_prompt",
+      "exact_surface": "update_worker_prompt",
+      "owner": "app/mcp_stdio.py:update_worker_prompt",
+      "last_use_90d": "2026-08-23T15:27:55.620930+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 39,
+      "schema_bytes": 308,
+      "30d_calls": 5,
+      "30d_unique_sessions": 1,
+      "30d_unique_agents": 1,
+      "30d_unique_projects_scopes": 1,
+      "30d_orchestrator_calls": 5,
+      "30d_worker_calls": 0,
+      "30d_runtimes": "codex",
+      "60d_calls": 5,
+      "60d_unique_sessions": 1,
+      "60d_unique_agents": 1,
+      "60d_unique_projects_scopes": 1,
+      "60d_orchestrator_calls": 5,
+      "60d_worker_calls": 0,
+      "60d_runtimes": "codex",
+      "90d_calls": 5,
+      "90d_unique_sessions": 1,
+      "90d_unique_agents": 1,
+      "90d_unique_projects_scopes": 1,
+      "90d_orchestrator_calls": 5,
+      "90d_worker_calls": 0,
+      "90d_runtimes": "codex",
+      "90d_successful": 5,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    },
+    {
+      "feature": "mcp_tool:worker_wip",
+      "exact_surface": "worker_wip",
+      "owner": "app/mcp_stdio.py:worker_wip",
+      "last_use_90d": "2026-08-24T06:00:05.812699+00:00",
+      "observation_gap": "named tool_name telemetry starts 2026-08-13; older NULL/wrapper rows excluded",
+      "description_bytes": 159,
+      "schema_bytes": 396,
+      "30d_calls": 121,
+      "30d_unique_sessions": 8,
+      "30d_unique_agents": 8,
+      "30d_unique_projects_scopes": 5,
+      "30d_orchestrator_calls": 106,
+      "30d_worker_calls": 15,
+      "30d_runtimes": "claude;codex",
+      "60d_calls": 121,
+      "60d_unique_sessions": 8,
+      "60d_unique_agents": 8,
+      "60d_unique_projects_scopes": 5,
+      "60d_orchestrator_calls": 106,
+      "60d_worker_calls": 15,
+      "60d_runtimes": "claude;codex",
+      "90d_calls": 121,
+      "90d_unique_sessions": 8,
+      "90d_unique_agents": 8,
+      "90d_unique_projects_scopes": 5,
+      "90d_orchestrator_calls": 106,
+      "90d_worker_calls": 15,
+      "90d_runtimes": "claude;codex",
+      "90d_successful": 121,
+      "90d_errors": 0,
+      "90d_unknown": 0
+    }
+  ],
+  "route_groups": {
+    "/": {
+      "paths": [
+        "/"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.system:dashboard"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/artifacts": {
+      "paths": [
+        "/api/artifacts/open/{locator}",
+        "/api/artifacts/open/{locator}/content",
+        "/api/artifacts/open/{locator}/redeem",
+        "/api/artifacts/publish",
+        "/api/artifacts/{locator}/revoke"
+      ],
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.artifacts:artifact_content",
+        "app.routes.artifacts:open_artifact",
+        "app.routes.artifacts:publish_artifact",
+        "app.routes.artifacts:redeem_artifact",
+        "app.routes.artifacts:revoke_artifact"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/bg": {
+      "paths": [
+        "/api/bg/jobs",
+        "/api/bg/jobs/{job_id}"
+      ],
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.bg:bg_job_cancel",
+        "app.routes.bg:bg_job_create",
+        "app.routes.bg:bg_job_list"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/blobs": {
+      "paths": [
+        "/api/blobs/{session_id}/{sha}"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.sessions:get_blob"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/fan": {
+      "paths": [
+        "/api/fan/open"
+      ],
+      "methods": [
+        "POST"
+      ],
+      "owners": [
+        "app.routes.sessions:open_fan"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/files": {
+      "paths": [
+        "/api/files",
+        "/api/files/content",
+        "/api/files/raw"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.system:get_file_content",
+        "app.routes.system:get_file_raw",
+        "app.routes.system:list_files"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/initial-deliveries": {
+      "paths": [
+        "/api/initial-deliveries/{delivery_id}"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.sessions:get_initial_delivery"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/logs": {
+      "paths": [
+        "/api/logs/sync",
+        "/api/logs/{log_id}"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.sessions:get_single_log",
+        "app.routes.sessions:logs_sync"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/memory": {
+      "paths": [
+        "/api/memory/reindex",
+        "/api/memory/search"
+      ],
+      "methods": [
+        "POST"
+      ],
+      "owners": [
+        "app.routes.memory:memory_reindex",
+        "app.routes.memory:memory_search"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/merge-operations": {
+      "paths": [
+        "/api/merge-operations",
+        "/api/merge-operations/capabilities",
+        "/api/merge-operations/{operation_id}",
+        "/api/merge-operations/{operation_id}/resolve"
+      ],
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.merge_operations:create_merge_operation",
+        "app.routes.merge_operations:get_merge_operation",
+        "app.routes.merge_operations:merge_operation_capabilities",
+        "app.routes.merge_operations:resolve_merge_operation"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/models": {
+      "paths": [
+        "/api/models",
+        "/api/models/catalog",
+        "/api/models/catalog/flags",
+        "/api/models/catalog/refresh",
+        "/api/models/refresh"
+      ],
+      "methods": [
+        "GET",
+        "PATCH",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:get_models_catalog",
+        "app.routes.system:list_models",
+        "app.routes.system:patch_model_flags",
+        "app.routes.system:refresh_models_catalog",
+        "app.routes.system:refresh_models_endpoint"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/open-folder": {
+      "paths": [
+        "/api/open-folder"
+      ],
+      "methods": [
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:open_folder"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/orchestrators": {
+      "paths": [
+        "/api/orchestrators",
+        "/api/orchestrators/{name}",
+        "/api/orchestrators/{name}/change-scope"
+      ],
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:change_orchestrator_scope_endpoint",
+        "app.routes.system:delete_orchestrator",
+        "app.routes.system:list_orchestrators"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/pipelines": {
+      "paths": [
+        "/api/pipelines"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.system:get_pipelines"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/profiles": {
+      "paths": [
+        "/api/profiles",
+        "/api/profiles/{name}"
+      ],
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:create_profile",
+        "app.routes.system:get_profiles",
+        "app.routes.system:remove_profile"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/projects": {
+      "paths": [
+        "/api/projects"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.system:list_projects"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/proxy": {
+      "paths": [
+        "/api/proxy/check/{proxy_id}",
+        "/api/proxy/list",
+        "/api/proxy/set-env"
+      ],
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.proxy:proxy_check",
+        "app.routes.proxy:proxy_list",
+        "app.routes.proxy:proxy_set_env"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/report_bug": {
+      "paths": [
+        "/api/report_bug"
+      ],
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:read_bug_reports",
+        "app.routes.system:report_bug_endpoint"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/restart": {
+      "paths": [
+        "/api/restart"
+      ],
+      "methods": [
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:restart_server"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/role-icons": {
+      "paths": [
+        "/api/role-icons"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.system:role_icons"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/sessions": {
+      "paths": [
+        "/api/sessions",
+        "/api/sessions/check-conflict",
+        "/api/sessions/{name}",
+        "/api/sessions/{name}/change-model",
+        "/api/sessions/{name}/clear-session",
+        "/api/sessions/{name}/compact",
+        "/api/sessions/{name}/context",
+        "/api/sessions/{name}/description",
+        "/api/sessions/{name}/hibernate",
+        "/api/sessions/{name}/initial-deliveries",
+        "/api/sessions/{name}/interrupt",
+        "/api/sessions/{name}/logs",
+        "/api/sessions/{name}/merge",
+        "/api/sessions/{name}/progress",
+        "/api/sessions/{name}/prompt",
+        "/api/sessions/{name}/prompt-blocks",
+        "/api/sessions/{name}/rename",
+        "/api/sessions/{name}/restart-cli",
+        "/api/sessions/{name}/rollback-session",
+        "/api/sessions/{name}/send",
+        "/api/sessions/{name}/session-history",
+        "/api/sessions/{name}/stop",
+        "/api/sessions/{name}/stream",
+        "/api/sessions/{name}/switch-branch",
+        "/api/sessions/{name}/tg-topic",
+        "/api/sessions/{name}/tg_topic",
+        "/api/sessions/{name}/wip",
+        "/api/sessions/{session_id}/handoffs/{handoff_id}/events"
+      ],
+      "methods": [
+        "DELETE",
+        "GET",
+        "PATCH",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.sessions:accept_initial_delivery",
+        "app.routes.sessions:change_model",
+        "app.routes.sessions:check_conflict_endpoint",
+        "app.routes.sessions:clear_session",
+        "app.routes.sessions:compact_session",
+        "app.routes.sessions:create_session",
+        "app.routes.sessions:delete_session",
+        "app.routes.sessions:get_prompt_blocks",
+        "app.routes.sessions:get_session",
+        "app.routes.sessions:get_session_context",
+        "app.routes.sessions:get_session_logs",
+        "app.routes.sessions:get_session_prompt",
+        "app.routes.sessions:interrupt_session",
+        "app.routes.sessions:list_sessions",
+        "app.routes.sessions:merge_session",
+        "app.routes.sessions:rename_session",
+        "app.routes.sessions:restart_cli",
+        "app.routes.sessions:rollback_session",
+        "app.routes.sessions:runtime_handoff_events",
+        "app.routes.sessions:send_message",
+        "app.routes.sessions:session_history",
+        "app.routes.sessions:session_wip",
+        "app.routes.sessions:stop_session",
+        "app.routes.sessions:stream_session_logs",
+        "app.routes.sessions:switch_branch",
+        "app.routes.sessions:toggle_tg_topic",
+        "app.routes.sessions:update_description",
+        "app.routes.sessions:update_progress",
+        "app.routes.sessions:update_prompt",
+        "app.routes.sessions:update_tg_topic",
+        "app.routes.system:hibernate_session_endpoint"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/stats": {
+      "paths": [
+        "/api/stats"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.system:stats"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/subagent-transcript": {
+      "paths": [
+        "/api/subagent-transcript/{session_id}/{agent_id}"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.subagent:subagent_transcript"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/subagent-transcripts": {
+      "paths": [
+        "/api/subagent-transcripts/{session_id}"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.subagent:subagent_transcript_ids"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/subagents": {
+      "paths": [
+        "/api/subagents/{session_id}"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.subagent:subagents_list"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/test-lock": {
+      "paths": [
+        "/api/test-lock",
+        "/api/test-lock/acquire",
+        "/api/test-lock/release"
+      ],
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:acquire_lock_endpoint",
+        "app.routes.system:release_lock_endpoint",
+        "app.routes.system:test_lock_status_endpoint"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/tg": {
+      "paths": [
+        "/api/tg/delivery-stats",
+        "/api/tg/send_file"
+      ],
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.tg:tg_delivery_stats",
+        "app.routes.tg:tg_send_file"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/tm": {
+      "paths": [
+        "/api/tm/payments",
+        "/api/tm/payments/history",
+        "/api/tm/payments/status",
+        "/api/tm/sync/log",
+        "/api/tm/sync/retry/{sync_id}",
+        "/api/tm/tasks",
+        "/api/tm/tasks/{par}"
+      ],
+      "methods": [
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "owners": [
+        "app.routes.tm:tm_create_task",
+        "app.routes.tm:tm_get_task",
+        "app.routes.tm:tm_list_tasks",
+        "app.routes.tm:tm_payment_history",
+        "app.routes.tm:tm_payment_status",
+        "app.routes.tm:tm_receive_payment",
+        "app.routes.tm:tm_sync_log",
+        "app.routes.tm:tm_sync_retry",
+        "app.routes.tm:tm_update_task"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/transcribe": {
+      "paths": [
+        "/api/transcribe"
+      ],
+      "methods": [
+        "POST"
+      ],
+      "owners": [
+        "app.routes.tg:transcribe_upload"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/tunnel": {
+      "paths": [
+        "/api/tunnel/status"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.proxy:api_tunnel_status"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/upload": {
+      "paths": [
+        "/api/upload"
+      ],
+      "methods": [
+        "POST"
+      ],
+      "owners": [
+        "app.routes.tg:upload_file"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/usage": {
+      "paths": [
+        "/api/usage",
+        "/api/usage/analytics",
+        "/api/usage/card",
+        "/api/usage/history",
+        "/api/usage/quota-map",
+        "/api/usage/readiness",
+        "/api/usage/wake-after-reset"
+      ],
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:get_usage",
+        "app.routes.system:get_usage_card",
+        "app.routes.system:quota_map",
+        "app.routes.system:usage_analytics_endpoint",
+        "app.routes.system:usage_history",
+        "app.routes.system:usage_readiness",
+        "app.routes.system:wake_after_reset_endpoint"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "/api/webhook": {
+      "paths": [
+        "/api/webhook/github"
+      ],
+      "methods": [
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:github_webhook"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "docs": {
+      "paths": [
+        "/docs",
+        "/docs/oauth2-redirect"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "fastapi.applications:swagger_ui_html",
+        "fastapi.applications:swagger_ui_redirect"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "login": {
+      "paths": [
+        "/login"
+      ],
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:login_page",
+        "app.routes.system:login_submit"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "logout": {
+      "paths": [
+        "/logout"
+      ],
+      "methods": [
+        "POST"
+      ],
+      "owners": [
+        "app.routes.system:logout"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "openapi.json": {
+      "paths": [
+        "/openapi.json"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "fastapi.applications:openapi"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "redoc": {
+      "paths": [
+        "/redoc"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "fastapi.applications:redoc_html"
+      ],
+      "usage": "UNMEASURED"
+    },
+    "uploads": {
+      "paths": [
+        "/uploads/{filename:path}"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "owners": [
+        "app.routes.tg:serve_upload"
+      ],
+      "usage": "UNMEASURED"
+    }
+  },
+  "dashboard_controls": [
+    {
+      "control": "new-orch-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "hidden-tabs-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "models-catalog-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "proxy-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "proxy-check-all",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "proxy-restart-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "profiles-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "profile-new-name",
+      "tag": "input",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "profile-new-dir",
+      "tag": "input",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "profile-add-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "analytics-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "compact-toggle-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "restart-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "client-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "logout-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "modal-close",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "orch-name",
+      "tag": "input",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "orch-cwd",
+      "tag": "input",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "browse-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "create-orch-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "delete-orch-modal-close",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "delete-tg-topics",
+      "tag": "input",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "delete-orch-cancel",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "delete-orch-confirm",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "change-scope-close",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "change-scope-path",
+      "tag": "input",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "change-scope-browse",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "change-scope-cancel",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "change-scope-confirm",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "prompt-modal-close",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "catalog-search",
+      "tag": "input",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "catalog-free",
+      "tag": "input",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "catalog-tools",
+      "tag": "input",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "catalog-image",
+      "tag": "input",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "catalog-refresh-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "analytics-close",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "client-modal-close",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "open-folder-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "chat-user-prev",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "chat-user-next",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "chat-jump-latest",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "stop-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "send-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "compact-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "restart-cli-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "clear-session-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "view-prompt-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "subagents-btn",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "file-preview-download",
+      "tag": "a",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "file-preview-open",
+      "tag": "a",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "file-preview-close",
+      "tag": "button",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "no UI event telemetry in SQLite"
+    },
+    {
+      "control": "endpoint:/api/bg/jobs",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/bg/jobs/${id}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/files",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/files/content",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/files/raw",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/logs/${payload.id}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/logs/${row.id}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/logs/sync",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/models",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/models/catalog",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/models/catalog/flags",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/models/catalog/refresh",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/models/refresh",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/open-folder",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/orchestrators",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/orchestrators/${name}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/orchestrators/${name}/change-scope",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/orchestrators/${selectedAgent}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/pipelines",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/profiles",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/profiles/${encodeURIComponent(b.dataset.name)}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/projects",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/proxy/check/${b.dataset.id}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/proxy/check/${id}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/proxy/list",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/proxy/set-env",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/restart",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/role-icons",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${agentName}/change-model",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${encodeURIComponent(name)}/logs",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${encodeURIComponent(selectedAgent)}/clear-session",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${encodeURIComponent(selectedAgent)}/compact",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${encodeURIComponent(selectedAgent)}/restart-cli",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${name}/context",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${s.name}/tg-topic",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${selectedAgent}/interrupt",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${selectedAgent}/logs",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${selectedAgent}/prompt-blocks",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${selectedAgent}/send",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/sessions/${selectedAgent}/stream",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/stats",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/subagent-transcript/${encodeURIComponent(sid)}/${encodeURIComponent(agentId)}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/subagents/${encodeURIComponent(sid)}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/tm/payments/status",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/tm/tasks",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/tm/tasks/${par}${scope}",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/transcribe",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/upload",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/usage",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/usage/analytics",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/usage/history",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/usage/quota-map",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    },
+    {
+      "control": "endpoint:/api/usage/wake-after-reset",
+      "tag": "fetch/reference",
+      "inline_handler": "",
+      "clicks": "UNMEASURED",
+      "observation_gap": "JS reference; no click/event telemetry"
+    }
+  ],
+  "subsystems": [
+    {
+      "feature": "sessions/lifecycle",
+      "owners": [
+        "app/session.py",
+        "app/manager.py",
+        "app/routes/sessions.py"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "merge-operation-v1",
+      "owners": [
+        "app/merge_operations.py",
+        "app/routes/merge_operations.py"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "initial-delivery-recovery",
+      "owners": [
+        "app/initial_deliveries.py",
+        "app/mcp_stdio.py"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "runtime-handoff",
+      "owners": [
+        "app/runtime_history.py",
+        "app/routes/sessions.py"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "quota-admission",
+      "owners": [
+        "app/quota_gate.py",
+        "app/routes/system.py"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "background-jobs",
+      "owners": [
+        "app/bg_jobs.py",
+        "app/routes/bg.py"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "memory-search/RAG",
+      "owners": [
+        "app/rag_service.py",
+        "app/routes/memory.py",
+        "app/mcp_stdio.py"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "artifact-publish/revoke",
+      "owners": [
+        "app/artifacts.py",
+        "app/routes/artifacts.py"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "proxy/tunnel controls",
+      "owners": [
+        "app/proxy_manager.py",
+        "app/ssh_tunnel.py",
+        "app/routes/proxy.py"
+      ],
+      "critical": false
+    },
+    {
+      "feature": "task-manager",
+      "owners": [
+        "app/tm.py",
+        "app/routes/tm.py"
+      ],
+      "critical": false
+    },
+    {
+      "feature": "YouGile integration",
+      "owners": [
+        "app/tm_yougile.py",
+        "app/tm_import_yougile.py"
+      ],
+      "critical": false
+    },
+    {
+      "feature": "payments",
+      "owners": [
+        "app/tm.py",
+        "app/routes/tm.py"
+      ],
+      "critical": false
+    },
+    {
+      "feature": "usage analytics",
+      "owners": [
+        "app/usage_analytics.py",
+        "app/routes/system.py",
+        "app/static/js/analytics.js"
+      ],
+      "critical": false
+    },
+    {
+      "feature": "Telegram/transcription",
+      "owners": [
+        "app/tg_bridge.py",
+        "app/routes/tg.py",
+        "app/transcription.py"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "progress",
+      "owners": [
+        "app/mcp_stdio.py",
+        "app/routes/sessions.py",
+        "app/session.py",
+        "app/db.py",
+        "app/static/js/app.js",
+        "pipelines/default/prompts/roles/worker.md"
+      ],
+      "critical": false
+    },
+    {
+      "feature": "model catalog",
+      "owners": [
+        "app/model_catalog.py",
+        "app/routes/system.py",
+        "app/static/js/app.js"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "test lock",
+      "owners": [
+        "app/mcp_stdio.py",
+        "app/routes/system.py",
+        "app/db.py"
+      ],
+      "critical": true
+    },
+    {
+      "feature": "fan barrier",
+      "owners": [
+        "app/fan_barrier.py",
+        "app/mcp_stdio.py",
+        "app/routes/sessions.py"
+      ],
+      "critical": true
+    }
+  ],
+  "telemetry_gaps": [
+    "HTTP route request count is not persisted by path/method in SQLite logs.",
+    "Dashboard click/event count is not persisted; UI references are static only.",
+    "Pre-2026-08-13 tool rows have NULL/wrapper names and cannot be safely normalized into MCP semantics.",
+    "Tool result pairing is lower-bound coverage: only equal-session tool_use_id pairs are joinable."
+  ]
+}
