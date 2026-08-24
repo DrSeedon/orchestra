@@ -61,7 +61,7 @@ sudo systemctl status orchestra
 - **Единственный владелец маршрута и SSH-туннелей — `ai-proxy-manager.service`.** Ранбук: `~/.claude/docs/ai-proxy-manager.md`; UI: `http://127.0.0.1:18109`; стабильный gateway: `http://127.0.0.1:12339`
 - Orchestra — только клиент: `.env` содержит одинаковые `HTTPS_PROXY`/`HTTP_PROXY` на `:12339`, `SSH_TUNNELS=` пуст. Orchestra не запускает proxy SSH-процессы и не требует рестарта при ручной смене маршрута
 - Default route — Contabo. Автоматический failover и балансировка по IP запрещены; switch вручную проверяет ChatGPT backend и рвёт активные соединения
-- `PROXY_LIST`, `scripts/check-proxies.sh`, `proxy_manager.py` и старая панель Orchestra больше не являются источниками истины и не должны менять маршрут
+- Старый Orchestra-owned proxy-switch контур удалён; маршрут меняет только `ai-proxy-manager.service`
 - Положительный health-check = JSON от ChatGPT backend. `403 text/html` от Cloudflare означает только доступность CDN и не считается рабочим AI-маршрутом
 - **TG bot** (telegram-bot-api) — через proxychains, C++ бинарник не читает `.env`. ОБА файла (`/etc/proxychains4.conf` и `~/.proxychains/proxychains.conf`) указывают `http 127.0.0.1 12339`; systemd `ExecStartPre` требует JSON-ответ Telegram backend через новый gateway
 
