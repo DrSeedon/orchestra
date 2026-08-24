@@ -1,0 +1,20 @@
+#332 script entrypoint cross-check
+
+`scripts/99-orchestra-proxy` (26 lines) and `scripts/check-proxies.sh` (128 lines) refer to
+each other and to historical manual-install instructions, but no current production caller:
+- `/etc/NetworkManager/dispatcher.d/99-orchestra-proxy`: ABSENT.
+- Current user service is `ai-proxy-manager.service`, whose ExecStart is the external
+  `/mnt/data/Projects/Python/ai-proxy-manager/.venv/bin/python -m ai_proxy_manager.app ...`.
+- No `deploy/`, `app/`, `pipelines/`, `.github/`, or `tests/` production/systemd reference
+  invokes `check-proxies.sh`; current code states the external proxy manager owns routing.
+- `check-proxies.sh` still hard-codes `/mnt/data/Projects/Python/orchestra/.env`, mutates
+  HTTP(S)_PROXY and `/etc/proxychains4.conf`, and suggests restarting Orchestra; it was not
+  executed because that would be a service/env mutation.
+
+Other scripts were not classified by filename/zero telemetry. Positive static entry evidence:
+- `build-tailwind.sh` is named by `dashboard.html` comments and `tests/test_tailwind_css.py`.
+- `check_pipeline_manifest.py` is invoked directly in this audit and is the manifest checker.
+- `blob-inventory.py`, `migrate_agent.py`, `cli-inventory.py`, `rehearse-seamless-restart.py`,
+  `grill-spec.sh`, and process-guard/calibration scripts are manual/operational entrypoints;
+  zero repo call sites do not make them unreachable.
+- `replay_quota_controller.py` is excluded by the task's model-routing #298 exclusion.

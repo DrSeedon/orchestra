@@ -1,0 +1,16 @@
+#332 main archive AST summary
+
+Source: `git archive main` at `1c5bf6db975322025fdc9413ae94fdee7abbcd54`, parsed in a
+TemporaryDirectory with Python stdlib `ast`; no imports, subprocesses, DB, or service.
+
+files=92
+defs=2121
+calls=18716
+imports=1098
+selected_dynamic_calls=231 (Name calls to getattr/__import__)
+syntax_errors=[]
+
+The worktree used for the detailed JSON generator is HEAD `567d512e`; `git diff HEAD..main`
+has only #331's `scripts/orchestra_process_guard.py`. That file was separately parsed from
+main and has 29 definitions; the new identity/pidfd symbols are referenced at
+`scripts/orchestra_process_guard.py:117-129,531-546` and by `tests/test_process_guard.py`.
