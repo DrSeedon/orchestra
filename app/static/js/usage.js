@@ -345,7 +345,7 @@ function renderUsageBar() {
                 hideTip();
             }, 200);
         };
-        infoBtn.addEventListener('mouseenter', () => {
+        const showTip = () => {
             clearTimeout(hideTimer);
             infoBtn.style.color = '#94a3b8';
             showTimer = setTimeout(async () => {
@@ -369,6 +369,7 @@ function renderUsageBar() {
                     if (eta) html += _row('Лимит через', eta, null);
                     return html + '</div>';
                 };
+                let h = '';
                 const claudeMeta = _PROVIDER_META.claude;
                 let claudeHtml = '<section data-usage-provider="claude" style="min-width:0;padding-right:2px">';
                 claudeHtml += `<div style="color:${_usageProviderAccent('claude')};font-weight:700;margin-bottom:7px">${claudeMeta.usageTitle}</div>`;
@@ -460,6 +461,12 @@ function renderUsageBar() {
                 document.body.appendChild(tip);
                 _loadSparkline(tip);
             }, 200);
+        };
+        infoBtn.addEventListener('mouseenter', showTip);
+        infoBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!tip) showTip();
         });
         infoBtn.addEventListener('mouseleave', () => { infoBtn.style.color = '#475569'; delayedHide(); });
     }
@@ -817,13 +824,26 @@ async function fetchUsage() {
     _usageLastFetchStartedAt = Date.now();
     _usageFetchPromise = (async () => {
         try {
-            const [usage, quotaMap] = await Promise.allSettled([
+            const [usage] = await Promise.allSettled([
                 api('/api/usage'),
-                api('/api/usage/quota-map'),
             ]);
-            _usageData = usage.status === 'fulfilled' ? usage.value : null;
+            // `/api/usage` — единственный владелец provider refresh. Карта читает уже
+            // обновлённый кеш, иначе два параллельных GET снова увидят старую точку.
+            const [quotaMap] = await Promise.allSettled([
+                typeof _fetchQuotaMapShared === 'function'
+                    ? _fetchQuotaMapShared()
+                    : api('/api/usage/quota-map'),
+            ]);
             _quotaMapData = quotaMap.status === 'fulfilled' ? quotaMap.value : null;
-            _usageError = usage.status !== 'fulfilled';
+            if (usage.status === 'fulfilled') {
+                _usageData = usage.value;
+                _usageError = false;
+                _usageLastSuccessAt = Date.now();
+                snapshotSave('usage', _usageData);
+            } else {
+                _usageError = true;
+                if (!_usageData) _restoreUsageSnapshot();
+            }
             if (!_usageError && quotaMap.status !== 'fulfilled') {
                 console.error(`quota-map fetch failed: ${quotaMap.reason && quotaMap.reason.message || 'unknown'}`);
             }
@@ -834,8 +854,6 @@ async function fetchUsage() {
                     : String(reason);
                 console.error(`Usage fetch failed: ${detail}`);
             }
-            _usageLastSuccessAt = Date.now();
-            snapshotSave('usage', _usageData);
         } catch (error) {
             _usageError = true;
             const detail = error instanceof Error
@@ -864,7 +882,8 @@ function initUsageBar() {
     fetchUsage();
     const bar = document.getElementById('usage-bar');
     if (bar) {
-        bar.addEventListener('click', () => {
+        bar.addEventListener('click', (event) => {
+            if (event.target.closest('#usage-info-btn')) return;
             if (_usageFetchPromise) return;
             if (Date.now() - _usageLastFetchStartedAt < _USAGE_CLICK_DEBOUNCE_MS) return;
             fetchUsage();

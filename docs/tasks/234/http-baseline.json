@@ -1,0 +1,359 @@
+{
+  "schema": 1,
+  "started_at": "2026-08-23T11:00:26.849867+00:00",
+  "order": [
+    "local",
+    "tunnel",
+    "local",
+    "tunnel",
+    "public",
+    "tunnel",
+    "public",
+    "tunnel",
+    "local",
+    "public",
+    "local",
+    "public"
+  ],
+  "login": {
+    "local": {
+      "status": null,
+      "cookie": false
+    },
+    "tunnel": {
+      "status": 302,
+      "cookie": true
+    },
+    "public": {
+      "status": 302,
+      "cookie": true
+    }
+  },
+  "runs": [
+    {
+      "seq": 1,
+      "origin": "local",
+      "marker": "q234-http-local-1-d44b1b04",
+      "utc": "2026-08-23T11:00:32.576738+00:00",
+      "loadavg": [
+        6.911,
+        6.138,
+        4.432
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 34.192,
+        "bytes": 33015,
+        "backend_byte": true,
+        "server": "uvicorn",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 4.755,
+        "backend_byte": true,
+        "build": "768d248d9c986d75"
+      }
+    },
+    {
+      "seq": 2,
+      "origin": "tunnel",
+      "marker": "q234-http-tunnel-2-2fcc88cc",
+      "utc": "2026-08-23T11:00:33.691963+00:00",
+      "loadavg": [
+        6.911,
+        6.138,
+        4.432
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 788.59,
+        "bytes": 33925,
+        "backend_byte": true,
+        "server": "uvicorn",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 177.583,
+        "backend_byte": true,
+        "build": "e918ae6faf5d31c1"
+      }
+    },
+    {
+      "seq": 3,
+      "origin": "local",
+      "marker": "q234-http-local-3-175ab6ee",
+      "utc": "2026-08-23T11:00:33.744470+00:00",
+      "loadavg": [
+        6.911,
+        6.138,
+        4.432
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 32.228,
+        "bytes": 33010,
+        "backend_byte": true,
+        "server": "uvicorn",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 1.506,
+        "backend_byte": true,
+        "build": "768d248d9c986d75"
+      }
+    },
+    {
+      "seq": 4,
+      "origin": "tunnel",
+      "marker": "q234-http-tunnel-4-1a8b7ac5",
+      "utc": "2026-08-23T11:00:34.352351+00:00",
+      "loadavg": [
+        6.911,
+        6.138,
+        4.432
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 497.271,
+        "bytes": 33904,
+        "backend_byte": true,
+        "server": "uvicorn",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 110.898,
+        "backend_byte": true,
+        "build": "e918ae6faf5d31c1"
+      }
+    },
+    {
+      "seq": 5,
+      "origin": "public",
+      "marker": "q234-http-public-5-9d77db09",
+      "utc": "2026-08-23T11:00:41.913382+00:00",
+      "loadavg": [
+        6.518,
+        6.069,
+        4.418
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 2150.635,
+        "bytes": 33916,
+        "backend_byte": true,
+        "server": "nginx/1.24.0 (Ubuntu)",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 1514.201,
+        "backend_byte": true,
+        "build": "e918ae6faf5d31c1"
+      }
+    },
+    {
+      "seq": 6,
+      "origin": "tunnel",
+      "marker": "q234-http-tunnel-6-3e5e2261",
+      "utc": "2026-08-23T11:00:42.611424+00:00",
+      "loadavg": [
+        5.996,
+        5.968,
+        4.395
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 398.215,
+        "bytes": 33899,
+        "backend_byte": true,
+        "server": "uvicorn",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 137.467,
+        "backend_byte": true,
+        "build": "e918ae6faf5d31c1"
+      }
+    },
+    {
+      "seq": 7,
+      "origin": "public",
+      "marker": "q234-http-public-7-fc4a7bc4",
+      "utc": "2026-08-23T11:00:50.317907+00:00",
+      "loadavg": [
+        5.996,
+        5.968,
+        4.395
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 6465.443,
+        "bytes": 33922,
+        "backend_byte": true,
+        "server": "nginx/1.24.0 (Ubuntu)",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 1241.152,
+        "backend_byte": true,
+        "build": "e918ae6faf5d31c1"
+      }
+    },
+    {
+      "seq": 8,
+      "origin": "tunnel",
+      "marker": "q234-http-tunnel-8-16c9b2ca",
+      "utc": "2026-08-23T11:00:50.942339+00:00",
+      "loadavg": [
+        6.083,
+        5.986,
+        4.417
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 474.852,
+        "bytes": 33901,
+        "backend_byte": true,
+        "server": "uvicorn",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 150.608,
+        "backend_byte": true,
+        "build": "e918ae6faf5d31c1"
+      }
+    },
+    {
+      "seq": 9,
+      "origin": "local",
+      "marker": "q234-http-local-9-9a6082d2",
+      "utc": "2026-08-23T11:00:50.995626+00:00",
+      "loadavg": [
+        6.083,
+        5.986,
+        4.417
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 38.251,
+        "bytes": 33004,
+        "backend_byte": true,
+        "server": "uvicorn",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 1.973,
+        "backend_byte": true,
+        "build": "768d248d9c986d75"
+      }
+    },
+    {
+      "seq": 10,
+      "origin": "public",
+      "marker": "q234-http-public-10-082ea5fc",
+      "utc": "2026-08-23T11:00:56.166086+00:00",
+      "loadavg": [
+        6.083,
+        5.986,
+        4.417
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 1243.106,
+        "bytes": 33922,
+        "backend_byte": true,
+        "server": "nginx/1.24.0 (Ubuntu)",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 1093.35,
+        "backend_byte": true,
+        "build": "e918ae6faf5d31c1"
+      }
+    },
+    {
+      "seq": 11,
+      "origin": "local",
+      "marker": "q234-http-local-11-5787a598",
+      "utc": "2026-08-23T11:00:59.981978+00:00",
+      "loadavg": [
+        5.996,
+        5.97,
+        4.421
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 3814.732,
+        "bytes": 33008,
+        "backend_byte": true,
+        "server": "uvicorn",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 6.102,
+        "backend_byte": true,
+        "build": "768d248d9c986d75"
+      }
+    },
+    {
+      "seq": 12,
+      "origin": "public",
+      "marker": "q234-http-public-12-e254267a",
+      "utc": "2026-08-23T11:01:04.792943+00:00",
+      "loadavg": [
+        5.996,
+        5.971,
+        4.43
+      ],
+      "quota": {
+        "status": 200,
+        "http_version": "HTTP/1.1",
+        "elapsed_ms": 4188.39,
+        "bytes": 33929,
+        "backend_byte": true,
+        "server": "nginx/1.24.0 (Ubuntu)",
+        "content_encoding": "gzip",
+        "cache_control": ""
+      },
+      "head_control": {
+        "status": 200,
+        "elapsed_ms": 473.821,
+        "backend_byte": true,
+        "build": "e918ae6faf5d31c1"
+      }
+    }
+  ],
+  "finished_at": "2026-08-23T11:01:04.793423+00:00"
+}

@@ -1,0 +1,82 @@
+{
+  "run_id": "r1-open_audit-nvidia__nemotron-3-ultra-550b-a55b_free",
+  "repetition": 1,
+  "task": "open_audit",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "elapsed_seconds": 41.679,
+  "loadavg": [
+    1.0703125,
+    0.96875,
+    0.74755859375
+  ],
+  "ok": true,
+  "stop_reason": "end_turn",
+  "error": "",
+  "http_attempts": 3,
+  "successful_rounds": 3,
+  "tool_calls": 2,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "grade": {
+    "score": 9,
+    "tp": 5,
+    "fp": 1,
+    "missed": [],
+    "reported": [
+      "incomplete_price_check",
+      "late_count",
+      "local_timezone",
+      "lock_contention",
+      "paid_fallback",
+      "unhealthy_remaining"
+    ]
+  },
+  "events": [
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"budget.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tfrom datetime import datetime\n2\t\n3\tLIMIT = 1000\n4\tattempts = []\n5\thealthy = True\n6\t\n7\tdef request(client, model, body):\n8\t    try:\n9\t        response = client.post(model=model, body=body)\n10\t        attempts.append((datetime.now().date().isoformat(), response.status_code))\n11\t        return response\n12\t    except OSError:\n13\t        return None\n14\t\n15\tdef free_metadata(pricing):\n16\t    return float(pricing.get(\"prompt\", 0)) == 0 and float(pricing.get(\"completion\", 0)) == 0\n17\t\n18\tdef fallback(model):\n19\t    return model.removesuffix(\":free\")\n20\t\n21\tdef remaining():\n22\t    return max(LIMIT - len(attempts), 0)",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "write: {\"content\": \"{\\\"categories\\\": [\\\"late_count\\\", \\\"local_timezone\\\", \\\"incomplete_price_check\\\", \\\"paid_fallback\\\", \\\"unhealthy_remaining\\\", \\\"lock_contention\\\"]}\", \"path\": \"findings.json\"}",
+      "metadata": {
+        "tool_name": "write",
+        "short_name": "write"
+      }
+    },
+    {
+      "type": "file_change",
+      "content": "add findings.json",
+      "metadata": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "wrote findings.json (133 chars)",
+      "metadata": {}
+    },
+    {
+      "type": "text",
+      "content": "**Verdict:** The audit identifies 6 correctness and paid-request risk categories in `budget.py`:\n\n1. **late_count** — Attempts are recorded *after* the request (`attempts.append` on line 10), so any pre-request budget check would see a stale count.\n2. **local_timezone** — `datetime.now().date()` uses the local timezone (line 10), not UTC, causing date-boundary inconsistencies for daily limits.\n3. **incomplete_price_check** — `free_metadata` only checks `prompt` and `completion` keys; other billable fields (e.g., `image`, `audio`, `embedding`) are ignored.\n4. **paid_fallback** — `fallback(model)` strips `:free` suffix, implicitly routing to a paid model variant.\n5. **unhealthy_remaining** — The `healthy` flag (line 5) is never consulted in `remaining()`; an unhealthy system still reports full remaining budget.\n6. **lock_contention** — The global `attempts` list is mutated and read without any synchronization, risking races in concurrent use.\n\nCategories `integer_overflow` (Python has arbitrary-precision ints) and `duplicate_retry` (no retry logic present) are not applicable.",
+      "metadata": {}
+    }
+  ],
+  "artifacts": {
+    "findings.json": "{\"categories\": [\"late_count\", \"local_timezone\", \"incomplete_price_check\", \"paid_fallback\", \"unhealthy_remaining\", \"lock_contention\"]}"
+  }
+}

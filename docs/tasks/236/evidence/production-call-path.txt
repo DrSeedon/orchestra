@@ -1,0 +1,37 @@
+# Generated 2026-08-23 from current worktree; each command and raw stdout follows.
+$ rg -n def _make_backend|return build_backend app/session.py
+exit=0
+791:    def _make_backend(
+837:        return build_backend(runtime, context)
+$ rg -n def build_backend|def _harness_factory|HarnessBackend\( app/runtime_registry.py
+exit=0
+107:def build_backend(runtime_id: str, context: BackendBuildContext) -> BackendLike:
+324:def _harness_factory(context: BackendBuildContext) -> BackendLike:
+327:    return HarnessBackend(
+$ rg -n OpenRouterClient|AgentLoop\( app/backend_harness.py
+exit=0
+26:from app.harness.llm import OpenRouterClient
+88:        self._llm: Optional[OpenRouterClient] = None
+175:        self._llm = OpenRouterClient(api_key=api_key, model=self.model, base_url=base_url)
+242:        loop = AgentLoop(
+329:                loop = AgentLoop(
+$ rg -n async def _one_round|self\.llm\.stream app/harness/loop.py
+exit=0
+201:    async def _one_round(self, assistant_msg: dict) -> AsyncIterator[AgentEvent]:
+214:            gen = self.llm.stream(self.history, self.tool_schemas, abort=self._abort)
+216:            gen = self.llm.stream(self.history, self.tool_schemas, abort=self._abort, effort=self.effort)
+$ rg -n async def stream|async def _one_attempt|http\.stream\("POST" app/harness/llm.py
+exit=0
+171:    async def stream(self, messages: list[dict], tools: list[dict],
+250:    async def _one_attempt(self, body: dict, headers: dict,
+258:        async with http.stream("POST", f"{self.base_url}/chat/completions",
+$ rg -n openrouter\.ai|chat/completions app
+exit=0
+app/model_catalog.py:3:Fetches https://openrouter.ai/api/v1/models, normalizes it to the fields the
+app/model_catalog.py:25:OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+app/harness/loop.py:99:        # /chat/completions calls). The backend accumulates each round independently so a
+app/harness/llm.py:28:DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+app/harness/llm.py:258:        async with http.stream("POST", f"{self.base_url}/chat/completions",
+app/openrouter_activity.py:19:_ACTIVITY_URL = "https://openrouter.ai/api/v1/activity"
+app/openrouter_counter.py:3:Единица счёта — одна HTTP-попытка POST /chat/completions, включая ретраи и
+app/backend_harness.py:172:        base_url = os.environ.get("OPENROUTER_BASE_URL") or os.environ.get("ANTHROPIC_BASE_URL", "https://openrouter.ai/api/v1")

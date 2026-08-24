@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Наглядное объяснение тотального дерева маршрутизации моделей Orchestra: правила, барьеры безопасности и rollout.">
+  <title>Маршрутизация моделей — объяснение для людей</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      /* акцент: бирюзовый — про управляемый шлюз, который пропускает только проверенные маршруты */
+      --accent: light-dark(#087f78, #65d8cc);
+      --fs: 15px;
+      --radius: 12px;
+      --font: ui-sans-serif, system-ui, sans-serif;
+      --font-head: ui-serif, Georgia, serif;
+      --bg: light-dark(#fbfcfa, #151918);
+      --ink: light-dark(#17201e, #eff5f1);
+      --mut: color-mix(in srgb, var(--ink) 56%, transparent);
+      --card: color-mix(in oklab, var(--ink) 5%, transparent);
+      --border: color-mix(in srgb, var(--ink) 14%, transparent);
+      --ring: var(--accent);
+      --bad: light-dark(#b62d22, #ff8275);
+      --fs-sm: max(11px, calc(var(--fs) - 2px));
+      --fs-h3: calc(var(--fs) * 1.29);
+      --fs-h2: calc(var(--fs) * 1.43);
+      --fs-h1: calc(var(--fs) * 1.72);
+      --r-sm: calc(var(--radius) * .6);
+      --r-lg: calc(var(--radius) * 1.6);
+      --shadow: 0 1px 2px -1px rgb(0 0 0 / 8%);
+      --s1: var(--accent);
+      --s2: light-dark(#b75f17, #f3a15a);
+      --s3: light-dark(#2f7d46, #74d58b);
+      --s4: light-dark(#b8457f, #f08fc0);
+      --s5: light-dark(#6654bd, #ad95f0);
+      --s6: light-dark(#1f7a72, #5acbc2);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      padding: clamp(16px, 4vw, 40px);
+      background: var(--bg);
+      color: var(--ink);
+      font: 430 var(--fs)/1.5 var(--font);
+      letter-spacing: 0;
+    }
+    h1, h2, h3 { margin: 0; font-family: var(--font-head); font-weight: 500; line-height: 1.25; }
+    h1 { font-size: var(--fs-h1); }
+    h2 { font-size: var(--fs-h2); }
+    h3 { font-size: var(--fs-h3); }
+    p { margin: 0; }
+    a { color: var(--accent); }
+    button, select { font: inherit; }
+    button { cursor: pointer; }
+    small, .sm { font-size: var(--fs-sm); }
+    .mut { color: var(--mut); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 24px 10px 0; border-bottom: 1px solid var(--border); text-align: start; vertical-align: top; overflow-wrap: anywhere; }
+    th { font-weight: 600; border-bottom-color: color-mix(in srgb, var(--ink) 22%, transparent); }
+    tbody tr:last-child :is(th, td) { border-bottom: 0; }
+    .num { text-align: end; font-variant-numeric: tabular-nums; }
+    .scroll { overflow-x: auto; scrollbar-width: thin; }
+    .card { padding: 12px; border-radius: var(--r-lg); background: var(--card); box-shadow: var(--shadow); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr)); gap: 12px; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 9999px; font-size: var(--fs-sm); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+    code { padding: 1px 6px; border-radius: var(--r-sm); font-size: .92em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: color-mix(in srgb, var(--ink) 10%, transparent); box-decoration-break: clone; -webkit-box-decoration-break: clone; overflow-wrap: anywhere; }
+    :is(a, button, summary, input, select, [tabindex]):focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    :is([aria-pressed="true"], [aria-selected="true"]) { background: var(--accent); color: var(--bg); }
+    svg { display: block; max-width: 100%; height: auto; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+    .shell { max-width: 1180px; margin: 0 auto; }
+    .eyebrow { margin-bottom: 8px; color: var(--accent); font: 600 var(--fs-sm)/1.2 var(--font); letter-spacing: .08em; text-transform: uppercase; }
+    .masthead { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, .75fr); gap: 24px; align-items: end; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .masthead p { max-width: 760px; margin-top: 12px; font-size: calc(var(--fs) * 1.08); }
+    .status { display: grid; gap: 8px; padding: 16px; border-left: 4px solid var(--s2); background: color-mix(in srgb, var(--s2) 10%, transparent); }
+    .status strong { font-family: var(--font-head); font-size: var(--fs-h3); }
+    .jump-nav { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 12px 0 0; font-size: var(--fs-sm); }
+    .jump-nav a { text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    section { padding: 32px 0; border-bottom: 1px solid var(--border); }
+    .section-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 16px; }
+    .section-head p { max-width: 760px; color: var(--mut); }
+    .kicker { color: var(--mut); font-size: var(--fs-sm); }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill { padding: 7px 10px; border: 1px solid var(--border); border-radius: 9999px; background: transparent; color: var(--ink); }
+    .pill[aria-pressed="true"] { border-color: var(--accent); }
+    .diagram-wrap { padding: 12px 0 0; overflow-x: auto; }
+    .diagram { min-width: 760px; width: 100%; color: var(--ink); }
+    .diagram .node { fill: var(--bg); stroke: var(--border); stroke-width: 1.5; }
+    .diagram .gate { fill: color-mix(in srgb, var(--accent) 14%, var(--bg)); stroke: var(--accent); stroke-width: 2; }
+    .diagram .refuse { fill: color-mix(in srgb, var(--bad) 12%, var(--bg)); stroke: var(--bad); stroke-width: 1.5; }
+    .diagram .route { fill: color-mix(in srgb, var(--s3) 12%, var(--bg)); stroke: var(--s3); stroke-width: 1.5; }
+    .diagram .sol { fill: color-mix(in srgb, var(--s5) 13%, var(--bg)); stroke: var(--s5); stroke-width: 1.5; }
+    .diagram .ox { fill: color-mix(in srgb, var(--s6) 13%, var(--bg)); stroke: var(--s6); stroke-width: 1.5; }
+    .diagram text { fill: currentColor; font-family: var(--font); font-size: 13px; }
+    .diagram .small-text { font-size: 11px; fill: var(--mut); }
+    .diagram .arrow { fill: none; stroke: var(--mut); stroke-width: 1.5; marker-end: url(#arrow); }
+    .diagram .arrow-main { fill: none; stroke: var(--accent); stroke-width: 2.5; marker-end: url(#arrow-accent); }
+    .caption { margin-top: 8px; color: var(--mut); font-size: var(--fs-sm); }
+    .case-layout { display: grid; grid-template-columns: minmax(220px, .65fr) minmax(0, 1.35fr); gap: 12px; }
+    .case-list { display: grid; align-content: start; gap: 8px; }
+    .case-button { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: transparent; color: var(--ink); text-align: start; }
+    .case-button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--ink); }
+    .case-output { min-height: 220px; }
+    .case-output h3 { margin-bottom: 6px; }
+    .case-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .case-meta .badge { border: 1px solid var(--border); background: transparent; }
+    .fallback { margin-top: 12px; padding: 8px 10px; border-left: 3px solid var(--s2); background: color-mix(in srgb, var(--s2) 9%, transparent); font-size: var(--fs-sm); }
+    .guard-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+    .guard-list li { padding-left: 20px; position: relative; }
+    .guard-list li::before { content: "✓"; position: absolute; left: 0; color: var(--s3); font-weight: 600; }
+    .route-tag { display: inline-block; padding: 5px 9px; border-radius: var(--r-sm); color: var(--bg); background: var(--accent); font: 600 var(--fs-sm)/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .model-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+    .table-note { margin-top: 10px; color: var(--mut); font-size: var(--fs-sm); }
+    .matrix tr[data-kind="refuse"] th:first-child { color: var(--bad); }
+    .matrix tr[data-kind="sol"] th:first-child { color: var(--s5); }
+    .matrix tr[data-kind="ox"] th:first-child { color: var(--s6); }
+    .matrix tr[data-kind="spark"] th:first-child { color: var(--s2); }
+    .barrier { min-height: 140px; }
+    .barrier .index { color: var(--accent); font: 600 var(--fs-sm)/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .barrier h3 { margin: 8px 0 6px; }
+    .barrier p { color: var(--mut); }
+    .timeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; counter-reset: phase; }
+    .phase { position: relative; min-height: 210px; padding: 16px 12px 12px 44px; border-top: 3px solid var(--accent); background: var(--card); }
+    .phase::before { counter-increment: phase; content: counter(phase); position: absolute; top: 14px; left: 12px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--bg); font: 600 var(--fs-sm)/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .phase h3 { margin-bottom: 7px; }
+    .phase p { color: var(--mut); }
+    .phase ul { margin: 10px 0 0; padding-left: 16px; }
+    .rollback { margin-top: 12px; border-left: 4px solid var(--bad); background: color-mix(in srgb, var(--bad) 8%, transparent); }
+    .rollback h3 { color: var(--bad); margin-bottom: 8px; }
+    .rollback ul { columns: 2; margin: 0; padding-left: 18px; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .fact strong { display: block; font-family: var(--font-head); font-size: calc(var(--fs) * 1.7); font-weight: 500; }
+    .fact span { display: block; color: var(--mut); font-size: var(--fs-sm); }
+    .review-note { border-left: 4px solid var(--s2); }
+    .review-note strong { color: var(--s2); }
+    details { border-top: 1px solid var(--border); padding: 10px 0; }
+    details:last-child { border-bottom: 1px solid var(--border); }
+    summary { cursor: pointer; font-weight: 600; }
+    .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+    .source-list { margin: 0; padding-left: 20px; }
+    footer { padding: 20px 0 4px; color: var(--mut); font-size: var(--fs-sm); }
+    @media (max-width: 760px) {
+      body { padding: 16px; }
+      .masthead, .case-layout, .two-col { grid-template-columns: 1fr; }
+      .masthead { gap: 16px; }
+      section { padding: 24px 0; }
+      .rollback ul { columns: 1; }
+      .diagram-wrap { margin-right: -16px; }
+      .diagram { min-width: 700px; }
+      th, td { padding-right: 14px; }
+    }
+    @media print {
+      :root { color-scheme: light; }
+      body { padding: 0; background: #fff; color: #000; }
+      .no-print { display: none; }
+      tr, li { break-inside: avoid; }
+      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .card, .phase { box-shadow: none; }
+      .diagram-wrap { overflow: visible; }
+      .diagram { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div>
+        <div class="eyebrow">Orchestra · задача #298 · объяснение маршрута</div>
+        <h1>Модель выбирается турникетом, а не догадкой</h1>
+        <p>Перед созданием помощника сервер один раз проверяет, что это за задача, не секретна ли она и есть ли готовая проверка результата. Затем проходит <strong>первая подходящая ветка</strong> — или система заметно отказывает.</p>
+      </div>
+      <aside class="status" aria-label="Статус материала">
+        <span class="badge">Phase 1 · план</span>
+        <strong>Не готово к запуску</strong>
+        <span class="sm">Это визуализация контракта и его барьеров, не доказательство готовности продакшена.</span>
+      </aside>
+    </header>
+    <nav class="jump-nav no-print" aria-label="Разделы документа">
+      <a href="#decision">Схема</a>
+      <a href="#try-it">Примеры</a>
+      <a href="#matrix">Листья</a>
+      <a href="#barriers">Барьеры</a>
+      <a href="#rollout">Выкатка</a>
+      <a href="#evidence">Границы доказательств</a>
+      <a href="#sources">Источники</a>
+    </nav>
+
+    <section id="decision">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">ELI5</div>
+          <h2>Как объяснить это ребёнку</h2>
+        </div>
+        <p>Представьте аэропорт: сначала проверяют билет, багаж и паспорт. Нельзя сказать «я очень тороплюсь» и пройти через другой выход. Для сложного маршрута нужно отдельное разрешение пользователя.</p>
+      </div>
+      <div class="diagram-wrap" role="img" aria-label="Схема: сведения о задаче идут в серверный турникет, затем в отказ или один из маршрутов Opus, Sol, Ox, Spark, Luna">
+        <svg class="diagram" viewBox="0 0 1040 560" xmlns="http://www.w3.org/2000/svg" aria-labelledby="diagram-title diagram-desc">
+          <title id="diagram-title">Тотальное дерево первого совпадения</title>
+          <desc id="diagram-desc">Серверный шлюз проверяет, не секретна ли задача, её сложность, готовый тест и подтверждённую цену. Неполные данные ведут в отказ. Полная задача попадает ровно в один лист.</desc>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/></marker>
+            <marker id="arrow-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/></marker>
+          </defs>
+          <rect class="node" x="16" y="225" width="190" height="110" rx="12"/>
+          <text x="34" y="253" font-weight="600">1. Задача на входе</text>
+          <text x="34" y="279" class="small-text">не секретно · что сделать</text>
+          <text x="34" y="298" class="small-text">сложность · готов тест</text>
+          <text x="34" y="317" class="small-text">файлы · цена = 0</text>
+          <path class="arrow-main" d="M206 280 H268"/>
+          <rect class="gate" x="270" y="193" width="210" height="174" rx="12"/>
+          <text x="294" y="225" font-weight="600">2. Серверный турникет</text>
+          <text x="294" y="252" class="small-text">приводит вход к одному виду</text>
+          <text x="294" y="271" class="small-text">проверяет разрешение</text>
+          <text x="294" y="290" class="small-text">сверяет возможности</text>
+          <text x="294" y="309" class="small-text">фиксирует версию правил</text>
+          <text x="294" y="340" font-weight="600">первая подходящая строка</text>
+          <path class="arrow" d="M480 232 H548 V45 H620"/>
+          <path class="arrow" d="M480 256 H548 V117 H620"/>
+          <path class="arrow" d="M480 280 H548 V189 H620"/>
+          <path class="arrow-main" d="M480 304 H548 V261 H620"/>
+          <path class="arrow" d="M480 328 H548 V333 H620"/>
+          <path class="arrow" d="M480 352 H548 V405 H620"/>
+          <path class="arrow" d="M480 364 H548 V477 H620"/>
+          <rect class="refuse" x="620" y="18" width="190" height="54" rx="10"/>
+          <text x="638" y="41" font-weight="600">ОТКАЗ: нет сведений</text>
+          <text x="638" y="58" class="small-text">отказ / решение</text>
+          <rect class="route" x="620" y="90" width="190" height="54" rx="10"/>
+          <text x="638" y="113" font-weight="600">Opus · особый маршрут</text>
+          <text x="638" y="130" class="small-text">секретное + особый случай</text>
+          <rect class="sol" x="620" y="162" width="190" height="54" rx="10"/>
+          <text x="638" y="185" font-weight="600">Sol · разрешение пользователя</text>
+          <text x="638" y="202" class="small-text">сложная / открытая задача</text>
+          <rect class="ox" x="620" y="234" width="190" height="54" rx="10"/>
+          <text x="638" y="257" font-weight="600">Ox · узкий маршрут</text>
+          <text x="638" y="274" class="small-text">готов тест · цена 0</text>
+          <rect class="route" x="620" y="306" width="190" height="54" rx="10"/>
+          <text x="638" y="329" font-weight="600">Spark · строгий маршрут</text>
+          <text x="638" y="346" class="small-text">до 2 файлов · один шанс</text>
+          <rect class="route" x="620" y="378" width="190" height="54" rx="10"/>
+          <text x="638" y="401" font-weight="600">Luna · запасной маршрут</text>
+          <text x="638" y="418" class="small-text">закрытая задача</text>
+          <rect class="refuse" x="620" y="450" width="190" height="54" rx="10"/>
+          <text x="638" y="473" font-weight="600">ОТКАЗ: нет пути</text>
+          <text x="638" y="490" class="small-text">отказ / решение</text>
+          <path class="arrow" d="M810 45 H930"/><path class="arrow" d="M810 117 H930"/><path class="arrow" d="M810 189 H930"/><path class="arrow" d="M810 261 H930"/><path class="arrow" d="M810 333 H930"/><path class="arrow" d="M810 405 H930"/><path class="arrow" d="M810 477 H930"/>
+          <text x="940" y="49" class="small-text">отказ / решение</text><text x="940" y="121" class="small-text">маршрут</text><text x="940" y="193" class="small-text">маршрут</text><text x="940" y="265" class="small-text">маршрут</text><text x="940" y="337" class="small-text">маршрут</text><text x="940" y="409" class="small-text">маршрут</text><text x="940" y="481" class="small-text">отказ / решение</text>
+        </svg>
+      </div>
+      <p class="caption">Ключ: подсказка может описать карту, но только серверный турникет может не пустить того, кто вызывает, с чужой моделью или секретом в Ox.</p>
+    </section>
+
+    <section id="try-it">
+      <div class="section-head">
+        <div><div class="eyebrow">Интерактивный пример</div><h2>Проверьте маршрут на шести историях</h2></div>
+        <p>Кнопки меняют только демонстрационный текст. Реальные provider/model/eval calls не выполняются.</p>
+      </div>
+      <div class="case-layout">
+        <div class="case-list" role="group" aria-label="Примеры задач">
+          <button class="case-button" type="button" data-case="closed" aria-pressed="true">«Починить две строки по тесту»</button>
+          <button class="case-button" type="button" data-case="open">«Разобрать архитектурный риск»</button>
+          <button class="case-button" type="button" data-case="secret">«Приватный документ и картинка»</button>
+          <button class="case-button" type="button" data-case="unknown">«Не хватает сведений»</button>
+          <button class="case-button" type="button" data-case="growth">«Объём задачи вырос»</button>
+          <button class="case-button" type="button" data-case="spark">«Строгая правка в двух файлах»</button>
+        </div>
+        <article class="card case-output" aria-live="polite">
+          <div class="kicker" id="case-input">Вход: не секретно · закрытая задача · готов тест · цена=0</div>
+          <h3 id="case-title">Ox проходит все узкие ворота</h3>
+          <div class="case-meta"><span class="route-tag" id="case-route">Ox / harness / guarded</span><span class="badge" id="case-verdict">маршрут Ox</span></div>
+          <p id="case-copy">Задача не секретна, результат можно проверить заранее, canary и возможность подтверждены, а цена доказана нулевой. Поэтому она попадает в узкий маршрут Ox.</p>
+          <div class="fallback" id="case-fallback">Если canary, возможность или нулевая цена не подтверждены → Luna / codex / high.</div>
+          <ul class="guard-list" id="case-guards"><li>проверка результата готова до запуска</li><li>не секретно и только текст/инструменты</li><li>lease берётся до запроса, цена строго 0</li></ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="matrix">
+      <div class="section-head"><div><div class="eyebrow">Карта листьев</div><h2>Что именно может пройти</h2></div><p>Порядок важен: отказ по неполному входу стоит выше всех моделей. Fable и Terra — явный отказ, не тихая замена.</p></div>
+      <div class="scroll">
+        <table class="matrix">
+          <thead><tr><th>Лист</th><th>Когда</th><th>Жёсткий барьер</th><th>Если барьер не пройден</th></tr></thead>
+          <tbody>
+            <tr data-kind="refuse"><th><code>REFUSE_METADATA</code></th><td>Любое обязательное поле пропущено или невалидно</td><td>scope, sensitivity, openness, complexity, capability, oracle, revision</td><td>Запрос решения; модель не вызывается</td></tr>
+            <tr data-kind="refuse"><th><code>REFUSE_DISABLED_MODEL</code></th><td>Caller просит Fable или Terra</td><td>Реестр/политика помечают маршрут disabled</td><td>Видимый отказ; не подставлять другую модель</td></tr>
+            <tr data-kind="route"><th><span class="model-name">claude-opus-5[1m]</span></th><td>Private + special creative/vision/исключительная неоднозначность</td><td>Claude capability receipt и subscription admission</td><td>Видимый отказ при отсутствии capability; не отправлять в OpenRouter</td></tr>
+            <tr data-kind="refuse"><th><code>REFUSE_SOL_AUTH</code></th><td>Sol-class, но нет действующего scope-bound receipt</td><td>Проверка подписи, срока, task/scope/requester</td><td>Request-decision; никогда не downgrade в Ox/Luna</td></tr>
+            <tr data-kind="sol"><th><span class="model-name">gpt-5.6-sol</span></th><td>Open/complex/security/unknown после valid receipt</td><td>Тот же receipt для spawn и codex_review</td><td>При разрешённом consequence fallback — Opus; иначе отказ</td></tr>
+            <tr data-kind="spark"><th><span class="model-name">Spark / codex</span></th><td>Binding Codex, text-only, ≤2 файла, ≤100K, explicit decisions</td><td>Pre-existing oracle, quota, не research/review/security/vision</td><td>Одна попытка; failure → handoff, второй Spark невозможен</td></tr>
+            <tr data-kind="ox"><th><span class="model-name">Ox Alpha / harness</span></th><td>Public + closed + deterministic + narrow canary class</td><td>Atomic lease, exact numeric zero price proof, canary green</td><td>Для закрытой задачи — Luna; paid/unknown cost всегда отказ</td></tr>
+            <tr data-kind="route"><th><span class="model-name">gpt-5.6-luna</span></th><td>Closed/deterministic или безопасный fallback из Ox</td><td>Существующая Codex admission; blocked отказ, unknown допускается</td><td>Видимый отказ при blocked; state и revision сохраняются</td></tr>
+            <tr data-kind="refuse"><th><code>REFUSE_NO_ROUTE</code></th><td>Ни одна допустимая строка не совпала</td><td>Нет скрытого default и provider fallback</td><td>Сохранить task state, назвать причину и запросить решение</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-note">Это policy tree, а не доказательство, что все листы уже реализованы. Current baseline: caller сейчас выбирает модель, код в основном валидирует уже выбранное значение.</p>
+    </section>
+
+    <section id="barriers">
+      <div class="section-head"><div><div class="eyebrow">Безопасность</div><h2>Барьеры, которые нельзя заменить промптом</h2></div><p>Каждый барьер должен сработать до внешнего вызова и оставить объяснимый след.</p></div>
+      <div class="grid">
+        <article class="card barrier"><div class="index">01 / TRUST</div><h3>Доверенный вход</h3><p>Caller передаёт задачу, но не может подделать quota, canary или capability. Production adapter получает runtime state сам; injection — только в pure test seam.</p></article>
+        <article class="card barrier"><div class="index">02 / RECEIPT</div><h3>Sol по пропуску</h3><p>Receipt содержит task_id, scope, requester, срок, причину и receipt_id. Нет пропуска, он просрочен или для другой задачи — 0 Sol spawn/review/eval calls.</p></article>
+        <article class="card barrier"><div class="index">03 / ZERO-SPEND</div><h3>Ox без платного сюрприза</h3><p>Атомарная lease берётся до POST. Missing, positive, boolean, строка или неизвестная цена — отказ. Отсутствующая usage.cost не становится нулём.</p></article>
+        <article class="card barrier"><div class="index">04 / SCOPE</div><h3>Рост scope — новая проверка</h3><p>Если задача стала открытой или сложной, Ox/Luna eligibility сбрасывается до следующего turn. Closed work не эскалирует молча; state не теряется.</p></article>
+        <article class="card barrier"><div class="index">05 / ROLLBACK</div><h3>Отказ виден</h3><p>Revision, выбранный leaf, fallback и причина сохраняются без secret payload. Откат отключает affected class, не удаляет evidence и не возвращает скрытый Sonnet.</p></article>
+        <article class="card barrier"><div class="index">06 / SEPARATION</div><h3>Review — отдельная поверхность</h3><p>Review default не превращается в worker default. Единственное исключение — тот же обязательный Sol receipt для явного review с Sol.</p></article>
+      </div>
+    </section>
+
+    <section id="state">
+      <div class="section-head"><div><div class="eyebrow">Честная точка старта</div><h2>Что уже есть, а чего пока нет</h2></div><p>Карта отделяет исполняемый owner от рекомендации в prompt. Иначе красивая схема создаёт ложное чувство безопасности.</p></div>
+      <div class="two-col">
+        <div class="card">
+          <h3>Сейчас — baseline</h3>
+          <details open><summary>Исполняется</summary><p class="mut">Модель должна быть передана в <code>spawn_worker</code>; registry и manager проверяют canonical model и admission. HTTP omission имеет свой Sonnet default — это не worker policy.</p></details>
+          <details><summary>Остаётся prompt-only</summary><p class="mut">Luna/Sol/Opus рекомендации, Spark-ограничения, sensitivity, oracle и scope не связаны одним trusted decision function.</p></details>
+        </div>
+        <div class="card">
+          <h3>После #298 — цель</h3>
+          <details open><summary>Один owner</summary><p class="mut"><code>evaluate_route</code> — чистая проверяемая функция; <code>mcp_stdio.route_worker</code> — server adapter без caller-supplied route_state.</p></details>
+          <details><summary>Миграция без переписывания истории</summary><p class="mut">Новые nullable routing fields и routing_receipts. Старые активные sessions продолжают свою модель; новый spawn без trusted metadata получает видимый отказ.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section id="rollout">
+      <div class="section-head"><div><div class="eyebrow">Выкатка</div><h2>Не прыжок, а четыре контрольные ступени</h2></div><p>Числа ниже — proposed acceptance gates для Phase 2, не измерения, проведённые в Phase 1.</p></div>
+      <div class="timeline">
+        <article class="phase"><h3>Shadow</h3><p>Сервер считает маршрут, но не меняет выбранную модель.</p><ul><li>100% случаев: ровно один leaf/refusal</li><li>0 пропущенных predicates</li><li>0 private задач в Ox</li><li>0 Sol calls без receipt</li></ul></article>
+        <article class="phase"><h3>Ox canary</h3><p>Только public, text/tool, immutable oracle; без production secrets.</p><ul><li>closed oracle 1.0 × 2 batches</li><li>open audit ≥8/10 × 2</li><li>0 empty/tool errors</li><li>0 positive/unknown price и cost</li></ul></article>
+        <article class="phase"><h3>Preferred</h3><p>Ox включается только для прошедших классов.</p><ul><li>route revision + broker lease на попытку</li><li>считаем choice/fallback, p50/p95</li><li>oracle и scope-growth в наблюдаемости</li><li>никаких глобальных заявлений «Ox default»</li></ul></article>
+        <article class="phase"><h3>Steady</h3><p>Каждый маршрут объясним задним числом.</p><ul><li>leaf/runtime/effort/revision</li><li>gate receipts и acceptance result</li><li>сверка локального counter с внешним usage</li><li>неопределённость usage показана явно</li></ul></article>
+      </div>
+      <aside class="card rollback"><h3>Откат сразу, если…</h3><ul><li>secret/private ушёл в Ox/OpenRouter</li><li>есть paid/unknown cost или platform 429</li><li>empty Ox response или artifact/oracle mismatch</li><li>scope вырос, а маршрут не сменился</li><li>Sol стартовал без scope-matched receipt</li><li>сломался broker, counter или capability readiness</li></ul></aside>
+    </section>
+
+    <section id="evidence">
+      <div class="section-head"><div><div class="eyebrow">Границы доказательств</div><h2>Не приписываем плану результат</h2></div><p>Визуализация собрана по durable sources задачи. Числа и статус оставлены с их областью применимости.</p></div>
+      <div class="facts">
+        <div class="card fact"><strong>9</strong><span>тикетов T1–T9 в implementation plan</span></div>
+        <div class="card fact"><strong>22</strong><span>красных проверки в frozen RED run</span></div>
+        <div class="card fact"><strong>1</strong><span>Luna review round</span></div>
+        <div class="card fact"><strong>0</strong><span>provider/model/eval calls в этой работе</span></div>
+      </div>
+      <div class="card review-note" style="margin-top: 12px;">
+        <p><strong>Review: Not ready.</strong> Предыдущий Luna review прямо указал на trusted runtime state, обязательные metadata, Sol receipt bypass, Spark retry seam, TOCTOU admission и frozen-oracle immutability. План зафиксировал их как blocking findings и описал исправления; это не означает, что кодовая реализация уже прошла acceptance.</p>
+      </div>
+      <div style="margin-top: 16px;">
+        <details open><summary>Что измерено в источниках</summary><p class="mut">#283 production-shaped Ox continuation: 6/6 полезных задач, 0 rate-limit/tool errors, 30 явных zero costs и один missing cost. #236: 6/6 пустых no-effort Ox turns. Это разные эксперименты; они не доказывают глобальный Ox default.</p></details>
+        <details><summary>Что остаётся неопределённым</summary><p class="mut">Атомарный zero-spend для unsuffixed Ox, точный effort и vision capability, а также полное покрытие классов. До доказательства эти листья должны оставаться guarded или refused.</p></details>
+      </div>
+    </section>
+
+    <section id="sources">
+      <div class="section-head"><div><div class="eyebrow">Источники</div><h2>Откуда взялась карта</h2></div><p>Все ссылки ведут на якоря этой страницы, чтобы документ оставался читаемым офлайн.</p></div>
+      <ol class="source-list">
+        <li id="source-research"><code>docs/tasks/298/research.md</code> — current-state table, proposed routing tree, failure matrix, rollout criteria и confidence.</li>
+        <li id="source-plan"><code>docs/tasks/298/plan.md</code> — T1–T9, migration/rollback/non-goals и frozen RED evidence.</li>
+        <li id="source-review"><code>docs/tasks/298/review-plan-luna.md</code> — один review round, verdict <em>Not ready</em> и 10 findings.</li>
+        <li id="source-routing-kb"><code>docs/kb/model-routing-selection.md</code> — executable/prompt owners и superseded defaults.</li>
+        <li id="source-evidence-kb"><code>docs/kb/evidence-methods.md</code> и <code>docs/kb/test-oracles.md</code> — правила честного измерения и безопасных оракулов.</li>
+      </ol>
+    </section>
+
+    <footer>Офлайн-артефакт · светлая/тёмная тема через <code>light-dark()</code> · печать без управления · адаптивный desktop/mobile layout.</footer>
+  </main>
+  <script>
+    (() => {
+      const examples = {
+        closed: {
+          input: 'Вход: не секретно · закрытая задача · готов тест · canary=зелёный · возможность=подтверждена · цена=0',
+          title: 'Ox проходит все узкие ворота',
+          route: 'Ox / harness / guarded',
+          verdict: 'маршрут Ox',
+          copy: 'Задача не секретна, результат можно проверить заранее, canary и возможность подтверждены, а цена доказана нулевой. Поэтому она попадает в узкий маршрут Ox.',
+          fallback: 'Если canary, возможность или нулевая цена не подтверждены → Luna / codex / high.',
+          guards: ['проверка результата готова до запуска', 'не секретно и только текст/инструменты', 'lease берётся до запроса, цена строго 0']
+        },
+        open: {
+          input: 'Вход: открытая задача · сложная проверка · нужен план',
+          title: 'Открытый разбор архитектурного риска',
+          route: 'REFUSE_SOL_AUTH → request-decision',
+          verdict: 'отказ / решение пользователя',
+          copy: 'Сложная открытая задача требует сильного маршрута. Но без отдельного разрешения пользователя это отказ, а не повод отправить задачу в Ox или Luna.',
+          fallback: 'После действующего разрешения пользователя → gpt-5.6-sol / codex / xhigh.',
+          guards: ['разрешение проверяется до запуска и проверки', '0 Sol-вызовов без разрешения', 'после решения пользователя дерево запускается заново']
+        },
+        secret: {
+          input: 'Вход: секретный документ · особый случай · картинка',
+          title: 'Секретный документ и special capability',
+          route: 'claude-opus-5[1m] / claude / high',
+          verdict: 'маршрут Claude',
+          copy: 'Секретный документ с картинкой — отдельная ветка. Внешний бесплатный маршрут не получает этот запрос; если возможность Claude не подтверждена, система заметно отказывает.',
+          fallback: 'Если возможность Claude не подтверждена → отказ / решение, без тихой подмены.',
+          guards: ['секрет остаётся в subscription runtime', 'разрешение возможности обязательно', 'нет тихой подмены в Ox, Luna или платный маршрут']
+        },
+        unknown: {
+          input: 'Вход: что сделать=? · готовый тест=? · возможность=?',
+          title: 'Недостающие сведения — это не «наверное, Luna»',
+          route: 'REFUSE_METADATA',
+          verdict: 'отказ / решение',
+          copy: 'Неизвестное обязательное поле нельзя трактовать как безопасное. Сначала нужно дополнить сведения или запросить решение; внешний runtime не запускается.',
+          fallback: 'После дополнения сведений дерево запускается заново; скрытого маршрута по умолчанию нет.',
+          guards: ['неполный вход останавливается первым', 'причина отказа сохраняется', 'никакую модель не выбирают наугад']
+        },
+        growth: {
+          input: 'Вход: сначала закрытая задача · потом добавились файлы и сложность',
+          title: 'Объём вырос — старый билет аннулирован',
+          route: 'REFUSE_SOL_AUTH → request-decision',
+          verdict: 'отказ / решение пользователя',
+          copy: 'Ox или Luna больше нельзя продолжать автоматически. До следующего шага система пересчитывает класс: при действующем разрешении возможен Sol, без него — видимый отказ.',
+          fallback: 'Действующее разрешение пользователя → gpt-5.6-sol / codex / xhigh; иначе → отказ.',
+          guards: ['рост объёма замечен до следующего шага', 'закрытая задача не повышает привилегии молча', 'состояние задачи и версия правил сохраняются']
+        },
+        spark: {
+          input: 'Вход: не секретно · текст · до 2 файлов · готов тест · решения явны',
+          title: 'Строгая маленькая задача для Spark',
+          route: 'Spark / codex / strict',
+          verdict: 'маршрут Spark',
+          copy: 'Spark подходит только для узкого, заранее описанного случая: текст, два файла или меньше, небольшой контекст и независимая проверка результата.',
+          fallback: 'Одна неудачная попытка → handoff Luna; второй Spark не запускается.',
+          guards: ['не research, review, security или vision', 'квота и готовый тест подтверждены', 'после сбоя нет повторной попытки Spark']
+        }
+      };
+      const buttons = Array.from(document.querySelectorAll('[data-case]'));
+      const output = {
+        input: document.getElementById('case-input'),
+        title: document.getElementById('case-title'),
+        route: document.getElementById('case-route'),
+        verdict: document.getElementById('case-verdict'),
+        copy: document.getElementById('case-copy'),
+        fallback: document.getElementById('case-fallback'),
+        guards: document.getElementById('case-guards')
+      };
+      function showCase(key) {
+        const item = examples[key];
+        if (!item) return;
+        output.input.textContent = item.input;
+        output.title.textContent = item.title;
+        output.route.textContent = item.route;
+        output.verdict.textContent = item.verdict;
+        output.copy.textContent = item.copy;
+        output.fallback.textContent = item.fallback;
+        output.guards.replaceChildren(...item.guards.map((text) => {
+          const li = document.createElement('li');
+          li.textContent = text;
+          return li;
+        }));
+        buttons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.case === key)));
+      }
+      buttons.forEach((button) => button.addEventListener('click', () => showCase(button.dataset.case)));
+    })();
+  </script>
+</body>
+</html>

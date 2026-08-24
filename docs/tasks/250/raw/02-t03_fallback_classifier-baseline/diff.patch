@@ -1,0 +1,21 @@
+diff --git a/tests/test_target.py b/tests/test_target.py
+index 5ede69a..4a52809 100644
+--- a/tests/test_target.py
++++ b/tests/test_target.py
+@@ -1,2 +1,16 @@
+ """Add focused regression tests here."""
+ 
++import pytest
++
++from src.classifier import visible_subagents
++
++
++@pytest.mark.parametrize(
++    "event",
++    [
++        {"task_type": "local_bash", "task_id": "opaque-7"},
++        {"task_id": "bash-legacy"},
++    ],
++)
++def test_local_bash_events_are_hidden_with_explicit_or_legacy_signal(event):
++    assert visible_subagents([event]) == []

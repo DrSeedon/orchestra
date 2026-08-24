@@ -1,6 +1,7 @@
 """TDD tests for main.py — HTTP API endpoints."""
 
 import asyncio
+import json
 import os
 import stat
 import subprocess
@@ -44,6 +45,25 @@ def _merge_session_request():
 
 async def _call_merge_session(sessmod, name: str, req: dict):
     return await sessmod.merge_session(name, req, _merge_session_request())
+
+
+def _save_owned_switch_record(*, session_id="owned-switch", task_id="90",
+                              owned_dirs=None, prompt_overlay=None,
+                              system_prompt=""):
+    from datetime import datetime, timezone
+    from app.db import save_session
+
+    save_session({
+        "id": session_id, "name": "w", "scope": "/s", "cwd": "/wt",
+        "model": "claude-sonnet-5[1m]", "system_prompt": system_prompt,
+        "prompt_overlay": prompt_overlay, "status": "idle", "session_id": None,
+        "cost_usd": 0.0, "worktree_path": "/wt", "branch": "task-90/w",
+        "base_branch": "main", "needs_switch": 0, "task_id": task_id,
+        "is_orchestrator": False, "color": "",
+        "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+        "role": "worker", "pipeline": "default", "profile": "",
+        "owned_dirs": json.dumps(owned_dirs or []),
+    })
 
 
 def _save_merge_session_record(session) -> None:
@@ -1684,16 +1704,10 @@ async def test_merge_switch_persistence_failure_is_partial_and_keeps_task_unchan
         "base_branch": "main",
     })()
     local_manager = _prepare_detached_merge(monkeypatch, session)
-    persist_calls = 0
+    async def fail_switched_transition(_found, **_fields):
+        raise RuntimeError("session DB unavailable")
 
-    async def fail_switched_persistence(found, **fields):
-        nonlocal persist_calls
-        persist_calls += 1
-        if persist_calls > 1:
-            raise RuntimeError("session DB unavailable")
-        await local_manager.persist_lifecycle(found, **fields)
-
-    monkeypatch.setattr(mainmod.manager, "persist_lifecycle", fail_switched_persistence)
+    monkeypatch.setattr(mainmod.manager, "transition_lifecycle", fail_switched_transition)
     monkeypatch.setattr(
         "app.workspace.merge_worktree_to_main",
         lambda *_args, **_kwargs: {
@@ -1719,7 +1733,7 @@ async def test_merge_switch_persistence_failure_is_partial_and_keeps_task_unchan
         assert tm.get_task_by_id(conn, task["id"])["status"] == "new"
     row = get_session(session.id)
     assert (row["task_id"], row["needs_switch"], row["branch"]) == (
-        "", 1, session.branch,
+        "", 1, "task-43/worker",
     )
 
 
@@ -2122,6 +2136,181 @@ async def test_switch_uses_persisted_base_when_from_ref_is_omitted(monkeypatch, 
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("requested", [None, ["new/path"]])
+async def test_switch_new_task_replaces_owned_dirs_and_prompt(
+    db, monkeypatch, requested,
+):
+    import app.routes.sessions as sessmod
+    from app.db import get_session
+    from app.manager import SessionManager
+
+    old_prompt = "ROLE\nCUSTOM" + SessionManager._ownership_prompt(["old/path"])
+    _save_owned_switch_record(
+        owned_dirs=["old/path"], prompt_overlay="\n\nCUSTOM" +
+        SessionManager._ownership_prompt(["old/path"]), system_prompt=old_prompt,
+    )
+    found = sessmod.manager.get_by_name("w", "/s")
+    monkeypatch.setattr(sessmod.manager, "get_by_name", lambda *_args: found)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
+    monkeypatch.setattr(
+        sessmod, "_existing_branch_verdict",
+        lambda *_args, **_kwargs: {"recreate_from_base": False, "discard_current": True},
+    )
+    monkeypatch.setattr(
+        "app.workspace.switch_worktree_branch",
+        lambda *_args, **_kwargs: {"ok": True, "branch": "task-91/w"},
+    )
+    monkeypatch.setattr(
+        "app.tm.resolve_scoped_task_identity",
+        lambda *_args: {"id": 91, "project_id": "project", "par_number": 91,
+                         "sync_revision": 0},
+    )
+    monkeypatch.setattr(
+        "app.tm.api_update_task_if_current",
+        lambda *_args, **_kwargs: {"ok": True},
+    )
+    req = {"scope": "/s", "task_id": "91", "force": True}
+    if requested is not None:
+        req["owned_dirs"] = requested
+
+    result = await sessmod.switch_branch("w", req)
+
+    expected = [] if requested is None else requested
+    assert result["ok"] is True
+    assert found.owned_dirs == expected
+    assert "old/path" not in found.system_prompt
+    assert "old/path" not in (found.prompt_overlay or "")
+    if expected:
+        assert "new/path" in (found.prompt_overlay or "")
+    else:
+        assert "new/path" not in (found.prompt_overlay or "")
+    row = get_session("owned-switch")
+    assert json.loads(row["owned_dirs"] or "[]") == expected
+    assert "old/path" not in row["system_prompt"]
+
+
+@pytest.mark.asyncio
+async def test_switch_owned_dirs_collision_rejected_before_git(db, monkeypatch):
+    import app.routes.sessions as sessmod
+    from app.db import get_session, save_session
+    from datetime import datetime, timezone
+
+    _save_owned_switch_record(owned_dirs=["old/path"], prompt_overlay="OLD")
+    save_session({
+        "id": "other-owned", "name": "other", "scope": "/s", "cwd": "/wt2",
+        "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+        "session_id": None, "cost_usd": 0.0, "worktree_path": "/wt2",
+        "branch": "task-88/other", "base_branch": "main", "needs_switch": 0,
+        "task_id": "88", "is_orchestrator": False, "color": "",
+        "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+        "role": "worker", "pipeline": "default", "owned_dirs": '["new/path"]',
+    })
+    found = sessmod.manager.get_by_name("w", "/s")
+    monkeypatch.setattr(sessmod.manager, "get_by_name", lambda *_args: found)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
+    switched = False
+
+    def fake_switch(*_args, **_kwargs):
+        nonlocal switched
+        switched = True
+        return {"ok": True, "branch": "task-91/w"}
+
+    monkeypatch.setattr("app.workspace.switch_worktree_branch", fake_switch)
+    monkeypatch.setattr(
+        "app.tm.resolve_scoped_task_identity",
+        lambda *_args: {"id": 91, "project_id": "project", "par_number": 91},
+    )
+
+    result = await sessmod.switch_branch(
+        "w", {"scope": "/s", "task_id": "91", "owned_dirs": ["new/path"]},
+    )
+
+    assert not isinstance(result, dict), "collision must be rejected before switching"
+    assert result.status_code == 409
+    assert "overlap" in result.body.decode().lower()
+    assert switched is False
+    row = get_session("owned-switch")
+    assert (row["branch"], row["task_id"], row["needs_switch"]) == (
+        "task-90/w", "90", 0,
+    )
+
+
+@pytest.mark.asyncio
+async def test_switch_failure_keeps_old_state_during_git_call(db, monkeypatch):
+    import app.routes.sessions as sessmod
+    from app.db import get_session
+
+    _save_owned_switch_record(owned_dirs=["old/path"], prompt_overlay="OLD")
+    found = sessmod.manager.get_by_name("w", "/s")
+    monkeypatch.setattr(sessmod.manager, "get_by_name", lambda *_args: found)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
+    monkeypatch.setattr(
+        sessmod, "_existing_branch_verdict",
+        lambda *_args, **_kwargs: {"recreate_from_base": False, "discard_current": False},
+    )
+    observed = {}
+
+    def fake_switch(*_args, **_kwargs):
+        observed.update(task_id=found.task_id, needs_switch=found.needs_switch,
+                        owned_dirs=list(found.owned_dirs))
+        return {"ok": False, "error": "target busy"}
+
+    monkeypatch.setattr("app.workspace.switch_worktree_branch", fake_switch)
+    monkeypatch.setattr(
+        "app.tm.resolve_scoped_task_identity",
+        lambda *_args: {"id": 91, "project_id": "project", "par_number": 91},
+    )
+
+    result = await sessmod.switch_branch(
+        "w", {"scope": "/s", "task_id": "91", "owned_dirs": []},
+    )
+
+    assert result["ok"] is False
+    assert observed == {"task_id": "90", "needs_switch": False,
+                        "owned_dirs": ["old/path"]}
+    row = get_session("owned-switch")
+    assert (row["branch"], row["task_id"], row["needs_switch"],
+            json.loads(row["owned_dirs"] or "[]")) == (
+        "task-90/w", "90", 0, ["old/path"],
+    )
+
+
+@pytest.mark.asyncio
+async def test_same_task_switch_does_not_clear_ownership(db, monkeypatch):
+    import app.routes.sessions as sessmod
+    from app.db import get_session
+
+    _save_owned_switch_record(owned_dirs=["old/path"], prompt_overlay="OLD")
+    found = sessmod.manager.get_by_name("w", "/s")
+    monkeypatch.setattr(sessmod.manager, "get_by_name", lambda *_args: found)
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
+    monkeypatch.setattr(
+        sessmod, "_existing_branch_verdict",
+        lambda *_args, **_kwargs: {"recreate_from_base": False, "discard_current": True},
+    )
+    monkeypatch.setattr(
+        "app.workspace.switch_worktree_branch",
+        lambda *_args, **_kwargs: {"ok": True, "branch": "task-90/w"},
+    )
+    monkeypatch.setattr(
+        "app.tm.resolve_scoped_task_identity",
+        lambda *_args: {"id": 90, "project_id": "project", "par_number": 90},
+    )
+    monkeypatch.setattr(
+        "app.tm.api_update_task_if_current",
+        lambda *_args, **_kwargs: {"ok": True},
+    )
+
+    result = await sessmod.switch_branch(
+        "w", {"scope": "/s", "task_id": "90", "owned_dirs": []},
+    )
+
+    assert result["ok"] is True
+    assert found.owned_dirs == ["old/path"]
+    assert json.loads(get_session("owned-switch")["owned_dirs"] or "[]") == ["old/path"]
+
+
+@pytest.mark.asyncio
 async def test_switch_updates_duplicate_task_number_only_in_session_project(db, monkeypatch):
     import app.main as mainmod
     import app.routes.sessions as sessmod
@@ -2188,15 +2377,8 @@ async def test_switch_persistence_failure_quarantines_and_does_not_update_task(
     })
     local_manager = SessionManager()
     found = local_manager.get_by_name("w", "/s")
-    real_persist = local_manager.persist_lifecycle
-    persist_calls = 0
-
-    async def fail_assigned_lifecycle(session, **fields):
-        nonlocal persist_calls
-        persist_calls += 1
-        if persist_calls == 2:
-            raise RuntimeError("simulated lifecycle write failure")
-        await real_persist(session, **fields)
+    async def fail_assigned_transition(_session, **_fields):
+        raise RuntimeError("simulated lifecycle write failure")
 
     task_update = MagicMock()
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda *_args: found)
@@ -2204,7 +2386,7 @@ async def test_switch_persistence_failure_quarantines_and_does_not_update_task(
         mainmod.manager, "get_session_lock", local_manager.get_session_lock,
     )
     monkeypatch.setattr(
-        mainmod.manager, "persist_lifecycle", fail_assigned_lifecycle,
+        mainmod.manager, "transition_lifecycle", fail_assigned_transition,
     )
     monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
     monkeypatch.setattr(

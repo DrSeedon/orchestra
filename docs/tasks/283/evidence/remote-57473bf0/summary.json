@@ -1,0 +1,52 @@
+{
+  "model": "stealth/ox-alpha",
+  "runs": 6,
+  "global_http_attempts": 31,
+  "valid_alternate_control": true,
+  "fatal": null,
+  "mem_available_kib": 17800992,
+  "tasks": [
+    {
+      "run_id": "r1-closed_edit",
+      "task": "closed_edit",
+      "score": 1.0,
+      "http_attempts": 7,
+      "empty_response": false
+    },
+    {
+      "run_id": "r1-closed_trace",
+      "task": "closed_trace",
+      "score": 0.0,
+      "http_attempts": 5,
+      "empty_response": false
+    },
+    {
+      "run_id": "r1-open_audit",
+      "task": "open_audit",
+      "score": 0,
+      "http_attempts": 4,
+      "empty_response": false
+    },
+    {
+      "run_id": "r2-open_audit",
+      "task": "open_audit",
+      "score": 9,
+      "http_attempts": 4,
+      "empty_response": false
+    },
+    {
+      "run_id": "r2-closed_trace",
+      "task": "closed_trace",
+      "score": 0.0,
+      "http_attempts": 6,
+      "empty_response": false
+    },
+    {
+      "run_id": "r2-closed_edit",
+      "task": "closed_edit",
+      "score": 1.0,
+      "http_attempts": 5,
+      "empty_response": false
+    }
+  ]
+}

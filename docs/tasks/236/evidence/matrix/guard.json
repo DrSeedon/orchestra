@@ -1,0 +1,882 @@
+[
+  {
+    "ts": 1787490081.39899,
+    "model": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": false,
+    "allowed": true
+  },
+  {
+    "ts": 1787490088.390986,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490094.0907493,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490099.6235046,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490105.893096,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490109.5215762,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490112.0843205,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490112.7639937,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490115.064936,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490134.7346048,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490139.880106,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490141.2255857,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490142.5095785,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490144.0047708,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490150.1164098,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490151.1707442,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490164.0880034,
+    "model": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": false,
+    "allowed": true
+  },
+  {
+    "ts": 1787490169.1049304,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490174.6216981,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490180.1713233,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490184.2366772,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490189.733522,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490195.2002933,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490199.2908163,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490204.7992575,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490210.2699265,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490215.7156045,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490216.301092,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490223.347827,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490229.433052,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490230.0968647,
+    "model": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": false,
+    "allowed": true
+  },
+  {
+    "ts": 1787490268.3537772,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490273.8462594,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490279.5439065,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490284.9642506,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490286.1343527,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490303.8472102,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490326.7001102,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490330.5500717,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490344.0207705,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490345.3488295,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490362.1649277,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490385.5841749,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490386.5880313,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490387.5397544,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490389.18555,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490400.221671,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490469.0477118,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490472.2594006,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490477.1565862,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490478.623595,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490482.1221037,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490485.7279234,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490496.2468407,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490505.7898593,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490512.1604536,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490521.5118425,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490524.6915476,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490530.2988997,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490536.8143232,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490543.876626,
+    "model": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": false,
+    "allowed": true
+  },
+  {
+    "ts": 1787490549.7970564,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490553.6278877,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490556.599672,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490558.006418,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490560.2420182,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490560.986159,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490582.508237,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490599.01642,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490603.9923081,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490628.6577303,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490649.4231167,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490654.9215016,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490660.4944978,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490666.0278454,
+    "model": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": false,
+    "allowed": true
+  },
+  {
+    "ts": 1787490670.985254,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490672.9945068,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490673.8942049,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490682.2496197,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490706.591037,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490719.5173023,
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490725.8864107,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490727.0309353,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490742.9612498,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490750.7145069,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490756.2248604,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490761.7640402,
+    "model": "z-ai/glm-5.2:free",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": true,
+    "allowed": true
+  },
+  {
+    "ts": 1787490767.2234397,
+    "model": "stealth/ox-alpha",
+    "pricing": {
+      "prompt": "0",
+      "completion": "0"
+    },
+    "suffix_free": false,
+    "allowed": true
+  }
+]

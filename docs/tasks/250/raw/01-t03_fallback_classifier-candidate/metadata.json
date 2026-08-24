@@ -1,0 +1,15 @@
+{
+  "run_id": "01-t03_fallback_classifier-candidate",
+  "task": "t03_fallback_classifier",
+  "arm": "candidate",
+  "model": "gpt-5.6-luna",
+  "returncode": 0,
+  "timed_out": false,
+  "elapsed_seconds": 61.037,
+  "tool_calls": 5,
+  "changed_files": [
+    "tests/test_target.py"
+  ],
+  "production_sha256": "94cb1b11afadff8171cf0c9605c84516de5b67ba4b0d1b8439fbb54db15542f1",
+  "fixture_production_sha256": "94cb1b11afadff8171cf0c9605c84516de5b67ba4b0d1b8439fbb54db15542f1"
+}

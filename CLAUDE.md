@@ -57,12 +57,13 @@ sudo systemctl status orchestra
 - **Remotes:** `origin` (github.com/DrSeedon/orchestra) — наш публичный, держать актуальным. Всё, что НЕ `origin`, — чужое: не трогать никогда. Список смотреть командой `git remote -v`, а не по памяти
 - **TG /restart** — команда в TG группе для рестарта Orchestra
 
-## 🔌 ПРОКСИ (единственный источник истины = .env)
-- **`.env` `HTTPS_PROXY`/`HTTP_PROXY` = ЕДИНСТВЕННЫЙ источник.** Нет DB, нет hot-switch, нет кеша статусов. Один прокси везде: systemd EnvironmentFile → `os.environ` → наследуют все (Orchestra + CLI агенты + MCP subprocess), рассинхрон невозможен by design
-- **Сменить прокси:** отредактируй `HTTPS_PROXY` И `HTTP_PROXY` в `.env` (оба!) → `sudo systemctl restart orchestra`. Живой прокси найти: `bash scripts/check-proxies.sh` (диагностика, впишет в `.env`; рестарт — руками)
-- **Дашборд:** только индикатор активного (из `os.environ`, read-only) + кнопка Check. Кнопки «выбрать/активировать» НЕТ. `proxy_manager.py` read-only: `list_proxies()` + `check_all()`, НЕ мутирует env и НЕ пишет в DB
-- SSH-туннели (`ssh_tunnel.py`) поднимают локальные порты к VPS, `HTTPS_PROXY` указывает на нужный порт. Мёртвые VPS не спамят реконнектом (health-gate + backoff)
-- **TG bot** (telegram-bot-api) — через proxychains, C++ бинарник не читает `.env`. При смене прокси обновлять ОБА файла: `/etc/proxychains4.conf` И `~/.proxychains/proxychains.conf` (user-config имеет приоритет)
+## 🔌 ПРОКСИ (владелец = отдельный AI Proxy Manager)
+- **Единственный владелец маршрута и SSH-туннелей — `ai-proxy-manager.service`.** Ранбук: `~/.claude/docs/ai-proxy-manager.md`; UI: `http://127.0.0.1:18109`; стабильный gateway: `http://127.0.0.1:12339`
+- Orchestra — только клиент: `.env` содержит одинаковые `HTTPS_PROXY`/`HTTP_PROXY` на `:12339`, `SSH_TUNNELS=` пуст. Orchestra не запускает proxy SSH-процессы и не требует рестарта при ручной смене маршрута
+- Default route — Contabo. Автоматический failover и балансировка по IP запрещены; switch вручную проверяет ChatGPT backend и рвёт активные соединения
+- `PROXY_LIST`, `scripts/check-proxies.sh`, `proxy_manager.py` и старая панель Orchestra больше не являются источниками истины и не должны менять маршрут
+- Положительный health-check = JSON от ChatGPT backend. `403 text/html` от Cloudflare означает только доступность CDN и не считается рабочим AI-маршрутом
+- **TG bot** (telegram-bot-api) — через proxychains, C++ бинарник не читает `.env`. ОБА файла (`/etc/proxychains4.conf` и `~/.proxychains/proxychains.conf`) указывают `http 127.0.0.1 12339`; systemd `ExecStartPre` требует JSON-ответ Telegram backend через новый gateway
 
 ## Pricing
 - **Claude Max 20× + Codex Pro** — все $ в dashboard виртуальные (API-equivalent), НЕ реальные траты

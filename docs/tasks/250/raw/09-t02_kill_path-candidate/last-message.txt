@@ -1,0 +1,7 @@
+Ну всё, убитый воркер теперь действительно помечается убитым, а не исчезает в бюрократической дыре. 🔪
+
+Добавлен lifecycle-регрессионный тест в [tests/test_target.py](/mnt/data/task250-eval-scratch-250/09-t02_kill_path-candidate/tests/test_target.py), проверяющий архивирование и единственный токен `("worker-1", "killed")` через `SessionManager.remove()`.
+
+Проверка: `1 passed` (`python3 -m pytest -q`).
+
+Теперь lifecycle хотя бы не ведёт себя как архив без каталога.

@@ -1,0 +1,31 @@
+{
+  "run_id": "r2-open_audit-stealth__ox-alpha",
+  "repetition": 2,
+  "task": "open_audit",
+  "model": "stealth/ox-alpha",
+  "elapsed_seconds": 5.138,
+  "loadavg": [
+    0.6162109375,
+    0.66259765625,
+    0.67578125
+  ],
+  "ok": true,
+  "stop_reason": "end_turn",
+  "error": "",
+  "http_attempts": 1,
+  "successful_rounds": 0,
+  "tool_calls": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [],
+  "grade": {
+    "score": 0,
+    "tp": 0,
+    "fp": 0,
+    "error": "FileNotFoundError: [Errno 2] No such file or directory: '/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r2-open_audit-stealth__ox-alpha/findings.json'"
+  },
+  "events": [],
+  "artifacts": {}
+}

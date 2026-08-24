@@ -1,0 +1,39 @@
+{
+  "run_id": "r2-closed_trace-z-ai__glm-5.2_free",
+  "repetition": 2,
+  "task": "closed_trace",
+  "model": "z-ai/glm-5.2:free",
+  "elapsed_seconds": 16.564,
+  "loadavg": [
+    0.4013671875,
+    0.66015625,
+    0.6787109375
+  ],
+  "ok": false,
+  "stop_reason": "error",
+  "error": "llm_error: OpenRouter request failed after 3 attempts: retryable upstream rate limit, status 429",
+  "http_attempts": 3,
+  "successful_rounds": 0,
+  "tool_calls": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 3
+  },
+  "reported_costs": [],
+  "grade": {
+    "score": 0.0,
+    "matched": 0,
+    "total": 4,
+    "error": "FileNotFoundError: [Errno 2] No such file or directory: '/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r2-closed_trace-z-ai__glm-5.2_free/answer.json'"
+  },
+  "events": [
+    {
+      "type": "error",
+      "content": "llm round failed: OpenRouter request failed after 3 attempts: retryable upstream rate limit, status 429",
+      "metadata": {}
+    }
+  ],
+  "artifacts": {
+    "registry.py": "from backend import HarnessBackend\nROUTES = {\"alpha\": (\"harness\", HarnessBackend)}\ndef build(name):\n    runtime, factory = ROUTES[name]\n    return factory(runtime)\n"
+  }
+}

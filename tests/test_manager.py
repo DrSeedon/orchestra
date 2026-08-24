@@ -1540,11 +1540,12 @@ class TestSendAndControl:
         session.send = AsyncMock()
         persist_calls = []
 
+        async def transition(_found, **fields):
+            persist_calls.append(fields)
+            raise RuntimeError("database unavailable")
+
         async def persist(found, **fields):
             persist_calls.append(fields)
-            if len(persist_calls) == 1:
-                found.needs_switch = False
-                raise RuntimeError("database unavailable")
             for key, value in fields.items():
                 setattr(found, key, value)
 
@@ -1553,6 +1554,7 @@ class TestSendAndControl:
             "app.workspace.switch_worktree_branch",
             lambda *_args, **_kwargs: {"ok": True, "branch": "adhoc-1/w"},
         )
+        monkeypatch.setattr(mgr, "transition_lifecycle", transition)
         monkeypatch.setattr(mgr, "persist_lifecycle", persist)
 
         with pytest.raises(RuntimeError, match="database unavailable"):
@@ -1638,7 +1640,7 @@ class TestSendAndControl:
         session.send = AsyncMock(side_effect=accept)
         monkeypatch.setattr(manager_module, "resolve_git_base_branch", lambda *_: "main")
         monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
-        monkeypatch.setattr(mgr, "persist_lifecycle", persist)
+        monkeypatch.setattr(mgr, "transition_lifecycle", persist)
 
         delivery = asyncio.create_task(mgr.send(session.id, "exactly once"))
         assert await asyncio.to_thread(entered.wait, 2)

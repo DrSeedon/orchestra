@@ -1,0 +1,40 @@
+{
+  "model": "stealth/ox-alpha",
+  "basis": "post-run mechanical audit of the preserved artifacts; no additional model calls",
+  "oracle_correction": {
+    "closed_trace": "The fixture defines functions create/build/send/complete/post; the original grader incorrectly required qualified names HarnessBackend.send and Client.complete. The corrected compound oracle accepts the exact fixture function-name path and separately checks runtime, post_url, and paid_fallback_reachable.",
+    "open_audit": "The task asks for evidence extraction; the original grader assumed every categories item was a string. The corrected oracle extracts item.category when an evidence-bearing object is supplied, then applies the preregistered real/decoy set."
+  },
+  "runs": [
+    {"run_id": "r1-closed_edit", "score": 1.0, "passed": 6, "total": 6, "useful": true, "artifact_present": true},
+    {"run_id": "r1-closed_trace", "score": 1.0, "matched": 4, "total": 4, "useful": true, "artifact_present": true},
+    {"run_id": "r1-open_audit", "score": 10, "tp": 5, "fp": 0, "useful": true, "artifact_present": true},
+    {"run_id": "r2-open_audit", "score": 9, "tp": 5, "fp": 1, "useful": true, "artifact_present": true},
+    {"run_id": "r2-closed_trace", "score": 1.0, "matched": 4, "total": 4, "useful": true, "artifact_present": true},
+    {"run_id": "r2-closed_edit", "score": 1.0, "passed": 6, "total": 6, "useful": true, "artifact_present": true}
+  ],
+  "metrics": {
+    "guarded_http_attempts": 31,
+    "useful_tasks": 6,
+    "useful_completion_per_request": 0.193548,
+    "valid_alternate_control": true,
+    "production_path_oracle": "6/6 corrected compound oracles pass",
+    "tool_errors": 0,
+    "report_artifact_agreement": "6/6 target artifacts present and consistent with final reports",
+    "latency_seconds": [44.526, 41.788, 69.026, 34.893, 61.108, 50.489],
+    "median_latency_seconds": 47.5075,
+    "http_round_attempts_per_task": [7, 5, 4, 4, 6, 5],
+    "platform_429": 0,
+    "upstream_429": 0,
+    "explicit_usage_cost_values": {"count": 30, "all_values": [0.0]},
+    "usage_cost_missing_values": 1,
+    "nonzero_usage_cost_values": 0,
+    "empty_responses": 0
+  },
+  "raw_primary_grader": {
+    "r1-closed_trace": "0.0 due malformed qualified-name expectation",
+    "r2-closed_trace": "0.0 due malformed qualified-name expectation",
+    "r1-open_audit": "0 due TypeError on evidence-bearing category objects",
+    "r2-open_audit": 9
+  }
+}

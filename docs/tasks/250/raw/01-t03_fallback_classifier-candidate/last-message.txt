@@ -1,0 +1,16 @@
+Because one `bash-` prefix was apparently too persuasive 😏
+
+Added one focused regression test in [tests/test_target.py](/mnt/data/task250-eval-scratch-250/01-t03_fallback_classifier-candidate/tests/test_target.py), covering:
+
+1. Explicit `local_bash` with an opaque ID is hidden.
+2. Legacy `bash-` events are hidden.
+3. A normal event remains visible as a positive control.
+4. The test enters through `visible_subagents`.
+
+Result:
+
+```text
+1 passed in 0.01s
+```
+
+Only `tests/test_target.py` was changed. The classifier can now retire its fake mustache.

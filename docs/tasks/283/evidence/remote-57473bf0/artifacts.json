@@ -1,0 +1,89 @@
+{
+  "files": [
+    {
+      "run_id": "r1-closed_edit",
+      "file": "registry.py",
+      "sha256": "273bdb8ba7720348c5cdea475a1de459eef0265825f45084c576deee70a086cc",
+      "content": "def eligible(entries, required_features):\n    \"\"\"Return entries safe for the requested feature set.\"\"\"\n    result = []\n    for entry in entries:\n        if not entry.get(\"enabled\", True):\n            continue\n        if entry.get(\"expired\", False):\n            continue\n        price = entry.get(\"price\")\n        if isinstance(price, bool) or not isinstance(price, (int, float)) or price != 0:\n            continue\n        features = entry.get(\"features\") or ()\n        if not set(required_features).issubset(set(features)):\n            continue\n        result.append(entry)\n    return result\n"
+    },
+    {
+      "run_id": "r1-closed_edit",
+      "file": "test_registry.py",
+      "sha256": "4d68616eb78dce521ff56d9bfa1d79f2a6b80cd718a64fb6de45f23ba5055aa0",
+      "content": "import unittest\nfrom registry import eligible\n\nclass RegistryTests(unittest.TestCase):\n    def test_preserves_order(self):\n        rows = [{\"id\": \"b\", \"price\": 0, \"features\": [\"tools\"]}, {\"id\": \"a\", \"price\": 0, \"features\": [\"tools\"]}]\n        self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\"})], [\"b\", \"a\"])\n    def test_disabled_rejected(self):\n        self.assertEqual(eligible([{\"id\": \"x\", \"enabled\": False, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\n    def test_expired_rejected(self):\n        self.assertEqual(eligible([{\"id\": \"x\", \"expired\": True, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\n    def test_positive_and_string_price_rejected(self):\n        rows = [{\"id\": \"p\", \"price\": 0.01, \"features\": [\"tools\"]}, {\"id\": \"s\", \"price\": \"0\", \"features\": [\"tools\"]}]\n        self.assertEqual(eligible(rows, {\"tools\"}), [])\n    def test_boolean_price_rejected(self):\n        self.assertEqual(eligible([{\"id\": \"x\", \"price\": False, \"features\": [\"tools\"]}], {\"tools\"}), [])\n    def test_all_required_features(self):\n        rows = [{\"id\": \"one\", \"price\": 0, \"features\": [\"tools\"]}, {\"id\": \"both\", \"price\": 0.0, \"features\": [\"tools\", \"json\"]}]\n        self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\", \"json\"})], [\"both\"])\n"
+    },
+    {
+      "run_id": "r1-closed_trace",
+      "file": "registry.py",
+      "sha256": "0d109b7d415f765dcb71b6293c02c1df3d308accc7eef4ee51f9eeaf29a8cd86",
+      "content": "from backend import HarnessBackend\nROUTES = {'alpha': ('harness', HarnessBackend)}\ndef build(name):\n    runtime, factory = ROUTES[name]\n    return factory(runtime)\n"
+    },
+    {
+      "run_id": "r1-closed_trace",
+      "file": "answer.json",
+      "sha256": "56338d83757fbdcbc80a23f20ca75b21c902f4ac881bdf9e9827d33c3fc2520f",
+      "content": "{\n  \"path\": [\"create\", \"build\", \"send\", \"complete\", \"post\"],\n  \"runtime\": \"harness\",\n  \"post_url\": \"/v1/chat/completions\",\n  \"paid_fallback_reachable\": false\n}\n"
+    },
+    {
+      "run_id": "r1-open_audit",
+      "file": "findings.json",
+      "sha256": "13c56ba6c2a8655b5a2f16d0aca847f8ca9d822f549e3c5c61003e2696329a60",
+      "content": "{\n  \"categories\": [\n    {\n      \"category\": \"late_count\",\n      \"finding\": \"In request(), the usage counter is appended to `attempts` only AFTER client.post() completes successfully. Budget accounting is therefore delayed: any concurrent caller checking remaining() while a request is in flight sees a stale count, and failed requests (OSError path) are never counted at all, so LIMIT can be exceeded.\",\n      \"location\": \"budget.py lines 8-11\"\n    },\n    {\n      \"category\": \"local_timezone\",\n      \"finding\": \"The date stamp uses datetime.now(), i.e. the machine's local timezone, rather than a UTC-aware timestamp (datetime.now(timezone.utc)). Around midnight the recorded date depends on host TZ, producing inconsistent day bucketing across environments.\",\n      \"location\": \"budget.py line 10\"\n    },\n    {\n      \"category\": \"incomplete_price_check\",\n      \"finding\": \"free_metadata() only inspects 'prompt' and 'completion' keys and treats missing keys as 0 via .get(..., 0). A model entry missing those keys (or carrying other priced components) is silently classified as free, so the price check is incomplete and can misclassify paid models as free.\",\n      \"location\": \"budget.py lines 15-16\"\n    },\n    {\n      \"category\": \"paid_fallback\",\n      \"finding\": \"fallback() strips the ':free' suffix, yielding the corresponding PAID model name. Falling back this way silently routes traffic to a billable endpoint, a direct paid-request risk.\",\n      \"location\": \"budget.py lines 18-19\"\n    },\n    {\n      \"category\": \"unhealthy_remaining\",\n      \"finding\": \"remaining() derives headroom purely from len(attempts) and ignores the `healthy` flag entirely (`healthy` is initialized but never read or updated). When the service is unhealthy, remaining() still reports full quota, so callers get a misleading budget figure.\",\n      \"location\": \"budget.py lines 5, 21-22\"\n    }\n  ]\n}\n"
+    },
+    {
+      "run_id": "r1-open_audit",
+      "file": "budget.py",
+      "sha256": "849f958fa09a79692c9529274e38dfa189e4782fcde7b8279c5d0f545192d12b",
+      "content": "from datetime import datetime\n\nLIMIT = 1000\nattempts = []\nhealthy = True\n\ndef request(client, model, body):\n    try:\n        response = client.post(model=model, body=body)\n        attempts.append((datetime.now().date().isoformat(), response.status_code))\n        return response\n    except OSError:\n        return None\n\ndef free_metadata(pricing):\n    return float(pricing.get(\"prompt\", 0)) == 0 and float(pricing.get(\"completion\", 0)) == 0\n\ndef fallback(model):\n    return model.removesuffix(\":free\")\n\ndef remaining():\n    return max(LIMIT - len(attempts), 0)\n"
+    },
+    {
+      "run_id": "r1-open_audit",
+      "file": "README.md",
+      "sha256": "2fd3b8c0c17a04e4545f982b68f0d956c41c5edcda3a86b2e6585b30c9966780",
+      "content": "The counter must include every HTTP attempt, reset on UTC dates, and fail closed when unhealthy. Paid fallbacks are forbidden. Price metadata may add fields over time.\n"
+    },
+    {
+      "run_id": "r2-closed_edit",
+      "file": "registry.py",
+      "sha256": "e37caca8f7634c717d8eb9889be594d70844e9186aa5a1c093e67311a3c10fd6",
+      "content": "import math\nimport numbers\n\n\ndef _is_zero_price(value):\n    \"\"\"True only for a numeric (non-bool) price exactly equal to zero.\"\"\"\n    if isinstance(value, bool) or not isinstance(value, numbers.Number):\n        return False\n    return value == 0 and not (isinstance(value, float) and math.isnan(value))\n\n\ndef eligible(entries, required_features):\n    \"\"\"Return entries safe for the requested feature set.\n\n    Preserves input order. Keeps only entries that are:\n      - enabled,\n      - not expired,\n      - priced at exactly numeric zero (booleans excluded),\n      - containing every required feature.\n    \"\"\"\n    required = set(required_features)\n    result = []\n    for entry in entries:\n        if not isinstance(entry, dict):\n            continue\n        if not entry.get(\"enabled\", True):\n            continue\n        if entry.get(\"expired\", False):\n            continue\n        if \"price\" not in entry:\n            continue\n        if not _is_zero_price(entry[\"price\"]):\n            continue\n        features = set(entry.get(\"features\") or ())\n        if not required.issubset(features):\n            continue\n        result.append(entry)\n    return result\n"
+    },
+    {
+      "run_id": "r2-closed_edit",
+      "file": "test_registry.py",
+      "sha256": "4d68616eb78dce521ff56d9bfa1d79f2a6b80cd718a64fb6de45f23ba5055aa0",
+      "content": "import unittest\nfrom registry import eligible\n\nclass RegistryTests(unittest.TestCase):\n    def test_preserves_order(self):\n        rows = [{\"id\": \"b\", \"price\": 0, \"features\": [\"tools\"]}, {\"id\": \"a\", \"price\": 0, \"features\": [\"tools\"]}]\n        self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\"})], [\"b\", \"a\"])\n    def test_disabled_rejected(self):\n        self.assertEqual(eligible([{\"id\": \"x\", \"enabled\": False, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\n    def test_expired_rejected(self):\n        self.assertEqual(eligible([{\"id\": \"x\", \"expired\": True, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\n    def test_positive_and_string_price_rejected(self):\n        rows = [{\"id\": \"p\", \"price\": 0.01, \"features\": [\"tools\"]}, {\"id\": \"s\", \"price\": \"0\", \"features\": [\"tools\"]}]\n        self.assertEqual(eligible(rows, {\"tools\"}), [])\n    def test_boolean_price_rejected(self):\n        self.assertEqual(eligible([{\"id\": \"x\", \"price\": False, \"features\": [\"tools\"]}], {\"tools\"}), [])\n    def test_all_required_features(self):\n        rows = [{\"id\": \"one\", \"price\": 0, \"features\": [\"tools\"]}, {\"id\": \"both\", \"price\": 0.0, \"features\": [\"tools\", \"json\"]}]\n        self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\", \"json\"})], [\"both\"])\n"
+    },
+    {
+      "run_id": "r2-closed_trace",
+      "file": "registry.py",
+      "sha256": "0d109b7d415f765dcb71b6293c02c1df3d308accc7eef4ee51f9eeaf29a8cd86",
+      "content": "from backend import HarnessBackend\nROUTES = {'alpha': ('harness', HarnessBackend)}\ndef build(name):\n    runtime, factory = ROUTES[name]\n    return factory(runtime)\n"
+    },
+    {
+      "run_id": "r2-closed_trace",
+      "file": "answer.json",
+      "sha256": "56338d83757fbdcbc80a23f20ca75b21c902f4ac881bdf9e9827d33c3fc2520f",
+      "content": "{\n  \"path\": [\"create\", \"build\", \"send\", \"complete\", \"post\"],\n  \"runtime\": \"harness\",\n  \"post_url\": \"/v1/chat/completions\",\n  \"paid_fallback_reachable\": false\n}\n"
+    },
+    {
+      "run_id": "r2-open_audit",
+      "file": "findings.json",
+      "sha256": "8b661de2bb2d20044526cbd1b5dcd057334fb5e0c5d737459accdb7af9606043",
+      "content": "{\n  \"categories\": [\n    \"late_count\",\n    \"local_timezone\",\n    \"incomplete_price_check\",\n    \"paid_fallback\",\n    \"unhealthy_remaining\",\n    \"lock_contention\"\n  ]\n}\n"
+    },
+    {
+      "run_id": "r2-open_audit",
+      "file": "budget.py",
+      "sha256": "849f958fa09a79692c9529274e38dfa189e4782fcde7b8279c5d0f545192d12b",
+      "content": "from datetime import datetime\n\nLIMIT = 1000\nattempts = []\nhealthy = True\n\ndef request(client, model, body):\n    try:\n        response = client.post(model=model, body=body)\n        attempts.append((datetime.now().date().isoformat(), response.status_code))\n        return response\n    except OSError:\n        return None\n\ndef free_metadata(pricing):\n    return float(pricing.get(\"prompt\", 0)) == 0 and float(pricing.get(\"completion\", 0)) == 0\n\ndef fallback(model):\n    return model.removesuffix(\":free\")\n\ndef remaining():\n    return max(LIMIT - len(attempts), 0)\n"
+    },
+    {
+      "run_id": "r2-open_audit",
+      "file": "README.md",
+      "sha256": "2fd3b8c0c17a04e4545f982b68f0d956c41c5edcda3a86b2e6585b30c9966780",
+      "content": "The counter must include every HTTP attempt, reset on UTC dates, and fail closed when unhealthy. Paid fallbacks are forbidden. Price metadata may add fields over time.\n"
+    }
+  ],
+  "secret_hits": []
+}

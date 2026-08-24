@@ -1,0 +1,220 @@
+{
+  "t01_route_switch": {
+    "control_empty_cards": {
+      "expected": "red",
+      "tags": [
+        "positive_control"
+      ]
+    },
+    "current": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    },
+    "path_success_without_state": {
+      "expected": "red",
+      "tags": [
+        "path"
+      ]
+    },
+    "target_allows_dead_route": {
+      "expected": "red",
+      "tags": [
+        "target"
+      ]
+    },
+    "target_keeps_connections": {
+      "expected": "red",
+      "tags": [
+        "target"
+      ]
+    },
+    "valid_fourth_card": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    }
+  },
+  "t02_kill_path": {
+    "control_token_collection_dead": {
+      "expected": "red",
+      "tags": [
+        "positive_control"
+      ]
+    },
+    "current": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    },
+    "path_does_not_archive": {
+      "expected": "red",
+      "tags": [
+        "path"
+      ]
+    },
+    "target_unwired_remove": {
+      "expected": "red",
+      "tags": [
+        "target"
+      ]
+    },
+    "valid_inlined_primitive": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    }
+  },
+  "t03_fallback_classifier": {
+    "control_public_list_always_empty": {
+      "expected": "red",
+      "tags": [
+        "positive_control"
+      ]
+    },
+    "current": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    },
+    "path_public_list_bypasses_classifier": {
+      "expected": "red",
+      "tags": [
+        "path"
+      ]
+    },
+    "target_compound_fallback_masks_primary": {
+      "expected": "red",
+      "tags": [
+        "target"
+      ]
+    },
+    "target_primary_signal_removed": {
+      "expected": "red",
+      "tags": [
+        "target"
+      ]
+    },
+    "valid_boolean_refactor": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    },
+    "valid_new_opaque_id": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    }
+  },
+  "t04_prompt_collection": {
+    "current": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    },
+    "path_worker_prompt_leaks": {
+      "expected": "red",
+      "tags": [
+        "path"
+      ]
+    },
+    "target_empty_source": {
+      "expected": "red",
+      "tags": [
+        "target",
+        "positive_control"
+      ]
+    },
+    "target_new_clause_leaks": {
+      "expected": "red",
+      "tags": [
+        "target"
+      ]
+    },
+    "valid_new_clause": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    },
+    "valid_rule_reordering": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    }
+  },
+  "t05_ledger_exactly_once": {
+    "current": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    },
+    "path_success_without_debit": {
+      "expected": "red",
+      "tags": [
+        "path",
+        "positive_control"
+      ]
+    },
+    "target_duplicate_debit": {
+      "expected": "red",
+      "tags": [
+        "target"
+      ]
+    },
+    "valid_audit_entry": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    },
+    "valid_debit_metadata": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    }
+  },
+  "t06_manifest_parser": {
+    "control_accepts_invalid_port": {
+      "expected": "red",
+      "tags": [
+        "positive_control"
+      ]
+    },
+    "current": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    },
+    "path_returns_constant": {
+      "expected": "red",
+      "tags": [
+        "path"
+      ]
+    },
+    "target_ignores_requested_port": {
+      "expected": "red",
+      "tags": [
+        "target"
+      ]
+    },
+    "valid_extra_metadata": {
+      "expected": "green",
+      "tags": [
+        "valid"
+      ]
+    }
+  }
+}

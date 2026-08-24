@@ -1,0 +1,15 @@
+{
+  "run_id": "08-t04_prompt_collection-candidate",
+  "task": "t04_prompt_collection",
+  "arm": "candidate",
+  "model": "gpt-5.6-luna",
+  "returncode": 0,
+  "timed_out": false,
+  "elapsed_seconds": 43.2,
+  "tool_calls": 4,
+  "changed_files": [
+    "tests/test_target.py"
+  ],
+  "production_sha256": "b0a20679ad1155cb49b8a5cf70e78971b68d4dd94675c0f27302d1d561d6974a",
+  "fixture_production_sha256": "b0a20679ad1155cb49b8a5cf70e78971b68d4dd94675c0f27302d1d561d6974a"
+}

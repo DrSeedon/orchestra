@@ -1,0 +1,39 @@
+{
+  "run_id": "r2-closed_trace-inclusionai__ling-3.0-flash_free",
+  "repetition": 2,
+  "task": "closed_trace",
+  "model": "inclusionai/ling-3.0-flash:free",
+  "elapsed_seconds": 0.455,
+  "loadavg": [
+    0.51025390625,
+    0.72314453125,
+    0.69580078125
+  ],
+  "ok": false,
+  "stop_reason": "error",
+  "error": "llm_error: Client error '404 Not Found' for url 'https://openrouter.ai/api/v1/model/inclusionai/ling-3.0-flash:free'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+  "http_attempts": 0,
+  "successful_rounds": 0,
+  "tool_calls": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [],
+  "grade": {
+    "score": 0.0,
+    "matched": 0,
+    "total": 4,
+    "error": "FileNotFoundError: [Errno 2] No such file or directory: '/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r2-closed_trace-inclusionai__ling-3.0-flash_free/answer.json'"
+  },
+  "events": [
+    {
+      "type": "error",
+      "content": "llm round failed: Client error '404 Not Found' for url 'https://openrouter.ai/api/v1/model/inclusionai/ling-3.0-flash:free'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "metadata": {}
+    }
+  ],
+  "artifacts": {
+    "registry.py": "from backend import HarnessBackend\nROUTES = {\"alpha\": (\"harness\", HarnessBackend)}\ndef build(name):\n    runtime, factory = ROUTES[name]\n    return factory(runtime)\n"
+  }
+}

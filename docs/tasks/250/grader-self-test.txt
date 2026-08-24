@@ -1,0 +1,7 @@
+{
+  "strong_total": 30,
+  "strong_max": 30,
+  "weak_total": 14,
+  "weak_target_points": 0,
+  "weak_positive_control_points": 2
+}

@@ -502,6 +502,39 @@ async def test_task_create_returns_fields_needed_by_dashboard_card(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_task_update_distinguishes_omitted_and_explicitly_cleared_command(monkeypatch):
+    import app.mcp_stdio as m
+
+    captured = []
+
+    async def fake_api(method, path, **kwargs):
+        captured.append((method, path, kwargs))
+        return {"updated": ["acceptance_command"]}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        assert await m.task_update("42") == "Nothing to update"
+        await m.task_update("42", acceptance_command="new-command")
+        await m.task_update("42", acceptance_command="")
+
+    assert captured[0][2]["json"]["acceptance_command"] == "new-command"
+    assert captured[1][2]["json"]["acceptance_command"] == ""
+
+
+@pytest.mark.asyncio
+async def test_task_update_empty_ordinary_fields_do_not_enter_put_body(monkeypatch):
+    import app.mcp_stdio as m
+
+    api = AsyncMock()
+    with patch.object(m, "_api", api):
+        result = await m.task_update(
+            "42", title="", description="", status="", assignee="",
+        )
+
+    assert result == "Nothing to update"
+    api.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_task_create_omits_project_to_use_callers_scope(monkeypatch):
     import app.mcp_stdio as m
     from pydantic import BaseModel, ValidationError
@@ -1781,6 +1814,24 @@ async def test_switch_worker_branch_forwards_explicit_force(monkeypatch):
         await m.switch_worker_branch(name="coder", task_id="91", force=True)
 
     assert captured["force"] is True
+
+
+@pytest.mark.asyncio
+async def test_switch_worker_branch_forwards_owned_dirs_json(monkeypatch):
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    captured = {}
+
+    async def fake_api(_method, _path, **kwargs):
+        captured.update(kwargs["json"])
+        return {"ok": True, "branch": "task-91/coder"}
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        await m.switch_worker_branch(
+            name="coder", task_id="91", owned_dirs='["new/path"]',
+        )
+
+    assert captured["owned_dirs"] == ["new/path"]
 
 
 @pytest.mark.asyncio

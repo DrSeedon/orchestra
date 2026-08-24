@@ -1,0 +1,21 @@
+diff --git a/tests/test_target.py b/tests/test_target.py
+index 5ede69a..2ede247 100644
+--- a/tests/test_target.py
++++ b/tests/test_target.py
+@@ -1,2 +1,15 @@
+-"""Add focused regression tests here."""
++import pytest
+ 
++from src.manifest import Endpoint, load_manifest
++
++
++def test_load_manifest_returns_endpoint_and_ignores_extra_metadata():
++    assert load_manifest(
++        '{"endpoint":{"host":"api.example","port":8443},"name":"api"}'
++    ) == Endpoint(host="api.example", port=8443)
++
++
++@pytest.mark.parametrize("port", [0, 65536])
++def test_load_manifest_rejects_out_of_range_port(port):
++    with pytest.raises(ValueError):
++        load_manifest(f'{{"endpoint":{{"host":"api.example","port":{port}}}}}')

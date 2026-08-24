@@ -726,6 +726,35 @@ class TestClaudeTurnLifecycle:
         session._admission_service.assert_not_awaited()
 
     @pytest.mark.asyncio
+    async def test_codex_listener_without_active_turn_fails_idle_and_flushes_queue(
+        self, session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        class BrokenCodexBackend:
+            active_turn_id = None
+
+            async def events(self):
+                if False:
+                    yield None
+
+        backend = BrokenCodexBackend()
+        session.backend_type = "codex"
+        session._backend = backend
+        session.status = AgentStatus.RUNNING
+        session._pending_messages = ["queued after reader failure"]
+        session._log = lambda *_args, **_kwargs: None
+        session._flush_pending = AsyncMock()
+        session._hibernate.schedule = MagicMock()
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+
+        await session._persistent_event_loop()
+        await asyncio.sleep(0)
+
+        assert session.status == AgentStatus.IDLE
+        session._flush_pending.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_imported_claude_listener_reconnect_refreshes_history_from_logs(
         self, session, monkeypatch, tmp_path,
     ):
@@ -3580,6 +3609,30 @@ class TestEnsureBackendForceFresh:
                 await session._ensure_backend()
 
         assert session._backend is None
+
+    @pytest.mark.asyncio
+    async def test_codex_connect_failure_clears_running_status(self, session):
+        from app.session import AgentStatus
+
+        backend = SimpleNamespace(
+            connect=AsyncMock(side_effect=RuntimeError("app-server exited 0")),
+            has_owned_processes=False,
+        )
+        session.backend_type = "codex"
+        session.status = AgentStatus.RUNNING
+        session._log = MagicMock()
+        session._refresh_skills = AsyncMock()
+        session._refresh_codex_project_doc = AsyncMock()
+        session._make_backend = MagicMock(return_value=backend)
+        with patch("app.workspace.sync_agents_md"):
+            with pytest.raises(RuntimeError, match="app-server exited 0"):
+                await session._ensure_backend()
+
+        assert session.status == AgentStatus.IDLE
+        assert any(
+            call.args and call.args[0] == "error"
+            for call in session._log.call_args_list
+        )
 
     @pytest.mark.asyncio
     async def test_disconnect_failure_retains_backend_and_lifecycle_tasks(

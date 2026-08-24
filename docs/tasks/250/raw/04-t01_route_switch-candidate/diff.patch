@@ -1,0 +1,29 @@
+diff --git a/tests/test_target.py b/tests/test_target.py
+index 5ede69a..14106e3 100644
+--- a/tests/test_target.py
++++ b/tests/test_target.py
+@@ -1,2 +1,23 @@
+-"""Add focused regression tests here."""
++"""Focused regression tests for gateway route switching."""
+ 
++from src.gateway import default_gateway
++
++
++def test_switch_rejects_unavailable_route_without_changing_state():
++    gateway = default_gateway()
++
++    result = gateway.switch("hiddify")
++
++    assert result == {"ok": False, "error": "route unavailable"}
++    assert gateway.selected == "contabo"
++    assert gateway.active_connections == 4
++
++
++def test_switch_selects_healthy_route_and_drops_connections():
++    gateway = default_gateway()
++
++    result = gateway.switch("direct")
++
++    assert result == {"ok": True, "selected": "direct", "dropped_connections": 4}
++    assert gateway.selected == "direct"
++    assert gateway.active_connections == 0
