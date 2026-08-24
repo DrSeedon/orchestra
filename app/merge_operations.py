@@ -7,8 +7,10 @@ import hashlib
 import json
 import logging
 import sqlite3
+import subprocess
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from app.db import _conn, get_session, get_session_by_name
@@ -154,6 +156,9 @@ def _decode_record(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     record = dict(row)
     record["request"] = json.loads(record.pop("request_json"))
     record["result"] = json.loads(record.pop("result_json"))
+    record["accepted_admission"] = json.loads(
+        record.pop("accepted_admission_json", "{}") or "{}"
+    )
     return record
 
 
@@ -227,6 +232,8 @@ def _terminal_snapshot_matches(
         and row["terminal_base_branch"] == accepted["base_branch"]
         and row["terminal_task_id"] == accepted["task_id"]
         and bool(row["terminal_needs_switch"]) == accepted["needs_switch"]
+        and json.loads(row["accepted_admission_json"] or "{}")
+        == accepted.get("admission", {})
     )
 
 
@@ -313,6 +320,37 @@ def resolve_operation(
         return resolved, 200
 
 
+def _admission_evidence(
+    admission: dict[str, Any],
+    *,
+    oracle_status: str,
+    mapped_files: list[str] | None = None,
+    target_recheck: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    target = dict(admission.get("target") or {})
+    oracle = dict(admission.get("oracle") or {})
+    return {
+        "target": {
+            "branch": str(target.get("branch") or ""),
+            "sha": str(target.get("sha") or ""),
+        },
+        "oracle": {
+            "source": str(oracle.get("source") or "none"),
+            "task_id": str(oracle.get("task_id") or ""),
+            "revision": int(oracle.get("revision") or 0),
+            "ref": str(oracle.get("ref") or target.get("sha") or ""),
+            "hash": str(oracle.get("hash") or ""),
+            "status": oracle_status,
+        },
+        "mapped_files": list(mapped_files or []),
+        "target_recheck": target_recheck or {
+            "expected": str(target.get("sha") or ""),
+            "actual": None,
+            "matched": None,
+        },
+    }
+
+
 def accept_operation_snapshot(
     *,
     operation_id: str,
@@ -326,6 +364,7 @@ def accept_operation_snapshot(
         "request": request,
         "worker_branch": accepted["worker_branch"],
         "worker_head": accepted["worker_head"],
+        "admission": accepted.get("admission", {}),
     })
     now = _now()
     with _conn() as connection:
@@ -372,6 +411,15 @@ def accept_operation_snapshot(
             worker_head=accepted["worker_head"],
             retryable=True,
         )
+        admission = accepted.get("admission", {})
+        if admission:
+            result["admission"] = _admission_evidence(
+                admission,
+                oracle_status=(
+                    "pending" if admission.get("oracle", {}).get("required")
+                    else "not_required"
+                ),
+            )
         try:
             connection.execute(
                 """INSERT INTO merge_operations (
@@ -379,9 +427,10 @@ def accept_operation_snapshot(
                        request_json, request_hash, dedupe_fingerprint,
                        accepted_worker_branch, accepted_worker_head,
                        accepted_base_branch, accepted_task_id, accepted_needs_switch,
+                       accepted_admission_json,
                        state, commit_point, result_json, result_hash,
                        created_at, updated_at
-                   ) VALUES (?, 'merge', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                   ) VALUES (?, 'merge', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                              'PENDING', 'NOT_REACHED', ?, ?, ?, ?)""",
                 (
                     operation_id,
@@ -396,6 +445,7 @@ def accept_operation_snapshot(
                     accepted["base_branch"],
                     accepted["task_id"],
                     int(accepted["needs_switch"]),
+                    _json(admission),
                     _json(result),
                     _hash(result),
                     now,
@@ -459,6 +509,103 @@ def _session_snapshot(session_id: str) -> dict[str, Any]:
         "task_id": str(row.get("task_id") or ""),
         "needs_switch": bool(row.get("needs_switch")),
         "worktree_path": row.get("worktree_path") or "",
+    }
+
+
+def _target_head(worktree_path: str, target_branch: str) -> str:
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{target_branch}^{{commit}}"],
+            cwd=worktree_path, capture_output=True, text=True,
+            timeout=15, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError(f"cannot resolve merge target {target_branch}: {exc}") from exc
+    if proc.returncode != 0:
+        detail = proc.stderr.strip() or proc.stdout.strip() or f"exit {proc.returncode}"
+        raise ValueError(f"cannot resolve merge target {target_branch}: {detail}")
+    return proc.stdout.strip()
+
+
+def _prepare_admission_snapshot(
+    accepted: dict[str, Any], request: dict[str, Any],
+) -> dict[str, Any]:
+    from app import acceptance
+    from app.merge_test_gate import changed_paths
+
+    target_branch = request.get("target") or accepted.get("base_branch") or "main"
+    if not Path(accepted["worktree_path"]).is_dir():
+        # Compatibility for callers whose worktree identity seam is explicitly mocked.
+        # A real missing worktree cannot reach here: `_session_snapshot` inspects Git first.
+        return {
+            "target": {"branch": target_branch, "sha": ""},
+            "oracle": {
+                "source": "none", "task_id": str(accepted.get("task_id") or ""),
+                "revision": 0, "ref": "", "hash": "", "command": "",
+                "required": False, "manifest": [],
+            },
+        }
+    target_sha = _target_head(accepted["worktree_path"], target_branch)
+    changed = changed_paths(
+        accepted["worktree_path"],
+        target_ref=target_branch,
+        target_sha=target_sha,
+    )
+    if changed is None:
+        raise ValueError("cannot derive target-relative merge paths")
+    nested_behavioral = target_branch not in {"main", "master"} and any(
+        path.startswith("app/") or path.startswith("tests/")
+        for path in changed
+    )
+    task_oracle = acceptance.task_oracle_for_session(accepted["session_id"])
+    required = bool(task_oracle.get("required"))
+    if nested_behavioral and not required:
+        raise acceptance.AcceptanceCommandError(
+            "oracle_missing",
+            "nested behavioral merge requires an authoritative task oracle",
+        )
+    if required:
+        oracle = acceptance.pin_task_oracle(
+            task_id=str(task_oracle.get("task_id") or accepted.get("task_id") or ""),
+            revision=int(task_oracle.get("revision") or 0),
+            command=str(task_oracle.get("command") or ""),
+            manifest_paths=list(task_oracle.get("manifest_paths") or []),
+            updated_by=dict(task_oracle.get("updated_by") or {}),
+            target_ref=target_branch,
+            target_sha=target_sha,
+            worktree_path=accepted["worktree_path"],
+        )
+        oracle["required"] = True
+    elif task_oracle.get("command"):
+        oracle = {
+            "source": "legacy_task",
+            "task_id": str(task_oracle.get("task_id") or accepted.get("task_id") or ""),
+            "revision": 0,
+            "ref": target_sha,
+            "hash": _hash({
+                "source": "legacy_task",
+                "task_id": task_oracle.get("task_id"),
+                "ref": target_sha,
+                "command": task_oracle.get("command"),
+            }),
+            "command": str(task_oracle["command"]),
+            "required": False,
+            "manifest": [],
+        }
+    else:
+        oracle = {
+            "source": "none",
+            "task_id": str(accepted.get("task_id") or ""),
+            "revision": 0,
+            "ref": target_sha,
+            "hash": "",
+            "command": "",
+            "required": False,
+            "manifest": [],
+        }
+    return {
+        "target": {"branch": target_branch, "sha": target_sha},
+        "oracle": oracle,
     }
 
 
@@ -595,6 +742,12 @@ def _classify_failure(raw: dict[str, Any], message: str) -> tuple[str, dict[str,
         "upstream_state": raw.get("state"),
         "normalization": "LEGACY_UPSTREAM_ERROR",
     }
+    if raw.get("code") == "TARGET_HEAD_CHANGED":
+        details["target_recheck"] = raw.get("target_recheck") or {}
+        return "TARGET_HEAD_CHANGED", details, _action(
+            "REFRESH_TARGET_THEN_NEW_OPERATION",
+            "Target moved after admission; start a fresh merge operation.",
+        )
     if raw.get("conflicts"):
         details["paths"] = list(raw["conflicts"])
         return "CONFLICT", details, _action(
@@ -977,14 +1130,69 @@ async def _run_operation(operation_id: str) -> None:
                 ),
             )
         else:
-            from app.acceptance import FAILED, INCONCLUSIVE, evaluate_for_merge
+            from app import acceptance as acceptance_module
+            from app.acceptance import FAILED, INCONCLUSIVE, PASSED, SKIPPED
 
-            acceptance = await asyncio.to_thread(
-                evaluate_for_merge,
-                session_id=record["session_id"],
-                worktree_path=current["worktree_path"],
+            admission = dict(record.get("accepted_admission") or {})
+            legacy_unpinned = not admission
+            if legacy_unpinned:
+                target = {
+                    "branch": (
+                        record["request"].get("target")
+                        or record["accepted_base_branch"]
+                    ),
+                    "sha": "",
+                }
+                oracle = {
+                    "source": "legacy_dynamic",
+                    "task_id": record["accepted_task_id"],
+                    "revision": 0,
+                    "ref": "",
+                    "hash": "",
+                    "required": False,
+                }
+                admission = {"target": target, "oracle": oracle}
+                acceptance = await asyncio.to_thread(
+                    acceptance_module.evaluate_for_merge,
+                    session_id=record["session_id"],
+                    worktree_path=current["worktree_path"],
+                )
+                oracle_status = str(acceptance.get("status") or INCONCLUSIVE)
+            else:
+                target = dict(admission.get("target") or {})
+                oracle = dict(admission.get("oracle") or {})
+            source = str(oracle.get("source") or "none")
+            if not legacy_unpinned and source == "task":
+                acceptance = await asyncio.to_thread(
+                    acceptance_module.evaluate_pinned_oracle,
+                    oracle,
+                    current["worktree_path"],
+                )
+                oracle_status = str(acceptance.get("status") or INCONCLUSIVE)
+            elif not legacy_unpinned and source == "legacy_task":
+                acceptance = await asyncio.to_thread(
+                    acceptance_module.run_command,
+                    str(oracle.get("command") or ""),
+                    current["worktree_path"],
+                )
+                acceptance["command"] = str(oracle.get("command") or "")
+                oracle_status = str(acceptance.get("status") or INCONCLUSIVE)
+            elif not legacy_unpinned:
+                acceptance = {
+                    "status": PASSED,
+                    "reason": "not_required",
+                    "exit_code": 0,
+                    "output": "",
+                    "command": "",
+                }
+                oracle_status = "not_required"
+
+            acceptance_blocks = (
+                acceptance["status"] != PASSED
+                if bool(oracle.get("required"))
+                else acceptance["status"] in {FAILED, INCONCLUSIVE}
             )
-            if acceptance["status"] in {FAILED, INCONCLUSIVE}:
+            if acceptance_blocks:
                 code = (
                     "ACCEPTANCE_FAILED"
                     if acceptance["status"] == FAILED
@@ -1004,7 +1212,7 @@ async def _run_operation(operation_id: str) -> None:
                 result = _base_result(
                     operation_id,
                     "FAILED",
-                    target_branch=record["request"].get("target", ""),
+                    target_branch=str(target.get("branch") or ""),
                     worker_branch=record["accepted_worker_branch"],
                     worker_head=record["accepted_worker_head"],
                     error=error,
@@ -1014,13 +1222,23 @@ async def _run_operation(operation_id: str) -> None:
                     ),
                 )
                 result["acceptance"] = acceptance
+                result["admission"] = _admission_evidence(
+                    admission, oracle_status=oracle_status,
+                )
             else:
                 from app.merge_test_gate import describe_progress, evaluate_test_gate
 
                 test_gate = await asyncio.to_thread(
-                    evaluate_test_gate, current["worktree_path"],
+                    evaluate_test_gate,
+                    current["worktree_path"],
+                    target_ref=str(target.get("branch") or ""),
+                    target_sha=str(target.get("sha") or ""),
                 )
-                if test_gate["status"] in {FAILED, INCONCLUSIVE}:
+                strict_mapped = bool(oracle.get("required"))
+                gate_blocks = test_gate["status"] in {FAILED, INCONCLUSIVE} or (
+                    strict_mapped and test_gate["status"] != PASSED
+                )
+                if gate_blocks:
                     code = (
                         "TEST_GATE_FAILED"
                         if test_gate["status"] == FAILED
@@ -1039,7 +1257,7 @@ async def _run_operation(operation_id: str) -> None:
                         ),
                         operation_id=operation_id,
                         status=409,
-                        retryable=test_gate["status"] == INCONCLUSIVE,
+                        retryable=test_gate["status"] in {INCONCLUSIVE, SKIPPED},
                     )
                     # Разные исходы требуют разных действий, и раньше оба получали
                     # «Fix the failing merge-gate tests» — для незавершённого прогона это
@@ -1061,7 +1279,7 @@ async def _run_operation(operation_id: str) -> None:
                     result = _base_result(
                         operation_id,
                         "FAILED",
-                        target_branch=record["request"].get("target", ""),
+                        target_branch=str(target.get("branch") or ""),
                         worker_branch=record["accepted_worker_branch"],
                         worker_head=record["accepted_worker_head"],
                         error=error,
@@ -1069,6 +1287,11 @@ async def _run_operation(operation_id: str) -> None:
                     )
                     result["acceptance"] = acceptance
                     result["test_gate"] = test_gate
+                    result["admission"] = _admission_evidence(
+                        admission,
+                        oracle_status=oracle_status,
+                        mapped_files=list(test_gate.get("mapped_files") or []),
+                    )
                 else:
                     from app.routes.sessions import execute_merge_session
 
@@ -1078,12 +1301,10 @@ async def _run_operation(operation_id: str) -> None:
                         expected_scope=record["scope"],
                         expected_branch=record["accepted_worker_branch"],
                         expected_head=record["accepted_worker_head"],
+                        expected_target_head=str(target.get("sha") or ""),
                         req={
                             **record["request"],
-                            "target": (
-                                record["request"].get("target")
-                                or record["accepted_base_branch"]
-                            ),
+                            "target": str(target.get("branch") or ""),
                         },
                     )
                     from app import rag_service
@@ -1096,6 +1317,19 @@ async def _run_operation(operation_id: str) -> None:
                     )
                     result["acceptance"] = acceptance
                     result["test_gate"] = test_gate
+                    result["admission"] = _admission_evidence(
+                        admission,
+                        oracle_status=oracle_status,
+                        mapped_files=list(test_gate.get("mapped_files") or []),
+                        target_recheck=(
+                            raw.get("target_recheck")
+                            if isinstance(raw, dict) else None
+                        ),
+                    )
+        if record.get("accepted_admission") and "admission" not in result:
+            result["admission"] = _admission_evidence(
+                record["accepted_admission"], oracle_status="not_run",
+            )
         try:
             terminal = await asyncio.to_thread(_session_snapshot, record["session_id"])
         except Exception as exc:
@@ -1217,6 +1451,32 @@ async def accept_merge_operation(
             canonical_id, "FAILED",
             target_branch=request["target"], worker_branch=row.get("branch") or "",
             error=error,
+        ), 409
+    try:
+        accepted["admission"] = await asyncio.to_thread(
+            _prepare_admission_snapshot, accepted, request,
+        )
+    except Exception as exc:
+        reason = getattr(exc, "reason", "")
+        code = "ORACLE_MISSING" if reason == "oracle_missing" else "ORACLE_METADATA_INVALID"
+        error = _error(
+            code,
+            str(exc),
+            operation_id=canonical_id,
+            status=409,
+            details={"exception_type": type(exc).__name__},
+        )
+        return _base_result(
+            canonical_id,
+            "FAILED",
+            target_branch=request["target"] or accepted.get("base_branch", ""),
+            worker_branch=accepted["worker_branch"],
+            worker_head=accepted["worker_head"],
+            error=error,
+            next_action=_action(
+                "FIX_ORACLE_THEN_NEW_OPERATION",
+                "Repair the authoritative task oracle or target, then start a new operation.",
+            ),
         ), 409
     result, _created, status = await asyncio.to_thread(
         accept_operation_snapshot,

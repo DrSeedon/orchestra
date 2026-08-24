@@ -103,18 +103,26 @@ def _git(cwd: Path, *args: str) -> str | None:
     return proc.stdout
 
 
-def changed_paths(worktree: str) -> list[str] | None:
+def changed_paths(
+    worktree: str,
+    *,
+    target_ref: str = "",
+    target_sha: str = "",
+) -> list[str] | None:
     wt = Path(worktree)
     if not wt.is_dir():
         return None
     inside = _git(wt, "rev-parse", "--is-inside-work-tree")
     if inside is None or inside.strip() != "true":
         return None
-    base = None
-    for ref in ("main", "master"):
-        if _git(wt, "rev-parse", "--verify", ref) is not None:
-            base = ref
-            break
+    base = target_sha.strip()
+    if base and _git(wt, "rev-parse", "--verify", f"{base}^{{commit}}") is None:
+        return None
+    if not base:
+        for ref in (target_ref, "main", "master"):
+            if ref and _git(wt, "rev-parse", "--verify", ref) is not None:
+                base = ref
+                break
     if not base:
         return None
     named = _git(wt, "diff", "--name-only", f"{base}...HEAD")
@@ -404,20 +412,38 @@ def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
     }
 
 
-def evaluate_test_gate(worktree: str) -> dict:
-    changed = changed_paths(worktree)
+def evaluate_test_gate(
+    worktree: str,
+    *,
+    target_ref: str = "",
+    target_sha: str = "",
+) -> dict:
+    if target_ref or target_sha:
+        changed = changed_paths(
+            worktree, target_ref=target_ref, target_sha=target_sha,
+        )
+    else:
+        changed = changed_paths(worktree)
+    evidence = {
+        "target_ref": target_ref,
+        "target_sha": target_sha,
+    }
     if changed is None:
         return {
             "status": SKIPPED, "reason": "no_diff",
-            "exit_code": None, "output": "", "tests": [],
+            "exit_code": None, "output": "", "tests": [], "mapped_files": [],
+            **evidence,
         }
     tests = select_tests(changed, worktree=worktree)
     if not tests:
         return {
             "status": SKIPPED, "reason": "no_mapped_tests",
-            "exit_code": None, "output": "", "tests": [],
+            "exit_code": None, "output": "", "tests": [], "mapped_files": [],
+            **evidence,
         }
     if len(tests) > MAX_TEST_FILES:
         batches = _ordered_batches(tests)
-        return _batch_result(worktree, batches)
-    return run_pytest(worktree, tests)
+        result = _batch_result(worktree, batches)
+    else:
+        result = run_pytest(worktree, tests)
+    return {**result, "mapped_files": tests, **evidence}

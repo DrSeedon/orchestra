@@ -1122,6 +1122,7 @@ def merge_worktree_to_main(
     *,
     expected_worker_branch: str = "",
     expected_worker_head: str = "",
+    expected_target_head: str = "",
     waive_diff_budget: bool = False,
     waived_by: str = "",
 ) -> MergeOutcome:
@@ -1138,6 +1139,7 @@ def merge_worktree_to_main(
     mutation_started = False
     target_commit_succeeded = False
     merge_cwd = ""
+    target_recheck = None
 
     with repo_mutation_lock(repo):
         target_branch = resolve_base_branch(str(repo), target_branch)
@@ -1222,6 +1224,29 @@ def merge_worktree_to_main(
                             result = {"ok": False, "error": f"target branch '{target_branch}' does not exist"}
                         else:
                             target_before = target_before_ref
+                            if expected_target_head:
+                                target_recheck = {
+                                    "expected": expected_target_head,
+                                    "actual": target_before_ref,
+                                    "matched": target_before_ref == expected_target_head,
+                                }
+                                if not target_recheck["matched"]:
+                                    return {
+                                        "ok": False,
+                                        "state": "failed",
+                                        "commit_point": "not_reached",
+                                        "code": "TARGET_HEAD_CHANGED",
+                                        "error": "target branch moved after admission",
+                                        "target_recheck": target_recheck,
+                                        "target_branch": target_branch,
+                                        "target_before": target_before_ref,
+                                        "target_after": target_before_ref,
+                                        "worker_branch": worker_branch,
+                                        "worker_head": worker_head,
+                                        "conflicts": [],
+                                        "commits_merged": 0,
+                                        "diff_insertions": diff_insertions,
+                                    }
                         try:
                             owner = _branch_worktree_path(str(repo), target_branch)
                         except RuntimeError as e:
@@ -1325,6 +1350,22 @@ def merge_worktree_to_main(
                                                         "ok": False,
                                                         "conflicts": conflict_files,
                                                     }
+                                                precheck_ok = False
+
+                                        if precheck_ok and expected_target_head:
+                                            current_target = _inspect_branch_ref(repo, target_branch)
+                                            target_recheck = {
+                                                "expected": expected_target_head,
+                                                "actual": current_target or "",
+                                                "matched": current_target == expected_target_head,
+                                            }
+                                            if not target_recheck["matched"]:
+                                                result = {
+                                                    "ok": False,
+                                                    "code": "TARGET_HEAD_CHANGED",
+                                                    "error": "target branch moved after merge precheck",
+                                                    "target_recheck": target_recheck,
+                                                }
                                                 precheck_ok = False
 
                                         if precheck_ok:
@@ -1509,6 +1550,12 @@ def merge_worktree_to_main(
             diff_budget_waived=bool(waive_diff_budget),
             diff_budget_waived_by=waived_by if waive_diff_budget else "",
         )
+        if expected_target_head:
+            result["target_recheck"] = target_recheck or {
+                "expected": expected_target_head,
+                "actual": target_before,
+                "matched": target_before == expected_target_head,
+            }
         return result
 
 

@@ -2165,17 +2165,23 @@ async def get_worker_info(name: str) -> str:
 async def task_create(title: str, project: str = "", price: int = 0,
                       description: str = "", assignee: str = "",
                       status: str = "new", priority: int = 2,
-                      acceptance_command: str = "") -> str:
+                      acceptance_command: str = "",
+                      acceptance_manifest: list[str] | None = None,
+                      acceptance_required: bool = False) -> str:
     """Create a new task. Returns task number and details.
     project: registered project scope or id; omitted uses the caller's mapped scope.
     price in exact currency units (e.g. 20000 = 20 000). 0 is valid (no price).
     priority: 0=critical, 1=high, 2=medium (default), 3=low."""
+    command = _acceptance_command_from_caller(acceptance_command)
     payload = {
         "title": title, "price": price,
         "description": description, "assignee": assignee, "status": status,
         "scope": SCOPE, "priority": priority,
-        "acceptance_command": _acceptance_command_from_caller(acceptance_command),
+        "acceptance_command": command,
     }
+    if ROLE in _ORCH_ROLES and (acceptance_manifest or acceptance_required):
+        payload["acceptance_manifest"] = list(acceptance_manifest or [])
+        payload["acceptance_required"] = bool(acceptance_required)
     if project:
         payload["project"] = project
     result = await _api("POST", "/api/tm/tasks", json=payload)
@@ -2195,7 +2201,10 @@ async def task_update(par: str, title: str = "", description: str = "",
                       price: int = -1, status: str = "",
                       assignee: str = "", priority: int = -1,
                       project: str = "", acceptance_command: str = "",
-                      clear_acceptance_command: bool = False) -> str:
+                      acceptance_manifest: list[str] | None = None,
+                      acceptance_required: bool | None = None,
+                      clear_acceptance_command: bool = False,
+                      clear_acceptance_oracle: bool = False) -> str:
     """Update an existing task. Only provided fields are changed.
     par: '42' or 'PAR-42' (legacy). price in exact currency units (-1 = don't change, 0 = set to zero).
     Empty string = don't change for text fields. priority: 0-3 or -1=don't change.
@@ -2216,12 +2225,20 @@ async def task_update(par: str, title: str = "", description: str = "",
     if 0 <= priority <= 3:
         body["priority"] = priority
     command = _acceptance_command_from_caller(acceptance_command)
-    if clear_acceptance_command and command:
+    if (clear_acceptance_command or clear_acceptance_oracle) and command:
         return "Error: acceptance_command and clear_acceptance_command are mutually exclusive"
-    if command:
-        body["acceptance_command"] = command
-    elif clear_acceptance_command and ROLE in _ORCH_ROLES:
-        body["clear_acceptance_command"] = True
+    if ROLE in _ORCH_ROLES:
+        if command:
+            body["acceptance_command"] = command
+        elif clear_acceptance_command:
+            body["clear_acceptance_command"] = True
+        if clear_acceptance_oracle:
+            body["clear_acceptance_oracle"] = True
+        else:
+            if acceptance_manifest is not None:
+                body["acceptance_manifest"] = list(acceptance_manifest)
+            if acceptance_required is not None:
+                body["acceptance_required"] = bool(acceptance_required)
     if not body:
         return "Nothing to update"
     params = {"project": project} if project else ({"scope": SCOPE} if SCOPE else None)

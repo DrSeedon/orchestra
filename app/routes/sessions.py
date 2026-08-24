@@ -1464,6 +1464,7 @@ async def execute_merge_session(
     expected_branch: str,
     expected_head: str,
     req: dict,
+    expected_target_head: str = "",
 ) -> dict:
     """Execute a merge for one pinned session identity and own its lock sequence."""
     from app import tm as _tm
@@ -1634,6 +1635,7 @@ async def execute_merge_session(
                     target_branch=target,
                     expected_worker_branch=pinned_branch,
                     expected_worker_head=merge_head,
+                    expected_target_head=expected_target_head,
                     waive_diff_budget=bool(req.get("waive_diff_budget")),
                     waived_by=str(req.get("waived_by") or ""),
                 )
