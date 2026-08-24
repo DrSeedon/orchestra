@@ -1,0 +1,28 @@
+{
+  "implementation_commit": {
+    "sha": "c3e66f162ce324877e245d4c75b298a229a68672",
+    "author_date": "2026-08-23T15:25:01+07:00",
+    "commit_date": "2026-08-23T15:25:01+07:00",
+    "subject": "#209: maximize managed Codex context"
+  },
+  "last_completed_old_window_task_start": [
+    "2026-08-23T08:55:45.125Z",
+    258400
+  ],
+  "restart_user_request_log": "2026-08-23T09:02:34.711302+00:00",
+  "restart_action_text_log": "2026-08-23T09:03:34.834024+00:00",
+  "restart_restored_system_message": "2026-08-23T09:04:11.935666+00:00",
+  "first_new_window_task_start": [
+    "2026-08-23T09:04:18.168Z",
+    828400
+  ],
+  "gap_last_old_to_first_new_seconds": 513.0429999828339,
+  "journal_limit": "The current journal starts at boot 2026-08-23T11:25:42Z, so the 09:03 systemd Started line is no longer retained; DB restoration and native rollout metadata bound the change point.",
+  "config_semantics": {
+    "old_raw": 272000,
+    "old_effective": 258400,
+    "new_raw": 872000,
+    "new_effective": 828400,
+    "new_auto_compact": 784800
+  }
+}

@@ -35,6 +35,10 @@
 - **Число Codex processes/sessions нельзя читать как active model concurrency:** в 1 280 native rollout-интервалах exact max=12; на границе #111 было 62 Codex-related process / 109 sessions при 4 active turns, через 7 минут 49 процессов при 8 active turns. DB `codex turn=... started` после рестарта может replay-запаздывать до 13 507.561 с, поэтому интервалы берутся из rollout `task_started→task_complete` по `ts` · `docs/tasks/255/turns.csv`, `bucket-summary.json`, `docs/tasks/111/research.md` · 2026-08-23, #255
 - **При observed 10–12 active turns резкой provider/model деградации нет:** TTFT median/p90 11.684/18.372 с против 9.273/35.575 при одном; xhigh 9.827→9.691, full-cycle 9.403→9.708; output throughput 28.296→32.107 token/s. Final wall 3.83× объясняется 5.5× tool rounds и 4.69× output; все 22 high-concurrency turns успешны при quota 18–56% · `docs/tasks/255/measurements.md`, `bucket-summary.json` · 2026-08-23, #255
 - **Local process pressure реален, но его вклад в один model turn не измерен:** сохранённые #111 snapshots дают 3.3–3.4 GiB RSS, 10–11 GiB swap и load до 13; high-concurrency dispatch→native start остаётся median/p90 0.133/0.623 с. Это поддерживает system-wide/UI slowness от memory/swap и отвергает большой stdio delay, но synchronous CPU/RAM per-turn series нет · `docs/tasks/111/research.md`, `docs/tasks/255/measurements.md` · 2026-08-23, #255
+- **Подъём effective context 258 400→828 400 реально используется и уменьшил immediate compact pressure:** в equal 5 734.691-second окне 19/34 complete post turns превысили старый потолок (max single request 654 999), compact outcome упал 4→1; human quality UNKNOWN из-за отсутствия acceptance/human score · `docs/tasks/312/turns.csv`, `summary.json`, `measurements.md` · 2026-08-24, #312
+- **Больший config ceiling сам по себе не показал общий latency penalty:** raw TTFT median 12.371→16.525 s при 3.98× turn-input и 1.5× tools; Sol/xhigh requests ≤258 400 дали 13.480 s pre против 11.956 s post, а >258 400 — 17.710 s; четыре same-session strata меняют знак 2/2 · `docs/tasks/312/matched-sessions.csv`, `summary.json:request_size_strata` · 2026-08-24, #312
+- **Immediate subscription burn после 258K→828K не ускорился:** одинаковые `pro`/reset-revision окна по 5 734.691 s съели +3 pp каждое (1.883 pp/h); поздний post вырос на +47 pp/8.279 h, но смешал 252 turns, #240 direct diagnostics/reviews, image work, другие account surfaces и UNKNOWN reset revision · `docs/tasks/312/summary.json:quota`, `measurements.md` · 2026-08-24, #312
+- **Image-heavy post-change edge реален, но не изолирует context ceiling:** COG получил четыре oversized resume-reader errors, comfy compact вышел по 120-second timeout и позже успешно compacted; одновременно менялись inline image bytes, 16 MiB JSONL framing, restart/resume и compact · `docs/tasks/312/summary.json:image_incident` · 2026-08-24, #312
 - Текст `END YOUR TURN NOW` в результате MCP-тула не завершает Codex-turn: fake app-server последовательность `mcpToolCall result → agentMessage → turn/completed` дала `tool_result,text,turn_end` и **0** control RPC; настоящий bg result отдельно входит через `SessionManager.send` как user input · `docs/tasks/385/research.md` §Deterministic fake-only reproduction · 2026-08-23, #385
 - У `codex-cli 0.149.0` нет клиентского clean-end RPC: version-matched schema перечисляет только `turn/start,turn/steer,turn/interrupt`, а принудительный терминал имеет `status=interrupted`; usage надо принимать из последующего `turn/completed`, не синтезировать `end_turn` · `docs/tasks/385/research.md` §What the app-server can actually enforce · 2026-08-23, #385
 - Минимальный seam provenance для настоящего bg result не требует миграции: immutable internal message несёт `origin/job_id/event_id`, а versioned projection помещается в уже существующий `logs.event_id`, который доезжает в history и incremental UI sync; assistant `text` это поле из контента выставить не может · `docs/tasks/385/research.md` §Smallest code-enforced contract · 2026-08-23, #385
@@ -68,6 +72,8 @@
 - «Fast tier достаточен для всего наблюдаемого разрыва» · пользовательский negative control без Fast сохраняет симптом; #240 на Standard не воспроизвёл крупный harness gap · 2026-08-23, #240
 - «~30 живых Codex процессов/сессий = ~30 одновременных provider calls» · exact rollout max=12; один root размножается в Node/native/code-mode/MCP helpers, а idle roots до #111 не hibernate · 2026-08-23, #255
 - «Observed 10–12 active turns резко упираются в account/provider queue» · 0/22 ошибок, quota 18–56%, TTFT p90 ниже single-turn, throughput выше; ошибки концентрируются в low-concurrency/quota≈100% · 2026-08-23, #255
+- «Сам факт конфигурации 828 400 немедленно ускорил расход подписки» · equal-duration same-plan/same-reset окна дали +3 pp до и +3 pp после · 2026-08-24, #312
+- «После подъёма контекста вырос общий terminal failure rate» для immediate matched окна · `end_turn` 30/31→35/35; 22/25 поздних interrupts лежат в двух fleet-wide server/restart clusters · 2026-08-24, #312
 
 ## Пробелы
 
@@ -78,6 +84,9 @@
 - Причина разрыва на обычных tool-using задачах остаётся открыта: #240 специально запретил tools и изолировал harness latency, поэтому не проверил, добавляет ли full role model/tool round-trips. Нужен один exact user-task D/A/D/A с per-round model/tool wall · 2026-08-23, #240
 - Latency у истории измерена до 218 468 input tokens; область около effective window 828 400 и auto-compact threshold не запускалась · 2026-08-23, #240
 - Active 20+ не наблюдался; historical proxy-manager counters и synchronous per-turn CPU/MemAvailable/PSI/swap/process snapshots отсутствуют, поэтому proxy saturation и точные секунды local contention остаются открыты · 2026-08-23, #255
+- Улучшилась ли semantic quality от 828K, неизвестно: `end_turn`, assistant bytes и task status не являются human/acceptance oracle; нужен score, привязанный к turn/task · 2026-08-24, #312
+- Независимый causal latency effect большого ceiling не измерен: post tasks/request sizes/reconnects сменились вместе, same-session counts несбалансированы · 2026-08-24, #312
+- Причина reset revision `2026-08-31T00:51:01Z` и account consumption вне VPS (laptop/desktop/direct CLI) неизвестны, поэтому поздний +47 pp нельзя разложить по потребителям · 2026-08-24, #312
 
 ## Источники
 
@@ -87,3 +96,4 @@
 - `docs/tasks/385/research.md` — fake-only доказательство spoof, реальная app-server control surface и минимальный provenance seam
 - `docs/tasks/240/research.md` — layered A/B/A/B standalone→app-server→Python→managed prompt/MCP→warm history
 - `docs/tasks/255/research.md` — retrospective active-turn concurrency vs processes, host/proxy/provider/stdio hypotheses
+- `docs/tasks/312/research.md` — matched production evidence for 258 400→828 400 context, latency/failure/quality and subscription consumption
