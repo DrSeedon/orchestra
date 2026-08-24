@@ -6,7 +6,6 @@
 import pytest
 
 from app.auth import is_owner_mode
-from app.routes import proxy as proxy_routes
 from app.routes import system as system_routes
 
 
@@ -75,18 +74,6 @@ async def test_usage_visible_to_owner_with_login(monkeypatch):
     assert await system_routes.get_usage() == {
         "anthropic": {"five_hour": {"utilization": 7}},
     }
-
-
-def test_proxy_gate_blocks_client_and_passes_owner(monkeypatch):
-    from fastapi import HTTPException
-
-    _set_auth(monkeypatch)
-    with pytest.raises(HTTPException) as exc:
-        proxy_routes._require_owner()
-    assert exc.value.status_code == 403
-
-    monkeypatch.setenv("OWNER_MODE", "1")
-    proxy_routes._require_owner()  # не бросает
 
 
 def test_profiles_gate_blocks_client(monkeypatch):

@@ -40,23 +40,6 @@
             {% if is_auth_enabled %}<span id="proxy-status" class="text-xs cursor-default" title="Proxy status">⏳</span>{% endif %}
             {% if is_owner_mode %}
             <div class="relative">
-                <button id="proxy-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400 flex items-center gap-1" title="Proxy settings">
-                    <span id="proxy-flag">🌐</span>
-                    <span id="proxy-ip" class="text-[10px] text-slate-500"></span>
-                </button>
-                <div id="proxy-dropdown" class="absolute right-0 top-full mt-1 w-[320px] glass glow rounded-xl p-3 z-50 hidden">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-bold text-white">🌐 Proxy</span>
-                        <button id="proxy-check-all" class="text-[10px] px-2 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition-colors">Check All</button>
-                    </div>
-                    <div id="proxy-list" class="space-y-1.5"></div>
-                    <div id="proxy-restart-banner" class="hidden mt-2 p-2.5 bg-amber-900/40 border border-amber-600/50 rounded-lg">
-                        <div class="text-[11px] text-amber-200 mb-2">⚠️ <span id="proxy-restart-msg">Записано в .env</span></div>
-                        <button id="proxy-restart-btn" class="w-full py-1.5 bg-amber-600 hover:bg-amber-500 rounded-lg text-xs font-medium text-white transition-colors">🔄 Рестарт Orchestra</button>
-                    </div>
-                </div>
-            </div>
-            <div class="relative">
                 <button id="profiles-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Profiles">🗂</button>
                 <div id="profiles-dropdown" class="absolute right-0 top-full mt-1 w-[320px] glass glow rounded-xl p-3 z-50 hidden">
                     <div class="flex items-center justify-between mb-2">

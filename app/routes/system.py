@@ -393,13 +393,6 @@ async def refresh_models_endpoint():
     return {"ok": True, "proxy_connected": is_proxy_connected(), "model_count": len(MODELS)}
 
 
-@router.post("/api/models/refresh")
-async def refresh_models_endpoint():
-    from app.models import refresh_models
-    await refresh_models()
-    return {"ok": True, "proxy_connected": is_proxy_connected(), "model_count": len(MODELS)}
-
-
 @router.get("/api/models/catalog")
 async def get_models_catalog():
     """Every registered model (all runtimes) with catalog metadata + flags (#366).

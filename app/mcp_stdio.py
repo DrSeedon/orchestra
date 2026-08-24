@@ -92,7 +92,6 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "get_worker_info",
     "task_list",
     "task_get",
-    "payment_status",
     "bg_list",
     "search_memory",
     "delivery_status",
@@ -2286,30 +2285,6 @@ async def task_get(par: str, project: str = "") -> str:
     """Get task details. project overrides scope and should come from task_list output."""
     params = {"project": project} if project else ({"scope": SCOPE} if SCOPE else None)
     result = await _api("GET", f"/api/tm/tasks/{par}", params=params)
-    if isinstance(result, dict) and result.get("error"):
-        return f"Error: {result['error']}"
-    return json.dumps(result, ensure_ascii=False)
-
-
-@mcp.tool()
-async def payment_receive(amount: int, client: str = "",
-                          date: str = "", note: str = "") -> str:
-    """Record incoming payment. Auto-distributes to done tasks (smallest debt first).
-    amount in exact currency units (e.g. 30000 = 30 000)."""
-    result = await _api("POST", "/api/tm/payments", json={
-        "amount": amount, "client": client, "date": date, "note": note,
-        "scope": SCOPE,
-    })
-    if isinstance(result, dict) and result.get("error"):
-        return f"Error: {result['error']}"
-    return json.dumps(result, ensure_ascii=False)
-
-
-@mcp.tool()
-async def payment_status(client: str = "") -> str:
-    """Get payment overview: balance, total debt, recent payments."""
-    result = await _api("GET", "/api/tm/payments/status",
-                        params={"client": client, "scope": SCOPE})
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     return json.dumps(result, ensure_ascii=False)

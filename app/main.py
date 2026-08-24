@@ -286,7 +286,6 @@ async def drain_mutating_requests(budget_s: float = MUTATING_DRAIN_BUDGET_S) -> 
 async def _shutdown_runtime(
     restart_inbox_drain: "asyncio.Task | None",
     snapshot_task: asyncio.Task,
-    tunnel_started: bool,
     bridge_task: asyncio.Task,
 ) -> None:
     startup_tasks = {
@@ -305,11 +304,6 @@ async def _shutdown_runtime(
     from app import rag_service
     restart_guard.note_shutdown_phase("rag", "rag_service.shutdown")
     rag_service.shutdown()
-
-    if tunnel_started:
-        from app.ssh_tunnel import stop_tunnel
-        restart_guard.note_shutdown_phase("tunnel", "ssh_tunnel.stop_tunnel")
-        await stop_tunnel()
 
     bridge_task.cancel()
     restart_guard.note_shutdown_phase("bridge_task", "asyncio.Task[bridge]")
@@ -343,23 +337,8 @@ async def lifespan(app: FastAPI):
     init_db()
     from app.artifacts import cleanup_expired
     cleanup_expired()
-    _tunnel_started = False
-    if not is_auth_enabled():
-        # Model discovery may itself use a local SSH-forward from .env. Start those
-        # routes before the first proxy request instead of waiting 60s for recovery.
-        from app.ssh_tunnel import start_tunnel, stop_tunnel
-        await start_tunnel()
-        _tunnel_started = True
     from app.models import refresh_models, is_proxy_connected
-    custom_model_endpoint = bool(
-        os.environ.get("ANTHROPIC_BASE_URL") or os.environ.get("UPSTREAM_API")
-    )
-    attempts = 5 if _tunnel_started and custom_model_endpoint else 1
-    for attempt in range(attempts):
-        await refresh_models()
-        if is_proxy_connected() or attempt == attempts - 1:
-            break
-        await asyncio.sleep(1)
+    await refresh_models()
     if is_auth_enabled() and not is_proxy_connected():
         async def _proxy_retry_loop():
             while not is_proxy_connected():
@@ -369,10 +348,6 @@ async def lifespan(app: FastAPI):
                     logger.info("Proxy reconnected, models loaded")
                     break
         asyncio.create_task(_proxy_retry_loop())
-    from app import tm as _tm_mod
-    _tm_mod.set_main_loop(asyncio.get_running_loop())
-    if not is_auth_enabled():
-        from app import tm_yougile  # noqa: F401 — registers tm sync hooks
     await manager.auto_resume_all()
     await recover_initial_deliveries()
     await recover_message_deliveries()
@@ -407,7 +382,6 @@ async def lifespan(app: FastAPI):
     await _shutdown_runtime(
         _restart_inbox_drain,
         snapshot_task,
-        _tunnel_started,
         bridge_task,
     )
 
@@ -438,7 +412,6 @@ app.mount("/static", VersionedStatic(directory="app/static"), name="static")
 
 from app.routes.tm import router as tm_router
 from app.routes.bg import router as bg_router
-from app.routes.proxy import router as proxy_router
 from app.routes.sessions import router as sessions_router
 from app.routes.system import router as system_router
 from app.routes.tg import router as tg_router
@@ -448,7 +421,6 @@ from app.routes.merge_operations import router as merge_operations_router
 from app.routes.artifacts import router as artifacts_router
 app.include_router(tm_router)
 app.include_router(bg_router)
-app.include_router(proxy_router)
 app.include_router(sessions_router)
 app.include_router(system_router)
 app.include_router(tg_router)

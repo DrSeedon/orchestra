@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from fastapi.responses import JSONResponse
 
 
 @pytest.fixture
@@ -44,7 +45,22 @@ def _merge_session_request():
 
 
 async def _call_merge_session(sessmod, name: str, req: dict):
-    return await sessmod.merge_session(name, req, _merge_session_request())
+    scope = req.get("scope", "")
+    found = sessmod.manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    result = await sessmod.execute_merge_session(
+        session_id=found.id,
+        expected_name=found.name,
+        expected_scope=found.scope or scope,
+        expected_branch=getattr(found, "branch", "") or "",
+        expected_head="",
+        req=req,
+    )
+    status_code = result.pop("_http_status", None)
+    if status_code:
+        return JSONResponse(result, status_code=status_code)
+    return result
 
 
 def _save_owned_switch_record(*, session_id="owned-switch", task_id="90",
@@ -343,35 +359,6 @@ class TestTaskProjectIdentity:
             assert tm.get_task_by_id(conn, upper["id"])["title"] == "upper"
             assert tm.get_task_by_id(conn, lower["id"])["title"] == "lower"
 
-    def test_status_prepayment_uses_explicit_project_not_scope(self, client):
-        from app import tm
-
-        upper, lower = _seed_case_variant_tasks()
-        with tm._conn() as conn:
-            tm.ensure_client(conn, "upper-client", "Upper", "Seedon")
-            tm.ensure_client(conn, "lower-client", "Lower", "seedon")
-            tm.receive_payment(conn, "upper-client", 70)
-            tm.receive_payment(conn, "lower-client", 40)
-
-        response = client.put(
-            "/api/tm/tasks/1",
-            params={"project": "Seedon", "scope": "/lower"},
-            json={"status": "done"},
-        )
-
-        assert response.status_code == 200
-        assert (response.json()["project"], response.json()["paid_rub"]) == ("Seedon", 70)
-        with tm._conn() as conn:
-            upper_row = tm.get_task_by_id(conn, upper["id"])
-            lower_row = tm.get_task_by_id(conn, lower["id"])
-            allocations = conn.execute(
-                "SELECT task_id, amount_rub FROM tm_payment_allocations ORDER BY id"
-            ).fetchall()
-            assert (upper_row["status"], upper_row["paid_rub"]) == ("done", 70)
-            assert (lower_row["status"], lower_row["paid_rub"]) == ("new", 0)
-            assert [(row["task_id"], row["amount_rub"]) for row in allocations] == [
-                (upper["id"], 70),
-            ]
 
 
 class TestCreateSession:

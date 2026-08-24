@@ -1,7 +1,7 @@
-"""Shared subprocess env for MCP stdio servers — leaf module.
+"""Shared subprocess env for MCP stdio servers — leaf client configuration.
 
-Lives outside manager.py so proxy_manager (which mutates the proxy vars at
-runtime) doesn't have to lazy-import the manager module.
+The external ai-proxy-manager owns route selection; this module only propagates
+the current client environment into MCP subprocesses.
 """
 
 import os

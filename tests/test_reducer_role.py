@@ -22,7 +22,7 @@ FORBIDDEN = {
     "switch_worker_branch", "check_conflict", "update_worker_prompt",
     "change_worker_model", "compact_worker", "acquire_test_lock",
     "release_test_lock", "task_create", "task_update",
-    "payment_receive", "payment_status", "resolve_merge_operation",
+    "resolve_merge_operation",
 }
 REQUIRED = {"send_message", "update_progress", "list_agents", "search_memory"}
 

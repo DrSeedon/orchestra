@@ -881,7 +881,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (clientClose) clientClose.addEventListener('click', closeClientModal);
     const clientModal = document.getElementById('client-modal');
     if (clientModal) clientModal.addEventListener('click', (e) => { if (e.target === clientModal) closeClientModal(); });
-    initProxy();
     initProfilesManager();
     $('#orch-name')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') createOrchestrator(); });
     $('#orch-cwd')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!$('#orch-name').value.trim()) $('#orch-name').value = autoNameFromPath($('#orch-cwd').value); $('#orch-name').focus(); }});
@@ -2708,23 +2707,6 @@ function updateAgentInfo(session) {
         if (session.description) { descEl.textContent = session.description; descEl.title = session.description; descEl.classList.remove('hidden'); descLabel.classList.remove('hidden'); }
         else { descEl.classList.add('hidden'); descLabel.classList.add('hidden'); }
     }
-    let progEl = $('#ai-progress'); let progLabel = $('#ai-progress-label');
-    if (!progEl) {
-        const grid = document.querySelector('#agent-info .grid');
-        if (grid) {
-            progLabel = document.createElement('span'); progLabel.id = 'ai-progress-label'; progLabel.className = 'text-slate-500 hidden'; progLabel.textContent = 'Progress';
-            progEl = document.createElement('span'); progEl.id = 'ai-progress'; progEl.className = 'text-indigo-400 text-xs truncate hidden'; progEl.style.maxWidth = '180px';
-            grid.append(progLabel, progEl);
-        }
-    }
-    if (progEl && progLabel) {
-        const pp = session.progress_pct || 0;
-        if (pp > 0) {
-            const ps = session.progress_status ? ` — ${session.progress_status}` : '';
-            progEl.textContent = `${pp}%${ps}`; progEl.title = `${pp}%${ps}`;
-            progEl.classList.remove('hidden'); progLabel.classList.remove('hidden');
-        } else { progEl.classList.add('hidden'); progLabel.classList.add('hidden'); }
-    }
     const ctxKey = `${currentScope}:${session.name}`;
     if (contextCache[ctxKey]) {
         setContextDisplay(contextCache[ctxKey]);
@@ -3031,24 +3013,6 @@ function createAgentItem(s) {
         fill.title = `${pct}% context`;
         bar.appendChild(fill);
         info.appendChild(bar);
-    }
-    const ppct = s.progress_pct || 0;
-    if (ppct > 0) {
-        const pbar = document.createElement('div');
-        pbar.className = 'w-full h-1 bg-slate-800 rounded-full mt-1';
-        const pfill = document.createElement('div');
-        pfill.className = 'h-1 rounded-full transition-all';
-        pfill.style.width = `${Math.min(ppct, 100)}%`;
-        pfill.style.backgroundColor = '#818cf8';
-        pfill.title = `${ppct}% progress`;
-        pbar.appendChild(pfill);
-        info.appendChild(pbar);
-        if (s.progress_status) {
-            const ptext = document.createElement('div');
-            ptext.style.cssText = 'font-size:9px;color:#64748b;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-            ptext.textContent = `${ppct}% — ${s.progress_status}`;
-            info.appendChild(ptext);
-        }
     }
     item.append(icon, info);
 
@@ -4037,12 +4001,9 @@ function buildCompactToolLine(type, content, ts, payload) {
                 const _fl = _taskListFilter(parsed);
                 preview = `читает список задач${_fl ? ` (${_fl})` : ''}`;
             } else if (rawName === 'mcp__orchestra__task_get') preview = `читает задачу #${taskNum(parsed.par) || '?'}`;
-            else if (rawName === 'mcp__orchestra__payment_receive') preview = `💰 +${parsed.amount || '?'} ${CUR}`;
-            else if (rawName === 'mcp__orchestra__payment_status') preview = '💰 Balance';
             else if (rawName === 'mcp__orchestra__bg_create') { const _bi = _JOB_ICONS[parsed.type]||'⚙️'; preview = `${_bi} BG: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
             else if (rawName === 'mcp__orchestra__bg_list') preview = '📊 BG Jobs';
             else if (rawName === 'mcp__orchestra__bg_cancel') preview = `⏹ Cancel job ${(parsed.job_id||'').slice(0,8)}`;
-            else if (rawName.startsWith('mcp__yougile__')) { const yn = rawName.replace('mcp__yougile__',''); preview = `📋 ${yn}${parsed.title ? ': '+parsed.title : ''}`; }
             else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') { let _d = '?'; try { _d = new URL(parsed.url).hostname; } catch {} preview = `🌐 ${_d}`; }
             else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
             else if (parsed.command) preview = parsed.command;
@@ -4437,8 +4398,6 @@ function _taskCardBodyHtml(task) {
     if (task.project) rows.push(`<div><span style="color:#64748b">Project:</span> <span style="color:#94a3b8">${safe(task.project)}</span></div>`);
     const price = task.price_rub ?? task.price;
     if (Number(price) > 0) rows.push(`<div><span style="color:#64748b">Price:</span> <b style="color:#eab308">${_taskMoney(price)} ${CUR}</b></div>`);
-    if (Number(task.paid_rub) > 0) rows.push(`<div><span style="color:#64748b">Paid:</span> ${_taskMoney(task.paid_rub)} ${CUR}</div>`);
-    if (Number(task.debt_rub) > 0) rows.push(`<div style="color:#ef4444">Debt: ${_taskMoney(task.debt_rub)} ${CUR}</div>`);
     if (task.assignee) rows.push(`<div><span style="color:#64748b">Assignee:</span> ${safe(task.assignee)}</div>`);
     if (task.priority != null && _TASK_PRIORITY_META[task.priority]) {
         const [icon, label] = _TASK_PRIORITY_META[task.priority];
@@ -4639,10 +4598,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
-                const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__send_message','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__get_worker_logs','mcp__orchestra__get_worker_info','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel','mcp__orchestra__update_progress'].includes(rawName);
+        const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__send_message','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__get_worker_logs','mcp__orchestra__get_worker_info','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel'].includes(rawName);
                 const isGlobCompact = rawName === 'Glob';
                 const isSkillCompact = rawName === 'Skill';
-                const isYougileCompact = rawName.startsWith('mcp__yougile__');
                 const isWebFetchCompact = rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch';
                 const isWebSearchCompact = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
                 const isSpawnWorkerCompact = rawName === 'mcp__orchestra__spawn_worker';
@@ -4681,8 +4639,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
                 } else if (resultSpan && isOrchSimpleCompact) {
                     const hasErr = clean.includes('error') || clean.includes('Error') || clean.includes('fail') || clean.includes('Fail');
-                    if (rawName === 'mcp__orchestra__update_progress') { resultSpan.textContent = '✓'; resultSpan.style.color = '#818cf8'; }
-                    else if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__bg_create'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
+                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__bg_create'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
                     else if (rawName === 'mcp__orchestra__send_message') { const m = clean.match(/sent to '(.+?)'/i); resultSpan.textContent = hasErr ? '❌' : m ? `✅ → ${m[1]}` : '✅'; }
                     else if (rawName === 'mcp__orchestra__bg_cancel') resultSpan.textContent = hasErr ? '❌' : '⏹';
                     else if (rawName === 'mcp__orchestra__compact_worker') { const m = clean.match(/(\d+)%/); resultSpan.textContent = m ? `✅ ${m[1]}%` : '✅'; }
@@ -4691,7 +4648,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 } else if (resultSpan && isGlobCompact) {
                     const ct = clean.split('\n').filter(l=>l.trim()).length;
                     resultSpan.textContent = `📎 ${ct} files`;
-                } else if (resultSpan && (isSkillCompact || isYougileCompact)) {
+                } else if (resultSpan && isSkillCompact) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅';
                 } else if (resultSpan && isWebFetchCompact) {
                     const short = clean.length > 40 ? clean.replace(/\n/g, ' ').slice(0, 40) + '…' : clean.replace(/\n/g, ' ');
@@ -5042,36 +4999,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
         header.innerHTML = `${icon} ${DOMPurify.sanitize(short)}${toolDesc ? ` <span style="color:#64748b;font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
         div.appendChild(header);
 
-        const isProgress = rawName === 'mcp__orchestra__update_progress' || rawName === 'update_progress';
-        if (isProgress) {
-            try {
-                const d = JSON.parse(body);
-                const pct = d.percent || 0;
-                const status = d.status || '';
-                div.className = 'px-3 py-1 rounded-lg text-xs';
-                div.style.cssText = 'border-left:3px solid #818cf8;background:rgba(99,102,241,0.08)';
-                div.innerHTML = '';
-                div.dataset.lastTool = '1';
-                div.dataset.toolContent = content;
-                div.dataset.toolRawName = rawName;
-                const bar = document.createElement('div');
-                bar.style.cssText = 'display:flex;align-items:center;gap:8px';
-                const track = document.createElement('div');
-                track.style.cssText = 'flex:1;height:6px;background:rgba(51,65,85,0.5);border-radius:3px;overflow:hidden';
-                const fill = document.createElement('div');
-                fill.style.cssText = `width:${Math.min(pct,100)}%;height:100%;background:#818cf8;border-radius:3px;transition:width 0.3s`;
-                track.appendChild(fill);
-                const label = document.createElement('span');
-                label.style.cssText = 'color:#e2e8f0;font-weight:600;white-space:nowrap';
-                label.textContent = `${pct}%`;
-                const desc = document.createElement('span');
-                desc.style.cssText = 'color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px';
-                desc.textContent = status;
-                bar.append(track, label, desc);
-                div.appendChild(bar);
-                div.dataset.isEdit = '1';
-            } catch {}
-        }
         // Единственный вызов, которым оркестратор зовёт юзера (#241). Красный и без JSON:
         // юзер ищет эти строки глазами, а `reason` объясняет, зачем дёрнули.
         const isNotify = rawName === NOTIFY_USER_TOOL;
@@ -5369,8 +5296,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 return { icon: '📋', label: `читает список задач${f ? ` (${f})` : ''}`, color: '#a78bfa' };
             },
             'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `читает задачу #${taskNum(d.par)||'?'}`, color: '#a78bfa' }),
-            'mcp__orchestra__payment_receive': (d) => ({ icon: '💰', label: `+${d.amount||'?'} ${CUR}`, color: '#22c55e', sub: d.note || '' }),
-            'mcp__orchestra__payment_status': () => ({ icon: '💰', label: 'Balance', color: '#eab308' }),
             'mcp__orchestra__bg_create': (d) => { const i = _JOB_ICONS[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
             'mcp__orchestra__bg_list': () => ({ icon: '📊', label: 'BG Jobs', color: '#a78bfa' }),
             'mcp__orchestra__bg_cancel': (d) => ({ icon: '⏹', label: `Cancel ${(d.job_id||'').slice(0,8)}`, color: '#94a3b8' }),
@@ -5410,21 +5335,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 const d = JSON.parse(body);
                 header.textContent = `⚡ Skill: ${d.skill || '?'}`;
                 header.style.color = '#eab308';
-            } catch {}
-        }
-        const isYougile = rawName.startsWith('mcp__yougile__');
-        if (isYougile) {
-            try {
-                const d = JSON.parse(body);
-                const action = rawName.replace('mcp__yougile__', '').replace(/_/g, ' ');
-                header.textContent = `📋 ${action}${d.title ? ': ' + d.title : ''}`;
-                header.style.color = '#f97316';
-                if (d.task_id) {
-                    const idEl = document.createElement('div');
-                    idEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px';
-                    idEl.textContent = `ID: ${d.task_id}`;
-                    div.appendChild(idEl);
-                }
             } catch {}
         }
         const isBashTool = rawName === 'Bash';
@@ -5686,11 +5596,11 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
                 }
             });
-        } else if (!isProgress && !isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
+        } else if (!isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
                    !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
                    !isToolSearchCall && !isBugReport && !isWebFetch &&
                    !isSendFile && !isOrchSimple && !isGlob && !isSkill &&
-                   !isYougile && !isFileChangeTool && !isViewImageTool &&
+                   !isFileChangeTool && !isViewImageTool &&
                    !isImageGenerationTool && !isSleepTool && !isTodoWrite && !isReviewTool) {
             let _inputJsonRendered = false;
             if (body) {
@@ -5980,7 +5890,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 addTimestamp(lastTool, ts);
                 return;
             }
-            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__payment_receive','mcp__orchestra__payment_status','mcp__orchestra__bg_list','mcp__orchestra__get_worker_info'];
+            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__bg_list','mcp__orchestra__get_worker_info'];
             if (_tmTools.includes(lastTool.dataset.toolRawName)) {
                 const hdr = lastTool.querySelector('.flex.items-center');
                 let parsed = null;
@@ -6071,16 +5981,13 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     const detail = document.createElement('div');
                     detail.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b;display:flex;gap:8px;flex-wrap:wrap';
                     if (parsed.price_rub > 0) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ${CUR}</b></span>`;
-                    if (parsed.paid_rub > 0) detail.innerHTML += `<span>Paid: ${_kr(parsed.paid_rub)}</span>`;
-                    if (parsed.debt_rub > 0) detail.innerHTML += `<span style="color:#ef4444">Debt: ${_kr(parsed.debt_rub)}</span>`;
                     if (detail.innerHTML) lastTool.appendChild(detail);
                 } else if (tn === 'mcp__orchestra__task_list') {
                     const tasks = parsed.tasks || [];
-                    const debt = parsed.total_debt && parsed.total_debt !== '0' ? ` | долг: ${parsed.total_debt}` : '';
                     const resultMeta = document.createElement('div');
                     resultMeta.className = 'text-xs mt-1';
                     resultMeta.style.color = '#64748b';
-                    resultMeta.textContent = `Результат: ${tasks.length}${debt}`;
+                    resultMeta.textContent = `Результат: ${tasks.length}`;
                     lastTool.appendChild(resultMeta);
                     if (tasks.length > 0 && parsed.detailed) {
                         const container = document.createElement('div');
@@ -6140,45 +6047,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
                             });
                         }
                     }
-                } else if (tn === 'mcp__orchestra__payment_receive') {
-                    const _kr = (v) => typeof v === 'number' ? String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : v;
-                    const amt = parsed.amount_rub ? _kr(parsed.amount_rub) : (parsed.amount || '?') + 'k';
-                    if (hdr) { hdr.textContent = `💰 +${amt} ${CUR} received`; hdr.style.color = '#22c55e'; }
-                    const payInfo = document.createElement('div');
-                    payInfo.style.cssText = 'margin-top:4px;font-size:10px;color:#64748b';
-                    let payHtml = '';
-                    if (parsed.distributions && parsed.distributions.length > 0) {
-                        payHtml += parsed.distributions.map(d => {
-                            const a = d.allocated ? _kr(d.allocated) : (d.amount || '?') + 'k';
-                            return `<div style="display:flex;gap:6px"><span style="color:#94a3b8;min-width:60px">${d.par}</span><span style="color:#22c55e">+${a} ${CUR}</span>${d.remaining != null ? `<span style="color:#475569">remaining: ${_kr(d.remaining)}</span>` : ''}</div>`;
-                        }).join('');
-                    }
-                    if (parsed.balance_rub != null) payHtml += `<div style="margin-top:2px;color:#eab308">Balance: ${_kr(parsed.balance_rub)} ${CUR}</div>`;
-                    if (payHtml) { payInfo.innerHTML = payHtml; lastTool.appendChild(payInfo); }
-                } else if (tn === 'mcp__orchestra__payment_status') {
-                    const _kr = (v) => typeof v === 'number' ? String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : v;
-                    const bal = parsed.balance_rub != null ? _kr(parsed.balance_rub) : (parsed.balance_display || '0');
-                    const debt = parsed.total_debt_rub != null ? _kr(parsed.total_debt_rub) : (parsed.total_debt_display || '0');
-                    if (hdr) {
-                        hdr.textContent = `💰 Balance: ${bal} ${CUR} | Debt: ${debt} ${CUR}`;
-                        hdr.style.color = '#eab308';
-                    }
-                    const payments = parsed.recent_payments || parsed.payments || [];
-                    if (payments.length > 0) {
-                        const pEl = document.createElement('div');
-                        pEl.style.cssText = 'margin-top:4px;font-size:10px;color:#64748b';
-                        pEl.innerHTML = payments.slice(0, 5).map(p => {
-                            const a = p.amount_rub ? _kr(p.amount_rub) : p.amount;
-                            return `<div>${p.date}: <span style="color:#22c55e">+${a}</span>${p.note ? ' — '+DOMPurify.sanitize(p.note) : ''}</div>`;
-                        }).join('');
-                        lastTool.appendChild(pEl);
-                    }
-                    if (parsed.tasks_with_debt && parsed.tasks_with_debt.length > 0) {
-                        const dEl = document.createElement('div');
-                        dEl.style.cssText = 'margin-top:4px;font-size:10px;color:#ef4444';
-                        dEl.innerHTML = '<div style="color:#64748b;margin-bottom:2px">Debt:</div>' + parsed.tasks_with_debt.map(t => `<div>${t.par}: ${_kr(t.debt_rub || t.debt)} ${CUR}</div>`).join('');
-                        lastTool.appendChild(dEl);
-                    }
                 } else if (tn === 'mcp__orchestra__bg_list') {
                     const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs || []);
                     if (hdr) hdr.textContent = `📊 ${jobs.length} jobs`;
@@ -6214,7 +6082,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     if (parsed.total_turns) _row('Turns', parsed.total_turns);
                     if (parsed.total_tool_calls) _row('Tool calls', parsed.total_tool_calls);
                     if (parsed.total_input_tokens || parsed.total_output_tokens) _row('Tokens', `${(parsed.total_input_tokens||0).toLocaleString()} in / ${(parsed.total_output_tokens||0).toLocaleString()} out`);
-                    if (parsed.progress_pct > 0) _row('Progress', `${parsed.progress_pct}%${parsed.progress_status ? ' — '+parsed.progress_status : ''}`, '#38bdf8');
                     lastTool.appendChild(grid);
                     if (parsed.description) {
                         const descEl = document.createElement('div');
@@ -6240,9 +6107,8 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 // Панель задач обновляется на ЖИВОМ вызове инструмента. При отрисовке
                 // истории те же строки — это прошлое, и каждая из них дёргала бы полную
                 // перезагрузку панели: замер по живому дашборду — 8 пар запросов
-                // /api/tm/tasks + /api/tm/payments/status за 250 мс на одном заходе.
                 if (!_replayingHistory
-                    && ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__payment_receive'].includes(tn)) loadTasks();
+                    && ['mcp__orchestra__task_create','mcp__orchestra__task_update'].includes(tn)) loadTasks();
                 return;
             }
             const _orchSimpleResults = {
@@ -6259,7 +6125,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 'mcp__orchestra__get_worker_logs': null,
                 'mcp__orchestra__bg_create': (c) => { const m = c.match(/Background job created: (\S+)/); return m ? { text: `✅ Job ${m[1].slice(0,12)}`, color: '#22c55e' } : c.includes('rror') ? null : { text: '✅ Job created', color: '#22c55e' }; },
                 'mcp__orchestra__bg_cancel': (c) => { const m = c.match(/Job (\S+) cancelled/); return m ? { text: `⏹ ${m[1].slice(0,12)} cancelled`, color: '#94a3b8' } : c.includes('rror') ? null : { text: '⏹ Cancelled', color: '#94a3b8' }; },
-                'mcp__orchestra__update_progress': () => ({ text: '✓', color: '#818cf8' }),
             };
             const _orchResultCfg = _orchSimpleResults[lastTool.dataset.toolRawName];
             if (_orchResultCfg !== undefined) {
@@ -6498,89 +6363,6 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     noMatch.style.cssText = 'margin-top:4px;color:#64748b;font-style:italic';
                     noMatch.textContent = 'No files found';
                     lastTool.appendChild(noMatch);
-                }
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            if (lastTool.dataset.toolRawName.startsWith('mcp__yougile__')) {
-                const hdr = lastTool.querySelector('.flex.items-center');
-                const hasErr = content.includes('error') || content.includes('Error');
-                const action = lastTool.dataset.toolRawName.replace('mcp__yougile__', '');
-                let parsed = null;
-                try { parsed = JSON.parse(content); } catch {
-                    const multiParts = content.split(/\}\s*\n\s*\{/).map((p, i, a) => (i === 0 ? p : '{' + p)).map((p, i, a) => (i < a.length - 1 ? p + '}' : p));
-                    if (multiParts.length > 1) {
-                        const items = multiParts.map(p => { try { return JSON.parse(p); } catch { return null; } }).filter(Boolean);
-                        if (items.length > 0) parsed = items;
-                    }
-                }
-                if (hasErr && !parsed) {
-                    if (hdr) hdr.style.color = '#ef4444';
-                    const errEl = document.createElement('div');
-                    errEl.className = 'text-xs';
-                    errEl.style.cssText = 'margin-top:4px;color:#f87171';
-                    errEl.textContent = clean.slice(0, 200);
-                    lastTool.appendChild(errEl);
-                } else if (parsed && !Array.isArray(parsed) && !parsed.title && parsed.id && ['create_task','update_task','update_column','add_task_comment'].includes(action)) {
-                    const callBody = lastTool.dataset.toolContent || '';
-                    let callData = {};
-                    try { const ci = callBody.indexOf(':'); callData = JSON.parse(callBody.slice(ci+1)); } catch {}
-                    const callTitle = callData.title || '';
-                    const status = action === 'create_task' ? `✅ Created${callTitle ? ': '+callTitle : ''}` :
-                                   action === 'add_task_comment' ? '✅ Comment added' :
-                                   action === 'update_column' ? `✅ Column updated${callTitle ? ': '+callTitle : ''}` :
-                                   `✅ Updated${callTitle ? ': '+callTitle : ' task'}`;
-                    if (hdr) { hdr.textContent = status; hdr.style.color = '#22c55e'; }
-                    if (action === 'add_task_comment' && callData.comment) {
-                        const commentClean = callData.comment.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?b>/gi, '**').replace(/<[^>]+>/g, '');
-                        const preview = commentClean.split('\n').slice(0, 3).join('\n');
-                        const comEl = document.createElement('div');
-                        comEl.className = 'text-xs';
-                        comEl.style.cssText = 'margin-top:4px;color:#94a3b8;max-height:54px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
-                        comEl.textContent = preview.length < commentClean.length ? preview + '…' : preview;
-                        lastTool.appendChild(comEl);
-                    }
-                } else {
-                    const items = Array.isArray(parsed) ? parsed : (parsed && parsed.title) ? [parsed] : [];
-                    if (items.length > 0) {
-                        const md = items.map(t => {
-                            let line = `**${t.title || 'Untitled'}**`;
-                            if (t.description) {
-                                const desc = t.description.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?b>/gi, '**').replace(/<[^>]+>/g, '');
-                                const short = desc.split('\n').slice(0, 3).join('\n');
-                                line += '\n' + short;
-                            }
-                            return line;
-                        }).join('\n\n---\n\n');
-                        const resultEl = document.createElement('div');
-                        resultEl.className = 'text-xs markdown-body';
-                        resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
-                        resultEl.innerHTML = DOMPurify.sanitize(marked.parse(md));
-                        lastTool.appendChild(resultEl);
-                        if (items.length > 1 || md.split('\n').length > 5) {
-                            const hint = document.createElement('div');
-                            hint.className = 'text-xs mt-1';
-                            hint.style.cssText = 'color:#f97316;cursor:pointer';
-                            hint.textContent = `▼ ${items.length > 1 ? items.length + ' items' : 'expand'}`;
-                            lastTool.appendChild(hint);
-                            let _ygExp = false;
-                            lastTool.style.cursor = 'pointer';
-                            lastTool.addEventListener('click', (e) => {
-                                if (e.target.tagName === 'A') return;
-                                _ygExp = !_ygExp;
-                                resultEl.style.maxHeight = _ygExp ? 'none' : '90px';
-                                resultEl.style.overflowY = _ygExp ? 'visible' : 'hidden';
-                                hint.textContent = _ygExp ? '▲ collapse' : `▼ ${items.length > 1 ? items.length + ' items' : 'expand'}`;
-                            });
-                        }
-                        if (hdr && items.length > 1) hdr.textContent += ` (${items.length})`;
-                    } else if (clean.length > 5) {
-                        const resultEl = document.createElement('div');
-                        resultEl.className = 'text-xs';
-                        resultEl.style.cssText = 'margin-top:6px;overflow-wrap:anywhere;white-space:pre-wrap;color:#cbd5e1';
-                        resultEl.textContent = clean.length > 300 ? clean.slice(0, 300) + '…' : clean;
-                        lastTool.appendChild(resultEl);
-                    }
                 }
                 addTimestamp(lastTool, ts);
                 return;
@@ -7784,25 +7566,13 @@ const STATUS_LABELS = {
 const COLLAPSED_DEFAULT = new Set(['backlog', 'paid', 'cancelled']);
 let _taskCollapsed = {};
 
-const _scopesWithoutClient = new Set();   // scope → клиент не привязан, спрашивать бесполезно
-
 async function _loadTasksNow() {
     const panel = document.getElementById('tasks-panel');
     if (!panel) return;
     try {
         const scope = currentScope || '';
-        // К проекту может быть не привязан клиент — тогда роут отвечает 404 «No client
-        // specified…». Это не сбой, а конфигурация, и она не меняется на ходу. Панель
-        // опрашивается каждые 5 с, поэтому без отметки мы стучались бы в этот 404
-        // двенадцать раз в минуту и столько же раз красили консоль.
-        const [tasksResp, payResp] = await Promise.all([
-            api(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`, {pollKey: 'tasks'}),
-            _scopesWithoutClient.has(scope) ? null : fetch('/api/tm/payments/status').catch(() => null),
-        ]);
-        if (payResp && payResp.status === 404) _scopesWithoutClient.add(scope);
-        const data = tasksResp;
-        const payData = payResp && payResp.ok ? await payResp.json().catch(() => null) : null;
-        renderTasksPanel(panel, data, payData);
+        const data = await api(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`, {pollKey: 'tasks'});
+        renderTasksPanel(panel, data);
     } catch (e) {
         panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load tasks</div>';
     }
@@ -8133,19 +7903,12 @@ function _renderTranscriptMsg(m) {
     return rows.join('');
 }
 
-function renderTasksPanel(panel, data, payData) {
+function renderTasksPanel(panel, data) {
     const tasks = data.tasks || [];
     const grouped = {};
     for (const t of tasks) { (grouped[t.status] ||= []).push(t); }
 
     let html = '';
-    html += '<div class="px-2 py-1.5 border-b border-slate-800/50 space-y-0.5">';
-    if (payData && payData.balance_display) {
-        html += `<div class="flex justify-between"><span class="text-slate-500">💰 Balance:</span><span class="text-emerald-400 font-mono">${escHtml(payData.balance_display)}</span></div>`;
-    }
-    html += `<div class="flex justify-between"><span class="text-slate-500">📊 Debt:</span><span class="text-amber-400 font-mono">${escHtml(data.total_debt || '0')}</span></div>`;
-    html += '</div>';
-
     if (tasks.length === 0) {
         html += '<div class="p-4 text-center text-slate-600 italic">No tasks yet</div>';
         panel.innerHTML = html;
@@ -8175,7 +7938,7 @@ function renderTasksPanel(panel, data, payData) {
         if (!isCollapsed) {
             for (const t of group) {
                 const par = t.par;
-                const priceInfo = t.price !== '0' ? (t.paid !== '0' ? `${t.paid}/${t.price}` : t.price) : '';
+                const priceInfo = t.price !== '0' ? t.price : '';
                 const priColor = _PRI_COLOR[t.priority];
                 html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" style="position:relative" data-par="${par}" onclick="showTaskDetail('${par}')">`;
                 if (priColor) html += `<span style="width:8px;height:8px;border-radius:50%;background:${priColor};flex-shrink:0"></span>`;
@@ -8220,11 +7983,6 @@ async function showTaskDetail(par) {
         nameEl.textContent = '#' + t.par + ' ' + t.title;
         let html = '<div class="space-y-3">';
         html += _taskCardBodyHtml(t);
-        if (t.payments && t.payments.length > 0) {
-            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">PAYMENTS</div>';
-            for (const p of t.payments) { html += `<div class="text-xs">• ${p.date}: +${p.amount/1000}k (payment #${p.payment_id})</div>`; }
-            html += '</div>';
-        }
         const commits = t.commits || t.git_commits || [];
         if (commits.length > 0) {
             html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">COMMITS</div>';
@@ -8239,7 +7997,6 @@ async function showTaskDetail(par) {
             html += '</div>';
         }
         const sys = [];
-        if (t.yougile_task_id) sys.push(`yougile: ${t.yougile_task_id}`);
         if (t.sync_revision) sys.push(`sync rev: ${t.sync_revision}`);
         if (t.worker_session_id) sys.push(`worker: ${t.worker_session_id}`);
         if (sys.length > 0) {
@@ -8395,170 +8152,6 @@ async function cancelJob(id) {
         await fetch(`/api/bg/jobs/${id}`, { method: 'DELETE' });
         loadJobs();
     } catch (e) { console.warn('Cancel job failed:', e); }
-}
-
-// ── Proxy Manager ──
-
-let _proxyDropdownOpen = false;
-// Backend list_proxies is read-only (no liveness) by design; check/{id} returns
-// status but doesn't persist it. Cache check results here, keyed by proxy id.
-let _proxyStatus = {};
-
-function initProxy() {
-    const btn = $('#proxy-btn');
-    const dropdown = $('#proxy-dropdown');
-    if (!btn || !dropdown) return;
-    btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        _proxyDropdownOpen = !_proxyDropdownOpen;
-        dropdown.classList.toggle('hidden', !_proxyDropdownOpen);
-        if (_proxyDropdownOpen) loadProxyList();
-    });
-    document.addEventListener('click', (e) => {
-        if (_proxyDropdownOpen && !dropdown.contains(e.target) && e.target !== btn) {
-            _proxyDropdownOpen = false;
-            dropdown.classList.add('hidden');
-        }
-    });
-    $('#proxy-check-all')?.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const btn = e.target;
-        btn.textContent = '...';
-        try {
-            const data = await (await fetch('/api/proxy/list')).json();
-            const ids = (data.proxies || []).map(p => p.id);
-            const results = await Promise.all(ids.map(id =>
-                fetch(`/api/proxy/check/${id}`, {method:'POST'}).then(r => r.json()).catch(() => ({id, ok: false, error: 'check failed'}))
-            ));
-            for (const r of results) if (r && r.id) _proxyStatus[r.id] = r;
-            await loadProxyList();
-        } finally { btn.textContent = 'Check All'; }
-    });
-    loadProxyList();
-}
-
-async function loadProxyList() {
-    try {
-        const resp = await fetch('/api/proxy/list');
-        // Unchecked resp.ok used to fall through to "No proxies configured" — a 403/500 must not read as "empty"
-        if (!resp.ok) throw new Error(`${resp.status}: ${(await resp.text()).slice(0, 120)}`);
-        const data = await resp.json();
-        const list = $('#proxy-list');
-        if (!list) return;
-        list.innerHTML = '';
-        const proxies = data.proxies || [];
-        if (!proxies.length) {
-            list.innerHTML = '<div class="text-[10px] text-slate-500 text-center py-2">No proxies configured.<br>Set PROXY_LIST in .env</div>';
-            return;
-        }
-        for (const rawP of proxies) {
-            // Merge cached check result (ok/ip/flag/...) — list endpoint doesn't carry it
-            const p = { ...rawP, ..._proxyStatus[rawP.id] };
-            const el = document.createElement('div');
-            el.className = `flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors ${p.active ? 'bg-indigo-900/40 border border-indigo-500/50' : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50'}`;
-            const isRateLimited = p.ok === false && /429|rate.?limit/i.test(String(p.error || ''));
-            const status = isRateLimited ? '⏳' : p.ok === true ? '🟢' : p.ok === false ? '🔴' : '⚪';
-            const statusTitle = isRateLimited ? 'Rate limit (429) — проверь позже' : p.ok === true ? 'Живой' : p.ok === false ? 'Мёртвый' : 'Не проверен';
-            const flag = p.flag || '🏳️';
-            const location = p.city ? `${p.city}, ${p.country || ''}` : p.country || '';
-            // Ping: green <200ms, yellow 200-500ms, red >500ms or dead
-            let pingHtml = '';
-            if (p.ok === true && Number.isFinite(p.latency_ms)) {
-                const ms = p.latency_ms;
-                const pc = ms < 200 ? '#22c55e' : ms <= 500 ? '#eab308' : '#ef4444';
-                pingHtml = `<span class="text-[10px] font-mono shrink-0" style="color:${pc}" title="Пинг">${ms}ms</span>`;
-            } else if (p.ok === false) {
-                pingHtml = `<span class="text-[10px] font-mono shrink-0 text-red-400" title="Недоступен">dead</span>`;
-            }
-            const ipHtml = p.ip ? `<span class="text-[10px] text-slate-400 font-mono">${escHtml(p.ip)}</span>` : '';
-            el.innerHTML = `
-                <span class="text-sm" title="${statusTitle}">${status}</span>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-sm">${flag}</span>
-                        <span class="proxy-name text-xs font-medium text-white truncate">${escHtml(p.name)}</span>
-                        ${p.active ? '<span class="text-[9px] px-1 py-0.5 bg-indigo-500/30 text-indigo-300 rounded shrink-0">ACTIVE</span>' : ''}
-                    </div>
-                    <div class="flex items-center gap-2">
-                        ${ipHtml}
-                        ${location ? `<span class="text-[10px] text-slate-500 truncate">${escHtml(location)}</span>` : ''}
-                    </div>
-                    <div class="proxy-url-line text-[9px] text-slate-600 truncate cursor-pointer hidden" title="Показать URL">${escHtml(p.url)}</div>
-                    ${p.error ? `<div class="text-[10px] text-red-400 truncate">${escHtml(String(p.error).slice(0, 60))}</div>` : ''}
-                </div>
-                ${pingHtml}
-                <div class="flex gap-1 shrink-0">
-                    <button class="proxy-check-btn text-[10px] px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-slate-300" data-id="${p.id}" title="Проверить живость">🔍</button>
-                    ${!p.active ? `<button class="proxy-select-btn text-[10px] px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 rounded text-white font-medium" data-id="${p.id}" data-name="${escHtml(p.name)}" title="Выбрать этот прокси">Выбрать</button>` : ''}
-                </div>
-            `;
-            // URL revealed on click of the name area — hidden by default to keep UI clean
-            el.querySelector('.proxy-name')?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                el.querySelector('.proxy-url-line')?.classList.toggle('hidden');
-            });
-            list.appendChild(el);
-        }
-        list.querySelectorAll('.proxy-check-btn').forEach(b => {
-            b.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                b.textContent = '⏳';
-                try {
-                    const r = await (await fetch(`/api/proxy/check/${b.dataset.id}`, {method:'POST'})).json();
-                    if (r && r.id) _proxyStatus[r.id] = r;
-                    else _proxyStatus[b.dataset.id] = { ok: false, error: 'check failed' };
-                    await loadProxyList();
-                } catch(err) { b.textContent = '❌'; }
-            });
-        });
-        list.querySelectorAll('.proxy-select-btn').forEach(b => {
-            b.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                b.textContent = '⏳'; b.disabled = true;
-                try {
-                    const resp = await fetch('/api/proxy/set-env', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: b.dataset.id }),
-                    });
-                    const data = await resp.json();
-                    if (!resp.ok || data.ok === false) throw new Error(data.error || 'set-env failed');
-                    _showProxyRestartBanner(b.dataset.name, data.wrote);
-                } catch (err) {
-                    b.textContent = '❌'; b.disabled = false;
-                    console.warn('proxy set-env failed:', err);
-                }
-            });
-        });
-        const activeRaw = proxies.find(p => p.active);
-        if (activeRaw) {
-            const active = { ...activeRaw, ..._proxyStatus[activeRaw.id] };
-            $('#proxy-flag').textContent = active.flag || '🌐';
-            $('#proxy-ip').textContent = active.ip || '';
-        }
-    } catch (e) {
-        console.warn('loadProxyList failed:', e);
-        const list = $('#proxy-list');
-        if (list) list.innerHTML = `<div class="text-[10px] text-red-400 text-center py-2">Proxy list failed:<br>${escHtml(String((e && e.message) || e))}</div>`;
-    }
-}
-
-function _showProxyRestartBanner(name, wroteUrl) {
-    const banner = $('#proxy-restart-banner');
-    const msg = $('#proxy-restart-msg');
-    if (!banner || !msg) return;
-    msg.innerHTML = `<b>${escHtml(name)}</b> записан в .env${wroteUrl ? ` <span class="text-amber-400/60">(${escHtml(wroteUrl)})</span>` : ''}. Нажми Рестарт чтобы применить.`;
-    banner.classList.remove('hidden');
-    const btn = $('#proxy-restart-btn');
-    if (btn && !btn._wired) {
-        btn._wired = true;
-        btn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            btn.textContent = '⏳ Рестарт...'; btn.disabled = true;
-            try { await api('/api/restart', { method: 'POST' }); } catch {}
-            // см. соседний обработчик рестарта: перезагрузка на 3 с била в мёртвый сервер
-        });
-    }
 }
 
 // ── Profiles Manager (редактор реестра профилей Claude) ──
