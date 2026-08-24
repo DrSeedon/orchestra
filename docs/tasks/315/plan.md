@@ -240,12 +240,17 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 
 ### T7 — prompt + existing-document migration + final cutover
 
-- Files: future scripts/ia_document_inventory.py, scripts/ia_migrate_documents.py; prompt/skill owners
-  selected by the tracked delivery inventory; structured registry/archive indexes, migration manifests
-  and alias maps. Historical evidence/report bodies are read-only inputs, never regeneration targets.
-- Test: future `uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q`;
-  behavioral oracle design is frozen in acceptance/README.md T7 row, but no RED is committed yet. No
-  existence smoke may substitute for it.
+- Files: new app/ia/cutover.py, scripts/ia_document_inventory.py and
+  scripts/ia_migrate_documents.py; the exact prompt/skill owners classified in
+  fixtures/t7_document_inventory.json; structured registry/archive indexes, migration manifests and
+  alias maps. Historical evidence/report bodies are read-only inputs, never regeneration targets.
+- Test: `uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q`
+- RED result: four invariant controls → `4 passed in 1.19s`; full command → exit 1,
+  `12 failed, 4 passed in 0.93s`. Ten cutover/migration nodes first fail on
+  `#315 T7 missing behavior: cannot import app.ia.cutover: No module named 'app.ia.cutover'`;
+  the other two independently prove that `search_memory` remains in the agent MCP surface and the
+  native skill/runtime assemblies do not carry the typed cutover contract. Collection and positive
+  setup paths succeed; this is behavioral RED, not an existence smoke.
 - AC: command is green; every in-scope legacy path is classified exactly once; canonical task
   state/events/evidence refs/facts are structured Git JSON; historical evidence/report/session archive
   bytes and Git lineage are unchanged; old path/#N references resolve through typed `orch://` aliases;
@@ -262,10 +267,8 @@ The user approved project-scoped #N with stable UUID, private/secret fields outs
 Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed with a human gate for
 conflicts and sensitive classes. Each ticket must still receive the exact
 fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
-behavioral RED test must be committed and independently verified before implementation. T1–T6
-have reached that oracle gate; T7 has not. T7 runs only after the
-corrected T3b plus T4–T6 core and has no existence-smoke
-shortcut. Smoke probes never satisfy this gate.
+behavioral RED test must be committed and independently verified before implementation. T1–T7 have
+reached that oracle gate. T7 has no existence-smoke shortcut. Smoke probes never satisfy this gate.
 
 The implementation report must include command output and frozen manifest for replay parity and 0
 duplicate identity; 0 source-less promoted facts; exact/current/rejected recall and stale contradiction

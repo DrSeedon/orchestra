@@ -2,9 +2,8 @@
 
 PLAN READY here means architecture/discussion ready only. The three user decisions in discussion.md
 were resolved on 2026-08-24. Each ticket still requires a separately designed, behavior-specific RED
-acceptance test committed against the current base. T1, T2, T3, corrective T3b, T4, T5 and T6 are
-materialized by their behavior tests plus frozen JSON fixtures under `fixtures/`; T7 remains at
-design only.
+acceptance test committed against the current base. T1, T2, T3, corrective T3b and T4–T7 are
+materialized by their behavior tests plus frozen JSON fixtures under `fixtures/`.
 No implementation is implied by this directory.
 
 T2 oracle history: commits `529711a9feda296e361bc8a09fd8f7ec65be4a57` and
@@ -48,14 +47,23 @@ the directory. The intended implementation therefore reached 10/11 and then fail
 `FileNotFoundError`. V2 keeps every head/fallback/wiring assertion, creates that root explicitly and
 adds an invariant control that independently executes the complete alternate fixture setup.
 
+T7 freezes source commit `34fb2350a8224f2991dbe722afc29070daf02bee`: 1,505 paths are
+classified exactly once (1,346 immutable evidence/cold archive, 159 active skill/resource sources)
+with path/blob/SHA-256/size and deterministic typed alias. Four invariant controls returned
+`4 passed in 1.19s`; the full command returned `12 failed, 4 passed in 0.93s` (exit 1). Ten nodes
+fail on the absent cutover owner, while the real MCP registry and native runtime/skill assembly nodes
+independently fail on the still-exposed `search_memory` tool and missing typed cutover policy.
+`t7-oracle-evidence.md` records the exact commands, hashes, valid alternate and seven compound mutants.
+
 ## Smoke probes (not acceptance oracles)
 
 The test_smoke_t*.py files are deliberately minimal missing-seam diagnostics. Each only checks that a future
 path exists. They are not behavioral RED tests, do not prove an acceptance criterion, and must never be
 reported as frozen oracles. They remain useful as early diagnostics.
 
-T7 intentionally has no smoke probe: its first executable artifact must be the production-shaped
-behavioral RED, because path/symbol existence cannot prove document ownership, prompt delivery or cutover.
+T7 intentionally has no smoke probe: its production-shaped behavioral RED is
+`test_t7_prompt_document_cutover_behavior.py`, because path/symbol existence cannot prove document
+ownership, prompt delivery or cutover.
 T3b also has no smoke: its corrected controls are invariant fixture/count, byte-preserving reference
 import and real T1–T3 structured-behavior checks. Agent API reachability and zero generated Markdown
 are behavior nodes, so they are RED before implementation and green after it.
@@ -71,9 +79,8 @@ are behavior nodes, so they are RED before implementation and green after it.
 
 ## Required behavioral oracle design before Phase 3
 
-The following table is the design freeze target. T1–T6 commands are committed behavioral RED gates;
-T7 is still a future command. Each remaining ticket must turn its row into a real behavior
-test, run it RED, commit that oracle, and only then implement. The smoke probe cannot satisfy any row.
+The following table is the design freeze target. T1–T7 commands are committed behavioral RED gates.
+The smoke probe cannot satisfy any row.
 
 | Ticket | Fixture/data source | Production path | Red regression | Positive control | Valid future alternate | Compound/fallback mutation | Deterministic command | Remains unmeasured |
 |---|---|---|---|---|---|---|---|---|
@@ -84,7 +91,7 @@ test, run it RED, commit that oracle, and only then implement. The smoke probe c
 | T4 heads/projections v2 | frozen T1–T3b contract/record hashes; real TaskStore/fact changes; nonempty one-file/one-log legacy corpus; five mutation bundles; self-contained alternate fixture root | MCP `knowledge(query)` → POST `/api/knowledge` → `knowledge_api` → shared projection owner → SQLite current/FTS; `/api/memory/search|reindex` are compatibility consumers of the same owner | stale/forged SQLite or vector content winning, absent heads/debt, projection/index failure erasing current canonical results, direct source fallback or route bypass must fail | five invariant controls keep T1–T3b agent query and real task/fact/corpus fixtures green and execute alternate-mode setup before any projection import; synchronous current/FTS returns two current records with separate heads and visible vector/log debt | injected backend implementing `replace_current`/`search_current` may reorder items and add safe metadata without changing normalized records/heads | forge equal head with stale payload; delete canonical while leaving SQLite/vector/file inputs; vector failure plus fallback hit; projection write failure after commit; bypass shared owner through legacy route — all must fail | `uv run python -m pytest docs/tasks/315/acceptance/test_t4_projection_heads_behavior_v2.py -q` | real embedder latency, index size growth, production restart timing |
 | T5 session/pack/privacy | real AgentSession/SessionManager fixture with 3 messages; 5 valid canonical task/evidence/fact/session objects; 3 secret sentinels; OVPack input manifest; 7 compound mutants | SessionManager → AgentSession → sync JSON archive/event → background extraction; scripts.ia_pack validate/build/restore → scripts.ia_replay replay/rollback → SQLite/FTS/vector rebuild | extraction deleting archive, target mutation before full validation, auto/source-less promotion, state loss, secret leak, wrong-head rollback or duplicate retry must fail | four invariant controls pin T1–T4, reach real manager/session, validate statuses/privacy and perform nonempty order-independent reference pack/restore; valid production restore/replay reproduces exact head | OVPack object order and additive safe manifest metadata may vary while normalized objects/checksums/head remain identical; `atomicity_claim` stays false | extraction failure; checksum corruption with target sentinel; source-less post-restore promotion; one nested secret across canonical/payload/prompt/SQLite/FTS/vector/log; dropped tombstone; wrong rollback head; duplicate archive/event retry | `uv run python -m pytest docs/tasks/315/acceptance/test_t5_recovery_privacy_behavior.py -q` | legal purge semantics, key-management operations, real backup duration/size |
 | T6 merge receipt/cleanup | pinned operation/session/worker/target; one task stable ID/#315; one evidence manifest; T1–T5 and deferred #298 hashes; #309 route/UI inventory; four raw terminal outcomes; seven compound mutants | POST/GET merge-operation-v1 → stored admission → sessions.execute_merge_session → workspace merge → durable verified JSON receipt → task/lifecycle finalization → secondary RAG debt | success without receipt, pre-receipt cleanup/finalization, forged task/evidence/head, late worker/target drift, collapsed PARTIAL, RAG masking or #309 surface reintroduction must fail | five invariant controls keep terminal states/capability, the real operation DB/session/workspace setup, 426 recovery, #309 surfaces, update_progress fields, #298 hashes and nonempty receipt detector green; successful production path returns one idempotent verified receipt before finalization | receipt field order and additive safe metadata may vary while normalized target/task/evidence/heads/acceptance bindings remain identical | receipt writer failure; archive/worktree/evidence cleanup before receipt; forged resolver fields; late HEAD; PARTIAL-as-success; RAG-without-receipt; duplicate refresh/legacy route | `uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py -q` | live route/click telemetry, user-visible progress behavior, proxy-manager deployment behavior |
-| T7 prompt/document migration/cutover | frozen tracked inventory of every `docs/tasks/*.md`, `docs/kb/*.md`, TODO/instruction source and session archive plus legacy reference corpus and assembled-prompt matrix for every runtime | inventory classifier → byte-preserving structured evidence/archive index → single typed `knowledge` tool + typed task IDs → project prompt/skill assembly → legacy/shadow/canonical cutover gate | arbitrary Markdown becoming canonical/regenerated, rewritten historical evidence, multiple/direct storage tools, projection-as-truth or destructive SQLite removal before gates must fail | every path classified exactly once; historical hashes unchanged; all legacy refs resolve; zero generated human files/summaries; every assembled runtime prompt contains the single tool/typed-ID anchors; rollback restores legacy-compatible reads | additional archive classes/JSON metadata and runtime prompt layouts are allowed when they preserve normalized ownership and delivery | retain editable Markdown co-master beside JSON; patch only source prompt while one assembled runtime stays stale; forge parity then delete SQLite; rewrite evidence while updating alias; let file/vector fallback hide canonical failure — each must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q | real authoring ergonomics, total corpus migration duration, live rollback duration and task success until separately measured |
+| T7 prompt/document migration/cutover | frozen source-commit inventory of 1,505 individually classified `docs/tasks`, `docs/kb`, TODO/session archive, worker-memory, prompt/skill and pipeline-owner paths; eight-file positive corpus; 4×5 runtime/role assembly matrix | `inventory_api` → byte-preserving structured evidence/resource index → MCP `knowledge` → POST `/api/knowledge` → `knowledge_api`; actual Claude/Codex/Grok/Harness prompt and Claude/Codex skill consumers → legacy/shadow/canonical cutover owner | arbitrary Markdown becoming canonical/regenerated, rewritten historical evidence, multiple/direct storage tools, projection-as-truth or destructive SQLite removal before gates must fail | every path classified exactly once; Git blobs/hashes unchanged; all aliases resolve; canonical root contains JSON only; every assembled runtime prompt contains the single-tool/typed-ID anchors; shadow retry is idempotent; canonical resolve cannot fall back; rollback advances generation and restores legacy-compatible reads | reversed inventory/field order, additive safe metadata and harmless runtime prompt layout are accepted when normalized ownership, heads and delivery remain identical | Markdown+JSON dual truth; stale one-runtime assembly; forged parity plus SQLite deletion; rewritten bytes plus updated alias; SQLite/vector fallback over canonical failure; explicit legacy-reader bypass; rollback generation mismatch — all fail | uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q | real authoring ergonomics, total corpus migration duration, live rollback duration and task success until separately measured |
 
 ## Quantitative gate (future implementation evidence)
 
