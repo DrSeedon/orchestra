@@ -10,3 +10,5 @@
   real adapter-to-owner-to-store test and a hook-removal mutant, or a dead parallel store can pass.
 - Final acceptance controls must be invariant across both pre-change and intended states; keep old
   implementation hashes/counts as excluded evidence, never as executable post-change requirements.
+- When expected RED occurs before a later temp-fixture branch, add an independent positive control that
+  executes that branch's full setup; missing parent directories otherwise surface only after implementation.

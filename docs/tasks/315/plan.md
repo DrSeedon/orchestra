@@ -164,16 +164,20 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 ### T4 — SQLite current projection, heads and cold index
 
 - Files: new app/ia/projections.py; additive app/db.py; app/rag.py, app/rag_service.py,
-  app/ia/knowledge.py, app/routes/knowledge.py and app/routes/memory.py. The frozen oracle is
-  acceptance/test_t4_projection_heads_behavior.py plus fixtures/t4_projection_*.json;
+  app/ia/knowledge.py, app/routes/knowledge.py and app/routes/memory.py. Worker commit
+  `863c7bd9e152f9dc8da948038d007d02c020eab7` (main `020f32f1`) is permanently
+  superseded/excluded: its alternate T3 fixture root was absent before the registry writer ran.
+  The corrected frozen oracle is acceptance/test_t4_projection_heads_behavior_v2.py plus
+  fixtures/t4_projection_contract_v2.json and the unchanged fixtures/t4_projection_records.json;
   test_smoke_t4_heads.py remains only a missing-seam diagnostic.
 - Smoke: uv run python -m pytest docs/tasks/315/acceptance/test_smoke_t4_heads.py -q
 - Smoke result: RED only because the future path is absent; this is not behavioral acceptance.
-- Test: `uv run python -m pytest docs/tasks/315/acceptance/test_t4_projection_heads_behavior.py -q`
-- RED result: invariant controls → `4 passed in 0.64s`; full command → exit 1,
-  `7 failed, 4 passed in 1.01s`, first failure
+- Test: `uv run python -m pytest docs/tasks/315/acceptance/test_t4_projection_heads_behavior_v2.py -q`
+- RED result: invariant controls → `5 passed in 0.69s`; full command → exit 1,
+  `7 failed, 5 passed in 0.70s`, first failure
   `#315 T4 missing behavior: cannot import app.ia.projections: No module named 'app.ia.projections'`.
-  Collection succeeds and current T3b MCP→HTTP→knowledge_api query remains green.
+  Collection succeeds; current T3b MCP→HTTP→knowledge_api query and the independent alternate-mode
+  fixture setup remain green.
 - AC: command is green; SQLite current/FTS projection reaches canonical head synchronously;
   canonical_head, projection_head and indexed_head are returned separately; vector/log lag is visible;
   stale SQLite falls back to canonical changed records; vector/index failure never erases current
