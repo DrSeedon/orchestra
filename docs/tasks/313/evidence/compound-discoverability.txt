@@ -1,0 +1,25 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________________ test_route_surface_is_discoverable ______________________
+
+    def test_route_surface_is_discoverable():
+        """Обход должен НАХОДИТЬ маршруты — иначе снапшот-тест бесполезен."""
+        surface = route_surface()
+>       assert len(surface) >= _MIN_PLAUSIBLE_ROUTES, (
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            f"обход нашёл всего {len(surface)} маршрутов — почти наверняка сломался сам обход, "
+            "а не поверхность. Проверь, как текущая версия starlette хранит вложенные роутеры"
+        )
+E       AssertionError: обход нашёл всего 1 маршрутов — почти наверняка сломался сам обход, а не поверхность. Проверь, как текущая версия starlette хранит вложенные роутеры
+
+tests/test_routes_surface.py:58: AssertionError
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309
+  /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_routes_surface.py::test_route_surface_is_discoverable - Ass...
+1 failed, 1 deselected, 1 warning in 2.03s
+EXIT=1

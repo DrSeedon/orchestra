@@ -1,0 +1,966 @@
+.....................................FF...........................FFFFFF [ 97%]
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools _____
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-63/test_t1_raw_refs_route_is_oper0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e70b7bfb890>
+
+    def test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools(
+        tmp_path, monkeypatch,
+    ):
+        from fastapi.testclient import TestClient
+        from app import auth, db as dbmod
+        from app.mcp_stdio import mcp
+
+        tool_names = {tool.name for tool in asyncio.run(mcp.list_tools())}
+        assert "read_handoff_events" not in tool_names
+        assert "resolve_runtime_handoff_events" not in tool_names
+
+        create_csrf_token = getattr(auth, "create_csrf_token", None)
+        assert callable(create_csrf_token), "operator CSRF receipt is absent"
+        monkeypatch.setenv("DASHBOARD_USER", "operator")
+        monkeypatch.setenv("DASHBOARD_PASSWORD", "secret")
+        monkeypatch.setenv("INTERNAL_TOKEN", "agent-token")
+        db_path = tmp_path / "route.db"
+        monkeypatch.setattr(dbmod, "DB_PATH", db_path)
+        dbmod.init_db()
+        created_at = datetime.now(timezone.utc).isoformat()
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                """INSERT INTO sessions (id, name, scope, cwd, model, created_at)
+                   VALUES ('s1', 'w', '/repo', '/repo', 'gpt-5.6-sol', ?)""",
+                (created_at,),
+            )
+            conn.execute(
+                """INSERT INTO logs (session_id, ts, type, content, event_id)
+                   VALUES ('s1', ?, 'user_message', 'old fact', '')""",
+                (created_at,),
+            )
+            conn.execute(
+                """INSERT INTO runtime_handoffs
+                   (handoff_id, session_id, idempotency_key, status,
+                    source_runtime, source_model, target_runtime, target_model,
+                    snapshot_log_id, snapshot_sha256, packet_json, packet_sha256,
+                    preferred_mode, created_at, updated_at)
+                   VALUES ('h1', 's1', 'request-1', 'confirmed', 'codex',
+                           'gpt-5.6-sol', 'claude', 'claude-sonnet-5[1m]', 1,
+                           ?, '{}', ?, 'packet_delta', ?, ?)""",
+                ("a" * 64, "b" * 64, created_at, created_at),
+            )
+
+        from app.main import app
+
+        path = "/api/sessions/s1/handoffs/h1/events"
+>       with TestClient(app) as client:
+             ^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:344:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv/lib/python3.12/site-packages/starlette/testclient.py:688: in __enter__
+    portal.call(self.wait_startup)
+.venv/lib/python3.12/site-packages/anyio/from_thread.py:334: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+.venv/lib/python3.12/site-packages/anyio/from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/starlette/testclient.py:723: in wait_startup
+    await receive()
+.venv/lib/python3.12/site-packages/starlette/testclient.py:714: in receive
+    self.task.result()
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py:449: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+.venv/lib/python3.12/site-packages/anyio/from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/starlette/testclient.py:704: in lifespan
+    await self.app(scope, self.stream_receive.receive, self.stream_send.send)
+.venv/lib/python3.12/site-packages/fastapi/applications.py:1159: in __call__
+    await super().__call__(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:151: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/gzip.py:19: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/base.py:103: in __call__
+    await self.app(scope, receive, send)
+app/main.py:212: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:49: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:669: in app
+    await self.lifespan(scope, receive, send)
+.venv/lib/python3.12/site-packages/starlette/routing.py:638: in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/fastapi/routing.py:216: in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+               ^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+app/main.py:385: in lifespan
+    await ensure_bootstrap()
+app/bootstrap.py:32: in ensure_bootstrap
+    _ensure_orchestrator()
+app/bootstrap.py:111: in _ensure_orchestrator
+    model = resolve_model(os.environ.get("DEFAULT_MODEL", DEFAULT_MODEL))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+model = 'claude-sonnet-5[1m]'
+
+    def resolve_model(model: str) -> str:
+        m = model.lower().strip()
+        if m in ALIASES:
+            resolved = ALIASES[m]
+            if resolved in MODEL_SPECS:
+                return resolved
+        if m in MODELS:
+            return m
+        registered = ", ".join(sorted(MODELS)) or "(none)"
+>       raise ValueError(f"unknown model '{model}'; registered models: {registered}")
+E       ValueError: unknown model 'claude-sonnet-5[1m]'; registered models: (none)
+
+app/models.py:748: ValueError
+----------------------------- Captured stderr call -----------------------------
+fetch_models_from_proxy failed: Client error '401 Unauthorized' for url 'https://api.anthropic.com/v1/models'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+Proxy unreachable in enterprise mode — 0 models available
+Bootstrap: cannot create workspace /workspace/project: Command '['mkdir', '-p', '/workspace/project']' returned non-zero exit status 1.
+------------------------------ Captured log call -------------------------------
+WARNING  app.models:models.py:638 fetch_models_from_proxy failed: Client error '401 Unauthorized' for url 'https://api.anthropic.com/v1/models'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+WARNING  app.models:models.py:733 Proxy unreachable in enterprise mode — 0 models available
+WARNING  app.bootstrap:bootstrap.py:73 Bootstrap: cannot create workspace /workspace/project: Command '['mkdir', '-p', '/workspace/project']' returned non-zero exit status 1.
+____ test_t2_total_context_preflight_refuses_codex_before_source_disconnect ____
+
+session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prom...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e70b5824830>
+
+    @pytest.mark.asyncio
+    async def test_t2_total_context_preflight_refuses_codex_before_source_disconnect(
+        session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        session.model = "claude-sonnet-5[1m]"
+        session.backend_type = "claude"
+        session.session_id = "source-claude-session"
+        session.system_prompt = "x" * 300_000
+        session.last_summary = "must not become a silent fallback"
+        session.status = AgentStatus.IDLE
+        source = AsyncMock()
+        session._backend = source
+        session._log = MagicMock()
+        session._build_codex_history_import = AsyncMock(
+            side_effect=lambda thread_id: _codex_history(thread_id)
+        )
+        session._ensure_backend = AsyncMock(
+            return_value=SimpleNamespace(session_id="target-codex-thread")
+        )
+
+>       result = await session.change_model("gpt-5.6-sol")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:393:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:3094: in change_model
+    return await self._change_model_locked(new_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:4321: in _change_model_locked
+    new_runtime = get_model_spec(new_model).runtime
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+model_id = 'gpt-5.6-sol'
+
+    def get_model_spec(model_id: str) -> ModelSpec:
+        """Return an explicit selectable or persisted-session compatibility route."""
+        if model_id in MODEL_SPECS:
+            return MODEL_SPECS[model_id]
+        if model_id in COMPAT_MODEL_SPECS:
+            return COMPAT_MODEL_SPECS[model_id]
+        registered = ", ".join(sorted(MODEL_SPECS)) or "(none)"
+        compatibility = ", ".join(sorted(COMPAT_MODEL_SPECS))
+>       raise ValueError(
+            f"unknown model '{model_id}'; registered models: {registered}; "
+            f"persisted-session compatibility routes: {compatibility}"
+        )
+E       ValueError: unknown model 'gpt-5.6-sol'; registered models: (none); persisted-session compatibility routes: claude-opus-4-8, claude-opus-4-8[1m], claude-sonnet-4-5, claude-sonnet-4-6
+
+app/models.py:392: ValueError
+___ test_t3_claude_target_commits_only_after_canary_and_capability_receipts ____
+
+session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e70b54b3080>
+
+    @pytest.mark.asyncio
+    async def test_t3_claude_target_commits_only_after_canary_and_capability_receipts(
+        session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.session_id = "source-codex-thread"
+        session.last_summary = "unused prebuilt fallback"
+        session.status = AgentStatus.IDLE
+        session._log = MagicMock()
+        session._activate_backend_tasks = MagicMock()
+        order = []
+        packet_sha = "a" * 64
+        config_sha = "b" * 64
+        capability_sha = "c" * 64
+        prepared = SimpleNamespace(
+            handoff_id="h1", packet={"schema_version": 1},
+            packet_sha256=packet_sha, expected_capability_sha256=capability_sha,
+            pending_effects=0,
+        )
+        session._prepare_runtime_handoff = AsyncMock(return_value=prepared)
+        session._confirm_runtime_handoff = AsyncMock(
+            side_effect=lambda *_args, **_kwargs: order.append("db-confirm")
+        )
+
+        source = AsyncMock()
+
+        async def disconnect_source():
+            order.append("source-disconnect")
+
+        source.disconnect.side_effect = disconnect_source
+        session._backend = source
+        session._build_claude_history_import = AsyncMock(
+            side_effect=lambda target_id, target_model, _exclude=(): _claude_history(
+                target_id, target_model,
+            )
+        )
+        target = SimpleNamespace(session_id=None)
+
+        async def connect_target(*, history_import=None, **_kwargs):
+            order.append("target-connect")
+            target.session_id = history_import.session_id
+            session._backend = target
+            return target
+
+        session._ensure_backend = AsyncMock(side_effect=connect_target)
+
+        async def ingress_canary(*_args, **_kwargs):
+            assert _kwargs["expected_packet_sha256"] == packet_sha
+            order.append("ingress-canary")
+            return {
+                "ok": True, "state_checksum": packet_sha, "tools_enabled": False,
+                "configuration_sha256": config_sha,
+            }
+
+        async def capability_check(*_args, **_kwargs):
+            assert _kwargs["expected_fingerprint"] == capability_sha
+            order.append("capability-check")
+            return {
+                "ok": True, "fingerprint": capability_sha,
+                "configuration_sha256": config_sha,
+            }
+
+        session._run_handoff_ingress_canary = AsyncMock(side_effect=ingress_canary)
+        session._verify_handoff_capabilities = AsyncMock(side_effect=capability_check)
+
+>       result = await session.change_model("claude-sonnet-5[1m]")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:739:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:3094: in change_model
+    return await self._change_model_locked(new_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:4321: in _change_model_locked
+    new_runtime = get_model_spec(new_model).runtime
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+model_id = 'claude-sonnet-5[1m]'
+
+    def get_model_spec(model_id: str) -> ModelSpec:
+        """Return an explicit selectable or persisted-session compatibility route."""
+        if model_id in MODEL_SPECS:
+            return MODEL_SPECS[model_id]
+        if model_id in COMPAT_MODEL_SPECS:
+            return COMPAT_MODEL_SPECS[model_id]
+        registered = ", ".join(sorted(MODEL_SPECS)) or "(none)"
+        compatibility = ", ".join(sorted(COMPAT_MODEL_SPECS))
+>       raise ValueError(
+            f"unknown model '{model_id}'; registered models: {registered}; "
+            f"persisted-session compatibility routes: {compatibility}"
+        )
+E       ValueError: unknown model 'claude-sonnet-5[1m]'; registered models: (none); persisted-session compatibility routes: claude-opus-4-8, claude-opus-4-8[1m], claude-sonnet-4-5, claude-sonnet-4-6
+
+app/models.py:392: ValueError
+_ test_t3_invalid_receipt_never_disconnects_or_confirms[ingress0-capability0-handoff_ingress_rejected] _
+
+session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+ingress = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'ok': True, 'state_checksum': 'wrong', 'tools_enabled': False}
+capability = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'fingerprint': 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', 'ok': True}
+error_code = 'handoff_ingress_rejected'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("ingress", "capability", "error_code"),
+        [
+            (
+                {"ok": True, "state_checksum": "wrong", "tools_enabled": False,
+                 "configuration_sha256": "b" * 64},
+                {"ok": True, "fingerprint": "c" * 64,
+                 "configuration_sha256": "b" * 64},
+                "handoff_ingress_rejected",
+            ),
+            (
+                {"ok": True, "state_checksum": "a" * 64, "tools_enabled": True,
+                 "configuration_sha256": "b" * 64},
+                {"ok": True, "fingerprint": "c" * 64,
+                 "configuration_sha256": "b" * 64},
+                "handoff_ingress_rejected",
+            ),
+            (
+                {"ok": True, "state_checksum": "a" * 64, "tools_enabled": False,
+                 "configuration_sha256": "b" * 64},
+                {"ok": False, "fingerprint": "wrong",
+                 "configuration_sha256": "b" * 64},
+                "handoff_capability_unsupported",
+            ),
+        ],
+    )
+    async def test_t3_invalid_receipt_never_disconnects_or_confirms(
+        session, ingress, capability, error_code,
+    ):
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.session_id = "source-codex-thread"
+        session.last_summary = "legacy summary must remain unused"
+        session.status = AgentStatus.IDLE
+        source = AsyncMock()
+        session._backend = source
+        session._log = MagicMock()
+        session._activate_backend_tasks = MagicMock()
+        session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
+            handoff_id="h1", packet={"schema_version": 1},
+            packet_sha256="a" * 64, expected_capability_sha256="c" * 64,
+            pending_effects=0,
+        ))
+        session._run_handoff_ingress_canary = AsyncMock(return_value=ingress)
+        session._verify_handoff_capabilities = AsyncMock(return_value=capability)
+        session._confirm_runtime_handoff = AsyncMock()
+
+        async def connect_target(*, history_import=None, **_kwargs):
+            target = SimpleNamespace(
+                session_id=getattr(history_import, "session_id", "target-claude-session")
+            )
+            session._backend = target
+            return target
+
+        session._build_claude_history_import = AsyncMock(
+            side_effect=lambda target_id, target_model, _exclude=(): _claude_history(
+                target_id, target_model,
+            )
+        )
+        session._ensure_backend = AsyncMock(side_effect=connect_target)
+
+>       result = await session.change_model("claude-sonnet-5[1m]")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:816:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:3094: in change_model
+    return await self._change_model_locked(new_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:4321: in _change_model_locked
+    new_runtime = get_model_spec(new_model).runtime
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+model_id = 'claude-sonnet-5[1m]'
+
+    def get_model_spec(model_id: str) -> ModelSpec:
+        """Return an explicit selectable or persisted-session compatibility route."""
+        if model_id in MODEL_SPECS:
+            return MODEL_SPECS[model_id]
+        if model_id in COMPAT_MODEL_SPECS:
+            return COMPAT_MODEL_SPECS[model_id]
+        registered = ", ".join(sorted(MODEL_SPECS)) or "(none)"
+        compatibility = ", ".join(sorted(COMPAT_MODEL_SPECS))
+>       raise ValueError(
+            f"unknown model '{model_id}'; registered models: {registered}; "
+            f"persisted-session compatibility routes: {compatibility}"
+        )
+E       ValueError: unknown model 'claude-sonnet-5[1m]'; registered models: (none); persisted-session compatibility routes: claude-opus-4-8, claude-opus-4-8[1m], claude-sonnet-4-5, claude-sonnet-4-6
+
+app/models.py:392: ValueError
+_ test_t3_invalid_receipt_never_disconnects_or_confirms[ingress1-capability1-handoff_ingress_rejected] _
+
+session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+ingress = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'ok': True, 'state_checksum': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tools_enabled': True}
+capability = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'fingerprint': 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', 'ok': True}
+error_code = 'handoff_ingress_rejected'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("ingress", "capability", "error_code"),
+        [
+            (
+                {"ok": True, "state_checksum": "wrong", "tools_enabled": False,
+                 "configuration_sha256": "b" * 64},
+                {"ok": True, "fingerprint": "c" * 64,
+                 "configuration_sha256": "b" * 64},
+                "handoff_ingress_rejected",
+            ),
+            (
+                {"ok": True, "state_checksum": "a" * 64, "tools_enabled": True,
+                 "configuration_sha256": "b" * 64},
+                {"ok": True, "fingerprint": "c" * 64,
+                 "configuration_sha256": "b" * 64},
+                "handoff_ingress_rejected",
+            ),
+            (
+                {"ok": True, "state_checksum": "a" * 64, "tools_enabled": False,
+                 "configuration_sha256": "b" * 64},
+                {"ok": False, "fingerprint": "wrong",
+                 "configuration_sha256": "b" * 64},
+                "handoff_capability_unsupported",
+            ),
+        ],
+    )
+    async def test_t3_invalid_receipt_never_disconnects_or_confirms(
+        session, ingress, capability, error_code,
+    ):
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.session_id = "source-codex-thread"
+        session.last_summary = "legacy summary must remain unused"
+        session.status = AgentStatus.IDLE
+        source = AsyncMock()
+        session._backend = source
+        session._log = MagicMock()
+        session._activate_backend_tasks = MagicMock()
+        session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
+            handoff_id="h1", packet={"schema_version": 1},
+            packet_sha256="a" * 64, expected_capability_sha256="c" * 64,
+            pending_effects=0,
+        ))
+        session._run_handoff_ingress_canary = AsyncMock(return_value=ingress)
+        session._verify_handoff_capabilities = AsyncMock(return_value=capability)
+        session._confirm_runtime_handoff = AsyncMock()
+
+        async def connect_target(*, history_import=None, **_kwargs):
+            target = SimpleNamespace(
+                session_id=getattr(history_import, "session_id", "target-claude-session")
+            )
+            session._backend = target
+            return target
+
+        session._build_claude_history_import = AsyncMock(
+            side_effect=lambda target_id, target_model, _exclude=(): _claude_history(
+                target_id, target_model,
+            )
+        )
+        session._ensure_backend = AsyncMock(side_effect=connect_target)
+
+>       result = await session.change_model("claude-sonnet-5[1m]")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:816:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:3094: in change_model
+    return await self._change_model_locked(new_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:4321: in _change_model_locked
+    new_runtime = get_model_spec(new_model).runtime
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+model_id = 'claude-sonnet-5[1m]'
+
+    def get_model_spec(model_id: str) -> ModelSpec:
+        """Return an explicit selectable or persisted-session compatibility route."""
+        if model_id in MODEL_SPECS:
+            return MODEL_SPECS[model_id]
+        if model_id in COMPAT_MODEL_SPECS:
+            return COMPAT_MODEL_SPECS[model_id]
+        registered = ", ".join(sorted(MODEL_SPECS)) or "(none)"
+        compatibility = ", ".join(sorted(COMPAT_MODEL_SPECS))
+>       raise ValueError(
+            f"unknown model '{model_id}'; registered models: {registered}; "
+            f"persisted-session compatibility routes: {compatibility}"
+        )
+E       ValueError: unknown model 'claude-sonnet-5[1m]'; registered models: (none); persisted-session compatibility routes: claude-opus-4-8, claude-opus-4-8[1m], claude-sonnet-4-5, claude-sonnet-4-6
+
+app/models.py:392: ValueError
+_ test_t3_invalid_receipt_never_disconnects_or_confirms[ingress2-capability2-handoff_capability_unsupported] _
+
+session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+ingress = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'ok': True, 'state_checksum': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tools_enabled': False}
+capability = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'fingerprint': 'wrong', 'ok': False}
+error_code = 'handoff_capability_unsupported'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("ingress", "capability", "error_code"),
+        [
+            (
+                {"ok": True, "state_checksum": "wrong", "tools_enabled": False,
+                 "configuration_sha256": "b" * 64},
+                {"ok": True, "fingerprint": "c" * 64,
+                 "configuration_sha256": "b" * 64},
+                "handoff_ingress_rejected",
+            ),
+            (
+                {"ok": True, "state_checksum": "a" * 64, "tools_enabled": True,
+                 "configuration_sha256": "b" * 64},
+                {"ok": True, "fingerprint": "c" * 64,
+                 "configuration_sha256": "b" * 64},
+                "handoff_ingress_rejected",
+            ),
+            (
+                {"ok": True, "state_checksum": "a" * 64, "tools_enabled": False,
+                 "configuration_sha256": "b" * 64},
+                {"ok": False, "fingerprint": "wrong",
+                 "configuration_sha256": "b" * 64},
+                "handoff_capability_unsupported",
+            ),
+        ],
+    )
+    async def test_t3_invalid_receipt_never_disconnects_or_confirms(
+        session, ingress, capability, error_code,
+    ):
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.session_id = "source-codex-thread"
+        session.last_summary = "legacy summary must remain unused"
+        session.status = AgentStatus.IDLE
+        source = AsyncMock()
+        session._backend = source
+        session._log = MagicMock()
+        session._activate_backend_tasks = MagicMock()
+        session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
+            handoff_id="h1", packet={"schema_version": 1},
+            packet_sha256="a" * 64, expected_capability_sha256="c" * 64,
+            pending_effects=0,
+        ))
+        session._run_handoff_ingress_canary = AsyncMock(return_value=ingress)
+        session._verify_handoff_capabilities = AsyncMock(return_value=capability)
+        session._confirm_runtime_handoff = AsyncMock()
+
+        async def connect_target(*, history_import=None, **_kwargs):
+            target = SimpleNamespace(
+                session_id=getattr(history_import, "session_id", "target-claude-session")
+            )
+            session._backend = target
+            return target
+
+        session._build_claude_history_import = AsyncMock(
+            side_effect=lambda target_id, target_model, _exclude=(): _claude_history(
+                target_id, target_model,
+            )
+        )
+        session._ensure_backend = AsyncMock(side_effect=connect_target)
+
+>       result = await session.change_model("claude-sonnet-5[1m]")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:816:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:3094: in change_model
+    return await self._change_model_locked(new_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:4321: in _change_model_locked
+    new_runtime = get_model_spec(new_model).runtime
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+model_id = 'claude-sonnet-5[1m]'
+
+    def get_model_spec(model_id: str) -> ModelSpec:
+        """Return an explicit selectable or persisted-session compatibility route."""
+        if model_id in MODEL_SPECS:
+            return MODEL_SPECS[model_id]
+        if model_id in COMPAT_MODEL_SPECS:
+            return COMPAT_MODEL_SPECS[model_id]
+        registered = ", ".join(sorted(MODEL_SPECS)) or "(none)"
+        compatibility = ", ".join(sorted(COMPAT_MODEL_SPECS))
+>       raise ValueError(
+            f"unknown model '{model_id}'; registered models: {registered}; "
+            f"persisted-session compatibility routes: {compatibility}"
+        )
+E       ValueError: unknown model 'claude-sonnet-5[1m]'; registered models: (none); persisted-session compatibility routes: claude-opus-4-8, claude-opus-4-8[1m], claude-sonnet-4-5, claude-sonnet-4-6
+
+app/models.py:392: ValueError
+______ test_t4_grok_target_never_commits_from_summary_without_validation _______
+
+session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e70b50d99a0>
+
+    @pytest.mark.asyncio
+    async def test_t4_grok_target_never_commits_from_summary_without_validation(
+        session, monkeypatch,
+    ):
+        import app.runtime_history as historymod
+        from app.backend_grok import GrokBackend
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.session_id = "source-codex-thread"
+        session.status = AgentStatus.IDLE
+        session._log = MagicMock()
+        source = AsyncMock()
+        session._backend = source
+        session._build_runtime_handoff = AsyncMock(return_value="legacy prose summary")
+        marker = "WRITE_MARKER_FROM_RAW=/tmp/forbidden-marker"
+        rows = [
+            {
+                "id": 1, "ts": "2026-08-16T10:00:00+00:00",
+                "type": "user_message", "content": "continue",
+                "event_id": "", "tool_use_id": None, "tool_name": None,
+                "tool_is_error": None,
+            },
+            {
+                "id": 2, "ts": "2026-08-16T10:00:01+00:00", "type": "tool",
+                "content": "Read historical output", "event_id": "call",
+                "tool_use_id": "call-1", "tool_name": "Read",
+                "tool_is_error": None,
+            },
+            {
+                "id": 3, "ts": "2026-08-16T10:00:02+00:00",
+                "type": "tool_result", "content": marker, "event_id": "result",
+                "tool_use_id": "call-1", "tool_name": "Read",
+                "tool_is_error": False,
+            },
+        ]
+        build_packet = getattr(historymod, "build_runtime_state_packet", None)
+        assert callable(build_packet), "state packet builder is absent"
+        packet = build_packet(
+            rows,
+            session_meta={
+                "id": session.id, "task_id": "290", "scope": session.scope,
+                "branch": "task-290/test", "base_branch": "main",
+                "source_runtime": "codex", "target_runtime": "grok",
+            },
+            snapshot_id=3,
+            current_system_prompt="current system",
+            project_docs=[{"path": "AGENTS.md", "content": "tracked repo policy"}],
+        )
+        packet_sha = packet["integrity"]["canonical_sha256"]
+        prepared = SimpleNamespace(
+            handoff_id="h1", packet=packet, packet_sha256=packet_sha,
+            expected_capability_sha256="c" * 64, pending_effects=0,
+        )
+        session._prepare_runtime_handoff = AsyncMock(return_value=prepared)
+
+        adapter = GrokBackend(
+            model="grok-4.6", cwd="/tmp", system_prompt="current system",
+            mcp_env={}, mcp_servers={},
+        )
+        build_manifest = getattr(adapter, "build_handoff_manifest", None)
+        assert callable(build_manifest), "Grok model-visible manifest seam is absent"
+        manifest = build_manifest(prepared, validation_profile=True)
+        assert marker not in json.dumps(manifest.components)
+
+        async def validate_ingress(*_args, **kwargs):
+            assert kwargs["packet"] == packet
+            assert kwargs["expected_packet_sha256"] == packet_sha
+            assert marker not in json.dumps(manifest.components)
+            return {
+                "ok": True, "state_checksum": packet_sha, "tools_enabled": False,
+                "configuration_sha256": "b" * 64,
+            }
+
+        session._run_handoff_ingress_canary = AsyncMock(side_effect=validate_ingress)
+        session._verify_handoff_capabilities = AsyncMock(
+            return_value={
+                "ok": True, "fingerprint": "c" * 64,
+                "configuration_sha256": "b" * 64,
+            }
+        )
+
+>       result = await session.change_model("grok-4.6")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:909:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:3094: in change_model
+    return await self._change_model_locked(new_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:4321: in _change_model_locked
+    new_runtime = get_model_spec(new_model).runtime
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+model_id = 'grok-4.6'
+
+    def get_model_spec(model_id: str) -> ModelSpec:
+        """Return an explicit selectable or persisted-session compatibility route."""
+        if model_id in MODEL_SPECS:
+            return MODEL_SPECS[model_id]
+        if model_id in COMPAT_MODEL_SPECS:
+            return COMPAT_MODEL_SPECS[model_id]
+        registered = ", ".join(sorted(MODEL_SPECS)) or "(none)"
+        compatibility = ", ".join(sorted(COMPAT_MODEL_SPECS))
+>       raise ValueError(
+            f"unknown model '{model_id}'; registered models: {registered}; "
+            f"persisted-session compatibility routes: {compatibility}"
+        )
+E       ValueError: unknown model 'grok-4.6'; registered models: (none); persisted-session compatibility routes: claude-opus-4-8, claude-opus-4-8[1m], claude-sonnet-4-5, claude-sonnet-4-6
+
+app/models.py:392: ValueError
+_____ test_t5_same_provider_native_resume_preflights_smaller_target_window _____
+
+session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_t5_same_provider_native_resume_preflights_smaller_target_window(
+        session,
+    ):
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.session_id = "large-sol-thread"
+        session.status = AgentStatus.IDLE
+        session._last_context = {
+            "percentage": 51,
+            "total_tokens": 132_343,
+            "max_tokens": 258_400,
+        }
+        source = AsyncMock()
+        session._backend = source
+        session._log = MagicMock()
+
+>       result = await session.change_model("gpt-5.3-codex-spark")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:940:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:3094: in change_model
+    return await self._change_model_locked(new_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:4321: in _change_model_locked
+    new_runtime = get_model_spec(new_model).runtime
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+model_id = 'gpt-5.3-codex-spark'
+
+    def get_model_spec(model_id: str) -> ModelSpec:
+        """Return an explicit selectable or persisted-session compatibility route."""
+        if model_id in MODEL_SPECS:
+            return MODEL_SPECS[model_id]
+        if model_id in COMPAT_MODEL_SPECS:
+            return COMPAT_MODEL_SPECS[model_id]
+        registered = ", ".join(sorted(MODEL_SPECS)) or "(none)"
+        compatibility = ", ".join(sorted(COMPAT_MODEL_SPECS))
+>       raise ValueError(
+            f"unknown model '{model_id}'; registered models: {registered}; "
+            f"persisted-session compatibility routes: {compatibility}"
+        )
+E       ValueError: unknown model 'gpt-5.3-codex-spark'; registered models: (none); persisted-session compatibility routes: claude-opus-4-8, claude-opus-4-8[1m], claude-sonnet-4-5, claude-sonnet-4-6
+
+app/models.py:392: ValueError
+__________ test_t5_pending_effect_blocks_before_any_target_is_staged ___________
+
+session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_t5_pending_effect_blocks_before_any_target_is_staged(session):
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.session_id = "source-thread"
+        session.status = AgentStatus.IDLE
+        source = AsyncMock()
+        session._backend = source
+        session._log = MagicMock()
+        session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
+            ok=False, error_code="handoff_pending_effect", handoff_id=None,
+        ))
+        session._ensure_backend = AsyncMock()
+
+>       result = await session.change_model("gpt-5.6-luna")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:965:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:3094: in change_model
+    return await self._change_model_locked(new_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:4321: in _change_model_locked
+    new_runtime = get_model_spec(new_model).runtime
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+model_id = 'gpt-5.6-luna'
+
+    def get_model_spec(model_id: str) -> ModelSpec:
+        """Return an explicit selectable or persisted-session compatibility route."""
+        if model_id in MODEL_SPECS:
+            return MODEL_SPECS[model_id]
+        if model_id in COMPAT_MODEL_SPECS:
+            return COMPAT_MODEL_SPECS[model_id]
+        registered = ", ".join(sorted(MODEL_SPECS)) or "(none)"
+        compatibility = ", ".join(sorted(COMPAT_MODEL_SPECS))
+>       raise ValueError(
+            f"unknown model '{model_id}'; registered models: {registered}; "
+            f"persisted-session compatibility routes: {compatibility}"
+        )
+E       ValueError: unknown model 'gpt-5.6-luna'; registered models: (none); persisted-session compatibility routes: claude-opus-4-8, claude-opus-4-8[1m], claude-sonnet-4-5, claude-sonnet-4-6
+
+app/models.py:392: ValueError
+____ test_t5_second_incompatibility_exhausts_fallback_without_empty_target _____
+
+session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prom...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_t5_second_incompatibility_exhausts_fallback_without_empty_target(
+        session,
+    ):
+        from app.session import AgentStatus
+
+        session.model = "claude-sonnet-5[1m]"
+        session.backend_type = "claude"
+        session.session_id = "source-claude"
+        session.last_summary = "legacy summary must not be used"
+        session.status = AgentStatus.IDLE
+        source = AsyncMock()
+        session._backend = source
+        session._log = MagicMock()
+        session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
+            handoff_id="h1", packet={"schema_version": 1},
+            packet_sha256="a" * 64, pending_effects=0,
+        ))
+        session._stage_runtime_handoff_target = AsyncMock(side_effect=[
+            {"ok": False, "failure": {"kind": "schema_rejected", "structured": True}},
+            {"ok": False, "failure": {"kind": "ingress_rejected", "structured": True}},
+        ])
+        session._build_codex_history_import = AsyncMock(
+            side_effect=lambda thread_id: _codex_history(thread_id)
+        )
+        session._ensure_backend = AsyncMock(
+            return_value=SimpleNamespace(session_id="fresh-codex-thread")
+        )
+
+>       result = await session.change_model("gpt-5.6-sol")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:1004:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:3094: in change_model
+    return await self._change_model_locked(new_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:4321: in _change_model_locked
+    new_runtime = get_model_spec(new_model).runtime
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+model_id = 'gpt-5.6-sol'
+
+    def get_model_spec(model_id: str) -> ModelSpec:
+        """Return an explicit selectable or persisted-session compatibility route."""
+        if model_id in MODEL_SPECS:
+            return MODEL_SPECS[model_id]
+        if model_id in COMPAT_MODEL_SPECS:
+            return COMPAT_MODEL_SPECS[model_id]
+        registered = ", ".join(sorted(MODEL_SPECS)) or "(none)"
+        compatibility = ", ".join(sorted(COMPAT_MODEL_SPECS))
+>       raise ValueError(
+            f"unknown model '{model_id}'; registered models: {registered}; "
+            f"persisted-session compatibility routes: {compatibility}"
+        )
+E       ValueError: unknown model 'gpt-5.6-sol'; registered models: (none); persisted-session compatibility routes: claude-opus-4-8, claude-opus-4-8[1m], claude-sonnet-4-5, claude-sonnet-4-6
+
+app/models.py:392: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+FAILED tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_refuses_codex_before_source_disconnect
+FAILED tests/test_runtime_handoff_v2.py::test_t3_claude_target_commits_only_after_canary_and_capability_receipts
+FAILED tests/test_runtime_handoff_v2.py::test_t3_invalid_receipt_never_disconnects_or_confirms[ingress0-capability0-handoff_ingress_rejected]
+FAILED tests/test_runtime_handoff_v2.py::test_t3_invalid_receipt_never_disconnects_or_confirms[ingress1-capability1-handoff_ingress_rejected]
+FAILED tests/test_runtime_handoff_v2.py::test_t3_invalid_receipt_never_disconnects_or_confirms[ingress2-capability2-handoff_capability_unsupported]
+FAILED tests/test_runtime_handoff_v2.py::test_t4_grok_target_never_commits_from_summary_without_validation
+FAILED tests/test_runtime_handoff_v2.py::test_t5_same_provider_native_resume_preflights_smaller_target_window
+FAILED tests/test_runtime_handoff_v2.py::test_t5_pending_effect_blocks_before_any_target_is_staged
+FAILED tests/test_runtime_handoff_v2.py::test_t5_second_incompatibility_exhausts_fallback_without_empty_target
+10 failed, 64 passed in 5.86s
+EXIT=1

@@ -1,0 +1,154 @@
+............................................................FF....FF.... [ 72%]
+...........................                                              [100%]
+=================================== FAILURES ===================================
+_________ test_gated_worker_is_refused_above_the_line[sol-gpt-5.6-sol] _________
+
+mgr = <app.manager.SessionManager object at 0x70843941e270>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x708439a20aa0>
+name = 'sol', model = 'gpt-5.6-sol'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("sol", "gpt-5.6-sol"),
+        ("claude", "claude-opus-5[1m]"),
+    ])
+    async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, model):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE))
+
+        with pytest.raises(QuotaGateError):
+>           await _spawn(mgr, f"{name}-above", model)
+
+tests/test_quota_admission_e2e.py:97:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_quota_admission_e2e.py:82: in _spawn
+    return await mgr.create_session(
+app/manager.py:608: in create_session
+    return await self._create_session_locked(
+app/manager.py:781: in _create_session_locked
+    require_worker_admission(quota_decision)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+decision = QuotaDecision(state='blocked', model='gpt-5.6-sol', provider='codex', provider_label='Codex', lane='sol', gated=True, ... (norm 10% + tolerance 9.1 pp)', hard_limit_pct=99.0, release_status='opens_in', release_in_seconds=3956.0439560439563)
+
+    def require_worker_admission(decision: QuotaDecision) -> None:
+        """Отказать только состоявшемуся блоку. `unknown` пропускает — см. модуль."""
+        if decision.state == "blocked":
+>           raise QuotaGateError(decision)
+E           app.quota_gate.QuotaGateError: New worker turn blocked: Codex quota is 39.1% — utilization 39.1% is above the line limit 19.1% (norm 10% + tolerance 9.1 pp).
+
+app/quota_gate.py:534: QuotaGateError
+____ test_gated_worker_is_refused_above_the_line[claude-claude-opus-5[1m]] _____
+
+mgr = <app.manager.SessionManager object at 0x70843941c860>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x708439450230>
+name = 'claude', model = 'claude-opus-5[1m]'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("sol", "gpt-5.6-sol"),
+        ("claude", "claude-opus-5[1m]"),
+    ])
+    async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, model):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE))
+
+        with pytest.raises(QuotaGateError):
+>           await _spawn(mgr, f"{name}-above", model)
+
+tests/test_quota_admission_e2e.py:97:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_quota_admission_e2e.py:82: in _spawn
+    return await mgr.create_session(
+app/manager.py:608: in create_session
+    return await self._create_session_locked(
+app/manager.py:781: in _create_session_locked
+    require_worker_admission(quota_decision)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+decision = QuotaDecision(state='blocked', model='claude-opus-5[1m]', provider='anthropic', provider_label='Claude', lane='claude'... (norm 10% + tolerance 9.1 pp)', hard_limit_pct=99.0, release_status='opens_in', release_in_seconds=132923.07692307694)
+
+    def require_worker_admission(decision: QuotaDecision) -> None:
+        """Отказать только состоявшемуся блоку. `unknown` пропускает — см. модуль."""
+        if decision.state == "blocked":
+>           raise QuotaGateError(decision)
+E           app.quota_gate.QuotaGateError: New worker turn blocked: Claude quota is 39.1% — utilization 39.1% is above the line limit 19.1% (norm 10% + tolerance 9.1 pp).
+
+app/quota_gate.py:534: QuotaGateError
+_____ test_luna_and_spark_are_refused_at_the_hard_stop[luna-gpt-5.6-luna] ______
+
+mgr = <app.manager.SessionManager object at 0x708438859220>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70843941fb30>
+name = 'luna', model = 'gpt-5.6-luna'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("luna", "gpt-5.6-luna"),
+        ("spark", "gpt-5.3-codex-spark"),
+    ])
+    async def test_luna_and_spark_are_refused_at_the_hard_stop(mgr, monkeypatch, name, model):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(99.0))
+
+        with pytest.raises(QuotaGateError):
+>           await _spawn(mgr, f"{name}-hard", model)
+
+tests/test_quota_admission_e2e.py:140:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_quota_admission_e2e.py:82: in _spawn
+    return await mgr.create_session(
+app/manager.py:608: in create_session
+    return await self._create_session_locked(
+app/manager.py:781: in _create_session_locked
+    require_worker_admission(quota_decision)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+decision = QuotaDecision(state='blocked', model='gpt-5.6-luna', provider='codex', provider_label='Codex', lane='luna', gated=Fals...tion 99% is at or above the hard stop 99%', hard_limit_pct=99.0, release_status='at_reset', release_in_seconds=16200.0)
+
+    def require_worker_admission(decision: QuotaDecision) -> None:
+        """Отказать только состоявшемуся блоку. `unknown` пропускает — см. модуль."""
+        if decision.state == "blocked":
+>           raise QuotaGateError(decision)
+E           app.quota_gate.QuotaGateError: New worker turn blocked: Codex quota is 99% — utilization 99% is at or above the hard stop 99%.
+
+app/quota_gate.py:534: QuotaGateError
+_ test_luna_and_spark_are_refused_at_the_hard_stop[spark-gpt-5.3-codex-spark] __
+
+mgr = <app.manager.SessionManager object at 0x7084388cf770>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7084388b8cb0>
+name = 'spark', model = 'gpt-5.3-codex-spark'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("luna", "gpt-5.6-luna"),
+        ("spark", "gpt-5.3-codex-spark"),
+    ])
+    async def test_luna_and_spark_are_refused_at_the_hard_stop(mgr, monkeypatch, name, model):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(99.0))
+
+        with pytest.raises(QuotaGateError):
+>           await _spawn(mgr, f"{name}-hard", model)
+
+tests/test_quota_admission_e2e.py:140:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/test_quota_admission_e2e.py:82: in _spawn
+    return await mgr.create_session(
+app/manager.py:608: in create_session
+    return await self._create_session_locked(
+app/manager.py:781: in _create_session_locked
+    require_worker_admission(quota_decision)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+decision = QuotaDecision(state='blocked', model='gpt-5.3-codex-spark', provider='codex_spark', provider_label='Codex Spark', lane...tion 99% is at or above the hard stop 99%', hard_limit_pct=99.0, release_status='at_reset', release_in_seconds=16200.0)
+
+    def require_worker_admission(decision: QuotaDecision) -> None:
+        """Отказать только состоявшемуся блоку. `unknown` пропускает — см. модуль."""
+        if decision.state == "blocked":
+>           raise QuotaGateError(decision)
+E           app.quota_gate.QuotaGateError: New worker turn blocked: Codex Spark quota is 99% — utilization 99% is at or above the hard stop 99%.
+
+app/quota_gate.py:534: QuotaGateError
+=========================== short test summary info ============================
+FAILED tests/test_quota_admission_e2e.py::test_gated_worker_is_refused_above_the_line[sol-gpt-5.6-sol]
+FAILED tests/test_quota_admission_e2e.py::test_gated_worker_is_refused_above_the_line[claude-claude-opus-5[1m]]
+FAILED tests/test_quota_admission_e2e.py::test_luna_and_spark_are_refused_at_the_hard_stop[luna-gpt-5.6-luna]
+FAILED tests/test_quota_admission_e2e.py::test_luna_and_spark_are_refused_at_the_hard_stop[spark-gpt-5.3-codex-spark]
+4 failed, 95 passed in 3.37s
+EXIT=1
