@@ -1,0 +1,76 @@
+{
+  "method": "Python sqlite3.Connection.backup from mode=ro source",
+  "source": "/mnt/data/Projects/Python/orchestra/data/orchestra.db",
+  "backup_private_relative_path": "private/orchestra-20260824.sqlite",
+  "started_utc": "2026-08-24T06:54:13.548006+00:00",
+  "completed_utc": "2026-08-24T06:54:34.857943+00:00",
+  "sha256": "b938594cbb931e6505bc547e21ba6a76fb3f083a36f125c03c237841e823b821",
+  "bytes": 485879808,
+  "page_count": 118623,
+  "page_size": 4096,
+  "quick_check": "ok",
+  "table_counts": {
+    "artifacts": 0,
+    "bg_jobs": 139,
+    "fan_barriers": 7,
+    "fan_members": 17,
+    "improvement_rules": 0,
+    "inbox": 0,
+    "initial_deliveries": 37,
+    "jobs": 0,
+    "kv": 3,
+    "logs": 160594,
+    "mailbox": 0,
+    "merge_operations": 200,
+    "openrouter_attempts": 0,
+    "profiles": 1,
+    "quota_alert_state": 2,
+    "quota_controller_decisions": 78,
+    "quota_controller_evidence_sets": 0,
+    "quota_controller_inflight_reservations": 0,
+    "quota_controller_outcomes": 78,
+    "quota_controller_reserve_intents": 0,
+    "quota_silence": 0,
+    "restart_inbox": 0,
+    "runtime_handoff_attempts": 0,
+    "runtime_handoffs": 0,
+    "runtime_routing_decisions": 0,
+    "runtime_routing_latches": 0,
+    "sessions": 482,
+    "subagents": 4429,
+    "test_lock": 0,
+    "tm_clients": 1,
+    "tm_payment_allocations": 3,
+    "tm_payments": 2,
+    "tm_projects": 19,
+    "tm_sync_log": 488,
+    "tm_tasks": 614,
+    "tool_errors": 1781,
+    "turn_usage": 4338,
+    "undelivered_facts": 0,
+    "usage_snapshots": 12074,
+    "voice_costs": 71
+  },
+  "maxima": {
+    "logs.ts": "2026-08-24T06:54:12.859979+00:00",
+    "turn_usage.ts": "2026-08-24T06:51:17.792705+00:00",
+    "usage_snapshots.ts": "2026-08-24T06:50:33.220149+00:00",
+    "sessions.created_at": "2026-08-24T06:41:22.887108+00:00",
+    "tm_tasks.updated_at": "2026-08-24T06:49:43.488288+00:00"
+  },
+  "source_files_observed_after_backup": {
+    "orchestra.db": {
+      "bytes_observed_after_backup": 485847040,
+      "mtime_ns_observed_after_backup": 1787554430980429561
+    },
+    "orchestra.db-wal": {
+      "bytes_observed_after_backup": 12772032,
+      "mtime_ns_observed_after_backup": 1787554482493308979
+    },
+    "orchestra.db-shm": {
+      "bytes_observed_after_backup": 32768,
+      "mtime_ns_observed_after_backup": 1787554482371309265
+    }
+  },
+  "publication": "Full backup is private/ignored because rows can contain credentials or user content; sanitized derived evidence is tracked separately."
+}

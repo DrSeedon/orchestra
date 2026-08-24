@@ -1,0 +1,5 @@
+session_id,worker,model,effort,role,pre_n,post_n,pre_ttft_median_s,post_ttft_median_s,pre_wall_median_s,post_wall_median_s,pre_max_request_input_median,post_max_request_input_median,pre_tools_median,post_tools_median,pre_completion_rate,post_completion_rate
+07233e67-502d-4c62-9f34-b37fbbdf8606,Orchestra-orchestrator,gpt-5.6-sol,xhigh,orchestrator,3,5,13.48,20.193,294.472,280.751,214738,259272,18,11,1.0,1.0
+47f075de-28d3-482e-9513-c172a03b4a3e,COG-second-brain-orchestrator,gpt-5.6-sol,xhigh,orchestrator,4,6,18.442,66.07900000000001,399.9185,635.8335,180935.0,550274.0,15.0,16.0,1.0,1.0
+61e3de3a-e2b3-4d04-bf17-17672c03b6fe,identity-baseline,gpt-5.6-sol,xhigh,full-cycle,5,18,8.068,7.7145,399.633,129.7375,193564,268721.5,13,6.0,1.0,1.0
+e6118c26-c52f-405e-8047-85bd839ba0f7,comfy-image-orchestrator,gpt-5.6-sol,xhigh,orchestrator,17,4,11.262,10.468,45.771,18.9545,99509,148245.5,3,1.0,1.0,1.0
