@@ -143,6 +143,36 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_initial_deliveries_scope_state_created
                 ON initial_deliveries(scope, state, created_at);
+            CREATE TABLE IF NOT EXISTS message_deliveries (
+                accept_seq INTEGER PRIMARY KEY AUTOINCREMENT,
+                delivery_id TEXT NOT NULL UNIQUE,
+                schema_version INTEGER NOT NULL,
+                source_session_id TEXT,
+                source_principal TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                source_scope TEXT NOT NULL,
+                source_task_id TEXT NOT NULL,
+                target_session_id TEXT NOT NULL,
+                target_name TEXT NOT NULL,
+                target_scope TEXT NOT NULL,
+                target_task_id TEXT NOT NULL,
+                target_generation TEXT NOT NULL,
+                message TEXT NOT NULL,
+                rendered_message TEXT NOT NULL,
+                message_kind TEXT,
+                wake INTEGER NOT NULL,
+                payload_hash TEXT NOT NULL,
+                state TEXT NOT NULL,
+                user_log_id INTEGER UNIQUE REFERENCES logs(id) ON DELETE SET NULL,
+                provider_ref TEXT,
+                error_json TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_message_deliveries_target_seq
+                ON message_deliveries(target_session_id, accept_seq);
+            CREATE INDEX IF NOT EXISTS idx_message_deliveries_source_seq
+                ON message_deliveries(source_session_id, accept_seq);
             -- get_last_turn_map() runs on every /api/sessions; without this it scans
             -- every logs row (14 MB of content) to LIKE-match 8% of them: 16 ms → 0.6 ms.
             CREATE INDEX IF NOT EXISTS idx_logs_status ON logs(session_id, ts) WHERE type='status';
@@ -578,10 +608,87 @@ def _guard_session_id(c) -> None:
     """)
 
 
+def _migrate_message_deliveries(c) -> None:
+    """Preserve receipt identity across target/log deletion on pre-fix databases."""
+    if c.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='message_deliveries'"
+    ).fetchone() is None:
+        return
+    foreign_keys = {
+        (row["from"], row["table"], str(row["on_delete"]).upper())
+        for row in c.execute("PRAGMA foreign_key_list(message_deliveries)").fetchall()
+    }
+    if (
+        not any(column == "target_session_id" for column, _table, _delete in foreign_keys)
+        and ("user_log_id", "logs", "SET NULL") in foreign_keys
+    ):
+        return
+
+    columns = (
+        "accept_seq", "delivery_id", "schema_version", "source_session_id",
+        "source_principal", "source_name", "source_scope", "source_task_id",
+        "target_session_id", "target_name", "target_scope", "target_task_id",
+        "target_generation", "message", "rendered_message", "message_kind", "wake",
+        "payload_hash", "state", "user_log_id", "provider_ref", "error_json",
+        "created_at", "updated_at",
+    )
+    column_list = ", ".join(columns)
+    savepoint = "migrate_message_deliveries_380"
+    c.execute(f"SAVEPOINT {savepoint}")
+    try:
+        c.execute("ALTER TABLE message_deliveries RENAME TO message_deliveries_pre_380_fix")
+        c.execute("""CREATE TABLE message_deliveries (
+            accept_seq INTEGER PRIMARY KEY AUTOINCREMENT,
+            delivery_id TEXT NOT NULL UNIQUE,
+            schema_version INTEGER NOT NULL,
+            source_session_id TEXT,
+            source_principal TEXT NOT NULL,
+            source_name TEXT NOT NULL,
+            source_scope TEXT NOT NULL,
+            source_task_id TEXT NOT NULL,
+            target_session_id TEXT NOT NULL,
+            target_name TEXT NOT NULL,
+            target_scope TEXT NOT NULL,
+            target_task_id TEXT NOT NULL,
+            target_generation TEXT NOT NULL,
+            message TEXT NOT NULL,
+            rendered_message TEXT NOT NULL,
+            message_kind TEXT,
+            wake INTEGER NOT NULL,
+            payload_hash TEXT NOT NULL,
+            state TEXT NOT NULL,
+            user_log_id INTEGER UNIQUE REFERENCES logs(id) ON DELETE SET NULL,
+            provider_ref TEXT,
+            error_json TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""")
+        c.execute(
+            f"INSERT INTO message_deliveries ({column_list}) "
+            f"SELECT {column_list} FROM message_deliveries_pre_380_fix"
+        )
+        c.execute("DROP TABLE message_deliveries_pre_380_fix")
+        c.execute(
+            "CREATE INDEX idx_message_deliveries_target_seq "
+            "ON message_deliveries(target_session_id, accept_seq)"
+        )
+        c.execute(
+            "CREATE INDEX idx_message_deliveries_source_seq "
+            "ON message_deliveries(source_session_id, accept_seq)"
+        )
+    except BaseException:
+        c.execute(f"ROLLBACK TO {savepoint}")
+        c.execute(f"RELEASE {savepoint}")
+        raise
+    else:
+        c.execute(f"RELEASE {savepoint}")
+
+
 def _migrate(c) -> None:
     # Additive ALTER TABLE migrations — safe to re-run (IF NOT EXISTS / column check).
     # Never drop columns: old Orchestra versions reading the same DB must still work.
     _guard_session_id(c)
+    _migrate_message_deliveries(c)
     mb_cols = {row[1] for row in c.execute("PRAGMA table_info(mailbox)").fetchall()}
     if "claimed_at" not in mb_cols:
         c.execute("ALTER TABLE mailbox ADD COLUMN claimed_at REAL")

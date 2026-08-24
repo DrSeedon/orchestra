@@ -96,6 +96,7 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "bg_list",
     "search_memory",
     "delivery_status",
+    "message_delivery_status",
 })
 
 REDUCER_MCP_TOOLS = frozenset({
@@ -636,6 +637,10 @@ def _delivery_status_path(delivery_id: str) -> str:
     return f"/api/initial-deliveries/{delivery_id}"
 
 
+def _message_delivery_status_path(delivery_id: str) -> str:
+    return f"/api/message-deliveries/{delivery_id}"
+
+
 def _delivery_receipt_text(
     name: str,
     model: str,
@@ -1097,17 +1102,146 @@ async def test_lock_status() -> str:
 
 
 @mcp.tool()
-async def send_message(to: str, message: str) -> str:
+async def send_message(to: str, message: str, delivery_id: str = "") -> str:
     """Send a message to any agent by name. Triggers a new turn."""
-    result = await _api("POST", f"/api/sessions/{to}/send", json={
-        "message": message, "sender": WORKER_NAME or ROLE, "scope": SCOPE,
-    })
+    delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
+    if not delivery_id:
+        delivery_id = str(uuid.uuid4())
+    else:
+        try:
+            delivery_id = str(uuid.UUID(delivery_id))
+        except ValueError as error:
+            raise ApiToolError(
+                code="invalid_argument",
+                message="delivery_id must be a UUID",
+                details={"field": "delivery_id"},
+            ) from error
+    payload = {
+        "message": message,
+        "sender": WORKER_NAME or ROLE,
+        "scope": SCOPE,
+        "delivery_id": delivery_id,
+    }
+    try:
+        result = await _api("POST", f"/api/sessions/{to}/send", json=payload)
+    except ApiToolError as cause:
+        if not cause.outcome_unknown:
+            raise
+        try:
+            status = await _api("GET", _message_delivery_status_path(delivery_id))
+        except ApiToolError as status_error:
+            if status_error.details.get("method") == "POST":
+                raise cause from status_error
+            raise _ambiguous_message_delivery_error(
+                cause, delivery_id, status_error=status_error,
+            ) from cause
+        if not _is_message_delivery_receipt(status, delivery_id):
+            raise _ambiguous_message_delivery_error(
+                cause, delivery_id, status=status,
+            ) from cause
+        return _message_delivery_receipt_text(status)
     if isinstance(result, dict) and result.get("error"):
         return f"Send failed: {result['error']}"
+    if _is_message_delivery_receipt(result, delivery_id):
+        return _message_delivery_receipt_text(
+            result, to=to, parent_name=result.get("parent_name", ""),
+        )
     parent = result.get("parent_name", "") if isinstance(result, dict) else ""
     if parent and parent != WORKER_NAME:
         return f"Message sent to '{to}'\n⚠️ This worker belongs to '{parent}'. Consider messaging '{parent}' instead."
     return f"Message sent to '{to}'"
+
+
+def _is_message_delivery_receipt(value: Any, delivery_id: str) -> bool:
+    return (
+        isinstance(value, dict)
+        and value.get("ok") is True
+        and value.get("delivery_id") == delivery_id
+        and bool(value.get("acceptance"))
+    )
+
+
+def _message_delivery_receipt_text(
+    receipt: dict[str, Any], *, to: str = "", parent_name: str = "",
+) -> str:
+    delivery_id = str(receipt["delivery_id"])
+    state = str(receipt.get("delivery_state") or receipt.get("state") or "UNKNOWN")
+    target = f" to '{to}'" if to else ""
+    output = f"Message accepted{target}; delivery_id={delivery_id}; state={state}."
+    if parent_name and parent_name != WORKER_NAME:
+        output += (
+            f"\n⚠️ This worker belongs to '{parent_name}'. "
+            f"Consider messaging '{parent_name}' instead."
+        )
+    return output
+
+
+def _ambiguous_message_delivery_error(
+    cause: ApiToolError,
+    delivery_id: str,
+    *,
+    status: Any = None,
+    status_error: ApiToolError | None = None,
+) -> ApiToolError:
+    reconciliation: Any
+    if status_error is not None:
+        reconciliation = status_error.envelope()
+    else:
+        reconciliation = {"status": "missing", "response": status}
+    next_action = {
+        "tool": "message_delivery_status",
+        "arguments": {"delivery_id": delivery_id},
+        "message": (
+            "Delivery outcome is ambiguous; inspect this delivery id or retry only "
+            "with the same id. Do not retry with a new id."
+        ),
+    }
+    details = dict(cause.details)
+    details["reconciliation"] = reconciliation
+    return ApiToolError(
+        code=cause.code,
+        message=f"Message delivery outcome is ambiguous: {cause.message}",
+        status=cause.status,
+        retryable=False,
+        request_id=cause.request_id,
+        retry_after_seconds=cause.retry_after_seconds,
+        outcome_unknown=True,
+        details=details,
+        result={
+            "acceptance": "AMBIGUOUS",
+            "delivery_id": delivery_id,
+            "next_action": next_action,
+        },
+    )
+
+
+@mcp.tool()
+async def message_delivery_status(delivery_id: str) -> dict[str, Any]:
+    """Look up one direct-message delivery by its immutable id."""
+    delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
+    if not delivery_id:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="delivery_id is required",
+            details={"field": "delivery_id"},
+        )
+    try:
+        delivery_id = str(uuid.UUID(delivery_id))
+    except ValueError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="delivery_id must be a UUID",
+            details={"field": "delivery_id"},
+        ) from error
+    result = await _api("GET", _message_delivery_status_path(delivery_id))
+    if not isinstance(result, dict):
+        raise ApiToolError(
+            code="invalid_response",
+            message="Message delivery status API returned a non-object response",
+            status=200,
+            details={"response_type": type(result).__name__},
+        )
+    return result
 
 
 @mcp.tool()

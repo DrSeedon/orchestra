@@ -24,6 +24,7 @@ from app.db import (
     get_logs_before,
     get_logs_sync,
     get_runtime_handoff,
+    get_session as get_session_row,
 )
 from app.deps import manager
 from app.errtext import err_text
@@ -173,6 +174,7 @@ class SendRequest(BaseModel):
     scope: str
     sender: str | None = None
     wake: bool = True
+    delivery_id: str = ""
     # #219 T1b: класс сообщения ребёнка. Необязательное поле с совместимым
     # умолчанием — старые процессы `mcp_stdio.py` живут до реконнекта и его не
     # пошлют (грабля #215/#217). Неизвестное значение → буферизуем (fail-closed).
@@ -600,8 +602,213 @@ async def open_fan(req: OpenFanRequest):
 
 
 @router.post("/api/sessions/{name}/send")
-async def send_message(name: str, req: SendRequest):
+async def send_message(name: str, req: SendRequest, request: Request = None):
     try:
+        if req.delivery_id.strip():
+            if not req.wake or req.message_kind is not None:
+                return JSONResponse(
+                    {
+                        "ok": False,
+                        "error": {
+                            "code": "UNSUPPORTED_KEYED_INGRESS",
+                            "message": "keyed receipts support waking direct messages only",
+                            "outcome_unknown": False,
+                        },
+                    },
+                    status_code=400,
+                )
+            from app.mcp_proof import check_mcp_proof
+            from app.auth import validate_session
+            import os
+
+            source_id = (request.headers.get("x-orchestra-session-id", "")
+                         if request is not None else "").strip()
+            proof = (request.headers.get("x-orchestra-mcp-proof", "")
+                     if request is not None else "")
+            source = get_session_row(source_id) if source_id else None
+            operator = bool(
+                request is not None
+                and validate_session(request.cookies.get("session", ""))
+            )
+            if operator:
+                source_id = ""
+                source = None
+            elif not source or not check_mcp_proof(source_id, proof):
+                return JSONResponse(
+                    {
+                        "ok": False,
+                        "error": {
+                            "code": "KEYED_AUTH_REQUIRED",
+                            "message": "keyed delivery requires a valid MCP proof",
+                            "outcome_unknown": False,
+                        },
+                    },
+                    status_code=403,
+                )
+            if not operator and req.sender is not None and req.sender != source["name"]:
+                return JSONResponse(
+                    {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
+                    status_code=403,
+                )
+            if not operator and req.scope != source["scope"]:
+                return JSONResponse(
+                    {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
+                    status_code=403,
+                )
+            source_is_orchestrator = bool(
+                source and (
+                    source.get("is_orchestrator")
+                    or source.get("role") in {"orchestrator", "sub-orchestrator"}
+                )
+            )
+            from app import message_deliveries
+
+            try:
+                delivery_id = message_deliveries._validate_id(req.delivery_id)
+            except ValueError as error:
+                return JSONResponse(
+                    {
+                        "error": {
+                            "code": "INVALID_DELIVERY_ID",
+                            "message": str(error),
+                            "outcome_unknown": False,
+                        }
+                    },
+                    status_code=400,
+                )
+            source_principal = (
+                f"operator:{os.environ.get('DASHBOARD_USER', '')}"
+                if operator else f"mcp:{source_id}"
+            )
+            source_name = source["name"] if source else ""
+            source_scope = source["scope"] if source else req.scope
+            source_task_id = (source.get("task_id") or "") if source else ""
+            rendered = req.message if operator else f"[from:{source_name}] {req.message}"
+
+            existing = message_deliveries._row(delivery_id)
+            if existing is not None:
+                if not operator and existing["source_session_id"] != source_id:
+                    return JSONResponse(
+                        {
+                            "error": {
+                                "code": "KEYED_AUTH_REQUIRED",
+                                "outcome_unknown": False,
+                            }
+                        },
+                        status_code=403,
+                    )
+                if name != existing["target_name"]:
+                    conflict, conflict_status = message_deliveries._conflict(delivery_id)
+                    return JSONResponse(conflict, status_code=conflict_status)
+                resource, status_code = await message_deliveries.accept_message_delivery(
+                    delivery_id=delivery_id,
+                    source_session_id=source_id or None,
+                    source_principal=source_principal,
+                    source_name=source_name,
+                    source_scope=source_scope,
+                    source_task_id=source_task_id,
+                    target_session_id=existing["target_session_id"],
+                    target_name=existing["target_name"],
+                    target_scope=existing["target_scope"],
+                    target_task_id=existing["target_task_id"],
+                    target_generation=existing["target_generation"],
+                    message=req.message,
+                    rendered_message=rendered,
+                    message_kind=req.message_kind,
+                    wake=req.wake,
+                )
+                return JSONResponse(resource, status_code=status_code)
+
+            known_targets = get_all_sessions(include_archived=True)
+            exact_archived = any(
+                row["name"] == name
+                and row["scope"].rstrip("/") == req.scope.rstrip("/")
+                and row["status"] == "archived"
+                for row in known_targets
+            )
+            exact_active = any(
+                row["name"] == name
+                and row["scope"].rstrip("/") == req.scope.rstrip("/")
+                and row["status"] != "archived"
+                for row in known_targets
+            )
+            target = manager.get_by_name(name, req.scope)
+            if not exact_active:
+                target = None
+            if target is None:
+                candidates = [
+                    row for row in get_all_sessions(include_archived=True)
+                    if row["name"] == name and row["status"] != "archived"
+                ]
+                if exact_archived or not candidates:
+                    return JSONResponse(
+                        {
+                            "error": {
+                                "code": "TARGET_NOT_FOUND",
+                                "message": f"agent '{name}' not found",
+                                "outcome_unknown": False,
+                            }
+                        },
+                        status_code=404,
+                    )
+                if not source_is_orchestrator and not operator:
+                    return JSONResponse(
+                        {
+                            "error": {
+                                "code": "KEYED_AUTH_REQUIRED",
+                                "message": "cross-project target requires an orchestrator proof",
+                                "outcome_unknown": False,
+                            }
+                        },
+                        status_code=403,
+                    )
+                if len(candidates) != 1:
+                    return JSONResponse(
+                        {
+                            "error": {
+                                "code": "TARGET_NAME_AMBIGUOUS",
+                                "message": f"target name '{name}' is ambiguous across projects",
+                                "outcome_unknown": False,
+                            }
+                        },
+                        status_code=409,
+                    )
+                candidate = candidates[0]
+                target = manager.get_by_name(candidate["name"], candidate["scope"])
+            if target is None:
+                return JSONResponse(
+                    {
+                        "error": {
+                            "code": "TARGET_NOT_FOUND",
+                            "message": f"agent '{name}' not found",
+                            "outcome_unknown": False,
+                        }
+                    },
+                    status_code=404,
+                )
+            target_generation = (
+                f"session={target.id}|task={getattr(target, 'task_id', '')}|"
+                f"branch={getattr(target, 'branch', '')}|"
+                f"needs_switch={int(bool(getattr(target, 'needs_switch', False)))}"
+            )
+            resource, status_code = await message_deliveries.accept_message_delivery(
+                delivery_id=delivery_id,
+                source_session_id=source_id or None,
+                source_principal=source_principal,
+                source_name=source_name,
+                source_scope=source_scope,
+                source_task_id=source_task_id,
+                target_session_id=target.id,
+                target_name=target.name,
+                target_scope=target.scope,
+                target_task_id=getattr(target, "task_id", "") or "",
+                target_generation=target_generation,
+                message=req.message,
+                rendered_message=rendered,
+                message_kind=req.message_kind,
+                wake=req.wake,
+            )
+            return JSONResponse(resource, status_code=status_code)
         # A non-waking delivery must not load or activate the recipient.  The
         # requested scope is the mailbox address supplied by the sender.
         if not req.wake:
@@ -710,11 +917,94 @@ async def send_message(name: str, req: SendRequest):
         return {"ok": True, "parent_name": pn}
     except QuotaGateError as e:
         return JSONResponse(e.envelope(), status_code=e.status_code)
+    except sqlite3.DatabaseError:
+        from app import message_deliveries
+
+        verification_succeeded = False
+        try:
+            delivery_id = message_deliveries._validate_id(req.delivery_id)
+            committed = message_deliveries._row(delivery_id)
+        except (ValueError, sqlite3.DatabaseError):
+            committed = None
+        else:
+            verification_succeeded = True
+        if req.delivery_id.strip() and not verification_succeeded:
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": "DELIVERY_OUTCOME_UNKNOWN",
+                        "message": "delivery acceptance could not be reconciled safely",
+                        "outcome_unknown": True,
+                        "retryable": False,
+                        "details": {"commit_state": "VERIFICATION_FAILED"},
+                    }
+                },
+                status_code=503,
+            )
+        if req.delivery_id.strip() and committed is None:
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": "DELIVERY_ACCEPT_REJECTED",
+                        "message": "delivery acceptance was not committed; retry is safe",
+                        "outcome_unknown": False,
+                        "retryable": True,
+                        "details": {"commit_state": "NOT_COMMITTED"},
+                    }
+                },
+                status_code=503,
+            )
+        raise
     except (RuntimeError, KeyError) as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     except Exception as e:
         logger.error(f"send_message failed for {name}: {e}", exc_info=True)
         return JSONResponse({"error": f"Send failed: {e}"}, status_code=500)
+
+
+@router.get("/api/message-deliveries/{delivery_id}")
+async def get_message_delivery_status(delivery_id: str, request: Request = None):
+    """Return a direct-message receipt only to its MCP owner or an operator."""
+    from app import message_deliveries
+    from app.auth import validate_session
+    from app.mcp_proof import check_mcp_proof
+
+    if request is None:
+        return JSONResponse(
+            {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
+            status_code=403,
+        )
+    if validate_session(request.cookies.get("session", "")):
+        try:
+            row = message_deliveries._row(message_deliveries._validate_id(delivery_id))
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        if row is None:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return message_deliveries._resource(row, acceptance="ALREADY_ACCEPTED")
+
+    source_id = request.headers.get("x-orchestra-session-id", "").strip()
+    proof = request.headers.get("x-orchestra-mcp-proof", "")
+    source = get_session_row(source_id) if source_id else None
+    if not source or not check_mcp_proof(source_id, proof):
+        return JSONResponse(
+            {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
+            status_code=403,
+        )
+    try:
+        validated_id = message_deliveries._validate_id(delivery_id)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    row = message_deliveries._row(validated_id)
+    if row is not None and row["source_session_id"] != source_id:
+        return JSONResponse(
+            {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
+            status_code=403,
+        )
+    resource = message_deliveries.get_message_delivery(validated_id, source_id)
+    if resource is None:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return resource
 
 
 @router.post("/api/sessions/{name}/compact")
