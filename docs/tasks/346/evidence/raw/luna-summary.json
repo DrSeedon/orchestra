@@ -1,0 +1,364 @@
+{
+  "runs": [
+    {
+      "run": "a1-valid",
+      "arm": "A",
+      "codex_exit": 0,
+      "acceptance": {
+        "raw_exit_codes": {
+          "E1_OLD_SYMBOL_EXIT": 1,
+          "E1_NEW_DEF_EXIT": 0,
+          "E1_ALIAS_EXIT": 0,
+          "E1_TESTS_EXIT": 0,
+          "E2_OLD_SYMBOL_EXIT": 1,
+          "E2_NEW_DEF_EXIT": 0,
+          "E2_REPORT_GUARD_EXIT": 0,
+          "E2_TESTS_EXIT": 0,
+          "DIFF_CHECK_EXIT": 0
+        },
+        "e1": true,
+        "e2": true,
+        "accepted": 2
+      },
+      "item_types": {
+        "agent_message": 5,
+        "command_execution": 9,
+        "file_change": 3
+      },
+      "tool_calls": 12,
+      "mcp_tool_calls": 0,
+      "input_tokens": 482672,
+      "cached_input_tokens": 422400,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5971,
+      "reasoning_output_tokens": 1974,
+      "cache_le_input": true,
+      "wall_seconds": 139.84,
+      "diffstat": " app/backend_claude.py                |  2 +-\n app/limits_card.py                   |  2 +-\n app/manager.py                       |  4 +--\n app/prompting.py                     |  2 +-\n app/session.py                       |  4 +--\n app/tg_bridge.py                     |  2 +-\n tests/test_default_pipeline.py       |  2 +-\n tests/test_legacy_pipeline_skills.py |  4 +--\n tests/test_manager.py                | 64 ++++++++++++++++++------------------\n tests/test_workspace.py              |  4 +--\n 10 files changed, 45 insertions(+), 45 deletions(-)\n"
+    },
+    {
+      "run": "b1-valid",
+      "arm": "B",
+      "codex_exit": 0,
+      "acceptance": {
+        "raw_exit_codes": {
+          "E1_OLD_SYMBOL_EXIT": 1,
+          "E1_NEW_DEF_EXIT": 0,
+          "E1_ALIAS_EXIT": 0,
+          "E1_TESTS_EXIT": 0,
+          "E2_OLD_SYMBOL_EXIT": 1,
+          "E2_NEW_DEF_EXIT": 0,
+          "E2_REPORT_GUARD_EXIT": 0,
+          "E2_TESTS_EXIT": 0,
+          "DIFF_CHECK_EXIT": 0
+        },
+        "e1": true,
+        "e2": true,
+        "accepted": 2
+      },
+      "item_types": {
+        "agent_message": 6,
+        "command_execution": 6,
+        "file_change": 1
+      },
+      "tool_calls": 7,
+      "mcp_tool_calls": 0,
+      "input_tokens": 409289,
+      "cached_input_tokens": 370688,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 3076,
+      "reasoning_output_tokens": 1318,
+      "cache_le_input": true,
+      "wall_seconds": 97.28999999999999,
+      "diffstat": " app/backend_claude.py                |  2 +-\n app/limits_card.py                   |  2 +-\n app/manager.py                       |  4 +--\n app/prompting.py                     |  2 +-\n app/session.py                       |  4 +--\n app/tg_bridge.py                     |  2 +-\n tests/test_default_pipeline.py       |  2 +-\n tests/test_legacy_pipeline_skills.py |  4 +--\n tests/test_manager.py                | 64 ++++++++++++++++++------------------\n tests/test_workspace.py              |  4 +--\n 10 files changed, 45 insertions(+), 45 deletions(-)\n"
+    },
+    {
+      "run": "a2-valid",
+      "arm": "A",
+      "codex_exit": 0,
+      "acceptance": {
+        "raw_exit_codes": {
+          "E1_OLD_SYMBOL_EXIT": 1,
+          "E1_NEW_DEF_EXIT": 0,
+          "E1_ALIAS_EXIT": 0,
+          "E1_TESTS_EXIT": 0,
+          "E2_OLD_SYMBOL_EXIT": 1,
+          "E2_NEW_DEF_EXIT": 0,
+          "E2_REPORT_GUARD_EXIT": 0,
+          "E2_TESTS_EXIT": 0,
+          "DIFF_CHECK_EXIT": 0
+        },
+        "e1": true,
+        "e2": true,
+        "accepted": 2
+      },
+      "item_types": {
+        "agent_message": 6,
+        "command_execution": 14,
+        "file_change": 34
+      },
+      "tool_calls": 48,
+      "mcp_tool_calls": 0,
+      "input_tokens": 758876,
+      "cached_input_tokens": 687360,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 9089,
+      "reasoning_output_tokens": 2357,
+      "cache_le_input": true,
+      "wall_seconds": 250.92,
+      "diffstat": " app/backend_claude.py                |  2 +-\n app/limits_card.py                   |  4 +--\n app/manager.py                       |  4 +--\n app/prompting.py                     |  4 +--\n app/session.py                       |  4 +--\n app/tg_bridge.py                     |  2 +-\n tests/test_default_pipeline.py       |  2 +-\n tests/test_legacy_pipeline_skills.py |  4 +--\n tests/test_manager.py                | 64 ++++++++++++++++++------------------\n tests/test_workspace.py              |  4 +--\n 10 files changed, 47 insertions(+), 47 deletions(-)\n"
+    },
+    {
+      "run": "b2-valid",
+      "arm": "B",
+      "codex_exit": 0,
+      "acceptance": {
+        "raw_exit_codes": {
+          "E1_OLD_SYMBOL_EXIT": 1,
+          "E1_NEW_DEF_EXIT": 0,
+          "E1_ALIAS_EXIT": 0,
+          "E1_TESTS_EXIT": 0,
+          "E2_OLD_SYMBOL_EXIT": 1,
+          "E2_NEW_DEF_EXIT": 0,
+          "E2_REPORT_GUARD_EXIT": 0,
+          "E2_TESTS_EXIT": 0,
+          "DIFF_CHECK_EXIT": 0
+        },
+        "e1": true,
+        "e2": true,
+        "accepted": 2
+      },
+      "item_types": {
+        "agent_message": 8,
+        "command_execution": 9,
+        "file_change": 29
+      },
+      "tool_calls": 38,
+      "mcp_tool_calls": 0,
+      "input_tokens": 543702,
+      "cached_input_tokens": 492544,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 6919,
+      "reasoning_output_tokens": 1470,
+      "cache_le_input": true,
+      "wall_seconds": 160.34,
+      "diffstat": " app/backend_claude.py                |  2 +-\n app/limits_card.py                   |  4 +--\n app/manager.py                       |  4 +--\n app/prompting.py                     |  2 +-\n app/session.py                       |  4 +--\n app/tg_bridge.py                     |  2 +-\n tests/test_default_pipeline.py       |  2 +-\n tests/test_legacy_pipeline_skills.py |  4 +--\n tests/test_manager.py                | 64 ++++++++++++++++++------------------\n tests/test_workspace.py              |  4 +--\n 10 files changed, 46 insertions(+), 46 deletions(-)\n"
+    },
+    {
+      "run": "a3-valid",
+      "arm": "A",
+      "codex_exit": 0,
+      "acceptance": {
+        "raw_exit_codes": {
+          "E1_OLD_SYMBOL_EXIT": 1,
+          "E1_NEW_DEF_EXIT": 0,
+          "E1_ALIAS_EXIT": 0,
+          "E1_TESTS_EXIT": 0,
+          "E2_OLD_SYMBOL_EXIT": 1,
+          "E2_NEW_DEF_EXIT": 0,
+          "E2_REPORT_GUARD_EXIT": 0,
+          "E2_TESTS_EXIT": 0,
+          "DIFF_CHECK_EXIT": 0
+        },
+        "e1": true,
+        "e2": true,
+        "accepted": 2
+      },
+      "item_types": {
+        "agent_message": 6,
+        "command_execution": 9,
+        "file_change": 2
+      },
+      "tool_calls": 11,
+      "mcp_tool_calls": 0,
+      "input_tokens": 413575,
+      "cached_input_tokens": 361472,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5126,
+      "reasoning_output_tokens": 1065,
+      "cache_le_input": true,
+      "wall_seconds": 169.45,
+      "diffstat": " app/backend_claude.py                |  2 +-\n app/limits_card.py                   |  4 +--\n app/manager.py                       |  4 +--\n app/prompting.py                     |  2 +-\n app/session.py                       |  4 +--\n app/tg_bridge.py                     |  2 +-\n tests/test_default_pipeline.py       |  2 +-\n tests/test_legacy_pipeline_skills.py |  4 +--\n tests/test_manager.py                | 64 ++++++++++++++++++------------------\n tests/test_workspace.py              |  4 +--\n 10 files changed, 46 insertions(+), 46 deletions(-)\n"
+    },
+    {
+      "run": "c1-valid",
+      "arm": "C",
+      "codex_exit": 0,
+      "acceptance": {
+        "raw_exit_codes": {
+          "E1_OLD_SYMBOL_EXIT": 1,
+          "E1_NEW_DEF_EXIT": 0,
+          "E1_ALIAS_EXIT": 0,
+          "E1_TESTS_EXIT": 0,
+          "E2_OLD_SYMBOL_EXIT": 1,
+          "E2_NEW_DEF_EXIT": 0,
+          "E2_REPORT_GUARD_EXIT": 0,
+          "E2_TESTS_EXIT": 0,
+          "DIFF_CHECK_EXIT": 0
+        },
+        "e1": true,
+        "e2": true,
+        "accepted": 2
+      },
+      "item_types": {
+        "agent_message": 7,
+        "command_execution": 8,
+        "file_change": 2
+      },
+      "tool_calls": 10,
+      "mcp_tool_calls": 0,
+      "input_tokens": 414271,
+      "cached_input_tokens": 372480,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 4171,
+      "reasoning_output_tokens": 1717,
+      "cache_le_input": true,
+      "wall_seconds": 121.32,
+      "diffstat": " app/backend_claude.py                |  2 +-\n app/limits_card.py                   |  2 +-\n app/manager.py                       |  4 +--\n app/prompting.py                     |  2 +-\n app/session.py                       |  4 +--\n app/tg_bridge.py                     |  2 +-\n tests/test_default_pipeline.py       |  2 +-\n tests/test_legacy_pipeline_skills.py |  4 +--\n tests/test_manager.py                | 64 ++++++++++++++++++------------------\n tests/test_workspace.py              |  4 +--\n 10 files changed, 45 insertions(+), 45 deletions(-)\n"
+    },
+    {
+      "run": "a4-valid",
+      "arm": "A",
+      "codex_exit": 0,
+      "acceptance": {
+        "raw_exit_codes": {
+          "E1_OLD_SYMBOL_EXIT": 1,
+          "E1_NEW_DEF_EXIT": 0,
+          "E1_ALIAS_EXIT": 0,
+          "E1_TESTS_EXIT": 0,
+          "E2_OLD_SYMBOL_EXIT": 1,
+          "E2_NEW_DEF_EXIT": 0,
+          "E2_REPORT_GUARD_EXIT": 0,
+          "E2_TESTS_EXIT": 0,
+          "DIFF_CHECK_EXIT": 0
+        },
+        "e1": true,
+        "e2": true,
+        "accepted": 2
+      },
+      "item_types": {
+        "agent_message": 6,
+        "command_execution": 8,
+        "file_change": 3
+      },
+      "tool_calls": 11,
+      "mcp_tool_calls": 0,
+      "input_tokens": 576750,
+      "cached_input_tokens": 514304,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 6769,
+      "reasoning_output_tokens": 1898,
+      "cache_le_input": true,
+      "wall_seconds": 153.23,
+      "diffstat": " app/backend_claude.py                |  2 +-\n app/limits_card.py                   |  4 +--\n app/manager.py                       |  4 +--\n app/prompting.py                     |  2 +-\n app/session.py                       |  4 +--\n app/tg_bridge.py                     |  2 +-\n tests/test_default_pipeline.py       |  2 +-\n tests/test_legacy_pipeline_skills.py |  4 +--\n tests/test_manager.py                | 64 ++++++++++++++++++------------------\n tests/test_workspace.py              |  4 +--\n 10 files changed, 46 insertions(+), 46 deletions(-)\n"
+    },
+    {
+      "run": "c2-valid",
+      "arm": "C",
+      "codex_exit": 0,
+      "acceptance": {
+        "raw_exit_codes": {
+          "E1_OLD_SYMBOL_EXIT": 1,
+          "E1_NEW_DEF_EXIT": 0,
+          "E1_ALIAS_EXIT": 0,
+          "E1_TESTS_EXIT": 0,
+          "E2_OLD_SYMBOL_EXIT": 1,
+          "E2_NEW_DEF_EXIT": 0,
+          "E2_REPORT_GUARD_EXIT": 0,
+          "E2_TESTS_EXIT": 0,
+          "DIFF_CHECK_EXIT": 0
+        },
+        "e1": true,
+        "e2": true,
+        "accepted": 2
+      },
+      "item_types": {
+        "agent_message": 5,
+        "command_execution": 6,
+        "file_change": 1
+      },
+      "tool_calls": 7,
+      "mcp_tool_calls": 0,
+      "input_tokens": 327994,
+      "cached_input_tokens": 296192,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 2881,
+      "reasoning_output_tokens": 1106,
+      "cache_le_input": true,
+      "wall_seconds": 93.38,
+      "diffstat": " app/backend_claude.py                |  2 +-\n app/limits_card.py                   |  2 +-\n app/manager.py                       |  4 +--\n app/prompting.py                     |  2 +-\n app/session.py                       |  4 +--\n app/tg_bridge.py                     |  2 +-\n tests/test_default_pipeline.py       |  2 +-\n tests/test_legacy_pipeline_skills.py |  4 +--\n tests/test_manager.py                | 64 ++++++++++++++++++------------------\n tests/test_workspace.py              |  4 +--\n 10 files changed, 45 insertions(+), 45 deletions(-)\n"
+    }
+  ],
+  "groups": {
+    "A": {
+      "tool_calls": 11.5,
+      "mcp_tool_calls": 0.0,
+      "input_tokens": 529711.0,
+      "cached_input_tokens": 468352.0,
+      "output_tokens": 6370.0,
+      "reasoning_output_tokens": 1936.0,
+      "wall_seconds": 161.33999999999997,
+      "runs": 4,
+      "accepted_tasks": 8,
+      "possible_tasks": 8
+    },
+    "B": {
+      "tool_calls": 22.5,
+      "mcp_tool_calls": 0.0,
+      "input_tokens": 476495.5,
+      "cached_input_tokens": 431616.0,
+      "output_tokens": 4997.5,
+      "reasoning_output_tokens": 1394.0,
+      "wall_seconds": 128.815,
+      "runs": 2,
+      "accepted_tasks": 4,
+      "possible_tasks": 4
+    },
+    "C": {
+      "tool_calls": 8.5,
+      "mcp_tool_calls": 0.0,
+      "input_tokens": 371132.5,
+      "cached_input_tokens": 334336.0,
+      "output_tokens": 3526.0,
+      "reasoning_output_tokens": 1411.5,
+      "wall_seconds": 107.35,
+      "runs": 2,
+      "accepted_tasks": 4,
+      "possible_tasks": 4
+    }
+  },
+  "paired_deltas": {
+    "B_minus_A": [
+      {
+        "tool_calls": -5,
+        "input_tokens": -73383,
+        "cached_input_tokens": -51712,
+        "output_tokens": -2895,
+        "wall_seconds": -42.55000000000001
+      },
+      {
+        "tool_calls": -10,
+        "input_tokens": -215174,
+        "cached_input_tokens": -194816,
+        "output_tokens": -2170,
+        "wall_seconds": -90.57999999999998
+      }
+    ],
+    "C_minus_A": [
+      {
+        "tool_calls": -1,
+        "input_tokens": 696,
+        "cached_input_tokens": 11008,
+        "output_tokens": -955,
+        "wall_seconds": -48.129999999999995
+      },
+      {
+        "tool_calls": -4,
+        "input_tokens": -248756,
+        "cached_input_tokens": -218112,
+        "output_tokens": -3888,
+        "wall_seconds": -59.849999999999994
+      }
+    ]
+  }
+}

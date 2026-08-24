@@ -1,0 +1,48 @@
+E1_OLD_SYMBOL
+E1_OLD_SYMBOL_EXIT=1
+E1_NEW_DEF
+63:def format_pace_text(utilization: float, reset: dt.datetime, window_minutes: int | None,
+E1_NEW_DEF_EXIT=0
+E1_ALIAS
+3446:    from app.limits_card import format_pace_text as _pace_of
+E1_ALIAS_EXIT=0
+E1_TESTS
+Using CPython 3.13.11
+Creating virtual environment at: .venv
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 74 packages in 1.75s
+........                                                                 [100%]
+8 passed in 4.15s
+E1_TESTS_EXIT=0
+E2_OLD_SYMBOL
+E2_OLD_SYMBOL_EXIT=1
+E2_NEW_DEF
+311:def install_skills_to_worktree(
+E2_NEW_DEF_EXIT=0
+E2_REPORT_GUARD
+tests/test_manager.py:1143:            install_skills_to_worktree, inject_skills_to_worktree_report,
+tests/test_manager.py:1160:        report = inject_skills_to_worktree_report(
+app/prompting.py:195:def inject_skills_to_worktree_report(
+app/prompting.py:315:    return inject_skills_to_worktree_report(
+app/session.py:26:    inject_skills_to_worktree_report, is_orchestrator_role,
+app/session.py:1426:                    inject_skills_to_worktree_report,
+E2_REPORT_GUARD_EXIT=0
+E2_TESTS
+..............                                                           [100%]
+14 passed, 278 deselected in 3.54s
+E2_TESTS_EXIT=0
+DIFF_CHECK
+DIFF_CHECK_EXIT=0
+STATUS
+ M app/backend_claude.py
+ M app/limits_card.py
+ M app/manager.py
+ M app/prompting.py
+ M app/session.py
+ M app/tg_bridge.py
+ M tests/test_default_pipeline.py
+ M tests/test_legacy_pipeline_skills.py
+ M tests/test_manager.py
+ M tests/test_workspace.py

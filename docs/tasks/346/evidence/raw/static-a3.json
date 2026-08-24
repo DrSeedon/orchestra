@@ -1,0 +1,401 @@
+{
+  "name": "a3",
+  "scenario": "baseline",
+  "cwd": "/mnt/data/task346-serena.tHyHCU/run-a3",
+  "loadavg_start": [
+    4.9921875,
+    4.337890625,
+    3.3955078125
+  ],
+  "started_wall": 1787589416.7236261,
+  "ready_elapsed_s": 0.006532197003252804,
+  "ready_rss": {
+    "self_max_rss_bytes": 17399808,
+    "children_max_rss_bytes": 17399808
+  },
+  "calls": [
+    {
+      "case": "R1",
+      "symbol": "plain_target",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "plain_target",
+          "."
+        ],
+        "exit_code": 0,
+        "stdout": "./python/plain.py:4:def plain_target(value: int) -> int:  # G346_R1_DEF\n./python/plain.py:9:    def plain_target(self, value: int) -> int:  # G346_R1_UNRELATED_METHOD\n./python/plain.py:13:PLAIN_NAME = \"plain_target\"  # G346_R1_NOISE_STRING\n./python/plain_consumer.py:1:from python.plain import plain_target  # G346_R1_IMPORT\n./python/plain_consumer.py:5:    return plain_target(4)  # G346_R1_CALL\n./python/plain_consumer.py:8:# plain_target is intentionally mentioned in prose.  # G346_R1_NOISE_COMMENT\n",
+        "stderr": "",
+        "elapsed_s": 0.004171683998720255
+      },
+      "ast_rows": [
+        {
+          "path": "python/plain.py",
+          "line": 4,
+          "kind": "definition",
+          "text": "def plain_target(value: int) -> int:  # G346_R1_DEF"
+        },
+        {
+          "path": "python/plain.py",
+          "line": 9,
+          "kind": "definition",
+          "text": "def plain_target(self, value: int) -> int:  # G346_R1_UNRELATED_METHOD"
+        },
+        {
+          "path": "python/plain.py",
+          "line": 13,
+          "kind": "string",
+          "text": "PLAIN_NAME = \"plain_target\"  # G346_R1_NOISE_STRING"
+        },
+        {
+          "path": "python/plain_consumer.py",
+          "line": 1,
+          "kind": "import",
+          "text": "from python.plain import plain_target  # G346_R1_IMPORT"
+        },
+        {
+          "path": "python/plain_consumer.py",
+          "line": 5,
+          "kind": "name",
+          "text": "return plain_target(4)  # G346_R1_CALL"
+        }
+      ],
+      "elapsed_s": 0.006507656995381694
+    },
+    {
+      "case": "R2-route",
+      "symbol": "refresh_models_endpoint",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "refresh_models_endpoint",
+          "."
+        ],
+        "exit_code": 0,
+        "stdout": "./python/registry.py:5:def refresh_models_endpoint() -> dict:  # G346_R2_ROUTE_DEF\n",
+        "stderr": "",
+        "elapsed_s": 0.004572755002300255
+      },
+      "ast_rows": [
+        {
+          "path": "python/registry.py",
+          "line": 4,
+          "kind": "decorator_on_definition",
+          "text": "@router.post(\"/api/models/refresh\")  # G346_R2_ROUTE_DECORATOR"
+        },
+        {
+          "path": "python/registry.py",
+          "line": 5,
+          "kind": "definition",
+          "text": "def refresh_models_endpoint() -> dict:  # G346_R2_ROUTE_DEF"
+        }
+      ],
+      "elapsed_s": 0.0057766509999055415
+    },
+    {
+      "case": "R2-tool",
+      "symbol": "update_progress",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "update_progress",
+          "."
+        ],
+        "exit_code": 0,
+        "stdout": "./python/registry.py:10:def update_progress(percent: int) -> dict:  # G346_R2_TOOL_DEF\n",
+        "stderr": "",
+        "elapsed_s": 0.003679027002363
+      },
+      "ast_rows": [
+        {
+          "path": "python/registry.py",
+          "line": 9,
+          "kind": "decorator_on_definition",
+          "text": "@mcp.tool()  # G346_R2_TOOL_DECORATOR"
+        },
+        {
+          "path": "python/registry.py",
+          "line": 10,
+          "kind": "definition",
+          "text": "def update_progress(percent: int) -> dict:  # G346_R2_TOOL_DEF"
+        }
+      ],
+      "elapsed_s": 0.004677507997257635
+    },
+    {
+      "case": "R3",
+      "symbol": "dynamic_target",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "dynamic_target",
+          "."
+        ],
+        "exit_code": 0,
+        "stdout": "./python/dynamic_dispatch.py:4:def dynamic_target() -> str:  # G346_R3_DEF\n./python/dynamic_dispatch.py:12:DYNAMIC_ACTION = \"dynamic_target\"  # G346_R3_STRING_EDGE\n./python/dynamic_dispatch.py:13:# dynamic_target is also mentioned here but this comment is noise.  # G346_R3_NOISE_COMMENT\n",
+        "stderr": "",
+        "elapsed_s": 0.0039510899950983
+      },
+      "ast_rows": [
+        {
+          "path": "python/dynamic_dispatch.py",
+          "line": 4,
+          "kind": "definition",
+          "text": "def dynamic_target() -> str:  # G346_R3_DEF"
+        },
+        {
+          "path": "python/dynamic_dispatch.py",
+          "line": 12,
+          "kind": "string",
+          "text": "DYNAMIC_ACTION = \"dynamic_target\"  # G346_R3_STRING_EDGE"
+        }
+      ],
+      "elapsed_s": 0.005271980997349601
+    },
+    {
+      "case": "R4",
+      "symbol": "openDeleteOrchModal",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "openDeleteOrchModal",
+          "."
+        ],
+        "exit_code": 0,
+        "stdout": "./web/dashboard.html:2:<button id=\"delete-orch\" onclick=\"openDeleteOrchModal()\">Delete</button> <!-- G346_R4_HTML_EDGE -->\n./web/app.js:1:function openDeleteOrchModal() { // G346_R4_DEF\n./web/app.js:6:deleteButton.addEventListener(\"click\", openDeleteOrchModal); // G346_R4_JS_CALLBACK\n./web/app.js:8:const helpText = \"openDeleteOrchModal\"; // G346_R4_NOISE_STRING\n./web/app.js:9:// openDeleteOrchModal is intentionally mentioned in a comment. // G346_R4_NOISE_COMMENT\n",
+        "stderr": "",
+        "elapsed_s": 0.004943433996231761
+      },
+      "ast_rows": [],
+      "elapsed_s": 0.006204776997037698
+    },
+    {
+      "case": "R5-dead-leaf",
+      "symbol": "dead_leaf",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "dead_leaf",
+          "."
+        ],
+        "exit_code": 0,
+        "stdout": "./python/dead_cluster.py:4:def dead_leaf() -> str:  # G346_R5_DEAD_LEAF_DEF\n./python/dead_cluster.py:9:    return dead_leaf()  # G346_R5_DEAD_INTERNAL_EDGE\n",
+        "stderr": "",
+        "elapsed_s": 0.003964780000387691
+      },
+      "ast_rows": [
+        {
+          "path": "python/dead_cluster.py",
+          "line": 4,
+          "kind": "definition",
+          "text": "def dead_leaf() -> str:  # G346_R5_DEAD_LEAF_DEF"
+        },
+        {
+          "path": "python/dead_cluster.py",
+          "line": 9,
+          "kind": "name",
+          "text": "return dead_leaf()  # G346_R5_DEAD_INTERNAL_EDGE"
+        }
+      ],
+      "elapsed_s": 0.005179252999369055
+    },
+    {
+      "case": "R5-dead-root",
+      "symbol": "dead_root",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "dead_root",
+          "."
+        ],
+        "exit_code": 0,
+        "stdout": "./python/dead_cluster.py:8:def dead_root() -> str:  # G346_R5_DEAD_ROOT_DEF\n",
+        "stderr": "",
+        "elapsed_s": 0.0038815590014564805
+      },
+      "ast_rows": [
+        {
+          "path": "python/dead_cluster.py",
+          "line": 8,
+          "kind": "definition",
+          "text": "def dead_root() -> str:  # G346_R5_DEAD_ROOT_DEF"
+        }
+      ],
+      "elapsed_s": 0.005893986999581102
+    },
+    {
+      "case": "R5-live-root",
+      "symbol": "live_root",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "live_root",
+          "."
+        ],
+        "exit_code": 0,
+        "stdout": "./python/dead_cluster.py:13:def live_root() -> str:  # G346_R5_LIVE_ROOT_DEF\n",
+        "stderr": "",
+        "elapsed_s": 0.004566386000078637
+      },
+      "ast_rows": [
+        {
+          "path": "python/dead_cluster.py",
+          "line": 12,
+          "kind": "decorator_on_definition",
+          "text": "@router.post(\"/live\")  # G346_R5_LIVE_ROOT_EDGE"
+        },
+        {
+          "path": "python/dead_cluster.py",
+          "line": 13,
+          "kind": "definition",
+          "text": "def live_root() -> str:  # G346_R5_LIVE_ROOT_DEF"
+        }
+      ],
+      "elapsed_s": 0.005914524001127575
+    },
+    {
+      "case": "R6-old-before",
+      "symbol": "stale_target",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "stale_target",
+          "."
+        ],
+        "exit_code": 0,
+        "stdout": "./python/stale.py:1:def stale_target() -> str:  # G346_R6_OLD_DEF\n./python/stale.py:6:    return stale_target()  # G346_R6_OLD_CALL\n",
+        "stderr": "",
+        "elapsed_s": 0.004370277005364187
+      },
+      "ast_rows": [
+        {
+          "path": "python/stale.py",
+          "line": 1,
+          "kind": "definition",
+          "text": "def stale_target() -> str:  # G346_R6_OLD_DEF"
+        },
+        {
+          "path": "python/stale.py",
+          "line": 6,
+          "kind": "name",
+          "text": "return stale_target()  # G346_R6_OLD_CALL"
+        }
+      ],
+      "elapsed_s": 0.005969552003080025
+    },
+    {
+      "case": "R6-old-immediate",
+      "symbol": "stale_target",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "stale_target",
+          "."
+        ],
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "",
+        "elapsed_s": 0.004480866999074351
+      },
+      "ast_rows": [],
+      "elapsed_s": 0.005802820000099018
+    },
+    {
+      "case": "R6-new-immediate",
+      "symbol": "stale_renamed",
+      "rg": {
+        "command": [
+          "rg",
+          "-n",
+          "-w",
+          "--hidden",
+          "--glob",
+          "!.serena/**",
+          "stale_renamed",
+          "."
+        ],
+        "exit_code": 0,
+        "stdout": "./python/stale.py:1:def stale_renamed() -> str:  # G346_R6_OLD_DEF\n./python/stale.py:6:    return stale_renamed()  # G346_R6_OLD_CALL\n",
+        "stderr": "",
+        "elapsed_s": 0.0048180739977397025
+      },
+      "ast_rows": [
+        {
+          "path": "python/stale.py",
+          "line": 1,
+          "kind": "definition",
+          "text": "def stale_renamed() -> str:  # G346_R6_OLD_DEF"
+        },
+        {
+          "path": "python/stale.py",
+          "line": 6,
+          "kind": "name",
+          "text": "return stale_renamed()  # G346_R6_OLD_CALL"
+        }
+      ],
+      "elapsed_s": 0.006108749999839347
+    }
+  ],
+  "status": "ok",
+  "post_query_rss": {
+    "self_max_rss_bytes": 17399808,
+    "children_max_rss_bytes": 17399808
+  },
+  "loadavg_end": [
+    4.9921875,
+    4.337890625,
+    3.3955078125
+  ],
+  "wall_elapsed_s": 0.06360451799992006,
+  "ended_wall": 1787589416.7872128
+}

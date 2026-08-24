@@ -1,0 +1,1 @@
+["systemd-run","--user","--pipe","--wait","--collect","--quiet","--unit=task346-light-c1","-p","MemoryMax=128M","-p","CPUQuota=100%","-p","TasksMax=32","-p","WorkingDirectory=/mnt/data/task346-serena.tHyHCU/run-c1","--","python3","/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-serena-agents/docs/tasks/346/eval/light_codeintel_mcp.py"]

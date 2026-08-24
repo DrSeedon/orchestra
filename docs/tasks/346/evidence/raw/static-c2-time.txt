@@ -1,0 +1,23 @@
+	Command being timed: "python3 docs/tasks/346/eval/mcp_measure.py --name c2 --scenario light --cwd /mnt/data/task346-serena.tHyHCU/run-c2 --command-json ["systemd-run","--user","--pipe","--wait","--collect","--quiet","--unit=task346-light-c2","-p","MemoryMax=128M","-p","CPUQuota=100%","-p","TasksMax=32","-p","WorkingDirectory=/mnt/data/task346-serena.tHyHCU/run-c2","--","python3","/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-serena-agents/docs/tasks/346/eval/light_codeintel_mcp.py"] --systemd-unit task346-light-c2"
+	User time (seconds): 0.12
+	System time (seconds): 0.04
+	Percent of CPU this job got: 84%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.20
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 18172
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 4
+	Minor (reclaiming a frame) page faults: 3918
+	Voluntary context switches: 1143
+	Involuntary context switches: 29
+	Swaps: 0
+	File system inputs: 592
+	File system outputs: 80
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

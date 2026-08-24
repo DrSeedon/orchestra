@@ -1,0 +1,9 @@
+6ad719d1071e4150a4164a34ce0eccc8a459515c90f6488cd9c8769ef5c8ef97  docs/tasks/346/evidence/raw/luna-a1-valid.patch
+e01f3c285f38284e596d588dc0691d21553bc6dd7501ad1286d48b623df6e5b3  docs/tasks/346/evidence/raw/luna-a2-valid.patch
+663755d0e8c67cf938a9a37608075928c71da76011613ffea52f638eee13cf2d  docs/tasks/346/evidence/raw/luna-a3-valid.patch
+d750e18c03f8fee298ed2c810a3389cc7bfdfc54ad3d4014cb5d4932f409e451  docs/tasks/346/evidence/raw/luna-a4-valid.patch
+7a847a3cb3d055a050bf913f81a0de4c6c3ee9962efd0efb151a264ff17de1c0  docs/tasks/346/evidence/raw/luna-b1-valid.patch
+d750e18c03f8fee298ed2c810a3389cc7bfdfc54ad3d4014cb5d4932f409e451  docs/tasks/346/evidence/raw/luna-b2-valid.patch
+6ad719d1071e4150a4164a34ce0eccc8a459515c90f6488cd9c8769ef5c8ef97  docs/tasks/346/evidence/raw/luna-c1-valid.patch
+6ad719d1071e4150a4164a34ce0eccc8a459515c90f6488cd9c8769ef5c8ef97  docs/tasks/346/evidence/raw/luna-c2-valid.patch
+98548944e57b8803bf3fbc267cb35224c285f225ed44848c4e1e6151e3823ffb  docs/tasks/346/evidence/raw/direct-serena-edit.patch

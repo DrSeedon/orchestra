@@ -1,0 +1,2 @@
+{"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2025-06-18", "capabilities": {"tools": {}}, "serverInfo": {"name": "light-codeintel-346", "version": "1"}, "instructions": "Use code_outline/code_references for structured navigation; keep native search for wider text and edits."}}
+pipeline_exit=0

@@ -1,0 +1,4 @@
+docs/tasks/346/research.md: protocol.md -> True
+docs/tasks/346/research.md: measurements.md -> True
+BAD=0
+exit_code=0

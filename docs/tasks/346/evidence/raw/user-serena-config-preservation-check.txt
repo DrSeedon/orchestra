@@ -1,0 +1,97 @@
+OLD_AVAILABLE
+
+  --auto-hybrid-regex             (DEPRECATED) Use PCRE2 if appropriate.
+  --binary                        Search binary files.
+  --block-buffered                Force block buffering.
+  --color=WHEN                    When to use color.
+  --colors=COLOR_SPEC             Configure color settings and styles.
+  --column                        Show column numbers.
+  --context-separator=SEP         Set the separator for contextual chunks.
+  --count-matches                 Show count of every match for each file.
+  --crlf                          Use CRLF line terminators (nice for Windows).
+  --debug                         Show debug messages.
+  --dfa-size-limit=NUM            The upper size limit of the regex DFA.
+  --engine=ENGINE                 Specify which regex engine to use.
+  --field-context-separator=SEP   Set the field context separator.
+  --field-match-separator=SEP     Set the field match separator.
+  --files                         Print each file that would be searched.
+  --files-without-match           Print the paths that contain zero matches.
+  --generate=KIND                 Generate man pages and completion scripts.
+  --glob-case-insensitive         Process all glob patterns case insensitively.
+  --heading                       Print matches grouped by each file.
+  --hostname-bin=COMMAND          Run a program to get this system's hostname.
+  --hyperlink-format=FORMAT       Set the format of hyperlinks.
+  --iglob=GLOB                    Include/exclude paths case insensitively.
+  --ignore-file-case-insensitive  Process ignore files case insensitively.
+  --ignore-file=PATH              Specify additional ignore files.
+  --include-zero                  Include zero matches in summary output.
+  --json                          Show search results in a JSON Lines format.
+  --line-buffered                 Force line buffering.
+  --max-columns-preview           Show preview for lines exceeding the limit.
+  --max-filesize=NUM              Ignore files larger than NUM in size.
+  --mmap                          Search with memory maps when possible.
+  --multiline-dotall              Make '.' match line terminators.
+  --no-config                     Never read configuration files.
+  --no-ignore                     Don't use ignore files.
+  --no-ignore-dot                 Don't use .ignore or .rgignore files.
+  --no-ignore-exclude             Don't use local exclusion files.
+  --no-ignore-files               Don't use --ignore-file arguments.
+  --no-ignore-global              Don't use global ignore files.
+  --no-ignore-messages            Suppress gitignore parse error messages.
+  --no-ignore-parent              Don't use ignore files in parent directories.
+  --no-ignore-vcs                 Don't use ignore files from source control.
+  --no-messages                   Suppress some error messages.
+  --no-pcre2-unicode              (DEPRECATED) Disable Unicode mode for PCRE2.
+  --no-require-git                Use .gitignore outside of git repositories.
+  --no-unicode                    Disable Unicode mode.
+  --null-data                     Use NUL as a line terminator.
+  --one-file-system               Skip directories on other file systems.
+  --passthru                      Print both matching and non-matching lines.
+  --path-separator=SEP            Set the path separator for printing paths.
+  --pcre2-version                 Print the version of PCRE2 that ripgrep uses.
+CURRENT_PROJECTS
+/home/maxim/.agents/skills/review
+/home/maxim/polus
+/mnt/data/Projects/Python/Aperant
+/mnt/data/Projects/Python/Parsing
+/mnt/data/Projects/Python/Parsing/ai-assistants
+/mnt/data/Projects/Python/Parsing/parsing-hub
+/mnt/data/Projects/Python/Parsing/seo-platform
+/mnt/data/Projects/Python/Parsing/zahoron-mobile
+/mnt/data/Projects/Python/inscryption-ai
+/mnt/data/Projects/Python/kesha-tg-bot
+/mnt/data/Projects/Python/orchestra
+/mnt/data/Projects/Python/orchestra-enterprise
+/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/audit-both-projects
+/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/mobile-os-brief
+/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/mobile-os-strategy
+/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-client-offer
+/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-concrete-roadmap
+/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-market-reg
+/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-product-map
+/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-product-platform
+/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-roadmap
+/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-polus/terrain-dev
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-cursor-cog-second-brain/feat-job-hunt
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-aperant/gpt55-project
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/research-codex-harness
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/upgrade-claude5
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/frontend-opus
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/feat-kesha-remote
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/feat-victor-orchestra
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon-site/feat-attribution
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon-site/feat-remove-ip-api
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/dev-lead
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/direct-research
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/ent
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/infra
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/lawyer
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/marketer
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales
+/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/seo-cro
+/mnt/data/Projects/Python/seedon
+/mnt/data/Projects/Python/stargate-tactics
+/mnt/data/task346-serena.tHyHCU/run-b1
+/mnt/data/Рабочий стол/Cursor/COG-second-brain
+/mnt/data/Рабочий стол/Cursor/Sensar

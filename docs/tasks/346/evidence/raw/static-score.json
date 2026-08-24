@@ -1,0 +1,2744 @@
+{
+  "markers": {
+    "G346_R5_DEAD_LEAF_DEF": [
+      "python/dead_cluster.py",
+      4
+    ],
+    "G346_R5_DEAD_ROOT_DEF": [
+      "python/dead_cluster.py",
+      8
+    ],
+    "G346_R5_DEAD_INTERNAL_EDGE": [
+      "python/dead_cluster.py",
+      9
+    ],
+    "G346_R5_LIVE_ROOT_EDGE": [
+      "python/dead_cluster.py",
+      12
+    ],
+    "G346_R5_LIVE_ROOT_DEF": [
+      "python/dead_cluster.py",
+      13
+    ],
+    "G346_R3_DEF": [
+      "python/dynamic_dispatch.py",
+      4
+    ],
+    "G346_R3_GETATTR": [
+      "python/dynamic_dispatch.py",
+      9
+    ],
+    "G346_R3_STRING_EDGE": [
+      "python/dynamic_dispatch.py",
+      12
+    ],
+    "G346_R3_NOISE_COMMENT": [
+      "python/dynamic_dispatch.py",
+      13
+    ],
+    "G346_R1_DEF": [
+      "python/plain.py",
+      4
+    ],
+    "G346_R1_UNRELATED_METHOD": [
+      "python/plain.py",
+      9
+    ],
+    "G346_R1_NOISE_STRING": [
+      "python/plain.py",
+      13
+    ],
+    "G346_R1_IMPORT": [
+      "python/plain_consumer.py",
+      1
+    ],
+    "G346_R1_CALL": [
+      "python/plain_consumer.py",
+      5
+    ],
+    "G346_R1_NOISE_COMMENT": [
+      "python/plain_consumer.py",
+      8
+    ],
+    "G346_R2_ROUTE_DECORATOR": [
+      "python/registry.py",
+      4
+    ],
+    "G346_R2_ROUTE_DEF": [
+      "python/registry.py",
+      5
+    ],
+    "G346_R2_TOOL_DECORATOR": [
+      "python/registry.py",
+      9
+    ],
+    "G346_R2_TOOL_DEF": [
+      "python/registry.py",
+      10
+    ],
+    "G346_R2_ROUTER_MOUNT": [
+      "python/registry.py",
+      14
+    ],
+    "G346_R2_TOOL_MOUNT": [
+      "python/registry.py",
+      15
+    ],
+    "G346_R6_OLD_DEF": [
+      "python/stale.py",
+      1
+    ],
+    "G346_R6_OLD_CALL": [
+      "python/stale.py",
+      6
+    ],
+    "G346_R4_DEF": [
+      "web/app.js",
+      1
+    ],
+    "G346_R4_JS_CALLBACK": [
+      "web/app.js",
+      6
+    ],
+    "G346_R4_NOISE_STRING": [
+      "web/app.js",
+      8
+    ],
+    "G346_R4_NOISE_COMMENT": [
+      "web/app.js",
+      9
+    ],
+    "G346_R4_HTML_EDGE": [
+      "web/dashboard.html",
+      2
+    ]
+  },
+  "runs": {
+    "static-a1": {
+      "scenario": "baseline",
+      "semantic": {
+        "R1": {
+          "tp": 2,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.3333333333333333,
+          "recall": 1.0,
+          "actual": [
+            [
+              "python/plain.py",
+              4
+            ],
+            [
+              "python/plain.py",
+              9
+            ],
+            [
+              "python/plain.py",
+              13
+            ],
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ],
+            [
+              "python/plain_consumer.py",
+              8
+            ]
+          ],
+          "relevant": [
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ]
+          ]
+        },
+        "R4-semantic": {
+          "tp": 1,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.2,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ]
+          ]
+        }
+      },
+      "production": {
+        "R2-route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              5
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              14
+            ]
+          ]
+        },
+        "R2-tool": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              10
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              15
+            ]
+          ]
+        },
+        "R3": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 1,
+          "precision": 0.3333333333333333,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/dynamic_dispatch.py",
+              4
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              13
+            ]
+          ],
+          "relevant": [
+            [
+              "python/dynamic_dispatch.py",
+              9
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ]
+          ]
+        },
+        "R4-production": {
+          "tp": 2,
+          "fp": 3,
+          "fn": 0,
+          "precision": 0.4,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ]
+        }
+      },
+      "semantic_total": {
+        "tp": 3,
+        "fp": 8,
+        "fn": 0,
+        "precision": 0.2727272727272727,
+        "recall": 1.0,
+        "actual": [
+          [
+            "R1::python/plain.py",
+            4
+          ],
+          [
+            "R1::python/plain.py",
+            9
+          ],
+          [
+            "R1::python/plain.py",
+            13
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            1
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ],
+          [
+            "R4-semantic::web/app.js",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            9
+          ],
+          [
+            "R4-semantic::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ]
+        ]
+      },
+      "production_total": {
+        "tp": 5,
+        "fp": 7,
+        "fn": 3,
+        "precision": 0.4166666666666667,
+        "recall": 0.625,
+        "actual": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            5
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            10
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            4
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            13
+          ],
+          [
+            "R4-production::web/app.js",
+            1
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/app.js",
+            8
+          ],
+          [
+            "R4-production::web/app.js",
+            9
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            14
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            15
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            9
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ]
+      }
+    },
+    "static-a2": {
+      "scenario": "baseline",
+      "semantic": {
+        "R1": {
+          "tp": 2,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.3333333333333333,
+          "recall": 1.0,
+          "actual": [
+            [
+              "python/plain.py",
+              4
+            ],
+            [
+              "python/plain.py",
+              9
+            ],
+            [
+              "python/plain.py",
+              13
+            ],
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ],
+            [
+              "python/plain_consumer.py",
+              8
+            ]
+          ],
+          "relevant": [
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ]
+          ]
+        },
+        "R4-semantic": {
+          "tp": 1,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.2,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ]
+          ]
+        }
+      },
+      "production": {
+        "R2-route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              5
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              14
+            ]
+          ]
+        },
+        "R2-tool": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              10
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              15
+            ]
+          ]
+        },
+        "R3": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 1,
+          "precision": 0.3333333333333333,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/dynamic_dispatch.py",
+              4
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              13
+            ]
+          ],
+          "relevant": [
+            [
+              "python/dynamic_dispatch.py",
+              9
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ]
+          ]
+        },
+        "R4-production": {
+          "tp": 2,
+          "fp": 3,
+          "fn": 0,
+          "precision": 0.4,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ]
+        }
+      },
+      "semantic_total": {
+        "tp": 3,
+        "fp": 8,
+        "fn": 0,
+        "precision": 0.2727272727272727,
+        "recall": 1.0,
+        "actual": [
+          [
+            "R1::python/plain.py",
+            4
+          ],
+          [
+            "R1::python/plain.py",
+            9
+          ],
+          [
+            "R1::python/plain.py",
+            13
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            1
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ],
+          [
+            "R4-semantic::web/app.js",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            9
+          ],
+          [
+            "R4-semantic::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ]
+        ]
+      },
+      "production_total": {
+        "tp": 5,
+        "fp": 7,
+        "fn": 3,
+        "precision": 0.4166666666666667,
+        "recall": 0.625,
+        "actual": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            5
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            10
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            4
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            13
+          ],
+          [
+            "R4-production::web/app.js",
+            1
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/app.js",
+            8
+          ],
+          [
+            "R4-production::web/app.js",
+            9
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            14
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            15
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            9
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ]
+      }
+    },
+    "static-a3": {
+      "scenario": "baseline",
+      "semantic": {
+        "R1": {
+          "tp": 2,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.3333333333333333,
+          "recall": 1.0,
+          "actual": [
+            [
+              "python/plain.py",
+              4
+            ],
+            [
+              "python/plain.py",
+              9
+            ],
+            [
+              "python/plain.py",
+              13
+            ],
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ],
+            [
+              "python/plain_consumer.py",
+              8
+            ]
+          ],
+          "relevant": [
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ]
+          ]
+        },
+        "R4-semantic": {
+          "tp": 1,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.2,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ]
+          ]
+        }
+      },
+      "production": {
+        "R2-route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              5
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              14
+            ]
+          ]
+        },
+        "R2-tool": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              10
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              15
+            ]
+          ]
+        },
+        "R3": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 1,
+          "precision": 0.3333333333333333,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/dynamic_dispatch.py",
+              4
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              13
+            ]
+          ],
+          "relevant": [
+            [
+              "python/dynamic_dispatch.py",
+              9
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ]
+          ]
+        },
+        "R4-production": {
+          "tp": 2,
+          "fp": 3,
+          "fn": 0,
+          "precision": 0.4,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ]
+        }
+      },
+      "semantic_total": {
+        "tp": 3,
+        "fp": 8,
+        "fn": 0,
+        "precision": 0.2727272727272727,
+        "recall": 1.0,
+        "actual": [
+          [
+            "R1::python/plain.py",
+            4
+          ],
+          [
+            "R1::python/plain.py",
+            9
+          ],
+          [
+            "R1::python/plain.py",
+            13
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            1
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ],
+          [
+            "R4-semantic::web/app.js",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            9
+          ],
+          [
+            "R4-semantic::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ]
+        ]
+      },
+      "production_total": {
+        "tp": 5,
+        "fp": 7,
+        "fn": 3,
+        "precision": 0.4166666666666667,
+        "recall": 0.625,
+        "actual": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            5
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            10
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            4
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            13
+          ],
+          [
+            "R4-production::web/app.js",
+            1
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/app.js",
+            8
+          ],
+          [
+            "R4-production::web/app.js",
+            9
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            14
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            15
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            9
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ]
+      }
+    },
+    "static-a4": {
+      "scenario": "baseline",
+      "semantic": {
+        "R1": {
+          "tp": 2,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.3333333333333333,
+          "recall": 1.0,
+          "actual": [
+            [
+              "python/plain.py",
+              4
+            ],
+            [
+              "python/plain.py",
+              9
+            ],
+            [
+              "python/plain.py",
+              13
+            ],
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ],
+            [
+              "python/plain_consumer.py",
+              8
+            ]
+          ],
+          "relevant": [
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ]
+          ]
+        },
+        "R4-semantic": {
+          "tp": 1,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.2,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ]
+          ]
+        }
+      },
+      "production": {
+        "R2-route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              5
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              14
+            ]
+          ]
+        },
+        "R2-tool": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              10
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              15
+            ]
+          ]
+        },
+        "R3": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 1,
+          "precision": 0.3333333333333333,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/dynamic_dispatch.py",
+              4
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              13
+            ]
+          ],
+          "relevant": [
+            [
+              "python/dynamic_dispatch.py",
+              9
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ]
+          ]
+        },
+        "R4-production": {
+          "tp": 2,
+          "fp": 3,
+          "fn": 0,
+          "precision": 0.4,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ]
+        }
+      },
+      "semantic_total": {
+        "tp": 3,
+        "fp": 8,
+        "fn": 0,
+        "precision": 0.2727272727272727,
+        "recall": 1.0,
+        "actual": [
+          [
+            "R1::python/plain.py",
+            4
+          ],
+          [
+            "R1::python/plain.py",
+            9
+          ],
+          [
+            "R1::python/plain.py",
+            13
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            1
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ],
+          [
+            "R4-semantic::web/app.js",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            9
+          ],
+          [
+            "R4-semantic::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ]
+        ]
+      },
+      "production_total": {
+        "tp": 5,
+        "fp": 7,
+        "fn": 3,
+        "precision": 0.4166666666666667,
+        "recall": 0.625,
+        "actual": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            5
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            10
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            4
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            13
+          ],
+          [
+            "R4-production::web/app.js",
+            1
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/app.js",
+            8
+          ],
+          [
+            "R4-production::web/app.js",
+            9
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            14
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            15
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            9
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ]
+      }
+    },
+    "static-b1-valid": {
+      "scenario": "serena",
+      "semantic": {
+        "R1": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "actual": [
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ]
+          ],
+          "relevant": [
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ]
+          ]
+        },
+        "R4-semantic": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              6
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ]
+          ]
+        }
+      },
+      "production": {
+        "R2-route": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "actual": [],
+          "relevant": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              14
+            ]
+          ]
+        },
+        "R2-tool": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "actual": [],
+          "relevant": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              15
+            ]
+          ]
+        },
+        "R3": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "actual": [],
+          "relevant": [
+            [
+              "python/dynamic_dispatch.py",
+              9
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ]
+          ]
+        },
+        "R4-production": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.5,
+          "actual": [
+            [
+              "web/app.js",
+              6
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ]
+        }
+      },
+      "semantic_total": {
+        "tp": 3,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "actual": [
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ]
+        ],
+        "relevant": [
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ]
+        ]
+      },
+      "production_total": {
+        "tp": 1,
+        "fp": 0,
+        "fn": 7,
+        "precision": 1.0,
+        "recall": 0.125,
+        "actual": [
+          [
+            "R4-production::web/app.js",
+            6
+          ]
+        ],
+        "relevant": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            14
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            15
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            9
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ]
+      }
+    },
+    "static-b2-valid": {
+      "scenario": "serena",
+      "semantic": {
+        "R1": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "actual": [
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ]
+          ],
+          "relevant": [
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ]
+          ]
+        },
+        "R4-semantic": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              6
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ]
+          ]
+        }
+      },
+      "production": {
+        "R2-route": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "actual": [],
+          "relevant": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              14
+            ]
+          ]
+        },
+        "R2-tool": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "actual": [],
+          "relevant": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              15
+            ]
+          ]
+        },
+        "R3": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "actual": [],
+          "relevant": [
+            [
+              "python/dynamic_dispatch.py",
+              9
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ]
+          ]
+        },
+        "R4-production": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.5,
+          "actual": [
+            [
+              "web/app.js",
+              6
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ]
+        }
+      },
+      "semantic_total": {
+        "tp": 3,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "actual": [
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ]
+        ],
+        "relevant": [
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ]
+        ]
+      },
+      "production_total": {
+        "tp": 1,
+        "fp": 0,
+        "fn": 7,
+        "precision": 1.0,
+        "recall": 0.125,
+        "actual": [
+          [
+            "R4-production::web/app.js",
+            6
+          ]
+        ],
+        "relevant": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            14
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            15
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            9
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ]
+      }
+    },
+    "static-c1": {
+      "scenario": "light",
+      "semantic": {
+        "R1": {
+          "tp": 2,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.3333333333333333,
+          "recall": 1.0,
+          "actual": [
+            [
+              "python/plain.py",
+              4
+            ],
+            [
+              "python/plain.py",
+              9
+            ],
+            [
+              "python/plain.py",
+              13
+            ],
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ],
+            [
+              "python/plain_consumer.py",
+              8
+            ]
+          ],
+          "relevant": [
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ]
+          ]
+        },
+        "R4-semantic": {
+          "tp": 1,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.2,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ]
+          ]
+        }
+      },
+      "production": {
+        "R2-route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              5
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              14
+            ]
+          ]
+        },
+        "R2-tool": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              10
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              15
+            ]
+          ]
+        },
+        "R3": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 1,
+          "precision": 0.3333333333333333,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/dynamic_dispatch.py",
+              4
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              13
+            ]
+          ],
+          "relevant": [
+            [
+              "python/dynamic_dispatch.py",
+              9
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ]
+          ]
+        },
+        "R4-production": {
+          "tp": 2,
+          "fp": 3,
+          "fn": 0,
+          "precision": 0.4,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ]
+        }
+      },
+      "semantic_total": {
+        "tp": 3,
+        "fp": 8,
+        "fn": 0,
+        "precision": 0.2727272727272727,
+        "recall": 1.0,
+        "actual": [
+          [
+            "R1::python/plain.py",
+            4
+          ],
+          [
+            "R1::python/plain.py",
+            9
+          ],
+          [
+            "R1::python/plain.py",
+            13
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            1
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ],
+          [
+            "R4-semantic::web/app.js",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            9
+          ],
+          [
+            "R4-semantic::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ]
+        ]
+      },
+      "production_total": {
+        "tp": 5,
+        "fp": 7,
+        "fn": 3,
+        "precision": 0.4166666666666667,
+        "recall": 0.625,
+        "actual": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            5
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            10
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            4
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            13
+          ],
+          [
+            "R4-production::web/app.js",
+            1
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/app.js",
+            8
+          ],
+          [
+            "R4-production::web/app.js",
+            9
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            14
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            15
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            9
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ]
+      }
+    },
+    "static-c2": {
+      "scenario": "light",
+      "semantic": {
+        "R1": {
+          "tp": 2,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.3333333333333333,
+          "recall": 1.0,
+          "actual": [
+            [
+              "python/plain.py",
+              4
+            ],
+            [
+              "python/plain.py",
+              9
+            ],
+            [
+              "python/plain.py",
+              13
+            ],
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ],
+            [
+              "python/plain_consumer.py",
+              8
+            ]
+          ],
+          "relevant": [
+            [
+              "python/plain_consumer.py",
+              1
+            ],
+            [
+              "python/plain_consumer.py",
+              5
+            ]
+          ]
+        },
+        "R4-semantic": {
+          "tp": 1,
+          "fp": 4,
+          "fn": 0,
+          "precision": 0.2,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ]
+          ]
+        }
+      },
+      "production": {
+        "R2-route": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              5
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              4
+            ],
+            [
+              "python/registry.py",
+              14
+            ]
+          ]
+        },
+        "R2-tool": {
+          "tp": 1,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              10
+            ]
+          ],
+          "relevant": [
+            [
+              "python/registry.py",
+              9
+            ],
+            [
+              "python/registry.py",
+              15
+            ]
+          ]
+        },
+        "R3": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 1,
+          "precision": 0.3333333333333333,
+          "recall": 0.5,
+          "actual": [
+            [
+              "python/dynamic_dispatch.py",
+              4
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              13
+            ]
+          ],
+          "relevant": [
+            [
+              "python/dynamic_dispatch.py",
+              9
+            ],
+            [
+              "python/dynamic_dispatch.py",
+              12
+            ]
+          ]
+        },
+        "R4-production": {
+          "tp": 2,
+          "fp": 3,
+          "fn": 0,
+          "precision": 0.4,
+          "recall": 1.0,
+          "actual": [
+            [
+              "web/app.js",
+              1
+            ],
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/app.js",
+              8
+            ],
+            [
+              "web/app.js",
+              9
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ],
+          "relevant": [
+            [
+              "web/app.js",
+              6
+            ],
+            [
+              "web/dashboard.html",
+              2
+            ]
+          ]
+        }
+      },
+      "semantic_total": {
+        "tp": 3,
+        "fp": 8,
+        "fn": 0,
+        "precision": 0.2727272727272727,
+        "recall": 1.0,
+        "actual": [
+          [
+            "R1::python/plain.py",
+            4
+          ],
+          [
+            "R1::python/plain.py",
+            9
+          ],
+          [
+            "R1::python/plain.py",
+            13
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            1
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ],
+          [
+            "R4-semantic::web/app.js",
+            8
+          ],
+          [
+            "R4-semantic::web/app.js",
+            9
+          ],
+          [
+            "R4-semantic::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R1::python/plain_consumer.py",
+            1
+          ],
+          [
+            "R1::python/plain_consumer.py",
+            5
+          ],
+          [
+            "R4-semantic::web/app.js",
+            6
+          ]
+        ]
+      },
+      "production_total": {
+        "tp": 5,
+        "fp": 7,
+        "fn": 3,
+        "precision": 0.4166666666666667,
+        "recall": 0.625,
+        "actual": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            5
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            10
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            4
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            13
+          ],
+          [
+            "R4-production::web/app.js",
+            1
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/app.js",
+            8
+          ],
+          [
+            "R4-production::web/app.js",
+            9
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ],
+        "relevant": [
+          [
+            "R2-route::python/registry.py",
+            4
+          ],
+          [
+            "R2-route::python/registry.py",
+            14
+          ],
+          [
+            "R2-tool::python/registry.py",
+            9
+          ],
+          [
+            "R2-tool::python/registry.py",
+            15
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            9
+          ],
+          [
+            "R3::python/dynamic_dispatch.py",
+            12
+          ],
+          [
+            "R4-production::web/app.js",
+            6
+          ],
+          [
+            "R4-production::web/dashboard.html",
+            2
+          ]
+        ]
+      }
+    }
+  }
+}

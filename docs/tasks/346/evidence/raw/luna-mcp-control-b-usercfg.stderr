@@ -1,0 +1,23 @@
+	Command being timed: "timeout 360 codex exec --json --ephemeral --color never -C /mnt/data/task346-serena.tHyHCU/luna-mcp-control-b-usercfg -m gpt-5.6-luna -c model_reasoning_effort="medium" -c features.tool_search=true -c features.tool_search_always_defer_mcp_tools=false -c mcp_servers.orchestra.enabled=false -c mcp_servers.openaiDeveloperDocs.enabled=false -s danger-full-access -c mcp_servers.serena346.command="systemd-run" -c mcp_servers.serena346.args=["--user","--pipe","--wait","--collect","--quiet","--unit=task346-mcp-control-b-serena","-p","MemoryMax=1G","-p","CPUQuota=200%","-p","TasksMax=128","-p","WorkingDirectory=/mnt/data/task346-serena.tHyHCU/luna-mcp-control-b-usercfg","--","env","SERENA_HOME=/mnt/data/task346-serena.tHyHCU/serena-home-mcp-control-b-usercfg","SERENA_USAGE_REPORTING=false","UV_CACHE_DIR=/mnt/data/task346-serena.tHyHCU/uv-cache-mcp-control-b-usercfg","PATH=/home/maxim/.local/bin:/usr/local/bin:/usr/bin:/bin","/mnt/data/task346-serena.tHyHCU/venv/bin/serena","start-mcp-server","--context","codex","--project","/mnt/data/task346-serena.tHyHCU/luna-mcp-control-b-usercfg","--enable-web-dashboard","false","--open-web-dashboard","false","--log-level","ERROR","--tool-timeout","120"] -c mcp_servers.serena346.startup_timeout_sec=120 -c mcp_servers.serena346.tool_timeout_sec=120 -"
+	User time (seconds): 0.96
+	System time (seconds): 0.84
+	Percent of CPU this job got: 16%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:11.21
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 157044
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 31
+	Minor (reclaiming a frame) page faults: 160549
+	Voluntary context switches: 28552
+	Involuntary context switches: 1874
+	Swaps: 0
+	File system inputs: 240
+	File system outputs: 3808
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

@@ -1,0 +1,20 @@
+25982260	/mnt/data/task346-serena.tHyHCU/serena-home-b1-valid
+26456064	/mnt/data/task346-serena.tHyHCU/serena-home-b1-valid
+143
+18859182	/mnt/data/task346-serena.tHyHCU/uv-cache-b1-valid
+39735296	/mnt/data/task346-serena.tHyHCU/uv-cache-b1-valid
+9643
+24115	/mnt/data/task346-serena.tHyHCU/run-b1-valid/.serena
+61440	/mnt/data/task346-serena.tHyHCU/run-b1-valid/.serena
+6
+25982260	/mnt/data/task346-serena.tHyHCU/serena-home-b2-valid
+26456064	/mnt/data/task346-serena.tHyHCU/serena-home-b2-valid
+143
+18859182	/mnt/data/task346-serena.tHyHCU/uv-cache-b2-valid
+39735296	/mnt/data/task346-serena.tHyHCU/uv-cache-b2-valid
+9643
+24115	/mnt/data/task346-serena.tHyHCU/run-b2-valid/.serena
+61440	/mnt/data/task346-serena.tHyHCU/run-b2-valid/.serena
+6
+  267 10967 docs/tasks/346/eval/light_codeintel_mcp.py
+10967	docs/tasks/346/eval/light_codeintel_mcp.py

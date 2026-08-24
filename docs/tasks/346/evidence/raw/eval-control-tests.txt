@@ -1,0 +1,15 @@
+E1_CONTROL
+Using CPython 3.13.11
+Creating virtual environment at: .venv
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 74 packages in 4.75s
+........                                                                 [100%]
+8 passed in 5.59s
+E1_EXIT=0
+E2_CONTROL
+..............                                                           [100%]
+14 passed, 278 deselected in 4.71s
+E2_EXIT=0
+?? docs/tasks/346/

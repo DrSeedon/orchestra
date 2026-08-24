@@ -1,0 +1,3 @@
+{"type":"error","name":null,"server":null,"tool":null,"arguments":null,"text":null}
+{"type":"agent_message","name":null,"server":null,"tool":null,"arguments":null,"text":"Проверяю только текущую конфигурацию Serena — без чтения или изменения файлов."}
+{"type":"agent_message","name":null,"server":null,"tool":null,"arguments":null,"text":"SERENA_UNAVAILABLE"}

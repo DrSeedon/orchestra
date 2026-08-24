@@ -1,0 +1,23 @@
+	Command being timed: "python3 docs/tasks/346/eval/mcp_measure.py --name b1 --scenario serena --cwd /mnt/data/task346-serena.tHyHCU/run-b1 --command-json ["systemd-run","--user","--pipe","--wait","--collect","--quiet","--unit=task346-serena-b1","-p","MemoryMax=1G","-p","CPUQuota=200%","-p","TasksMax=128","-p","WorkingDirectory=/mnt/data/task346-serena.tHyHCU/run-b1","--","env","SERENA_HOME=","SERENA_USAGE_REPORTING=false","UV_CACHE_DIR=","/mnt/data/task346-serena.tHyHCU/venv/bin/serena","start-mcp-server","--context","codex","--project","/mnt/data/task346-serena.tHyHCU/run-b1","--enable-web-dashboard","false","--open-web-dashboard","false","--log-level","ERROR","--tool-timeout","120"] --systemd-unit task346-serena-b1"
+	User time (seconds): 1.41
+	System time (seconds): 0.86
+	Percent of CPU this job got: 38%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:05.89
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 18836
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 2
+	Minor (reclaiming a frame) page faults: 4078
+	Voluntary context switches: 2565
+	Involuntary context switches: 603
+	Swaps: 0
+	File system inputs: 488
+	File system outputs: 624
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

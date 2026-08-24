@@ -1,0 +1,28 @@
+2026-08-24T16:44:30.344310Z ERROR codex_models_manager::manager: failed to refresh available models: timeout waiting for child process to exit
+2026-08-24T16:44:30.462597Z ERROR codex_models_manager::manager: failed to refresh available models: timeout waiting for child process to exit
+2026-08-24T16:45:00.595616Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: route-aware request timed out")))
+2026-08-24T16:46:18.016767Z ERROR codex_core::tools::router: error=apply_patch verification failed: invalid patch: The first line of the patch must be '*** Begin Patch'
+2026-08-24T16:46:27.943225Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find context '-562,7 +562,7 @@' in /mnt/data/task346-serena.tHyHCU/luna-a-eval1/tests/test_default_pipeline.py
+	Command being timed: "timeout 720 codex exec --json --ephemeral --ignore-user-config --color never -C /mnt/data/task346-serena.tHyHCU/luna-a-eval1 -m gpt-5.6-luna -c model_reasoning_effort="medium" -s danger-full-access -"
+	User time (seconds): 14.76
+	System time (seconds): 5.53
+	Percent of CPU this job got: 11%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:00.97
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 149548
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 1006
+	Minor (reclaiming a frame) page faults: 582096
+	Voluntary context switches: 55043
+	Involuntary context switches: 7581
+	Swaps: 0
+	File system inputs: 941088
+	File system outputs: 1017344
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

@@ -1,0 +1,13 @@
+{
+  "tokenizer_estimate": "o200k_base (estimate, not provider usage)",
+  "tools_count": 23,
+  "tools_schema_bytes": 29651,
+  "tools_schema_chars": 29651,
+  "tools_schema_est_tokens": 6569,
+  "initialize_instructions_bytes": 132,
+  "initialize_instructions_chars": 132,
+  "initialize_instructions_est_tokens": 31,
+  "initial_instructions_bytes": 6508,
+  "initial_instructions_chars": 6498,
+  "initial_instructions_est_tokens": 1372
+}

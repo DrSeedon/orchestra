@@ -1,0 +1,396 @@
+diff --git a/app/backend_claude.py b/app/backend_claude.py
+index ea93144..398a44e 100644
+--- a/app/backend_claude.py
++++ b/app/backend_claude.py
+@@ -973,7 +973,7 @@ class ClaudeBackend:
+         )
+         # F1: options.skills НЕ задаём НИКОГДА. Ветка "skills-список → options.skills"
+         # сознательно НЕ реализована (B4: default 1:1 upstream — его роли имеют
+-        # skills-списки, но скиллы инъектятся через _inject_skills_to_worktree,
++        # skills-списки, но скиллы устанавливаются через _install_skills_to_worktree,
+         # не через options.skills). Единственное действие F1 — gating инъекции
+         # в manager.create_session при skills=="all".
+         return ClaudeSDKClient(options=options)
+diff --git a/app/limits_card.py b/app/limits_card.py
+index 6a654a2..d4c83f6 100644
+--- a/app/limits_card.py
++++ b/app/limits_card.py
+@@ -60,8 +60,8 @@ def pace_delta(utilization: float, reset: dt.datetime, window_minutes: int | Non
+     return utilization - (elapsed_ms / (window_minutes * 60_000)) * 100
+ 
+ 
+-def pace_text(utilization: float, reset: dt.datetime, window_minutes: int | None,
+-              now: dt.datetime) -> str:
++def format_pace_text(utilization: float, reset: dt.datetime, window_minutes: int | None,
++                     now: dt.datetime) -> str:
+     """Формулировка темпа для ТЕКСТА под картинкой. Формат не менять — он в тестах #273."""
+     delta = pace_delta(utilization, reset, window_minutes, now)
+     if delta is None:
+diff --git a/app/manager.py b/app/manager.py
+index 2802138..e596786 100644
+--- a/app/manager.py
++++ b/app/manager.py
+@@ -22,7 +22,7 @@ from app.session import AgentSession, AgentStatus
+ from app.events import InjectedMessage
+ from app.prompting import (
+     is_orchestrator_role, safe_format_prompt,
+-    prompt_template_hash, inject_skills_to_worktree, load_worker_memory,
++    prompt_template_hash, install_skills_to_worktree, load_worker_memory,
+     refresh_worker_memory, strip_worker_memory,
+ )
+ 
+@@ -849,7 +849,7 @@ class SessionManager:
+                 except FileNotFoundError:
+                     _skills = None
+                 if bt == "claude" and _skills and _skills != "all":
+-                    await asyncio.to_thread(inject_skills_to_worktree, _skills, wt.path)
++                    await asyncio.to_thread(install_skills_to_worktree, _skills, wt.path)
+ 
+             try:
+                 await asyncio.to_thread(
+diff --git a/app/prompting.py b/app/prompting.py
+index d4b1b3f..9d902db 100644
+--- a/app/prompting.py
++++ b/app/prompting.py
+@@ -308,10 +308,10 @@ def inject_skills_to_worktree_report(
+     )
+ 
+ 
+-def inject_skills_to_worktree(
++def install_skills_to_worktree(
+     skill_names: list[str], worktree_path: str, home_dir: str = ".claude",
+ ) -> int:
+-    """Backward-compatible count-only wrapper over the diagnostic injector."""
++    """Count-only wrapper over the diagnostic skill installer."""
+     return inject_skills_to_worktree_report(
+         skill_names, worktree_path, home_dir,
+     ).written
+diff --git a/app/session.py b/app/session.py
+index 5d09cc5..5c63a41 100644
+--- a/app/session.py
++++ b/app/session.py
+@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+ from app.events import AgentEvent, InjectedMessage
+ from app.models import backend_for_model, get_model_spec
+ from app.prompting import (
+-    codex_project_doc_preflight, inject_skills_to_worktree,
++    codex_project_doc_preflight, install_skills_to_worktree,
+     inject_skills_to_worktree_report, is_orchestrator_role,
+     prompt_template_hash, refresh_worker_memory,
+ )
+@@ -1440,7 +1440,7 @@ class AgentSession:
+                 if skills == "all":
+                     return
+                 await asyncio.to_thread(
+-                    inject_skills_to_worktree, skills, path, home_dir,
++                    install_skills_to_worktree, skills, path, home_dir,
+                 )
+         except Exception as e:
+             logger.warning(f"[{self.name}] skill refresh failed: {e}")
+diff --git a/app/tg_bridge.py b/app/tg_bridge.py
+index 8c63b78..64069f9 100644
+--- a/app/tg_bridge.py
++++ b/app/tg_bridge.py
+@@ -3443,7 +3443,7 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
+     # Темп и «сколько окна прошло» считает `app/limits_card.py` — тот же код, что рисует
+     # картинку. Иначе подпись и картинка разъезжаются в числах, а спорить будут об одном.
+     from app.limits_card import progress_pct, resolve_window_minutes
+-    from app.limits_card import pace_text as _pace_of
++    from app.limits_card import format_pace_text as _pace_of
+ 
+     def _window_line(label: str, window: dict | None, window_id: str | None = None) -> str:
+         if not isinstance(window, dict) or not isinstance(
+diff --git a/tests/test_default_pipeline.py b/tests/test_default_pipeline.py
+index b905a14..5e09afa 100644
+--- a/tests/test_default_pipeline.py
++++ b/tests/test_default_pipeline.py
+@@ -562,7 +562,7 @@ class TestUpstreamCharacterization:
+ 
+     def test_skill_files_keep_frontmatter(self):
+         """skills/*.md портированы С frontmatter (это skill-метаданные name/description,
+-        их читает inject_skills_to_worktree)."""
++        их читает install_skills_to_worktree)."""
+         for skill in ("html-artifacts", "vps-deploy"):
+             text = P.prompt_path(PIPELINE, f"skills/{skill}.md").read_text()
+             assert text.lstrip().startswith("---"), f"{skill}.md must keep frontmatter"
+diff --git a/tests/test_legacy_pipeline_skills.py b/tests/test_legacy_pipeline_skills.py
+index 404c774..b93643e 100644
+--- a/tests/test_legacy_pipeline_skills.py
++++ b/tests/test_legacy_pipeline_skills.py
+@@ -37,7 +37,7 @@ async def test_legacy_empty_pipeline_still_injects_role_skills(monkeypatch, tmp_
+ 
+     injected: list[list[str]] = []
+     monkeypatch.setattr(
+-        "app.session.inject_skills_to_worktree",
++        "app.session.install_skills_to_worktree",
+         lambda skills, path, home: injected.append(list(skills)) or len(skills),
+     )
+ 
+@@ -66,7 +66,7 @@ async def test_empty_pipeline_would_inject_nothing(monkeypatch, tmp_path):
+ 
+     injected: list[list[str]] = []
+     monkeypatch.setattr(
+-        "app.session.inject_skills_to_worktree",
++        "app.session.install_skills_to_worktree",
+         lambda skills, path, home: injected.append(list(skills)) or len(skills),
+     )
+ 
+diff --git a/tests/test_manager.py b/tests/test_manager.py
+index d6dbb97..6e39d0c 100644
+--- a/tests/test_manager.py
++++ b/tests/test_manager.py
+@@ -894,7 +894,7 @@ class TestInjectSkillsGating:
+         repo = _git_repo(tmp_path)
+         inject = MagicMock()
+         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()), \
+-             patch("app.manager.inject_skills_to_worktree", inject), \
++             patch("app.manager.install_skills_to_worktree", inject), \
+              patch("app.manager.get_role", role_mock):
+             await mgr.create_session(
+                 name="w1", scope="/s", cwd=str(repo), model=model,
+@@ -942,10 +942,10 @@ class TestInjectSkillsRealCopy:
+     """
+ 
+     def test_copies_pipeline_skills_to_worktree(self, tmp_path):
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+         # codex-debate + html-artifacts are both real files in prompts/skills/
+-        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
++        install_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+         for name in ("codex-debate", "html-artifacts"):
+             assert (wt / ".claude" / "skills" / name / "SKILL.md").is_file(), \
+                 f"{name} not injected into worktree"
+@@ -955,7 +955,7 @@ class TestInjectSkillsRealCopy:
+         exclude it (ignore rules skip tracked files) — injecting there dirties the worker's
+         tree permanently and blocks every merge. The repo's version wins."""
+         import subprocess
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+         own = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+         own.parent.mkdir(parents=True)
+@@ -963,17 +963,17 @@ class TestInjectSkillsRealCopy:
+         subprocess.run(["git", "add", "-A"], cwd=wt, capture_output=True, check=True)
+         subprocess.run(["git", "commit", "-m", "skill"], cwd=wt, capture_output=True, check=True)
+ 
+-        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
++        install_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+ 
+         assert own.read_text() == "# repo's own skill\n"
+         # untracked skills are still injected — only the repo's own file is off limits
+         assert (wt / ".claude" / "skills" / "html-artifacts" / "SKILL.md").is_file()
+ 
+     def test_empty_list_is_noop(self, tmp_path):
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = tmp_path / "wt"
+         wt.mkdir()
+-        inject_skills_to_worktree([], str(wt))
++        install_skills_to_worktree([], str(wt))
+         assert not (wt / ".claude").exists()
+ 
+ 
+@@ -991,13 +991,13 @@ class TestRefreshSkills:
+         return _SKILLS_DIR / f"{name}.md"
+ 
+     def test_stale_copy_is_refreshed(self, tmp_path):
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+         dest = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+         dest.parent.mkdir(parents=True)
+         dest.write_text("# ancient version from spawn day\n")
+ 
+-        written = inject_skills_to_worktree(["codex-debate"], str(wt))
++        written = install_skills_to_worktree(["codex-debate"], str(wt))
+ 
+         assert dest.read_bytes() == self._source().read_bytes()
+         assert written == 1
+@@ -1005,13 +1005,13 @@ class TestRefreshSkills:
+     def test_unchanged_copy_is_not_rewritten(self, tmp_path):
+         """Steady state must cost zero writes — otherwise every connect swaps a file
+         under a running CLI for no reason."""
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+-        inject_skills_to_worktree(["codex-debate"], str(wt))
++        install_skills_to_worktree(["codex-debate"], str(wt))
+         dest = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+         before_mtime = dest.stat().st_mtime_ns
+ 
+-        written = inject_skills_to_worktree(["codex-debate"], str(wt))
++        written = install_skills_to_worktree(["codex-debate"], str(wt))
+ 
+         assert written == 0
+         assert dest.stat().st_mtime_ns == before_mtime
+@@ -1020,7 +1020,7 @@ class TestRefreshSkills:
+         """Models the live seedon case: the same repo tracks some of the role's skills and
+         not others. Tracked file untouched, untracked one delivered — in a single pass."""
+         import subprocess
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+         own = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+         own.parent.mkdir(parents=True)
+@@ -1028,7 +1028,7 @@ class TestRefreshSkills:
+         subprocess.run(["git", "add", "-Af"], cwd=wt, capture_output=True, check=True)
+         subprocess.run(["git", "commit", "-m", "own skill"], cwd=wt, capture_output=True, check=True)
+ 
+-        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
++        install_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+ 
+         assert own.read_text() == "# repo's own skill\n"
+         assert (wt / ".claude" / "skills" / "html-artifacts" / "SKILL.md").read_bytes() \
+@@ -1038,11 +1038,11 @@ class TestRefreshSkills:
+         """The expensive scenario, live in `games`: a repo that ignores `.claude/` NOWHERE.
+         Without the exclude step we leave permanent untracked junk in the user's git status."""
+         import subprocess
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+         assert not (wt / ".gitignore").exists()
+ 
+-        inject_skills_to_worktree(["codex-debate"], str(wt))
++        install_skills_to_worktree(["codex-debate"], str(wt))
+ 
+         status = subprocess.run(
+             ["git", "status", "--short"], cwd=wt, capture_output=True, text=True,
+@@ -1051,23 +1051,23 @@ class TestRefreshSkills:
+ 
+     def test_nothing_written_leaves_exclude_untouched(self, tmp_path):
+         """No side effects in someone else's repo when we planted nothing."""
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+         exclude = wt / ".git" / "info" / "exclude"
+         before = exclude.read_text() if exclude.exists() else ""
+ 
+-        assert inject_skills_to_worktree(["no-such-skill-anywhere"], str(wt)) == 0
++        assert install_skills_to_worktree(["no-such-skill-anywhere"], str(wt)) == 0
+ 
+         after = exclude.read_text() if exclude.exists() else ""
+         assert after == before
+ 
+     def test_non_repo_path_is_skipped(self, tmp_path):
+         """Git can't say who owns the file → writing on a guess is what dirties repos."""
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         plain = tmp_path / "not-a-repo"
+         plain.mkdir()
+ 
+-        assert inject_skills_to_worktree(["codex-debate"], str(plain)) == 0
++        assert install_skills_to_worktree(["codex-debate"], str(plain)) == 0
+         assert not (plain / ".claude").exists()
+ 
+ 
+@@ -1083,10 +1083,10 @@ class TestCodexSkillHome:
+         return _SKILLS_DIR / f"{name}.md"
+ 
+     def test_codex_home_dir_is_used(self, tmp_path):
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+ 
+-        assert inject_skills_to_worktree(["codex-debate"], str(wt), ".codex") == 1
++        assert install_skills_to_worktree(["codex-debate"], str(wt), ".codex") == 1
+ 
+         assert (wt / ".codex" / "skills" / "codex-debate" / "SKILL.md").read_bytes() \
+             == self._source().read_bytes()
+@@ -1094,10 +1094,10 @@ class TestCodexSkillHome:
+ 
+     def test_claude_remains_default(self, tmp_path):
+         """#149 must not regress: the default address is still `.claude`."""
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+ 
+-        inject_skills_to_worktree(["codex-debate"], str(wt))
++        install_skills_to_worktree(["codex-debate"], str(wt))
+ 
+         assert (wt / ".claude" / "skills" / "codex-debate" / "SKILL.md").is_file()
+         assert not (wt / ".codex").exists()
+@@ -1106,7 +1106,7 @@ class TestCodexSkillHome:
+         """The #149 ownership guard must apply to `.codex/` too — a repo shipping its own
+         `.codex/skills/<name>/SKILL.md` would otherwise be dirtied forever."""
+         import subprocess
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+         own = wt / ".codex" / "skills" / "codex-debate" / "SKILL.md"
+         own.parent.mkdir(parents=True)
+@@ -1114,7 +1114,7 @@ class TestCodexSkillHome:
+         subprocess.run(["git", "add", "-Af"], cwd=wt, capture_output=True, check=True)
+         subprocess.run(["git", "commit", "-m", "own"], cwd=wt, capture_output=True, check=True)
+ 
+-        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt), ".codex")
++        install_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt), ".codex")
+ 
+         assert own.read_text() == "# repo's own codex skill\n"
+         assert (wt / ".codex" / "skills" / "html-artifacts" / "SKILL.md").is_file()
+@@ -1123,10 +1123,10 @@ class TestCodexSkillHome:
+         """Blocker from #151 research: neither `games` nor `seedon` ignores `.codex/`, so
+         without the exclude step both would get permanent untracked junk."""
+         import subprocess
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+ 
+-        inject_skills_to_worktree(["codex-debate"], str(wt), ".codex")
++        install_skills_to_worktree(["codex-debate"], str(wt), ".codex")
+ 
+         status = subprocess.run(
+             ["git", "status", "--short"], cwd=wt, capture_output=True, text=True,
+@@ -1140,7 +1140,7 @@ class TestCodexSkillHome:
+         import logging
+         import subprocess
+         from app.prompting import (
+-            inject_skills_to_worktree, inject_skills_to_worktree_report,
++            install_skills_to_worktree, inject_skills_to_worktree_report,
+         )
+         wt = _git_repo(tmp_path)
+         (wt / ".codex").write_text("")
+@@ -1151,7 +1151,7 @@ class TestCodexSkillHome:
+         )
+ 
+         with caplog.at_level(logging.WARNING, logger="app.prompting"):
+-            written = inject_skills_to_worktree(
++            written = install_skills_to_worktree(
+                 ["codex-debate", "html-artifacts"], str(wt), ".codex",
+             )
+ 
+@@ -1171,10 +1171,10 @@ class TestCodexSkillHome:
+ 
+     def test_codex_injection_does_not_add_unrelated_excludes(self, tmp_path):
+         """`only=` from #149 must stay narrow: this may be the user's working repo."""
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         wt = _git_repo(tmp_path)
+ 
+-        inject_skills_to_worktree(["codex-debate"], str(wt), ".codex")
++        install_skills_to_worktree(["codex-debate"], str(wt), ".codex")
+ 
+         exclude = (wt / ".git" / "info" / "exclude").read_text()
+         assert ".codex/" in exclude
+diff --git a/tests/test_workspace.py b/tests/test_workspace.py
+index 14da63d..ce38a4d 100644
+--- a/tests/test_workspace.py
++++ b/tests/test_workspace.py
+@@ -174,7 +174,7 @@ class TestCreateWorktree:
+         """End-to-end #12: the seedon case — repo versions `.claude/skills/*/SKILL.md`, so
+         `info/exclude` is powerless. Spawn + skill injection must still leave `git status`
+         empty, otherwise the worker can never satisfy "clean tree before DONE"."""
+-        from app.prompting import inject_skills_to_worktree
++        from app.prompting import install_skills_to_worktree
+         from app.workspace import create_worktree
+         own = git_repo / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+         own.parent.mkdir(parents=True)
+@@ -183,7 +183,7 @@ class TestCreateWorktree:
+         subprocess.run(["git", "commit", "-qm", "skills"], cwd=git_repo, capture_output=True, check=True)
+ 
+         wt = create_worktree(str(git_repo), "worker-1")
+-        inject_skills_to_worktree(["codex-debate"], wt.path)
++        install_skills_to_worktree(["codex-debate"], wt.path)
+ 
+         status = subprocess.run(
+             ["git", "status", "--porcelain"], cwd=wt.path, capture_output=True, text=True,

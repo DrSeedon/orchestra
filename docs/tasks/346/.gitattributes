@@ -1,0 +1,4 @@
+* -whitespace
+corpus/** -whitespace
+eval/** -whitespace
+evidence/** -whitespace

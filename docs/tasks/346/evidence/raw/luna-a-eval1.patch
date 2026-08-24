@@ -1,0 +1,1950 @@
+diff --git a/app/backend_harness.py b/app/backend_harness.py
+index 8d4bf89b..283c1d05 100644
+--- a/app/backend_harness.py
++++ b/app/backend_harness.py
+@@ -13,7 +13,6 @@ estimate when token counts are available.
+ 
+ import asyncio
+ import contextlib
+-import copy
+ import logging
+ import os
+ import re
+@@ -22,7 +21,7 @@ from typing import AsyncIterator, Optional
+ 
+ from app.events import AgentEvent
+ from app.usage_contract import AggregateUsage, TurnUsage, current_context
+-from app.harness import bestofn, prompts, tools as builtin
++from app.harness import prompts, tools as builtin
+ from app.harness.llm import OpenRouterClient
+ from app.harness.loop import AgentLoop, ReviewCtx
+ from app.harness.mcp import MCPClient
+@@ -101,11 +100,6 @@ class HarnessBackend:
+         self._cumulative_input: int = 0
+         self._cumulative_output: int = 0
+ 
+-        # Best-of-N (#124) — OFF by default; only activates when the flag is set AND the turn
+-        # runs in a clean git worktree with a resolvable test suite (see _should_use_bestofn).
+-        self._bestofn = os.environ.get("HARNESS_BESTOFN", "").lower() in ("1", "true", "yes")
+-        self._bestofn_n = bestofn.clamp_n(os.environ.get("HARNESS_BESTOFN_N"))
+-
+         # Gated planning (#125) — a per-session todo list; the todo_write tool is hard-gated onto
+         # complex (effort=="high") turns only (_turn_tool_schemas). Simple turns never see it.
+         self._todos = builtin.TodoStore()
+@@ -165,22 +159,34 @@ class HarnessBackend:
+         """Retarget later OpenRouter requests while keeping local history intact."""
+         if self._turn_active:
+             raise RuntimeError("cannot retarget harness model while a turn is active")
++        from app.models import get_model_spec, validate_harness_model_spec
++
++        spec = get_model_spec(model)
++        validate_harness_model_spec(spec)
+         if self._llm is not None:
+-            self._llm.model = model
++            self._llm.retarget(model, spec.supported_parameters)
+         self.model = model
+ 
+     # ── lifecycle ──
+ 
+     async def connect(self) -> None:
+         api_key = (os.environ.get("OPENROUTER_API_KEY")
+-                   or os.environ.get("OPENROUTER_KEY")
+-                   or os.environ.get("ANTHROPIC_API_KEY", ""))
++                   or os.environ.get("OPENROUTER_KEY", ""))
+         if not api_key:
+-            raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY, ANTHROPIC_API_KEY)")
+-        base_url = os.environ.get("OPENROUTER_BASE_URL") or os.environ.get("ANTHROPIC_BASE_URL", "https://openrouter.ai/api/v1")
++            raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
++        from app.models import get_model_spec, validate_harness_model_spec
++
++        spec = get_model_spec(self.model)
++        validate_harness_model_spec(spec)
++        base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+         if base_url and not base_url.endswith("/v1"):
+             base_url = base_url.rstrip("/") + "/v1"
+-        self._llm = OpenRouterClient(api_key=api_key, model=self.model, base_url=base_url)
++        self._llm = OpenRouterClient(
++            api_key=api_key,
++            model=self.model,
++            base_url=base_url,
++            supported_parameters=spec.supported_parameters,
++        )
+ 
+         # MCP must NEVER break backend startup. connect() is atomic (clears its own state on
+         # a hard error), and merge_tool_schemas can itself raise on a builtin↔MCP name
+@@ -235,14 +241,6 @@ class HarnessBackend:
+         if not self._turn_active or self._pending_msg is None:
+             return
+ 
+-        # Best-of-N branch (#124) — guarded, off by default. When it doesn't apply, the ORIGINAL
+-        # single-attempt path below runs byte-for-byte unchanged.
+-        test_cmd = self._resolve_bestofn()
+-        if test_cmd is not None:
+-            async for ev in self._events_bestofn(self._pending_msg, test_cmd):
+-                yield ev
+-            return
+-
+         user_msg = self._pending_msg
+         self._pending_msg = None
+         self._injected.clear()   # nothing steered yet; leftovers would replay stale text
+@@ -265,7 +263,7 @@ class HarnessBackend:
+             # Persist only a CONSISTENT prefix: an assistant message with tool_calls whose
+             # tool results never arrived would make the next request invalid, so drop it.
+             with contextlib.suppress(Exception):
+-                await self._persist(_consistent_prefix(loop.new_messages))
++                await self._persist_loop(loop, cancelled=True)
+             self._turn_active = False
+             raise
+         except Exception as e:
+@@ -276,7 +274,7 @@ class HarnessBackend:
+ 
+         # Persist the turn's messages (best-effort) before emitting the terminal event.
+         with contextlib.suppress(Exception):
+-            await self._persist(loop.new_messages)
++            await self._persist_loop(loop)
+ 
+         # ── terminal turn_end (exactly one, on every non-cancel path) ──
+         # Accumulate EACH round independently: a round with native cost uses it; a round
+@@ -289,150 +287,20 @@ class HarnessBackend:
+         yield self._turn_end(loop, ok=loop.ok, stop_reason=loop.stop_reason,
+                              detail=loop.error_detail if not loop.ok else "")
+ 
+-    # ── Best-of-N (#124) ──
+-
+-    def _resolve_bestofn(self) -> Optional[str]:
+-        """Return the verifier command if Best-of-N should run this turn, else None (→ default
+-        single-attempt path). Gate: flag on AND git worktree AND clean tree AND resolvable HEAD
+-        AND detectable test suite AND resolvable test command. Any miss → None (fail-safe)."""
+-        if not self._bestofn:
+-            return None
+-        if not (bestofn.is_git_repo(self.cwd) and bestofn.clean_tree(self.cwd)):
+-            return None
+-        if bestofn.base_sha(self.cwd) is None:
+-            return None
+-        return bestofn.resolve_test_cmd(self.cwd)
+-
+-    async def _events_bestofn(self, user_msg: str, test_cmd: str) -> AsyncIterator[AgentEvent]:
+-        """Run up to N sequential attempts, verifying each with test_cmd; yield the first passing
+-        attempt's events + one turn_end. Early-exit on pass. All-failed → roll back to base and
+-        report failure. Defensive rollback: reset only when the dirt is attempt-generated."""
+-        self._pending_msg = None
+-        assert self._llm is not None and self._mcp is not None    # events() checked before calling
+-        base = bestofn.base_sha(self.cwd)
+-        assert base is not None                      # guaranteed by _resolve_bestofn
+-        base_history = copy.deepcopy(self._history)
+-        base_todos = copy.deepcopy(self._todos.todos)   # planning state resets per attempt (#125)
+-        effort = classify_effort(user_msg, self._is_orchestrator)
+-        turn_schemas = self._turn_tool_schemas(effort, allow_review=False)  # attempts don't review (#126)
+-        n = self._bestofn_n
+-        winner: Optional[AgentLoop] = None
+-        winner_events: list[AgentEvent] = []
+-        touched: set = set()                          # paths the LAST attempt wrote (for rollback)
+-        last_tail = ""
+-        abort_reason: Optional[str] = None            # set → stop without a winner, distinct turn_end
+-
+-        try:
+-            for i in range(1, n + 1):
+-                if self._abort_flag:
+-                    abort_reason = "aborted"
+-                    break
+-                if i > 1 and not self._rollback_attempt(base, touched):
+-                    # unexpected worktree/HEAD state → do NOT destructively reset (no data loss).
+-                    abort_reason = "bestofn_abort_dirty"
+-                    yield AgentEvent("status", "[bestofn] unexpected worktree changes — stopping, tree left as-is")
+-                    break
+-                self._history = copy.deepcopy(base_history)
+-                self._todos.todos = copy.deepcopy(base_todos)   # clean planning state per attempt
+-                loop = AgentLoop(
+-                    llm=self._llm, mcp=self._mcp, cwd=self.cwd, history=self._history,
+-                    tool_schemas=turn_schemas, max_context=self._max_context(),
+-                    abort=lambda: self._abort_flag, effort=effort, todo_store=self._todos,
+-                )
+-                buffered: list[AgentEvent] = []
+-                loop_failed = False
+-                try:
+-                    async for ev in loop.run(user_msg):
+-                        buffered.append(ev)
+-                except Exception as e:
+-                    logger.error(f"[bestofn] attempt {i} loop failed: {e}")
+-                    loop_failed = True
+-                for u in loop.round_usages:            # every attempt is billed (cost is cumulative)
+-                    self._accumulate(u)
+-                touched = self._attempt_touched(buffered)
+-                if loop_failed:
+-                    continue                           # retry (rollback at top of next iter)
+-                yield AgentEvent("status", f"[bestofn] attempt {i}/{n} — running tests…")
+-                verdict, tail = await bestofn.run_verifier(self.cwd, test_cmd)
+-                last_tail = tail
+-                logger.info(f"[bestofn] attempt {i}/{n}: {verdict} "
+-                            f"(cost=${self._cumulative_cost:.4f} in={self._cumulative_input} out={self._cumulative_output})")
+-                if verdict == "pass":
+-                    winner, winner_events = loop, buffered
+-                    break                             # early-exit — keep this attempt's tree
+-                if verdict == "no_verifier":
+-                    # broken runner (not a real fail): can't verify → keep NOTHing, roll back + report.
+-                    abort_reason = "bestofn_no_verifier"
+-                    break
+-                # fail → next iteration rolls back and retries
+-        except asyncio.CancelledError:
+-            self._turn_active = False
+-            raise
+-
+-        self._turn_active = False
+-        if winner is not None:
+-            # commit the winner: its history is already self._history (loop mutated it in place).
+-            self._history = winner.history
+-            with contextlib.suppress(Exception):
+-                await self._persist(winner.new_messages)
+-            for ev in winner_events:
+-                yield ev
+-            yield self._turn_end(winner, ok=winner.ok, stop_reason=winner.stop_reason,
+-                                 detail=winner.error_detail if not winner.ok else "")
+-            return
+-
+-        # No winner. Roll back to base UNLESS the tree is already in an unexpected state
+-        # (abort_dirty). If the final rollback REFUSES or FAILS to verify, the tree is NOT clean —
+-        # report bestofn_abort_dirty (honest) instead of claiming a clean all_failed rollback.
+-        if abort_reason != "bestofn_abort_dirty":
+-            rolled_back = False
+-            with contextlib.suppress(Exception):
+-                rolled_back = self._rollback_attempt(base, touched)
+-            if not rolled_back:
+-                abort_reason = "bestofn_abort_dirty"
+-        self._history = base_history
+-        self._todos.todos = base_todos                # no winner → restore pre-turn planning state
+-        reason = abort_reason or "bestofn_all_failed"
+-        msg = {
+-            "aborted": "Best-of-N: interrupted before a passing attempt.",
+-            "bestofn_no_verifier": "Best-of-N: the test command could not run (no verifier) — rolled back.",
+-            "bestofn_abort_dirty": "Best-of-N: unexpected worktree changes — stopped, tree left as-is.",
+-        }.get(reason, f"Best-of-N: all {n} attempts failed the test suite.")
+-        yield AgentEvent("text", f"{msg}\n{last_tail}".rstrip())
+-        yield self._error_turn_end(reason)
+-
+-    def _attempt_touched(self, events: list[AgentEvent]) -> set:
+-        """Repo-relative paths the attempt's file tools wrote (from file_change events:
+-        'add /abs/path' / 'update /abs/path')."""
+-        touched: set = set()
+-        base = os.path.abspath(self.cwd)
+-        for ev in events or []:
+-            if ev.type != "file_change":
+-                continue
+-            parts = ev.content.split(" ", 1)
+-            if len(parts) != 2:
+-                continue
+-            raw = parts[1]
+-            p = raw if os.path.isabs(raw) else os.path.abspath(os.path.join(self.cwd, raw))
+-            try:
+-                if os.path.commonpath([base, p]) == base:    # p is strictly inside the worktree
+-                    touched.add(os.path.relpath(p, base))
+-            except ValueError:
+-                continue                                     # different drive / not comparable → skip
+-        return touched
+-
+-    def _rollback_attempt(self, base: str, touched: set) -> bool:
+-        """Defensive rollback (Option 1). Reset the worktree to `base` ONLY if it's safe (HEAD still
+-        at base AND every dirty path is attempt-generated) AND the reset verifiably lands clean-at-
+-        base. Returns False if we refused to reset OR the reset didn't verify — caller must stop."""
+-        if not bestofn.dirt_is_attempt_only(self.cwd, base, touched):
+-            return False
+-        return bestofn.rollback_to_base(self.cwd, base)
+-
+     async def _persist(self, messages: list[dict]) -> None:
+         if self._store and messages:
+             await self._store.append_messages(messages)
+ 
++    async def _persist_loop(self, loop: AgentLoop, *, cancelled: bool = False) -> None:
++        """Persist one loop without resurrecting history discarded by context compaction."""
++        if self._store is None:
++            return
++        if loop.truncated_dropped:
++            await self._store.replace_messages(_consistent_prefix(self._history))
++            return
++        messages = _consistent_prefix(loop.new_messages) if cancelled else loop.new_messages
++        await self._persist(messages)
++
+     # ── cost / tokens (plan B5) ──
+ 
+     def _accumulate(self, usage: dict) -> None:
+diff --git a/app/harness/bestofn.py b/app/harness/bestofn.py
+deleted file mode 100644
+index 604e1c3b..00000000
+--- a/app/harness/bestofn.py
++++ /dev/null
+@@ -1,176 +0,0 @@
+-"""Best-of-N (pass@k) — run up to N solution attempts, verify each by running the project's
+-tests, keep the first that passes. Gated + off by default (#124).
+-
+-Why this shape: a "solve attempt" here is a whole turn's worth of edits, verified by the REAL
+-project test suite (exit code, NEVER string-matching 'PASS' — Terminal-Bench-2 gaming). Attempts
+-are SEQUENTIAL (parallel writers = coordination chaos) in the worker's own single-writer worktree,
+-with a DEFENSIVE git rollback between them: reset only when the dirt is attempt-generated, else
+-abort without a destructive reset (no data loss). Early-exit on the first pass.
+-
+-This module is pure/subprocess only — no LLM, no backend state — so it unit-tests in isolation.
+-The backend (backend_harness.py) drives the attempt loop and owns history/cost.
+-"""
+-
+-import asyncio
+-import contextlib
+-import json
+-import os
+-import signal
+-import subprocess
+-from pathlib import Path
+-
+-VERIFIER_TIMEOUT = 300          # seconds per test run
+-VERIFIER_OUTPUT_CAP = 4000      # chars of tail kept for the agent
+-N_DEFAULT = 3
+-N_MIN = 2
+-N_MAX = 5
+-
+-# npm's default `test` script when none is set — treat as "no real tests".
+-_NPM_STUB = 'echo "Error: no test specified" && exit 1'
+-
+-
+-def clamp_n(raw: "str | int | None", default: int = N_DEFAULT) -> int:
+-    """Clamp the configured N into [N_MIN, N_MAX]. Junk/empty → default."""
+-    try:
+-        n = int(raw)  # type: ignore[arg-type]
+-    except (TypeError, ValueError):
+-        return default
+-    return max(N_MIN, min(n, N_MAX))
+-
+-
+-def is_git_repo(cwd: str) -> bool:
+-    """True if cwd is inside a git worktree (a real toplevel, not a submodule/nested edge)."""
+-    r = _git(["rev-parse", "--show-toplevel"], cwd)
+-    return r.returncode == 0 and bool(r.stdout.strip())
+-
+-
+-def clean_tree(cwd: str) -> bool:
+-    """True if the worktree has NO uncommitted changes (clean-entry gate). A dirty tree means we
+-    must NOT run Best-of-N — we'd risk the user's uncommitted work with a rollback."""
+-    r = _git(["status", "--porcelain"], cwd)
+-    return r.returncode == 0 and r.stdout.strip() == ""
+-
+-
+-def base_sha(cwd: str) -> "str | None":
+-    """The commit the attempts branch from. None if it can't be resolved (→ disable Best-of-N)."""
+-    r = _git(["rev-parse", "--verify", "HEAD"], cwd)
+-    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+-
+-
+-def resolve_test_cmd(cwd: str) -> "str | None":
+-    """The verifier command. HARNESS_TEST_CMD wins (verbatim). Else auto-detect a default ONLY for a
+-    recognized ecosystem WITH detectable tests. Else None → Best-of-N does not activate (fail-safe)."""
+-    explicit = os.environ.get("HARNESS_TEST_CMD", "").strip()
+-    if explicit:
+-        return explicit
+-    base = Path(cwd)
+-    if _pyproject_has_pytest(base / "pyproject.toml") or (base / "tests").is_dir() or _find_python_tests(base):
+-        return "uv run python -m pytest -q"
+-    if _package_json_has_test(base / "package.json"):
+-        return "npm test"
+-    return None
+-
+-
+-async def run_verifier(cwd: str, test_cmd: str,
+-                       timeout: int = VERIFIER_TIMEOUT) -> "tuple[str, str]":
+-    """ASYNC. Run test_cmd in cwd; return (verdict, tail).
+-      verdict = "pass" (exit 0) | "fail" (other exit OR timeout) | "no_verifier" (126/127/exec-fail).
+-    A test HANG (timeout) is a FAIL (the attempt's code may loop) — not a broken runner. Only a
+-    missing/non-executable command (126/127/OSError) is "no_verifier". Judged by EXIT CODE only,
+-    NEVER by matching 'PASS' in output (verifier-gaming guard)."""
+-    env = {**os.environ, "CI": "1"}     # non-interactive
+-    try:
+-        proc = await asyncio.create_subprocess_shell(
+-            test_cmd, cwd=cwd, env=env,
+-            stdin=asyncio.subprocess.DEVNULL,
+-            stdout=asyncio.subprocess.PIPE,
+-            stderr=asyncio.subprocess.STDOUT,
+-            start_new_session=True,     # own process group → killpg on timeout
+-        )
+-    except OSError as e:
+-        return "no_verifier", f"[verifier could not start] {e}"
+-    try:
+-        out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+-    except asyncio.TimeoutError:
+-        with contextlib.suppress(ProcessLookupError, PermissionError):
+-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+-        with contextlib.suppress(Exception):
+-            await proc.wait()
+-        return "fail", f"[verifier timed out after {timeout}s — treated as fail]"
+-    rc = proc.returncode
+-    tail = (out.decode(errors="replace") if out else "")[-VERIFIER_OUTPUT_CAP:]
+-    if rc == 0:
+-        return "pass", tail
+-    if rc in (126, 127):                # not executable / not found → broken runner
+-        return "no_verifier", tail
+-    return "fail", tail
+-
+-
+-def dirt_is_attempt_only(cwd: str, base: str, touched: "set[str]") -> bool:
+-    """Defensive-rollback guard (Option 1). True iff it is SAFE to reset — i.e. HEAD still points at
+-    `base` (no external commit landed) AND every currently-dirty path is one the attempt itself
+-    wrote. Any unexpected state → False → the backend ABORTS the reset (no data loss).
+-    `touched` = repo-relative paths the attempt's file tools wrote."""
+-    head = _git(["rev-parse", "--verify", "HEAD"], cwd)
+-    if head.returncode != 0 or head.stdout.strip() != base:
+-        return False                    # HEAD moved (external commit) → a reset would drop it
+-    r = _git(["status", "--porcelain"], cwd)
+-    if r.returncode != 0:
+-        return False                    # can't tell → be safe, don't reset
+-    for line in r.stdout.splitlines():
+-        path = line[3:].strip().strip('"')
+-        if " -> " in path:              # rename "old -> new"
+-            path = path.split(" -> ", 1)[1]
+-        if path and path not in touched:
+-            return False
+-    return True
+-
+-
+-def rollback_to_base(cwd: str, base: str) -> bool:
+-    """Discard the current attempt's edits: reset tracked files to `base` + remove untracked.
+-    Returns True only if the worktree is verifiably clean-at-base afterwards (both git commands
+-    succeeded AND HEAD==base AND no dirt) — the caller must NOT proceed on False."""
+-    r1 = _git(["reset", "--hard", base], cwd)
+-    r2 = _git(["clean", "-fd"], cwd)
+-    if r1.returncode != 0 or r2.returncode != 0:
+-        return False
+-    head = _git(["rev-parse", "--verify", "HEAD"], cwd)
+-    return head.returncode == 0 and head.stdout.strip() == base and clean_tree(cwd)
+-
+-
+-# ── helpers ──
+-
+-def _git(args: list, cwd: str) -> subprocess.CompletedProcess:
+-    try:
+-        return subprocess.run(["git", *args], cwd=cwd, capture_output=True,
+-                              text=True, timeout=30)
+-    except (OSError, subprocess.TimeoutExpired) as e:
+-        return subprocess.CompletedProcess(args, returncode=1, stdout="", stderr=str(e))
+-
+-
+-def _find_python_tests(base: Path) -> bool:
+-    skip = {".venv", "node_modules", ".git", "__pycache__", ".tox"}
+-    for root, dirs, files in os.walk(base):
+-        dirs[:] = [d for d in dirs if d not in skip]
+-        for f in files:
+-            if (f.startswith("test_") or f.endswith("_test.py")) and f.endswith(".py"):
+-                return True
+-    return False
+-
+-
+-def _pyproject_has_pytest(pyproject: Path) -> bool:
+-    if not pyproject.is_file():
+-        return False
+-    with contextlib.suppress(OSError):
+-        return "[tool.pytest" in pyproject.read_text(encoding="utf-8", errors="replace")
+-    return False
+-
+-
+-def _package_json_has_test(pkg: Path) -> bool:
+-    if not pkg.is_file():
+-        return False
+-    with contextlib.suppress(OSError, ValueError):
+-        data = json.loads(pkg.read_text(encoding="utf-8", errors="replace"))
+-        test = (data.get("scripts") or {}).get("test", "")
+-        return bool(test) and test.strip() != _NPM_STUB
+-    return False
+diff --git a/app/harness/llm.py b/app/harness/llm.py
+index 878c6762..37c5bfe9 100644
+--- a/app/harness/llm.py
++++ b/app/harness/llm.py
+@@ -17,7 +17,7 @@ import json
+ import logging
+ import random
+ from dataclasses import dataclass, field
+-from typing import AsyncIterator
++from typing import AsyncIterator, Iterable
+ 
+ import httpx
+ 
+@@ -131,9 +131,11 @@ class _ReasoningAccumulator:
+ 
+ class OpenRouterClient:
+     def __init__(self, api_key: str, model: str, base_url: str = DEFAULT_BASE_URL,
+-                 http: httpx.AsyncClient | None = None):
++                 http: httpx.AsyncClient | None = None,
++                 supported_parameters: Iterable[str] = ()):
+         self.api_key = api_key
+         self.model = model
++        self.supported_parameters = frozenset(str(p) for p in supported_parameters)
+         self.base_url = base_url.rstrip("/")
+         # Allow injecting a client (tests); otherwise own one.
+         self._http = http
+@@ -150,8 +152,26 @@ class OpenRouterClient:
+             await self._http.aclose()
+             self._http = None
+ 
++    def retarget(self, model: str, supported_parameters: Iterable[str]) -> None:
++        """Change the exact route and its request contract together.
++
++        Keeping these fields atomic prevents a seamless model switch from sending the
++        previous provider's optional parameters to the new one.
++        """
++        self.model = model
++        self.supported_parameters = frozenset(str(p) for p in supported_parameters)
++
++    def _validate_route(self) -> None:
++        # Provider-side atomic zero-spend does not exist for an unsuffixed preview.
++        # The explicit suffix is therefore the last-line guard immediately before POST.
++        if not self.model.endswith(":free"):
++            raise ValueError(
++                f"OpenRouter Harness accepts exact :free routes only, got '{self.model}'"
++            )
++
+     def _build_body(self, messages: list[dict], tools: list[dict],
+                     effort: str | None = None) -> dict:
++        self._validate_route()
+         body: dict = {
+             "model": self.model,
+             "messages": messages,
+@@ -159,11 +179,12 @@ class OpenRouterClient:
+             "usage": {"include": True},   # OpenRouter: emit usage in the final chunk
+         }
+         if tools:
++            if "tools" not in self.supported_parameters:
++                raise ValueError(f"OpenRouter model '{self.model}' does not support tools")
+             body["tools"] = tools
+-            body["tool_choice"] = "auto"
+-            body["parallel_tool_calls"] = True   # request-economy flag (#367): several tool
+-                                                 # calls per response cost ONE request instead of N
+-        if effort:
++            if "tool_choice" in self.supported_parameters:
++                body["tool_choice"] = "auto"
++        if effort and ({"reasoning", "reasoning_effort"} & self.supported_parameters):
+             # OpenRouter unified reasoning knob (provider-agnostic). Omitted → body unchanged.
+             body["reasoning"] = {"effort": effort}
+         return body
+@@ -215,25 +236,18 @@ class OpenRouterClient:
+                         f"OpenRouter {e.kind} rate limit: нужно ждать {e.retry_after:.0f}s, "
+                         f"потолок ожидания {ceiling:.0f}s исчерпан — повторите запрос позже"
+                     )
++                if attempt == MAX_RETRIES - 1:
++                    break
+                 delay = self._retry_delay(attempt, e.retry_after, ceiling)
+                 logger.warning(
+                     f"OpenRouter {e.kind} rate limit (attempt {attempt + 1}/{MAX_RETRIES}), retry in {delay:.1f}s")
+                 await asyncio.sleep(delay)
+-            except httpx.HTTPStatusError as e:
+-                last_err = e
+-                if started:
+-                    raise
+-                # Some providers reject unmapped body fields with 400 (#367 T7): strip the
+-                # economy flag once and retry; anything else stays a hard error.
+-                if "parallel_tool_calls" in str(e) and body.get("parallel_tool_calls"):
+-                    logger.warning("OpenRouter 400 mentions parallel_tool_calls — retrying without it")
+-                    body = {k: v for k, v in body.items() if k != "parallel_tool_calls"}
+-                    continue
+-                raise
+             except (httpx.TransportError, httpx.StreamError) as e:
+                 last_err = e
+                 if started:
+                     raise  # mid-stream network failure → discard, surface to loop
++                if attempt == MAX_RETRIES - 1:
++                    break
+                 delay = self._retry_delay(attempt, None)
+                 logger.warning(f"OpenRouter transport error (attempt {attempt + 1}): {e}, retry in {delay:.1f}s")
+                 await asyncio.sleep(delay)
+@@ -254,6 +268,7 @@ class OpenRouterClient:
+         racc = _ReasoningAccumulator()
+         finish_reason = ""
+         usage: dict = {}
++        emitted_content = False
+         emitted_tool_calls = False
+         async with http.stream("POST", f"{self.base_url}/chat/completions",
+                                json=body, headers=headers) as resp:
+@@ -281,6 +296,13 @@ class OpenRouterClient:
+                 if not isinstance(parsed, dict):
+                     continue
+                 chunk: dict = parsed
++                if chunk.get("error") is not None:
++                    error = chunk["error"]
++                    if isinstance(error, dict):
++                        message = error.get("message") or error.get("code") or error
++                    else:
++                        message = error
++                    raise RuntimeError(f"OpenRouter stream error: {message}")
+                 # usage-only chunk (OpenRouter sends a trailing chunk with empty choices)
+                 if chunk.get("usage"):
+                     usage = chunk["usage"]
+@@ -293,6 +315,7 @@ class OpenRouterClient:
+                 delta = choice.get("delta") or {}
+                 content = delta.get("content")
+                 if content:
++                    emitted_content = True
+                     yield LLMEvent("text_delta", text=content)
+                 if delta.get("tool_calls"):
+                     acc.add(delta["tool_calls"])
+@@ -303,14 +326,16 @@ class OpenRouterClient:
+                     finish_reason = fr
+         # emit accumulated tool calls (one per completed call), then final
+         for tc in acc.finished():
+-            if not tc["name"]:
+-                continue  # malformed fragment with no name — skip, don't crash the loop
++            if not tc["id"] or not tc["name"]:
++                raise RuntimeError("OpenRouter returned a malformed tool call without id or name")
+             emitted_tool_calls = True
+             yield LLMEvent("tool_call_done", tool_id=tc["id"],
+                            tool_name=tc["name"], arguments=tc["arguments"])
+         # finish_reason "tool_calls" wins when tool calls were emitted (plan: tool_calls win)
+         if emitted_tool_calls and finish_reason != "tool_calls":
+             finish_reason = "tool_calls"
++        if not emitted_content and not emitted_tool_calls:
++            raise RuntimeError("OpenRouter returned an empty completion")
+         yield LLMEvent("final", finish_reason=finish_reason or "stop", usage=usage,
+                        reasoning_details=racc.finished())
+ 
+@@ -338,8 +363,8 @@ def _parse_sse(line: str):
+     """Parse one SSE line → chunk dict, the _DONE sentinel, or None to skip.
+ 
+     Lines without a `data:` prefix (comments/blank/event:) are ignored. `[DONE]`
+-    terminates. Invalid JSON is skipped (never fatal) — a fragmented stream can hand
+-    us a partial line.
++    terminates. A `data:` line is a complete SSE record; invalid JSON is a protocol
++    error and must be loud instead of turning into an apparently successful empty reply.
+     """
+     if not line or not line.startswith("data:"):
+         return None
+@@ -350,9 +375,8 @@ def _parse_sse(line: str):
+         return _DONE
+     try:
+         return json.loads(payload)
+-    except (ValueError, TypeError):
+-        logger.debug(f"skipping unparseable SSE chunk: {payload[:120]}")
+-        return None
++    except (ValueError, TypeError) as exc:
++        raise RuntimeError(f"invalid OpenRouter SSE JSON: {payload[:120]}") from exc
+ 
+ 
+ def _parse_retry_after(resp: httpx.Response) -> float | None:
+diff --git a/app/harness/loop.py b/app/harness/loop.py
+index 08883800..288cbdd3 100644
+--- a/app/harness/loop.py
++++ b/app/harness/loop.py
+@@ -40,9 +40,8 @@ MAX_TOOL_ROUNDS = 100         # ceiling on tool-call rounds in a single turn (#3
+ REVIEW_MAX_ROUNDS = 15        # tighter ceiling for a reviewer sub-loop (#126)
+ WIND_DOWN_AT = (10, 3)        # warn the agent N rounds before the cap so it can finish
+                               # with a report instead of dying silently (#367)
+-CONTEXT_GUARD_RATIO = 0.85    # truncate when estimated tokens exceed this × max_context
+-CHARS_PER_TOKEN = 3.5         # crude estimator (no tiktoken dependency)
+-KEEP_RECENT_MESSAGES = 8      # messages preserved at the tail during truncation
++CONTEXT_GUARD_RATIO = 0.85    # compact when estimated tokens exceed this × max_context
++BYTES_PER_TOKEN = 3.5         # conservative across ASCII/Cyrillic; no tokenizer dependency
+ 
+ 
+ class _NoopMCP:
+@@ -109,7 +108,6 @@ class AgentLoop:
+         self.history.append(user_entry)
+         self.new_messages.append(user_entry)
+ 
+-        warned_positions: list[int] = []   # turn-scoped guard entries, removed in finally
+         try:
+             for round_no in range(self.max_rounds):
+                 remaining = self.max_rounds - round_no
+@@ -119,7 +117,6 @@ class AgentLoop:
+                     entry = {"role": "user", "content": msg}
+                     self.history.append(entry)
+                     self.new_messages.append(entry)
+-                    warned_positions.append(len(self.history) - 1)
+                     logger.warning(f"round guard: {remaining} rounds left (cap {self.max_rounds})")
+                     yield AgentEvent("warning", msg)
+ 
+@@ -143,7 +140,9 @@ class AgentLoop:
+                            f"messages dropped to fit the window")
+                     logger.warning(msg)
+                     yield AgentEvent("warning", msg)
+-                    self.new_messages.append({"role": "user", "content": msg})
++                    entry = {"role": "user", "content": msg}
++                    self.history.append(entry)
++                    self.new_messages.append(entry)
+ 
+                 assistant_msg = {"role": "assistant", "content": None}  # filled by _one_round
+                 try:
+@@ -190,13 +189,10 @@ class AgentLoop:
+         finally:
+             # Turn-scoped wind-down guards NEVER persist in the shared session history — a
+             # stale "3 rounds remain" in future turns is the same lie this task fights (#367 B3).
+-            for pos in sorted(warned_positions, reverse=True):
+-                if 0 <= pos < len(self.history) and \
+-                        str(self.history[pos].get("content", "")).startswith("[round guard]"):
+-                    del self.history[pos]
++            self.history[:] = [m for m in self.history
++                               if not str(m.get("content", "")).startswith("[round guard]")]
+             self.new_messages[:] = [m for m in self.new_messages
+                                     if not str(m.get("content", "")).startswith("[round guard]")]
+-            warned_positions.clear()
+ 
+     async def _one_round(self, assistant_msg: dict) -> AsyncIterator[AgentEvent]:
+         """Stream one LLM completion. Yields text AgentEvents LIVE (so the session sees
+@@ -360,31 +356,75 @@ class AgentLoop:
+ 
+     # ── context management (plan B6) ──
+ 
++    @staticmethod
++    def _estimate_messages(messages: list[dict]) -> int:
++        total = sum(
++            len(json.dumps(m, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
++            for m in messages
++        )
++        return int(total / BYTES_PER_TOKEN)
++
+     def _estimate_tokens(self) -> int:
+-        total = 0
+-        for m in self.history:
+-            total += len(json.dumps(m, ensure_ascii=False))
+-        return int(total / CHARS_PER_TOKEN)
++        return self._estimate_messages(self.history)
+ 
+     def _fit_context(self) -> bool:
+-        """Truncate history from the MIDDLE to fit the context guard. Preserve the
+-        system message, the recent tail, and tool_call/tool_result integrity.
+-        Returns False if it cannot be made to fit (caller → context_limit).
+-        Truncation is NEVER silent (#367 T9): the caller reports it via a warning event —
+-        an agent that silently lost half its task context is worse than a loud cap."""
++        """Compact old assistant/tool rounds while preserving instructions and protocol.
++
++        Every system/user message is an anchor: dropping the task to keep an old tool result
++        is backwards. Assistant tool calls and all immediately following tool results are
++        indivisible units, so compaction never creates an orphan result. Newest units win.
++        Returns False when the anchors alone exceed the guard.
++        """
+         guard = int(self.max_context * CONTEXT_GUARD_RATIO)
+         if self._estimate_tokens() <= guard:
+             return True
+-        head = self.history[:1] if self.history and self.history[0].get("role") == "system" else []
+-        tail = self.history[-KEEP_RECENT_MESSAGES:]
+-        # Never start the tail with an orphan tool result (no preceding tool_call).
+-        while tail and tail[0].get("role") == "tool":
+-            tail = tail[1:]
+-        dropped = len(self.history) - len(head) - len(tail)
+-        self.history[:] = head + tail
++
++        anchor_indices = {
++            i for i, message in enumerate(self.history)
++            if message.get("role") in ("system", "user")
++        }
++        anchors = [m for i, m in enumerate(self.history) if i in anchor_indices]
++        if self._estimate_messages(anchors) > guard:
++            return False
++
++        units: list[list[int]] = []
++        i = 0
++        while i < len(self.history):
++            message = self.history[i]
++            if message.get("role") != "assistant":
++                i += 1
++                continue
++            unit = [i]
++            calls = message.get("tool_calls") or []
++            wanted = {tc.get("id") for tc in calls if tc.get("id")}
++            answered: set[str] = set()
++            j = i + 1
++            while j < len(self.history) and self.history[j].get("role") == "tool":
++                tool_id = self.history[j].get("tool_call_id")
++                if tool_id:
++                    answered.add(tool_id)
++                unit.append(j)
++                j += 1
++            # A broken/incomplete tool round is never copied into the compacted snapshot.
++            if not calls or (len(wanted) == len(calls) and answered == wanted):
++                units.append(unit)
++            i = j
++
++        keep = set(anchor_indices)
++        for unit in reversed(units):
++            candidate_indices = keep | set(unit)
++            candidate = [m for idx, m in enumerate(self.history) if idx in candidate_indices]
++            if self._estimate_messages(candidate) <= guard:
++                keep.update(unit)
++
++        compacted = [m for idx, m in enumerate(self.history) if idx in keep]
++        dropped = len(self.history) - len(compacted)
++        if dropped <= 0:
++            return False
++        self.history[:] = compacted
+         self.truncated_history = True
+-        self.truncated_dropped = dropped
+-        return self._estimate_tokens() <= self.max_context
++        self.truncated_dropped += dropped
++        return self._estimate_tokens() <= guard
+ 
+     def _terminal(self, stop_reason: str, ok: bool, detail: str = "") -> None:
+         self.stop_reason = stop_reason
+diff --git a/app/harness/mcp.py b/app/harness/mcp.py
+index bb86a59f..2ba04f22 100644
+--- a/app/harness/mcp.py
++++ b/app/harness/mcp.py
+@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
+ CALL_TIMEOUT = 120            # seconds per tool call
+ INIT_TIMEOUT = 30            # seconds per-server handshake
+ TERM_GRACE = 3              # SIGTERM → wait → SIGKILL
++STDIO_LIMIT = 16 * 1024 * 1024  # one JSON-RPC record; fail loud above this bound
+ PROTOCOL_VERSION = "2025-06-18"
+ 
+ 
+@@ -58,6 +59,7 @@ class _Server:
+             stderr=asyncio.subprocess.DEVNULL,   # server logs to stderr; drop to avoid pipe-fill block
+             env={k: str(v) for k, v in env.items()},
+             start_new_session=True,              # own process group → killpg can reap grandchildren
++            limit=STDIO_LIMIT,
+         )
+         self._alive = True
+         self._reader = asyncio.create_task(self._read_loop())
+@@ -114,6 +116,7 @@ class _Server:
+ 
+     async def _read_loop(self) -> None:
+         assert self.proc is not None and self.proc.stdout is not None
++        failure: Exception | None = None
+         try:
+             while True:
+                 line = await self.proc.stdout.readline()
+@@ -121,18 +124,23 @@ class _Server:
+                     break
+                 try:
+                     msg = json.loads(line)
+-                except (ValueError, TypeError):
+-                    continue               # tolerate a partial/garbage line, never fatal
++                except (ValueError, TypeError) as exc:
++                    raise MCPError(
++                        f"MCP server '{self.name}' emitted invalid JSON: "
++                        f"{line[:160].decode(errors='replace')}"
++                    ) from exc
+                 req_id = msg.get("id") if isinstance(msg, dict) else None
+                 fut = self._pending.pop(req_id, None) if req_id is not None else None
+                 if fut is not None and not fut.done():
+                     fut.set_result(msg)
+                 # messages without a known id (server-initiated requests/notifications) → ignore
+         except Exception as e:             # reader must never crash the loop
+-            logger.debug(f"MCP '{self.name}' read loop error: {e}")
++            failure = e
++            logger.warning(f"MCP '{self.name}' read loop error: {e}")
+         finally:
+             self._alive = False
+-            err = ConnectionError(f"MCP server '{self.name}' closed")
++            detail = f": {failure}" if failure is not None else ""
++            err = ConnectionError(f"MCP server '{self.name}' closed{detail}")
+             for fut in self._pending.values():
+                 if not fut.done():
+                     fut.set_exception(err)
+diff --git a/app/harness/sessions.py b/app/harness/sessions.py
+index 013d838c..4176018d 100644
+--- a/app/harness/sessions.py
++++ b/app/harness/sessions.py
+@@ -1,4 +1,4 @@
+-"""JSONL session store — append-only history, resumable, crash-tolerant.
++"""JSONL session store — resumable, crash-tolerant history.
+ 
+ The JSONL file is the source of truth for resume. Each line is one OpenAI-format
+ message dict (role/content/tool_calls/tool_call_id) plus optional meta entries.
+@@ -8,12 +8,13 @@ A partial trailing line (crash mid-write) is skipped on load, never fatal.
+ import asyncio
+ import json
+ import os
++import tempfile
+ import uuid
+ from pathlib import Path
+ 
+ 
+ class SessionStore:
+-    """One JSONL file per session. Append-only, fsync on close, tolerant load.
++    """One JSONL file per session. Batched append, atomic compact snapshot, tolerant load.
+ 
+     Concurrency: a single asyncio.Lock guards append/flush so overlapping
+     disconnect/interrupt/turn-persistence cannot interleave a partial line.
+@@ -42,37 +43,85 @@ class SessionStore:
+ 
+     async def append(self, entry: dict) -> None:
+         """Append one JSON entry as a single LF-terminated line, flushed to disk."""
+-        line = json.dumps(entry, ensure_ascii=False)
++        await self.append_messages([entry])
++
++    async def append_messages(self, messages: list[dict]) -> None:
++        """Append a batch with one flush/fsync instead of one disk barrier per message."""
++        if not messages:
++            return
++        lines = [json.dumps(message, ensure_ascii=False) + "\n" for message in messages]
+         async with self._lock:
+             self._ensure_open()
+             fh = self._fh
+             assert fh is not None
+-            fh.write(line + "\n")
++            fh.writelines(lines)
+             fh.flush()
+             os.fsync(fh.fileno())
+ 
+-    async def append_messages(self, messages: list[dict]) -> None:
+-        for m in messages:
+-            await self.append(m)
++    async def replace_messages(self, messages: list[dict]) -> None:
++        """Atomically replace the JSONL snapshot after context compaction.
++
++        Append-only persistence would resurrect discarded history on the next process
++        start. The temp file lives beside the target so os.replace stays atomic.
++        """
++        async with self._lock:
++            self._dir.mkdir(parents=True, exist_ok=True)
++            if self._fh is not None:
++                self._fh.flush()
++                os.fsync(self._fh.fileno())
++                self._fh.close()
++                self._fh = None
++
++            tmp_path: str | None = None
++            try:
++                with tempfile.NamedTemporaryFile(
++                    mode="w", encoding="utf-8", dir=self._dir,
++                    prefix=f".{self.session_id}.", suffix=".tmp", delete=False,
++                ) as tmp:
++                    tmp_path = tmp.name
++                    for message in messages:
++                        tmp.write(json.dumps(message, ensure_ascii=False) + "\n")
++                    tmp.flush()
++                    os.fsync(tmp.fileno())
++                os.replace(tmp_path, self._path)
++                tmp_path = None
++                dir_fd = os.open(self._dir, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
++                try:
++                    os.fsync(dir_fd)
++                finally:
++                    os.close(dir_fd)
++            finally:
++                if tmp_path is not None:
++                    try:
++                        os.unlink(tmp_path)
++                    except FileNotFoundError:
++                        pass
+ 
+     def load(self) -> list[dict]:
+-        """Read JSONL → list of message dicts. A broken trailing line is skipped
+-        (crash tolerance); other malformed lines are skipped with no fatal error.
+-        Only OpenAI-message-shaped entries (have a 'role') are returned."""
++        """Read JSONL → messages; tolerate only a crash-truncated final record.
++
++        Corruption in the middle means later history cannot be trusted and is loud.
++        Only OpenAI-message-shaped entries (have a supported role) are returned.
++        """
+         if not self._path.exists():
+             return []
+         out: list[dict] = []
+         with open(self._path, encoding="utf-8") as f:
+             lines = f.readlines()
+-        for ln in lines:
++        nonempty = [i for i, line in enumerate(lines) if line.strip()]
++        last_nonempty = nonempty[-1] if nonempty else -1
++        for index, ln in enumerate(lines):
+             ln = ln.strip()
+             if not ln:
+                 continue
+             try:
+                 obj = json.loads(ln)
+-            except (ValueError, TypeError):
+-                # malformed (likely a partial trailing line from a crash) — skip
+-                continue
++            except (ValueError, TypeError) as exc:
++                if index == last_nonempty:
++                    continue
++                raise RuntimeError(
++                    f"corrupt harness session {self.session_id}: invalid JSONL line {index + 1}"
++                ) from exc
+             if isinstance(obj, dict) and obj.get("role") in ("user", "assistant", "tool", "system"):
+                 out.append(obj)
+         return out
+diff --git a/app/model_catalog.py b/app/model_catalog.py
+index 2d51b404..d905431c 100644
+--- a/app/model_catalog.py
++++ b/app/model_catalog.py
+@@ -2,9 +2,10 @@
+ 
+ Fetches https://openrouter.ai/api/v1/models, normalizes it to the fields the
+ dashboard filters need, caches the result in SQLite kv (`model_catalog_cache`)
+-and registers EVERY cached model into the shared registry via
+-`app.models.register_model` — availability is an overlay (flags), so disabled
+-models stay registered and live sessions on them keep resuming.
++and registers every eligible cached model into the shared registry via
++`app.models.register_model`. Only deterministic `:free` text routes with tool
++support are eligible for Harness; zero token prices alone are not a free-route
++contract because providers may charge per request, image, song, or other unit.
+ 
+ Registration-order guarantee: `apply_model_catalog()` is re-applied at the tail
+ of every registry rebuild (`fetch_models_from_proxy`, `refresh_models`), so an
+@@ -26,7 +27,8 @@ OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+ 
+ # Dropped-model counter of the last apply_model_catalog() run. Exposed through
+ # refresh_catalog() so a silently-eaten catalog is visible in the API response.
+-_LAST_APPLY_STATS = {"registered": 0, "dropped": 0}
++_LAST_APPLY_STATS = {"eligible": 0, "registered": 0, "removed": 0, "dropped": 0}
++_CATALOG_REGISTERED_IDS: set[str] = set()
+ 
+ 
+ def normalize_catalog_model(raw: dict) -> dict | None:
+@@ -44,7 +46,17 @@ def normalize_catalog_model(raw: dict) -> dict | None:
+             return 0.0
+ 
+     arch = raw.get("architecture") or {}
+-    params = raw.get("supported_parameters") or []
++    params = sorted({str(p) for p in (raw.get("supported_parameters") or []) if p})
++    input_modalities = [str(m) for m in (arch.get("input_modalities") or [])]
++    output_modalities = [str(m) for m in (arch.get("output_modalities") or [])]
++    is_free = model_id.endswith(":free")
++    supports_tools = "tools" in params
++    harness_eligible = (
++        is_free
++        and supports_tools
++        and "text" in input_modalities
++        and "text" in output_modalities
++    )
+     try:
+         context_length = int(raw.get("context_length") or 200000)
+     except (TypeError, ValueError):
+@@ -55,8 +67,12 @@ def normalize_catalog_model(raw: dict) -> dict | None:
+         "context_length": max(context_length, 1),
+         "price_prompt": _per_mtok(pricing.get("prompt")),
+         "price_completion": _per_mtok(pricing.get("completion")),
+-        "input_modalities": [str(m) for m in (arch.get("input_modalities") or [])],
+-        "supports_tools": "tools" in params,
++        "input_modalities": input_modalities,
++        "output_modalities": output_modalities,
++        "supports_tools": supports_tools,
++        "supported_parameters": params,
++        "is_free": is_free,
++        "harness_eligible": harness_eligible,
+     }
+ 
+ 
+@@ -82,18 +98,52 @@ def cached_catalog() -> list[dict]:
+     return catalog_cache_payload()["models"]
+ 
+ 
++def _cached_harness_eligible(model: dict) -> bool:
++    """Read both the current cache schema and the pre-hardening schema safely.
++
++    Old rows did not persist output modalities or the eligibility bit. They came from
++    OpenRouter's text catalog, so exact `:free` + advertised tools is the conservative
++    migration; optional request parameters stay disabled until a fresh catalog arrives.
++    """
++    if "harness_eligible" in model:
++        return model.get("harness_eligible") is True
++    return (
++        str(model.get("id") or "").endswith(":free")
++        and model.get("supports_tools") is True
++        and "text" in (model.get("input_modalities") or [])
++    )
++
++
+ def apply_model_catalog() -> int:
+     """Register every cached catalog model into the shared registry.
+ 
+-    Idempotent: already-registered ids are refreshed in place. Manifest ids are
+-    never clobbered. Returns the number of registrations performed this run;
++    Idempotent: already-registered ids are refreshed in place, including live
++    capabilities/context for manifest fallbacks. Returns registrations this run;
+     per-model failures are counted in `_LAST_APPLY_STATS['dropped']`.
+     """
+-    from app.models import MODEL_SPECS, ModelSpec, SELECTABLE_MODEL_SPECS, register_model
++    from app.models import (
++        MODEL_SPECS, ModelSpec, SELECTABLE_MODEL_SPECS, register_model, unregister_model,
++    )
++
++    global _CATALOG_REGISTERED_IDS
++    manifest = {spec.id: spec for spec in SELECTABLE_MODEL_SPECS}
++    eligible = {
++        norm["id"]: norm for norm in cached_catalog()
++        if _cached_harness_eligible(norm)
++    }
++    current_ids = set(eligible)
++
++    # A refresh is a snapshot, not an append-only discovery feed. Routes that vanished
++    # must stop accepting NEW sessions; manifest fallbacks remain registered explicitly.
++    removed = 0
++    for stale_id in _CATALOG_REGISTERED_IDS - current_ids:
++        if stale_id not in manifest:
++            unregister_model(stale_id)
++            removed += 1
+ 
+-    manifest_ids = {spec.id for spec in SELECTABLE_MODEL_SPECS}
+     registered = dropped = 0
+-    for norm in cached_catalog():
++    for norm in eligible.values():
++        declared = manifest.get(norm["id"])
+         spec = ModelSpec(
+             id=norm["id"],
+             name=norm["name"],
+@@ -102,15 +152,24 @@ def apply_model_catalog() -> int:
+             context_length=int(norm["context_length"]),
+             price_input=float(norm["price_prompt"]),
+             price_output=float(norm["price_completion"]),
++            supported_parameters=tuple(
++                norm.get("supported_parameters")
++                or (declared.supported_parameters if declared else ("tools",))
++            ),
++            default_dashboard=(declared.default_dashboard if declared else False),
++            default_agents=(declared.default_agents if declared else False),
+         )
+         try:
+-            register_model(spec, replace=norm["id"] not in manifest_ids)
++            register_model(spec, replace=norm["id"] in MODEL_SPECS)
+             registered += 1
+         except (ValueError, TypeError) as exc:
+             dropped += 1
+             logger.warning("catalog model %s dropped: %s", norm["id"], exc)
+ 
+-    _LAST_APPLY_STATS.update(registered=registered, dropped=dropped)
++    _CATALOG_REGISTERED_IDS = current_ids
++    _LAST_APPLY_STATS.update(
++        eligible=len(eligible), registered=registered, removed=removed, dropped=dropped,
++    )
+     return registered
+ 
+ 
+@@ -118,8 +177,7 @@ async def refresh_catalog() -> dict:
+     """Fetch the OpenRouter catalog, cache it, register it. Raises on fetch error."""
+     api_key = (
+         os.environ.get("OPENROUTER_API_KEY")
+-        or os.environ.get("OPENROUTER_KEY")
+-        or os.environ.get("ANTHROPIC_API_KEY", "")
++        or os.environ.get("OPENROUTER_KEY", "")
+     )
+     headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+     proxy_url = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+@@ -146,11 +204,13 @@ async def refresh_catalog() -> dict:
+     registered = apply_model_catalog()
+     result = {
+         "fetched": len(normalized),
++        "eligible": _LAST_APPLY_STATS["eligible"],
+         "registered": registered,
++        "removed": _LAST_APPLY_STATS["removed"],
+         "dropped": _LAST_APPLY_STATS["dropped"],
+     }
+     logger.info(
+-        "OpenRouter catalog refreshed: fetched=%(fetched)s registered=%(registered)s "
+-        "dropped=%(dropped)s" % result
++        "OpenRouter catalog refreshed: fetched=%(fetched)s eligible=%(eligible)s "
++        "registered=%(registered)s removed=%(removed)s dropped=%(dropped)s" % result
+     )
+     return result
+diff --git a/app/models.py b/app/models.py
+index 49df447d..184feceb 100644
+--- a/app/models.py
++++ b/app/models.py
+@@ -27,6 +27,9 @@ class ModelSpec:
+     context_length: int = 200000
+     price_input: float | None = None
+     price_output: float | None = None
++    supported_parameters: tuple[str, ...] = ()
++    default_dashboard: bool = True
++    default_agents: bool = True
+ 
+ 
+ @dataclass(frozen=True)
+@@ -121,27 +124,26 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
+         id="grok-4.5", name="Grok 4.5",
+         runtime="grok", provider="x-ai", context_length=500000,
+     ),
+-    # OpenRouter free tier through Orchestra's own harness. Only `:free` ids with tool
+-    # calling are listed — the harness agent loop is useless without tools. Prices are 0
+-    # by definition; the daily ceiling is a request count (1000/day after a lifetime $10
+-    # purchase, 50/day before it), not tokens, so it lives outside TOKEN_PRICES.
+-    # Stealth preview: an anonymous third-party provider, free during the preview, and it
+-    # RETAINS prompts and completions. Fine for this repo's own work, not for anything the
+-    # user would not publish.
+-    ModelSpec(
+-        id="stealth/ox-alpha", name="Ox Alpha (free preview)",
+-        runtime="harness", provider="openrouter", context_length=1048576,
+-        price_input=0.0, price_output=0.0,
+-    ),
++    # OpenRouter through Orchestra's own harness. Admission is exact and fail-closed:
++    # only `:free` routes that advertise tools may reach the HTTP client. These two
++    # entries are offline fallbacks for a cold catalog; they start disabled until a user
++    # intentionally qualifies and enables them. Request-count quota lives outside prices.
+     ModelSpec(
+         id="z-ai/glm-5.2:free", name="GLM 5.2 (free)",
+         runtime="harness", provider="openrouter", context_length=256000,
+         price_input=0.0, price_output=0.0,
++        supported_parameters=(
++            "reasoning", "reasoning_effort", "response_format", "structured_outputs",
++            "tool_choice", "tools",
++        ),
++        default_dashboard=False, default_agents=False,
+     ),
+     ModelSpec(
+         id="nvidia/nemotron-3-ultra-550b-a55b:free", name="Nemotron 3 Ultra (free)",
+         runtime="harness", provider="openrouter", context_length=1000000,
+         price_input=0.0, price_output=0.0,
++        supported_parameters=("reasoning", "reasoning_effort", "tool_choice", "tools"),
++        default_dashboard=False, default_agents=False,
+     ),
+ )
+ 
+@@ -308,8 +310,6 @@ COMPAT_MODEL_SPECS: dict[str, ModelSpec] = {
+ # not another family-wide catch-all.
+ _REVIEWED_PROXY_ROUTES: dict[str, tuple[str, str]] = {
+     **{spec.id: (spec.runtime, spec.provider) for spec in SELECTABLE_MODEL_SPECS},
+-    "deepseek/deepseek-v4-flash": ("harness", "openrouter"),
+-    "deepseek/deepseek-v4-pro": ("harness", "openrouter"),
+ }
+ 
+ _VERSION_RE = re.compile(r"[-.]v?\d[\d.]*$")
+@@ -364,6 +364,24 @@ def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
+     _apply_derived_views(spec)
+ 
+ 
++def validate_harness_model_spec(spec: ModelSpec) -> None:
++    """Production admission for Orchestra's OpenRouter runtime.
++
++    Zero token prices are not proof of a free route: request/song/image prices can live
++    outside those fields. The `:free` suffix is the provider's explicit routing contract.
++    Tool support is mandatory because Harness is an agent runtime, not a chat wrapper.
++    """
++    if spec.runtime != "harness":
++        raise ValueError(f"model '{spec.id}' is not a harness model")
++    if not spec.id.endswith(":free"):
++        raise ValueError(
++            f"harness model '{spec.id}' is not an exact :free route; "
++            "unsuffixed previews and paid routes are blocked"
++        )
++    if "tools" not in spec.supported_parameters:
++        raise ValueError(f"harness model '{spec.id}' does not advertise tool support")
++
++
+ def unregister_model(model_id: str) -> None:
+     MODEL_SPECS.pop(model_id, None)
+     MODELS.pop(model_id, None)
+@@ -412,11 +430,15 @@ def _load_model_flags() -> dict:
+ def get_model_flags(model_id: str) -> dict[str, bool]:
+     """Dashboard/agents visibility; manifest models default to both-true, catalog
+     models registered later default to both-false until the user enables them."""
+-    default = any(spec.id == model_id for spec in SELECTABLE_MODEL_SPECS)
++    manifest = next((spec for spec in SELECTABLE_MODEL_SPECS if spec.id == model_id), None)
+     stored = _load_model_flags().get(model_id) or {}
+     return {
+-        "dashboard": bool(stored.get("dashboard", default)),
+-        "agents": bool(stored.get("agents", default)),
++        "dashboard": bool(stored.get(
++            "dashboard", manifest.default_dashboard if manifest is not None else False
++        )),
++        "agents": bool(stored.get(
++            "agents", manifest.default_agents if manifest is not None else False
++        )),
+     }
+ 
+ 
+@@ -440,6 +462,9 @@ def set_model_flags(
+ 
+ def ensure_spawn_allowed(model_id: str) -> None:
+     """Hard gate for agent-side usage (worker spawn, MCP change-model)."""
++    spec = get_model_spec(model_id)
++    if spec.runtime == "harness":
++        validate_harness_model_spec(spec)
+     if not get_model_flags(model_id)["agents"]:
+         raise ValueError(
+             f"model '{model_id}' is disabled for agents — re-enable it in the "
+@@ -449,6 +474,9 @@ def ensure_spawn_allowed(model_id: str) -> None:
+ 
+ def ensure_dashboard_visible(model_id: str) -> None:
+     """Hard gate for user-side actions (UI session creation, change-model from UI)."""
++    spec = get_model_spec(model_id)
++    if spec.runtime == "harness":
++        validate_harness_model_spec(spec)
+     if not get_model_flags(model_id)["dashboard"]:
+         raise ValueError(
+             f"model '{model_id}' is hidden from the dashboard — re-enable it in "
+@@ -604,6 +632,9 @@ def _proxy_model_spec(raw: dict) -> ModelSpec | None:
+         context_length=context_length,
+         price_input=round(prompt_price, 4) if prompt_price else None,
+         price_output=round(completion_price, 4) if completion_price else None,
++        supported_parameters=tuple(sorted({
++            str(item) for item in (raw.get("supported_parameters") or []) if item
++        })),
+     )
+ 
+ 
+@@ -771,6 +802,11 @@ def available_models_block() -> str:
+         if not get_model_flags(model_id)["agents"]:
+             continue
+         spec = get_model_spec(model_id)
++        if spec.runtime == "harness":
++            try:
++                validate_harness_model_spec(spec)
++            except ValueError:
++                continue
+         ctx = spec.context_length
+         ctx_k = f"{ctx // 1000}k"
+         alias_list = [a for a, m in ALIASES.items() if m == model_id]
+diff --git a/app/routes/system.py b/app/routes/system.py
+index 61bc5750..085ece89 100644
+--- a/app/routes/system.py
++++ b/app/routes/system.py
+@@ -36,6 +36,7 @@ from app.models import (
+     is_proxy_connected,
+     provider_metadata_payload,
+     runtime_for_record,
++    validate_harness_model_spec,
+ )
+ from app.pipeline import list_pipelines
+ from app import restart_guard
+@@ -358,6 +359,11 @@ async def list_models(response: Response):
+         if not get_model_flags(mid)["dashboard"]:
+             continue  # #366: hidden by the user on the catalog screen
+         spec = get_model_spec(mid)
++        if spec.runtime == "harness":
++            try:
++                validate_harness_model_spec(spec)
++            except ValueError:
++                continue
+         entry = {
+             "id": mid,
+             "name": name,
+@@ -420,7 +426,20 @@ async def get_models_catalog():
+                 spec.price_output if spec.price_output is not None else None,
+             ),
+             "input_modalities": entry.get("input_modalities", []),
++            "output_modalities": entry.get("output_modalities", []),
+             "supports_tools": entry.get("supports_tools", True),
++            "supported_parameters": entry.get(
++                "supported_parameters", list(spec.supported_parameters)
++            ),
++            "is_free": entry.get(
++                "is_free", spec.runtime == "harness" and model_id.endswith(":free")
++            ),
++            "harness_eligible": entry.get(
++                "harness_eligible",
++                spec.runtime != "harness" or (
++                    model_id.endswith(":free") and "tools" in spec.supported_parameters
++                ),
++            ),
+             "runtime": spec.runtime,
+             "provider": spec.provider,
+             "flags": get_model_flags(model_id),
+@@ -440,7 +459,7 @@ async def refresh_models_catalog():
+ async def patch_model_flags(request: Request):
+     import json as _json
+ 
+-    from app.models import MODEL_SPECS, set_model_flags
++    from app.models import MODEL_SPECS, set_model_flags, validate_harness_model_spec
+ 
+     try:
+         body = await request.json()
+@@ -453,6 +472,12 @@ async def patch_model_flags(request: Request):
+         return JSONResponse({"error": f"unknown model: {model_id}"}, status_code=400)
+     dashboard = body.get("dashboard")
+     agents = body.get("agents")
++    spec = MODEL_SPECS[model_id]
++    if agents is True and spec.runtime == "harness":
++        try:
++            validate_harness_model_spec(spec)
++        except ValueError as exc:
++            return JSONResponse({"error": str(exc)}, status_code=400)
+     flags = set_model_flags(
+         model_id,
+         dashboard=bool(dashboard) if dashboard is not None else None,
+diff --git a/app/static/js/app.js b/app/static/js/app.js
+index 89720167..5abbb93b 100644
+--- a/app/static/js/app.js
++++ b/app/static/js/app.js
+@@ -8739,7 +8739,7 @@ async function refreshCatalog() {
+ function _catalogMatches(m) {
+   const q = ($('#catalog-search')?.value || '').trim().toLowerCase();
+   if (q && !(`${m.id} ${m.name}`.toLowerCase().includes(q))) return false;
+-  if ($('#catalog-free')?.checked && !(m.price_prompt === 0 && m.price_completion === 0)) return false;
++  if ($('#catalog-free')?.checked && !m.is_free) return false;
+   if ($('#catalog-tools')?.checked && !m.supports_tools) return false;
+   if ($('#catalog-image')?.checked && !(m.input_modalities || []).includes('image')) return false;
+   return true;
+@@ -8755,6 +8755,11 @@ function _catalogToggle(flag, m) {
+   box.setAttribute('data-flag', flag);
+   box.dataset.id = m.id;
+   box.checked = !!m.flags[flag];
++  if (m.runtime === 'harness' && !m.harness_eligible) {
++    box.disabled = true;
++    label.classList.add('opacity-40', 'cursor-not-allowed');
++    label.title = 'Harness допускает только точные :free маршруты с tool calling';
++  }
+   label.appendChild(box);
+   label.appendChild(document.createTextNode(flag === 'dashboard' ? 'дашборд' : 'агентам'));
+   return label;
+@@ -8770,7 +8775,8 @@ function _catalogRow(m) {
+   nameEl.textContent = m.name;
+   const metaEl = document.createElement('div');
+   metaEl.className = 'text-[10px] text-slate-500 truncate';
+-  metaEl.textContent = `${m.id} · ${Math.round(m.context_length / 1000)}k · ${_fmtPrice(m.price_prompt)} in / ${_fmtPrice(m.price_completion)} out · ${m.runtime}`;
++  const admission = m.runtime === 'harness' && !m.harness_eligible ? ' · blocked' : '';
++  metaEl.textContent = `${m.id} · ${Math.round(m.context_length / 1000)}k · ${_fmtPrice(m.price_prompt)} in / ${_fmtPrice(m.price_completion)} out · ${m.runtime}${admission}`;
+   info.append(nameEl, metaEl);
+   row.append(info, _catalogToggle('dashboard', m), _catalogToggle('agents', m));
+   return row;
+diff --git a/tests/test_catalog_api.py b/tests/test_catalog_api.py
+index 7087ece3..fe88190a 100644
+--- a/tests/test_catalog_api.py
++++ b/tests/test_catalog_api.py
+@@ -39,13 +39,17 @@ def _registry_snapshot():
+ CATALOG_KV_KEY = "model_catalog_cache"
+ 
+ NORMALIZED = {
+-    "id": "vendor/model-x",
++    "id": "vendor/model-x:free",
+     "name": "Vendor: Model X",
+     "context_length": 128000,
+-    "price_prompt": 0.5,
+-    "price_completion": 1.5,
++    "price_prompt": 0.0,
++    "price_completion": 0.0,
+     "input_modalities": ["text", "image"],
++    "output_modalities": ["text"],
+     "supports_tools": True,
++    "supported_parameters": ["tool_choice", "tools"],
++    "is_free": True,
++    "harness_eligible": True,
+ }
+ 
+ 
+@@ -63,22 +67,22 @@ def client():
+ @pytest.fixture()
+ def vendor_model():
+     spec = ModelSpec(
+-        id="test/vendor-x", name="Vendor X", runtime="harness",
++        id="test/vendor-x:free", name="Vendor X", runtime="harness",
+         provider="openrouter", context_length=128000,
+-        price_input=0.5, price_output=1.5,
++        price_input=0.0, price_output=0.0, supported_parameters=("tools",),
+     )
+     registry.register_model(spec)
+     yield spec
+-    registry.unregister_model("test/vendor-x")
++    registry.unregister_model("test/vendor-x:free")
+ 
+ 
+ def test_t4_catalog_list_carries_flags(vendor_model, client):
+-    registry.set_model_flags("test/vendor-x", agents=True)
++    registry.set_model_flags("test/vendor-x:free", agents=True)
+     body = client.get("/api/models/catalog").json()
+-    entry = next(m for m in body["catalog"] if m["id"] == "test/vendor-x")
++    entry = next(m for m in body["catalog"] if m["id"] == "test/vendor-x:free")
+     # Catalog default is false/false; the user enabled agents only.
+     assert entry["flags"] == {"dashboard": False, "agents": True}
+-    assert entry["price_prompt"] == 0.5
++    assert entry["price_prompt"] == 0.0
+     assert entry["context_length"] == 128000
+     manifest_entry = next(m for m in body["catalog"] if m["id"] == "claude-haiku-4-5")
+     assert manifest_entry["flags"] == {"dashboard": True, "agents": True}
+@@ -87,11 +91,11 @@ def test_t4_catalog_list_carries_flags(vendor_model, client):
+ def test_t4_patch_flags_persists(vendor_model, client):
+     resp = client.patch(
+         "/api/models/catalog/flags",
+-        json={"id": "test/vendor-x", "dashboard": True, "agents": False},
++        json={"id": "test/vendor-x:free", "dashboard": True, "agents": False},
+     )
+     assert resp.status_code == 200
+     assert resp.json()["flags"] == {"dashboard": True, "agents": False}
+-    assert registry.get_model_flags("test/vendor-x") == {
++    assert registry.get_model_flags("test/vendor-x:free") == {
+         "dashboard": True,
+         "agents": False,
+     }
+@@ -101,6 +105,24 @@ def test_t4_patch_flags_persists(vendor_model, client):
+     assert unknown.status_code == 400
+ 
+ 
++def test_t4_cannot_enable_unsuffixed_harness_route(client):
++    spec = ModelSpec(
++        id="test/paid-preview", name="Paid preview", runtime="harness",
++        provider="openrouter", context_length=128000,
++        supported_parameters=("tools",),
++    )
++    registry.register_model(spec)
++    try:
++        resp = client.patch(
++            "/api/models/catalog/flags",
++            json={"id": spec.id, "agents": True},
++        )
++        assert resp.status_code == 400
++        assert ":free" in resp.json()["error"]
++    finally:
++        registry.unregister_model(spec.id)
++
++
+ def test_t4_refresh_refetches_and_reregisters(vendor_model, client, monkeypatch):
+     class _FakeResponse:
+         def raise_for_status(self):
+@@ -123,12 +145,12 @@ def test_t4_refresh_refetches_and_reregisters(vendor_model, client, monkeypatch)
+             return _FakeResponse()
+ 
+     NORMALIZED_RAW = {
+-        "id": "vendor/model-y",
++        "id": "vendor/model-y:free",
+         "name": "Vendor: Model Y",
+         "context_length": 64000,
+         "pricing": {"prompt": "0", "completion": "0"},
+-        "architecture": {"input_modalities": ["text"]},
+-        "supported_parameters": ["tools"],
++        "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]},
++        "supported_parameters": ["tools", "tool_choice"],
+     }
+     monkeypatch.setattr(
+         "app.model_catalog.httpx", SimpleNamespace(AsyncClient=_FakeAsyncClient)
+@@ -138,6 +160,6 @@ def test_t4_refresh_refetches_and_reregisters(vendor_model, client, monkeypatch)
+         assert resp.status_code == 200, resp.text
+         body = resp.json()
+         assert body["fetched"] == 1
+-        assert "vendor/model-y" in registry.MODELS
++        assert "vendor/model-y:free" in registry.MODELS
+     finally:
+-        registry.unregister_model("vendor/model-y")
++        registry.unregister_model("vendor/model-y:free")
+diff --git a/tests/test_harness_inject.py b/tests/test_harness_inject.py
+index 3f60f23c..37b8915c 100644
+--- a/tests/test_harness_inject.py
++++ b/tests/test_harness_inject.py
+@@ -21,7 +21,7 @@ def test_runtime_declares_mid_turn_inject():
+ 
+ 
+ def test_send_during_active_turn_queues_instead_of_raising():
+-    b = HarnessBackend(model="stealth/ox-alpha", cwd="/tmp")
++    b = HarnessBackend(model="nvidia/nemotron-3-ultra-550b-a55b:free", cwd="/tmp")
+     b._llm = object()          # connect() not needed: send() only checks it is set
+     b._turn_active = True
+ 
+@@ -31,7 +31,7 @@ def test_send_during_active_turn_queues_instead_of_raising():
+ 
+ 
+ def test_drain_hands_over_once_and_forgets():
+-    b = HarnessBackend(model="stealth/ox-alpha", cwd="/tmp")
++    b = HarnessBackend(model="nvidia/nemotron-3-ultra-550b-a55b:free", cwd="/tmp")
+     b._injected = ["first", "second"]
+ 
+     assert b._drain_injected() == ["first", "second"]
+@@ -40,11 +40,15 @@ def test_drain_hands_over_once_and_forgets():
+ 
+ def test_retarget_model_keeps_history_and_session_store():
+     b = HarnessBackend(
+-        model="stealth/ox-alpha",
++        model="nvidia/nemotron-3-ultra-550b-a55b:free",
+         cwd="/tmp",
+         resume_session_id="native-harness-session",
+     )
+-    b._llm = OpenRouterClient(api_key="test", model="stealth/ox-alpha")
++    b._llm = OpenRouterClient(
++        api_key="test",
++        model="nvidia/nemotron-3-ultra-550b-a55b:free",
++        supported_parameters=("tools", "tool_choice", "reasoning", "reasoning_effort"),
++    )
+     b._history = [{"role": "user", "content": "keep me"}]
+     store = object()
+     b._store = store
+@@ -53,6 +57,7 @@ def test_retarget_model_keeps_history_and_session_store():
+ 
+     assert b.model == "z-ai/glm-5.2:free"
+     assert b._llm.model == "z-ai/glm-5.2:free"
++    assert "structured_outputs" in b._llm.supported_parameters
+     assert b._history == [{"role": "user", "content": "keep me"}]
+     assert b._store is store
+ 
+diff --git a/tests/test_harness_tools.py b/tests/test_harness_tools.py
+index 279c8c8f..40efb4d7 100644
+--- a/tests/test_harness_tools.py
++++ b/tests/test_harness_tools.py
+@@ -166,10 +166,10 @@ def test_t3_edit_preserves_mode(tmp_path):
+     assert stat.S_IMODE(p.stat().st_mode) == 0o755, "edit clobbered file mode to 0600"
+ 
+ 
+-def test_t3_new_file_mode_0644(tmp_path):
++def test_t3_new_file_mode_respects_process_umask(tmp_path):
+     p = tmp_path / "new.txt"
+     tools.write(str(p), "hi\n", str(tmp_path))
+-    assert stat.S_IMODE(p.stat().st_mode) == 0o644
++    assert stat.S_IMODE(p.stat().st_mode) == tools.NEW_FILE_MODE
+ 
+ 
+ def test_t3_write_preserves_mode(tmp_path):
+@@ -308,7 +308,7 @@ async def test_t9_truncation_is_visible(tmp_path):
+ 
+     # force truncation: stuff history far over the guard, then run one more turn
+     for i in range(400):
+-        loop.history.append({"role": "user", "content": "padding %d %s" % (i, "y" * 5000)})
++        loop.history.append({"role": "assistant", "content": "padding %d %s" % (i, "y" * 5000)})
+     n_before = len(loop.history)
+     async for ev in loop.run("one more"):
+         if ev.type == "warning":
+@@ -320,11 +320,15 @@ async def test_t9_truncation_is_visible(tmp_path):
+ 
+ # ── T7 — request economy: flag + prompt line ────────────────────────────────
+ 
+-def test_t7_body_sets_parallel_tool_calls():
++def test_t7_body_only_sets_advertised_optional_tool_parameters():
+     from app.harness.llm import OpenRouterClient
+-    c = OpenRouterClient("sk-test", "stealth/ox-alpha")
++    c = OpenRouterClient(
++        "sk-test", "poolside/laguna-s-2.1:free",
++        supported_parameters=("tools", "tool_choice"),
++    )
+     body = c._build_body([{"role": "user", "content": "hi"}], [{"type": "function"}])
+-    assert body.get("parallel_tool_calls") is True
++    assert body.get("tool_choice") == "auto"
++    assert "parallel_tool_calls" not in body
+     bare = c._build_body([{"role": "user", "content": "hi"}], [])
+     assert "parallel_tool_calls" not in bare
+ 
+diff --git a/tests/test_model_catalog.py b/tests/test_model_catalog.py
+index 9f5d6cc1..ec85e0cf 100644
+--- a/tests/test_model_catalog.py
++++ b/tests/test_model_catalog.py
+@@ -42,22 +42,29 @@ def _registry_snapshot():
+ CATALOG_KV_KEY = "model_catalog_cache"
+ 
+ RAW_MODEL = {
+-    "id": "vendor/model-x",
++    "id": "vendor/model-x:free",
+     "name": "Vendor: Model X",
+     "context_length": 128000,
+-    "pricing": {"prompt": "0.0000005", "completion": "0.0000015"},
+-    "architecture": {"input_modalities": ["text", "image"]},
+-    "supported_parameters": ["tools", "temperature"],
++    "pricing": {"prompt": "0", "completion": "0"},
++    "architecture": {
++        "input_modalities": ["text", "image"],
++        "output_modalities": ["text"],
++    },
++    "supported_parameters": ["tools", "temperature", "tool_choice"],
+ }
+ 
+ NORMALIZED = {
+-    "id": "vendor/model-x",
++    "id": "vendor/model-x:free",
+     "name": "Vendor: Model X",
+     "context_length": 128000,
+-    "price_prompt": 0.5,
+-    "price_completion": 1.5,
++    "price_prompt": 0.0,
++    "price_completion": 0.0,
+     "input_modalities": ["text", "image"],
++    "output_modalities": ["text"],
+     "supports_tools": True,
++    "supported_parameters": ["temperature", "tool_choice", "tools"],
++    "is_free": True,
++    "harness_eligible": True,
+ }
+ 
+ 
+@@ -95,6 +102,22 @@ def test_t2_normalize_free_and_no_tools():
+     assert norm["price_completion"] == 0.0
+     assert norm["supports_tools"] is False
+     assert norm["input_modalities"] == ["text"]
++    assert norm["harness_eligible"] is False
++
++
++def test_t2_zero_token_price_without_free_suffix_is_not_harness_eligible():
++    raw = {
++        **RAW_MODEL,
++        "id": "google/lyria-3-pro-preview",
++        "pricing": {"prompt": "0", "completion": "0"},
++    }
++
++    norm = _catalog_module().normalize_catalog_model(raw)
++
++    assert norm["price_prompt"] == 0.0
++    assert norm["price_completion"] == 0.0
++    assert norm["is_free"] is False
++    assert norm["harness_eligible"] is False
+ 
+ 
+ def test_t2_normalize_rejects_empty_id():
+@@ -137,8 +160,55 @@ async def test_t2_catalog_survives_enterprise_proxy_refresh(monkeypatch):
+     assert apply() >= 1
+     ok = await registry.fetch_models_from_proxy(enterprise_mode=True)
+     assert ok is True
+-    assert "vendor/model-x" in registry.MODELS
+-    assert registry.BACKENDS["vendor/model-x"] == "harness"
+-    assert registry.CONTEXT_LIMITS["vendor/model-x"] == 128000
+-    assert registry.TOKEN_PRICES["vendor/model-x"] == {"input": 0.5, "output": 1.5}
++    assert "vendor/model-x:free" in registry.MODELS
++    assert registry.BACKENDS["vendor/model-x:free"] == "harness"
++    assert registry.CONTEXT_LIMITS["vendor/model-x:free"] == 128000
++    assert registry.TOKEN_PRICES["vendor/model-x:free"] == {"input": 0.0, "output": 0.0}
++    assert registry.MODEL_SPECS["vendor/model-x:free"].supported_parameters == (
++        "temperature", "tool_choice", "tools",
++    )
+     assert "claude-proxy-9" in registry.MODELS
++
++
++def test_t2_apply_unregisters_catalog_model_that_disappeared():
++    catalog = _catalog_module()
++    _seed_cache()
++    assert catalog.apply_model_catalog() == 1
++    assert "vendor/model-x:free" in __import__("app.models", fromlist=["MODEL_SPECS"]).MODEL_SPECS
++
++    db.kv_set(CATALOG_KV_KEY, json.dumps({"fetched_at": 1724300001.0, "models": []}))
++    catalog.apply_model_catalog()
++
++    import app.models as registry
++    assert "vendor/model-x:free" not in registry.MODEL_SPECS
++
++
++def test_t2_legacy_cache_row_stays_usable_with_conservative_tools_only_capability():
++    legacy = {
++        key: value for key, value in NORMALIZED.items()
++        if key not in {"output_modalities", "supported_parameters", "is_free", "harness_eligible"}
++    }
++    db.kv_set(CATALOG_KV_KEY, json.dumps({"fetched_at": 1724300000.0, "models": [legacy]}))
++
++    assert _catalog_module().apply_model_catalog() == 1
++
++    import app.models as registry
++    assert registry.MODEL_SPECS["vendor/model-x:free"].supported_parameters == ("tools",)
++
++
++def test_t2_apply_never_registers_zero_token_unsuffixed_route():
++    lyria = _catalog_module().normalize_catalog_model({
++        **RAW_MODEL,
++        "id": "google/lyria-3-pro-preview",
++        "pricing": {"prompt": "0", "completion": "0"},
++    })
++    db.kv_set(
++        CATALOG_KV_KEY,
++        json.dumps({"fetched_at": 1724300000.0, "models": [NORMALIZED, lyria]}),
++    )
++
++    assert _catalog_module().apply_model_catalog() == 1
++
++    import app.models as registry
++    assert "vendor/model-x:free" in registry.MODEL_SPECS
++    assert "google/lyria-3-pro-preview" not in registry.MODEL_SPECS
+diff --git a/tests/test_model_flags.py b/tests/test_model_flags.py
+index 424760a4..37d9d52c 100644
+--- a/tests/test_model_flags.py
++++ b/tests/test_model_flags.py
+@@ -49,22 +49,29 @@ def test_t1_manifest_models_default_to_visible_and_allowed():
+     }
+ 
+ 
++def test_t1_manifest_harness_models_start_fail_closed():
++    assert registry.get_model_flags("z-ai/glm-5.2:free") == {
++        "dashboard": False,
++        "agents": False,
++    }
++
++
+ def test_t1_registered_catalog_model_defaults_to_hidden_and_forbidden():
+     from app.models import ModelSpec
+ 
+     spec = ModelSpec(
+-        id="test/vendor-x", name="Vendor X", runtime="harness",
++        id="test/vendor-x:free", name="Vendor X", runtime="harness",
+         provider="openrouter", context_length=128000,
+-        price_input=0.5, price_output=1.5,
++        price_input=0.0, price_output=0.0, supported_parameters=("tools",),
+     )
+     registry.register_model(spec)
+     try:
+-        assert registry.get_model_flags("test/vendor-x") == {
++        assert registry.get_model_flags("test/vendor-x:free") == {
+             "dashboard": False,
+             "agents": False,
+         }
+     finally:
+-        registry.unregister_model("test/vendor-x")
++        registry.unregister_model("test/vendor-x:free")
+ 
+ 
+ def test_t1_set_flags_roundtrip_and_unknown_rejected():
+diff --git a/tests/test_model_gates.py b/tests/test_model_gates.py
+index 49cbe3d6..a5594369 100644
+--- a/tests/test_model_gates.py
++++ b/tests/test_model_gates.py
+@@ -41,61 +41,61 @@ def _registry_snapshot():
+ @pytest.fixture()
+ def vendor_model():
+     spec = ModelSpec(
+-        id="test/vendor-x", name="Vendor X", runtime="harness",
++        id="test/vendor-x:free", name="Vendor X", runtime="harness",
+         provider="openrouter", context_length=128000,
+-        price_input=0.5, price_output=1.5,
++        price_input=0.0, price_output=0.0, supported_parameters=("tools",),
+     )
+     registry.register_model(spec)
+     yield spec
+-    registry.unregister_model("test/vendor-x")
++    registry.unregister_model("test/vendor-x:free")
+ 
+ 
+ def test_t3_api_models_hides_dashboard_off(vendor_model, monkeypatch):
+     from fastapi.testclient import TestClient
+ 
+-    registry.set_model_flags("test/vendor-x", dashboard=False)
++    registry.set_model_flags("test/vendor-x:free", dashboard=False)
+     from app.main import app, manager
+ 
+     manager.sessions.clear()
+     with TestClient(app) as client:
+         ids = {m["id"] for m in client.get("/api/models").json()["models"]}
+-    assert "test/vendor-x" not in ids
++    assert "test/vendor-x:free" not in ids
+     assert "claude-haiku-4-5" in ids
+ 
+-    registry.set_model_flags("test/vendor-x", dashboard=True)
++    registry.set_model_flags("test/vendor-x:free", dashboard=True)
+     with TestClient(app) as client:
+         ids = {m["id"] for m in client.get("/api/models").json()["models"]}
+-    assert "test/vendor-x" in ids
++    assert "test/vendor-x:free" in ids
+ 
+ 
+ def test_t3_available_models_block_respects_agents_flag(vendor_model):
+-    registry.set_model_flags("test/vendor-x", agents=False)
+-    assert "test/vendor-x" not in registry.available_models_block()
+-    registry.set_model_flags("test/vendor-x", agents=True)
+-    assert "test/vendor-x" in registry.available_models_block()
++    registry.set_model_flags("test/vendor-x:free", agents=False)
++    assert "test/vendor-x:free" not in registry.available_models_block()
++    registry.set_model_flags("test/vendor-x:free", agents=True)
++    assert "test/vendor-x:free" in registry.available_models_block()
+ 
+ 
+ def test_t3_worker_spawn_rejected_on_agents_off(vendor_model):
+-    registry.set_model_flags("test/vendor-x", agents=False)
++    registry.set_model_flags("test/vendor-x:free", agents=False)
+     with pytest.raises(ValueError, match="agents"):
+-        registry.ensure_spawn_allowed("test/vendor-x")
++        registry.ensure_spawn_allowed("test/vendor-x:free")
+     registry.ensure_spawn_allowed("claude-haiku-4-5")
+ 
+ 
+ def test_t3_dashboard_gate_blocks_user_actions_only(vendor_model):
+-    registry.set_model_flags("test/vendor-x", dashboard=False)
++    registry.set_model_flags("test/vendor-x:free", dashboard=False)
+     with pytest.raises(ValueError, match="dashboard"):
+-        registry.ensure_dashboard_visible("test/vendor-x")
++        registry.ensure_dashboard_visible("test/vendor-x:free")
+     # Levels are independent: hidden from the dashboard, still allowed to agents.
+-    registry.set_model_flags("test/vendor-x", agents=True)
+-    registry.ensure_spawn_allowed("test/vendor-x")
++    registry.set_model_flags("test/vendor-x:free", agents=True)
++    registry.ensure_spawn_allowed("test/vendor-x:free")
+ 
+ 
+ def test_t3_resolve_model_unaffected_by_flags(vendor_model):
+     """Overlay must never unregister: codex_review and session resume rely on this."""
+-    registry.set_model_flags("test/vendor-x", agents=False, dashboard=False)
+-    assert registry.resolve_model("test/vendor-x") == "test/vendor-x"
+-    assert registry.get_model_spec("test/vendor-x").context_length == 128000
++    registry.set_model_flags("test/vendor-x:free", agents=False, dashboard=False)
++    assert registry.resolve_model("test/vendor-x:free") == "test/vendor-x:free"
++    assert registry.get_model_spec("test/vendor-x:free").context_length == 128000
+ 
+ 
+ def test_t3_gates_are_wired_into_spawn_and_change_model():
+diff --git a/tests/test_openrouter_retry.py b/tests/test_openrouter_retry.py
+index 1d6b3df7..299f8c71 100644
+--- a/tests/test_openrouter_retry.py
++++ b/tests/test_openrouter_retry.py
+@@ -55,7 +55,8 @@ def _transport(statuses, header_sets, calls: list):
+ async def _run(statuses, header_sets):
+     calls: list = []
+     client = llm.OpenRouterClient(
+-        api_key="k", model="m", http=httpx.AsyncClient(transport=_transport(statuses, header_sets, calls)))
++        api_key="k", model="test/model:free",
++        http=httpx.AsyncClient(transport=_transport(statuses, header_sets, calls)))
+     kinds = []
+     async for ev in client.stream(messages=[{"role": "user", "content": "hi"}], tools=[]):
+         kinds.append(ev.kind)
+@@ -123,3 +124,14 @@ async def test_t5_counter_counts_every_retry(fast_backoff, captured_sleep):
+     assert counter.today_count() == 3
+     breakdown = counter.status_breakdown(counter.today_utc())
+     assert breakdown.get("429") == 2 and breakdown.get("200") == 1
++
++
++@pytest.mark.asyncio
++async def test_t5_does_not_sleep_after_the_last_failed_attempt(fast_backoff, captured_sleep):
++    with pytest.raises(RuntimeError, match="after 3 attempts"):
++        await _run(
++            [429, 429, 429],
++            [UPSTREAM_429, UPSTREAM_429, UPSTREAM_429],
++        )
++
++    assert len(captured_sleep) == 2
+diff --git a/tests/test_runtime_registry.py b/tests/test_runtime_registry.py
+index 94a5c04d..4755a434 100644
+--- a/tests/test_runtime_registry.py
++++ b/tests/test_runtime_registry.py
+@@ -196,7 +196,7 @@ def test_backend_classes_satisfy_structural_contract(runtime_id, tmp_path, monke
+             "claude": "claude-sonnet-5[1m]",
+             "codex": "gpt-5.6-sol",
+             "grok": "grok-4.5",
+-            "harness": "stealth/ox-alpha",
++            "harness": "nvidia/nemotron-3-ultra-550b-a55b:free",
+         }[runtime_id],
+         provider={
+             "claude": "anthropic",
+diff --git a/tests/test_session.py b/tests/test_session.py
+index 069a10b9..c1dae4d5 100644
+--- a/tests/test_session.py
++++ b/tests/test_session.py
+@@ -4330,7 +4330,7 @@ class TestRuntimeCapabilities:
+     @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
+         ("claude", "claude-sonnet-5[1m]", "claude-opus-5[1m]"),
+         ("grok", "grok-4.5", "grok-4.6"),
+-        ("harness", "stealth/ox-alpha", "z-ai/glm-5.2:free"),
++        ("harness", "nvidia/nemotron-3-ultra-550b-a55b:free", "z-ai/glm-5.2:free"),
+     ])
+     async def test_other_builtin_model_switches_retarget_in_place(
+             self, session, monkeypatch, runtime, old_model, new_model):
+@@ -4377,7 +4377,7 @@ class TestRuntimeCapabilities:
+     @pytest.mark.asyncio
+     @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
+         ("claude", "claude-opus-5[1m]", "claude-haiku-4-5"),
+-        ("harness", "stealth/ox-alpha", "z-ai/glm-5.2:free"),
++        ("harness", "nvidia/nemotron-3-ultra-550b-a55b:free", "z-ai/glm-5.2:free"),
+     ])
+     async def test_in_place_switch_refuses_context_that_target_cannot_fit(
+             self, session, monkeypatch, runtime, old_model, new_model):
+diff --git a/tests/test_toggle_live_agent.py b/tests/test_toggle_live_agent.py
+index fb5de8de..d5859a99 100644
+--- a/tests/test_toggle_live_agent.py
++++ b/tests/test_toggle_live_agent.py
+@@ -41,33 +41,33 @@ def _registry_snapshot():
+ @pytest.fixture()
+ def vendor_model():
+     spec = ModelSpec(
+-        id="test/vendor-x", name="Vendor X", runtime="harness",
++        id="test/vendor-x:free", name="Vendor X", runtime="harness",
+         provider="openrouter", context_length=128000,
+-        price_input=0.5, price_output=1.5,
++        price_input=0.0, price_output=0.0, supported_parameters=("tools",),
+     )
+     registry.register_model(spec)
+     yield spec
+-    registry.unregister_model("test/vendor-x")
++    registry.unregister_model("test/vendor-x:free")
+ 
+ 
+ def test_t6_running_agent_resume_surface_intact(vendor_model):
+-    registry.set_model_flags("test/vendor-x", dashboard=False, agents=False)
++    registry.set_model_flags("test/vendor-x:free", dashboard=False, agents=False)
+     # Everything the resume/restart path touches must keep working.
+-    assert registry.get_model_spec("test/vendor-x").runtime == "harness"
+-    assert registry.resolve_model("test/vendor-x") == "test/vendor-x"
+-    assert registry.CONTEXT_LIMITS["test/vendor-x"] == 128000
+-    assert registry.TOKEN_PRICES["test/vendor-x"] == {"input": 0.5, "output": 1.5}
+-    assert registry.backend_for_model("test/vendor-x") == "harness"
++    assert registry.get_model_spec("test/vendor-x:free").runtime == "harness"
++    assert registry.resolve_model("test/vendor-x:free") == "test/vendor-x:free"
++    assert registry.CONTEXT_LIMITS["test/vendor-x:free"] == 128000
++    assert registry.TOKEN_PRICES["test/vendor-x:free"] == {"input": 0.0, "output": 0.0}
++    assert registry.backend_for_model("test/vendor-x:free") == "harness"
+ 
+ 
+ def test_t6_new_worker_spawn_rejected_with_actionable_error(vendor_model):
+-    registry.set_model_flags("test/vendor-x", agents=False)
++    registry.set_model_flags("test/vendor-x:free", agents=False)
+     with pytest.raises(ValueError, match="[Cc]atalog"):
+-        registry.ensure_spawn_allowed("test/vendor-x")
++        registry.ensure_spawn_allowed("test/vendor-x:free")
+ 
+ 
+ def test_t6_switching_away_from_disabled_model_is_allowed(vendor_model):
+     """The escape hatch: a session ON the disabled model may change to any
+     dashboard-visible model — only the TARGET model's level is checked."""
+-    registry.set_model_flags("test/vendor-x", dashboard=False, agents=False)
++    registry.set_model_flags("test/vendor-x:free", dashboard=False, agents=False)
+     registry.ensure_dashboard_visible("claude-haiku-4-5")  # target is fine → change proceeds

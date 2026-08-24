@@ -1,0 +1,83 @@
+OLD_AVAILABLE_UNIQUE
+INFO  2026-04-24 10:22:34,019 [MainThread] serena.agent:__init__:346 - Available projects: 
+INFO  2026-04-24 10:23:06,344 [MainThread] serena.agent:__init__:346 - Available projects: Parsing
+INFO  2026-04-24 10:23:27,942 [MainThread] serena.agent:__init__:346 - Available projects: Parsing
+INFO  2026-04-24 10:23:49,818 [MainThread] serena.agent:__init__:346 - Available projects: Parsing
+INFO  2026-04-24 10:30:33,157 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, kesha-tg-bot
+INFO  2026-04-24 10:32:47,236 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, kesha-tg-bot
+INFO  2026-04-24 10:35:03,030 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, kesha-tg-bot
+INFO  2026-04-24 10:37:01,645 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, kesha-tg-bot
+INFO  2026-04-24 10:41:47,496 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, kesha-tg-bot, zahoron-mobile
+INFO  2026-04-24 10:42:19,343 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, kesha-tg-bot, zahoron-mobile
+INFO  2026-04-24 10:43:03,302 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, kesha-tg-bot, parsing-hub, zahoron-mobile
+INFO  2026-04-24 10:43:04,536 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, zahoron-mobile
+INFO  2026-04-24 10:43:05,520 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, zahoron-mobile
+INFO  2026-04-24 10:43:05,700 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:43:08,347 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:43:08,379 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:43:08,464 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:43:10,348 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:44:01,484 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:44:02,135 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:44:02,368 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:44:03,970 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:44:08,006 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:44:10,500 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:45:11,730 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:45:11,924 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:45:13,593 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:45:14,178 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:46:09,326 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:49:53,051 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:50:00,336 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:53:54,223 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:55:31,779 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:55:33,638 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:55:34,697 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:55:34,859 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:55:35,446 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 10:55:39,440 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:01:07,294 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:24:29,027 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:24:30,878 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:24:32,247 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:24:32,337 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:24:32,518 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:42:02,684 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:43:08,961 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:53:37,984 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:53:38,052 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:55:54,217 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:55:54,286 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 11:58:05,179 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 12:13:34,885 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 12:22:42,787 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 12:33:40,166 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 12:38:36,525 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 12:51:16,045 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 12:52:59,106 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 12:53:44,031 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 12:54:29,976 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 12:54:50,636 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 13:02:09,471 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 13:02:12,550 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 13:02:12,640 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 13:02:14,148 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 13:02:14,231 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 13:15:35,241 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 13:25:42,149 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 13:26:11,269 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 13:27:36,051 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 13:28:07,631 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 14:52:10,121 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 14:54:15,589 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 14:58:46,861 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 14:59:46,334 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 15:01:56,312 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 15:46:38,490 [MainThread] serena.agent:__init__:346 - Available projects: Parsing, ai-assistants, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 15:47:28,452 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 15:52:31,799 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 15:53:03,174 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+INFO  2026-04-24 15:53:03,215 [MainThread] serena.agent:__init__:346 - Available projects: COG-second-brain, Parsing, ai-assistants, kesha-tg-bot, kesha-tg-bot, parsing-hub, seo-platform, zahoron-mobile
+CONTAMINATED_PROJECT_COUNT
+189:- /mnt/data/task346-serena.tHyHCU/run-b1

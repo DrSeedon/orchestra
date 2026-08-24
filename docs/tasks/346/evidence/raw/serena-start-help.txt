@@ -1,0 +1,56 @@
+Usage: serena start-mcp-server [OPTIONS]
+
+  Starts the Serena MCP server.
+
+Options:
+  --project [PROJECT_NAME|PROJECT_PATH]
+                                  Path or name of project to activate at
+                                  startup.
+  --project-file [PROJECT_NAME|PROJECT_PATH]
+                                  [DEPRECATED] Use --project instead.
+  --context TEXT                  Built-in context name or path to custom
+                                  context YAML.  [default: desktop-app]
+  --mode TEXT                     Built-in mode names or paths to custom mode YAMLs with which to 
+                                  override the default_modes defined in the global Serena configuration or 
+                                  the active project.
+                                  For details on mode configuration, see 
+                                    https://oraios.github.io/serena/02-usage/050_configuration.html#modes.
+  --add-mode TEXT                 Mode names or paths to custom mode YAMLs which shall
+                                  be added on top of the other modes specified by the global/project configuration.
+                                  For details on mode configuration, see 
+                                    https://oraios.github.io/serena/02-usage/050_configuration.html#modes.
+  --language-backend [LSP|JetBrains]
+                                  Override the configured language backend.
+  --transport [stdio|sse|streamable-http]
+                                  Transport protocol.  [default: stdio]
+  --host TEXT                     Listen address for the MCP server (when
+                                  using corresponding transport).  [default:
+                                  127.0.0.1]
+  --port INTEGER                  Listen port for the MCP server (when using
+                                  corresponding transport).  [default: 8000]
+  --enable-web-dashboard BOOLEAN  Enable the web dashboard (overriding the
+                                  setting in Serena's config). It is
+                                  recommended to always enable the dashboard.
+                                  If you don't want the browser to open on
+                                  startup, set open-web-dashboard to False.
+                                  For more information, see https://oraios.git
+                                  hub.io/serena/02-usage/060_dashboard.html
+  --enable-gui-log-window BOOLEAN
+                                  Enable the gui log window (currently only
+                                  displays logs; overriding the setting in
+                                  Serena's config).
+  --open-web-dashboard BOOLEAN    Open Serena's dashboard in your browser
+                                  after MCP server startup (overriding the
+                                  setting in Serena's config).
+  --log-level [DEBUG|INFO|WARNING|ERROR|CRITICAL]
+                                  Override log level in config.
+  --trace-lsp-communication BOOLEAN
+                                  Whether to trace LSP communication.
+  --tool-timeout FLOAT            Override tool execution timeout in config.
+  --project-from-cwd              Auto-detect project from current working
+                                  directory (nearest ancestor containing
+                                  .serena/project.yml or .git). If none is
+                                  found, no project is activated. Intended for
+                                  CLI-based agents like Claude Code, Gemini
+                                  and Codex.
+  --help                          Show this message and exit.

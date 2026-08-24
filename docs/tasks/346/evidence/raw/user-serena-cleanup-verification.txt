@@ -1,0 +1,4 @@
+path=/home/maxim/.serena/serena_config.yml owner=maxim:maxim mode=600 size=15409 mtime=2026-08-25 00:40:46.828108009 +0700
+e503685e3c97584501ff3656da0e933e0fd1157042d34a2b65b6866bab534b22  /home/maxim/.serena/serena_config.yml
+entry_absent=true
+contaminated_log_preserved=/home/maxim/.serena/logs/2026-08-24/mcp_20260824-232931_2074146.txt size=83914

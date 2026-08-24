@@ -1,0 +1,7 @@
+code_mode                                under development  true
+code_mode_buffered_exec                  removed            false
+code_mode_host                           stable             true
+code_mode_interrupt                      under development  false
+code_mode_only                           under development  false
+deferred_tool_world_state                under development  true
+non_prefixed_mcp_tool_names              under development  true
