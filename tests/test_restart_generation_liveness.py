@@ -78,6 +78,10 @@ def _cleanup_process(process: subprocess.Popen | None) -> None:
         process.wait(timeout=2)
 
 
+@pytest.mark.skipif(
+    not callable(getattr(os, "pidfd_open", None)),
+    reason="host Python lacks os.pidfd_open; injected unit coverage below",
+)
 def test_t1_clean_supervisor_exit_is_distinct_from_forced_fallback(tmp_path):
     assert _GUARD_MODULE.is_file(), (
         "bounded supervisor-exit guard is missing from the production package"
@@ -124,6 +128,10 @@ def test_t1_clean_supervisor_exit_is_distinct_from_forced_fallback(tmp_path):
         _cleanup_process(guard)
 
 
+@pytest.mark.skipif(
+    not callable(getattr(os, "pidfd_open", None)),
+    reason="host Python lacks os.pidfd_open; injected unit coverage below",
+)
 def test_t1_late_uvloop_executor_waiter_is_forced_after_cleanup_and_named(tmp_path):
     assert _GUARD_MODULE.is_file(), (
         "bounded supervisor-exit guard is missing from the production package"
@@ -190,6 +198,10 @@ asyncio.run(main(), loop_factory=uvloop.new_event_loop)
         _cleanup_process(guard)
 
 
+@pytest.mark.skipif(
+    not callable(getattr(os, "pidfd_open", None)),
+    reason="host Python lacks os.pidfd_open; injected unit coverage below",
+)
 def test_t1_guard_never_forces_before_application_teardown_and_reports_progress_loss(
     tmp_path,
 ):
@@ -233,6 +245,10 @@ def test_t1_guard_never_forces_before_application_teardown_and_reports_progress_
         _cleanup_process(guard)
 
 
+@pytest.mark.skipif(
+    not callable(getattr(os, "pidfd_open", None)),
+    reason="host Python lacks os.pidfd_open; injected unit coverage below",
+)
 def test_t1_wrong_starttime_is_identity_mismatch_and_never_signals(tmp_path):
     assert _GUARD_MODULE.is_file(), (
         "bounded supervisor-exit guard is missing from the production package"
@@ -324,7 +340,72 @@ def test_t1_verified_pidfd_is_opened_before_starttime_is_compared():
     )
 
 
+def test_t1_pidfd_capability_is_import_safe_and_fails_explicitly_when_missing():
+    script = """
+import os
+
+if hasattr(os, "pidfd_open"):
+    del os.pidfd_open
+from app import restart_guard
+
+try:
+    restart_guard.open_verified_pidfd(12345, 67890)
+except restart_guard.RestartGuardUnavailable as error:
+    assert "os.pidfd_open" in str(error)
+else:
+    raise AssertionError("missing pidfd_open capability was not rejected")
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).parents[1],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_t1_injected_pidfd_open_preserves_identity_validation_and_success():
+    from app import restart_guard
+
+    read_fd, write_fd = os.pipe()
+    try:
+        def pidfd_open(pid: int) -> int:
+            assert pid == 12345
+            return read_fd
+
+        def read_start(pid: int) -> int:
+            assert pid == 12345
+            return 67890
+
+        assert restart_guard.open_verified_pidfd(
+            12345,
+            67890,
+            pidfd_open=pidfd_open,
+            read_starttime=read_start,
+        ) == read_fd
+    finally:
+        os.close(write_fd)
+        os.close(read_fd)
+
+    mismatch_fd = os.open(os.devnull, os.O_RDONLY)
+    try:
+        with pytest.raises(restart_guard.ProcessIdentityMismatch):
+            restart_guard.open_verified_pidfd(
+                12345,
+                11111,
+                pidfd_open=lambda _pid: mismatch_fd,
+                read_starttime=lambda _pid: 67890,
+            )
+    finally:
+        with pytest.raises(OSError):
+            os.close(mismatch_fd)
+
+
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    not callable(getattr(os, "pidfd_open", None)),
+    reason="host Python lacks os.pidfd_open; injected unit coverage below",
+)
 async def test_t1_production_guard_arm_leaks_neither_listener_nor_agent_pipes(
     monkeypatch,
     tmp_path,
