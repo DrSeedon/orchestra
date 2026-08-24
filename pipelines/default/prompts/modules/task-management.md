@@ -8,8 +8,6 @@ Built-in task tracker. Agents create, update, and close tasks.
 - `task_update(par, status="", title="", price=-1, ...)` — update task. Only provided fields change. par: plain number "42"
 - `task_list(project="", status="", assignee="")` — list tasks with optional filters
 - `task_get(par)` — full task details with payment history and linked commits
-- `payment_receive(amount, client="", date="", note="")` — record payment. Auto-distributes to done tasks (smallest debt first). Amount in exact currency units
-- `payment_status(client="")` — balance, debt, recent payments
 
 ### Workflow
 - **Starting work** → `task_update(par, status="in_progress")`. `spawn_worker(..., task_id="42")`

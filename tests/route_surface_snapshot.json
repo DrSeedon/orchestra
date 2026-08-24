@@ -235,24 +235,6 @@
   ]
  ],
  [
-  "/api/proxy/check/{proxy_id}",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/proxy/list",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/proxy/set-env",
-  [
-   "POST"
-  ]
- ],
- [
   "/api/report_bug",
   [
    "GET"
@@ -358,12 +340,6 @@
   "/api/sessions/{name}/logs",
   [
    "GET"
-  ]
- ],
- [
-  "/api/sessions/{name}/merge",
-  [
-   "POST"
   ]
  ],
  [
@@ -517,36 +493,6 @@
   ]
  ],
  [
-  "/api/tm/payments",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/tm/payments/history",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/tm/payments/status",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/tm/sync/log",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/tm/sync/retry/{sync_id}",
-  [
-   "POST"
-  ]
- ],
- [
   "/api/tm/tasks",
   [
    "GET"
@@ -574,12 +520,6 @@
   "/api/transcribe",
   [
    "POST"
-  ]
- ],
- [
-  "/api/tunnel/status",
-  [
-   "GET"
   ]
  ],
  [

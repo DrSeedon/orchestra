@@ -1815,33 +1815,6 @@ async def execute_merge_session(
             return result
 
 
-@router.post("/api/sessions/{name}/merge")
-async def merge_session(name: str, req: dict, request: Request):
-    if req.get("waive_diff_budget"):
-        from app.diff_budget import request_may_waive_diff_budget
-        if not request_may_waive_diff_budget(request):
-            return JSONResponse(
-                {"error": "waive_diff_budget is orchestrator-only"},
-                status_code=403,
-            )
-    scope = req.get("scope", "")
-    found = manager.get_by_name(name, scope)
-    if not found:
-        return JSONResponse({"error": "not found"}, status_code=404)
-    result = await execute_merge_session(
-        session_id=found.id,
-        expected_name=found.name,
-        expected_scope=found.scope or scope,
-        expected_branch=getattr(found, "branch", "") or "",
-        expected_head="",
-        req=req,
-    )
-    status_code = result.pop("_http_status", None)
-    if status_code:
-        return JSONResponse(result, status_code=status_code)
-    return result
-
-
 @router.post("/api/sessions/{name}/switch-branch")
 async def switch_branch(name: str, req: dict):
     from app.workspace import switch_worktree_branch

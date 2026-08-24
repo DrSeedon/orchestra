@@ -186,33 +186,6 @@ def test_api_create_reuses_unique_project_alias(db):
         assert conn.execute("SELECT COUNT(*) FROM tm_projects").fetchone()[0] == 1
 
 
-def test_yougile_import_uses_resolved_project_id(db, monkeypatch, tmp_path):
-    from app import tm
-    from app import tm_import_yougile as importer
-
-    with tm._conn() as conn:
-        _insert_legacy_project(conn, "Seedon", "UPR", "/upper")
-
-    monkeypatch.setattr(importer, "PROJECT_ID", "seedon")
-    monkeypatch.setattr(importer, "PROJECT_SCOPE", "/upper")
-    monkeypatch.setattr(importer, "CLIENT_ID", "client")
-    monkeypatch.setattr(importer, "COLUMN_TO_STATUS", {"column": "new"})
-    monkeypatch.setattr(importer, "CONFLICTS_PATH", tmp_path / "conflicts.json")
-    monkeypatch.setattr(
-        importer,
-        "fetch_all_tasks_for_column",
-        lambda _column: [{"id": "yg-1", "idTaskProject": "", "title": "Imported"}],
-    )
-
-    result = importer.run_import()
-
-    assert result["imported"] == 1
-    with tm._conn() as conn:
-        client = tm.get_client(conn, "client")
-        task = tm.get_task_by_yougile_id(conn, "yg-1")
-        assert client["project_id"] == "Seedon"
-        assert task["project_id"] == "Seedon"
-        assert conn.execute("SELECT COUNT(*) FROM tm_projects").fetchone()[0] == 1
 
 
 def test_task_core_requires_project_and_rejects_foreign_prefix(db):
@@ -347,52 +320,10 @@ def test_combined_acceptance_and_status_update_keeps_status_metadata(db):
     assert result["old_status"] == "new"
     assert result["new_status"] == "in_progress"
     assert result["price_rub"] == 0
-    assert result["paid_rub"] == 0
 
 
-def test_status_prepayment_uses_resolved_task_db_id(db):
-    from app import tm
-
-    with tm._conn() as conn:
-        upper, lower = _create_case_variant_tasks(conn)
-        tm.ensure_client(conn, "upper-client", "Upper", "Seedon")
-        tm.ensure_client(conn, "lower-client", "Lower", "seedon")
-        tm.receive_payment(conn, "upper-client", 70)
-        tm.receive_payment(conn, "lower-client", 40)
-
-    result = tm.api_update_task("1", status="done", project="Seedon")
-
-    assert result["project"] == "Seedon"
-    assert result["paid_rub"] == 70
-    with tm._conn() as conn:
-        upper_row = tm.get_task_by_id(conn, upper["id"])
-        lower_row = tm.get_task_by_id(conn, lower["id"])
-        allocations = conn.execute(
-            "SELECT task_id, amount_rub FROM tm_payment_allocations ORDER BY id"
-        ).fetchall()
-        assert (upper_row["status"], upper_row["paid_rub"]) == ("done", 70)
-        assert (lower_row["status"], lower_row["paid_rub"]) == ("new", 0)
-        assert [(row["task_id"], row["amount_rub"]) for row in allocations] == [
-            (upper["id"], 70),
-        ]
-        assert tm.get_client(conn, "lower-client")["balance_rub"] == 40
 
 
-def test_direct_payment_stays_in_client_project_with_duplicate_par(db):
-    from app import tm
-
-    with tm._conn() as conn:
-        upper, lower = _create_case_variant_tasks(conn, price=50, status="done")
-        tm.ensure_client(conn, "lower-client", "Lower", "seedon")
-
-    result = tm.api_receive_payment(50, "lower-client")
-
-    assert [item["task_id"] for item in result["distributions"]] == [lower["id"]]
-    with tm._conn() as conn:
-        upper_row = tm.get_task_by_id(conn, upper["id"])
-        lower_row = tm.get_task_by_id(conn, lower["id"])
-        assert (upper_row["status"], upper_row["paid_rub"]) == ("done", 0)
-        assert (lower_row["status"], lower_row["paid_rub"]) == ("paid", 50)
 
 
 def test_commit_link_rejects_blank_authority_before_opening_db(monkeypatch):

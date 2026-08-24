@@ -717,7 +717,6 @@ async def test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete
     await shutdown_runtime(
         restart_inbox_drain=None,
         snapshot_task=done_task,
-        tunnel_started=False,
         bridge_task=done_task,
     )
 
