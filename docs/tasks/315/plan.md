@@ -13,6 +13,8 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 - app/ia/task_store.py — Git-canonical task records, #N lease/lookup and facade parity.
 - app/ia/evidence.py — immutable evidence manifest/path-anchor/blob validation.
 - app/ia/knowledge.py — topic registry, fact promotion/current/rejected/as-of queries.
+- app/routes/knowledge.py, app/mcp_stdio.py — one agent-facing typed `knowledge` API/tool for
+  promotion, query and evidence import with progressive structured payloads; no separate human output.
 - app/ia/projections.py — SQLite current/event/FTS projection, head receipts and fallback.
 - app/db.py — additive projection metadata/schema only; preserve existing session/log/task migrations
   until cutover proves parity.
@@ -58,12 +60,14 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 6. Roll back before new canonical writes by switching reader/projection generation. After new canonical
    writes, append forward restore/replay events and rebuild projections; never reset/delete Git history
    to hide a failed cutover.
-7. After T3–T6 are green, freeze a tracked document inventory and classify every `docs/tasks/*.md`,
-   `docs/kb/*.md`, TODO/instruction source and session archive as exactly one of: canonical structured
-   record, immutable evidence/report, generated human projection, or cold archive. Preserve historical
-   evidence bytes and paths; migrate references through aliases/`orch://` IDs rather than rewriting it.
+7. After corrected T3b and T4–T6 are green, freeze a tracked document inventory and classify every
+   `docs/tasks/*.md`, `docs/kb/*.md`, TODO/instruction source and session archive as exactly one of:
+   canonical structured JSON, immutable evidence/cold archive, active skill/resource source, or derived
+   machine index. Preserve historical bytes and paths; import/index them once through structured refs
+   and `orch://` aliases rather than rewriting or regenerating Markdown.
 8. Run T7 legacy→shadow→canonical prompt/document cutover. Structured JSON task/fact/evidence-ref/event
-   records are canonical; topic/README Markdown, SQLite, FTS and vector are rebuildable projections.
+   records and their structured registry/index are canonical; historical Markdown stays cold evidence,
+   never a regenerated projection. SQLite, FTS and vector remain rebuildable machine projections.
    Do not destructively remove SQLite or legacy readers until shadow parity, rollback rehearsal, assembled
    prompt delivery and live cutover receipts all pass. Rollback switches the owner/read generation and
    replays forward; it never deletes newer canonical history.
@@ -130,6 +134,24 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
   EvidenceResolver → FactEventLog and emitted facts validate/project through T1 over T2 evidence.
 - blocked-by: T1, T2.
 
+### T3b — agent-only structured knowledge correction
+
+- Files: future correction to app/ia/knowledge.py; new app/routes/knowledge.py; app/mcp_stdio.py single
+  `knowledge` tool; structured archive/evidence index. Existing app/ia/evidence.py/events.py fact semantics
+  remain. Frozen acceptance/test_t3b_agent_only_knowledge_behavior.py and
+  acceptance/fixtures/t3b_agent_only_*.json.
+- Test: uv run python -m pytest docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior.py -q
+- RED result: three audit/current-T3/historical controls pass; six behavior nodes fail on
+  `#315 T3b missing behavior: app.ia.knowledge.knowledge_api is not callable`.
+- AC: command is green; the only agent entry is one typed `knowledge` MCP/API supporting promote/query/
+  import_evidence and summary/record/evidence payload levels; new canonical writes are JSON records/index
+  only; no README/topic Markdown, HTML/text summary or hidden human-projection key is generated; existing
+  Markdown corpus bytes/paths remain cold evidence and import idempotently through structured refs; missing
+  canonical truth fails closed and cannot read caller-supplied file, SQLite payload or vector hits; MCP →
+  HTTP route → knowledge_api → KnowledgeService wiring is observable. Original T3 12-scenario semantics
+  remain, but its Markdown layout clauses are superseded by T3b.
+- blocked-by: T3.
+
 ### T4 — SQLite current projection, heads and cold index
 
 - Files: new app/ia/projections.py; additive app/db.py; app/rag.py, app/rag_service.py,
@@ -141,7 +163,8 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
   canonical_head, projection_head and indexed_head are returned separately; vector/log lag is visible;
   stale SQLite falls back to canonical changed records; vector/index failure never erases current
   task/fact result; existing RAG file/log content remains rebuildable.
-- blocked-by: T3.
+- Gate: STOPPED by the user correction; do not design/freeze or implement T4 until T3b is merged.
+- blocked-by: T3b.
 
 ### T5 — session commit, pack/restore rehearsal and privacy/retention
 
@@ -174,20 +197,20 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 ### T7 — prompt + existing-document migration + final cutover
 
 - Files: future scripts/ia_document_inventory.py, scripts/ia_migrate_documents.py; prompt/skill owners
-  selected by the tracked delivery inventory; generated docs/kb registry/topic projections; migration
-  manifests and alias maps. Historical evidence/report bodies are read-only inputs, not rewrite targets.
+  selected by the tracked delivery inventory; structured registry/archive indexes, migration manifests
+  and alias maps. Historical evidence/report bodies are read-only inputs, never regeneration targets.
 - Test: future `uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q`;
   behavioral oracle design is frozen in acceptance/README.md T7 row, but no RED is committed yet. No
   existence smoke may substitute for it.
 - AC: command is green; every in-scope legacy path is classified exactly once; canonical task
   state/events/evidence refs/facts are structured Git JSON; historical evidence/report/session archive
   bytes and Git lineage are unchanged; old path/#N references resolve through typed `orch://` aliases;
-  README/topic Markdown is generated-only and cannot accept independent truth; all assembled runtime
-  prompts instruct typed task/evidence/promotion/query APIs and deny SQLite/vector/Markdown authority;
+  no README/topic/human summary is generated; all assembled runtime prompts instruct the single typed
+  knowledge tool and typed task IDs, and deny direct file/SQLite/vector access as alternate authority;
   legacy and shadow keep current readers recoverable, canonical cutover occurs only after parity/privacy/
   rollback/live-delivery receipts, and rollback restores the previous owner without erasing canonical
   events. Compound dual-truth, prompt-source-only, fake-parity deletion and rewritten-evidence mutants fail.
-- blocked-by: T3, T4, T5, T6.
+- blocked-by: T3b, T4, T5, T6.
 
 ## Phase 3 entry gate and quantitative gate
 
@@ -195,8 +218,9 @@ The user approved project-scoped #N with stable UUID, private/secret fields outs
 Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed with a human gate for
 conflicts and sensitive classes. Each ticket must still receive the exact
 fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
-behavioral RED test must be committed and independently verified before implementation. T1–T3 have
-reached that oracle gate; T4–T7 have not. T7 runs only after core T3–T6 and has no existence-smoke
+behavioral RED test must be committed and independently verified before implementation. T1–T3 and T3b
+have reached that oracle gate; T4–T7 have not. T4 is stopped until T3b merges. T7 runs only after the
+corrected T3b plus T4–T6 core and has no existence-smoke
 shortcut. Smoke probes never satisfy this gate.
 
 The implementation report must include command output and frozen manifest for replay parity and 0
@@ -204,7 +228,8 @@ duplicate identity; 0 source-less promoted facts; exact/current/rejected recall 
 on the #256 holdout; projection read-after-write and head debt; task facade parity and conflict-loss
 count; prompt footprint/tool calls/time measured A/B/A/B; privacy secret scan; rollback replay parity.
 T7 additionally reports exact document-classification coverage, unchanged historical evidence hashes,
-typed-reference resolution, assembled-prompt delivery for every runtime, shadow mismatch count, cutover
+typed-reference resolution, zero newly generated human-readable files/summaries, single-tool assembled-
+prompt delivery for every runtime, shadow mismatch count, cutover
 receipt and rehearsed rollback with legacy SQLite still recoverable.
 
 No absolute future quality/latency/token constant is invented here. The acceptance test must report its

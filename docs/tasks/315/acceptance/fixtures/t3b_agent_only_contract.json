@@ -1,0 +1,56 @@
+{
+  "contract_version": 1,
+  "fixture_sha256": "6a66d6352c2e0105f2bbb50426838e87e8c1834a0643c196996531d16c6ab5a7",
+  "supersedes": {
+    "t3_contract_sha256": "ad763c0ba467dc8847fb76c2af2a36138a24c3db275580d9a483690a78eaa0f1",
+    "t3_oracle_sha256": "51b19d136e9a44b339a7e387b5b6af1dfd406665e5d58e465451a1a0ae9df00f",
+    "reason": "README.md/topic.md generation and human projection requirements are removed; structured fact/evidence/event semantics remain"
+  },
+  "merged_t3_implementation_sha256": {
+    "app/ia/knowledge.py": "d2be14f9730df77e0d80881bae4af3df4b999ad3c432d1211c1a8c815459f72a",
+    "app/ia/evidence.py": "5f3c953a982472c65a9295c0e2119222dadb6ecb5eb3c3f8ec2999d4d54f6aa4",
+    "app/ia/events.py": "5914cd5c6e0816a035c2f21f61024c089b8c20fb62f0f0be809e3746fbc352d0"
+  },
+  "public_api": {
+    "app.ia.knowledge": {
+      "callables": ["knowledge_api", "knowledge_service_mode"],
+      "exceptions": ["CanonicalKnowledgeUnavailableError"]
+    },
+    "app.routes.knowledge": {
+      "attributes": ["router"]
+    },
+    "app.mcp_stdio": {
+      "callables": ["knowledge"]
+    }
+  },
+  "single_agent_tool": {
+    "name": "knowledge",
+    "http_path": "/api/knowledge",
+    "operations": ["promote", "query", "import_evidence"],
+    "detail_levels": ["summary", "record", "evidence"],
+    "production_chain": [
+      "mcp_stdio.knowledge",
+      "POST /api/knowledge",
+      "app.ia.knowledge.knowledge_api",
+      "KnowledgeService"
+    ]
+  },
+  "canonical_layout": {
+    "registry": "registry.json",
+    "fact": "projects/{project_id}/knowledge/topics/{topic_slug}/facts/{fact_key}/{stable_id}.json",
+    "event": "projects/{project_id}/knowledge/topics/{topic_slug}/events/{event_id}.json",
+    "evidence_ref": "projects/{project_id}/evidence/{stable_id}.json",
+    "archive_index": "archive-index.json"
+  },
+  "forbidden_generated_outputs": [
+    "README.md",
+    "topic.md",
+    "*.markdown",
+    "*.txt",
+    "*.html",
+    "human_projection",
+    "human_summary"
+  ],
+  "expected_controls": 3,
+  "expected_behavior_nodes": 6
+}

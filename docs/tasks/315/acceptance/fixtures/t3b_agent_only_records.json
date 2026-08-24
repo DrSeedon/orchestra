@@ -1,0 +1,107 @@
+{
+  "fixture_version": 1,
+  "audit_baseline": {
+    "merged_t3_command": "uv run python -m pytest docs/tasks/315/acceptance/test_t3_promotion_behavior.py -q",
+    "merged_t3_result": "18 passed",
+    "markdown_generator_call_sites": 2,
+    "initial_generated_markdown_files": 3,
+    "new_topic_generated_markdown_files": 4,
+    "t3_contract_markdown_layout_paths": 2,
+    "t3_oracle_markdown_behavior_assertions": 2,
+    "current_repo_inventory": {
+      "docs_tasks_md": 1281,
+      "docs_kb_md": 20,
+      "session_archive_md": 3,
+      "pipeline_prompt_md": 23,
+      "codex_skill_md": 2,
+      "todo_md": 1,
+      "claude_md": 1,
+      "agents_md": 1
+    }
+  },
+  "historical_sources": [
+    {
+      "path": "docs/tasks/315/research.md",
+      "class": "immutable-evidence",
+      "content": "# Synthetic historical research\n\nMeasured finding retained byte-for-byte.\n"
+    },
+    {
+      "path": "docs/kb/repo-ops.md",
+      "class": "cold-archive",
+      "content": "# Synthetic legacy topic\n\nImported once; never regenerated.\n"
+    },
+    {
+      "path": "TODO.md",
+      "class": "cold-archive",
+      "content": "- [ ] Synthetic historical TODO entry\n"
+    },
+    {
+      "path": "docs/archive/sessions/2026-08.md",
+      "class": "cold-archive",
+      "content": "# Synthetic session archive\n\nCold evidence only.\n"
+    }
+  ],
+  "import_request": {
+    "operation": "import_evidence",
+    "detail": "record",
+    "source": {
+      "path": "docs/tasks/315/research.md",
+      "class": "immutable-evidence",
+      "project_id": "orchestra",
+      "stable_id": "3b000000-0000-4000-8000-000000000001",
+      "canonical_uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/3b000000-0000-4000-8000-000000000001",
+      "git_commit": "1111111111111111111111111111111111111111",
+      "anchor": "Measured finding",
+      "content_sha256": "$historical_sha256"
+    }
+  },
+  "progressive_queries": [
+    {
+      "operation": "query",
+      "detail": "summary",
+      "project_id": "orchestra",
+      "topic": "runtime-safety",
+      "mode": "current"
+    },
+    {
+      "operation": "query",
+      "detail": "record",
+      "project_id": "orchestra",
+      "topic": "runtime-safety",
+      "mode": "current"
+    },
+    {
+      "operation": "query",
+      "detail": "evidence",
+      "project_id": "orchestra",
+      "topic": "runtime-safety",
+      "mode": "current"
+    }
+  ],
+  "forbidden_generated_extensions": [".md", ".markdown", ".txt", ".html"],
+  "forbidden_generated_keys": [
+    "generated_markdown",
+    "human_projection",
+    "human_summary",
+    "readme_text",
+    "topic_markdown"
+  ],
+  "compound_mutants": {
+    "hidden_markdown_regeneration": {
+      "nested_output": ".generated/topics/runtime-safety/summary.markdown",
+      "json_marker": {"metadata": {"human_projection": "hidden duplicate truth"}}
+    },
+    "direct_file_fallback": {
+      "fallback_path": "docs/kb/repo-ops.md",
+      "fallback_content": "T3B_DIRECT_FILE_FALLBACK_MUST_NOT_WIN"
+    },
+    "sqlite_fallback": {
+      "payload_json": {"claim": "T3B_SQLITE_SECOND_TRUTH_MUST_NOT_WIN"}
+    },
+    "vector_fallback": {
+      "hits": [
+        {"content": "T3B_VECTOR_SECOND_TRUTH_MUST_NOT_WIN", "score": 1.0}
+      ]
+    }
+  }
+}
