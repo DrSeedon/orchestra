@@ -138,11 +138,20 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 
 - Files: future correction to app/ia/knowledge.py; new app/routes/knowledge.py; app/mcp_stdio.py single
   `knowledge` tool; structured archive/evidence index. Existing app/ia/evidence.py/events.py fact semantics
-  remain. Frozen acceptance/test_t3b_agent_only_knowledge_behavior.py and
-  acceptance/fixtures/t3b_agent_only_*.json.
-- Test: uv run python -m pytest docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior.py -q
-- RED result: three audit/current-T3/historical controls pass; six behavior nodes fail on
-  `#315 T3b missing behavior: app.ia.knowledge.knowledge_api is not callable`.
+  remain. The oracle at worker commit `21e1b0718f8e8c3d30a06c2762b9d8257c815df4`
+  (main `b693f302`) is permanently superseded/excluded and unchanged; its old implementation SHA and
+  3→4 Markdown counts are retained only in acceptance/t3b-prechange-red-evidence.md. Replacement frozen
+  files are acceptance/test_t3b_agent_only_knowledge_behavior_v2.py and
+  acceptance/fixtures/t3b_agent_only_*_v2.json.
+- Test: `uv run python -m pytest docs/tasks/315/acceptance/test_t3_promotion_behavior.py docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior_v2.py --deselect 'docs/tasks/315/acceptance/test_t3_promotion_behavior.py::test_t3_exact_promotion_scenario[S11]' -q`
+- Selection: original T3 S11 is excluded because it mixes structured new-topic behavior with removed
+  README/topic assertions; corrected T3b replaces its registry/fact/event/query coverage. All other
+  original T3 nodes remain selected. The three corrected controls are invariant before/after.
+- RED result: exact three-control command → `3 passed in 0.14s`; exact full command → exit 1,
+  `6 failed, 20 passed, 1 deselected in 0.34s`. Replacement S11 fails on
+  `{'.json', '.md'} <= {'.json'}`; the other five behavior nodes fail on
+  `#315 T3b missing behavior: app.ia.knowledge.knowledge_api is not callable`. All selected original
+  T3 nodes and invariant controls pass; only mixed original S11 is deselected.
 - AC: command is green; the only agent entry is one typed `knowledge` MCP/API supporting promote/query/
   import_evidence and summary/record/evidence payload levels; new canonical writes are JSON records/index
   only; no README/topic Markdown, HTML/text summary or hidden human-projection key is generated; existing
