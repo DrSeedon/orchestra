@@ -1,0 +1,63 @@
+#332 read-only evidence commands (2026-08-24, Asia/Krasnoyarsk)
+
+Baseline:
+  git rev-parse main
+  -> 1c5bf6db975322025fdc9413ae94fdee7abbcd54
+  git log --oneline --decorate -12 main
+  -> #331, then #307, #309 and intervening merged history
+  git diff --stat HEAD..main -- app scripts app/static/js app/templates pipelines
+  -> only scripts/orchestra_process_guard.py differs in this worktree (+60/-4)
+  git check-ignore -v docs/tasks/332 docs/tasks/332/evidence docs/kb/dead-code-audit.md docs/workers/research-dead-code-serena.md
+  -> no output (owned paths are not ignored)
+
+Memory and framing:
+  pwd
+  -> /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-dead-code-serena
+  Read docs/kb/README.md, then evidence-methods.md, repo-ops.md, test-oracles.md,
+  test-suite-pruning.md, prompt-delivery.md, harness-tools.md.
+  search_memory("dead code audit ... #332")
+  -> prior #309 feature-usage audit, #313 test-suite pruning, and explicit warning that
+     AST/similarity/zero telemetry is candidate generation only.
+
+Static experiment (current worktree; main differs only in process-guard file):
+  python3 docs/tasks/332/evidence/static_audit.py
+  -> files=92, defs=2088, calls=18693, imports=1484, dynamic/decorators=531,
+     syntax_errors=[]
+  Fresh main archive, stdlib AST parse only:
+  -> files=92, defs=2121, calls=18716, imports=1098, selected_dynamic_calls=231,
+     syntax_errors=[]
+  `git show main:scripts/orchestra_process_guard.py` has 29 definitions; all four
+  #331 additions (`ProcessIdentityMismatch`, `ProcessGuardUnavailable`,
+  `_read_starttime`, `open_verified_pidfd`) have production/test references.
+
+Registry experiment (stdlib AST/text, no app import):
+  python3 docs/tasks/332/evidence/registry_audit.py
+  -> commit=1c5bf6db975322025fdc9413ae94fdee7abbcd54; mcp decorator tools=40;
+     FastAPI route decorators=100; duplicate (verb,path) keys=[];
+     template assets missing=[]; prompt skill files without manifest name=[];
+     JS dead-name counts: deleteOrchestrator=1, openDeleteOrchModal=2, initProxy=0.
+  python3 scripts/check_pipeline_manifest.py --check
+  -> OK: pipeline.yaml agrees with prompt files
+
+Frontend syntax/asset checks:
+  node --check app/static/js/{app,tool-renderers,usage,analytics,utils}.js
+  -> JS_SYNTAX_OK
+  Template asset scan (app/templates/*.html vs app/static/) -> all 14 listed assets exist.
+  Inline-handler scan -> real names closeCatalogModal, closeSubagentsModal,
+  openAnalyticsModal, openCatalogModal, openSubagentsModal, refreshCatalog,
+  switchLeftTab all have JS definitions; `fetch` and `if` are parser false positives.
+
+External entrypoint cross-check (read-only):
+  test -e /etc/NetworkManager/dispatcher.d/99-orchestra-proxy
+  -> ABSENT
+  systemctl --user cat ai-proxy-manager.service
+  -> /home/maxim/.config/systemd/user/ai-proxy-manager.service;
+     ExecStart=/mnt/data/Projects/Python/ai-proxy-manager/.venv/bin/python
+     -m ai_proxy_manager.app --config /home/maxim/.config/ai-proxy-manager/config.toml
+  rg -n --glob '!docs/**' --glob '!CHANGELOG.md' -F 'check-proxies.sh'
+      deploy scripts app pipelines .github tests
+  -> only scripts/99-orchestra-proxy and scripts/check-proxies.sh self/comments;
+     no deploy/systemd/production caller.
+
+Forbidden/omitted actions: no production/tests/pipelines edits; no DB, service, env,
+provider, live-model, or review calls; no Serena editing/safe-delete/shell tools.

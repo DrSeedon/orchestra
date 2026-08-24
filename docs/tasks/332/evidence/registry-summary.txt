@@ -1,0 +1,31 @@
+#332 registry summary (main=1c5bf6db)
+
+FastMCP source registry arm:
+- `app/mcp_stdio.py` has 40 top-level functions decorated with `@mcp.tool()`.
+- The 2 tools removed by #309 (`payment_receive`, `payment_status`) are absent from the
+  current decorator set; the prior pre-#309 AST set was 42.
+- Codex's `_orchestra_full_mcp_tools()` at `app/backend_codex.py:747-758` consumes the
+  FastMCP manager registry and has an empty exclusion set; no static allowlist is hiding a
+  registered tool.
+
+FastAPI source registry arm:
+- 100 route decorators were found across `app/routes/*.py`, all included by `app/main.py`.
+- Duplicate `(verb,path)` keys: none.
+- Current `POST /api/models/refresh` is one definition at `app/routes/system.py:389-393`;
+  `/api/models/catalog/refresh` is a distinct #366 route at `:431-436`. The duplicate route
+  warning recorded by #309 was pre-#309 baseline evidence, not a current candidate.
+- Legacy `/api/sessions/{name}/merge` has no route decorator; `app/main.py` middleware keeps
+  a typed 426 rejection and directs callers to merge-operation-v1.
+
+Prompt consumer arm:
+- Manifest declares exactly 6 skills: `codex-debate`, `eli5`, `grill-me`, `html-artifacts`,
+  `orchestra-agents`, `vps-deploy`.
+- `pipelines/default/prompts/skills/` contains exactly those 6 files; orphan and missing sets
+  are both empty. `scripts/check_pipeline_manifest.py --check` returned OK.
+
+JS/template arm:
+- Five JS assets are loaded by `dashboard.html` in dependency order; all 14 `g.asset(...)`
+  paths exist under `app/static/`.
+- The only zero-use name candidate after accounting for inline handlers is
+  `deleteOrchestrator` (one occurrence, its declaration); `openDeleteOrchModal` occurs twice
+  (declaration + live context-menu caller). `initProxy` is absent after #309.

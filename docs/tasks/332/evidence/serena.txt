@@ -1,0 +1,33 @@
+#332 Serena/LSP read-only candidate-generation record
+
+Startup command/tool sequence:
+- `mcp__serena__initial_instructions({})` -> manual read; project activated as
+  `research-dead-code-serena`; Python LSP active.
+- `mcp__serena__get_current_config({})` -> Serena version `1.7.1.dev0`, language server
+  status `ready`, active context `codex`, no shell/edit/safe-delete tool used.
+- `mcp__serena__get_symbols_overview` ran on `app/backend_opencode.py`,
+  `app/routes/system.py`, and `app/mcp_stdio.py`.
+
+Reference probes (Serena line numbers are 0-based):
+- `find_referencing_symbols(OpenCodeBackend, app/backend_opencode.py)` -> runtime factory
+  `app/runtime_registry.py:309,311` plus backend routing/lifecycle tests; this is not dead.
+- `find_referencing_symbols(_opencode_factory, app/runtime_registry.py)` -> builtin registry
+  assignment at `:389`.
+- `find_referencing_symbols(update_progress, app/mcp_stdio.py)` -> `{}`. This is a false
+  negative: `@mcp.tool()` at `:1640`, HTTP route `/api/sessions/{name}/progress` at
+  `app/routes/sessions.py:2059`, and worker prompt/catalog references are production entry
+  arms outside LSP's Python symbol graph.
+- `find_referencing_symbols(cleanup_old_logs, app/db.py)` -> `{}`. Its body is an intentional
+  loud tombstone at `app/db.py:2062-2072`; keep despite zero refs.
+- `find_referencing_symbols(fan_id_for_reducer, app/fan_barrier.py)` -> `{}`. The function is
+  a reducer safety helper at `:298-308`, while the live send path uses `peek_summary` at
+  `app/routes/sessions.py:864-871`; external future callers remain unknown.
+- `find_referencing_symbols(inject_skills_to_worktree, app/prompting.py)` -> manager/session
+  production callers (`app/manager.py:851`, `app/session.py:1442`) and multiple tests.
+- `find_referencing_symbols(pace_text, app/limits_card.py)` -> `app/tg_bridge.py:3471`.
+- `find_referencing_symbols(refresh_models_endpoint, app/routes/system.py)` -> `{}`. This is
+  a decorator false negative: FastAPI route registry and `app/static/js/app.js:7546` prove use.
+
+Conclusion: Serena generated useful symbol overviews and several false-negative candidates;
+zero LSP references is never treated as deletion proof. AST, decorators, registries, dynamic
+strings, DOM/fetch, prompt consumers, scripts, and safety/recovery paths decide the table.

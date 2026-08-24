@@ -1,0 +1,21 @@
+#332 frontend cross-check
+
+Files/LOC (current tree, unchanged by #331):
+- analytics.js 632 lines / 37,420 bytes
+- app.js 8,749 lines / 462,907 bytes
+- tool-renderers.js 721 lines / 30,001 bytes
+- usage.js 902 lines / 50,885 bytes
+- utils.js 233 lines / 11,404 bytes
+
+`node --check` passed for all five files. `dashboard.html` loads utils → tool-renderers →
+usage → analytics → app. Every template asset path exists. Inline handler names resolve to
+definitions; `fetch` and `if` are parser false positives.
+
+Candidate `app/static/js/app.js:1646-1657`:
+- `deleteOrchestrator` has exactly one token occurrence: declaration only.
+- No `onclick`, event listener, `window` export, dynamic string, template reference, or test
+  reference names it.
+- Live deletion path is `initTabContextMenu` → `openDeleteOrchModal` at `:2017` → DELETE
+  `/api/orchestrators/{name}`; the template retains the modal controls at `:102-115`.
+- The old function is therefore a production-unreachable duplicate, while the route and live
+  modal remain needed.
