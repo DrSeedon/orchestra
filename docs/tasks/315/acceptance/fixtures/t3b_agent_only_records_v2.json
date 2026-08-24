@@ -1,0 +1,102 @@
+{
+  "fixture_version": 2,
+  "selected_t3_scenarios": [
+    "S01",
+    "S02",
+    "S03",
+    "S04",
+    "S05",
+    "S06",
+    "S07",
+    "S08",
+    "S09",
+    "S10",
+    "S12"
+  ],
+  "excluded_t3_scenarios": ["S11"],
+  "historical_sources": [
+    {
+      "path": "docs/tasks/315/research.md",
+      "class": "immutable-evidence",
+      "content": "# Synthetic historical research\n\nMeasured finding retained byte-for-byte.\n"
+    },
+    {
+      "path": "docs/kb/repo-ops.md",
+      "class": "cold-archive",
+      "content": "# Synthetic legacy topic\n\nImported once; never regenerated.\n"
+    },
+    {
+      "path": "TODO.md",
+      "class": "cold-archive",
+      "content": "- [ ] Synthetic historical TODO entry\n"
+    },
+    {
+      "path": "docs/archive/sessions/2026-08.md",
+      "class": "cold-archive",
+      "content": "# Synthetic session archive\n\nCold evidence only.\n"
+    }
+  ],
+  "import_request": {
+    "operation": "import_evidence",
+    "detail": "record",
+    "source": {
+      "path": "docs/tasks/315/research.md",
+      "class": "immutable-evidence",
+      "project_id": "orchestra",
+      "stable_id": "3b000000-0000-4000-8000-000000000001",
+      "canonical_uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/3b000000-0000-4000-8000-000000000001",
+      "git_commit": "1111111111111111111111111111111111111111",
+      "anchor": "Measured finding",
+      "content_sha256": "$historical_sha256"
+    }
+  },
+  "progressive_queries": [
+    {
+      "operation": "query",
+      "detail": "summary",
+      "project_id": "orchestra",
+      "topic": "runtime-safety",
+      "mode": "current"
+    },
+    {
+      "operation": "query",
+      "detail": "record",
+      "project_id": "orchestra",
+      "topic": "runtime-safety",
+      "mode": "current"
+    },
+    {
+      "operation": "query",
+      "detail": "evidence",
+      "project_id": "orchestra",
+      "topic": "runtime-safety",
+      "mode": "current"
+    }
+  ],
+  "forbidden_generated_extensions": [".md", ".markdown", ".txt", ".html"],
+  "forbidden_generated_keys": [
+    "generated_markdown",
+    "human_projection",
+    "human_summary",
+    "readme_text",
+    "topic_markdown"
+  ],
+  "compound_mutants": {
+    "hidden_markdown_regeneration": {
+      "nested_output": ".generated/topics/runtime-safety/summary.markdown",
+      "json_marker": {"metadata": {"human_projection": "hidden duplicate truth"}}
+    },
+    "direct_storage_fallback": {
+      "fallback_path": "docs/kb/repo-ops.md",
+      "fallback_content": "T3B_DIRECT_FILE_FALLBACK_MUST_NOT_WIN",
+      "payload_json": {"claim": "T3B_SQLITE_SECOND_TRUTH_MUST_NOT_WIN"},
+      "hits": [
+        {"content": "T3B_VECTOR_SECOND_TRUTH_MUST_NOT_WIN", "score": 1.0}
+      ]
+    },
+    "production_wiring_bypass": {
+      "operation": "promote",
+      "sentinel": "T3B_MCP_ROUTE_OWNER_BYPASS_MUST_NOT_WIN"
+    }
+  }
+}

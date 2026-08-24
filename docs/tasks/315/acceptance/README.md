@@ -15,11 +15,31 @@ fixed that wiring gap but contradicted itself by requiring audit metadata to nam
 the production-path tests and scopes removed-domain bans only to canonical task/evidence/event bodies;
 audit metadata may name excluded sources.
 
-T3b supersedes only the human-projection/output clauses of merged T3: its evidence, event, conflict,
-valid-time and 12-scenario semantics remain. The old T3 layout requirement for generated `README.md`
-and `topic.md` is excluded from future implementation. Exact baseline: 2 generator call sites, 3
-Markdown outputs at base initialization, 4 after a new topic, 2 frozen layout paths and 2 oracle
-assertions. T3b requires JSON-only canonical writes and one agent-facing typed tool.
+T3b supersedes only the human-projection/output clauses of merged T3: its evidence, event, conflict
+and valid-time semantics remain. The first T3b oracle frozen in worker commit
+`21e1b0718f8e8c3d30a06c2762b9d8257c815df4` (main equivalent `b693f302`) is permanently superseded
+and excluded: its executable controls pin the pre-change `app/ia/knowledge.py` SHA and require the
+old 3→4 generated-Markdown behavior, so they cannot pass after a correct implementation. The old test
+and fixtures remain unchanged; their measurements are evidence text only in
+`t3b-prechange-red-evidence.md`.
+
+The corrected contract is `fixtures/t3b_agent_only_contract_v2.json`. Original T3 scenario S11 is
+also explicitly excluded because it combines valid atomic new-topic registry/fact/event behavior with
+superseded `README.md` and `topic.md` assertions. Corrected T3b replaces that structured part in
+`test_t3b_v2_new_topic_is_atomic_structured_json_without_generated_human_output`; every other original
+T3 node remains selected. T3b requires JSON-only canonical writes and one agent-facing typed tool.
+
+Corrected pre-implementation execution on 2026-08-25:
+
+- the exact three-control command returned `3 passed in 0.14s`;
+- the exact full command in the T3b table returned
+  `6 failed, 20 passed, 1 deselected in 0.34s` (exit 1);
+- the replacement S11 node first fails on `{'.json', '.md'} <= {'.json'}`, proving the current
+  generated-Markdown behavior is still present;
+- the remaining five behavior nodes first fail on
+  `#315 T3b missing behavior: app.ia.knowledge.knowledge_api is not callable`;
+- all 17 selected original T3 nodes plus all 3 invariant controls are green. The only deselection is
+  the explicitly superseded original S11 node.
 
 ## Smoke probes (not acceptance oracles)
 
@@ -29,8 +49,9 @@ reported as frozen oracles. They remain useful as early diagnostics.
 
 T7 intentionally has no smoke probe: its first executable artifact must be the production-shaped
 behavioral RED, because path/symbol existence cannot prove document ownership, prompt delivery or cutover.
-T3b also has no smoke: its controls must prove the current T3 Markdown mutation executes before the
-agent-only behavior fails.
+T3b also has no smoke: its corrected controls are invariant fixture/count, byte-preserving reference
+import and real T1–T3 structured-behavior checks. Agent API reachability and zero generated Markdown
+are behavior nodes, so they are RED before implementation and green after it.
 
 | Ticket | Smoke command | Expected current result |
 |---|---|---|
@@ -52,7 +73,7 @@ test, run it RED, commit that oracle, and only then implement. The smoke probe c
 | T1 namespace/schema | in-memory records for task, evidence, fact, session, resource, skill; secret-form fixture | namespace resolver → schema validator → private-field projection filter | missing resolver or cross-kind write must fail with typed validation error | valid URI round-trips and private fields are excluded from all derived payloads | equivalent URI parser/validator implementation with same normalized output | remove resolver check while adding a namespace-looking path in a shared fallback; test must still fail | uv run python -m pytest docs/tasks/315/acceptance/test_t1_namespace_behavior.py -q | production-scale URI cardinality, multi-tenant policy, real secret inventory |
 | T2 task migration/facade | immutable #299 SQLite backup + Git task/evidence manifest; project #N fixtures and two contour events | task facade → stable-ID store → Git event/SQLite projection → task_list/task_get adapters | duplicate stable ID, changed #N, or facade response drift must fail | unchanged task list/get and exact project #N replay | alternative UUID/ULID encoding with identical manifest mapping | omit Git event but retain SQLite row, or omit projection row but retain facade cache; both must be detected | uv run python -m pytest docs/tasks/315/acceptance/test_t2_task_behavior.py -q | live two-contour race rate, 10k-record performance, user choice on contiguous global #N |
 | T3 evidence/promotion | #256 18-query holdout plus 12 synthetic promotion cases: identical, conflict, supersedes, disputed, rejected, as-of, TTL, missing anchor | promotion API → evidence resolver → topic registry → fact event/CAS → current query | source-less promotion, silent same-key overwrite, lost rejected fact, or wrong as-of must fail | valid evidence-linked current fact and idempotent replay | human-approved supersession workflow producing the same explicit event shape | remove provenance validation while adding a fallback topic parser; remove status filter while keeping current row; both mutations must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t3_promotion_behavior.py -q | semantic duplicate-topic rate, answer utility, reviewer burden, real authoring ergonomics |
-| T3b agent-only correction | merged T3 contract/implementation hashes, measured 3→4 Markdown mutation, synthetic historical docs/tasks/docs/kb/TODO/session corpus and direct-file/SQLite/vector fallback sentinels | single MCP `knowledge` tool → POST `/api/knowledge` → `knowledge_api` → KnowledgeService structured JSON/event/evidence owners | any generated Markdown/human summary, multiple agent tools, rewritten historical source, missing progressive level or fallback storage winning over absent canonical truth must fail | merged T3 structured promotion remains green; current Markdown generator demonstrably runs; historical bytes/hashes remain stable; JSON-only structured import/promotion/query succeeds through one tool | extra JSON fields/index backend and different compact agent payload shapes are allowed if summary < record < evidence and ownership/heads stay identical | hide `.markdown` below a generated directory plus `human_projection` in JSON; delete canonical then offer direct path, SQLite payload and vector hit together — all must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior.py -q | agent task success, corpus import duration and payload/tool-call effect until separately measured |
+| T3b agent-only correction v2 | immutable fixture/count contract, synthetic historical docs/tasks/docs/kb/TODO/session corpus, all original T3 nodes except mixed S11, and direct-file/SQLite/vector/wiring sentinels; old SHA and 3→4 measurement live only in excluded pre-change evidence | single MCP `knowledge` tool → POST `/api/knowledge` → `knowledge_api` → KnowledgeService structured JSON/event/evidence owners | generated Markdown/human metadata, missing agent API, rewritten historical source, missing progressive level, production wiring bypass or fallback storage winning over absent canonical truth must fail | fixture/count and mutant detector execute; reference import preserves exact paths/bytes; real T1–T3 fact/event/evidence behavior stays green; corrected agent API/import/new-topic behavior becomes green | extra JSON fields/index backend and different compact agent payload shapes are allowed if summary < record < evidence and ownership/heads stay identical | hide `.markdown` plus `human_projection`; delete canonical then offer direct path, SQLite payload and vector hit together; bypass MCP→HTTP or HTTP→owner — all must fail | `uv run python -m pytest docs/tasks/315/acceptance/test_t3_promotion_behavior.py docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior_v2.py --deselect 'docs/tasks/315/acceptance/test_t3_promotion_behavior.py::test_t3_exact_promotion_scenario[S11]' -q` | agent task success, corpus import duration and payload/tool-call effect until separately measured |
 | T4 heads/projections | STOPPED until T3b merges; frozen Git head + changed structured task/fact records; SQLite projection copy with deliberately stale FTS/vector heads | merge generation → synchronous SQLite fold → async FTS/vector queue → single typed knowledge query/fallback | stale projection returning “not found”, missing head receipt, vector failure erasing current result or direct file fallback must fail | equal-head typed projection returns current result; stale vector still returns typed result with debt | alternate projection backend with identical head/fallback contract | delete canonical fallback and leave stale SQLite row; forge equal head with stale payload; let vector/direct-file fallback hide canonical failure — each must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t4_projection_heads_behavior.py -q | real embedder latency, index size growth, production restart timing |
 | T5 session/pack/privacy | synthetic session archive with extraction failure; OVPack-like manifest/checksum/scope fixtures; secret-form corpus | session commit → immutable archive → background extraction; pack validate/restore; redacted projections | archive loss, write-before-manifest-validation, scope bypass, or secret in index/prompt must fail | successful archive and valid restore/rebuild with zero secret matches | alternate pack format with same validated manifest and restore semantics | skip archive then return extraction success; validate checksum only after write; restore redacted body through fallback; all must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t5_recovery_behavior.py -q | legal purge semantics, key-management operations, real backup duration/size |
 | T6 merge/cleanup | merge-operation fixtures covering target commit success + task-link/RAG/next-task partials; #309 route/duplicate inventories | pinned session merge → Git target commit → task/evidence receipt → projection queue → cleanup gates | treating secondary failure as no merge, losing link receipt, or deleting compatibility path before oracle must fail | target commit and partial states are distinct; existing v1 recovery path remains callable | alternate merge runner preserving same operation-state/receipt contract | remove partial-state branch while retaining success branch; route cleanup with stale legacy caller; both must fail | uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_behavior.py -q | live route/click telemetry, user-visible progress behavior, proxy-manager deployment behavior |

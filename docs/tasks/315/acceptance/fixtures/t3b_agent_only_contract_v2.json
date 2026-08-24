@@ -1,0 +1,56 @@
+{
+  "contract_version": 2,
+  "fixture_sha256": "e529b731271477abc1899f8c290c6d9d39b4fb580fc1930a3fe675a8343c6746",
+  "permanently_superseded": {
+    "worker_commit": "21e1b0718f8e8c3d30a06c2762b9d8257c815df4",
+    "main_equivalent": "b693f302",
+    "test": "docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior.py",
+    "fixtures": [
+      "docs/tasks/315/acceptance/fixtures/t3b_agent_only_contract.json",
+      "docs/tasks/315/acceptance/fixtures/t3b_agent_only_records.json"
+    ],
+    "reason": "pre-change implementation SHA and 3-to-4 generated-Markdown assertions cannot remain green after the intended correction",
+    "evidence_only": "docs/tasks/315/acceptance/t3b-prechange-red-evidence.md"
+  },
+  "original_t3_selection": {
+    "oracle": "docs/tasks/315/acceptance/test_t3_promotion_behavior.py",
+    "excluded_node": "docs/tasks/315/acceptance/test_t3_promotion_behavior.py::test_t3_exact_promotion_scenario[S11]",
+    "reason": "S11 mixes valid new-topic registry/fact/event behavior with superseded README.md/topic.md assertions",
+    "replacement_node": "test_t3b_v2_new_topic_is_atomic_structured_json_without_generated_human_output",
+    "expected_selected_nodes": 17
+  },
+  "public_api": {
+    "app.ia.knowledge": {
+      "callables": ["knowledge_api", "knowledge_service_mode"],
+      "exceptions": ["CanonicalKnowledgeUnavailableError"]
+    },
+    "app.routes.knowledge": {
+      "attributes": ["router"]
+    },
+    "app.mcp_stdio": {
+      "callables": ["knowledge"]
+    }
+  },
+  "single_agent_tool": {
+    "name": "knowledge",
+    "http_path": "/api/knowledge",
+    "operations": ["promote", "query", "import_evidence"],
+    "detail_levels": ["summary", "record", "evidence"],
+    "production_chain": [
+      "mcp_stdio.knowledge",
+      "POST /api/knowledge",
+      "app.ia.knowledge.knowledge_api",
+      "KnowledgeService"
+    ]
+  },
+  "canonical_layout": {
+    "registry": "registry.json",
+    "fact": "projects/{project_id}/knowledge/topics/{topic_slug}/facts/{fact_key}/{stable_id}.json",
+    "event": "projects/{project_id}/knowledge/topics/{topic_slug}/events/{event_id}.json",
+    "evidence_ref": "projects/{project_id}/evidence/{stable_id}.json",
+    "archive_index": "archive-index.json"
+  },
+  "expected_controls": 3,
+  "expected_behavior_nodes": 6,
+  "expected_full_selected_nodes": 26
+}
