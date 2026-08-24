@@ -1,0 +1,140 @@
+{
+  "fixture_version": 1,
+  "operation": {
+    "operation_id": "86000000-0000-4000-8000-000000000001",
+    "schema_version": 2,
+    "name": "t6-worker",
+    "session_id": "86100000-0000-4000-8000-000000000001",
+    "scope": "/srv/orchestra",
+    "target_branch": "main",
+    "worker_branch": "task-315/t6-worker",
+    "worker_head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "target_before": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "target_after": "cccccccccccccccccccccccccccccccccccccccc",
+    "task_outcome": "continue"
+  },
+  "task": {
+    "project_id": "orchestra",
+    "stable_id": "11111111-1111-4111-8111-111111111111",
+    "task_id": 101,
+    "display_number": 315,
+    "display_ref": "#315"
+  },
+  "evidence": {
+    "manifest_uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222",
+    "manifest_head": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "manifest_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "count": 1
+  },
+  "heads": {
+    "canonical_head": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "projection_head": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "indexed_head": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "acceptance": {
+    "revision": 7,
+    "oracle_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "manifest_count": 1
+  },
+  "receipt": {
+    "receipt_id": "86200000-0000-4000-8000-000000000001",
+    "path": "projects/orchestra/tasks/11111111-1111-4111-8111-111111111111/merge-receipts/86000000-0000-4000-8000-000000000001.json"
+  },
+  "raw_outcomes": {
+    "succeeded": {
+      "ok": true,
+      "state": "merged",
+      "commit_point": "target_committed",
+      "lifecycle_status": {"ok": true},
+      "rag_backfill_status": "accepted"
+    },
+    "partial": {
+      "ok": false,
+      "state": "partial",
+      "commit_point": "target_committed",
+      "error": "task evidence link pending",
+      "lifecycle_status": {"ok": false},
+      "rag_backfill_status": "accepted"
+    },
+    "unknown": {
+      "ok": false,
+      "state": "partial",
+      "commit_point": "unknown",
+      "error": "target outcome unknown",
+      "rag_backfill_status": "accepted"
+    },
+    "failed": {
+      "ok": false,
+      "state": "failed",
+      "commit_point": "not_reached",
+      "error": "target rejected before mutation",
+      "rag_backfill_status": "accepted"
+    }
+  },
+  "surface_contract": {
+    "removed_routes": [
+      "/api/sessions/{name}/merge",
+      "/api/proxy/list",
+      "/api/proxy/check/{proxy_id}",
+      "/api/proxy/set-env",
+      "/api/tunnel/status"
+    ],
+    "retained_routes": [
+      "/api/merge-operations",
+      "/api/merge-operations/capabilities",
+      "/api/sessions/{name}/progress",
+      "/api/models/refresh"
+    ],
+    "absent_files": [
+      "app/routes/proxy.py",
+      "app/proxy_manager.py",
+      "app/ssh_tunnel.py",
+      "app/model_router.py"
+    ],
+    "progress_ui_markers": [
+      "ai-progress-label",
+      "ai-progress",
+      "session.progress_pct",
+      "s.progress_pct",
+      "mcp__orchestra__update_progress"
+    ]
+  },
+  "valid_alternate": {
+    "field_order": [
+      "receipt_status",
+      "operation_id",
+      "target",
+      "task",
+      "evidence",
+      "heads",
+      "acceptance",
+      "receipt_id",
+      "schema_version"
+    ],
+    "metadata": {"backend_revision": 2, "safe_extra": true}
+  },
+  "compound_mutants": {
+    "success_before_receipt": {"marker": "T6_SUCCESS_WITHOUT_RECEIPT_MUST_FAIL"},
+    "cleanup_before_receipt": {"marker": "T6_CLEANUP_BEFORE_RECEIPT_MUST_FAIL"},
+    "forged_task_evidence_head": {
+      "stable_id": "99999999-9999-4999-8999-999999999999",
+      "evidence_head": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "projection_head": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+    },
+    "late_worker_head_injection": {"head": "dddddddddddddddddddddddddddddddddddddddd"},
+    "partial_collapsed_to_success": {"marker": "T6_PARTIAL_AS_SUCCESS_MUST_FAIL"},
+    "rag_masks_missing_receipt": {"marker": "T6_RAG_SUCCESS_MUST_NOT_CREATE_RECEIPT"},
+    "cleanup_surface_reintroduced": {
+      "legacy_route": "/api/sessions/{name}/merge",
+      "duplicate_refresh_count": 2
+    }
+  },
+  "expected_denominators": {
+    "controls": 5,
+    "behavior_nodes": 6,
+    "compound_mutants": 7,
+    "receipt_task_count": 1,
+    "receipt_evidence_count": 1,
+    "terminal_states": 4
+  }
+}

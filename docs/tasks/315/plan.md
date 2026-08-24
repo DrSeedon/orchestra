@@ -215,16 +215,27 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 
 ### T6 — merge receipt and approved cleanup sequencing
 
-- Files: app/routes/sessions.py, app/merge_operations.py, app/workspace.py, #309 oracle references;
-  test_smoke_t6_merge_cleanup.py only as a missing-seam diagnostic. Behavioral oracle design:
-  acceptance/README.md T6 row; no RED test is frozen.
+- Files: new app/ia/merge_receipts.py; app/merge_operations.py, app/routes/merge_operations.py,
+  app/routes/sessions.py and app/workspace.py. The frozen oracle is
+  acceptance/test_t6_merge_receipt_cleanup_behavior.py plus fixtures/t6_merge_receipt_*.json;
+  test_smoke_t6_merge_cleanup.py remains only a missing-seam diagnostic. #309/#298 files are
+  compatibility inputs, not T6 edit targets.
 - Smoke: uv run python -m pytest docs/tasks/315/acceptance/test_smoke_t6_merge_cleanup.py -q
 - Smoke result: RED only because the future path is absent; this is not behavioral acceptance.
+- Test: `uv run python -m pytest docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py -q`
+- RED result: invariant controls → `5 passed in 4.31s`; full command → exit 1,
+  `6 failed, 5 passed in 2.82s`, first failure
+  `#315 T6 missing behavior: cannot import app.ia.merge_receipts: No module named 'app.ia.merge_receipts'`.
+  Collection succeeds; current operation-v1 DB/session/workspace setup, state semantics, 426 recovery
+  and all #309 surface controls pass.
 - AC: command is green; merge target commit, task link, evidence manifest, projection receipt and
-  partial/unknown state are distinguishable; rag_backfill remains secondary/async; legacy merge route
-  removal is gated by v1 recovery/OpenAPI oracle; duplicate model refresh is not a second write path;
-  progress UI hide preserves active worker API/session fields; proxy controls remain under external
-  owner; #298 files/config remain untouched.
+  acceptance revision are bound in one durable verified receipt before task/lifecycle finalization;
+  SUCCEEDED/PARTIAL/UNKNOWN/FAILED remain distinguishable; retry/replay is idempotent and neither a
+  moved worker nor target drift can inject later commits. RAG/indexing remains secondary async debt and
+  cannot manufacture success or a receipt. No worker archive/worktree cleanup/evidence deletion occurs
+  before a verified receipt. Legacy merge route remains absent with middleware 426 recovery; exactly one
+  model refresh route remains; progress UI stays absent while update_progress route/MCP/session fields
+  remain; local proxy controls remain absent/external; #298 hashes/config remain untouched.
 - blocked-by: T2, T4, T5.
 
 ### T7 — prompt + existing-document migration + final cutover
@@ -251,8 +262,8 @@ The user approved project-scoped #N with stable UUID, private/secret fields outs
 Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed with a human gate for
 conflicts and sensitive classes. Each ticket must still receive the exact
 fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
-behavioral RED test must be committed and independently verified before implementation. T1–T5
-have reached that oracle gate; T6–T7 have not. T7 runs only after the
+behavioral RED test must be committed and independently verified before implementation. T1–T6
+have reached that oracle gate; T7 has not. T7 runs only after the
 corrected T3b plus T4–T6 core and has no existence-smoke
 shortcut. Smoke probes never satisfy this gate.
 
