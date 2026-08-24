@@ -1162,6 +1162,29 @@ class SessionManager:
         if session:
             await session.interrupt()
 
+    async def commit_session_archive(
+        self,
+        session_id: str,
+        *,
+        project_id: str,
+        archive_id: str,
+        idempotency_key: str,
+        retention: str,
+    ) -> dict:
+        """Commit structured history through the live AgentSession owner."""
+
+        session = self.sessions.get(session_id)
+        if session is None:
+            session = await self.ensure_loaded_by_id(session_id)
+        if session is None:
+            raise KeyError(f"session not found: {session_id}")
+        return await session.commit_archive(
+            project_id=project_id,
+            archive_id=archive_id,
+            idempotency_key=idempotency_key,
+            retention=retention,
+        )
+
     async def remove(self, session_id: str) -> None:
         from app.bg_jobs import bg_manager
         await bg_manager.cancel_by_session(session_id)

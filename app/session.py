@@ -2910,6 +2910,26 @@ class AgentSession:
         self._log("status", f"compact done: {before_pct}% → {after_pct}% (summary {len(summary)} chars)")
         return {"ok": True, "before_pct": before_pct, "after_pct": after_pct, "summary_chars": len(summary), "summary": summary}
 
+    async def commit_archive(
+        self,
+        *,
+        project_id: str,
+        archive_id: str,
+        idempotency_key: str,
+        retention: str,
+    ) -> dict:
+        """Commit immutable session history through the configured recovery owner."""
+
+        from app.ia.recovery import commit_archive
+
+        return await commit_archive(
+            session=self,
+            project_id=project_id,
+            archive_id=archive_id,
+            idempotency_key=idempotency_key,
+            retention=retention,
+        )
+
     async def _notify_scope_idle(self) -> None:
         # wired callback (set by tg_bridge.start_bridge) — session does not import tg_bridge
         if on_scope_idle is None:
