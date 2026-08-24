@@ -1494,18 +1494,6 @@ def get_last_turn_map() -> dict[str, str]:
 def delete_session(session_id: str) -> None:
     with _conn() as c:
         c.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
-    # Строки журнала уходят каскадом — вместе с ними уходят и тела картинок (#78).
-    # Это единственный существующий путь исчезновения `logs`, и другой политики уборки
-    # блобов нет намеренно: `agent history is research data, never delete it`.
-    try:
-        from app.blobs import remove_session_blobs
-
-        removed = remove_session_blobs(session_id)
-        if removed:
-            logger.info("removed %d blob(s) with session %s", removed, session_id)
-    except Exception as error:
-        logger.warning("could not remove blobs for %s: %s: %s",
-                       session_id, type(error).__name__, error)
 
 
 def delete_archived_session(name: str, scope: str) -> None:

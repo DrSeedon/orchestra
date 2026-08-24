@@ -1997,26 +1997,6 @@ async def switch_branch(name: str, req: dict):
         )
 
 
-@router.get("/api/blobs/{session_id}/{sha}")
-async def get_blob(session_id: str, sha: str):
-    """Тело картинки по хешу (#78). Содержимое адресуется хешем, значит оно неизменно."""
-    from fastapi.responses import FileResponse
-
-    from app.blobs import session_dir
-
-    # Путь собирается из внешних значений — валидируем оба, иначе `../` вернёт файл с диска.
-    if not re.fullmatch(r"[0-9a-f]{64}", sha) or not re.fullmatch(r"[0-9a-zA-Z_.-]{1,64}", session_id):
-        return JSONResponse({"error": "invalid blob address"}, status_code=400)
-    directory = session_dir(session_id)
-    matches = sorted(directory.glob(f"{sha}.*")) if directory.is_dir() else []
-    if not matches:
-        return JSONResponse({"error": "blob not found"}, status_code=404)
-    return FileResponse(
-        matches[0],
-        headers={"Cache-Control": "public, max-age=31536000, immutable"},
-    )
-
-
 @router.get("/api/sessions/{name}/wip")
 async def session_wip(name: str, scope: str = "", base_ref: str = ""):
     from app.workspace import branch_wip_status

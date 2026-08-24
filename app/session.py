@@ -2242,10 +2242,6 @@ class AgentSession:
             if "send_message" in tool_name or "mcp__orchestra__send_message" in tool_name:
                 self._did_report = True
         elif event.type == "tool_result":
-            # Запись картинок в блобы (#78) ВЫКЛЮЧЕНА: клиентской половины нет — фронт не
-            # знает типа `blob`, и первая же картинка перестала бы показываться. Хранилище
-            # и чтение (`app/blobs.py`, `GET /api/blobs/...`) оставлены инертными до
-            # разморозки #78; включать запись только вместе с фронтом.
             self._log(
                 "tool_result",
                 event.content,
