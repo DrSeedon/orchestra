@@ -37,6 +37,14 @@ def wt_root(tmp_path, monkeypatch):
     return root
 
 
+@pytest.fixture
+def git_locale(monkeypatch):
+    """Keep Git diagnostics stable when the test process uses a localized locale."""
+    monkeypatch.setenv("LANG", "C.UTF-8")
+    monkeypatch.setenv("LC_ALL", "C.UTF-8")
+    monkeypatch.setenv("LANGUAGE", "C")
+
+
 class TestValidateRepoRoot:
     def test_accepts_primary_git_root(self, git_repo):
         from app.workspace import validate_repo_root
@@ -50,7 +58,7 @@ class TestValidateRepoRoot:
         with pytest.raises(ValueError, match="repo_path does not exist"):
             validate_repo_root(str(missing))
 
-    def test_standalone_non_git_raises(self, tmp_path):
+    def test_standalone_non_git_raises(self, tmp_path, git_locale):
         from app.workspace import validate_repo_root
 
         not_git = tmp_path / "not-git"
@@ -253,7 +261,7 @@ class TestCreateWorktree:
         with pytest.raises(ValueError, match="does not exist"):
             create_worktree("/nonexistent/path", "worker-1")
 
-    def test_not_git_repo_raises(self, tmp_path, wt_root):
+    def test_not_git_repo_raises(self, tmp_path, wt_root, git_locale):
         from app.workspace import create_worktree
         not_git = tmp_path / "not-a-repo"
         not_git.mkdir()
