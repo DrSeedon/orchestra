@@ -175,3 +175,7 @@ $ CODEX_HOME=/path/to/disposable-copy python resume_size.py THREAD_ID --exclude-
 
 Published with explicit user approval on 2026-08-24:
 https://github.com/openai/codex/issues/21988#issuecomment-5392423306
+
+Separate issue opened with explicit user approval for the bounded stdio/RPC-recovery
+failure mode:
+https://github.com/openai/codex/issues/40362
