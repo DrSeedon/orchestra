@@ -6,13 +6,22 @@ Takes sqlite3.Connection; callers manage transactions. External integrations are
 import json
 import logging
 import sqlite3
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path, PurePosixPath
-from typing import TypedDict
+from typing import Iterator, TypedDict
 
 logger = logging.getLogger("tm")
 
 from app.db import _conn
+from app.ia.task_store import (
+    ProjectionDebtError,
+    TaskStore,
+    build_migration_manifest,
+)
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "cancelled"}
 
@@ -872,3 +881,490 @@ def api_get_task(par: str, project: str = "") -> dict:
         "commits": commits,
         "sync_revision": task["sync_revision"],
     }
+
+
+# The legacy functions above remain the exact default path.  The aliases make
+# the opt-in adapter explicit and keep routes/MCP on the existing public owner.
+_legacy_resolve_scoped_task_identity = resolve_scoped_task_identity
+_legacy_link_commits_to_task = link_commits_to_task
+_legacy_api_create_task = api_create_task
+_legacy_api_update_task = api_update_task
+_legacy_api_update_task_if_current = api_update_task_if_current
+_legacy_api_list_tasks = api_list_tasks
+_legacy_api_get_task = api_get_task
+
+
+@dataclass(frozen=True)
+class _IATaskStoreContext:
+    mode: str
+    store: TaskStore | None
+
+
+_IA_TASK_STORE_CONTEXT: ContextVar[_IATaskStoreContext | None] = ContextVar(
+    "ia_task_store_context",
+    default=None,
+)
+
+
+def _ia_context() -> _IATaskStoreContext | None:
+    context = _IA_TASK_STORE_CONTEXT.get()
+    if context is None or context.mode == "legacy":
+        return None
+    return context
+
+
+def _legacy_task_snapshot(*, cutoff: str, source_head: str) -> dict:
+    """Read one transactionally consistent legacy snapshot for an opt-in store."""
+
+    with _conn() as conn:
+        conn.execute("BEGIN")
+        try:
+            projects = [dict(row) for row in conn.execute(
+                "SELECT * FROM tm_projects ORDER BY id"
+            ).fetchall()]
+            tasks = []
+            for row in conn.execute("SELECT * FROM tm_tasks ORDER BY id").fetchall():
+                task = dict(row)
+                task["git_commits"] = json.loads(task.get("git_commits") or "[]")
+                task["acceptance_oracle_json"] = parse_acceptance_oracle(
+                    task.get("acceptance_oracle_json")
+                )
+                tasks.append(task)
+            clients = [dict(row) for row in conn.execute(
+                "SELECT * FROM tm_clients ORDER BY id"
+            ).fetchall()]
+            payments = [dict(row) for row in conn.execute(
+                "SELECT * FROM tm_payments ORDER BY id"
+            ).fetchall()]
+            allocations = [dict(row) for row in conn.execute(
+                "SELECT * FROM tm_payment_allocations ORDER BY id"
+            ).fetchall()]
+            sync_rows = [dict(row) for row in conn.execute(
+                "SELECT * FROM tm_sync_log ORDER BY id"
+            ).fetchall()]
+            schema = {
+                table: [tuple(row) for row in conn.execute(
+                    f"PRAGMA table_info({table})"
+                ).fetchall()]
+                for table in ("tm_projects", "tm_tasks")
+            }
+            conn.rollback()
+        except Exception:
+            conn.rollback()
+            raise
+    schema_bytes = json.dumps(
+        schema,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return {
+        "source": {
+            "cutoff": cutoff,
+            "source_head": source_head,
+            "source_schema_sha256": f"sha256:{sha256(schema_bytes).hexdigest()}",
+        },
+        "projects": projects,
+        "tasks": tasks,
+        "evidence": [],
+        "clients": clients,
+        "payments": payments,
+        "payment_allocations": allocations,
+        "sync_log": sync_rows,
+    }
+
+
+@contextmanager
+def ia_task_store_mode(
+    *,
+    mode: str = "legacy",
+    canonical_root: Path | None = None,
+    projection_path: Path | None = None,
+    cutoff: str = "",
+    source_head: str = "",
+) -> Iterator[TaskStore | None]:
+    """Temporarily select legacy, synchronous shadow, or canonical task ownership."""
+
+    if mode not in {"legacy", "shadow", "canonical"}:
+        raise ValueError(f"unsupported IA task store mode: {mode}")
+    store = None
+    if mode != "legacy":
+        if canonical_root is None or projection_path is None:
+            raise ValueError("canonical_root and projection_path are required")
+        if not cutoff or not source_head:
+            raise ValueError("cutoff and source_head are required")
+        store = TaskStore(
+            canonical_root=Path(canonical_root),
+            projection_path=Path(projection_path),
+        )
+        manifest = build_migration_manifest(
+            _legacy_task_snapshot(cutoff=cutoff, source_head=source_head)
+        )
+        store.migrate(manifest)
+    token = _IA_TASK_STORE_CONTEXT.set(_IATaskStoreContext(mode=mode, store=store))
+    try:
+        yield store
+    finally:
+        _IA_TASK_STORE_CONTEXT.reset(token)
+
+
+def _candidate_receipts(candidate: dict, context: _IATaskStoreContext) -> dict:
+    store = context.store
+    assert store is not None
+    return {
+        "ia_mode": context.mode,
+        "stable_id": candidate["stable_id"],
+        "canonical_head": candidate.get("canonical_head") or store.canonical_head,
+        "projection_head": candidate.get("projection_head") or store.projection_head,
+        "evidence_refs": list(candidate.get("evidence_refs") or []),
+    }
+
+
+def _list_receipts(context: _IATaskStoreContext) -> dict:
+    store = context.store
+    assert store is not None
+    return {
+        "ia_mode": context.mode,
+        "canonical_head": store.canonical_head,
+        "projection_head": store.projection_head,
+    }
+
+
+_CREATE_COMPARE_FIELDS = ("par", "title", "project", "price_rub", "status")
+_GET_COMPARE_FIELDS = (
+    "par",
+    "title",
+    "description",
+    "project",
+    "price_rub",
+    "status",
+    "assignee",
+    "priority",
+    "created_at",
+    "completed_at",
+    "commits",
+    "sync_revision",
+)
+_UPDATE_COMPARE_FIELDS = (
+    "par",
+    "project",
+    "updated",
+    "old_status",
+    "new_status",
+    "price_rub",
+)
+
+
+def _comparison_debt(legacy: dict, candidate: dict, fields: tuple[str, ...]) -> dict:
+    differences = {
+        field: {"legacy": legacy.get(field), "canonical": candidate.get(field)}
+        for field in fields
+        if legacy.get(field) != candidate.get(field)
+    }
+    return {"mismatches": differences} if differences else {}
+
+
+def _shadow_result(
+    legacy: dict,
+    candidate: dict,
+    context: _IATaskStoreContext,
+    fields: tuple[str, ...],
+) -> dict:
+    debt = _comparison_debt(legacy, candidate, fields)
+    additive = {
+        field: candidate[field]
+        for field in ("acceptance", "display_ref", "worker_session_id")
+        if field in candidate
+    }
+    return {
+        **legacy,
+        **additive,
+        **_candidate_receipts(candidate, context),
+        "shadow_match": not debt,
+        "projection_debt": debt,
+    }
+
+
+def _canonical_result(
+    candidate: dict,
+    legacy: dict,
+    context: _IATaskStoreContext,
+    fields: tuple[str, ...],
+) -> dict:
+    debt = _comparison_debt(legacy, candidate, fields)
+    return {
+        **candidate,
+        **_candidate_receipts(candidate, context),
+        "projection_debt": debt,
+    }
+
+
+def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
+    legacy = _legacy_resolve_scoped_task_identity(scope, ref)
+    context = _ia_context()
+    if context is None:
+        return legacy
+    store = context.store
+    assert store is not None
+    candidate = store.task_get(str(legacy["par_number"]), project=legacy["project_id"])
+    return {
+        **legacy,
+        "stable_id": candidate["stable_id"],
+        "canonical_head": candidate["canonical_head"],
+    }
+
+
+def api_create_task(project_id: str, title: str, price: int = 0,
+                    description: str = "", assignee: str = "",
+                    status: str = "new", scope: str = "",
+                    priority: int = 2, acceptance_command: str = "",
+                    acceptance_manifest: list[str] | None = None,
+                    acceptance_required: bool = False,
+                    acceptance_actor: dict | None = None) -> dict:
+    context = _ia_context()
+    if context is None:
+        return _legacy_api_create_task(
+            project_id, title, price, description, assignee, status,
+            scope=scope, priority=priority,
+            acceptance_command=acceptance_command,
+            acceptance_manifest=acceptance_manifest,
+            acceptance_required=acceptance_required,
+            acceptance_actor=acceptance_actor,
+        )
+    store = context.store
+    assert store is not None
+
+    if context.mode == "shadow":
+        legacy = _legacy_api_create_task(
+            project_id, title, price, description, assignee, status,
+            scope=scope, priority=priority,
+            acceptance_command=acceptance_command,
+            acceptance_manifest=acceptance_manifest,
+            acceptance_required=acceptance_required,
+            acceptance_actor=acceptance_actor,
+        )
+        candidate = store.task_create(
+            project_id=legacy["project"],
+            title=title,
+            price=price,
+            description=description,
+            assignee=assignee,
+            status=status,
+            priority=priority,
+            acceptance_command=acceptance_command,
+            acceptance_manifest=acceptance_manifest,
+            acceptance_required=acceptance_required,
+            expected_head=store.canonical_head,
+        )
+        return _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
+
+    with _conn() as conn:
+        project = resolve_project_selector(conn, project_id) if project_id else None
+        if project is None and scope:
+            project = _project_for_session_scope(conn, scope)
+        if not project or not str(project.get("scope") or "").strip():
+            raise ValueError(f"project '{project_id or scope}' is not registered")
+        resolved_project_id = project["id"]
+    candidate = store.task_create(
+        project_id=resolved_project_id,
+        title=title,
+        price=price,
+        description=description,
+        assignee=assignee,
+        status=status,
+        priority=priority,
+        acceptance_command=acceptance_command,
+        acceptance_manifest=acceptance_manifest,
+        acceptance_required=acceptance_required,
+        expected_head=store.canonical_head,
+    )
+    legacy = _legacy_api_create_task(
+        resolved_project_id, title, price, description, assignee, status,
+        priority=priority,
+        acceptance_command=acceptance_command,
+        acceptance_manifest=acceptance_manifest,
+        acceptance_required=acceptance_required,
+        acceptance_actor=acceptance_actor,
+    )
+    candidate["id"] = legacy["id"]
+    return _canonical_result(candidate, legacy, context, _CREATE_COMPARE_FIELDS)
+
+
+def api_update_task(par: str, title: str | None = None,
+                    description: str | None = None,
+                    price: int | None = None,
+                    status: str | None = None,
+                    assignee: str | None = None,
+                    project: str = "",
+                    priority: int | None = None,
+                    acceptance_command: str | None = None,
+                    acceptance_manifest: list[str] | None = None,
+                    acceptance_required: bool | None = None,
+                    acceptance_actor: dict | None = None) -> dict:
+    context = _ia_context()
+    if context is None:
+        return _legacy_api_update_task(
+            par, title, description, price, status, assignee, project, priority,
+            acceptance_command, acceptance_manifest, acceptance_required,
+            acceptance_actor,
+        )
+    store = context.store
+    assert store is not None
+    candidate_args = {
+        "project": project,
+        "title": title,
+        "description": description,
+        "price": price,
+        "status": status,
+        "assignee": assignee,
+        "priority": priority,
+        "acceptance_command": acceptance_command,
+        "acceptance_manifest": acceptance_manifest,
+        "acceptance_required": acceptance_required,
+    }
+    legacy_args = (
+        par, title, description, price, status, assignee, project, priority,
+        acceptance_command, acceptance_manifest, acceptance_required,
+        acceptance_actor,
+    )
+    if context.mode == "shadow":
+        legacy = _legacy_api_update_task(*legacy_args)
+        candidate = store.task_update(
+            par,
+            **candidate_args,
+            expected_head=store.canonical_head,
+        )
+        return _shadow_result(legacy, candidate, context, _UPDATE_COMPARE_FIELDS)
+    candidate = store.task_update(
+        par,
+        **candidate_args,
+        expected_head=store.canonical_head,
+    )
+    legacy = _legacy_api_update_task(*legacy_args)
+    return _canonical_result(candidate, legacy, context, _UPDATE_COMPARE_FIELDS)
+
+
+def api_update_task_if_current(
+    identity: TaskIdentity,
+    *,
+    status: str,
+    worker_session_id: str | None = None,
+) -> dict:
+    context = _ia_context()
+    if context is None:
+        return _legacy_api_update_task_if_current(
+            identity,
+            status=status,
+            worker_session_id=worker_session_id,
+        )
+    store = context.store
+    assert store is not None
+    candidate_identity = dict(identity)
+    if not candidate_identity.get("stable_id"):
+        detail = store.task_get(
+            str(identity["par_number"]),
+            project=identity["project_id"],
+        )
+        candidate_identity.update(
+            stable_id=detail["stable_id"],
+            canonical_head=detail["canonical_head"],
+        )
+    if context.mode == "shadow":
+        legacy = _legacy_api_update_task_if_current(
+            identity,
+            status=status,
+            worker_session_id=worker_session_id,
+        )
+        if not legacy.get("ok"):
+            return legacy
+        candidate = store.task_update_if_current(
+            candidate_identity,
+            status=status,
+            worker_session_id=worker_session_id,
+        )
+        return _shadow_result(
+            legacy,
+            candidate,
+            context,
+            ("ok", "par", "updated", "new_status", "sync_revision"),
+        )
+    candidate = store.task_update_if_current(
+        candidate_identity,
+        status=status,
+        worker_session_id=worker_session_id,
+    )
+    legacy = _legacy_api_update_task_if_current(
+        identity,
+        status=status,
+        worker_session_id=worker_session_id,
+    )
+    return _canonical_result(
+        candidate,
+        legacy,
+        context,
+        ("ok", "par", "updated", "new_status", "sync_revision"),
+    )
+
+
+def api_list_tasks(project: str = "", status: str = "",
+                   assignee: str = "") -> dict:
+    context = _ia_context()
+    if context is None:
+        return _legacy_api_list_tasks(project, status, assignee)
+    store = context.store
+    assert store is not None
+    legacy = _legacy_api_list_tasks(project, status, assignee)
+    candidate = store.task_list(project=project, status=status, assignee=assignee)
+    debt = _comparison_debt(legacy, candidate, ("tasks", "count"))
+    if context.mode == "shadow":
+        return {
+            **legacy,
+            **_list_receipts(context),
+            "shadow_match": not debt,
+            "projection_debt": debt,
+        }
+    return {
+        **candidate,
+        **_list_receipts(context),
+        "projection_debt": debt,
+    }
+
+
+def api_get_task(par: str, project: str = "") -> dict:
+    context = _ia_context()
+    if context is None:
+        return _legacy_api_get_task(par, project)
+    store = context.store
+    assert store is not None
+    legacy = _legacy_api_get_task(par, project)
+    candidate = store.task_get(par, project=project)
+    if context.mode == "shadow":
+        return _shadow_result(legacy, candidate, context, _GET_COMPARE_FIELDS)
+    return _canonical_result(candidate, legacy, context, _GET_COMPARE_FIELDS)
+
+
+def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str) -> dict:
+    context = _ia_context()
+    if context is None:
+        return _legacy_link_commits_to_task(task_ref, commits, project_id)
+    store = context.store
+    assert store is not None
+    if context.mode == "shadow":
+        legacy = _legacy_link_commits_to_task(task_ref, commits, project_id)
+        if not legacy.get("ok"):
+            return legacy
+        candidate = store.link_commits_to_task(
+            task_ref,
+            commits,
+            project_id,
+            expected_head=store.canonical_head,
+        )
+        return _shadow_result(legacy, candidate, context, ("ok", "added"))
+    candidate = store.link_commits_to_task(
+        task_ref,
+        commits,
+        project_id,
+        expected_head=store.canonical_head,
+    )
+    legacy = _legacy_link_commits_to_task(task_ref, commits, project_id)
+    return _canonical_result(candidate, legacy, context, ("ok", "added"))
