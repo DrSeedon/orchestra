@@ -221,6 +221,33 @@ def _assert_candidate_receipts(value: Mapping, *, mode: str) -> None:
     assert isinstance(value["evidence_refs"], Sequence)
 
 
+def _nested_field_names(value) -> set[str]:
+    if isinstance(value, Mapping):
+        return set(value) | {
+            nested
+            for child in value.values()
+            for nested in _nested_field_names(child)
+        }
+    if isinstance(value, list):
+        return {
+            nested
+            for child in value
+            for nested in _nested_field_names(child)
+        }
+    return set()
+
+
+def _assert_canonical_payloads_exclude_removed_domains(payloads: Sequence[Mapping]) -> None:
+    contract = _contract()
+    forbidden_names = set(contract["forbidden_canonical_field_names"])
+    assert payloads, "canonical payload scope is unexpectedly empty"
+    for payload in payloads:
+        assert forbidden_names.isdisjoint(_nested_field_names(payload))
+        rendered = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        for forbidden_value in contract["forbidden_canonical_values"]:
+            assert forbidden_value not in rendered
+
+
 def test_t2_harness_fixture_hash_denominators_and_controls_are_frozen():
     """Positive control: all frozen inputs load without the production seam."""
     fixture = _fixture()
@@ -236,6 +263,26 @@ def test_t2_harness_fixture_hash_denominators_and_controls_are_frozen():
     assert {task["par_number"] for task in snapshot["tasks"]} == {315, 316}
     scoped_315 = [task["project_id"] for task in snapshot["tasks"] if task["par_number"] == 315]
     assert scoped_315 == ["orchestra", "client-alpha"]
+
+
+def test_t2_harness_audit_names_removed_field_but_canonical_scope_forbids_it():
+    """Positive control: audit vocabulary and canonical payload scope are distinct."""
+    contract = _contract()
+    assert "tm_tasks.yougile_task_id" in contract["excluded_source_domains"]
+    assert "yougile_task_id" in contract["forbidden_canonical_field_names"]
+    canonical_payloads = [
+        {"record_type": "task.state", "title": "safe task body"},
+        {
+            "record_type": "task.evidence",
+            "canonical_path": "docs/tasks/315/research.md",
+        },
+        {"event_type": "task.updated", "changes": {"title": "safe event body"}},
+    ]
+    _assert_canonical_payloads_exclude_removed_domains(canonical_payloads)
+    with pytest.raises(AssertionError):
+        _assert_canonical_payloads_exclude_removed_domains(
+            canonical_payloads + [{"yougile_task_id": "must be caught"}]
+        )
 
 
 def test_t2_harness_compound_collision_and_lww_mutants_are_material():
@@ -451,11 +498,14 @@ def test_t2_manifest_is_deterministic_content_bound_and_excludes_removed_domains
         assert evidence["git_commit"]
         assert evidence["content_sha256"].startswith("sha256:")
 
-    rendered = json.dumps(manifest, sort_keys=True)
-    for fragment in _contract()["forbidden_canonical_fragments"]:
-        assert fragment not in rendered
-    assert "paid_rub" not in rendered
-    assert "yougile_task_id" not in rendered
+    # excluded_sources is audit metadata and intentionally names removed domains.
+    # Only canonical task/evidence/event bodies are subject to the field/value ban.
+    canonical_payloads = [
+        *manifest["tasks"],
+        *manifest["evidence"],
+        *manifest.get("events", []),
+    ]
+    _assert_canonical_payloads_exclude_removed_domains(canonical_payloads)
 
     detached = copy.deepcopy(snapshot)
     built = api.build_migration_manifest(detached)
@@ -493,11 +543,16 @@ def test_t2_migration_writes_per_task_json_and_current_sqlite_projection(tmp_pat
         count = connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
     assert count == 3
 
-    canonical_text = "\n".join(
-        path.read_text(encoding="utf-8") for path in root.rglob("*.json")
-    )
-    for fragment in _contract()["forbidden_canonical_fragments"]:
-        assert fragment not in canonical_text
+    canonical_body_paths = [
+        *root.rglob("state.json"),
+        *root.rglob("events/*.json"),
+        *root.rglob("evidence/*.json"),
+    ]
+    canonical_payloads = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in canonical_body_paths
+    ]
+    _assert_canonical_payloads_exclude_removed_domains(canonical_payloads)
     assert store.task_list(project="orchestra")["count"] == 2
 
 

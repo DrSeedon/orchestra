@@ -6,10 +6,13 @@ acceptance test committed against the current base. T1 and T2 are now materializ
 `test_t*_behavior.py` files plus frozen JSON fixtures under `fixtures/`; T3–T6 remain at design only.
 No implementation is implied by this directory.
 
-T2 oracle history: commit `529711a9feda296e361bc8a09fd8f7ec65be4a57` is superseded and excluded
-from Phase 3. Its direct `TaskStore` tests could all pass with a dead parallel store that no production
-`app.tm`/HTTP/MCP path called. The replacement oracle retains those storage tests and additionally
-requires legacy/shadow/canonical entry through the shared `app.tm` owner plus ASGI and MCP paths.
+T2 oracle history: commits `529711a9feda296e361bc8a09fd8f7ec65be4a57` and
+`f09641624d371f9914e6e3eaed0b214384d9a9f4` are superseded and excluded from Phase 3. The first
+could pass with a dead parallel store that no production `app.tm`/HTTP/MCP path called. The second
+fixed that wiring gap but contradicted itself by requiring audit metadata to name
+`tm_tasks.yougile_task_id` while banning the same name from the whole manifest. The replacement keeps
+the production-path tests and scopes removed-domain bans only to canonical task/evidence/event bodies;
+audit metadata may name excluded sources.
 
 ## Smoke probes (not acceptance oracles)
 

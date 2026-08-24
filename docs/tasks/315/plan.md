@@ -78,11 +78,12 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
   acceptance/fixtures/t2_task_store_*.json. The existing test_smoke_t2_task_parity.py remains a
   missing-seam diagnostic only.
 - Test: uv run python -m pytest docs/tasks/315/acceptance/test_t2_task_behavior.py -q
-- RED result: five harness controls pass (including exact current `app.tm` output and real ASGI→app.tm
+- RED result: six harness controls pass (including exact current `app.tm` output, real ASGI→app.tm
   →MCP reachability); 15 behavior tests fail on the absent `app.ia.task_store` and
   `app.tm.ia_task_store_mode` production hook. Commit
-  `529711a9feda296e361bc8a09fd8f7ec65be4a57` is superseded/excluded for Phase 3: it covered the direct
-  store but could not detect a dead parallel implementation.
+  `529711a9feda296e361bc8a09fd8f7ec65be4a57` is superseded/excluded for missing production wiring;
+  `f09641624d371f9914e6e3eaed0b214384d9a9f4` is superseded/excluded because it applied the
+  canonical-body removed-domain ban to audit metadata that must name excluded source fields.
 - AC: command is green; fresh content-bound manifest has 0 duplicate UUIDs and preserves every
   project-scoped #N; per-task JSON bodies/events/evidence refs have no shared JSONL hotspot; same-manifest
   replay is idempotent; task_create/list/get/update/status/acceptance/worker-session/commit-link outputs
@@ -92,6 +93,8 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
   mode preserves exact current output; shadow writes/compares through real app.tm and exposes mismatch;
   canonical mode makes TaskStore authoritative only inside explicit test/rollout configuration. HTTP
   and MCP must enter through the same app.tm owner, and removing app.tm→TaskStore keeps this command red.
+  Audit metadata names removed sources; their field names and values are absent only from canonical
+  task/evidence/event bodies.
 - blocked-by: T1.
 
 ### T3 — immutable evidence manifest and typed fact promotion
