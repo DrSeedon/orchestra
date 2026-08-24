@@ -130,10 +130,17 @@ def _base_result(
 
 
 def normalize_request(
-    *, name: str, scope: str, target: str = "", next_task_id: str = "",
-    waive_diff_budget: bool = False, waived_by: str = "",
+    *,
+    name: str,
+    scope: str,
+    target: str = "",
+    next_task_id: str = "",
+    waive_diff_budget: bool = False,
+    waived_by: str = "",
+    task_outcome: str = "",
+    merge_schema_version: int | None = None,
 ) -> dict[str, Any]:
-    return {
+    request = {
         "name": name.strip(),
         "scope": scope.rstrip("/"),
         "target": target.strip(),
@@ -142,6 +149,10 @@ def normalize_request(
         "waive_diff_budget": bool(waive_diff_budget),
         "waived_by": waived_by.strip() if waive_diff_budget else "",
     }
+    if merge_schema_version is not None:
+        request["merge_schema_version"] = int(merge_schema_version)
+        request["task_outcome"] = task_outcome.strip().lower()
+    return request
 
 
 def request_hash(request: dict[str, Any]) -> str:
@@ -224,7 +235,7 @@ def _idempotency_conflict(
 
 
 def _terminal_snapshot_matches(
-    row: sqlite3.Row, accepted: dict[str, Any],
+    row: sqlite3.Row | dict[str, Any], accepted: dict[str, Any],
 ) -> bool:
     return (
         row["terminal_worker_branch"] == accepted["worker_branch"]
@@ -232,8 +243,6 @@ def _terminal_snapshot_matches(
         and row["terminal_base_branch"] == accepted["base_branch"]
         and row["terminal_task_id"] == accepted["task_id"]
         and bool(row["terminal_needs_switch"]) == accepted["needs_switch"]
-        and json.loads(row["accepted_admission_json"] or "{}")
-        == accepted.get("admission", {})
     )
 
 
@@ -310,6 +319,27 @@ def resolve_operation(
                 f"unblocked. Its state stays {record['state']} as the record of what happened.",
             ),
         }
+        connection.execute(
+            "DELETE FROM tm_task_reservations WHERE operation_id=?",
+            (operation_id,),
+        )
+        finalization = json.loads(record.get("finalization_json") or "{}")
+        final_session_id = str(finalization.get("session_id") or "")
+        final_task = finalization.get("task") or {}
+        final_task_ref = str(final_task.get("par_number") or "")
+        if final_session_id and final_task_ref:
+            session = connection.execute(
+                "SELECT task_id, status FROM sessions WHERE id=?",
+                (final_session_id,),
+            ).fetchone()
+            if (
+                session is None
+                or session["status"] == "archived"
+                or str(session["task_id"] or "") != final_task_ref
+            ):
+                from app import tm
+
+                tm.release_session_task_binding(connection, final_session_id)
         connection.execute(
             """UPDATE merge_operations
                SET resolved_at=?, resolution_outcome=?, resolution_actor=?,
@@ -466,6 +496,19 @@ def accept_operation_snapshot(
     return result, True, 202
 
 
+def _reopen_for_finalization(operation_id: str) -> bool:
+    """CAS a PARTIAL operation whose DB stage is still pending back into the runner."""
+    with _conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        cursor = connection.execute(
+            """UPDATE merge_operations SET state='PENDING', owner_token='', updated_at=?
+               WHERE operation_id=? AND state='PARTIAL' AND resolved_at IS NULL
+                 AND commit_point='REACHED' AND finalization_stage='PENDING'""",
+            (_now(), operation_id),
+        )
+        return cursor.rowcount == 1
+
+
 def claim_operation(operation_id: str, owner_token: str) -> bool:
     with _conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
@@ -490,6 +533,115 @@ def claim_operation(operation_id: str, owner_token: str) -> bool:
             (owner_token, _json(result), _hash(result), now, now, operation_id),
         )
         return cursor.rowcount == 1
+
+
+def save_prepared_finalization(operation_id: str, payload: dict[str, Any]) -> None:
+    """Write the pre-Git journal. Runs under the repo lock, before any ref moves."""
+    with _conn() as connection:
+        connection.execute(
+            "UPDATE merge_operations SET finalization_stage='PREPARED', "
+            "finalization_json=?, updated_at=? WHERE operation_id=?",
+            (_json({**payload, "stage": "PREPARED"}), _now(), operation_id),
+        )
+
+
+def checkpoint_merge_commit(operation_id: str, payload: dict[str, Any]) -> None:
+    """The FIRST SQLite mutation after Git. Nothing else may write before it.
+
+    Task links, payment, session lifecycle and YouGile all depend on this row saying
+    that the commit exists. Writing any of them first would leave the durable record
+    claiming the merge never happened.
+    """
+    with _conn() as connection:
+        cursor = connection.execute(
+            "UPDATE merge_operations SET commit_point='REACHED', "
+            "finalization_stage='PENDING', finalization_json=?, updated_at=? "
+            "WHERE operation_id=?",
+            (_json({**payload, "stage": "PENDING"}), _now(), operation_id),
+        )
+        if cursor.rowcount != 1:
+            raise RuntimeError(
+                f"merge operation '{operation_id}' vanished before its commit checkpoint"
+            )
+
+
+def mark_finalization_applied(operation_id: str, payload: dict[str, Any]) -> None:
+    with _conn() as connection:
+        connection.execute(
+            "UPDATE merge_operations SET finalization_stage='APPLIED', "
+            "finalization_json=?, updated_at=? WHERE operation_id=?",
+            (_json({**payload, "stage": "APPLIED"}), _now(), operation_id),
+        )
+
+
+def _repo_for_scope(scope: str) -> str:
+    return scope.rstrip("/")
+
+
+def reconcile_prepared_commit(record: dict[str, Any]) -> dict[str, Any] | None:
+    """Ask the repository whether the lost checkpoint's commit exists.
+
+    Evidence, not inference: exactly one commit in the first-parent range, its parent is
+    the recorded `target_before`, its tree is the tree computed before the merge, and it
+    carries this operation's own trailer. Anything else stays UNKNOWN — an unexpected
+    target is foreign history, not a checkpoint we may claim.
+    """
+    import subprocess
+
+    payload = json.loads(record["finalization_json"] or "{}")
+    if not payload:
+        return None
+    repo = _repo_for_scope(record["scope"])
+    target_before = payload.get("target_before") or ""
+    target_branch = payload.get("target_branch") or ""
+    operation_id = record["operation_id"]
+    if not repo or not target_before or not target_branch:
+        return None
+
+    def git(*args: str) -> tuple[int, str]:
+        done = subprocess.run(
+            ["git", *args], cwd=repo, capture_output=True, text=True,
+        )
+        return done.returncode, done.stdout.strip()
+
+    code, head = git("rev-parse", target_branch)
+    if code != 0:
+        return None
+    if head == target_before:
+        return {"reached": False, "payload": payload}
+    code, listing = git(
+        "rev-list", "--first-parent", f"{target_before}..{target_branch}",
+    )
+    if code != 0:
+        return None
+    commits = [line for line in listing.splitlines() if line]
+    if len(commits) != 1 or commits[0] != head:
+        return None
+    code, parent = git("rev-parse", f"{head}^")
+    if code != 0 or parent != target_before:
+        return None
+    code, tree = git("rev-parse", f"{head}^{{tree}}")
+    expected_tree = payload.get("expected_tree") or ""
+    if code != 0 or (expected_tree and tree != expected_tree):
+        return None
+    code, body = git("log", "-1", "--format=%B", head)
+    if code != 0:
+        return None
+    trailers = subprocess.run(
+        ["git", "interpret-trailers", "--parse"], input=body,
+        cwd=repo, capture_output=True, text=True,
+    )
+    if trailers.returncode != 0:
+        return None
+    marker = f"Orchestra-Operation: {operation_id}"
+    if [line.strip() for line in trailers.stdout.splitlines()].count(marker) != 1:
+        return None
+    from app.workspace import _parse_merged_commits
+
+    payload["target_after"] = head
+    payload["commits"] = _parse_merged_commits(repo, target_before, head)
+    payload["stage"] = "PENDING"
+    return {"reached": True, "payload": payload, "target_after": head}
 
 
 def _session_snapshot(session_id: str) -> dict[str, Any]:
@@ -669,6 +821,11 @@ def _replay_drift(record: dict[str, Any]) -> dict[str, Any] | None:
         current["worker_branch"] == accepted_branch
         and current["worker_head"] == accepted_head
     ):
+        return None
+    # Успешный мерж САМ двигает воркера (worktree сбрасывается на target). Сверять его
+    # после этого с точкой ПРИЁМА — значит объявлять собственную работу дрейфом. Точка
+    # сравнения для завершённой операции — состояние, в котором она его оставила.
+    if record["finished_at"] and _terminal_snapshot_matches(record, current):
         return None
 
     detail = (
@@ -947,6 +1104,12 @@ def normalize_merge_result(
             status=raw.get("_http_status"), details=details,
         )
 
+    finalization = raw.get("finalization")
+    if isinstance(finalization, dict) and finalization.get("stage") == "PENDING":
+        # DB-стадия не доехала, но коммит есть и журнал его описывает: это чинится
+        # повтором ТОГО ЖЕ operation_id и никогда вторым мержем.
+        retryable = True
+
     result = {
         "schema_version": 1,
         "operation_id": operation_id,
@@ -977,6 +1140,11 @@ def normalize_merge_result(
         "warnings": warnings,
         "next_action": next_action,
     }
+    for warning in raw.get("warnings") or []:
+        if isinstance(warning, dict) and warning.get("code"):
+            result["warnings"].append(warning)
+    if isinstance(finalization, dict):
+        result["finalization"] = finalization
     return result
 
 
@@ -990,6 +1158,7 @@ def finish_operation(
     if state not in TERMINAL_STATES:
         raise ValueError(f"cannot finish operation in state {state}")
     terminal = terminal or {}
+    finalization = result.get("finalization")
     now = _now()
     with _conn() as connection:
         cursor = connection.execute(
@@ -997,6 +1166,8 @@ def finish_operation(
                SET state=?, commit_point=?, result_json=?, result_hash=?,
                    terminal_worker_branch=?, terminal_worker_head=?,
                    terminal_base_branch=?, terminal_task_id=?, terminal_needs_switch=?,
+                   finalization_stage=COALESCE(?, finalization_stage),
+                   finalization_json=COALESCE(?, finalization_json),
                    finished_at=?, updated_at=?, owner_token=''
                WHERE operation_id=? AND state='RUNNING' AND owner_token=?""",
             (
@@ -1009,6 +1180,8 @@ def finish_operation(
                 terminal.get("base_branch", ""),
                 terminal.get("task_id", ""),
                 int(bool(terminal.get("needs_switch"))),
+                finalization.get("stage") if isinstance(finalization, dict) else None,
+                _json(finalization) if isinstance(finalization, dict) else None,
                 now,
                 now,
                 operation_id,
@@ -1072,16 +1245,98 @@ def _mark_terminal_snapshot_failure(
 
 
 def recover_orphan_operations() -> list[str]:
-    """Mark orphan RUNNING rows unknown and return restartable PENDING ids."""
-    pending: list[str] = []
+    """Reconcile orphaned Git commits before falling back to UNKNOWN."""
     now = _now()
     with _conn() as connection:
-        connection.execute("BEGIN IMMEDIATE")
-        running = connection.execute(
+        running = list(connection.execute(
             "SELECT * FROM merge_operations WHERE state='RUNNING'"
-        ).fetchall()
-        for row in running:
-            record = _decode_record(row)
+        ).fetchall())
+
+    pending: list[str] = []
+    for row in running:
+        record = _decode_record(row)
+        operation_id = record["operation_id"]
+        stage = str(record.get("finalization_stage") or "")
+        point = str(record.get("commit_point") or "")
+
+        if stage == "PENDING" and point == "REACHED":
+            with _conn() as connection:
+                cursor = connection.execute(
+                    "UPDATE merge_operations SET state='PENDING', owner_token='', "
+                    "finished_at=NULL, updated_at=? "
+                    "WHERE operation_id=? AND state='RUNNING'",
+                    (now, operation_id),
+                )
+            if cursor.rowcount == 1:
+                pending.append(operation_id)
+            continue
+
+        reconciled = (
+            reconcile_prepared_commit(record)
+            if stage == "PREPARED" else None
+        )
+        if reconciled is not None and reconciled["reached"]:
+            payload = reconciled["payload"]
+            checkpoint_merge_commit(operation_id, payload)
+            with _conn() as connection:
+                cursor = connection.execute(
+                    "UPDATE merge_operations SET state='PENDING', owner_token='', "
+                    "finished_at=NULL, updated_at=? "
+                    "WHERE operation_id=? AND state='RUNNING'",
+                    (now, operation_id),
+                )
+            if cursor.rowcount == 1:
+                pending.append(operation_id)
+            continue
+
+        if (
+            reconciled is not None
+            and not reconciled["reached"]
+            and str(record["result"].get("operation_state") or "")
+            in {"PENDING", "RUNNING"}
+        ):
+            payload = reconciled["payload"]
+            from app import tm
+
+            tm.release_merge_finalization(payload)
+            result = dict(record["result"])
+            result.update(
+                operation_state="FAILED",
+                retryable=False,
+                commit_point="NOT_REACHED",
+                error=_error(
+                    "ORPHANED_BEFORE_GIT",
+                    "Server restarted before the prepared merge reached Git.",
+                    operation_id=operation_id,
+                ),
+                finalization={**payload, "stage": "NOT_REQUIRED"},
+                next_action=_action(
+                    "START_NEW_OPERATION",
+                    "The prepared merge did not reach Git; start a new operation.",
+                ),
+            )
+            with _conn() as connection:
+                connection.execute(
+                    "UPDATE merge_operations SET state='FAILED', "
+                    "commit_point='NOT_REACHED', finalization_stage='NOT_REQUIRED', "
+                    "finalization_json=?, result_json=?, result_hash=?, owner_token='', "
+                    "finished_at=?, updated_at=? WHERE operation_id=? AND state='RUNNING'",
+                    (
+                        _json({**payload, "stage": "NOT_REQUIRED"}),
+                        _json(result), _hash(result), now, now, operation_id,
+                    ),
+                )
+            continue
+
+        with _conn() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            current = connection.execute(
+                "SELECT * FROM merge_operations WHERE operation_id=? AND state='RUNNING'",
+                (operation_id,),
+            ).fetchone()
+            if current is None:
+                continue
+            record = _decode_record(current)
             result = _unknown_from_record(
                 record,
                 "Server restarted while the merge operation was running; Git outcome requires reconciliation.",
@@ -1092,14 +1347,88 @@ def recover_orphan_operations() -> list[str]:
                    SET state='UNKNOWN', commit_point='UNKNOWN', result_json=?, result_hash=?,
                        owner_token='', finished_at=?, updated_at=?
                    WHERE operation_id=? AND state='RUNNING'""",
-                (_json(result), _hash(result), now, now, record["operation_id"]),
+                (_json(result), _hash(result), now, now, operation_id),
             )
-        pending = [
+    with _conn() as connection:
+        queued = [
             row["operation_id"] for row in connection.execute(
                 "SELECT operation_id FROM merge_operations WHERE state='PENDING'"
             ).fetchall()
         ]
-    return pending
+    return list(dict.fromkeys([*pending, *queued]))
+
+
+def _recover_lost_checkpoint(operation_id: str, raw: dict[str, Any]) -> dict[str, Any]:
+    """Rebuild the lost first post-Git checkpoint from repository evidence."""
+    record = get_operation_record(operation_id)
+    reconciled = reconcile_prepared_commit(record) if record else None
+    if reconciled is None:
+        # Ни trailer, ни parent/tree не совпали, а target уехал — это чужая или
+        # повреждённая история. `UNKNOWN` здесь честнее любого предположения.
+        return raw
+    if not reconciled["reached"]:
+        payload = reconciled["payload"]
+        from app import tm
+
+        tm.release_merge_finalization(payload)
+        return {
+            **raw,
+            "state": "failed",
+            "commit_point": "not_reached",
+            "finalization": {**payload, "stage": "NOT_REQUIRED"},
+        }
+    payload = reconciled["payload"]
+    checkpoint_merge_commit(operation_id, payload)
+    return {
+        **raw,
+        "state": "partial",
+        "commit_point": "target_committed",
+        "target_after": reconciled["target_after"],
+        "error": raw.get("error") or "first post-commit checkpoint recovered from Git",
+        "finalization": payload,
+    }
+
+
+async def _resume_finalization(record: dict[str, Any]) -> dict[str, Any]:
+    """Finish the DB stage of an operation whose Git commit already exists."""
+    from app.routes.sessions import apply_merge_finalization
+
+    operation_id = record["operation_id"]
+    payload = json.loads(record["finalization_json"] or "{}")
+    result = dict(record["result"])
+    try:
+        applied = await apply_merge_finalization(payload)
+    except Exception as exc:
+        detail = f"merge finalization replay failed: {err_text(exc)}"
+        logger.error("%s operation_id=%s", detail, operation_id)
+        result["error"] = _error(
+            "POST_COMMIT_PARTIAL", detail, operation_id=operation_id,
+            retryable=True, details={"failed_stages": ["FINALIZATION_PENDING"]},
+        )
+        result["operation_state"] = "PARTIAL"
+        result["retryable"] = True
+        result["finalization"] = payload
+        return result
+    payload["stage"] = "APPLIED"
+    await asyncio.to_thread(mark_finalization_applied, operation_id, payload)
+    link_status, link_items, _failures, link_warnings = _link_status(
+        applied.get("linked_tasks"),
+    )
+    result.update(
+        operation_state="SUCCEEDED",
+        commit_point="REACHED",
+        retryable=False,
+        error=None,
+        finalization=payload,
+        next_action=_action(
+            "NONE", "Merge operation completed; no retry is required.",
+        ),
+    )
+    result["task_links"] = {"status": link_status, "items": link_items}
+    result["warnings"] = list(result.get("warnings") or []) + [
+        {"code": "TASK_LINK_NOT_FOUND", "message": text} for text in link_warnings
+    ]
+    return result
 
 
 async def _run_operation(operation_id: str) -> None:
@@ -1109,6 +1438,33 @@ async def _run_operation(operation_id: str) -> None:
         return
     record = await asyncio.to_thread(get_operation_record, operation_id)
     if not record:
+        return
+    if record["finalization_stage"] == "PENDING" and record["commit_point"] == "REACHED":
+        # Git уже сделал свой единственный коммит: повтор доделывает ТОЛЬКО стадию БД.
+        try:
+            result = await _resume_finalization(record)
+            terminal = None
+            try:
+                terminal = await asyncio.to_thread(
+                    _session_snapshot, record["session_id"],
+                )
+            except Exception as exc:
+                _mark_terminal_snapshot_failure(result, operation_id, exc)
+            await asyncio.to_thread(
+                finish_operation, operation_id, owner_token, result, terminal,
+            )
+        except BaseException as exc:
+            logger.exception("merge finalization replay crashed operation_id=%s", operation_id)
+            result = _unknown_from_record(
+                record,
+                f"Merge finalization replay crashed: {err_text(exc)}",
+                exception_type=type(exc).__name__,
+            )
+            await asyncio.to_thread(
+                finish_operation, operation_id, owner_token, result, None,
+            )
+            if isinstance(exc, asyncio.CancelledError):
+                raise
         return
     try:
         current, mismatch = await asyncio.to_thread(_verify_accepted_snapshot, record)
@@ -1304,9 +1660,14 @@ async def _run_operation(operation_id: str) -> None:
                         expected_target_head=str(target.get("sha") or ""),
                         req={
                             **record["request"],
+                            "operation_id": operation_id,
                             "target": str(target.get("branch") or ""),
                         },
                     )
+                    if isinstance(raw, dict) and raw.get("finalization_checkpoint_lost"):
+                        raw = await asyncio.to_thread(
+                            _recover_lost_checkpoint, operation_id, raw,
+                        )
                     from app import rag_service
 
                     result = normalize_merge_result(
@@ -1396,10 +1757,18 @@ async def accept_merge_operation(
     next_task_id: str = "",
     waive_diff_budget: bool = False,
     waived_by: str = "",
+    task_outcome: str = "",
+    merge_schema_version: int | None = None,
 ) -> tuple[dict[str, Any], int]:
     request = normalize_request(
-        name=name, scope=scope, target=target, next_task_id=next_task_id,
-        waive_diff_budget=waive_diff_budget, waived_by=waived_by,
+        name=name,
+        scope=scope,
+        target=target,
+        next_task_id=next_task_id,
+        waive_diff_budget=waive_diff_budget,
+        waived_by=waived_by,
+        task_outcome=task_outcome,
+        merge_schema_version=merge_schema_version,
     )
     try:
         canonical_id = _operation_id(operation_id)
@@ -1420,6 +1789,18 @@ async def accept_merge_operation(
             ensure_operation_runner(canonical_id)
         if existing["state"] in {"PENDING", "RUNNING"}:
             return existing["result"], 202
+        if (
+            existing["state"] == "PARTIAL"
+            and existing["finalization_stage"] == "PENDING"
+            and existing["commit_point"] == "REACHED"
+        ):
+            # Отдельно от drift-проверки и ДО неё: воркер уже не там, где его приняли,
+            # ровно потому, что этот мерж его подвинул. Замороженный payload описывает
+            # смерженный коммит и от текущего состояния воркера не зависит.
+            if await asyncio.to_thread(_reopen_for_finalization, canonical_id):
+                ensure_operation_runner(canonical_id)
+                refreshed = await asyncio.to_thread(get_operation_record, canonical_id)
+                return (refreshed or existing)["result"], 202
         # Терминальную запись отдавать дословно можно только если воркер ВСЁ ЕЩЁ там,
         # где его приняли. request_hash состояние воркера не покрывает (в него входят
         # только name/scope/target/next_task_id), поэтому переезд на другую ветку хеш

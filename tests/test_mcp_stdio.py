@@ -722,7 +722,7 @@ async def test_task_get_and_update_fall_back_to_authoritative_scope(monkeypatch)
 
     with patch.object(m, "_api", side_effect=fake_api):
         await m.task_get("1")
-        await m.task_update("1", status="done")
+        await m.task_update("1", status="cancelled")
 
     assert calls[0][2]["params"] == {"scope": "/lower"}
     assert calls[1][2]["params"] == {"scope": "/lower"}

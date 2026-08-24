@@ -63,3 +63,18 @@ telemetry probe внезапно увидел старый `_build_env` и че�
 Экспериментальному скрипту, который импортирует проект, сначала вычислять repo root из
 `Path(__file__)` и вставлять его в `sys.path` **до** `from app...`; затем positive/negative
 плечи обязаны пройти из одного запуска. `cwd` команды сам по себе Python-import не чинит.
+
+## Независимая проверка X permalink без API-ключа
+
+`publish.twitter.com/oembed?omit_script=1&url=<x-url>` различает заведомо существующий пост
+(HTTP 200 + canonical URL/author/HTML) и несуществующий `id=1` (HTTP 404). Старый
+`cdn.syndication.twimg.com/tweet-result` непригоден: обоим объектам отдаёт `HTTP 200 {}`.
+Для long-form oEmbed режет body многоточием, поэтому им проверять identity и публиковать только
+возвращённый fragment; полный текст модели он не подтверждает.
+
+## Persistent bg run и внешний расход
+
+`BgJobManager.restore_from_db()` переисполняет command активного `run` после рестарта. Если
+command тратит внешний пул, одного `success_file` недостаточно: до spawn нужен атомарный
+`O_CREAT|O_EXCL` marker. Готовый валидный artifact можно переиспользовать; marker без artifact
+означает `outcome unknown` и обязан запрещать повторный расход.
