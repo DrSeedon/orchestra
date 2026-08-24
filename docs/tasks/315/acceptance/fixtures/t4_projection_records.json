@@ -1,0 +1,86 @@
+{
+  "fixture_version": 1,
+  "project_id": "orchestra",
+  "queries": {
+    "current": "T4 current projection invariant",
+    "legacy": "T4 legacy structured reference"
+  },
+  "canonical_changes": {
+    "initial": {
+      "task_title": "T4 current projection invariant task v1",
+      "fact_claim": "T4 current projection invariant fact v1"
+    },
+    "changed": {
+      "task_title": "T4 current projection invariant task v2 canonical",
+      "fact_claim": "T4 current projection invariant fact v2 canonical"
+    }
+  },
+  "legacy_corpus": {
+    "files": [
+      {
+        "path": "docs/kb/t4-legacy-fixture.md",
+        "content": "# Synthetic legacy evidence\n\nT4 legacy structured reference from a file corpus.\n"
+      }
+    ],
+    "logs": [
+      {
+        "id": 4401,
+        "session_id": "t4-session-1",
+        "session_name": "t4-worker",
+        "type": "assistant",
+        "content": "T4 legacy structured reference from a log corpus."
+      }
+    ]
+  },
+  "expected_denominators": {
+    "canonical_current_records": 2,
+    "legacy_sources": 2,
+    "controls": 4,
+    "behavior_nodes": 7,
+    "compound_mutants": 5
+  },
+  "valid_alternate": {
+    "backend": "alternate-in-memory",
+    "metadata": {
+      "backend_revision": 2,
+      "safe_extra": true
+    }
+  },
+  "compound_mutants": {
+    "forged_equal_head_stale_payload": {
+      "task_title": "T4_STALE_TASK_PAYLOAD_MUST_NOT_WIN",
+      "fact_claim": "T4_STALE_FACT_PAYLOAD_MUST_NOT_WIN"
+    },
+    "deleted_canonical_with_stale_sources": {
+      "fallback_path": "docs/kb/t4-legacy-fixture.md",
+      "fallback_content": "T4_DIRECT_FILE_FALLBACK_MUST_NOT_WIN",
+      "sqlite_items": [
+        {
+          "record_type": "task.state",
+          "title": "T4_STALE_SQLITE_TASK_MUST_NOT_WIN"
+        },
+        {
+          "record_type": "knowledge.fact",
+          "claim": "T4_STALE_SQLITE_FACT_MUST_NOT_WIN"
+        }
+      ],
+      "vector_hits": [
+        {
+          "content": "T4_STALE_VECTOR_HIT_MUST_NOT_WIN",
+          "score": 1.0
+        }
+      ]
+    },
+    "vector_fallback_hides_canonical_failure": {
+      "message": "T4_VECTOR_INDEX_FAILURE",
+      "fallback_hit": "T4_VECTOR_FAILURE_FALLBACK_MUST_NOT_WIN"
+    },
+    "projection_write_failure_after_commit": {
+      "message": "T4_PROJECTION_WRITE_FAILED_AFTER_CANONICAL_COMMIT"
+    },
+    "route_query_wiring_bypass": {
+      "legacy_rag_result": "T4_LEGACY_RAG_BYPASS_MUST_NOT_WIN",
+      "owner_sentinel": "T4_SHARED_PROJECTION_OWNER_MUST_BE_CALLED"
+    }
+  }
+}

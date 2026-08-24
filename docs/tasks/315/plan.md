@@ -164,15 +164,25 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 ### T4 — SQLite current projection, heads and cold index
 
 - Files: new app/ia/projections.py; additive app/db.py; app/rag.py, app/rag_service.py,
-  app/routes/memory.py; test_smoke_t4_heads.py only as a missing-seam diagnostic. Behavioral oracle design:
-  acceptance/README.md T4 row; no RED test is frozen.
+  app/ia/knowledge.py, app/routes/knowledge.py and app/routes/memory.py. The frozen oracle is
+  acceptance/test_t4_projection_heads_behavior.py plus fixtures/t4_projection_*.json;
+  test_smoke_t4_heads.py remains only a missing-seam diagnostic.
 - Smoke: uv run python -m pytest docs/tasks/315/acceptance/test_smoke_t4_heads.py -q
 - Smoke result: RED only because the future path is absent; this is not behavioral acceptance.
+- Test: `uv run python -m pytest docs/tasks/315/acceptance/test_t4_projection_heads_behavior.py -q`
+- RED result: invariant controls → `4 passed in 0.64s`; full command → exit 1,
+  `7 failed, 4 passed in 1.01s`, first failure
+  `#315 T4 missing behavior: cannot import app.ia.projections: No module named 'app.ia.projections'`.
+  Collection succeeds and current T3b MCP→HTTP→knowledge_api query remains green.
 - AC: command is green; SQLite current/FTS projection reaches canonical head synchronously;
   canonical_head, projection_head and indexed_head are returned separately; vector/log lag is visible;
   stale SQLite falls back to canonical changed records; vector/index failure never erases current
-  task/fact result; existing RAG file/log content remains rebuildable.
-- Gate: STOPPED by the user correction; do not design/freeze or implement T4 until T3b is merged.
+  task/fact result; existing RAG file/log content imports/rebuilds as JSON structured refs without
+  direct file/legacy SQLite/vector fallback or generated Markdown. The only agent query stays
+  `knowledge(operation="query")`; `/api/memory/search|reindex` are compatibility consumers of the same
+  projection owner. Forged equal-head stale payload, deleted canonical with stale SQLite/vector hits,
+  index failure, projection-write failure after canonical commit and route/query bypass all fail.
+- Gate: behavior oracle frozen; implementation has not started.
 - blocked-by: T3b.
 
 ### T5 — session commit, pack/restore rehearsal and privacy/retention
@@ -227,8 +237,8 @@ The user approved project-scoped #N with stable UUID, private/secret fields outs
 Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed with a human gate for
 conflicts and sensitive classes. Each ticket must still receive the exact
 fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
-behavioral RED test must be committed and independently verified before implementation. T1–T3 and T3b
-have reached that oracle gate; T4–T7 have not. T4 is stopped until T3b merges. T7 runs only after the
+behavioral RED test must be committed and independently verified before implementation. T1–T4
+have reached that oracle gate; T5–T7 have not. T7 runs only after the
 corrected T3b plus T4–T6 core and has no existence-smoke
 shortcut. Smoke probes never satisfy this gate.
 

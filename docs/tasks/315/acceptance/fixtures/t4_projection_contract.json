@@ -1,0 +1,90 @@
+{
+  "contract_version": 1,
+  "fixture_sha256": "d5ab3845b4490715d3fb481e6bb28c1b1ac000a047bbe409e1b2fb93573cca8c",
+  "compatibility_sha256": {
+    "docs/tasks/315/acceptance/fixtures/t1_namespace_contract.json": "02e26e0cd0c77ece0825a804a2834295ea958ad6458d6760c35c3ea02fd5544b",
+    "docs/tasks/315/acceptance/fixtures/t1_namespace_records.json": "83fde2bcbb1d2d85e745f63cd4819a10d328d677bdc61ac81dc30c69f58b4462",
+    "docs/tasks/315/acceptance/fixtures/t2_task_store_contract.json": "ddcd72ec0a2d0b30639e25697e3d623e72ffb8c6349c9a3a76a50437137cb608",
+    "docs/tasks/315/acceptance/fixtures/t2_task_store_records.json": "88f3d2ca7ab8a5a75b2f2c87fb3fb1870d00e063a7d6e75ca4aec462b4d4b650",
+    "docs/tasks/315/acceptance/fixtures/t3_promotion_contract.json": "ad763c0ba467dc8847fb76c2af2a36138a24c3db275580d9a483690a78eaa0f1",
+    "docs/tasks/315/acceptance/fixtures/t3_promotion_records.json": "655027ac8ed170a193a5e58b9b82a60749ad8e8208e435f85a54fc98715f4707",
+    "docs/tasks/315/acceptance/fixtures/t3b_agent_only_contract_v2.json": "ca666ca4bf16acf3207d57ddb71784a3aa86791f698573ba625e6fad7221f359",
+    "docs/tasks/315/acceptance/fixtures/t3b_agent_only_records_v2.json": "e529b731271477abc1899f8c290c6d9d39b4fb580fc1930a3fe675a8343c6746"
+  },
+  "public_api": {
+    "app.ia.projections": {
+      "callables": ["projection_mode", "query_current", "rebuild_legacy"],
+      "classes": ["SQLiteProjectionBackend"],
+      "methods": ["replace_current", "search_current"],
+      "exceptions": ["ProjectionDebtError"]
+    },
+    "app.ia.knowledge": {
+      "callables": ["knowledge_api", "knowledge_service_mode"]
+    },
+    "app.routes.knowledge": {
+      "attributes": ["router"]
+    },
+    "app.routes.memory": {
+      "attributes": ["router"]
+    },
+    "app.mcp_stdio": {
+      "callables": ["knowledge"]
+    }
+  },
+  "projection_mode_kwargs": [
+    "projection_path",
+    "task_store",
+    "knowledge_service",
+    "legacy_root",
+    "legacy_log_db",
+    "vector_query",
+    "backend"
+  ],
+  "single_agent_query": {
+    "tool": "knowledge",
+    "operation": "query",
+    "detail": "record",
+    "payload_fields": ["project_id", "text", "record_types", "limit"],
+    "record_types": [
+      "task.state",
+      "knowledge.fact",
+      "knowledge.evidence-ref",
+      "session.history"
+    ],
+    "production_chain": [
+      "mcp_stdio.knowledge",
+      "POST /api/knowledge",
+      "app.ia.knowledge.knowledge_api",
+      "app.ia.projections.query_current",
+      "SQLiteProjectionBackend"
+    ]
+  },
+  "response_required": [
+    "operation",
+    "detail",
+    "project_id",
+    "items",
+    "count",
+    "canonical_head",
+    "projection_head",
+    "indexed_head",
+    "debt"
+  ],
+  "item_required": [
+    "record_type",
+    "stable_id",
+    "uri",
+    "project_id",
+    "status",
+    "canonical_head",
+    "projection_head",
+    "indexed_head",
+    "source"
+  ],
+  "debt_required": ["layer", "reason", "expected_head", "observed_head"],
+  "allowed_sources": ["projection", "canonical-fallback"],
+  "legacy_record_types": ["knowledge.evidence-ref", "session.history"],
+  "forbidden_query_fallbacks": ["file", "sqlite-payload", "vector-hit", "generated-markdown"],
+  "expected_controls": 4,
+  "expected_behavior_nodes": 7
+}
