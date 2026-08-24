@@ -57,14 +57,16 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
    proxy control experiment. YouGile/payments deletion occurs under #299 gates, not knowledge migration.
    #298 remains deferred.
 
-## Tickets (behavioral RED design still required)
+## Tickets (behavioral RED is frozen for T1 only)
 
 ### T1 — typed namespace, envelopes and private-field boundary
 
-- Files: new app/ia/namespace.py, app/ia/schema.py; test_smoke_t1_namespace.py only as a missing-seam
-  diagnostic. Behavioral oracle design: acceptance/README.md T1 row; no RED test is frozen.
-- Smoke: uv run python -m pytest docs/tasks/315/acceptance/test_smoke_t1_namespace.py -q
-- Smoke result: RED only because the future path is absent; this is not behavioral acceptance.
+- Files: future app/ia/namespace.py and app/ia/schema.py; frozen
+  acceptance/test_t1_namespace_behavior.py plus acceptance/fixtures/t1_namespace_*.json. The existing
+  test_smoke_t1_namespace.py remains a missing-seam diagnostic only.
+- Test: uv run python -m pytest docs/tasks/315/acceptance/test_t1_namespace_behavior.py -q
+- RED result: two harness controls pass; the behavior suite fails at the dynamic public API call with
+  `#315 T1 missing behavior: cannot import app.ia.namespace: No module named 'app.ia'`.
 - AC: command is green; all six record types resolve a stable URI; cross-kind writes fail; stable IDs
   are unique; private fields are absent from hot/FTS/vector payloads; no secret-form match in fixtures.
 - blocked-by: none.
@@ -138,11 +140,12 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 
 ## Phase 3 entry gate and quantitative gate
 
-Phase 3 is blocked by three user decisions: project-scoped #N leases versus contiguous global #N;
-private fields outside Git versus private Git policy; and whether supersession requires human approval.
-After those decisions, each ticket must receive the exact fixture/path/mutation/positive-control oracle
-design in acceptance/README.md, then a separate behavioral RED test must be committed and independently
-verified before implementation. Smoke probes never satisfy this gate.
+The user approved project-scoped #N with stable UUID, private/secret fields outside ordinary
+Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed with a human gate for
+conflicts and sensitive classes. Each ticket must still receive the exact
+fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
+behavioral RED test must be committed and independently verified before implementation. T1 has reached
+that oracle gate; T2–T6 have not. Smoke probes never satisfy this gate.
 
 The implementation report must include command output and frozen manifest for replay parity and 0
 duplicate identity; 0 source-less promoted facts; exact/current/rejected recall and stale contradiction

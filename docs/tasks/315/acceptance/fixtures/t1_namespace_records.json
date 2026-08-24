@@ -1,0 +1,177 @@
+{
+  "fixture_version": 1,
+  "records": [
+    {
+      "record_type": "task.state",
+      "schema_version": 1,
+      "stable_id": "11111111-1111-4111-8111-111111111111",
+      "uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/state",
+      "project_id": "orchestra",
+      "created_at": "2026-08-24T00:00:00Z",
+      "updated_at": "2026-08-24T00:00:00Z",
+      "canonical_head": "git:1111111111111111111111111111111111111111",
+      "projection_head": null,
+      "indexed_head": null,
+      "status": "in_progress",
+      "private_fields": [],
+      "tombstone": false,
+      "retention": "project-default",
+      "display_number": 315,
+      "display_ref": "#315",
+      "title": "Synthesize information architecture",
+      "priority": 1,
+      "assignee": "synthesize-information-architecture",
+      "scope": "/mnt/data/Projects/Python/orchestra",
+      "worker_session_id": "77777777-7777-4777-8777-777777777777",
+      "acceptance": {
+        "command": "uv run python -m pytest docs/tasks/315/acceptance/test_t1_namespace_behavior.py -q",
+        "manifest_paths": [
+          "docs/tasks/315/acceptance/test_t1_namespace_behavior.py"
+        ],
+        "required": true
+      },
+      "evidence_refs": [
+        "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222"
+      ],
+      "git_commit_refs": [],
+      "valid_from": "2026-08-24T00:00:00Z",
+      "supersedes": null
+    },
+    {
+      "record_type": "task.evidence",
+      "schema_version": 1,
+      "stable_id": "22222222-2222-4222-8222-222222222222",
+      "uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222",
+      "project_id": "orchestra",
+      "created_at": "2026-08-24T00:00:00Z",
+      "updated_at": "2026-08-24T00:00:00Z",
+      "canonical_head": "git:2222222222222222222222222222222222222222",
+      "projection_head": null,
+      "indexed_head": null,
+      "status": "current",
+      "private_fields": [],
+      "tombstone": false,
+      "retention": "project-default",
+      "task_id": "11111111-1111-4111-8111-111111111111",
+      "kind": "research",
+      "canonical_path": "docs/tasks/315/research.md",
+      "git_commit": "2222222222222222222222222222222222222222",
+      "blob_sha": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "anchor": "## Findings",
+      "captured_at": "2026-08-24T00:00:00Z",
+      "author_session_id": "77777777-7777-4777-8777-777777777777",
+      "source_urls": [],
+      "content_sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "record_type": "knowledge.fact",
+      "schema_version": 1,
+      "stable_id": "33333333-3333-4333-8333-333333333333",
+      "uri": "orch://project/orchestra/knowledge/topics/repo-ops/facts/merge-worker-wip/33333333-3333-4333-8333-333333333333",
+      "project_id": "orchestra",
+      "created_at": "2026-08-24T00:00:00Z",
+      "updated_at": "2026-08-24T00:00:00Z",
+      "canonical_head": "git:3333333333333333333333333333333333333333",
+      "projection_head": null,
+      "indexed_head": null,
+      "status": "current",
+      "private_fields": [],
+      "tombstone": false,
+      "retention": "project-default",
+      "topic_slug": "repo-ops",
+      "fact_key": "merge-worker-wip",
+      "claim": "worker_wip commit lists are the reliable scope check",
+      "confidence": "confirmed",
+      "valid_from": "2026-08-14T00:00:00Z",
+      "valid_to": null,
+      "observed_at": "2026-08-14T00:00:00Z",
+      "refresh_after": "2026-09-14T00:00:00Z",
+      "provenance": [
+        {
+          "task_id": "11111111-1111-4111-8111-111111111111",
+          "evidence_uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222",
+          "path": "docs/tasks/315/research.md",
+          "anchor": "## Findings",
+          "git_commit": "3333333333333333333333333333333333333333",
+          "measurement": "fixture:t1"
+        }
+      ],
+      "supersedes": [],
+      "disputed_by": []
+    },
+    {
+      "record_type": "session.history",
+      "schema_version": 1,
+      "stable_id": "44444444-4444-4444-8444-444444444444",
+      "uri": "orch://project/orchestra/sessions/77777777-7777-4777-8777-777777777777/history/44444444-4444-4444-8444-444444444444",
+      "project_id": "orchestra",
+      "created_at": "2026-08-24T00:00:00Z",
+      "updated_at": "2026-08-24T00:00:00Z",
+      "canonical_head": "git:4444444444444444444444444444444444444444",
+      "projection_head": null,
+      "indexed_head": null,
+      "status": "historical",
+      "private_fields": [],
+      "tombstone": false,
+      "retention": "90d-cold",
+      "session_id": "77777777-7777-4777-8777-777777777777",
+      "archive_id": "44444444-4444-4444-8444-444444444444",
+      "canonical_path": "data/orchestra-history/77777777-7777-4777-8777-777777777777/44444444-4444-4444-8444-444444444444/messages.jsonl",
+      "source_log_ids": [12345, 12346],
+      "summary_ref": "orch://project/orchestra/sessions/77777777-7777-4777-8777-777777777777/history/44444444-4444-4444-8444-444444444444"
+    },
+    {
+      "record_type": "resource",
+      "schema_version": 1,
+      "stable_id": "55555555-5555-4555-8555-555555555555",
+      "uri": "orch://project/orchestra/resources/55555555-5555-4555-8555-555555555555",
+      "project_id": "orchestra",
+      "created_at": "2026-08-24T00:00:00Z",
+      "updated_at": "2026-08-24T00:00:00Z",
+      "canonical_head": "git:5555555555555555555555555555555555555555",
+      "projection_head": null,
+      "indexed_head": null,
+      "status": "current",
+      "private_fields": [
+        "operator_note",
+        "metadata.auth.refresh_token"
+      ],
+      "tombstone": false,
+      "retention": "project-default",
+      "source_uri": "https://example.invalid/t1-source",
+      "content_sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "title": "T1 public resource title",
+      "summary": "T1 public resource summary",
+      "operator_note": "T1_DECLARED_PRIVATE_NOTE_DO_NOT_PROJECT",
+      "metadata": {
+        "auth": {
+          "refresh_token": "T1_DECLARED_PRIVATE_TOKEN_DO_NOT_PROJECT"
+        },
+        "safe": {
+          "label": "T1_SAFE_METADATA_MUST_SURVIVE",
+          "public_url": "https://example.invalid/t1-public"
+        }
+      }
+    },
+    {
+      "record_type": "skill",
+      "schema_version": 1,
+      "stable_id": "66666666-6666-4666-8666-666666666666",
+      "uri": "orch://project/orchestra/skills/66666666-6666-4666-8666-666666666666",
+      "project_id": "orchestra",
+      "created_at": "2026-08-24T00:00:00Z",
+      "updated_at": "2026-08-24T00:00:00Z",
+      "canonical_head": "git:6666666666666666666666666666666666666666",
+      "projection_head": null,
+      "indexed_head": null,
+      "status": "current",
+      "private_fields": [],
+      "tombstone": false,
+      "retention": "project-default",
+      "skill_name": "t1-fixture-skill",
+      "source_path": ".codex/skills/t1-fixture-skill/SKILL.md",
+      "runtime_compatibility": ["codex", "claude"],
+      "content_sha256": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+    }
+  ]
+}

@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Простое объяснение архитектуры информации Orchestra по результатам #315">
+  <title>#315 · Одна кладовая, разные коробки</title>
+  <style>
+    :root{
+      color-scheme:light dark;
+      /* акцент: бирюзовый — про спокойную инфраструктуру и проверяемые связи */
+      --accent:light-dark(#087f73,#72d5c7);
+      --fs:15px;--radius:12px;
+      --font:ui-sans-serif,system-ui,sans-serif;
+      --font-head:ui-serif,Georgia,"Times New Roman",serif;
+      --bg:light-dark(#f7f8f5,#151b1b);
+      --ink:light-dark(#182222,#edf7f3);
+      --mut:color-mix(in srgb,var(--ink) 52%,transparent);
+      --card:color-mix(in oklab,var(--ink) 7%,transparent);
+      --border:color-mix(in srgb,var(--ink) 15%,transparent);
+      --ring:var(--accent);
+      --bad:light-dark(#b44932,#ff9983);
+      --good:light-dark(#17725b,#83e0bd);
+      --warm:light-dark(#bb6a20,#f4ad63);
+      --purple:light-dark(#7355b5,#b9a0ed);
+      --blue:light-dark(#326caa,#86c3ff);
+      --fs-sm:max(11px,calc(var(--fs) - 2px));
+      --fs-h3:calc(var(--fs) * 1.29);
+      --fs-h2:calc(var(--fs) * 1.43);
+      --fs-h1:calc(var(--fs) * 1.72);
+      --r-sm:calc(var(--radius) * .6);
+      --r-lg:calc(var(--radius) * 1.6);
+      --shadow:0 1px 2px -1px rgb(0 0 0 / 8%);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;padding:clamp(16px,4vw,40px);background:var(--bg);color:var(--ink);
+      font:430 var(--fs)/1.5 var(--font);letter-spacing:0}
+    h1,h2,h3{margin:0;font-family:var(--font-head);font-weight:500;line-height:1.25}
+    h1{font-size:var(--fs-h1)}h2{font-size:var(--fs-h2)}h3{font-size:var(--fs-h3)}
+    p{margin:0 0 12px}.mut{color:var(--mut)}small,.sm{font-size:var(--fs-sm)}
+    code{padding:1px 6px;border-radius:var(--r-sm);font-size:.92em;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+      background:color-mix(in srgb,var(--ink) 10%,transparent);overflow-wrap:anywhere}
+    a{color:var(--accent)}button{font:inherit}
+    :is(a,button,summary,[tabindex]):focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+    .page{max-width:1120px;margin:0 auto}
+    .top{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(220px,.7fr);gap:24px;
+      align-items:end;padding-bottom:24px;border-bottom:1px solid var(--border)}
+    .eyebrow{margin-bottom:8px;color:var(--accent);font:600 var(--fs-sm)/1.2 var(--font);
+      letter-spacing:.08em;text-transform:uppercase}
+    .lead{max-width:680px;font-size:clamp(17px,2vw,22px);line-height:1.3}
+    .stamp{justify-self:end;max-width:270px;padding:12px;border-left:3px solid var(--accent);
+      color:var(--mut);font-size:var(--fs-sm)}
+    .stamp strong{display:block;color:var(--ink);font-family:var(--font-head);font-size:var(--fs-h3)}
+    section{padding:32px 0;border-bottom:1px solid var(--border)}
+    .section-head{display:flex;gap:12px;align-items:baseline;margin-bottom:16px}
+    .section-no{color:var(--accent);font:600 var(--fs-sm)/1 var(--font-mono,ui-monospace)}
+    .section-note{color:var(--mut);font-size:var(--fs-sm)}
+    .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:16px}
+    .strip-item{padding:12px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--border)}
+    .strip-item b{display:block;margin-bottom:4px;font-family:var(--font-head);font-size:var(--fs-h3)}
+    .bad{color:var(--bad)}.good{color:var(--good)}
+    .diagram{padding:12px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--card)}
+    svg{display:block;width:100%;max-width:100%;height:auto}
+    svg text{font-family:var(--font);fill:currentColor}
+    .svg-label{font-size:14px;font-weight:600}.svg-sub{font-size:11px;opacity:.72}
+    .svg-box{fill:color-mix(in srgb,var(--bg) 78%,var(--ink));stroke:var(--border);stroke-width:1.5}
+    .svg-box.badbox{stroke:var(--bad);stroke-dasharray:5 4}
+    .svg-box.goodbox{stroke:var(--accent);stroke-width:2}
+    .svg-line{fill:none;stroke:var(--mut);stroke-width:2;marker-end:url(#arrow-muted)}
+    .svg-line.badline{stroke:var(--bad);stroke-dasharray:5 4;marker-end:url(#arrow-bad)}
+    .svg-line.goodline{stroke:var(--accent);stroke-width:2.5;marker-end:url(#arrow-good)}
+    .svg-line.fallback{stroke:var(--warm);stroke-dasharray:7 4;marker-end:url(#arrow-warm)}
+    .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;color:var(--mut);font-size:var(--fs-sm)}
+    .legend span{display:inline-flex;gap:6px;align-items:center}.dot{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+    .dot.bad{background:var(--bad)}.dot.warm{background:var(--warm)}
+    .journey{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:stretch}
+    .step{position:relative;padding:12px 12px 16px;border-top:3px solid var(--accent);background:var(--card);
+      border-radius:var(--r-lg);min-height:118px}
+    .step-num{color:var(--accent);font:600 var(--fs-sm)/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .step h3{margin:8px 0 4px;font-size:18px}.step p{margin:0;color:var(--mut);font-size:var(--fs-sm)}
+    .step::after{content:"→";position:absolute;right:-8px;top:42%;color:var(--accent);font-size:20px}
+    .step:last-child::after{content:""}
+    .analogy{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+    .analogy .card{border-top:3px solid var(--warm)}
+    .analogy h3{margin-bottom:6px}
+    .decision-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .decision{display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid var(--border);
+      border-radius:var(--r-lg);background:var(--card);min-height:250px}
+    .decision.selected{border-color:var(--accent);box-shadow:var(--shadow)}
+    .decision h3{font-size:20px}.decision p{color:var(--mut);font-size:var(--fs-sm)}
+    .decision button{margin-top:auto;padding:8px 10px;border:1px solid var(--border);border-radius:999px;
+      background:transparent;color:var(--ink);cursor:pointer}
+    .decision button[aria-pressed="true"]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+    .decision .choice{min-height:22px;color:var(--accent);font-size:var(--fs-sm);font-weight:600}
+    .summary{margin-top:16px;padding:12px;border-left:3px solid var(--accent);color:var(--mut);font-size:var(--fs-sm)}
+    .notyet{display:flex;gap:12px;align-items:start;padding:16px;border:1px solid var(--warm);
+      border-radius:var(--r-lg);background:color-mix(in srgb,var(--warm) 9%,transparent)}
+    .notyet strong{color:var(--warm);white-space:nowrap}
+    footer{padding:24px 0 0;color:var(--mut);font-size:var(--fs-sm)}
+    .no-print{display:block}
+    @media(max-width:760px){
+      .top{grid-template-columns:1fr}.stamp{justify-self:start}
+      .decision-grid{grid-template-columns:1fr}
+      .step::after{content:"↓";right:50%;top:auto;bottom:-17px}
+      .step:last-child::after{content:""}
+      .journey{grid-template-columns:1fr;gap:16px}
+    }
+    @media print{
+      :root{color-scheme:light}
+      body{padding:0;background:#fff;color:#000}
+      .no-print{display:none}
+      section{break-inside:avoid}
+      *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    }
+  </style>
+</head>
+<body>
+<main class="page">
+  <header class="top">
+    <div>
+      <div class="eyebrow">#315 · простое объяснение</div>
+      <h1>Одна кладовая. Разные коробки.</h1>
+      <p class="lead">Задачи, доказательства и знания должны находиться по одному адресу — но жить по разным правилам.</p>
+    </div>
+    <div class="stamp">
+      <strong>Что решаем</strong>
+      Не «куда сложить JSON», а кто является правдой, кто только быстрым экраном, и что делать при отставании.
+    </div>
+  </header>
+
+  <section id="now">
+    <div class="section-head"><span class="section-no">01</span><h2>Сейчас: пять комнат не разговаривают</h2></div>
+    <p class="section-note">Один и тот же номер может жить в нескольких местах. Индекс может показывать вчерашнее.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 980 360" role="img" aria-label="Пять разрозненных текущих хранилищ с дублированными идентификаторами и устаревшими связями">
+        <defs>
+          <marker id="arrow-muted" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8Z" fill="var(--mut)"/></marker>
+          <marker id="arrow-bad" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8Z" fill="var(--bad)"/></marker>
+        </defs>
+        <rect class="svg-box badbox" x="20" y="32" width="160" height="96" rx="12"/>
+        <text class="svg-label" x="100" y="67" text-anchor="middle">Task DB</text><text class="svg-sub" x="100" y="90" text-anchor="middle">status · #315 · id=71</text><text class="svg-sub bad" x="100" y="111" text-anchor="middle">быстро, но отдельно</text>
+        <rect class="svg-box badbox" x="210" y="205" width="160" height="96" rx="12"/>
+        <text class="svg-label" x="290" y="240" text-anchor="middle">docs/tasks</text><text class="svg-sub" x="290" y="263" text-anchor="middle">evidence · #315</text><text class="svg-sub bad" x="290" y="284" text-anchor="middle">правда без типа</text>
+        <rect class="svg-box badbox" x="405" y="32" width="160" height="96" rx="12"/>
+        <text class="svg-label" x="485" y="67" text-anchor="middle">docs/kb</text><text class="svg-sub" x="485" y="90" text-anchor="middle">claim · #315?</text><text class="svg-sub bad" x="485" y="111" text-anchor="middle">повтор / сирота</text>
+        <rect class="svg-box badbox" x="600" y="205" width="160" height="96" rx="12"/>
+        <text class="svg-label" x="680" y="240" text-anchor="middle">sessions/logs</text><text class="svg-sub" x="680" y="263" text-anchor="middle">summary · log_id</text><text class="svg-sub bad" x="680" y="284" text-anchor="middle">история не факт</text>
+        <rect class="svg-box badbox" x="795" y="32" width="160" height="96" rx="12"/>
+        <text class="svg-label" x="875" y="67" text-anchor="middle">Search index</text><text class="svg-sub" x="875" y="90" text-anchor="middle">FTS · vector · sha</text><text class="svg-sub bad" x="875" y="111" text-anchor="middle">может отстать</text>
+        <path class="svg-line badline" d="M180 80 C250 120 350 150 405 80"/>
+        <path class="svg-line badline" d="M565 80 C650 120 730 150 795 80"/>
+        <path class="svg-line badline" d="M290 205 C350 150 430 135 485 128"/>
+        <path class="svg-line badline" d="M680 205 C620 150 560 135 485 128"/>
+        <text class="svg-sub bad" x="490" y="177" text-anchor="middle">один номер · разные записи</text>
+        <text class="svg-sub bad" x="875" y="150" text-anchor="middle">stale</text>
+      </svg>
+      <div class="legend"><span><i class="dot bad"></i>дублированная идентичность</span><span><i class="dot bad"></i>связь может быть старой</span></div>
+    </div>
+    <div class="strip">
+      <div class="strip-item"><b class="bad">1 факт</b><span>может быть в task, Markdown, логе и индексе.</span></div>
+      <div class="strip-item"><b class="bad">0 HEAD</b><span>текущий поиск не знает, до какого коммита он дошёл.</span></div>
+      <div class="strip-item"><b class="bad">Не «нет»</b><span>пустой индекс может означать только «ещё не догнал».</span></div>
+    </div>
+  </section>
+
+  <section id="target">
+    <div class="section-head"><span class="section-no">02</span><h2>Цель: один адрес, три скорости</h2></div>
+    <p class="section-note">Кладовая хранит правду. Дашборд и каталог ускоряют чтение, но не могут переписать правду.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 980 340" role="img" aria-label="Целевой склад канонических записей, проекция и каталог поиска с fallback по head">
+        <defs>
+          <marker id="arrow-good" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8Z" fill="var(--accent)"/></marker>
+          <marker id="arrow-warm" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8Z" fill="var(--warm)"/></marker>
+        </defs>
+        <rect class="svg-box goodbox" x="30" y="75" width="300" height="170" rx="16"/>
+        <text class="svg-label" x="180" y="112" text-anchor="middle">Git canonical ledger</text>
+        <text class="svg-sub" x="180" y="140" text-anchor="middle">typed records · evidence · history</text>
+        <text class="svg-sub" x="180" y="164" text-anchor="middle">stable UUID + project #N</text>
+        <text class="svg-sub" x="180" y="188" text-anchor="middle">canonical_head</text>
+        <text class="svg-sub" x="180" y="220" text-anchor="middle">единственный источник правды</text>
+        <rect class="svg-box goodbox" x="420" y="35" width="230" height="105" rx="16"/>
+        <text class="svg-label" x="535" y="75" text-anchor="middle">SQLite dashboard</text>
+        <text class="svg-sub" x="535" y="99" text-anchor="middle">current projection</text>
+        <text class="svg-sub" x="535" y="123" text-anchor="middle">projection_head</text>
+        <rect class="svg-box goodbox" x="700" y="175" width="230" height="105" rx="16"/>
+        <text class="svg-label" x="815" y="215" text-anchor="middle">Card catalog</text>
+        <text class="svg-sub" x="815" y="239" text-anchor="middle">FTS / vector · indexed_head</text>
+        <text class="svg-sub" x="815" y="263" text-anchor="middle">быстро найти, не решить</text>
+        <path class="svg-line goodline" d="M330 120 C370 105 385 92 420 92"/>
+        <path class="svg-line goodline" d="M330 210 C460 255 560 285 700 235"/>
+        <path class="svg-line fallback" d="M650 90 C760 80 830 105 895 175"/>
+        <path class="svg-line fallback" d="M700 245 C560 315 400 300 300 235"/>
+        <text class="svg-sub" x="360" y="86">sync</text>
+        <text class="svg-sub" x="465" y="282">async</text>
+        <text class="svg-sub" x="700" y="66" fill="var(--warm)">head mismatch → read ledger</text>
+        <text class="svg-sub" x="465" y="326" fill="var(--warm)">не «не найдено», а fallback</text>
+      </svg>
+      <div class="legend"><span><i class="dot"></i>канон → проекция</span><span><i class="dot warm"></i>отставание → прямое чтение канона</span></div>
+    </div>
+    <div class="strip">
+      <div class="strip-item"><b class="good">Один ID</b><span>URI ведёт к типизированной записи.</span></div>
+      <div class="strip-item"><b class="good">Три head</b><span>видно, кто отстал: canonical, projection, indexed.</span></div>
+      <div class="strip-item"><b class="good">Одна правда</b><span>каталог и дашборд только показывают её быстрее.</span></div>
+    </div>
+  </section>
+
+  <section id="journey">
+    <div class="section-head"><span class="section-no">03</span><h2>Одна задача: путь от запроса до факта</h2></div>
+    <div class="journey">
+      <article class="step"><div class="step-num">01</div><h3>Создать</h3><p>Задача получает stable UUID и проектный #N.</p></article>
+      <article class="step"><div class="step-num">02</div><h3>Доказать</h3><p>Воркер пишет evidence в docs/tasks.</p></article>
+      <article class="step"><div class="step-num">03</div><h3>Смержить</h3><p>Merge receipt связывает commit, задачу и evidence.</p></article>
+      <article class="step"><div class="step-num">04</div><h3>Поднять</h3><p>Только evidence-backed запись становится fact.</p></article>
+      <article class="step"><div class="step-num">05</div><h3>Искать</h3><p>current, rejected и as-of не смешиваются.</p></article>
+    </div>
+  </section>
+
+  <section id="break">
+    <div class="section-head"><span class="section-no">04</span><h2>Где аналогия ломается</h2></div>
+    <div class="analogy">
+      <article class="card"><h3>SQLite — не склад</h3><p>Во время миграции он всё ещё владеет быстрым operational runtime. Но новая истина не должна жить только там.</p></article>
+      <article class="card"><h3>Git — не поисковик</h3><p>Git хранит историю и доказательства. Для быстрых запросов нужны проекции.</p></article>
+      <article class="card"><h3>Search — не судья</h3><p>FTS/vector помогают найти карточку. Они не решают, какой факт текущий.</p></article>
+    </div>
+  </section>
+
+  <section id="choices">
+    <div class="section-head"><span class="section-no">05</span><h2>Три решения перед реализацией</h2></div>
+    <p class="section-note">Выберите вариант — карточки просто показывают выбранный default локально, без сети.</p>
+    <div class="decision-grid">
+      <article class="decision" data-choice="id">
+        <div class="eyebrow">Решение 1</div><h3>Как назвать задачу?</h3>
+        <p>Стабильный UUID — для системы. Проектный #N — для человека и старых ссылок.</p>
+        <div class="choice" aria-live="polite">Default: UUID + project #N</div>
+        <button class="no-print" type="button" aria-pressed="true" data-default="UUID + project #N">Оставить default</button>
+      </article>
+      <article class="decision" data-choice="privacy">
+        <div class="eyebrow">Решение 2</div><h3>Где секреты?</h3>
+        <p>За пределами обычного Git, prompt и индексов. Ссылка может остаться, значение — нет.</p>
+        <div class="choice" aria-live="polite">Default: private store</div>
+        <button class="no-print" type="button" aria-pressed="true" data-default="Secrets outside Git/index">Оставить default</button>
+      </article>
+      <article class="decision" data-choice="conflict">
+        <div class="eyebrow">Решение 3</div><h3>Кто меняет факт?</h3>
+        <p>Доказательство и явный supersedes. Спорный случай проходит человеческий conflict gate.</p>
+        <div class="choice" aria-live="polite">Default: evidence + human gate</div>
+        <button class="no-print" type="button" aria-pressed="true" data-default="Evidence supersedes + human gate">Оставить default</button>
+      </article>
+    </div>
+    <div class="summary" id="decision-summary" aria-live="polite">Выбрано: UUID + project #N · Secrets outside Git/index · Evidence supersedes + human gate</div>
+  </section>
+
+  <section id="result">
+    <div class="section-head"><span class="section-no">06</span><h2>Что улучшится</h2></div>
+    <div class="strip">
+      <div class="strip-item"><b class="bad">Было</b><span>«Не нашёл» смешивает отсутствие и отставший индекс.</span></div>
+      <div class="strip-item"><b class="good">Станет</b><span>Ответ показывает head и читает канон напрямую.</span></div>
+      <div class="strip-item"><b class="bad">Было</b><span>Номер и claim повторяются в нескольких комнатах.</span></div>
+      <div class="strip-item"><b class="good">Станет</b><span>Один ID, разные правила записи.</span></div>
+    </div>
+    <div class="notyet" style="margin-top:16px">
+      <strong>Пока не сделано</strong>
+      <span>Это архитектура и план #315, не работающая функция. Реализация начнётся только после трёх решений и отдельных behavioral RED-оракулов.</span>
+    </div>
+  </section>
+
+  <footer>
+    Источник: уже merged #315 — research, schema, state-machines, discussion и plan. OpenViking здесь только аналогия механизмов, не новая зависимость.
+  </footer>
+</main>
+<script>
+  (() => {
+    const selections = new Map();
+    document.querySelectorAll(".decision").forEach((card) => {
+      const button = card.querySelector("button");
+      const value = button.dataset.default;
+      selections.set(card.dataset.choice, value);
+      button.addEventListener("click", () => {
+        const pressed = button.getAttribute("aria-pressed") === "true";
+        button.setAttribute("aria-pressed", String(!pressed));
+        card.classList.toggle("selected", !pressed);
+        selections.set(card.dataset.choice, pressed ? "не выбрано" : value);
+        document.querySelector("#decision-summary").textContent =
+          "Выбрано: " + [...selections.values()].join(" · ");
+      });
+    });
+  })();
+</script>
+</body>
+</html>
