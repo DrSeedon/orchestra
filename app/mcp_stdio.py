@@ -2680,6 +2680,30 @@ async def bg_cancel(job_id: str) -> str:
 
 
 @mcp.tool()
+async def knowledge(
+    operation: str,
+    detail: str = "summary",
+    payload: dict[str, Any] | None = None,
+) -> str:
+    """Promote, query, or import canonical structured knowledge.
+
+    ``detail`` progressively expands ``summary`` → ``record`` → ``evidence``.
+    Direct file, SQLite, and vector operations are intentionally unsupported.
+    """
+
+    body = {
+        "operation": operation,
+        "detail": detail,
+        "payload": payload or {},
+    }
+    try:
+        result = await _api("POST", "/api/knowledge", json=body)
+    except ApiToolError as exc:
+        result = {"error": _canonical_error(exc)}
+    return json.dumps(result, ensure_ascii=False, sort_keys=True)
+
+
+@mcp.tool()
 async def search_memory(query: str, limit: int = 5, cross_project: bool = False) -> str:
     """Семантический поиск по ПАМЯТИ проекта — прошлые docs/tasks/*.md, CLAUDE.md, BUGS.md,
     отчёты и решения агентов (send_message DONE-репорты, обсуждения). Юзай когда потерял
