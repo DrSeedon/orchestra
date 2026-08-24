@@ -926,6 +926,24 @@ def knowledge_api(request: Mapping[str, Any]) -> Mapping[str, Any]:
         return response
 
     if operation == "query":
+        if "text" in arguments or "record_types" in arguments:
+            from app.ia import projections
+
+            allowed = {
+                "project_id",
+                "text",
+                "record_types",
+                "limit",
+                "cross_project",
+                "fallback",
+            }
+            if set(arguments) - allowed:
+                raise PromotionValidationError("current projection query contains unsupported fields")
+            return projections.query_current({
+                "operation": operation,
+                "detail": detail,
+                **arguments,
+            })
         allowed = {"project_id", "topic", "mode", "fact_key", "as_of", "now", "fallback"}
         if set(arguments) - allowed:
             raise PromotionValidationError("query contains unsupported fields")
