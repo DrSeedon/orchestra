@@ -77,6 +77,27 @@ def test_ordinary_resume_options_are_unchanged_without_import_marker():
     assert options.system_prompt is None
 
 
+@pytest.mark.asyncio
+async def test_retarget_model_uses_sdk_control_protocol_without_replacing_session():
+    backend = ClaudeBackend(
+        model="claude-sonnet-5[1m]",
+        cwd="/tmp",
+        resume_session_id="native-claude-session",
+    )
+    client = SimpleNamespace(
+        set_model=AsyncMock(),
+        options=SimpleNamespace(model="claude-sonnet-5[1m]"),
+    )
+    backend._client = client
+
+    await backend.retarget_model("claude-opus-5[1m]")
+
+    client.set_model.assert_awaited_once_with("claude-opus-5[1m]")
+    assert client.options.model == "claude-opus-5[1m]"
+    assert backend.model == "claude-opus-5[1m]"
+    assert backend.session_id == "native-claude-session"
+
+
 def test_wrong_history_import_type_fails_loud():
     with pytest.raises(TypeError, match="ClaudeHistoryImport"):
         ClaudeBackend(

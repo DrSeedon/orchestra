@@ -35,6 +35,7 @@ class RuntimeCapabilities:
     process_liveness: bool = False
     resume: bool = True
     resume_across_models: bool = True
+    model_retarget: bool = False
     subagents: bool = True
     validated_handoff: bool = False
 
@@ -47,6 +48,7 @@ class RuntimeCapabilities:
             "process_liveness": self.process_liveness,
             "resume": self.resume,
             "resume_across_models": self.resume_across_models,
+            "model_retarget": self.model_retarget,
             "subagents": self.subagents,
             "validated_handoff": self.validated_handoff,
         }
@@ -115,6 +117,12 @@ def build_backend(runtime_id: str, context: BackendBuildContext) -> BackendLike:
         raise TypeError(f"runtime '{runtime_id}' declares reconnect without reconnect()")
     if definition.capabilities.process_liveness and not hasattr(backend, "is_alive"):
         raise TypeError(f"runtime '{runtime_id}' declares process_liveness without is_alive")
+    if definition.capabilities.model_retarget and not callable(
+        getattr(backend, "retarget_model", None)
+    ):
+        raise TypeError(
+            f"runtime '{runtime_id}' declares model_retarget without retarget_model()"
+        )
     return backend
 
 
@@ -344,6 +352,7 @@ register_runtime(RuntimeDefinition(
         mid_turn_inject=True,
         reconnect=True,
         hibernate=True,
+        model_retarget=True,
         # The pinned SDK exposes a mechanical tools-disabled validation client, but
         # production enablement also requires the real semantic canary and connected
         # normal-profile context receipt. The 2026-08-16 canary was rate-limited, so
@@ -361,6 +370,7 @@ register_runtime(RuntimeDefinition(
         hibernate=True,
         process_liveness=True,
         resume_across_models=True,
+        model_retarget=True,
     ),
     factory=_codex_factory,
 ))
@@ -374,7 +384,8 @@ register_runtime(RuntimeDefinition(
         reconnect=False,
         hibernate=False,
         process_liveness=True,
-        resume_across_models=False,
+        resume_across_models=True,
+        model_retarget=True,
     ),
     factory=_grok_factory,
 ))
@@ -386,6 +397,7 @@ register_runtime(RuntimeDefinition(
         reconnect=False,
         hibernate=False,
         process_liveness=True,
+        model_retarget=True,
     ),
     factory=_opencode_factory,
 ))
@@ -399,6 +411,7 @@ register_runtime(RuntimeDefinition(
         mid_turn_inject=True,
         reconnect=True,
         hibernate=False,
+        model_retarget=True,
     ),
     factory=_harness_factory,
 ))

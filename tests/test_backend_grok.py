@@ -11,6 +11,7 @@ the vendor's own bundled README turned out to be wrong:
 import asyncio
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -58,6 +59,25 @@ def test_grok_aliases_and_provider():
         assert spec.runtime == "grok"
         assert spec.provider == "x-ai"
         assert spec.context_length == 500000
+
+
+@pytest.mark.asyncio
+async def test_retarget_model_uses_acp_session_set_model_without_replacing_session():
+    backend = _backend(
+        model="grok-4.5",
+        resume_session_id="native-grok-session",
+    )
+    backend._proc = SimpleNamespace(returncode=None)
+    backend._request = AsyncMock(return_value={})
+
+    await backend.retarget_model("grok-4.6")
+
+    backend._request.assert_awaited_once_with(
+        "session/set_model",
+        {"sessionId": "native-grok-session", "modelId": "grok-4.6"},
+    )
+    assert backend.model == "grok-4.6"
+    assert backend.session_id == "native-grok-session"
 
 
 def test_unregistered_grok_model_fails_loud():

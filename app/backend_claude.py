@@ -556,6 +556,15 @@ class ClaudeBackend:
     def session_id(self) -> Optional[str]:
         return self._session_id
 
+    async def retarget_model(self, model: str) -> None:
+        """Switch the persistent SDK conversation at a native turn boundary."""
+        if self._client is None:
+            raise RuntimeError("Claude backend is not connected")
+        await self._client.set_model(model)
+        self.model = model
+        # Keep the inspectable launch options aligned with the live control-protocol state.
+        self._client.options.model = model
+
     def build_handoff_manifest(self, prepared, *, validation_profile: bool):
         from app.models import get_model_spec
 

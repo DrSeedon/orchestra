@@ -23,6 +23,7 @@ def test_builtin_runtime_capabilities_are_explicit():
     codex = get_runtime("codex").capabilities
     grok = get_runtime("grok").capabilities
     opencode = get_runtime("opencode").capabilities
+    harness = get_runtime("harness").capabilities
 
     assert claude.event_stream == "persistent"
     assert claude.mid_turn_inject is True
@@ -33,6 +34,10 @@ def test_builtin_runtime_capabilities_are_explicit():
     assert codex.mid_turn_inject is True
     assert codex.process_liveness is True
     assert codex.resume_across_models is True
+    assert all(
+        runtime.model_retarget
+        for runtime in (claude, codex, grok, opencode, harness)
+    )
 
     assert {
         "claude": claude.hibernate,
@@ -128,6 +133,53 @@ def test_runtime_registry_rejects_incompatible_plugin_backend():
             context_limit=123,
         )
         with pytest.raises(TypeError, match="incompatible backend"):
+            build_backend(runtime_id, ctx)
+    finally:
+        unregister_runtime(runtime_id)
+
+
+def test_runtime_registry_rejects_declared_retarget_without_method():
+    runtime_id = "broken-retarget-runtime"
+
+    class _Backend:
+        session_id = None
+
+        async def connect(self): ...
+        async def send(self, _message): ...
+        async def events(self):
+            if False:
+                yield None
+        async def interrupt(self): ...
+        async def disconnect(self): ...
+
+    register_runtime(RuntimeDefinition(
+        id=runtime_id,
+        capabilities=RuntimeCapabilities(
+            event_stream="per_turn",
+            mid_turn_inject=False,
+            reconnect=False,
+            hibernate=False,
+            model_retarget=True,
+        ),
+        factory=lambda _ctx: _Backend(),
+    ))
+    try:
+        ctx = BackendBuildContext(
+            model="provider/model",
+            provider="provider",
+            cwd="/tmp",
+            system_prompt="",
+            resume_session_id=None,
+            mcp_servers={},
+            is_orchestrator=False,
+            scope="/tmp",
+            pipeline="default",
+            role="worker",
+            profile="",
+            effort=None,
+            context_limit=123,
+        )
+        with pytest.raises(TypeError, match="model_retarget without retarget_model"):
             build_backend(runtime_id, ctx)
     finally:
         unregister_runtime(runtime_id)

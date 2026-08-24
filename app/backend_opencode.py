@@ -140,6 +140,31 @@ class OpenCodeBackend:
     def session_id(self) -> Optional[str]:
         return self._session_id
 
+    def retarget_model(self, model: str) -> None:
+        """Change the per-prompt route while preserving the OpenCode session."""
+        if self._turn_active:
+            raise RuntimeError("cannot retarget OpenCode model while a turn is active")
+        try:
+            from app.models import get_model_spec
+
+            spec = get_model_spec(model)
+            provider_id = spec.provider
+            self._context_limit = spec.context_length
+        except ValueError:
+            provider_id = model.split("/", 1)[0] if "/" in model else self.provider_id
+        self._upstream_model_id = model
+        model_id = model
+        if "/" in model:
+            _, model_id = model.split("/", 1)
+        self.model = model_id
+        self.provider_id = provider_id
+        self._transport_provider_id = (
+            "opencode" if provider_id == "opencode" else "openrouter"
+        )
+        self._transport_model_id = (
+            model_id if provider_id == "opencode" else self._upstream_model_id
+        )
+
     @property
     def is_alive(self) -> bool:
         """Whether the OpenCode daemon is still available for the active turn."""

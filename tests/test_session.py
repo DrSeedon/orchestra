@@ -4327,7 +4327,100 @@ class TestRuntimeCapabilities:
         save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_claude_same_runtime_source_disconnect_failure_requires_recovery(
+    @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
+        ("claude", "claude-sonnet-5[1m]", "claude-opus-5[1m]"),
+        ("grok", "grok-4.5", "grok-4.6"),
+        ("opencode", "deepseek/deepseek-v4-flash", "deepseek/deepseek-v4-pro"),
+        ("harness", "stealth/ox-alpha", "z-ai/glm-5.2:free"),
+    ])
+    async def test_other_builtin_model_switches_retarget_in_place(
+            self, session, monkeypatch, runtime, old_model, new_model):
+        from app.session import AgentStatus
+
+        session.model = old_model
+        session.backend_type = runtime
+        session.session_id = f"native-{runtime}-session"
+        session.status = AgentStatus.IDLE
+        source = SimpleNamespace(
+            active_turn_id=None,
+            _events_active=False,
+            _turn_active=False,
+            retarget_model=AsyncMock(),
+        )
+        session._backend = source
+        session._log = MagicMock()
+        session._last_context = {
+            "percentage": 1, "total_tokens": 1_000, "max_tokens": 1_000_000,
+        }
+        session._prepare_runtime_handoff = AsyncMock(
+            side_effect=AssertionError("same native session needs no handoff"),
+        )
+        session._make_backend = MagicMock(
+            side_effect=AssertionError("same native session needs no replacement backend"),
+        )
+        if runtime == "opencode":
+            monkeypatch.setattr(
+                "app.session.get_model_spec",
+                lambda _model: SimpleNamespace(
+                    runtime="opencode", context_length=128_000,
+                ),
+            )
+        save = MagicMock()
+        monkeypatch.setattr("app.session.save_session", save)
+
+        result = await session.change_model(new_model)
+
+        assert result["ok"] is True
+        assert result["runtime_changed"] is False
+        assert result["native_session_reset"] is False
+        assert result["history_transfer"] == {"mode": "native_in_place"}
+        assert session.model == new_model
+        assert session.session_id == f"native-{runtime}-session"
+        assert session._backend is source
+        source.retarget_model.assert_awaited_once_with(new_model)
+        session._prepare_runtime_handoff.assert_not_awaited()
+        session._make_backend.assert_not_called()
+        save.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
+        ("claude", "claude-opus-5[1m]", "claude-haiku-4-5"),
+        ("harness", "stealth/ox-alpha", "z-ai/glm-5.2:free"),
+    ])
+    async def test_in_place_switch_refuses_context_that_target_cannot_fit(
+            self, session, monkeypatch, runtime, old_model, new_model):
+        from app.session import AgentStatus
+
+        session.model = old_model
+        session.backend_type = runtime
+        session.session_id = f"native-{runtime}-session"
+        session.status = AgentStatus.IDLE
+        session._last_context = {
+            "percentage": 30,
+            "total_tokens": 300_000,
+            "max_tokens": 1_000_000,
+        }
+        source = SimpleNamespace(
+            active_turn_id=None,
+            _events_active=False,
+            _turn_active=False,
+            retarget_model=AsyncMock(),
+        )
+        session._backend = source
+        save = MagicMock()
+        monkeypatch.setattr("app.session.save_session", save)
+
+        result = await session.change_model(new_model)
+
+        assert result["ok"] is False
+        assert result["error_code"] == "handoff_context_overflow"
+        assert session.model == old_model
+        assert session.session_id == f"native-{runtime}-session"
+        source.retarget_model.assert_not_awaited()
+        save.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_claude_same_runtime_retarget_failure_keeps_source(
             self, session, monkeypatch):
         from app.session import AgentStatus
 
@@ -4338,37 +4431,29 @@ class TestRuntimeCapabilities:
         session._last_context = {
             "percentage": 1, "total_tokens": 1_000, "max_tokens": 258_400,
         }
-        source = AsyncMock()
-        source.disconnect.side_effect = RuntimeError("source ownership unknown")
+        source = SimpleNamespace(
+            session_id="claude-native-session",
+            active_turn_id=None,
+            _events_active=False,
+            _turn_active=False,
+            retarget_model=AsyncMock(side_effect=RuntimeError("set_model failed")),
+        )
         session._backend = source
-        session._same_runtime_resume_preflight = MagicMock(return_value=SimpleNamespace(
-            fits=True, as_dict=lambda: {"fits": True},
-        ))
-        session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
-            ok=True, handoff_id=None, pending_effects=0,
-        ))
-        session._refresh_skills = AsyncMock()
-        session._refresh_codex_project_doc = AsyncMock()
-        target = AsyncMock()
-        target.session_id = "claude-native-session"
-        target.resume_failed = False
-        session._make_backend = MagicMock(return_value=target)
-        session._activate_backend_tasks = MagicMock()
         save = MagicMock()
         monkeypatch.setattr("app.session.save_session", save)
 
         result = await session.change_model("claude-opus-5[1m]")
 
         assert result["ok"] is False
-        assert result["error_code"] == "handoff_recovery_required"
+        assert result["error_code"] == "claude_in_place_switch_failed"
         assert session.model == "claude-sonnet-5[1m]"
         assert session._backend is source
-        assert session._handoff_recovery_required is True
+        assert session._handoff_recovery_required is False
         save.assert_not_called()
-        target.disconnect.assert_awaited_once()
+        source.retarget_model.assert_awaited_once_with("claude-opus-5[1m]")
 
     @pytest.mark.asyncio
-    async def test_claude_same_runtime_success_confirms_durable_ledger_atomically(
+    async def test_claude_same_runtime_persistence_failure_rolls_model_back(
             self, session, monkeypatch):
         from app.session import AgentStatus
 
@@ -4379,46 +4464,28 @@ class TestRuntimeCapabilities:
         session._last_context = {
             "percentage": 1, "total_tokens": 1_000, "max_tokens": 258_400,
         }
-        source = AsyncMock()
+        source = SimpleNamespace(
+            session_id="claude-native-session",
+            active_turn_id=None,
+            _events_active=False,
+            _turn_active=False,
+            retarget_model=AsyncMock(),
+        )
         session._backend = source
-        session._same_runtime_resume_preflight = MagicMock(return_value=SimpleNamespace(
-            fits=True, as_dict=lambda: {"fits": True},
-        ))
-        prepared = SimpleNamespace(
-            ok=True, handoff_id="h1", pending_effects=0,
-            packet_sha256="a" * 64,
-        )
-        session._prepare_runtime_handoff = AsyncMock(return_value=prepared)
-        session._refresh_skills = AsyncMock()
-        session._refresh_codex_project_doc = AsyncMock()
-        target = AsyncMock()
-        target.session_id = "claude-native-session"
-        target.resume_failed = False
-        session._make_backend = MagicMock(return_value=target)
-        session._activate_backend_tasks = MagicMock()
-        monkeypatch.setattr(
-            "app.session.get_runtime_handoff",
-            lambda _hid: {"handoff_id": "h1"},
-        )
-        monkeypatch.setattr("app.session.allocate_runtime_handoff_attempt", MagicMock(
-            return_value={"handoff_id": "h1", "attempt_no": 1},
-        ))
-        update_attempt = MagicMock()
-        update_status = MagicMock()
-        monkeypatch.setattr("app.session.update_runtime_handoff_attempt", update_attempt)
-        monkeypatch.setattr("app.session.update_runtime_handoff_status", update_status)
-        save = MagicMock()
+        save = MagicMock(side_effect=RuntimeError("database unavailable"))
         monkeypatch.setattr("app.session.save_session", save)
-        session._confirm_runtime_handoff = AsyncMock()
 
         result = await session.change_model("claude-opus-5[1m]")
 
-        assert result["ok"] is True
-        source.disconnect.assert_awaited_once()
-        session._confirm_runtime_handoff.assert_awaited_once()
-        assert any(call.args[1] == "source_released" for call in update_status.call_args_list)
-        save.assert_not_called()
-        assert session._backend is target
+        assert result["ok"] is False
+        assert result["error_code"] == "claude_in_place_switch_persistence_failed"
+        assert session.model == "claude-sonnet-5[1m]"
+        assert session._backend is source
+        assert session._handoff_recovery_required is False
+        assert source.retarget_model.await_args_list == [
+            (("claude-opus-5[1m]",), {}),
+            (("claude-sonnet-5[1m]",), {}),
+        ]
 
     @pytest.mark.asyncio
     async def test_runtime_handoff_is_one_shot_user_message_context(self, session):
