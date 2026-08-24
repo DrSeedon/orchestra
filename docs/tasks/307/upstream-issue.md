@@ -173,4 +173,5 @@ $ CODEX_HOME=/path/to/disposable-copy python resume_size.py THREAD_ID --exclude-
 
 ## Publication state
 
-Not published. A separate explicit user command is required before posting this comment.
+Published with explicit user approval on 2026-08-24:
+https://github.com/openai/codex/issues/21988#issuecomment-5392423306
