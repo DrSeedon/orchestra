@@ -25,6 +25,11 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 - app/session.py, app/manager.py — immutable session archive/commit receipt; explicit promotion only.
 - scripts/ia_migrate.py, scripts/ia_replay.py, scripts/ia_pack.py — offline snapshot, replay, shadow
   compare, restore and rollback rehearsal; no live write during migration rehearsal.
+- scripts/ia_document_inventory.py, scripts/ia_migrate_documents.py — classify every legacy document,
+  emit path→typed-URI aliases/evidence refs, and prove byte-preserving historical migration.
+- pipelines/default/prompts/modules/memory-search.md and the project skill/prompt owners selected by
+  delivery inventory — switch agents to typed IDs and evidence/promotion/query APIs only at T7 cutover;
+  verify final assembled prompts for every runtime rather than source snippets.
 - docs/tasks/315/acceptance/test_smoke_t*.py — smoke presence probes only; behavior-specific RED oracles
   remain to be designed and frozen ticket-by-ticket.
 
@@ -53,7 +58,16 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 6. Roll back before new canonical writes by switching reader/projection generation. After new canonical
    writes, append forward restore/replay events and rebuild projections; never reset/delete Git history
    to hide a failed cutover.
-7. Cleanup order: progress UI hide; legacy merge route removal after v1 oracle; duplicate refresh merge;
+7. After T3–T6 are green, freeze a tracked document inventory and classify every `docs/tasks/*.md`,
+   `docs/kb/*.md`, TODO/instruction source and session archive as exactly one of: canonical structured
+   record, immutable evidence/report, generated human projection, or cold archive. Preserve historical
+   evidence bytes and paths; migrate references through aliases/`orch://` IDs rather than rewriting it.
+8. Run T7 legacy→shadow→canonical prompt/document cutover. Structured JSON task/fact/evidence-ref/event
+   records are canonical; topic/README Markdown, SQLite, FTS and vector are rebuildable projections.
+   Do not destructively remove SQLite or legacy readers until shadow parity, rollback rehearsal, assembled
+   prompt delivery and live cutover receipts all pass. Rollback switches the owner/read generation and
+   replays forward; it never deletes newer canonical history.
+9. Cleanup order: progress UI hide; legacy merge route removal after v1 oracle; duplicate refresh merge;
    proxy control experiment. YouGile/payments deletion occurs under #299 gates, not knowledge migration.
    #298 remains deferred.
 
@@ -157,6 +171,24 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
   owner; #298 files/config remain untouched.
 - blocked-by: T2, T4, T5.
 
+### T7 — prompt + existing-document migration + final cutover
+
+- Files: future scripts/ia_document_inventory.py, scripts/ia_migrate_documents.py; prompt/skill owners
+  selected by the tracked delivery inventory; generated docs/kb registry/topic projections; migration
+  manifests and alias maps. Historical evidence/report bodies are read-only inputs, not rewrite targets.
+- Test: future `uv run python -m pytest docs/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py -q`;
+  behavioral oracle design is frozen in acceptance/README.md T7 row, but no RED is committed yet. No
+  existence smoke may substitute for it.
+- AC: command is green; every in-scope legacy path is classified exactly once; canonical task
+  state/events/evidence refs/facts are structured Git JSON; historical evidence/report/session archive
+  bytes and Git lineage are unchanged; old path/#N references resolve through typed `orch://` aliases;
+  README/topic Markdown is generated-only and cannot accept independent truth; all assembled runtime
+  prompts instruct typed task/evidence/promotion/query APIs and deny SQLite/vector/Markdown authority;
+  legacy and shadow keep current readers recoverable, canonical cutover occurs only after parity/privacy/
+  rollback/live-delivery receipts, and rollback restores the previous owner without erasing canonical
+  events. Compound dual-truth, prompt-source-only, fake-parity deletion and rewritten-evidence mutants fail.
+- blocked-by: T3, T4, T5, T6.
+
 ## Phase 3 entry gate and quantitative gate
 
 The user approved project-scoped #N with stable UUID, private/secret fields outside ordinary
@@ -164,12 +196,16 @@ Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed wit
 conflicts and sensitive classes. Each ticket must still receive the exact
 fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
 behavioral RED test must be committed and independently verified before implementation. T1–T3 have
-reached that oracle gate; T4–T6 have not. Smoke probes never satisfy this gate.
+reached that oracle gate; T4–T7 have not. T7 runs only after core T3–T6 and has no existence-smoke
+shortcut. Smoke probes never satisfy this gate.
 
 The implementation report must include command output and frozen manifest for replay parity and 0
 duplicate identity; 0 source-less promoted facts; exact/current/rejected recall and stale contradiction
 on the #256 holdout; projection read-after-write and head debt; task facade parity and conflict-loss
 count; prompt footprint/tool calls/time measured A/B/A/B; privacy secret scan; rollback replay parity.
+T7 additionally reports exact document-classification coverage, unchanged historical evidence hashes,
+typed-reference resolution, assembled-prompt delivery for every runtime, shadow mismatch count, cutover
+receipt and rehearsed rollback with legacy SQLite still recoverable.
 
 No absolute future quality/latency/token constant is invented here. The acceptance test must report its
 denominator, frozen fixture hash, machine/load context where relevant, and exact historical baseline.
