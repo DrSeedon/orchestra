@@ -35,7 +35,7 @@ async def test_change_model_loads_unloaded_idle_worker(monkeypatch):
     assert body["ok"] is True
     assert body["model"] == "gpt-5.6-sol"
     routes.manager.ensure_loaded.assert_awaited_once_with("feat-charts", "/s")
-    live.change_model.assert_awaited_once_with("gpt-5.6-sol", fresh=True)
+    live.change_model.assert_awaited_once_with("gpt-5.6-sol", fresh=False)
 
 
 @pytest.mark.asyncio
@@ -51,3 +51,24 @@ async def test_change_model_missing_session_is_404(monkeypatch):
     status, body = _status_body(response)
     assert status == 404
     assert "error" in body
+
+
+@pytest.mark.asyncio
+async def test_change_model_keeps_explicit_fresh_escape_hatch(monkeypatch):
+    from app.routes import sessions as routes
+
+    live = SimpleNamespace(
+        loaded=True,
+        change_model=AsyncMock(return_value={"ok": True, "changed": True}),
+    )
+    monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=live))
+
+    response = await routes.change_model(
+        "feat-charts",
+        {"scope": "/s", "model": "gpt-5.6-sol", "fresh": True},
+    )
+
+    status, body = _status_body(response)
+    assert status == 200
+    assert body["ok"] is True
+    live.change_model.assert_awaited_once_with("gpt-5.6-sol", fresh=True)

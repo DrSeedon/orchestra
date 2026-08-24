@@ -1037,6 +1037,30 @@ async def test_send_starts_turn_when_idle():
 
 
 @pytest.mark.asyncio
+async def test_retarget_model_keeps_thread_and_next_turn_uses_new_model():
+    backend = CodexBackend(model="gpt-5.6-luna", cwd="/tmp")
+    proc = SimpleNamespace(returncode=None)
+    backend._proc = proc
+    backend._thread_id = "thread-1"
+    backend._model_context_window = 828_400
+    backend._request = AsyncMock(return_value={"turn": {"id": "turn-2"}})
+
+    backend.retarget_model("gpt-5.6-sol")
+    await backend.send("continue seamlessly")
+
+    assert backend.model == "gpt-5.6-sol"
+    assert backend.session_id == "thread-1"
+    assert backend._proc is proc
+    assert backend._model_context_window == 828_400
+    backend._request.assert_awaited_once_with("turn/start", {
+        "threadId": "thread-1",
+        "input": [{"type": "text", "text": "continue seamlessly"}],
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+    })
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("loaded", [None, "old-config"])
 async def test_idle_turn_reconnects_stale_managed_config_and_preserves_thread(loaded):
     backend = CodexBackend(

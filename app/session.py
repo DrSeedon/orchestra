@@ -4330,6 +4330,11 @@ class AgentSession:
                 old_model,
                 old_runtime,
             )
+        if new_runtime == "codex":
+            return await self._change_codex_model_in_place_locked(
+                new_model,
+                old_model,
+            )
         runtime_capabilities = get_runtime(new_runtime).capabilities
         if not runtime_capabilities.resume_across_models:
             return {
@@ -4563,6 +4568,89 @@ class AgentSession:
                 "mode": "native_resume",
                 "preflight": native_preflight.as_dict(),
             },
+            "changed": True,
+        }
+
+    async def _change_codex_model_in_place_locked(
+        self,
+        new_model: str,
+        old_model: str,
+    ) -> dict:
+        """Retarget the next Codex turn while preserving the exact native thread."""
+        total_tokens = int(self._last_context.get("total_tokens") or 0)
+        target_window = get_model_spec(new_model).context_length
+        if old_model.startswith("gpt-5.6-") and new_model.startswith("gpt-5.6-"):
+            target_window = max(
+                target_window,
+                int(self._last_context.get("max_tokens") or 0),
+            )
+        if total_tokens and target_window and total_tokens > target_window:
+            return {
+                "ok": False,
+                "error": "target context cannot fit the native Codex thread",
+                "error_code": "handoff_context_overflow",
+                "history_transfer": {
+                    "mode": "blocked",
+                    "preflight": {
+                        "fits": False,
+                        "total_tokens": total_tokens,
+                        "target_context_window": target_window,
+                    },
+                },
+            }
+        backend = self._backend
+        if backend is not None:
+            if (
+                getattr(backend, "active_turn_id", None)
+                or getattr(backend, "_events_active", False)
+            ):
+                return {
+                    "ok": False,
+                    "error": "cannot change Codex model while its turn is settling",
+                }
+            if not callable(getattr(backend, "retarget_model", None)):
+                return {
+                    "ok": False,
+                    "error": "Codex backend cannot retarget the active thread",
+                    "error_code": "codex_in_place_switch_unsupported",
+                }
+
+        await self._drain_persist()
+        snapshot = self._to_db_dict()
+        snapshot.update({
+            "model": new_model,
+            "backend_type": "codex",
+        })
+        try:
+            await asyncio.get_running_loop().run_in_executor(
+                _db_executor(), save_session, snapshot,
+            )
+        except Exception as error:
+            return {
+                "ok": False,
+                "error": err_text(error),
+                "error_code": "codex_in_place_switch_persistence_failed",
+            }
+
+        if backend is not None:
+            backend.retarget_model(new_model)
+        self.model = new_model
+        self.backend_type = "codex"
+        self._hibernated = False
+        self._log(
+            "status",
+            f"model change: {old_model} (codex) → {new_model} (codex); "
+            "native thread preserved",
+        )
+        return {
+            "ok": True,
+            "model": new_model,
+            "old_model": old_model,
+            "runtime": "codex",
+            "old_runtime": "codex",
+            "runtime_changed": False,
+            "native_session_reset": False,
+            "history_transfer": {"mode": "native_in_place"},
             "changed": True,
         }
 

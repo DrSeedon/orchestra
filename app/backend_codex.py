@@ -890,6 +890,18 @@ class CodexBackend(JsonRpcStdioTransport):
     def has_owned_processes(self) -> bool:
         return self._proc is not None or self._scope_unit is not None
 
+    def retarget_model(self, model: str) -> None:
+        """Use app-server's per-turn model override without replacing the thread."""
+        if self._active_turn_id or self._events_active:
+            raise RuntimeError("cannot retarget Codex model while a turn is active")
+        old_fallback = CODEX_CONTEXT_LIMITS.get(self.model, 258400)
+        new_fallback = CODEX_CONTEXT_LIMITS.get(model, 258400)
+        # Preserve a runtime-reported window (for example 828400 for GPT-5.6) across
+        # siblings that share the same catalog limit; switch fallbacks across families.
+        if old_fallback != new_fallback or self._model_context_window == old_fallback:
+            self._model_context_window = new_fallback
+        self.model = model
+
     async def _verify_history_version(self) -> None:
         if not self._history_import:
             return
