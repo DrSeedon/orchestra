@@ -13,7 +13,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Callable, Literal, NotRequired, TypedDict
 
 if TYPE_CHECKING:
     # Только для аннотаций (строковые аннотации + from __future__ import annotations):
@@ -861,28 +861,105 @@ def _get_commit_messages(repo: str, branch: str, base: str) -> list[str]:
     return [line for line in log.stdout.strip().splitlines() if line.strip()]
 
 
+_RESERVED_OPERATION_TRAILER_RE = re.compile(
+    r"^[ \t]*Orchestra-Operation[ \t]*:", re.IGNORECASE | re.MULTILINE,
+)
+
+
+_HEADER_TASK_REFS_RE = re.compile(
+    r"^\s*((?:#[0-9]+|[A-Z]{2,5}-[0-9]+)(?:\s*,\s*(?:#[0-9]+|[A-Z]{2,5}-[0-9]+))*)\s*:"
+)
+_ONE_TASK_REF_RE = re.compile(r"#([0-9]+)|([A-Z]{2,5})-([0-9]+)")
+
+
+def _leading_task_refs(message: str) -> list[str]:
+    """Task refs from the canonical leading ``#N[, #N]*:`` header only.
+
+    Prose matches the historical ref pattern: ``UTF-8``, ``GPT-5`` and ``SHA-256``
+    all look like ``PREFIX-N``. Resolving them as tasks refuses honest merges and
+    links the squash to the numeric tail (``UTF-8`` -> ``#8``), so a ref counts
+    only in the header position. The prefix stays case-sensitive on purpose:
+    ``wip-2:`` is a word.
+    """
+    header = _HEADER_TASK_REFS_RE.match(message)
+    if not header:
+        return []
+    refs: list[str] = []
+    for match in _ONE_TASK_REF_RE.finditer(header.group(1)):
+        ref = match.group(1) or f"{match.group(2)}-{match.group(3)}"
+        if ref not in refs:
+            refs.append(ref)
+    return refs
+
+
+def _extract_task_refs(messages: list[str]) -> list[str]:
+    refs: list[str] = []
+    seen: set[str] = set()
+    for message in messages:
+        for ref in _leading_task_refs(message):
+            if ref not in seen:
+                seen.add(ref)
+                refs.append(ref)
+    return refs
+
+
+def _inspect_candidate_commits(repo: str, base_ref: str, worker_head: str) -> dict:
+    log = _git_cmd(
+        [
+            "git", "log", "-z", "--reverse", f"{base_ref}..{worker_head}",
+            "--format=%H%x00%s%x00%B",
+        ],
+        cwd=repo, capture_output=True, text=True,
+    )
+    if log.returncode != 0:
+        detail = log.stderr.strip() or log.stdout.strip() or f"exit {log.returncode}"
+        raise RuntimeError(f"cannot inspect candidate commits: {detail}")
+    fields = log.stdout.split("\0")
+    if fields and not fields[-1]:
+        fields.pop()
+    if len(fields) % 3:
+        raise RuntimeError("cannot inspect candidate commits: malformed git log output")
+    subjects: list[str] = []
+    for offset in range(0, len(fields), 3):
+        _commit, subject, body = fields[offset:offset + 3]
+        if _RESERVED_OPERATION_TRAILER_RE.search(body):
+            raise ValueError(
+                "worker commit contains reserved Orchestra-Operation: trailer"
+            )
+        subjects.append(subject)
+    return {"refs": _extract_task_refs(subjects), "messages": subjects}
+
+
+def _strip_leading_task_refs(summary: str) -> str:
+    """Drop the header this module recognises as refs — and nothing else.
+
+    A second, looser notion of "ref" here used to eat honest text (``wip-2:``),
+    so the header is stripped only when `_leading_task_refs` actually claims it.
+    """
+    if not _leading_task_refs(summary):
+        return summary
+    return _HEADER_TASK_REFS_RE.sub("", summary, count=1).lstrip()
+
+
 def _build_squash_message(branch: str, messages: list[str]) -> str:
     """Build squash commit message with task refs prefix and message list.
 
     Squash merge collapses N worker commits into one clean main-branch commit.
     The message aggregates all task refs so PM tooling can link the merge to tasks.
     """
+    # `#248` and `PAR-248` are the same task: dedup AFTER the numeric collapse,
+    # or one branch carrying both spellings emits `#248, #248:` into main forever.
     all_refs: list[str] = []
-    seen: set[str] = set()
-    for msg in messages:
-        for m in _TASK_REF_RE.finditer(msg):
-            if m.group(3):
-                ref = f"#{m.group(3)}"
-            else:
-                ref = f"#{m.group(2)}"
-            if ref not in seen:
-                seen.add(ref)
-                all_refs.append(ref)
+    for ref in _extract_task_refs(messages):
+        numeric = f"#{ref.rsplit('-', 1)[-1]}"
+        if numeric not in all_refs:
+            all_refs.append(numeric)
 
     if messages:
         summary = messages[-1] if len(messages) == 1 else messages[0]
     else:
         summary = f"merge {branch}"
+    summary = _strip_leading_task_refs(summary)
 
     prefix = ", ".join(all_refs) + ": " if all_refs else ""
     header = f"{prefix}{summary}"
@@ -891,6 +968,31 @@ def _build_squash_message(branch: str, messages: list[str]) -> str:
     if len(messages) > 1:
         return f"{header}\n\nSquashed commits:\n{body_lines}"
     return header
+
+
+def _validated_squash_message(
+    branch: str,
+    messages: list[str],
+    candidate_refs: list[str],
+    primary_task_ref: str,
+    operation_id: str = "",
+) -> str:
+    message = _build_squash_message(branch, messages)
+    expected_refs = candidate_refs or ([primary_task_ref] if primary_task_ref else [])
+    if not candidate_refs and primary_task_ref:
+        message = f"#{primary_task_ref}: {message}"
+    subject = message.splitlines()[0] if message else ""
+    emitted_refs = [ref.rsplit("-", 1)[-1] for ref in _extract_task_refs([subject])]
+    if emitted_refs != expected_refs:
+        raise ValueError(
+            "squash subject task refs changed under repository lock: "
+            f"expected {expected_refs}, found {emitted_refs}"
+        )
+    if operation_id:
+        # Отдельным paragraph'ом и последним: так его читает `git interpret-trailers`,
+        # и по нему операция узнаёт СВОЙ коммит, когда журнал потерян.
+        message = f"{message}\n\nOrchestra-Operation: {operation_id}"
+    return message
 
 
 def _rollback_merge_target(repo: str, old_head: str, error: str) -> dict:
@@ -945,7 +1047,14 @@ def _commit_failure_result(repo: str, old_head: str, commit) -> dict:
     )
 
 
-def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> tuple[dict, bool]:
+def _cherry_pick_branch(
+    repo: str,
+    source_ref: str,
+    old_head: str,
+    *,
+    branch_name: str = "",
+    commit_message: str = "",
+) -> tuple[dict, bool]:
     """Cherry-pick all commits from branch onto current HEAD.
 
     Fallback for unrelated histories: happens when a worker was spawned from a
@@ -953,19 +1062,19 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> tuple[dict, bo
     git merge refuses unrelated histories; cherry-pick applies diffs anyway.
     """
     rev_list = _git_cmd(
-        ["git", "rev-list", "--reverse", branch],
+        ["git", "rev-list", "--reverse", source_ref],
         cwd=repo, capture_output=True, text=True,
     )
     if rev_list.returncode != 0 or not rev_list.stdout.strip():
         return ({
             "ok": False,
-            "error": f"cannot list commits on {branch}: {rev_list.stderr.strip()}",
+            "error": f"cannot list commits on {source_ref}: {rev_list.stderr.strip()}",
         }, False)
 
     commits = rev_list.stdout.strip().splitlines()
-    logger.info(f"cherry-pick fallback: {len(commits)} commits from {branch}")
+    logger.info(f"cherry-pick fallback: {len(commits)} commits from {source_ref}")
 
-    messages = _get_commit_messages(repo, branch, "")
+    messages = _get_commit_messages(repo, source_ref, "")
 
     mutation_started = False
     for i, sha in enumerate(commits):
@@ -996,7 +1105,9 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> tuple[dict, bo
         cwd=repo, capture_output=True, text=True,
     )
     if status.returncode != 0:
-        commit_msg = _build_squash_message(branch, messages)
+        commit_msg = commit_message or _build_squash_message(
+            branch_name or source_ref, messages,
+        )
         commit = _git_cmd(
             ["git", "commit", "-m", commit_msg],
             cwd=repo, capture_output=True, text=True,
@@ -1008,7 +1119,7 @@ def _cherry_pick_branch(repo: str, branch: str, old_head: str) -> tuple[dict, bo
     return ({
         "ok": True,
         "commits_merged": len(commits),
-        "branch": branch,
+        "branch": branch_name or source_ref,
         "strategy": "cherry-pick",
         "merged_commits": merged_commits,
     }, mutation_started)
@@ -1125,6 +1236,12 @@ def merge_worktree_to_main(
     expected_target_head: str = "",
     waive_diff_budget: bool = False,
     waived_by: str = "",
+    expected_candidate_refs: list[str] | None = None,
+    validated_task_refs: list[str] | None = None,
+    primary_task_ref: str = "",
+    operation_id: str = "",
+    prepare: Callable[[str, str], None] | None = None,
+    resolve_refs: Callable[[list[str]], list[str]] | None = None,
 ) -> MergeOutcome:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), repo_path)
@@ -1140,6 +1257,7 @@ def merge_worktree_to_main(
     target_commit_succeeded = False
     merge_cwd = ""
     target_recheck = None
+    prepared_squash_message = ""
 
     with repo_mutation_lock(repo):
         target_branch = resolve_base_branch(str(repo), target_branch)
@@ -1247,12 +1365,46 @@ def merge_worktree_to_main(
                                         "commits_merged": 0,
                                         "diff_insertions": diff_insertions,
                                     }
-                        try:
-                            owner = _branch_worktree_path(str(repo), target_branch)
-                        except RuntimeError as e:
-                            result = {"ok": False, "error": str(e)}
-                        else:
-                            target_wt = owner or repo
+                        if result is None and (
+                            expected_candidate_refs is not None or resolve_refs is not None
+                        ):
+                            try:
+                                candidate = _inspect_candidate_commits(
+                                    str(repo), target_before, worker_head,
+                                )
+                                actual_refs = candidate["refs"]
+                                if (
+                                    expected_candidate_refs is not None
+                                    and actual_refs != expected_candidate_refs
+                                ):
+                                    raise ValueError(
+                                        "candidate task refs changed under repository lock: "
+                                        f"expected {expected_candidate_refs}, found {actual_refs}"
+                                    )
+                                # Рефы разрешаются в задачи ЗДЕСЬ, под тем же локом и на том
+                                # же запиннённом HEAD, что и проверка: между «прочитали» и
+                                # «разрешили» воркер уже ничего не может дописать.
+                                task_refs = (
+                                    resolve_refs(actual_refs) if resolve_refs is not None
+                                    else list(validated_task_refs or [])
+                                )
+                                prepared_squash_message = _validated_squash_message(
+                                    branch,
+                                    candidate["messages"],
+                                    task_refs,
+                                    primary_task_ref,
+                                    operation_id,
+                                )
+                            except (RuntimeError, ValueError) as e:
+                                result = {"ok": False, "error": str(e)}
+                        if result is None:
+                            try:
+                                owner = _branch_worktree_path(str(repo), target_branch)
+                            except RuntimeError as e:
+                                result = {"ok": False, "error": str(e)}
+                            else:
+                                target_wt = owner or repo
+                        if result is None:
                             if target_wt == wt:
                                 result = {
                                     "ok": False,
@@ -1309,18 +1461,19 @@ def merge_worktree_to_main(
                                     if result is None:
                                         merge_cwd = str(target_wt)
                                         merge_base = _git_cmd(
-                                            ["git", "merge-base", target_branch, branch],
+                                            ["git", "merge-base", target_branch, worker_head],
                                             cwd=merge_cwd, capture_output=True, text=True,
                                         )
                                         unrelated = merge_base.returncode != 0
 
                                         precheck_ok = True
+                                        expected_tree = ""
                                         if not unrelated:
                                             precheck = _git_cmd(
                                                 [
                                                     "git", "merge-tree", "--write-tree",
                                                     "--name-only", "--no-messages", "-z",
-                                                    target_branch, branch,
+                                                    target_branch, worker_head,
                                                 ],
                                                 cwd=merge_cwd,
                                                 capture_output=True,
@@ -1351,6 +1504,13 @@ def merge_worktree_to_main(
                                                         "conflicts": conflict_files,
                                                     }
                                                 precheck_ok = False
+                                            else:
+                                                # `--write-tree` печатает OID итогового
+                                                # дерева первой записью: это ровно то
+                                                # дерево, которое получит squash-коммит.
+                                                expected_tree = precheck.stdout.split(
+                                                    "\0",
+                                                )[0].strip()
 
                                         if precheck_ok and expected_target_head:
                                             current_target = _inspect_branch_ref(repo, target_branch)
@@ -1379,19 +1539,46 @@ def merge_worktree_to_main(
                                                 old_head_result.stdout.strip()
                                                 if old_head_result.returncode == 0 else ""
                                             )
+                                            prepare_failed = False
+                                            if prepare is not None:
+                                                # Последний момент под repo-локом, когда
+                                                # рефы ещё не тронуты: журнал обязан лечь
+                                                # ДО мутации, иначе восстанавливать нечем.
+                                                try:
+                                                    prepare(target_before, expected_tree)
+                                                except Exception as prepare_error:
+                                                    prepare_failed = True
+                                                    result = {
+                                                        "ok": False,
+                                                        "error": (
+                                                            "merge journal could not be prepared "
+                                                            "before Git: "
+                                                            f"{type(prepare_error).__name__}: "
+                                                            f"{prepare_error}"
+                                                        ),
+                                                    }
 
-                                            if unrelated:
+                                            if prepare_failed:
+                                                logger.error(
+                                                    "merge preparation failed for %s: %s",
+                                                    branch, result["error"],
+                                                )
+                                            elif unrelated:
                                                 logger.info(
                                                     "unrelated histories for %s — using cherry-pick",
                                                     branch,
                                                 )
                                                 result, mutation_started = _cherry_pick_branch(
-                                                    merge_cwd, branch, old_head,
+                                                    merge_cwd,
+                                                    worker_head,
+                                                    old_head,
+                                                    branch_name=branch,
+                                                    commit_message=prepared_squash_message,
                                                 )
                                             else:
                                                 commits_result = _git_cmd(
                                                     ["git", "rev-list", "--count",
-                                                     f"{target_branch}..{branch}"],
+                                                     f"{target_branch}..{worker_head}"],
                                                     cwd=merge_cwd,
                                                     capture_output=True,
                                                     text=True,
@@ -1400,11 +1587,11 @@ def merge_worktree_to_main(
                                                     commits_result.stdout.strip() or "0"
                                                 )
                                                 messages = _get_commit_messages(
-                                                    merge_cwd, branch, target_branch,
+                                                    merge_cwd, worker_head, target_branch,
                                                 )
                                                 mutation_started = True
                                                 merge = _git_cmd(
-                                                    ["git", "merge", "--squash", branch],
+                                                    ["git", "merge", "--squash", worker_head],
                                                     cwd=merge_cwd,
                                                     capture_output=True,
                                                     text=True,
@@ -1435,8 +1622,11 @@ def merge_worktree_to_main(
                                                         text=True,
                                                     )
                                                     if staged.returncode != 0:
-                                                        commit_msg = _build_squash_message(
-                                                            branch, messages,
+                                                        commit_msg = (
+                                                            prepared_squash_message
+                                                            or _build_squash_message(
+                                                                branch, messages,
+                                                            )
                                                         )
                                                         commit = _git_cmd(
                                                             ["git", "commit", "-m", commit_msg],
@@ -1559,12 +1749,11 @@ def merge_worktree_to_main(
         return result
 
 
-_TASK_REF_RE = re.compile(r"(?:\b([A-Z]{2,5})-(\d+)\b|#(\d+)\b)")
-
-
-def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
+def _parse_merged_commits(
+    repo: str, old_head: str, head_ref: str = "HEAD",
+) -> dict[str, list[dict]]:
     log = _git_cmd(
-        ["git", "log", f"{old_head}..HEAD", "--format=%H%x00%s%x00%ad", "--date=short"],
+        ["git", "log", f"{old_head}..{head_ref}", "--format=%H%x00%s%x00%ad", "--date=short"],
         cwd=repo, capture_output=True, text=True,
     )
     if log.returncode != 0 or not log.stdout.strip():
@@ -1578,13 +1767,7 @@ def _parse_merged_commits(repo: str, old_head: str) -> dict[str, list[dict]]:
         full_hash, message, date = parts
         short_hash = full_hash[:7]
 
-        refs: list[str] = []
-        seen_refs: set[str] = set()
-        for m in _TASK_REF_RE.finditer(message):
-            ref = m.group(3) if m.group(3) else f"{m.group(1)}-{m.group(2)}"
-            if ref not in seen_refs:
-                seen_refs.add(ref)
-                refs.append(ref)
+        refs = _leading_task_refs(message)
         if not refs:
             continue
 

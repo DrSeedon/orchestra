@@ -11,11 +11,13 @@ Built-in task tracker. Agents create, update, and close tasks.
 - `payment_receive(amount, client="", date="", note="")` — record payment. Auto-distributes to done tasks (smallest debt first). Amount in exact currency units
 - `payment_status(client="")` — balance, debt, recent payments
 
-### Workflow
-- **Starting work** → `task_update(par, status="in_progress")`. `spawn_worker(..., task_id="42")`
-  does it for you and creates branch `task-42/worker-name`
-- **Successful merge** → `task_update(par, status="done")`. Not on the worker's DONE: the merge
-  can still fail. Commits auto-link via `#42: description`
+### Automatic lifecycle
+- spawn/send/merge responses carry the fresh task state; `list_agents` includes a bounded live
+  project-task view. Do not spend another model round-trip reconstructing state already returned.
+- Planned spawn or assignment binds the canonical task before delivery. A successful
+  `merge_worker(task_outcome="complete")` closes it; `task_outcome="continue"` keeps it bound.
+- Manual `in_progress`/`done` updates from agent tools are rejected because those states belong to
+  the platform lifecycle. Human edits and non-lifecycle fields remain available.
 
 ### Rules
 - Before approved work that will leave a persistent `docs/` artifact (research, audit,
