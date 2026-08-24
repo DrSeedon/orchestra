@@ -1,0 +1,33 @@
+{
+  "run_id": "r2-closed_trace-stealth__ox-alpha",
+  "repetition": 2,
+  "task": "closed_trace",
+  "model": "stealth/ox-alpha",
+  "elapsed_seconds": 4.746,
+  "loadavg": [
+    0.369140625,
+    0.64892578125,
+    0.6748046875
+  ],
+  "ok": true,
+  "stop_reason": "end_turn",
+  "error": "",
+  "http_attempts": 1,
+  "successful_rounds": 0,
+  "tool_calls": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [],
+  "grade": {
+    "score": 0.0,
+    "matched": 0,
+    "total": 4,
+    "error": "FileNotFoundError: [Errno 2] No such file or directory: '/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r2-closed_trace-stealth__ox-alpha/answer.json'"
+  },
+  "events": [],
+  "artifacts": {
+    "registry.py": "from backend import HarnessBackend\nROUTES = {\"alpha\": (\"harness\", HarnessBackend)}\ndef build(name):\n    runtime, factory = ROUTES[name]\n    return factory(runtime)\n"
+  }
+}

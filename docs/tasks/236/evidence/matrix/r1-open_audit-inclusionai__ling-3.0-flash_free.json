@@ -1,0 +1,37 @@
+{
+  "run_id": "r1-open_audit-inclusionai__ling-3.0-flash_free",
+  "repetition": 1,
+  "task": "open_audit",
+  "model": "inclusionai/ling-3.0-flash:free",
+  "elapsed_seconds": 0.425,
+  "loadavg": [
+    0.8291015625,
+    0.9150390625,
+    0.74169921875
+  ],
+  "ok": false,
+  "stop_reason": "error",
+  "error": "llm_error: Client error '404 Not Found' for url 'https://openrouter.ai/api/v1/model/inclusionai/ling-3.0-flash:free'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+  "http_attempts": 0,
+  "successful_rounds": 0,
+  "tool_calls": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [],
+  "grade": {
+    "score": 0,
+    "tp": 0,
+    "fp": 0,
+    "error": "FileNotFoundError: [Errno 2] No such file or directory: '/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r1-open_audit-inclusionai__ling-3.0-flash_free/findings.json'"
+  },
+  "events": [
+    {
+      "type": "error",
+      "content": "llm round failed: Client error '404 Not Found' for url 'https://openrouter.ai/api/v1/model/inclusionai/ling-3.0-flash:free'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "metadata": {}
+    }
+  ],
+  "artifacts": {}
+}

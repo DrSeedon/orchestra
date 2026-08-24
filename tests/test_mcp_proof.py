@@ -225,6 +225,55 @@ def test_worker_proof_cannot_waive(proof_db):
     ) is False
 
 
+@pytest.mark.asyncio
+async def test_worker_and_spoofed_update_cannot_set_or_clear_acceptance(proof_db):
+    import app.tm as tm
+    from app.mcp_proof import issue_mcp_proof
+    from app.routes.tm import TmTaskUpdate, tm_update_task
+
+    with tm._conn() as conn:
+        tm.create_task(conn, "proj", "protected", par_number=42, acceptance_command="true")
+
+    for request in (
+        _req(session_id="worker-session", proof=issue_mcp_proof("worker-session")),
+        _req(session_id="orch-session"),
+    ):
+        result = await tm_update_task(
+            "42", TmTaskUpdate(acceptance_command=""), request, project="proj",
+        )
+        assert result.status_code == 403
+
+    with tm._conn() as conn:
+        assert tm.get_task_by_par(conn, 42, "proj")["acceptance_command"] == "true"
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_update_replaces_and_clears_acceptance(proof_db):
+    import app.tm as tm
+    from app.mcp_proof import issue_mcp_proof
+    from app.routes.tm import TmTaskUpdate, tm_update_task
+
+    with tm._conn() as conn:
+        tm.create_task(conn, "proj", "editable", par_number=42, acceptance_command="true")
+    request = _req(
+        session_id="orch-session", proof=issue_mcp_proof("orch-session"),
+    )
+
+    result = await tm_update_task(
+        "42", TmTaskUpdate(acceptance_command="false"), request, project="proj",
+    )
+    assert not hasattr(result, "status_code") or result.status_code == 200
+    with tm._conn() as conn:
+        assert tm.get_task_by_par(conn, 42, "proj")["acceptance_command"] == "false"
+
+    result = await tm_update_task(
+        "42", TmTaskUpdate(acceptance_command=""), request, project="proj",
+    )
+    assert not hasattr(result, "status_code") or result.status_code == 200
+    with tm._conn() as conn:
+        assert tm.get_task_by_par(conn, 42, "proj")["acceptance_command"] == ""
+
+
 def test_dashboard_cookie_still_may_waive(proof_db, monkeypatch):
     from app.auth import create_session
     from app.diff_budget import request_may_waive_diff_budget

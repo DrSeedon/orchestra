@@ -1,0 +1,173 @@
+{
+  "run_id": "r1-closed_edit",
+  "repetition": 1,
+  "task": "closed_edit",
+  "model": "stealth/ox-alpha",
+  "elapsed_seconds": 44.526,
+  "ok": true,
+  "stop_reason": "end_turn",
+  "effort": "high",
+  "http_attempts": 7,
+  "tool_calls": 6,
+  "event_round_markers": 0,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "empty_response": false,
+  "grade": {
+    "score": 1.0,
+    "passed": 6,
+    "total": 6,
+    "exit_code": 0,
+    "tail": "test_all_required_features (test_registry.RegistryTests.test_all_required_features) ... ok\ntest_boolean_price_rejected (test_registry.RegistryTests.test_boolean_price_rejected) ... ok\ntest_disabled_rejected (test_registry.RegistryTests.test_disabled_rejected) ... ok\ntest_expired_rejected (test_registry.RegistryTests.test_expired_rejected) ... ok\ntest_positive_and_string_price_rejected (test_registry.RegistryTests.test_positive_and_string_price_rejected) ... ok\ntest_preserves_order (test_registry.RegistryTests.test_preserves_order) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.001s\n\nOK\n"
+  },
+  "events": [
+    {
+      "type": "tool_use",
+      "content": "glob: {\"pattern\": \"**/registry.py\"}",
+      "metadata": {
+        "tool_name": "glob",
+        "short_name": "glob"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "registry.py",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"registry.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tdef eligible(entries, required_features):\n2\t    \"\"\"Return entries safe for the requested feature set.\"\"\"\n3\t    return [entry for entry in entries if entry.get(\"enabled\", True)]",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "glob: {\"pattern\": \"**/*\"}",
+      "metadata": {
+        "tool_name": "glob",
+        "short_name": "glob"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "test_registry.py\nregistry.py",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"test_registry.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "1\timport unittest\n2\tfrom registry import eligible\n3\t\n4\tclass RegistryTests(unittest.TestCase):\n5\t    def test_preserves_order(self):\n6\t        rows = [{\"id\": \"b\", \"price\": 0, \"features\": [\"tools\"]}, {\"id\": \"a\", \"price\": 0, \"features\": [\"tools\"]}]\n7\t        self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\"})], [\"b\", \"a\"])\n8\t    def test_disabled_rejected(self):\n9\t        self.assertEqual(eligible([{\"id\": \"x\", \"enabled\": False, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\n10\t    def test_expired_rejected(self):\n11\t        self.assertEqual(eligible([{\"id\": \"x\", \"expired\": True, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\n12\t    def test_positive_and_string_price_rejected(self):\n13\t        rows = [{\"id\": \"p\", \"price\": 0.01, \"features\": [\"tools\"]}, {\"id\": \"s\", \"price\": \"0\", \"features\": [\"tools\"]}]\n14\t        self.assertEqual(eligible(rows, {\"tools\"}), [])\n15\t    def test_boolean_price_rejected(self):\n16\t        self.assertEqual(eligible([{\"id\": \"x\", \"price\": False, \"features\": [\"tools\"]}], {\"tools\"}), [])\n17\t    def test_all_required_features(self):\n18\t        rows = [{\"id\": \"one\", \"price\": 0, \"features\": [\"tools\"]}, {\"id\": \"both\", \"price\": 0.0, \"features\": [\"tools\", \"json\"]}]\n19\t        self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\", \"json\"})], [\"both\"])",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "write: {\"path\": \"registry.py\", \"content\": \"def eligible(entries, required_features):\\n    \\\"\\\"\\\"Return entries safe for the requested feature set.\\\"\\\"\\\"\\n    result = []\\n    for entry in entries:\\n        if not entry.get(\\\"enabled\\\", True):\\n            continue\\n        if entry.get(\\\"expired\\\", False):\\n            continue\\n        price = entry.get(\\\"price\\\")\\n        if isinstance(price, bool) or not isinstance(price, (int, float)) or price != 0:\\n            continue\\n        features = entry.get(\\\"features\\\") or ()\\n        if not set(required_features).issubset(set(features)):\\n            continue\\n        result.append(entry)\\n    return result\\n\"}",
+      "metadata": {
+        "tool_name": "write",
+        "short_name": "write"
+      },
+      "usage": {}
+    },
+    {
+      "type": "file_change",
+      "content": "add registry.py",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "wrote registry.py (593 chars)",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "test: {}",
+      "metadata": {
+        "tool_name": "test",
+        "short_name": "test"
+      },
+      "usage": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "exit_code=0\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "text",
+      "content": "All 6 tests pass.\n\n**Summary of fix in `registry.py`:**\n\nThe original `eligible()` only filtered on `enabled`. Rewrote it to iterate over `entries` in input order and keep an entry only if all conditions hold:\n\n1. **Order preserved** — simple list append, no sorting or dict/set traversal.\n2. **Enabled** — `entry.get(\"enabled\", True)` is truthy.\n3. **Not expired** — `entry.get(\"expired\", False)` is falsy.\n4. **Price exactly numeric zero** — `price` must be `int`/`float` (explicitly rejecting `bool` via `isinstance(price, bool)`), and equal to 0. This rejects `0.01`, `\"0\"`, `False`, and missing prices.\n5. **Feature coverage** — `required_features` ⊆ entry's `features` set.",
+      "metadata": {},
+      "usage": {}
+    },
+    {
+      "type": "turn_end",
+      "content": "stop_reason=end_turn",
+      "metadata": {
+        "session_id": "283-memory-session",
+        "ok": true,
+        "stop_reason": "end_turn",
+        "num_turns": 1,
+        "cost_usd": 0.0,
+        "cost_usd_cached": 0.0,
+        "cache_hit": 0,
+        "input_tokens": 8806,
+        "output_tokens": 447,
+        "cached_input_tokens": 0,
+        "cache_read": 0,
+        "cache_create": 0,
+        "model_calls": null,
+        "context_pct": 0,
+        "context_tokens": 1673,
+        "context_known": true,
+        "max_tokens": 1048576
+      },
+      "usage": {
+        "input_tokens": 8806,
+        "output_tokens": 447,
+        "cached_input_tokens": 0,
+        "cache_read": 0,
+        "cache_create": 0,
+        "model_calls": null,
+        "context_pct": 0,
+        "context_tokens": 1673,
+        "context_known": true,
+        "max_tokens": 1048576
+      }
+    }
+  ]
+}

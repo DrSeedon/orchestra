@@ -1835,12 +1835,16 @@ class AgentSession:
             logger.warning("[%s] native history import failed", self.name)
             if not getattr(candidate, "has_owned_processes", False):
                 self._backend = None
+            self._finish_failed_running_turn("native history import failed")
             raise
         except Exception as e:
             logger.error(f"[{self.name}] backend connect failed: {err_text(e)}")
             self._log("error", f"connect failed: {err_text(e)}")
             if not getattr(candidate, "has_owned_processes", False):
                 self._backend = None
+            self._finish_failed_running_turn(
+                f"backend connect failed: {err_text(e)}"
+            )
             raise
         if self._backend is not candidate:
             raise RuntimeError("backend changed while connection was being established")
@@ -1895,6 +1899,20 @@ class AgentSession:
 
     # ── Event loops ──
 
+    def _finish_failed_running_turn(self, reason: str) -> None:
+        """Never leave RUNNING behind when the backend lost its turn."""
+        if self.status != AgentStatus.RUNNING:
+            return
+        self._turn_start = 0
+        self.status = AgentStatus.IDLE
+        self._log("error", reason)
+        self._persist()
+        self._turns.publish_turn_finished()
+        if self._pending_messages:
+            self._spawn_bg(self._flush_pending())
+        else:
+            self._hibernate.schedule()
+
     MAX_CONSECUTIVE_FAILURES = 5
 
     async def _reconnect_backend(self) -> None:
@@ -1934,6 +1952,16 @@ class AgentSession:
                 if self.status == AgentStatus.IDLE:
                     logger.info(f"[{self.name}] listener stream ended (agent idle/stopped — normal on restart)")
                     return
+                backend = self._backend
+                if (
+                    self.status == AgentStatus.RUNNING
+                    and hasattr(backend, "active_turn_id")
+                    and not getattr(backend, "active_turn_id", None)
+                ):
+                    self._finish_failed_running_turn(
+                        "listener ended while Codex had no active turn"
+                    )
+                    return
                 consecutive_failures += 1
                 logger.warning(f"[{self.name}] events() exhausted normally (attempt {consecutive_failures}/{self.MAX_CONSECUTIVE_FAILURES})")
                 self._log("status", f"listener stream ended unexpectedly (attempt {consecutive_failures})")
@@ -1952,10 +1980,9 @@ class AgentSession:
                 self._log("error", f"backend unstable: {consecutive_failures} consecutive failures, giving up")
                 self._turn_start = 0
                 await self._disconnect_backend()
-                if self.status == AgentStatus.RUNNING:
-                    self.status = AgentStatus.IDLE
-                    self._persist()
-                    self._turns.publish_turn_finished()
+                self._finish_failed_running_turn(
+                    "backend unstable after repeated listener failures"
+                )
                 return
 
             try:
@@ -1964,6 +1991,16 @@ class AgentSession:
                 await self._reconnect_backend()
                 logger.info(f"[{self.name}] listener reconnected after error")
                 self._log("status", "listener reconnected")
+                backend = self._backend
+                if (
+                    self.status == AgentStatus.RUNNING
+                    and hasattr(backend, "active_turn_id")
+                    and not getattr(backend, "active_turn_id", None)
+                ):
+                    self._finish_failed_running_turn(
+                        "listener recovered without an active Codex turn"
+                    )
+                    return
                 if self.status == AgentStatus.RUNNING:
                     await self._backend.send("[system] Connection was restored after interruption. Continue your work.")
                 continue
@@ -1971,10 +2008,9 @@ class AgentSession:
                 logger.error(f"[{self.name}] listener reconnect failed: {err_text(re_err)}")
                 self._log("error", f"listener reconnect failed: {err_text(re_err)}")
                 self._backend = None
-                if self.status == AgentStatus.RUNNING:
-                    self.status = AgentStatus.IDLE
-                    self._persist()
-                    self._turns.publish_turn_finished()
+                self._finish_failed_running_turn(
+                    f"listener reconnect failed: {err_text(re_err)}"
+                )
                 return
 
     async def _turn_event_loop(self) -> None:
@@ -1996,12 +2032,22 @@ class AgentSession:
             self._log("error", f"{self.backend_type} turn error: {e}")
         finally:
             if self.status == AgentStatus.RUNNING:
-                self.status = AgentStatus.IDLE
-                self._persist()
-                if self._pending_messages:
-                    self._spawn_bg(self._flush_pending())
+                backend = self._backend
+                if (
+                    self.backend_type == "codex"
+                    and hasattr(backend, "active_turn_id")
+                    and not getattr(backend, "active_turn_id", None)
+                ):
+                    self._finish_failed_running_turn(
+                        "Codex listener ended without an active turn"
+                    )
                 else:
-                    self._hibernate.schedule()
+                    self.status = AgentStatus.IDLE
+                    self._persist()
+                    if self._pending_messages:
+                        self._spawn_bg(self._flush_pending())
+                    else:
+                        self._hibernate.schedule()
             if not self._compacting:
                 self._wake_durable_message_deliveries()
 
@@ -2297,17 +2343,13 @@ class AgentSession:
             tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
             logger.error(f"[{self.name}] listen task died with exception: {exc}\n{tb}")
             self._log("error", f"listen task died: {exc}")
-            self._turn_start = 0
-            self.status = AgentStatus.IDLE
-            self._log("error", f"listen task exception: {exc}")
-            self._persist()
+            self._finish_failed_running_turn(f"listen task exception: {exc}")
         else:
             logger.warning(f"[{self.name}] listen task exited without exception (silent death), status={self.status}")
             if self.status == AgentStatus.RUNNING:
-                self._log("error", "listen task exited unexpectedly while RUNNING")
-                self._turn_start = 0
-                self.status = AgentStatus.IDLE
-                self._persist()
+                self._finish_failed_running_turn(
+                    "listen task exited unexpectedly while RUNNING"
+                )
         if self.status != AgentStatus.RUNNING and self._auto_continue_count == 0:
             self._turns.publish_turn_finished()
 

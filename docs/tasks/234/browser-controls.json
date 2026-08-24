@@ -1,0 +1,2077 @@
+{
+  "schema": 1,
+  "mode": "controls",
+  "started_at": "2026-08-23T11:04:31.511999+00:00",
+  "interleaved_order": null,
+  "events": [
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 148.268,
+      "url": "http://127.0.0.1:8888/api/usage",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 148.583,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 148.729,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 148.874,
+      "url": "http://127.0.0.1:8888/api/models",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "navigation",
+      "mono_ms": 151.28,
+      "status": 200,
+      "elapsed_ms": 145.789
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 255.204,
+      "url": "http://127.0.0.1:8888/api/models",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 285.245,
+      "url": "http://127.0.0.1:8888/api/usage",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 285.647,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 302.281,
+      "url": "http://127.0.0.1:8888/api/models",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": "768d248d9c986d75"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 342.842,
+      "url": "http://127.0.0.1:8888/api/models",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": "768d248d9c986d75"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 343.141,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/logs?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&before_id=2147483647&limit=100&max_bytes=32000&cap=16384",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 380.007,
+      "url": "http://127.0.0.1:8888/api/logs/sync?after_id=0&tail=0&cap=16384",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 394.619,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "login",
+      "mono_ms": 578.792,
+      "status": 200,
+      "redirected": true
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 2343.501,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/logs?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&before_id=2147483647&limit=100&max_bytes=32000&cap=16384",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 1475.023,
+      "url": "http://127.0.0.1:18888/api/usage",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 1477.546,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 1477.873,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 1478.275,
+      "url": "http://127.0.0.1:18888/api/models",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "navigation",
+      "mono_ms": 1478.626,
+      "status": 200,
+      "elapsed_ms": 899.822
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 1487.93,
+      "url": "http://127.0.0.1:18888/api/models",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 1510.0,
+      "url": "http://127.0.0.1:18888/api/logs/sync?after_id=0&tail=0&cap=16384",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 2795.911,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/logs?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&before_id=2147483647&limit=100&max_bytes=32000&cap=16384",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 1991.816,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 1998.305,
+      "url": "http://127.0.0.1:18888/api/models",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": "e918ae6faf5d31c1"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 1999.717,
+      "url": "http://127.0.0.1:18888/api/usage",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 2066.366,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&max_bytes=32000&cap=16384",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 2091.377,
+      "url": "http://127.0.0.1:18888/api/models",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": "e918ae6faf5d31c1"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 3329.879,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-before-1-676a739c",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "console",
+      "mono_ms": 3473.926,
+      "level": "warning",
+      "text": "api /api/usage/quota-map: попытка 1/3 — TimeoutError, пауза 362 мс"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 3474.279,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 4804.637,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/logs?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&before_id=2147483647&limit=100&max_bytes=32000&cap=16384",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 4899.955,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/logs?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&before_id=2147483647&limit=100&max_bytes=32000&cap=16384",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 3844.427,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 4067.495,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&max_bytes=32000&cap=16384",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 5329.003,
+      "level": "warning",
+      "text": "api /api/usage/quota-map?probe=q234-local-idb-before-1-676a739c: попытка 1/3 — TimeoutError, пауза 458 мс"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 5329.183,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-before-1-676a739c",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 4484.486,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&max_bytes=32000&cap=16384",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 5790.896,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-before-1-676a739c",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 5384.178,
+      "url": "http://127.0.0.1:18888/api/logs/sync?after_id=0&tail=0&cap=16384",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 5542.807,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 5578.296,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&max_bytes=32000&cap=16384",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 6901.448,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/logs?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&before_id=2147483647&limit=100&max_bytes=32000&cap=16384",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 6904.358,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 5894.897,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 5906.606,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 6003.619,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 6106.597,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 7789.078,
+      "level": "warning",
+      "text": "api /api/usage/quota-map?probe=q234-local-idb-before-1-676a739c: попытка 2/3 — TimeoutError, пауза 533 мс"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 7789.28,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-before-1-676a739c",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 8322.446,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-before-1-676a739c",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 8907.144,
+      "url": "http://127.0.0.1:8888/api/models",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 8928.344,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 9176.226,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 10324.126,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-before-1-676a739c",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 10384.935,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-9b8265e3",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 10385.076,
+      "url": "http://127.0.0.1:8888/api/logs/sync?after_id=9007199254740991&tail=0&cap=16384",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 10907.0,
+      "url": "http://127.0.0.1:8888/api/models",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 11170.83,
+      "url": "http://127.0.0.1:8888/api/logs/sync?after_id=0&tail=0&cap=16384",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 11648.911,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 10655.806,
+      "url": "http://127.0.0.1:18888/api/models",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 11738.889,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-9b8265e3",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 11867.911,
+      "url": "http://127.0.0.1:8888/api/logs/sync?after_id=9007199254740991&tail=0&cap=16384",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 11871.812,
+      "level": "warning",
+      "text": "[store] watermark 9007199254740991 > max_log_id 463615 — БД подменили, стираю зеркало"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 11879.313,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/context?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 11881.059,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/context?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 11899.135,
+      "url": "http://127.0.0.1:8888/api/usage",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 11900.938,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 11922.519,
+      "url": "http://127.0.0.1:8888/api/usage",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 11923.947,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "failure": "net::ERR_CONNECTION_FAILED"
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 11925.298,
+      "level": "warning",
+      "text": "api /api/usage/quota-map: попытка 1/3 — TypeError, пауза 25 мс"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 10872.512,
+      "url": "http://127.0.0.1:18888/api/models",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": "e918ae6faf5d31c1"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 11950.578,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 11952.827,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "failure": "net::ERR_CONNECTION_FAILED"
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 11954.311,
+      "level": "warning",
+      "text": "api /api/usage/quota-map: попытка 2/3 — TypeError, пауза 286 мс"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 12240.055,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 12244.49,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "failure": "net::ERR_CONNECTION_FAILED"
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 12244.741,
+      "level": "error",
+      "text": "quota-map fetch failed: Failed to fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 12256.322,
+      "url": "http://127.0.0.1:8888/api/usage",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 12257.159,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 12258.542,
+      "url": "http://127.0.0.1:8888/api/usage",
+      "failure": "net::ERR_CONNECTION_FAILED"
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 12259.016,
+      "level": "warning",
+      "text": "api /api/usage: попытка 1/3 — TypeError, пауза 231 мс"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 12289.868,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 12493.106,
+      "url": "http://127.0.0.1:8888/api/usage",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 12494.645,
+      "url": "http://127.0.0.1:8888/api/usage",
+      "failure": "net::ERR_CONNECTION_FAILED"
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 12495.07,
+      "level": "warning",
+      "text": "api /api/usage: попытка 2/3 — TypeError, пауза 427 мс"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 12923.277,
+      "url": "http://127.0.0.1:8888/api/usage",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 12924.861,
+      "url": "http://127.0.0.1:8888/api/usage",
+      "failure": "net::ERR_CONNECTION_FAILED"
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 12925.604,
+      "level": "error",
+      "text": "Usage fetch failed: TypeError: Failed to fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 12936.518,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-auth-3f196cc1",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 12940.059,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-auth-3f196cc1",
+      "status": 401,
+      "server": "",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 13005.535,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 12860.903,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 13123.7,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 15005.755,
+      "level": "warning",
+      "text": "api /api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0: попытка 1/3 — TimeoutError, пауза 595 мс"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 15005.903,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 15601.013,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 17601.097,
+      "level": "warning",
+      "text": "api /api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0: попытка 2/3 — TimeoutError, пауза 678 мс"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 17601.275,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 16959.66,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 17220.641,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 18282.016,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 20282.903,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 20300.052,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/context?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 20301.226,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.4544673364144478",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 20301.349,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.3159599984409407",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 20301.464,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.6024995736396636",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 20301.567,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.5827746075407596",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 20301.646,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.7645808508253619",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 20301.974,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/context?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 20313.113,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.4544673364144478",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 20315.198,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.6024995736396636",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 20315.749,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.5827746075407596",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 20315.966,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.7645808508253619",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 20317.174,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.3159599984409407",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 20317.337,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-sixslots-db7ce863",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 19437.212,
+      "url": "http://127.0.0.1:18888/api/models",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 19574.611,
+      "url": "http://127.0.0.1:18888/api/models",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": "e918ae6faf5d31c1"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 21044.48,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 21064.832,
+      "url": "http://127.0.0.1:18888/api/logs/sync?after_id=0&tail=0&cap=16384",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 22317.539,
+      "level": "warning",
+      "text": "api /api/usage/quota-map?probe=q234-local-sixslots-db7ce863: попытка 1/3 — TimeoutError, пауза 132 мс"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 22317.671,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-sixslots-db7ce863",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 21317.245,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 22449.977,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-sixslots-db7ce863",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "console",
+      "mono_ms": 24450.108,
+      "level": "warning",
+      "text": "api /api/usage/quota-map?probe=q234-local-sixslots-db7ce863: попытка 2/3 — TimeoutError, пауза 425 мс"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 24450.222,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-sixslots-db7ce863",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 24875.269,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-sixslots-db7ce863",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 24577.522,
+      "url": "http://127.0.0.1:18888/api/logs/sync?after_id=0&tail=0&cap=16384",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 25095.663,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 25360.733,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 26876.758,
+      "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-sixslots-db7ce863",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 26876.921,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.4544673364144478",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 26876.985,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.3159599984409407",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 26877.038,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.6024995736396636",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 26877.088,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.5827746075407596",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "local",
+      "kind": "requestfailed",
+      "mono_ms": 26877.136,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100&q234slot=0.7645808508253619",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 25826.797,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.19160476279572825",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 25827.018,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.2859934734343633",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 25827.202,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.6856949740910979",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 25827.332,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.4781842288063065",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 25827.56,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.2972393637522732",
+      "method": "GET",
+      "resource_type": "eventsource"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 26907.55,
+      "url": "http://127.0.0.1:8888/api/models",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 26928.165,
+      "url": "http://127.0.0.1:8888/api/models",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": "768d248d9c986d75"
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 26930.037,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/context?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 26932.385,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/context?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 26988.556,
+      "url": "http://127.0.0.1:8888/api/logs/sync?after_id=0&tail=0&cap=16384",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 26057.095,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.19160476279572825",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 26217.056,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.2859934734343633",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 26217.66,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.6856949740910979",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 26217.924,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.4781842288063065",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "response",
+      "mono_ms": 26219.556,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.2972393637522732",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 26219.697,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map?probe=q234-tunnel-sixslots-79efdf46",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 28139.64,
+      "url": "http://127.0.0.1:18888/api/models",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "console",
+      "mono_ms": 28219.615,
+      "level": "warning",
+      "text": "api /api/usage/quota-map?probe=q234-tunnel-sixslots-79efdf46: попытка 1/3 — TimeoutError, пауза 180 мс"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 28219.776,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map?probe=q234-tunnel-sixslots-79efdf46",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 28400.28,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map?probe=q234-tunnel-sixslots-79efdf46",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 30139.541,
+      "url": "http://127.0.0.1:18888/api/models",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "console",
+      "mono_ms": 30400.607,
+      "level": "warning",
+      "text": "api /api/usage/quota-map?probe=q234-tunnel-sixslots-79efdf46: попытка 2/3 — TimeoutError, пауза 127 мс"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 30400.802,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map?probe=q234-tunnel-sixslots-79efdf46",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "request",
+      "mono_ms": 30527.695,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map?probe=q234-tunnel-sixslots-79efdf46",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 32937.366,
+      "url": "http://127.0.0.1:8888/api/logs/sync?after_id=0&tail=0&cap=16384",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "local",
+      "kind": "request",
+      "mono_ms": 33350.802,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/context?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot",
+      "method": "GET",
+      "resource_type": "fetch"
+    },
+    {
+      "origin": "local",
+      "kind": "response",
+      "mono_ms": 33354.882,
+      "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/context?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot",
+      "status": 200,
+      "server": "uvicorn",
+      "content_encoding": "gzip",
+      "build": ""
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 32534.157,
+      "url": "http://127.0.0.1:18888/api/usage/quota-map?probe=q234-tunnel-sixslots-79efdf46",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 32534.372,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.19160476279572825",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 32534.483,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.2859934734343633",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 32534.567,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.6856949740910979",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 32536.535,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.4781842288063065",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "origin": "tunnel",
+      "kind": "requestfailed",
+      "mono_ms": 32536.756,
+      "url": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425&q234slot=0.2972393637522732",
+      "failure": "net::ERR_ABORTED"
+    }
+  ],
+  "runs": [
+    {
+      "setup": "local",
+      "state": {
+        "serviceWorkers": [],
+        "cacheKeys": [],
+        "indexedDB": [
+          {
+            "name": "orchestra",
+            "version": 1
+          }
+        ],
+        "localStorageKeys": [
+          "orchestra_snapshot:models",
+          "orchestra_snapshot:usage",
+          "lastOrchName",
+          "recentOrchs",
+          "lastOrchScope",
+          "orchestra_snapshot:orchestrators"
+        ],
+        "localStorageBytes": 69489,
+        "storeOpen": true,
+        "eventSourceReadyState": null,
+        "currentScope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "selectedAgent": "kesha-tg-bot",
+        "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+        "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает всегда — предела нетLunaфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Solфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Sparkфакт 0% · норма 0% · диагональ не применяется — только жёсткие 99%Clau",
+        "netText": ""
+      }
+    },
+    {
+      "setup": "tunnel",
+      "state": {
+        "serviceWorkers": [],
+        "cacheKeys": [],
+        "indexedDB": [
+          {
+            "name": "orchestra",
+            "version": 1
+          }
+        ],
+        "localStorageKeys": [
+          "orchestra_snapshot:models",
+          "orchestra_snapshot:usage",
+          "lastOrchName",
+          "recentOrchs",
+          "lastOrchScope",
+          "orchestra_snapshot:orchestrators"
+        ],
+        "localStorageBytes": 53202,
+        "storeOpen": true,
+        "eventSourceReadyState": null,
+        "currentScope": "/home/kesha/orchestra",
+        "selectedAgent": "Orchestra-orchestrator",
+        "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (1%) 4h 57m · работает7d: 0% (0%) 6d 23h 57m · работаетGrokнет данныхобновлено сейчасⓘ",
+        "quotaText": "▸ правило допуска\n            правило допуска — загрузка…\n        \n        \n            Квоты пулаодна шкала: доля пройденного окна, 0–100%\n            правило допуска — загрузка…",
+        "netText": ""
+      }
+    }
+  ],
+  "controls": {
+    "idb": {
+      "before": {
+        "origin": "local-idb-before",
+        "marker": "q234-local-idb-before-1-676a739c",
+        "utc": "2026-08-23T11:04:42.859224+00:00",
+        "loadavg": [
+          3.188,
+          5.085,
+          4.425
+        ],
+        "elapsed_ms": 7000.845,
+        "outcome": {
+          "ok": false,
+          "name": "TimeoutError",
+          "message": "signal timed out"
+        },
+        "resource": [
+          {
+            "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-before-1-676a739c",
+            "initiatorType": "fetch",
+            "nextHopProtocol": "",
+            "startTime": 3317.89999999851,
+            "fetchStart": 3317.89999999851,
+            "domainLookupStart": 0,
+            "connectStart": 0,
+            "secureConnectionStart": 0,
+            "connectEnd": 0,
+            "requestStart": 0,
+            "responseStart": 0,
+            "responseEnd": 5318.89999999851,
+            "duration": 2001,
+            "transferSize": 0,
+            "encodedBodySize": 0
+          },
+          {
+            "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-before-1-676a739c",
+            "initiatorType": "fetch",
+            "nextHopProtocol": "",
+            "startTime": 5778.89999999851,
+            "fetchStart": 5778.89999999851,
+            "domainLookupStart": 0,
+            "connectStart": 0,
+            "secureConnectionStart": 0,
+            "connectEnd": 0,
+            "requestStart": 0,
+            "responseStart": 0,
+            "responseEnd": 7778.89999999851,
+            "duration": 2000,
+            "transferSize": 0,
+            "encodedBodySize": 0
+          },
+          {
+            "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-idb-before-1-676a739c",
+            "initiatorType": "fetch",
+            "nextHopProtocol": "",
+            "startTime": 8312.300000000745,
+            "fetchStart": 8312.300000000745,
+            "domainLookupStart": 0,
+            "connectStart": 0,
+            "secureConnectionStart": 0,
+            "connectEnd": 0,
+            "requestStart": 0,
+            "responseStart": 0,
+            "responseEnd": 10314.199999999255,
+            "duration": 2001.8999999985099,
+            "transferSize": 0,
+            "encodedBodySize": 0
+          }
+        ],
+        "page_count_before": 1,
+        "dom_tail": [
+          {
+            "t": 299.8999999985099,
+            "why": "mutation",
+            "netClass": "hidden items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs",
+            "netText": "",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            правило допуска — загрузка…\n        \n        \n            Квоты пулаодна шкала: доля пройденного окна, 0–100%\n            правило допуска — загрузка…"
+          },
+          {
+            "t": 389.3999999985099,
+            "why": "mutation",
+            "netClass": "hidden items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs",
+            "netText": "",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          },
+          {
+            "t": 6488.199999999255,
+            "why": "mutation",
+            "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+            "netText": "📡 Ответ не дошёл — /api/sessions: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          },
+          {
+            "t": 6489.099999997765,
+            "why": "mutation",
+            "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+            "netText": "📡 Ответ не дошёл — /api/sessions: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          },
+          {
+            "t": 6825.800000000745,
+            "why": "mutation",
+            "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+            "netText": "📡 Ответ не дошёл — /api/stats: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          },
+          {
+            "t": 6884.199999999255,
+            "why": "mutation",
+            "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+            "netText": "📡 Ответ не дошёл — /api/sessions/kesha-tg-bot/logs: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          },
+          {
+            "t": 6886.800000000745,
+            "why": "mutation",
+            "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+            "netText": "📡 Ответ не дошёл — /api/sessions/kesha-tg-bot/logs: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          },
+          {
+            "t": 7034.699999999255,
+            "why": "mutation",
+            "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+            "netText": "📡 Ответ не дошёл — /api/files: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          },
+          {
+            "t": 7034.800000000745,
+            "why": "mutation",
+            "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+            "netText": "📡 Ответ не дошёл — /api/files: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          },
+          {
+            "t": 7096.199999999255,
+            "why": "mutation",
+            "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+            "netText": "📡 Ответ не дошёл — /api/files: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          },
+          {
+            "t": 7386.5,
+            "why": "mutation",
+            "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+            "netText": "📡 Ответ не дошёл — /api/files: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          },
+          {
+            "t": 10313.800000000745,
+            "why": "mutation",
+            "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+            "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+            "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+            "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+          }
+        ],
+        "state": {
+          "serviceWorkers": [],
+          "cacheKeys": [],
+          "indexedDB": [
+            {
+              "name": "orchestra",
+              "version": 1
+            }
+          ],
+          "localStorageKeys": [
+            "orchestra_snapshot:models",
+            "orchestra_snapshot:usage",
+            "lastOrchName",
+            "recentOrchs",
+            "lastOrchScope",
+            "orchestra_snapshot:orchestrators"
+          ],
+          "localStorageBytes": 69489,
+          "storeOpen": true,
+          "eventSourceReadyState": 0,
+          "currentScope": "/mnt/data/Projects/Python/kesha-tg-bot",
+          "selectedAgent": "kesha-tg-bot",
+          "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает всегда — предела нетLunaфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Solфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Sparkфакт 0% · норма 0% · диагональ не применяется — только жёсткие 99%Clau",
+          "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении."
+        }
+      },
+      "populate": {
+        "ok": true,
+        "rows": 688,
+        "contentBytes": 1651200,
+        "elapsedMs": 35.5
+      },
+      "marker": "q234-local-idb-9b8265e3",
+      "overlap_elapsed_ms": 1497.724,
+      "overlap_result": {
+        "quota": {
+          "ok": true,
+          "backendByte": true
+        },
+        "syncResult": 0
+      },
+      "state_after": {
+        "serviceWorkers": [],
+        "cacheKeys": [],
+        "indexedDB": [
+          {
+            "name": "orchestra",
+            "version": 1
+          }
+        ],
+        "localStorageKeys": [
+          "orchestra_snapshot:models",
+          "orchestra_snapshot:usage",
+          "lastOrchName",
+          "recentOrchs",
+          "lastOrchScope",
+          "orchestra_snapshot:sessions:/mnt/data/Projects/Python/kesha-tg-bot",
+          "orchestra_snapshot:orchestrators"
+        ],
+        "localStorageBytes": 73384,
+        "storeOpen": true,
+        "eventSourceReadyState": 1,
+        "currentScope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "selectedAgent": "kesha-tg-bot",
+        "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · откроется при сбросе, через 1d 19h 55mOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 24m · работаетCodex Spark5h: 0% (0%) 4h 58m · работает7d: 0% (0%) 6d 23h 58m · работаетGrokнет данныхобновлено сейчасⓘ",
+        "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает всегда — предела нетLunaфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Solфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Sparkфакт 0% · норма 0% · диагональ не применяется — только жёсткие 99%Clau",
+        "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении."
+      }
+    },
+    "render_faults": {
+      "quota_map_only": {
+        "elapsed_ms": 349.703,
+        "state": {
+          "serviceWorkers": [],
+          "cacheKeys": [],
+          "indexedDB": [
+            {
+              "name": "orchestra",
+              "version": 1
+            }
+          ],
+          "localStorageKeys": [
+            "orchestra_snapshot:models",
+            "orchestra_snapshot:usage",
+            "lastOrchName",
+            "recentOrchs",
+            "lastOrchScope",
+            "orchestra_snapshot:sessions:/mnt/data/Projects/Python/kesha-tg-bot",
+            "orchestra_snapshot:orchestrators"
+          ],
+          "localStorageBytes": 73384,
+          "storeOpen": true,
+          "eventSourceReadyState": 1,
+          "currentScope": "/mnt/data/Projects/Python/kesha-tg-bot",
+          "selectedAgent": "kesha-tg-bot",
+          "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · нет данныхOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 23m · нет данныхCodex Spark5h: 0% (1%) 4h 58m · нет данных7d: 0% (0%) 6d 23h 58m · нет данныхGrokнет данныхобновлено сейчасⓘ",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает всегда — предела нетLunaфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Solфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Sparkфакт 0% · норма 0% · диагональ не применяется — только жёсткие 99%Clau",
+          "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении."
+        }
+      },
+      "usage_only": {
+        "elapsed_ms": 671.682,
+        "state": {
+          "serviceWorkers": [],
+          "cacheKeys": [],
+          "indexedDB": [
+            {
+              "name": "orchestra",
+              "version": 1
+            }
+          ],
+          "localStorageKeys": [
+            "orchestra_snapshot:models",
+            "orchestra_snapshot:usage",
+            "lastOrchName",
+            "recentOrchs",
+            "lastOrchScope",
+            "orchestra_snapshot:sessions:/mnt/data/Projects/Python/kesha-tg-bot",
+            "orchestra_snapshot:orchestrators"
+          ],
+          "localStorageBytes": 30562,
+          "storeOpen": true,
+          "eventSourceReadyState": 1,
+          "currentScope": "/mnt/data/Projects/Python/kesha-tg-bot",
+          "selectedAgent": "kesha-tg-bot",
+          "usageText": "⚠ Usage unavailable",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает всегда — предела нетLunaфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Solфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Sparkфакт 0% · норма 0% · диагональ не применяется — только жёсткие 99%Clau",
+          "netText": "📡 Ответ не дошёл — /api/usage: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении."
+        }
+      }
+    },
+    "auth_classification": {
+      "attempts": 1,
+      "result": {
+        "ok": false,
+        "name": "Error",
+        "message": "401: {\"detail\":\"Not authenticated\"}"
+      },
+      "net_hidden": true
+    },
+    "cdp_2500ms": {
+      "origin": "local-cdp2500",
+      "marker": "q234-local-cdp2500-1-0a03c2f0",
+      "utc": "2026-08-23T11:04:52.812547+00:00",
+      "loadavg": [
+        4.178,
+        5.245,
+        4.484
+      ],
+      "elapsed_ms": 7276.623,
+      "outcome": {
+        "ok": false,
+        "name": "TimeoutError",
+        "message": "signal timed out"
+      },
+      "resource": [
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0",
+          "initiatorType": "fetch",
+          "nextHopProtocol": "",
+          "startTime": 12995.5,
+          "fetchStart": 12995.5,
+          "domainLookupStart": 0,
+          "connectStart": 0,
+          "secureConnectionStart": 0,
+          "connectEnd": 0,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 14995.39999999851,
+          "duration": 1999.8999999985099,
+          "transferSize": 0,
+          "encodedBodySize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0",
+          "initiatorType": "fetch",
+          "nextHopProtocol": "",
+          "startTime": 15590.800000000745,
+          "fetchStart": 15590.800000000745,
+          "domainLookupStart": 0,
+          "connectStart": 0,
+          "secureConnectionStart": 0,
+          "connectEnd": 0,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 17590.89999999851,
+          "duration": 2000.0999999977648,
+          "transferSize": 0,
+          "encodedBodySize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-local-cdp2500-1-0a03c2f0",
+          "initiatorType": "fetch",
+          "nextHopProtocol": "",
+          "startTime": 18269.300000000745,
+          "fetchStart": 18269.300000000745,
+          "domainLookupStart": 0,
+          "connectStart": 0,
+          "secureConnectionStart": 0,
+          "connectEnd": 0,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 20272.89999999851,
+          "duration": 2003.5999999977648,
+          "transferSize": 0,
+          "encodedBodySize": 0
+        }
+      ],
+      "page_count_before": 1,
+      "dom_tail": [
+        {
+          "t": 12243.199999999255,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+          "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 55m · нет данныхOpenRouterсутки: 0% 0/1000 23h 55m минута: 0/20Codex7d: 9% (2%) 6d 20h 23m · нет данныхCodex Spark5h: 0% (1%) 4h 58m · нет данных7d: 0% (0%) 6d 23h 58m · нет данныхGrokнет данныхобновлено сейчасⓘ",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 12246.300000000745,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+          "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 12276.699999999255,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+          "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 12280.599999997765,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs hidden",
+          "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 12310,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs hidden",
+          "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 12915.599999997765,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+          "netText": "📡 Ответ не дошёл — /api/usage: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 12915.89999999851,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+          "netText": "📡 Ответ не дошёл — /api/usage: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "⚠ Usage unavailable",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 12925.300000000745,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex hidden",
+          "netText": "📡 Ответ не дошёл — /api/usage: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "⚠ Usage unavailable",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 12927.099999997765,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex hidden",
+          "netText": "📡 Ответ не дошёл — /api/usage: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "⚠ Usage unavailable",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 12943.300000000745,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex hidden",
+          "netText": "📡 Ответ не дошёл — /api/usage: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "⚠ Usage unavailable",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 20269.5,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+          "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "⚠ Usage unavailable",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        },
+        {
+          "t": 20276.599999997765,
+          "why": "mutation",
+          "netClass": "items-center justify-center gap-2 px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-red-200 text-xs flex",
+          "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении.",
+          "usageText": "⚠ Usage unavailable",
+          "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает вс"
+        }
+      ],
+      "state": {
+        "serviceWorkers": [],
+        "cacheKeys": [],
+        "indexedDB": [
+          {
+            "name": "orchestra",
+            "version": 1
+          }
+        ],
+        "localStorageKeys": [
+          "orchestra_snapshot:models",
+          "orchestra_snapshot:usage",
+          "lastOrchName",
+          "recentOrchs",
+          "lastOrchScope",
+          "orchestra_snapshot:sessions:/mnt/data/Projects/Python/kesha-tg-bot",
+          "orchestra_snapshot:orchestrators"
+        ],
+        "localStorageBytes": 30562,
+        "storeOpen": true,
+        "eventSourceReadyState": 1,
+        "currentScope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "selectedAgent": "kesha-tg-bot",
+        "usageText": "⚠ Usage unavailable",
+        "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает всегда — предела нетLunaфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Solфакт 9% · норма 2% · допуск 9.8 п.п. · порог 11.9%Sparkфакт 0% · норма 0% · диагональ не применяется — только жёсткие 99%Clau",
+        "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении."
+      }
+    },
+    "six_slots_local": {
+      "marker": "q234-local-sixslots-db7ce863",
+      "loadavg": [
+        3.468,
+        5.036,
+        4.428
+      ],
+      "elapsed_ms": 6576.085,
+      "result": {
+        "ok": true,
+        "base": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot/stream?scope=%2Fmnt%2Fdata%2FProjects%2FPython%2Fkesha-tg-bot&after_id=0&limit=100",
+        "opened": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "quota": {
+          "ok": false,
+          "name": "TimeoutError",
+          "message": "signal timed out"
+        }
+      },
+      "resource": [
+        {
+          "startTime": 20307.5,
+          "fetchStart": 20307.5,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 22307.5,
+          "duration": 2000,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "startTime": 22439.800000000745,
+          "fetchStart": 22439.800000000745,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 24440,
+          "duration": 2000.199999999255,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "startTime": 24865.199999999255,
+          "fetchStart": 24865.199999999255,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 26866.599999997765,
+          "duration": 2001.3999999985099,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        }
+      ]
+    },
+    "six_slots_tunnel": {
+      "marker": "q234-tunnel-sixslots-79efdf46",
+      "loadavg": [
+        3.35,
+        4.985,
+        4.415
+      ],
+      "elapsed_ms": 6706.586,
+      "result": {
+        "ok": true,
+        "base": "http://127.0.0.1:18888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=200425",
+        "opened": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "quota": {
+          "ok": false,
+          "name": "TimeoutError",
+          "message": "signal timed out"
+        }
+      },
+      "resource": [
+        {
+          "startTime": 25638.29999999702,
+          "fetchStart": 25638.29999999702,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 27638.39999999851,
+          "duration": 2000.1000000014901,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "startTime": 27818.79999999702,
+          "fetchStart": 27818.79999999702,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 29819,
+          "duration": 2000.2000000029802,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "startTime": 29946.39999999851,
+          "fetchStart": 29946.39999999851,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 31953,
+          "duration": 2006.6000000014901,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        }
+      ]
+    }
+  },
+  "finished_at": "2026-08-23T11:05:06.216553+00:00"
+}

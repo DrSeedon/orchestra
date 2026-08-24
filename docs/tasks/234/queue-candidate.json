@@ -1,0 +1,2171 @@
+{
+  "schema": 1,
+  "started_at": "2026-08-23T11:14:43.240909+00:00",
+  "order": [
+    "current",
+    "queue4",
+    "current",
+    "queue4"
+  ],
+  "runs": [
+    {
+      "seq": 1,
+      "arm": "current",
+      "prefix": "q234-storm-current-1-41aff1e7",
+      "utc": "2026-08-23T11:15:00.644675+00:00",
+      "loadavg": [
+        7.74,
+        8.0,
+        6.157
+      ],
+      "elapsed_ms": 6824.911,
+      "outcomes": [
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-1-41aff1e7-m0",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-1-41aff1e7-m1",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-1-41aff1e7-m2",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-1-41aff1e7-m3",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-1-41aff1e7-m4",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-1-41aff1e7-m5",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-1-41aff1e7-m6",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-1-41aff1e7-m7",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-1-41aff1e7-m8",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-1-41aff1e7-m9",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "quota",
+          "url": "/api/usage/quota-map?probe=q234-storm-current-1-41aff1e7-quota",
+          "ok": false,
+          "name": "TimeoutError",
+          "message": "signal timed out"
+        }
+      ],
+      "resources": [
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m0",
+          "startTime": 9273.199999999255,
+          "fetchStart": 9273.199999999255,
+          "requestStart": 9274,
+          "responseStart": 9330.300000000745,
+          "responseEnd": 10077.199999999255,
+          "duration": 804,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m1",
+          "startTime": 9273.300000000745,
+          "fetchStart": 9273.300000000745,
+          "requestStart": 9274.800000000745,
+          "responseStart": 9331.39999999851,
+          "responseEnd": 10078.599999997765,
+          "duration": 805.2999999970198,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m2",
+          "startTime": 9273.39999999851,
+          "fetchStart": 9273.39999999851,
+          "requestStart": 9275,
+          "responseStart": 9331.39999999851,
+          "responseEnd": 10077.300000000745,
+          "duration": 803.9000000022352,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m3",
+          "startTime": 9273.39999999851,
+          "fetchStart": 9273.39999999851,
+          "requestStart": 9275,
+          "responseStart": 9331.39999999851,
+          "responseEnd": 10080.199999999255,
+          "duration": 806.8000000007451,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m4",
+          "startTime": 9273.5,
+          "fetchStart": 9273.5,
+          "requestStart": 10073.800000000745,
+          "responseStart": 10156.099999997765,
+          "responseEnd": 10876.300000000745,
+          "duration": 1602.800000000745,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m5",
+          "startTime": 9273.5,
+          "fetchStart": 9273.5,
+          "requestStart": 10078.800000000745,
+          "responseStart": 10157.099999997765,
+          "responseEnd": 10882.800000000745,
+          "duration": 1609.300000000745,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m6",
+          "startTime": 9273.699999999255,
+          "fetchStart": 9273.699999999255,
+          "requestStart": 10078.89999999851,
+          "responseStart": 10157.099999997765,
+          "responseEnd": 10882.599999997765,
+          "duration": 1608.8999999985099,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m7",
+          "startTime": 9273.800000000745,
+          "fetchStart": 9273.800000000745,
+          "requestStart": 10079,
+          "responseStart": 10157.099999997765,
+          "responseEnd": 10881.699999999255,
+          "duration": 1607.8999999985099,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m8",
+          "startTime": 9273.800000000745,
+          "fetchStart": 9273.800000000745,
+          "requestStart": 10080.39999999851,
+          "responseStart": 10157.099999997765,
+          "responseEnd": 10884.199999999255,
+          "duration": 1610.3999999985099,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m9",
+          "startTime": 9273.89999999851,
+          "fetchStart": 9273.89999999851,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 11274.099999997765,
+          "duration": 2000.199999999255,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-1-41aff1e7-quota",
+          "startTime": 9274,
+          "fetchStart": 9274,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 11274.099999997765,
+          "duration": 2000.0999999977648,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m9",
+          "startTime": 11334.39999999851,
+          "fetchStart": 11334.39999999851,
+          "requestStart": 11335,
+          "responseStart": 11351.699999999255,
+          "responseEnd": 12137.89999999851,
+          "duration": 803.5,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-1-41aff1e7-quota",
+          "startTime": 11602.599999997765,
+          "fetchStart": 11602.599999997765,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13602.5,
+          "duration": 1999.9000000022352,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-1-41aff1e7-quota",
+          "startTime": 14068.699999999255,
+          "fetchStart": 14068.699999999255,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 16074.89999999851,
+          "duration": 2006.199999999255,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        }
+      ],
+      "events": [
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9393.874,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m0",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9394.006,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m1",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9394.108,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m2",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9394.211,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m3",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9394.336,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m4",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9394.495,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m5",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9394.631,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m6",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9394.727,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m7",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9394.829,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m8",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9394.937,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m9",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 9395.024,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-1-41aff1e7-quota",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 10195.916,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m0",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 10196.364,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m1",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 10197.281,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m2",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 10198.57,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m3",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 10995.045,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m4",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 11000.176,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m5",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 11000.497,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m6",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 11001.385,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m7",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 11003.396,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m8",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 11394.132,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m9",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 11394.328,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-1-41aff1e7-quota",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11454.54,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m9",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11722.589,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-1-41aff1e7-quota",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 12257.001,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-1-41aff1e7-m9",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13722.663,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-1-41aff1e7-quota",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 14189.113,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-1-41aff1e7-quota",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 16200.307,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-1-41aff1e7-quota",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "queue": null,
+      "state": {
+        "serviceWorkers": [],
+        "cacheKeys": [],
+        "indexedDB": [
+          {
+            "name": "orchestra",
+            "version": 1
+          }
+        ],
+        "localStorageKeys": [
+          "orchestra_snapshot:models",
+          "orchestra_snapshot:usage",
+          "lastOrchName",
+          "recentOrchs",
+          "lastOrchScope",
+          "orchestra_snapshot:sessions:/mnt/data/Projects/Python/kesha-tg-bot",
+          "orchestra_snapshot:orchestrators"
+        ],
+        "localStorageBytes": 30562,
+        "storeOpen": true,
+        "eventSourceReadyState": 1,
+        "currentScope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "selectedAgent": "kesha-tg-bot",
+        "usageText": "⚠ Usage unavailable",
+        "quotaText": "▸ правило допуска\n            нет данных — signal timed out\n        \n        \n            Квоты пулаодна шкала: доля пройденного окна, 0–100%\n            нет данных — signal timed out",
+        "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении."
+      }
+    },
+    {
+      "seq": 2,
+      "arm": "queue4",
+      "prefix": "q234-storm-queue4-2-5f51ad9e",
+      "utc": "2026-08-23T11:15:20.248615+00:00",
+      "loadavg": [
+        7.693,
+        7.981,
+        6.19
+      ],
+      "elapsed_ms": 8394.663,
+      "outcomes": [
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-2-5f51ad9e-m0",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-2-5f51ad9e-m1",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-2-5f51ad9e-m2",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-2-5f51ad9e-m3",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-2-5f51ad9e-m4",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-2-5f51ad9e-m5",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-2-5f51ad9e-m6",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-2-5f51ad9e-m7",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-2-5f51ad9e-m8",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-2-5f51ad9e-m9",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "quota",
+          "url": "/api/usage/quota-map?probe=q234-storm-queue4-2-5f51ad9e-quota",
+          "ok": false,
+          "name": "TimeoutError",
+          "message": "signal timed out"
+        }
+      ],
+      "resources": [
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m0",
+          "startTime": 10995.699999999255,
+          "fetchStart": 10995.699999999255,
+          "requestStart": 10996.800000000745,
+          "responseStart": 11283.199999999255,
+          "responseEnd": 11799.800000000745,
+          "duration": 804.1000000014901,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m1",
+          "startTime": 10995.900000002235,
+          "fetchStart": 10995.900000002235,
+          "requestStart": 11000.60000000149,
+          "responseStart": 11552.10000000149,
+          "responseEnd": 11804.300000000745,
+          "duration": 808.3999999985099,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m2",
+          "startTime": 10996.10000000149,
+          "fetchStart": 10996.10000000149,
+          "requestStart": 11000.699999999255,
+          "responseStart": 11555.400000002235,
+          "responseEnd": 11804.10000000149,
+          "duration": 808,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m3",
+          "startTime": 10996.199999999255,
+          "fetchStart": 10996.199999999255,
+          "requestStart": 11000.800000000745,
+          "responseStart": 11559.10000000149,
+          "responseEnd": 11803.900000002235,
+          "duration": 807.7000000029802,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m4",
+          "startTime": 11800.60000000149,
+          "fetchStart": 11800.60000000149,
+          "requestStart": 11801.300000000745,
+          "responseStart": 11876.699999999255,
+          "responseEnd": 12604.10000000149,
+          "duration": 803.5,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m5",
+          "startTime": 11805.60000000149,
+          "fetchStart": 11805.60000000149,
+          "requestStart": 11806.199999999255,
+          "responseStart": 11879.900000002235,
+          "responseEnd": 12609.699999999255,
+          "duration": 804.0999999977648,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m6",
+          "startTime": 11805.800000000745,
+          "fetchStart": 11805.800000000745,
+          "requestStart": 11806.400000002235,
+          "responseStart": 11879.900000002235,
+          "responseEnd": 12609.800000000745,
+          "duration": 804,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m7",
+          "startTime": 11806.10000000149,
+          "fetchStart": 11806.10000000149,
+          "requestStart": 11806.5,
+          "responseStart": 11880,
+          "responseEnd": 12609.60000000149,
+          "duration": 803.5,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m8",
+          "startTime": 12605,
+          "fetchStart": 12605,
+          "requestStart": 12605.400000002235,
+          "responseStart": 12679.400000002235,
+          "responseEnd": 13407.900000002235,
+          "duration": 802.9000000022352,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m9",
+          "startTime": 12611.5,
+          "fetchStart": 12611.5,
+          "requestStart": 12612.10000000149,
+          "responseStart": 12679.800000000745,
+          "responseEnd": 13414.900000002235,
+          "duration": 803.4000000022352,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-2-5f51ad9e-quota",
+          "startTime": 12611.699999999255,
+          "fetchStart": 12611.699999999255,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 14611.699999999255,
+          "duration": 2000,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-2-5f51ad9e-quota",
+          "startTime": 14648.10000000149,
+          "fetchStart": 14648.10000000149,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 16648.199999999255,
+          "duration": 2000.0999999977648,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-2-5f51ad9e-quota",
+          "startTime": 17373.60000000149,
+          "fetchStart": 17373.60000000149,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 19375.60000000149,
+          "duration": 2002,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        }
+      ],
+      "events": [
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11011.986,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m0",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11012.165,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m1",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11012.302,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m2",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11013.646,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m3",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 11809.504,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m0",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11811.096,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m4",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 11812.814,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m3",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 11813.32,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m1",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 11814.314,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m2",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11815.854,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m5",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11816.059,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m6",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11816.229,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m7",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 12613.817,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m4",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 12615.127,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m8",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 12619.169,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m7",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 12619.642,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m5",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 12619.957,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m6",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 12621.693,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m9",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 12622.03,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-2-5f51ad9e-quota",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 13417.183,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m8",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 13424.808,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-2-5f51ad9e-m9",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 14622.357,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-2-5f51ad9e-quota",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 14658.762,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-2-5f51ad9e-quota",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 16658.9,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-2-5f51ad9e-quota",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 17384.351,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-2-5f51ad9e-quota",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 19386.341,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-2-5f51ad9e-quota",
+          "failure": "net::ERR_ABORTED"
+        }
+      ],
+      "queue": {
+        "maxActive": 4,
+        "waited": 7,
+        "admitted": 11
+      },
+      "state": {
+        "serviceWorkers": [],
+        "cacheKeys": [],
+        "indexedDB": [
+          {
+            "name": "orchestra",
+            "version": 1
+          }
+        ],
+        "localStorageKeys": [
+          "orchestra_snapshot:usage"
+        ],
+        "localStorageBytes": 56,
+        "storeOpen": true,
+        "eventSourceReadyState": null,
+        "currentScope": null,
+        "selectedAgent": null,
+        "usageText": "⚠ Usage unavailable",
+        "quotaText": "▸ правило допуска\n            нет данных — signal timed out\n        \n        \n            Квоты пулаодна шкала: доля пройденного окна, 0–100%\n            нет данных — signal timed out",
+        "netText": "📡 Ответ не дошёл — /api/usage/quota-map: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении."
+      }
+    },
+    {
+      "seq": 3,
+      "arm": "current",
+      "prefix": "q234-storm-current-3-a4466bb1",
+      "utc": "2026-08-23T11:15:36.791097+00:00",
+      "loadavg": [
+        6.419,
+        7.687,
+        6.122
+      ],
+      "elapsed_ms": 5212.543,
+      "outcomes": [
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-3-a4466bb1-m0",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-3-a4466bb1-m1",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-3-a4466bb1-m2",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-3-a4466bb1-m3",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-3-a4466bb1-m4",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-3-a4466bb1-m5",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-3-a4466bb1-m6",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-3-a4466bb1-m7",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-3-a4466bb1-m8",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-current-3-a4466bb1-m9",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "quota",
+          "url": "/api/usage/quota-map?probe=q234-storm-current-3-a4466bb1-quota",
+          "ok": true,
+          "backendByte": true
+        }
+      ],
+      "resources": [
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m0",
+          "startTime": 11210.89999999851,
+          "fetchStart": 11210.89999999851,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13211,
+          "duration": 2000.1000000014901,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m1",
+          "startTime": 11211,
+          "fetchStart": 11211,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13211.199999999255,
+          "duration": 2000.199999999255,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m2",
+          "startTime": 11211.10000000149,
+          "fetchStart": 11211.10000000149,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13211.39999999851,
+          "duration": 2000.2999999970198,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m3",
+          "startTime": 11211.300000000745,
+          "fetchStart": 11211.300000000745,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13211.5,
+          "duration": 2000.199999999255,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m4",
+          "startTime": 11211.300000000745,
+          "fetchStart": 11211.300000000745,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13211.5,
+          "duration": 2000.199999999255,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m5",
+          "startTime": 11211.39999999851,
+          "fetchStart": 11211.39999999851,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13211.5,
+          "duration": 2000.1000000014901,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m6",
+          "startTime": 11211.5,
+          "fetchStart": 11211.5,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13211.699999999255,
+          "duration": 2000.199999999255,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m7",
+          "startTime": 11211.60000000149,
+          "fetchStart": 11211.60000000149,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13211.699999999255,
+          "duration": 2000.0999999977648,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m8",
+          "startTime": 11211.60000000149,
+          "fetchStart": 11211.60000000149,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13211.800000000745,
+          "duration": 2000.199999999255,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m9",
+          "startTime": 11211.699999999255,
+          "fetchStart": 11211.699999999255,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13211.89999999851,
+          "duration": 2000.199999999255,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-3-a4466bb1-quota",
+          "startTime": 11211.800000000745,
+          "fetchStart": 11211.800000000745,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 13212,
+          "duration": 2000.199999999255,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m2",
+          "startTime": 13221.699999999255,
+          "fetchStart": 13221.699999999255,
+          "requestStart": 13222.199999999255,
+          "responseStart": 13620.39999999851,
+          "responseEnd": 14024.699999999255,
+          "duration": 803,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m4",
+          "startTime": 13302.800000000745,
+          "fetchStart": 13302.800000000745,
+          "requestStart": 13303.300000000745,
+          "responseStart": 13649.5,
+          "responseEnd": 14105.60000000149,
+          "duration": 802.8000000007451,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-3-a4466bb1-quota",
+          "startTime": 13330.300000000745,
+          "fetchStart": 13330.300000000745,
+          "requestStart": 0,
+          "responseStart": 0,
+          "responseEnd": 15330.39999999851,
+          "duration": 2000.0999999977648,
+          "nextHopProtocol": "",
+          "transferSize": 0
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m0",
+          "startTime": 13332.199999999255,
+          "fetchStart": 13332.199999999255,
+          "requestStart": 13332.60000000149,
+          "responseStart": 13668.800000000745,
+          "responseEnd": 14135.10000000149,
+          "duration": 802.9000000022352,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m7",
+          "startTime": 13349,
+          "fetchStart": 13349,
+          "requestStart": 13349.39999999851,
+          "responseStart": 13669.800000000745,
+          "responseEnd": 14151.5,
+          "duration": 802.5,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m6",
+          "startTime": 13401.89999999851,
+          "fetchStart": 13401.89999999851,
+          "requestStart": 13402.5,
+          "responseStart": 13670.39999999851,
+          "responseEnd": 14204.5,
+          "duration": 802.6000000014901,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m8",
+          "startTime": 13467.10000000149,
+          "fetchStart": 13467.10000000149,
+          "requestStart": 14024.89999999851,
+          "responseStart": 14038.60000000149,
+          "responseEnd": 14827.60000000149,
+          "duration": 1360.5,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m5",
+          "startTime": 13526.89999999851,
+          "fetchStart": 13526.89999999851,
+          "requestStart": 14105.800000000745,
+          "responseStart": 14125.199999999255,
+          "responseEnd": 14907.800000000745,
+          "duration": 1380.9000000022352,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m3",
+          "startTime": 13582.800000000745,
+          "fetchStart": 13582.800000000745,
+          "requestStart": 14135.300000000745,
+          "responseStart": 14148.60000000149,
+          "responseEnd": 14937.89999999851,
+          "duration": 1355.0999999977648,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m1",
+          "startTime": 13771.5,
+          "fetchStart": 13771.5,
+          "requestStart": 14151.699999999255,
+          "responseStart": 14171.60000000149,
+          "responseEnd": 14953.89999999851,
+          "duration": 1182.3999999985099,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m9",
+          "startTime": 13906.10000000149,
+          "fetchStart": 13906.10000000149,
+          "requestStart": 14204.699999999255,
+          "responseStart": 14217.60000000149,
+          "responseEnd": 15006.89999999851,
+          "duration": 1100.7999999970198,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-3-a4466bb1-quota",
+          "startTime": 15608.699999999255,
+          "fetchStart": 15608.699999999255,
+          "requestStart": 15609.199999999255,
+          "responseStart": 15642.199999999255,
+          "responseEnd": 16411.699999999255,
+          "duration": 803,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 6691
+        }
+      ],
+      "events": [
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11215.979,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m0",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11216.131,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m1",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11216.24,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m2",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11216.329,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m3",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11216.42,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m4",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11216.507,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m5",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11216.586,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m6",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11216.672,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m7",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11216.849,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m8",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11216.934,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m9",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 11217.017,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-3-a4466bb1-quota",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13214.842,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m0",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13215.051,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m1",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13215.323,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m2",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13215.718,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m3",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13215.792,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m4",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13215.936,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m5",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13216.08,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m6",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13216.152,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m7",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13216.419,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m8",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13216.576,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m9",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 13216.693,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-3-a4466bb1-quota",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13225.378,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m2",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13306.363,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m4",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13333.925,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-3-a4466bb1-quota",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13335.558,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m0",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13352.637,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m7",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13405.528,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m6",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13470.682,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m8",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13530.761,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m5",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13586.446,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m3",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13775.221,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m1",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 13909.654,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m9",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 14027.333,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m2",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 14108.194,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m4",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 14137.72,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m0",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 14154.03,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m7",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 14206.85,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m6",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 14830.159,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m8",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 14910.214,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m5",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 14940.167,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m3",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 14956.153,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m1",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 15009.167,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-current-3-a4466bb1-m9",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "requestfailed",
+          "mono_ms": 15334.037,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-3-a4466bb1-quota",
+          "failure": "net::ERR_ABORTED"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 15612.25,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-3-a4466bb1-quota",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 16413.914,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-current-3-a4466bb1-quota",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": ""
+        }
+      ],
+      "queue": null,
+      "state": {
+        "serviceWorkers": [],
+        "cacheKeys": [],
+        "indexedDB": [
+          {
+            "name": "orchestra",
+            "version": 1
+          }
+        ],
+        "localStorageKeys": [
+          "orchestra_snapshot:usage"
+        ],
+        "localStorageBytes": 56,
+        "storeOpen": true,
+        "eventSourceReadyState": null,
+        "currentScope": null,
+        "selectedAgent": null,
+        "usageText": "⚠ Usage unavailable",
+        "quotaText": "▸ правило допуска\n            нет данных — signal timed out\n        \n        \n            Квоты пулаодна шкала: доля пройденного окна, 0–100%\n            нет данных — signal timed out",
+        "netText": "📡 Ответ не дошёл — /api/models: 3 попытки по 2.0 с. Обрыв между браузером и сервером; сервер отвечает. Повторим на следующем обновлении."
+      }
+    },
+    {
+      "seq": 4,
+      "arm": "queue4",
+      "prefix": "q234-storm-queue4-4-5cfea525",
+      "utc": "2026-08-23T11:15:40.265914+00:00",
+      "loadavg": [
+        5.905,
+        7.559,
+        6.089
+      ],
+      "elapsed_ms": 2423.645,
+      "outcomes": [
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-4-5cfea525-m0",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-4-5cfea525-m1",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-4-5cfea525-m2",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-4-5cfea525-m3",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-4-5cfea525-m4",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-4-5cfea525-m5",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-4-5cfea525-m6",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-4-5cfea525-m7",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-4-5cfea525-m8",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "models",
+          "url": "/api/models?probe=q234-storm-queue4-4-5cfea525-m9",
+          "ok": true,
+          "backendByte": true
+        },
+        {
+          "kind": "quota",
+          "url": "/api/usage/quota-map?probe=q234-storm-queue4-4-5cfea525-quota",
+          "ok": true,
+          "backendByte": true
+        }
+      ],
+      "resources": [
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m0",
+          "startTime": 957.8000000007451,
+          "fetchStart": 957.8000000007451,
+          "requestStart": 958.3999999985099,
+          "responseStart": 1016.3999999985099,
+          "responseEnd": 1762,
+          "duration": 804.1999999992549,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m1",
+          "startTime": 958,
+          "fetchStart": 958,
+          "requestStart": 958.5999999977648,
+          "responseStart": 1017.0999999977648,
+          "responseEnd": 1761.8999999985099,
+          "duration": 803.8999999985099,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m2",
+          "startTime": 958.0999999977648,
+          "fetchStart": 958.0999999977648,
+          "requestStart": 958.5999999977648,
+          "responseStart": 1017.0999999977648,
+          "responseEnd": 1762.300000000745,
+          "duration": 804.2000000029802,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m3",
+          "startTime": 958.1999999992549,
+          "fetchStart": 958.1999999992549,
+          "requestStart": 958.6999999992549,
+          "responseStart": 1017.0999999977648,
+          "responseEnd": 1762.199999999255,
+          "duration": 804,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m4",
+          "startTime": 1763.800000000745,
+          "fetchStart": 1763.800000000745,
+          "requestStart": 1764.3999999985099,
+          "responseStart": 1832.5,
+          "responseEnd": 2568,
+          "duration": 804.1999999992549,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m5",
+          "startTime": 1764,
+          "fetchStart": 1764,
+          "requestStart": 1764.800000000745,
+          "responseStart": 1833.5999999977648,
+          "responseEnd": 2567.89999999851,
+          "duration": 803.8999999985099,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m6",
+          "startTime": 1764.199999999255,
+          "fetchStart": 1764.199999999255,
+          "requestStart": 1764.800000000745,
+          "responseStart": 1833.5,
+          "responseEnd": 2568.099999997765,
+          "duration": 803.8999999985099,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m7",
+          "startTime": 1764.3999999985099,
+          "fetchStart": 1764.3999999985099,
+          "requestStart": 1764.8999999985099,
+          "responseStart": 1833.5999999977648,
+          "responseEnd": 2568.099999997765,
+          "duration": 803.6999999992549,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m8",
+          "startTime": 2569.300000000745,
+          "fetchStart": 2569.300000000745,
+          "requestStart": 2569.699999999255,
+          "responseStart": 2635.300000000745,
+          "responseEnd": 3372.800000000745,
+          "duration": 803.5,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m9",
+          "startTime": 2569.5,
+          "fetchStart": 2569.5,
+          "requestStart": 2570,
+          "responseStart": 2636.199999999255,
+          "responseEnd": 3372.699999999255,
+          "duration": 803.1999999992549,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 1232
+        },
+        {
+          "name": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-4-5cfea525-quota",
+          "startTime": 2569.599999997765,
+          "fetchStart": 2569.599999997765,
+          "requestStart": 2570,
+          "responseStart": 2636.199999999255,
+          "responseEnd": 3373.5,
+          "duration": 803.9000000022352,
+          "nextHopProtocol": "http/1.1",
+          "transferSize": 6690
+        }
+      ],
+      "events": [
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 962.77,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m0",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 962.953,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m1",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 963.06,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m2",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 963.149,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m3",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 1764.855,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m0",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 1765.398,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m3",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 1765.667,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m2",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 1766.035,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m1",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 1767.994,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m4",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 1768.289,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m5",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 1768.569,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m6",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 1768.926,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m7",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 2570.578,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m6",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 2570.84,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m7",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 2571.21,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m5",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 2571.887,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m4",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 2573.349,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m8",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 2573.505,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m9",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "request",
+          "mono_ms": 2573.653,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-4-5cfea525-quota",
+          "method": "GET",
+          "resource_type": "fetch"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 3375.868,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m8",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 3376.149,
+          "url": "http://127.0.0.1:8888/api/models?probe=q234-storm-queue4-4-5cfea525-m9",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": "768d248d9c986d75"
+        },
+        {
+          "origin": "local",
+          "kind": "response",
+          "mono_ms": 3376.791,
+          "url": "http://127.0.0.1:8888/api/usage/quota-map?probe=q234-storm-queue4-4-5cfea525-quota",
+          "status": 200,
+          "server": "uvicorn",
+          "content_encoding": "gzip",
+          "build": ""
+        }
+      ],
+      "queue": {
+        "maxActive": 4,
+        "waited": 7,
+        "admitted": 11
+      },
+      "state": {
+        "serviceWorkers": [],
+        "cacheKeys": [],
+        "indexedDB": [
+          {
+            "name": "orchestra",
+            "version": 1
+          }
+        ],
+        "localStorageKeys": [
+          "orchestra_snapshot:models",
+          "orchestra_snapshot:usage",
+          "lastOrchName",
+          "recentOrchs",
+          "lastOrchScope",
+          "orchestra_snapshot:sessions:/mnt/data/Projects/Python/kesha-tg-bot",
+          "orchestra_snapshot:orchestrators"
+        ],
+        "localStorageBytes": 73391,
+        "storeOpen": true,
+        "eventSourceReadyState": 1,
+        "currentScope": "/mnt/data/Projects/Python/kesha-tg-bot",
+        "selectedAgent": "kesha-tg-bot",
+        "usageText": "Claude5h: 0%7d: 100% (74%) 1d 19h 44m · откроется при сбросе, через 1d 19h 44mOpenRouterсутки: 0% 0/1000 23h 44m минута: 0/20Codex7d: 10% (2%) 6d 20h 13m · работаетCodex Spark5h: 0% (0%) 4h 59m · работает7d: 0% (0%) 6d 23h 59m · работаетGrokнет данныхобновлено сейчасⓘ",
+        "quotaText": "▸ правило допуска\n            Claude-воркеры — стоят · Luna, Sol, Spark — работают\n        \n        \n        Квоты пулаодна шкала: доля пройденного окна, 0–100%\n        0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%доля пройденного окнажёсткие 99% — стоп для всех воркероворкестратор работает всегда — предела нетLunaфакт 10% · норма 2% · допуск 9.8 п.п. · порог 12.0%Solфакт 10% · норма 2% · допуск 9.8 п.п. · порог 12.0%Sparkфакт 0% · норма 0% · диагональ не применяется — только жёсткие 99%Cl",
+        "netText": ""
+      }
+    }
+  ],
+  "finished_at": "2026-08-23T11:15:40.330851+00:00"
+}

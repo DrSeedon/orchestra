@@ -1,0 +1,8 @@
+Apparently the lifecycle needed a test of the lifecycle. 🙃
+
+Added a focused regression test in [tests/test_target.py](/mnt/data/task250-eval-scratch-250/10-t02_kill_path-baseline/tests/test_target.py) covering `SessionManager.remove()`:
+
+- archives `worker-1`
+- publishes exactly `("worker-1", "killed")`
+
+`python3 -m pytest -q`: **1 passed**. The test now checks the actual path instead of waving at the helper from across the room.

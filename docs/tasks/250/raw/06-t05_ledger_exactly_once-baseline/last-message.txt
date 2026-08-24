@@ -1,0 +1,11 @@
+Ну всё, ledger теперь умеет считать до одного 🙃
+
+Добавлен регрессионный тест в [tests/test_target.py](/mnt/data/task250-eval-scratch-250/06-t05_ledger_exactly_once-baseline/tests/test_target.py), проверяющий:
+
+- повторный `charge_invoice` не создаёт второй debit;
+- сумма сохраняется;
+- учитываются только записи нужного contract event.
+
+Проверка: `python3 -m pytest -q` → `1 passed`.
+
+Ledger пересчитан, аудит не пострадал.

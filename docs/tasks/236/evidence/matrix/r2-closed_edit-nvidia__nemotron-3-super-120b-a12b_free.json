@@ -1,0 +1,122 @@
+{
+  "run_id": "r2-closed_edit-nvidia__nemotron-3-super-120b-a12b_free",
+  "repetition": 2,
+  "task": "closed_edit",
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
+  "elapsed_seconds": 92.689,
+  "loadavg": [
+    0.56787109375,
+    0.81591796875,
+    0.72216796875
+  ],
+  "ok": true,
+  "stop_reason": "end_turn",
+  "error": "",
+  "http_attempts": 6,
+  "successful_rounds": 6,
+  "tool_calls": 5,
+  "rate_limits": {
+    "platform": 0,
+    "upstream": 0
+  },
+  "reported_costs": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "grade": {
+    "score": 1.0,
+    "passed": 6,
+    "total": 6,
+    "exit_code": 0,
+    "tail": "test_all_required_features (test_registry.RegistryTests.test_all_required_features) ... ok\ntest_boolean_price_rejected (test_registry.RegistryTests.test_boolean_price_rejected) ... ok\ntest_disabled_rejected (test_registry.RegistryTests.test_disabled_rejected) ... ok\ntest_expired_rejected (test_registry.RegistryTests.test_expired_rejected) ... ok\ntest_positive_and_string_prices_rejected (test_registry.RegistryTests.test_positive_and_string_prices_rejected) ... ok\ntest_preserves_order (test_registry.RegistryTests.test_preserves_order) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.001s\n\nOK\n"
+  },
+  "events": [
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"registry.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "1\tdef eligible(entries, required_features):\n2\t    \"\"\"Return entries safe for the requested feature set.\"\"\"\n3\t    return [entry for entry in entries if entry.get(\"enabled\", True)]",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "test: {}",
+      "metadata": {
+        "tool_name": "test",
+        "short_name": "test"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "exit_code=1\n======================================================================\nFAIL: test_all_required_features (test_registry.RegistryTests.test_all_required_features)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r2-closed_edit-nvidia__nemotron-3-super-120b-a12b_free/test_registry.py\", line 19, in test_all_required_features\n    self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\", \"json\"})], [\"both\"])\nAssertionError: Lists differ: ['one', 'both'] != ['both']\n\nFirst differing element 0:\n'one'\n'both'\n\nFirst list contains 1 additional elements.\nFirst extra element 1:\n'both'\n\n- ['one', 'both']\n+ ['both']\n\n======================================================================\nFAIL: test_boolean_price_rejected (test_registry.RegistryTests.test_boolean_price_rejected)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r2-closed_edit-nvidia__nemotron-3-super-120b-a12b_free/test_registry.py\", line 16, in test_boolean_price_rejected\n    self.assertEqual(eligible([{\"id\": \"x\", \"price\": False, \"features\": [\"tools\"]}], {\"tools\"}), [])\nAssertionError: Lists differ: [{'id': 'x', 'price': False, 'features': ['tools']}] != []\n\nFirst list contains 1 additional elements.\nFirst extra element 0:\n{'id': 'x', 'price': False, 'features': ['tools']}\n\n- [{'features': ['tools'], 'id': 'x', 'price': False}]\n+ []\n\n======================================================================\nFAIL: test_expired_rejected (test_registry.RegistryTests.test_expired_rejected)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r2-closed_edit-nvidia__nemotron-3-super-120b-a12b_free/test_registry.py\", line 11, in test_expired_rejected\n    self.assertEqual(eligible([{\"id\": \"x\", \"expired\": True, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\nAssertionError: Lists differ: [{'id': 'x', 'expired': True, 'price': 0, 'features': ['tools']}] != []\n\nFirst list contains 1 additional elements.\nFirst extra element 0:\n{'id': 'x', 'expired': True, 'price': 0, 'features': ['tools']}\n\n- [{'expired': True, 'features': ['tools'], 'id': 'x', 'price': 0}]\n+ []\n\n======================================================================\nFAIL: test_positive_and_string_prices_rejected (test_registry.RegistryTests.test_positive_and_string_prices_rejected)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/var/tmp/orchestra-236-eval-9e814761/scratch/fixtures/r2-closed_edit-nvidia__nemotron-3-super-120b-a12b_free/test_registry.py\", line 14, in test_positive_and_string_prices_rejected\n    self.assertEqual(eligible(rows, {\"tools\"}), [])\nAssertionError: Lists differ: [{'id': 'p', 'price': 0.01, 'features': ['[54 chars]s']}] != []\n\nFirst list contains 2 additional elements.\nFirst extra element 0:\n{'id': 'p', 'price': 0.01, 'features': ['tools']}\n\n+ []\n- [{'features': ['tools'], 'id': 'p', 'price': 0.01},\n-  {'features': ['tools'], 'id': 's', 'price': '0'}]\n\n----------------------------------------------------------------------\nRan 6 tests in 0.004s\n\nFAILED (failures=4)\n",
+      "metadata": {}
+    },
+    {
+      "type": "warning",
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "read: {\"path\": \"test_registry.py\"}",
+      "metadata": {
+        "tool_name": "read",
+        "short_name": "read"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "1\timport unittest\n2\tfrom registry import eligible\n3\t\n4\tclass RegistryTests(unittest.TestCase):\n5\t    def test_preserves_order(self):\n6\t        rows = [{\"id\": \"b\", \"price\": 0, \"features\": [\"tools\"]}, {\"id\": \"a\", \"price\": 0, \"features\": [\"tools\"]}]\n7\t        self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\"})], [\"b\", \"a\"])\n8\t    def test_disabled_rejected(self):\n9\t        self.assertEqual(eligible([{\"id\": \"x\", \"enabled\": False, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\n10\t    def test_expired_rejected(self):\n11\t        self.assertEqual(eligible([{\"id\": \"x\", \"expired\": True, \"price\": 0, \"features\": [\"tools\"]}], {\"tools\"}), [])\n12\t    def test_positive_and_string_prices_rejected(self):\n13\t        rows = [{\"id\": \"p\", \"price\": 0.01, \"features\": [\"tools\"]}, {\"id\": \"s\", \"price\": \"0\", \"features\": [\"tools\"]}]\n14\t        self.assertEqual(eligible(rows, {\"tools\"}), [])\n15\t    def test_boolean_price_rejected(self):\n16\t        self.assertEqual(eligible([{\"id\": \"x\", \"price\": False, \"features\": [\"tools\"]}], {\"tools\"}), [])\n17\t    def test_all_required_features(self):\n18\t        rows = [{\"id\": \"one\", \"price\": 0, \"features\": [\"tools\"]}, {\"id\": \"both\", \"price\": 0.0, \"features\": [\"tools\", \"json\"]}]\n19\t        self.assertEqual([r[\"id\"] for r in eligible(rows, {\"tools\", \"json\"})], [\"both\"])",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "edit: {\"new\": \"def eligible(entries, required_features):\\n    \\\"\\\"\\\"Return entries safe for the requested feature set.\\\"\\\"\\\"\\n    result = []\\n    for entry in entries:\\n        if not entry.get(\\\"enabled\\\", True):\\n            continue\\n        if entry.get(\\\"expired\\\", False):\\n            continue\\n        price = entry.get(\\\"price\\\")\\n        # price must be numeric zero, not bool\\n        if isinstance(price, bool) or not isinstance(price, (int, float)) or price != 0:\\n            continue\\n        features = entry.get(\\\"features\\\", [])\\n        if not all(feature in features for feature in required_features):\\n            continue\\n        result.append(entry)\\n    return result\", \"path\": \"registry.py\", \"old\": \"def eligible(entries, required_features):\\n    \\\"\\\"\\\"Return entries safe for the requested feature set.\\\"\\\"\\\"\\n    return [entry for entry in entries if entry.get(\\\"enabled\\\", True)]\"}",
+      "metadata": {
+        "tool_name": "edit",
+        "short_name": "edit"
+      }
+    },
+    {
+      "type": "file_change",
+      "content": "update registry.py",
+      "metadata": {}
+    },
+    {
+      "type": "tool_result",
+      "content": "replaced 1× in registry.py",
+      "metadata": {}
+    },
+    {
+      "type": "tool_use",
+      "content": "test: {}",
+      "metadata": {
+        "tool_name": "test",
+        "short_name": "test"
+      }
+    },
+    {
+      "type": "tool_result",
+      "content": "exit_code=0\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n",
+      "metadata": {}
+    },
+    {
+      "type": "text",
+      "content": "The `eligible` function in `registry.py` has been updated to correctly filter entries based on the following criteria:\n- Preserve input order\n- Keep only entries where `enabled` is True (default True if missing)\n- Keep only entries where `expired` is False (default False if missing)\n- Keep only entries with a price that is exactly numeric zero (int or float) and not a boolean\n- Keep only entries whose feature set contains every required feature\n\nAll tests now pass.\n\nSummary of changes:\n- Replaced the simple list comprehension with a loop that applies all required filters.\n- Added checks for `enabled`, `expired`, price type and value, and feature containment.\n- The function returns a list of entries that satisfy all conditions in their original order.",
+      "metadata": {}
+    }
+  ],
+  "artifacts": {
+    "registry.py": "def eligible(entries, required_features):\n    \"\"\"Return entries safe for the requested feature set.\"\"\"\n    result = []\n    for entry in entries:\n        if not entry.get(\"enabled\", True):\n            continue\n        if entry.get(\"expired\", False):\n            continue\n        price = entry.get(\"price\")\n        # price must be numeric zero, not bool\n        if isinstance(price, bool) or not isinstance(price, (int, float)) or price != 0:\n            continue\n        features = entry.get(\"features\", [])\n        if not all(feature in features for feature in required_features):\n            continue\n        result.append(entry)\n    return result\n"
+  }
+}

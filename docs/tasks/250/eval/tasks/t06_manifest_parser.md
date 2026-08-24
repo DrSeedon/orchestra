@@ -1,0 +1,6 @@
+# T06 — distant domain: deployment manifest semantics
+
+The API contract is the parsed endpoint and rejection of an out-of-range port. A previous representation test compared the literal example JSON shape, so adding unrelated manifest metadata failed while a loader that ignored the requested port could pass.
+
+Write the smallest behavioral tests through `load_manifest`. Extra metadata in `example_manifest()` is a valid future change.
+
