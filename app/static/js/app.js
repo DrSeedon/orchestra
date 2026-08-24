@@ -1644,18 +1644,6 @@ async function restartServer() {
     // Возврат ловит heartbeat и восстанавливает состояние на месте.
 }
 
-async function deleteOrchestrator() {
-    if (!currentScope || !selectedAgent) return;
-    if (!confirm(`Delete "${selectedAgent}" and all its workers?`)) return;
-    try {
-        await api(`/api/orchestrators/${selectedAgent}?scope=${encodeURIComponent(currentScope)}`, { method: 'DELETE' });
-        localStorage.removeItem('lastOrchScope');
-        localStorage.removeItem('lastOrchName');
-        currentScope = null;
-        selectedAgent = null;
-        await loadOrchestrators();
-    } catch (e) { alert(`Delete failed: ${e.message}`); }
-}
 
 // === Orchestrator Picker ===
 let orchData = [];
