@@ -1564,6 +1564,25 @@ def _is_file_delivery_receipt(value: Any, event_id: str) -> bool:
     )
 
 
+def _is_legacy_file_delivery_success(value: Any) -> bool:
+    return (
+        isinstance(value, dict)
+        and value.get("ok") is True
+        and type(value.get("message_id")) is int
+        and value["message_id"] != 0
+        and type(value.get("chat_id")) is int
+        and value["chat_id"] != 0
+    )
+
+
+def _legacy_file_delivery_text(result: dict[str, Any]) -> str:
+    return (
+        "File sent via legacy synchronous route; "
+        f"message_id={result['message_id']}; chat_id={result['chat_id']}. "
+        "No durable event receipt exists."
+    )
+
+
 def _file_delivery_receipt_text(receipt: dict[str, Any]) -> str:
     event_id = str(receipt["event_id"])
     state = str(receipt.get("delivery_state") or "UNKNOWN")
@@ -1685,10 +1704,16 @@ async def send_file(
         raise _ambiguous_file_delivery_error(
             cause, event_id, status=status,
         ) from cause
+    if _is_legacy_file_delivery_success(result):
+        return _legacy_file_delivery_text(result)
     if not _is_file_delivery_receipt(result, event_id):
         raise ApiToolError(
             code="invalid_response",
-            message="Send file API returned no matching durable receipt",
+            message=(
+                "Send file API returned no matching durable receipt for "
+                f"event_id={event_id}. Check file_delivery_status('{event_id}'); "
+                "do not retry with a new id."
+            ),
             status=200,
             outcome_unknown=True,
             details={"event_id": event_id, "response": result},
