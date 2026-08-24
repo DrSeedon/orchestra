@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import json
 import logging
@@ -178,7 +179,39 @@ def get_operation_record(operation_id: str) -> dict[str, Any] | None:
         row = connection.execute(
             "SELECT * FROM merge_operations WHERE operation_id=?", (operation_id,),
         ).fetchone()
-    return _decode_record(row) if row else None
+    if not row:
+        return None
+    record = _decode_record(row)
+    from app.ia import merge_receipts
+
+    result = record["result"]
+    if (
+        merge_receipts.merge_receipt_configured()
+        and result.get("operation_state") == "SUCCEEDED"
+    ):
+        try:
+            durable = merge_receipts.get_merge_receipt(operation_id)
+            if durable is None or durable != result.get("receipt"):
+                raise merge_receipts.MergeReceiptError(
+                    "stored success is not bound to its durable receipt"
+                )
+        except merge_receipts.MergeReceiptError as exc:
+            result = copy.deepcopy(result)
+            result["operation_state"] = "PARTIAL"
+            result["retryable"] = False
+            result["error"] = _error(
+                "MERGE_RECEIPT_INVALID",
+                str(exc),
+                operation_id=operation_id,
+                details={"exception_type": type(exc).__name__},
+            )
+            result["next_action"] = _blocking_action(
+                "RECONCILE_SAME_OPERATION",
+                "The target may be committed, but its durable receipt is missing or invalid.",
+                operation_id,
+            )
+            record["result"] = result
+    return record
 
 
 def get_operation_result(operation_id: str) -> dict[str, Any] | None:
@@ -1145,6 +1178,8 @@ def normalize_merge_result(
             result["warnings"].append(warning)
     if isinstance(finalization, dict):
         result["finalization"] = finalization
+    if isinstance(raw.get("receipt"), dict):
+        result["receipt"] = copy.deepcopy(raw["receipt"])
     return result
 
 
@@ -1668,6 +1703,34 @@ async def _run_operation(operation_id: str) -> None:
                         raw = await asyncio.to_thread(
                             _recover_lost_checkpoint, operation_id, raw,
                         )
+                    from app.ia import merge_receipts
+
+                    if (
+                        merge_receipts.merge_receipt_configured()
+                        and isinstance(raw, dict)
+                        and raw.get("ok")
+                    ):
+                        try:
+                            durable_receipt = merge_receipts.get_merge_receipt(operation_id)
+                            if (
+                                durable_receipt is None
+                                or durable_receipt != raw.get("receipt")
+                            ):
+                                raise merge_receipts.MergeReceiptError(
+                                    "successful merge has no matching durable receipt"
+                                )
+                        except merge_receipts.MergeReceiptError as exc:
+                            raw = {
+                                **raw,
+                                "ok": False,
+                                "state": (
+                                    "partial"
+                                    if raw.get("commit_point") == "target_committed"
+                                    else "failed"
+                                ),
+                                "error": f"verified merge receipt missing: {exc}",
+                            }
+                            raw.pop("receipt", None)
                     from app import rag_service
 
                     result = normalize_merge_result(
