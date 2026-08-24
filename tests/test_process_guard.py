@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
@@ -15,6 +16,8 @@ from scripts.orchestra_process_guard import (
     FreezeTimeout,
     Policy,
     ProcessGuard,
+    ProcessGuardUnavailable,
+    ProcessIdentityMismatch,
     ProcessReader,
     ProcessSnapshot,
     _validate_guard_context,
@@ -22,6 +25,7 @@ from scripts.orchestra_process_guard import (
     load_policy,
     main,
     matches_identity,
+    open_verified_pidfd,
 )
 
 
@@ -75,6 +79,71 @@ def config_env(tmp_path: Path) -> dict[str, str]:
         "FREEZE_TIMEOUT_SEC": "2",
         "FREEZE_MARKER": str(tmp_path / "freeze-owned"),
     }
+
+
+def test_pidfd_capability_is_import_safe_when_missing():
+    script = """
+import os
+
+if hasattr(os, "pidfd_open"):
+    del os.pidfd_open
+from scripts import orchestra_process_guard
+
+assert callable(orchestra_process_guard.open_verified_pidfd)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_pidfd_capability_missing_at_call_fails_explicitly(monkeypatch):
+    monkeypatch.delattr(os, "pidfd_open", raising=False)
+
+    with pytest.raises(ProcessGuardUnavailable, match=r"os\.pidfd_open"):
+        open_verified_pidfd(12345, 67890)
+
+
+def test_injected_pidfd_open_validates_starttime_and_closes_mismatch_fd():
+    order: list[str] = []
+    read_fd, write_fd = os.pipe()
+    try:
+        def pidfd_open(pid: int) -> int:
+            assert pid == 12345
+            order.append("pidfd_open")
+            return read_fd
+
+        def read_start(pid: int) -> int:
+            assert pid == 12345
+            order.append("read_starttime")
+            return 67890
+
+        assert open_verified_pidfd(
+            12345,
+            67890,
+            pidfd_open=pidfd_open,
+            read_starttime=read_start,
+        ) == read_fd
+        assert order == ["pidfd_open", "read_starttime"]
+    finally:
+        os.close(write_fd)
+        os.close(read_fd)
+
+    mismatch_fd = os.open(os.devnull, os.O_RDONLY)
+    try:
+        with pytest.raises(ProcessIdentityMismatch, match="starttime"):
+            open_verified_pidfd(
+                12345,
+                11111,
+                pidfd_open=lambda _pid: mismatch_fd,
+                read_starttime=lambda _pid: 67890,
+            )
+    finally:
+        with pytest.raises(OSError):
+            os.close(mismatch_fd)
 
 
 @pytest.mark.parametrize("missing", [
