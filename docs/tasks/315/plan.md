@@ -191,16 +191,26 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 
 ### T5 — session commit, pack/restore rehearsal and privacy/retention
 
-- Files: app/session.py, app/manager.py, new scripts/ia_replay.py, scripts/ia_pack.py; test_smoke_t5_recovery_privacy.py
-  test_smoke_t5_recovery_privacy.py only as a missing-seam diagnostic. Behavioral oracle design: acceptance/README.md T5 row; no RED test
-  is frozen.
+- Files: app/session.py, app/manager.py, new app/ia/recovery.py, scripts/ia_replay.py and
+  scripts/ia_pack.py. The frozen oracle is acceptance/test_t5_recovery_privacy_behavior.py plus
+  fixtures/t5_recovery_*.json; test_smoke_t5_recovery_privacy.py remains only a missing-seam
+  diagnostic.
 - Smoke: uv run python -m pytest docs/tasks/315/acceptance/test_smoke_t5_recovery_privacy.py -q
 - Smoke result: RED only because the future path is absent; this is not behavioral acceptance.
+- Test: `uv run python -m pytest docs/tasks/315/acceptance/test_t5_recovery_privacy_behavior.py -q`
+- RED result: invariant controls → `4 passed in 0.37s`; full command → exit 1,
+  `7 failed, 4 passed in 0.34s`, first failure
+  `#315 T5 missing behavior: cannot import app.ia.recovery: No module named 'app.ia.recovery'`.
+  Collection succeeds; the real current AgentSession/SessionManager fixture and nonempty reference
+  archive/restore control pass without a live DB or service.
 - AC: command is green; immutable session archive survives background extraction failure; explicit
   promotion is source-linked; pack manifest/checksum/scope/schema validation occurs before writes;
   restore/rebuild parity holds; tombstone/retention states are preserved; privacy secret scan has
-  0 matches in canonical, prompt, FTS/vector and logs. OpenViking OVPack is an input contract, not an
-  atomic recovery claim.
+  0 matches in canonical JSON, agent payloads/prompts, SQLite/FTS/vector and logs. Retrying the same
+  archive is an idempotent no-op with one archive/event; rollback refuses the wrong current head and
+  then reproduces the selected pack head/projection exactly. OpenViking OVPack is accepted only as an
+  input package format and carries `atomicity_claim=false`; Orchestra validates/stages fully before
+  writes. No generated Markdown or direct-file alternate truth is created.
 - blocked-by: T3, T4.
 
 ### T6 — merge receipt and approved cleanup sequencing
@@ -241,8 +251,8 @@ The user approved project-scoped #N with stable UUID, private/secret fields outs
 Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed with a human gate for
 conflicts and sensitive classes. Each ticket must still receive the exact
 fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
-behavioral RED test must be committed and independently verified before implementation. T1–T4
-have reached that oracle gate; T5–T7 have not. T7 runs only after the
+behavioral RED test must be committed and independently verified before implementation. T1–T5
+have reached that oracle gate; T6–T7 have not. T7 runs only after the
 corrected T3b plus T4–T6 core and has no existence-smoke
 shortcut. Smoke probes never satisfy this gate.
 

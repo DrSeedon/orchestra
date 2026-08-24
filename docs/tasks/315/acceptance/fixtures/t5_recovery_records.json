@@ -1,0 +1,251 @@
+{
+  "fixture_version": 1,
+  "project_id": "orchestra",
+  "session": {
+    "id": "75000000-0000-4000-8000-000000000001",
+    "name": "t5-archive-worker",
+    "scope": "/srv/orchestra",
+    "cwd": "/srv/orchestra/worktrees/t5-archive-worker",
+    "native_session_id": "76000000-0000-4000-8000-000000000001",
+    "archive_id": "77000000-0000-4000-8000-000000000001",
+    "idempotency_key": "t5-session-archive-0001",
+    "retention": "90d-cold",
+    "safe_prompt": "Use the typed knowledge API; never reveal private material."
+  },
+  "messages": [
+    {
+      "id": 1,
+      "role": "user",
+      "occurred_at": "2026-08-25T01:00:00Z",
+      "content": "Archive this measured recovery result."
+    },
+    {
+      "id": 2,
+      "role": "assistant",
+      "occurred_at": "2026-08-25T01:00:01Z",
+      "content": "The archive must exist before extraction starts."
+    },
+    {
+      "id": 3,
+      "role": "tool_result",
+      "occurred_at": "2026-08-25T01:00:02Z",
+      "content": "Authorization: Bearer T5_SECRET_BEARER_123456789012345678901234567890",
+      "metadata": {
+        "credentials": {
+          "api_key": "sk-or-v1-T5SECRET0123456789abcdefghijklmnopqrstuvwxyz",
+          "password": "password=T5_SECRET_PASSWORD"
+        }
+      }
+    }
+  ],
+  "secret_sentinels": [
+    "T5_SECRET_BEARER_123456789012345678901234567890",
+    "sk-or-v1-T5SECRET0123456789abcdefghijklmnopqrstuvwxyz",
+    "T5_SECRET_PASSWORD"
+  ],
+  "redaction_marker": "[REDACTED:T5]",
+  "canonical_objects": [
+    {
+      "path": "projects/orchestra/tasks/11111111-1111-4111-8111-111111111111/state.json",
+      "record": {
+        "record_type": "task.state",
+        "schema_version": 1,
+        "stable_id": "11111111-1111-4111-8111-111111111111",
+        "uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/state",
+        "project_id": "orchestra",
+        "created_at": "2026-08-24T00:00:00Z",
+        "updated_at": "2026-08-25T01:05:00Z",
+        "canonical_head": "git:1111111111111111111111111111111111111111",
+        "projection_head": null,
+        "indexed_head": null,
+        "status": "tombstoned",
+        "private_fields": [],
+        "tombstone": true,
+        "retention": "audit-only",
+        "display_number": 315,
+        "display_ref": "#315",
+        "title": "Synthesize information architecture",
+        "priority": 1,
+        "assignee": "synthesize-information-architecture",
+        "scope": "/srv/orchestra",
+        "worker_session_id": "77777777-7777-4777-8777-777777777777",
+        "acceptance": {
+          "command": "uv run python -m pytest docs/tasks/315/acceptance/test_t5_recovery_privacy_behavior.py -q",
+          "manifest_paths": ["docs/tasks/315/acceptance/test_t5_recovery_privacy_behavior.py"],
+          "required": true
+        },
+        "evidence_refs": [
+          "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222"
+        ],
+        "git_commit_refs": [],
+        "valid_from": "2026-08-24T00:00:00Z",
+        "supersedes": null
+      }
+    },
+    {
+      "path": "projects/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222.json",
+      "record": {
+        "record_type": "task.evidence",
+        "schema_version": 1,
+        "stable_id": "22222222-2222-4222-8222-222222222222",
+        "uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222",
+        "project_id": "orchestra",
+        "created_at": "2026-08-24T00:00:00Z",
+        "updated_at": "2026-08-24T00:00:00Z",
+        "canonical_head": "git:2222222222222222222222222222222222222222",
+        "projection_head": null,
+        "indexed_head": null,
+        "status": "current",
+        "private_fields": [],
+        "tombstone": false,
+        "retention": "project-default",
+        "task_id": "11111111-1111-4111-8111-111111111111",
+        "kind": "research",
+        "canonical_path": "docs/tasks/315/research.md",
+        "git_commit": "2222222222222222222222222222222222222222",
+        "blob_sha": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "anchor": "## Findings",
+        "captured_at": "2026-08-24T00:00:00Z",
+        "author_session_id": "77777777-7777-4777-8777-777777777777",
+        "source_urls": [],
+        "content_sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      }
+    },
+    {
+      "path": "projects/orchestra/knowledge/topics/repo-ops/facts/archive-policy/33333333-3333-4333-8333-333333333331.json",
+      "record": {
+        "record_type": "knowledge.fact",
+        "schema_version": 1,
+        "stable_id": "33333333-3333-4333-8333-333333333331",
+        "uri": "orch://project/orchestra/knowledge/topics/repo-ops/facts/archive-policy/33333333-3333-4333-8333-333333333331",
+        "project_id": "orchestra",
+        "created_at": "2026-08-24T00:00:00Z",
+        "updated_at": "2026-08-25T01:05:00Z",
+        "canonical_head": "git:3333333333333333333333333333333333333331",
+        "projection_head": null,
+        "indexed_head": null,
+        "status": "historical",
+        "private_fields": [],
+        "tombstone": false,
+        "retention": "project-default",
+        "topic_slug": "repo-ops",
+        "fact_key": "archive-policy",
+        "claim": "Background extraction may own canonical session output",
+        "confidence": "refuted",
+        "valid_from": "2026-08-20T00:00:00Z",
+        "valid_to": "2026-08-25T00:00:00Z",
+        "observed_at": "2026-08-20T00:00:00Z",
+        "refresh_after": "2027-08-20T00:00:00Z",
+        "provenance": [
+          {
+            "task_id": "11111111-1111-4111-8111-111111111111",
+            "evidence_uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222",
+            "path": "docs/tasks/315/research.md",
+            "anchor": "## Findings",
+            "git_commit": "3333333333333333333333333333333333333331",
+            "measurement": "fixture:t5:superseded"
+          }
+        ],
+        "supersedes": [],
+        "disputed_by": [],
+        "metadata": {"superseded_by": "33333333-3333-4333-8333-333333333332"}
+      }
+    },
+    {
+      "path": "projects/orchestra/knowledge/topics/repo-ops/facts/archive-policy/33333333-3333-4333-8333-333333333332.json",
+      "record": {
+        "record_type": "knowledge.fact",
+        "schema_version": 1,
+        "stable_id": "33333333-3333-4333-8333-333333333332",
+        "uri": "orch://project/orchestra/knowledge/topics/repo-ops/facts/archive-policy/33333333-3333-4333-8333-333333333332",
+        "project_id": "orchestra",
+        "created_at": "2026-08-25T00:00:00Z",
+        "updated_at": "2026-08-25T01:05:00Z",
+        "canonical_head": "git:3333333333333333333333333333333333333332",
+        "projection_head": null,
+        "indexed_head": null,
+        "status": "disputed",
+        "private_fields": [],
+        "tombstone": false,
+        "retention": "project-default",
+        "topic_slug": "repo-ops",
+        "fact_key": "archive-policy",
+        "claim": "Synchronous archive may be deferred until extraction completes",
+        "confidence": "disputed",
+        "valid_from": "2026-08-25T00:00:00Z",
+        "valid_to": null,
+        "observed_at": "2026-08-25T00:00:00Z",
+        "refresh_after": "2027-08-25T00:00:00Z",
+        "provenance": [
+          {
+            "task_id": "11111111-1111-4111-8111-111111111111",
+            "evidence_uri": "orch://project/orchestra/tasks/11111111-1111-4111-8111-111111111111/evidence/22222222-2222-4222-8222-222222222222",
+            "path": "docs/tasks/315/research.md",
+            "anchor": "## Findings",
+            "git_commit": "3333333333333333333333333333333333333332",
+            "measurement": "fixture:t5:disputed"
+          }
+        ],
+        "supersedes": ["33333333-3333-4333-8333-333333333331"],
+        "disputed_by": ["22222222-2222-4222-8222-222222222222"]
+      }
+    },
+    {
+      "path": "projects/orchestra/sessions/77777777-7777-4777-8777-777777777777/history/44444444-4444-4444-8444-444444444444/record.json",
+      "record": {
+        "record_type": "session.history",
+        "schema_version": 1,
+        "stable_id": "44444444-4444-4444-8444-444444444444",
+        "uri": "orch://project/orchestra/sessions/77777777-7777-4777-8777-777777777777/history/44444444-4444-4444-8444-444444444444",
+        "project_id": "orchestra",
+        "created_at": "2026-08-24T00:00:00Z",
+        "updated_at": "2026-08-25T01:05:00Z",
+        "canonical_head": "git:4444444444444444444444444444444444444444",
+        "projection_head": null,
+        "indexed_head": null,
+        "status": "historical",
+        "private_fields": [],
+        "tombstone": false,
+        "retention": "90d-cold",
+        "session_id": "77777777-7777-4777-8777-777777777777",
+        "archive_id": "44444444-4444-4444-8444-444444444444",
+        "canonical_path": "projects/orchestra/sessions/77777777-7777-4777-8777-777777777777/history/44444444-4444-4444-8444-444444444444/messages.json",
+        "source_log_ids": [1, 2, 3],
+        "summary_ref": "orch://project/orchestra/sessions/77777777-7777-4777-8777-777777777777/history/44444444-4444-4444-8444-444444444444"
+      }
+    }
+  ],
+  "pack": {
+    "format": "ovpack",
+    "schema_version": 1,
+    "scope": "orchestra",
+    "created_at": "2026-08-25T02:00:00Z",
+    "metadata": {
+      "producer": "orchestra-t5-fixture",
+      "future_safe_field": {"revision": 2}
+    },
+    "alternate_order": [4, 2, 0, 3, 1]
+  },
+  "expected_denominators": {
+    "messages": 3,
+    "canonical_objects": 5,
+    "secret_sentinels": 3,
+    "controls": 4,
+    "behavior_nodes": 7,
+    "compound_mutants": 7
+  },
+  "compound_mutants": {
+    "extraction_failure_deletes_archive": {"message": "T5_EXTRACTION_FAILURE"},
+    "partial_write_before_checksum_failure": {
+      "corrupt_path": "projects/orchestra/knowledge/topics/repo-ops/facts/archive-policy/33333333-3333-4333-8333-333333333332.json",
+      "target_sentinel": "T5_PARTIAL_TARGET_WRITE_MUST_NOT_EXIST"
+    },
+    "source_less_promotion_after_restore": {"marker": "T5_SOURCELESS_PROMOTION_MUST_FAIL"},
+    "nested_secret_leak": {
+      "surfaces": ["canonical", "agent_payload", "prompt", "sqlite", "fts", "vector", "logs"]
+    },
+    "tombstone_dropped_on_replay": {"stable_id": "11111111-1111-4111-8111-111111111111"},
+    "rollback_wrong_head": {"head": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+    "retry_duplicates_archive_event": {"expected_archives": 1, "expected_events": 1}
+  }
+}
