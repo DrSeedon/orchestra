@@ -1,0 +1,89 @@
+{
+  "contract_version": 1,
+  "fixture_sha256": "c3dd9ddebcd6b6b49aa8db82f3672df05179ec14d3274d1d052f23ac439af1a9",
+  "compatibility_sha256": {
+    "docs/tasks/315/acceptance/fixtures/t1_namespace_contract.json": "02e26e0cd0c77ece0825a804a2834295ea958ad6458d6760c35c3ea02fd5544b",
+    "docs/tasks/315/acceptance/fixtures/t1_namespace_records.json": "83fde2bcbb1d2d85e745f63cd4819a10d328d677bdc61ac81dc30c69f58b4462",
+    "docs/tasks/315/acceptance/fixtures/t2_task_store_contract.json": "ddcd72ec0a2d0b30639e25697e3d623e72ffb8c6349c9a3a76a50437137cb608",
+    "docs/tasks/315/acceptance/fixtures/t2_task_store_records.json": "88f3d2ca7ab8a5a75b2f2c87fb3fb1870d00e063a7d6e75ca4aec462b4d4b650",
+    "docs/tasks/315/acceptance/fixtures/t3_promotion_contract.json": "ad763c0ba467dc8847fb76c2af2a36138a24c3db275580d9a483690a78eaa0f1",
+    "docs/tasks/315/acceptance/fixtures/t3_promotion_records.json": "655027ac8ed170a193a5e58b9b82a60749ad8e8208e435f85a54fc98715f4707",
+    "docs/tasks/315/acceptance/fixtures/t3b_agent_only_contract_v2.json": "ca666ca4bf16acf3207d57ddb71784a3aa86791f698573ba625e6fad7221f359",
+    "docs/tasks/315/acceptance/fixtures/t3b_agent_only_records_v2.json": "e529b731271477abc1899f8c290c6d9d39b4fb580fc1930a3fe675a8343c6746",
+    "docs/tasks/315/acceptance/fixtures/t4_projection_contract_v2.json": "a31380c64543aececc8a079553341ebdd5956ebe620a5359f60de4c3eab919ce",
+    "docs/tasks/315/acceptance/fixtures/t4_projection_records.json": "d5ab3845b4490715d3fb481e6bb28c1b1ac000a047bbe409e1b2fb93573cca8c"
+  },
+  "public_api": {
+    "app.ia.recovery": {
+      "callables": ["recovery_mode", "wait_extraction"],
+      "exceptions": ["ArchiveConflictError"]
+    },
+    "app.session": {
+      "classes": ["AgentSession"],
+      "methods": ["commit_archive"]
+    },
+    "app.manager": {
+      "classes": ["SessionManager"],
+      "methods": ["commit_session_archive"]
+    },
+    "scripts.ia_pack": {
+      "callables": ["build_pack", "validate_pack", "restore_pack"],
+      "exceptions": ["PackValidationError"]
+    },
+    "scripts.ia_replay": {
+      "callables": ["replay", "rollback"]
+    }
+  },
+  "recovery_mode_kwargs": [
+    "canonical_root",
+    "extraction_runner",
+    "knowledge_service"
+  ],
+  "manager_archive_chain": [
+    "SessionManager.commit_session_archive",
+    "AgentSession.commit_archive",
+    "app.ia.recovery synchronous archive commit",
+    "background extraction"
+  ],
+  "archive_layout": {
+    "record": "projects/{project_id}/sessions/{session_id}/history/{archive_id}/record.json",
+    "messages": "projects/{project_id}/sessions/{session_id}/history/{archive_id}/messages.json",
+    "event": "projects/{project_id}/sessions/{session_id}/history/{archive_id}/events/{event_id}.json"
+  },
+  "archive_receipt_required": [
+    "outcome",
+    "archive_id",
+    "event_id",
+    "canonical_head",
+    "archive_path",
+    "extraction_status"
+  ],
+  "pack_contract": {
+    "accepted_input_format": "ovpack",
+    "atomicity_claim": false,
+    "validation_order": ["schema", "scope", "paths", "checksums", "privacy"],
+    "manifest": "manifest.json",
+    "objects_root": "objects",
+    "valid_modes": ["fail", "replace"]
+  },
+  "replay_receipt_required": [
+    "canonical_head",
+    "projection_head",
+    "object_count",
+    "status_counts",
+    "tombstone_count",
+    "retention_counts"
+  ],
+  "privacy_surfaces": [
+    "canonical_json",
+    "agent_payloads",
+    "prompts",
+    "sqlite",
+    "fts",
+    "vector",
+    "logs"
+  ],
+  "forbidden_generated_extensions": [".md", ".markdown", ".txt", ".html"],
+  "expected_controls": 4,
+  "expected_behavior_nodes": 7
+}
