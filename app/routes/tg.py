@@ -6,7 +6,7 @@ import math
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Form, UploadFile
+from fastapi import APIRouter, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 router = APIRouter()
@@ -139,19 +139,114 @@ async def tg_delivery_stats():
 
 
 @router.post("/api/tg/send_file")
-async def tg_send_file(req: dict):
+async def tg_send_file(req: dict, request: Request):
+    from app.auth import validate_session
+    from app.db import get_session
+    from app.mcp_proof import check_mcp_proof
     from app.routes.system import _is_safe_path
+
     path = req.get("path", "")
-    caption = req.get("caption", "")
-    scope = req.get("scope", "")
-    sender = req.get("sender", "")
-    as_document = req.get("as_document", False)
+    caption = str(req.get("caption", ""))
+    as_document = bool(req.get("as_document", False))
+    event_id = str(req.get("event_id", "")).strip()
     if not path:
         return JSONResponse({"error": "path required"}, status_code=400)
+    if not event_id:
+        return JSONResponse({"error": "event_id required"}, status_code=400)
     if not _is_safe_path(path):
         return JSONResponse({"error": "access denied"}, status_code=403)
-    from app.tg_bridge import send_file_to_tg
-    result = await send_file_to_tg(path, caption, scope, sender, as_document=as_document)
-    if result.get("error"):
-        return JSONResponse(result, status_code=500)
-    return result
+
+    source_session_id = None
+    if validate_session(request.cookies.get("session", "")):
+        scope = str(req.get("scope", ""))
+        sender = str(req.get("sender", ""))
+    else:
+        source_session_id = request.headers.get("x-orchestra-session-id", "").strip()
+        proof = request.headers.get("x-orchestra-mcp-proof", "")
+        source = get_session(source_session_id) if source_session_id else None
+        if source is None or not check_mcp_proof(source_session_id, proof):
+            return JSONResponse(
+                {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
+                status_code=403,
+            )
+        scope = str(source.get("scope") or "")
+        sender = str(source.get("name") or "")
+
+    from app import tg_bridge
+    orch_name, thread_id = tg_bridge._resolve_topic(scope, sender)
+    chat_id = int(tg_bridge.config.get("group_id") or 0)
+    if not chat_id or not thread_id:
+        return JSONResponse(
+            {"error": {"code": "TG_TARGET_UNAVAILABLE", "outcome_unknown": False}},
+            status_code=400,
+        )
+    targets = [{
+        "target_kind": "primary",
+        "chat_id": chat_id,
+        "thread_id": thread_id,
+    }]
+    mirror = tg_bridge.config.get("mirrors", {}).get(orch_name) if orch_name else None
+    if mirror and mirror.get("chat_id"):
+        targets.append({
+            "target_kind": "mirror",
+            "chat_id": int(mirror["chat_id"]),
+            "thread_id": mirror.get("topic_id"),
+        })
+    from app.tg_file_deliveries import accept_file_delivery
+    try:
+        result, status, headers = await accept_file_delivery(
+            event_id=event_id,
+            source_session_id=source_session_id,
+            source_name=sender,
+            source_scope=scope,
+            source_path=str(path),
+            caption=caption,
+            as_document=as_document,
+            orch_name=orch_name,
+            targets=targets,
+        )
+    except (OSError, ValueError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    return JSONResponse(result, status_code=status, headers=headers)
+
+
+@router.get("/api/tg/file-deliveries/{event_id}")
+async def tg_file_delivery_status(event_id: str, request: Request):
+    """Return a file receipt only to its MCP owner or a dashboard operator."""
+    from app.auth import validate_session
+    from app.db import get_session
+    from app.mcp_proof import check_mcp_proof
+    from app import tg_file_deliveries
+
+    if validate_session(request.cookies.get("session", "")):
+        try:
+            resource = tg_file_deliveries._resource(
+                tg_file_deliveries._validate_event_id(event_id)
+            )
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        if resource is None:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return resource
+
+    source_id = request.headers.get("x-orchestra-session-id", "").strip()
+    proof = request.headers.get("x-orchestra-mcp-proof", "")
+    if not source_id or get_session(source_id) is None or not check_mcp_proof(source_id, proof):
+        return JSONResponse(
+            {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
+            status_code=403,
+        )
+    try:
+        validated_id = tg_file_deliveries._validate_event_id(event_id)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    row = tg_file_deliveries._row(validated_id)
+    if row is not None and row["source_session_id"] != source_id:
+        return JSONResponse(
+            {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
+            status_code=403,
+        )
+    resource = tg_file_deliveries.get_file_delivery(validated_id, source_id)
+    if resource is None:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return resource

@@ -173,6 +173,55 @@ def init_db() -> None:
                 ON message_deliveries(target_session_id, accept_seq);
             CREATE INDEX IF NOT EXISTS idx_message_deliveries_source_seq
                 ON message_deliveries(source_session_id, accept_seq);
+            CREATE TABLE IF NOT EXISTS tg_file_deliveries (
+                accept_seq INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT NOT NULL UNIQUE,
+                schema_version INTEGER NOT NULL,
+                source_session_id TEXT,
+                source_name TEXT NOT NULL,
+                source_scope TEXT NOT NULL,
+                source_path TEXT NOT NULL,
+                original_name TEXT NOT NULL,
+                snapshot_path TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL CHECK(size_bytes > 0 AND size_bytes <= 52428800),
+                content_sha256 TEXT NOT NULL CHECK(length(content_sha256) = 64),
+                caption TEXT NOT NULL,
+                outbound_caption TEXT NOT NULL,
+                as_document INTEGER NOT NULL CHECK(as_document IN (0,1)),
+                payload_hash TEXT NOT NULL CHECK(length(payload_hash) = 64),
+                orch_name TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                snapshot_deleted_at TEXT,
+                quarantined_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS tg_file_delivery_targets (
+                event_id TEXT NOT NULL REFERENCES tg_file_deliveries(event_id) ON DELETE CASCADE,
+                target_kind TEXT NOT NULL CHECK(target_kind IN ('primary','mirror')),
+                chat_id INTEGER NOT NULL,
+                thread_id INTEGER,
+                state TEXT NOT NULL CHECK(state IN
+                    ('QUEUED','SUBMITTING','SENT','FAILED_BEFORE_SUBMIT','UNKNOWN')),
+                message_id INTEGER,
+                attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+                lease_generation INTEGER NOT NULL DEFAULT 0 CHECK(lease_generation >= 0),
+                error_json TEXT,
+                submitted_at TEXT,
+                sent_at TEXT,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY(event_id, target_kind)
+            );
+            CREATE TABLE IF NOT EXISTS tg_file_chat_leases (
+                chat_id INTEGER PRIMARY KEY,
+                generation INTEGER NOT NULL CHECK(generation > 0),
+                owner_token TEXT NOT NULL,
+                lease_expires_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_tg_file_targets_chat_state
+                ON tg_file_delivery_targets(chat_id, state, event_id);
+            CREATE INDEX IF NOT EXISTS idx_tg_file_deliveries_source_seq
+                ON tg_file_deliveries(source_session_id, accept_seq);
             -- get_last_turn_map() runs on every /api/sessions; without this it scans
             -- every logs row (14 MB of content) to LIKE-match 8% of them: 16 ms → 0.6 ms.
             CREATE INDEX IF NOT EXISTS idx_logs_status ON logs(session_id, ts) WHERE type='status';
@@ -686,11 +735,71 @@ def _migrate_message_deliveries(c) -> None:
         c.execute(f"RELEASE {savepoint}")
 
 
+def _migrate_tg_file_deliveries(c) -> None:
+    """Add nullable v1 metadata to pre-release outbox tables without rewrites."""
+    additions = {
+        "tg_file_deliveries": {
+            "snapshot_deleted_at": "TEXT",
+            "quarantined_at": "TEXT",
+        },
+        "tg_file_delivery_targets": {
+            "error_json": "TEXT",
+            "submitted_at": "TEXT",
+            "sent_at": "TEXT",
+        },
+    }
+    required = {
+        "tg_file_deliveries": {
+            "accept_seq", "event_id", "schema_version", "source_session_id",
+            "source_name", "source_scope", "source_path", "original_name",
+            "snapshot_path", "size_bytes", "content_sha256", "caption",
+            "outbound_caption", "as_document", "payload_hash", "orch_name",
+            "created_at", "updated_at",
+        },
+        "tg_file_delivery_targets": {
+            "event_id", "target_kind", "chat_id", "thread_id", "state",
+            "message_id", "attempt_count", "lease_generation", "updated_at",
+        },
+        "tg_file_chat_leases": {
+            "chat_id", "generation", "owner_token", "lease_expires_at", "updated_at",
+        },
+    }
+    for table, columns in additions.items():
+        if c.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone() is None:
+            continue
+        existing = {
+            row[1] for row in c.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        for column, declaration in columns.items():
+            if column not in existing:
+                c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+        existing = {
+            row[1] for row in c.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        missing = required[table] - existing
+        if missing:
+            raise RuntimeError(
+                f"unsupported pre-release {table} schema; missing {sorted(missing)}"
+            )
+    lease_columns = {
+        row[1] for row in c.execute("PRAGMA table_info(tg_file_chat_leases)").fetchall()
+    }
+    missing = required["tg_file_chat_leases"] - lease_columns
+    if missing:
+        raise RuntimeError(
+            "unsupported pre-release tg_file_chat_leases schema; "
+            f"missing {sorted(missing)}"
+        )
+
+
 def _migrate(c) -> None:
     # Additive ALTER TABLE migrations — safe to re-run (IF NOT EXISTS / column check).
     # Never drop columns: old Orchestra versions reading the same DB must still work.
     _guard_session_id(c)
     _migrate_message_deliveries(c)
+    _migrate_tg_file_deliveries(c)
     mb_cols = {row[1] for row in c.execute("PRAGMA table_info(mailbox)").fetchall()}
     if "claimed_at" not in mb_cols:
         c.execute("ALTER TABLE mailbox ADD COLUMN claimed_at REAL")
