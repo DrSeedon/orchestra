@@ -44,7 +44,7 @@ def test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox():
     assert "allow-same-origin" not in match.group(1)
 
 
-def test_model_picker_requests_fresh_session_and_surfaces_transfer_result():
+def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result():
     source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
     helper = source.split("function _historyTransferMessage", 1)[1].split(
         "async function _showModelPicker", 1,
@@ -59,7 +59,7 @@ def test_model_picker_requests_fresh_session_and_surfaces_transfer_result():
     assert "dialog switch blocked; source retained" in helper
     assert "fresh target session" in helper
     assert "raw snapshot remains operator-only and untrusted" in helper
-    assert "fresh: true" in picker
+    assert "fresh: true" not in picker
     assert "_showHistoryTransfer(resp.history_transfer);" in picker
     assert "body.error_code" in picker
 

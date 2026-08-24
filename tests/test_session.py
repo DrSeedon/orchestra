@@ -4292,31 +4292,24 @@ class TestRuntimeCapabilities:
         session.backend_type = "codex"
         session.session_id = "codex-native-session"
         session.status = AgentStatus.IDLE
-        source = AsyncMock()
-        source.disconnect = AsyncMock()
+        source = SimpleNamespace(
+            active_turn_id=None,
+            _events_active=False,
+            retarget_model=MagicMock(),
+        )
         session._backend = source
         session._log = lambda *_args, **_kwargs: None
         session._last_context = {
             "percentage": 1, "total_tokens": 1_000, "max_tokens": 258_400,
         }
-        session._same_runtime_resume_preflight = MagicMock(return_value=SimpleNamespace(
-            fits=True, as_dict=lambda: {"fits": True},
-        ))
-        session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
-            ok=True, handoff_id=None, pending_effects=0,
-        ))
-        session._refresh_skills = AsyncMock()
-        session._refresh_codex_project_doc = AsyncMock()
-        session._activate_backend_tasks = MagicMock()
-        target = AsyncMock()
-        target.session_id = "codex-native-session"
-        target.resume_failed = False
-        target.connect = AsyncMock()
-        target.disconnect = AsyncMock()
-        session._make_backend = MagicMock(return_value=target)
-        monkeypatch.setattr(
-            "app.session.save_session", MagicMock(),
+        session._prepare_runtime_handoff = AsyncMock(
+            side_effect=AssertionError("same Codex thread needs no handoff"),
         )
+        session._make_backend = MagicMock(
+            side_effect=AssertionError("same Codex thread needs no replacement backend"),
+        )
+        save = MagicMock()
+        monkeypatch.setattr("app.session.save_session", save)
 
         result = await session.change_model("gpt-5.6-sol")
 
@@ -4325,23 +4318,22 @@ class TestRuntimeCapabilities:
         assert session.session_id == "codex-native-session"
         assert session.runtime_handoff == ""
         assert session.session_id_history == []
-        target.connect.assert_awaited_once()
-        source.disconnect.assert_awaited_once()
-        assert session._backend is target
-        assert any(
-            call.kwargs.get("model_override") == "gpt-5.6-sol"
-            and call.kwargs.get("resume_session_id") == "codex-native-session"
-            for call in session._make_backend.call_args_list
-        )
+        assert session._backend is source
+        assert session.model == "gpt-5.6-sol"
+        assert result["history_transfer"] == {"mode": "native_in_place"}
+        source.retarget_model.assert_called_once_with("gpt-5.6-sol")
+        session._prepare_runtime_handoff.assert_not_awaited()
+        session._make_backend.assert_not_called()
+        save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_same_runtime_source_disconnect_failure_requires_recovery(
+    async def test_claude_same_runtime_source_disconnect_failure_requires_recovery(
             self, session, monkeypatch):
         from app.session import AgentStatus
 
-        session.model = "gpt-5.5"
-        session.backend_type = "codex"
-        session.session_id = "codex-native-session"
+        session.model = "claude-sonnet-5[1m]"
+        session.backend_type = "claude"
+        session.session_id = "claude-native-session"
         session.status = AgentStatus.IDLE
         session._last_context = {
             "percentage": 1, "total_tokens": 1_000, "max_tokens": 258_400,
@@ -4358,30 +4350,31 @@ class TestRuntimeCapabilities:
         session._refresh_skills = AsyncMock()
         session._refresh_codex_project_doc = AsyncMock()
         target = AsyncMock()
-        target.session_id = "codex-native-session"
+        target.session_id = "claude-native-session"
         target.resume_failed = False
         session._make_backend = MagicMock(return_value=target)
+        session._activate_backend_tasks = MagicMock()
         save = MagicMock()
         monkeypatch.setattr("app.session.save_session", save)
 
-        result = await session.change_model("gpt-5.6-sol")
+        result = await session.change_model("claude-opus-5[1m]")
 
         assert result["ok"] is False
         assert result["error_code"] == "handoff_recovery_required"
-        assert session.model == "gpt-5.5"
+        assert session.model == "claude-sonnet-5[1m]"
         assert session._backend is source
         assert session._handoff_recovery_required is True
         save.assert_not_called()
         target.disconnect.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_same_runtime_success_confirms_durable_ledger_atomically(
+    async def test_claude_same_runtime_success_confirms_durable_ledger_atomically(
             self, session, monkeypatch):
         from app.session import AgentStatus
 
-        session.model = "gpt-5.5"
-        session.backend_type = "codex"
-        session.session_id = "codex-native-session"
+        session.model = "claude-sonnet-5[1m]"
+        session.backend_type = "claude"
+        session.session_id = "claude-native-session"
         session.status = AgentStatus.IDLE
         session._last_context = {
             "percentage": 1, "total_tokens": 1_000, "max_tokens": 258_400,
@@ -4399,9 +4392,10 @@ class TestRuntimeCapabilities:
         session._refresh_skills = AsyncMock()
         session._refresh_codex_project_doc = AsyncMock()
         target = AsyncMock()
-        target.session_id = "codex-native-session"
+        target.session_id = "claude-native-session"
         target.resume_failed = False
         session._make_backend = MagicMock(return_value=target)
+        session._activate_backend_tasks = MagicMock()
         monkeypatch.setattr(
             "app.session.get_runtime_handoff",
             lambda _hid: {"handoff_id": "h1"},
@@ -4417,7 +4411,7 @@ class TestRuntimeCapabilities:
         monkeypatch.setattr("app.session.save_session", save)
         session._confirm_runtime_handoff = AsyncMock()
 
-        result = await session.change_model("gpt-5.6-sol")
+        result = await session.change_model("claude-opus-5[1m]")
 
         assert result["ok"] is True
         source.disconnect.assert_awaited_once()

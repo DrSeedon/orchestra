@@ -947,29 +947,38 @@ async def test_t5_same_provider_native_resume_preflights_smaller_target_window(
 
 
 @pytest.mark.asyncio
-async def test_t5_pending_effect_blocks_before_any_target_is_staged(session):
+async def test_t5_pending_effect_does_not_block_in_place_codex_retarget(
+    session, monkeypatch,
+):
     from app.session import AgentStatus
 
     session.model = "gpt-5.6-sol"
     session.backend_type = "codex"
     session.session_id = "source-thread"
     session.status = AgentStatus.IDLE
-    source = AsyncMock()
+    source = SimpleNamespace(
+        active_turn_id=None,
+        _events_active=False,
+        retarget_model=MagicMock(),
+    )
     session._backend = source
     session._log = MagicMock()
     session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
         ok=False, error_code="handoff_pending_effect", handoff_id=None,
     ))
     session._ensure_backend = AsyncMock()
+    monkeypatch.setattr("app.session.save_session", MagicMock())
 
     result = await session.change_model("gpt-5.6-luna")
 
-    assert result["ok"] is False
-    assert result["error_code"] == "handoff_pending_effect"
-    assert result["handoff_id"] is None
-    session._ensure_backend.assert_not_awaited()
-    source.disconnect.assert_not_awaited()
+    assert result["ok"] is True
+    assert result["history_transfer"] == {"mode": "native_in_place"}
+    assert session.model == "gpt-5.6-luna"
     assert session.session_id == "source-thread"
+    assert session._backend is source
+    source.retarget_model.assert_called_once_with("gpt-5.6-luna")
+    session._prepare_runtime_handoff.assert_not_awaited()
+    session._ensure_backend.assert_not_awaited()
 
 
 @pytest.mark.asyncio

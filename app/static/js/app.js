@@ -2636,7 +2636,7 @@ async function _showModelPicker(agentName, currentModel, anchor) {
                 e.stopPropagation();
                 dd.remove();
                 try {
-                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope, fresh: true }) });
+                    const resp = await api(`/api/sessions/${agentName}/change-model`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ model: m.id, scope: currentScope }) });
                     if (resp && !resp.error) {
                         $('#ai-model').textContent = m.id;
                         _showHistoryTransfer(resp.history_transfer);
