@@ -55,10 +55,16 @@ def open_verified_pidfd(
     pid: int,
     expected_start_ticks: int,
     *,
-    pidfd_open: Callable[[int], int] = os.pidfd_open,
+    pidfd_open: Callable[[int], int] | None = None,
     read_starttime: Callable[[int], int] = _read_starttime,
 ) -> int:
     """Pin ``pid`` before comparing its starttime, closing the PID-reuse race."""
+    if pidfd_open is None:
+        pidfd_open = getattr(os, "pidfd_open", None)
+        if pidfd_open is None:
+            raise RestartGuardUnavailable(
+                "restart guard requires the os.pidfd_open capability"
+            )
     pidfd = pidfd_open(pid)
     try:
         actual_start_ticks = read_starttime(pid)
