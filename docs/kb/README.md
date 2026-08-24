@@ -46,6 +46,8 @@
   удаления, тесты на переписывание, ложные дубли и границы безопасной чистки.
 - [dead-code-audit](dead-code-audit.md) — доказательная проверка достижимости production-кода:
   Serena/LSP, AST, runtime registries, динамические входы и безопасные удаления.
+- [agent-code-intelligence](agent-code-intelligence.md) — измеренные границы Serena/LSP,
+  нативного `rg`+AST и лёгкого code-intelligence MCP для задач агентов.
 - [codex-runtime](codex-runtime.md) — Codex/Sol, выбор моделей, лимиты, потолки раундов ревью,
   приоритет пулов и отозванные сравнения по квоте.
 - [repo-ops](repo-ops.md) — git, деплой, systemd, секреты в артефактах, дубли одной мысли в двух
