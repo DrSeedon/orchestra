@@ -1585,6 +1585,15 @@ class CodexBackend(JsonRpcStdioTransport):
         self._teardown_error = None
 
     async def disconnect(self) -> None:
+        if self._terminal_reader_failure:
+            await self._abort_oversized_transport()
+            self._proc = None
+            self._scope_unit = None
+            self._reader_task = None
+            self._stderr_task = None
+            self._active_turn_id = None
+            self._teardown_error = None
+            return
         proc = self._proc
         if proc is None and self._scope_unit is None:
             if self._adopted_fds is not None or self._adopted_writer is not None:
@@ -1628,7 +1637,20 @@ class CodexBackend(JsonRpcStdioTransport):
                     self._terminal_reader_failure = True
                     self._active_turn_id = None
                     logger.error("%s", failure)
+                    for future in self._pending_requests.values():
+                        if not future.done():
+                            future.set_exception(failure)
+                    if self._compact_future and not self._compact_future.done():
+                        self._compact_future.set_exception(failure)
                     await self._abort_oversized_transport()
+                    await self._notifications.put({
+                        "method": "_process/exited",
+                        "params": {
+                            "returncode": getattr(self._proc, "returncode", None),
+                            "stderr": sanitize_sensitive_text(self._last_stderr).strip(),
+                            "reader_failure": str(failure),
+                        },
+                    })
                     return
                 if not raw:
                     break
@@ -1684,7 +1706,7 @@ class CodexBackend(JsonRpcStdioTransport):
             # on a process that is very much alive, so none of it may run: not the pending
             # futures, not the notification, and above all not `proc.wait()` — waiting for a
             # live CLI to exit stalled every handover until the shutdown timeout (#237 T1).
-            if not self._handover_quiescing:
+            if not self._handover_quiescing and not self._terminal_reader_failure:
                 # An ADOPTED transport has no Process object at all (#230 T2): the CLI is not
                 # our child. Its exit is then visible only as EOF on the pipe, which is why the
                 # reason is worded without a code instead of pretending we can wait() on it.
@@ -1777,12 +1799,12 @@ class CodexBackend(JsonRpcStdioTransport):
                 terminate_cli_process(pid, self.RUNTIME_LABEL, started_at)
             return
 
+        with suppress(Exception):
+            await self.teardown_owned_pipes()
         proc = self._proc
         if self._scope_unit:
-            try:
-                await self._signal_scope("KILL")
-            except Exception as exc:
-                logger.error("could not kill poisoned Codex scope: %s", exc)
+            with suppress(Exception):
+                await asyncio.wait_for(self._signal_scope("KILL"), timeout=1)
         if proc is not None and proc.returncode is None:
             with suppress(ProcessLookupError):
                 proc.kill()

@@ -612,10 +612,11 @@ class TestTurn:
         session._build_runtime_handoff = AsyncMock(return_value="bounded handoff")
 
         with pytest.raises(CodexOversizedRecordError):
-            await session._ensure_backend()
+            await session._ensure_backend(exclude_history_users=("queued",))
 
         assert session._make_backend.call_count == 2
         assert session.session_id is None
+        assert session._pending_messages == ["queued"]
 
     @pytest.mark.asyncio
     async def test_active_codex_oversized_turn_retires_backend_before_next_send(
@@ -3310,11 +3311,22 @@ class TestCompactPromptContract:
             yield AgentEvent(type="turn_end", content="", metadata={"session_id": "s2"})
 
         backend.events = lambda: events()
+        backend.active_turn_id = None
+        backend.context_usage = AsyncMock(return_value=None)
         session._backend = backend
+
+        async def ensure_backend(*, force_fresh):
+            session._backend = backend
+            session._listen_task = asyncio.create_task(session._persistent_event_loop())
+            return backend
+
+        ensure_backend = AsyncMock(side_effect=ensure_backend)
+        session._ensure_backend = ensure_backend
         monkeypatch.setattr(
             "app.session._claude_subscription_limit_active", lambda: False
         )
         await session.compact()
+        ensure_backend.assert_awaited_once_with(force_fresh=True)
         return sent[0] if sent else ""
 
     @pytest.mark.asyncio
