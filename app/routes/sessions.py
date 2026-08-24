@@ -25,6 +25,7 @@ from app.db import (
     get_logs_sync,
     get_runtime_handoff,
     get_session as get_session_row,
+    get_session_by_name,
 )
 from app.deps import manager
 from app.errtext import err_text
@@ -139,6 +140,8 @@ class CreateSessionRequest(BaseModel):
     owned_dirs: list[str] = []
     tg_topic: bool = False
     planned_initial_turn: bool = False
+    initial_task_title: str = ""
+    model_policy_override_reason: str = ""
 
     @field_validator("name")
     @classmethod
@@ -270,8 +273,20 @@ async def create_session(req: CreateSessionRequest):
             owned_dirs=req.owned_dirs,
             tg_topic=req.tg_topic,
             planned_initial_turn=req.planned_initial_turn,
+            initial_task_title=req.initial_task_title,
+            model_policy_override_reason=req.model_policy_override_reason,
         )
         d = session.to_dict()
+        if session.task_id:
+            from app import tm as _tm
+            with _tm._conn() as connection:
+                project = _tm.get_project_by_scope(connection, scope)
+                task_row = (
+                    _tm.resolve_task_ref(connection, session.task_id, project["id"])
+                    if project else None
+                )
+            if task_row:
+                d["task"] = _tm.task_dto(task_row)
         if req.use_worktree:
             d["repo_path"] = session._spawn_repo_path
             d["git_common_dir"] = session._spawn_git_common_dir
@@ -832,14 +847,21 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 getattr(getattr(target, "status", ""), "value", getattr(target, "status", ""))
             ) in {"running", "waiting"}
             if busy:
-                from app import mailbox
-                mailbox.enqueue(
-                    recipient=name,
-                    scope=req.scope,
-                    sender=req.sender or "",
-                    body=req.message,
+                durable_target = await asyncio.to_thread(
+                    get_session_by_name, name, req.scope,
                 )
-                return {"ok": True, "queued": True}
+                taskless_assignment = bool(
+                    req.sender and durable_target and not durable_target.get("task_id")
+                )
+                if not taskless_assignment:
+                    from app import mailbox
+                    mailbox.enqueue(
+                        recipient=name,
+                        scope=req.scope,
+                        sender=req.sender or "",
+                        body=req.message,
+                    )
+                    return {"ok": True, "queued": True}
             # известно, что получатель простаивает → будим, иначе сообщение залежится
         session = await manager.ensure_loaded(name, req.scope)
         if not session:
@@ -852,6 +874,83 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
             similar = [n for n in all_names if name.lower() in n.lower() or n.lower() in name.lower()]
             hint = f" Similar: {', '.join(similar[:5])}" if similar else f" Available: {', '.join(all_names[:10])}"
             return JSONResponse({"error": f"agent '{name}' not found.{hint}"}, status_code=404)
+        task_state = None
+        task_match = re.match(r"^\s*#(\d+)\s*:\s*", req.message)
+        durable = await asyncio.to_thread(__import__("app.db", fromlist=["get_session"]).get_session, session.id)
+        if req.sender and not durable:
+            return JSONResponse({"error": "durable session binding is required"}, status_code=409)
+        durable_task_id = (durable or {}).get("task_id") or ""
+        if req.sender and not durable_task_id:
+            if req.sender != durable.get("parent_name", ""):
+                return JSONResponse(
+                    {"error": "only the durable parent may assign a task"}, status_code=403,
+                )
+            from app import tm as _tm
+            title = re.sub(r"^\s*#\d+\s*:\s*", "", req.message).strip() or req.message.strip()
+            try:
+                created = await asyncio.to_thread(_tm.create_task_for_scope, req.scope, title)
+                # Taskless workers created before task binding are on an adhoc branch.
+                # Switch before the binding CAS so a failed switch leaves an honest new task.
+                if getattr(session, "worktree_path", "") and (
+                    getattr(session, "needs_switch", False)
+                    or str(getattr(session, "branch", "")).startswith("task-adhoc/")
+                ):
+                    from app.workspace import switch_worktree_branch
+                    switched = await asyncio.to_thread(
+                        switch_worktree_branch, session.worktree_path,
+                        f"task-{created['par_number']}/{session.name}",
+                        getattr(session, "base_branch", "") or "main",
+                        force=True, expect_absent=True,
+                    )
+                    if not switched.get("ok"):
+                        return JSONResponse(
+                            {"error": switched.get("error") or "task branch switch failed"},
+                            status_code=409,
+                        )
+                    session.needs_switch = False
+                    session.branch = switched.get("branch") or (
+                        f"task-{created['par_number']}/{session.name}"
+                    )
+                    from app.db import update_session_lifecycle
+                    await asyncio.to_thread(
+                        update_session_lifecycle,
+                        session.id,
+                        branch=session.branch,
+                        base_branch=getattr(session, "base_branch", "") or "main",
+                        task_id="",
+                        needs_switch=False,
+                    )
+                task_state = await asyncio.to_thread(
+                    _tm.bind_task_to_session, req.scope, session.id,
+                    str(created["par_number"]),
+                )
+                session.task_id = str(created["par_number"])
+                task_state["auto_created"] = True
+            except (ValueError, RuntimeError) as error:
+                return JSONResponse({"error": str(error)}, status_code=409)
+            if task_match:
+                clean_message = re.sub(r"^\s*#\d+\s*:\s*", "", req.message).strip()
+                req = req.model_copy(update={
+                    "message": f"[Task #{created['par_number']}] "
+                    f"{clean_message}"
+                })
+        elif req.sender and task_match and durable_task_id:
+            if task_match.group(1) != str(durable_task_id).lstrip("#"):
+                return JSONResponse(
+                    {"error": f"worker is bound to task #{durable_task_id}"}, status_code=409,
+                )
+        if not req.wake and busy:
+            from app import mailbox
+            mailbox.enqueue(
+                recipient=name,
+                scope=req.scope,
+                sender=req.sender or "",
+                body=req.message,
+            )
+            result = {"ok": True, "queued": True}
+            if task_state:
+                result["task"] = task_state
+            return result
         # #219 T1b, ГЕЙТ 1 из 2: явный отчёт ребёнка родителю. Второй гейт —
         # `session_turns.fire_auto_report` (молчаливое завершение хода). Прочие
         # девять вызовов `manager.send` не трогаем: среди них `[Background job
@@ -914,7 +1013,10 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
             msg = f"[{now}] {msg}"
         await manager.send(session.id, msg)
         pn = session.parent_name or ""
-        return {"ok": True, "parent_name": pn}
+        result = {"ok": True, "parent_name": pn}
+        if task_state:
+            result["task"] = task_state
+        return result
     except QuotaGateError as e:
         return JSONResponse(e.envelope(), status_code=e.status_code)
     except sqlite3.DatabaseError:
@@ -1432,21 +1534,23 @@ async def _persist_lifecycle_quarantine(
     *,
     branch: str,
     base_branch: str,
+    task_id: str = "",
+    needs_switch: bool = True,
 ) -> dict:
     """Persist a fail-closed lifecycle snapshot, retrying one transient failure."""
     errors: list[str] = []
     for _attempt in range(2):
         session.branch = branch
         session.base_branch = base_branch
-        session.task_id = ""
-        session.needs_switch = True
+        session.task_id = task_id
+        session.needs_switch = needs_switch
         try:
             await manager.persist_lifecycle(
                 session,
                 branch=branch,
                 base_branch=base_branch,
-                task_id="",
-                needs_switch=True,
+                task_id=task_id,
+                needs_switch=needs_switch,
             )
         except Exception as error:
             errors.append(err_text(error))
@@ -1461,6 +1565,132 @@ async def _persist_lifecycle_quarantine(
     }
 
 
+async def apply_merge_finalization(finalization: dict) -> dict:
+    """Everything the platform owns AFTER the merge commit point.
+
+    One owner for two callers: the merge that produced the commit, and a same-id replay
+    that resumes a DB stage which never landed. Both must be able to run it, and running
+    it twice must change nothing the second time.
+    """
+    from app import tm as _tm
+    from app.db import get_session
+    from app.workspace import switch_worktree_branch
+
+    session_id = finalization["session_id"]
+    applied = await asyncio.to_thread(_tm.finalize_merge_outcome, finalization)
+    out: dict = {"linked_tasks": applied["links"]}
+
+    row = await asyncio.to_thread(get_session, session_id)
+    session = manager.get(session_id) or (manager._hydrate_row(row) if row else None)
+    if session is None:
+        out["lifecycle_status"] = {
+            "ok": False, "error": f"session '{session_id}' disappeared before finalization",
+        }
+        return out
+
+    terminal = finalization["terminal_session"]
+    target = finalization["target_branch"]
+    branch = getattr(session, "branch", "") or ""
+    if terminal["task_id"]:
+        new_branch = f"task-{terminal['task_id']}/{session.name}"
+        try:
+            switch = await asyncio.to_thread(
+                switch_worktree_branch,
+                session.worktree_path, new_branch, target, force=True,
+            )
+        except Exception as error:
+            switch = {
+                "ok": False, "state": "failed",
+                "error": f"branch switch failed: {err_text(error)}",
+            }
+        out["switch"] = switch
+        if switch.get("ok"):
+            branch = switch.get("branch") or new_branch
+        else:
+            # Задача уже назначена в БД, а ветка не сменилась: воркер обязан остаться
+            # с needs_switch, иначе он допишет в уже смерженную ветку.
+            out["task_status"] = {
+                "ok": False,
+                "error": f"task assigned, branch switch failed: {switch.get('error', '')}",
+            }
+            out["lifecycle_status"] = await _persist_lifecycle_quarantine(
+                session, branch=branch, base_branch=target,
+                task_id=terminal["task_id"], needs_switch=True,
+            )
+            return out
+        out["task_status"] = {"ok": True, "par": terminal["task_id"]}
+    out["lifecycle_status"] = await _persist_lifecycle_quarantine(
+        session,
+        branch=branch,
+        base_branch=target,
+        task_id=terminal["task_id"],
+        needs_switch=bool(terminal["needs_switch"]),
+    )
+    return out
+
+
+async def _finalize_committed_merge(
+    *,
+    result: dict,
+    finalization: dict,
+    found,
+    operation_id: str,
+    row_scope: str,
+    merged_commits: dict,
+) -> dict:
+    """Run the durable checkpoint and the DB stage of a merge that already committed."""
+    from app import merge_operations as _ops
+    from app import rag_service
+
+    finalization["commits"] = merged_commits
+    finalization["target_after"] = result.get("target_after") or ""
+    finalization["stage"] = "PENDING"
+    if operation_id:
+        try:
+            await asyncio.to_thread(
+                _ops.checkpoint_merge_commit, operation_id, finalization,
+            )
+        except Exception as error:
+            # Первая запись после Git И ЕСТЬ журнал. Потеряли её — состояние БД неизвестно,
+            # и восстанавливать его надо из репозитория (trailer + parent + tree), а не
+            # повторной попыткой: повтор не отличить от второго мержа.
+            detail = err_text(error)
+            logger.error(
+                "merge checkpoint lost operation_id=%s: %s", operation_id, detail,
+            )
+            result.update(
+                ok=False,
+                state="partial",
+                commit_point="unknown",
+                error=f"first post-commit checkpoint lost: {detail}",
+                finalization=finalization,
+                finalization_checkpoint_lost=detail,
+            )
+            return result
+    try:
+        applied = await apply_merge_finalization(finalization)
+    except Exception as error:
+        detail = err_text(error)
+        logger.error("merge finalization failed operation_id=%s: %s", operation_id, detail)
+        result.update(
+            ok=False,
+            state="partial",
+            commit_point="target_committed",
+            error=f"merge finalization failed: {detail}",
+            finalization=finalization,
+        )
+        return result
+    finalization["stage"] = "APPLIED"
+    if operation_id:
+        await asyncio.to_thread(
+            _ops.mark_finalization_applied, operation_id, finalization,
+        )
+    result.update(applied)
+    result["finalization"] = finalization
+    result["rag_backfill_status"] = rag_service.schedule_backfill(row_scope)
+    return result
+
+
 async def execute_merge_session(
     *,
     session_id: str,
@@ -1472,6 +1702,7 @@ async def execute_merge_session(
     expected_target_head: str = "",
 ) -> dict:
     """Execute a merge for one pinned session identity and own its lock sequence."""
+    from app import merge_operations as _ops
     from app import tm as _tm
     from app.db import get_session
     from app.workspace import (
@@ -1483,6 +1714,7 @@ async def execute_merge_session(
 
     requested_target = req.get("target", "")
     next_task_id = req.get("next_task_id", "")
+    operation_id = str(req.get("operation_id") or "")
     expected_scope = expected_scope.rstrip("/")
 
     async with manager.get_session_lock(session_id):
@@ -1536,7 +1768,52 @@ async def execute_merge_session(
             )
 
         task_identity = None
+        primary_task_identity = None
+        primary_task_ref = ""
         project_id = ""
+        strict_task_merge = str(req.get("merge_schema_version") or "") == "2"
+        task_outcome = str(req.get("task_outcome") or "").strip().lower()
+        if strict_task_merge:
+            if task_outcome not in {"continue", "complete"}:
+                return _merge_not_reached(
+                    "task_outcome must be 'continue' or 'complete' for merge schema 2",
+                    worker_branch=row_branch,
+                    worker_head=expected_head,
+                    http_status=400,
+                )
+            if task_outcome == "continue" and next_task_id:
+                # Смена задачи — это ЗАКРЫТИЕ текущей и назначение следующей одной
+                # транзакцией. `continue` с next_task_id оставил бы текущую открытой
+                # и без воркера, то есть ровно ту забывчивость, которую #248 убирает.
+                return _merge_not_reached(
+                    "next_task_id requires task_outcome='complete'",
+                    worker_branch=row_branch,
+                    worker_head=expected_head,
+                    http_status=400,
+                )
+            primary_task_ref = str(row.get("task_id") or "").strip()
+            if not primary_task_ref:
+                return _merge_not_reached(
+                    "session has no bound task",
+                    worker_branch=row_branch,
+                    worker_head=expected_head,
+                    http_status=409,
+                )
+            try:
+                primary_resolution = await asyncio.to_thread(
+                    _tm.resolve_scoped_task_identities,
+                    row_scope,
+                    [primary_task_ref],
+                    bound_session_id=session_id,
+                )
+            except ValueError as e:
+                return _merge_not_reached(
+                    str(e), worker_branch=row_branch, worker_head=expected_head,
+                    http_status=409,
+                )
+            primary_task_identity = primary_resolution["tasks"][0]
+            primary_task_ref = primary_resolution["canonical_refs"][0]
+            project_id = primary_resolution["project_id"]
         if next_task_id:
             try:
                 task_identity = await asyncio.to_thread(
@@ -1547,8 +1824,9 @@ async def execute_merge_session(
                     str(e), worker_branch=row_branch, worker_head=expected_head,
                     http_status=400,
                 )
-            project_id = task_identity["project_id"]
-        else:
+            if not project_id:
+                project_id = task_identity["project_id"]
+        elif not project_id:
             def _project_for_scope() -> str:
                 with _tm._conn() as conn:
                     project = _tm.get_project_by_scope(conn, row_scope)
@@ -1633,6 +1911,50 @@ async def execute_merge_session(
                     http_status=409,
                 )
             merge_head = drift["actual_head"] or pinned_head
+
+            finalization: dict | None = None
+            if strict_task_merge:
+                try:
+                    finalization = await asyncio.to_thread(
+                        _tm.prepare_merge_finalization,
+                        scope=row_scope,
+                        session_id=session_id,
+                        project_id=project_id,
+                        outcome=task_outcome,
+                        task=primary_task_identity,
+                        next_task=task_identity,
+                        operation_id=operation_id,
+                    )
+                except ValueError as e:
+                    return _merge_not_reached(
+                        str(e),
+                        target_branch=target,
+                        worker_branch=pinned_branch,
+                        worker_head=merge_head,
+                        http_status=409,
+                    )
+                finalization["target_branch"] = target
+                finalization["worker_head"] = merge_head
+
+            def _resolve_candidate_refs(actual_refs: list[str]) -> list[str]:
+                """Turn the refs found on the pinned HEAD into canonical scoped ones.
+
+                Runs under the repository lock, on the same inspection that guards the
+                emitted subject — a ref this refuses never reaches a commit.
+                """
+                canonical = _tm.resolve_scoped_task_identities(
+                    row_scope, actual_refs,
+                )["canonical_refs"]
+                finalization["candidate_refs"] = canonical
+                return canonical
+
+            def _prepare_finalization(target_before: str, expected_tree: str) -> None:
+                """Freeze the pre-Git journal under the repo lock, before any mutation."""
+                finalization["target_before"] = target_before
+                finalization["expected_tree"] = expected_tree
+                if operation_id:
+                    _ops.save_prepared_finalization(operation_id, finalization)
+
             try:
                 result = await asyncio.to_thread(
                     merge_worktree_to_main,
@@ -1644,8 +1966,17 @@ async def execute_merge_session(
                     expected_target_head=expected_target_head,
                     waive_diff_budget=bool(req.get("waive_diff_budget")),
                     waived_by=str(req.get("waived_by") or ""),
+                    primary_task_ref=primary_task_ref,
+                    operation_id=operation_id if finalization is not None else "",
+                    prepare=_prepare_finalization if finalization is not None else None,
+                    resolve_refs=(
+                        _resolve_candidate_refs if finalization is not None else None
+                    ),
                 )
             except Exception as e:
+                # Реmержа не было видно ни одной стороной: исход Git неизвестен, поэтому
+                # резервация НЕ снимается — иначе задачу заберёт другой воркер, пока
+                # никто не знает, коммитнулась она или нет.
                 return {
                     **_merge_not_reached(
                         f"merge execution failed: {type(e).__name__}: {e}",
@@ -1661,11 +1992,31 @@ async def execute_merge_session(
             if isinstance(result, dict):
                 result["head_drift"] = drift["class"]
                 result["worker_head_pinned"] = pinned_head
+                if strict_task_merge:
+                    result["task_outcome"] = task_outcome
+                    result["primary_task"] = primary_task_identity
             if not result.get("ok"):
+                if finalization is not None and result.get("commit_point") in {
+                    "not_reached", "rolled_back",
+                }:
+                    # Git до commit point не дошёл — доказано самим git'ом, поэтому
+                    # резервацию можно снять и задача снова доступна для spawn/send.
+                    await asyncio.to_thread(_tm.release_merge_finalization, finalization)
                 return result
 
+            merged_commits = result.pop("merged_commits", {})
+            if finalization is not None:
+                return await _finalize_committed_merge(
+                    result=result,
+                    finalization=finalization,
+                    found=found,
+                    operation_id=operation_id,
+                    row_scope=row_scope,
+                    merged_commits=merged_commits,
+                )
+
             link_results = {}
-            for task_ref, commits in result.pop("merged_commits", {}).items():
+            for task_ref, commits in merged_commits.items():
                 if not project_id:
                     link_results[task_ref] = {
                         "ok": False,
@@ -1694,10 +2045,24 @@ async def execute_merge_session(
             merged_branch = (
                 result.get("branch") or getattr(found, "branch", "") or ""
             )
+            # Старый MCP не умеет сказать, закончена задача или продолжается, поэтому
+            # закрыть её он не может НИКОГДА — он деградирует ровно в сегодняшнее «статус
+            # не тронут», но с сохранённой привязкой, чтобы работа не потеряла воркера.
+            legacy_task_id = "" if next_task_id else str(row.get("task_id") or "")
+            if legacy_task_id:
+                result.setdefault("warnings", []).append({
+                    "code": "LEGACY_MERGE_CONTINUE",
+                    "message": (
+                        f"merge came from an operation-v1 client: task #{legacy_task_id} "
+                        "stays in_progress and bound. Reconnect the agent to get "
+                        "task-lifecycle-v2 and merge with task_outcome='complete'."
+                    ),
+                })
             lifecycle_status = await _persist_lifecycle_quarantine(
                 found,
                 branch=merged_branch,
                 base_branch=target,
+                task_id=legacy_task_id,
             )
             result["lifecycle_status"] = lifecycle_status
             if not lifecycle_status["ok"]:

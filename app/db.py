@@ -392,6 +392,13 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status);
             CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number);
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id);
+            CREATE TABLE IF NOT EXISTS tm_task_reservations (
+                task_id INTEGER PRIMARY KEY REFERENCES tm_tasks(id) ON DELETE CASCADE,
+                operation_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                session_id TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS tm_clients (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -521,7 +528,9 @@ def init_db() -> None:
                 resolved_at TEXT,
                 resolution_outcome TEXT NOT NULL DEFAULT '',
                 resolution_evidence_hash TEXT NOT NULL DEFAULT '',
-                resolution_actor TEXT NOT NULL DEFAULT ''
+                resolution_actor TEXT NOT NULL DEFAULT '',
+                finalization_stage TEXT NOT NULL DEFAULT 'NOT_REQUIRED',
+                finalization_json TEXT NOT NULL DEFAULT '{}'
             );
             CREATE INDEX IF NOT EXISTS idx_merge_operations_fingerprint
                 ON merge_operations(dedupe_fingerprint);
@@ -998,6 +1007,25 @@ def _migrate(c) -> None:
         except Exception as e:
             logger.warning(f"migration: {tbl} tm_tasks_old reference fix failed: {e}", exc_info=True)
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id)")
+    op_cols = {row[1] for row in c.execute("PRAGMA table_info(merge_operations)").fetchall()}
+    if op_cols and "finalization_stage" not in op_cols:
+        # Старые строки читаются прежним recovery path: у них нет стадии финализации.
+        c.execute(
+            "ALTER TABLE merge_operations ADD COLUMN finalization_stage TEXT "
+            "NOT NULL DEFAULT 'NOT_REQUIRED'"
+        )
+    if op_cols and "finalization_json" not in op_cols:
+        c.execute(
+            "ALTER TABLE merge_operations ADD COLUMN finalization_json TEXT "
+            "NOT NULL DEFAULT '{}'"
+        )
+    c.execute("""CREATE TABLE IF NOT EXISTS tm_task_reservations (
+        task_id INTEGER PRIMARY KEY REFERENCES tm_tasks(id) ON DELETE CASCADE,
+        operation_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        session_id TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+    )""")
     task_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_tasks)").fetchall()}
     if task_cols and "acceptance_command" not in task_cols:
         c.execute(
@@ -1305,7 +1333,7 @@ def save_session(
         """, s)
 
 
-def publish_ready_session(s: dict) -> None:
+def publish_ready_session(s: dict, task_identity: dict | None = None) -> None:
     """Atomically replace one archived identity with a fully prepared session."""
     with _conn() as c:
         c.execute("BEGIN IMMEDIATE")
@@ -1316,6 +1344,27 @@ def publish_ready_session(s: dict) -> None:
             (s["name"], s["scope"]),
         )
         save_session(s, _connection=c)
+        if task_identity:
+            if c.execute(
+                "SELECT 1 FROM tm_task_reservations WHERE task_id = ?",
+                (task_identity["id"],),
+            ).fetchone():
+                raise ValueError(f"task #{task_identity['par_number']} is reserved")
+            cur = c.execute(
+                "UPDATE tm_tasks SET worker_session_id=?, status='in_progress', "
+                "sync_revision=sync_revision+1, updated_at=? "
+                "WHERE id=? AND project_id=? AND par_number=? AND sync_revision=? "
+                "AND worker_session_id IS NULL",
+                (
+                    s["id"], datetime.now(timezone.utc).isoformat(),
+                    task_identity["id"], task_identity["project_id"],
+                    task_identity["par_number"], task_identity["sync_revision"],
+                ),
+            )
+            if cur.rowcount != 1:
+                raise ValueError(
+                    f"task #{task_identity['par_number']} binding compare-and-swap failed"
+                )
 
 
 def update_session_lifecycle(
@@ -1510,11 +1559,16 @@ def delete_archived_session(name: str, scope: str) -> None:
 
 
 def archive_session(session_id: str) -> None:
+    from app import tm
+
     with _conn() as c:
         cur = c.execute(
             "UPDATE sessions SET status='archived', finished_at=? WHERE id=?",
             (datetime.now(timezone.utc).isoformat(), session_id),
         )
+        # Одна транзакция с архивацией: между «воркера больше нет» и «его задача
+        # пересчитана» не должно существовать окна, в котором задача числится за мёртвым.
+        tm.release_session_task_binding(c, session_id)
         if cur.rowcount == 0:
             logger.warning(
                 "UPDATE sessions changed 0 rows: session id=%r not archived", session_id,

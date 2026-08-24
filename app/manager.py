@@ -600,7 +600,9 @@ class SessionManager:
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
                              tg_topic: bool = False,
-                             planned_initial_turn: bool = False) -> AgentSession:
+                             planned_initial_turn: bool = False,
+                             initial_task_title: str = "",
+                             model_policy_override_reason: str = "") -> AgentSession:
         normalized_scope = scope.rstrip("/")
         key = (normalized_scope, name)
         lock = self._spawn_locks.setdefault(key, asyncio.Lock())
@@ -627,6 +629,8 @@ class SessionManager:
                 owned_dirs=owned_dirs,
                 tg_topic=tg_topic,
                 planned_initial_turn=planned_initial_turn,
+                initial_task_title=initial_task_title,
+                model_policy_override_reason=model_policy_override_reason,
             )
 
     async def _create_session_locked(self, name: str, scope: str, cwd: str, model: str,
@@ -640,7 +644,9 @@ class SessionManager:
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
                              tg_topic: bool = False,
-                             planned_initial_turn: bool = False) -> AgentSession:
+                             planned_initial_turn: bool = False,
+                             initial_task_title: str = "",
+                             model_policy_override_reason: str = "") -> AgentSession:
         scope = scope.rstrip("/")
         cwd = cwd.rstrip("/")
         model = resolve_model(model)
@@ -788,6 +794,18 @@ class SessionManager:
             )
 
         task_identity = None
+        allocated_task_id = None
+        if planned_initial_turn and not task_id and not is_orch:
+            from app.tm import create_task_for_scope, resolve_scoped_task_identity
+            created = await asyncio.to_thread(
+                create_task_for_scope, scope,
+                initial_task_title.strip() or description.strip() or f"Work for {name}",
+            )
+            task_identity = await asyncio.to_thread(
+                resolve_scoped_task_identity, scope, str(created["par_number"]),
+            )
+            allocated_task_id = task_identity["id"]
+            task_id = str(task_identity["par_number"])
         if task_id and not is_orch:
             from app.tm import resolve_scoped_task_identity
             task_identity = await asyncio.to_thread(
@@ -887,6 +905,12 @@ class SessionManager:
                     )
                 except Exception as error:
                     errors.append(f"Git cleanup: {type(error).__name__}: {error}")
+            if allocated_task_id is not None:
+                try:
+                    from app.tm import discard_unbound_task
+                    await asyncio.to_thread(discard_unbound_task, allocated_task_id)
+                except Exception as error:
+                    errors.append(f"task cleanup: {type(error).__name__}: {error}")
             if errors:
                 raise RuntimeError("; ".join(errors))
 
@@ -916,32 +940,20 @@ class SessionManager:
         async def finalize() -> AgentSession:
             try:
                 await asyncio.to_thread(
-                    publish_ready_session, session._to_db_dict(),
+                    publish_ready_session, session._to_db_dict(), task_identity,
                 )
             except BaseException as publish_error:
                 await compensate_after(publish_error)
                 raise
 
             self.sessions[session.id] = session
-
             if task_identity:
-                from app.tm import api_update_task_if_current
                 try:
-                    task_status = await asyncio.to_thread(
-                        api_update_task_if_current,
-                        task_identity,
-                        status="in_progress",
-                        worker_session_id=session.id,
-                    )
-                except Exception as task_error:
-                    detail = err_text(task_error)
-                    task_status = {"ok": False, "error": detail}
-                if not task_status.get("ok"):
-                    detail = task_status.get("error") or "unknown task update failure"
-                    session._spawn_warning = (
-                        f"worker is ready, but task #{task_id} was not updated: {detail}"
-                    )
-                    logger.warning(session._spawn_warning)
+                    from app.tm import _fire_sync
+                    _fire_sync(task_identity["id"])
+                except Exception as error:
+                    logger.warning("task sync after publish failed: %s", err_text(error))
+
             return session
 
         finalize_task = asyncio.create_task(finalize())

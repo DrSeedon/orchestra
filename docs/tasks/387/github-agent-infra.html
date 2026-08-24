@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>#387 — Пять GitHub-проектов для Orchestra</title>
+  <style>
+    :root{
+      color-scheme: light dark;
+      /* акцент: холодный голубой — инфраструктура, исполнение и связность систем */
+      --accent: light-dark(#176b87, #61c5e8);
+      --fs: 15px;
+      --radius: 12px;
+      --font: ui-sans-serif, system-ui, sans-serif;
+      --font-head: ui-serif, Georgia, serif;
+      --bg: light-dark(#fff, #181818);
+      --ink: light-dark(#1a1c1f, #f2f2f0);
+      --mut: color-mix(in srgb, var(--ink) 48%, transparent);
+      --card: color-mix(in oklab, var(--ink) 5%, transparent);
+      --border: color-mix(in srgb, var(--ink) 12%, transparent);
+      --ring: var(--accent);
+      --bad: light-dark(#c0341a, #ff7a63);
+      --fs-sm: max(11px, calc(var(--fs) - 2px));
+      --fs-h3: calc(var(--fs) * 1.29);
+      --fs-h2: calc(var(--fs) * 1.43);
+      --fs-h1: calc(var(--fs) * 1.72);
+      --r-sm: calc(var(--radius) * .6);
+      --r-lg: calc(var(--radius) * 1.6);
+      --shadow: 0 1px 2px -1px rgb(0 0 0 / 8%);
+      --s1: var(--accent);
+      --s2: light-dark(#c26a1f, #f59a56);
+      --s3: light-dark(#2f7d46, #74d58b);
+      --s4: light-dark(#b8457f, #f08fc0);
+      --s5: light-dark(#6b57c4, #aa91ef);
+      --s6: light-dark(#1f7a72, #5acbc2);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;padding:clamp(16px,4vw,40px);background:var(--bg);color:var(--ink);
+         font:430 var(--fs)/1.5 var(--font);letter-spacing:0}
+    h1,h2,h3{margin:0;font-family:var(--font-head);font-weight:500;line-height:1.25}
+    h1{font-size:var(--fs-h1)} h2{font-size:var(--fs-h2)} h3{font-size:var(--fs-h3)}
+    small,.sm{font-size:var(--fs-sm)} .mut{color:var(--mut)}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 24px 10px 0;border-bottom:1px solid var(--border);
+          text-align:start;vertical-align:top;overflow-wrap:anywhere}
+    th{font-weight:600;border-bottom-color:color-mix(in srgb,var(--ink) 16%,transparent)}
+    tbody tr:last-child :is(th,td){border-bottom:0}
+    .num{text-align:end;font-variant-numeric:tabular-nums}
+    .scroll{overflow-x:auto;scrollbar-width:thin}
+    .card{padding:12px;border-radius:var(--r-lg);background:var(--card)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(max(180px,24%),1fr));gap:12px}
+    .badge{padding:3px 8px;border-radius:9999px;font-size:var(--fs-sm);
+           background:color-mix(in srgb,var(--accent) 15%,transparent)}
+    code{padding:1px 6px;border-radius:var(--r-sm);font-size:.92em;
+         font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+         background:color-mix(in srgb,var(--ink) 10%,transparent);
+         box-decoration-break:clone;-webkit-box-decoration-break:clone;overflow-wrap:anywhere}
+    :is(a,button,summary,input,select,[tabindex]):focus-visible{
+         outline:2px solid var(--ring);outline-offset:2px}
+    :is([aria-pressed="true"],[aria-selected="true"]){background:var(--accent);color:var(--bg)}
+    svg{display:block;max-width:100%;height:auto}
+    .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+    main{max-width:1180px;margin:0 auto}
+    header{display:grid;gap:8px;padding-bottom:24px;border-bottom:1px solid var(--border)}
+    section{padding:24px 0;border-bottom:1px solid var(--border)}
+    section:last-child{border-bottom:0}
+    .lead{max-width:840px;margin:0;color:var(--mut)}
+    .verdict{border-inline-start:4px solid var(--accent)}
+    .rank{font:600 var(--fs-sm)/1 var(--font);color:var(--mut);text-transform:uppercase;letter-spacing:.08em}
+    .score{display:inline-grid;place-items:center;min-width:32px;aspect-ratio:1;border-radius:9999px;
+           background:color-mix(in srgb,var(--accent) 18%,transparent);font-weight:600}
+    .good{color:var(--s3)} .watch{color:var(--s2)} .stop{color:var(--bad)}
+    .stack{display:grid;gap:12px}
+    .facts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    .facts span{padding:2px 6px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:var(--fs-sm)}
+    .flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;counter-reset:step}
+    .step{position:relative;padding:16px 12px 12px;border-top:3px solid var(--s1);background:var(--card);
+          border-radius:0 0 var(--r-lg) var(--r-lg)}
+    .step:nth-child(2){border-color:var(--s4)} .step:nth-child(3){border-color:var(--s3)}
+    .step:nth-child(4){border-color:var(--s2)} .step:nth-child(5){border-color:var(--s5)}
+    .step::before{counter-increment:step;content:counter(step);position:absolute;inset-block-start:-14px;
+                 inset-inline-end:12px;background:var(--bg);border:2px solid currentColor;border-radius:9999px;
+                 width:24px;aspect-ratio:1;display:grid;place-items:center;font-size:var(--fs-sm);font-weight:600}
+    details{padding:12px 0;border-bottom:1px solid var(--border)}
+    details:last-child{border-bottom:0}
+    summary{cursor:pointer;font-weight:600}
+    ul{margin:8px 0 0;padding-inline-start:24px}
+    li+li{margin-top:4px}
+    a{color:var(--accent);text-underline-offset:3px}
+    .correction td:first-child{font-weight:600}
+    @media(max-width:640px){
+      th,td{padding:8px 16px 8px 0}
+      .wide{min-width:760px}
+    }
+    @media print{
+      :root{color-scheme:light}
+      body{padding:0;background:#fff;color:#000}
+      .no-print{display:none}
+      tr,li{break-inside:avoid}
+      details{display:block} details>summary{list-style:none} details>*:not(summary){display:block}
+      *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="rank">Исследование #387 · 24 августа 2026</div>
+    <h1>Пять модных репозиториев: два стоит проверять, три — разбирать на детали</h1>
+    <p class="lead">Для Orchestra главный выигрыш не в установке ещё пяти платформ. OpenViking стоит
+      прогнать в shadow-eval памяти; у Semantica — забрать модель provenance. Cloudflare Computer,
+      Omarchy и Needle полезнее как источники конкретных контрактов, чем как зависимости.</p>
+    <div class="facts">
+      <span>5 репозиториев</span><span>5 лицензий проверено</span>
+      <span>код + docs + issues</span><span>без изменений production</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="grid">
+      <article class="card verdict">
+        <div class="rank">Лучший пилот</div>
+        <h2>OpenViking</h2>
+        <p>Иерархическая память L0/L1/L2 и видимый retrieval trace. Проверить на наших 50 прошлых запросах, не заменяя current RAG.</p>
+        <span class="badge good">shadow-eval</span>
+      </article>
+      <article class="card verdict">
+        <div class="rank">Лучший паттерн</div>
+        <h2>Semantica</h2>
+        <p>Связать task → worker → review → merge → restart причинными рёбрами. Брать схему, а не огромный dependency stack.</p>
+        <span class="badge good">адаптировать</span>
+      </article>
+      <article class="card">
+        <div class="rank">Будущий runtime</div>
+        <h2>Computer</h2>
+        <p>Durable filesystem и три backend исполнения. Архитектура сильная, продукт preview и жёстко привязан к Cloudflare.</p>
+        <span class="badge watch">наблюдать</span>
+      </article>
+      <article class="card">
+        <div class="rank">Не вся ОС</div>
+        <h2>Omarchy</h2>
+        <p>Заимствовать cross-machine quota, coredump → agent и snapshots. Переустанавливать рабочий ноутбук не нужно.</p>
+        <span class="badge watch">взять детали</span>
+      </article>
+      <article class="card">
+        <div class="rank">Не для опасных tools</div>
+        <h2>Needle 2</h2>
+        <p>14 МБ и 28 МБ RAM впечатляют, но аргументы tool calls пока ненадёжны. Только low-risk/offline эксперимент.</p>
+        <span class="badge stop">не внедрять</span>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Матрица решения</h2>
+    <div class="scroll">
+      <table class="wide">
+        <thead><tr><th>Проект</th><th>Что реально даёт</th><th>Совпадение с Orchestra</th><th>Главный риск</th><th>Решение</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/volcengine/OpenViking">OpenViking</a></td><td>Context FS, L0/L1/L2, hierarchical retrieval, session memory</td><td><span class="score">5</span> / 5</td><td>Дублирует RAG; авто-память может закреплять ошибки</td><td class="good">Shadow benchmark</td></tr>
+          <tr><td><a href="https://github.com/semantica-agi/semantica">Semantica</a></td><td>Decision graph, provenance, causal chain, policies</td><td><span class="score">4</span> / 5</td><td>Очень широкая библиотека; reasoning не доказывает истину</td><td class="good">Перенести минимальную схему</td></tr>
+          <tr><td><a href="https://github.com/cloudflare/computer">Computer</a></td><td>Durable workspace + isolate/container backends</td><td><span class="score">3</span> / 5</td><td>Preview, Cloudflare lock-in, не screen control</td><td class="watch">ADR на будущее</td></tr>
+          <tr><td><a href="https://github.com/basecamp/omarchy">Omarchy</a></td><td>Agent-first desktop, quota aggregation, crash workflow, snapshots</td><td><span class="score">2</span> / 5 целиком</td><td>Полная Arch OS вместо серверного компонента</td><td class="watch">Заимствовать 3 утилиты</td></tr>
+          <tr><td><a href="https://github.com/cactus-compute/needle">Needle 2</a></td><td>45M tool model, 14 МБ, grammar JSON, confidence head</td><td><span class="score">2</span> / 5</td><td>Hallucinated arguments; confidence плохо разделяет ошибки</td><td class="stop">Только low-risk pilot</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Что делать по порядку</h2>
+    <div class="flow">
+      <article class="step"><h3>OpenViking shadow</h3><p>50 реальных memory queries, interleaved A/B, recall, latency, tokens, false confidence.</p></article>
+      <article class="step"><h3>Provenance MVP</h3><p>Server-owned nodes и edges поверх SQLite без Neo4j и без chain-of-thought.</p></article>
+      <article class="step"><h3>Quota cross-check</h3><p>Сверить Omarchy collectors с VPS + ноутбук и найти неполноту текущего учёта.</p></article>
+      <article class="step"><h3>Runtime ADR</h3><p>Закрепить generation UUID, durable journal и no-replay из Computer.</p></article>
+      <article class="step"><h3>Needle — пауза</h3><p>Возвращаться только при реальной задаче offline/on-device intent routing.</p></article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Где пересказ вводит в заблуждение</h2>
+    <div class="scroll">
+      <table class="correction wide">
+        <tbody>
+          <tr><td>Computer</td><td>Не водит мышкой по экрану. Это облачная файловая система и execution runtime.</td></tr>
+          <tr><td>OpenViking</td><td>Не просто «база памяти»: часть запросов вызывает LLM planner/rerank, а session commit — LLM extraction.</td></tr>
+          <tr><td>Omarchy</td><td>Не новая Linux-основа: это curated Arch + Hyprland + Quickshell с жёстким workflow.</td></tr>
+          <tr><td>Needle</td><td>14 МБ — правда, но текущий Needle 2 уже 45M, а не 26M; размер важнее качества на графике авторов.</td></tr>
+          <tr><td>Semantica</td><td>Граф фиксирует переданное reasoning, но не верифицирует его. Базовый graph не persistent автоматически.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Подробности по проектам</h2>
+    <details open>
+      <summary>Cloudflare Computer — почему архитектура знакома после #380/#381</summary>
+      <ul>
+        <li>SQLite в Durable Object — единственный источник состояния workspace.</li>
+        <li>Worker shell/JavaScript быстрые; Linux container даёт настоящие binaries и network.</li>
+        <li>Если spawn мог быть принят до transport failure, команда не replay-ится.</li>
+        <li>Orchestra уже строит похожие receipt/fencing контракты; импорт Cloudflare stack не нужен.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>OpenViking — реальная дельта к нашему search_memory</summary>
+      <ul>
+        <li>У нас плоский hybrid search по Markdown/messages; у них directory recursion и уровни детализации.</li>
+        <li>У них trace показывает, почему retrieval пришёл к конкретному файлу.</li>
+        <li>Их benchmark vendor-supplied и на Doubao, поэтому нужен наш corpus.</li>
+        <li>Auto-memory сначала держать выключенной: curated память Orchestra безопаснее.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>Omarchy — полезные части без переустановки</summary>
+      <ul>
+        <li>Одна quota panel объединяет Claude, Codex, Fireworks и записи других машин.</li>
+        <li>Systemd coredump превращается в диагностическую задачу агенту.</li>
+        <li>Update включает snapshot, migrations и config; bad update откатывается из boot menu.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>Needle 2 — размер впечатляет, аргументы опасны</summary>
+      <ul>
+        <li>45M parameters, CQ2-bit, 14 МБ binary, около 28 МБ RAM, 256-token window.</li>
+        <li>Schema grammar гарантирует форму JSON, но не истинность выбранных значений.</li>
+        <li>В issue #61 fine-tune улучшил tool retrieval, но не убрал fabricated arguments.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>Semantica — 80% пользы в двух SQLite-таблицах</summary>
+      <ul>
+        <li>Nodes: user request, task, turn, review, merge, deploy, incident.</li>
+        <li>Edges: CAUSED, BLOCKED_BY, REVIEWED, MERGED_AS, RETRIED_FROM.</li>
+        <li>Отдельно server fact, user claim и agent claim — граф не должен уравнивать их.</li>
+        <li>Не хранить скрытую chain-of-thought; только опубликованное основание и серверные факты.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section>
+    <h2>Источники и воспроизводимость</h2>
+    <p class="mut">Полная методика, ревизии clone, метаданные, ограничения и рекомендации лежат в
+      <code>docs/tasks/387/research.md</code>. Репозитории проверены на ревизиях:
+      Computer de87919; OpenViking 9eac8a6; Omarchy 43bfe9b; Needle 7bd8a63; Semantica 6c2ccfd.</p>
+    <p><a href="https://docs.openviking.ai/en/concepts/01-architecture">OpenViking architecture</a> ·
+      <a href="https://docs.openviking.ai/en/agent-integrations/04-codex">Codex integration</a> ·
+      <a href="https://github.com/cactus-compute/needle/issues/61">Needle user evaluation #61</a></p>
+  </section>
+</main>
+</body>
+</html>

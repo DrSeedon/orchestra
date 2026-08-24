@@ -456,10 +456,10 @@ class TestAtomicSpawnLifecycle:
         release = threading.Event()
         real_publish = manager_module.publish_ready_session
 
-        def blocked_publish(row):
+        def blocked_publish(row, task_identity=None):
             entered.set()
             assert release.wait(2)
-            return real_publish(row)
+            return real_publish(row, task_identity)
 
         monkeypatch.setattr(manager_module, "publish_ready_session", blocked_publish)
         spawn = asyncio.create_task(mgr.create_session(
@@ -550,7 +550,9 @@ class TestAtomicSpawnLifecycle:
         )
         monkeypatch.setattr(
             manager_module, "publish_ready_session",
-            lambda _row: (_ for _ in ()).throw(RuntimeError("final publish failed")),
+            lambda _row, _task=None: (_ for _ in ()).throw(
+                RuntimeError("final publish failed")
+            ),
         )
 
         with pytest.raises(RuntimeError, match="final publish failed"):
@@ -730,7 +732,7 @@ class TestAtomicSpawnLifecycle:
         assert get_session(session.id)["status"] == "idle"
 
     @pytest.mark.asyncio
-    async def test_task_update_failure_returns_ready_worker_warning(
+    async def test_task_binding_is_published_atomically_without_post_publish_warning(
         self, mgr, monkeypatch,
     ):
         from app import tm
@@ -739,25 +741,18 @@ class TestAtomicSpawnLifecycle:
         with tm._conn() as conn:
             tm.ensure_project(conn, "project", scope="/s")
             task = tm.create_task(conn, "project", "next", par_number=93)
-        monkeypatch.setattr(
-            tm,
-            "api_update_task_if_current",
-            lambda *_args, **_kwargs: {
-                "ok": False, "error": "task revision changed",
-            },
-        )
-
         session = await mgr.create_session(
             name="warning", scope="/s", cwd="/tmp",
             model="claude-sonnet-5[1m]", task_id="93",
         )
 
-        assert "worker is ready" in session._spawn_warning
-        assert "task revision changed" in session._spawn_warning
+        assert session._spawn_warning == ""
         assert mgr.sessions[session.id] is session
         assert get_session(session.id)["status"] == "idle"
         with tm._conn() as conn:
-            assert tm.get_task_by_id(conn, task["id"])["status"] == "new"
+            bound = tm.get_task_by_id(conn, task["id"])
+        assert bound["status"] == "in_progress"
+        assert bound["worker_session_id"] == session.id
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("failure_stage", ["worktree", "start", "publish"])
@@ -793,7 +788,7 @@ class TestAtomicSpawnLifecycle:
             monkeypatch.setattr(
                 manager_module,
                 "publish_ready_session",
-                lambda _row: (_ for _ in ()).throw(
+                lambda _row, _task=None: (_ for _ in ()).throw(
                     RuntimeError("publish failed")
                 ),
             )
