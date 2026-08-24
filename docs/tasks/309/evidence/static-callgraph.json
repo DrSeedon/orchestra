@@ -1,0 +1,564 @@
+{
+  "acquire_test_lock": {
+    "definitions": [
+      "app/db.py:acquire_test_lock",
+      "app/mcp_stdio.py:acquire_test_lock"
+    ],
+    "parsed_call_sites": [
+      "app/routes/system.py:acquire_lock_endpoint",
+      "tests/test_db.py:TestChangeScope:test_migrates_test_lock",
+      "tests/test_db.py:TestChangeScope:test_stale_old_scope_rejected",
+      "tests/test_db.py:TestChangeScope:test_tm_project_collision_rejects_task_association_atomically",
+      "tests/test_db.py:TestTestLock:test_acquire_fails_when_held",
+      "tests/test_db.py:TestTestLock:test_acquire_succeeds_when_free",
+      "tests/test_db.py:TestTestLock:test_holder_name_shown_is_the_current_one_after_rename",
+      "tests/test_db.py:TestTestLock:test_lock_isolated_by_scope",
+      "tests/test_db.py:TestTestLock:test_reacquire_by_same_holder_idempotent",
+      "tests/test_db.py:TestTestLock:test_release_by_holder",
+      "tests/test_db.py:TestTestLock:test_release_by_wrong_holder_denied",
+      "tests/test_db.py:TestTestLock:test_renamed_holder_still_releases_its_own_lock",
+      "tests/test_db.py:TestTestLock:test_reused_name_cannot_release_someone_elses_lock",
+      "tests/test_db.py:TestTestLock:test_row_without_id_still_compares_by_name",
+      "tests/test_mcp_stdio.py:test_acquire_test_lock_reports_holder_when_busy",
+      "tests/test_mcp_stdio.py:test_acquire_test_lock_uses_worker_as_holder"
+    ],
+    "imports": [
+      "app/routes/system.py",
+      "tests/test_db.py"
+    ]
+  },
+  "bg_cancel": {
+    "definitions": [
+      "app/mcp_stdio.py:bg_cancel"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "bg_create": {
+    "definitions": [
+      "app/mcp_stdio.py:bg_create"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_bg_create_cron_command_sends_fail_closed_type"
+    ],
+    "imports": []
+  },
+  "bg_list": {
+    "definitions": [
+      "app/mcp_stdio.py:bg_list"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "change_worker_model": {
+    "definitions": [
+      "app/mcp_stdio.py:change_worker_model"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_quota_gate.py:test_change_model_is_control_action_even_when_target_bucket_blocked"
+    ],
+    "imports": []
+  },
+  "check_conflict": {
+    "definitions": [
+      "app/mcp_stdio.py:check_conflict"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "codex_review": {
+    "definitions": [
+      "app/mcp_stdio.py:codex_review"
+    ],
+    "parsed_call_sites": [
+      "tests/test_codex_bin_resolution.py:test_missing_binary_gives_actionable_text_instead_of_exit_127",
+      "tests/test_codex_bin_resolution.py:test_resolved_binary_reaches_the_shell_command",
+      "tests/test_codex_review_sandbox.py:test_codex_review_disables_unusable_namespace_sandbox",
+      "tests/test_codex_review_sandbox.py:test_codex_review_ignores_failure_marker_in_command_output",
+      "tests/test_codex_review_sandbox.py:test_codex_review_quotes_exec_resume_uuid",
+      "tests/test_codex_review_sandbox.py:test_codex_review_rejects_blind_verdict_from_successful_process",
+      "tests/test_mcp_codex_review.py:test_codex_review_explicit_model_overrides_default_and_readiness",
+      "tests/test_mcp_codex_review.py:test_codex_review_rejects_missing_project_context_before_any_api_call",
+      "tests/test_mcp_codex_review.py:test_codex_review_rejects_unusable_model_before_any_api_call",
+      "tests/test_mcp_codex_review.py:test_codex_review_resume_command_passes_usage_arguments",
+      "tests/test_mcp_codex_review.py:test_codex_review_uses_caller_context_and_declares_success_contract",
+      "tests/test_mcp_codex_review.py:test_new_mcp_records_usage_through_unchanged_bg_route",
+      "tests/test_mcp_quota_gate.py:_review",
+      "tests/test_mcp_stdio.py:test_codex_review_default_is_server_owned_luna_fast",
+      "tests/test_mcp_stdio.py:test_codex_review_model_reaches_quota_cli_job_and_accounting",
+      "tests/test_mcp_stdio.py:test_codex_review_rejects_invalid_non_codex_and_spark_before_api"
+    ],
+    "imports": []
+  },
+  "compact_worker": {
+    "definitions": [
+      "app/mcp_stdio.py:compact_worker"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "create_merge_operation": {
+    "definitions": [
+      "app/routes/merge_operations.py:create_merge_operation"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "delivery_status": {
+    "definitions": [
+      "app/mcp_stdio.py:delivery_status"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "get_worker_info": {
+    "definitions": [
+      "app/mcp_stdio.py:get_worker_info"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "get_worker_logs": {
+    "definitions": [
+      "app/mcp_stdio.py:get_worker_logs"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "kill_worker": {
+    "definitions": [
+      "app/mcp_stdio.py:kill_worker"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_kill_worker_force_false_default",
+      "tests/test_mcp_stdio.py:test_kill_worker_force_param"
+    ],
+    "imports": []
+  },
+  "list_agents": {
+    "definitions": [
+      "app/mcp_stdio.py:list_agents"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_list_agents_groups_by_parent"
+    ],
+    "imports": []
+  },
+  "list_orchestrators": {
+    "definitions": [
+      "app/mcp_stdio.py:list_orchestrators",
+      "app/routes/system.py:list_orchestrators"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "memory_reindex": {
+    "definitions": [
+      "app/routes/memory.py:memory_reindex"
+    ],
+    "parsed_call_sites": [
+      "tests/test_rag_service.py:test_reindex_endpoint_returns_control_immediately"
+    ],
+    "imports": []
+  },
+  "memory_search": {
+    "definitions": [
+      "app/routes/memory.py:memory_search"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "merge_worker": {
+    "definitions": [
+      "app/mcp_stdio.py:merge_worker"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_merge_warning_is_visible_in_the_tool_text",
+      "tests/test_mcp_stdio.py:test_merge_worker_does_not_poll_when_already_terminal",
+      "tests/test_mcp_stdio.py:test_merge_worker_empty_connect_error_is_typed_and_nonempty",
+      "tests/test_mcp_stdio.py:test_merge_worker_empty_http_500_never_returns_empty_error",
+      "tests/test_mcp_stdio.py:test_merge_worker_empty_timeout_returns_unknown_with_operation_id",
+      "tests/test_mcp_stdio.py:test_merge_worker_formatter_exception_is_caught_with_operation_id",
+      "tests/test_mcp_stdio.py:test_merge_worker_invalid_json_outcome_is_typed_and_nonempty",
+      "tests/test_mcp_stdio.py:test_merge_worker_no_next_task_id",
+      "tests/test_mcp_stdio.py:test_merge_worker_old_server_fails_closed_without_legacy_post",
+      "tests/test_mcp_stdio.py:test_merge_worker_partial_keeps_domain_result_without_protocol_error",
+      "tests/test_mcp_stdio.py:test_merge_worker_real_failure_still_reads_as_failure",
+      "tests/test_mcp_stdio.py:test_merge_worker_running_past_the_cap_reads_as_progress_not_failure",
+      "tests/test_mcp_stdio.py:test_merge_worker_unknown_dto_keeps_nonempty_detail",
+      "tests/test_mcp_stdio.py:test_merge_worker_waits_out_running_and_returns_the_outcome",
+      "tests/test_mcp_stdio.py:test_merge_worker_with_next_task_id"
+    ],
+    "imports": []
+  },
+  "notify_user": {
+    "definitions": [
+      "app/mcp_stdio.py:notify_user"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "open_fan": {
+    "definitions": [
+      "app/fan_barrier.py:open_fan",
+      "app/mcp_stdio.py:open_fan",
+      "app/routes/sessions.py:open_fan"
+    ],
+    "parsed_call_sites": [
+      "app/routes/sessions.py:open_fan",
+      "tests/test_fan_barrier.py:fan",
+      "tests/test_fan_barrier.py:test_deadline_releases_with_explicit_partial_flag",
+      "tests/test_fan_barrier.py:test_single_child_fan_degenerates_to_current_behaviour",
+      "tests/test_fan_barrier_gates.py:fanned",
+      "tests/test_fan_enable.py:test_impl4_silent_child_with_pending_mailbox_does_not_release",
+      "tests/test_fan_enable.py:test_impl5_exact_silent_marker_completes_fan_without_manifest_noise",
+      "tests/test_fan_enable.py:test_impl5_silent_completion_wakes_reducer_not_parent",
+      "tests/test_fan_enable.py:test_impl6_manifest_survives_a_failed_delivery",
+      "tests/test_fan_enable.py:test_t1_caller_deadline_is_actually_used",
+      "tests/test_fan_enable.py:test_t1_open_fan_route_exists_and_buffers_children",
+      "tests/test_fan_enable.py:test_t6_children_release_to_reducer_not_parent",
+      "tests/test_fan_enable.py:test_t6_explicit_report_with_pending_mailbox_does_not_release",
+      "tests/test_fan_enable.py:test_t6_manifest_is_glued_exactly_once",
+      "tests/test_fan_enable.py:test_t6_parent_payload_survives_a_silent_reducer",
+      "tests/test_fan_report_delivery.py:_open_fan",
+      "tests/test_fan_terminal_kind.py:_open"
+    ],
+    "imports": []
+  },
+  "payment_receive": {
+    "definitions": [
+      "app/mcp_stdio.py:payment_receive"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "payment_status": {
+    "definitions": [
+      "app/mcp_stdio.py:payment_status"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "proxy_list": {
+    "definitions": [
+      "app/routes/proxy.py:proxy_list"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "proxy_set_env": {
+    "definitions": [
+      "app/routes/proxy.py:proxy_set_env"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "publish_artifact": {
+    "definitions": [
+      "app/mcp_stdio.py:publish_artifact",
+      "app/routes/artifacts.py:publish_artifact"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_t2_publish_artifact_sends_only_path_caption_and_ttl",
+      "tests/test_mcp_stdio.py:test_t2_publish_failure_never_automatically_uses_document_fallback"
+    ],
+    "imports": []
+  },
+  "release_test_lock": {
+    "definitions": [
+      "app/db.py:release_test_lock",
+      "app/mcp_stdio.py:release_test_lock"
+    ],
+    "parsed_call_sites": [
+      "app/routes/system.py:release_lock_endpoint",
+      "tests/test_db.py:TestTestLock:test_migration_adds_holder_id_to_an_existing_lock_table",
+      "tests/test_db.py:TestTestLock:test_release_by_holder",
+      "tests/test_db.py:TestTestLock:test_release_by_wrong_holder_denied",
+      "tests/test_db.py:TestTestLock:test_renamed_holder_still_releases_its_own_lock",
+      "tests/test_db.py:TestTestLock:test_reused_name_cannot_release_someone_elses_lock",
+      "tests/test_db.py:TestTestLock:test_row_without_id_still_compares_by_name",
+      "tests/test_mcp_stdio.py:test_release_and_status"
+    ],
+    "imports": [
+      "app/routes/system.py",
+      "tests/test_db.py"
+    ]
+  },
+  "rename_worker": {
+    "definitions": [
+      "app/mcp_stdio.py:rename_worker"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "report_bug": {
+    "definitions": [
+      "app/mcp_stdio.py:report_bug"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "resolve_merge_operation": {
+    "definitions": [
+      "app/mcp_stdio.py:resolve_merge_operation",
+      "app/routes/merge_operations.py:resolve_merge_operation"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_resolve_merge_operation_reports_server_refusal",
+      "tests/test_mcp_stdio.py:test_resolve_merge_operation_reports_upgrade_required_on_old_server"
+    ],
+    "imports": []
+  },
+  "retry_initial_delivery": {
+    "definitions": [
+      "app/mcp_stdio.py:retry_initial_delivery"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "run_initial_delivery": {
+    "definitions": [
+      "app/initial_deliveries.py:run_initial_delivery"
+    ],
+    "parsed_call_sites": [
+      "app/initial_deliveries.py:ensure_delivery_runner",
+      "tests/test_initial_delivery_review_regressions.py:test_masked_initial_delivery_excludes_the_persisted_history_row"
+    ],
+    "imports": []
+  },
+  "search_memory": {
+    "definitions": [
+      "app/mcp_stdio.py:search_memory"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_search_memory_reports_index_debt_and_tolerates_its_absence",
+      "tests/test_search_deadline.py:_call"
+    ],
+    "imports": []
+  },
+  "send_chart": {
+    "definitions": [
+      "app/mcp_stdio.py:send_chart"
+    ],
+    "parsed_call_sites": [
+      "tests/test_charts.py:test_delivery_failure_keeps_the_file_and_reports_its_path",
+      "tests/test_charts.py:test_send_chart_draws_and_sends_in_one_call",
+      "tests/test_charts.py:test_validation_error_never_reaches_telegram"
+    ],
+    "imports": []
+  },
+  "send_file": {
+    "definitions": [
+      "app/mcp_stdio.py:send_file",
+      "tests/test_tg_bridge.py:TestReadImagePreview:test_read_image_uses_important_isolated_preview:send_file",
+      "tests/test_tg_bridge.py:test_t2_text_helper_threads_preview_disable_without_changing_document_fallback:send_file"
+    ],
+    "parsed_call_sites": [
+      "app/mcp_stdio.py:send_chart"
+    ],
+    "imports": []
+  },
+  "send_message": {
+    "definitions": [
+      "app/mcp_stdio.py:send_message",
+      "app/routes/sessions.py:send_message",
+      "tests/test_tg_bridge.py:TestTgCallQueue:test_important_call_overtakes_waiting_nonimportant_call:send_message",
+      "tests/test_tg_bridge.py:TestTgCallQueue:test_queued_edit_does_not_block_caller:send_message",
+      "tests/test_tg_bridge.py:TestTgCosmeticExpiry:test_reliable_admission_and_reset_are_bounded:send_message",
+      "tests/test_tg_bridge.py:TestTgCosmeticExpiry:test_telemetry_key_capacity_drops_new_keys_without_tasks:send_message",
+      "tests/test_tg_bridge.py:TestTgCosmeticExpiry:test_thousand_same_topic_tools_use_one_coalesced_entry:send_message",
+      "tests/test_tg_bridge.py:TestTgCosmeticExpiry:test_tool_timeout_releases_following_reliable_call:send_message",
+      "tests/test_tg_bridge.py:TestTgCosmeticExpiry:test_update_while_digest_is_sending_survives_old_completion:send_message",
+      "tests/test_tg_bridge.py:TestTgImageLane:test_image_capacity_rejects_before_third_marker:send_message",
+      "tests/test_tg_bridge.py:TestTgImageLane:test_important_preview_handoff_does_not_wait_for_marker_or_edit:send_message",
+      "tests/test_tg_bridge.py:TestTgImageLane:test_slow_photo_edit_keeps_order_without_holding_later_text:send_message",
+      "tests/test_tg_bridge.py:TestTgMirrorIsolation:test_two_mirrors_share_one_chat_rate_authority:send_message",
+      "tests/test_tg_bridge.py:TestTgRateAdmission:test_topic_ids_share_one_chat_rate_history:send_message",
+      "tests/test_tg_bridge.py:TestTgReliableDeadlines:test_attempt_timeout_retries_then_releases_next_reply:send_message",
+      "tests/test_tg_bridge.py:TestTgReliableDeadlines:test_snapshot_exposes_oldest_queue_age_and_delivery_latency:send_message",
+      "tests/test_tg_bridge.py:TestTgSendSafe:test_coalesced_entity_fallback_uses_latest_payload:send_message",
+      "tests/test_tg_bridge.py:TestTgSendSafe:test_different_chats_do_not_share_lock:send_message",
+      "tests/test_tg_bridge.py:TestTgSendSafe:test_network_retry_counts_failed_request_against_interval:send_message",
+      "tests/test_tg_bridge.py:TestTgSendSafe:test_optional_entity_fallback_handles_rejected_admission:send_message",
+      "tests/test_tg_bridge.py:TestTgSendSafe:test_plain_entity_fallback_uses_a_new_rate_slot:send_message",
+      "tests/test_tg_bridge.py:TestTgSendSafe:test_retries_bad_entities_as_plain_text:send_message",
+      "tests/test_tg_bridge.py:TestTgSendSafe:test_serializes_concurrent_group_sends:send_message",
+      "tests/test_tg_bridge.py:TestToolMessagesAllDelivered141:test_batched_message_drops_stale_entities:send_message",
+      "tests/test_tg_bridge.py:TestToolMessagesAllDelivered141:test_burst_of_tool_calls_loses_no_content:send_message",
+      "tests/test_tg_bridge.py:TestToolMessagesAllDelivered141:test_failed_send_returns_batch_to_bucket:send_message",
+      "tests/test_tg_bridge.py:TestToolMessagesAllDelivered141:test_large_bodies_split_across_messages_without_loss:send_message",
+      "tests/test_tg_bridge.py:TestToolMessagesAllDelivered141:test_reliable_text_not_blocked_by_tool_burst:send_message",
+      "tests/test_tg_bridge.py:TestToolMessagesAllDelivered141:test_single_oversized_body_is_split_not_rejected:send_message"
+    ],
+    "parsed_call_sites": [
+      "app/tg_bridge.py:_tg_send_isolated_photo:_send_marker",
+      "app/tg_bridge.py:_tg_send_safe:_finish_send:_send_plain_queued",
+      "app/tg_bridge.py:_tg_send_safe:_send",
+      "app/tg_bridge.py:_tg_send_safe:_send_plain",
+      "tests/test_api.py:test_send_delegates_auto_switch_to_manager",
+      "tests/test_api.py:test_send_quota_refusal_is_canonical_429",
+      "tests/test_fan_barrier_gates.py:_send",
+      "tests/test_fan_enable.py:_report",
+      "tests/test_fan_enable.py:test_impl6_manifest_survives_a_failed_delivery",
+      "tests/test_fan_enable.py:test_t6_manifest_is_glued_exactly_once",
+      "tests/test_fan_enable.py:test_t6_parent_payload_survives_a_silent_reducer",
+      "tests/test_fan_report_delivery.py:_send",
+      "tests/test_fan_terminal_kind.py:_send",
+      "tests/test_mailbox.py:test_t2_busy_recipient_is_queued",
+      "tests/test_mailbox.py:test_t2_default_still_wakes",
+      "tests/test_mailbox.py:test_t2_idle_recipient_is_woken_not_queued",
+      "tests/test_mailbox.py:test_t2_no_wake_stores_and_does_not_activate",
+      "tests/test_mailbox.py:test_t2_unknown_recipient_is_woken",
+      "tests/test_mcp_stdio.py:test_send_message_cross_scope_warning",
+      "tests/test_mcp_stdio.py:test_send_message_same_parent_no_warning"
+    ],
+    "imports": [
+      "tests/test_fan_barrier_gates.py",
+      "tests/test_fan_enable.py",
+      "tests/test_fan_report_delivery.py",
+      "tests/test_fan_terminal_kind.py",
+      "tests/test_mailbox.py"
+    ]
+  },
+  "spawn_worker": {
+    "definitions": [
+      "app/mcp_stdio.py:spawn_worker"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_quota_gate.py:_spawn",
+      "tests/test_mcp_stdio.py:test_spawn_api_error_does_not_send_initial_task",
+      "tests/test_mcp_stdio.py:test_spawn_base_branch_default_empty",
+      "tests/test_mcp_stdio.py:test_spawn_malformed_success_fails_loud_without_task",
+      "tests/test_mcp_stdio.py:test_spawn_passes_base_branch",
+      "tests/test_mcp_stdio.py:test_spawn_reports_exact_repo_mapping_when_scope_differs",
+      "tests/test_mcp_stdio.py:test_t3_spawn_delivery_posts_caller_key_and_returns_accepted_receipt",
+      "tests/test_mcp_stdio.py:test_t3_spawn_delivery_timeout_reconciles_without_second_post",
+      "tests/test_mcp_stdio.py:test_t3_spawn_marks_parent_as_initial_task_sender",
+      "tests/test_mcp_stdio.py:test_t3_spawn_task_delivery_error_reports_created_worker"
+    ],
+    "imports": []
+  },
+  "stop_worker": {
+    "definitions": [
+      "app/manager.py:SessionManager:stop_worker",
+      "app/mcp_stdio.py:stop_worker"
+    ],
+    "parsed_call_sites": [
+      "app/routes/sessions.py:stop_session"
+    ],
+    "imports": []
+  },
+  "switch_worker_branch": {
+    "definitions": [
+      "app/mcp_stdio.py:switch_worker_branch"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_switch_and_wip_defaults_defer_to_persisted_base",
+      "tests/test_mcp_stdio.py:test_switch_worker_branch_forwards_explicit_force",
+      "tests/test_mcp_stdio.py:test_switch_worker_branch_forwards_owned_dirs_json",
+      "tests/test_mcp_stdio.py:test_switch_worker_branch_renders_failure_without_new_contract"
+    ],
+    "imports": []
+  },
+  "task_create": {
+    "definitions": [
+      "app/mcp_stdio.py:task_create"
+    ],
+    "parsed_call_sites": [
+      "tests/test_acceptance.py:_task_create_to_db",
+      "tests/test_mcp_stdio.py:test_task_create_admits_exact_session_scope_when_tm_project_is_stale",
+      "tests/test_mcp_stdio.py:test_task_create_keeps_caller_scope_and_registered_project_authorization",
+      "tests/test_mcp_stdio.py:test_task_create_omits_project_to_use_callers_scope",
+      "tests/test_mcp_stdio.py:test_task_create_rejects_scope_absent_from_session_and_projects",
+      "tests/test_mcp_stdio.py:test_task_create_returns_fields_needed_by_dashboard_card"
+    ],
+    "imports": []
+  },
+  "task_get": {
+    "definitions": [
+      "app/mcp_stdio.py:task_get"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_task_get_and_update_fall_back_to_authoritative_scope",
+      "tests/test_mcp_stdio.py:test_task_get_and_update_prefer_explicit_project_over_scope"
+    ],
+    "imports": []
+  },
+  "task_list": {
+    "definitions": [
+      "app/mcp_stdio.py:task_list"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "task_update": {
+    "definitions": [
+      "app/mcp_stdio.py:task_update"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_task_get_and_update_fall_back_to_authoritative_scope",
+      "tests/test_mcp_stdio.py:test_task_get_and_update_prefer_explicit_project_over_scope",
+      "tests/test_mcp_stdio.py:test_task_update_distinguishes_omitted_and_explicitly_cleared_command",
+      "tests/test_mcp_stdio.py:test_task_update_empty_ordinary_fields_do_not_enter_put_body"
+    ],
+    "imports": []
+  },
+  "test_lock_status": {
+    "definitions": [
+      "app/mcp_stdio.py:test_lock_status"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_release_and_status"
+    ],
+    "imports": []
+  },
+  "update_payment_journal": {
+    "definitions": [
+      "app/tm_yougile.py:update_payment_journal"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "update_progress": {
+    "definitions": [
+      "app/mcp_stdio.py:update_progress",
+      "app/routes/sessions.py:update_progress"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "update_worker_description": {
+    "definitions": [
+      "app/mcp_stdio.py:update_worker_description"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "update_worker_prompt": {
+    "definitions": [
+      "app/mcp_stdio.py:update_worker_prompt"
+    ],
+    "parsed_call_sites": [],
+    "imports": []
+  },
+  "worker_wip": {
+    "definitions": [
+      "app/mcp_stdio.py:worker_wip"
+    ],
+    "parsed_call_sites": [
+      "tests/test_mcp_stdio.py:test_switch_and_wip_defaults_defer_to_persisted_base"
+    ],
+    "imports": []
+  },
+  "yougile_sync_task": {
+    "definitions": [
+      "app/tm_yougile.py:yougile_sync_task"
+    ],
+    "parsed_call_sites": [
+      "app/routes/tm.py:tm_sync_retry"
+    ],
+    "imports": [
+      "app/routes/tm.py"
+    ]
+  }
+}

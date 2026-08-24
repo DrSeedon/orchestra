@@ -1,0 +1,106 @@
+control,tag,inline_handler,clicks,observation_gap
+new-orch-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+hidden-tabs-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+models-catalog-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+proxy-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+proxy-check-all,button,,UNMEASURED,no UI event telemetry in SQLite
+proxy-restart-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+profiles-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+profile-new-name,input,,UNMEASURED,no UI event telemetry in SQLite
+profile-new-dir,input,,UNMEASURED,no UI event telemetry in SQLite
+profile-add-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+analytics-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+compact-toggle-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+restart-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+client-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+logout-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+modal-close,button,,UNMEASURED,no UI event telemetry in SQLite
+orch-name,input,,UNMEASURED,no UI event telemetry in SQLite
+orch-cwd,input,,UNMEASURED,no UI event telemetry in SQLite
+browse-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+create-orch-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+delete-orch-modal-close,button,,UNMEASURED,no UI event telemetry in SQLite
+delete-tg-topics,input,,UNMEASURED,no UI event telemetry in SQLite
+delete-orch-cancel,button,,UNMEASURED,no UI event telemetry in SQLite
+delete-orch-confirm,button,,UNMEASURED,no UI event telemetry in SQLite
+change-scope-close,button,,UNMEASURED,no UI event telemetry in SQLite
+change-scope-path,input,,UNMEASURED,no UI event telemetry in SQLite
+change-scope-browse,button,,UNMEASURED,no UI event telemetry in SQLite
+change-scope-cancel,button,,UNMEASURED,no UI event telemetry in SQLite
+change-scope-confirm,button,,UNMEASURED,no UI event telemetry in SQLite
+prompt-modal-close,button,,UNMEASURED,no UI event telemetry in SQLite
+catalog-search,input,,UNMEASURED,no UI event telemetry in SQLite
+catalog-free,input,,UNMEASURED,no UI event telemetry in SQLite
+catalog-tools,input,,UNMEASURED,no UI event telemetry in SQLite
+catalog-image,input,,UNMEASURED,no UI event telemetry in SQLite
+catalog-refresh-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+analytics-close,button,,UNMEASURED,no UI event telemetry in SQLite
+client-modal-close,button,,UNMEASURED,no UI event telemetry in SQLite
+open-folder-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+chat-user-prev,button,,UNMEASURED,no UI event telemetry in SQLite
+chat-user-next,button,,UNMEASURED,no UI event telemetry in SQLite
+chat-jump-latest,button,,UNMEASURED,no UI event telemetry in SQLite
+stop-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+send-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+compact-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+restart-cli-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+clear-session-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+view-prompt-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+subagents-btn,button,,UNMEASURED,no UI event telemetry in SQLite
+file-preview-download,a,,UNMEASURED,no UI event telemetry in SQLite
+file-preview-open,a,,UNMEASURED,no UI event telemetry in SQLite
+file-preview-close,button,,UNMEASURED,no UI event telemetry in SQLite
+endpoint:/api/bg/jobs,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/bg/jobs/${id},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/files,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/files/content,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/files/raw,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/logs/${payload.id},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/logs/${row.id},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/logs/sync,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/models,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/models/catalog,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/models/catalog/flags,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/models/catalog/refresh,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/models/refresh,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/open-folder,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/orchestrators,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/orchestrators/${name},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/orchestrators/${name}/change-scope,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/orchestrators/${selectedAgent},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/pipelines,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/profiles,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/profiles/${encodeURIComponent(b.dataset.name)},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/projects,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/proxy/check/${b.dataset.id},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/proxy/check/${id},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/proxy/list,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/proxy/set-env,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/restart,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/role-icons,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${agentName}/change-model,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${encodeURIComponent(name)}/logs,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${encodeURIComponent(selectedAgent)}/clear-session,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${encodeURIComponent(selectedAgent)}/compact,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${encodeURIComponent(selectedAgent)}/restart-cli,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${name}/context,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${s.name}/tg-topic,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${selectedAgent}/interrupt,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${selectedAgent}/logs,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${selectedAgent}/prompt-blocks,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${selectedAgent}/send,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/sessions/${selectedAgent}/stream,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/stats,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/subagent-transcript/${encodeURIComponent(sid)}/${encodeURIComponent(agentId)},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/subagents/${encodeURIComponent(sid)},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/tm/payments/status,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/tm/tasks,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/tm/tasks/${par}${scope},fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/transcribe,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/upload,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/usage,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/usage/analytics,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/usage/history,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/usage/quota-map,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry
+endpoint:/api/usage/wake-after-reset,fetch/reference,,UNMEASURED,JS reference; no click/event telemetry

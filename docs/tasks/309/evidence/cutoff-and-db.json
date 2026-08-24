@@ -1,0 +1,21 @@
+{
+  "db_path": "/mnt/data/Projects/Python/orchestra/data/orchestra.db",
+  "backup": "sqlite3.Connection.backup(source=file:...mode=ro, destination=:memory:)",
+  "cutoff_definition": "max logs.ts where logs.type='tool_result'",
+  "cutoff_utc": "2026-08-24T06:12:06.860886+00:00",
+  "logs_total_at_backup": 158775,
+  "tool_rows_at_backup": 43915,
+  "tool_result_rows_at_backup": 43321,
+  "joinable_tool_calls": 11400,
+  "joinable_tool_results": 11064,
+  "windows": {
+    "30d": "2026-07-25T06:12:06.860886+00:00",
+    "60d": "2026-06-25T06:12:06.860886+00:00",
+    "90d": "2026-05-26T06:12:06.860886+00:00"
+  },
+  "mcp_registry_count": 41,
+  "starlette_route_count_including_docs": 103,
+  "openapi_path_count": 99,
+  "dashboard_control_count": 105,
+  "secret_scan": "executed separately after generation; pattern omitted from artifact to avoid self-match"
+}
