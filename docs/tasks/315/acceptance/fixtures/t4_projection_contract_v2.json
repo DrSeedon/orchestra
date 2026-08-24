@@ -1,0 +1,23 @@
+{
+  "contract_version": 2,
+  "permanently_superseded": {
+    "worker_commit": "863c7bd9e152f9dc8da948038d007d02c020eab7",
+    "main_equivalent": "020f32f1",
+    "test": "docs/tasks/315/acceptance/test_t4_projection_heads_behavior.py",
+    "contract": "docs/tasks/315/acceptance/fixtures/t4_projection_contract.json",
+    "reason": "the alternate-mode T3 fixture root was not created before its registry writer ran, so intended implementation failed before projection behavior"
+  },
+  "immutable_v1_sha256": {
+    "docs/tasks/315/acceptance/test_t4_projection_heads_behavior.py": "bfb8fde280cc9c7bb9ee04b000ff7db8f47be5bcdefe2ebf20e0a02bd57e4012",
+    "docs/tasks/315/acceptance/fixtures/t4_projection_contract.json": "4bdde5097329694d3ac51c09c6bfa5a62a2dc4b2e3db6980de7d9cbf773669ad",
+    "docs/tasks/315/acceptance/fixtures/t4_projection_records.json": "d5ab3845b4490715d3fb481e6bb28c1b1ac000a047bbe409e1b2fb93573cca8c"
+  },
+  "replacement": {
+    "test": "docs/tasks/315/acceptance/test_t4_projection_heads_behavior_v2.py",
+    "records_fixture": "docs/tasks/315/acceptance/fixtures/t4_projection_records.json",
+    "alternate_fixture_root": "alternate-mode",
+    "setup_requirement": "create the alternate fixture root before entering the T3 knowledge mode",
+    "expected_controls": 5,
+    "expected_behavior_nodes": 7
+  }
+}
