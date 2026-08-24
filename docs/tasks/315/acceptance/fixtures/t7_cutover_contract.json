@@ -1,0 +1,109 @@
+{
+  "contract_version": 1,
+  "records_sha256": "b193804bd2466711c785dc12fca5f26b96833eebd3f8e472fa159307228850b0",
+  "inventory_sha256": "1f65c67eea34c615ef18d68e9c9fe2b9de68e8819b5dc2284022b9c67d52e51f",
+  "inventory_manifest_head": "sha256:1f5c11bacbe134d165bea7f927cbcbce57e29cd84b59df7f4548039fc3fa8c05",
+  "source_commit": "34fb2350a8224f2991dbe722afc29070daf02bee",
+  "alias_uuid_namespace": "31500000-0000-4000-8000-000000000007",
+  "alias_name_template": "{source_commit}:{path}:{git_blob}",
+  "inventory_source_semantics": "read frozen bytes from source_commit/git_blob; current working paths may have later revisions",
+  "compatibility_sha256": {
+    "docs/tasks/315/acceptance/test_t1_namespace_behavior.py": "a8c62e9c451e4b805e60552fdd57569e0e64ab30497740f094e5f26b857d62fa",
+    "docs/tasks/315/acceptance/fixtures/t1_namespace_contract.json": "02e26e0cd0c77ece0825a804a2834295ea958ad6458d6760c35c3ea02fd5544b",
+    "docs/tasks/315/acceptance/fixtures/t1_namespace_records.json": "83fde2bcbb1d2d85e745f63cd4819a10d328d677bdc61ac81dc30c69f58b4462",
+    "docs/tasks/315/acceptance/test_t2_task_behavior.py": "acf7fe4c2855d5e3f0cae0d302d8639e163285b7464ed6d978df3eb70963a124",
+    "docs/tasks/315/acceptance/fixtures/t2_task_store_contract.json": "ddcd72ec0a2d0b30639e25697e3d623e72ffb8c6349c9a3a76a50437137cb608",
+    "docs/tasks/315/acceptance/fixtures/t2_task_store_records.json": "88f3d2ca7ab8a5a75b2f2c87fb3fb1870d00e063a7d6e75ca4aec462b4d4b650",
+    "docs/tasks/315/acceptance/test_t3_promotion_behavior.py": "51b19d136e9a44b339a7e387b5b6af1dfd406665e5d58e465451a1a0ae9df00f",
+    "docs/tasks/315/acceptance/fixtures/t3_promotion_contract.json": "ad763c0ba467dc8847fb76c2af2a36138a24c3db275580d9a483690a78eaa0f1",
+    "docs/tasks/315/acceptance/fixtures/t3_promotion_records.json": "655027ac8ed170a193a5e58b9b82a60749ad8e8208e435f85a54fc98715f4707",
+    "docs/tasks/315/acceptance/test_t3b_agent_only_knowledge_behavior_v2.py": "131b80464f463662852f4ea56e80c1d5f69a89757011d17e85c9eb5b0e9f4086",
+    "docs/tasks/315/acceptance/fixtures/t3b_agent_only_contract_v2.json": "ca666ca4bf16acf3207d57ddb71784a3aa86791f698573ba625e6fad7221f359",
+    "docs/tasks/315/acceptance/fixtures/t3b_agent_only_records_v2.json": "e529b731271477abc1899f8c290c6d9d39b4fb580fc1930a3fe675a8343c6746",
+    "docs/tasks/315/acceptance/test_t4_projection_heads_behavior_v2.py": "8ef3a3f315f83acce4ddf8aec6886c6f7c73c36be4c31214b3d77d8380b212d5",
+    "docs/tasks/315/acceptance/fixtures/t4_projection_contract_v2.json": "a31380c64543aececc8a079553341ebdd5956ebe620a5359f60de4c3eab919ce",
+    "docs/tasks/315/acceptance/fixtures/t4_projection_records.json": "d5ab3845b4490715d3fb481e6bb28c1b1ac000a047bbe409e1b2fb93573cca8c",
+    "docs/tasks/315/acceptance/test_t5_recovery_privacy_behavior.py": "6ea24f15ab5a395e9b964cd8346fca5ea3203dd17a931cc1719aa5b3ef6b1b24",
+    "docs/tasks/315/acceptance/fixtures/t5_recovery_contract.json": "a614f49fed845a507201ab62368b086b80c36b38c1c0b418bef5f130c1fe4d6c",
+    "docs/tasks/315/acceptance/fixtures/t5_recovery_records.json": "c3dd9ddebcd6b6b49aa8db82f3672df05179ec14d3274d1d052f23ac439af1a9",
+    "docs/tasks/315/acceptance/test_t6_merge_receipt_cleanup_behavior.py": "684826daec4952e861dda29ac84721ee398cdfa591dbb2d8a850121682f6dce1",
+    "docs/tasks/315/acceptance/fixtures/t6_merge_receipt_contract.json": "68e7bfba0331080d3c9c0fb1e6f352bccd9e66f9d597166fa7cabf738d59e476",
+    "docs/tasks/315/acceptance/fixtures/t6_merge_receipt_records.json": "79a0111839ee4eb70f8903e748b5f69881ec673b863b7e88a826c4c7f254638d"
+  },
+  "public_api": {
+    "app.ia.cutover": {
+      "callables": ["document_cutover_mode", "cutover_api"],
+      "exceptions": ["DocumentCutoverError"]
+    },
+    "scripts.ia_document_inventory": {
+      "callables": ["inventory_api"]
+    },
+    "scripts.ia_migrate_documents": {
+      "callables": ["migration_api"]
+    }
+  },
+  "mode_kwargs": [
+    "canonical_root",
+    "repository_root",
+    "frozen_inventory",
+    "knowledge_request",
+    "prompt_assembler",
+    "projection_probe",
+    "receipt_writer",
+    "legacy_reader",
+    "projection_delete"
+  ],
+  "receipt_writer_signature": ["path", "receipt"],
+  "knowledge_request_operation": "import_evidence",
+  "inventory_operation": "classify",
+  "inventory_required": [
+    "schema_version",
+    "project_id",
+    "source_commit",
+    "classifiers",
+    "class_counts",
+    "entries",
+    "manifest_head"
+  ],
+  "inventory_entry_required": [
+    "path",
+    "source_class",
+    "source_commit",
+    "git_blob",
+    "source_sha256",
+    "size",
+    "alias"
+  ],
+  "cutover_operations": ["shadow", "canonical", "resolve", "rollback", "state"],
+  "owners": ["legacy", "shadow", "canonical"],
+  "state_required": ["active_owner", "generation", "canonical_head"],
+  "shadow_response_required": [
+    "operation",
+    "active_owner",
+    "shadow_owner",
+    "generation",
+    "inventory_head",
+    "receipt"
+  ],
+  "canonical_extensions": [".json"],
+  "forbidden_generated_extensions": [".md", ".markdown", ".txt", ".html"],
+  "single_agent_tool": "knowledge",
+  "progressive_levels": ["summary", "record", "evidence"],
+  "required_gates": [
+    "shadow_parity",
+    "privacy",
+    "rollback",
+    "prompt_delivery",
+    "live_cutover",
+    "projection"
+  ],
+  "projection_is_secondary": true,
+  "expected_inventory_count": 1505,
+  "expected_inventory_class_counts": {
+    "active_skill_resource_source": 159,
+    "immutable_evidence_cold_archive": 1346
+  },
+  "expected_controls": 4,
+  "expected_behavior_nodes": 12,
+  "expected_compound_mutants": 7
+}

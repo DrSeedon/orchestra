@@ -1,0 +1,185 @@
+{
+  "fixture_version": 1,
+  "project_id": "orchestra",
+  "source_commit": "34fb2350a8224f2991dbe722afc29070daf02bee",
+  "inventory_classes": [
+    "immutable_evidence_cold_archive",
+    "active_skill_resource_source"
+  ],
+  "synthetic_documents": [
+    {
+      "path": "docs/tasks/315/research.md",
+      "source_class": "immutable_evidence_cold_archive",
+      "alias": "orch://project/orchestra/evidence/71000000-0000-4000-8000-000000000001",
+      "content": "# frozen research\n\nEvidence stays byte-identical.\n"
+    },
+    {
+      "path": "docs/kb/repo-ops.md",
+      "source_class": "immutable_evidence_cold_archive",
+      "alias": "orch://project/orchestra/evidence/71000000-0000-4000-8000-000000000002",
+      "content": "# frozen topic\n\nHistorical conclusion.\n"
+    },
+    {
+      "path": "TODO.md",
+      "source_class": "immutable_evidence_cold_archive",
+      "alias": "orch://project/orchestra/evidence/71000000-0000-4000-8000-000000000003",
+      "content": "# frozen TODO history\n"
+    },
+    {
+      "path": "docs/archive/sessions/2026-08.md",
+      "source_class": "immutable_evidence_cold_archive",
+      "alias": "orch://project/orchestra/evidence/71000000-0000-4000-8000-000000000004",
+      "content": "# frozen session archive\n"
+    },
+    {
+      "path": "CLAUDE.md",
+      "source_class": "active_skill_resource_source",
+      "alias": "orch://project/orchestra/resources/72000000-0000-4000-8000-000000000001",
+      "content": "# active project instruction source\n"
+    },
+    {
+      "path": "pipelines/default/prompts/base.md",
+      "source_class": "active_skill_resource_source",
+      "alias": "orch://project/orchestra/resources/72000000-0000-4000-8000-000000000002",
+      "content": "typed delivery owner\n"
+    },
+    {
+      "path": "pipelines/default/prompts/skills/codex-debate.md",
+      "source_class": "active_skill_resource_source",
+      "alias": "orch://project/orchestra/resources/72000000-0000-4000-8000-000000000003",
+      "content": "typed review evidence owner\n"
+    },
+    {
+      "path": "docs/workers/example.md",
+      "source_class": "active_skill_resource_source",
+      "alias": "orch://project/orchestra/resources/72000000-0000-4000-8000-000000000004",
+      "content": "# active worker memory source\n"
+    }
+  ],
+  "runtime_matrix": {
+    "runtimes": ["claude", "codex", "grok", "harness"],
+    "roles": ["orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"]
+  },
+  "required_prompt_anchors": [
+    "Use the single `knowledge` tool for canonical knowledge and evidence operations.",
+    "Request progressive detail as `summary` < `record` < `evidence`.",
+    "Use typed `orch://` identifiers for task, fact, evidence, session, resource, and skill references.",
+    "Markdown files, SQLite, FTS, and vector hits are never independent truth.",
+    "Historical Markdown and session archives are immutable cold evidence and are never regenerated.",
+    "Canonical task, fact, evidence-reference, and session events are structured Git JSON."
+  ],
+  "forbidden_legacy_directives": [
+    "Read `docs/kb/README.md`",
+    "Write `docs/tasks/<task-id>/research.md`",
+    "Append the conclusion to its topic file in `docs/kb/`",
+    "`search_memory(\"<goal + subsystem or symptom>\")`",
+    "Durable knowledge goes to files in the repo",
+    "Report in docs/tasks/<id>/report.md"
+  ],
+  "prompt_owner_paths": [
+    "pipelines/default/prompts/base.md",
+    "pipelines/default/prompts/roles/full-cycle.md",
+    "pipelines/default/prompts/modules/memory-search.md",
+    "pipelines/default/prompts/modules/research-method.md",
+    "pipelines/default/prompts/modules/report-format.md",
+    "pipelines/default/prompts/modules/self-improvement.md",
+    "pipelines/default/prompts/modules/orchestration.md"
+  ],
+  "skill_owner_paths": [
+    "pipelines/default/prompts/skills/codex-debate.md",
+    "pipelines/default/prompts/skills/orchestra-agents.md"
+  ],
+  "derived_runtime_addresses": {
+    "claude_project_rules": "CLAUDE.md",
+    "codex_project_rules": "AGENTS.md",
+    "claude_skills": ".claude/skills/*/SKILL.md",
+    "codex_skills": ".codex/skills/*/SKILL.md",
+    "grok_profile": "temporary ACP agent profile",
+    "harness_prompt": "Harness system message"
+  },
+  "tool_surface": {
+    "canonical": ["knowledge"],
+    "legacy_readers": ["search_memory"],
+    "levels": ["summary", "record", "evidence"]
+  },
+  "heads": {
+    "canonical_head": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "projection_head": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "indexed_head": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "legacy_head": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "gate_receipts": {
+    "shadow_parity": {
+      "status": "verified",
+      "mismatch_count": 0,
+      "legacy_normalized_head": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "canonical_normalized_head": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "privacy": {"status": "verified", "secret_match_count": 0},
+    "rollback": {"status": "verified", "replay_mismatch_count": 0},
+    "prompt_delivery": {"status": "verified", "missing_runtime_count": 0},
+    "live_cutover": {"status": "verified", "receipt_id": "73000000-0000-4000-8000-000000000001"},
+    "projection": {
+      "status": "verified",
+      "sqlite_present": true,
+      "fts_present": true,
+      "vector_present": true,
+      "rebuildable": true
+    }
+  },
+  "receipt_required": [
+    "schema_version",
+    "receipt_id",
+    "receipt_status",
+    "operation",
+    "from_owner",
+    "to_owner",
+    "from_generation",
+    "to_generation",
+    "inventory_head",
+    "canonical_head",
+    "projection_head",
+    "indexed_head",
+    "prompt_delivery_head",
+    "created_at"
+  ],
+  "valid_alternate": {
+    "entry_order": [
+      "alias",
+      "size",
+      "source_sha256",
+      "source_class",
+      "path",
+      "source_commit"
+    ],
+    "metadata": {"importer_revision": 2, "safe_extra": true},
+    "runtime_layout": {"prefix": "runtime metadata", "suffix": "safe footer"}
+  },
+  "compound_mutants": {
+    "markdown_json_dual_truth": {"path": "canonical/generated/topic.md", "content": "shadow truth"},
+    "stale_runtime_assembly": {"runtime": "harness", "prompt": "legacy prompt without typed cutover policy"},
+    "forged_shadow_parity_sqlite_delete": {
+      "canonical_normalized_head": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "request_projection_delete": true
+    },
+    "rewritten_evidence_alias_update": {
+      "path": "docs/tasks/315/research.md",
+      "content": "# rewritten while alias is updated\n",
+      "alias": "orch://project/orchestra/evidence/79999999-9999-4999-8999-999999999999"
+    },
+    "projection_fallback_canonical_failure": {
+      "sqlite_claim": "stale sqlite answer",
+      "vector_claim": "stale vector answer"
+    },
+    "legacy_reader_bypass": {"path": "docs/kb/repo-ops.md", "claim": "legacy direct answer"},
+    "rollback_generation_mismatch": {"expected_generation": 999}
+  },
+  "expected_denominators": {
+    "controls": 4,
+    "behavior_nodes": 12,
+    "compound_mutants": 7,
+    "runtime_count": 4,
+    "role_count": 5,
+    "synthetic_document_count": 8
+  }
+}

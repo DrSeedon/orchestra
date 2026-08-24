@@ -12,3 +12,5 @@
   implementation hashes/counts as excluded evidence, never as executable post-change requirements.
 - When expected RED occurs before a later temp-fixture branch, add an independent positive control that
   executes that branch's full setup; missing parent directories otherwise surface only after implementation.
+- When an oracle inventories a corpus that includes its own task artifacts, freeze the pre-oracle source
+  commit and its blobs; hashing the post-oracle working paths creates an impossible self-reference.
