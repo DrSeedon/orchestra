@@ -42,7 +42,8 @@ def test_unchanged_state_costs_no_body(client):
     repeat = _get(client, **{"If-None-Match": tag})
     assert repeat.status_code == 304
     # 304 по спецификации не несёт полезной нагрузки; на живом стенде это 48.8 КБ -> 0.
-    assert b"session" not in repeat.content
+    assert repeat.content == b""
+    assert "content-type" not in repeat.headers
 
 
 def test_stale_etag_still_returns_the_payload(client):

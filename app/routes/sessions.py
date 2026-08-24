@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.responses import StreamingResponse
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -220,7 +220,7 @@ class OpenFanRequest(BaseModel):
         return v
 
 
-def _conditional(request: Request, payload) -> JSONResponse:
+def _conditional(request: Request, payload) -> Response:
     """Отдать payload с ETag, а при совпадении If-None-Match — пустой 304.
 
     Дашборд опрашивает `/api/sessions` каждые 3 секунды, и ответ весит 48.8 КБ даже когда
@@ -234,7 +234,7 @@ def _conditional(request: Request, payload) -> JSONResponse:
     tag = '"' + hashlib.md5(body.encode()).hexdigest() + '"'
     headers = {"ETag": tag, "Cache-Control": "no-cache"}
     if request.headers.get("if-none-match") == tag:
-        return JSONResponse(None, status_code=304, headers=headers)
+        return Response(status_code=304, headers=headers)
     return JSONResponse(payload, headers=headers)
 
 
