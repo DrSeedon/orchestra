@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>#389 — зачем нам курс Vercel про agent harness</title>
+  <style>
+    :root { color-scheme: dark; --bg:#08111f; --card:#101d31; --ink:#f4f7fb; --muted:#aab7ca; --green:#4ade80; --amber:#fbbf24; --red:#fb7185; --blue:#60a5fa; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(circle at 20% 0,#183152 0,var(--bg) 42%); color:var(--ink); font:20px/1.45 system-ui,sans-serif; }
+    main { max-width:1100px; margin:auto; padding:40px 24px 80px; }
+    h1 { font-size:clamp(38px,7vw,76px); line-height:1.02; margin:0 0 22px; letter-spacing:-.04em; }
+    h2 { font-size:clamp(29px,4vw,46px); line-height:1.08; margin:0 0 22px; }
+    p { margin:8px 0; }
+    .lead { max-width:850px; color:var(--muted); font-size:clamp(22px,3vw,31px); }
+    .card { margin-top:34px; padding:30px; border:1px solid #29425f; border-radius:28px; background:linear-gradient(145deg,#13243b,#0d1829); box-shadow:0 20px 50px #02071488; }
+    .verdict { display:grid; grid-template-columns:1fr auto; align-items:center; gap:24px; }
+    .score { display:grid; place-items:center; width:180px; height:180px; border:16px solid var(--green); border-right-color:#27415a; border-radius:50%; font-size:48px; font-weight:850; }
+    .flow { display:grid; grid-template-columns:1fr 70px 1fr 70px 1fr; align-items:center; gap:10px; }
+    .box { min-height:180px; display:grid; place-items:center; text-align:center; padding:22px; border:2px solid #34506f; border-radius:24px; background:#0b1727; font-size:26px; font-weight:750; }
+    .arrow { color:var(--blue); font-size:56px; text-align:center; }
+    .danger { border-color:var(--red); box-shadow:inset 0 0 0 5px #fb71851f; }
+    .guard { border-color:var(--amber); box-shadow:inset 0 0 0 5px #fbbf241f; }
+    .ok { border-color:var(--green); box-shadow:inset 0 0 0 5px #4ade801f; }
+    .small { display:block; margin-top:8px; color:var(--muted); font-size:17px; font-weight:500; }
+    .legend { margin-top:22px; padding:18px 22px; border-left:6px solid var(--amber); background:#211b0d; border-radius:8px 18px 18px 8px; font-size:24px; }
+    .two { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+    ul { margin:8px 0 0; padding-left:1.2em; }
+    li { margin:10px 0; }
+    .yes h2 { color:var(--green); } .no h2 { color:var(--red); }
+    .final { text-align:center; border-color:var(--blue); }
+    .final strong { display:block; font-size:clamp(29px,4vw,48px); color:var(--blue); }
+    @media (max-width:800px) {
+      .verdict,.two { grid-template-columns:1fr; }
+      .score { width:145px; height:145px; justify-self:center; }
+      .flow { grid-template-columns:1fr; }
+      .arrow { transform:rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>#389: курс Vercel нам полезен как техосмотр</h1>
+  <p class="lead">Он учит собирать «коробку», внутри которой модель думает, вызывает инструменты и проверяет результат. Такая коробка у Orchestra уже есть.</p>
+
+  <section class="card verdict">
+    <div>
+      <h2>Переписывать Orchestra не надо</h2>
+      <p>Из 11 тем курса примерно 7 уже закрыты нашим harness — часто глубже, чем в учебном примере.</p>
+    </div>
+    <div class="score">7/11</div>
+  </section>
+
+  <section class="card">
+    <h2>Но техосмотр нашёл одну настоящую дыру</h2>
+    <div class="flow">
+      <div class="box ok">Orchestra<br>проверяет внешние действия<span class="small">воркеры, worktree, MCP, роли</span></div>
+      <div class="arrow">→</div>
+      <div class="box danger">Внутренняя модель harness<span class="small">сама зовёт bash / write / edit внутри Python</span></div>
+      <div class="arrow">→</div>
+      <div class="box danger">Действие сразу выполняется<span class="small">внешний охранник этот вызов не видит</span></div>
+    </div>
+    <p class="legend">Простая аналогия: охранник стоит у главной двери, а внутри цеха осталась боковая дверь без пропуска.</p>
+  </section>
+
+  <section class="card">
+    <h2>Что предлагается сделать</h2>
+    <div class="flow">
+      <div class="box">Модель просит действие<span class="small">точное имя + все аргументы</span></div>
+      <div class="arrow">→</div>
+      <div class="box guard">Серверный пропускной пункт<span class="small">разрешить / запретить / спросить человека</span></div>
+      <div class="arrow">→</div>
+      <div class="box ok">Исполнить ровно один раз<span class="small">и сохранить квитанцию</span></div>
+    </div>
+    <p class="legend">Это не «ещё один промпт». Это проверка в коде прямо перед исполнением каждого внутреннего инструмента.</p>
+  </section>
+
+  <section class="two">
+    <div class="card yes">
+      <h2>Берём из курса</h2>
+      <ul>
+        <li>место для проверки каждого tool-вызова;</li>
+        <li>пауза и продолжение после одобрения;</li>
+        <li>эксперимент с очисткой старых тяжёлых результатов;</li>
+        <li>автопоиск подходящих тестов проекта.</li>
+      </ul>
+    </div>
+    <div class="card no">
+      <h2>Не берём</h2>
+      <ul>
+        <li>переписывание на TypeScript;</li>
+        <li>Vercel AI SDK, Gateway и Workflow;</li>
+        <li>новую облачную песочницу без нужды;</li>
+        <li>наивный список «безопасных» shell-команд.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="card final">
+    <strong>Итог: курс подтвердил, что наш путь нормальный.</strong>
+    <p>Практическая польза #389 — один узкий предохранитель для внутреннего harness. Остальное либо уже есть, либо сначала надо измерять.</p>
+  </section>
+</main>
+</body>
+</html>
