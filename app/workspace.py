@@ -1242,6 +1242,7 @@ def merge_worktree_to_main(
     operation_id: str = "",
     prepare: Callable[[str, str], None] | None = None,
     resolve_refs: Callable[[list[str]], list[str]] | None = None,
+    commit_receipt: Callable[[dict], dict] | None = None,
 ) -> MergeOutcome:
     wt = Path(worktree_path).resolve()
     repo = _resolve_repo(str(wt), repo_path)
@@ -1258,6 +1259,7 @@ def merge_worktree_to_main(
     merge_cwd = ""
     target_recheck = None
     prepared_squash_message = ""
+    reset_worker_pending = False
 
     with repo_mutation_lock(repo):
         target_branch = resolve_base_branch(str(repo), target_branch)
@@ -1661,9 +1663,7 @@ def merge_worktree_to_main(
 
                                             if result and result.get("ok"):
                                                 target_commit_succeeded = True
-                                                _reset_worktree_to_ref(
-                                                    str(wt), target_branch, str(repo),
-                                                )
+                                                reset_worker_pending = True
         finally:
             if original_branch and original_branch != target_branch:
                 restore = _git_cmd(
@@ -1746,6 +1746,29 @@ def merge_worktree_to_main(
                 "actual": target_before,
                 "matched": target_before == expected_target_head,
             }
+        if (
+            result.get("ok")
+            and commit_point == "target_committed"
+            and commit_receipt is not None
+        ):
+            try:
+                result["receipt"] = commit_receipt(dict(result))
+            except Exception as error:
+                result.update(
+                    ok=False,
+                    state="partial",
+                    error=(
+                        "verified merge receipt could not be persisted before "
+                        f"worktree reset: {type(error).__name__}: {error}"
+                    ),
+                    receipt_error=f"{type(error).__name__}: {error}",
+                )
+        if reset_worker_pending and (
+            commit_point != "target_committed"
+            or commit_receipt is None
+            or isinstance(result.get("receipt"), dict)
+        ):
+            _reset_worktree_to_ref(str(wt), target_branch, str(repo))
         return result
 
 

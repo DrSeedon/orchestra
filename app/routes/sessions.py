@@ -1574,9 +1574,15 @@ async def apply_merge_finalization(finalization: dict) -> dict:
     """
     from app import tm as _tm
     from app.db import get_session
+    from app.ia import merge_receipts
     from app.workspace import switch_worktree_branch
 
     session_id = finalization["session_id"]
+    operation_id = str(finalization.get("operation_id") or "")
+    if operation_id and merge_receipts.merge_receipt_configured():
+        merge_receipts.require_merge_receipt(
+            operation_id, finalization=finalization,
+        )
     applied = await asyncio.to_thread(_tm.finalize_merge_outcome, finalization)
     out: dict = {"linked_tasks": applied["links"]}
 
@@ -1640,6 +1646,7 @@ async def _finalize_committed_merge(
 ) -> dict:
     """Run the durable checkpoint and the DB stage of a merge that already committed."""
     from app import merge_operations as _ops
+    from app.ia import merge_receipts
     from app import rag_service
 
     finalization["commits"] = merged_commits
@@ -1665,6 +1672,27 @@ async def _finalize_committed_merge(
                 error=f"first post-commit checkpoint lost: {detail}",
                 finalization=finalization,
                 finalization_checkpoint_lost=detail,
+            )
+            return result
+    if operation_id and merge_receipts.merge_receipt_configured():
+        try:
+            result["receipt"] = await asyncio.to_thread(
+                merge_receipts.record_merge_receipt,
+                operation_id,
+                result,
+                finalization,
+            )
+        except Exception as error:
+            detail = err_text(error)
+            logger.error(
+                "merge receipt failed operation_id=%s: %s", operation_id, detail,
+            )
+            result.update(
+                ok=False,
+                state="partial",
+                commit_point="target_committed",
+                error=f"verified merge receipt failed: {detail}",
+                finalization=finalization,
             )
             return result
     try:
@@ -1772,6 +1800,11 @@ async def execute_merge_session(
         primary_task_ref = ""
         project_id = ""
         strict_task_merge = str(req.get("merge_schema_version") or "") == "2"
+        from app.ia import merge_receipts
+
+        receipt_required = (
+            strict_task_merge and merge_receipts.merge_receipt_configured()
+        )
         task_outcome = str(req.get("task_outcome") or "").strip().lower()
         if strict_task_merge:
             if task_outcome not in {"continue", "complete"}:
@@ -1854,16 +1887,21 @@ async def execute_merge_session(
                 )
             pinned_branch = actual_branch
 
-        try:
-            target = await asyncio.to_thread(
-                _session_base_branch, found, requested_target,
-            )
-        except ValueError as e:
-            return _merge_not_reached(
-                str(e), target_branch=requested_target,
-                worker_branch=pinned_branch, worker_head=pinned_head,
-                http_status=400,
-            )
+        if expected_target_head:
+            # Target-aware operations already resolved and persisted this branch/ref at
+            # admission. The repository lock rechecks the same pair before mutation.
+            target = requested_target or getattr(found, "base_branch", "")
+        else:
+            try:
+                target = await asyncio.to_thread(
+                    _session_base_branch, found, requested_target,
+                )
+            except ValueError as e:
+                return _merge_not_reached(
+                    str(e), target_branch=requested_target,
+                    worker_branch=pinned_branch, worker_head=pinned_head,
+                    http_status=400,
+                )
 
         if not await _wait_for_merge_idle(found):
             status = found.status.value
@@ -1910,7 +1948,7 @@ async def execute_merge_session(
                     worker_head=drift["actual_head"] or pinned_head,
                     http_status=409,
                 )
-            merge_head = drift["actual_head"] or pinned_head
+            merge_head = pinned_head if receipt_required else drift["actual_head"] or pinned_head
 
             finalization: dict | None = None
             if strict_task_merge:
@@ -1935,6 +1973,13 @@ async def execute_merge_session(
                     )
                 finalization["target_branch"] = target
                 finalization["worker_head"] = merge_head
+
+            commit_receipt = None
+            if finalization is not None and receipt_required:
+                def commit_receipt(merge_result: dict) -> dict:
+                    return merge_receipts.record_merge_receipt(
+                        operation_id, merge_result, finalization,
+                    )
 
             def _resolve_candidate_refs(actual_refs: list[str]) -> list[str]:
                 """Turn the refs found on the pinned HEAD into canonical scoped ones.
@@ -1972,6 +2017,7 @@ async def execute_merge_session(
                     resolve_refs=(
                         _resolve_candidate_refs if finalization is not None else None
                     ),
+                    commit_receipt=commit_receipt,
                 )
             except Exception as e:
                 # Реmержа не было видно ни одной стороной: исход Git неизвестен, поэтому
