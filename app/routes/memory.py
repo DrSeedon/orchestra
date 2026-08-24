@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app import rag, rag_service
+from app.ia import projections
 
 router = APIRouter(prefix="/api/memory", tags=["memory"])
 
@@ -29,12 +30,48 @@ class MemoryReindexRequest(BaseModel):
 
 @router.post("/search")
 async def memory_search(req: MemorySearchRequest):
-    if not rag_service.is_enabled():
+    projection_active = projections._projection_configured()
+    if not projection_active and not rag_service.is_enabled():
         return JSONResponse({"error": "RAG disabled (set RAG_ENABLED=true)"}, status_code=503)
     scope = req.scope.rstrip("/")
     if not scope:
         return JSONResponse({"error": "scope required"}, status_code=400)
     kinds = tuple(req.kinds) if req.kinds else None
+    if projection_active:
+        try:
+            current = projections.query_current({
+                "project_id": scope,
+                "text": req.query,
+                "record_types": ["knowledge.evidence-ref", "session.history"],
+                "limit": req.limit,
+                "cross_project": req.cross_project,
+            })
+        except RuntimeError as e:
+            return JSONResponse({"error": str(e)}, status_code=503)
+        results = []
+        for raw in current["items"]:
+            item = dict(raw)
+            if item["record_type"] == "knowledge.evidence-ref":
+                item.update(
+                    source="file",
+                    path=item["source_path"],
+                    content=item["content"],
+                )
+            else:
+                item.update(
+                    source="log",
+                    log_id=item["source_log_ids"][0],
+                    content=item["content"],
+                )
+            results.append(item)
+        return {
+            "results": results,
+            "index": {"pending_files": 0},
+            "canonical_head": current["canonical_head"],
+            "projection_head": current["projection_head"],
+            "indexed_head": current["indexed_head"],
+            "debt": current["debt"],
+        }
     try:
         results = await rag_service.search(
             scope, req.query, limit=req.limit, cross_project=req.cross_project, kinds=kinds)
@@ -61,12 +98,12 @@ async def memory_reindex(req: MemoryReindexRequest):
     этом обещал «fast per-agent reindex». Ждать тут нечего: прогресс виден в journald
     (`RAG scheduled backfill …`) и в `index_status` — его же отдаёт `/api/memory/search`.
     """
-    if not rag_service.is_enabled():
+    if not projections._projection_configured() and not rag_service.is_enabled():
         return JSONResponse({"error": "RAG disabled (set RAG_ENABLED=true)"}, status_code=503)
     scope = req.scope.rstrip("/")
     if not scope:
         return JSONResponse({"error": "scope required"}, status_code=400)
-    status = rag_service.schedule_backfill(scope, session_name=req.session_name or "")
-    if status == "not_ready":
-        return JSONResponse({"error": "RAG not initialized"}, status_code=503)
-    return {"ok": True, "status": status, "index": rag_service.index_status(scope)}
+    try:
+        return projections.rebuild_legacy(scope=scope, session_name=req.session_name)
+    except projections.ProjectionDebtError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=503)
