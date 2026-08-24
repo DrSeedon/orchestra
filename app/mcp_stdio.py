@@ -93,6 +93,7 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "task_list",
     "task_get",
     "bg_list",
+    "knowledge",
     "search_memory",
     "delivery_status",
     "message_delivery_status",
@@ -103,6 +104,7 @@ REDUCER_MCP_TOOLS = frozenset({
     "send_message",
     "update_progress",
     "list_agents",
+    "knowledge",
     "search_memory",
 })
 
@@ -2703,13 +2705,8 @@ async def knowledge(
     return json.dumps(result, ensure_ascii=False, sort_keys=True)
 
 
-@mcp.tool()
 async def search_memory(query: str, limit: int = 5, cross_project: bool = False) -> str:
-    """Семантический поиск по ПАМЯТИ проекта — прошлые docs/tasks/*.md, CLAUDE.md, BUGS.md,
-    отчёты и решения агентов (send_message DONE-репорты, обсуждения). Юзай когда потерял
-    контекст после compact/restart, или ищешь как раньше решали похожую задачу — вместо того
-    чтобы grep'ать вслепую. Ищет по СВОЕМУ проекту. cross_project=True — по всем проектам
-    (редко нужно). limit — сколько результатов (default 5)."""
+    """Compatibility callable for old in-process consumers; not an agent MCP tool."""
     # scope НЕ параметр: берём ORCHESTRA_SCOPE из env воркера → нельзя запросить чужой проект.
     if not SCOPE:
         return "search_memory: no project scope (orchestrator context) — nothing to search."
