@@ -1950,7 +1950,55 @@ def get_logs_before(session_id: str, before_id: int, limit: int = 500, max_bytes
         return list(reversed(out))
 
 
-_SYNC_COLS = "id, session_id, ts, type, content, event_id"
+_SYNC_COLS = (
+    "id, session_id, ts, type, content, event_id, "
+    "tool_use_id, tool_name, tool_is_error"
+)
+
+
+def _project_image_generation_result(row: dict, cap: int) -> dict | None:
+    """Return the useful, bounded part of a persisted ImageGeneration result.
+
+    The PNG already lives at ``saved_path``. Shipping its multi-megabyte base64 field in
+    dashboard history both blows the row cap and cuts off the path/prompt stored after it.
+    """
+    if row.get("type") != "tool_result" or row.get("tool_name") != "ImageGeneration":
+        return None
+    source = row.get("content") or ""
+    try:
+        data = json.loads(source)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(data, dict) or not any(
+        key in data for key in ("saved_path", "revised_prompt", "status")
+    ):
+        return None
+
+    projected = {
+        "status": str(data.get("status") or ""),
+        "saved_path": str(data.get("saved_path") or ""),
+        "revised_prompt": str(data.get("revised_prompt") or ""),
+    }
+    encoded = json.dumps(projected, ensure_ascii=False, separators=(",", ":"))
+    if cap and len(encoded.encode()) > cap:
+        # Keep valid JSON and the path even when an abnormal revised prompt alone exceeds
+        # the row cap. The ordinary byte-prefix truncation would make JSON unparsable again.
+        prompt = projected["revised_prompt"].encode()
+        projected["revised_prompt"] = ""
+        base_size = len(json.dumps(
+            projected, ensure_ascii=False, separators=(",", ":"),
+        ).encode())
+        available = max(0, cap - base_size)
+        projected["revised_prompt"] = prompt[:available].decode(errors="ignore")
+        encoded = json.dumps(projected, ensure_ascii=False, separators=(",", ":"))
+    if cap and len(encoded.encode()) > cap:
+        return None
+
+    row["content"] = encoded
+    row["projection"] = "image_generation"
+    row["source_bytes"] = len(source.encode())
+    row.pop("trunc", None)
+    return row
 
 
 def _cap_content(row: dict, cap: int) -> dict:
@@ -1960,6 +2008,9 @@ def _cap_content(row: dict, cap: int) -> dict:
     в UTF-8 даёт 2 байта на символ — по символам потолок уехал бы вдвое. Срез может
     разрубить символ пополам, поэтому errors="ignore".
     """
+    projected = _project_image_generation_result(row, cap)
+    if projected is not None:
+        return projected
     raw = (row.get("content") or "").encode()
     if len(raw) <= cap:
         return row

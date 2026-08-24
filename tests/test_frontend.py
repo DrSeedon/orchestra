@@ -3558,6 +3558,192 @@ def test_truncated_read_image_restores_full_log_when_source_file_is_gone(
     page.close()
 
 
+def test_image_generation_history_replaces_stale_mirror_and_survives_chat_reentry(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof _showChatFor === 'function'")
+
+    filler = [
+        {"id": i, "session_id": "sid-a", "type": "text", "content": f"row-{i}",
+         "ts": "2026-08-24T08:00:00+00:00"}
+        for i in range(1, 39)
+    ]
+    call = {
+        "id": 39,
+        "session_id": "sid-a",
+        "type": "tool",
+        "tool_name": "ImageGeneration",
+        "tool_use_id": "image-1",
+        "content": 'ImageGeneration: {"status":"in_progress","_codex_item_id":"image-1"}',
+        "ts": "2026-08-24T08:02:36+00:00",
+    }
+    stale = {
+        "id": 40,
+        "session_id": "sid-a",
+        "type": "tool_result",
+        "tool_name": "ImageGeneration",
+        "tool_use_id": "image-1",
+        "content": '{"result":"AAAA',
+        "trunc": 2_200_000,
+        "ts": "2026-08-24T08:03:04+00:00",
+    }
+    full_row = {
+        **stale,
+        "content": json.dumps({
+            "result": "AAAA",
+            "status": "completed",
+            "saved_path": "/tmp/generated-product.png",
+            "revised_prompt": "Exact product on a warm neutral marketplace background",
+        }),
+    }
+    full_row.pop("trunc")
+
+    state = page.evaluate(
+        """async ({mirrorRows, fullRow}) => {
+            if (eventSource) { eventSource.close(); eventSource = null; }
+            selectedAgent = 'agent-a';
+            currentScope = '/scope-a';
+            window.compactMode = false;
+            window.__imageHistoryFetches = 0;
+            window.__imageLogFetches = 0;
+            _storeSessionId = async () => 'sid-a';
+            _storeRead = async () => mirrorRows;
+            _fetchHistory = async () => {
+                window.__imageHistoryFetches += 1;
+                return [];
+            };
+            api = async (path) => {
+                if (path === '/api/logs/40') {
+                    window.__imageLogFetches += 1;
+                    return fullRow;
+                }
+                throw new Error(`unexpected API ${path}`);
+            };
+            connectSSE = () => {};
+
+            await _showChatFor('agent-a', '/scope-a');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            const first = {
+                prompt: document.querySelector('.codex-image-prompt')?.textContent || '',
+                src: document.querySelector('.codex-tool-image')?.getAttribute('src') || '',
+                title: document.querySelector('[data-tool-raw-name="ImageGeneration"] .flex.items-center')?.textContent || '',
+            };
+
+            document.querySelector('#chat').replaceChildren();
+            selectedAgent = 'agent-b';
+            _renderHistory('agent-b', [{id: 41, session_id: 'sid-b', type: 'text', content: 'other chat'}]);
+            document.querySelector('#chat').replaceChildren();
+            selectedAgent = 'agent-a';
+            await _showChatFor('agent-a', '/scope-a');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            return {
+                historyFetches: window.__imageHistoryFetches,
+                logFetches: window.__imageLogFetches,
+                first,
+                prompt: document.querySelector('.codex-image-prompt')?.textContent || '',
+                src: document.querySelector('.codex-tool-image')?.getAttribute('src') || '',
+                title: document.querySelector('[data-tool-raw-name="ImageGeneration"] .flex.items-center')?.textContent || '',
+            };
+        }""",
+        {
+            "mirrorRows": filler + [call, stale],
+            "fullRow": full_row,
+        },
+    )
+    page.close()
+
+    assert state["historyFetches"] <= 1
+    assert state["logFetches"] == 2
+    for rendered in (state["first"], state):
+        assert rendered["prompt"] == (
+            "Exact product on a warm neutral marketplace background"
+        )
+        assert "generated-product.png" in rendered["src"]
+        assert "Image generated" in rendered["title"]
+
+
+def test_truncated_image_generation_history_recovers_without_server_restart(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    requests: list[int] = []
+    page_errors: list[str] = []
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+
+    def full_log(route):
+        requests.append(42)
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            json={
+                "id": 42,
+                "session_id": "sid-a",
+                "type": "tool_result",
+                "tool_name": "ImageGeneration",
+                "tool_use_id": "image-42",
+                "content": json.dumps({
+                    "result": "AAAA",
+                    "status": "completed",
+                    "saved_path": "/tmp/generated-hot.png",
+                    "revised_prompt": "Exact item, clear use case, matching prior marketplace style",
+                }),
+            },
+        )
+
+    page.route(re.compile(r".*/api/logs/42$"), full_log)
+    page.route(
+        "**/api/files/raw?**",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="image/svg+xml",
+            body='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12"/>',
+        ),
+    )
+    _goto_dashboard(page)
+    page.wait_for_function(
+        "() => typeof selectedAgent !== 'undefined' && selectedAgent !== null"
+    )
+    page.evaluate(
+        """() => {
+            if (eventSource) { eventSource.close(); eventSource = null; }
+            selectedAgent = null;
+            window.compactMode = false;
+            document.querySelector('#chat').replaceChildren();
+            addChatEntry(
+                'tool',
+                'ImageGeneration: {"status":"in_progress","_codex_item_id":"image-42"}',
+                null, null, {id: 41, tool_use_id: 'image-42'}
+            );
+            addChatEntry(
+                'tool_result', '{"result":"AAAA', null, null,
+                {id: 42, trunc: 2200000, tool_use_id: 'image-42', tool_name: 'ImageGeneration'}
+            );
+        }"""
+    )
+
+    page.wait_for_timeout(1000)
+    state = page.evaluate(
+        """() => ({
+            prompt: document.querySelector('.codex-image-prompt')?.textContent || '',
+            src: document.querySelector('.codex-tool-image')?.getAttribute('src') || '',
+            header: document.querySelector('[data-tool-raw-name] .flex.items-center')?.textContent || '',
+            html: document.querySelector('#chat').innerHTML,
+        })"""
+    )
+    assert "clear use case" in state["prompt"], (state, requests, page_errors)
+    expect(page.locator("#chat")).to_contain_text("✅ Image generated")
+    expect(page.locator("#chat .codex-image-prompt")).to_contain_text(
+        "matching prior marketplace style"
+    )
+    assert "generated-hot.png" in state["src"]
+    assert requests == [42]
+    page.close()
+
+
 def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: Browser):
     root = Path(__file__).parent.parent
     app_source = (root / "app/static/js/app.js").read_text()
