@@ -344,8 +344,8 @@ def test_model_cost_and_task_money_have_separate_currency_sources(browser):
     )
     task_money = page.locator("#task-money").inner_text()
     assert "Price: 1 200 €" in task_money
-    assert "Paid: 500 €" in task_money
-    assert "Debt: 700 €" in task_money
+    assert "Paid:" not in task_money
+    assert "Debt:" not in task_money
     assert "$" not in task_money
     page.close()
 
