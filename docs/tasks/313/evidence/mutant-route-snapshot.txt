@@ -1,0 +1,28 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________________________ test_route_surface_snapshot __________________________
+
+    def test_route_surface_snapshot():
+        surface = route_surface()
+        if not SNAPSHOT.exists():
+            SNAPSHOT.write_text(json.dumps(surface, indent=1, ensure_ascii=False))
+        expected = [(path, tuple(methods)) for path, methods in json.loads(SNAPSHOT.read_text())]
+        added = sorted(set(surface) - set(expected))
+        removed = sorted(set(expected) - set(surface))
+>       assert surface == expected, (
+               ^^^^^^^^^^^^^^^^^^^
+            "HTTP-поверхность разошлась со снапшотом.\n"
+            f"  добавлено: {added or '—'}\n"
+            f"  удалено:   {removed or '—'}\n"
+            "Если изменение намеренное — обнови tests/route_surface_snapshot.json тем же коммитом."
+        )
+E       AssertionError: HTTP-поверхность разошлась со снапшотом.
+E         добавлено: —
+E         удалено:   [('/uploads/{filename:path}', ('GET',))]
+E       Если изменение намеренное — обнови tests/route_surface_snapshot.json тем же коммитом.
+
+tests/test_routes_surface.py:71: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_routes_surface.py::test_route_surface_snapshot - AssertionE...
+1 failed, 1 deselected in 2.21s
+EXIT=1

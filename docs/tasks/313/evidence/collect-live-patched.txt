@@ -1,0 +1,6 @@
+tests/test_native_history_import.py::test_pinned_runtime_semantically_recalls_long_native_history[claude]
+tests/test_native_history_import.py::test_pinned_runtime_semantically_recalls_long_native_history[codex]
+tests/test_native_history_import.py::test_cross_runtime_packet_to_claude_recalls_tool_result_uuid
+
+3/3284 tests collected (3281 deselected) in 3.52s
+EXIT=0

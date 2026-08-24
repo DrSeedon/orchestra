@@ -1,0 +1,102 @@
+E                                                                        [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_dashboard_polling_equivalent_twelve_minutes_before_after _
+
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x72925f5b7a40>, _basetemp=PosixPath('/tmp/pytest-of-maxim/pytest-59'), _retention_count=3, _retention_policy='all')
+
+    @pytest.fixture(scope="module")
+    def dashboard_browser(tmp_path_factory):
+        db_path = tmp_path_factory.mktemp("fe-dash") / "orchestra.db"
+        _seed_dashboard_db(db_path)
+>       proc, origin = _start_dashboard_server(db_path)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_frontend.py:280:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+db_path = PosixPath('/tmp/pytest-of-maxim/pytest-59/fe-dash0/orchestra.db')
+
+    def _start_dashboard_server(db_path: Path) -> tuple[subprocess.Popen, str]:
+        # Empty strings beat load_dotenv(): existing keys are not overwritten, so
+        # the subprocess cannot pick up the machine unit's DASHBOARD_* / tunnels.
+        env = os.environ.copy()
+        env["ORCHESTRA_DB_PATH"] = str(db_path)
+        env["DASHBOARD_USER"] = ""
+        env["DASHBOARD_PASSWORD"] = ""
+        env["OWNER_MODE"] = ""
+        env["SSH_TUNNELS"] = ""
+        port = _free_port()
+        root = Path(__file__).resolve().parent.parent
+        proc = subprocess.Popen(
+            [
+                sys.executable, "-m", "uvicorn", "app.main:app",
+                "--host", "127.0.0.1", "--port", str(port),
+                "--log-level", "warning",
+            ],
+            cwd=str(root),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        origin = f"http://127.0.0.1:{port}"
+        started = time.monotonic()
+        deadline = started + _DASHBOARD_START_TIMEOUT_S
+        last = "no attempt"
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                output = _dashboard_output_tail(proc)
+                if proc.stdout is not None:
+                    proc.stdout.close()
+>               raise RuntimeError(
+                    f"dashboard fixture exited {proc.returncode}; "
+                    f"output tail:\n{output}"
+                )
+E               RuntimeError: dashboard fixture exited 1; output tail:
+E               Traceback (most recent call last):
+E                 File "<frozen runpy>", line 198, in _run_module_as_main
+E                 File "<frozen runpy>", line 88, in _run_code
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/.venv/lib/python3.12/site-packages/uvicorn/__main__.py", line 4, in <module>
+E                   uvicorn.main()
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/.venv/lib/python3.12/site-packages/click/core.py", line 1524, in __call__
+E                   return self.main(*args, **kwargs)
+E                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/.venv/lib/python3.12/site-packages/click/core.py", line 1445, in main
+E                   rv = self.invoke(ctx)
+E                        ^^^^^^^^^^^^^^^^
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/.venv/lib/python3.12/site-packages/click/core.py", line 1308, in invoke
+E                   return ctx.invoke(self.callback, **ctx.params)
+E                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/.venv/lib/python3.12/site-packages/click/core.py", line 877, in invoke
+E                   return callback(*args, **kwargs)
+E                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/.venv/lib/python3.12/site-packages/uvicorn/main.py", line 441, in main
+E                   run(
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/.venv/lib/python3.12/site-packages/uvicorn/main.py", line 609, in run
+E                   config.load_app()
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/.venv/lib/python3.12/site-packages/uvicorn/config.py", line 415, in load_app
+E                   return import_from_string(self.app)
+E                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/.venv/lib/python3.12/site-packages/uvicorn/importer.py", line 19, in import_from_string
+E                   module = importlib.import_module(module_str)
+E                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                 File "/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/importlib/__init__.py", line 90, in import_module
+E                   return _bootstrap._gcd_import(name[level:], package, level)
+E                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                 File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+E                 File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+E                 File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+E                 File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+E                 File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+E                 File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/app/main.py", line 24, in <module>
+E                   from app import restart_guard
+E                 File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/app/restart_guard.py", line 58, in <module>
+E                   pidfd_open: Callable[[int], int] = os.pidfd_open,
+E                                                      ^^^^^^^^^^^^^
+E               AttributeError: module 'os' has no attribute 'pidfd_open'
+
+tests/test_frontend.py:180: RuntimeError
+=========================== short test summary info ============================
+ERROR tests/test_frontend.py::test_dashboard_polling_equivalent_twelve_minutes_before_after
+1 error in 0.87s
+EXIT=1

@@ -1,0 +1,7 @@
+VERIFY PASS
+inventory_bytes 2268538
+static_signals_bytes 4125300
+candidate_rows 12
+candidate_verdicts {'KEEP': 6, 'REWRITE': 4, 'UNKNOWN': 2}
+inventory_before_bytes=21065404
+static_signals_before_bytes=5976341

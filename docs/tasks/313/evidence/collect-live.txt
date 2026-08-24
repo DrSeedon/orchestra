@@ -1,0 +1,95 @@
+Using CPython 3.12.12
+Creating virtual environment at: .venv
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 74 packages in 907ms
+tests/test_native_history_import.py::test_pinned_runtime_semantically_recalls_long_native_history[claude]
+tests/test_native_history_import.py::test_pinned_runtime_semantically_recalls_long_native_history[codex]
+tests/test_native_history_import.py::test_cross_runtime_packet_to_claude_recalls_tool_result_uuid
+
+==================================== ERRORS ====================================
+_______________ ERROR collecting tests/test_antigravity_usage.py _______________
+tests/test_antigravity_usage.py:11: in <module>
+    from app.routes import system
+app/routes/system.py:41: in <module>
+    from app import restart_guard
+app/restart_guard.py:58: in <module>
+    pidfd_open: Callable[[int], int] = os.pidfd_open,
+                                       ^^^^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'pidfd_open'
+__________________ ERROR collecting tests/test_codex_usage.py __________________
+tests/test_codex_usage.py:9: in <module>
+    from app.routes import system
+app/routes/system.py:41: in <module>
+    from app import restart_guard
+app/restart_guard.py:58: in <module>
+    pidfd_open: Callable[[int], int] = os.pidfd_open,
+                                       ^^^^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'pidfd_open'
+__________________ ERROR collecting tests/test_owner_mode.py ___________________
+tests/test_owner_mode.py:10: in <module>
+    from app.routes import system as system_routes
+app/routes/system.py:41: in <module>
+    from app import restart_guard
+app/restart_guard.py:58: in <module>
+    pidfd_open: Callable[[int], int] = os.pidfd_open,
+                                       ^^^^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'pidfd_open'
+_________________ ERROR collecting tests/test_process_guard.py _________________
+tests/test_process_guard.py:11: in <module>
+    from scripts.orchestra_process_guard import (
+scripts/orchestra_process_guard.py:428: in <module>
+    class ProcessGuard:
+scripts/orchestra_process_guard.py:436: in ProcessGuard
+    pidfd_open: Callable[[int], int] = os.pidfd_open,
+                                       ^^^^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'pidfd_open'
+_________________ ERROR collecting tests/test_quota_map_api.py _________________
+tests/test_quota_map_api.py:12: in <module>
+    import app.routes.system as system
+app/routes/system.py:41: in <module>
+    from app import restart_guard
+app/restart_guard.py:58: in <module>
+    pidfd_open: Callable[[int], int] = os.pidfd_open,
+                                       ^^^^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'pidfd_open'
+___________ ERROR collecting tests/test_usage_history_resolution.py ____________
+tests/test_usage_history_resolution.py:12: in <module>
+    from app.routes import system
+app/routes/system.py:41: in <module>
+    from app import restart_guard
+app/restart_guard.py:58: in <module>
+    pidfd_open: Callable[[int], int] = os.pidfd_open,
+                                       ^^^^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'pidfd_open'
+________________ ERROR collecting tests/test_usage_readiness.py ________________
+tests/test_usage_readiness.py:6: in <module>
+    from app.routes import system
+app/routes/system.py:41: in <module>
+    from app import restart_guard
+app/restart_guard.py:58: in <module>
+    pidfd_open: Callable[[int], int] = os.pidfd_open,
+                                       ^^^^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'pidfd_open'
+________________ ERROR collecting tests/test_usage_snapshot.py _________________
+tests/test_usage_snapshot.py:12: in <module>
+    from app.routes import system
+app/routes/system.py:41: in <module>
+    from app import restart_guard
+app/restart_guard.py:58: in <module>
+    pidfd_open: Callable[[int], int] = os.pidfd_open,
+                                       ^^^^^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'pidfd_open'
+=========================== short test summary info ============================
+ERROR tests/test_antigravity_usage.py - AttributeError: module 'os' has no at...
+ERROR tests/test_codex_usage.py - AttributeError: module 'os' has no attribut...
+ERROR tests/test_owner_mode.py - AttributeError: module 'os' has no attribute...
+ERROR tests/test_process_guard.py - AttributeError: module 'os' has no attrib...
+ERROR tests/test_quota_map_api.py - AttributeError: module 'os' has no attrib...
+ERROR tests/test_usage_history_resolution.py - AttributeError: module 'os' ha...
+ERROR tests/test_usage_readiness.py - AttributeError: module 'os' has no attr...
+ERROR tests/test_usage_snapshot.py - AttributeError: module 'os' has no attri...
+!!!!!!!!!!!!!!!!!!! Interrupted: 8 errors during collection !!!!!!!!!!!!!!!!!!!!
+3/3154 tests collected (3151 deselected), 8 errors in 10.40s
+EXIT=2

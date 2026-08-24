@@ -1,0 +1,85 @@
+........................................................................ [ 38%]
+........................................................................ [ 77%]
+..................................FF......                               [100%]
+=================================== FAILURES ===================================
+___________ test_missing_task_ref_does_not_freeze_the_branch_forever ___________
+
+live_merge = {'operations': <module 'app.merge_operations' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-py...missing-task-ref-does-not0-repo/worker', branch_created=True, initial_head='8bd86e1501ae55899b1c0a493e400524370952b0')}
+
+    @pytest.mark.asyncio
+    async def test_missing_task_ref_does_not_freeze_the_branch_forever(live_merge):
+        repo = live_merge["repo"]
+        worktree = live_merge["worktree"]
+        operations = live_merge["operations"]
+
+        _commit(worktree.path, "#24: applied link", "a.txt")
+        _commit(worktree.path, "#25: link to a number that does not exist", "b.txt")
+
+        first_id = str(uuid.uuid4())
+        first, _status = await _merge(operations, first_id, str(repo))
+
+        # Смешанный исход: применённая привязка остаётся, ненайденная — предупреждение.
+>       assert first["operation_state"] == "SUCCEEDED", first["error"]
+E       AssertionError: {'code': 'UNKNOWN_OUTCOME', 'details': {'exception_type': 'TypeError'}, 'message': "Merge operation crashed: TypeError...merge.<locals>.fake_execute() got an unexpected keyword argument 'expected_target_head'", 'outcome_unknown': True, ...}
+E       assert 'UNKNOWN' == 'SUCCEEDED'
+E
+E         - SUCCEEDED
+E         + UNKNOWN
+
+tests/test_merge_stuck.py:141: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.merge_operations:merge_operations.py:1350 merge operation crashed operation_id=2d3b5544-042b-490a-8ef4-4fe1b957192d
+Traceback (most recent call last):
+  File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/app/merge_operations.py", line 1298, in _run_operation
+    raw = await execute_merge_session(
+                ^^^^^^^^^^^^^^^^^^^^^^
+TypeError: live_merge.<locals>.fake_execute() got an unexpected keyword argument 'expected_target_head'
+_________ test_primary_failure_blocks_until_it_is_explicitly_resolved __________
+
+live_merge = {'operations': <module 'app.merge_operations' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-py...primary-failure-blocks-un0-repo/worker', branch_created=True, initial_head='8bd86e1501ae55899b1c0a493e400524370952b0')}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d0be8c42d80>
+
+    @pytest.mark.asyncio
+    async def test_primary_failure_blocks_until_it_is_explicitly_resolved(live_merge, monkeypatch):
+        """Инвариант 1 на живом репозитории: настоящий PARTIAL блокирует до закрытия."""
+        repo = live_merge["repo"]
+        worktree = live_merge["worktree"]
+        operations = live_merge["operations"]
+
+        import app.routes.sessions as sessions
+
+        original = sessions.execute_merge_session
+
+        async def failing_lifecycle(**kwargs):
+            outcome = await original(**kwargs)
+            if outcome.get("ok"):
+                outcome["lifecycle_status"] = {"ok": False, "error": "sqlite unavailable"}
+            return outcome
+
+        monkeypatch.setattr("app.routes.sessions.execute_merge_session", failing_lifecycle)
+
+        _commit(worktree.path, "#24: first", "a.txt")
+        first_id = str(uuid.uuid4())
+        first, _status = await _merge(operations, first_id, str(repo))
+>       assert first["operation_state"] == "PARTIAL"
+E       AssertionError: assert 'UNKNOWN' == 'PARTIAL'
+E
+E         - PARTIAL
+E         + UNKNOWN
+
+tests/test_merge_stuck.py:192: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.merge_operations:merge_operations.py:1350 merge operation crashed operation_id=49e69dcb-0438-4d1e-9cb0-e0918c4216e6
+Traceback (most recent call last):
+  File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/app/merge_operations.py", line 1298, in _run_operation
+    raw = await execute_merge_session(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-test-suite-pruning/tests/test_merge_stuck.py", line 182, in failing_lifecycle
+    outcome = await original(**kwargs)
+                    ^^^^^^^^^^^^^^^^^^
+TypeError: live_merge.<locals>.fake_execute() got an unexpected keyword argument 'expected_target_head'
+=========================== short test summary info ============================
+FAILED tests/test_merge_stuck.py::test_missing_task_ref_does_not_freeze_the_branch_forever
+FAILED tests/test_merge_stuck.py::test_primary_failure_blocks_until_it_is_explicitly_resolved
+2 failed, 184 passed in 10.24s
+EXIT=1
