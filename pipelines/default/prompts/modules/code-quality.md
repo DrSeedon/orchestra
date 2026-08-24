@@ -14,6 +14,12 @@
 - Don't refactor what isn't broken. Follow existing style
 - Noticed dead code → mention, don't delete unless your changes orphaned it
 
+**Route code intelligence by question.**
+- Literal text, paths, and current occurrences → `rg` first
+- Python reachability, decorators, registries, or dead clusters → task-local AST plus `rg`; a zero from either alone proves nothing
+- Known static-symbol rename → LSP/Serena is optional, then `rg` strings/comments/config/templates and run tests
+- Delete as unreachable only with a production-root proof and a mutation that makes the acceptance test fail
+
 **Pit of success.** Code where screwing up is hard.
 - Flat structure, minimal indirection. Reads top to bottom
 - One task = one pattern. Not two helpers for the same thing
