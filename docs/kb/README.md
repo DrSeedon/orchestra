@@ -44,10 +44,14 @@
   пробы в гейте мержа, общий рантайм и боевые креды в worktree.
 - [test-suite-pruning](test-suite-pruning.md) — измеренный аудит pytest-набора: доказанные
   удаления, тесты на переписывание, ложные дубли и границы безопасной чистки.
+- [dead-code-audit](dead-code-audit.md) — доказательная проверка достижимости production-кода:
+  Serena/LSP, AST, runtime registries, динамические входы и безопасные удаления.
 - [codex-runtime](codex-runtime.md) — Codex/Sol, выбор моделей, лимиты, потолки раундов ревью,
   приоритет пулов и отозванные сравнения по квоте.
 - [repo-ops](repo-ops.md) — git, деплой, systemd, секреты в артефактах, дубли одной мысли в двух
   файлах, воркеры, чужая машина.
+- [tg-media-delivery](tg-media-delivery.md) — timeout и UNKNOWN-семантика отправки файлов в
+  Telegram, риск дублей и контракт durable per-file receipts/outbox.
 - [openrouter-quotas](openrouter-quotas.md) — лимиты бесплатных моделей OpenRouter (1000/сутки, 20/мин),
   где брать число запросов: /api/v1/key не даёт, analytics API даёт но нужен management key.
 - [grep-memory-blowup](grep-memory-blowup.md) — почему `grep` в сессии Claude Code съедает
