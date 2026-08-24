@@ -1,7 +1,10 @@
 {
   "contract_version": 1,
   "fixture_sha256": "88f3d2ca7ab8a5a75b2f2c87fb3fb1870d00e063a7d6e75ca4aec462b4d4b650",
-  "supersedes_excluded_oracle_commit": "529711a9feda296e361bc8a09fd8f7ec65be4a57",
+  "supersedes_excluded_oracle_commits": [
+    "529711a9feda296e361bc8a09fd8f7ec65be4a57",
+    "f09641624d371f9914e6e3eaed0b214384d9a9f4"
+  ],
   "public_api": {
     "module": "app.ia.task_store",
     "callables": [
@@ -86,7 +89,18 @@
     "tm_projects.yougile_*",
     "tm_tasks.yougile_task_id"
   ],
-  "forbidden_canonical_fragments": [
+  "forbidden_canonical_field_names": [
+    "clients",
+    "paid_rub",
+    "payment_allocations",
+    "payments",
+    "sync_log",
+    "yougile_board_id",
+    "yougile_enabled",
+    "yougile_project_id",
+    "yougile_task_id"
+  ],
+  "forbidden_canonical_values": [
     "T2_EXCLUDED_CLIENT",
     "T2_EXCLUDED_CLIENT_NAME",
     "T2_EXCLUDED_PAYMENT_NOTE",
@@ -144,6 +158,6 @@
       "worker_session_id"
     ]
   },
-  "expected_controls": 5,
+  "expected_controls": 6,
   "expected_behavior_tests": 15
 }
