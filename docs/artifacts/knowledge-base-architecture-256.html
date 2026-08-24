@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Наглядное объяснение архитектуры знаний Orchestra: результаты #256 и вопросы для обсуждения.">
+  <title>#256 · Архитектура знаний — объяснение и доска решений</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      /* акцент: холодный бирюзово-синий — про инфраструктурный поток, границы и поколения данных */
+      --accent: light-dark(#246276, #78c5d2);
+      --fs: 15px;
+      --radius: 12px;
+      --font: ui-sans-serif, system-ui, sans-serif;
+      --font-head: ui-serif, Georgia, "Times New Roman", serif;
+      --bg: light-dark(#f7f8f6, #171b1d);
+      --ink: light-dark(#1d282b, #edf2ef);
+      --mut: color-mix(in srgb, var(--ink) 54%, transparent);
+      --card: color-mix(in oklab, var(--ink) 5%, transparent);
+      --border: color-mix(in srgb, var(--ink) 16%, transparent);
+      --ring: var(--accent);
+      --bad: light-dark(#b33c27, #ff8a6e);
+      --good: light-dark(#2f7658, #76d19a);
+      --warm: light-dark(#a96a27, #efb36b);
+      --violet: light-dark(#72559d, #ba9fe5);
+      --fs-sm: max(11px, calc(var(--fs) - 2px));
+      --fs-h3: calc(var(--fs) * 1.29);
+      --fs-h2: calc(var(--fs) * 1.43);
+      --fs-h1: calc(var(--fs) * 1.72);
+      --r-sm: calc(var(--radius) * .6);
+      --r-lg: calc(var(--radius) * 1.6);
+      --shadow: 0 1px 2px -1px rgb(0 0 0 / 8%);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      padding: clamp(16px, 4vw, 40px);
+      background: var(--bg);
+      color: var(--ink);
+      font: 430 var(--fs)/1.5 var(--font);
+    }
+    main { max-width: 1180px; margin: 0 auto; }
+    h1, h2, h3 { margin: 0; font-family: var(--font-head); font-weight: 500; line-height: 1.2; }
+    h1 { font-size: clamp(30px, 5vw, 54px); max-width: 800px; }
+    h2 { font-size: var(--fs-h2); }
+    h3 { font-size: var(--fs-h3); }
+    p { max-width: 76ch; }
+    a { color: var(--accent); }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    code { padding: 1px 5px; border-radius: var(--r-sm); background: color-mix(in srgb, var(--ink) 10%, transparent); overflow-wrap: anywhere; }
+    button, select, textarea { font: inherit; color: inherit; }
+    button, select { border: 1px solid var(--border); background: transparent; border-radius: var(--r-sm); padding: 8px 11px; cursor: pointer; }
+    button:hover, select:hover { border-color: var(--accent); }
+    button[aria-pressed="true"], .primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    :is(a, button, summary, select, textarea):focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .eyebrow { color: var(--accent); font: 600 12px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
+    .muted { color: var(--mut); }
+    .top { border-bottom: 1px solid var(--border); padding-bottom: 28px; }
+    .top p { font-size: 18px; max-width: 65ch; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 22px; font-size: var(--fs-sm); }
+    nav a { text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+    .verdict { margin: 28px 0 0; padding: 18px 20px; border-left: 5px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    .verdict strong { display: block; font-family: var(--font-head); font-size: 23px; font-weight: 500; }
+    .band { border-bottom: 1px solid var(--border); padding: 48px 0; }
+    .section-head { display: flex; gap: 18px; align-items: baseline; margin-bottom: 18px; }
+    .section-head .num { color: var(--accent); font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 28px; align-items: start; }
+    .flow-wrap { margin: 24px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 20px 0; }
+    svg { display: block; width: 100%; height: auto; color: var(--ink); }
+    svg text { fill: currentColor; }
+    svg text.svg-muted { fill: var(--bad); }
+    svg text.svg-accent { fill: var(--accent); }
+    .metric-line { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 18px 0; }
+    .metric { min-width: 130px; border-top: 3px solid var(--accent); padding-top: 8px; }
+    .metric b { display: block; font: 600 25px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .metric span { color: var(--mut); font-size: var(--fs-sm); }
+    .note { border-left: 3px solid var(--warm); padding-left: 14px; }
+    .danger { border-left-color: var(--bad); }
+    .good { border-left-color: var(--good); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 18px 10px 0; border-bottom: 1px solid var(--border); text-align: start; vertical-align: top; overflow-wrap: anywhere; }
+    th { font-weight: 600; }
+    .scroll { overflow-x: auto; scrollbar-width: thin; }
+    details { border-top: 1px solid var(--border); padding: 12px 0; }
+    details:last-child { border-bottom: 1px solid var(--border); }
+    summary { cursor: pointer; font-weight: 600; }
+    .walkthrough { margin-top: 24px; }
+    .toggle-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
+    .state-panel { display: none; border-left: 4px solid var(--accent); padding: 4px 0 4px 18px; }
+    .state-panel.active { display: block; }
+    .state-tag { color: var(--accent); font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
+    .state-panel h3 { margin-top: 4px; }
+    .fact-row { display: grid; grid-template-columns: 130px 1fr; gap: 10px; border-bottom: 1px solid var(--border); padding: 9px 0; }
+    .fact-row b { font-weight: 600; }
+    .decision { border-top: 1px solid var(--border); padding: 22px 0; }
+    .decision:first-of-type { margin-top: 8px; }
+    .decision-title { display: flex; justify-content: space-between; gap: 18px; align-items: baseline; }
+    .decision select { min-width: min(100%, 390px); max-width: 100%; background: var(--bg); }
+    .decision-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px 24px; margin: 12px 0; }
+    .decision-grid p { margin: 0; font-size: var(--fs-sm); }
+    .decision-grid b { display: block; color: var(--accent); font-size: 12px; }
+    textarea { width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--border); background: color-mix(in srgb, var(--ink) 3%, transparent); padding: 12px; }
+    .export-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+    #copy-status { color: var(--good); font-size: var(--fs-sm); }
+    .source-list { columns: 2 280px; column-gap: 34px; padding-left: 20px; }
+    .source-list li { break-inside: avoid; margin-bottom: 7px; }
+    footer { padding: 28px 0 8px; }
+    .status { display: inline-block; border: 1px solid var(--bad); color: var(--bad); padding: 4px 9px; border-radius: 9999px; font-size: var(--fs-sm); }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+    @media (max-width: 620px) {
+      body { padding: 18px; }
+      .top p { font-size: 16px; }
+      .fact-row { grid-template-columns: 1fr; gap: 2px; }
+      .decision-title { display: block; }
+      .decision select { margin-top: 10px; width: 100%; }
+    }
+    @media print {
+      :root { color-scheme: light; }
+      body { padding: 0; background: #fff; color: #000; }
+      nav, .no-print, button, select, textarea, #copy-status { display: none !important; }
+      .band { padding: 25px 0; break-inside: avoid; }
+      .state-panel { display: block !important; break-inside: avoid; margin: 12px 0; }
+      a { color: #000; text-decoration: none; }
+      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header class="top" id="top">
+    <div class="eyebrow">#295 · разговор об архитектуре · материал к решению</div>
+    <h1>Как сделать знания проверяемыми и живыми</h1>
+    <p>Наглядное объяснение результатов #256 для пользователя и верхнеуровневого оркестратора. Сначала — картина, затем — границы, затем — решения, которые действительно нужно принять.</p>
+    <div class="verdict" aria-label="Пятиминутный вывод">
+      <strong>Коротко: Markdown/Git хранит каноническое доказательство; SQLite current-state/FTS — перестраиваемая проекция; vector/log RAG — холодная история.</strong>
+      Новые факты не должны сиротливо появляться в новых файлах: они входят в существующую тему через стабильные <code>fact_key</code> и provenance. SQLite и vector/log — производные слои, которые можно пересобрать.
+    </div>
+    <nav aria-label="Навигация по материалу">
+      <a href="#now">Сейчас</a><a href="#target">Целевой поток</a><a href="#walkthrough">Один факт</a><a href="#tasks">#299 и задачи</a><a href="#alternatives">Почему не иначе</a><a href="#worker">Что почувствует воркер</a><a href="#decisions">Доска решений</a>
+    </nav>
+  </header>
+
+  <section class="band" id="now">
+    <div class="section-head"><span class="num">01</span><h2>Сейчас: знание может быть верным, но не доехать</h2></div>
+    <p>Представьте библиотеку, где новые страницы кладут в архив, а указатель обновляют потом. Пока указатель отстаёт, поиск не отличает «так было раньше» от «так сейчас» — и не всегда знает, в какой теме искать.</p>
+    <div class="flow-wrap" aria-label="Схема текущего пути">
+      <svg viewBox="0 0 1120 210" role="img" aria-labelledby="current-title current-desc">
+        <title id="current-title">Текущий путь от исследования к ответу</title>
+        <desc id="current-desc">Исследование вручную дописывает Markdown, затем асинхронный индекс догоняет файлы и логи. Поиск получает смешанный результат.</desc>
+        <defs><marker id="arrow-current" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="currentColor"/></marker></defs>
+        <g fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="12" y="64" width="190" height="70" rx="8"/><rect x="245" y="64" width="190" height="70" rx="8"/>
+          <rect x="478" y="64" width="190" height="70" rx="8" stroke="var(--bad)"/><rect x="711" y="64" width="190" height="70" rx="8"/><rect x="944" y="64" width="164" height="70" rx="8"/>
+          <path d="M202 99h41M435 99h43M668 99h43M901 99h43" marker-end="url(#arrow-current)"/>
+          <path d="M573 64V23h180" stroke="var(--bad)" stroke-dasharray="5 5" marker-end="url(#arrow-current)"/>
+        </g>
+        <g font-family="ui-sans-serif,system-ui" font-size="15" text-anchor="middle">
+          <text x="107" y="92"><tspan x="107">task research</tspan><tspan x="107" dy="21">и raw evidence</tspan></text>
+          <text x="340" y="92"><tspan x="340">ручной Markdown</tspan><tspan x="340" dy="21">topic contract</tspan></text>
+          <text x="573" y="92"><tspan x="573">async index</tspan><tspan x="573" dy="21">FTS + vector</tspan></text>
+          <text x="806" y="92"><tspan x="806">free-text</tspan><tspan x="806" dy="21">RRF top-k</tspan></text>
+          <text x="1026" y="92"><tspan x="1026">ответ агенту</tspan><tspan x="1026" dy="21">без режима</tspan></text>
+          <text class="svg-muted" x="663" y="18" font-size="13">может отстать от HEAD</text>
+        </g>
+      </svg>
+    </div>
+    <div class="metric-line" aria-label="Измеренная база #256">
+      <div class="metric"><b>547 / 1 092</b><span>Markdown с current sha</span></div>
+      <div class="metric"><b>545</b><span>долг: 516 missing + 29 stale</span></div>
+      <div class="metric"><b>7 / 18</b><span>fact recall@5 overall</span></div>
+      <div class="metric"><b>1 / 6</b><span>current task proxy</span></div>
+      <div class="metric"><b>1 / 6</b><span>stale contradiction</span></div>
+    </div>
+    <div class="scroll">
+      <table>
+        <caption class="sr-only">Показатели текущей системы по замеру #256</caption>
+        <thead><tr><th>Проверка</th><th>Результат</th><th>Как читать</th></tr></thead>
+        <tbody>
+          <tr><td>Exact / current / rejected R@5</td><td><strong>33.3% / 33.3% / 50.0%</strong></td><td>6 запросов в каждом классе; retrieval diagnostic, не task success.</td></tr>
+          <tr><td>Source-link coverage</td><td><strong>7 / 12</strong></td><td>Точный путь research встретился в KB; это не доказывает semantic promotion.</td></tr>
+          <tr><td>Promotion recall</td><td><strong>UNMEASURED</strong></td><td>Исторически нет atomic fact IDs/anchors — нельзя честно посчитать.</td></tr>
+          <tr><td>Граница вывода</td><td><strong>#256 sample</strong></td><td>Это baseline текущего корпуса, не обещание будущего эффекта.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note danger"><strong>Важно.</strong> Эти числа показывают seam (promotion + freshness), а не доказывают, что «vector search плох». #256 — исследование и read-only измерения. Phase 2 результатов здесь нет.</p>
+  </section>
+
+  <section class="band" id="target">
+    <div class="section-head"><span class="num">02</span><h2>Целевой поток: одна истина, несколько скоростей чтения</h2></div>
+    <p>Смысл прост: сначала зафиксировать, <em>какой именно факт</em> меняется и чем он доказан. Затем Git принимает каноническое изменение. Быстрые проекции догоняют этот конкретный HEAD; если не успели — система говорит об этом и читает канон напрямую.</p>
+    <div class="flow-wrap" aria-label="Схема целевого пути">
+      <svg viewBox="0 0 1120 310" role="img" aria-labelledby="target-title target-desc">
+        <title id="target-title">Предлагаемый поток typed facts</title>
+        <desc id="target-desc">Task evidence проходит реестр темы и typed event, обновляет Git Markdown. После merge SQLite синхронно строит current и FTS, vector и log остаются асинхронным cold RAG.</desc>
+        <defs><marker id="arrow-target" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="currentColor"/></marker></defs>
+        <g fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="12" y="100" width="150" height="68" rx="8"/><rect x="188" y="100" width="164" height="68" rx="8"/>
+          <rect x="378" y="100" width="178" height="68" rx="8" stroke="var(--accent)"/><rect x="582" y="100" width="182" height="68" rx="8"/><rect x="790" y="100" width="150" height="68" rx="8"/>
+          <path d="M162 134h26M352 134h26M556 134h26M764 134h26" marker-end="url(#arrow-target)"/>
+          <path d="M852 168v64H613v-64" marker-end="url(#arrow-target)"/><path d="M852 168v64h170v-64" marker-end="url(#arrow-target)"/>
+          <rect x="520" y="232" width="186" height="54" rx="8"/><rect x="948" y="232" width="160" height="54" rx="8"/>
+        </g>
+        <g font-family="ui-sans-serif,system-ui" font-size="14" text-anchor="middle">
+          <text x="87" y="128"><tspan x="87">task evidence</tspan><tspan x="87" dy="20">+ provenance</tspan></text>
+          <text x="270" y="128"><tspan x="270">deterministic</tspan><tspan x="270" dy="20">topic registry</tspan></text>
+          <text x="467" y="128"><tspan x="467">typed fact event</tspan><tspan x="467" dy="20">key + status + time</tspan></text>
+          <text x="673" y="128"><tspan x="673">canonical Git</tspan><tspan x="673" dy="20">Markdown topic</tspan></text>
+          <text x="865" y="128"><tspan x="865">merge</tspan><tspan x="865" dy="20">target_head</tspan></text>
+          <text x="613" y="255"><tspan x="613">sync SQLite</tspan><tspan x="613" dy="18">current + FTS</tspan></text>
+          <text x="1028" y="255"><tspan x="1028">async vector/log</tspan><tspan x="1028" dy="18">cold RAG</tspan></text>
+          <text class="svg-accent" x="871" y="213" font-size="12">две скорости</text>
+        </g>
+      </svg>
+    </div>
+    <div class="columns">
+      <div>
+        <h3>Что типизировано</h3>
+        <p><code>current</code>, <code>rejected</code>, <code>disputed</code>, <code>superseded</code> и <code>stale-needs-validation</code> — не стилистические слова, а режимы запроса. У факта есть valid time, observed/recorded time, source path + anchor, commit/blob и actor/event.</p>
+      </div>
+      <div>
+        <h3>Что делает поколение</h3>
+        <p>После merge появляется <code>target_head</code>. SQLite должен синхронно дойти до него. Vector/log могут отставать: при несовпадении виден <em>visible projection debt</em>, а изменённая тема получает <em>direct canonical fallback</em> — не превращается в «факта нет».</p>
+      </div>
+    </div>
+    <details><summary>Техническая граница, раскрыть</summary><p>Стабильный <code>fact_key</code> задаёт кандидата на обновление внутри <code>(project, topic, fact_key)</code>. Идентичный event — idempotent no-op; конфликт одного ключа требует явного <code>supersedes</code> или <code>disputed</code>. TTL только создаёт validation debt: истёкший <code>refresh_after</code> не удаляет и не объявляет факт ложным.</p></details>
+  </section>
+
+  <section class="band" id="walkthrough">
+    <div class="section-head"><span class="num">03</span><h2>Один новый факт — четыре честных режима</h2></div>
+    <p>Ниже синтетический walkthrough механизма, а не результат Phase 2. Представим, что исследование принесло новую проверенную находку. Сначала система находит дом темы, затем обновляет стабильный ключ и сохраняет старую дорогу.</p>
+    <div class="walkthrough">
+      <div class="toggle-row no-print" role="group" aria-label="Выбрать режим чтения">
+        <button type="button" data-view="current" aria-pressed="true">Сейчас</button>
+        <button type="button" data-view="rejected" aria-pressed="false">Отклонённое</button>
+        <button type="button" data-view="superseded" aria-pressed="false">Заменённое</button>
+        <button type="button" data-view="asof" aria-pressed="false">На дату</button>
+      </div>
+      <article class="state-panel active" data-panel="current" aria-live="polite">
+        <span class="state-tag">mode = current</span><h3>Что считаем правдой сейчас</h3>
+        <div class="fact-row"><b>fact_key</b><span><code>memory.index.freshness</code></span></div>
+        <div class="fact-row"><b>claim</b><span>Проверять нужно поколение canonical HEAD против projection HEAD; при расхождении читать изменённую тему напрямую.</span></div>
+        <div class="fact-row"><b>evidence</b><span><code>docs/tasks/256/research.md §6.4</code> · commit/blob + anchor</span></div>
+        <p class="note good">Ответ получает claim, статус <code>current</code>, valid time и путь источника. Старая версия не исчезла — она просто не попадает в default current.</p>
+      </article>
+      <article class="state-panel" data-panel="rejected" aria-live="polite">
+        <span class="state-tag">mode = rejected</span><h3>Что уже пробовали и закрыли</h3>
+        <div class="fact-row"><b>status</b><span><code>rejected</code>; причина и evidence обязательны.</span></div>
+        <div class="fact-row"><b>claim</b><span>«Усилить только prompt-контракт — достаточно» — путь закрыт измерением source-link 7/12 и current index 50.1%.</span></div>
+        <div class="fact-row"><b>query</b><span>Режим rejected возвращает это явно, current по умолчанию его не смешивает с действующим ответом.</span></div>
+      </article>
+      <article class="state-panel" data-panel="superseded" aria-live="polite">
+        <span class="state-tag">event = supersedes</span><h3>Как старая версия остаётся видимой</h3>
+        <div class="fact-row"><b>old fact</b><span><code>fact_id = F-old</code>, <code>valid_to</code> закрыт, <code>superseded_by = F-new</code>.</span></div>
+        <div class="fact-row"><b>new fact</b><span><code>fact_id = F-new</code>, тот же <code>fact_key</code>, новое evidence и явная причина замены.</span></div>
+        <p class="note">Ничего не перезаписывается молча. Это спасает от повторного «открытия» уже закрытой дороги и даёт audit trail.</p>
+      </article>
+      <article class="state-panel" data-panel="asof" aria-live="polite">
+        <span class="state-tag">mode = as_of</span><h3>Что было верно на выбранную дату</h3>
+        <div class="fact-row"><b>valid time</b><span>Запрос отбирает факт по <code>valid_from ≤ date &lt; valid_to</code>; неизвестная дата остаётся null, а не «началом времён».</span></div>
+        <div class="fact-row"><b>result</b><span>На дату до supersession возвращается F-old с provenance; после — F-new. Оба доступны в истории.</span></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="band" id="tasks">
+    <div class="section-head"><span class="num">04</span><h2>#299 помогает задачам, но не становится базой знаний</h2></div>
+    <div class="columns">
+      <div>
+        <h3>Контур задач</h3>
+        <p>#299 исследует Git-canonical task records с SQLite query projection: стабильный UUID/ULID и сохранённый человекочитаемый <code>#N</code>, история, merge-конфликты и восстановление из клона.</p>
+        <p>В обсуждении #295 фиксируем решение пользователя: <strong>YouGile и payments из текущего планирования #299 убраны</strong>. Здесь остаётся только переносимый task store и его projection/identity вопросы.</p>
+      </div>
+      <div>
+        <h3>Контур знаний</h3>
+        <p>Задача — место, где лежит raw research/report и доказательство. Topic — место, где компактно живут typed conclusions. <code>fact_key</code> отвечает за семантическую идентичность факта, а task ID — за рабочую задачу.</p>
+        <p class="note danger">Не смешиваем task state и knowledge facts в один бесформенный store: у них разные владельцы, жизненные циклы, запросы и правила удаления.</p>
+      </div>
+    </div>
+    <details><summary>Практическая граница, раскрыть</summary><p>Исследовательская задача может породить evidence ref в событии знания. Это связь provenance, а не превращение task JSON в topic. Проекция SQLite может обслуживать оба домена, но таблицы, идентичности и валидаторы должны оставаться различными.</p></details>
+  </section>
+
+  <section class="band" id="alternatives">
+    <div class="section-head"><span class="num">05</span><h2>Почему не выбрать один любимый формат</h2></div>
+    <p>Каждый вариант полезен на своём участке. Ошибка — назначить ему чужую работу.</p>
+    <div class="scroll">
+      <table>
+        <caption class="sr-only">Сравнение отвергнутых одиночных вариантов</caption>
+        <thead><tr><th>Вариант</th><th>Что сохраняем</th><th>Почему не единственный canonical путь</th><th>Честная цена</th></tr></thead>
+        <tbody>
+          <tr><th>Markdown-only</th><td>Читаемость, Git review, offline history.</td><td>Prompt-контракт дал source-link 7/12, orphan topic 1/12 и не дал current/freshness enforcement.</td><td>Минимум миграции, максимум ручной дисциплины.</td></tr>
+          <tr><th>DB-only</th><td>ACID, constraints, current/as-of/FTS queries.</td><td>Знание перестаёт удобно travel/review вместе с репозиторием; появляется вторая истина рядом с Git.</td><td>Сильное чтение, слабая переносимость доказательства.</td></tr>
+          <tr><th>Один JSONL</th><td>Append-only audit и replay.</td><td>Один merge-hotspot path; в #299 исторические 1 281 ревизия и 486 links показывают, что per-record files нужны для параллельной работы.</td><td>Просто писать, тяжело безопасно мержить и адресно читать.</td></tr>
+          <tr><th>Graph-first</th><td>Связи, valid-time vocabulary, global questions в будущем.</td><td>Graphiti #1728: 3 collateral retirements из 4 audit cases; #1275: O(n) resolution и silent dropped episodes.</td><td>Сильная выразительность, рискованная власть над supersession.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Предлагаемый hybrid — это не «всё сразу»: Git остаётся каноном, typed SQLite — current/control projection, существующий vector/log RAG — cold history, graph — только будущая производная для global-вопросов.</p>
+  </section>
+
+  <section class="band" id="worker">
+    <div class="section-head"><span class="num">06</span><h2>Что почувствует воркер</h2></div>
+    <p class="status">Предложено, ещё не измерено</p>
+    <div class="columns" style="margin-top:18px">
+      <div><h3>Меньше поиска</h3><p>Компактный hot registry может убрать отдельное чтение README; один warm-запрос возвращает typed facts вместо разрозненных chunks. Это гипотеза о tool calls, не Phase 2 результат.</p></div>
+      <div><h3>Понятные режимы</h3><p>Запросы <code>current</code>, <code>rejected</code> и <code>as_of</code> не смешивают старую и новую дорогу без подписи.</p></div>
+      <div><h3>Доказательство рядом</h3><p>У результата есть source path, anchor и generation receipt: воркер видит, из какого канона факт пришёл и догнал ли индекс HEAD.</p></div>
+    </div>
+    <p class="note danger">Ни один из этих эффектов нельзя выдавать за измеренный. #256 прямо оставляет answer utility/task success, promotion recall и A/B latency proposed path как неизвестные до реализации и разрешённого теста.</p>
+  </section>
+
+  <section class="band" id="decisions">
+    <div class="section-head"><span class="num">07</span><h2>Доска решений для пользователя и оркестратора</h2></div>
+    <p>Выберите по одному варианту на каждый вопрос. Кнопка внизу соберёт локальную копируемую сводку; сеть не используется. Пустой выбор разрешён — это тоже сигнал, что решение не принято.</p>
+
+    <div class="decision" data-decision-block="schema">
+      <div class="decision-title"><h3>1. Насколько строгой делать схему факта?</h3><select data-decision="schema" aria-label="Решение по строгости схемы"><option value="">— пока не решено —</option><option value="Рекомендуемый default: strict minimum">Рекомендуемый: строгий минимум</option><option value="Альтернатива: flexible Markdown blocks">Альтернатива: гибкие Markdown-блоки</option></select></div>
+      <div class="decision-grid"><p><b>Рекомендуемый default</b>Обязательные fact_key, status, valid time и provenance; остальное версионируется.</p><p><b>Альтернатива</b>Разрешить свободную форму с постепенной типизацией.</p><p><b>Если ждать</b>Promotion recall и orphan safety останутся не измеримыми; ручная запись продолжит расходиться.</p></div>
+    </div>
+    <div class="decision" data-decision-block="authority">
+      <div class="decision-title"><h3>2. Кто может promote и supersede?</h3><select data-decision="authority" aria-label="Решение о праве менять факты"><option value="">— пока не решено —</option><option value="Рекомендуемый default: evidence-backed actor + explicit supersedes">Рекомендуемый: actor + evidence + explicit supersedes</option><option value="Альтернатива: reviewer approval for supersession">Альтернатива: reviewer approval</option></select></div>
+      <div class="decision-grid"><p><b>Рекомендуемый default</b>Write API проверяет evidence; same-key conflict не решается similarity-моделью молча.</p><p><b>Альтернатива</b>Для supersede добавить отдельное человеческое подтверждение.</p><p><b>Если ждать</b>Появится спор о праве изменения и риск collateral retirement при будущей автоматизации.</p></div>
+    </div>
+    <div class="decision" data-decision-block="tasks-sequencing">
+      <div class="decision-title"><h3>3. Когда связывать Git task store #299?</h3><select data-decision="tasks-sequencing" aria-label="Решение о последовательности #299"><option value="">— пока не решено —</option><option value="Рекомендуемый default: #299 first, knowledge seam after">Рекомендуемый: сначала #299</option><option value="Альтернатива: together behind separate projections">Альтернатива: вместе, раздельными проекциями</option><option value="Альтернатива: knowledge seam first">Альтернатива: сначала knowledge seam</option></select></div>
+      <div class="decision-grid"><p><b>Рекомендуемый default</b>Сначала закрепить Git/SQLite projection, identity и head contract задач; затем переиспользовать proven boundary.</p><p><b>Альтернативы</b>Параллельная работа возможна только с разными схемами и acceptance gates; knowledge-first ускорит факты, но не даст task migration seam.</p><p><b>Если ждать</b>Два проекта будут спорить о canonical/projection terminology и могут породить несовместимые поколения.</p></div>
+    </div>
+    <div class="decision" data-decision-block="retention">
+      <div class="decision-title"><h3>4. Как хранить private data и сколько держать историю?</h3><select data-decision="retention" aria-label="Решение о приватных данных"><option value="">— пока не решено —</option><option value="Рекомендуемый default: classify, private Git, explicit purge policy">Рекомендуемый: классификация + private Git</option><option value="Альтернатива: keep sensitive fields outside canonical Git">Альтернатива: private fields вне Git</option></select></div>
+      <div class="decision-grid"><p><b>Рекомендуемый default</b>Сначала классифицировать; private repo/access control; tombstone не называть GDPR erase.</p><p><b>Альтернатива</b>Вынести чувствительные поля в отдельный контролируемый store с provenance-ссылкой.</p><p><b>Если ждать</b>Любая схема станет опасной для платежных/клиентских данных и потребует переделки retention.</p></div>
+    </div>
+    <div class="decision" data-decision-block="rollout">
+      <div class="decision-title"><h3>5. Какие rollout gates и rollback обязательны?</h3><select data-decision="rollout" aria-label="Решение о rollout и rollback"><option value="">— пока не решено —</option><option value="Рекомендуемый default: frozen fixtures, parity, freshness, rollback replay">Рекомендуемый: frozen gates + replay rollback</option><option value="Альтернатива: shadow dual-read before cutover">Альтернатива: сначала shadow dual-read</option></select></div>
+      <div class="decision-grid"><p><b>Рекомендуемый default</b>12 promotion scenarios, 18 retrieval cases, zero false supersession, head receipts, parity и явный rebuild из Git.</p><p><b>Альтернатива</b>Дольше держать старый read path и сравнивать normalized responses до cutover.</p><p><b>Если ждать</b>Нельзя отличить безопасный rollback от потери фактов или stale projection.</p></div>
+    </div>
+    <div class="export-row no-print">
+      <button class="primary" type="button" id="export-summary">Собрать сводку решений</button>
+      <span id="copy-status" role="status" aria-live="polite"></span>
+    </div>
+    <label for="summary" class="sr-only">Сводка выбранных решений</label>
+    <textarea id="summary" readonly placeholder="Здесь появится копируемая локальная сводка."></textarea>
+  </section>
+
+  <section class="band" id="boundaries">
+    <div class="section-head"><span class="num">08</span><h2>Граница этого материала</h2></div>
+    <div class="columns">
+      <div><h3>Что завершено</h3><p><strong>#256 research complete.</strong> Есть сравнение, baseline, ограничения и candidate architecture.</p></div>
+      <div><h3>Что не разрешено</h3><p><strong>Plan/implementation не approved.</strong> Предложенный поток — предмет обсуждения, не внедрённый контракт.</p></div>
+      <div><h3>Что отложено</h3><p><strong>#299 planning deferred.</strong> YouGile/payments исключены из текущего обсуждаемого объёма по решению пользователя.</p></div>
+    </div>
+    <p class="note">Этот HTML — только presentation layer. Durable evidence остаётся в Markdown-источниках; интерактивная доска экспортирует локальный текст для разговора, но не пишет в репозиторий.</p>
+  </section>
+
+  <footer>
+    <div class="eyebrow">Источники, прочитанные для этого объяснения</div>
+    <ul class="source-list">
+      <li><code>docs/tasks/256/research.md</code> — synthesis и target seam.</li>
+      <li><code>docs/tasks/256/comparison.md</code> — сравнение форматов.</li>
+      <li><code>docs/tasks/256/metrics.md</code> — определения и baseline.</li>
+      <li><code>docs/kb/knowledge-base-architecture.md</code> — durable conclusions и gaps.</li>
+      <li><code>docs/tasks/299/research.md</code> — task storage и projection boundary.</li>
+      <li><code>docs/kb/task-storage-architecture.md</code> — durable #299 conclusions.</li>
+    </ul>
+    <p class="muted">Открывается локально; внешних ресурсов и сетевых вызовов нет. <a href="#top">Наверх ↑</a></p>
+  </footer>
+</main>
+<script>
+  (() => {
+    const viewButtons = [...document.querySelectorAll('[data-view]')];
+    const panels = [...document.querySelectorAll('[data-panel]')];
+    const setView = (view) => {
+      viewButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+      panels.forEach((panel) => panel.classList.toggle('active', panel.dataset.panel === view));
+    };
+    viewButtons.forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
+
+    const labels = {
+      schema: 'строгость схемы факта',
+      authority: 'право promote/supersede',
+      'tasks-sequencing': 'последовательность #299',
+      retention: 'private data и retention',
+      rollout: 'rollout и rollback'
+    };
+    const summary = document.querySelector('#summary');
+    const status = document.querySelector('#copy-status');
+    document.querySelector('#export-summary').addEventListener('click', async () => {
+      const lines = ['#295 — сводка решений по архитектуре знаний', ''];
+      Object.entries(labels).forEach(([key, label]) => {
+        const select = document.querySelector(`[data-decision="${key}"]`);
+        lines.push(`${label}: ${select.value || 'не решено'}`);
+      });
+      lines.push('', 'Граница: #256 research complete; plan/implementation не approved; #299 planning deferred.');
+      summary.value = lines.join('\n');
+      summary.focus();
+      summary.select();
+      try {
+        await navigator.clipboard.writeText(summary.value);
+        status.textContent = 'Скопировано в буфер обмена';
+      } catch (error) {
+        status.textContent = 'Текст выделен — скопируйте Ctrl/Cmd+C';
+      }
+    });
+  })();
+</script>
+</body>
+</html>
