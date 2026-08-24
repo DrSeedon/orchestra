@@ -20,6 +20,7 @@ _fdstore.seal_activation_fds()
 
 from app.deps import manager
 from app.initial_deliveries import recover_initial_deliveries
+from app.message_deliveries import recover_message_deliveries
 from app import restart_guard
 
 logger = logging.getLogger("orchestra")
@@ -374,6 +375,7 @@ async def lifespan(app: FastAPI):
         from app import tm_yougile  # noqa: F401 — registers tm sync hooks
     await manager.auto_resume_all()
     await recover_initial_deliveries()
+    await recover_message_deliveries()
     # #230 T7: descriptors that came back for sessions nobody owns any more.
     # Fail-closed inside: an EMPTY registry sweeps nothing.
     swept = await manager.sweep_orphan_fds()

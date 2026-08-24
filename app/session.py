@@ -115,7 +115,7 @@ def _refuse_if_draining(session: "AgentSession") -> None:
     """
     from app.deps import manager
 
-    if manager.draining:
+    if getattr(manager, "draining", False):
         raise DrainingRefused(
             f"[{session.name}] Orchestra перезапускается: идёт дренаж, новый ход не "
             f"начинается. Повтори через минуту."
@@ -1049,6 +1049,11 @@ class AgentSession:
             persisted_user_message = getattr(delivery, "history_user_message", None)
             if isinstance(persisted_user_message, str) and persisted_user_message:
                 history_user_message = persisted_user_message
+        allow_running_delivery = bool(
+            delivery is not None and getattr(delivery, "allow_running", False)
+        )
+        if allow_running_delivery and self._compacting:
+            return
         decision = None
         admitted_model = ""
         admitted_stop_gen = -1
@@ -1093,8 +1098,10 @@ class AgentSession:
             break
 
         try:
-            if delivery is not None and (
-                self._compacting or self.status == AgentStatus.RUNNING
+            if (
+                delivery is not None
+                and not allow_running_delivery
+                and (self._compacting or self.status == AgentStatus.RUNNING)
             ):
                 raise RuntimeError("initial delivery requires an idle session")
         # Retry budgets belong to one logical request. A real new message resets both;
@@ -1109,11 +1116,56 @@ class AgentSession:
             self._note_next_precompact_activity()
             capabilities = get_runtime(self.backend_type).capabilities
             if self._compacting:
+                if delivery is not None and allow_running_delivery:
+                    return
                 self._pending_messages.append(message)
                 self._log("user_message", message, event_id=message_event_id)
                 self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
                 return
             if self.status == AgentStatus.RUNNING:
+                if delivery is not None:
+                    if (
+                        not capabilities.mid_turn_inject
+                        or (
+                            self.backend_type == "codex"
+                            and self._backend is not None
+                            and getattr(self._backend, "deferred_interrupt_pending", False)
+                            is True
+                        )
+                    ):
+                        return
+                    dispatch_started = False
+                    try:
+                        backend = await self._ensure_backend()
+                        if backend is None:
+                            raise RuntimeError(
+                                "backend is unavailable before provider submission"
+                            )
+                        injected, fact_keys = self._attach_pending_facts(message)
+                        await delivery.before_submit()
+                        dispatch_started = True
+                        await backend.send(injected)
+                        provider_ref = getattr(backend, "active_turn_id", None)
+                        await delivery.mark_submitted(
+                            provider_ref=(
+                                provider_ref
+                                if isinstance(provider_ref, str) and provider_ref
+                                else None
+                            ),
+                        )
+                        self._ack_pending_facts(fact_keys)
+                        if self.backend_type == "codex":
+                            self._log("status", "message steered into active Codex turn")
+                        return
+                    except asyncio.CancelledError as error:
+                        if dispatch_started:
+                            await delivery.mark_unknown(error)
+                        raise
+                    except Exception as error:
+                        if dispatch_started:
+                            await delivery.mark_unknown(error)
+                        raise
+
                 self._log("user_message", message, event_id=message_event_id)
                 if (
                     self.backend_type == "codex"
@@ -1950,6 +2002,20 @@ class AgentSession:
                     self._spawn_bg(self._flush_pending())
                 else:
                     self._hibernate.schedule()
+            if not self._compacting:
+                self._wake_durable_message_deliveries()
+
+    def _wake_durable_message_deliveries(self) -> None:
+        try:
+            from app.message_deliveries import ensure_target_runner
+
+            ensure_target_runner(self.id)
+        except Exception as error:
+            logger.warning(
+                "[%s] durable message-delivery wake failed: %s",
+                self.name,
+                err_text(error),
+            )
 
     # ── Unified event handler ──
 
@@ -2415,6 +2481,7 @@ class AgentSession:
                 self._spawn_bg(self._flush_pending())
             elif self.status == AgentStatus.IDLE:
                 self._hibernate.schedule()
+            self._wake_durable_message_deliveries()
 
     async def compact(self) -> dict:
         if self.backend_type == "codex":
@@ -2488,6 +2555,8 @@ class AgentSession:
             self._compacting = False
             if flush_pending and self._pending_messages:
                 self._spawn_bg(self._flush_pending())
+            if self._compact_ack_event is None:
+                self._wake_durable_message_deliveries()
             return {"ok": False, "error": error, "before_pct": before_pct}
 
         if self._listen_task and not self._listen_task.done():
@@ -2684,6 +2753,7 @@ class AgentSession:
             self._compacting = False
             if self._pending_messages and not ack_deferred:
                 self._spawn_bg(self._flush_pending())
+            self._wake_durable_message_deliveries()
 
         self.last_summary = _bounded_summary(summary)
         self.history_import_source = None
