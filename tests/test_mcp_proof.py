@@ -239,7 +239,8 @@ async def test_worker_and_spoofed_update_cannot_set_or_clear_acceptance(proof_db
         _req(session_id="orch-session"),
     ):
         result = await tm_update_task(
-            "42", TmTaskUpdate(acceptance_command=""), request, project="proj",
+            "42", TmTaskUpdate(clear_acceptance_command=True), request,
+            project="proj",
         )
         assert result.status_code == 403
 
@@ -267,7 +268,8 @@ async def test_orchestrator_update_replaces_and_clears_acceptance(proof_db):
         assert tm.get_task_by_par(conn, 42, "proj")["acceptance_command"] == "false"
 
     result = await tm_update_task(
-        "42", TmTaskUpdate(acceptance_command=""), request, project="proj",
+        "42", TmTaskUpdate(clear_acceptance_command=True), request,
+        project="proj",
     )
     assert not hasattr(result, "status_code") or result.status_code == 200
     with tm._conn() as conn:

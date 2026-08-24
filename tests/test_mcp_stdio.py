@@ -514,10 +514,10 @@ async def test_task_update_distinguishes_omitted_and_explicitly_cleared_command(
     with patch.object(m, "_api", side_effect=fake_api):
         assert await m.task_update("42") == "Nothing to update"
         await m.task_update("42", acceptance_command="new-command")
-        await m.task_update("42", acceptance_command="")
+        await m.task_update("42", clear_acceptance_command=True)
 
     assert captured[0][2]["json"]["acceptance_command"] == "new-command"
-    assert captured[1][2]["json"]["acceptance_command"] == ""
+    assert captured[1][2]["json"]["clear_acceptance_command"] is True
 
 
 @pytest.mark.asyncio
