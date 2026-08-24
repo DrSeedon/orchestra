@@ -1,0 +1,55 @@
+{
+  "contract_version": 1,
+  "fixture_sha256": "83fde2bcbb1d2d85e745f63cd4819a10d328d677bdc61ac81dc30c69f58b4462",
+  "record_types": [
+    "task.state",
+    "task.evidence",
+    "knowledge.fact",
+    "session.history",
+    "resource",
+    "skill"
+  ],
+  "public_api": {
+    "app.ia.namespace": {
+      "callables": [
+        "build_uri",
+        "parse_uri"
+      ],
+      "exceptions": [
+        "NamespaceError"
+      ],
+      "parse_result_attributes": [
+        "record_type",
+        "project_id",
+        "stable_id",
+        "canonical_uri"
+      ]
+    },
+    "app.ia.schema": {
+      "callables": [
+        "canonical_bytes",
+        "canonical_content_head",
+        "classify_private_fields",
+        "projection_payload",
+        "validate_record",
+        "validate_record_set"
+      ],
+      "exceptions": [
+        "IdentityConflictError",
+        "PrivacyViolationError",
+        "RecordValidationError"
+      ]
+    }
+  },
+  "privacy_sinks": [
+    "hot",
+    "fts",
+    "vector"
+  ],
+  "canonical_serialization": "UTF-8 JSON, sorted keys, compact separators, no trailing newline, declared private values removed",
+  "canonical_content_head": "sha256:<lowercase hexadecimal digest of canonical_bytes>",
+  "hidden_secret_path": "metadata.opaque.credential_material",
+  "hidden_secret_sentinel": "T1_HIDDEN_CREDENTIAL_MUST_BE_REJECTED",
+  "safe_field_path": "metadata.safe.label",
+  "safe_field_sentinel": "T1_SAFE_METADATA_MUST_SURVIVE"
+}
