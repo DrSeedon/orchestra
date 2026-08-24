@@ -5,6 +5,15 @@ description: "Optional risk-based review routing: deterministic skip, Luna first
 
 # Review Routing and Codex Debate
 
+## Typed knowledge contract
+
+- Use the single `knowledge` tool for canonical knowledge and evidence operations.
+- Request progressive detail as `summary` < `record` < `evidence`.
+- Use typed `orch://` identifiers for task, fact, evidence, session, resource, and skill references.
+- Markdown files, SQLite, FTS, and vector hits are never independent truth.
+- Historical Markdown and session archives are immutable cold evidence and are never regenerated.
+- Canonical task, fact, evidence-reference, and session events are structured Git JSON.
+
 Этот файл — единственный владелец выбора reviewer, доказательств для skip и потолка раундов.
 `codex_review` запускает Luna или Sol в явном reviewer model. Другого ревьюера у нас нет:
 ревью существует ровно настолько, насколько доступен Codex.

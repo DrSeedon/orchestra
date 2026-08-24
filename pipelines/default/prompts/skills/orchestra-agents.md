@@ -7,6 +7,15 @@ integrations: []
 
 # Создание и перенос агентов Orchestra
 
+## Typed knowledge contract
+
+- Use the single `knowledge` tool for canonical knowledge and evidence operations.
+- Request progressive detail as `summary` < `record` < `evidence`.
+- Use typed `orch://` identifiers for task, fact, evidence, session, resource, and skill references.
+- Markdown files, SQLite, FTS, and vector hits are never independent truth.
+- Historical Markdown and session archives are immutable cold evidence and are never regenerated.
+- Canonical task, fact, evidence-reference, and session events are structured Git JSON.
+
 ## Purpose
 Завести оркестратора или постоянного специалиста так, чтобы он сразу получил контекст
 проекта и накопленную базу знаний — вместо чистого листа, который придётся обучать заново.
