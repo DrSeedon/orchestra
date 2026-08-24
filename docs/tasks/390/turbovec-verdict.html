@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>#390 — Turbovec для Orchestra</title>
+  <style>
+    :root{
+      color-scheme: light dark;
+      /* акцент: зелёный — измеренное сжатие и выигрыш ресурса */
+      --accent: light-dark(#26734d, #69d59b);
+      --fs: 15px;
+      --radius: 12px;
+      --font: ui-sans-serif, system-ui, sans-serif;
+      --font-head: ui-serif, Georgia, serif;
+      --bg: light-dark(#fff, #181818);
+      --ink: light-dark(#1a1c1f, #f2f2f0);
+      --mut: color-mix(in srgb, var(--ink) 48%, transparent);
+      --card: color-mix(in oklab, var(--ink) 5%, transparent);
+      --border: color-mix(in srgb, var(--ink) 12%, transparent);
+      --ring: var(--accent);
+      --bad: light-dark(#c0341a, #ff7a63);
+      --fs-sm: max(11px, calc(var(--fs) - 2px));
+      --fs-h3: calc(var(--fs) * 1.29);
+      --fs-h2: calc(var(--fs) * 1.43);
+      --fs-h1: calc(var(--fs) * 1.72);
+      --r-sm: calc(var(--radius) * .6);
+      --r-lg: calc(var(--radius) * 1.6);
+      --shadow: 0 1px 2px -1px rgb(0 0 0 / 8%);
+      --s1: var(--accent);
+      --s2: light-dark(#c26a1f, #f59a56);
+      --s3: light-dark(#2f7d46, #74d58b);
+      --s4: light-dark(#b8457f, #f08fc0);
+      --s5: light-dark(#6b57c4, #aa91ef);
+      --s6: light-dark(#1f7a72, #5acbc2);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;padding:clamp(16px,4vw,40px);background:var(--bg);color:var(--ink);
+         font:430 var(--fs)/1.5 var(--font);letter-spacing:0}
+    h1,h2,h3{margin:0;font-family:var(--font-head);font-weight:500;line-height:1.25}
+    h1{font-size:var(--fs-h1)} h2{font-size:var(--fs-h2)} h3{font-size:var(--fs-h3)}
+    small,.sm{font-size:var(--fs-sm)} .mut{color:var(--mut)}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 24px 10px 0;border-bottom:1px solid var(--border);
+          text-align:start;vertical-align:top;overflow-wrap:anywhere}
+    th{font-weight:600;border-bottom-color:color-mix(in srgb,var(--ink) 16%,transparent)}
+    tbody tr:last-child :is(th,td){border-bottom:0}
+    .num{text-align:end;font-variant-numeric:tabular-nums}
+    .scroll{overflow-x:auto;scrollbar-width:thin}
+    .card{padding:12px;border-radius:var(--r-lg);background:var(--card)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(max(180px,24%),1fr));gap:12px}
+    .badge{padding:3px 8px;border-radius:9999px;font-size:var(--fs-sm);
+           background:color-mix(in srgb,var(--accent) 15%,transparent)}
+    code{padding:1px 6px;border-radius:var(--r-sm);font-size:.92em;
+         font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+         background:color-mix(in srgb,var(--ink) 10%,transparent);
+         box-decoration-break:clone;-webkit-box-decoration-break:clone;overflow-wrap:anywhere}
+    :is(a,button,summary,input,select,[tabindex]):focus-visible{
+         outline:2px solid var(--ring);outline-offset:2px}
+    :is([aria-pressed="true"],[aria-selected="true"]){background:var(--accent);color:var(--bg)}
+    svg{display:block;max-width:100%;height:auto}
+    .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+    main{max-width:1120px;margin:0 auto}
+    header{display:grid;gap:8px;padding-bottom:24px;border-bottom:1px solid var(--border)}
+    section{padding:24px 0;border-bottom:1px solid var(--border)}
+    section:last-child{border-bottom:0}
+    .lead{max-width:840px;margin:0;color:var(--mut)}
+    .metric strong{display:block;font:500 var(--fs-h1)/1.2 var(--font-head)}
+    .metric span{color:var(--mut)}
+    .verdict{border-inline-start:4px solid var(--accent)}
+    .barset{display:grid;gap:12px;margin-top:16px}
+    .barrow{display:grid;grid-template-columns:minmax(100px,160px) 1fr 84px;gap:12px;align-items:center}
+    .track{height:16px;background:var(--card);border-radius:9999px;overflow:hidden}
+    .fill{height:100%;background:var(--s1);border-radius:inherit}
+    .fill.raw{background:var(--s2)} .fill.two{background:var(--s5)}
+    .status-good{color:var(--s3);font-weight:600}
+    .status-warn{color:var(--s2);font-weight:600}
+    .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;counter-reset:step}
+    .step{padding:12px;border-top:3px solid var(--s1);background:var(--card);counter-increment:step;
+          overflow-wrap:anywhere}
+    .step::before{content:counter(step);display:grid;place-items:center;width:24px;aspect-ratio:1;
+                  border:2px solid var(--s1);border-radius:9999px;font-weight:600;margin-bottom:8px}
+    ul{margin:8px 0 0;padding-inline-start:24px}
+    li+li{margin-top:4px}
+    a{color:var(--accent);text-underline-offset:3px}
+    @media(max-width:640px){
+      .barrow{grid-template-columns:1fr 72px}.barrow>span:first-child{grid-column:1/-1}
+      th,td{padding:8px 16px 8px 0}
+    }
+    @media print{
+      :root{color-scheme:light}
+      body{padding:0;background:#fff;color:#000}
+      .no-print{display:none}
+      tr,li{break-inside:avoid}
+      *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="badge">Read-only pilot · Turbovec 1.0.0 · AMD EPYC AVX2</span>
+    <h1>Turbovec нам полезен — 4-bit как следующий vector backend</h1>
+    <p class="lead">На реальных 34 411 векторах Orchestra он сохранил результаты frozen holdout,
+      сжал project payload в 6.95 раза и ускорил retrieval-stage медианно в 2.63 раза. Это
+      кандидат для shadow rollout, не разрешение немедленно менять production.</p>
+  </header>
+
+  <section>
+    <div class="grid">
+      <article class="card metric verdict"><strong>6.95×</strong><span>сжатие 4-bit: 140.9 MB → 20.3 MB</span></article>
+      <article class="card metric"><strong>2.63×</strong><span>hybrid stage: 360.7 ms → 128.0 ms</span></article>
+      <article class="card metric"><strong>18/18</strong><span>exact top-1 и top-5 сохранены в candidate top-20</span></article>
+      <article class="card metric"><strong>10/18</strong><span>fact recall@5 одинаковый у baseline и candidate</span></article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Размер vector payload проекта</h2>
+    <div class="barset" aria-label="Сравнение размера">
+      <div class="barrow"><span>FP32 sqlite-vec</span><div class="track"><div class="fill raw" style="width:100%"></div></div><strong class="num">140.9 MB</strong></div>
+      <div class="barrow"><span>Turbovec 4-bit</span><div class="track"><div class="fill" style="width:14.4%"></div></div><strong class="num">20.3 MB</strong></div>
+      <div class="barrow"><span>Turbovec 2-bit</span><div class="track"><div class="fill two" style="width:7.4%"></div></div><strong class="num">10.4 MB</strong></div>
+    </div>
+    <p class="mut">Весь vec.db не уменьшится в 6.95 раза: FTS, тексты и metadata остаются. Все проекты сейчас держат около 360 MB только vector chunks.</p>
+  </section>
+
+  <section>
+    <h2>Почему выбираем 4-bit, а не минимальный 2-bit</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Метрика</th><th class="num">4-bit</th><th class="num">2-bit</th><th>Решение</th></tr></thead>
+        <tbody>
+          <tr><td>Persisted project indexes</td><td class="num">20.3 MB</td><td class="num">10.4 MB</td><td>Оба маленькие</td></tr>
+          <tr><td>Candidate hybrid median</td><td class="num">128.0 ms</td><td class="num">115.9 ms</td><td>Разница всего 12 ms</td></tr>
+          <tr><td>File/log overlap@20</td><td class="num">94.2% / 95.6%</td><td class="num">80.6% / 80.6%</td><td class="status-good">4-bit безопаснее</td></tr>
+          <tr><td>Fact recall@5</td><td class="num">55.6%</td><td class="num">55.6%</td><td>На n=18 регрессии нет</td></tr>
+          <tr><td>Extra gain vs 4-bit</td><td class="num">—</td><td class="num">≈12 ms</td><td class="status-warn">Не стоит rank drift</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Что именно измерено</h2>
+    <div class="grid">
+      <article class="card"><h3>Corpus</h3><p>19 123 file vectors + 15 288 log vectors, bge-m3 1024d, project Orchestra.</p></article>
+      <article class="card"><h3>A/A control</h3><p>Порядок baseline/candidate/control вращался. 4-bit paired gain 213.5 ms при median A/A noise 77.6 ms.</p></article>
+      <article class="card"><h3>Quality</h3><p>Exact sqlite-vec ranking сравнивался с Turbovec top-20; затем неизменённые FTS и RRF собирали итоговый top-5.</p></article>
+      <article class="card"><h3>Не измерено</h3><p>Production API after integration, RSS/page cache, cold-agent task success и crash recovery.</p></article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Как внедрять без поломки truth/freshness</h2>
+    <div class="steps">
+      <article class="step"><h3>Projection contract</h3><p>Сначала #388: target_head/indexed_head, canonical fallback и rebuild.</p></article>
+      <article class="step"><h3>Separate 4-bit indexes</h3><p>Один IdMapIndex на project × files/logs; chunk_id остаётся стабильным ID.</p></article>
+      <article class="step"><h3>Shadow reads</h3><p>sqlite-vec отвечает production, Turbovec сравнивается на расширенном blinded corpus.</p></article>
+      <article class="step"><h3>Mutation gates</h3><p>Add/update/delete/sync/crash/restart/cross-project isolation и clean rollback.</p></article>
+      <article class="step"><h3>Cutover</h3><p>Только после generation parity и live API A/B; exact sqlite-vec остаётся rollback.</p></article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ограничения</h2>
+    <ul>
+      <li>Релиз 1.0.0 вышел шесть дней назад; v7 новый, хотя audit выглядит серьёзно.</li>
+      <li>Присланный график снят на AVX-512, наш VPS использует AVX2; переносить 3.4× напрямую нельзя.</li>
+      <li>Отдельный .tvim создаёт Git/SQLite/index generation seam, которого сейчас нет.</li>
+      <li>n=18 подтверждает отсутствие наблюдаемой регрессии, но не общую эквивалентность quality.</li>
+      <li>Correctness knowledge architecture важнее ANN speed; Turbovec не должен обгонять #388.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Источники</h2>
+    <p><a href="https://github.com/RyanCodrai/turbovec">Turbovec repository</a> ·
+      <a href="https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/">Google Research TurboQuant</a> ·
+      <a href="https://openreview.net/attachment?id=tO3ASKZlok&amp;name=pdf">ICLR 2026 paper</a></p>
+    <p class="mut">Durable source: <code>docs/tasks/390/research.md</code>. Raw evidence:
+      <code>docs/tasks/390/evidence/results.json</code>. Runner: <code>docs/tasks/390/bench.py</code>.</p>
+  </section>
+</main>
+</body>
+</html>
