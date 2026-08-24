@@ -1,0 +1,15 @@
+id	ts	type	tool_name	caption/result (sanitized)
+480001	2026-08-24T08:05:35.531980+00:00	tool	mcp__orchestra__send_file	161177 — Суриков; first send_file tool row
+480024	2026-08-24T08:07:08.558236+00:00	tool_result	mcp__orchestra__send_file	http_5xx: TG file delivery failed; see tg-bridge logs
+480025	2026-08-24T08:07:08.564945+00:00	tool	mcp__orchestra__send_file	161177 — Поздеев; next tool row
+480055	2026-08-24T08:08:05.454296+00:00	tool	mcp__orchestra__report_bug	sequential 8-image delivery; delivery count unknown
+480095	2026-08-24T08:08:28.058375+00:00	tool	mcp__orchestra__send_file	Матрица #6: 161177 — Суриков
+480183	2026-08-24T08:10:08.689293+00:00	tool_result	mcp__orchestra__send_file	transport_timeout: ReadTimeout
+480184	2026-08-24T08:10:08.693224+00:00	tool	mcp__orchestra__send_file	161181 — Суриков
+480263	2026-08-24T08:12:06.642133+00:00	tool	mcp__orchestra__send_file	161181 — Суриков; same codex item later completed
+480266	2026-08-24T08:12:06.642189+00:00	tool_result	mcp__orchestra__send_file	File sent to TG; msg_id=162147
+480267	2026-08-24T08:12:06.741021+00:00	tool	mcp__orchestra__send_file	161181 — Поздеев
+480289	2026-08-24T08:12:30.161292+00:00	tool_result	mcp__orchestra__send_file	File sent to TG; msg_id=162173
+
+This is a read-only SQLite view of the live DB. It is intentionally limited to delivery metadata;
+binary tool results, tokens, chat ids, and absolute worktree names are omitted.

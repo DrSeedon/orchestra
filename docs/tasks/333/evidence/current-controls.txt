@@ -1,0 +1,60 @@
+# Sanitized current positive controls (read-only)
+
+## Local service
+
+`systemctl status telegram-bot-api`:
+
+```text
+Active: active (running) since Mon 2026-08-24 10:47:23 +07
+Main PID: <redacted>
+ExecStartPre=.../check-telegram-proxy.sh (code=exited, status=0/SUCCESS)
+```
+
+The effective unit runs local `telegram-bot-api` through `/usr/bin/proxychains4 -q` on port
+8081. Secrets from the effective command line are intentionally not copied here.
+
+## Route/proxy controls
+
+```text
+/etc/proxychains4.conf:
+strict_chain
+proxy_dns
+[ProxyList]
+http 127.0.0.1 12339
+
+gateway state: {"selected_route":"contabo"}
+TG bridge env: TG_LOCAL_API_URL=http://localhost:8081
+Orchestra env: HTTPS_PROXY=http://127.0.0.1:12339
+```
+
+The route was observed, not switched. The proxy owner is a separate local process; no
+`ai-proxy-manager.service` system unit exists on this host, so no service-log claim is made.
+
+## Positive preflight
+
+```text
+$ /mnt/data/Projects/Python/ai-proxy-manager/scripts/check-telegram-proxy.sh
+Telegram proxy preflight passed
+EXIT=0
+```
+
+The preflight uses an intentionally invalid bot token and checks only that Telegram returns the
+expected JSON rejection through proxychains. It is not a media send and does not prove media
+delivery.
+
+## Read-only bridge stats GET
+
+```json
+{"chats":[{"chat_id":<redacted>,"reliable_queued":0,
+"reliable_admission_waiters":0,"reliable_overflow":0,"reliable_retries":8,
+"reliable_timeouts":9,"reliable_total_timeouts":0,"reliable_lost":3,
+"reliable_oldest_age":0.0,"reliable_last_latency":1.305,
+"reliable_max_latency":185.967,"telemetry_pending":0,"telemetry_coalesced":25,
+"telemetry_dropped":400,"telemetry_timeouts":8,"telemetry_lost":8,
+"telemetry_oldest_age":0.0,"optional_queued":0,"image_reserved":0,
+"image_queued":0,"image_in_flight":0,"image_dropped":0,"image_timeouts":0,
+"image_lost":0}]}
+```
+
+This is an aggregate snapshot only. It has no event id or message id and cannot reconcile the
+three timed-out attempts.

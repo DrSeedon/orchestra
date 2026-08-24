@@ -1,0 +1,32 @@
+# #333 read-only evidence commands (24.08 local UTC+7)
+
+No command in this file sends media, changes a proxy route, restarts a service, reads a credential
+value, or mutates Telegram topics/config.
+
+```sh
+pwd
+git check-ignore -v docs/tasks/333/research.md docs/tasks/333/timeline.csv \
+  docs/tasks/333/contract.md docs/kb/tg-media-delivery.md
+
+journalctl -u orchestra.service \
+  --since '2026-08-24 15:04:00' --until '2026-08-24 15:13:00' \
+  -o short-iso-precise --no-pager
+
+sqlite3 -readonly /mnt/data/Projects/Python/orchestra/data/orchestra.db \
+  "SELECT id,session_id,ts,type,tool_name,substr(content,1,600) FROM logs
+   WHERE ts BETWEEN '2026-08-24T08:04:00+00:00' AND '2026-08-24T08:11:00+00:00'
+   AND (tool_name='mcp__orchestra__send_file' OR content LIKE '%mcp__orchestra__send_file%')
+   ORDER BY ts,id;"
+
+curl -sS --max-time 5 http://127.0.0.1:8888/api/tg/delivery-stats
+curl -sS --max-time 5 http://127.0.0.1:8081/health
+/mnt/data/Projects/Python/ai-proxy-manager/scripts/check-telegram-proxy.sh
+systemctl status telegram-bot-api --no-pager --full
+systemctl cat telegram-bot-api
+sed -n '1,140p' /etc/proxychains4.conf
+sed -n '1,180p' /home/maxim/.local/state/ai-proxy-manager/state.json
+```
+
+The `/health` probe returned the local server's ordinary 404 JSON (the configured bridge URL is
+the base URL, not a public health route). The dedicated proxy preflight returned
+`Telegram proxy preflight passed` and `EXIT=0`.
