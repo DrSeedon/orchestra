@@ -2,8 +2,8 @@
 
 PLAN READY here means architecture/discussion ready only. The three user decisions in discussion.md
 were resolved on 2026-08-24. Each ticket still requires a separately designed, behavior-specific RED
-acceptance test committed against the current base. T1 and T2 are now materialized by their
-`test_t*_behavior.py` files plus frozen JSON fixtures under `fixtures/`; T3–T6 remain at design only.
+acceptance test committed against the current base. T1, T2 and T3 are now materialized by their
+`test_t*_behavior.py` files plus frozen JSON fixtures under `fixtures/`; T4–T6 remain at design only.
 No implementation is implied by this directory.
 
 T2 oracle history: commits `529711a9feda296e361bc8a09fd8f7ec65be4a57` and
@@ -31,8 +31,8 @@ reported as frozen oracles. They remain useful as early diagnostics.
 
 ## Required behavioral oracle design before Phase 3
 
-The following table is the design freeze target. T1 and T2 commands are committed behavioral RED gates;
-T3–T6 commands are still future commands. Each remaining ticket must turn its row into a real behavior
+The following table is the design freeze target. T1–T3 commands are committed behavioral RED gates;
+T4–T6 commands are still future commands. Each remaining ticket must turn its row into a real behavior
 test, run it RED, commit that oracle, and only then implement. The smoke probe cannot satisfy any row.
 
 | Ticket | Fixture/data source | Production path | Red regression | Positive control | Valid future alternate | Compound/fallback mutation | Deterministic command | Remains unmeasured |

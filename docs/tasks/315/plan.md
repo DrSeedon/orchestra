@@ -57,7 +57,7 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
    proxy control experiment. YouGile/payments deletion occurs under #299 gates, not knowledge migration.
    #298 remains deferred.
 
-## Tickets (behavioral RED is frozen for T1 and T2)
+## Tickets (behavioral RED is frozen for T1–T3)
 
 ### T1 — typed namespace, envelopes and private-field boundary
 
@@ -99,15 +99,21 @@ not create one shapeless JSONL/Markdown dump and does not give SQLite/FTS/vector
 
 ### T3 — immutable evidence manifest and typed fact promotion
 
-- Files: new app/ia/evidence.py, app/ia/events.py, app/ia/knowledge.py; docs/kb registry adapter;
-  test_smoke_t3_promotion.py only as a missing-seam diagnostic. Behavioral oracle design:
-  acceptance/README.md T3 row; no RED test is frozen.
-- Smoke: uv run python -m pytest docs/tasks/315/acceptance/test_smoke_t3_promotion.py -q
-- Smoke result: RED only because the future path is absent; this is not behavioral acceptance.
-- AC: command is green; 12 promotion scenarios pass; 0 source-less promoted facts; identical event is
-  a no-op; same-key conflict requires explicit supersedes/disputed; rejected and superseded records
-  remain queryable; as-of uses valid-time; TTL produces validation debt only; duplicate topic
-  resolution fails closed.
+- Files: future app/ia/evidence.py, app/ia/events.py and app/ia/knowledge.py plus the docs/kb registry
+  adapter; frozen acceptance/test_t3_promotion_behavior.py and
+  acceptance/fixtures/t3_promotion_*.json. The existing test_smoke_t3_promotion.py remains a
+  missing-seam diagnostic only.
+- Test: uv run python -m pytest docs/tasks/315/acceptance/test_t3_promotion_behavior.py -q
+- RED result: four T1/T2/fixture/mutation controls pass; exactly 12 frozen promotion scenario nodes
+  plus two wiring/compatibility nodes fail inside the dynamic public seam with
+  `#315 T3 missing behavior: cannot import app.ia.evidence: No module named 'app.ia.evidence'`.
+- AC: command is green; the #256 3/2/2/1/1/1/1/1 distribution passes exactly 12 scenarios; source-less,
+  orphan, duplicate-topic, cross-kind evidence and undeclared-private writes produce zero facts/events;
+  identical event is a content-bound no-op and changed replay conflicts; same-key overlap needs explicit
+  supersede/disputed; rejected, historical/superseded and disputed rows remain labelled/queryable;
+  as-of uses valid time; TTL returns validation debt without changing/deleting canonical current; valid
+  alias/field order/safe metadata is accepted; public promote_fact calls KnowledgeService →
+  EvidenceResolver → FactEventLog and emitted facts validate/project through T1 over T2 evidence.
 - blocked-by: T1, T2.
 
 ### T4 — SQLite current projection, heads and cold index
@@ -157,8 +163,8 @@ The user approved project-scoped #N with stable UUID, private/secret fields outs
 Git/prompt/FTS/vector, and deterministic evidence-backed supersedes/disputed with a human gate for
 conflicts and sensitive classes. Each ticket must still receive the exact
 fixture/path/mutation/positive-control oracle design in acceptance/README.md, then a separate
-behavioral RED test must be committed and independently verified before implementation. T1 and T2 have
-reached that oracle gate; T3–T6 have not. Smoke probes never satisfy this gate.
+behavioral RED test must be committed and independently verified before implementation. T1–T3 have
+reached that oracle gate; T4–T6 have not. Smoke probes never satisfy this gate.
 
 The implementation report must include command output and frozen manifest for replay parity and 0
 duplicate identity; 0 source-less promoted facts; exact/current/rejected recall and stale contradiction
