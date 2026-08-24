@@ -1,0 +1,80 @@
+{
+  "contract_version": 1,
+  "fixture_sha256": "79a0111839ee4eb70f8903e748b5f69881ec673b863b7e88a826c4c7f254638d",
+  "compatibility_sha256": {
+    "docs/tasks/315/acceptance/fixtures/t1_namespace_contract.json": "02e26e0cd0c77ece0825a804a2834295ea958ad6458d6760c35c3ea02fd5544b",
+    "docs/tasks/315/acceptance/fixtures/t1_namespace_records.json": "83fde2bcbb1d2d85e745f63cd4819a10d328d677bdc61ac81dc30c69f58b4462",
+    "docs/tasks/315/acceptance/fixtures/t2_task_store_contract.json": "ddcd72ec0a2d0b30639e25697e3d623e72ffb8c6349c9a3a76a50437137cb608",
+    "docs/tasks/315/acceptance/fixtures/t2_task_store_records.json": "88f3d2ca7ab8a5a75b2f2c87fb3fb1870d00e063a7d6e75ca4aec462b4d4b650",
+    "docs/tasks/315/acceptance/fixtures/t3_promotion_contract.json": "ad763c0ba467dc8847fb76c2af2a36138a24c3db275580d9a483690a78eaa0f1",
+    "docs/tasks/315/acceptance/fixtures/t3_promotion_records.json": "655027ac8ed170a193a5e58b9b82a60749ad8e8208e435f85a54fc98715f4707",
+    "docs/tasks/315/acceptance/fixtures/t3b_agent_only_contract_v2.json": "ca666ca4bf16acf3207d57ddb71784a3aa86791f698573ba625e6fad7221f359",
+    "docs/tasks/315/acceptance/fixtures/t3b_agent_only_records_v2.json": "e529b731271477abc1899f8c290c6d9d39b4fb580fc1930a3fe675a8343c6746",
+    "docs/tasks/315/acceptance/fixtures/t4_projection_contract_v2.json": "a31380c64543aececc8a079553341ebdd5956ebe620a5359f60de4c3eab919ce",
+    "docs/tasks/315/acceptance/fixtures/t4_projection_records.json": "d5ab3845b4490715d3fb481e6bb28c1b1ac000a047bbe409e1b2fb93573cca8c",
+    "docs/tasks/315/acceptance/fixtures/t5_recovery_contract.json": "a614f49fed845a507201ab62368b086b80c36b38c1c0b418bef5f130c1fe4d6c",
+    "docs/tasks/315/acceptance/fixtures/t5_recovery_records.json": "c3dd9ddebcd6b6b49aa8db82f3672df05179ec14d3274d1d052f23ac439af1a9"
+  },
+  "deferred_298_sha256": {
+    "docs/tasks/298/plan.md": "86bbb4257a967b03b7d5a8e51517791c30b7718710b3b3de7f779fa0178070ff",
+    "docs/tasks/298/acceptance/test_model_routing_tree.py": "7726bc20adfca8d6df13817fc8a397ce0790f1d3a9a4522f3efef31bd511c411",
+    "docs/tasks/298/acceptance/test_model_routing_execution.py": "79ca9e7e7be685474b991aa30f2c0dfc47c574f141011d93e3457dabf55e51af",
+    "docs/tasks/298/acceptance/test_model_routing_migration.py": "5977cb34e0a307e6122d5ffbd34bad1be08e8c13f6633ff3e2fb94b2e58b0e5c"
+  },
+  "public_api": {
+    "app.ia.merge_receipts": {
+      "callables": ["merge_receipt_mode", "get_merge_receipt", "verify_merge_receipt"],
+      "exceptions": ["MergeReceiptError"]
+    },
+    "app.merge_operations": {
+      "callables": ["accept_merge_operation", "get_operation_record"]
+    },
+    "app.routes.merge_operations": {
+      "attributes": ["router"]
+    },
+    "app.routes.sessions": {
+      "callables": ["execute_merge_session", "apply_merge_finalization"]
+    },
+    "app.workspace": {
+      "callables": ["merge_worktree_to_main"]
+    }
+  },
+  "mode_kwargs": [
+    "canonical_root",
+    "task_resolver",
+    "evidence_resolver",
+    "head_resolver",
+    "receipt_writer"
+  ],
+  "receipt_required": [
+    "schema_version",
+    "receipt_id",
+    "receipt_status",
+    "operation_id",
+    "target",
+    "worker",
+    "task",
+    "evidence",
+    "heads",
+    "acceptance",
+    "created_at"
+  ],
+  "receipt_status": "verified",
+  "operation_result_receipt_field": "receipt",
+  "operation_states": ["SUCCEEDED", "PARTIAL", "UNKNOWN", "FAILED"],
+  "success_preconditions": [
+    "target_after_matches_verified_target",
+    "durable_receipt_verified",
+    "task_and_evidence_bound",
+    "canonical_projection_heads_bound"
+  ],
+  "secondary_only": ["rag_backfill", "indexed_head_debt"],
+  "forbidden_pre_receipt_actions": [
+    "worker_archive",
+    "worktree_cleanup",
+    "evidence_delete",
+    "task_finalization"
+  ],
+  "expected_controls": 5,
+  "expected_behavior_nodes": 6
+}
