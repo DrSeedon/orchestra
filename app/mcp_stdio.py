@@ -929,6 +929,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         "role": role,
         "parent_name": WORKER_NAME,
         "planned_initial_turn": True,
+        "initial_task_title": task,
     }
     if mcp_servers:
         import json
@@ -1019,6 +1020,8 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     out = _delivery_receipt_text(name, model, mapping_data, delivery)
     if isinstance(result, dict) and result.get("spawn_warning"):
         out += f"\n⚠️ {result['spawn_warning']}"
+    if isinstance(result, dict) and isinstance(result.get("task"), dict):
+        out += f"\nTask: #{result['task'].get('par_number')} [{result['task'].get('status')}]"
     return out
 
 
@@ -1361,7 +1364,43 @@ async def list_agents() -> str:
             status=200,
             details={"response_type": type(sessions).__name__},
         )
-    if not sessions:
+    task_lines: list[str] = []
+    if ROLE in _ORCH_ROLES:
+        try:
+            task_payload = await _api(
+                "GET", "/api/tm/tasks", params={"project": SCOPE} if SCOPE else None,
+            )
+            tasks = (
+                task_payload.get("tasks", [])
+                if isinstance(task_payload, dict) else task_payload
+            )
+            if isinstance(tasks, list):
+                active = [task for task in tasks if task.get("status") == "in_progress"]
+                queued = [task for task in tasks if task.get("status") == "new"]
+                shown = [*active, *queued[:5]]
+                if shown:
+                    task_lines.append("## Project tasks")
+                    for task in shown:
+                        number = task.get("par_number") or task.get("par") or "?"
+                        status = str(task.get("status") or "?")
+                        title = " ".join(str(task.get("title") or "(untitled)").split())
+                        if len(title) > 120:
+                            title = title[:117] + "…"
+                        owner = str(task.get("worker_session_id") or "")
+                        owner_suffix = f" | worker: {owner}" if owner else ""
+                        task_lines.append(
+                            f"• #{number} [{status}] {title}{owner_suffix}"
+                        )
+                    omitted = max(0, len(queued) - 5)
+                    if omitted:
+                        task_lines.append(
+                            f"… {omitted} more new tasks; use task_list for the full queue."
+                        )
+        except ApiToolError as exc:
+            logger.warning(
+                "list_agents optional task view failed: %s: %s", exc.code, exc.message,
+            )
+    if not sessions and not task_lines:
         return "No agents"
     icon_warning = ""
     try:
@@ -1420,6 +1459,8 @@ async def list_agents() -> str:
         lines.append("## Other orchestrators' workers")
         lines.append("⚠️ These workers belong to other orchestrators. Avoid sending them tasks directly.")
         lines.extend(_fmt(s, show_owner=True) for s in other_workers)
+    if task_lines:
+        lines.extend(task_lines)
     return "\n".join(lines)
 
 
@@ -1858,6 +1899,7 @@ async def merge_worker(
     next_task_id: str = "",
     operation_id: str = "",
     waive_diff_budget: bool = False,
+    task_outcome: str = "",
 ) -> CallToolResult:
     """Durably squash a worker branch. Waits for the merge to finish and returns the outcome.
 
@@ -1890,6 +1932,51 @@ async def merge_worker(
             text="waive_diff_budget is orchestrator-only",
         )
     operation_id = operation_id or str(uuid.uuid4())
+    merge_schema_version: int | None = None
+    if task_outcome:
+        try:
+            capability = await _api("GET", "/api/merge-operations/capabilities")
+        except ApiToolError as capability_error:
+            result = _merge_local_result(
+                operation_id,
+                "FAILED",
+                code="MERGE_API_UPGRADE_REQUIRED",
+                message=(
+                    "Cannot verify task-lifecycle-v2 merge support; no merge was attempted."
+                ),
+                retryable=False,
+                outcome_unknown=False,
+                target=target,
+                details={
+                    "exception_type": type(capability_error).__name__,
+                    **capability_error.details,
+                },
+            )
+            return _merge_tool_result(result)
+        capabilities = (
+            capability.get("capabilities", [])
+            if isinstance(capability, dict) else []
+        )
+        if (
+            not isinstance(capability, dict)
+            or capability.get("merge_schema_version") != 2
+            or "task-lifecycle-v2" not in capabilities
+        ):
+            result = _merge_local_result(
+                operation_id,
+                "FAILED",
+                code="MERGE_API_UPGRADE_REQUIRED",
+                message=(
+                    "The live server does not support task-lifecycle-v2; "
+                    "no merge was attempted."
+                ),
+                retryable=False,
+                outcome_unknown=False,
+                target=target,
+                details={"server_capability": capability},
+            )
+            return _merge_tool_result(result)
+        merge_schema_version = 2
     body = {
         "operation_id": operation_id,
         "name": name,
@@ -1899,6 +1986,9 @@ async def merge_worker(
         "waive_diff_budget": bool(waive_diff_budget),
         "waived_by": WORKER_NAME if waive_diff_budget else "",
     }
+    if merge_schema_version is not None:
+        body["merge_schema_version"] = merge_schema_version
+        body["task_outcome"] = task_outcome
     try:
         try:
             payload = await _api("POST", "/api/merge-operations", json=body)
@@ -2173,6 +2263,25 @@ async def get_worker_info(name: str) -> str:
     return json.dumps(result, ensure_ascii=False)
 
 
+# Статусы, которыми владеет платформа: их ставит spawn/send/merge/archive, а не агент.
+# Ручной `done` закрывал живые задачи и задачи чужих воркеров — это и есть забывчивость,
+# которую #248 убирает. Человек и YouGile правят статус своим контуром, мимо этих тулов.
+_PLATFORM_OWNED_STATUSES = frozenset({"in_progress", "done"})
+
+
+def _reject_lifecycle_status(status: str, tool: str) -> None:
+    if status.strip().lower() in _PLATFORM_OWNED_STATUSES:
+        raise ApiToolError(
+            code="lifecycle_platform_owned",
+            message=(
+                f"{tool}: status '{status}' is owned by the platform — it is set by "
+                "spawn/send, merge_worker(task_outcome=...) and archive. Merge with "
+                "task_outcome='complete' to close a task."
+            ),
+            status=409,
+        )
+
+
 @mcp.tool()
 async def task_create(title: str, project: str = "", price: int = 0,
                       description: str = "", assignee: str = "",
@@ -2183,7 +2292,9 @@ async def task_create(title: str, project: str = "", price: int = 0,
     """Create a new task. Returns task number and details.
     project: registered project scope or id; omitted uses the caller's mapped scope.
     price in exact currency units (e.g. 20000 = 20 000). 0 is valid (no price).
-    priority: 0=critical, 1=high, 2=medium (default), 3=low."""
+    priority: 0=critical, 1=high, 2=medium (default), 3=low.
+    status: lifecycle statuses (in_progress/done) are platform-owned and rejected."""
+    _reject_lifecycle_status(status, "task_create")
     command = _acceptance_command_from_caller(acceptance_command)
     payload = {
         "title": title, "price": price,
@@ -2222,7 +2333,9 @@ async def task_update(par: str, title: str = "", description: str = "",
     Empty string = don't change for text fields. priority: 0-3 or -1=don't change.
     acceptance_command is orchestrator-only; empty means don't change.
     clear_acceptance_command=true explicitly clears it.
-    project: explicit project returned by task_list; omitted uses the caller's mapped scope."""
+    project: explicit project returned by task_list; omitted uses the caller's mapped scope.
+    status: lifecycle statuses (in_progress/done) are platform-owned and rejected."""
+    _reject_lifecycle_status(status, "task_update")
     body: dict = {}
     if title:
         body["title"] = title

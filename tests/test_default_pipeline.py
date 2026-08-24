@@ -163,7 +163,7 @@ class TestDefaultRolesResolve:
         ]
         assert P.get_role(PIPELINE, "full-cycle").modules == [
             "model-routing", "research-method", "code-quality", "git-workflow", "worker-lifecycle",
-            "report-format", "self-improvement", "memory-search",
+            "report-format", "task-management", "self-improvement", "memory-search",
         ]
 
     def test_code_quality_has_one_owner_and_reaches_both_working_roles(self):

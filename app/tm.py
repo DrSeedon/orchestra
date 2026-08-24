@@ -26,6 +26,22 @@ class TaskIdentity(TypedDict):
     sync_revision: int
 
 
+class ScopedTaskResolution(TypedDict):
+    project_id: str
+    tasks: list[TaskIdentity]
+    canonical_refs: list[str]
+
+
+def task_dto(task: dict, *, auto_created: bool = False) -> dict:
+    """Return the bounded task state shared by spawn and assignment responses."""
+    return {
+        "id": task["id"], "project_id": task["project_id"],
+        "par_number": task["par_number"], "title": task["title"],
+        "status": task["status"], "worker_session_id": task.get("worker_session_id"),
+        "auto_created": auto_created,
+    }
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -352,7 +368,38 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         "acceptance_oracle_json": oracle_json,
         "created_at": now,
         "updated_at": now,
+        "worker_session_id": None,
+        "sync_revision": 0,
     }
+
+
+def create_task_for_scope(scope: str, title: str) -> dict:
+    """Create an unbound task in the project owning ``scope``."""
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            project = get_project_by_scope(conn, scope.rstrip("/"))
+            if not project:
+                raise ValueError(f"scope '{scope}' has no task project")
+            task = create_task(conn, project["id"], title, status="new")
+            conn.commit()
+            return task
+        except Exception:
+            conn.rollback()
+            raise
+
+
+def discard_unbound_task(task_id: int) -> bool:
+    """Remove a task allocated for a spawn that never published its worker."""
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        cur = conn.execute(
+            "DELETE FROM tm_tasks WHERE id=? AND worker_session_id IS NULL AND status='new' "
+            "AND NOT EXISTS (SELECT 1 FROM tm_task_reservations WHERE task_id=tm_tasks.id)",
+            (task_id,),
+        )
+        conn.commit()
+        return cur.rowcount == 1
 
 
 def update_task(conn: sqlite3.Connection, task_id: int, *,
@@ -598,54 +645,354 @@ def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
         )
 
 
+def resolve_scoped_task_identities(
+    scope: str,
+    refs: list[str],
+    *,
+    bound_session_id: str = "",
+) -> ScopedTaskResolution:
+    """Resolve every task ref through one scope-owned project snapshot."""
+    normalized_scope = scope.rstrip("/")
+    if not normalized_scope:
+        raise ValueError("session scope is required for task assignment")
+    with _conn() as conn:
+        project = get_project_by_scope(conn, normalized_scope)
+        if not project:
+            raise ValueError(f"scope '{normalized_scope}' has no task project")
+        tasks: list[TaskIdentity] = []
+        canonical_refs: list[str] = []
+        seen_task_ids: set[int] = set()
+        for index, ref in enumerate(refs):
+            task = resolve_task_ref(conn, ref, project["id"])
+            if not task:
+                raise ValueError(
+                    f"task '{ref}' not found in session project {project['id']}"
+                )
+            if (
+                index == 0
+                and bound_session_id
+                and task.get("worker_session_id") != bound_session_id
+            ):
+                raise ValueError(
+                    f"task '{ref}' is not bound to session '{bound_session_id}'"
+                )
+            if task["id"] in seen_task_ids:
+                continue
+            seen_task_ids.add(task["id"])
+            tasks.append(TaskIdentity(
+                id=task["id"],
+                project_id=task["project_id"],
+                par_number=task["par_number"],
+                sync_revision=task["sync_revision"],
+            ))
+            canonical_refs.append(str(task["par_number"]))
+        return ScopedTaskResolution(
+            project_id=project["id"],
+            tasks=tasks,
+            canonical_refs=canonical_refs,
+        )
+
+
+def bind_task_to_session(scope: str, session_id: str, task_ref: str) -> dict:
+    """Atomically bind one scoped task to one durable session."""
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            session = conn.execute(
+                "SELECT id, scope, task_id FROM sessions WHERE id = ? AND status != 'archived'",
+                (session_id,),
+            ).fetchone()
+            if not session or session["scope"] != scope.rstrip("/"):
+                raise ValueError("session is not available in this scope")
+            project = get_project_by_scope(conn, scope.rstrip("/"))
+            if not project:
+                raise ValueError(f"scope '{scope}' has no task project")
+            task = resolve_task_ref(conn, task_ref, project["id"])
+            if not task:
+                raise ValueError(f"task '{task_ref}' not found in session project {project['id']}")
+            if session["task_id"]:
+                if str(session["task_id"]) != str(task["par_number"]):
+                    raise ValueError("session is already bound to another task")
+                conn.rollback()
+                return task_dto(task)
+            if conn.execute(
+                "SELECT 1 FROM tm_task_reservations WHERE task_id = ?", (task["id"],)
+            ).fetchone():
+                raise ValueError(f"task #{task['par_number']} is reserved")
+            if task["worker_session_id"]:
+                raise ValueError(f"task #{task['par_number']} is already bound")
+            now = _now()
+            updated = conn.execute(
+                "UPDATE tm_tasks SET worker_session_id=?, status='in_progress', "
+                "sync_revision=sync_revision+1, updated_at=? WHERE id=? AND worker_session_id IS NULL",
+                (session_id, now, task["id"]),
+            )
+            if updated.rowcount != 1:
+                raise ValueError("task binding compare-and-swap failed")
+            updated = conn.execute(
+                "UPDATE sessions SET task_id=? WHERE id=? AND task_id=''",
+                (str(task["par_number"]), session_id),
+            )
+            if updated.rowcount != 1:
+                raise ValueError("session binding compare-and-swap failed")
+            bound = get_task_by_id(conn, task["id"])
+            conn.commit()
+            return task_dto(bound)
+        except Exception:
+            conn.rollback()
+            raise
+
+
+def _live_bindings(
+    conn: sqlite3.Connection, scope: str, par_number: int, exclude_session_id: str,
+) -> list[str]:
+    rows = conn.execute(
+        "SELECT id FROM sessions WHERE task_id = ? AND RTRIM(scope, '/') = RTRIM(?, '/') "
+        "AND status != 'archived' AND id != ?",
+        (str(par_number), scope, exclude_session_id),
+    ).fetchall()
+    return [row["id"] for row in rows]
+
+
+def prepare_merge_finalization(
+    *,
+    scope: str,
+    session_id: str,
+    project_id: str,
+    outcome: str,
+    task: TaskIdentity,
+    next_task: TaskIdentity | None,
+    operation_id: str,
+) -> dict:
+    """Reserve the task lifecycle BEFORE Git and freeze what the finalizer will apply.
+
+    The payload is frozen here on purpose: after Git the session has already moved, so
+    re-deriving the intent from it would describe the new state, not the merged one.
+    """
+    if outcome not in {"continue", "complete"}:
+        raise ValueError(f"unknown task outcome '{outcome}'")
+    reservation_id = operation_id or f"session:{session_id}"
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            if outcome == "complete":
+                others = _live_bindings(conn, scope, task["par_number"], session_id)
+                if others:
+                    raise ValueError(
+                        f"task #{task['par_number']} still has live workers "
+                        f"({', '.join(sorted(others))}) — complete is refused"
+                    )
+                _reserve_task(conn, task["id"], reservation_id, "complete", session_id)
+            if next_task:
+                _reserve_task(conn, next_task["id"], reservation_id, "assign", session_id)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    if next_task:
+        terminal_session = {"task_id": str(next_task["par_number"]), "needs_switch": False}
+    elif outcome == "continue":
+        terminal_session = {"task_id": str(task["par_number"]), "needs_switch": False}
+    else:
+        terminal_session = {"task_id": "", "needs_switch": True}
+    return {
+        "stage": "PREPARED",
+        "outcome": outcome,
+        "operation_id": operation_id,
+        "reservation_id": reservation_id,
+        "session_id": session_id,
+        "scope": scope,
+        "project_id": project_id,
+        "task": {
+            "project_id": task["project_id"],
+            "task_id": task["id"],
+            "par_number": task["par_number"],
+        },
+        "next_task": (
+            {
+                "project_id": next_task["project_id"],
+                "task_id": next_task["id"],
+                "par_number": next_task["par_number"],
+            }
+            if next_task else None
+        ),
+        "candidate_refs": [],
+        "terminal_session": terminal_session,
+        "target_branch": "",
+        "target_before": "",
+        "target_after": "",
+        "expected_tree": "",
+        "worker_head": "",
+        "commits": {},
+    }
+
+
+def _reserve_task(
+    conn: sqlite3.Connection, task_id: int, operation_id: str, kind: str, session_id: str,
+) -> None:
+    existing = conn.execute(
+        "SELECT operation_id FROM tm_task_reservations WHERE task_id = ?", (task_id,),
+    ).fetchone()
+    if existing:
+        if existing["operation_id"] == operation_id:
+            return
+        raise ValueError(f"task {task_id} is reserved by operation {existing['operation_id']}")
+    conn.execute(
+        "INSERT INTO tm_task_reservations (task_id, operation_id, kind, session_id, created_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (task_id, operation_id, kind, session_id, _now()),
+    )
+
+
+def release_merge_finalization(payload: dict) -> None:
+    """Drop the reservations of a merge that never reached the commit point."""
+    task_ids = [payload["task"]["task_id"]]
+    if payload.get("next_task"):
+        task_ids.append(payload["next_task"]["task_id"])
+    reservation_id = payload["reservation_id"]
+    with _conn() as conn:
+        for task_id in task_ids:
+            conn.execute(
+                "DELETE FROM tm_task_reservations WHERE task_id=? AND operation_id=?",
+                (task_id, reservation_id),
+            )
+
+
+def finalize_merge_outcome(payload: dict) -> dict:
+    """Apply the whole post-commit tracker stage of one merge. Safe to run twice.
+
+    Commit links come first and each ref links on its own: after the commit point a
+    vanished ref must not discard the links that do resolve. The status stage that
+    follows — close current, bind next, deduct prepayment, drop reservations — is one
+    transaction, so a handoff never leaves a taskless worker behind.
+    """
+    project_id = payload["project_id"] or payload["task"]["project_id"]
+    task_db_id = payload["task"]["task_id"]
+    links = {
+        str(ref): link_commits_to_task(str(ref), commits, project_id)
+        for ref, commits in (payload.get("commits") or {}).items()
+    }
+    outcome = payload["outcome"]
+    next_task = payload.get("next_task")
+    reservation_id = payload["reservation_id"]
+    completed = False
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            if outcome == "complete":
+                task = get_task_by_id(conn, task_db_id)
+                if not task:
+                    raise ValueError(f"task {task_db_id} disappeared before finalization")
+                if task["status"] != "done":
+                    update_task(conn, task_db_id, status="done")
+                    auto_deduct_prepayment(conn, task_db_id)
+                    completed = True
+                conn.execute(
+                    "UPDATE tm_tasks SET worker_session_id=NULL, "
+                    "sync_revision=sync_revision+1, updated_at=? WHERE id=?",
+                    (_now(), task_db_id),
+                )
+                conn.execute(
+                    "DELETE FROM tm_task_reservations WHERE task_id=? AND operation_id=?",
+                    (task_db_id, reservation_id),
+                )
+            if next_task:
+                conn.execute(
+                    "UPDATE tm_tasks SET worker_session_id=?, status='in_progress', "
+                    "sync_revision=sync_revision+1, updated_at=? WHERE id=?",
+                    (payload["session_id"], _now(), next_task["task_id"]),
+                )
+                conn.execute(
+                    "DELETE FROM tm_task_reservations WHERE task_id=? AND operation_id=?",
+                    (next_task["task_id"], reservation_id),
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    if completed:
+        _fire_sync(task_db_id)
+    return {"ok": True, "links": links}
+
+
+def release_session_task_binding(conn: sqlite3.Connection, session_id: str) -> None:
+    """Recompute every binding an archived session held: elect an heir or requeue.
+
+    Liveness of a worker is a platform fact, so the last worker leaving an unfinished
+    task returns it to the queue. Any other live worker on the same task keeps it
+    `in_progress` — blind requeueing would abandon work that is still running.
+    """
+    rows = conn.execute(
+        "SELECT t.id, t.par_number, t.status, p.scope FROM tm_tasks t "
+        "JOIN tm_projects p ON p.id = t.project_id WHERE t.worker_session_id = ?",
+        (session_id,),
+    ).fetchall()
+    now = _now()
+    for row in rows:
+        heir = conn.execute(
+            "SELECT id FROM sessions WHERE task_id = ? AND RTRIM(scope, '/') = RTRIM(?, '/') "
+            "AND status != 'archived' AND id != ? ORDER BY created_at LIMIT 1",
+            (str(row["par_number"]), row["scope"], session_id),
+        ).fetchone()
+        if heir:
+            conn.execute(
+                "UPDATE tm_tasks SET worker_session_id=?, sync_revision=sync_revision+1, "
+                "updated_at=? WHERE id=?",
+                (heir["id"], now, row["id"]),
+            )
+            continue
+        status = "new" if row["status"] == "in_progress" else row["status"]
+        conn.execute(
+            "UPDATE tm_tasks SET worker_session_id=NULL, status=?, "
+            "sync_revision=sync_revision+1, updated_at=? WHERE id=?",
+            (status, now, row["id"]),
+        )
+
+
 def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
     """Format task as plain number string."""
     return str(task["par_number"])
 
 
+def _link_commits_to_task(
+    conn: sqlite3.Connection, task_ref: str, commits: list[dict], project_id: str,
+) -> dict:
+    task = resolve_task_ref(conn, task_ref, project_id)
+    if not task:
+        return {
+            "ok": False,
+            "added": 0,
+            "reason": "TASK_NOT_FOUND",
+            "error": f"task '{task_ref}' not found",
+        }
+    existing = json.loads(task["git_commits"]) if task["git_commits"] else []
+    existing_hashes = {c["hash"] if isinstance(c, dict) else c for c in existing}
+    new_commits = []
+    for commit in commits:
+        commit_hash = commit["hash"] if isinstance(commit, dict) else commit
+        if commit_hash not in existing_hashes:
+            new_commits.append(commit)
+            existing_hashes.add(commit_hash)
+    if not new_commits:
+        return {"ok": True, "added": 0, "task_id": task["id"]}
+    conn.execute(
+        "UPDATE tm_tasks SET git_commits = ?, updated_at = ?, "
+        "sync_revision = sync_revision + 1 WHERE id = ?",
+        (json.dumps(existing + new_commits), _now(), task["id"]),
+    )
+    return {"ok": True, "added": len(new_commits), "task_id": task["id"]}
+
+
 def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str) -> dict:
-    """Link commits to a task by ref (e.g. '192', '#192', or 'PAR-192' legacy).
-    commits: list of dicts with at least 'hash' key. Deduplicates by hash.
-    project_id: authoritative project for every task reference.
-    Returns a stable result DTO for merge/MCP callers."""
+    """Link one commit group while preserving the legacy stable result DTO."""
     if not project_id:
         raise ValueError("project authority is required for commit linking")
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
-            task = resolve_task_ref(conn, task_ref, project_id)
-            if not task:
-                conn.rollback()
-                return {
-                    "ok": False,
-                    "added": 0,
-                    # «Номера не существует» — это про ИСТОРИЮ коммитов, чинить нечего;
-                    # маркер отличает его от «номер есть, но привязка не удалась».
-                    "reason": "TASK_NOT_FOUND",
-                    "error": f"task '{task_ref}' not found",
-                }
-            existing = json.loads(task["git_commits"]) if task["git_commits"] else []
-            existing_hashes = {c["hash"] if isinstance(c, dict) else c for c in existing}
-            new_commits = []
-            for c in commits:
-                h = c["hash"] if isinstance(c, dict) else c
-                if h not in existing_hashes:
-                    new_commits.append(c)
-                    existing_hashes.add(h)
-            if not new_commits:
-                conn.rollback()
-                return {"ok": True, "added": 0, "task_id": task["id"]}
-            all_commits = existing + new_commits
-            conn.execute(
-                "UPDATE tm_tasks SET git_commits = ?, updated_at = ?, sync_revision = sync_revision + 1 WHERE id = ?",
-                (json.dumps(all_commits), _now(), task["id"]),
-            )
+            result = _link_commits_to_task(conn, task_ref, commits, project_id)
             conn.commit()
-            return {
-                "ok": True,
-                "added": len(new_commits),
-                "task_id": task["id"],
-            }
+            return result
         except Exception:
             conn.rollback()
             raise

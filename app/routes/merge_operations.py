@@ -30,15 +30,23 @@ def _response(result: dict, status_code: int = 200) -> JSONResponse:
 
 @router.get("/capabilities")
 async def merge_operation_capabilities():
-    return {"capability": "operation-v1", "schema_version": 1}
+    # `capability`/`schema_version` остаются на operation-v1: это контракт, по которому
+    # СТАРЫЙ клиент узнаёт знакомый сервер. Про task-lifecycle-v2 новый клиент узнаёт из
+    # `capabilities` + `merge_schema_version` — именно эту пару он и читает перед POST.
+    return {
+        "capability": "operation-v1",
+        "schema_version": 1,
+        "capabilities": ["operation-v1", "task-lifecycle-v2"],
+        "merge_schema_version": 2,
+    }
 
 
 @router.post("")
-async def create_merge_operation(req: dict, request: Request):
+async def create_merge_operation(req: dict, request: Request = None):
     from app.diff_budget import request_may_waive_diff_budget
 
     waive = bool(req.get("waive_diff_budget"))
-    if waive and not request_may_waive_diff_budget(request):
+    if waive and (request is None or not request_may_waive_diff_budget(request)):
         return _response(
             {
                 "operation_state": "FAILED",
@@ -60,6 +68,11 @@ async def create_merge_operation(req: dict, request: Request):
         next_task_id=str(req.get("next_task_id") or ""),
         waive_diff_budget=waive,
         waived_by=str(req.get("waived_by") or ""),
+        task_outcome=str(req.get("task_outcome") or ""),
+        merge_schema_version=(
+            int(req["merge_schema_version"])
+            if req.get("merge_schema_version") is not None else None
+        ),
     )
     return _response(result, status_code)
 
