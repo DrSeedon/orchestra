@@ -27,6 +27,14 @@ class ConfigError(GuardError):
     pass
 
 
+class ProcessIdentityMismatch(GuardError):
+    pass
+
+
+class ProcessGuardUnavailable(GuardError):
+    pass
+
+
 class FreezeError(GuardError):
     pass
 
@@ -84,6 +92,42 @@ class FreezeRecord:
     child_name: str
     pid: int
     start_ticks: int
+
+
+def _read_starttime(pid: int) -> int:
+    with open(f"/proc/{pid}/stat", "rb") as stream:
+        raw = stream.read().decode("utf-8", "replace")
+    fields = raw.rpartition(")")[2].split()
+    if len(fields) <= 19:
+        raise ValueError("process starttime is unavailable")
+    return int(fields[19])
+
+
+def open_verified_pidfd(
+    pid: int,
+    expected_start_ticks: int,
+    *,
+    pidfd_open: Callable[[int], int] | None = None,
+    read_starttime: Callable[[int], int] = _read_starttime,
+) -> int:
+    """Pin ``pid`` before comparing its starttime, closing the PID-reuse race."""
+    if pidfd_open is None:
+        pidfd_open = getattr(os, "pidfd_open", None)
+        if not callable(pidfd_open):
+            raise ProcessGuardUnavailable(
+                "process guard requires the os.pidfd_open capability"
+            )
+    pidfd = pidfd_open(pid)
+    try:
+        actual_start_ticks = read_starttime(pid)
+        if actual_start_ticks != expected_start_ticks:
+            raise ProcessIdentityMismatch(
+                f"starttime {actual_start_ticks} != expected {expected_start_ticks}"
+            )
+        return pidfd
+    except BaseException:
+        os.close(pidfd)
+        raise
 
 
 def _required(env: Mapping[str, str], key: str) -> str:
@@ -433,7 +477,7 @@ class ProcessGuard:
         freezer: CgroupFreezer,
         *,
         logger: logging.Logger | None = None,
-        pidfd_open: Callable[[int], int] = os.pidfd_open,
+        pidfd_open: Callable[[int], int] | None = None,
         pidfd_signal: Callable[[int, int], None] | None = None,
     ) -> None:
         self.policy = policy
@@ -441,7 +485,7 @@ class ProcessGuard:
         self.freezer = freezer
         self.logger = logger or logging.getLogger("orchestra-process-guard")
         self.pidfd_open = pidfd_open
-        self.pidfd_signal = pidfd_signal or signal.pidfd_send_signal
+        self.pidfd_signal = pidfd_signal or getattr(signal, "pidfd_send_signal", None)
         self.calibration_matches: dict[tuple[int, int], tuple[ProcessSnapshot, float]] = {}
 
     def _event(self, decision: Decision, action: str, **extra: object) -> dict[str, object]:
@@ -484,12 +528,24 @@ class ProcessGuard:
             return "dry_run"
 
         try:
-            pidfd = self.pidfd_open(decision.snapshot.pid)
-        except ProcessLookupError:
+            pidfd = open_verified_pidfd(
+                decision.snapshot.pid,
+                decision.snapshot.start_ticks,
+                pidfd_open=self.pidfd_open,
+                read_starttime=lambda pid: self.reader.read(pid).start_ticks,
+            )
+        except ProcessIdentityMismatch:
+            self._log(self._event(decision, "identity_changed_before_freeze"))
+            return "identity_changed_before_freeze"
+        except (FileNotFoundError, ProcessLookupError, OSError, ValueError):
             self._log(self._event(decision, "candidate_gone"))
             return "candidate_gone"
 
         try:
+            if self.pidfd_signal is None:
+                raise ProcessGuardUnavailable(
+                    "process guard requires the signal.pidfd_send_signal capability"
+                )
             try:
                 current = self.reader.read(decision.snapshot.pid)
             except (FileNotFoundError, ProcessLookupError, OSError, ValueError):

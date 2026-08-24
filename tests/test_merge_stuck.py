@@ -86,7 +86,8 @@ def live_merge(tmp_path, monkeypatch):
         tm.create_task(connection, project["id"], "живая задача", par_number=24)
 
     async def fake_execute(*, session_id, expected_name, expected_scope,
-                           expected_branch, expected_head, req):
+                           expected_branch, expected_head, expected_target_head,
+                           req):
         """Тонкая обвязка вокруг тех же двух НАСТОЯЩИХ функций, что зовёт прод:
         `merge_worktree_to_main` и `tm.link_commits_to_task` (app/routes/sessions.py)."""
         outcome = dict(workspace.merge_worktree_to_main(
@@ -95,6 +96,7 @@ def live_merge(tmp_path, monkeypatch):
             target_branch=req.get("target") or "main",
             expected_worker_branch=expected_branch,
             expected_worker_head=expected_head,
+            expected_target_head=expected_target_head,
         ))
         if not outcome.get("ok"):
             return outcome
