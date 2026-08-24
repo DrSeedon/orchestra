@@ -28,6 +28,79 @@ async def _protocol_call(module, name, arguments):
 
 
 @pytest.mark.asyncio
+async def test_send_file_accepts_legacy_synchronous_receipt_without_status_lookup(monkeypatch):
+    import app.mcp_stdio as m
+
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        return {"ok": True, "message_id": 123, "chat_id": -456}
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    result = await m.send_file("/scope/report.pdf", "report", True)
+
+    assert calls and len(calls) == 1
+    assert calls[0][0:2] == ("POST", "/api/tg/send_file")
+    assert calls[0][2]["json"]["event_id"]
+    assert "File sent via legacy synchronous route" in result
+    assert "message_id=123" in result
+    assert "chat_id=-456" in result
+    assert "No durable event receipt exists" in result
+
+
+@pytest.mark.asyncio
+async def test_send_file_200_without_matching_receipt_exposes_event_and_no_retry(monkeypatch):
+    import app.mcp_stdio as m
+
+    async def fake_api(method, path, **kwargs):
+        assert method == "POST"
+        assert path == "/api/tg/send_file"
+        return {"ok": True}
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m.send_file("/scope/report.pdf")
+
+    error = caught.value
+    event_id = error.result["event_id"]
+    assert event_id
+    assert f"event_id={event_id}" in error.message
+    assert f"file_delivery_status('{event_id}')" in error.message
+    assert "do not retry with a new id" in error.message
+    assert error.result["next_action"]["arguments"] == {"event_id": event_id}
+
+
+@pytest.mark.asyncio
+async def test_send_file_200_mismatched_receipt_keeps_structured_result(monkeypatch):
+    import app.mcp_stdio as m
+
+    async def fake_api(method, path, **kwargs):
+        assert method == "POST"
+        assert path == "/api/tg/send_file"
+        return {
+            "ok": True,
+            "event_id": "00000000-0000-0000-0000-000000000000",
+            "acceptance": "accepted",
+            "delivery_state": "QUEUED",
+        }
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m.send_file("/scope/report.pdf")
+
+    error = caught.value
+    event_id = error.result["event_id"]
+    assert f"event_id={event_id}" in error.message
+    assert f"file_delivery_status('{event_id}')" in error.message
+    assert "do not retry with a new id" in error.message
+    assert error.result["next_action"]["tool"] == "file_delivery_status"
+
+
+@pytest.mark.asyncio
 async def test_t2_publish_artifact_sends_only_path_caption_and_ttl(monkeypatch):
     import app.mcp_stdio as m
 
