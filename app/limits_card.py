@@ -9,9 +9,16 @@
 """
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import html
 from pathlib import Path
+
+
+_renderer_lock: asyncio.Lock | None = None
+_renderer_loop = None
+_renderer_playwright = None
+_renderer_browser = None
 
 # Порог темпа зеркалит фронтовый `_paceIndicator` (app/static/js/usage.js:46):
 # отставание в 5 п.п. от календаря считается нормой, дальше — обгон.
@@ -119,7 +126,8 @@ def _countdown(reset: dt.datetime, now: dt.datetime) -> str:
 # ── сбор данных ───────────────────────────────────────────────────────────────
 
 def collect(usage: dict, *, now: dt.datetime | None = None) -> dict:
-    """Ответ `/api/usage` → всё, что рисует карточка."""
+    """Ответ `/api/usage` → всё, что рисует карточка. Ничего не считает про окна недели:
+    это работа `_quota_headroom`, отсутствует она — отсутствует и блок недели."""
     now = now or dt.datetime.now(dt.timezone.utc)
     if now.tzinfo is None:
         now = now.replace(tzinfo=dt.timezone.utc)
@@ -155,7 +163,25 @@ def collect(usage: dict, *, now: dt.datetime | None = None) -> dict:
         pool("Grok", (usage.get("grok") or {}).get("primary")),
     ]
 
-    return {"now": now, "pools": pools}
+    head = usage.get("quota_headroom")
+    week = None
+    if isinstance(head, dict) and isinstance(head.get("rate"), (int, float)) and head["rate"] > 0:
+        five_used = pools[0]["used"] or 0.0
+        week_used = pools[1]["used"] or 0.0
+        cost = head["rate"] * 100
+        week = {
+            "cost": cost,
+            "total": 100 / cost,
+            "spent": week_used / cost,
+            "left": max(0.0, 100 - week_used) / cost,
+            "week_used": week_used,
+            "five_used": five_used,
+            "visible_pct": max(0.0, 100 - five_used),
+            "available_pct": float(head.get("available_pct") or 0.0),
+            "locked_pct": float(head.get("locked_pct") or 0.0),
+            "reset": pools[1].get("reset") or "",
+        }
+    return {"now": now, "pools": pools, "week": week}
 
 
 # ── вёрстка ───────────────────────────────────────────────────────────────────
@@ -166,6 +192,23 @@ def _css() -> str:
 body {{ width:{CARD_WIDTH}px; background:{P['bg']}; color:{P['ink']}; padding:40px 40px 34px;
   font-family:'DejaVu Sans','Noto Sans',system-ui,sans-serif; }}
 .head {{ font-size:30px; color:{P['faint']}; letter-spacing:1px; }}
+.huge {{ font-size:76px; font-weight:700; line-height:1.08; margin-top:6px; }}
+.sub {{ font-size:34px; color:{P['soft']}; margin-top:16px; line-height:1.4; }}
+.cap {{ font-size:31px; color:{P['soft']}; margin-top:32px; line-height:1.4; }}
+.week {{ margin-top:16px; height:96px; border-radius:16px; background:#161f31;
+  border:2px solid {P['border']}; position:relative; overflow:hidden; }}
+.week .burn {{ position:absolute; inset:0 auto 0 0; background:{P['danger']}; opacity:.85; }}
+.week .tick {{ position:absolute; top:0; bottom:0; width:2px; background:{P['bg']}; opacity:.6; }}
+.week .lbl {{ position:absolute; top:28px; left:22px; font-size:32px; font-weight:700;
+  color:#fff; text-shadow:0 2px 6px #000; }}
+.axis {{ display:flex; justify-content:space-between; margin-top:12px; font-size:28px;
+  color:{P['faint']}; }}
+.five {{ margin-top:16px; height:76px; border-radius:16px; background:#161f31;
+  border:2px solid {P['border']}; position:relative; overflow:hidden; }}
+.five .burn {{ position:absolute; top:0; bottom:0; background:{P['danger']}; opacity:.85; }}
+.five .avail {{ position:absolute; top:0; bottom:0; background:{P['ok']}; opacity:.34; }}
+.five .locked {{ position:absolute; top:0; bottom:0;
+  background:repeating-linear-gradient(135deg,#2b3448 0 10px,#1b2233 10px 20px); }}
 .pools {{ margin-top:36px; border-top:2px solid {P['border']}; padding-top:26px;
   display:flex; flex-direction:column; gap:24px; }}
 .pool .top {{ display:flex; justify-content:space-between; align-items:baseline;
@@ -215,9 +258,43 @@ def _pools_html(pools: list[dict]) -> str:
 
 def build_html(data: dict) -> str:
     stamp = data["now"].astimezone(LOCAL_TZ).strftime("%d.%m %H:%M")
+    week = data["week"]
+    if week is None:
+        top = (
+            f'<div class="huge">Курс не измерен</div>'
+            f'<div class="sub">Сколько пятичасовых окон осталось — посчитать нечем: нет '
+            f'истории расхода. Ниже только сами окна, без пересчёта одного в другое.</div>'
+        )
+    else:
+        ticks = "".join(
+            f'<div class="tick" style="left:{k / week["total"] * 100:.2f}%"></div>'
+            for k in range(1, int(week["total"]) + 1)
+        )
+        five_used, avail, locked = week["five_used"], week["available_pct"], week["locked_pct"]
+        top = (
+            f'<div class="huge">Недели хватит на '
+            f'<span style="color:{P["warn"]}">{week["left"]:.1f}</span> окна</div>'
+            f'<div class="sub">Пятичасовое окно свободно на {week["visible_pct"]:.0f}%, но '
+            f'взять из него можно только {avail:.0f}% — остальное упирается в недельный запас.</div>'
+            f'<div class="cap">Полоса ниже — вся неделя. Насечки делят её на пятичасовые '
+            f'окна: их помещается {week["total"]:.1f}.</div>'
+            f'<div class="week"><div class="burn" style="width:{week["week_used"]:.1f}%"></div>'
+            f'{ticks}<div class="lbl">сожжено {week["spent"]:.1f} окна</div></div>'
+            f'<div class="axis"><span>вся неделя = {week["total"]:.1f} окна</span>'
+            f'<span style="color:{P["ok"]}">осталось {week["left"]:.1f} · '
+            f'до {html.escape(week["reset"].split("·")[-1].strip())}</span></div>'
+            f'<div class="cap">А это ближайшие 5 часов. Зелёное — сколько на самом деле можно '
+            f'взять, полосатое — то, что недельный запас уже не пустит.</div>'
+            f'<div class="five"><div class="burn" style="left:0;width:{five_used:.1f}%"></div>'
+            f'<div class="avail" style="left:{five_used:.1f}%;width:{avail:.1f}%"></div>'
+            f'<div class="locked" style="left:{five_used + avail:.1f}%;width:{locked:.1f}%"></div></div>'
+            f'<div class="axis"><span>сожжено {five_used:.0f}%</span>'
+            f'<span style="color:{P["ok"]}">доступно {avail:.0f}%</span>'
+            f'<span>заперто неделей {locked:.0f}%</span></div>'
+        )
     return (
         f"<!doctype html><meta charset='utf-8'><style>{_css()}</style><body>"
-        f'<div class="head">ЛИМИТЫ · {stamp}</div>{_pools_html(data["pools"])}'
+        f'<div class="head">ЛИМИТЫ · {stamp}</div>{top}{_pools_html(data["pools"])}'
         f"</body>"
     )
 
@@ -228,21 +305,54 @@ async def render_limits_card(usage: dict, *, now: dt.datetime | None = None) -> 
 
     from app.charts import new_chart_path, prune_charts
 
+    global _renderer_lock, _renderer_loop, _renderer_playwright, _renderer_browser
     path = new_chart_path()
     html_path = path.with_suffix(".html")
     html_path.write_text(build_html(collect(usage, now=now)), encoding="utf-8")
     try:
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch()
-            try:
-                page = await browser.new_page(
-                    viewport={"width": CARD_WIDTH, "height": 1200},
-                )
-                page.set_default_timeout(RENDER_TIMEOUT_MS)
-                await page.goto(html_path.as_uri())
-                await page.screenshot(path=str(path), full_page=True)
-            finally:
-                await browser.close()
+        loop = asyncio.get_running_loop()
+        if _renderer_loop is not loop or _renderer_lock is None:
+            _renderer_loop = loop
+            _renderer_lock = asyncio.Lock()
+            _renderer_playwright = None
+            _renderer_browser = None
+        async with _renderer_lock:
+            for attempt in range(2):
+                page = None
+                try:
+                    if (_renderer_browser is None
+                            or not _renderer_browser.is_connected()):
+                        if _renderer_playwright is None:
+                            _renderer_playwright = await async_playwright().start()
+                        _renderer_browser = await _renderer_playwright.chromium.launch()
+                    page = await _renderer_browser.new_page(
+                        viewport={"width": CARD_WIDTH, "height": 1200},
+                    )
+                    page.set_default_timeout(RENDER_TIMEOUT_MS)
+                    await page.goto(html_path.as_uri())
+                    await page.screenshot(path=str(path), full_page=True)
+                    break
+                except Exception:
+                    if _renderer_browser is not None:
+                        try:
+                            await _renderer_browser.close()
+                        except Exception:
+                            pass
+                    _renderer_browser = None
+                    if _renderer_playwright is not None:
+                        try:
+                            await _renderer_playwright.stop()
+                        except Exception:
+                            pass
+                    _renderer_playwright = None
+                    if attempt:
+                        raise
+                finally:
+                    if page is not None:
+                        try:
+                            await page.close()
+                        except Exception:
+                            pass
     finally:
         html_path.unlink(missing_ok=True)
     prune_charts()

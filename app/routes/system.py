@@ -1107,11 +1107,42 @@ async def _get_usage_data(
     }
 
 
+def _quota_headroom(anthropic: dict | None) -> dict | None:
+    """Реальный потолок 5h с учётом остатка недельного окна (#162)."""
+    from app.db import usage_exchange_rate
+
+    five = (anthropic or {}).get("five_hour") or {}
+    seven = (anthropic or {}).get("seven_day") or {}
+    p5, p7 = five.get("utilization"), seven.get("utilization")
+    if not isinstance(p5, (int, float)) or not isinstance(p7, (int, float)):
+        return None
+    try:
+        measured = usage_exchange_rate()
+    except Exception as error:
+        logger.warning("quota headroom: история недоступна — %s: %s",
+                       type(error).__name__, error)
+        return None
+    if not measured:
+        return None
+    weekly_room = max(0.0, 100.0 - p7) / measured["rate"]
+    visible = max(0.0, 100.0 - p5)
+    available = min(visible, weekly_room)
+    return {
+        "rate": round(measured["rate"], 4),
+        "available_pct": round(available, 1),
+        "locked_pct": round(visible - available, 1),
+        "windows_left": round(weekly_room / 100.0, 2),
+        "window_hours": measured["window_hours"],
+        "sample_five_hour_pct": round(measured["five_hour_pct_sum"], 1),
+    }
+
+
 @router.get("/api/usage")
 async def get_usage():
     if not is_owner_mode():
         return None
-    return await _get_usage_data()
+    data = await _get_usage_data()
+    return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
 
 
 @router.get("/api/usage/card")
@@ -1124,7 +1155,8 @@ async def get_usage_card():
     """
     if not is_owner_mode():
         raise HTTPException(status_code=404, detail="not found")
-    usage = await _get_usage_data()
+    data = await _get_usage_data()
+    usage = {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
     from app.limits_card import render_limits_card
 
     path = await render_limits_card(usage)
