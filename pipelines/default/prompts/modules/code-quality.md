@@ -19,6 +19,7 @@
 - Python reachability, decorators, registries, or dead clusters → task-local AST plus `rg`; a zero from either alone proves nothing
 - Known static-symbol rename → LSP/Serena is optional, then `rg` strings/comments/config/templates and run tests
 - Delete as unreachable only with a production-root proof and a mutation that makes the acceptance test fail
+- **A mutation proves nothing unless the test it reddens is COMMITTED.** A throwaway probe dies with your turn and guards nobody. Measured 25.08 (#398): a worker reported both fixes mutation-checked, and disabling one of its own fixes afterwards left the named suite green — `35 passed, RC=0` — because no test had entered the repository. Report a mutation only against a test that is in your diff.
 
 **Pit of success.** Code where screwing up is hard.
 - Flat structure, minimal indirection. Reads top to bottom
