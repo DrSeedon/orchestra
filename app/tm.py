@@ -838,6 +838,10 @@ def finalize_merge_outcome(payload: dict) -> dict:
         str(ref): link_commits_to_task(str(ref), commits, project_id)
         for ref, commits in (payload.get("commits") or {}).items()
     }
+    # Commit links are durable before the lifecycle transaction below. Keep their
+    # results on the payload so a later failure cannot make an applied link look
+    # like it was never attempted.
+    payload["links"] = links
     outcome = payload["outcome"]
     next_task = payload.get("next_task")
     reservation_id = payload["reservation_id"]

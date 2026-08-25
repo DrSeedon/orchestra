@@ -643,6 +643,30 @@ def test_post_commit_stage_failures_preserve_all_stage_statuses():
     }
 
 
+def test_post_commit_failure_keeps_git_status_succeeded():
+    """A later finalization failure cannot repaint an already committed Git stage."""
+    import app.merge_operations as operations
+
+    result = operations.normalize_merge_result(
+        "00000000-0000-0000-0000-000000000026",
+        {
+            "ok": False,
+            "state": "partial",
+            "commit_point": "target_committed",
+            "target_branch": "main",
+            "target_after": "c" * 40,
+            "commits_merged": 5,
+            "conflicts": [],
+            "error": "merge finalization failed: status stage exploded",
+            "finalization": {"stage": "PENDING"},
+        },
+        operations.normalize_request(name="worker", scope="/scope", target="main"),
+    )
+
+    assert result["commit_point"] == "REACHED"
+    assert result["git"]["status"] == "SUCCEEDED"
+
+
 def test_disabled_rag_is_explicit_terminal_policy_not_partial():
     import app.merge_operations as operations
 

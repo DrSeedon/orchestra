@@ -876,6 +876,58 @@ async def test_t3_complete_and_next_transition_is_one_atomic_finalizer(monkeypat
     assert (durable["task_id"], durable["needs_switch"]) == ("43", 0)
 
 
+def test_t3_links_survive_late_finalizer_failure(monkeypatch):
+    """Links committed before status work remain visible when that work raises."""
+    from app import merge_operations as operations
+    from app import tm
+
+    _init_db()
+    _seed_project()
+    with tm._conn() as connection:
+        first = tm.create_task(connection, "project", "First", par_number=590)
+        second = tm.create_task(connection, "project", "Second", par_number=591)
+
+    def fail_status_update(*_args, **_kwargs):
+        raise RuntimeError("status stage exploded")
+
+    monkeypatch.setattr(tm, "update_task", fail_status_update)
+    finalization = {
+        "project_id": "project",
+        "task": {"task_id": first["id"]},
+        "commits": {
+            "590": [{"hash": "a" * 40, "message": "#590: first"}],
+            "591": [{"hash": "b" * 40, "message": "#591: second"}],
+        },
+        "outcome": "complete",
+        "reservation_id": "operation-398",
+        "session_id": "worker-398",
+    }
+
+    with pytest.raises(RuntimeError, match="status stage exploded"):
+        tm.finalize_merge_outcome(finalization)
+
+    with tm._conn() as connection:
+        linked = [
+            tm.get_task_by_id(connection, task["id"])["git_commits"]
+            for task in (first, second)
+        ]
+    assert all(json.loads(commits) for commits in linked)
+
+    result = operations.normalize_merge_result(
+        "operation-398",
+        {
+            "ok": False,
+            "state": "partial",
+            "commit_point": "target_committed",
+            "error": "merge finalization failed: status stage exploded",
+            "finalization": finalization,
+        },
+        operations.normalize_request(name="worker", scope="/scope", target="main"),
+    )
+    assert result["task_links"]["status"] == "SUCCEEDED"
+    assert set(result["task_links"]["items"]) == {"590", "591"}
+
+
 @pytest.mark.asyncio
 async def test_t3_removing_last_worker_requeues_in_progress_task(monkeypatch):
     """Worker liveness is a platform fact; an archived last worker cannot stay active."""
