@@ -829,8 +829,8 @@ def finalize_merge_outcome(payload: dict) -> dict:
 
     Commit links come first and each ref links on its own: after the commit point a
     vanished ref must not discard the links that do resolve. The status stage that
-    follows — close current, bind next, deduct prepayment, drop reservations — is one
-    transaction, so a handoff never leaves a taskless worker behind.
+    follows — close current, bind next, drop reservations — is one transaction, so a
+    handoff never leaves a taskless worker behind.
     """
     project_id = payload["project_id"] or payload["task"]["project_id"]
     task_db_id = payload["task"]["task_id"]
@@ -841,7 +841,6 @@ def finalize_merge_outcome(payload: dict) -> dict:
     outcome = payload["outcome"]
     next_task = payload.get("next_task")
     reservation_id = payload["reservation_id"]
-    completed = False
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
@@ -851,8 +850,6 @@ def finalize_merge_outcome(payload: dict) -> dict:
                     raise ValueError(f"task {task_db_id} disappeared before finalization")
                 if task["status"] != "done":
                     update_task(conn, task_db_id, status="done")
-                    auto_deduct_prepayment(conn, task_db_id)
-                    completed = True
                 conn.execute(
                     "UPDATE tm_tasks SET worker_session_id=NULL, "
                     "sync_revision=sync_revision+1, updated_at=? WHERE id=?",
@@ -876,8 +873,6 @@ def finalize_merge_outcome(payload: dict) -> dict:
         except Exception:
             conn.rollback()
             raise
-    if completed:
-        _fire_sync(task_db_id)
     return {"ok": True, "links": links}
 
 

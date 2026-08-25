@@ -573,16 +573,12 @@ async def test_t3_complete_merge_atomically_links_and_closes_current_task(monkey
             connection, "project", "Finish me", par_number=42,
             status="in_progress", price_rub=100,
         )
-        tm.ensure_client(connection, "project-client", "Project", "project")
-        tm.receive_payment(connection, "project-client", 70)
         connection.execute(
             "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
             ("complete-worker", task["id"]),
         )
     _save_worker(session_id="complete-worker", task_id="42")
     found = _prepare_merge(monkeypatch, session_id="complete-worker")
-    sync = MagicMock()
-    monkeypatch.setattr(tm, "_fire_sync", sync)
     monkeypatch.setattr(
         "app.workspace.merge_worktree_to_main",
         lambda *_args, **_kwargs: {
@@ -611,8 +607,6 @@ async def test_t3_complete_merge_atomically_links_and_closes_current_task(monkey
     assert closed["worker_session_id"] is None
     assert closed["completed_at"]
     assert "abc123" in closed["git_commits"]
-    assert closed["paid_rub"] == 70
-    sync.assert_called_once_with(task["id"])
 
 
 @pytest.mark.asyncio
