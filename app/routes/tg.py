@@ -2,14 +2,17 @@
 
 import asyncio
 import hashlib
+import logging
 import math
 import tempfile
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 router = APIRouter()
+logger = logging.getLogger("orchestra.routes.tg")
 
 UPLOADS_DIR = Path(__file__).parent.parent.parent / "data" / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -48,12 +51,140 @@ async def _audio_duration_seconds(path: str) -> float:
         raise ValueError("invalid audio duration") from e
 
 
+_voice_tasks: set[asyncio.Task] = set()
+
+
+async def _report_voice_failure(row: dict, detail: str) -> None:
+    """Keep failed audio on disk and route an actionable report to the owner."""
+    from app.deps import manager
+    from app.notify import report_undelivered
+
+    outcome = await report_undelivered(
+        manager,
+        scope=row["scope"],
+        worker=row["session_name"],
+        what=(f"голосовое сообщение {row['voice_id']} не расшифровано; "
+              f"аудио сохранено: {row['path']}"),
+        reason=detail,
+        dedupe_key=f"voice:{row['voice_id']}",
+    )
+    logger.error("voice %s transcription failure: %s", row["voice_id"], outcome)
+
+
+async def _process_dashboard_voice(row: dict) -> None:
+    from app.db import (
+        dashboard_voice_mark_failed,
+        dashboard_voice_mark_running,
+        dashboard_voice_mark_sent,
+    )
+    from app.deps import manager
+    from app.transcription import transcribe_audio
+
+    voice_id = row["voice_id"]
+    logger.info("voice %s background transcription started", voice_id)
+    await asyncio.to_thread(dashboard_voice_mark_running, voice_id)
+    try:
+        path = Path(row["path"])
+        duration = await _audio_duration_seconds(str(path))
+        if not math.isfinite(duration) or duration <= 0:
+            raise ValueError("audio duration is invalid")
+        if duration > VOICE_MAX_SECONDS:
+            raise ValueError("recording is too long (max 5 minutes)")
+        text, error = await transcribe_audio(
+            str(path),
+            f"dashboard-{voice_id}",
+            session_name=row["session_name"],
+            scope=row["scope"],
+            content_type=row["content_type"],
+        )
+        if error:
+            raise RuntimeError(error)
+        text = text.strip()
+        if not text:
+            raise ValueError("speech was not recognized")
+        session = await manager.ensure_loaded_by_id(row["session_id"])
+        if not session:
+            raise RuntimeError(f"target session {row['session_id']} is unavailable")
+        await manager.send(session.id, text)
+    except Exception as error:
+        detail = f"{type(error).__name__}: {error}"
+        await asyncio.to_thread(dashboard_voice_mark_failed, voice_id, detail)
+        await _report_voice_failure(row, detail)
+        return
+    await asyncio.to_thread(dashboard_voice_mark_sent, voice_id)
+    try:
+        Path(row["path"]).unlink()
+    except OSError as error:
+        logger.warning("voice %s sent but audio cleanup failed: %s: %s", voice_id, type(error).__name__, error)
+
+
+def _schedule_dashboard_voice(row: dict) -> None:
+    task = asyncio.create_task(_process_dashboard_voice(row))
+    _voice_tasks.add(task)
+    task.add_done_callback(_voice_tasks.discard)
+
+
+async def resume_dashboard_voice_transcriptions() -> None:
+    """Requeue accepted voice uploads left by a process restart."""
+    from app.db import dashboard_voice_pending
+
+    for row in await asyncio.to_thread(dashboard_voice_pending):
+        _schedule_dashboard_voice(row)
+
+
+async def _submit_voice_for_sending(
+    audio: UploadFile,
+    session_name: str = Form(""),
+    scope: str = Form(""),
+):
+    from app.db import dashboard_voice_enqueue
+    from app.deps import manager
+
+    content_type = (audio.content_type or "").split(";", 1)[0].lower()
+    suffix = _VOICE_TYPES.get(content_type)
+    if not suffix:
+        return JSONResponse(
+            {"error": f"unsupported audio type: {content_type or 'unknown'}"},
+            status_code=415,
+        )
+    target = manager.get_by_name(session_name, scope)
+    if not target:
+        return JSONResponse({"error": f"agent '{session_name}' not found"}, status_code=404)
+    content = await audio.read(VOICE_MAX_BYTES + 1)
+    await audio.close()
+    if not content:
+        return JSONResponse({"error": "audio is empty"}, status_code=400)
+    if len(content) > VOICE_MAX_BYTES:
+        return JSONResponse({"error": "audio is too large (max 10 MB)"}, status_code=413)
+
+    voice_id = uuid.uuid4().hex
+    path = UPLOADS_DIR / f"dashboard-voice-{voice_id}{suffix}"
+    await asyncio.to_thread(path.write_bytes, content)
+    await asyncio.to_thread(
+        dashboard_voice_enqueue,
+        voice_id, target.id, target.name, target.scope, str(path), content_type,
+    )
+    _schedule_dashboard_voice({
+        "voice_id": voice_id,
+        "session_id": target.id,
+        "session_name": target.name,
+        "scope": target.scope,
+        "path": str(path),
+        "content_type": content_type,
+    })
+    logger.info("voice %s accepted before background transcription", voice_id)
+    return {"accepted": True, "voice_id": voice_id}
+
+
 @router.post("/api/transcribe")
 async def transcribe_upload(
     audio: UploadFile,
     session_name: str = Form(""),
     scope: str = Form(""),
+    send: bool = Form(False),
 ):
+    if send:
+        return await _submit_voice_for_sending(audio, session_name, scope)
     content_type = (audio.content_type or "").split(";", 1)[0].lower()
     suffix = _VOICE_TYPES.get(content_type)
     if not suffix:
