@@ -736,7 +736,11 @@ async def test_t3_claude_target_commits_only_after_canary_and_capability_receipt
     session._run_handoff_ingress_canary = AsyncMock(side_effect=ingress_canary)
     session._verify_handoff_capabilities = AsyncMock(side_effect=capability_check)
 
-    result = await session.change_model("claude-sonnet-5[1m]")
+    # The UI now intentionally uses text_tail_v1 for Codex → Claude.  Keep this
+    # oracle on the stricter packet transaction by exercising its owner directly.
+    result = await session._change_runtime_with_packet_locked(
+        "claude-sonnet-5[1m]", session.model, session.backend_type,
+    )
 
     assert result["ok"] is True, result
     session._run_handoff_ingress_canary.assert_awaited_once()
@@ -813,7 +817,9 @@ async def test_t3_invalid_receipt_never_disconnects_or_confirms(
     )
     session._ensure_backend = AsyncMock(side_effect=connect_target)
 
-    result = await session.change_model("claude-sonnet-5[1m]")
+    result = await session._change_runtime_with_packet_locked(
+        "claude-sonnet-5[1m]", session.model, session.backend_type,
+    )
 
     assert result["ok"] is False
     assert result["error_code"] == error_code

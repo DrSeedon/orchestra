@@ -4176,6 +4176,103 @@ class TestCodexTurnLifecycle:
 
 class TestRuntimeCapabilities:
     @pytest.mark.asyncio
+    async def test_codex_to_claude_uses_text_tail_without_fresh_or_target_canary(
+            self, session, monkeypatch):
+        from app.session import AgentStatus
+
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.session_id = "source-codex-thread"
+        session.status = AgentStatus.IDLE
+        source = AsyncMock()
+        session._backend = source
+        session._log = MagicMock()
+        session._build_runtime_handoff = AsyncMock(
+            return_value="User:\nlast question\n\nAssistant:\nlast answer",
+        )
+        session._prepare_runtime_handoff = AsyncMock(
+            side_effect=AssertionError("text tail must bypass complex canary handoff"),
+        )
+        session._make_backend = MagicMock(
+            side_effect=AssertionError("Opus starts lazily on the next user turn"),
+        )
+        save = MagicMock()
+        monkeypatch.setattr("app.session.save_session", save)
+
+        result = await session.change_model("claude-opus-5[1m]")
+
+        assert result["ok"] is True
+        assert result["runtime_changed"] is True
+        assert result["native_session_reset"] is True
+        assert result["history_transfer"] == {
+            "mode": "text_tail_v1",
+            "chars": 43,
+            "max_user_messages": 10,
+        }
+        assert session.model == "claude-opus-5[1m]"
+        assert session.backend_type == "claude"
+        assert session.session_id == ""
+        assert session.runtime_handoff.endswith("Assistant:\nlast answer")
+        assert session.session_id_history[-1]["session_id"] == "source-codex-thread"
+        assert session.session_id_history[-1]["handoff_mode"] == "text_tail_v1"
+        assert session._backend is None
+        source.disconnect.assert_awaited_once()
+        session._prepare_runtime_handoff.assert_not_awaited()
+        session._make_backend.assert_not_called()
+        save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_text_tail_v1_keeps_last_ten_users_and_assistant_text_only(
+            self, session, monkeypatch):
+        rows = []
+        row_id = 0
+        for index in range(12):
+            row_id += 1
+            rows.append({
+                "id": row_id,
+                "ts": f"2026-08-25T00:{index:02d}:00+00:00",
+                "type": "user_message",
+                "content": f"user-{index}",
+            })
+            row_id += 1
+            rows.append({
+                "id": row_id,
+                "ts": f"2026-08-25T00:{index:02d}:01+00:00",
+                "type": "text",
+                "content": f"assistant-{index}",
+            })
+            row_id += 1
+            rows.append({
+                "id": row_id,
+                "ts": f"2026-08-25T00:{index:02d}:02+00:00",
+                "type": "tool_result",
+                "content": f"SECRET-TOOL-PAYLOAD-{index}",
+            })
+        rows.append({
+            "id": row_id + 1,
+            "ts": "2026-08-25T00:59:00+00:00",
+            "type": "user_message",
+            "content": "[Orchestra platform note: hidden]",
+        })
+        monkeypatch.setattr(
+            "app.session.get_logs",
+            lambda _session_id, **_kwargs: rows,
+        )
+
+        tail = await session._build_runtime_handoff()
+
+        assert "User:\nuser-0\n" not in tail
+        assert "User:\nuser-1\n" not in tail
+        assert "Assistant:\nassistant-0\n" not in tail
+        assert "Assistant:\nassistant-1\n" not in tail
+        for index in range(2, 12):
+            assert f"user-{index}" in tail
+            assert f"assistant-{index}" in tail
+        assert "SECRET-TOOL-PAYLOAD" not in tail
+        assert "Orchestra platform note" not in tail
+        assert len(tail) <= 64_000
+
+    @pytest.mark.asyncio
     async def test_non_steering_runtime_queues_mid_turn_message(self, session):
         from app.session import AgentStatus
 

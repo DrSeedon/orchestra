@@ -3070,21 +3070,22 @@ class AgentSession:
         exclude_latest_user: str = "",
         exclude_user_messages: tuple[str, ...] = (),
     ) -> str:
-        """Build a bounded provider-neutral transcript for a new native runtime."""
+        """Build ``text_tail_v1``: ten user turns plus visible assistant text only."""
         if self._log_futures:
             await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
         logs = await asyncio.get_running_loop().run_in_executor(
             _db_executor(),
-            lambda: get_logs(self.id, limit=120),
+            lambda: get_logs(self.id, limit=5_000),
         )
         labels = {"user_message": "User", "text": "Assistant"}
-        blocks: list[str] = []
-        total = 0
-        max_chars = 32_000
         excluded = Counter(message.strip() for message in exclude_user_messages)
         if exclude_latest_user:
             excluded[exclude_latest_user] += 1
-        for entry in reversed(logs):
+        visible: list[tuple[str, str]] = []
+        for entry in sorted(
+            logs,
+            key=lambda row: (str(row.get("ts") or ""), int(row.get("id") or 0)),
+        ):
             label = labels.get(entry.get("type"))
             content = str(entry.get("content") or "").strip()
             if not label or not content:
@@ -3094,7 +3095,19 @@ class AgentSession:
                 continue
             if content.startswith("[Orchestra platform note:"):
                 continue
-            content = content[:6_000]
+            visible.append((label, content))
+
+        user_positions = [
+            index for index, (label, _content) in enumerate(visible)
+            if label == "User"
+        ]
+        if len(user_positions) > 10:
+            visible = visible[user_positions[-10]:]
+
+        blocks: list[str] = []
+        total = 0
+        max_chars = 64_000
+        for label, content in reversed(visible):
             block = f"{label}:\n{content}"
             if total + len(block) > max_chars:
                 remaining = max_chars - total
@@ -3230,6 +3243,113 @@ class AgentSession:
             "native_session_reset": True,
             "history_transfer": {
                 "mode": "fresh", "previous_dialog_discarded": True,
+            },
+            "changed": True,
+        }
+
+    async def _change_codex_to_claude_text_tail_locked(
+        self,
+        new_model: str,
+        old_model: str,
+        old_runtime: str,
+    ) -> dict:
+        """Switch Codex → Claude/Opus with a small visible-text handoff.
+
+        Native provider state cannot cross runtimes.  The old Codex thread remains in
+        ``session_id_history`` for rollback/inspection; the fresh Claude thread receives
+        the bounded transcript on its first real user turn through the existing
+        ``runtime_handoff`` envelope.  No tool call/result or hidden reasoning is copied.
+        """
+        tail = await self._build_runtime_handoff()
+        if not tail:
+            return {
+                "ok": False,
+                "error": "no visible user/assistant transcript is available",
+                "error_code": "text_tail_empty",
+                "history_transfer": {"mode": "blocked"},
+            }
+
+        old_session_id = self.session_id
+        try:
+            await self._drain_persist()
+            await self._disconnect_backend()
+        except Exception as error:
+            return {
+                "ok": False,
+                "error": err_text(error),
+                "error_code": "text_tail_source_release_failed",
+                "history_transfer": {"mode": "blocked"},
+            }
+
+        new_history = list(self.session_id_history)
+        if old_session_id:
+            new_history.append({
+                "session_id": old_session_id,
+                "runtime": old_runtime,
+                "model": old_model,
+                "switched_at": datetime.now(timezone.utc).isoformat(),
+                "handoff_mode": "text_tail_v1",
+            })
+            new_history = new_history[-10:]
+
+        new_runtime = get_model_spec(new_model).runtime
+        snapshot = self._to_db_dict()
+        snapshot.update({
+            "model": new_model,
+            "backend_type": new_runtime,
+            "session_id": "",
+            "runtime_handoff": tail,
+            "history_import_source": None,
+            "last_summary": "",
+            "context_pct": 0,
+            "context_tokens": 0,
+            "session_id_history": json.dumps(new_history) if new_history else "[]",
+        })
+        try:
+            await asyncio.get_running_loop().run_in_executor(
+                _db_executor(), save_session, snapshot,
+            )
+        except Exception as error:
+            return {
+                "ok": False,
+                "error": err_text(error),
+                "error_code": "text_tail_persistence_failed",
+                "history_transfer": {"mode": "blocked"},
+            }
+
+        self.model = new_model
+        self.backend_type = new_runtime
+        self.session_id = ""
+        self.session_id_history = new_history
+        self.runtime_handoff = tail
+        self.history_import_source = None
+        self.last_summary = ""
+        self._last_context = {
+            "percentage": 0, "total_tokens": 0, "max_tokens": 0,
+        }
+        self._prompt_injected = False
+        self._hibernated = False
+        self._handoff_config_dir = ""
+        self._handoff_recovery_required = False
+        self._session_limit_hit = False
+        self._cancel_precompact_timer("text_tail_model_switch")
+        self._log(
+            "status",
+            f"model change: {old_model} ({old_runtime}) → "
+            f"{new_model} ({new_runtime}); text_tail_v1 chars={len(tail)}",
+        )
+        return {
+            "ok": True,
+            "model": new_model,
+            "old_model": old_model,
+            "runtime": new_runtime,
+            "old_runtime": old_runtime,
+            "runtime_changed": True,
+            "native_session_reset": True,
+            "history_transfer": {
+                "mode": "text_tail_v1",
+                "chars": len(tail),
+                "max_user_messages": 10,
             },
             "changed": True,
         }
@@ -4341,6 +4461,12 @@ class AgentSession:
         new_runtime = get_model_spec(new_model).runtime
         runtime_changed = old_runtime != new_runtime
         if runtime_changed:
+            if old_runtime == "codex" and new_runtime == "claude":
+                return await self._change_codex_to_claude_text_tail_locked(
+                    new_model,
+                    old_model,
+                    old_runtime,
+                )
             return await self._change_runtime_with_packet_locked(
                 new_model,
                 old_model,
