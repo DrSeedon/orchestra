@@ -41,6 +41,7 @@ let scrollAfterLoad = true;
 // Следуем ли за новыми сообщениями. Правило как в мессенджерах: внизу — следуем,
 // ушёл читать выше — не трогаем вообще. Снимается в обработчике scroll.
 let _chatFollow = true;
+let _replayingHistory = false;
 let _chatTrimLimit = MAX_CHAT_NODES;
 let drafts = {};
 
@@ -237,9 +238,19 @@ function _pinChatBottom(chat) {
 // Срезать самые старые узлы. Режем ТОЛЬКО когда юзер внизу и следует за потоком:
 // иначе кнопка «загрузить ещё» бессмысленна — добранная история исчезала бы от первого
 // же нового сообщения, и текст под курсором прыгал бы вверх на высоту срезанного.
+// Прокрутка вверх раньше выключала обрезку ЦЕЛИКОМ, и при чтении истории узлы копились
+// без предела — отсюда лаги на длинных диалогах. Режем всегда, меняется только КОНЕЦ:
+// следуешь за потоком — уходит самое старое; читаешь историю — уходит хвост снизу,
+// который сейчас не на экране. Обе стороны сохраняют узел под курсором на месте.
+const MAX_CHAT_NODES_DETACHED = 300;
 function _trimChatNodes(chat) {
-    if (!chat || !_chatFollow) return;
-    while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
+    if (!chat || _replayingHistory) return;
+    if (_chatFollow) {
+        while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
+        return;
+    }
+    const limit = Math.max(MAX_CHAT_NODES_DETACHED, _chatTrimLimit);
+    while (chat.children.length > limit) chat.removeChild(chat.lastChild);
 }
 function _keepPinnedIfFollowing() {
     if (!_chatFollow || _followPinRaf) return;
@@ -2281,7 +2292,8 @@ function selectOrchestrator(name, scope) {
 // Отличает проигрывание истории от живой строки: часть отрисовки имеет побочные эффекты
 // (обновить панель задач), и в прошлом они не нужны. Флаг, а не параметр, потому что
 // addChatEntry зовут из десятка мест и протаскивать признак через все — шум.
-let _replayingHistory = false;
+// NB: объявлен выше, рядом с _chatFollow — _trimChatNodes читает его раньше этой строки,
+// а `let` не поднимается: обращение до инициализации бросило бы ReferenceError.
 
 function _renderHistory(agent, rows) {
     const meta = chatLogs[agent] = {lastId: 0, firstId: null, initialCount: 0};
