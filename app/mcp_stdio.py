@@ -108,18 +108,6 @@ REDUCER_MCP_TOOLS = frozenset({
     "search_memory",
 })
 
-# Codex/Code Mode exposes at most 150 tool schemas in one turn.  The current
-# baseline already contributes 112 non-Orchestra schemas, so advertising all
-# 41 Orchestra tools silently drops three tools at the client boundary.  Keep
-# these zero-use convenience wrappers callable for compatibility, but do not
-# advertise them through the full MCP surface; the three freed slots are owned
-# by canonical knowledge and durable delivery reconciliation.
-FULL_MCP_HIDDEN_TOOLS = frozenset({
-    "publish_artifact",
-    "rename_worker",
-    "send_chart",
-})
-
 
 @dataclass
 class ApiToolError(RuntimeError):
@@ -329,7 +317,7 @@ def _tool_names_for_access_mode(names: set[str], mode: str) -> set[str]:
     if normalized == "reducer":
         return names & REDUCER_MCP_TOOLS
     if normalized == "full":
-        return set(names) - FULL_MCP_HIDDEN_TOOLS
+        return set(names)
     raise ValueError(f"Unknown ORCHESTRA_ACCESS_MODE: {mode!r}")
 
 

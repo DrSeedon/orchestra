@@ -396,7 +396,7 @@ class JsonRpcStdioTransport:
         if pid:
             terminate_cli_process(pid, self.RUNTIME_LABEL, started_at)
 
-    async def _request(self, method: str, params: dict) -> dict:
+    async def _request(self, method: str, params: dict | None) -> dict:
         if self._in is None or not self.is_alive:
             raise RuntimeError(f"{self.RUNTIME_LABEL} is not running")
         self._request_seq += 1

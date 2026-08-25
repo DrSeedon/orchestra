@@ -1139,6 +1139,13 @@ class CodexBackend(JsonRpcStdioTransport):
                     f"requested={requested_thread_id}, returned={thread_id}"
                 )
             self._thread_id = thread_id
+            if history_import or requested_thread_id:
+                # App-server pins the MCP tool snapshot to a native thread.  Restarting
+                # the CLI and resuming that thread applies removals, but newly added
+                # tools stay absent until the supported reload RPC queues a refresh for
+                # the next active turn.  This preserves thread/context continuity while
+                # making restart-cli a real tool-registry refresh.
+                await self._request("config/mcpServer/reload", None)
             self._history_import = None
             self._rollout_path = None
             self._teardown_error = None

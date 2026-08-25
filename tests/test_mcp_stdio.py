@@ -2089,24 +2089,11 @@ def test_read_only_access_mode_hides_mutating_tools():
     assert visible == {"list_agents", "get_worker_logs"}
 
 
-def test_full_access_mode_reserves_slots_for_canonical_and_receipt_tools():
+def test_full_access_mode_preserves_all_tools():
     import app.mcp_stdio as m
 
-    names = {
-        "list_agents",
-        "send_message",
-        "spawn_worker",
-        "knowledge",
-        "message_delivery_status",
-        "file_delivery_status",
-        *m.FULL_MCP_HIDDEN_TOOLS,
-    }
-    visible = m._tool_names_for_access_mode(names, "full")
-
-    assert visible == names - m.FULL_MCP_HIDDEN_TOOLS
-    assert {
-        "knowledge", "message_delivery_status", "file_delivery_status",
-    } <= visible
+    names = {"list_agents", "send_message", "spawn_worker"}
+    assert m._tool_names_for_access_mode(names, "full") == names
 
 
 def test_unknown_access_mode_is_rejected():
