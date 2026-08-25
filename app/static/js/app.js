@@ -2587,13 +2587,6 @@ async function selectAgent(name) {
 function updateInputState() {
     const input = $('#chat-input');
     const btn = $('#send-btn');
-    // Отправка всё равно будет отклонена — честнее недоступная кнопка, чем ошибка в ответ.
-    if (_restartPending) {
-        input.placeholder = 'Идёт перезапуск Orchestra…';
-        input.disabled = true;
-        btn.disabled = true;
-        return;
-    }
     if (!selectedAgent) {
         input.placeholder = 'Message...';
         input.disabled = false;
@@ -3189,7 +3182,6 @@ function _showAgentContextMenu(e, s) {
 // follow-up messages get batched. The server echoes back via SSE which
 // replaces the bubble with the canonical version.
 async function sendChat() {
-    if (_restartPending) return;   // кнопка уже недоступна, это страховка от Enter
     const input = $('#chat-input');
     // Картинка ещё летит → ждём её путь, иначе сообщение уйдёт без картинки.
     // Поле ввода при этом живое: всё, что допечатают за время ожидания, войдёт в msg.
@@ -7391,31 +7383,13 @@ function _restartPendingFromBody(status, text) {
     try { return JSON.parse(text)?.error?.code === 'restart_pending'; } catch { return false; }
 }
 
-// Полосу строим в JS: шаблон отдаётся из главного чекаута и доехал бы до юзера только
-// рестартом — тем самым, про который она и рассказывает.
-function _restartBanner() {
-    let banner = document.getElementById('restart-banner');
-    if (banner) return banner;
-    banner = document.createElement('div');
-    banner.id = 'restart-banner';
-    // Тот же язык, что у соседних полос, и намеренно НЕ красный: перезапуск штатен.
-    banner.className = 'hidden items-center justify-center gap-2 px-4 py-2 bg-amber-500/15 border-b border-amber-500/40 text-amber-200 text-xs';
-    banner.innerHTML = '⏳ <b>Orchestra перезапускается</b> — отправка на паузе, вызовы отклоняются ДО изменений. ' +
-        '<span class="text-amber-400/70">Вернётся сама, перезагружать страницу не нужно.</span>';
-    const anchor = document.getElementById('rate-limit-banner');
-    if (anchor) anchor.parentNode.insertBefore(banner, anchor);
-    else document.body.prepend(banner);
-    return banner;
-}
-
+// Полосы и блокировки ввода на время рестарта БОЛЬШЕ НЕТ (решение юзера 26.08): она
+// отнимала возможность писать, а рестарт при этом мог вообще не состояться — то есть
+// поле немело зря. Флаг оставлен: по нему мутирующий вызов повторяется, но молча.
 function _setRestartPending(on) {
     if (on) _restartPendingSince = Date.now();   // каждый новый отказ продлевает окно
     if (on === _restartPending) return;
     _restartPending = on;
-    const banner = _restartBanner();
-    banner.classList.toggle('hidden', !on);
-    banner.classList.toggle('flex', on);
-    updateInputState();
 }
 
 // === Reboot Overlay ===
