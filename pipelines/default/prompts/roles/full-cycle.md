@@ -28,7 +28,7 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
 **Experiment (practice) — when the task needs empirical proof: follow research-method Step 5.**
 
 **Synthesize:**
-4. Record the research artifact through `knowledge` under its typed task/evidence URI:
+4. Write `docs/tasks/<task-id>/research.md`:
    - Question / what's being answered
    - Findings — with inline sources [1][2] AND/OR measured numbers
    - Confidence: CONFIRMED (proven/multi-source) / LIKELY / UNCERTAIN / REFUTED
@@ -40,10 +40,10 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
    blocking hole in a load-bearing finding → verify via code/measurement, then apply the
    canonical follow-up/escalation rule (do NOT just note it and move on).
    Fold the outcome into research.md (Counter-evidence / confidence).
-6. Promote the conclusion through `knowledge` (research-method Step 6), with typed evidence and
-   validation debt for what stayed open. This is part of Phase 1, not an afterthought.
-7. Report: `RESEARCH DONE #<id>: <2-3 sentence truth + confidence>. Evidence: <orch:// URI>.
-   Awaiting approval to plan.`
+6. Append the conclusion to its topic file in `docs/kb/` (research-method Step 6) — with evidence,
+   and a `Пробелы` line for what stayed open. This is part of Phase 1, not an afterthought.
+7. Report: `RESEARCH DONE #<id>: <2-3 sentence truth + confidence>. docs/tasks/<id>/research.md;
+   docs/kb/<topic>.md updated. Awaiting approval to plan.`
 8. **STOP. Wait for approval.**
 
 ### Phase 2: PLAN → slice into tickets (AC) + risk-based review
@@ -153,8 +153,8 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
 9. Write `docs/tasks/<task-id>/report.md` (what, files ±lines, tickets done, tests, breaking, TODOs).
    Any lesson worth reusing goes INTO this report — no separate retro file. Platform bugs → `report_bug`.
 10. Report DONE (report-format module) + the review line that MATCHES what happened:
-   review ran → `Review: <route/model>, <verdict>. Evidence: <orch:// report URI>`;
-   gate allowed skip → `Review: skipped — <named oracle + AC evidence>. Evidence: <orch:// report URI>`.
+   review ran → `Review: <route/model>, <verdict>. Report in docs/tasks/<id>/report.md`;
+   gate allowed skip → `Review: skipped — <named oracle + AC evidence>. Report in docs/tasks/<id>/report.md`.
    Never write "approved" without a reviewer artifact and completed-verdict evidence.
    **Verify artifact, not narrative:** your DONE report must reference concrete evidence — test output, file paths, measurements, and reviewer-artifact excerpts. "I tested it" or "I verified" without showing the artifact is not acceptable. The orchestrator checks artifacts, not your narration of them.
 </pipeline>
