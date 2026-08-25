@@ -3761,6 +3761,360 @@ def test_image_generation_history_replaces_stale_mirror_and_survives_chat_reentr
         assert "Image generated" in rendered["title"]
 
 
+def test_indexeddb_legacy_mirror_is_rebuilt_before_chat_render(
+    dashboard_browser: Browser,
+):
+    """A mirror written before row metadata existed must not drive current history."""
+    page = dashboard_browser.new_page()
+    origin = _dashboard_base()
+    page.goto(f"{origin}/static/css/style.css", wait_until="domcontentloaded")
+
+    legacy_rows = [
+        {
+            "id": i,
+            "session_id": "fe-orch-id",
+            "type": "text",
+            "content": f"legacy-row-{i}",
+            "ts": "2026-08-03T08:00:00+00:00",
+        }
+        for i in range(1, 37)
+    ] + [
+        {
+            "id": 37,
+            "session_id": "fe-orch-id",
+            "type": "tool",
+            "content": 'LegacyTool: {"payload":"' + "a" * 260 + '"}',
+            "ts": "2026-08-03T08:01:00+00:00",
+        },
+        {
+            "id": 38,
+            "session_id": "fe-orch-id",
+            "type": "tool_result",
+            "content": "legacy-result-a\n" * 8,
+            "ts": "2026-08-03T08:01:01+00:00",
+        },
+        {
+            "id": 39,
+            "session_id": "fe-orch-id",
+            "type": "tool",
+            "content": 'LegacyTool: {"payload":"' + "b" * 260 + '"}',
+            "ts": "2026-08-03T08:01:02+00:00",
+        },
+        {
+            "id": 40,
+            "session_id": "fe-orch-id",
+            "type": "tool_result",
+            "content": "legacy-result-b\n" * 8,
+            "ts": "2026-08-03T08:01:03+00:00",
+        },
+    ]
+    current_rows = [
+        {
+            "id": 1000 + i,
+            "session_id": "fe-orch-id",
+            "type": "text",
+            "content": f"current-row-{i}",
+            "ts": "2026-08-25T08:00:00+00:00",
+            "event_id": "",
+            "tool_use_id": None,
+            "tool_name": None,
+            "tool_is_error": None,
+        }
+        for i in range(1, 43)
+    ]
+
+    page.evaluate(
+        """async ({rows}) => {
+            await new Promise((resolve, reject) => {
+                const drop = indexedDB.deleteDatabase('orchestra');
+                drop.onsuccess = resolve;
+                drop.onerror = () => reject(drop.error);
+            });
+            const db = await new Promise((resolve, reject) => {
+                const rq = indexedDB.open('orchestra', 1);
+                rq.onupgradeneeded = () => {
+                    const logs = rq.result.createObjectStore('logs', {keyPath: 'id'});
+                    logs.createIndex('by_session', 'session_id');
+                    rq.result.createObjectStore('meta');
+                };
+                rq.onsuccess = () => resolve(rq.result);
+                rq.onerror = () => reject(rq.error);
+            });
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(['logs', 'meta'], 'readwrite');
+                for (const row of rows) tx.objectStore('logs').put(row);
+                const meta = tx.objectStore('meta');
+                meta.put(40, 'watermark');
+                meta.put('fe-orch-id', 'sessions');
+                meta.put([{id: 'fe-orch-id', name: 'fe-orch', scope: '/tmp/fe-scope'}], 'session_map');
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error);
+            });
+            db.close();
+        }""",
+        {"rows": legacy_rows},
+    )
+
+    page.add_init_script(f"""
+        const staleTail = {json.dumps(current_rows)};
+        window.__streamAfterIds364 = [];
+        window.__staircaseCounts364 = [];
+        window.EventSource = class StableEventSource {{
+            constructor(url) {{
+                this.url = url;
+                this.readyState = 1;
+                const after = Number(new URL(url, location.href).searchParams.get('after_id'));
+                window.__streamAfterIds364.push(after);
+                if (after < 1000) {{
+                    staleTail.forEach((row, index) => setTimeout(() => {{
+                        if (this.readyState !== 1) return;
+                        this.onmessage?.({{data: JSON.stringify(row)}});
+                        setTimeout(() => window.__staircaseCounts364.push(
+                            document.querySelector('#chat')?.children.length || 0
+                        ), 0);
+                    }}, 200 + index * 10));
+                }}
+            }}
+            close() {{ this.readyState = 2; }}
+        }};
+    """)
+    _route_frontend_sources(page)
+    history_calls: list[str] = []
+
+    def history_route(route):
+        history_calls.append(route.request.url)
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(current_rows),
+        )
+
+    def sync_route(route):
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({
+                "logs": [],
+                "max_log_id": current_rows[-1]["id"],
+                "live_sessions": [
+                    {"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"},
+                ],
+            }),
+        )
+
+    page.route(re.compile(r"/api/sessions/fe-orch/logs\?"), history_route)
+    page.route(re.compile(r"/api/logs/sync\?"), sync_route)
+    _goto_dashboard(page)
+    page.wait_for_function(
+        """() => {
+            const text = document.querySelector('#chat')?.textContent || '';
+            return text.includes('legacy-row-36') || text.includes('current-row-42');
+        }""",
+        timeout=8000,
+    )
+    page.wait_for_timeout(800)
+    assert history_calls, (
+        "legacy mirror was rendered and its newer server tail arrived row-by-row: "
+        f"after_ids={page.evaluate('() => window.__streamAfterIds364')} "
+        f"steps={page.evaluate('() => window.__staircaseCounts364')}"
+    )
+    page.wait_for_function(
+        """() => new Promise(resolve => {
+            const rq = indexedDB.open('orchestra', 1);
+            rq.onsuccess = () => {
+                const db = rq.result;
+                const tx = db.transaction(['logs', 'meta'], 'readonly');
+                const rows = tx.objectStore('logs').getAll();
+                const schema = tx.objectStore('meta').get('schema_epoch');
+                tx.oncomplete = () => {
+                    window.__mirror364 = {rows: rows.result, schema: schema.result};
+                    db.close();
+                    resolve(rows.result.length === 42);
+                };
+                tx.onerror = () => resolve(false);
+            };
+            rq.onerror = () => resolve(false);
+        })""",
+        timeout=8000,
+    )
+    state = page.evaluate(
+        """() => ({
+            text: document.querySelector('#chat').textContent,
+            mirrorIds: window.__mirror364.rows.map(row => row.id),
+            schema: window.__mirror364.schema,
+            streamAfterIds: window.__streamAfterIds364,
+            staircaseCounts: window.__staircaseCounts364,
+        })"""
+    )
+    page.close()
+
+    assert "legacy-row" not in state["text"]
+    assert state["mirrorIds"] == [row["id"] for row in current_rows]
+    assert state["schema"] == 2
+    assert state["streamAfterIds"] and min(state["streamAfterIds"]) >= current_rows[-1]["id"]
+    assert state["staircaseCounts"] == []
+
+
+def test_chat_expanding_one_message_keeps_neighbor_state(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_fixture_page(dashboard_browser)
+    long_body = "line\n" * 60
+    page.evaluate(
+        """({body}) => {
+            addChatEntry('tool', `LegacyTool: ${JSON.stringify({body: body + '-first'})}`,
+                         null, null, {tool_use_id: 'tool-first'});
+            addChatEntry('tool_result', body + '-result-first', null, null,
+                         {tool_use_id: 'tool-first'});
+            addChatEntry('tool', `LegacyTool: ${JSON.stringify({body: body + '-second'})}`,
+                         null, null, {tool_use_id: 'tool-second'});
+            addChatEntry('tool_result', body + '-result-second', null, null,
+                         {tool_use_id: 'tool-second'});
+        }""",
+        {"body": long_body},
+    )
+    tools = page.locator("#chat .chat-tool")
+    expect(tools).to_have_count(2)
+    before = tools.evaluate_all(
+        """nodes => nodes.map(node => ({
+            tool: node.querySelector('.tool-body')?.textContent,
+            result: node.querySelector('.result-body')?.innerHTML,
+        }))"""
+    )
+    tools.first.click()
+    after = tools.evaluate_all(
+        """nodes => nodes.map(node => ({
+            tool: node.querySelector('.tool-body')?.textContent,
+            result: node.querySelector('.result-body')?.innerHTML,
+        }))"""
+    )
+    page.close()
+
+    assert after[0] != before[0]
+    assert after[1] == before[1]
+
+
+def test_indexeddb_record_epoch_rejects_old_tab_recontamination(
+    dashboard_browser: Browser,
+):
+    context = dashboard_browser.new_context()
+    old_page = context.new_page()
+    old_page.goto(
+        f"{_dashboard_base()}/static/css/style.css", wait_until="domcontentloaded",
+    )
+    old_page.evaluate("""async () => {
+        window.__oldDb364 = await new Promise((resolve, reject) => {
+            const rq = indexedDB.open('orchestra', 1);
+            rq.onupgradeneeded = () => {
+                const logs = rq.result.createObjectStore('logs', {keyPath: 'id'});
+                logs.createIndex('by_session', 'session_id');
+                rq.result.createObjectStore('meta');
+            };
+            rq.onsuccess = () => resolve(rq.result);
+            rq.onerror = () => reject(rq.error);
+        });
+    }""")
+
+    current_page = context.new_page()
+    _route_frontend_sources(current_page)
+    _goto_dashboard(current_page)
+    current_page.wait_for_function(
+        "() => typeof _storeRecordMatchesSchema === 'function'",
+    )
+    current_page.evaluate("() => _pollStop('store')")
+    current_page.evaluate("() => _storeOpen()")
+
+    old_page.evaluate("""async () => {
+        await new Promise((resolve, reject) => {
+            const tx = window.__oldDb364.transaction('logs', 'readwrite');
+            tx.objectStore('logs').put({
+                id: 364000,
+                session_id: 'old-tab-session',
+                type: 'text',
+                content: 'written by a still-open old dashboard tab',
+                ts: '2026-08-25T08:00:00+00:00',
+                event_id: '',
+                tool_use_id: null,
+                tool_name: null,
+                tool_is_error: null,
+                _mirror_epoch: 1,
+            });
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+        });
+    }""")
+    state = current_page.evaluate("""async () => {
+        const db = await _storeOpen();
+        const read = await _storeRead('old-tab-session', 100);
+        return await new Promise((resolve, reject) => {
+            const tx = db.transaction(['logs', 'meta'], 'readonly');
+            const count = tx.objectStore('logs').count();
+            const schema = tx.objectStore('meta').get('schema_epoch');
+            tx.oncomplete = () => resolve({
+                read: read.length,
+                count: count.result,
+                schema: schema.result,
+            });
+            tx.onerror = () => reject(tx.error);
+        });
+    }""")
+    context.close()
+
+    assert state == {"read": 0, "count": 0, "schema": 2}
+
+
+def test_indexeddb_schema_repair_runs_for_each_origin(
+    dashboard_browser: Browser,
+):
+    base = _dashboard_base()
+    origins = [base, base.replace("127.0.0.1", "localhost")]
+    states = []
+    for origin in origins:
+        page = dashboard_browser.new_page()
+        page.goto(f"{origin}/static/css/style.css", wait_until="domcontentloaded")
+        page.evaluate("""async () => {
+            const db = await new Promise((resolve, reject) => {
+                const rq = indexedDB.open('orchestra', 1);
+                rq.onupgradeneeded = () => {
+                    const logs = rq.result.createObjectStore('logs', {keyPath: 'id'});
+                    logs.createIndex('by_session', 'session_id');
+                    rq.result.createObjectStore('meta');
+                };
+                rq.onsuccess = () => resolve(rq.result);
+                rq.onerror = () => reject(rq.error);
+            });
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction('logs', 'readwrite');
+                tx.objectStore('logs').put({
+                    id: 1, session_id: 'old', type: 'text', content: 'old',
+                    ts: '2026-08-03T08:00:00+00:00',
+                });
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+            });
+            db.close();
+        }""")
+        _route_frontend_sources(page)
+        response = page.goto(origin, wait_until="domcontentloaded")
+        assert response and response.status == 200
+        page.wait_for_function("() => typeof _storePrepareOpen === 'function'")
+        states.append(page.evaluate("""async () => {
+            const db = await _storeOpen();
+            return await new Promise((resolve, reject) => {
+                const tx = db.transaction(['logs', 'meta'], 'readonly');
+                const count = tx.objectStore('logs').count();
+                const schema = tx.objectStore('meta').get('schema_epoch');
+                tx.oncomplete = () => resolve({count: count.result, schema: schema.result});
+                tx.onerror = () => reject(tx.error);
+            });
+        }"""))
+        page.close()
+
+    assert states == [{"count": 0, "schema": 2}, {"count": 0, "schema": 2}]
+
+
 def test_truncated_image_generation_history_recovers_without_server_restart(
     dashboard_browser: Browser,
 ):

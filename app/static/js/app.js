@@ -628,11 +628,11 @@ const _CHAT_MIN_FROM_STORE = 40;
 const _CHAT_CHUNK_BYTES = 32000;
 
 // === Зеркало журнала в IndexedDB (#8) ===
-// Строки logs неизменяемы (в app/db.py ровно один INSERT и оптовый DELETE по возрасту,
-// ни одного UPDATE), поэтому сохранённая строка не может стать неверной — только исчезнуть.
-// Отсюда вся инвалидация сводится к трём правилам: чистим сессии, которых больше нет,
-// стираем всё при откате БД, и никогда не чистим по пустому списку.
+// Строки logs неизменяемы (в app/db.py ровно один INSERT и оптовый DELETE по возрасту),
+// но их клиентская проекция меняется вместе с renderer-ом. Поэтому кроме удаления мёртвых
+// сессий и отката watermark зеркало обязано отвергать чужую эпоху до первой отрисовки.
 const _STORE_DB = 'orchestra';
+const _STORE_SCHEMA_EPOCH = 2;
 // Холодная синхронизация НЕ тянет строки: tail=0 — только карта сессий и отметка.
 // Замер (#72, по проводу через домен): tail=20 на все сессии стоил 145.5 КБ, а рисовалось
 // из них ~5% — хвост открытого агента. Причём даже при попадании в зеркало страница чата
@@ -657,6 +657,45 @@ function _storeDisable(why, err) {
     console.warn(`[store] выключен: ${why}` + (err ? ` — ${err.name || 'Error'}: ${err.message || err}` : ''));
 }
 
+function _storeRecord(row) {
+    return {...row, _mirror_epoch: _STORE_SCHEMA_EPOCH};
+}
+
+function _storeRecordMatchesSchema(row) {
+    return row && row._mirror_epoch === _STORE_SCHEMA_EPOCH
+        && Number.isFinite(row.id)
+        && typeof row.session_id === 'string'
+        && typeof row.type === 'string'
+        && typeof row.content === 'string'
+        && typeof row.ts === 'string'
+        && Object.hasOwn(row, 'tool_use_id')
+        && Object.hasOwn(row, 'tool_name')
+        && Object.hasOwn(row, 'tool_is_error');
+}
+
+// Same-version transaction: a DB version bump waits forever while an older dashboard tab
+// keeps version 1 open. This transaction is not routed through _storeTx because _storeOpen's
+// shared promise is still unresolved here.
+function _storePrepareOpen(db) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(['logs', 'meta'], 'readwrite');
+        const logs = tx.objectStore('logs');
+        const meta = tx.objectStore('meta');
+        const schema = meta.get('schema_epoch');
+        let rebuilt = false;
+        schema.onsuccess = () => {
+            if (schema.result === _STORE_SCHEMA_EPOCH) return;
+            rebuilt = true;
+            logs.clear();
+            meta.clear();
+            meta.put(_STORE_SCHEMA_EPOCH, 'schema_epoch');
+        };
+        tx.oncomplete = () => resolve(rebuilt);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+    });
+}
+
 function _storeOpen() {
     if (_storeOff) return Promise.resolve(null);
     if (_storeReady) return _storeReady;
@@ -670,7 +709,19 @@ function _storeOpen() {
             logs.createIndex('by_session', 'session_id');
             db.createObjectStore('meta');
         };
-        rq.onsuccess = () => { _storeDb = rq.result; resolve(_storeDb); };
+        rq.onsuccess = async () => {
+            const db = rq.result;
+            try {
+                const rebuilt = await _storePrepareOpen(db);
+                if (rebuilt) console.warn(`[store] схема зеркала обновлена до ${_STORE_SCHEMA_EPOCH} — перечитываю журнал`);
+                _storeDb = db;
+                resolve(_storeDb);
+            } catch (e) {
+                db.close();
+                _storeDisable('не удалось проверить схему IndexedDB', e);
+                resolve(null);
+            }
+        };
         rq.onerror = () => { _storeDisable('не удалось открыть IndexedDB', rq.error); resolve(null); };
         rq.onblocked = () => { _storeDisable('IndexedDB заблокирована другой вкладкой'); resolve(null); };
     });
@@ -686,6 +737,23 @@ function _storeTx(mode, names, body) {
         tx.onabort = () => reject(tx.error);
         out = body(tx);
     });
+}
+
+async function _storeReset(why) {
+    try {
+        await _storeTx('readwrite', ['logs', 'meta'], (tx) => {
+            tx.objectStore('logs').clear();
+            const meta = tx.objectStore('meta');
+            meta.clear();
+            meta.put(_STORE_SCHEMA_EPOCH, 'schema_epoch');
+        });
+        _storeSessionMap = null;
+        console.warn(`[store] ${why} — зеркало сброшено, перечитываю журнал`);
+        return true;
+    } catch (e) {
+        _storeDisable('не удалось сбросить несовместимое зеркало', e);
+        return false;
+    }
 }
 
 // Одна синхронизация: холодная при пустой отметке, дальше только новое.
@@ -740,7 +808,7 @@ async function _storeSync() {
                 logs.clear();
                 watermark = 0;
             }
-            for (const row of data.logs) logs.put(row);
+            for (const row of data.logs) logs.put(_storeRecord(row));
             // Пустой список — это сбой на той стороне, а не «сессий не осталось».
             // Чистка необратима, поэтому по пустому списку не чистим никогда.
             if (needPrune) {
@@ -791,7 +859,7 @@ async function _storeRead(sessionId, limit) {
     const db = await _storeOpen();
     if (!db || !sessionId) return [];
     try {
-        return await _storeTx('readonly', ['logs'], (tx) => {
+        const rows = await _storeTx('readonly', ['logs'], (tx) => {
             const rows = [];
             const cur = tx.objectStore('logs').index('by_session')
                 .openCursor(IDBKeyRange.only(sessionId), 'prev');   // от свежих к старым
@@ -804,6 +872,11 @@ async function _storeRead(sessionId, limit) {
                 };
             });
         });
+        if (rows.some(row => !_storeRecordMatchesSchema(row))) {
+            await _storeReset('строки сохранены другой схемой');
+            return [];
+        }
+        return rows;
     } catch (e) { _storeDisable('не читается IndexedDB', e); return []; }
 }
 
@@ -2384,7 +2457,7 @@ async function _storePut(rows) {
         await _storeTx('readwrite', ['logs'], (tx) => {
             const logs = tx.objectStore('logs');
             for (const row of rows) {
-                if (Number.isFinite(row.id)) logs.put(_compactImageGenerationLogRow(row));
+                if (Number.isFinite(row.id)) logs.put(_storeRecord(_compactImageGenerationLogRow(row)));
             }
         });
     } catch (e) { _storeDisable('не пишется в IndexedDB', e); }
