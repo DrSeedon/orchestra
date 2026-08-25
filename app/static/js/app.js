@@ -3251,9 +3251,8 @@ function _voiceSetState(state) {
     if (!controls) return;
     controls.dataset.state = state;
     $('#voice-btn').disabled = state === 'processing' || state === 'requesting' || state === 'stopping';
-    $('#voice-state-label').textContent = state === 'processing'
-        ? 'Распознаю…'
-        : (state === 'requesting' ? 'Микрофон…' : (state === 'stopping' ? 'Завершаю…' : 'Запись'));
+    $('#voice-state-label').textContent = state === 'requesting'
+        ? 'Микрофон…' : (state === 'stopping' ? 'Завершаю…' : 'Запись');
     $('#voice-cancel-btn').disabled = state !== 'recording';
 }
 
@@ -3315,33 +3314,25 @@ function _voiceExtension(mimeType) {
     return 'webm';
 }
 
-async function _transcribeVoiceBlob(blob, mimeType) {
-    _voiceSetState('processing');
+async function _sendVoiceBlob(blob, mimeType) {
+    _voiceSetState('idle');
     const body = new FormData();
     body.append('audio', blob, `voice.${_voiceExtension(mimeType)}`);
     body.append('session_name', selectedAgent || '');
     body.append('scope', currentScope || '');
     try {
+        body.append('send', 'true');
         const response = await fetch('/api/transcribe', {
             method: 'POST',
             body,
-            signal: AbortSignal.timeout(150000),
+            signal: AbortSignal.timeout(60000),
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || result.detail || `HTTP ${response.status}`);
-        const text = (result.text || '').trim();
-        if (!text) throw new Error('Сервис не распознал речь.');
-        const input = $('#chat-input');
-        const separator = input.value && !/\s$/.test(input.value) ? ' ' : '';
-        input.value += separator + text;
-        input.dispatchEvent(new Event('input', {bubbles: true}));
-        input.focus();
-        input.setSelectionRange(input.value.length, input.value.length);
-        saveDraft();
         _showVoiceError('');
     } catch (error) {
         const detail = error.name === 'TimeoutError'
-            ? 'Распознавание не ответило за 150 секунд.'
+            ? 'Отправка голосового сообщения не ответила за 60 секунд.'
             : error.message;
         _showVoiceError(`Голосовой ввод: ${detail}`);
     } finally {
@@ -3398,7 +3389,7 @@ async function startVoiceInput() {
                 _voiceSetState('idle');
                 return;
             }
-            _transcribeVoiceBlob(blob, actualType);
+            _sendVoiceBlob(blob, actualType);
         }, {once: true});
 
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;

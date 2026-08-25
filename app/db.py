@@ -124,6 +124,20 @@ def init_db() -> None:
                 tool_name TEXT,
                 tool_is_error INTEGER
             );
+            CREATE TABLE IF NOT EXISTS dashboard_voice_transcriptions (
+                voice_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                session_name TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                path TEXT NOT NULL,
+                content_type TEXT NOT NULL,
+                state TEXT NOT NULL,
+                error TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_dashboard_voice_state
+                ON dashboard_voice_transcriptions(state, created_at);
             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
             CREATE TABLE IF NOT EXISTS initial_deliveries (
                 delivery_id TEXT PRIMARY KEY,
@@ -1610,6 +1624,62 @@ def add_log(
             ),
         )
         return cur.lastrowid
+
+
+def dashboard_voice_enqueue(
+    voice_id: str,
+    session_id: str,
+    session_name: str,
+    scope: str,
+    path: str,
+    content_type: str,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        c.execute(
+            """INSERT INTO dashboard_voice_transcriptions
+               (voice_id, session_id, session_name, scope, path, content_type,
+                state, error, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, 'QUEUED', '', ?, ?)""",
+            (voice_id, session_id, session_name, scope, path, content_type, now, now),
+        )
+
+
+def dashboard_voice_pending() -> list[dict]:
+    with _conn() as c:
+        rows = c.execute(
+            """SELECT * FROM dashboard_voice_transcriptions
+               WHERE state IN ('QUEUED', 'RUNNING') ORDER BY created_at"""
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+def dashboard_voice_mark_running(voice_id: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        c.execute(
+            "UPDATE dashboard_voice_transcriptions SET state='RUNNING', updated_at=? WHERE voice_id=?",
+            (now, voice_id),
+        )
+
+
+def dashboard_voice_mark_sent(voice_id: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        c.execute(
+            "UPDATE dashboard_voice_transcriptions SET state='SENT', updated_at=? WHERE voice_id=?",
+            (now, voice_id),
+        )
+
+
+def dashboard_voice_mark_failed(voice_id: str, error: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with _conn() as c:
+        c.execute(
+            """UPDATE dashboard_voice_transcriptions
+               SET state='FAILED', error=?, updated_at=? WHERE voice_id=?""",
+            (error, now, voice_id),
+        )
 
 
 def get_history_logs(session_id: str, conn=None) -> tuple[int, list[dict]]:
