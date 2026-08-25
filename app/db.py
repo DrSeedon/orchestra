@@ -2723,6 +2723,36 @@ def usage_save_snapshot(five_hour_pct: float | None, seven_day_pct: float | None
         )
 
 
+def usage_exchange_rate(hours: int = 72, min_five_hour_pct: float = 30.0) -> dict | None:
+    """Сколько п.п. недельного окна съедает 1 п.п. пятичасового — по своей же истории (#162)."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT ts, five_hour_pct, seven_day_pct, five_hour_resets_at, seven_day_resets_at"
+            " FROM usage_snapshots WHERE ts > ? ORDER BY ts ASC", (cutoff,)
+        ).fetchall()
+    clean = []
+    for row in rows:
+        if row["five_hour_pct"] is None or row["seven_day_pct"] is None:
+            continue
+        if (row["five_hour_pct"] == 0 and row["seven_day_pct"] == 0
+                and not (row["five_hour_resets_at"] or "")
+                and not (row["seven_day_resets_at"] or "")):
+            continue
+        clean.append((datetime.fromisoformat(row["ts"]),
+                      float(row["five_hour_pct"]), float(row["seven_day_pct"])))
+    five = seven = 0.0
+    for (t1, a5, a7), (t2, b5, b7) in zip(clean, clean[1:]):
+        if (t2 - t1).total_seconds() > 1800:
+            continue
+        five += max(0.0, b5 - a5)
+        seven += max(0.0, b7 - a7)
+    if five < min_five_hour_pct or seven <= 0:
+        return None
+    return {"rate": seven / five, "five_hour_pct_sum": five,
+            "seven_day_pct_sum": seven, "window_hours": hours}
+
+
 def _usage_providers_from_row(row: dict) -> dict:
     providers = json.loads(row.pop("provider_usage", "{}") or "{}")
     if providers:

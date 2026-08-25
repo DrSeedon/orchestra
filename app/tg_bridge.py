@@ -3383,9 +3383,10 @@ async def stream_logs(orch_name: str, thread_id: int):
 
 
 async def _get_limits_usage() -> dict:
-    from app.routes.system import _get_usage_data
+    from app.routes.system import _get_usage_data, _quota_headroom
 
-    return await _get_usage_data()
+    data = await _get_usage_data()
+    return {**data, "quota_headroom": _quota_headroom(data.get("anthropic"))}
 
 
 async def _is_limits_owner(msg: types.Message) -> bool:
@@ -3485,6 +3486,12 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
         _window_line("Spark", (codex.get("spark") or {}).get("primary")),
         _window_line("Grok", (usage.get("grok") or {}).get("primary")),
     ]
+    headroom = usage.get("quota_headroom")
+    windows_left = headroom.get("windows_left") if isinstance(headroom, dict) else None
+    if isinstance(windows_left, (int, float)) and windows_left > 0:
+        lines.append(f"• Остаток пятичасовых окон в неделе — {windows_left:.2f}")
+    else:
+        lines.append("• Остаток пятичасовых окон в неделе — курс не измерен: нет истории расхода")
     extra_usage = anthropic.get("extra_usage") or {}
     if extra_usage.get("spend_limit_reached") is True:
         lines.append(
