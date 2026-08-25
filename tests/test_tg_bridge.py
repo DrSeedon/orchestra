@@ -1552,6 +1552,7 @@ class TestFormattedChunks:
         assert entities
 
 
+@pytest.mark.timeout(30)
 class TestLimitsCommand:
     @staticmethod
     def _message(user_id=456):

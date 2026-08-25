@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import logging
+import math
 import os
 import sqlite3
 import re
@@ -1107,27 +1108,45 @@ async def _get_usage_data(
     }
 
 
+_HEADROOM_CACHE_TTL = 60.0
+_headroom_cache_key = None
+_headroom_cache_ts = 0.0
+_headroom_cache_value = None
+
+
+def _finite_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
 def _quota_headroom(anthropic: dict | None) -> dict | None:
     """Реальный потолок 5h с учётом остатка недельного окна (#162)."""
+    global _headroom_cache_key, _headroom_cache_ts, _headroom_cache_value
     from app.db import usage_exchange_rate
 
     five = (anthropic or {}).get("five_hour") or {}
     seven = (anthropic or {}).get("seven_day") or {}
     p5, p7 = five.get("utilization"), seven.get("utilization")
-    if not isinstance(p5, (int, float)) or not isinstance(p7, (int, float)):
+    cache_key = (p5, p7, five.get("resets_at"), seven.get("resets_at"))
+    now = time.monotonic()
+    if not _finite_number(p5) or not _finite_number(p7):
+        _headroom_cache_key, _headroom_cache_ts, _headroom_cache_value = cache_key, now, None
         return None
+    # 60s keeps the 22ms SQLite history scan off the frequently polled event loop.
+    if cache_key == _headroom_cache_key and now - _headroom_cache_ts < _HEADROOM_CACHE_TTL:
+        return _headroom_cache_value
     try:
         measured = usage_exchange_rate()
     except Exception as error:
         logger.warning("quota headroom: история недоступна — %s: %s",
                        type(error).__name__, error)
-        return None
-    if not measured:
+        measured = None
+    if not measured or not _finite_number(measured.get("rate")) or measured["rate"] <= 0:
+        _headroom_cache_key, _headroom_cache_ts, _headroom_cache_value = cache_key, now, None
         return None
     weekly_room = max(0.0, 100.0 - p7) / measured["rate"]
     visible = max(0.0, 100.0 - p5)
     available = min(visible, weekly_room)
-    return {
+    result = {
         "rate": round(measured["rate"], 4),
         "available_pct": round(available, 1),
         "locked_pct": round(visible - available, 1),
@@ -1135,6 +1154,8 @@ def _quota_headroom(anthropic: dict | None) -> dict | None:
         "window_hours": measured["window_hours"],
         "sample_five_hour_pct": round(measured["five_hour_pct_sum"], 1),
     }
+    _headroom_cache_key, _headroom_cache_ts, _headroom_cache_value = cache_key, now, result
+    return result
 
 
 @router.get("/api/usage")

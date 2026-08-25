@@ -12,6 +12,8 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import html
+import logging
+import math
 from pathlib import Path
 
 
@@ -19,6 +21,7 @@ _renderer_lock: asyncio.Lock | None = None
 _renderer_loop = None
 _renderer_playwright = None
 _renderer_browser = None
+logger = logging.getLogger("orchestra.limits_card")
 
 # Порог темпа зеркалит фронтовый `_paceIndicator` (app/static/js/usage.js:46):
 # отставание в 5 п.п. от календаря считается нормой, дальше — обгон.
@@ -36,6 +39,66 @@ P = {
     "accent": "#818cf8", "alt": "#38bdf8",
     "ok": "#22c55e", "warn": "#eab308", "danger": "#ef4444",
 }
+
+
+async def _close_renderer_resources(browser, playwright) -> None:
+    if browser is not None:
+        try:
+            await browser.close()
+        except Exception:
+            pass
+    if playwright is not None:
+        try:
+            await playwright.stop()
+        except Exception:
+            pass
+
+
+async def _close_renderer() -> None:
+    global _renderer_playwright, _renderer_browser
+    browser, playwright = _renderer_browser, _renderer_playwright
+    _renderer_browser = None
+    _renderer_playwright = None
+    await _close_renderer_resources(browser, playwright)
+
+
+def _release_renderer_from_previous_loop(old_loop) -> None:
+    global _renderer_playwright, _renderer_browser
+    browser, playwright = _renderer_browser, _renderer_playwright
+    _renderer_browser = None
+    _renderer_playwright = None
+    if browser is None and playwright is None:
+        return
+    if old_loop.is_running() and not old_loop.is_closed():
+        future = asyncio.run_coroutine_threadsafe(
+            _close_renderer_resources(browser, playwright), old_loop,
+        )
+
+        def consume_cleanup_error(done) -> None:
+            try:
+                done.result()
+            except Exception as error:
+                logger.warning("renderer cleanup on previous loop failed: %s: %s",
+                               type(error).__name__, error)
+
+        future.add_done_callback(consume_cleanup_error)
+        return
+    logger.warning(
+        "renderer resources released without await: previous event loop is %s",
+        "closed" if old_loop.is_closed() else "not running",
+    )
+
+
+async def shutdown_renderer() -> None:
+    """Close the persistent browser on the application's running event loop."""
+    global _renderer_lock, _renderer_loop
+    if _renderer_lock is not None:
+        async with _renderer_lock:
+            await _close_renderer()
+    else:
+        await _close_renderer()
+    _renderer_lock = None
+    _renderer_loop = None
 
 
 # ── оконная арифметика (общая с текстом под картинкой) ────────────────────────
@@ -165,7 +228,15 @@ def collect(usage: dict, *, now: dt.datetime | None = None) -> dict:
 
     head = usage.get("quota_headroom")
     week = None
-    if isinstance(head, dict) and isinstance(head.get("rate"), (int, float)) and head["rate"] > 0:
+    if (isinstance(head, dict)
+            and isinstance(head.get("rate"), (int, float))
+            and not isinstance(head["rate"], bool)
+            and math.isfinite(head["rate"])
+            and head["rate"] > 0
+            and isinstance(head.get("windows_left"), (int, float))
+            and not isinstance(head["windows_left"], bool)
+            and math.isfinite(head["windows_left"])
+            and head["windows_left"] > 0):
         five_used = pools[0]["used"] or 0.0
         week_used = pools[1]["used"] or 0.0
         cost = head["rate"] * 100
@@ -173,7 +244,7 @@ def collect(usage: dict, *, now: dt.datetime | None = None) -> dict:
             "cost": cost,
             "total": 100 / cost,
             "spent": week_used / cost,
-            "left": max(0.0, 100 - week_used) / cost,
+            "left": float(head["windows_left"]),
             "week_used": week_used,
             "five_used": five_used,
             "visible_pct": max(0.0, 100 - five_used),
@@ -311,11 +382,12 @@ async def render_limits_card(usage: dict, *, now: dt.datetime | None = None) -> 
     html_path.write_text(build_html(collect(usage, now=now)), encoding="utf-8")
     try:
         loop = asyncio.get_running_loop()
-        if _renderer_loop is not loop or _renderer_lock is None:
+        if _renderer_loop is not None and _renderer_loop is not loop:
+            _release_renderer_from_previous_loop(_renderer_loop)
+            _renderer_lock = None
+        if _renderer_lock is None:
             _renderer_loop = loop
             _renderer_lock = asyncio.Lock()
-            _renderer_playwright = None
-            _renderer_browser = None
         async with _renderer_lock:
             for attempt in range(2):
                 page = None
@@ -333,18 +405,7 @@ async def render_limits_card(usage: dict, *, now: dt.datetime | None = None) -> 
                     await page.screenshot(path=str(path), full_page=True)
                     break
                 except Exception:
-                    if _renderer_browser is not None:
-                        try:
-                            await _renderer_browser.close()
-                        except Exception:
-                            pass
-                    _renderer_browser = None
-                    if _renderer_playwright is not None:
-                        try:
-                            await _renderer_playwright.stop()
-                        except Exception:
-                            pass
-                    _renderer_playwright = None
+                    await _close_renderer()
                     if attempt:
                         raise
                 finally:
