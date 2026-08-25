@@ -325,6 +325,10 @@ async def _shutdown_runtime(
     restart_guard.note_shutdown_phase("tg_bridge", "stop_bridge")
     await stop_bridge()
 
+    from app.limits_card import shutdown_renderer
+    restart_guard.note_shutdown_phase("limits_renderer", "limits_card.shutdown_renderer")
+    await shutdown_renderer()
+
     from app.bg_jobs import bg_manager
     restart_guard.note_shutdown_phase("bg_jobs", "BgJobManager.shutdown")
     await bg_manager.shutdown()

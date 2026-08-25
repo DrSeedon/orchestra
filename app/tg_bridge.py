@@ -6,6 +6,7 @@ Integrated into FastAPI lifespan — no separate process needed.
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -3488,7 +3489,10 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
     ]
     headroom = usage.get("quota_headroom")
     windows_left = headroom.get("windows_left") if isinstance(headroom, dict) else None
-    if isinstance(windows_left, (int, float)) and windows_left > 0:
+    if (isinstance(windows_left, (int, float))
+            and not isinstance(windows_left, bool)
+            and math.isfinite(windows_left)
+            and windows_left > 0):
         lines.append(f"• Остаток пятичасовых окон в неделе — {windows_left:.2f}")
     else:
         lines.append("• Остаток пятичасовых окон в неделе — курс не измерен: нет истории расхода")
