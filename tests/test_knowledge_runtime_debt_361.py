@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.ia.projections import SQLiteProjectionBackend
-from app.ia.runtime import KnowledgeRuntime, KnowledgeRuntimeError
+from app.ia.runtime import KnowledgeRuntime, KnowledgeRuntimeError, _RuntimeTaskStore
 
 
 _PROMPT = "\n".join((
@@ -167,3 +167,93 @@ def test_t6_scope_evidence_policy_distinguishes_none_broken_git_and_working_git(
     assert records[0]["source_path"] == "README.md"
     assert records[0]["git_commit"] == _git(git_root, "rev-parse", "HEAD")
     assert working.state["evidence_less_scopes"] == []
+
+
+class _ParityStore:
+    def __init__(self):
+        self.canonical_head = "task-head-before"
+        self.projection_head = self.canonical_head
+        self.states = {
+            "stable-361": {
+                "stable_id": "stable-361",
+                "project_id": "orchestra",
+                "display_number": 361,
+                "title": "knowledge cutover",
+                "description": "",
+                "price_rub": 0,
+                "status": "new",
+                "assignee": "",
+                "priority": 2,
+            }
+        }
+        self.applied = []
+
+    def _states(self):
+        return self.states
+
+    def apply_events(self, events, *, expected_head=None):
+        assert expected_head == self.canonical_head
+        self.applied = list(events)
+        for event in events:
+            self.states[event["stable_id"]].update(event["changes"])
+        self.canonical_head = "task-head-after"
+        self.projection_head = self.canonical_head
+        return {"canonical_head": self.canonical_head, "projection_head": self.projection_head}
+
+
+def test_t6_task_parity_is_field_exact_and_reconciles_legacy_zero_without_identity_rewrite(
+    tmp_path,
+):
+    legacy = tmp_path / "legacy.db"
+    with sqlite3.connect(legacy) as connection:
+        connection.execute(
+            "CREATE TABLE tm_tasks(project_id TEXT,par_number INTEGER,title TEXT,description TEXT,"
+            "price_rub INTEGER,status TEXT,assignee TEXT,priority INTEGER,updated_at TEXT)"
+        )
+        connection.execute(
+            "INSERT INTO tm_tasks VALUES(?,?,?,?,?,?,?,?,?)",
+            ("orchestra", 361, "knowledge cutover", "", 0, "in_progress", "", 0,
+             "2026-08-26T00:00:00+00:00"),
+        )
+    store = _ParityStore()
+    facade = _RuntimeTaskStore(
+        store=store,
+        legacy_to_canonical={"orchestra": "orchestra"},
+        debt_writer=lambda _debt: None,
+        head_writer=lambda _head: None,
+    )
+    owner = object.__new__(KnowledgeRuntime)
+    owner.task_store = facade
+    def connection():
+        value = sqlite3.connect(legacy)
+        value.row_factory = sqlite3.Row
+        return value
+    owner._connection = connection
+
+    mismatch = owner.parity()
+    assert mismatch == {
+        "mismatch_count": 1,
+        "mismatches": ["orchestra:361"],
+        "field_mismatch_counts": {"priority": 1, "status": 1},
+    }
+
+    facade.reconcile_legacy_tasks([
+        {
+            "project_id": "orchestra",
+            "par_number": 361,
+            "title": "knowledge cutover",
+            "description": "",
+            "price_rub": 0,
+            "status": "in_progress",
+            "assignee": "",
+            "priority": 0,
+            "updated_at": "2026-08-26T00:00:00+00:00",
+        }
+    ])
+    assert store.applied[0]["changes"] == {"priority": 0, "status": "in_progress"}
+    assert store.applied[0]["stable_id"] == "stable-361"
+    assert owner.parity() == {
+        "mismatch_count": 0,
+        "mismatches": [],
+        "field_mismatch_counts": {},
+    }

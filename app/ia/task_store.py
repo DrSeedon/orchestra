@@ -233,7 +233,7 @@ def build_migration_manifest(snapshot: Mapping[str, Any]) -> dict[str, Any]:
             "price_rub": int(raw.get("price_rub") or 0),
             "status": str(raw.get("status") or "new"),
             "assignee": str(raw.get("assignee") or ""),
-            "priority": int(raw.get("priority") or 2),
+            "priority": int(2 if raw.get("priority") is None else raw["priority"]),
             "scope": str(project.get("scope") or ""),
             "worker_session_id": raw.get("worker_session_id"),
             "acceptance": _acceptance(raw),
@@ -1188,7 +1188,9 @@ class TaskStore:
                     "price_rub": int(record.get("price_rub") or 0),
                     "status": str(record.get("status") or "new"),
                     "assignee": str(record.get("assignee") or ""),
-                    "priority": int(record.get("priority") or 2),
+                    "priority": int(
+                        2 if record.get("priority") is None else record["priority"]
+                    ),
                     "scope": "",
                     "worker_session_id": None,
                     "acceptance": {"command": "", "manifest_paths": [], "required": False},
