@@ -3225,6 +3225,102 @@ def test_chat_timeline_navigates_events_and_cycles_user_messages(
     page.close()
 
 
+def test_chat_timeline_navigates_final_agent_answers_only(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page(viewport={"width": 900, "height": 700})
+    _route_frontend_sources(page)
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof _recomputeChatTimelineFinals === 'function'")
+    page.wait_for_selector('#chat-final-nav', state='attached')
+    page.evaluate("""() => {
+        selectedAgent = null;
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        document.querySelector('#chat').innerHTML = '';
+    }""")
+    page.evaluate("""() => {
+        window.addTimelineEntry = (type, label) => {
+            addChatEntry(type, label, null, null, {});
+            const node = document.querySelector('#chat > :last-child');
+            node.dataset.testLabel = label;
+            return node;
+        };
+    }""")
+
+    long_text = "ответ " + "x" * 240
+    page.evaluate(
+        """longText => {
+            addTimelineEntry('user_message', 'question');
+            addTimelineEntry('text', longText + '-first');
+            addTimelineEntry('text', longText + '-last');
+        }""",
+        long_text,
+    )
+    page.wait_for_function("() => document.querySelectorAll('#chat-timeline-track .is-final').length === 1")
+    assert page.locator('#chat [data-test-label$="-last"]').get_attribute('data-chat-nav-kind') == 'final'
+    assert page.locator('#chat [data-test-label$="-first"]').get_attribute('data-chat-nav-kind') == 'agent'
+
+    # A later answer in the same turn replaces the provisional final marker.
+    page.evaluate("longText => addTimelineEntry('text', longText + '-continued')", long_text)
+    page.wait_for_function(
+        "() => document.querySelector('[data-test-label$=\"-continued\"]')?.dataset.chatNavKind === 'final'"
+    )
+    assert page.locator('#chat-timeline-track .is-final').count() == 1
+    assert page.locator('#chat [data-test-label$="-last"]').get_attribute('data-chat-nav-kind') == 'agent'
+
+    # A short final reply is the latest text, but is intentionally not navigable.
+    page.evaluate("() => addTimelineEntry('user_message', 'next-question')")
+    page.evaluate("() => addTimelineEntry('text', 'коротко')")
+    page.wait_for_function("() => document.querySelector('#chat-final-count')?.textContent === '🏁 1'")
+    assert page.locator('#chat [data-test-label="коротко"]').get_attribute('data-chat-nav-kind') == 'agent'
+
+    # Live stream supersedes the previous turn's provisional candidate and is
+    # promoted to the final marker when its authoritative text row arrives.
+    page.evaluate("() => addTimelineEntry('user_message', 'stream-question')")
+    page.evaluate(
+        """longText => {
+            addChatEntry('stream', longText + '-partial', null, null, {});
+            document.querySelector('#chat > :last-child').dataset.testLabel = 'streaming';
+        }""",
+        long_text,
+    )
+    page.wait_for_timeout(100)
+    assert page.locator('#chat [data-test-label="streaming"]').get_attribute('data-chat-nav-kind') == 'agent'
+    page.evaluate("longText => addChatEntry('text', longText + '-complete', null, null, {})", long_text)
+    page.wait_for_function(
+        "() => document.querySelector('[data-test-label=\"streaming\"]')?.dataset.chatNavKind === 'final'"
+    )
+    page.wait_for_function("() => document.querySelector('#chat-final-count')?.textContent === '🏁 2'")
+    assert page.locator('#chat-final-count').text_content() == '🏁 2'
+
+    # Prepending an older history page recomputes its own turn without changing
+    # the final markers already visible below it.
+    page.evaluate(
+        """longText => {
+            const anchor = $('#chat').firstElementChild;
+            addChatEntry('text', longText + '-old-answer', null, anchor, {});
+            const oldAnswer = anchor.previousElementSibling;
+            oldAnswer.dataset.testLabel = 'old-answer';
+            addChatEntry('user_message', 'old-question', null, oldAnswer, {});
+            oldAnswer.previousElementSibling.dataset.testLabel = 'old-question';
+        }""",
+        long_text,
+    )
+    page.wait_for_function("() => document.querySelector('#chat-final-count')?.textContent === '🏁 3'")
+
+    page.locator('#chat-final-next').click()
+    page.wait_for_timeout(100)
+    assert page.locator('#chat-timeline-track .is-active').get_attribute('aria-label').startswith('Итоговый ответ')
+    assert page.locator('#chat-timeline-track .is-final').first.evaluate(
+        "el => getComputedStyle(el).backgroundColor"
+    ) == "rgb(52, 211, 153)"
+    assert page.locator('#chat-final-prev').get_attribute('aria-label') == 'Предыдущий итоговый ответ'
+    page.close()
+
+
 def test_codex_successful_mcp_startup_status_is_hidden(
     dashboard_browser: Browser,
 ):

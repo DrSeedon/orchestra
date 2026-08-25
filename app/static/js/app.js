@@ -259,6 +259,7 @@ let _chatTimelineObserver = null;
 
 const NOTIFY_USER_TOOL = 'mcp__orchestra__notify_user';
 const SILENT_TURN_MARKER = '[[ORCHESTRA:SILENT_TURN]]';
+const FINAL_AGENT_TEXT_MIN_LENGTH = 200;  // ≈200 visible chars: useful turn summary, not short chatter
 
 function _isSilentTurnMarker(type, content) {
     return type === 'text' && content === SILENT_TURN_MARKER;
@@ -353,23 +354,77 @@ function _chatTimelineKind(type, node) {
     return 'agent';
 }
 
+function _chatTimelineText(node) {
+    const copy = node.cloneNode(true);
+    copy.querySelectorAll('.chat-time, .copy-btn, .typing-cursor, .trunc-notice').forEach(el => el.remove());
+    return copy.textContent.trim();
+}
+
+function _isChatTimelineAgentText(node) {
+    return ['text', 'assistant', 'stream'].includes(node?.dataset.chatTimelineType)
+        && !node.dataset.chatTimelineService;
+}
+
+function _chatTimelineLabel(node, kind) {
+    const labels = {user: 'Моё сообщение', worker: 'Сообщение воркера', tool: 'Инструмент',
+                    error: 'Ошибка', status: 'Статус', agent: 'Ответ агента',
+                    final: 'Итоговый ответ', notify: 'Оркестратор зовёт'};
+    const reason = kind === 'notify' ? _notifyUserReason(node) : '';
+    return reason
+        ? `${labels[kind]}: ${reason}${node.dataset.chatNavTime || ''}`
+        : `${labels[kind]}${node.dataset.chatNavTime || ''}`;
+}
+
+function _setChatTimelineNodeKind(node, kind) {
+    if (!node?.dataset.chatNavKind) return;
+    node.dataset.chatNavKind = kind;
+    const marker = node._chatTimelineMarker;
+    if (!marker) return;
+    marker.className = `chat-timeline-marker is-${kind}`;
+    const label = _chatTimelineLabel(node, kind);
+    node.dataset.chatNavLabel = label;
+    marker.title = label;
+    marker.setAttribute('aria-label', label);
+}
+
+// Keep one final candidate per user/worker-delimited turn; a later text replaces it.
+// This also handles history prepends.
+function _recomputeChatTimelineFinals() {
+    const chat = $('#chat');
+    if (!chat) return;
+    const finalNodes = new Set();
+    let latestText = null;
+    for (const node of chat.children) {
+        if (node.dataset.chatTimelineType === 'user_message') {
+            if (latestText) finalNodes.add(latestText);
+            latestText = null;
+        } else if (_isChatTimelineAgentText(node)) {
+            latestText = node;
+        }
+    }
+    if (latestText) finalNodes.add(latestText);
+    for (const node of chat.children) {
+        if (node.dataset.chatNavBaseKind) {
+            const final = finalNodes.has(node)
+                && _chatTimelineText(node).length >= FINAL_AGENT_TEXT_MIN_LENGTH;
+            _setChatTimelineNodeKind(node, final ? 'final' : node.dataset.chatNavBaseKind);
+        }
+    }
+}
+
 function _tagChatTimelineNode(node, type, ts) {
     if (!node || node.dataset.chatNavKind) return;
     const kind = _chatTimelineKind(type, node);
-    const labels = {user: 'Моё сообщение', worker: 'Сообщение воркера', tool: 'Инструмент',
-                    error: 'Ошибка', status: 'Статус', agent: 'Ответ агента',
-                    notify: 'Оркестратор зовёт'};
     let time = '';
     if (ts) {
         const date = new Date(ts);
         if (!Number.isNaN(date.getTime())) time = `, ${date.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}`;
     }
+    node.dataset.chatTimelineType = type;
+    node.dataset.chatNavBaseKind = kind;
+    node.dataset.chatNavTime = time;
     node.dataset.chatNavKind = kind;
-    // У зова причина и есть смысл метки: она объясняет, ЗАЧЕМ дёрнули, прямо в подсказке.
-    const reason = kind === 'notify' ? _notifyUserReason(node) : '';
-    node.dataset.chatNavLabel = reason
-        ? `${labels[kind]}: ${reason}${time}`
-        : `${labels[kind]}${time}`;
+    node.dataset.chatNavLabel = _chatTimelineLabel(node, kind);
 }
 
 function _addChatTimelineMarker(node) {
@@ -407,6 +462,7 @@ function _syncChatTimelineControls() {
     for (const [cls, countId, prevId, nextId, label] of [
         ['is-user', '#chat-user-count', '#chat-user-prev', '#chat-user-next', 'Я'],
         ['is-notify', '#chat-notify-count', '#chat-notify-prev', '#chat-notify-next', '🔔'],
+        ['is-final', '#chat-final-count', '#chat-final-prev', '#chat-final-next', '🏁'],
     ]) {
         const total = track ? track.querySelectorAll(`.${cls}`).length : 0;
         const count = $(countId);
@@ -419,6 +475,8 @@ function _syncChatTimelineControls() {
     const notifyNav = $('#chat-notify-nav');
     // Зовов нет — полосу навигации не показываем вовсе, чтобы не занимала место впустую.
     if (notifyNav) notifyNav.classList.toggle('hidden', !track?.querySelector('.is-notify'));
+    const finalNav = $('#chat-final-nav');
+    if (finalNav) finalNav.classList.toggle('hidden', !track?.querySelector('.is-final'));
 }
 
 function _jumpChatTimelineNode(node, marker) {
@@ -460,18 +518,34 @@ function _addNotifyNav() {
     timeline.prepend(nav);
 }
 
+function _addFinalNav() {
+    const timeline = $('#chat-timeline');
+    if (!timeline || $('#chat-final-nav')) return;
+    const nav = document.createElement('div');
+    nav.id = 'chat-final-nav';
+    nav.className = 'chat-timeline-user-nav is-final-nav hidden';
+    nav.innerHTML = `
+        <button id="chat-final-prev" type="button" title="Предыдущий итоговый ответ" aria-label="Предыдущий итоговый ответ">↑</button>
+        <span id="chat-final-count">🏁 0</span>
+        <button id="chat-final-next" type="button" title="Следующий итоговый ответ" aria-label="Следующий итоговый ответ">↓</button>`;
+    timeline.prepend(nav);
+}
+
 function initChatTimeline() {
     const chat = $('#chat');
     if (!chat || _chatTimelineObserver) return;
     _addNotifyPermissionBtn();
     _addNotifyNav();
+    _addFinalNav();
     for (const node of chat.children) _addChatTimelineMarker(node);
+    _recomputeChatTimelineFinals();
     _syncChatTimelineControls();
     _chatTimelineObserver = new MutationObserver(records => {
         for (const record of records) {
             for (const node of record.removedNodes) if (node.nodeType === Node.ELEMENT_NODE) _removeChatTimelineMarker(node);
             for (const node of record.addedNodes) if (node.nodeType === Node.ELEMENT_NODE) _addChatTimelineMarker(node);
         }
+        _recomputeChatTimelineFinals();
         _syncChatTimelineControls();
     });
     _chatTimelineObserver.observe(chat, {childList: true});
@@ -479,6 +553,8 @@ function initChatTimeline() {
     $('#chat-user-next')?.addEventListener('click', () => _jumpChatTimelineKind('is-user', 1));
     $('#chat-notify-prev')?.addEventListener('click', () => _jumpChatTimelineKind('is-notify', -1));
     $('#chat-notify-next')?.addEventListener('click', () => _jumpChatTimelineKind('is-notify', 1));
+    $('#chat-final-prev')?.addEventListener('click', () => _jumpChatTimelineKind('is-final', -1));
+    $('#chat-final-next')?.addEventListener('click', () => _jumpChatTimelineKind('is-final', 1));
 }
 
 function _prepareChatAnchorRestore(hasUnread) {
@@ -3778,6 +3854,9 @@ function _finalizeStreamBubble(finalText, ts) {
     _markUnexecutedToolCall(streamBubble, finalText);
     addCopyBtn(streamBubble, finalText);
     addTimestamp(streamBubble, ts);
+    streamBubble.dataset.chatTimelineType = 'text';
+    if (typeof _recomputeChatTimelineFinals === 'function') _recomputeChatTimelineFinals();
+    if (typeof _syncChatTimelineControls === 'function') _syncChatTimelineControls();
     _lastFinalizedStreamText = finalText || '';
     streamBubble = null;
     streamContent = '';
@@ -4779,6 +4858,8 @@ function addChatEntry(type, content, ts, anchor, payload) {
             const agentColor = agentColors[selectedAgent];
             if (agentColor) streamBubble.style.borderLeft = `3px solid ${agentColor}`;
             _insert(streamBubble);
+            if (typeof _recomputeChatTimelineFinals === 'function') _recomputeChatTimelineFinals();
+            if (typeof _syncChatTimelineControls === 'function') _syncChatTimelineControls();
             _streamLastParse = 0;
         }
         streamPending += content;
