@@ -365,6 +365,8 @@ async def lifespan(app: FastAPI):
                         break
             asyncio.create_task(_proxy_retry_loop())
         await manager.auto_resume_all()
+        from app.routes.tg import resume_dashboard_voice_transcriptions
+        await resume_dashboard_voice_transcriptions()
         await recover_initial_deliveries()
         await recover_message_deliveries()
         # #230 T7: descriptors that came back for sessions nobody owns any more.

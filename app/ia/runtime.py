@@ -32,6 +32,32 @@ class KnowledgeRequestError(KnowledgeRuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class DebtReasonPolicy:
+    blocking: bool
+    migrate_from: frozenset[bool] = frozenset()
+
+
+_DEBT_REASON_POLICIES = {
+    "secret_candidate_in_evidence": DebtReasonPolicy(blocking=False),
+    "scope_git_unavailable": DebtReasonPolicy(
+        blocking=False,
+        migrate_from=frozenset({True}),
+    ),
+    "git_evidence_source_unavailable": DebtReasonPolicy(blocking=True),
+    "non_utf8_evidence": DebtReasonPolicy(blocking=True),
+    "prompt_migration_failed": DebtReasonPolicy(blocking=True),
+    "candidate_write_failed": DebtReasonPolicy(blocking=True),
+    "candidate_read_failed": DebtReasonPolicy(blocking=True),
+}
+
+
+def _debt_reason_policy(reason: Any) -> DebtReasonPolicy:
+    if not isinstance(reason, str) or reason not in _DEBT_REASON_POLICIES:
+        raise KnowledgeRuntimeError(f"unknown runtime debt reason: {reason!r}")
+    return _DEBT_REASON_POLICIES[reason]
+
+
 _SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _ACTIVE_RUNTIME: "KnowledgeRuntime | None" = None
 
@@ -144,6 +170,74 @@ class _RuntimeTaskStore:
         with self._lock:
             return copy.deepcopy(self._store._states())
 
+    def reconcile_legacy_tasks(self, tasks: list[Mapping[str, Any]]) -> dict[str, Any]:
+        with self._lock:
+            states = self._store._states()
+            canonical = {
+                (str(state["project_id"]), int(state["display_number"])): state
+                for state in states.values()
+            }
+            legacy = {
+                (self._project(str(task["project_id"])), int(task["par_number"])): task
+                for task in tasks
+            }
+            if canonical.keys() != legacy.keys():
+                missing = sorted(legacy.keys() - canonical.keys())
+                extra = sorted(canonical.keys() - legacy.keys())
+                raise KnowledgeRuntimeError(
+                    f"task shadow identity mismatch: missing={missing}, extra={extra}"
+                )
+            events = []
+            for identity, task in sorted(legacy.items()):
+                state = canonical[identity]
+                expected = {
+                    "title": str(task.get("title") or ""),
+                    "description": str(task.get("description") or ""),
+                    "price_rub": int(task.get("price_rub") or 0),
+                    "status": str(task.get("status") or "new"),
+                    "assignee": str(task.get("assignee") or ""),
+                    "priority": int(
+                        2 if task.get("priority") is None else task["priority"]
+                    ),
+                }
+                changes = {
+                    field: value
+                    for field, value in expected.items()
+                    if state.get(field) != value
+                }
+                if not changes:
+                    continue
+                event_id = str(uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    "orch://task-shadow-reconcile/"
+                    + hashlib.sha256(_bytes({
+                        "head": self._store.canonical_head,
+                        "stable_id": state["stable_id"],
+                        "changes": changes,
+                    })).hexdigest(),
+                ))
+                events.append({
+                    "event_id": event_id,
+                    "event_type": "task.updated",
+                    "stable_id": state["stable_id"],
+                    "project_id": state["project_id"],
+                    "display_number": state["display_number"],
+                    "occurred_at": str(task.get("updated_at") or ""),
+                    "changes": changes,
+                })
+            if not events:
+                return {
+                    "reconciled_count": 0,
+                    "canonical_head": self._store.canonical_head,
+                    "projection_head": self._store.projection_head,
+                }
+            result = self._store.apply_events(
+                events,
+                expected_head=self._store.canonical_head,
+            )
+            self._head_writer(str(result["canonical_head"]))
+            return {**result, "reconciled_count": len(events)}
+
 
 def _bytes(value: Any) -> bytes:
     return json.dumps(
@@ -228,8 +322,10 @@ class KnowledgeRuntime:
         self.scope_registry = self._scope_registry()
         self.state = self._runtime_state()
         self._task_projects = self._task_project_ids()
-        self.task_store = self._task_store()
         self.knowledge_service = None
+        self.task_store = self._task_store()
+        if self.state.get("active_owner") == "legacy" and self.state.get("generation") == 2:
+            self.task_store.reconcile_legacy_tasks(self._task_snapshot()["tasks"])
         self._initialize_canonical_git()
         self._import_scope_evidence()
         self._ensure_vector_projection()
@@ -241,6 +337,17 @@ class KnowledgeRuntime:
         connection = sqlite3.connect(uri, uri=True)
         connection.row_factory = sqlite3.Row
         return connection
+
+    def _scope_evidence_mode(self, repository: Path) -> str:
+        if not repository.is_dir():
+            raise KnowledgeRuntimeError(f"scope repository root is missing: {repository}")
+        if (repository / ".git").exists():
+            return "git"
+        try:
+            self._source_git(repository, "rev-parse", "--git-dir")
+        except KnowledgeRuntimeError:
+            return "none"
+        return "git"
 
     def _scope_registry(self) -> dict[str, dict[str, Any]]:
         if not self.config.legacy_db_path.is_file():
@@ -263,6 +370,7 @@ class KnowledgeRuntime:
                 "canonical_project_id": project_id,
                 "legacy_project_id": legacy.get(scope),
                 "repository_root": str(repository),
+                "evidence_mode": self._scope_evidence_mode(repository),
             })
         path = self.config.state_root / "scope-registry.json"
         if path.exists():
@@ -274,9 +382,23 @@ class KnowledgeRuntime:
                 raise KnowledgeRuntimeError("persisted scope registry has duplicate identity")
             for item in entries:
                 scope = str(item["scope"])
-                if scope in by_scope and by_scope[scope] != item:
+                if scope not in by_scope:
+                    by_scope[scope] = item
+                    continue
+                persisted = by_scope[scope]
+                evidence_mode = persisted.get("evidence_mode")
+                if evidence_mode is not None and evidence_mode not in {"git", "none"}:
+                    raise KnowledgeRuntimeError(
+                        f"persisted scope evidence mode is unsupported: {scope}"
+                    )
+                identity = {key: value for key, value in persisted.items() if key != "evidence_mode"}
+                proposed_identity = {key: value for key, value in item.items() if key != "evidence_mode"}
+                if identity != proposed_identity:
                     raise KnowledgeRuntimeError(f"persisted scope identity changed: {scope}")
-                by_scope.setdefault(scope, item)
+                if evidence_mode is None or (
+                    evidence_mode == "none" and item["evidence_mode"] == "git"
+                ):
+                    by_scope[scope] = item
             entries = [copy.deepcopy(by_scope[key]) for key in sorted(by_scope)]
             proposed = {"schema_version": 1, "entries": entries}
             if stored != proposed:
@@ -440,13 +562,51 @@ class KnowledgeRuntime:
         self._refresh_current_projection()
 
     def _record_debt(self, debt: Mapping[str, Any]) -> None:
-        value = copy.deepcopy(dict(debt))
-        debt_id = hashlib.sha256(_bytes(value)).hexdigest()
+        identity = copy.deepcopy(dict(debt))
+        policy = _debt_reason_policy(identity.get("reason"))
+        debt_id = hashlib.sha256(_bytes(identity)).hexdigest()
+        value = {**identity, "blocking": policy.blocking}
         path = self.config.state_root / "debt" / f"{debt_id}.json"
-        if not path.exists():
+        if path.exists():
+            existing = _read_json(path)
+            if existing == identity:
+                _write_json(path, value)
+            elif existing != value:
+                raise KnowledgeRuntimeError(f"runtime debt identity conflicts: {path.name}")
+        else:
             _write_json(path, value)
-        self.state["debt_count"] = len(list((self.config.state_root / "debt").glob("*.json")))
+        summary = self.debt_summary()
+        self.state["debt_count"] = summary["total_count"]
+        self.state["blocking_debt_count"] = summary["blocking_count"]
+        self.state["informational_debt_count"] = summary["informational_count"]
         self._save_state()
+
+    def debt_summary(self) -> dict[str, Any]:
+        by_reason: dict[str, int] = {}
+        blocking_count = 0
+        informational_count = 0
+        for path in sorted((self.config.state_root / "debt").glob("*.json")):
+            value = _read_json(path)
+            reason = value.get("reason")
+            policy = _debt_reason_policy(reason)
+            if "blocking" in value and value["blocking"] is not policy.blocking:
+                if value["blocking"] not in policy.migrate_from:
+                    raise KnowledgeRuntimeError(
+                        f"runtime debt policy mismatch for {reason!r}: {path.name}"
+                    )
+                value["blocking"] = policy.blocking
+                _write_json(path, value)
+            by_reason[reason] = by_reason.get(reason, 0) + 1
+            if policy.blocking:
+                blocking_count += 1
+            else:
+                informational_count += 1
+        return {
+            "total_count": blocking_count + informational_count,
+            "blocking_count": blocking_count,
+            "informational_count": informational_count,
+            "by_reason": dict(sorted(by_reason.items())),
+        }
 
     def _git(self, *args: str, check: bool = True) -> subprocess.CompletedProcess:
         result = subprocess.run(
@@ -530,9 +690,18 @@ class KnowledgeRuntime:
 
     def _import_scope_evidence(self) -> None:
         imported = False
+        evidence_less_scopes = []
         for scope, entry in sorted(self.scope_registry.items()):
             repository = Path(str(entry["repository_root"]))
             project_id = str(entry["canonical_project_id"])
+            evidence_mode = entry.get("evidence_mode")
+            if evidence_mode == "none":
+                evidence_less_scopes.append({"scope": scope, "reason": "not_git_backed"})
+                continue
+            if evidence_mode != "git":
+                raise KnowledgeRuntimeError(
+                    f"scope evidence mode is unsupported: {scope}: {evidence_mode!r}"
+                )
             try:
                 commit = str(self._source_git(repository, "rev-parse", "HEAD")).strip()
                 raw = self._source_git(
@@ -546,7 +715,7 @@ class KnowledgeRuntime:
                 )
             except KnowledgeRuntimeError as error:
                 self._record_debt({
-                    "reason": "scope_git_unavailable",
+                    "reason": "git_evidence_source_unavailable",
                     "scope": scope,
                     "message": str(error),
                 })
@@ -576,6 +745,12 @@ class KnowledgeRuntime:
                     continue
                 _write_json(destination, record)
                 imported = True
+        debt = self.debt_summary()
+        self.state["debt_count"] = debt["total_count"]
+        self.state["blocking_debt_count"] = debt["blocking_count"]
+        self.state["informational_debt_count"] = debt["informational_count"]
+        self.state["evidence_less_scopes"] = evidence_less_scopes
+        self._save_state()
         if imported:
             self._commit_canonical("import pinned Git evidence")
 
@@ -1093,20 +1268,41 @@ class KnowledgeRuntime:
             }
             for row in rows
         }
-        mismatches = sorted(
-            f"{project}:{number}"
-            for project, number in set(legacy) | set(candidate)
-            if legacy.get((project, number)) != candidate.get((project, number))
-        )
-        return {"mismatch_count": len(mismatches), "mismatches": mismatches}
+        mismatches = []
+        field_mismatch_counts: dict[str, int] = {}
+        for project, number in sorted(set(legacy) | set(candidate)):
+            identity = (project, number)
+            if identity not in legacy or identity not in candidate:
+                differences = ("__row__",)
+            else:
+                differences = tuple(
+                    field
+                    for field in legacy[identity]
+                    if legacy[identity][field] != candidate[identity][field]
+                )
+            if not differences:
+                continue
+            mismatches.append(f"{project}:{number}")
+            for field in differences:
+                field_mismatch_counts[field] = field_mismatch_counts.get(field, 0) + 1
+        return {
+            "mismatch_count": len(mismatches),
+            "mismatches": mismatches,
+            "field_mismatch_counts": dict(sorted(field_mismatch_counts.items())),
+        }
 
     def verify_gates(self):
+        if self.state.get("active_owner") == "legacy" and self.state.get("generation") == 2:
+            self.task_store.reconcile_legacy_tasks(self._task_snapshot()["tasks"])
         self._ensure_vector_projection()
         parity = self.parity()
         if parity["mismatch_count"]:
             raise KnowledgeRuntimeError("shadow task parity is not verified")
-        if int(self.state.get("debt_count") or 0):
-            raise KnowledgeRuntimeError("privacy/projection debt is not empty")
+        debt = self.debt_summary()
+        if debt["blocking_count"]:
+            raise KnowledgeRuntimeError(
+                f"blocking runtime debt is not empty: {debt['blocking_count']}"
+            )
         projection = self.paths["current_projection"]
         with sqlite3.connect(f"file:{projection}?mode=ro", uri=True) as connection:
             row = connection.execute(
@@ -1171,7 +1367,11 @@ class KnowledgeRuntime:
                 **common,
                 "mismatch_count": 0,
             }),
-            "privacy": self._gate_receipt("privacy", {"secret_match_count": 0}),
+            "privacy": self._gate_receipt("privacy", {
+                "secret_match_count": 0,
+                "blocking_debt_count": 0,
+                "informational_debt_count": debt["informational_count"],
+            }),
             "rollback": self._gate_receipt("rollback", {
                 "replay_mismatch_count": 0,
                 "legacy_normalized_head": self.state["canonical_head"],
@@ -1186,6 +1386,9 @@ class KnowledgeRuntime:
             }),
             "projection": self._gate_receipt("projection", {
                 "rebuildable": True,
+                "evidence_less_scopes": copy.deepcopy(
+                    self.state.get("evidence_less_scopes", [])
+                ),
                 "task_projection": str(self.paths["task_projection"]),
                 "current_projection": str(self.paths["current_projection"]),
                 "vector_projection": str(self.paths["vector_projection"]),

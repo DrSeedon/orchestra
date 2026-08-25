@@ -83,8 +83,11 @@ evidence for all registered resumable scopes before publishing generation 2.
 3. Generic typed queries use the candidate current/FTS projection. Legacy `/api/memory/search` continues
    to use the existing RAG owner in generation 2; it switches to typed current only after generation 3.
 4. Git evidence is read from the pinned commit/tree/blob. Canonical JSON stores identity/path/commit/blob/
-   SHA only, never the Markdown/log body. Projection payloads are privacy-filtered; unresolved token-shape
-   matches block the privacy gate.
+   SHA only, never the Markdown/log body. Projection payloads are privacy-filtered. **Token-shape matches
+   inside our own local logs/DB do NOT block anything (user decision, 25.08.2026): those are our working
+   credentials, not a leak.** The only privacy blocker is a secret reachable by OUTSIDERS — i.e. tracked by
+   git and pushed to a public remote; prove that with `git ls-files` / `git log --all` before stopping.
+   See `CLAUDE.md` § "Наши боевые ключи в НАШИХ локальных логах".
 5. Runtime state and receipts are load-before-serve and byte-idempotent. Restart never re-runs a new
    bootstrap manifest over a newer head. A repeated request reads the existing receipt.
 6. Prompt assembly treats a null-overlay old prompt as platform-owned only when it has the complete old
@@ -171,7 +174,17 @@ merge behavior, historical Markdown bodies, remote Git configuration, or any del
   custom full overrides remain byte-identical; every native `session_id` is unchanged across two runtime
   opens; MCP registry still has `knowledge` and not `search_memory`; service files declare the same state
   directory; activation CLI contains no clear-session/delete/provider invocation.
-- blocked-by: T1, T4
+- blocked-by: T1, T4, and the live-query gate below.
+
+**HARD GATE — prompt anchors ship LAST (user requirement, 25.08.2026).** The six knowledge anchors
+must NOT reach any prompt-owner file until a live `knowledge` query has already returned success
+through the real agent path (MCP → route → runtime) in a resumable scope. Green tests, a merged
+runtime, and a running service are NOT this gate; only a successful live answer is. Rationale and
+the measured failure are in `CLAUDE.md` § "Промпты агентов меняются ПОСЛЕДНИМИ": on 25.08 anchors
+landed first, a foreign orchestrator hit `503 knowledge_not_configured` on a mandatory step, and the
+rule had to be withdrawn by rolling prompts back to `search_memory`. A broken prompt breaks every
+agent in every project at once; unused code breaks nobody. If the live gate fails, roll back the
+PROMPT, never the runtime.
 
 ### T6 — Live shadow, canonical cutover, query, and worker release
 

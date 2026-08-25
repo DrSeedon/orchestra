@@ -2334,6 +2334,9 @@ def _watchdog_budget_s() -> float:
 #: into a LATER attempt would strip descriptors out of systemd's store and reopen both gates
 #: mid-transaction, from a coroutine that has no idea any of it is happening.
 _restart_attempt = 0
+# Последняя ОТМЕНА рестарта: причина и время. Отдаётся следующим ответом /api/restart,
+# иначе «ok, scheduled» неотличимо от рестарта, который потом молча не состоялся.
+_last_restart_abort: dict | None = None
 
 
 async def _reopen_admission_if_still_alive(attempt: int = 0) -> None:
@@ -2407,6 +2410,10 @@ async def _abort_restart(reason: str) -> None:
                      type(error).__name__, error)
     manager.end_drain()
     app_main.open_mutating_admission()
+    # Отмена уходила ТОЛЬКО в лог: вызвавший получил ok/scheduled и ждал события, которого
+    # не будет. 25.08 так сгорело пять рестартов подряд и полчаса на «рестарт был?».
+    global _last_restart_abort
+    _last_restart_abort = {"reason": str(reason), "at": datetime.now(timezone.utc).isoformat()}
     logger.warning("restart aborted (%s): no signal sent", reason)
 
 
@@ -2568,6 +2575,10 @@ async def restart_server():
         app_main.open_mutating_admission()
         manager.end_drain()
         raise
+    global _last_restart_abort
+    previous_abort, _last_restart_abort = _last_restart_abort, None
+    if previous_abort:
+        return {"ok": True, "scheduled": True, "previous_attempt_aborted": previous_abort}
     return {"ok": True, "scheduled": True}
 
 

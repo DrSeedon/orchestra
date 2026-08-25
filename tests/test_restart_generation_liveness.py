@@ -303,8 +303,31 @@ def test_t1_force_implementation_uses_pidfd_not_numeric_pid():
         and isinstance(node.func, ast.Attribute)
         and isinstance(node.func.value, ast.Name)
     }
-    assert "signal.pidfd_send_signal" in calls
-    assert "os.kill" not in calls, "numeric PID signaling bypasses the frozen pidfd identity"
+    # pidfd_send_signal берётся через getattr (его нет на интерпретаторах без pidfd),
+    # поэтому проверяем ИМЯ в исходнике, а не дословный ast-вызов.
+    assert "pidfd_send_signal" in _GUARD_MODULE.read_text()
+    # os.kill РАЗРЕШЁН только внутри _send_signal и только под сверкой starttime: полный
+    # запрет закреплял отказ рестарта на интерпретаторах без pidfd_open. Опасность даёт
+    # не сам os.kill, а сигнал по номеру БЕЗ проверки, что за номером тот же процесс.
+    from app import restart_guard as _guard_for_source
+    source = _GUARD_MODULE.read_text()
+    guard_fn = ast.parse(source)
+    killers = [
+        node for node in ast.walk(guard_fn)
+        if isinstance(node, ast.FunctionDef)
+        and any(
+            isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+            and isinstance(call.func.value, ast.Name)
+            and f"{call.func.value.id}.{call.func.attr}" == "os.kill"
+            for call in ast.walk(node)
+        )
+    ]
+    assert [fn.name for fn in killers] == ["_send_signal"], (
+        "os.kill must live only in _send_signal, which re-verifies starttime"
+    )
+    guarded = ast.dump(killers[0])
+    assert "_read_starttime" in guarded, "os.kill without a starttime re-check reuses PIDs"
+    assert hasattr(_guard_for_source, "_send_signal")
 
 
 def test_t1_verified_pidfd_is_opened_before_starttime_is_compared():
@@ -340,7 +363,14 @@ def test_t1_verified_pidfd_is_opened_before_starttime_is_compared():
     )
 
 
-def test_t1_pidfd_capability_is_import_safe_and_fails_explicitly_when_missing():
+def test_t1_missing_pidfd_capability_falls_back_without_losing_identity_check():
+    """Без pidfd_open сторож обязан РАБОТАТЬ, а не отказывать.
+
+    Прежний оракул требовал здесь RestartGuardUnavailable, и это закрепляло дефект:
+    на интерпретаторе без pidfd_open каждый рестарт молча отменялся (25.08, пять подряд).
+    Защиту от переиспользования PID даёт сверка starttime, а не сам тип дескриптора,
+    поэтому проверяем ОБА плеча: живой процесс открывается, подменённый отвергается.
+    """
     script = """
 import os
 
@@ -348,12 +378,19 @@ if hasattr(os, "pidfd_open"):
     del os.pidfd_open
 from app import restart_guard
 
+pid = os.getpid()
+start_ticks = restart_guard._read_starttime(pid)
+
+fd = restart_guard.open_verified_pidfd(pid, start_ticks)
+assert fd >= 0
+os.close(fd)
+
 try:
-    restart_guard.open_verified_pidfd(12345, 67890)
-except restart_guard.RestartGuardUnavailable as error:
-    assert "os.pidfd_open" in str(error)
+    restart_guard.open_verified_pidfd(pid, start_ticks + 999)
+except restart_guard.ProcessIdentityMismatch:
+    pass
 else:
-    raise AssertionError("missing pidfd_open capability was not rejected")
+    raise AssertionError("PID reuse was not rejected without pidfd_open")
 """
     result = subprocess.run(
         [sys.executable, "-c", script],

@@ -5,6 +5,10 @@
 // на каждом кадре. 200 узлов ≈ 44 000 px при той же странице входа в 100 сообщений;
 // старшее уходит из DOM, но не из истории — оно возвращается кнопкой «загрузить ещё».
 const MAX_CHAT_NODES = 200;
+// Зеркало логов в IndexedDB держит только хвост каждой сессии. Без этого оно росло
+// бесконечно: чистка была лишь для УДАЛЁННЫХ сессий, а внутри живой копилось всё.
+// Промах зеркала не теряет историю — она догружается обычным запросом.
+const MIRROR_KEEP_PER_SESSION = 100;
 function fmtCost(v) { v = Number(v) || 0; if (v === 0) return MODEL_COST_CURRENCY + '0.00'; if (v < 0.01) return MODEL_COST_CURRENCY + v.toFixed(4); return MODEL_COST_CURRENCY + v.toFixed(2); }
 const _MODEL_COLORS = {
     'claude-opus-5[1m]': '#d8b4fe',
@@ -37,6 +41,7 @@ let scrollAfterLoad = true;
 // Следуем ли за новыми сообщениями. Правило как в мессенджерах: внизу — следуем,
 // ушёл читать выше — не трогаем вообще. Снимается в обработчике scroll.
 let _chatFollow = true;
+let _replayingHistory = false;
 let _chatTrimLimit = MAX_CHAT_NODES;
 let drafts = {};
 
@@ -233,9 +238,19 @@ function _pinChatBottom(chat) {
 // Срезать самые старые узлы. Режем ТОЛЬКО когда юзер внизу и следует за потоком:
 // иначе кнопка «загрузить ещё» бессмысленна — добранная история исчезала бы от первого
 // же нового сообщения, и текст под курсором прыгал бы вверх на высоту срезанного.
+// Прокрутка вверх раньше выключала обрезку ЦЕЛИКОМ, и при чтении истории узлы копились
+// без предела — отсюда лаги на длинных диалогах. Режем всегда, меняется только КОНЕЦ:
+// следуешь за потоком — уходит самое старое; читаешь историю — уходит хвост снизу,
+// который сейчас не на экране. Обе стороны сохраняют узел под курсором на месте.
+const MAX_CHAT_NODES_DETACHED = 300;
 function _trimChatNodes(chat) {
-    if (!chat || !_chatFollow) return;
-    while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
+    if (!chat || _replayingHistory) return;
+    if (_chatFollow) {
+        while (chat.children.length > _chatTrimLimit) chat.removeChild(chat.firstChild);
+        return;
+    }
+    const limit = Math.max(MAX_CHAT_NODES_DETACHED, _chatTrimLimit);
+    while (chat.children.length > limit) chat.removeChild(chat.lastChild);
 }
 function _keepPinnedIfFollowing() {
     if (!_chatFollow || _followPinRaf) return;
@@ -2350,7 +2365,8 @@ function selectOrchestrator(name, scope) {
 // Отличает проигрывание истории от живой строки: часть отрисовки имеет побочные эффекты
 // (обновить панель задач), и в прошлом они не нужны. Флаг, а не параметр, потому что
 // addChatEntry зовут из десятка мест и протаскивать признак через все — шум.
-let _replayingHistory = false;
+// NB: объявлен выше, рядом с _chatFollow — _trimChatNodes читает его раньше этой строки,
+// а `let` не поднимается: обращение до инициализации бросило бы ReferenceError.
 
 function _renderHistory(agent, rows) {
     const meta = chatLogs[agent] = {lastId: 0, firstId: null, initialCount: 0};
@@ -2450,15 +2466,36 @@ function _compactImageGenerationLogRow(row) {
     }
 }
 
+// Обрезка зеркала идёт В ТОЙ ЖЕ транзакции, что и запись: отдельный проход через
+// _storeTx из колбэка даёт дедлок, а bump версии IndexedDB блокируется второй вкладкой —
+// оба подхода уже откатывались (#364). Курсор по by_session идёт от свежих к старым,
+// поэтому всё после MIRROR_KEEP_PER_SESSION — хвост, и его можно удалять на месте.
+function _trimSessionMirror(logs, sessionId) {
+    const idx = logs.index('by_session');
+    const rq = idx.openCursor(IDBKeyRange.only(sessionId), 'prev');
+    let seen = 0;
+    rq.onsuccess = () => {
+        const cur = rq.result;
+        if (!cur) return;
+        seen += 1;
+        if (seen > MIRROR_KEEP_PER_SESSION) cur.delete();
+        cur.continue();
+    };
+}
+
 async function _storePut(rows) {
     const db = await _storeOpen();
     if (!db || !rows || !rows.length) return;
     try {
         await _storeTx('readwrite', ['logs'], (tx) => {
             const logs = tx.objectStore('logs');
+            const touched = new Set();
             for (const row of rows) {
-                if (Number.isFinite(row.id)) logs.put(_storeRecord(_compactImageGenerationLogRow(row)));
+                if (!Number.isFinite(row.id)) continue;
+                logs.put(_storeRecord(_compactImageGenerationLogRow(row)));
+                if (row.session_id) touched.add(row.session_id);
             }
+            for (const sessionId of touched) _trimSessionMirror(logs, sessionId);
         });
     } catch (e) { _storeDisable('не пишется в IndexedDB', e); }
 }
@@ -2623,13 +2660,6 @@ async function selectAgent(name) {
 function updateInputState() {
     const input = $('#chat-input');
     const btn = $('#send-btn');
-    // Отправка всё равно будет отклонена — честнее недоступная кнопка, чем ошибка в ответ.
-    if (_restartPending) {
-        input.placeholder = 'Идёт перезапуск Orchestra…';
-        input.disabled = true;
-        btn.disabled = true;
-        return;
-    }
     if (!selectedAgent) {
         input.placeholder = 'Message...';
         input.disabled = false;
@@ -3225,7 +3255,6 @@ function _showAgentContextMenu(e, s) {
 // follow-up messages get batched. The server echoes back via SSE which
 // replaces the bubble with the canonical version.
 async function sendChat() {
-    if (_restartPending) return;   // кнопка уже недоступна, это страховка от Enter
     const input = $('#chat-input');
     // Картинка ещё летит → ждём её путь, иначе сообщение уйдёт без картинки.
     // Поле ввода при этом живое: всё, что допечатают за время ожидания, войдёт в msg.
@@ -3324,9 +3353,8 @@ function _voiceSetState(state) {
     if (!controls) return;
     controls.dataset.state = state;
     $('#voice-btn').disabled = state === 'processing' || state === 'requesting' || state === 'stopping';
-    $('#voice-state-label').textContent = state === 'processing'
-        ? 'Распознаю…'
-        : (state === 'requesting' ? 'Микрофон…' : (state === 'stopping' ? 'Завершаю…' : 'Запись'));
+    $('#voice-state-label').textContent = state === 'requesting'
+        ? 'Микрофон…' : (state === 'stopping' ? 'Завершаю…' : 'Запись');
     $('#voice-cancel-btn').disabled = state !== 'recording';
 }
 
@@ -3388,33 +3416,25 @@ function _voiceExtension(mimeType) {
     return 'webm';
 }
 
-async function _transcribeVoiceBlob(blob, mimeType) {
-    _voiceSetState('processing');
+async function _sendVoiceBlob(blob, mimeType) {
+    _voiceSetState('idle');
     const body = new FormData();
     body.append('audio', blob, `voice.${_voiceExtension(mimeType)}`);
     body.append('session_name', selectedAgent || '');
     body.append('scope', currentScope || '');
     try {
+        body.append('send', 'true');
         const response = await fetch('/api/transcribe', {
             method: 'POST',
             body,
-            signal: AbortSignal.timeout(150000),
+            signal: AbortSignal.timeout(60000),
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || result.detail || `HTTP ${response.status}`);
-        const text = (result.text || '').trim();
-        if (!text) throw new Error('Сервис не распознал речь.');
-        const input = $('#chat-input');
-        const separator = input.value && !/\s$/.test(input.value) ? ' ' : '';
-        input.value += separator + text;
-        input.dispatchEvent(new Event('input', {bubbles: true}));
-        input.focus();
-        input.setSelectionRange(input.value.length, input.value.length);
-        saveDraft();
         _showVoiceError('');
     } catch (error) {
         const detail = error.name === 'TimeoutError'
-            ? 'Распознавание не ответило за 150 секунд.'
+            ? 'Отправка голосового сообщения не ответила за 60 секунд.'
             : error.message;
         _showVoiceError(`Голосовой ввод: ${detail}`);
     } finally {
@@ -3471,7 +3491,7 @@ async function startVoiceInput() {
                 _voiceSetState('idle');
                 return;
             }
-            _transcribeVoiceBlob(blob, actualType);
+            _sendVoiceBlob(blob, actualType);
         }, {once: true});
 
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -7436,31 +7456,13 @@ function _restartPendingFromBody(status, text) {
     try { return JSON.parse(text)?.error?.code === 'restart_pending'; } catch { return false; }
 }
 
-// Полосу строим в JS: шаблон отдаётся из главного чекаута и доехал бы до юзера только
-// рестартом — тем самым, про который она и рассказывает.
-function _restartBanner() {
-    let banner = document.getElementById('restart-banner');
-    if (banner) return banner;
-    banner = document.createElement('div');
-    banner.id = 'restart-banner';
-    // Тот же язык, что у соседних полос, и намеренно НЕ красный: перезапуск штатен.
-    banner.className = 'hidden items-center justify-center gap-2 px-4 py-2 bg-amber-500/15 border-b border-amber-500/40 text-amber-200 text-xs';
-    banner.innerHTML = '⏳ <b>Orchestra перезапускается</b> — отправка на паузе, вызовы отклоняются ДО изменений. ' +
-        '<span class="text-amber-400/70">Вернётся сама, перезагружать страницу не нужно.</span>';
-    const anchor = document.getElementById('rate-limit-banner');
-    if (anchor) anchor.parentNode.insertBefore(banner, anchor);
-    else document.body.prepend(banner);
-    return banner;
-}
-
+// Полосы и блокировки ввода на время рестарта БОЛЬШЕ НЕТ (решение юзера 26.08): она
+// отнимала возможность писать, а рестарт при этом мог вообще не состояться — то есть
+// поле немело зря. Флаг оставлен: по нему мутирующий вызов повторяется, но молча.
 function _setRestartPending(on) {
     if (on) _restartPendingSince = Date.now();   // каждый новый отказ продлевает окно
     if (on === _restartPending) return;
     _restartPending = on;
-    const banner = _restartBanner();
-    banner.classList.toggle('hidden', !on);
-    banner.classList.toggle('flex', on);
-    updateInputState();
 }
 
 // === Reboot Overlay ===
