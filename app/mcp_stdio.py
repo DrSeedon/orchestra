@@ -2705,6 +2705,7 @@ async def knowledge(
     return json.dumps(result, ensure_ascii=False, sort_keys=True)
 
 
+@mcp.tool()
 async def search_memory(query: str, limit: int = 5, cross_project: bool = False) -> str:
     """Compatibility callable for old in-process consumers; not an agent MCP tool."""
     # scope НЕ параметр: берём ORCHESTRA_SCOPE из env воркера → нельзя запросить чужой проект.
