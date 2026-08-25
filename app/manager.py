@@ -1774,6 +1774,18 @@ class SessionManager:
             elif old_without_memory.startswith(current_base):
                 prompt_overlay = old_without_memory[len(current_base):]
                 prompt_without_memory = current_base + prompt_overlay
+            elif (
+                "<role>" in old_without_memory
+                and "</role>" in old_without_memory
+                and "<memory-search>" in old_without_memory
+                and "</memory-search>" in old_without_memory
+            ):
+                # Pre-overlay pipeline prompts are identifiable by their complete platform
+                # envelopes. They are not operator overrides: rebuild the current base while
+                # retaining the separately stored directory-ownership contract. A free-form full
+                # prompt has no such boundary and remains byte-preserved in the branch below.
+                prompt_overlay = self._ownership_prompt(parse_owned_dirs(owned_dirs))
+                prompt_without_memory = current_base + prompt_overlay
             else:
                 # A legacy/full-prompt override has no component boundary to recover.
                 # Preserve it byte-for-byte instead of guessing and dropping authority.

@@ -33,6 +33,8 @@ WorkingDirectory=/home/kesha/orchestra
 Environment=PATH=/home/kesha/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=WORKSPACE_DIR=/home/kesha/workspace/project
 EnvironmentFile=/home/kesha/orchestra/.env
+StateDirectory=orchestra
+StateDirectoryMode=0700
 
 # --fd 3 — serve the socket systemd already holds instead of binding our own.
 #
