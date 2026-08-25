@@ -21,7 +21,12 @@ from typing import Callable
 logger = logging.getLogger(__name__)
 
 RESTART_POST_CLEANUP_EXIT_BUDGET_S = 5.0
-RESTART_GUARD_READY_TIMEOUT_S = 2.0
+# 2.0 с не хватало на загруженной машине: форк helper'а не успевал ответить READY,
+# рестарт молча отменялся, и снаружи это выглядело как «сервис игнорирует рестарт».
+# 25.08 подряд отменились 5 рестартов при loadavg 7.5 и 1.8 ГБ свободной памяти.
+RESTART_GUARD_READY_TIMEOUT_S = 15.0
+# Шаг опроса живости цели, когда pidfd недоступен и epoll о смерти не сообщит.
+_FALLBACK_POLL_S = 0.25
 
 
 @dataclass(slots=True)
@@ -62,8 +67,13 @@ def open_verified_pidfd(
     if pidfd_open is None:
         pidfd_open = getattr(os, "pidfd_open", None)
         if pidfd_open is None:
-            raise RestartGuardUnavailable(
-                "restart guard requires the os.pidfd_open capability"
+            # Без pidfd_open сторож отказывался подниматься, и КАЖДЫЙ рестарт молча
+            # отменялся: 25.08 на этой машине (Python без pidfd_open, ядро 7.0) так
+            # сгорели пять рестартов подряд. Держим процесс открытым каталогом
+            # /proc/<pid> — он тоже перестаёт разрешаться после смерти процесса,
+            # а защиту от переиспользования PID даёт сверка starttime ниже, а не сам fd.
+            pidfd_open = lambda target: os.open(  # noqa: E731
+                f"/proc/{target}", os.O_RDONLY | os.O_DIRECTORY
             )
     pidfd = pidfd_open(pid)
     try:
@@ -279,6 +289,26 @@ def _emit_terminal(event: dict, event_log: Path | None) -> None:
             stream.write(line + "\n")
 
 
+def _send_signal(pidfd: int, pid: int, expected_start_ticks: int, sig: int) -> None:
+    """Сигнал по pidfd, а без него — по pid с пересверкой starttime.
+
+    `pidfd_send_signal` требует НАСТОЯЩИЙ pidfd; с fallback-дескриптором /proc/<pid>
+    он отвечает PermissionError. Путь по pid безопасен только вместе с повторной
+    сверкой времени старта: PID переиспользуются, и без неё сигнал уйдёт чужому.
+    """
+    send = getattr(signal, "pidfd_send_signal", None)
+    if send is not None and hasattr(os, "pidfd_open"):
+        send(pidfd, sig)
+        return
+    try:
+        actual = _read_starttime(pid)
+    except FileNotFoundError as error:      # процесс уже умер → ProcessLookupError, как у pidfd
+        raise ProcessLookupError(pid) from error
+    if actual != expected_start_ticks:
+        raise ProcessLookupError(pid)
+    os.kill(pid, sig)
+
+
 def _helper_main(args: argparse.Namespace) -> int:
     started = time.monotonic()
     phase = "armed"
@@ -323,7 +353,12 @@ def _helper_main(args: argparse.Namespace) -> int:
     buffer = b""
     cleanup_deadline: float | None = None
     try:
-        selector.register(pidfd, selectors.EVENT_READ, "pidfd")
+        # Каталог /proc/<pid> из fallback-пути НЕ регистрируется в epoll (PermissionError):
+        # опрашиваемым он быть не может. Тогда смерть процесса ловим коротким опросом
+        # starttime ниже, а не событием готовности.
+        pidfd_pollable = hasattr(os, "pidfd_open")
+        if pidfd_pollable:
+            selector.register(pidfd, selectors.EVENT_READ, "pidfd")
         selector.register(args.progress_fd, selectors.EVENT_READ, "progress")
         if ready_fd is not None:
             os.write(ready_fd, b"READY\n")
@@ -333,10 +368,29 @@ def _helper_main(args: argparse.Namespace) -> int:
             timeout = None
             if cleanup_deadline is not None:
                 timeout = max(0.0, cleanup_deadline - time.monotonic())
+            if not pidfd_pollable:
+                # Без опрашиваемого pidfd смерть цели не приходит событием: просыпаемся
+                # сами и проверяем её. Иначе select(None) ждал бы вечно.
+                timeout = _FALLBACK_POLL_S if timeout is None else min(timeout, _FALLBACK_POLL_S)
             ready = selector.select(timeout)
+            if not ready and not pidfd_pollable and cleanup_deadline is None:
+                try:
+                    if _read_starttime(args.pid) != args.start_ticks:
+                        raise ProcessLookupError(args.pid)
+                except (FileNotFoundError, ProcessLookupError):
+                    _emit_terminal(
+                        _terminal_event(
+                            "clean_exit", forced=False, pid=args.pid,
+                            start_ticks=args.start_ticks, phase=phase,
+                            task_class=task_class, started=started,
+                        ),
+                        event_log,
+                    )
+                    return 0
+                continue
             if not ready:
                 try:
-                    signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+                    _send_signal(pidfd, args.pid, args.start_ticks, signal.SIGKILL)
                 except ProcessLookupError:
                     event = "clean_exit"
                     forced = False
