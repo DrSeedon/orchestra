@@ -170,6 +170,74 @@ class _RuntimeTaskStore:
         with self._lock:
             return copy.deepcopy(self._store._states())
 
+    def reconcile_legacy_tasks(self, tasks: list[Mapping[str, Any]]) -> dict[str, Any]:
+        with self._lock:
+            states = self._store._states()
+            canonical = {
+                (str(state["project_id"]), int(state["display_number"])): state
+                for state in states.values()
+            }
+            legacy = {
+                (self._project(str(task["project_id"])), int(task["par_number"])): task
+                for task in tasks
+            }
+            if canonical.keys() != legacy.keys():
+                missing = sorted(legacy.keys() - canonical.keys())
+                extra = sorted(canonical.keys() - legacy.keys())
+                raise KnowledgeRuntimeError(
+                    f"task shadow identity mismatch: missing={missing}, extra={extra}"
+                )
+            events = []
+            for identity, task in sorted(legacy.items()):
+                state = canonical[identity]
+                expected = {
+                    "title": str(task.get("title") or ""),
+                    "description": str(task.get("description") or ""),
+                    "price_rub": int(task.get("price_rub") or 0),
+                    "status": str(task.get("status") or "new"),
+                    "assignee": str(task.get("assignee") or ""),
+                    "priority": int(
+                        2 if task.get("priority") is None else task["priority"]
+                    ),
+                }
+                changes = {
+                    field: value
+                    for field, value in expected.items()
+                    if state.get(field) != value
+                }
+                if not changes:
+                    continue
+                event_id = str(uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    "orch://task-shadow-reconcile/"
+                    + hashlib.sha256(_bytes({
+                        "head": self._store.canonical_head,
+                        "stable_id": state["stable_id"],
+                        "changes": changes,
+                    })).hexdigest(),
+                ))
+                events.append({
+                    "event_id": event_id,
+                    "event_type": "task.updated",
+                    "stable_id": state["stable_id"],
+                    "project_id": state["project_id"],
+                    "display_number": state["display_number"],
+                    "occurred_at": str(task.get("updated_at") or ""),
+                    "changes": changes,
+                })
+            if not events:
+                return {
+                    "reconciled_count": 0,
+                    "canonical_head": self._store.canonical_head,
+                    "projection_head": self._store.projection_head,
+                }
+            result = self._store.apply_events(
+                events,
+                expected_head=self._store.canonical_head,
+            )
+            self._head_writer(str(result["canonical_head"]))
+            return {**result, "reconciled_count": len(events)}
+
 
 def _bytes(value: Any) -> bytes:
     return json.dumps(
@@ -254,8 +322,10 @@ class KnowledgeRuntime:
         self.scope_registry = self._scope_registry()
         self.state = self._runtime_state()
         self._task_projects = self._task_project_ids()
-        self.task_store = self._task_store()
         self.knowledge_service = None
+        self.task_store = self._task_store()
+        if self.state.get("active_owner") == "legacy" and self.state.get("generation") == 2:
+            self.task_store.reconcile_legacy_tasks(self._task_snapshot()["tasks"])
         self._initialize_canonical_git()
         self._import_scope_evidence()
         self._ensure_vector_projection()
@@ -1198,14 +1268,32 @@ class KnowledgeRuntime:
             }
             for row in rows
         }
-        mismatches = sorted(
-            f"{project}:{number}"
-            for project, number in set(legacy) | set(candidate)
-            if legacy.get((project, number)) != candidate.get((project, number))
-        )
-        return {"mismatch_count": len(mismatches), "mismatches": mismatches}
+        mismatches = []
+        field_mismatch_counts: dict[str, int] = {}
+        for project, number in sorted(set(legacy) | set(candidate)):
+            identity = (project, number)
+            if identity not in legacy or identity not in candidate:
+                differences = ("__row__",)
+            else:
+                differences = tuple(
+                    field
+                    for field in legacy[identity]
+                    if legacy[identity][field] != candidate[identity][field]
+                )
+            if not differences:
+                continue
+            mismatches.append(f"{project}:{number}")
+            for field in differences:
+                field_mismatch_counts[field] = field_mismatch_counts.get(field, 0) + 1
+        return {
+            "mismatch_count": len(mismatches),
+            "mismatches": mismatches,
+            "field_mismatch_counts": dict(sorted(field_mismatch_counts.items())),
+        }
 
     def verify_gates(self):
+        if self.state.get("active_owner") == "legacy" and self.state.get("generation") == 2:
+            self.task_store.reconcile_legacy_tasks(self._task_snapshot()["tasks"])
         self._ensure_vector_projection()
         parity = self.parity()
         if parity["mismatch_count"]:
