@@ -797,6 +797,7 @@ async def test_history_import_uses_experimental_resume_and_accepts_fresh_id(monk
         "CURRENT ROLE\n\n" + HISTORICAL_TOOL_INSTRUCTION
     )
     assert "path" not in params
+    assert requests[2] == ("config/mcpServer/reload", None)
     assert backend.session_id == "fresh-thread-id"
     assert backend._history_import is None
 
@@ -810,6 +811,7 @@ async def test_history_import_uses_experimental_resume_and_accepts_fresh_id(monk
     assert requests[1][1]["excludeTurns"] is True
     assert "history" not in requests[1][1]
     assert requests[1][1]["developerInstructions"] == "CURRENT ROLE"
+    assert requests[2] == ("config/mcpServer/reload", None)
 
 
 @pytest.mark.asyncio
