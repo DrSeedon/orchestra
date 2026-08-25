@@ -83,8 +83,11 @@ evidence for all registered resumable scopes before publishing generation 2.
 3. Generic typed queries use the candidate current/FTS projection. Legacy `/api/memory/search` continues
    to use the existing RAG owner in generation 2; it switches to typed current only after generation 3.
 4. Git evidence is read from the pinned commit/tree/blob. Canonical JSON stores identity/path/commit/blob/
-   SHA only, never the Markdown/log body. Projection payloads are privacy-filtered; unresolved token-shape
-   matches block the privacy gate.
+   SHA only, never the Markdown/log body. Projection payloads are privacy-filtered. **Token-shape matches
+   inside our own local logs/DB do NOT block anything (user decision, 25.08.2026): those are our working
+   credentials, not a leak.** The only privacy blocker is a secret reachable by OUTSIDERS — i.e. tracked by
+   git and pushed to a public remote; prove that with `git ls-files` / `git log --all` before stopping.
+   See `CLAUDE.md` § "Наши боевые ключи в НАШИХ локальных логах".
 5. Runtime state and receipts are load-before-serve and byte-idempotent. Restart never re-runs a new
    bootstrap manifest over a newer head. A repeated request reads the existing receipt.
 6. Prompt assembly treats a null-overlay old prompt as platform-owned only when it has the complete old

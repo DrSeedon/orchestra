@@ -5,6 +5,10 @@
 // на каждом кадре. 200 узлов ≈ 44 000 px при той же странице входа в 100 сообщений;
 // старшее уходит из DOM, но не из истории — оно возвращается кнопкой «загрузить ещё».
 const MAX_CHAT_NODES = 200;
+// Зеркало логов в IndexedDB держит только хвост каждой сессии. Без этого оно росло
+// бесконечно: чистка была лишь для УДАЛЁННЫХ сессий, а внутри живой копилось всё.
+// Промах зеркала не теряет историю — она догружается обычным запросом.
+const MIRROR_KEEP_PER_SESSION = 100;
 function fmtCost(v) { v = Number(v) || 0; if (v === 0) return MODEL_COST_CURRENCY + '0.00'; if (v < 0.01) return MODEL_COST_CURRENCY + v.toFixed(4); return MODEL_COST_CURRENCY + v.toFixed(2); }
 const _MODEL_COLORS = {
     'claude-opus-5[1m]': '#d8b4fe',
@@ -2377,15 +2381,36 @@ function _compactImageGenerationLogRow(row) {
     }
 }
 
+// Обрезка зеркала идёт В ТОЙ ЖЕ транзакции, что и запись: отдельный проход через
+// _storeTx из колбэка даёт дедлок, а bump версии IndexedDB блокируется второй вкладкой —
+// оба подхода уже откатывались (#364). Курсор по by_session идёт от свежих к старым,
+// поэтому всё после MIRROR_KEEP_PER_SESSION — хвост, и его можно удалять на месте.
+function _trimSessionMirror(logs, sessionId) {
+    const idx = logs.index('by_session');
+    const rq = idx.openCursor(IDBKeyRange.only(sessionId), 'prev');
+    let seen = 0;
+    rq.onsuccess = () => {
+        const cur = rq.result;
+        if (!cur) return;
+        seen += 1;
+        if (seen > MIRROR_KEEP_PER_SESSION) cur.delete();
+        cur.continue();
+    };
+}
+
 async function _storePut(rows) {
     const db = await _storeOpen();
     if (!db || !rows || !rows.length) return;
     try {
         await _storeTx('readwrite', ['logs'], (tx) => {
             const logs = tx.objectStore('logs');
+            const touched = new Set();
             for (const row of rows) {
-                if (Number.isFinite(row.id)) logs.put(_compactImageGenerationLogRow(row));
+                if (!Number.isFinite(row.id)) continue;
+                logs.put(_compactImageGenerationLogRow(row));
+                if (row.session_id) touched.add(row.session_id);
             }
+            for (const sessionId of touched) _trimSessionMirror(logs, sessionId);
         });
     } catch (e) { _storeDisable('не пишется в IndexedDB', e); }
 }
