@@ -1030,10 +1030,22 @@ def normalize_merge_result(
         git_status = "DIRTY"
     elif commit_point == "UNKNOWN":
         git_status = "UNKNOWN"
+    elif commit_point == "REACHED":
+        # Post-commit stages may set the aggregate outcome to false, but Git has
+        # already committed at this point and must not be reported as failed.
+        git_status = "SUCCEEDED"
     else:
         git_status = "FAILED"
 
-    link_status, link_items, link_failures, link_warnings = _link_status(raw.get("linked_tasks"))
+    finalization = raw.get("finalization")
+    linked_tasks = raw.get("linked_tasks")
+    if (
+        not linked_tasks
+        and isinstance(finalization, dict)
+        and finalization.get("links")
+    ):
+        linked_tasks = finalization["links"]
+    link_status, link_items, link_failures, link_warnings = _link_status(linked_tasks)
     lifecycle = raw.get("lifecycle_status")
     lifecycle_status = (
         "SUCCEEDED" if isinstance(lifecycle, dict) and lifecycle.get("ok")
@@ -1137,7 +1149,6 @@ def normalize_merge_result(
             status=raw.get("_http_status"), details=details,
         )
 
-    finalization = raw.get("finalization")
     if isinstance(finalization, dict) and finalization.get("stage") == "PENDING":
         # DB-стадия не доехала, но коммит есть и журнал его описывает: это чинится
         # повтором ТОГО ЖЕ operation_id и никогда вторым мержем.
@@ -1443,6 +1454,17 @@ async def _resume_finalization(record: dict[str, Any]) -> dict[str, Any]:
         result["operation_state"] = "PARTIAL"
         result["retryable"] = True
         result["finalization"] = payload
+        link_status, link_items, _failures, link_warnings = _link_status(
+            payload.get("links"),
+        )
+        if link_items:
+            result["task_links"] = {"status": link_status, "items": link_items}
+            result["warnings"] = list(result.get("warnings") or []) + [
+                {"code": "TASK_LINK_NOT_FOUND", "message": text}
+                for text in link_warnings
+            ]
+        if result.get("commit_point") == "REACHED":
+            result["git"]["status"] = "SUCCEEDED"
         return result
     payload["stage"] = "APPLIED"
     await asyncio.to_thread(mark_finalization_applied, operation_id, payload)
