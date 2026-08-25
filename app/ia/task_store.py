@@ -748,6 +748,7 @@ class TaskStore:
         acceptance_command: str = "",
         acceptance_manifest: list[str] | None = None,
         acceptance_required: bool = False,
+        display_number: int | None = None,
         expected_head: str | None = None,
         contour_id: str = "central",
     ) -> dict[str, Any]:
@@ -757,10 +758,27 @@ class TaskStore:
             raise ValueError("price must be >= 0")
         parent = self._ensure_expected(expected_head)
         states = self._states()
-        display_number = 1 + max(
-            (state["display_number"] for state in states.values() if state["project_id"] == project_id),
-            default=0,
-        )
+        if display_number is None:
+            display_number = 1 + max(
+                (
+                    state["display_number"]
+                    for state in states.values()
+                    if state["project_id"] == project_id
+                ),
+                default=0,
+            )
+        else:
+            display_number = int(display_number)
+            if display_number <= 0:
+                raise IdentityConflictError("display number must be positive")
+            if any(
+                state["project_id"] == project_id
+                and state["display_number"] == display_number
+                for state in states.values()
+            ):
+                raise IdentityConflictError(
+                    f"display #{display_number} is already active in {project_id}"
+                )
         stable_id = str(uuid.uuid4())
         now = _now()
         state = {

@@ -1251,13 +1251,36 @@ _IA_TASK_STORE_CONTEXT: ContextVar[_IATaskStoreContext | None] = ContextVar(
     "ia_task_store_context",
     default=None,
 )
+_IA_PROCESS_TASK_STORE_CONTEXT: _IATaskStoreContext | None = None
 
 
 def _ia_context() -> _IATaskStoreContext | None:
     context = _IA_TASK_STORE_CONTEXT.get()
+    if context is None:
+        context = _IA_PROCESS_TASK_STORE_CONTEXT
     if context is None or context.mode == "legacy":
         return None
     return context
+
+
+@contextmanager
+def ia_process_task_store_mode(*, store: TaskStore, mode: str = "shadow"):
+    """Configure the task candidate for all HTTP/background execution contexts.
+
+    Lifespan ContextVars do not propagate into Uvicorn request tasks. The production owner is one
+    process-global store; its adapter supplies the serialization policy.
+    """
+
+    if mode not in {"shadow", "canonical"}:
+        raise ValueError(f"unsupported IA task store mode: {mode}")
+    global _IA_PROCESS_TASK_STORE_CONTEXT
+    if _IA_PROCESS_TASK_STORE_CONTEXT is not None:
+        raise RuntimeError("process task store is already configured")
+    _IA_PROCESS_TASK_STORE_CONTEXT = _IATaskStoreContext(mode=mode, store=store)
+    try:
+        yield store
+    finally:
+        _IA_PROCESS_TASK_STORE_CONTEXT = None
 
 
 def _legacy_task_snapshot(*, cutoff: str, source_head: str) -> dict:
@@ -1432,6 +1455,39 @@ def _shadow_result(
     }
 
 
+def _shadow_failure(
+    legacy: dict,
+    context: _IATaskStoreContext,
+    error: BaseException,
+) -> dict:
+    store = context.store
+    assert store is not None
+    debt = {
+        "reason": "candidate_write_failed",
+        "exception_type": type(error).__name__,
+        "message": str(error),
+    }
+    recorder = getattr(store, "record_debt", None)
+    if callable(recorder):
+        recorder(debt)
+    try:
+        canonical_head = store.canonical_head
+    except Exception:
+        canonical_head = ""
+    try:
+        projection_head = store.projection_head
+    except Exception:
+        projection_head = ""
+    return {
+        **legacy,
+        "ia_mode": context.mode,
+        "canonical_head": canonical_head,
+        "projection_head": projection_head,
+        "shadow_match": False,
+        "projection_debt": debt,
+    }
+
+
 def _canonical_result(
     candidate: dict,
     legacy: dict,
@@ -1453,7 +1509,17 @@ def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
         return legacy
     store = context.store
     assert store is not None
-    candidate = store.task_get(str(legacy["par_number"]), project=legacy["project_id"])
+    try:
+        candidate = store.task_get(str(legacy["par_number"]), project=legacy["project_id"])
+    except Exception as error:
+        recorder = getattr(store, "record_debt", None)
+        if callable(recorder):
+            recorder({
+                "reason": "candidate_read_failed",
+                "exception_type": type(error).__name__,
+                "message": str(error),
+            })
+        return legacy
     return {
         **legacy,
         "stable_id": candidate["stable_id"],
@@ -1490,19 +1556,23 @@ def api_create_task(project_id: str, title: str, price: int = 0,
             acceptance_required=acceptance_required,
             acceptance_actor=acceptance_actor,
         )
-        candidate = store.task_create(
-            project_id=legacy["project"],
-            title=title,
-            price=price,
-            description=description,
-            assignee=assignee,
-            status=status,
-            priority=priority,
-            acceptance_command=acceptance_command,
-            acceptance_manifest=acceptance_manifest,
-            acceptance_required=acceptance_required,
-            expected_head=store.canonical_head,
-        )
+        try:
+            candidate = store.task_create(
+                project_id=legacy["project"],
+                title=title,
+                price=price,
+                description=description,
+                assignee=assignee,
+                status=status,
+                priority=priority,
+                acceptance_command=acceptance_command,
+                acceptance_manifest=acceptance_manifest,
+                acceptance_required=acceptance_required,
+                display_number=int(legacy["par"]),
+                expected_head=store.canonical_head,
+            )
+        except Exception as error:
+            return _shadow_failure(legacy, context, error)
         return _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
 
     with _conn() as conn:
@@ -1576,11 +1646,14 @@ def api_update_task(par: str, title: str | None = None,
     )
     if context.mode == "shadow":
         legacy = _legacy_api_update_task(*legacy_args)
-        candidate = store.task_update(
-            par,
-            **candidate_args,
-            expected_head=store.canonical_head,
-        )
+        try:
+            candidate = store.task_update(
+                par,
+                **candidate_args,
+                expected_head=store.canonical_head,
+            )
+        except Exception as error:
+            return _shadow_failure(legacy, context, error)
         return _shadow_result(legacy, candidate, context, _UPDATE_COMPARE_FIELDS)
     candidate = store.task_update(
         par,
@@ -1624,11 +1697,14 @@ def api_update_task_if_current(
         )
         if not legacy.get("ok"):
             return legacy
-        candidate = store.task_update_if_current(
-            candidate_identity,
-            status=status,
-            worker_session_id=worker_session_id,
-        )
+        try:
+            candidate = store.task_update_if_current(
+                candidate_identity,
+                status=status,
+                worker_session_id=worker_session_id,
+            )
+        except Exception as error:
+            return _shadow_failure(legacy, context, error)
         return _shadow_result(
             legacy,
             candidate,
@@ -1661,7 +1737,12 @@ def api_list_tasks(project: str = "", status: str = "",
     store = context.store
     assert store is not None
     legacy = _legacy_api_list_tasks(project, status, assignee)
-    candidate = store.task_list(project=project, status=status, assignee=assignee)
+    try:
+        candidate = store.task_list(project=project, status=status, assignee=assignee)
+    except Exception as error:
+        if context.mode == "shadow":
+            return _shadow_failure(legacy, context, error)
+        raise
     debt = _comparison_debt(legacy, candidate, ("tasks", "count"))
     if context.mode == "shadow":
         return {
@@ -1684,7 +1765,12 @@ def api_get_task(par: str, project: str = "") -> dict:
     store = context.store
     assert store is not None
     legacy = _legacy_api_get_task(par, project)
-    candidate = store.task_get(par, project=project)
+    try:
+        candidate = store.task_get(par, project=project)
+    except Exception as error:
+        if context.mode == "shadow":
+            return _shadow_failure(legacy, context, error)
+        raise
     if context.mode == "shadow":
         return _shadow_result(legacy, candidate, context, _GET_COMPARE_FIELDS)
     return _canonical_result(candidate, legacy, context, _GET_COMPARE_FIELDS)
@@ -1700,12 +1786,15 @@ def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str) ->
         legacy = _legacy_link_commits_to_task(task_ref, commits, project_id)
         if not legacy.get("ok"):
             return legacy
-        candidate = store.link_commits_to_task(
-            task_ref,
-            commits,
-            project_id,
-            expected_head=store.canonical_head,
-        )
+        try:
+            candidate = store.link_commits_to_task(
+                task_ref,
+                commits,
+                project_id,
+                expected_head=store.canonical_head,
+            )
+        except Exception as error:
+            return _shadow_failure(legacy, context, error)
         return _shadow_result(legacy, candidate, context, ("ok", "added"))
     candidate = store.link_commits_to_task(
         task_ref,

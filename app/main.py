@@ -344,50 +344,53 @@ async def lifespan(app: FastAPI):
     from app.session import validate_auto_compact_window_config
     validate_auto_compact_window_config()
     init_db()
-    from app.artifacts import cleanup_expired
-    cleanup_expired()
-    from app.models import refresh_models, is_proxy_connected
-    await refresh_models()
-    if is_auth_enabled() and not is_proxy_connected():
-        async def _proxy_retry_loop():
-            while not is_proxy_connected():
-                await asyncio.sleep(60)
-                await refresh_models()
-                if is_proxy_connected():
-                    logger.info("Proxy reconnected, models loaded")
-                    break
-        asyncio.create_task(_proxy_retry_loop())
-    await manager.auto_resume_all()
-    await recover_initial_deliveries()
-    await recover_message_deliveries()
-    # #230 T7: descriptors that came back for sessions nobody owns any more.
-    # Fail-closed inside: an EMPTY registry sweeps nothing.
-    swept = await manager.sweep_orphan_fds()
-    if swept:
-        logger.warning('orphan sweep closed pipes of %d unknown session(s)', swept)
-    from app.bootstrap import ensure_bootstrap
-    await ensure_bootstrap()
-    manager.start_background_tasks()
-    # #269: messages accepted while the previous process was restarting. In the background —
-    # a delivery runs the agent's turn, and startup must not wait for it.
-    schedule_restart_inbox_drain()
-    from app.bg_jobs import bg_manager
-    bg_manager.set_session_manager(manager)
-    await bg_manager.restore_from_db()
-    # TG-мост поднимаем фоном. Замер (docs/tasks/15/research.md): один только импорт
-    # app.tg_bridge стоит 4.05 с, из них 3.72 с — aiogram, и всё это время uvicorn не
-    # принимает запросы, а nginx отдаёт 502. Старт сервиса был 4.3-13.9 с; для приёма
-    # HTTP мост не нужен. Плата: polling TG стартует на несколько секунд позже, и команда
-    # из TG в это окно выполнится с задержкой (Telegram её не теряет).
-    bridge_task = asyncio.create_task(_start_bridge_background(manager))
-    from app.routes.system import _usage_snapshot_loop
-    snapshot_task = asyncio.create_task(_usage_snapshot_loop())
-    from app import rag_service
-    if rag_service.is_enabled():
-        rag_service.initialize()
-    from app.merge_operations import restore_merge_operations
-    await restore_merge_operations()
-    yield
+    from app.ia.runtime import knowledge_runtime_mode, production_runtime_config
+    with knowledge_runtime_mode(production_runtime_config()) as knowledge_owner:
+        app.state.knowledge_runtime = knowledge_owner
+        from app.artifacts import cleanup_expired
+        cleanup_expired()
+        from app.models import refresh_models, is_proxy_connected
+        await refresh_models()
+        if is_auth_enabled() and not is_proxy_connected():
+            async def _proxy_retry_loop():
+                while not is_proxy_connected():
+                    await asyncio.sleep(60)
+                    await refresh_models()
+                    if is_proxy_connected():
+                        logger.info("Proxy reconnected, models loaded")
+                        break
+            asyncio.create_task(_proxy_retry_loop())
+        await manager.auto_resume_all()
+        await recover_initial_deliveries()
+        await recover_message_deliveries()
+        # #230 T7: descriptors that came back for sessions nobody owns any more.
+        # Fail-closed inside: an EMPTY registry sweeps nothing.
+        swept = await manager.sweep_orphan_fds()
+        if swept:
+            logger.warning('orphan sweep closed pipes of %d unknown session(s)', swept)
+        from app.bootstrap import ensure_bootstrap
+        await ensure_bootstrap()
+        manager.start_background_tasks()
+        # #269: messages accepted while the previous process was restarting. In the background —
+        # a delivery runs the agent's turn, and startup must not wait for it.
+        schedule_restart_inbox_drain()
+        from app.bg_jobs import bg_manager
+        bg_manager.set_session_manager(manager)
+        await bg_manager.restore_from_db()
+        # TG-мост поднимаем фоном. Замер (docs/tasks/15/research.md): один только импорт
+        # app.tg_bridge стоит 4.05 с, из них 3.72 с — aiogram, и всё это время uvicorn не
+        # принимает запросы, а nginx отдаёт 502. Старт сервиса был 4.3-13.9 с; для приёма
+        # HTTP мост не нужен. Плата: polling TG стартует на несколько секунд позже, и команда
+        # из TG в это окно выполнится с задержкой (Telegram её не теряет).
+        bridge_task = asyncio.create_task(_start_bridge_background(manager))
+        from app.routes.system import _usage_snapshot_loop
+        snapshot_task = asyncio.create_task(_usage_snapshot_loop())
+        from app import rag_service
+        if rag_service.is_enabled():
+            rag_service.initialize()
+        from app.merge_operations import restore_merge_operations
+        await restore_merge_operations()
+        yield
     await _shutdown_runtime(
         _restart_inbox_drain,
         snapshot_task,

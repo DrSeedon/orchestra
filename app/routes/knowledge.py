@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.ia import knowledge
+from app.ia import runtime as knowledge_runtime
 from app.ia.evidence import EvidenceResolutionError
 from app.ia.events import EventConflictError
 from app.ia.schema import PrivacyViolationError
@@ -28,7 +29,15 @@ async def knowledge_request(request: Request):
     except ValueError:
         return _error("invalid_request", "knowledge request must be JSON", 400)
     try:
+        if knowledge_runtime.runtime_configured():
+            return knowledge_runtime.authorized_knowledge_request(request, payload)
         return knowledge.knowledge_api(payload)
+    except knowledge_runtime.KnowledgeAuthorizationError as exc:
+        return _error("knowledge_forbidden", str(exc), 403)
+    except knowledge_runtime.KnowledgeRequestError as exc:
+        return _error("invalid_request", str(exc), 400)
+    except knowledge_runtime.KnowledgeRuntimeError as exc:
+        return _error("knowledge_runtime_error", str(exc), 503)
     except knowledge.UnsupportedKnowledgeOperationError as exc:
         return _error("unsupported_operation", str(exc), 400)
     except knowledge.CanonicalKnowledgeUnavailableError as exc:
