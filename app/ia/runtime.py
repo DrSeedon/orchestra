@@ -354,6 +354,7 @@ class KnowledgeRuntime:
         self.scope_registry = self._scope_registry()
         self.state = self._runtime_state()
         self._task_projects = self._task_project_ids()
+        self._evidence_records_cache: list[dict[str, Any]] | None = None
         self.knowledge_service = None
         self.task_store = self._task_store()
         if self.state.get("active_owner") == "legacy" and self.state.get("generation") == 2:
@@ -725,6 +726,7 @@ class KnowledgeRuntime:
         ))
 
     def _import_scope_evidence(self) -> None:
+        self._evidence_records_cache = None
         imported = False
         evidence_less_scopes = []
         for scope, entry in sorted(self.scope_registry.items()):
@@ -801,8 +803,12 @@ class KnowledgeRuntime:
             self._commit_canonical("import pinned Git evidence")
 
     def evidence_records(self):
-        root = self._evidence_root()
-        return [_read_json(path) for path in sorted(root.glob("*/*.json"))]
+        cached = getattr(self, "_evidence_records_cache", None)
+        if cached is None:
+            root = self._evidence_root()
+            cached = [_read_json(path) for path in sorted(root.glob("*/*.json"))]
+            self._evidence_records_cache = cached
+        return copy.deepcopy(cached)
 
     def _evidence_content(self, record: Mapping[str, Any]) -> bytes:
         scope = _scope(str(record.get("source_scope") or ""))
