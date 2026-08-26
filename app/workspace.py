@@ -1708,8 +1708,15 @@ def merge_worktree_to_main(
             commit_point = "unknown"
             result["error"] = result.get("error") or f"merge ended in {prior_state}"
         elif result.get("ok"):
-            state = "merged"
-            commit_point = "target_committed" if target_changed else "not_reached"
+            if target_changed:
+                state = "merged"
+                commit_point = "target_committed"
+            else:
+                result["ok"] = False
+                result["code"] = "NO_COMMITS_MERGED"
+                result["error"] = result.get("error") or "merge produced no new commits"
+                state = "failed"
+                commit_point = "not_reached"
         elif target_commit_succeeded and target_changed:
             state = "partial"
             commit_point = "target_committed"

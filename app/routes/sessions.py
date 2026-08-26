@@ -105,7 +105,8 @@ def _existing_branch_verdict(worktree_path: str, branch: str, scope: str,
         "error": (
             f"branch '{branch}' has commits made after it was merged (head {head}, "
             f"merged {', '.join(proof['heads'])}, operation {proof['operation_id']}) — "
-            f"recreating it from base would destroy them; pass force=true to discard"
+            f"recreating this target branch from base would discard its commits; "
+            "the worker's current branch is unaffected; pass force=true to discard"
         ),
     }
 
@@ -1918,6 +1919,14 @@ async def execute_merge_session(
                     http_status=400,
                 )
 
+        if target == pinned_branch:
+            return _merge_not_reached(
+                f"target branch '{target}' is the worker branch; refusing to merge it into itself",
+                target_branch=target,
+                worker_branch=pinned_branch,
+                worker_head=pinned_head,
+            )
+
         if not await _wait_for_merge_idle(found):
             status = found.status.value
             return _merge_not_reached(
@@ -2049,6 +2058,21 @@ async def execute_merge_session(
                     "state": "partial",
                     "commit_point": "unknown",
                 }
+
+            if (
+                isinstance(result, dict)
+                and result.get("ok")
+                and result.get("target_before")
+                and result.get("target_before") == result.get("target_after")
+                and int(result.get("commits_merged") or 0) == 0
+            ):
+                result.update(
+                    ok=False,
+                    state="failed",
+                    commit_point="not_reached",
+                    code="NO_COMMITS_MERGED",
+                    error="merge produced no new commits",
+                )
 
             if isinstance(result, dict):
                 result["head_drift"] = drift["class"]
@@ -2282,6 +2306,11 @@ async def switch_branch(name: str, req: dict):
             return JSONResponse({"error": str(e)}, status_code=409)
     worktree_path = found.worktree_path
     session_id = found.id
+    previous_branch = getattr(found, "branch", "") or ""
+    previous_base_branch = getattr(found, "base_branch", "") or ""
+    previous_task_id = str(getattr(found, "task_id", "") or "")
+    previous_needs_switch = bool(getattr(found, "needs_switch", False))
+    previous_owned_dirs = list(getattr(found, "owned_dirs", []) or [])
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
     new_branch = f"task-{par}/{name}"
@@ -2371,6 +2400,7 @@ async def switch_branch(name: str, req: dict):
                                 "error": "task not updated because switched lifecycle was not persisted",
                             }
                             return result
+                        task_assignment_raised = False
                         try:
                             result["task_status"] = await asyncio.to_thread(
                                 _tm.api_update_task_if_current,
@@ -2378,9 +2408,54 @@ async def switch_branch(name: str, req: dict):
                                 status="in_progress",
                             )
                         except Exception as task_error:
+                            task_assignment_raised = True
                             detail = err_text(task_error)
                             result["task_status"] = {"ok": False, "error": detail}
                         if not result["task_status"].get("ok"):
+                            if task_assignment_raised and previous_branch:
+                                try:
+                                    rollback = await asyncio.to_thread(
+                                        switch_worktree_branch,
+                                        worktree_path,
+                                        previous_branch,
+                                        from_ref=previous_branch,
+                                        force=True,
+                                    )
+                                except Exception as rollback_error:
+                                    rollback = {
+                                        "ok": False,
+                                        "error": f"branch rollback failed: {err_text(rollback_error)}",
+                                    }
+                                if rollback.get("ok"):
+                                    try:
+                                        await manager.transition_lifecycle(
+                                            found,
+                                            branch=previous_branch,
+                                            base_branch=previous_base_branch,
+                                            task_id=previous_task_id,
+                                            needs_switch=previous_needs_switch,
+                                            owned_dirs=previous_owned_dirs,
+                                        )
+                                    except Exception as restore_error:
+                                        rollback = {
+                                            **rollback,
+                                            "ok": False,
+                                            "error": (
+                                                "branch rolled back but lifecycle restore failed: "
+                                                f"{err_text(restore_error)}"
+                                            ),
+                                        }
+                                if rollback.get("ok"):
+                                    result.update(
+                                        ok=False,
+                                        state="task_assignment_failed",
+                                        error=(
+                                            "branch switch rolled back after task assignment failed: "
+                                            f"{result['task_status']['error']}"
+                                        ),
+                                        rollback=rollback,
+                                    )
+                                    return result
                             quarantine_status = await _persist_lifecycle_quarantine(
                                 found,
                                 branch=switched_branch,
