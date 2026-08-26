@@ -13,6 +13,8 @@
 - git-issue stores editable text issue directories with Git push/pull and SHA identity; git-bug stores distributed issues as Git objects; TicGit stores git-meta ticket fields plus local git-meta.sqlite; git-issues stores Markdown/YAML issue files with numeric id examples · [W3][W4][W5][W6], 2026-08-23 #299
 - A Git-canonical task store with SQLite query projection is feasible without changing task/payment tool names if SQLite is projection-only and canonical_head is distinct from projection_head · synthesis backed by [W5][W7][W8] and current facade [L4], 2026-08-23 #299
 - Recommended identity is stable UUID/ULID plus preserved display #N, allocated from disjoint per-contour leases; at 601 tasks a 4-hex hash has 93.6146% birthday probability of at least one collision · measurement/math in docs/tasks/299/research.md §4, 2026-08-23 #299
+- Gen3 `task_create` timeout was synchronous rebuilding of the 540,897,280-byte shared current projection after canonical commit, not MCP/legacy I/O: interleaved A/B/A/B gave 36,821–36,893 ms in rebuild and 38,029–39,876 ms end-to-end before, versus 1,555–1,903 ms and 3,144–4,784 ms after same-head receipt sealing/retained resources; the first baseline share was 92.5% · `docs/tasks/408/measurements.md` + WAL-safe live-state harness · 2026-08-26 #405
+- `task-current.db` is a disposable projection of canonical Git: deleting it in a copy of the live 1,545-JSON/684-task corpus followed by an idempotent post-commit link rebuilt 684 rows in 848.743 ms, returned `ok=true, added=0`, and reproduced the canonical head exactly · `docs/tasks/408/measurements.md`; `tests/test_knowledge_runtime_debt_361.py` · 2026-08-26 #405
 
 ## Отвергнуто
 
@@ -21,6 +23,7 @@
 - Four-hex content-hash prefix as canonical ID · birthday collision probability is 93.6146% at n=601 and ≈99.9510% at n=1000 · 2026-08-23 #299
 - SQLite canonical plus Git export as the final portability architecture · stale/empty export requires an explicit side choice; beads_rust documents stale-export refusal and rebuild modes, while an independent SQLite+JSONL implementation documents a stable export interface · [W7][W8], 2026-08-23 #299
 - One shared append-only JSONL as the primary write shape · every contour touches one merge-hotspot path; per-task records/events are needed for concurrent writers · historical Phase-1 snapshot had 1,281 revisions and 486 links, while later recheck observed 489 links, so neither count is a timeless AC · 2026-08-23 #299
+- Increasing the 30-second MCP timeout for long task descriptions · 3,500-character A/B showed MCP+HTTP overhead 3.294–6.109 ms and legacy SQLite 5.682–10.903 ms while the obsolete projection rebuild alone took 36.8 s; a larger deadline would hide duplicated work after the canonical write · `docs/tasks/408/measurements.md` · 2026-08-26 #405
 
 ## Пробелы
 

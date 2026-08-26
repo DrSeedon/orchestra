@@ -174,6 +174,54 @@ def _resource_rows_sha256(
     return _digest(sorted((row[0], row[5]) for row in prepared if row[1] == "resource"))
 
 
+def _expected_resources(
+    records: Sequence[Mapping[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    expected: dict[str, dict[str, Any]] = {}
+    for raw in records:
+        resource = copy.deepcopy(dict(raw))
+        identity = _identity(resource)
+        if identity[0] != "resource" or not identity[1]:
+            raise ProjectionDebtError("retained resource identity is invalid")
+        record_key = f"resource:{identity[1]}"
+        if record_key in expected:
+            raise ProjectionDebtError("retained resource identity is duplicated")
+        expected[record_key] = resource
+    return expected
+
+
+def _stored_resource_rows(
+    connection: sqlite3.Connection,
+) -> list[tuple[str, str, str, str, str, str, str, str]]:
+    return [
+        (
+            str(row["record_key"]),
+            "resource",
+            "",
+            "",
+            "",
+            str(row["payload_sha256"]),
+            "",
+            "",
+        )
+        for row in connection.execute(
+            "SELECT record_key,payload_sha256 FROM current_records "
+            "WHERE record_type='resource' ORDER BY record_key"
+        )
+    ]
+
+
+def _resource_fts_is_exact(
+    connection: sqlite3.Connection,
+    expected: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    rows = connection.execute(
+        "SELECT record_key,count(*) FROM current_fts GROUP BY record_key"
+    ).fetchall()
+    stored = {str(row[0]): int(row[1]) for row in rows if str(row[0]).startswith("resource:")}
+    return set(stored) == set(expected) and all(count == 1 for count in stored.values())
+
+
 class SQLiteProjectionBackend:
     """Replaceable SQLite current rows plus an FTS5 search index."""
 
@@ -256,6 +304,80 @@ class SQLiteProjectionBackend:
             )
         return {"projection_head": canonical_head, "count": len(prepared)}
 
+    def seal_current_resources(
+        self,
+        *,
+        resource_records: Sequence[Mapping[str, Any]],
+        canonical_head: str,
+    ) -> Mapping[str, Any] | None:
+        """Validate and receipt a same-head projection created before resource receipts."""
+
+        expected = _expected_resources(resource_records)
+        manifest_sha = _resource_manifest_sha256(resource_records)
+        with self._connection() as connection:
+            meta = connection.execute(
+                "SELECT projection_head,resource_manifest_sha256,resource_rows_sha256 "
+                "FROM projection_meta WHERE singleton=1"
+            ).fetchone()
+            if meta is None or str(meta["projection_head"]) != canonical_head:
+                return None
+            stored_rows = _stored_resource_rows(connection)
+            rows_sha = _resource_rows_sha256(stored_rows)
+            if (
+                len(stored_rows) != len(expected)
+                or not _resource_fts_is_exact(connection, expected)
+            ):
+                return None
+
+            stored_manifest = str(meta["resource_manifest_sha256"])
+            stored_rows_sha = str(meta["resource_rows_sha256"])
+            if stored_manifest or stored_rows_sha:
+                if stored_manifest != manifest_sha or stored_rows_sha != rows_sha:
+                    return None
+                return {
+                    "projection_head": canonical_head,
+                    "retained_resources": len(expected),
+                    "outcome": "verified",
+                }
+
+            payloads = connection.execute(
+                "SELECT record_key,payload_sha256,payload_json FROM current_records "
+                "WHERE record_type='resource' ORDER BY record_key"
+            ).fetchall()
+            for row in payloads:
+                record_key = str(row["record_key"])
+                payload = str(row["payload_json"])
+                if (
+                    f"sha256:{hashlib.sha256(payload.encode('utf-8')).hexdigest()}"
+                    != str(row["payload_sha256"])
+                ):
+                    return None
+                try:
+                    projected = json.loads(payload)
+                except json.JSONDecodeError:
+                    return None
+                if not isinstance(projected, dict):
+                    return None
+                content = projected.pop("content", None)
+                source = expected.get(record_key)
+                if projected != source or not isinstance(content, str):
+                    return None
+                if (
+                    f"sha256:{hashlib.sha256(content.encode('utf-8')).hexdigest()}"
+                    != source.get("source_sha256")
+                ):
+                    return None
+            connection.execute(
+                "UPDATE projection_meta SET resource_manifest_sha256=?,resource_rows_sha256=? "
+                "WHERE singleton=1",
+                (manifest_sha, rows_sha),
+            )
+        return {
+            "projection_head": canonical_head,
+            "retained_resources": len(expected),
+            "outcome": "sealed",
+        }
+
     def replace_current_retaining_resources(
         self,
         *,
@@ -269,16 +391,7 @@ class SQLiteProjectionBackend:
         if any(row[1] == "resource" for row in prepared):
             raise ProjectionDebtError("mutable projection rows cannot be resources")
 
-        expected: dict[str, dict[str, Any]] = {}
-        for raw in resource_records:
-            resource = copy.deepcopy(dict(raw))
-            identity = _identity(resource)
-            if identity[0] != "resource" or not identity[1]:
-                raise ProjectionDebtError("retained resource identity is invalid")
-            record_key = f"resource:{identity[1]}"
-            if record_key in expected:
-                raise ProjectionDebtError("retained resource identity is duplicated")
-            expected[record_key] = resource
+        expected = _expected_resources(resource_records)
 
         with self._connection() as connection:
             meta = connection.execute(
@@ -291,34 +404,14 @@ class SQLiteProjectionBackend:
                 != _resource_manifest_sha256(resource_records)
             ):
                 return None
-            stored_resource_rows = [
-                (
-                    str(row["record_key"]),
-                    "resource",
-                    "",
-                    "",
-                    "",
-                    str(row["payload_sha256"]),
-                    "",
-                    "",
-                )
-                for row in connection.execute(
-                    """SELECT record_key,payload_sha256 FROM current_records
-                       WHERE record_type='resource' ORDER BY record_key"""
-                )
-            ]
+            stored_resource_rows = _stored_resource_rows(connection)
             if (
                 len(stored_resource_rows) != len(expected)
                 or _resource_rows_sha256(stored_resource_rows)
                 != str(meta["resource_rows_sha256"])
             ):
                 return None
-            fts_count = connection.execute(
-                """SELECT count(*) FROM current_fts f
-                   JOIN current_records c ON c.record_key=f.record_key
-                   WHERE c.record_type='resource'"""
-            ).fetchone()[0]
-            if int(fts_count) != len(expected):
+            if not _resource_fts_is_exact(connection, expected):
                 return None
 
             connection.execute(
