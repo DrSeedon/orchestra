@@ -76,6 +76,7 @@ def test_t1_store_fds_sends_fdstore_payload_with_scm_rights(tmp_path, monkeypatc
     server.bind(str(sock_path))
     server.settimeout(5)  # a regression must FAIL, not hang the suite
     monkeypatch.setenv("NOTIFY_SOCKET", str(sock_path))
+    monkeypatch.setenv("SYSTEMD_EXEC_PID", str(os.getpid()))
 
     r, w = os.pipe()
     try:
@@ -119,6 +120,25 @@ def test_t1_store_failure_is_loud(monkeypatch):
     finally:
         os.close(r)
         os.close(w)
+
+
+def test_t1_store_rejects_inherited_systemd_notify_socket(tmp_path, monkeypatch):
+    sock_path = tmp_path / "foreign-notify.sock"
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    server.bind(str(sock_path))
+    server.settimeout(0.1)
+    monkeypatch.setenv("NOTIFY_SOCKET", str(sock_path))
+    monkeypatch.setenv("SYSTEMD_EXEC_PID", str(os.getpid() + 1))
+    read_fd, write_fd = os.pipe()
+    try:
+        with pytest.raises(fdstore.FdStoreUnavailable, match="does not name this process"):
+            fdstore.store_fds("agent.session.stdin", [read_fd])
+        with pytest.raises(TimeoutError):
+            server.recv(1024)
+    finally:
+        server.close()
+        os.close(read_fd)
+        os.close(write_fd)
 
 
 def test_ready_notification_is_sent_only_by_the_systemd_main_process(tmp_path, monkeypatch):
