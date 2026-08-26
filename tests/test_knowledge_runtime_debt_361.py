@@ -102,7 +102,9 @@ def _git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(root), *args], text=True).strip()
 
 
-def test_t6_scope_evidence_policy_distinguishes_none_broken_git_and_working_git(tmp_path):
+def test_t6_scope_evidence_policy_distinguishes_none_broken_git_and_working_git(
+    tmp_path, monkeypatch,
+):
     non_git = tmp_path / "media"
     non_git.mkdir()
     owner = _owner(tmp_path / "none")
@@ -188,6 +190,21 @@ def test_t6_scope_evidence_policy_distinguishes_none_broken_git_and_working_git(
         "# second evidence\n",
         "# working evidence\n",
     ]
+    from app.ia import runtime as runtime_module
+
+    original_read_json = runtime_module._read_json
+
+    def no_cached_evidence_reread(path):
+        if "evidence" in Path(path).parts:
+            pytest.fail("immutable evidence descriptors were reread after cache fill")
+        return original_read_json(path)
+
+    monkeypatch.setattr(runtime_module, "_read_json", no_cached_evidence_reread)
+    cached = working.evidence_records()
+    cached[0]["source_path"] = "caller mutation"
+    assert "caller mutation" not in {
+        record["source_path"] for record in working.evidence_records()
+    }
 
 
 def _resource(content: bytes) -> dict:
