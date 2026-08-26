@@ -23,36 +23,39 @@ Make sure needed commits are in main and pushed to GitHub.
 
 ### 2. Update code on VPS
 ```bash
-ssh -o StrictHostKeyChecking=no root@orchestra.zahoron.ru "cd /opt/orchestra && git pull origin main"
+ssh root@158.220.127.161 \
+  "sudo -u kesha git -C /home/kesha/orchestra pull --ff-only origin main"
 ```
 
 ### 3. Restart the service
 ```bash
-ssh -o StrictHostKeyChecking=no root@orchestra.zahoron.ru "systemctl restart orchestra"
+ssh root@158.220.127.161 "systemctl restart orchestra"
 ```
 `uv sync` runs automatically via `ExecStartPre` — dependencies install themselves.
 
 ### 4. Verify it's running
 ```bash
-ssh -o StrictHostKeyChecking=no root@orchestra.zahoron.ru "sleep 3 && systemctl status orchestra --no-pager | head -8"
-curl -s --max-time 10 -o /dev/null -w '%{http_code}' https://orchestra.zahoron.ru
+ssh root@158.220.127.161 "sleep 3 && systemctl status orchestra --no-pager | head -8"
+curl -s --max-time 10 -o /dev/null -w '%{http_code}' https://orc.seedon.ru
 ```
 Expected: `active (running)` + HTTP 302 (redirect to login).
 
 ### 5. If it crashed — diagnose
 ```bash
-ssh -o StrictHostKeyChecking=no root@orchestra.zahoron.ru "journalctl -u orchestra -n 30 --no-pager"
+ssh root@158.220.127.161 "journalctl -u orchestra -n 30 --no-pager"
 ```
 
 ## Rules
 - **Do NOT deploy** while a worker is actively fixing something — wait for DONE
 - **Do NOT deploy** untested code — run tests locally first
 - **Always verify** that the service started after restart
-- On `ModuleNotFoundError` — `uv sync` should fix it (it's in ExecStartPre). If not — `ssh root@orchestra.zahoron.ru "cd /opt/orchestra && uv sync"`
+- Read `~/.claude/docs/vps-registry.md` before connecting; it is the source of truth for the host.
+- Zahoron is an archived client contour. Never deploy, update, or restart it from this skill.
+- On `ModuleNotFoundError`, diagnose the pinned interpreter from the effective unit; do not run an unpinned `uv sync` in production.
 
 ## VPS parameters
-- Host: `root@orchestra.zahoron.ru`
-- Path: `/opt/orchestra`
+- Host: `root@158.220.127.161` (Contabo)
+- Path: `/home/kesha/orchestra`
 - Service: `orchestra.service`
-- URL: `https://orchestra.zahoron.ru`
-- User: `orchestra` (systemd)
+- URL: `https://orc.seedon.ru`
+- User: `kesha` (systemd)
