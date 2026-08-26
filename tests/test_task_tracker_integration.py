@@ -358,6 +358,109 @@ async def test_t2_bound_task_and_outcome_are_validated_before_git(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_t2_merge_rejects_target_equal_worker_branch_before_git(monkeypatch):
+    """A stale base pointing at the worker branch cannot close its bound task."""
+    import app.routes.sessions as sessions_route
+    from app import tm
+    from app.db import get_session
+
+    _init_db()
+    _seed_project()
+    with tm._conn() as connection:
+        task = tm.create_task(
+            connection, "project", "Bound task", par_number=42, status="in_progress",
+        )
+        connection.execute(
+            "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
+            ("self-target-worker", task["id"]),
+        )
+    _save_worker(session_id="self-target-worker", task_id="42")
+    found = _prepare_merge(monkeypatch, session_id="self-target-worker")
+    monkeypatch.setattr(
+        sessions_route, "_session_base_branch", lambda *_args: found.branch,
+    )
+    merge = MagicMock()
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", merge)
+
+    result = await sessions_route.execute_merge_session(
+        session_id=found.id,
+        expected_name=found.name,
+        expected_scope=found.scope,
+        expected_branch=found.branch,
+        expected_head="a" * 40,
+        req={
+            "scope": "/scope",
+            "task_outcome": "complete",
+            "merge_schema_version": 2,
+        },
+    )
+
+    assert result["ok"] is False
+    assert result["commit_point"] == "not_reached"
+    assert "worker branch" in result["error"]
+    merge.assert_not_called()
+    with tm._conn() as connection:
+        unchanged = tm.get_task_by_id(connection, task["id"])
+    assert (unchanged["status"], unchanged["worker_session_id"]) == (
+        "in_progress", "self-target-worker",
+    )
+    assert get_session(found.id)["task_id"] == "42"
+
+
+@pytest.mark.asyncio
+async def test_t2_zero_commit_merge_does_not_close_task(monkeypatch):
+    """A no-op merge is a failed pre-commit outcome, not a completed task."""
+    import app.routes.sessions as sessions_route
+    from app import tm
+    from app.db import get_session
+
+    _init_db()
+    _seed_project()
+    with tm._conn() as connection:
+        task = tm.create_task(
+            connection, "project", "No-op task", par_number=42, status="in_progress",
+        )
+        connection.execute(
+            "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
+            ("noop-worker", task["id"]),
+        )
+    _save_worker(session_id="noop-worker", task_id="42")
+    found = _prepare_merge(monkeypatch, session_id="noop-worker")
+    merge = MagicMock(return_value={
+        "ok": True,
+        "commits_merged": 0,
+        "branch": found.branch,
+        "merged_commits": {},
+        "target_before": "a" * 40,
+        "target_after": "a" * 40,
+    })
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", merge)
+
+    result = await sessions_route.execute_merge_session(
+        session_id=found.id,
+        expected_name=found.name,
+        expected_scope=found.scope,
+        expected_branch=found.branch,
+        expected_head="a" * 40,
+        req={
+            "scope": "/scope",
+            "task_outcome": "complete",
+            "merge_schema_version": 2,
+        },
+    )
+
+    assert result["ok"] is False
+    assert result["commit_point"] == "not_reached"
+    assert result["code"] == "NO_COMMITS_MERGED"
+    assert "no new commits" in result["error"]
+    merge.assert_called_once()
+    with tm._conn() as connection:
+        unchanged = tm.get_task_by_id(connection, task["id"])
+    assert unchanged["status"] == "in_progress"
+    assert get_session(found.id)["task_id"] == "42"
+
+
+@pytest.mark.asyncio
 async def test_t2_unknown_commit_header_is_rejected_before_target_mutation(
     monkeypatch, tmp_path,
 ):
@@ -926,6 +1029,72 @@ def test_t3_links_survive_late_finalizer_failure(monkeypatch):
     )
     assert result["task_links"]["status"] == "SUCCEEDED"
     assert set(result["task_links"]["items"]) == {"590", "591"}
+
+
+@pytest.mark.asyncio
+async def test_t3_switch_assignment_exception_rolls_back_branch_and_lifecycle(monkeypatch):
+    """A binding exception compensates the Git switch instead of quarantining a dead worker."""
+    import app.routes.sessions as sessions_route
+    from app import tm
+    from app.db import get_session
+    from app.manager import SessionManager
+
+    _init_db()
+    _seed_project()
+    with tm._conn() as connection:
+        task = tm.create_task(
+            connection, "project", "Current", par_number=90, status="in_progress",
+        )
+        connection.execute(
+            "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
+            ("switch-exception-worker", task["id"]),
+        )
+    _save_worker(session_id="switch-exception-worker", task_id="90")
+    local_manager = SessionManager()
+    found = local_manager.get_by_name("switch-exception-worker", "/scope")
+    monkeypatch.setattr(sessions_route, "manager", local_manager)
+    monkeypatch.setattr(sessions_route, "_session_base_branch", lambda *_args: "main")
+    monkeypatch.setattr(
+        sessions_route,
+        "_existing_branch_verdict",
+        lambda *_args, **_kwargs: {
+            "recreate_from_base": False, "discard_current": False,
+        },
+    )
+    monkeypatch.setattr(
+        "app.tm.resolve_scoped_task_identity",
+        lambda *_args: {
+            "id": 91, "project_id": "project", "par_number": 91,
+            "sync_revision": 0,
+        },
+    )
+    switch_calls = []
+
+    def fake_switch(_worktree, branch, from_ref="", force=False, **_kwargs):
+        switch_calls.append((branch, from_ref, force))
+        return {"ok": True, "branch": branch}
+
+    monkeypatch.setattr("app.workspace.switch_worktree_branch", fake_switch)
+    monkeypatch.setattr(
+        "app.tm.api_update_task_if_current",
+        MagicMock(side_effect=RuntimeError("injected binding failure")),
+    )
+
+    result = await sessions_route.switch_branch(
+        "switch-exception-worker",
+        {"scope": "/scope", "task_id": "91", "force": True},
+    )
+
+    assert result["ok"] is False
+    assert result["state"] == "task_assignment_failed"
+    assert result["rollback"]["ok"] is True
+    assert [call[0] for call in switch_calls] == [
+        "task-91/switch-exception-worker", "task-90/switch-exception-worker",
+    ]
+    row = get_session(found.id)
+    assert (row["branch"], row["base_branch"], row["task_id"], row["needs_switch"]) == (
+        "task-90/switch-exception-worker", "main", "90", 0,
+    )
 
 
 @pytest.mark.asyncio

@@ -938,6 +938,11 @@ def _classify_failure(raw: dict[str, Any], message: str) -> tuple[str, dict[str,
             "REFRESH_TARGET_THEN_NEW_OPERATION",
             "Target moved after admission; start a fresh merge operation.",
         )
+    if raw.get("code") == "NO_COMMITS_MERGED":
+        return "NO_COMMITS_MERGED", details, _action(
+            "CHECK_WORKER_THEN_NEW_OPERATION",
+            "No commits reached the target branch; verify the worker branch before retrying.",
+        )
     if raw.get("conflicts"):
         details["paths"] = list(raw["conflicts"])
         return "CONFLICT", details, _action(
