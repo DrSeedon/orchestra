@@ -186,6 +186,11 @@ rule had to be withdrawn by rolling prompts back to `search_memory`. A broken pr
 agent in every project at once; unused code breaks nobody. If the live gate fails, roll back the
 PROMPT, never the runtime.
 
+At the generation-2 prompt-delivery step, `knowledge` is optional and the existing `search_memory`
+MCP tool remains exposed because `modules/memory-search.md` still requires it. Removing that
+compatibility tool belongs to a separate future ticket only after generation 3 has replaced every
+mandatory prompt consumer; it is explicitly not part of #361.
+
 ### T6 — Live shadow, canonical cutover, query, and worker release
 
 - Files: production state only through `scripts/activate_knowledge.py`; `docs/tasks/361/report.md`.

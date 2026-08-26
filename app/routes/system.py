@@ -490,7 +490,7 @@ async def patch_model_flags(request: Request):
 
 @router.get("/api/stats")
 async def stats(scope: Optional[str] = None):
-    return manager.stats(scope)
+    return await asyncio.to_thread(manager.stats, scope)
 
 
 # ── Usage (subscription limits) ──

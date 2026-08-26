@@ -396,6 +396,8 @@ async def lifespan(app: FastAPI):
             rag_service.initialize()
         from app.merge_operations import restore_merge_operations
         await restore_merge_operations()
+        if _fdstore.notify_ready():
+            logger.info("systemd readiness published after application startup gates")
         yield
     await _shutdown_runtime(
         _restart_inbox_drain,
