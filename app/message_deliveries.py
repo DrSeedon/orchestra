@@ -380,13 +380,27 @@ class MessageDeliveryContext:
             mark_message_delivery_unknown(self.delivery_id, error)
 
 
+# Голова очереди — первое НЕЗАВЕРШЁННОЕ сообщение. Раньше здесь стояло только
+# `state != 'SUBMITTED'`, поэтому `FAILED_BEFORE_SUBMIT` (например от QuotaGateError)
+# навсегда вставал во главе: `ensure_target_runner` видел «голова не QUEUED» и молча
+# выходил, а всё пришедшее ПОСЛЕ не отправлялось никогда. Воркер выглядел живым и глухим —
+# 26.08 так потерялись 6 заданий подряд, отправитель получал QUEUED на каждое.
+#
+# `DELIVERY_UNKNOWN` в этот набор НЕ входит и входить не должен: он означает «неизвестно,
+# ушло ли», и барьер там СОЗНАТЕЛЬНЫЙ (#380 R7) — пропустив его, мы рискуем доставить
+# следующее сообщение раньше, чем выяснится судьба предыдущего, то есть переставить
+# порядок или продублировать. Отказ ДО отправки такой неоднозначности не создаёт.
+_TERMINAL_DELIVERY_STATES = ("SUBMITTED", "FAILED_BEFORE_SUBMIT")
+
+
 def _next_target_delivery(target_session_id: str) -> sqlite3.Row | None:
+    placeholders = ",".join("?" * len(_TERMINAL_DELIVERY_STATES))
     with db._conn() as connection:
         return connection.execute(
-            """SELECT * FROM message_deliveries
-               WHERE target_session_id=? AND state != 'SUBMITTED'
+            f"""SELECT * FROM message_deliveries
+               WHERE target_session_id=? AND state NOT IN ({placeholders})
                ORDER BY accept_seq LIMIT 1""",
-            (target_session_id,),
+            (target_session_id, *_TERMINAL_DELIVERY_STATES),
         ).fetchone()
 
 
@@ -430,7 +444,10 @@ async def run_target_message_deliveries(target_session_id: str, manager=None) ->
                 return False
             await run_message_delivery(head["delivery_id"], manager=manager)
             current = _row(head["delivery_id"])
-            if current is not None and current["state"] != "SUBMITTED":
+            # Терминальный ОТКАЗ этого сообщения не должен останавливать очередь: следующие
+            # к нему отношения не имеют. Останавливаемся только если сообщение осталось
+            # незавершённым — тогда повтор бессмысленен и его подхватит следующий заход.
+            if current is not None and current["state"] not in _TERMINAL_DELIVERY_STATES:
                 return False
 
 
