@@ -379,7 +379,7 @@ def test_t5_prompt_and_restart_delivery_preserve_native_sessions(tmp_path, monke
         }
     assert observed == sessions
     tools = {tool.name for tool in mcp._tool_manager.list_tools()}
-    assert "knowledge" in tools and "search_memory" not in tools
+    assert "knowledge" in tools and "search_memory" in tools
 
     for service in (Path("deploy/orchestra.service"), Path("deploy/orchestra.service.template")):
         assert "StateDirectory=orchestra" in service.read_text()
