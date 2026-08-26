@@ -257,7 +257,7 @@ class TurnManager:
             )
             if fan_barrier.record_terminal(
                 s.name,
-                "done",
+                "done" if s._last_turn_ok else "failed",
                 summary=silent_text,
                 require_drained_scope=s.scope,
             ):
