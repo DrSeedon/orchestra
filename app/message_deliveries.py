@@ -259,7 +259,7 @@ def prepare_message_delivery(delivery_id: str) -> dict:
 
 
 def _update_state(delivery_id: str, state: str, *, provider_ref: str | None = None,
-                  error: dict | None = None) -> dict:
+                  error: dict | None = None, clear_user_log: bool = False) -> dict:
     with db._conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
@@ -273,6 +273,15 @@ def _update_state(delivery_id: str, state: str, *, provider_ref: str | None = No
             "UPDATE message_deliveries SET state=?, provider_ref=?, error_json=?, updated_at=? WHERE delivery_id=?",
             (state, *values),
         )
+        if clear_user_log and row["user_log_id"] is not None:
+            connection.execute(
+                "DELETE FROM logs WHERE id=? AND session_id=? AND type='user_message'",
+                (row["user_log_id"], row["target_session_id"]),
+            )
+            connection.execute(
+                "UPDATE message_deliveries SET user_log_id=NULL WHERE delivery_id=?",
+                (delivery_id,),
+            )
         row = connection.execute(
             "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,)
         ).fetchone()
@@ -312,7 +321,16 @@ def _failure(error: BaseException) -> dict:
 
 
 def mark_message_delivery_failed_before_submit(delivery_id: str, error: BaseException) -> dict:
-    return _update_state(delivery_id, "FAILED_BEFORE_SUBMIT", error=_failure(error))
+    from app.quota_gate import QuotaGateError
+
+    # A quota refusal is known before any provider work; retaining its prepared
+    # user-log would make the dashboard claim that a turn was delivered.
+    return _update_state(
+        delivery_id,
+        "FAILED_BEFORE_SUBMIT",
+        error=_failure(error),
+        clear_user_log=isinstance(error, QuotaGateError),
+    )
 
 
 def mark_message_delivery_unknown(delivery_id: str, error: BaseException, *, orphaned: bool = False) -> dict:

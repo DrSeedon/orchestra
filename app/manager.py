@@ -1152,6 +1152,16 @@ class SessionManager:
         await _wait_owned_task(delivery_task)
         delivery_task.result()
 
+    async def preflight_message_delivery(self, session_id: str) -> None:
+        """Run the target's new-turn gate before accepting a direct receipt."""
+        session = self.sessions.get(session_id)
+        if session is None:
+            row = get_session(session_id)
+            session = self._hydrate_row(row) if row else None
+        if session is None:
+            raise KeyError(f"session not found: {session_id}")
+        await session.preflight_delivery_admission()
+
     async def interrupt(self, session_id: str) -> None:
         session = self.sessions.get(session_id)
         if session:

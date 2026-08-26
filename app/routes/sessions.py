@@ -731,6 +731,8 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 if name != existing["target_name"]:
                     conflict, conflict_status = message_deliveries._conflict(delivery_id)
                     return JSONResponse(conflict, status_code=conflict_status)
+                if existing["state"] == "FAILED_BEFORE_SUBMIT":
+                    await manager.preflight_message_delivery(existing["target_session_id"])
                 resource, status_code = await message_deliveries.accept_message_delivery(
                     delivery_id=delivery_id,
                     source_session_id=source_id or None,
@@ -817,6 +819,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     },
                     status_code=404,
                 )
+            await manager.preflight_message_delivery(target.id)
             target_generation = (
                 f"session={target.id}|task={getattr(target, 'task_id', '')}|"
                 f"branch={getattr(target, 'branch', '')}|"

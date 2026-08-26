@@ -104,6 +104,30 @@ def test_delivery_unknown_still_blocks_on_purpose(tmp_path, patched_conn):
     assert "DELIVERY_UNKNOWN" not in message_deliveries._TERMINAL_DELIVERY_STATES
 
 
+@pytest.mark.asyncio
+async def test_delivery_unknown_head_does_not_send_later_message(tmp_path, patched_conn):
+    connection = _make_db(
+        tmp_path,
+        [
+            (1, "ambiguous", "sess", "DELIVERY_UNKNOWN"),
+            (2, "later", "sess", "QUEUED"),
+        ],
+    )
+    patched_conn(connection)
+    calls = []
+
+    class Manager:
+        async def send_message_delivery(self, *args, **kwargs):
+            calls.append((args, kwargs))
+
+    drained = await message_deliveries.run_target_message_deliveries(
+        "sess", manager=Manager(),
+    )
+
+    assert drained is False
+    assert calls == []
+
+
 def test_in_flight_states_are_not_skipped(tmp_path, patched_conn):
     """Обратное плечо: PREPARING/DISPATCHING — НЕ терминальные, их пропускать нельзя."""
     connection = _make_db(
