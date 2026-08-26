@@ -747,7 +747,9 @@ async def refresh_models() -> None:
     apply_model_catalog()
     from app.auth import is_auth_enabled
     enterprise = is_auth_enabled()
-    has_proxy = bool(os.environ.get("HTTPS_PROXY") or os.environ.get("ANTHROPIC_BASE_URL"))
+    # HTTPS_PROXY is only transport. Treating it as a model-registry endpoint makes a
+    # normal proxied laptop call Anthropic's `/v1/models` without API auth on every startup.
+    has_proxy = bool(os.environ.get("ANTHROPIC_BASE_URL") or os.environ.get("UPSTREAM_API"))
     if not has_proxy:
         validate_model_registry()
         logger.info(f"No proxy configured, using {len(MODELS)} hardcoded models")

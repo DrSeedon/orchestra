@@ -168,6 +168,18 @@ def test_t6_scope_evidence_policy_distinguishes_none_broken_git_and_working_git(
     assert records[0]["git_commit"] == _git(git_root, "rev-parse", "HEAD")
     assert working.state["evidence_less_scopes"] == []
 
+    # Startup repeats this import for every live scope. A content-addressed evidence record
+    # that already exists must not read the same Git blob again.
+    original_source_git = working._source_git
+
+    def no_redundant_blob_read(root, *args, **kwargs):
+        if args[:2] == ("cat-file", "blob"):
+            pytest.fail("existing immutable evidence reread its Git blob")
+        return original_source_git(root, *args, **kwargs)
+
+    working._source_git = no_redundant_blob_read
+    working._import_scope_evidence()
+
 
 class _ParityStore:
     def __init__(self):

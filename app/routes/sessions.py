@@ -243,7 +243,11 @@ def _conditional(request: Request, payload) -> Response:
 
 @router.get("/api/sessions")
 async def list_sessions(request: Request, scope: Optional[str] = None):
-    return _conditional(request, manager.list_sessions(scope))
+    # Snapshotting 80+ live/persisted sessions performs two SQLite reads and JSON-ready
+    # projection. Keep that work off the event loop so one cold disk/swap page cannot freeze
+    # SSE and make every browser retry the same request at once.
+    payload = await asyncio.to_thread(manager.list_sessions, scope)
+    return _conditional(request, payload)
 
 
 @router.post("/api/sessions", status_code=201)
