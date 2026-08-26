@@ -23,6 +23,7 @@ class ProjectionDebtError(RuntimeError):
 _ZERO_HEAD = "sha256:" + "0" * 64
 _HEAD_FIELDS = {"canonical_head", "projection_head", "indexed_head", "source"}
 _WORD = re.compile(r"\w+", re.UNICODE)
+_SUMMARY_CONTENT_LIMIT = 300
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -98,6 +99,15 @@ def _truth(record: Mapping[str, Any]) -> dict[str, Any]:
         for key, value in record.items()
         if key not in _HEAD_FIELDS
     }
+
+
+def _summary_item(item: Mapping[str, Any]) -> dict[str, Any]:
+    result = copy.deepcopy(dict(item))
+    content = result.get("content")
+    if isinstance(content, str):
+        result["content_length"] = len(content)
+        result["content"] = content[:_SUMMARY_CONTENT_LIMIT]
+    return result
 
 
 class SQLiteProjectionBackend:
@@ -577,6 +587,8 @@ def query_current(request: Mapping[str, Any] | None = None, **kwargs: Any) -> Ma
             raise ProjectionDebtError("projection query payload must be a mapping")
         value.update(copy.deepcopy(dict(nested)))
     result = _query_projection(value)
+    if value.get("detail", "record") == "summary":
+        result["items"] = [_summary_item(item) for item in result["items"]]
     return {
         "operation": value.get("operation", "query"),
         "detail": value.get("detail", "record"),
