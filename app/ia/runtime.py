@@ -913,9 +913,7 @@ class KnowledgeRuntime:
                 contents[str(record["stable_id"])] = content
         return contents
 
-    def _projection_records(self) -> list[dict[str, Any]]:
-        from app.ia.schema import _SECRET_VALUE
-
+    def _mutable_projection_records(self) -> list[dict[str, Any]]:
         records = [copy.deepcopy(state) for state in self.task_store.states().values()]
         if self.knowledge_service is not None:
             records.extend(
@@ -923,6 +921,32 @@ class KnowledgeRuntime:
                 for record in self.knowledge_service._facts()
                 if record.get("status") == "current"
             )
+        return records
+
+    def _retained_evidence_records(self) -> list[dict[str, Any]]:
+        excluded = set()
+        for path in sorted((self.config.state_root / "debt").glob("*.json")):
+            debt = _read_json(path)
+            if debt.get("reason") not in {"secret_candidate_in_evidence", "non_utf8_evidence"}:
+                continue
+            excluded.add((
+                str(debt.get("project_id") or ""),
+                str(debt.get("source_path") or ""),
+                str(debt.get("source_sha256") or ""),
+            ))
+        return [
+            record for record in self.evidence_records()
+            if (
+                str(record.get("project_id") or ""),
+                str(record.get("source_path") or ""),
+                str(record.get("source_sha256") or ""),
+            ) not in excluded
+        ]
+
+    def _projection_records(self) -> list[dict[str, Any]]:
+        from app.ia.schema import _SECRET_VALUE
+
+        records = self._mutable_projection_records()
         evidence = self.evidence_records()
         evidence_contents = self._evidence_contents(evidence)
         for record in evidence:
@@ -965,6 +989,13 @@ class KnowledgeRuntime:
             except sqlite3.Error:
                 pass
         backend = SQLiteProjectionBackend(path=self.paths["current_projection"])
+        retained = backend.replace_current_retaining_resources(
+            records=self._mutable_projection_records(),
+            resource_records=self._retained_evidence_records(),
+            canonical_head=self.state["canonical_head"],
+        )
+        if retained is not None:
+            return
         backend.replace_current(
             records=self._projection_records(),
             canonical_head=self.state["canonical_head"],

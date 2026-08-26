@@ -1247,6 +1247,8 @@ function connectSSE(fromHistoryLoad) {
                 if (_chatSessionId && l.session_id !== _chatSessionId) return _onForeignSession(targetAgent, l.session_id);
                 if (!_chatSessionId) _chatSessionId = l.session_id;
             }
+            if (l.agent_status) _applyLiveAgentStatus(targetAgent, l.agent_status);
+            else if (Number.isFinite(l.id)) _wakeStatusRefreshFromStream();
             if (l.type === '__session') return;  // рукопожатие: сессию уже сверили выше
             if (l.type === 'user_message' && localMessages.size > 0) {
                 const isLocal = localMessages.has(l.content) ||
@@ -3144,6 +3146,7 @@ function createAgentItem(s) {
     }`;
     item.addEventListener('click', () => selectAgent(s.name));
     if (s.id) item.dataset.sessionId = s.id;
+    item.dataset.agentName = s.name;
 
     if (s.color) item.style.borderLeft = `3px solid ${s.color}`;
 
@@ -3160,7 +3163,7 @@ function createAgentItem(s) {
     nameEl.className = 'text-xs font-medium truncate';
     nameEl.textContent = s.name;
     const statusEl = document.createElement('span');
-    statusEl.className = 'text-xs font-mono font-bold shrink-0';
+    statusEl.className = 'agent-status text-xs font-mono font-bold shrink-0';
     statusEl.style.color = _STATUS_COLOR[s.status] || '#6b7280';
     statusEl.style.backgroundColor = _STATUS_BG[s.status] || 'rgba(107,114,128,0.1)';
     statusEl.style.padding = '1px 6px';
@@ -3211,6 +3214,33 @@ function createAgentItem(s) {
 
     if (isSelected) updateAgentInfo(s);
     return item;
+}
+
+function _applyLiveAgentStatus(name, status) {
+    if (!Object.hasOwn(_STATUS_ICON, status)) return;
+    const item = document.querySelector(
+        `.agent-item[data-agent-name="${CSS.escape(name)}"]`
+    );
+    const badge = item?.querySelector('.agent-status');
+    if (badge) {
+        badge.style.color = _STATUS_COLOR[status] || '#6b7280';
+        badge.style.backgroundColor = _STATUS_BG[status] || 'rgba(107,114,128,0.1)';
+        badge.textContent = `${_STATUS_ICON[status]} ${status}`;
+        badge.title = _STATUS_TITLE[status] || '';
+    }
+    if (name !== selectedAgent) return;
+    const selected = $('#ai-status');
+    selected.textContent = `● ${status}`;
+    selected.className = `text-xs font-mono status-${status}`;
+    updateStopButton(status);
+}
+
+let _streamStatusRefreshAt = 0;
+function _wakeStatusRefreshFromStream() {
+    const now = Date.now();
+    if (now - _streamStatusRefreshAt < 3000) return;
+    _streamStatusRefreshAt = now;
+    _pollWake('sessions');
 }
 
 let _agentCtxMenu = null;
