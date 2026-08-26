@@ -6,6 +6,7 @@ Takes sqlite3.Connection; callers manage transactions. External integrations are
 import json
 import logging
 import sqlite3
+import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -18,12 +19,14 @@ logger = logging.getLogger("tm")
 
 from app.db import _conn
 from app.ia.task_store import (
+    IdentityConflictError,
     ProjectionDebtError,
     TaskStore,
     build_migration_manifest,
 )
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "cancelled"}
+_TASK_CREATE_LOCK = threading.RLock()
 
 
 class TaskIdentity(TypedDict):
@@ -1003,7 +1006,8 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                     priority: int = 2, acceptance_command: str = "",
                     acceptance_manifest: list[str] | None = None,
                     acceptance_required: bool = False,
-                    acceptance_actor: dict | None = None) -> dict:
+                    acceptance_actor: dict | None = None,
+                    _canonical_par_number: int | None = None) -> dict:
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
@@ -1029,6 +1033,15 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 )
 
             resolved_project_id = project["id"]
+            legacy_next = _next_par(conn, resolved_project_id)
+            if (
+                _canonical_par_number is not None
+                and legacy_next != _canonical_par_number
+            ):
+                raise IdentityConflictError(
+                    f"task display counter mismatch in {resolved_project_id}: "
+                    f"canonical={_canonical_par_number}, legacy={legacy_next}"
+                )
             task = create_task(
                 conn, resolved_project_id, title,
                 price_rub=price,
@@ -1040,6 +1053,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 acceptance_manifest=acceptance_manifest,
                 acceptance_required=acceptance_required,
                 acceptance_actor=acceptance_actor,
+                par_number=_canonical_par_number,
             )
             conn.commit()
         except Exception:
@@ -1574,34 +1588,46 @@ def api_create_task(project_id: str, title: str, price: int = 0,
             return _shadow_failure(legacy, context, error)
         return _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
 
-    with _conn() as conn:
-        project = resolve_project_selector(conn, project_id) if project_id else None
-        if project is None and scope:
-            project = _project_for_session_scope(conn, scope)
-        if not project or not str(project.get("scope") or "").strip():
-            raise ValueError(f"project '{project_id or scope}' is not registered")
-        resolved_project_id = project["id"]
-    candidate = store.task_create(
-        project_id=resolved_project_id,
-        title=title,
-        price=price,
-        description=description,
-        assignee=assignee,
-        status=status,
-        priority=priority,
-        acceptance_command=acceptance_command,
-        acceptance_manifest=acceptance_manifest,
-        acceptance_required=acceptance_required,
-        expected_head=store.canonical_head,
-    )
-    legacy = _legacy_api_create_task(
-        resolved_project_id, title, price, description, assignee, status,
-        priority=priority,
-        acceptance_command=acceptance_command,
-        acceptance_manifest=acceptance_manifest,
-        acceptance_required=acceptance_required,
-        acceptance_actor=acceptance_actor,
-    )
+    with _TASK_CREATE_LOCK:
+        with _conn() as conn:
+            project = resolve_project_selector(conn, project_id) if project_id else None
+            if project is None and scope:
+                project = _project_for_session_scope(conn, scope)
+            if not project or not str(project.get("scope") or "").strip():
+                raise ValueError(f"project '{project_id or scope}' is not registered")
+            resolved_project_id = project["id"]
+            legacy_next = _next_par(conn, resolved_project_id)
+        canonical_next = int(
+            store.task_list(project=resolved_project_id)["next_display_number"]
+        )
+        if canonical_next != legacy_next:
+            raise IdentityConflictError(
+                f"task display counter mismatch in {resolved_project_id}: "
+                f"canonical={canonical_next}, legacy={legacy_next}"
+            )
+        candidate = store.task_create(
+            project_id=resolved_project_id,
+            title=title,
+            price=price,
+            description=description,
+            assignee=assignee,
+            status=status,
+            priority=priority,
+            acceptance_command=acceptance_command,
+            acceptance_manifest=acceptance_manifest,
+            acceptance_required=acceptance_required,
+            display_number=canonical_next,
+            expected_head=store.canonical_head,
+        )
+        legacy = _legacy_api_create_task(
+            resolved_project_id, title, price, description, assignee, status,
+            priority=priority,
+            acceptance_command=acceptance_command,
+            acceptance_manifest=acceptance_manifest,
+            acceptance_required=acceptance_required,
+            acceptance_actor=acceptance_actor,
+            _canonical_par_number=canonical_next,
+        )
     candidate["id"] = legacy["id"]
     return _canonical_result(candidate, legacy, context, _CREATE_COMPARE_FIELDS)
 
