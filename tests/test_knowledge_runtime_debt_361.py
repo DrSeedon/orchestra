@@ -277,6 +277,26 @@ def test_task_head_refresh_rebuilds_when_evidence_digest_changed(tmp_path):
     assert evidence["items"][0]["content"] == new_content.decode()
 
 
+def test_projection_meta_upgrade_adds_resource_receipts(tmp_path):
+    path = tmp_path / "old-projection.db"
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """CREATE TABLE projection_meta (
+                   singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                   projection_head TEXT NOT NULL
+               )"""
+        )
+        connection.execute("INSERT INTO projection_meta VALUES (1, 'old')")
+
+    backend = SQLiteProjectionBackend(path=path)
+
+    with sqlite3.connect(path) as connection:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(projection_meta)")
+        }
+    assert {"resource_manifest_sha256", "resource_rows_sha256"} <= columns
+
+
 class _ParityStore:
     def __init__(self):
         self.canonical_head = "task-head-before"
