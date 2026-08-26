@@ -901,6 +901,59 @@ def _request_with_proof(session_id, proof):
 
 
 @pytest.mark.asyncio
+async def test_t401_quota_refusal_is_returned_before_receipt_or_user_log(
+    message_db, monkeypatch,
+):
+    """A known quota refusal is visible to the MCP caller, not an accepted queue row."""
+    from app.quota_gate import evaluate_worker_admission
+    from app.mcp_proof import issue_mcp_proof
+    from app.routes import sessions as routes
+
+    target = routes.manager.get_by_name(TARGET_NAME, SCOPE)
+    assert target is not None
+    target.model = "claude-sonnet-5[1m]"
+    now = datetime.now(timezone.utc).timestamp()
+    reset_at = datetime.fromtimestamp(
+        now + 10080 * 60 / 2, timezone.utc,
+    ).isoformat()
+    blocked = evaluate_worker_admission(
+        target.model,
+        {"anthropic": {"label": "Claude", "windows": [{
+            "id": "seven_day",
+            "window_minutes": 10080,
+            "utilization": 95,
+            "resets_at": reset_at,
+        }]}},
+        {"anthropic": now},
+        now=now,
+    )
+    target._admission_service = AsyncMock(return_value=blocked)
+    monkeypatch.setitem(routes.manager.sessions, TARGET_ID, target)
+    request = _request_with_proof(SOURCE_ID, issue_mcp_proof(SOURCE_ID))
+    response = await routes.send_message(
+        TARGET_NAME,
+        routes.SendRequest(
+            delivery_id=DELIVERY_ID,
+            message=MESSAGE,
+            sender=SOURCE_NAME,
+            scope=SCOPE,
+        ),
+        request=request,
+    )
+
+    assert getattr(response, "status_code", None) == 429
+    payload = _response_payload(response)
+    error = payload["error"]
+    assert error["code"] == "weekly_quota_blocked"
+    assert "Claude" in error["message"]
+    assert "95%" in error["message"]
+    assert "line limit" in error["message"]
+    assert "55.5" in error["message"]
+    assert _delivery_row(message_db) is None
+    assert _user_messages(message_db) == []
+
+
+@pytest.mark.asyncio
 async def test_t380_r6_http_auth_conflict_rollback_and_name_ambiguity_are_known(
     message_db, monkeypatch,
 ):
