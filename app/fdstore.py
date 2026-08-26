@@ -76,6 +76,12 @@ def _notify(payload: str, fds) -> None:
     address = os.environ.get("NOTIFY_SOCKET")
     if not address:
         raise FdStoreUnavailable(f"NOTIFY_SOCKET is not set: cannot send {payload!r}")
+    exec_pid = os.environ.get("SYSTEMD_EXEC_PID")
+    if exec_pid and exec_pid != str(os.getpid()):
+        raise FdStoreUnavailable(
+            f"SYSTEMD_EXEC_PID={exec_pid} does not name this process: "
+            f"refusing inherited systemd notification {payload!r}"
+        )
     if address.startswith("@"):
         address = "\0" + address[1:]
     ancillary = (
