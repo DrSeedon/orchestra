@@ -1594,6 +1594,16 @@ def _file_delivery_receipt_text(receipt: dict[str, Any]) -> str:
     )
 
 
+def _file_batch_receipt_text(receipt: dict[str, Any]) -> str:
+    event_id = str(receipt["event_id"])
+    state = str(receipt.get("delivery_state") or "UNKNOWN")
+    count = len(receipt.get("files") or [])
+    return (
+        f"Files accepted; event_id={event_id}; state={state}; {count} files. "
+        f"Check with file_delivery_status('{event_id}'); do not retry with a new id."
+    )
+
+
 def _ambiguous_file_delivery_error(
     cause: ApiToolError,
     event_id: str,
@@ -1728,6 +1738,84 @@ async def send_file(
             },
         )
     return _file_delivery_receipt_text(result)
+
+
+@mcp.tool()
+async def send_files(
+    paths: list[str],
+    caption: str = "",
+    as_document: bool = False,
+    event_id: str = "",
+) -> str:
+    """Accept an ordered file batch for durable Telegram album delivery."""
+    if (
+        not isinstance(paths, list)
+        or not paths
+        or not all(isinstance(path, str) and path for path in paths)
+    ):
+        raise ApiToolError(
+            code="invalid_argument",
+            message="paths must be a non-empty string list",
+            details={"field": "paths"},
+        )
+    event_id = event_id.strip() if isinstance(event_id, str) else ""
+    if event_id:
+        try:
+            event_id = str(uuid.UUID(event_id))
+        except ValueError as error:
+            raise ApiToolError(
+                code="invalid_argument",
+                message="event_id must be a UUID",
+                details={"field": "event_id"},
+            ) from error
+    else:
+        event_id = str(uuid.uuid4())
+    payload = {
+        "paths": paths,
+        "caption": caption,
+        "scope": SCOPE,
+        "sender": WORKER_NAME or ROLE,
+        "as_document": as_document,
+        "event_id": event_id,
+    }
+    try:
+        result = await _api("POST", "/api/tg/send_file", json=payload, timeout=180)
+    except ApiToolError as cause:
+        if not cause.outcome_unknown and not (
+            cause.status is not None and cause.status >= 500
+        ):
+            raise
+        try:
+            status = await _api("GET", _file_delivery_status_path(event_id))
+        except ApiToolError as status_error:
+            raise _ambiguous_file_delivery_error(
+                cause, event_id, status_error=status_error,
+            ) from cause
+        if _is_file_delivery_receipt(status, event_id):
+            return _file_batch_receipt_text(status)
+        raise _ambiguous_file_delivery_error(
+            cause, event_id, status=status,
+        ) from cause
+    if not _is_file_delivery_receipt(result, event_id):
+        raise ApiToolError(
+            code="invalid_response",
+            message=(
+                "Send files API returned no matching durable receipt for "
+                f"event_id={event_id}. Check file_delivery_status('{event_id}'); "
+                "do not retry with a new id."
+            ),
+            status=200,
+            outcome_unknown=True,
+            details={"event_id": event_id, "response": result},
+            result={
+                "event_id": event_id,
+                "next_action": {
+                    "tool": "file_delivery_status",
+                    "arguments": {"event_id": event_id},
+                },
+            },
+        )
+    return _file_batch_receipt_text(result)
 
 
 @mcp.tool()

@@ -204,6 +204,10 @@ def init_db() -> None:
                 as_document INTEGER NOT NULL CHECK(as_document IN (0,1)),
                 payload_hash TEXT NOT NULL CHECK(length(payload_hash) = 64),
                 orch_name TEXT,
+                batch_id TEXT,
+                batch_index INTEGER,
+                batch_group INTEGER,
+                batch_kind TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 snapshot_deleted_at TEXT,
@@ -764,6 +768,10 @@ def _migrate_tg_file_deliveries(c) -> None:
         "tg_file_deliveries": {
             "snapshot_deleted_at": "TEXT",
             "quarantined_at": "TEXT",
+            "batch_id": "TEXT",
+            "batch_index": "INTEGER",
+            "batch_group": "INTEGER",
+            "batch_kind": "TEXT",
         },
         "tg_file_delivery_targets": {
             "error_json": "TEXT",
@@ -777,6 +785,7 @@ def _migrate_tg_file_deliveries(c) -> None:
             "source_name", "source_scope", "source_path", "original_name",
             "snapshot_path", "size_bytes", "content_sha256", "caption",
             "outbound_caption", "as_document", "payload_hash", "orch_name",
+            "batch_id", "batch_index", "batch_group", "batch_kind",
             "created_at", "updated_at",
         },
         "tg_file_delivery_targets": {
@@ -806,6 +815,10 @@ def _migrate_tg_file_deliveries(c) -> None:
             raise RuntimeError(
                 f"unsupported pre-release {table} schema; missing {sorted(missing)}"
             )
+    c.execute(
+        "CREATE INDEX IF NOT EXISTS idx_tg_file_deliveries_batch "
+        "ON tg_file_deliveries(batch_id, batch_group, batch_index)"
+    )
     lease_columns = {
         row[1] for row in c.execute("PRAGMA table_info(tg_file_chat_leases)").fetchall()
     }
