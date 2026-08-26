@@ -147,7 +147,8 @@ def test_t6_scope_evidence_policy_distinguishes_none_broken_git_and_working_git(
     _git(git_root, "config", "user.name", "Test")
     source = git_root / "README.md"
     source.write_text("# working evidence\n")
-    _git(git_root, "add", "README.md")
+    (git_root / "SECOND.md").write_text("# second evidence\n")
+    _git(git_root, "add", "README.md", "SECOND.md")
     _git(git_root, "commit", "-qm", "fixture")
     working = _owner(tmp_path / "working")
     (working.paths["canonical_root"]).mkdir(parents=True)
@@ -163,9 +164,8 @@ def test_t6_scope_evidence_policy_distinguishes_none_broken_git_and_working_git(
     working._save_state = lambda: None
     working._import_scope_evidence()
     records = working.evidence_records()
-    assert len(records) == 1
-    assert records[0]["source_path"] == "README.md"
-    assert records[0]["git_commit"] == _git(git_root, "rev-parse", "HEAD")
+    assert {record["source_path"] for record in records} == {"README.md", "SECOND.md"}
+    assert {record["git_commit"] for record in records} == {_git(git_root, "rev-parse", "HEAD")}
     assert working.state["evidence_less_scopes"] == []
 
     # Startup repeats this import for every live scope. A content-addressed evidence record
@@ -179,6 +179,14 @@ def test_t6_scope_evidence_policy_distinguishes_none_broken_git_and_working_git(
 
     working._source_git = no_redundant_blob_read
     working._import_scope_evidence()
+
+    working.task_store = SimpleNamespace(states=lambda: {})
+    working.knowledge_service = None
+    projection_records = working._projection_records()
+    assert sorted(record["content"] for record in projection_records) == [
+        "# second evidence\n",
+        "# working evidence\n",
+    ]
 
 
 class _ParityStore:

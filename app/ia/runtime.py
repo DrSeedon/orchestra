@@ -825,6 +825,94 @@ class KnowledgeRuntime:
             raise KnowledgeRuntimeError("evidence Git bytes do not match their digest")
         return content
 
+    @staticmethod
+    def _source_git_blobs(repository: Path, blob_ids: list[str]) -> dict[str, bytes]:
+        ordered = list(dict.fromkeys(blob_ids))
+        if not ordered:
+            return {}
+        result = subprocess.run(
+            ["git", "-C", str(repository), "cat-file", "--batch"],
+            input=b"".join(blob.encode("ascii") + b"\n" for blob in ordered),
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = result.stderr.decode("utf-8", errors="replace").strip()
+            raise KnowledgeRuntimeError(
+                f"cannot read scope Git source: {detail or f'exit {result.returncode}'}"
+            )
+        offset = 0
+        contents: dict[str, bytes] = {}
+        for requested in ordered:
+            newline = result.stdout.find(b"\n", offset)
+            if newline < 0:
+                raise KnowledgeRuntimeError("cannot read scope Git source: incomplete batch header")
+            header = result.stdout[offset:newline].split()
+            if len(header) != 3 or header[1] != b"blob":
+                raise KnowledgeRuntimeError("cannot read scope Git source: batch object is not a blob")
+            observed = header[0].decode("ascii")
+            try:
+                size = int(header[2])
+            except ValueError as exc:
+                raise KnowledgeRuntimeError(
+                    "cannot read scope Git source: invalid batch object size"
+                ) from exc
+            start = newline + 1
+            end = start + size
+            if observed != requested or result.stdout[end:end + 1] != b"\n":
+                raise KnowledgeRuntimeError("cannot read scope Git source: invalid batch object")
+            contents[requested] = result.stdout[start:end]
+            offset = end + 1
+        if offset != len(result.stdout):
+            raise KnowledgeRuntimeError("cannot read scope Git source: trailing batch output")
+        return contents
+
+    def _evidence_contents(self, records: list[Mapping[str, Any]]) -> dict[str, bytes]:
+        by_scope: dict[str, list[Mapping[str, Any]]] = {}
+        for record in records:
+            scope = _scope(str(record.get("source_scope") or ""))
+            entry = self.scope_registry.get(scope)
+            if entry is None or entry["canonical_project_id"] != record.get("project_id"):
+                raise KnowledgeRuntimeError("evidence scope identity is not registered")
+            by_scope.setdefault(scope, []).append(record)
+
+        contents: dict[str, bytes] = {}
+        for scope, scoped_records in sorted(by_scope.items()):
+            repository = Path(str(self.scope_registry[scope]["repository_root"]))
+            by_commit: dict[str, list[Mapping[str, Any]]] = {}
+            for record in scoped_records:
+                by_commit.setdefault(str(record.get("git_commit") or ""), []).append(record)
+            for commit, commit_records in sorted(by_commit.items()):
+                raw = self._source_git(
+                    repository,
+                    "ls-tree",
+                    "-r",
+                    "-z",
+                    "--format=%(objectname)%x09%(path)",
+                    commit,
+                    binary=True,
+                )
+                tree = {}
+                for item in raw.split(b"\0"):
+                    if item:
+                        blob, path = item.split(b"\t", 1)
+                        tree[path.decode("utf-8")] = blob.decode("ascii")
+                for record in commit_records:
+                    if tree.get(str(record.get("source_path") or "")) != record.get("git_blob"):
+                        raise KnowledgeRuntimeError("evidence Git path/blob binding changed")
+
+            blobs = self._source_git_blobs(
+                repository,
+                [str(record.get("git_blob") or "") for record in scoped_records],
+            )
+            for record in scoped_records:
+                content = blobs[str(record["git_blob"])]
+                digest = "sha256:" + hashlib.sha256(content).hexdigest()
+                if digest != record.get("source_sha256"):
+                    raise KnowledgeRuntimeError("evidence Git bytes do not match their digest")
+                contents[str(record["stable_id"])] = content
+        return contents
+
     def _projection_records(self) -> list[dict[str, Any]]:
         from app.ia.schema import _SECRET_VALUE
 
@@ -835,8 +923,10 @@ class KnowledgeRuntime:
                 for record in self.knowledge_service._facts()
                 if record.get("status") == "current"
             )
-        for record in self.evidence_records():
-            content = self._evidence_content(record)
+        evidence = self.evidence_records()
+        evidence_contents = self._evidence_contents(evidence)
+        for record in evidence:
+            content = evidence_contents[str(record["stable_id"])]
             try:
                 text = content.decode("utf-8")
             except UnicodeDecodeError:
