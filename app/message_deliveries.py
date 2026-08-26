@@ -304,6 +304,18 @@ def mark_message_delivery_submitted(delivery_id: str, provider_ref: str | None =
     return _update_state(delivery_id, "SUBMITTED", provider_ref=provider_ref)
 
 
+def _mark_message_delivery_fan_buffered(delivery_id: str, fan_id: str) -> dict:
+    row = _row(_validate_id(delivery_id))
+    if row is None or row["state"] != "PREPARING":
+        raise RuntimeError(f"message delivery {delivery_id} cannot buffer")
+    return _update_state(
+        delivery_id,
+        "SUBMITTED",
+        provider_ref=f"fan:{fan_id}:buffered",
+        clear_user_log=True,
+    )
+
+
 def _failure(error: BaseException) -> dict:
     if isinstance(error, TargetTaskChangedError):
         return {
@@ -423,6 +435,20 @@ def _next_target_delivery(target_session_id: str) -> sqlite3.Row | None:
 
 
 async def run_message_delivery(delivery_id: str, manager=None) -> None:
+    row = _row(_validate_id(delivery_id))
+    if row is None:
+        raise KeyError(f"message delivery not found: {delivery_id}")
+    from app import fan_barrier
+
+    intercepted = fan_barrier.intercept_delivery_report(
+        row["source_name"],
+        row["target_name"],
+        row["target_scope"],
+        row["message"],
+        row["message_kind"],
+        row["source_scope"],
+        delivery_id,
+    )
     prepared = prepare_message_delivery(delivery_id)
     if prepared["delivery_state"] != "PREPARING":
         return
@@ -432,22 +458,34 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
     context = MessageDeliveryContext(
         delivery_id, history_user_message=prepared["history_user_message"]
     )
+    if intercepted and not intercepted["released"]:
+        _mark_message_delivery_fan_buffered(delivery_id, intercepted["fan_id"])
+        return
     try:
         await manager.send_message_delivery(
             row["target_session_id"], row["rendered_message"],
             delivery=context, target_generation=row["target_generation"],
         )
+        if intercepted and intercepted["released"]:
+            logger.info(
+                "fan parent wake submitted: fan=%s target=%s delivery_id=%s",
+                intercepted["fan_id"], row["target_name"], delivery_id,
+            )
     except asyncio.CancelledError as error:
         if context.dispatched:
             mark_message_delivery_unknown(delivery_id, error)
         else:
             mark_message_delivery_failed_before_submit(delivery_id, error)
+            if intercepted and intercepted["released"]:
+                fan_barrier.rearm_wake(intercepted["fan_id"])
         raise
     except Exception as error:
         if context.dispatched:
             mark_message_delivery_unknown(delivery_id, error)
         else:
             mark_message_delivery_failed_before_submit(delivery_id, error)
+            if intercepted and intercepted["released"]:
+                fan_barrier.rearm_wake(intercepted["fan_id"])
         raise
 
 

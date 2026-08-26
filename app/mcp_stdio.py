@@ -1256,20 +1256,10 @@ async def message_delivery_status(delivery_id: str) -> dict[str, Any]:
 @mcp.tool()
 async def open_fan(children: list[str], deadline_seconds: float = 1800.0,
                    reducer: str = "") -> str:
-    """Открыть веер: копить отчёты перечисленных детей и разбудить тебя ОДИН раз.
+    """Low-level compatibility entry: open a barrier without launching workers.
 
-    Зови СРАЗУ после того, как заспавнил нескольких детей на независимые куски одной
-    работы. Пока веер открыт, их отчёты не будят тебя по одному — они копятся, и ты
-    просыпаешься один раз, когда отчитался последний (или когда истёк
-    `deadline_seconds`, по умолчанию 1800.0 = 30 минут). Замер: одно пробуждение
-    родителя стоит ≈$0.87 при 99% cache_read, то есть N детей без веера — N таких ходов.
-
-    ВАЖНО, иначе барьер протечёт: ребёнок, закончивший ход МОЛЧА, будит тебя мимо
-    веера через авто-репорт. В задании КАЖДОМУ ребёнку требуй отчитаться ВЫЗОВОМ
-    `send_message`, а не просто закончить ход.
-
-    Не для одного ребёнка и не «на всякий случай»: забытый открытый веер держит
-    отчёты до дедлайна. Срочное проходит мимо веера по `message_kind`.
+    Prefer ``run_fan``: it opens the barrier before launch and owns spawn/reuse plumbing.
+    This tool remains for old connected clients and specialized reducers.
     """
     kids = [c for c in (children or []) if isinstance(c, str) and c.strip()]
     if len(kids) < 2:
@@ -1287,6 +1277,165 @@ async def open_fan(children: list[str], deadline_seconds: float = 1800.0,
         return f"open_fan failed: {result['error']}"
     return (f"Fan '{fan_id}' open for {len(kids)} children (deadline {deadline_seconds}s). "
             f"END YOUR TURN NOW — you will be woken once, when the last child reports.")
+
+
+def _fan_task(spec: object) -> dict[str, Any]:
+    if not isinstance(spec, dict):
+        raise ApiToolError(code="invalid_argument", message="each tasks item must be an object")
+    required = ("name", "model", "role", "task", "owned_dirs")
+    missing = [key for key in required if key not in spec]
+    if missing:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"fan task is missing: {', '.join(missing)}",
+        )
+    normalized = {key: spec[key] for key in required}
+    if not all(
+        isinstance(normalized[key], str) and normalized[key].strip()
+        for key in ("name", "model", "role", "task")
+    ):
+        raise ApiToolError(
+            code="invalid_argument",
+            message="fan task name, model, role, and task must be non-empty strings",
+        )
+    owned_dirs = normalized["owned_dirs"]
+    if not isinstance(owned_dirs, list) or not all(
+        isinstance(path, str) and path.strip() for path in owned_dirs
+    ):
+        raise ApiToolError(
+            code="invalid_argument",
+            message="fan task owned_dirs must be a list of non-empty strings",
+        )
+    normalized["owned_dirs"] = owned_dirs
+    return normalized
+
+
+def _fan_reuse(spec: object) -> dict[str, str]:
+    if not isinstance(spec, dict):
+        raise ApiToolError(code="invalid_argument", message="each reuse item must be an object")
+    name = spec.get("name")
+    message = spec.get("message")
+    if not isinstance(name, str) or not name.strip():
+        raise ApiToolError(code="invalid_argument", message="reuse name must be non-empty")
+    if not isinstance(message, str) or not message.strip():
+        raise ApiToolError(code="invalid_argument", message=f"reuse message for {name} is empty")
+    return {"name": name.strip(), "message": message}
+
+
+async def _mark_fan_launch_failed(fan_id: str, child: str, error: Exception) -> None:
+    try:
+        await _api("POST", "/api/fan/member/terminal", json={
+            "fan_id": fan_id,
+            "child": child,
+            "state": "failed",
+            "summary": f"launch failed: {type(error).__name__}: {err_text(error)}",
+        })
+    except Exception as mark_error:
+        logger.error(
+            "fan %s could not mark %s failed: %s: %s",
+            fan_id, child, type(mark_error).__name__, err_text(mark_error),
+        )
+
+
+@mcp.tool()
+async def run_fan(
+    tasks: list[dict[str, Any]] | None = None,
+    reuse: list[dict[str, Any]] | None = None,
+    deadline_seconds: float = 1800.0,
+) -> str:
+    """Start one completion fan without manual open/spawn/message plumbing.
+
+    ``tasks`` items contain ``name``, ``model``, ``role``, ``task``, and
+    ``owned_dirs``.  ``reuse`` items contain the name of an already-live idle worker
+    and the message for its next turn.  The barrier opens before any child is started,
+    stays durable until every child finishes (or the deadline expires), and wakes the
+    caller once with the manifest.  Workers remain normal live workers afterward.
+    """
+    if not math.isfinite(deadline_seconds) or deadline_seconds <= 0:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="deadline_seconds must be finite and greater than zero",
+        )
+    spawned = [_fan_task(item) for item in (tasks or [])]
+    reused = [_fan_reuse(item) for item in (reuse or [])]
+    names = [item["name"] for item in spawned] + [item["name"] for item in reused]
+    if len(names) < 2:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="run_fan needs at least two total workers",
+        )
+    if len(set(names)) != len(names):
+        raise ApiToolError(code="invalid_argument", message="fan worker names must be unique")
+    if spawned and not SCOPE:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="run_fan cannot spawn without an Orchestra scope/repository path",
+        )
+    if reused:
+        sessions = await _api("GET", "/api/sessions", params={"scope": SCOPE})
+        live = {
+            str(row.get("name")): row
+            for row in sessions
+            if isinstance(row, dict) and row.get("status") != "archived"
+        } if isinstance(sessions, list) else {}
+        invalid = [
+            name for name in (item["name"] for item in reused)
+            if name not in live
+            or str(live[name].get("status") or "").lower() != "idle"
+            or bool(live[name].get("is_orchestrator"))
+        ]
+        if invalid:
+            raise ApiToolError(
+                code="invalid_argument",
+                message="reuse workers must be live, idle, non-orchestrators: "
+                + ", ".join(invalid),
+            )
+
+    fan_id = f"{WORKER_NAME or ROLE}-{uuid.uuid4().hex[:8]}"
+    opened = await _api("POST", "/api/fan/open", json={
+        "fan_id": fan_id,
+        "parent_name": WORKER_NAME or ROLE,
+        "scope": SCOPE,
+        "children": names,
+        "deadline_seconds": deadline_seconds,
+        "reducer": "",
+    })
+    if isinstance(opened, dict) and opened.get("error"):
+        raise ApiToolError(code="domain_error", message=f"run_fan open failed: {opened['error']}")
+
+    launched: list[str] = []
+    failures: list[str] = []
+    for item in spawned:
+        try:
+            await spawn_worker(
+                name=item["name"],
+                task=item["task"],
+                repo_path=SCOPE,
+                model=item["model"],
+                role=item["role"],
+                owned_dirs=json.dumps(item["owned_dirs"], ensure_ascii=False),
+            )
+            launched.append(item["name"])
+        except Exception as error:
+            failures.append(f"{item['name']}: {type(error).__name__}: {err_text(error)}")
+            if not isinstance(error, ApiToolError) or not error.outcome_unknown:
+                await _mark_fan_launch_failed(fan_id, item["name"], error)
+    for item in reused:
+        try:
+            await send_message(item["name"], item["message"])
+            launched.append(item["name"])
+        except Exception as error:
+            failures.append(f"{item['name']}: {type(error).__name__}: {err_text(error)}")
+            if not isinstance(error, ApiToolError) or not error.outcome_unknown:
+                await _mark_fan_launch_failed(fan_id, item["name"], error)
+
+    result = (
+        f"Fan '{fan_id}' opened before launch; started {len(launched)}/{len(names)} workers "
+        f"with deadline {deadline_seconds}s."
+    )
+    if failures:
+        result += "\nLaunch failures:\n- " + "\n- ".join(failures)
+    return result + "\nEND YOUR TURN NOW — the fan will wake you exactly once with its manifest."
 
 
 _ORCH_ROLES = frozenset({"orchestrator", "sub-orchestrator"})

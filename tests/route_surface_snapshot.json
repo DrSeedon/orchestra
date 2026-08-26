@@ -55,6 +55,12 @@
   ]
  ],
  [
+  "/api/fan/member/terminal",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/fan/open",
   [
    "POST"

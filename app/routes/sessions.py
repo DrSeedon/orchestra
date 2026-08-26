@@ -224,6 +224,13 @@ class OpenFanRequest(BaseModel):
         return v
 
 
+class FanMemberTerminalRequest(BaseModel):
+    fan_id: str
+    child: str
+    state: str
+    summary: str = ""
+
+
 def _conditional(request: Request, payload) -> Response:
     """Отдать payload с ETag, а при совпадении If-None-Match — пустой 304.
 
@@ -629,7 +636,30 @@ async def open_fan(req: OpenFanRequest):
         deadline_seconds=deadline,
         reducer=req.reducer or "",
     )
+    fan_barrier.schedule_deadline(req.fan_id)
     return {"ok": True, "fan_id": req.fan_id, "children": len(req.children)}
+
+
+@router.post("/api/fan/member/terminal")
+async def mark_fan_member_terminal(req: FanMemberTerminalRequest):
+    from app import fan_barrier
+
+    released = fan_barrier.record_terminal(
+        req.child,
+        req.state,
+        summary=req.summary,
+        fan_id=req.fan_id,
+    )
+    if released:
+        target = fan_barrier.parent_of(req.fan_id)
+        if target:
+            recipient = fan_barrier.reducer_of(req.fan_id) or target[0]
+            destination = await manager.ensure_loaded(recipient, target[1])
+            if destination is not None:
+                await manager.send(
+                    destination.id, fan_barrier.manifest_text(req.fan_id)
+                )
+    return {"ok": True, "fan_id": req.fan_id, "released": released}
 
 
 @router.post("/api/sessions/{name}/send")
