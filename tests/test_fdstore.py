@@ -173,7 +173,9 @@ def test_t8_unit_templates_are_valid_and_complete(tmp_path):
     readiness = root / "deploy" / "orchestra-readiness.conf"
     assert service.is_file(), "deploy/orchestra.service must be versioned to be reviewable"
     assert sock.is_file(), "deploy/orchestra.socket must be versioned to be reviewable"
-    assert readiness.read_text().strip().endswith("Type=notify")
+    readiness_text = readiness.read_text()
+    assert "Type=notify" in readiness_text
+    assert "TimeoutStartSec=300" in readiness_text
     assert "\nStateDirectory=" not in readiness.read_text()
 
     service_text = service.read_text()
