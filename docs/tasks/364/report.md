@@ -1,111 +1,82 @@
-# #364 — IndexedDB mirror self-healing
+# #364 — GigaEmbeddings 480M против bge-m3 на корпусе Orchestra
 
-## Reproduction and exact incompatibility
+## Вердикт
 
-The frozen Playwright oracle creates the real version-1 `orchestra` IndexedDB, writes 40
-rows in the pre-24.08 mirror format, and then loads the current dashboard through routed
-worktree `app.js` and `style.css`.
+**Не меняем модель.** На фиксированном стенде GigaEmbeddings получила MRR 0.4726 против
+0.4893 у продовой bge-m3: ΔMRR = −0.0167, парный t = −0.334. Абсолютная разница 0.0167
+в 6.3 раза меньше медианного собственного шума MRR 0.1048. Это не доказательство, что
+GigaEmbeddings хуже; это честный результат **«разницы не видно на нашем стенде»**.
 
-The stale format has two programmatically observable differences:
+| арм | MRR | R@3 | R@5 | ΔMRR против прода | t (df=27) | вердикт |
+|---|---:|---:|---:|---:|---:|---|
+| bge-m3 int8 ONNX + hybrid RRF (прод) | 0.4893 | 64.3% | 75.0% | +0.0000 | +0.000 | baseline |
+| GigaEmbeddings 480M + hybrid RRF | 0.4726 | 60.7% | 75.0% | −0.0167 | −0.334 | разницы не видно; не меняем |
 
-- `meta` has no `schema_epoch`;
-- stored log rows have no `tool_use_id`, `tool_name`, or `tool_is_error`. Before commit
-  `e7d521de`, `_SYNC_COLS` wrote only `id, session_id, ts, type, content, event_id`, while
-  the current renderer and sync contract carry all nine fields.
+**Собственный шум baseline MRR, split-half 20 000:** медиана |разрыва| = **0.1048**,
+p90 = 0.2476, p95 = 0.2952. Расчёт выполнен только по baseline RR, seed=135; он цифра
+в цифру воспроизвёл контроль #135. Порог двухстороннего t-теста: |t| > 2.052.
 
-Current main trusted `rows.length >= 40`, rendered that old page, and opened SSE at its old
-maximum ID. The red run recorded `after_ids=[40]`; the newer server tail then grew the chat
-row by row with DOM counts `39, 40, 46, ... 80`. This reproduces the owner's "staircase".
-The paired click-expansion test was green before the fix, so expanding one tool message does
-not change its neighbour: the observed staircase was SSE tail replay, not shared disclosure
-state.
+## Что именно измерено
 
-Frozen oracle commit: `28e20ff0` (`#364: freeze red oracle`). The oracle was not edited after
-that commit.
+- Выборка не менялась: `docs/tasks/134/bench/queries.json`, n=28,
+  sha256 `516b0755416b763233df0d8c5835b16c875284144e55be9ca6e91d0f4d4dbd0a`.
+- Переиспользованы retrieval/scoring primitives исходного
+  `docs/tasks/134/bench/retrieval_bench.py`, sha256
+  `5175a900e5d3ab14cb6ea2fe17c4f80d34958451421ac1f64419ca584fee2d84`:
+  те же vector/FTS ноги, RRF_K=60, candidate pool и top-5.
+- Корпус — замороженная SQLite-копия #134, sha256
+  `92808d6b4170daf3e5c8784377c1e0a48dfebc60a9c53c3dbf514a2b49135ab2`.
+  Свежий `vec.db` сначала был снят через `sqlite3.Connection.backup`, но отвергнут как
+  несопоставимый: в нём уже отсутствовали три gold chunk_id неизменяемой выборки
+  (`4041`, `3164036`, `3163026`). Замороженный snapshot #134 сам был снят тем же
+  `backup()` и точно воспроизводит эталон.
+- Кандидатная БД создана из snapshot через `sqlite3.Connection.backup`, не `cp`.
+  В ней заменены только векторы всех 9 448 file-чанков и 8 435 log-чанков;
+  тексты, FTS и RRF остались прежними. `PRAGMA integrity_check` → `ok`.
+- Продовый положительный контроль воспроизведён до запуска кандидата:
+  MRR 0.4892857143, R@3 0.6428571429, R@5 0.75.
+  Baseline ONNX зафиксирован ревизией `a4136c5…` и sha256
+  `17dbde8d0da550b94f5b8840e4305a0374d700a5c844d65b3bc9646369c559ce`.
 
-## Fix
+## Контракт GigaEmbeddings
 
-`app/static/js/app.js` now owns mirror epoch `2` in both places that matter:
+Зафиксирована ревизия Hugging Face
+`2d0c1a92716eef0e5b6972df85b5883eb5b4f57a`; sha256 `model.safetensors` —
+`9ce03c6c5ae02baebb42ce3015b6f3e628c5fec7b7745bc2490f6ff961a654a5`.
+Карточка и `1_Pooling/config.json` задают:
 
-- a same-version `logs + meta` read/write transaction checks `meta.schema_epoch` before
-  `_storeOpen()` resolves; a missing or different epoch atomically clears the mirror and
-  installs epoch `2`;
-- every newly stored row carries `_mirror_epoch: 2`, and `_storeRead()` validates the epoch,
-  required row types, and the three current tool metadata fields before returning any row.
-  If an already-open old tab writes old rows after the initial repair, the reader clears them
-  instead of rendering them.
+- размерность 1024;
+- mean pooling по непаддинговым токенам + L2-нормализация;
+- документы без префикса;
+- запрос: `Instruct: Given a query, retrieve relevant passages\nQuery: {text}`.
 
-Record validation is intentionally lazy and bounded to the rows selected for the requested
-session/page. Incompatible rows outside that page may remain inert in IndexedDB, but no such row
-is returned to the renderer: the first candidate-page mismatch clears the whole mirror.
+Pilot на трёх документах подтвердил четыре вектора 1024d, нормы
+0.99999998–1.00000004 и первое место релевантного документа. Полный прогон:
+Transformers 4.57.0, PyTorch 2.10.0+cu128, GTX 1650, batch=16, max_length=512.
+GTX 1650 не поддерживает BF16, поэтому зафиксированный BF16 checkpoint исполнялся в FP16,
+а mean/L2 считались в FP32. Это ограничивает перенос вывода на иное железо, но не создаёт
+основания менять модель: наблюдённая разница и без того лежит глубоко внутри шума стенда.
 
-After a reset `_storeRead()` returns an empty miss, so the existing `_fetchHistory()` path
-downloads the current server page and `_storePut()` rebuilds the mirror. No user reload or
-console action is involved.
+## Проверка против подгонки
 
-This differs from both rejected #364 approaches:
+Из 28 запросов Giga улучшила RR на 5, ухудшила на 7 и не изменила на 16. Улучшения и
+ухудшения разнонаправленны; итоговый t далек от порога. Выборка после раскрытия результата
+не расширялась, gold не редактировался, дополнительный prompt-arm не подбирался.
 
-- IndexedDB remains at database version `1`; there is no version bump, so a second open tab
-  cannot block an upgrade transaction.
-- the open-time reset uses its own raw transaction before `_storeReady` resolves. It does not
-  call `_storeTx` from `rq.onsuccess`, so it cannot wait on the unresolved open path and
-  deadlock.
+## Артефакты и границы
 
-It also does not call `indexedDB.deleteDatabase()`. IndexedDB is origin-scoped, and the same
-open-time check runs independently on the domain and on `localhost`, so both origin-specific
-databases self-heal.
-
-## Verification
-
-Baseline before production changes:
-
-```text
-uv run pytest -q tests/test_frontend.py::test_indexeddb_legacy_mirror_is_rebuilt_before_chat_render
-1 failed in 19.13s, RC=1
-after_ids=[40], steps=[39, 40, 46, ... 80], history_calls=[]
-```
-
-Focused fixed behavior:
-
-```text
-uv run pytest -q \
-  tests/test_frontend.py::test_indexeddb_legacy_mirror_is_rebuilt_before_chat_render \
-  tests/test_frontend.py::test_chat_expanding_one_message_keeps_neighbor_state \
-  tests/test_frontend.py::test_indexeddb_record_epoch_rejects_old_tab_recontamination \
-  tests/test_frontend.py::test_indexeddb_schema_repair_runs_for_each_origin
-4 passed in 18.94s, 28.45s, and 26.56s; RC=0 in three consecutive runs
-```
-
-Required regression selection:
-
-```text
-uv run pytest -q tests/test_frontend.py -k "chat or mirror or indexeddb or timeline"
-14 passed, 71 deselected in 30.40s, RC=0
-```
-
-Mutation disabled both detection paths (open-time epoch check and record-time epoch check) in
-one command. The frozen oracle failed with the same `after_ids=[40]` staircase, then passed
-after the same command restored and touched `app.js`:
-
-```text
-before_open=1 before_read=1 mutated_open=1 mutated_read=1
-after_open=1 after_read=1 red_rc=1 green_rc=0
-```
+- `docs/tasks/364/bench/results.json` — обе per-query RR-последовательности, сводка,
+  provenance, paired t и split-half 20 000.
+- `docs/tasks/364/bench/giga_bench.py` — воспроизводимый wrapper над харнессом #134,
+  SQLite-backup, resumable reindex и расчёт статистик.
+- `data/bench364/` — некоммитящиеся model/DB/log artifacts на реальном диске, не `/tmp`.
+- `app/rag.py`, `SCHEMA_VERSION` и продовый индекс не менялись. Внедрение не выполнялось.
 
 ## Review
 
-The changed surface is persistence schema/data recovery, so the desired route is Sol. A separate
-Sol call was not authorized; one automatically permitted fresh Luna pass reviewed the bounded
-implementation diff instead. Author/reviewer independence: `gpt-5.6-sol` author versus
-`gpt-5.6-luna` reviewer, both on the Codex runtime.
-
-The reviewer found no blocker and returned two suggestions. The bounded-validation behavior is
-documented above. The former single-page contamination probe was replaced with a real two-page,
-shared-browser-context interleaving: the old page keeps its version-1 connection open, the current
-page repairs without an upgrade, then the old page writes an epoch-1 row and the current reader
-clears it. No second review round is allowed for suggestions alone.
-
-Review artifact: `docs/tasks/364/codex-review-impl.md`. The raw completed-job evidence included
-`sed -n '118,142p' .review-364.diff` and the exact reviewed line
-`await _storeReset('строки сохранены другой схемой');`; this satisfies the review-work evidence
-check even though the compact final artifact contains only findings and verdict.
+**Luna, 2 раунда — APPROVED.** Round 1 подтвердил числа и scoped-вердикт, но нашёл
+blocking safety gap: `--resume` допускал один файл как source и candidate. Wrapper исправлен:
+exact path, symlink и hardlink aliases отвергаются до writable open. Также добавлены строгая
+идентичность 28 paired rows/provenance hashes и pin baseline ONNX. Round 2 отметил все четыре
+findings как `FIXED`, новых блокеров нет; evidence quote дословно найден в этом отчёте.
+Полный артефакт: `docs/tasks/364/review-research.md`.

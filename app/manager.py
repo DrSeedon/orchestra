@@ -1330,7 +1330,9 @@ class SessionManager:
         active = ("idle", "running", "waiting")
         seen_ids: set[str] = set()
         names: set[str] = set()
-        for s in self.sessions.values():
+        # list() gives the worker thread a stable registry snapshot while the event loop may
+        # add/remove sessions. Individual session fields are ordinary immutable/scalar reads.
+        for s in list(self.sessions.values()):
             if s.scope == scope and not s.is_orchestrator and s.status.value in active:
                 seen_ids.add(s.id)
                 names.add(s.name)

@@ -4,6 +4,9 @@
 ничего не поменялось (замер 21.08) — почти мегабайт в минуту и один из шести браузерных
 слотов, из которых один навсегда держит SSE.
 """
+import asyncio
+import time
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -57,3 +60,27 @@ def test_etag_tracks_the_payload_not_the_clock(client):
     """Ключ считается от самого ответа — два запроса подряд дают один и тот же тег."""
     a, b = _get(client), _get(client)
     assert a.headers["ETag"] == b.headers["ETag"]
+
+
+@pytest.mark.asyncio
+async def test_slow_session_snapshot_does_not_block_the_event_loop(monkeypatch):
+    from app.routes import sessions as routes
+
+    def slow_list(_scope):
+        time.sleep(0.5)
+        return []
+
+    monkeypatch.setattr(routes.manager, "list_sessions", slow_list)
+    request = SimpleNamespace(headers={})
+    started = time.perf_counter()
+    heartbeat_at = None
+
+    async def heartbeat():
+        nonlocal heartbeat_at
+        await asyncio.sleep(0.01)
+        heartbeat_at = time.perf_counter()
+
+    await asyncio.gather(routes.list_sessions(request, "/scope"), heartbeat())
+
+    assert heartbeat_at is not None
+    assert heartbeat_at - started < 0.3

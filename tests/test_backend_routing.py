@@ -1,6 +1,7 @@
 """Exhaustive model/runtime/provider routing."""
 
 import pytest
+from unittest.mock import AsyncMock
 
 from app.models import (
     ALIASES,
@@ -101,6 +102,22 @@ def test_registered_model_spec_wins_over_name_prefix():
         assert get_model_spec(model_id).context_length == 123456
     finally:
         unregister_model(model_id)
+
+
+@pytest.mark.asyncio
+async def test_transport_https_proxy_is_not_treated_as_a_model_registry_proxy(
+    monkeypatch,
+    isolated_model_registry,
+):
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:12339")
+    monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
+    monkeypatch.delenv("UPSTREAM_API", raising=False)
+    fetch = AsyncMock(return_value=True)
+    monkeypatch.setattr(isolated_model_registry, "fetch_models_from_proxy", fetch)
+
+    await isolated_model_registry.refresh_models()
+
+    fetch.assert_not_awaited()
 
 
 def test_model_registration_rejects_unknown_runtime_and_provider():
