@@ -118,3 +118,58 @@ def test_in_flight_states_are_not_skipped(tmp_path, patched_conn):
     head = message_deliveries._next_target_delivery("sess")
 
     assert head["delivery_id"] == "busy", "идущая доставка не должна перепрыгиваться"
+
+
+@pytest.mark.asyncio
+async def test_runner_continues_after_delivery_failed_before_submit(monkeypatch):
+    heads = iter([
+        {"delivery_id": "dead", "state": "QUEUED"},
+        {"delivery_id": "alive", "state": "QUEUED"},
+        None,
+    ])
+    attempted = []
+
+    monkeypatch.setattr(
+        message_deliveries,
+        "_next_target_delivery",
+        lambda _target: next(heads),
+    )
+
+    async def run(delivery_id, manager=None):
+        attempted.append(delivery_id)
+        if delivery_id == "dead":
+            raise KeyError("archived target is not loaded")
+
+    monkeypatch.setattr(message_deliveries, "run_message_delivery", run)
+    monkeypatch.setattr(
+        message_deliveries,
+        "_row",
+        lambda delivery_id: {
+            "state": "FAILED_BEFORE_SUBMIT" if delivery_id == "dead" else "SUBMITTED"
+        },
+    )
+
+    assert await message_deliveries.run_target_message_deliveries("archived") is True
+    assert attempted == ["dead", "alive"]
+
+
+@pytest.mark.asyncio
+async def test_runner_does_not_cross_delivery_unknown_barrier(monkeypatch):
+    monkeypatch.setattr(
+        message_deliveries,
+        "_next_target_delivery",
+        lambda _target: {"delivery_id": "unknown", "state": "QUEUED"},
+    )
+
+    async def run(_delivery_id, manager=None):
+        raise RuntimeError("provider outcome unknown")
+
+    monkeypatch.setattr(message_deliveries, "run_message_delivery", run)
+    monkeypatch.setattr(
+        message_deliveries,
+        "_row",
+        lambda _delivery_id: {"state": "DELIVERY_UNKNOWN"},
+    )
+
+    with pytest.raises(RuntimeError, match="provider outcome unknown"):
+        await message_deliveries.run_target_message_deliveries("worker")

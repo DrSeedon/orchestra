@@ -346,5 +346,9 @@ class TestStreamHandshake:
                       for _ in range(2)]
         finally:
             await it.aclose()
-        assert events[0] == {"type": "__session", "session_id": "s1"}
+        assert events[0] == {
+            "type": "__session",
+            "session_id": "s1",
+            "agent_status": "idle",
+        }
         assert events[1]["content"] == "первая строка истории"

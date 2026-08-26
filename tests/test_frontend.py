@@ -323,6 +323,27 @@ def test_sidebar_agents_visible(dashboard_page: Page):
     expect(agent_list).to_be_visible()
 
 
+def test_live_stream_status_updates_selected_agent_badge(dashboard_page: Page):
+    dashboard_page.wait_for_function("() => typeof _applyLiveAgentStatus === 'function'")
+    dashboard_page.evaluate(
+        """() => _applyLiveAgentStatus('notify-268-probe', 'running')"""
+    )
+
+    item = dashboard_page.locator(
+        '.agent-item[data-agent-name="notify-268-probe"]'
+    )
+    expect(item.locator('.agent-status')).to_have_text("⚡ running")
+    wakes = dashboard_page.evaluate("""() => {
+        const seen = [];
+        window._pollWake = key => seen.push(key);
+        _streamStatusRefreshAt = 0;
+        _wakeStatusRefreshFromStream();
+        _wakeStatusRefreshFromStream();
+        return seen;
+    }""")
+    assert wakes == ["sessions"]
+
+
 def test_chat_input_exists(dashboard_page: Page):
     chat_input = dashboard_page.locator("#chat-input")
     expect(chat_input).to_be_visible()

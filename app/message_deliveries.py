@@ -442,7 +442,13 @@ async def run_target_message_deliveries(target_session_id: str, manager=None) ->
                 return True
             if head["state"] not in {"QUEUED", "PREPARING"}:
                 return False
-            await run_message_delivery(head["delivery_id"], manager=manager)
+            try:
+                await run_message_delivery(head["delivery_id"], manager=manager)
+            except Exception:
+                current = _row(head["delivery_id"])
+                if current is None or current["state"] not in _TERMINAL_DELIVERY_STATES:
+                    raise
+                continue
             current = _row(head["delivery_id"])
             # Терминальный ОТКАЗ этого сообщения не должен останавливать очередь: следующие
             # к нему отношения не имеют. Останавливаемся только если сообщение осталось

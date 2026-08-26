@@ -508,6 +508,17 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
+    live_session = manager.get(session_id)
+    stored = get_session_row(session_id) if live_session is None else None
+
+    def with_status(payload: dict) -> dict:
+        status = (
+            live_session.status.value
+            if live_session is not None
+            else str((stored or {}).get("status") or "idle")
+        )
+        return {**payload, "agent_status": status}
+
     async def event_generator():
         from app.db import _conn
         from app.live_broker import STREAM_CLOSE, broker
@@ -519,11 +530,11 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
             # держит историю по session_id и до этого события знает её лишь по своей карте,
             # которая могла устареть (агента убили и подняли под тем же именем). Правду
             # знает только сервер, и он обязан сказать её ДО первой строки истории.
-            yield f"data: {json.dumps({'type': '__session', 'session_id': session_id})}\n\n"
+            yield f"data: {json.dumps(with_status({'type': '__session', 'session_id': session_id}))}\n\n"
             # initial history first (one-shot) — preserves load-more behavior
             if after_id == 0:
                 for log in get_logs_before(session_id, before_id=2**31 - 1, limit=limit):
-                    yield f"data: {json.dumps(log)}\n\n"
+                    yield f"data: {json.dumps(with_status(log))}\n\n"
                     last_id = log["id"]
             while True:
                 if await request.is_disconnected():
@@ -538,12 +549,12 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
                         break
                     if payload is STREAM_CLOSE:
                         return
-                    yield f"data: {json.dumps(payload)}\n\n"
+                    yield f"data: {json.dumps(with_status(payload))}\n\n"
                     drained += 1
                 # 2) DB-persisted logs (finals + all other log types)
                 logs = get_logs(session_id, after_id=last_id, conn=c)
                 for log in logs:
-                    yield f"data: {json.dumps(log)}\n\n"
+                    yield f"data: {json.dumps(with_status(log))}\n\n"
                     last_id = log["id"]
                 # 3) short poll while active (partials follow quickly), back off when idle
                 await asyncio.sleep(0.1 if (logs or drained) else 0.5)

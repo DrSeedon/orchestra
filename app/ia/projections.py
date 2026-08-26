@@ -110,6 +110,52 @@ def _summary_item(item: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _prepare_current_rows(
+    records: Sequence[Mapping[str, Any]], canonical_head: str,
+) -> list[tuple[str, str, str, str, str, str, str, str]]:
+    prepared = []
+    seen: set[tuple[str, str]] = set()
+    for raw in records:
+        record = copy.deepcopy(dict(raw))
+        identity = _identity(record)
+        if not all(identity) or identity in seen:
+            raise ProjectionDebtError("current projection has duplicate or absent identity")
+        seen.add(identity)
+        record_key = f"{identity[0]}:{identity[1]}"
+        payload = _canonical_bytes(record).decode("utf-8")
+        prepared.append(
+            (
+                record_key,
+                identity[0],
+                identity[1],
+                str(record.get("project_id") or ""),
+                canonical_head,
+                f"sha256:{hashlib.sha256(payload.encode('utf-8')).hexdigest()}",
+                payload,
+                _search_text(record),
+            )
+        )
+    return prepared
+
+
+def _insert_current_rows(
+    connection: sqlite3.Connection,
+    prepared: Sequence[tuple[str, str, str, str, str, str, str, str]],
+) -> None:
+    for row in sorted(prepared):
+        connection.execute(
+            """INSERT INTO current_records(
+                record_key, record_type, stable_id, project_id, canonical_head,
+                payload_sha256, payload_json, search_text
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            row,
+        )
+        connection.execute(
+            "INSERT INTO current_fts(record_key, text) VALUES (?, ?)",
+            (row[0], row[7]),
+        )
+
+
 class SQLiteProjectionBackend:
     """Replaceable SQLite current rows plus an FTS5 search index."""
 
@@ -157,50 +203,108 @@ class SQLiteProjectionBackend:
     ) -> Mapping[str, Any]:
         """Atomically replace current rows and advance the projection receipt."""
 
-        prepared = []
-        seen: set[tuple[str, str]] = set()
-        for raw in records:
-            record = copy.deepcopy(dict(raw))
-            identity = _identity(record)
-            if not all(identity) or identity in seen:
-                raise ProjectionDebtError("current projection has duplicate or absent identity")
-            seen.add(identity)
-            record_key = f"{identity[0]}:{identity[1]}"
-            payload = _canonical_bytes(record).decode("utf-8")
-            prepared.append(
-                (
-                    record_key,
-                    identity[0],
-                    identity[1],
-                    str(record.get("project_id") or ""),
-                    canonical_head,
-                    f"sha256:{hashlib.sha256(payload.encode('utf-8')).hexdigest()}",
-                    payload,
-                    _search_text(record),
-                )
-            )
+        prepared = _prepare_current_rows(records, canonical_head)
 
         with self._connection() as connection:
             connection.execute("DELETE FROM current_fts")
             connection.execute("DELETE FROM current_records")
-            for row in sorted(prepared):
-                connection.execute(
-                    """INSERT INTO current_records(
-                        record_key, record_type, stable_id, project_id, canonical_head,
-                        payload_sha256, payload_json, search_text
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                    row,
-                )
-                connection.execute(
-                    "INSERT INTO current_fts(record_key, text) VALUES (?, ?)",
-                    (row[0], row[7]),
-                )
+            _insert_current_rows(connection, prepared)
             connection.execute(
                 """INSERT INTO projection_meta(singleton, projection_head) VALUES (1, ?)
                    ON CONFLICT(singleton) DO UPDATE SET projection_head=excluded.projection_head""",
                 (canonical_head,),
             )
         return {"projection_head": canonical_head, "count": len(prepared)}
+
+    def replace_current_retaining_resources(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        resource_records: Sequence[Mapping[str, Any]],
+        canonical_head: str,
+    ) -> Mapping[str, Any] | None:
+        """Advance mutable rows while retaining content-verified Git resources."""
+
+        prepared = _prepare_current_rows(records, canonical_head)
+        if any(row[1] == "resource" for row in prepared):
+            raise ProjectionDebtError("mutable projection rows cannot be resources")
+
+        expected: dict[str, dict[str, Any]] = {}
+        for raw in resource_records:
+            resource = copy.deepcopy(dict(raw))
+            identity = _identity(resource)
+            if identity[0] != "resource" or not identity[1]:
+                raise ProjectionDebtError("retained resource identity is invalid")
+            record_key = f"resource:{identity[1]}"
+            if record_key in expected:
+                raise ProjectionDebtError("retained resource identity is duplicated")
+            expected[record_key] = resource
+
+        with self._connection() as connection:
+            stored_keys = set()
+            stored_rows = connection.execute(
+                """SELECT record_key,payload_sha256,payload_json
+                   FROM current_records WHERE record_type='resource'"""
+            )
+            for row in stored_rows:
+                record_key = str(row["record_key"])
+                if record_key not in expected:
+                    return None
+                stored_keys.add(record_key)
+                payload_json = str(row["payload_json"])
+                digest = "sha256:" + hashlib.sha256(payload_json.encode()).hexdigest()
+                if digest != row["payload_sha256"]:
+                    return None
+                try:
+                    payload = json.loads(payload_json)
+                except json.JSONDecodeError:
+                    return None
+                if not isinstance(payload, dict):
+                    return None
+                content = payload.pop("content", None)
+                resource = expected[record_key]
+                if (
+                    not isinstance(content, str)
+                    or payload != resource
+                    or "sha256:" + hashlib.sha256(content.encode()).hexdigest()
+                    != resource.get("source_sha256")
+                ):
+                    return None
+            if stored_keys != set(expected):
+                return None
+            fts_keys = [
+                str(row[0])
+                for row in connection.execute(
+                    """SELECT f.record_key FROM current_fts f
+                       JOIN current_records c ON c.record_key=f.record_key
+                       WHERE c.record_type='resource'"""
+                ).fetchall()
+            ]
+            if sorted(fts_keys) != sorted(expected):
+                return None
+
+            connection.execute(
+                """DELETE FROM current_fts
+                   WHERE record_key NOT IN (
+                       SELECT record_key FROM current_records WHERE record_type='resource'
+                   )"""
+            )
+            connection.execute("DELETE FROM current_records WHERE record_type!='resource'")
+            connection.execute(
+                "UPDATE current_records SET canonical_head=? WHERE record_type='resource'",
+                (canonical_head,),
+            )
+            _insert_current_rows(connection, prepared)
+            connection.execute(
+                """INSERT INTO projection_meta(singleton, projection_head) VALUES (1, ?)
+                   ON CONFLICT(singleton) DO UPDATE SET projection_head=excluded.projection_head""",
+                (canonical_head,),
+            )
+        return {
+            "projection_head": canonical_head,
+            "count": len(prepared) + len(expected),
+            "retained_resources": len(expected),
+        }
 
     def search_current(
         self,

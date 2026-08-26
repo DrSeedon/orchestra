@@ -150,8 +150,11 @@ def test_t8_unit_templates_are_valid_and_complete(tmp_path):
     root = Path(__file__).resolve().parents[1]
     service = root / "deploy" / "orchestra.service"
     sock = root / "deploy" / "orchestra.socket"
+    readiness = root / "deploy" / "orchestra-readiness.conf"
     assert service.is_file(), "deploy/orchestra.service must be versioned to be reviewable"
     assert sock.is_file(), "deploy/orchestra.socket must be versioned to be reviewable"
+    assert readiness.read_text().strip().endswith("Type=notify")
+    assert "\nStateDirectory=" not in readiness.read_text()
 
     service_text = service.read_text()
     assert "Type=notify" in service_text, "systemd must wait for application startup"

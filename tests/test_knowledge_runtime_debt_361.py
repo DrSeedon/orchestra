@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 import subprocess
@@ -187,6 +188,93 @@ def test_t6_scope_evidence_policy_distinguishes_none_broken_git_and_working_git(
         "# second evidence\n",
         "# working evidence\n",
     ]
+
+
+def _resource(content: bytes) -> dict:
+    return {
+        "record_type": "resource",
+        "schema_version": 1,
+        "stable_id": "resource-1",
+        "uri": "orch://project/project/resources/resource-1",
+        "project_id": "project",
+        "status": "current",
+        "source_path": "README.md",
+        "source_scope": "/project",
+        "source_class": "immutable-evidence",
+        "git_commit": "a" * 40,
+        "git_blob": "b" * 40,
+        "source_sha256": "sha256:" + hashlib.sha256(content).hexdigest(),
+        "storage": "cold-immutable-reference",
+    }
+
+
+def _task_record(title: str) -> dict:
+    return {
+        "record_type": "task.state",
+        "schema_version": 1,
+        "stable_id": "task-1",
+        "project_id": "project",
+        "display_number": 1,
+        "title": title,
+    }
+
+
+def test_task_head_refresh_retains_verified_evidence_without_git_reads(tmp_path):
+    owner = _owner(tmp_path)
+    old_head = owner.state["canonical_head"]
+    new_head = "sha256:" + "3" * 64
+    content = b"# immutable evidence\n"
+    resource = _resource(content)
+    SQLiteProjectionBackend(path=owner.paths["current_projection"]).replace_current(
+        records=[{**resource, "content": content.decode()}, _task_record("old")],
+        canonical_head=old_head,
+    )
+    owner.state["canonical_head"] = new_head
+    owner.task_store = SimpleNamespace(states=lambda: {"task-1": _task_record("new")})
+    owner.knowledge_service = None
+    owner.evidence_records = lambda: [resource]
+    owner._evidence_contents = lambda _records: pytest.fail(
+        "unchanged evidence must not be reread during a task-only refresh"
+    )
+
+    owner._refresh_current_projection()
+
+    backend = SQLiteProjectionBackend(path=owner.paths["current_projection"])
+    task = backend.search_current(
+        project_id="project", text="", record_types=["task.state"], limit=10,
+    )
+    evidence = backend.search_current(
+        project_id="project", text="", record_types=["resource"], limit=10,
+    )
+    assert task["projection_head"] == new_head
+    assert task["items"][0]["title"] == "new"
+    assert evidence["items"][0]["content"] == content.decode()
+
+
+def test_task_head_refresh_rebuilds_when_evidence_digest_changed(tmp_path):
+    owner = _owner(tmp_path)
+    old_content = b"# old evidence\n"
+    new_content = b"# new evidence\n"
+    old_resource = _resource(old_content)
+    new_resource = _resource(new_content)
+    SQLiteProjectionBackend(path=owner.paths["current_projection"]).replace_current(
+        records=[{**old_resource, "content": old_content.decode()}],
+        canonical_head=owner.state["canonical_head"],
+    )
+    owner.state["canonical_head"] = "sha256:" + "4" * 64
+    owner.task_store = SimpleNamespace(states=lambda: {})
+    owner.knowledge_service = None
+    owner.evidence_records = lambda: [new_resource]
+    owner._evidence_contents = lambda _records: {"resource-1": new_content}
+
+    owner._refresh_current_projection()
+
+    evidence = SQLiteProjectionBackend(
+        path=owner.paths["current_projection"]
+    ).search_current(
+        project_id="project", text="", record_types=["resource"], limit=10,
+    )
+    assert evidence["items"][0]["content"] == new_content.decode()
 
 
 class _ParityStore:
