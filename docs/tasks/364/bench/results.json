@@ -1,0 +1,613 @@
+{
+  "arms": [
+    {
+      "n": 28,
+      "MRR": 0.48928571428571427,
+      "R@3": 0.6428571428571429,
+      "R@5": 0.75,
+      "elapsed_s": 10.53655847899995
+    },
+    {
+      "n": 28,
+      "MRR": 0.4726190476190476,
+      "R@3": 0.6071428571428571,
+      "R@5": 0.75,
+      "elapsed_s": 10.068585375999987
+    }
+  ],
+  "comparison": {
+    "delta_MRR": -0.016666666666666666,
+    "paired_t": -0.3338243239269467,
+    "df": 27,
+    "two_sided_t_threshold_0.05": 2.052,
+    "split_half_noise": {
+      "repeats": 20000,
+      "seed": 135,
+      "median_abs_gap": 0.10476190476190478,
+      "p90_abs_gap": 0.24761904761904768,
+      "p95_abs_gap": 0.2952380952380952
+    },
+    "delta_exceeds_median_noise": false,
+    "verdict": "не меняем"
+  },
+  "baseline": {
+    "arm": "prod_bge_m3_hybrid",
+    "summary": {
+      "n": 28,
+      "MRR": 0.48928571428571427,
+      "R@3": 0.6428571428571429,
+      "R@5": 0.75,
+      "elapsed_s": 10.53655847899995
+    },
+    "per_query": [
+      {
+        "index": 1,
+        "q": "почему воркер после компактизации теряет свою роль",
+        "gold": [
+          6000
+        ],
+        "rank": 3,
+        "rr": 0.3333333333333333
+      },
+      {
+        "index": 2,
+        "q": "cost_usd завышен в несколько раз, откуда переучёт",
+        "gold": [
+          6188
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 3,
+        "q": "скиллы в worktree воркера устарели и не синхронизируются",
+        "gold": [
+          4041
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 4,
+        "q": "untracked .claude/skills блокирует merge воркера",
+        "gold": [
+          247001
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 5,
+        "q": "сколько памяти держат Serena language server деревья",
+        "gold": [
+          3291038,
+          3291039
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 6,
+        "q": "чем codex exec отличается от codex exec resume по кешу",
+        "gold": [
+          2717010
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 7,
+        "q": "как роутится backend по имени модели",
+        "gold": [
+          2124006
+        ],
+        "rank": 3,
+        "rr": 0.3333333333333333
+      },
+      {
+        "index": 8,
+        "q": "наш системный промпт заменяет пресет Claude Code или дописывается",
+        "gold": [
+          398869001
+        ],
+        "rank": 3,
+        "rr": 0.3333333333333333
+      },
+      {
+        "index": 9,
+        "q": "grok отменяет ход после запроса разрешения",
+        "gold": [
+          316738002
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 10,
+        "q": "какие переменные окружения нужны для headless режима",
+        "gold": [
+          3164036
+        ],
+        "rank": 2,
+        "rr": 0.5
+      },
+      {
+        "index": 11,
+        "q": "как grok читает defaultMode и permissions allow deny ask",
+        "gold": [
+          3163026
+        ],
+        "rank": 4,
+        "rr": 0.25
+      },
+      {
+        "index": 12,
+        "q": "сколько стоит Grok и когда он вышел",
+        "gold": [
+          174012
+        ],
+        "rank": 2,
+        "rr": 0.5
+      },
+      {
+        "index": 13,
+        "q": "отслеживаем ли мы стоимость голосовой транскрипции",
+        "gold": [
+          2718020,
+          266000000
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 14,
+        "q": "почему нельзя глобально блокировать sleep у агентов",
+        "gold": [
+          290246001
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 15,
+        "q": "что должно быть в структурированной ошибке MCP тула",
+        "gold": [
+          3301037,
+          3313034
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 16,
+        "q": "пустая строка error недопустима, какой контракт по кодам ошибок",
+        "gold": [
+          3310014
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 17,
+        "q": "как считается turn usage и откуда берутся кешированные токены",
+        "gold": [
+          2124006
+        ],
+        "rank": 2,
+        "rr": 0.5
+      },
+      {
+        "index": 18,
+        "q": "коллизия ключа orchestra в кастомном словаре mcp серверов",
+        "gold": [
+          198005
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 19,
+        "q": "гонка turn/start и отложенного compact перезаписывает active turn id",
+        "gold": [
+          223008
+        ],
+        "rank": 2,
+        "rr": 0.5
+      },
+      {
+        "index": 20,
+        "q": "правда ли escaping в bash у Sol виноват в ретраях",
+        "gold": [
+          3100013
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 21,
+        "q": "как понять что merge делали руками, а не через merge_worker",
+        "gold": [
+          372000000,
+          376869001
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 22,
+        "q": "красная точка непрочитанного загорается от воркеров",
+        "gold": [
+          304000000
+        ],
+        "rank": 5,
+        "rr": 0.2
+      },
+      {
+        "index": 23,
+        "q": "persistent Codex сессии и что происходит при протухшем UUID",
+        "gold": [
+          234377000
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 24,
+        "q": "команда limits в личке с ботом, почему не в топиках группы",
+        "gold": [
+          363754000
+        ],
+        "rank": 2,
+        "rr": 0.5
+      },
+      {
+        "index": 25,
+        "q": "оценка только по стенограмме без побочных эффектов ломает судейство",
+        "gold": [
+          376623001
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 26,
+        "q": "почему periodic опрос PM-фич конфликтует с запретом Monitor",
+        "gold": [
+          3297037
+        ],
+        "rank": 4,
+        "rr": 0.25
+      },
+      {
+        "index": 27,
+        "q": "platform contract продублирован в двух base и разъехался",
+        "gold": [
+          3297038
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 28,
+        "q": "есть ли у нас замкнутый цикл самоулучшения с evaluator gate",
+        "gold": [
+          2726050
+        ],
+        "rank": 2,
+        "rr": 0.5
+      }
+    ],
+    "provenance": {
+      "corpus": "/mnt/data/Projects/Python/orchestra/data/bench364/vec134.db",
+      "corpus_sha256": "92808d6b4170daf3e5c8784377c1e0a48dfebc60a9c53c3dbf514a2b49135ab2",
+      "queries": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/giga-embed-bench/docs/tasks/134/bench/queries.json",
+      "queries_sha256": "516b0755416b763233df0d8c5835b16c875284144e55be9ca6e91d0f4d4dbd0a",
+      "harness": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/giga-embed-bench/docs/tasks/134/bench/retrieval_bench.py",
+      "harness_sha256": "5175a900e5d3ab14cb6ea2fe17c4f80d34958451421ac1f64419ca584fee2d84",
+      "model": "AlpEge/bge-m3-onnx-int8",
+      "model_revision": "a4136c5faa1b666e68595c9d0cb2dac7f196ddd5",
+      "model_onnx_sha256": "17dbde8d0da550b94f5b8840e4305a0374d700a5c844d65b3bc9646369c559ce",
+      "pooling": "CLS + L2",
+      "query_prefix": null
+    }
+  },
+  "giga": {
+    "arm": "giga_480m_hybrid",
+    "summary": {
+      "n": 28,
+      "MRR": 0.4726190476190476,
+      "R@3": 0.6071428571428571,
+      "R@5": 0.75,
+      "elapsed_s": 10.068585375999987
+    },
+    "per_query": [
+      {
+        "index": 1,
+        "q": "почему воркер после компактизации теряет свою роль",
+        "gold": [
+          6000
+        ],
+        "rank": 3,
+        "rr": 0.3333333333333333
+      },
+      {
+        "index": 2,
+        "q": "cost_usd завышен в несколько раз, откуда переучёт",
+        "gold": [
+          6188
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 3,
+        "q": "скиллы в worktree воркера устарели и не синхронизируются",
+        "gold": [
+          4041
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 4,
+        "q": "untracked .claude/skills блокирует merge воркера",
+        "gold": [
+          247001
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 5,
+        "q": "сколько памяти держат Serena language server деревья",
+        "gold": [
+          3291038,
+          3291039
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 6,
+        "q": "чем codex exec отличается от codex exec resume по кешу",
+        "gold": [
+          2717010
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 7,
+        "q": "как роутится backend по имени модели",
+        "gold": [
+          2124006
+        ],
+        "rank": 5,
+        "rr": 0.2
+      },
+      {
+        "index": 8,
+        "q": "наш системный промпт заменяет пресет Claude Code или дописывается",
+        "gold": [
+          398869001
+        ],
+        "rank": 4,
+        "rr": 0.25
+      },
+      {
+        "index": 9,
+        "q": "grok отменяет ход после запроса разрешения",
+        "gold": [
+          316738002
+        ],
+        "rank": 3,
+        "rr": 0.3333333333333333
+      },
+      {
+        "index": 10,
+        "q": "какие переменные окружения нужны для headless режима",
+        "gold": [
+          3164036
+        ],
+        "rank": 2,
+        "rr": 0.5
+      },
+      {
+        "index": 11,
+        "q": "как grok читает defaultMode и permissions allow deny ask",
+        "gold": [
+          3163026
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 12,
+        "q": "сколько стоит Grok и когда он вышел",
+        "gold": [
+          174012
+        ],
+        "rank": 2,
+        "rr": 0.5
+      },
+      {
+        "index": 13,
+        "q": "отслеживаем ли мы стоимость голосовой транскрипции",
+        "gold": [
+          2718020,
+          266000000
+        ],
+        "rank": 2,
+        "rr": 0.5
+      },
+      {
+        "index": 14,
+        "q": "почему нельзя глобально блокировать sleep у агентов",
+        "gold": [
+          290246001
+        ],
+        "rank": 3,
+        "rr": 0.3333333333333333
+      },
+      {
+        "index": 15,
+        "q": "что должно быть в структурированной ошибке MCP тула",
+        "gold": [
+          3301037,
+          3313034
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 16,
+        "q": "пустая строка error недопустима, какой контракт по кодам ошибок",
+        "gold": [
+          3310014
+        ],
+        "rank": 4,
+        "rr": 0.25
+      },
+      {
+        "index": 17,
+        "q": "как считается turn usage и откуда берутся кешированные токены",
+        "gold": [
+          2124006
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 18,
+        "q": "коллизия ключа orchestra в кастомном словаре mcp серверов",
+        "gold": [
+          198005
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 19,
+        "q": "гонка turn/start и отложенного compact перезаписывает active turn id",
+        "gold": [
+          223008
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 20,
+        "q": "правда ли escaping в bash у Sol виноват в ретраях",
+        "gold": [
+          3100013
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 21,
+        "q": "как понять что merge делали руками, а не через merge_worker",
+        "gold": [
+          372000000,
+          376869001
+        ],
+        "rank": null,
+        "rr": 0.0
+      },
+      {
+        "index": 22,
+        "q": "красная точка непрочитанного загорается от воркеров",
+        "gold": [
+          304000000
+        ],
+        "rank": 3,
+        "rr": 0.3333333333333333
+      },
+      {
+        "index": 23,
+        "q": "persistent Codex сессии и что происходит при протухшем UUID",
+        "gold": [
+          234377000
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 24,
+        "q": "команда limits в личке с ботом, почему не в топиках группы",
+        "gold": [
+          363754000
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 25,
+        "q": "оценка только по стенограмме без побочных эффектов ломает судейство",
+        "gold": [
+          376623001
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 26,
+        "q": "почему periodic опрос PM-фич конфликтует с запретом Monitor",
+        "gold": [
+          3297037
+        ],
+        "rank": 5,
+        "rr": 0.2
+      },
+      {
+        "index": 27,
+        "q": "platform contract продублирован в двух base и разъехался",
+        "gold": [
+          3297038
+        ],
+        "rank": 1,
+        "rr": 1.0
+      },
+      {
+        "index": 28,
+        "q": "есть ли у нас замкнутый цикл самоулучшения с evaluator gate",
+        "gold": [
+          2726050
+        ],
+        "rank": 2,
+        "rr": 0.5
+      }
+    ],
+    "provenance": {
+      "source_corpus": "/mnt/data/Projects/Python/orchestra/data/bench364/vec134.db",
+      "source_corpus_sha256": "92808d6b4170daf3e5c8784377c1e0a48dfebc60a9c53c3dbf514a2b49135ab2",
+      "candidate_db": "/mnt/data/Projects/Python/orchestra/data/bench364/giga.db",
+      "queries": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/giga-embed-bench/docs/tasks/134/bench/queries.json",
+      "queries_sha256": "516b0755416b763233df0d8c5835b16c875284144e55be9ca6e91d0f4d4dbd0a",
+      "harness": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/giga-embed-bench/docs/tasks/134/bench/retrieval_bench.py",
+      "harness_sha256": "5175a900e5d3ab14cb6ea2fe17c4f80d34958451421ac1f64419ca584fee2d84",
+      "model": {
+        "repo": "ai-sage/Giga-Embeddings-instruct-480M-0826",
+        "revision": "2d0c1a92716eef0e5b6972df85b5883eb5b4f57a",
+        "weights_sha256": "9ce03c6c5ae02baebb42ce3015b6f3e628c5fec7b7745bc2490f6ff961a654a5",
+        "transformers": "4.57.0",
+        "torch": "2.10.0+cu128",
+        "device": "NVIDIA GeForce GTX 1650",
+        "compute_capability": "7.5",
+        "model_dtype": "float16 (BF16 checkpoint converted for GTX 1650)",
+        "pooling": "mean over non-padding tokens + L2",
+        "document_prefix": null,
+        "query_prefix": "Instruct: Given a query, retrieve relevant passages\nQuery: ",
+        "max_length": 512,
+        "batch_size": 16
+      },
+      "reindex_and_score_elapsed_s": 287.84616764099997,
+      "cuda_max_memory_allocated_bytes": 1174995456,
+      "rss_max_kib": 2632552,
+      "vector_counts": {
+        "files": 9448,
+        "logs": 8435
+      }
+    }
+  }
+}
