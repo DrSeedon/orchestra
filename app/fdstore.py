@@ -24,6 +24,21 @@ class FdStoreUnavailable(RuntimeError):
     """The handover did NOT happen. Never swallow this: silence here loses live agents."""
 
 
+def notify_ready() -> bool:
+    """Tell systemd that FastAPI startup gates completed.
+
+    Service environment is inherited by test/agent children, so NOTIFY_SOCKET alone is
+    insufficient: only the exact SYSTEMD_EXEC_PID may publish readiness. Type=simple legacy
+    units have no notify socket and remain compatible until the unit is upgraded.
+    """
+    if not os.environ.get("NOTIFY_SOCKET"):
+        return False
+    if os.environ.get("SYSTEMD_EXEC_PID") != str(os.getpid()):
+        return False
+    _notify("READY=1", ())
+    return True
+
+
 def _check_fdname(name: str) -> None:
     """Refuse a name systemd would rewrite, before anything is handed over (#237 T2)."""
     if not _SAFE_FDNAME.fullmatch(name):

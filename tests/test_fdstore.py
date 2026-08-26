@@ -5,9 +5,12 @@ Measured on throwaway units before any of this was designed: descriptors handed 
 the ORDER attaches an agent's stdin to its stdout.
 """
 import array
+import grp
 import os
+import pwd
 import socket
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -118,7 +121,28 @@ def test_t1_store_failure_is_loud(monkeypatch):
         os.close(w)
 
 
-def test_t8_unit_templates_are_valid_and_complete():
+def test_ready_notification_is_sent_only_by_the_systemd_main_process(tmp_path, monkeypatch):
+    sock_path = tmp_path / "notify-ready.sock"
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    server.bind(str(sock_path))
+    server.settimeout(2)
+    monkeypatch.setenv("NOTIFY_SOCKET", str(sock_path))
+    monkeypatch.setenv("SYSTEMD_EXEC_PID", str(os.getpid()))
+    try:
+        assert fdstore.notify_ready() is True
+        assert server.recv(1024) == b"READY=1"
+    finally:
+        server.close()
+
+
+def test_ready_notification_ignores_inherited_systemd_environment(monkeypatch):
+    monkeypatch.setenv("NOTIFY_SOCKET", "/run/systemd/notify")
+    monkeypatch.setenv("SYSTEMD_EXEC_PID", str(os.getpid() + 1))
+
+    assert fdstore.notify_ready() is False
+
+
+def test_t8_unit_templates_are_valid_and_complete(tmp_path):
     """Delivery check for T8: the unit files live in the repo, so they can be verified.
 
     Replaces the `oracle: none` the plan first claimed — review named this check, correctly.
@@ -130,13 +154,30 @@ def test_t8_unit_templates_are_valid_and_complete():
     assert sock.is_file(), "deploy/orchestra.socket must be versioned to be reviewable"
 
     service_text = service.read_text()
+    assert "Type=notify" in service_text, "systemd must wait for application startup"
+    assert "NotifyAccess=main" in service_text, "READY/FDSTORE need NOTIFY_SOCKET"
     assert "KillMode=process" in service_text, "children must survive the restart"
     assert "FileDescriptorStoreMax=" in service_text, "no store, no handover"
     assert "--fd 3" in service_text, "the listening socket must be inherited"
     assert "Accept=no" in sock.read_text()
 
+    # The tracked unit intentionally names the VPS user/path. Verify the exact syntax with
+    # only those host-specific values adapted to this machine; a missing remote interpreter
+    # is not a unit syntax failure.
+    local_service = tmp_path / "orchestra.service"
+    local_service.write_text(
+        service_text
+        .replace("User=kesha", f"User={pwd.getpwuid(os.getuid()).pw_name}")
+        .replace("Group=kesha", f"Group={grp.getgrgid(os.getgid()).gr_name}")
+        .replace("WorkingDirectory=/home/kesha/orchestra", f"WorkingDirectory={root}")
+        .replace("EnvironmentFile=/home/kesha/orchestra/.env", "EnvironmentFile=-/dev/null")
+        .replace(
+            "ExecStart=/home/kesha/orchestra/.venv/bin/python",
+            f"ExecStart={sys.executable}",
+        )
+    )
     proc = subprocess.run(
-        ["systemd-analyze", "verify", str(service), str(sock)],
+        ["systemd-analyze", "verify", str(local_service), str(sock)],
         capture_output=True, text=True,
     )
     assert proc.returncode == 0, f"systemd-analyze verify failed: {proc.stderr[:400]}"

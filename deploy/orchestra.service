@@ -25,7 +25,7 @@ StartLimitIntervalSec=300
 StartLimitBurst=5
 
 [Service]
-Type=simple
+Type=notify
 NotifyAccess=main
 User=kesha
 Group=kesha

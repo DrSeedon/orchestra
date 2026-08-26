@@ -181,14 +181,46 @@ class _RuntimeTaskStore:
                 (self._project(str(task["project_id"])), int(task["par_number"])): task
                 for task in tasks
             }
-            if canonical.keys() != legacy.keys():
-                missing = sorted(legacy.keys() - canonical.keys())
-                extra = sorted(canonical.keys() - legacy.keys())
+            missing = sorted(legacy.keys() - canonical.keys())
+            extra = sorted(canonical.keys() - legacy.keys())
+            if extra:
                 raise KnowledgeRuntimeError(
                     f"task shadow identity mismatch: missing={missing}, extra={extra}"
                 )
             events = []
+            for project_id, display_number in missing:
+                task = legacy[(project_id, display_number)]
+                stable_id = str(uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    f"orch://task-shadow-reconcile-create/{project_id}/{display_number}",
+                ))
+                events.append({
+                    "event_id": str(uuid.uuid5(
+                        uuid.NAMESPACE_URL,
+                        f"orch://task-shadow-reconcile-created/{stable_id}",
+                    )),
+                    "event_type": "task.created",
+                    "stable_id": stable_id,
+                    "project_id": project_id,
+                    "display_number": display_number,
+                    "contour_id": "shadow-reconcile",
+                    "occurred_at": str(
+                        task.get("created_at") or task.get("updated_at") or ""
+                    ),
+                    "record": {
+                        "title": str(task.get("title") or ""),
+                        "description": str(task.get("description") or ""),
+                        "price_rub": int(task.get("price_rub") or 0),
+                        "status": str(task.get("status") or "new"),
+                        "assignee": str(task.get("assignee") or ""),
+                        "priority": int(
+                            2 if task.get("priority") is None else task["priority"]
+                        ),
+                    },
+                })
             for identity, task in sorted(legacy.items()):
+                if identity not in canonical:
+                    continue
                 state = canonical[identity]
                 expected = {
                     "title": str(task.get("title") or ""),
@@ -668,10 +700,7 @@ class KnowledgeRuntime:
         blob: str,
     ) -> dict[str, Any]:
         content = self._source_git(repository, "cat-file", "blob", blob, binary=True)
-        stable_id = str(uuid.uuid5(
-            uuid.NAMESPACE_URL,
-            f"orch://git-evidence/{project_id}/{commit}/{path}/{blob}",
-        ))
+        stable_id = self._source_stable_id(project_id, commit, path, blob)
         return {
             "record_type": "resource",
             "schema_version": 1,
@@ -687,6 +716,13 @@ class KnowledgeRuntime:
             "source_sha256": "sha256:" + hashlib.sha256(content).hexdigest(),
             "storage": "cold-immutable-reference",
         }
+
+    @staticmethod
+    def _source_stable_id(project_id: str, commit: str, path: str, blob: str) -> str:
+        return str(uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"orch://git-evidence/{project_id}/{commit}/{path}/{blob}",
+        ))
 
     def _import_scope_evidence(self) -> None:
         imported = False
@@ -730,6 +766,21 @@ class KnowledgeRuntime:
                 if any(part in {".git", ".venv", "node_modules", "worktrees"} for part in Path(path).parts):
                     continue
                 blob = blob_bytes.decode("ascii")
+                stable_id = self._source_stable_id(project_id, commit, path, blob)
+                destination = self._evidence_root() / project_id / f"{stable_id}.json"
+                if destination.exists():
+                    existing = _read_json(destination)
+                    expected_identity = {
+                        "stable_id": stable_id,
+                        "project_id": project_id,
+                        "git_commit": commit,
+                        "git_blob": blob,
+                        "source_path": path,
+                        "source_scope": scope,
+                    }
+                    if any(existing.get(key) != value for key, value in expected_identity.items()):
+                        raise KnowledgeRuntimeError(f"immutable evidence changed: {path}")
+                    continue
                 record = self._source_record(
                     scope=scope,
                     project_id=project_id,
@@ -738,11 +789,6 @@ class KnowledgeRuntime:
                     path=path,
                     blob=blob,
                 )
-                destination = self._evidence_root() / project_id / f"{record['stable_id']}.json"
-                if destination.exists():
-                    if _read_json(destination) != record:
-                        raise KnowledgeRuntimeError(f"immutable evidence changed: {path}")
-                    continue
                 _write_json(destination, record)
                 imported = True
         debt = self.debt_summary()
