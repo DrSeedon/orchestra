@@ -328,10 +328,9 @@ class SQLiteProjectionBackend:
                    )"""
             )
             connection.execute("DELETE FROM current_records WHERE record_type!='resource'")
-            connection.execute(
-                "UPDATE current_records SET canonical_head=? WHERE record_type='resource'",
-                (canonical_head,),
-            )
+            # Resource payloads are immutable and projection_meta owns the generation
+            # boundary read by queries. Rewriting this unused denormalized column touched
+            # every large row and turned a task-only update into a 500 MB transaction.
             _insert_current_rows(connection, prepared)
             connection.execute(
                 "UPDATE projection_meta SET projection_head=? WHERE singleton=1",

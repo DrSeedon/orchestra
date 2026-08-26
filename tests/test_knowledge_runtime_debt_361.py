@@ -266,6 +266,11 @@ def test_task_head_refresh_retains_verified_evidence_without_git_reads(tmp_path)
     assert task["projection_head"] == new_head
     assert task["items"][0]["title"] == "new"
     assert evidence["items"][0]["content"] == content.decode()
+    with sqlite3.connect(owner.paths["current_projection"]) as connection:
+        stored_resource_head = connection.execute(
+            "SELECT canonical_head FROM current_records WHERE record_type='resource'"
+        ).fetchone()[0]
+    assert stored_resource_head == old_head
 
 
 def test_task_head_refresh_rebuilds_when_evidence_digest_changed(tmp_path):
