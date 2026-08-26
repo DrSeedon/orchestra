@@ -1222,7 +1222,14 @@ class KnowledgeRuntime:
             value["text"] = value.pop("query")
         return value
 
-    def query_for_scope(self, scope: str, text: str, *, limit: int = 10) -> dict[str, Any]:
+    def query_for_scope(
+        self,
+        scope: str,
+        text: str,
+        *,
+        limit: int = 10,
+        detail: str = "summary",
+    ) -> dict[str, Any]:
         scope = _scope(scope)
         entry = self.scope_registry.get(scope)
         if entry is None:
@@ -1266,9 +1273,13 @@ class KnowledgeRuntime:
             max(0, int(limit) - len(items)),
         )
         items.extend(evidence_items)
+        if detail == "summary":
+            from app.ia.projections import _summary_item
+
+            items = [_summary_item(item) for item in items]
         return {
             "operation": "query",
-            "detail": "summary",
+            "detail": detail,
             "project_id": project_id,
             "items": items,
             "count": len(items),
@@ -1363,7 +1374,12 @@ class KnowledgeRuntime:
             raise KnowledgeRequestError(f"knowledge query contains unsupported fields: {sorted(unknown)}")
         if value.get("cross_project"):
             raise KnowledgeRequestError("cross-project query is not active in shadow bootstrap")
-        result = self.query_for_scope(scope, str(value.get("text") or ""), limit=int(value.get("limit") or 10))
+        result = self.query_for_scope(
+            scope,
+            str(value.get("text") or ""),
+            limit=int(value.get("limit") or 10),
+            detail=detail,
+        )
         result["detail"] = detail
         return result
 
