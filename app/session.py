@@ -1040,6 +1040,49 @@ class AgentSession:
 
         return await get_worker_admission(model)
 
+    async def preflight_delivery_admission(self) -> None:
+        """Check a new direct delivery before its durable receipt is accepted."""
+        decision = None
+        admitted_model = ""
+        admitted_stop_gen = -1
+        while True:
+            await self._lifecycle_lock.acquire()
+            if self._handoff_recovery_required:
+                self._lifecycle_lock.release()
+                raise RuntimeError(
+                    "handoff_recovery_required: operator recovery is required before sends"
+                )
+            # Direct delivery can be injected into an existing turn.  In that case
+            # the normal send path intentionally does not consume a new-turn quota.
+            if self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator:
+                self._lifecycle_lock.release()
+                return
+            if decision is None:
+                admitted_model = self.model
+                admitted_stop_gen = self._turn_start_cancel_gen
+                self._lifecycle_lock.release()
+                decision = await self._worker_admission(admitted_model)
+                continue
+            if admitted_stop_gen != self._turn_start_cancel_gen or self.model != admitted_model:
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            if (
+                decision.state in {"available", "blocked"}
+                and decision.valid_until is not None
+                and time.time() >= decision.valid_until
+            ):
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            try:
+                from app.quota_gate import require_worker_admission
+
+                require_worker_admission(decision)
+            finally:
+                self._lifecycle_lock.release()
+            return
+
     async def send(self, message: str | InjectedMessage, *, delivery=None) -> None:
         message_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
         message = message.text if isinstance(message, InjectedMessage) else message
