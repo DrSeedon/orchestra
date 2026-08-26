@@ -20,6 +20,7 @@
 - «Достаточно усилить Markdown prompt-контракт» · после введения контракта source-link coverage только 58.3%, topic orphan 8.3%, а current index coverage 50.1%; semantic promotion recall не измерим, enforcement должен быть write API + validator/projection · 2026-08-23, #256
 - «Graph-first/LLM contradiction resolver безопасно выбирает текущее знание» · Graphiti #1728 измерил 3 collateral retirement из 4 audit cases, #1275 — O(n) resolution и silent dropped episodes, MemoryAgentBench paper — Graphiti/Zep 7% FC-SH · 2026-08-23, #256
 - «Нужно снова крутить embedder/reranker/RRF/weights/pool или разводить file/log corpus» · #133 не доказал superior embedder, #135 отверг pool/RRF/weights, #138 отверг corpus split при равном budget; #256 локализует seam раньше retrieval — promotion + freshness + typed current state · 2026-08-23, #256
+- «GigaEmbeddings 480M улучшит текущий hybrid retrieval на русском техкорпусе» · pinned #134: MRR 0.4726 против bge-m3 0.4893, Δ −0.0167, paired t −0.334; |Δ| в 6.3 раза меньше split-half noise 0.1048 → разницы стенд не видит, модель не менять · `docs/tasks/364/bench/results.json`; `docs/tasks/364/report.md` · 2026-08-26, #364
 - «TTL означает удалить/считать ложным» · время последней проверки не является valid-time; истёкший `refresh_after` только помечает validation debt, а history/rejected сохраняются · [Wikibase historical vs deprecated semantics](https://www.wikidata.org/wiki/Help%3ARanking), 2026-08-23, #256
 
 ## Пробелы
@@ -31,6 +32,7 @@
 - Stable fact-key vocabulary и exact serialization typed records в Git не выбраны · это Phase 2 schema decision с red mutation oracles, текущая задача research-only · 2026-08-23, #256
 - Semantic duplicate-topic rate не измерен: exact cross-topic duplicates дают только lower bound и не ловят paraphrase · нужен blinded manual audit или отдельно авторизованный model-assisted audit · 2026-08-23, #256
 - A/B latency and real tokenizer tokens для proposed typed path отсутствуют · implementation не существует; current baseline хранит 335.6/682.8 ms и chars/3 proxy, не выдавая proxy за tokens · 2026-08-23, #256
+- Перенос сравнения GigaEmbeddings на текущий состав корпуса не измерен: свежий SQLite-backup уже потерял 3 gold chunk_id frozen-выборки, а расширять/пересобирать n=28 после результата запрещено методологией · `docs/tasks/364/research.md` §Counter-evidence · 2026-08-26, #364
 
 ## Источники
 
@@ -38,3 +40,4 @@
 - docs/tasks/256/research.md — полный local/external synthesis и recommended write/update/delivery seam.
 - docs/tasks/256/comparison.md — exact 15-column comparison across Git, relational, hybrid retrieval, graph, typed facts and event log.
 - docs/tasks/256/metrics.md — metric contracts, frozen holdout, baseline and future promotion gate.
+- docs/tasks/364/research.md — pinned-corpus benchmark GigaEmbeddings 480M vs production bge-m3 and the noise-bounded no-change verdict.
