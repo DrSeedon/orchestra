@@ -156,6 +156,24 @@ def _insert_current_rows(
         )
 
 
+def _resource_manifest_sha256(records: Sequence[Mapping[str, Any]]) -> str:
+    resources = []
+    for raw in records:
+        record = copy.deepcopy(dict(raw))
+        if record.get("record_type") != "resource":
+            continue
+        record.pop("content", None)
+        resources.append(record)
+    resources.sort(key=_identity)
+    return _digest(resources)
+
+
+def _resource_rows_sha256(
+    prepared: Sequence[tuple[str, str, str, str, str, str, str, str]],
+) -> str:
+    return _digest(sorted((row[0], row[5]) for row in prepared if row[1] == "resource"))
+
+
 class SQLiteProjectionBackend:
     """Replaceable SQLite current rows plus an FTS5 search index."""
 
@@ -174,9 +192,21 @@ class SQLiteProjectionBackend:
             connection.execute(
                 """CREATE TABLE IF NOT EXISTS projection_meta (
                     singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
-                    projection_head TEXT NOT NULL
+                    projection_head TEXT NOT NULL,
+                    resource_manifest_sha256 TEXT NOT NULL DEFAULT '',
+                    resource_rows_sha256 TEXT NOT NULL DEFAULT ''
                 )"""
             )
+            meta_columns = {
+                str(row[1])
+                for row in connection.execute("PRAGMA table_info(projection_meta)").fetchall()
+            }
+            for column in ("resource_manifest_sha256", "resource_rows_sha256"):
+                if column not in meta_columns:
+                    connection.execute(
+                        f"ALTER TABLE projection_meta ADD COLUMN {column} "
+                        "TEXT NOT NULL DEFAULT ''"
+                    )
             connection.execute(
                 """CREATE TABLE IF NOT EXISTS current_records (
                     record_key TEXT PRIMARY KEY,
@@ -210,9 +240,19 @@ class SQLiteProjectionBackend:
             connection.execute("DELETE FROM current_records")
             _insert_current_rows(connection, prepared)
             connection.execute(
-                """INSERT INTO projection_meta(singleton, projection_head) VALUES (1, ?)
-                   ON CONFLICT(singleton) DO UPDATE SET projection_head=excluded.projection_head""",
-                (canonical_head,),
+                """INSERT INTO projection_meta(
+                       singleton, projection_head,
+                       resource_manifest_sha256, resource_rows_sha256
+                   ) VALUES (1, ?, ?, ?)
+                   ON CONFLICT(singleton) DO UPDATE SET
+                       projection_head=excluded.projection_head,
+                       resource_manifest_sha256=excluded.resource_manifest_sha256,
+                       resource_rows_sha256=excluded.resource_rows_sha256""",
+                (
+                    canonical_head,
+                    _resource_manifest_sha256(records),
+                    _resource_rows_sha256(prepared),
+                ),
             )
         return {"projection_head": canonical_head, "count": len(prepared)}
 
@@ -241,46 +281,44 @@ class SQLiteProjectionBackend:
             expected[record_key] = resource
 
         with self._connection() as connection:
-            stored_keys = set()
-            stored_rows = connection.execute(
-                """SELECT record_key,payload_sha256,payload_json
-                   FROM current_records WHERE record_type='resource'"""
-            )
-            for row in stored_rows:
-                record_key = str(row["record_key"])
-                if record_key not in expected:
-                    return None
-                stored_keys.add(record_key)
-                payload_json = str(row["payload_json"])
-                digest = "sha256:" + hashlib.sha256(payload_json.encode()).hexdigest()
-                if digest != row["payload_sha256"]:
-                    return None
-                try:
-                    payload = json.loads(payload_json)
-                except json.JSONDecodeError:
-                    return None
-                if not isinstance(payload, dict):
-                    return None
-                content = payload.pop("content", None)
-                resource = expected[record_key]
-                if (
-                    not isinstance(content, str)
-                    or payload != resource
-                    or "sha256:" + hashlib.sha256(content.encode()).hexdigest()
-                    != resource.get("source_sha256")
-                ):
-                    return None
-            if stored_keys != set(expected):
+            meta = connection.execute(
+                """SELECT resource_manifest_sha256,resource_rows_sha256
+                   FROM projection_meta WHERE singleton=1"""
+            ).fetchone()
+            if (
+                meta is None
+                or str(meta["resource_manifest_sha256"])
+                != _resource_manifest_sha256(resource_records)
+            ):
                 return None
-            fts_keys = [
-                str(row[0])
+            stored_resource_rows = [
+                (
+                    str(row["record_key"]),
+                    "resource",
+                    "",
+                    "",
+                    "",
+                    str(row["payload_sha256"]),
+                    "",
+                    "",
+                )
                 for row in connection.execute(
-                    """SELECT f.record_key FROM current_fts f
-                       JOIN current_records c ON c.record_key=f.record_key
-                       WHERE c.record_type='resource'"""
-                ).fetchall()
+                    """SELECT record_key,payload_sha256 FROM current_records
+                       WHERE record_type='resource' ORDER BY record_key"""
+                )
             ]
-            if sorted(fts_keys) != sorted(expected):
+            if (
+                len(stored_resource_rows) != len(expected)
+                or _resource_rows_sha256(stored_resource_rows)
+                != str(meta["resource_rows_sha256"])
+            ):
+                return None
+            fts_count = connection.execute(
+                """SELECT count(*) FROM current_fts f
+                   JOIN current_records c ON c.record_key=f.record_key
+                   WHERE c.record_type='resource'"""
+            ).fetchone()[0]
+            if int(fts_count) != len(expected):
                 return None
 
             connection.execute(
@@ -296,8 +334,7 @@ class SQLiteProjectionBackend:
             )
             _insert_current_rows(connection, prepared)
             connection.execute(
-                """INSERT INTO projection_meta(singleton, projection_head) VALUES (1, ?)
-                   ON CONFLICT(singleton) DO UPDATE SET projection_head=excluded.projection_head""",
+                "UPDATE projection_meta SET projection_head=? WHERE singleton=1",
                 (canonical_head,),
             )
         return {
