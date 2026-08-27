@@ -4,7 +4,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, quote
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -76,6 +76,21 @@ _inflight_mutating = 0
 _inflight_streams = 0
 _mutating_admission_open = True
 _restart_inbox_drain: "asyncio.Task | None" = None
+_restart_failure = ""
+
+
+def clear_restart_failure() -> None:
+    global _restart_failure
+    _restart_failure = ""
+
+
+def note_restart_failure(reason: str) -> None:
+    global _restart_failure
+    _restart_failure = str(reason)
+
+
+def restart_failure_header() -> str:
+    return quote(_restart_failure, safe="")
 
 
 def _known_api_paths() -> set[str]:
@@ -223,7 +238,10 @@ class RequestCensusMiddleware:
             # its own — a client that only saw the refusal would never learn the pause is over.
             response = JSONResponse(
                 {"error": verdict}, status_code=503,
-                headers={"X-Orchestra-Restarting": "1"},
+                headers={
+                    "X-Orchestra-Restarting": "1",
+                    "X-Orchestra-Restart-Error": restart_failure_header(),
+                },
             )
             await response(scope, receive, send)
             return
@@ -243,6 +261,7 @@ class RequestCensusMiddleware:
                 message["headers"] = [
                     *(message.get("headers") or []),
                     (b"x-orchestra-restarting", b"0" if _mutating_admission_open else b"1"),
+                    (b"x-orchestra-restart-error", restart_failure_header().encode("ascii")),
                 ]
                 headers = {k.lower(): v for k, v in message.get("headers") or []}
                 if headers.get(b"content-type", b"").startswith(b"text/event-stream"):
