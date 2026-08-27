@@ -2288,7 +2288,7 @@ function _showChatDropError(message) {
     error.textContent = message;
 }
 
-function _insertPathAtCaret(input, path, url) {
+function _insertPathAtCaret(input, path, url, showPreview = true) {
     // Путь встаёт туда, где каретка (заменяя выделение): юзер в этот момент печатает,
     // и дописывание в конец уводило бы его текст ЗА путь
     const start = input.selectionStart ?? input.value.length;
@@ -2302,7 +2302,7 @@ function _insertPathAtCaret(input, path, url) {
     input.focus();
     input.setSelectionRange(caret, caret);
     pastedImages.push(url);
-    showImagePreview(url, path);
+    if (showPreview) showImagePreview(url, path);
 }
 
 async function _handleChatDrop(input, dataTransfer) {
@@ -3858,24 +3858,55 @@ function _trackUpload(promise) {
 // Одна дорога для paste и drop: ошибку показываем строкой над полем ввода,
 // путь ДОПИСЫВАЕМ в textarea и только после ответа сервера. Трогать input.value
 // во время загрузки нельзя — юзер в это время печатает, и его текст пропадёт.
-async function _uploadToChat(file, filename) {
+async function _uploadToChat(file, filename, uploadCard = null) {
+    const card = uploadCard || (typeof _showUploadingChip === 'function'
+        ? _showUploadingChip(file, filename)
+        : {updateProgress() {}, complete() {}, fail() {}});
+    card.setFilename?.(filename);
     const promise = (async () => {
         const formData = new FormData();
         formData.append('file', file, filename);
-        // Без таймаута зависший аплоад навсегда запер бы отправку в sendChat
-        const resp = await fetch('/api/upload', { method: 'POST', body: formData,
-                                                  signal: AbortSignal.timeout(60000) });
-        const data = resp.headers.get('content-type')?.includes('application/json')
-            ? await resp.json() : {};
-        if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
-        if (!data.path) throw new Error('server returned no file path');
-        return data;
+        card.updateProgress(1);
+        // fetch does not expose upload progress; XHR does, and its timeout keeps the
+        // existing 60-second bound for a stalled connection.
+        return await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            card.abort = () => xhr.abort();
+            xhr.open('POST', '/api/upload');
+            xhr.timeout = 60000;
+            xhr.upload.addEventListener('progress', event => {
+                if (event.lengthComputable && event.total > 0) {
+                    card.updateProgress((event.loaded / event.total) * 100);
+                }
+            });
+            xhr.addEventListener('load', () => {
+                let data = {};
+                try { data = JSON.parse(xhr.responseText || '{}'); } catch {}
+                if (xhr.status < 200 || xhr.status >= 300) {
+                    reject(new Error(data.error || `HTTP ${xhr.status}`));
+                    return;
+                }
+                if (!data.path) {
+                    reject(new Error('server returned no file path'));
+                    return;
+                }
+                resolve(data);
+            });
+            xhr.addEventListener('error', () => reject(new Error('network error')));
+            xhr.addEventListener('abort', () => reject(new Error('upload aborted')));
+            xhr.addEventListener('timeout', () => reject(new Error('upload timed out')));
+            xhr.send(formData);
+        });
     })();
     try {
         const data = await promise;
-        _insertPathAtCaret($('#chat-input'), data.path, data.url || data.path);
+        if (card.cancelled) return null;
+        card.complete(data.path, data.url || data.path);
+        _insertPathAtCaret($('#chat-input'), data.path, data.url || data.path, false);
         return data;
     } catch (error) {
+        if (card.cancelled) return null;
+        card.fail(error);
         // У TimeoutError и сетевых ошибок message бывает пустой — печатаем и класс.
         // Дописываем к уже показанной ошибке: при дропе пачки файлов упасть может не один
         const detail = `${filename}: ${error.name}: ${error.message}`;
@@ -3918,34 +3949,121 @@ async function handlePaste(e) {
         const file = item.getAsFile();
         if (!file) continue;
         _showChatDropError('');
-        const removeChip = _showUploadingChip(file);
+        const pasteName = `paste-${Date.now()}`;
+        const uploadCard = _showUploadingChip(file, `${pasteName}.png`);
         await _trackUpload((async () => {
             const {blob, ext} = await _compressScreenshot(file);
-            await _uploadToChat(blob, `paste-${Date.now()}.${ext}`);
+            if (uploadCard.cancelled) return;
+            await _uploadToChat(blob, `${pasteName}.${ext}`, uploadCard);
         })());
-        removeChip();
         break;
     }
 }
 
 // Пока файл летит, показываем его же из памяти браузера — сеть для этого не нужна.
 // Возвращает функцию снятия: сам узел + освобождение objectURL, чтобы не текла память.
-function _showUploadingChip(file) {
+function _showUploadingChip(file, filename = file.name || 'file') {
+    let cardFilename = filename;
     const objectUrl = URL.createObjectURL(file);
     const container = _pastePreviewContainer();
     const wrap = document.createElement('div');
-    wrap.className = 'relative';
-    wrap.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-xs">⏳</div>';
-    const img = document.createElement('img');
-    img.src = objectUrl;
-    img.className = 'h-16 rounded border border-slate-700 opacity-40';
-    wrap.prepend(img);
+    wrap.className = 'upload-file-card relative';
+    wrap.dataset.fileName = cardFilename;
+    wrap.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #334155;border-radius:6px;min-width:220px;max-width:100%;font-size:11px;color:#cbd5e1';
+    const isImage = /\.(png|jpe?g|gif|webp|svg)$/i.test(cardFilename) || file.type.startsWith('image/');
+    let preview = null;
+    if (isImage) {
+        const img = document.createElement('img');
+        img.src = objectUrl;
+        img.className = 'h-12 w-12 rounded border border-slate-700 object-cover';
+        wrap.appendChild(img);
+        preview = img;
+    } else {
+        const icon = document.createElement('span');
+        icon.textContent = '📄';
+        icon.style.fontSize = '24px';
+        wrap.appendChild(icon);
+    }
+    const body = document.createElement('div');
+    body.style.cssText = 'display:flex;flex:1;min-width:0;flex-direction:column;gap:3px';
+    const name = document.createElement('span');
+    name.className = 'upload-file-name';
+    name.textContent = cardFilename;
+    name.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    name.title = cardFilename;
+    const size = document.createElement('span');
+    size.textContent = _fmtKb(file.size);
+    size.style.color = '#64748b';
+    const download = document.createElement('a');
+    download.href = objectUrl;
+    download.download = cardFilename;
+    download.textContent = '📥 скачать';
+    download.style.cssText = 'color:#a5b4fc;text-decoration:none;width:max-content';
+    const progress = document.createElement('progress');
+    progress.className = 'upload-progress';
+    progress.max = 100;
+    progress.value = 0;
+    progress.style.cssText = 'width:100%;height:5px';
+    const progressText = document.createElement('span');
+    progressText.className = 'upload-progress-text';
+    progressText.textContent = 'Загрузка… 0%';
+    progressText.style.cssText = 'font-size:10px;color:#818cf8';
+    body.append(name, size, download, progress, progressText);
+    wrap.appendChild(body);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = '×';
+    remove.title = 'Удалить файл';
+    remove.style.cssText = 'align-self:flex-start;border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1';
+    wrap.appendChild(remove);
     container.appendChild(wrap);
-    return () => {
+    const cleanup = () => {
         wrap.remove();
         URL.revokeObjectURL(objectUrl);
         if (!container.children.length) container.remove();
     };
+    cleanup.cancelled = false;
+    const removePath = () => {
+        const path = wrap.dataset.filePath;
+        if (!path) return;
+        const input = $('#chat-input');
+        input.value = input.value.split('\n').filter(line => line.trim() !== path.trim()).join('\n').trim();
+        pastedImages = pastedImages.filter(url => url !== (wrap.dataset.fileUrl || path));
+    };
+    remove.addEventListener('click', () => {
+        cleanup.cancelled = true;
+        cleanup.abort?.();
+        removePath();
+        cleanup();
+    });
+    cleanup.updateProgress = percent => {
+        const value = Math.max(0, Math.min(100, Number(percent) || 0));
+        progress.value = value;
+        progressText.textContent = `Загрузка… ${Math.round(value)}%`;
+    };
+    cleanup.setFilename = nextFilename => {
+        cardFilename = String(nextFilename || cardFilename);
+        wrap.dataset.fileName = cardFilename;
+        name.textContent = cardFilename;
+        name.title = cardFilename;
+        download.download = cardFilename;
+    };
+    cleanup.complete = (path, url) => {
+        wrap.dataset.filePath = path;
+        wrap.dataset.fileUrl = url;
+        download.href = url;
+        download.download = cardFilename;
+        if (preview) preview.src = url;
+        progress.value = 100;
+        progressText.textContent = 'Загружено';
+        progressText.style.color = '#4ade80';
+        URL.revokeObjectURL(objectUrl);
+    };
+    cleanup.fail = error => {
+        progressText.textContent = `Ошибка: ${error.message || error}`;
+        progressText.style.color = '#f87171';
+    };
+    return cleanup;
 }
 
 function _pastePreviewContainer() {

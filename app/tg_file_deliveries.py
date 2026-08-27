@@ -23,6 +23,7 @@ from app.tg_bridge import (
     _submit_file_group_once,
     _submit_file_snapshot_once,
 )
+from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
 
 logger = logging.getLogger("orchestra.tg_file_deliveries")
 
@@ -39,7 +40,7 @@ SENT_SNAPSHOT_RETENTION_SECONDS = 86400
 FAILED_SNAPSHOT_RETENTION_SECONDS = 604800
 MAINTENANCE_INTERVAL_SECONDS = 21600
 
-_MAX_FILE_BYTES = 50 * 1024 * 1024
+_MAX_FILE_BYTES = MAX_UPLOAD_BYTES
 _ACTIVE_STATES = ("QUEUED", "SUBMITTING")
 _PHOTO_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 _MEDIA_GROUP_LIMIT = 10
@@ -413,7 +414,7 @@ def _snapshot_to_temp(source_path: str, event_id: str) -> dict[str, Any]:
                 break
             size_bytes += len(chunk)
             if size_bytes > _MAX_FILE_BYTES:
-                raise ValueError("file too large (max 50MB)")
+                raise ValueError(f"file too large (max {MAX_UPLOAD_MB} MB)")
             digest.update(chunk)
             view = memoryview(chunk)
             while view:

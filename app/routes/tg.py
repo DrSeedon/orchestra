@@ -11,6 +11,8 @@ from pathlib import Path
 from fastapi import APIRouter, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
+
 router = APIRouter()
 logger = logging.getLogger("orchestra.routes.tg")
 
@@ -237,9 +239,9 @@ async def upload_file(file: UploadFile):
     ext = Path(file.filename or "image.png").suffix or ".png"
     if ext.lower() in _BLOCKED_UPLOAD_EXTS:
         return JSONResponse({"error": f"file type {ext} not allowed"}, status_code=400)
-    content = await file.read()
-    if len(content) > 10 * 1024 * 1024:
-        return JSONResponse({"error": "file too large (max 10MB)"}, status_code=400)
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        return JSONResponse({"error": f"file too large (max {MAX_UPLOAD_MB} MB)"}, status_code=400)
     h = hashlib.md5(content).hexdigest()[:12]
     name = f"{h}{ext}"
     path = UPLOADS_DIR / name
