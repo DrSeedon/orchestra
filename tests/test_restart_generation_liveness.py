@@ -497,7 +497,7 @@ async def test_t1_production_guard_arm_leaks_neither_listener_nor_agent_pipes(
 
 
 @pytest.mark.asyncio
-async def test_t1_production_path_arms_guard_only_after_handoff_and_durable_state(
+async def test_t1_production_path_arms_guard_after_interrupt_mark_and_durable_state(
     monkeypatch,
 ):
     from app import main as app_main
@@ -513,13 +513,19 @@ async def test_t1_production_path_arms_guard_only_after_handoff_and_durable_stat
     monkeypatch.setattr(system, "_RESPONSE_FLUSH_PAUSE_S", 0)
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(system, "_drain_sessions", lambda: [])
+    handover = AsyncMock(side_effect=lambda _sessions: order.append("handover") or {
+        "ok": True,
+        "handed_over": [],
+    })
     monkeypatch.setattr(
         system.manager,
         "prepare_restart_handover",
-        AsyncMock(side_effect=lambda _sessions: order.append("handover") or {
-            "ok": True,
-            "handed_over": [],
-        }),
+        handover,
+    )
+    monkeypatch.setattr(
+        system.manager,
+        "mark_for_restart_stop",
+        lambda _sessions: order.append("interrupt"),
     )
     monkeypatch.setattr(
         system,
@@ -549,7 +555,8 @@ async def test_t1_production_path_arms_guard_only_after_handoff_and_durable_stat
     result = await system._restart_service_after_response()
 
     assert result["ok"] is True
-    assert order == ["handover", "durable_state", "record", "guard", "broker", "signal"]
+    handover.assert_not_awaited()
+    assert order == ["interrupt", "durable_state", "record", "guard", "broker", "signal"]
 
 
 @pytest.mark.asyncio

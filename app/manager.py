@@ -2498,6 +2498,10 @@ class SessionManager:
             "handed_over": [session.id for session in self._prepared_restart],
         }
 
+    def mark_for_restart_stop(self, sessions: list) -> None:
+        """Route this restart generation through normal ``session.stop()`` teardown."""
+        self._restart_force_stop.update(session.id for session in sessions)
+
     async def rollback_restart_handover(self) -> None:
         """Undo a completed fleet handover when the restart will not happen (#237 T3)."""
         prepared, self._prepared_restart = self._prepared_restart, []
