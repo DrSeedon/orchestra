@@ -34,6 +34,7 @@ from app.models import (
     cache_policy_for_runtime,
     get_model_flags,
     get_model_spec,
+    is_harness_route_admitted,
     is_proxy_connected,
     provider_metadata_payload,
     runtime_for_record,
@@ -415,6 +416,14 @@ async def get_models_catalog():
     catalog = []
     for model_id, spec in MODEL_SPECS.items():
         entry = cached.get(model_id, {})
+        cached_harness_eligible = entry.get("harness_eligible")
+        if spec.runtime == "harness" and cached_harness_eligible is not True:
+            # A cache row can predate a newly approved paid route. Re-evaluate the
+            # current reviewed spec instead of leaving stale false eligibility in the UI.
+            cached_harness_eligible = (
+                is_harness_route_admitted(model_id)
+                and "tools" in spec.supported_parameters
+            )
         catalog.append({
             "id": model_id,
             "name": spec.name,
@@ -435,11 +444,10 @@ async def get_models_catalog():
             "is_free": entry.get(
                 "is_free", spec.runtime == "harness" and model_id.endswith(":free")
             ),
-            "harness_eligible": entry.get(
-                "harness_eligible",
-                spec.runtime != "harness" or (
-                    model_id.endswith(":free") and "tools" in spec.supported_parameters
-                ),
+            "harness_eligible": (
+                cached_harness_eligible
+                if spec.runtime == "harness"
+                else entry.get("harness_eligible", True)
             ),
             "available": entry.get("available", spec.available),
             "runtime": spec.runtime,
