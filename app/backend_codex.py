@@ -309,7 +309,7 @@ _SAFE_HOME_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$")
 _CODEX_HOME_ROOT = Path.home() / ".orchestra" / "codex-home"
 _MANAGED_HOME_LOCKS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 _CODEX_STATE_MIGRATIONS_BY_CLI = {
-    # Captured from a fresh Codex 0.149.0 app-server state DB. Checksums are SQLx's
+    # Captured from a fresh Codex 0.150.1 app-server state DB. Checksums are SQLx's
     # provider-owned migration identity; a mutable base DB is not schema authority.
     CODEX_CLI_HISTORY_VERSION: (
         (1, bytes.fromhex("627ef19164c9bb298a0cd99945981c9b7bda3d9e6cf12eb35145e3b1d3bf7cf8740f0dbaa0b475185fc2993397078049")),
@@ -362,6 +362,7 @@ _CODEX_STATE_MIGRATIONS_BY_CLI = {
         (48, bytes.fromhex("9d298333f7523010502044685009ffe1ed18c3fed7f01fb200d62252f90ab0d897ccf05e478f90150b941ea6c0bd459c")),
         (49, bytes.fromhex("faf45c392bb8572062bbd52f9702966cf62e3d195a1633f54cfe1b7dcb5865a3f951dc75c975179dc9a0ee639f7426a7")),
         (50, bytes.fromhex("d2802e96f5fc1900fc6d3d595f040ebca8d25310ae9d1499a12b91f1635617adf5d2b4a93d0807203a22f4a6d4edb77e")),
+        (51, bytes.fromhex("23360a03a7fc307c3fd5bb8b432b66034dd8f8695cdba698b45278c20dd712c1af476b884e192237d80baa08a5f29505")),
     ),
 }
 # Из базового конфига переносим ТОЛЬКО это. Расширять список осознанно: каждая строка
