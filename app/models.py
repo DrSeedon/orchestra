@@ -46,17 +46,6 @@ class ProviderMetadata:
     model_providers: tuple[str, ...] = ()
 
 
-# Paid OpenRouter routes are admitted only when explicitly listed here. Free routes
-# retain the provider's `:free` contract; this is the reviewed exception for routes
-# whose usage must be accounted for at their own token prices.
-HARNESS_PAID_ROUTES: frozenset[str] = frozenset({"z-ai/glm-5.3-flash"})
-
-
-def is_harness_route_admitted(model_id: str) -> bool:
-    """Return whether an exact OpenRouter route may reach the harness client."""
-    return model_id.endswith(":free") or model_id in HARNESS_PAID_ROUTES
-
-
 # THE single place a selectable model is declared. Everything below —
 # MODELS, CONTEXT_LIMITS, BACKENDS, MODEL_PROVIDERS, TOKEN_PRICES — is derived
 # from this list, so adding a model means adding exactly one ModelSpec here.
@@ -137,9 +126,9 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="grok", provider="x-ai", context_length=500000,
     ),
     # OpenRouter through Orchestra's own harness. Admission is exact and fail-closed:
-    # `:free` routes plus the explicit paid-route allowlist above may reach the HTTP
-    # client. These entries are offline fallbacks for a cold catalog; request-count quota
-    # lives outside prices.
+    # only `:free` routes that advertise tools may reach the HTTP client. These two
+    # entries are offline fallbacks for a cold catalog; they start disabled until a user
+    # intentionally qualifies and enables them. Request-count quota lives outside prices.
     ModelSpec(
         id="z-ai/glm-5.2:free", name="GLM 5.2 (free)",
         runtime="harness", provider="openrouter", context_length=256000,
@@ -156,13 +145,6 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         price_input=0.0, price_output=0.0,
         supported_parameters=("reasoning", "reasoning_effort", "tool_choice", "tools"),
         default_dashboard=False, default_agents=False,
-    ),
-    ModelSpec(
-        id="z-ai/glm-5.3-flash", name="GLM 5.3 Flash",
-        runtime="harness", provider="openrouter", context_length=1310720,
-        price_input=0.075, price_output=0.25,
-        supported_parameters=("tools",),
-        default_dashboard=False, default_agents=True,
     ),
 )
 
@@ -387,16 +369,15 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
     """Production admission for Orchestra's OpenRouter runtime.
 
     Zero token prices are not proof of a free route: request/song/image prices can live
-    outside those fields. Free routes require the provider's explicit `:free` suffix;
-    paid routes require an exact entry in HARNESS_PAID_ROUTES. Tool support is mandatory
-    because Harness is an agent runtime, not a chat wrapper.
+    outside those fields. The `:free` suffix is the provider's explicit routing contract.
+    Tool support is mandatory because Harness is an agent runtime, not a chat wrapper.
     """
     if spec.runtime != "harness":
         raise ValueError(f"model '{spec.id}' is not a harness model")
-    if not is_harness_route_admitted(spec.id):
+    if not spec.id.endswith(":free"):
         raise ValueError(
-            f"harness model '{spec.id}' is not an exact :free route or explicitly "
-            "approved paid route; unsuffixed previews and unlisted paid routes are blocked"
+            f"harness model '{spec.id}' is not an exact :free route; "
+            "unsuffixed previews and paid routes are blocked"
         )
     if "tools" not in spec.supported_parameters:
         raise ValueError(f"harness model '{spec.id}' does not advertise tool support")

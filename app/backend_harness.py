@@ -8,7 +8,7 @@ turn_end (plan B2) carrying the full 15-key metadata parity of the other backend
 Cost contract (plan B5): _cumulative_cost is authoritative. A turn with no usage.cost
 does NOT reset it to 0 — that would corrupt session_cost's `max(0, new - last)` delta and
 overcount the next turn. Exact `:free` routes must report zero when cost is present;
-paid routes are accounted from their provider cost or their own registry prices.
+the HTTP client rejects a non-zero charge before tool dispatch.
 """
 
 import asyncio
@@ -304,9 +304,8 @@ class HarnessBackend:
     def _accumulate(self, usage: dict) -> None:
         """Grow cumulative counters from one round without resetting missing usage.
 
-        Free routes report zero; paid routes report provider usage.cost when available.
-        Missing cost is estimated from this model's own registry prices, never a shared
-        runtime tariff.
+        The HTTP client rejects any non-zero provider cost before tool dispatch; keeping
+        the reported zero here preserves the shared cumulative-cost contract.
         """
         if not usage:
             return  # no usage → keep previous cumulative (do not corrupt the delta)
@@ -317,17 +316,6 @@ class HarnessBackend:
         cost = usage.get("cost")
         if cost is not None:
             self._cumulative_cost += float(cost)
-        else:
-            self._cumulative_cost += self._estimate_cost(in_tok, out_tok)
-
-    def _estimate_cost(self, in_tok: int, out_tok: int) -> float:
-        """Estimate one round from the exact selected model's per-million prices."""
-        from app.models import TOKEN_PRICES
-
-        prices = TOKEN_PRICES.get(self.model)
-        if not prices:
-            return 0.0
-        return (in_tok * prices["input"] + out_tok * prices["output"]) / 1_000_000
 
     def _max_context(self) -> int:
         from app.models import CONTEXT_LIMITS

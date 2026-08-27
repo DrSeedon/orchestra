@@ -3,10 +3,9 @@
 Fetches https://openrouter.ai/api/v1/models, normalizes it to the fields the
 dashboard filters need, caches the result in SQLite kv (`model_catalog_cache`)
 and registers every eligible cached model into the shared registry via
-`app.models.register_model`. Only deterministic free routes and explicitly approved
-paid routes with tool support are eligible for Harness; zero token prices alone are
-not a free-route contract because providers may charge per request, image, song, or
-other unit.
+`app.models.register_model`. Only deterministic `:free` text routes with tool
+support are eligible for Harness; zero token prices alone are not a free-route
+contract because providers may charge per request, image, song, or other unit.
 
 Registration-order guarantee: `apply_model_catalog()` is re-applied at the tail
 of every registry rebuild (`fetch_models_from_proxy`, `refresh_models`), so an
@@ -51,12 +50,10 @@ def normalize_catalog_model(raw: dict) -> dict | None:
     params = sorted({str(p) for p in (raw.get("supported_parameters") or []) if p})
     input_modalities = [str(m) for m in (arch.get("input_modalities") or [])]
     output_modalities = [str(m) for m in (arch.get("output_modalities") or [])]
-    from app.models import is_harness_route_admitted
-
     is_free = model_id.endswith(":free")
     supports_tools = "tools" in params
     harness_eligible = (
-        is_harness_route_admitted(model_id)
+        is_free
         and supports_tools
         and "text" in input_modalities
         and "text" in output_modalities
@@ -107,16 +104,13 @@ def _cached_harness_eligible(model: dict) -> bool:
     """Read both the current cache schema and the pre-hardening schema safely.
 
     Old rows did not persist output modalities or the eligibility bit. They came from
-    OpenRouter's text catalog, so an admitted exact route + advertised tools is the
-    conservative migration; optional request parameters stay disabled until a fresh
-    catalog arrives.
+    OpenRouter's text catalog, so exact `:free` + advertised tools is the conservative
+    migration; optional request parameters stay disabled until a fresh catalog arrives.
     """
-    from app.models import is_harness_route_admitted
-
-    if model.get("harness_eligible") is True:
-        return True
+    if "harness_eligible" in model:
+        return model.get("harness_eligible") is True
     return (
-        is_harness_route_admitted(str(model.get("id") or ""))
+        str(model.get("id") or "").endswith(":free")
         and model.get("supports_tools") is True
         and "text" in (model.get("input_modalities") or [])
     )
