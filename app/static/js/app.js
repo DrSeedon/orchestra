@@ -8953,7 +8953,7 @@ function _catalogToggle(flag, m) {
   if (m.runtime === 'harness' && (!_catalogHarnessEligible(m) || !_catalogAvailable(m))) {
     box.disabled = true;
     label.classList.add('opacity-40', 'cursor-not-allowed');
-    label.title = _catalogAvailable(m) ? 'Harness допускает только точные :free или явно одобренные платные маршруты с tool calling' : 'Маршрут больше не доступен на OpenRouter';
+    label.title = _catalogAvailable(m) ? 'Harness допускает только точные :free маршруты с tool calling' : 'Маршрут больше не доступен на OpenRouter';
   }
   label.appendChild(box);
   label.appendChild(document.createTextNode(flag === 'dashboard' ? 'дашборд' : 'агентам'));

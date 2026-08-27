@@ -15,7 +15,6 @@ from scratch (never resume a half-stream — that would duplicate text/tool_call
 import asyncio
 import json
 import logging
-import math
 import random
 from dataclasses import dataclass, field
 from typing import AsyncIterator, Iterable
@@ -163,14 +162,11 @@ class OpenRouterClient:
         self.supported_parameters = frozenset(str(p) for p in supported_parameters)
 
     def _validate_route(self) -> None:
-        # Provider-side atomic zero-spend does not exist for paid routes. The exact
-        # suffix or reviewed paid-route allowlist is therefore checked immediately before POST.
-        from app.models import is_harness_route_admitted
-
-        if not is_harness_route_admitted(self.model):
+        # Provider-side atomic zero-spend does not exist for an unsuffixed preview.
+        # The explicit suffix is therefore the last-line guard immediately before POST.
+        if not self.model.endswith(":free"):
             raise ValueError(
-                f"OpenRouter Harness accepts exact :free or explicitly approved paid "
-                f"routes, got '{self.model}'"
+                f"OpenRouter Harness accepts exact :free routes only, got '{self.model}'"
             )
 
     def _build_body(self, messages: list[dict], tools: list[dict],
@@ -336,11 +332,7 @@ class OpenRouterClient:
                 raise RuntimeError(
                     f"OpenRouter returned invalid usage.cost: {reported_cost!r}"
                 ) from exc
-            if not math.isfinite(billed) or billed < 0:
-                raise RuntimeError(
-                    f"OpenRouter returned invalid usage.cost: {reported_cost!r}"
-                )
-            if self.model.endswith(":free") and billed != 0:
+            if billed != 0:
                 raise RuntimeError(
                     f"OpenRouter zero-spend contract violated: usage.cost={billed}"
                 )
