@@ -320,6 +320,29 @@ def test_projection_meta_upgrade_adds_resource_receipts(tmp_path):
     assert {"resource_manifest_sha256", "resource_rows_sha256"} <= columns
 
 
+def test_vector_head_hashes_sqlite_backup_without_reading_whole_file(tmp_path, monkeypatch):
+    vector = tmp_path / "vector.db"
+    with sqlite3.connect(vector) as connection:
+        connection.execute("CREATE TABLE payload(value BLOB)")
+        connection.execute("INSERT INTO payload VALUES (?)", (b"x" * 2_000_000,))
+    owner = object.__new__(KnowledgeRuntime)
+    owner.config = SimpleNamespace(state_root=tmp_path)
+    owner.paths = {"vector_projection": vector}
+    original_read_bytes = Path.read_bytes
+
+    def refuse_whole_vector_read(path):
+        if path == vector or path.name.startswith(".vector-snapshot-"):
+            pytest.fail("vector projection was materialized as one Python bytes object")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", refuse_whole_vector_read)
+
+    head = owner._vector_head()
+
+    assert head.startswith("sha256:")
+    assert len(head) == len("sha256:") + 64
+
+
 def test_matching_legacy_projection_head_seals_receipts_without_full_rebuild(tmp_path):
     owner = _owner(tmp_path)
     content = b"# immutable evidence\n"
@@ -424,6 +447,11 @@ def test_idempotent_post_commit_link_rebuilds_deleted_task_projection(tmp_path):
 
 
 def test_corrupt_disposable_projections_rebuild_from_canonical(tmp_path, monkeypatch):
+    trimmed = []
+    monkeypatch.setattr(
+        "app.native_memory.trim_native_heap",
+        lambda reason: trimmed.append(reason) or True,
+    )
     task_projection = tmp_path / "task-current.db"
     store = TaskStore(canonical_root=tmp_path / "tasks", projection_path=task_projection)
     store.migrate(build_migration_manifest(_task_projection_snapshot()))
@@ -456,6 +484,7 @@ def test_corrupt_disposable_projections_rebuild_from_canonical(tmp_path, monkeyp
     current_owner.paths["current_projection"].write_bytes(b"not a sqlite database")
 
     current_owner._refresh_current_projection()
+    assert trimmed == ["knowledge projection refresh"]
 
     stored = SQLiteProjectionBackend(
         path=current_owner.paths["current_projection"]
@@ -484,6 +513,10 @@ def test_corrupt_disposable_projections_rebuild_from_canonical(tmp_path, monkeyp
     monkeypatch.setattr(SQLiteProjectionBackend, "replace_current", fail_temporary_rebuild)
     with pytest.raises(sqlite3.OperationalError, match="injected rebuild interruption"):
         interrupted._refresh_current_projection()
+    assert trimmed == [
+        "knowledge projection refresh",
+        "knowledge projection refresh",
+    ]
 
     assert interrupted_path.read_bytes() == before
     with sqlite3.connect(interrupted_path) as connection:

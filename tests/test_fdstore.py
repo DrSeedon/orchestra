@@ -171,6 +171,7 @@ def test_t8_unit_templates_are_valid_and_complete(tmp_path):
     service = root / "deploy" / "orchestra.service"
     sock = root / "deploy" / "orchestra.socket"
     readiness = root / "deploy" / "orchestra-readiness.conf"
+    memory = root / "deploy" / "orchestra-memory.conf"
     assert service.is_file(), "deploy/orchestra.service must be versioned to be reviewable"
     assert sock.is_file(), "deploy/orchestra.socket must be versioned to be reviewable"
     readiness_text = readiness.read_text()
@@ -191,7 +192,7 @@ def test_t8_unit_templates_are_valid_and_complete(tmp_path):
     # is not a unit syntax failure.
     local_service = tmp_path / "orchestra.service"
     local_service.write_text(
-        service_text
+        (service_text
         .replace("User=kesha", f"User={pwd.getpwuid(os.getuid()).pw_name}")
         .replace("Group=kesha", f"Group={grp.getgrgid(os.getgid()).gr_name}")
         .replace("WorkingDirectory=/home/kesha/orchestra", f"WorkingDirectory={root}")
@@ -199,10 +200,24 @@ def test_t8_unit_templates_are_valid_and_complete(tmp_path):
         .replace(
             "ExecStart=/home/kesha/orchestra/.venv/bin/python",
             f"ExecStart={sys.executable}",
-        )
+        ))
+        + "\n"
+        + memory.read_text()
     )
     proc = subprocess.run(
         ["systemd-analyze", "verify", str(local_service), str(sock)],
         capture_output=True, text=True,
     )
     assert proc.returncode == 0, f"systemd-analyze verify failed: {proc.stderr[:400]}"
+
+
+def test_memory_dropin_bounds_native_arenas_and_cgroup_memory():
+    root = Path(__file__).resolve().parents[1]
+    text = (root / "deploy" / "orchestra-memory.conf").read_text()
+
+    assert "Environment=MALLOC_ARENA_MAX=2" in text
+    assert "Environment=MALLOC_TRIM_THRESHOLD_=131072" in text
+    assert "MemoryHigh=8G" in text
+    assert "MemoryMax=12G" in text
+    assert "MemorySwapMax=4G" in text
+    assert "OOMScoreAdjust=800" in text

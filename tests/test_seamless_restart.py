@@ -10,6 +10,7 @@ import json
 import os
 import re
 import runpy
+import signal
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -570,7 +571,7 @@ async def test_t3_active_codex_is_handed_over_without_waiting_for_idle(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_t3_handover_refusal_aborts_restart_and_reopens_both_admissions(monkeypatch):
+async def test_t3_handover_refusal_still_restarts_and_marks_turn_for_restore(monkeypatch):
     from app import main as app_main
     from app.deps import manager
     from app.routes import system
@@ -588,18 +589,20 @@ async def test_t3_handover_refusal_aborts_restart_and_reopens_both_admissions(mo
     monkeypatch.setattr(
         manager,
         "prepare_restart_handover",
-        AsyncMock(return_value={"ok": False, "reason": "pending request"}),
+        AsyncMock(return_value={
+            "ok": False,
+            "reason": "pending request",
+            "refused_ids": ["stuck"],
+            "refused_names": ["stuck"],
+        }),
         raising=False,
     )
 
     outcome = await asyncio.wait_for(system._restart_service_after_response(), timeout=2)
 
-    assert kill.called is False, "failed handover must abort instead of cutting a live turn"
-    assert outcome["ok"] is False and "pending request" in outcome["reason"]
-    assert manager.draining is False, "aborted restart must reopen agent-turn admission"
-    assert app_main.mutating_admission_verdict(
-        "POST", "/api/sessions/worker/send"
-    )["allowed"] is True, "aborted restart must reopen mutating HTTP admission"
+    kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+    assert outcome["ok"] is True and outcome["cut_ids"] == ["stuck"]
+    assert outcome["restore_after_restart"] == ["stuck"]
 
 
 @pytest.mark.asyncio
@@ -668,6 +671,67 @@ async def test_t3_fleet_handover_rolls_back_an_earlier_success(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_t3_handover_state_write_is_synchronous_and_ordered(monkeypatch):
+    from app.manager import SessionManager
+
+    order = []
+
+    class Backend:
+        fd_in = 21
+        fd_out = 22
+        active_turn_id = "turn"
+        leftover = ""
+        pid = 123
+        cli_started_at = 456
+
+        async def quiesce_for_handover(self):
+            return True
+
+        async def resume_after_aborted_handover(self):
+            order.append("resume")
+
+    def save_state(*_args):
+        order.append("db")
+
+    session = SimpleNamespace(id="cancelled", name="cancelled", _backend=Backend())
+    manager = SessionManager()
+    monkeypatch.setattr("app.fdstore.store_fds", lambda name, _fds: order.append(name))
+    monkeypatch.setattr("app.db.save_handover_state", save_state)
+
+    result = await manager._hand_over_backend(session)
+
+    assert order == [
+        "agent.cancelled.stdin",
+        "agent.cancelled.stdout",
+        "db",
+    ]
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_t3_resume_timeout_stops_session_as_interrupted(monkeypatch):
+    import app.manager as manager_module
+    from app.manager import SessionManager
+
+    blocker = asyncio.Event()
+
+    async def never_resumes():
+        await blocker.wait()
+
+    stop = AsyncMock()
+    session = SimpleNamespace(
+        name="resume-timeout",
+        stop=stop,
+    )
+    backend = SimpleNamespace(resume_after_aborted_handover=never_resumes)
+    monkeypatch.setattr(manager_module, "_HANDOVER_RESUME_BUDGET_S", 0.01)
+
+    await SessionManager._resume_after_failed_handover(session, backend)
+
+    stop.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
 async def test_t3_aborted_handover_replays_prefix_and_resumes_reader():
     from app.backend_codex import CodexBackend
 
@@ -717,28 +781,36 @@ async def test_t3_aborted_handover_replays_prefix_and_resumes_reader():
 
 
 @pytest.mark.asyncio
-async def test_t3_non_adoptable_runtime_deadline_aborts_without_signal(monkeypatch):
+async def test_t3_non_adoptable_runtime_deadline_restarts_via_graceful_stop(monkeypatch):
     from app import main as app_main
-    from app.deps import manager
+    from app.manager import SessionManager
     from app.routes import system
 
+    local_manager = SessionManager()
+    stop = AsyncMock()
     claude = SimpleNamespace(
-        id="claude-active", name="claude-active", backend_type="claude", is_busy=True
+        id="claude-active", name="claude-active", backend_type="claude", is_busy=True,
+        _backend=None, stop=stop,
     )
+    local_manager.sessions = {claude.id: claude}
     kill = MagicMock()
+    monkeypatch.setattr(system, "manager", local_manager)
     monkeypatch.setattr(system, "_drain_sessions", lambda: [claude])
     monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.1)
     monkeypatch.setattr(system.os, "kill", kill)
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0)
     prepare = AsyncMock(return_value={"ok": True, "handed_over": []})
-    monkeypatch.setattr(manager, "prepare_restart_handover", prepare, raising=False)
+    monkeypatch.setattr(local_manager, "prepare_restart_handover", prepare, raising=False)
 
     outcome = await asyncio.wait_for(system._restart_service_after_response(), timeout=2)
+    await local_manager.shutdown_all()
 
-    assert kill.called is False, "an unsupported live runtime must block, never be cut"
-    assert outcome["ok"] is False and outcome["cut_ids"] == ["claude-active"]
-    prepare.assert_not_awaited()
+    kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+    stop.assert_awaited_once_with()
+    assert outcome["ok"] is True and outcome["cut_ids"] == ["claude-active"]
+    assert outcome["restore_after_restart"] == ["claude-active"]
+    prepare.assert_awaited_once_with([])
 
 
 @pytest.mark.asyncio
@@ -807,7 +879,7 @@ async def test_t3_signal_failure_rolls_back_the_complete_prepared_fleet(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_t3_late_unsupported_turn_after_codex_prepare_rolls_back_without_signal(monkeypatch):
+async def test_t3_late_unsupported_turn_after_codex_prepare_still_signals(monkeypatch):
     from app import main as app_main
     from app.deps import manager
     from app.routes import system
@@ -839,9 +911,10 @@ async def test_t3_late_unsupported_turn_after_codex_prepare_rolls_back_without_s
 
     outcome = await asyncio.wait_for(system._restart_service_after_response(), timeout=2)
 
-    assert kill.called is False, "a runtime that became busy after prepare must not be cut"
-    assert outcome["ok"] is False and outcome["cut_ids"] == ["claude-late"]
-    rollback.assert_awaited_once_with()
+    kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+    assert outcome["ok"] is True and outcome["cut_ids"] == ["claude-late"]
+    assert outcome["restore_after_restart"] == ["claude-late"]
+    rollback.assert_not_awaited()
 
 
 def test_t4_transient_rehearsal_is_versioned_and_cannot_target_production():

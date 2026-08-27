@@ -198,6 +198,16 @@ class _RuntimeTaskStore:
                 expected_head=self._store.canonical_head,
             ))
 
+    def link_evidence_to_task(self, task_ref, evidence, project_id):
+        with self._lock:
+            _ensure_task_projection(self._store)
+            return self._changed(self._store.link_evidence_to_task(
+                task_ref,
+                evidence,
+                project_id=self._project(project_id),
+                expected_head=self._store.canonical_head,
+            ))
+
     def record_debt(self, debt):
         self._debt_writer(copy.deepcopy(dict(debt)))
 
@@ -332,6 +342,14 @@ def _read_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise KnowledgeRuntimeError(f"runtime state is not an object: {path}")
     return value
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(4 * 1024 * 1024):
+            digest.update(chunk)
+    return "sha256:" + digest.hexdigest()
 
 
 def _scope(value: str) -> str:
@@ -1021,6 +1039,7 @@ class KnowledgeRuntime:
         from app.ia.projections import SQLiteProjectionBackend
 
         path = self.paths["current_projection"]
+        trim_after_refresh = False
         try:
             backend = SQLiteProjectionBackend(path=path)
             sealed = backend.seal_current_resources(
@@ -1029,6 +1048,7 @@ class KnowledgeRuntime:
             )
             if sealed is not None:
                 return
+            trim_after_refresh = True
             retained = backend.replace_current_retaining_resources(
                 records=self._mutable_projection_records(),
                 resource_records=self._retained_evidence_records(),
@@ -1041,6 +1061,7 @@ class KnowledgeRuntime:
                 canonical_head=self.state["canonical_head"],
             )
         except sqlite3.Error:
+            trim_after_refresh = True
             temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.rebuild")
             try:
                 SQLiteProjectionBackend(path=temporary).replace_current(
@@ -1066,6 +1087,11 @@ class KnowledgeRuntime:
             finally:
                 for suffix in ("", "-journal", "-wal", "-shm"):
                     Path(f"{temporary}{suffix}").unlink(missing_ok=True)
+        finally:
+            if trim_after_refresh:
+                from app.native_memory import trim_native_heap
+
+                trim_native_heap("knowledge projection refresh")
 
     def _query_evidence(self, project_id: str, text: str, limit: int) -> tuple[list[dict], list[dict]]:
         words = [word.casefold() for word in re.findall(r"\w+", text, flags=re.UNICODE)]
@@ -1166,12 +1192,11 @@ class KnowledgeRuntime:
             with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as source:
                 with sqlite3.connect(snapshot) as target:
                     source.backup(target)
-            content = snapshot.read_bytes()
+            return _sha256_file(snapshot)
         except sqlite3.Error:
-            content = path.read_bytes()
+            return _sha256_file(path)
         finally:
             snapshot.unlink(missing_ok=True)
-        return "sha256:" + hashlib.sha256(content).hexdigest()
 
     def _receipt_path(self, operation: str) -> Path:
         return self.config.state_root / "receipts" / f"{operation}.json"

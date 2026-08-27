@@ -70,6 +70,7 @@ from app.tasks import spawn_supervised
 logger = logging.getLogger(__name__)
 
 _adhoc_serial = itertools.count(1)
+_HANDOVER_RESUME_BUDGET_S = 2.0
 
 
 def enc_cli_dir(cwd: str) -> str:
@@ -471,6 +472,7 @@ class SessionManager:
         # a rollback has to reach their backends, and an abandoned restart may leave them out
         # of `self.sessions`.
         self._prepared_restart: list = []
+        self._restart_force_stop: set[str] = set()
 
     @property
     def _prepared_restart_sessions(self) -> set[str]:
@@ -2399,6 +2401,9 @@ class SessionManager:
                              (fd_store_name(session.id, "stdout"), fd_out)):
                 fdstore.store_fds(name, [fd])
                 stored.append(name)
+            # `_conn()` applies SQLite busy_timeout=5s. Keep this bounded write synchronous:
+            # cancellation can then happen only before it starts or after it commits, never in
+            # the executor race where state committed after descriptor rollback.
             save_handover_state(
                 session.id,
                 getattr(backend, "active_turn_id", "") or "",
@@ -2406,7 +2411,7 @@ class SessionManager:
                 getattr(backend, "pid", 0) or 0,
                 getattr(backend, "cli_started_at", 0) or 0,
             )
-        except Exception as error:
+        except BaseException as error:
             # Half a pair is worse than none: it is not adoptable, and the sweep keeps it
             # because the session still exists. Roll back what we already handed over.
             for name in stored:
@@ -2425,20 +2430,39 @@ class SessionManager:
                 "[%s] handover failed (rolled back %d descriptor(s)), stopping the agent: %s",
                 session.name, len(stored), err_text(error),
             )
+            if isinstance(error, asyncio.CancelledError):
+                raise
             return False
         return True
 
     @staticmethod
-    async def _resume_after_failed_handover(session, backend) -> None:
-        """Give a quiesced backend its reader back. Never raises."""
+    async def _resume_after_failed_handover(session, backend) -> bool:
+        """Give a quiesced backend its reader back or stop it into recovery state."""
         resume = getattr(backend, "resume_after_aborted_handover", None)
         if resume is None:
-            return
+            return True
         try:
-            await resume()
-        except Exception as error:
+            await asyncio.wait_for(resume(), timeout=_HANDOVER_RESUME_BUDGET_S)
+            return True
+        except Exception as resume_error:
             logger.error("[%s] could not resume after a failed handover: %s",
-                         session.name, err_text(error))
+                         session.name, err_text(resume_error))
+            stop = getattr(session, "stop", None)
+            if callable(stop):
+                try:
+                    await asyncio.wait_for(stop(), timeout=5.0)
+                    logger.warning(
+                        "[%s] quiesced handover fallback stopped the session as INTERRUPTED",
+                        session.name,
+                    )
+                    return True
+                except Exception as error:
+                    logger.error(
+                        "[%s] could neither resume nor stop after failed handover: %s",
+                        session.name,
+                        err_text(error),
+                    )
+            return False
 
     async def prepare_restart_handover(self, sessions: list) -> dict:
         """Hand this whole live fleet to systemd, all or none, before any signal (#237 T3).
@@ -2447,28 +2471,37 @@ class SessionManager:
         restart is abandoned, and nobody owns them afterwards. So the first refusal rolls back
         everything this call already stored.
         """
-        prepared: list = []
+        self._prepared_restart = []
         for session in sessions:
             handed = False
             try:
                 handed = await self._hand_over_backend(session)
             except Exception as error:
                 logger.error("[%s] handover raised: %s", session.name, err_text(error))
-            if not handed:
-                # The refusing session has already restored itself inside `_hand_over_backend`;
-                # what is left is to undo the ones that DID succeed before it.
-                await self._rollback_handover(prepared)
-                return {
-                    "ok": False,
-                    "reason": f"{session.name} refused the handover",
-                }
-            prepared.append(session)
-        self._prepared_restart = prepared
-        return {"ok": True, "handed_over": [session.id for session in prepared]}
+            if handed:
+                self._prepared_restart.append(session)
+                continue
+            # The refusing session restored itself inside `_hand_over_backend`. Stop after the
+            # first bounded refusal: retrying the rest under the same locked dependency only
+            # spends N×busy_timeout and defeats the preparation ceiling.
+            prepared, self._prepared_restart = self._prepared_restart, []
+            await self._rollback_handover(prepared)
+            self._restart_force_stop.add(session.id)
+            return {
+                "ok": False,
+                "reason": f"{session.name} refused the handover",
+                "refused_ids": [session.id],
+                "refused_names": [session.name],
+            }
+        return {
+            "ok": True,
+            "handed_over": [session.id for session in self._prepared_restart],
+        }
 
     async def rollback_restart_handover(self) -> None:
         """Undo a completed fleet handover when the restart will not happen (#237 T3)."""
         prepared, self._prepared_restart = self._prepared_restart, []
+        self._restart_force_stop.clear()
         await self._rollback_handover(prepared)
 
     async def drain_restart_persistence(self) -> dict:
@@ -2478,10 +2511,23 @@ class SessionManager:
             *(session._drain_handoff_log_writes() for session in sessions),
             return_exceptions=True,
         )
-        for result in results:
+        losses = []
+        retried_log_writes = 0
+        for session, result in zip(sessions, results):
             if isinstance(result, BaseException):
-                raise result
-        return {"ok": True, "drained": len(sessions)}
+                losses.append({
+                    "session_id": session.id,
+                    "session_name": session.name,
+                    "reason": f"{type(result).__name__}: {result}",
+                })
+            elif isinstance(result, dict):
+                retried_log_writes += int(result.get("retried_log_writes", 0) or 0)
+        outcome = {"ok": not losses, "drained": len(sessions)}
+        if retried_log_writes:
+            outcome["retried_log_writes"] = retried_log_writes
+        if losses:
+            outcome["losses"] = losses
+        return outcome
 
     async def _rollback_handover(self, prepared: list) -> None:
         """Take these sessions back out of systemd's store and give them their readers back.
@@ -2493,6 +2539,8 @@ class SessionManager:
         """
         from app import fdstore
 
+        # `remove_fds` is a same-process sd_notify datagram, not an executor operation. Keeping
+        # it synchronous prevents a timed-out old thread from deleting a later retry's names.
         for session in prepared:
             for side in ("stdin", "stdout"):
                 name = fd_store_name(session.id, side)
@@ -2501,9 +2549,17 @@ class SessionManager:
                 except Exception as error:
                     logger.error("[%s] could not roll back %s: %s",
                                  session.name, name, err_text(error))
-        for session in prepared:
-            await self._resume_after_failed_handover(
-                session, getattr(session, "_backend", None))
+        resumed = await asyncio.gather(*(
+            self._resume_after_failed_handover(
+                session, getattr(session, "_backend", None)
+            )
+            for session in prepared
+        ))
+        if not all(resumed):
+            failed = [session.name for session, ok in zip(prepared, resumed) if not ok]
+            raise RuntimeError(
+                "handover rollback could neither resume nor stop: " + ", ".join(failed)
+            )
 
     async def shutdown_all(self) -> None:
         background_tasks = [
@@ -2530,7 +2586,11 @@ class SessionManager:
         already_prepared = self._prepared_restart_sessions
         handed_over = [s for s in sessions if s.id in already_prepared]
         for session in sessions:
-            if session.id not in already_prepared and await self._hand_over_backend(session):
+            if (
+                session.id not in already_prepared
+                and session.id not in self._restart_force_stop
+                and await self._hand_over_backend(session)
+            ):
                 handed_over.append(session)
         to_stop = [s for s in sessions if s not in handed_over]
         results = await asyncio.gather(
@@ -2551,6 +2611,7 @@ class SessionManager:
             )
         self.sessions.clear()
         self._session_locks.clear()
+        self._restart_force_stop.clear()
 
 
 def publish_backend_fds(session) -> bool:

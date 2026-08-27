@@ -15,6 +15,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1588,7 +1589,12 @@ def _open_restart_page(browser: Browser) -> tuple[Page, dict]:
     """
     page = browser.new_page()
     _route_frontend_sources(page)
-    state = {"send_refused": True, "server_down": False, "restart_header": None}
+    state = {
+        "send_refused": True,
+        "server_down": False,
+        "restart_header": None,
+        "restart_error": None,
+    }
 
     def api_route(route):
         url = route.request.url
@@ -1603,10 +1609,15 @@ def _open_restart_page(browser: Browser) -> tuple[Page, dict]:
                 route.fulfill(status=200, content_type="application/json",
                               body='{"ok": true}')
             return
-        if url.split("?")[0].endswith("/api/models") and state["restart_header"] is not None:
+        if url.split("?")[0].endswith("/api/models") and (
+            state["restart_header"] is not None or state["restart_error"] is not None
+        ):
             response = route.fetch()
             headers = dict(response.headers)
-            headers["X-Orchestra-Restarting"] = state["restart_header"]
+            if state["restart_header"] is not None:
+                headers["X-Orchestra-Restarting"] = state["restart_header"]
+            if state["restart_error"] is not None:
+                headers["X-Orchestra-Restart-Error"] = state["restart_error"]
             route.fulfill(response=response, headers=headers)
             return
         route.continue_()
@@ -1615,6 +1626,92 @@ def _open_restart_page(browser: Browser) -> tuple[Page, dict]:
     _goto_dashboard(page)
     page.wait_for_function("() => typeof sendChat === 'function' && selectedAgent")
     return page, state
+
+
+def test_restart_button_shows_current_attempt_failure(dashboard_browser: Browser):
+    """Текущая неудачная попытка видна сразу; следующий клик для диагноза не нужен."""
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    reason = "2 mutating tool calls still in flight"
+    page.route(
+        re.compile(r"/api/restart$"),
+        lambda route: route.fulfill(
+            status=409,
+            content_type="application/json",
+            body=json.dumps({"detail": {"phase": "preparation", "reason": reason}}),
+        ),
+    )
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof restartServer === 'function'")
+
+    page.click("#restart-btn")
+    page.wait_for_selector("#notice-restart")
+    state = page.evaluate("""() => ({
+        notice: document.querySelector('#notice-restart').textContent,
+        disabled: document.querySelector('#restart-btn').disabled,
+        label: document.querySelector('#restart-btn').textContent,
+    })""")
+    page.close()
+
+    assert reason in state["notice"], state["notice"]
+    assert state["disabled"] is False, "после отказа кнопку можно нажать снова"
+    assert state["label"] == "⟳"
+
+
+def test_restart_button_shows_journal_loss_before_reboot(dashboard_browser: Browser):
+    """Успешный рестарт не прячет потерянный журнал за общим `scheduled`."""
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    reason = "OperationalError: database is locked"
+    page.route(
+        re.compile(r"/api/restart$"),
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({
+                "ok": True,
+                "scheduled": True,
+                "journal_loss": {
+                    "ok": False,
+                    "phase": "session_db",
+                    "reason": reason,
+                },
+            }),
+        ),
+    )
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof restartServer === 'function'")
+
+    page.click("#restart-btn")
+    page.wait_for_selector("#notice-restart")
+    notice = page.locator("#notice-restart").inner_text()
+    page.close()
+
+    assert reason in notice, notice
+
+
+def test_restart_signal_failure_reaches_frontend_on_heartbeat(dashboard_browser: Browser):
+    """Ошибка после POST-ответа приходит существующим heartbeat, а кнопка оживает."""
+    page, state = _open_restart_page(dashboard_browser)
+    reason = "synthetic signal failure"
+    page.evaluate("""() => {
+        const btn = document.querySelector('#restart-btn');
+        btn.disabled = true;
+        btn.textContent = '⏳';
+    }""")
+    state["restart_error"] = quote(reason, safe="")
+
+    page.wait_for_selector("#notice-restart", timeout=15000)
+    visible = page.evaluate("""() => ({
+        notice: document.querySelector('#notice-restart').textContent,
+        disabled: document.querySelector('#restart-btn').disabled,
+        label: document.querySelector('#restart-btn').textContent,
+    })""")
+    page.close()
+
+    assert reason in visible["notice"]
+    assert visible["disabled"] is False
+    assert visible["label"] == "⟳"
 
 
 _NOTIFY_AGENT = "notify-268-probe"
@@ -4546,6 +4643,11 @@ def test_truncated_image_generation_history_recovers_without_server_restart(
     page.close()
 
 
+# Красный и на main: #365 (26.08) заменил синхронный путь «ждём расшифровку → вставляем
+# в поле → жмём отправить» на «стоп → сообщение улетает сразу, расшифровка догоняет».
+# Тест ждёт вставки текста в поле ввода, которой в новом контракте не происходит.
+# Переписывать под новый контракт — отдельная задача; блокировать чужие мержи он не должен.
+@pytest.mark.skip(reason="проверяет синхронный голосовой ввод, отменённый в #365")
 def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: Browser):
     root = Path(__file__).parent.parent
     app_source = (root / "app/static/js/app.js").read_text()
