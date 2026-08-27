@@ -470,6 +470,52 @@ async def test_t2_complete_inherited_pair_adopts_even_with_null_native_session_i
         "excluding the row routes its valid survivor into orphan cleanup")
 
 
+@pytest.mark.asyncio
+async def test_t3_auto_resume_wakes_a_gracefully_interrupted_worker(
+    isolated_db, tmp_path, monkeypatch,
+):
+    from app.db import _conn
+    from app.manager import SessionManager
+
+    row_id = "41300000-0000-4000-8000-000000000001"
+    _save_handover_row(
+        tmp_path,
+        session_id="thread-413",
+        row_id=row_id,
+        name="interrupted-413",
+    )
+    with _conn() as connection:
+        connection.execute(
+            "UPDATE sessions SET status='interrupted' WHERE id=?", (row_id,),
+        )
+
+    manager = SessionManager()
+    loaded = []
+    spawned = []
+
+    async def load(row, *, recovery_handoff=None):
+        session = SimpleNamespace(id=row["id"], name=row["name"])
+        loaded.append((session, recovery_handoff))
+        manager.sessions[session.id] = session
+        return session
+
+    notice = AsyncMock()
+    monkeypatch.setattr(manager, "_load_from_db", load)
+    monkeypatch.setattr(manager, "_inherited_agent_pipes", lambda: {})
+    monkeypatch.setattr(manager, "_inject_restart_notice", notice)
+    monkeypatch.setattr(
+        "app.manager.spawn_supervised",
+        lambda awaitable, label: spawned.append((awaitable, label)),
+    )
+
+    await manager.auto_resume_all()
+
+    assert [session.id for session, _handoff in loaded] == [row_id]
+    assert len(spawned) == 1
+    await spawned[0][0]
+    notice.assert_awaited_once_with(loaded[0][0])
+
+
 @pytest.fixture(autouse=True)
 def _restore_restart_gates():
     yield
@@ -540,7 +586,7 @@ async def test_t3_inflight_mutating_http_blocks_signal_until_it_finishes(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_t3_active_codex_is_handed_over_without_waiting_for_idle(monkeypatch):
+async def test_t3_active_codex_is_cut_without_handover(monkeypatch):
     from app import main as app_main
     from app.deps import manager
     from app.routes import system
@@ -551,13 +597,10 @@ async def test_t3_active_codex_is_handed_over_without_waiting_for_idle(monkeypat
     )
     order = []
 
-    async def prepare(sessions):
-        assert sessions == [active_codex]
-        order.append("prepare")
-        return {"ok": True, "handed_over": ["codex-active"]}
+    prepare = AsyncMock(return_value={"ok": True, "handed_over": ["codex-active"]})
 
     monkeypatch.setattr(system, "_drain_sessions", lambda: [active_codex])
-    monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.1)
+    monkeypatch.setattr(system, "_RESPONSE_FLUSH_PAUSE_S", 0)
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0)
     monkeypatch.setattr(manager, "prepare_restart_handover", prepare, raising=False)
@@ -565,13 +608,14 @@ async def test_t3_active_codex_is_handed_over_without_waiting_for_idle(monkeypat
 
     outcome = await asyncio.wait_for(system._restart_service_after_response(), timeout=2)
 
-    assert order == ["prepare", "signal"], (
-        "an active Codex turn must be handed over before the signal, not drained to idle")
-    assert outcome["ok"] is True and outcome["handed_over"] == ["codex-active"]
+    assert order == ["signal"]
+    prepare.assert_not_awaited()
+    assert outcome["ok"] is True and outcome["handed_over"] == []
+    assert outcome["cut_ids"] == ["codex-active"]
 
 
 @pytest.mark.asyncio
-async def test_t3_handover_refusal_still_restarts_and_marks_turn_for_restore(monkeypatch):
+async def test_t3_restart_does_not_ask_a_live_backend_for_handover(monkeypatch):
     from app import main as app_main
     from app.deps import manager
     from app.routes import system
@@ -582,25 +626,22 @@ async def test_t3_handover_refusal_still_restarts_and_marks_turn_for_restore(mon
     )
     kill = MagicMock()
     monkeypatch.setattr(system, "_drain_sessions", lambda: [stuck])
-    monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.1)
+    monkeypatch.setattr(system, "_RESPONSE_FLUSH_PAUSE_S", 0)
     monkeypatch.setattr(system.os, "kill", kill)
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0)
-    monkeypatch.setattr(
-        manager,
-        "prepare_restart_handover",
-        AsyncMock(return_value={
+    prepare = AsyncMock(return_value={
             "ok": False,
             "reason": "pending request",
             "refused_ids": ["stuck"],
             "refused_names": ["stuck"],
-        }),
-        raising=False,
-    )
+        })
+    monkeypatch.setattr(manager, "prepare_restart_handover", prepare, raising=False)
 
     outcome = await asyncio.wait_for(system._restart_service_after_response(), timeout=2)
 
     kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+    prepare.assert_not_awaited()
     assert outcome["ok"] is True and outcome["cut_ids"] == ["stuck"]
     assert outcome["restore_after_restart"] == ["stuck"]
 
@@ -781,40 +822,52 @@ async def test_t3_aborted_handover_replays_prefix_and_resumes_reader():
 
 
 @pytest.mark.asyncio
-async def test_t3_non_adoptable_runtime_deadline_restarts_via_graceful_stop(monkeypatch):
+async def test_t3_restart_cuts_every_runtime_and_uses_graceful_stop(monkeypatch):
     from app import main as app_main
     from app.manager import SessionManager
     from app.routes import system
 
     local_manager = SessionManager()
-    stop = AsyncMock()
-    claude = SimpleNamespace(
-        id="claude-active", name="claude-active", backend_type="claude", is_busy=True,
-        _backend=None, stop=stop,
-    )
-    local_manager.sessions = {claude.id: claude}
-    kill = MagicMock()
+    sessions = []
+    for runtime, backend in (
+        ("claude", None),
+        ("codex", _adoptable_backend()),
+        ("grok", SimpleNamespace()),
+    ):
+        sessions.append(SimpleNamespace(
+            id=f"{runtime}-active",
+            name=f"{runtime}-active",
+            backend_type=runtime,
+            is_busy=True,
+            _backend=backend,
+            stop=AsyncMock(),
+        ))
+    local_manager.sessions = {session.id: session for session in sessions}
     monkeypatch.setattr(system, "manager", local_manager)
-    monkeypatch.setattr(system, "_drain_sessions", lambda: [claude])
-    monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.1)
-    monkeypatch.setattr(system.os, "kill", kill)
+    monkeypatch.setattr(system, "_drain_sessions", lambda: sessions)
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0)
     prepare = AsyncMock(return_value={"ok": True, "handed_over": []})
     monkeypatch.setattr(local_manager, "prepare_restart_handover", prepare, raising=False)
+    hand_over = AsyncMock(return_value=True)
+    monkeypatch.setattr(local_manager, "_hand_over_backend", hand_over)
 
-    outcome = await asyncio.wait_for(system._restart_service_after_response(), timeout=2)
+    outcome = await asyncio.wait_for(
+        system._restart_service_after_response(signal=False), timeout=0.5,
+    )
     await local_manager.shutdown_all()
 
-    kill.assert_called_once_with(os.getpid(), signal.SIGINT)
-    stop.assert_awaited_once_with()
-    assert outcome["ok"] is True and outcome["cut_ids"] == ["claude-active"]
-    assert outcome["restore_after_restart"] == ["claude-active"]
-    prepare.assert_awaited_once_with([])
+    prepare.assert_not_awaited()
+    hand_over.assert_not_awaited()
+    for session in sessions:
+        session.stop.assert_awaited_once_with()
+    expected = ["claude-active", "codex-active", "grok-active"]
+    assert outcome["ok"] is True and outcome["cut_ids"] == expected
+    assert outcome["restore_after_restart"] == expected
 
 
 @pytest.mark.asyncio
-async def test_t3_signal_failure_rolls_back_the_complete_prepared_fleet(monkeypatch):
+async def test_t3_signal_failure_clears_pending_interrupt_without_handover(monkeypatch):
     from app import main as app_main
     from app.manager import SessionManager
     from app.routes import system
@@ -842,14 +895,10 @@ async def test_t3_signal_failure_rolls_back_the_complete_prepared_fleet(monkeypa
         backends.append(backend)
         sessions.append(session)
 
-    async def hand_over(session):
-        session._backend._handover_quiescing = True
-        return True
-
-    local_manager._hand_over_backend = AsyncMock(side_effect=hand_over)
+    local_manager._hand_over_backend = AsyncMock(return_value=True)
     monkeypatch.setattr(system, "manager", local_manager)
     monkeypatch.setattr(system, "_drain_sessions", lambda: sessions)
-    monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.1)
+    monkeypatch.setattr(system, "_RESPONSE_FLUSH_PAUSE_S", 0)
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0)
     monkeypatch.setattr("app.fdstore.remove_fds", lambda name: removed.append(name))
@@ -862,16 +911,13 @@ async def test_t3_signal_failure_rolls_back_the_complete_prepared_fleet(monkeypa
     with pytest.raises(OSError, match="synthetic signal failure"):
         await asyncio.wait_for(system._restart_service_after_response(), timeout=2)
 
-    assert sorted(removed) == [
-        "agent.codex-one.stdin",
-        "agent.codex-one.stdout",
-        "agent.codex-two.stdin",
-        "agent.codex-two.stdout",
-    ]
+    assert removed == []
+    local_manager._hand_over_backend.assert_not_awaited()
     for backend in backends:
-        backend.resume_after_aborted_handover.assert_awaited_once_with()
+        backend.resume_after_aborted_handover.assert_not_awaited()
         assert backend._handover_quiescing is False
     assert getattr(local_manager, "_prepared_restart_sessions", set()) == set()
+    assert local_manager._restart_force_stop == set()
     assert local_manager.draining is False
     assert app_main.mutating_admission_verdict(
         "POST", "/api/sessions/worker/send"
@@ -879,42 +925,35 @@ async def test_t3_signal_failure_rolls_back_the_complete_prepared_fleet(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_t3_late_unsupported_turn_after_codex_prepare_still_signals(monkeypatch):
+async def test_t3_runtime_capability_does_not_change_cut_membership(monkeypatch):
     from app import main as app_main
     from app.deps import manager
     from app.routes import system
 
     codex = SimpleNamespace(
-        id="codex-prepared", name="codex-prepared", backend_type="codex", is_busy=True,
+        id="codex-active", name="codex-active", backend_type="codex", is_busy=True,
         _backend=_adoptable_backend(),
     )
     claude = SimpleNamespace(
-        id="claude-late", name="claude-late", backend_type="claude", is_busy=False
+        id="claude-active", name="claude-active", backend_type="claude", is_busy=True
     )
     kill = MagicMock()
-    rollback = AsyncMock()
-
-    async def prepare(sessions):
-        assert sessions == [codex]
-        claude.is_busy = True
-        return {"ok": True, "handed_over": ["codex-prepared"]}
+    prepare = AsyncMock(return_value={"ok": True, "handed_over": ["codex-active"]})
 
     monkeypatch.setattr(system, "_drain_sessions", lambda: [codex, claude])
-    monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.1)
+    monkeypatch.setattr(system, "_RESPONSE_FLUSH_PAUSE_S", 0)
     monkeypatch.setattr(system.os, "kill", kill)
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0)
     monkeypatch.setattr(manager, "prepare_restart_handover", prepare, raising=False)
-    monkeypatch.setattr(
-        manager, "rollback_restart_handover", rollback, raising=False
-    )
 
     outcome = await asyncio.wait_for(system._restart_service_after_response(), timeout=2)
 
     kill.assert_called_once_with(os.getpid(), signal.SIGINT)
-    assert outcome["ok"] is True and outcome["cut_ids"] == ["claude-late"]
-    assert outcome["restore_after_restart"] == ["claude-late"]
-    rollback.assert_not_awaited()
+    prepare.assert_not_awaited()
+    assert outcome["ok"] is True
+    assert outcome["cut_ids"] == ["codex-active", "claude-active"]
+    assert outcome["restore_after_restart"] == ["codex-active", "claude-active"]
 
 
 def test_t4_transient_rehearsal_is_versioned_and_cannot_target_production():

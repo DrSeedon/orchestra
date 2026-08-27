@@ -64,9 +64,12 @@ async def _start_bridge_background(manager) -> None:
 MUTATING_DRAIN_BUDGET_S = 120.0  # measured: slowest mutating tool call 90.2s (merge_worker)
 DRAIN_POLL_S = 0.05
 
-#: The restart endpoint is NOT mutating traffic: counting it would make its own preflight wait
-#: for the request that asked for the restart — a self-deadlock (found in review, round 3).
-_CENSUS_EXEMPT_PATHS = frozenset({"/api/restart"})
+#: Restart cannot count its own request, and an operator must retain the stop lever while
+#: restart admission is closed. Neither endpoint joins the mutating census.
+_CENSUS_EXEMPT_PATHS = frozenset({
+    "/api/restart",
+    "/api/sessions/{name}/stop",
+})
 #: Read-only by verb, but stated explicitly so a mutating GET can be added here instead of
 #: being silently misclassified. Empty today; the list is the seam, not the emptiness.
 _MUTATING_READ_METHODS: frozenset[str] = frozenset()

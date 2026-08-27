@@ -304,50 +304,44 @@ async def test_t2_internal_starter_queues_a_fact_instead_of_starting(
         f"{starter}: агенту оставлен факт о недоставленном, а не тишина"
 
 
-# ── T3: рестарт ждёт живые ходы и имеет безусловный дедлайн ──
+# ── T3: рестарт сразу прерывает живые ходы ──
 
 @pytest.mark.asyncio
-async def test_t3_restart_drains_before_signalling(monkeypatch):
-    """`/api/restart` обязан дождаться живых ходов, а не убить их через 0.5 с."""
+async def test_t3_restart_signals_without_waiting_for_live_turns(monkeypatch):
+    """`/api/restart` interrupts live turns instead of granting them a grace period."""
     from app.routes import system
     from app.session import AgentStatus
 
     running = _FakeSession("running", AgentStatus.RUNNING)
     idle = _FakeSession("idle", AgentStatus.IDLE)
     monkeypatch.setattr(system, "_drain_sessions", lambda: [running, idle], raising=False)
-    monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 30, raising=False)
     kill = MagicMock()
     monkeypatch.setattr(system.os, "kill", kill)
 
-    task = asyncio.create_task(system._restart_service_after_response())
-    # сегодня рестарт спит 0.5 с и стреляет; ждём заведомо дольше
-    await asyncio.sleep(1.5)
-    assert not kill.called, "пока идёт ход, сигнала быть не должно"
+    result = await asyncio.wait_for(
+        system._restart_service_after_response(), timeout=0.5,
+    )
 
-    running.status = AgentStatus.IDLE
-    await asyncio.wait_for(task, timeout=5)
     kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+    assert result["cut_names"] == ["running"]
 
 
 @pytest.mark.asyncio
-async def test_t3_drain_deadline_is_unconditional_and_names_the_blocking_turns(monkeypatch):
-    """Ход может не кончиться никогда (research.md F7: цепочки agent→agent).
+async def test_t3_restart_cuts_blocking_turns_without_grace(monkeypatch):
+    """Live turns cannot postpone a restart, even when they never finish.
 
-    Дедлайн остаётся безусловным: ждём ограниченное время и не дольше. После него рестарт
-    обязан состояться, а неподдерживаемый ход — попасть в список прерванных, который новое
-    поколение использует для восстановления сессии.
+    The interrupted session is named for startup recovery, but no wait is permitted first.
     """
     from app.routes import system
     from app.session import AgentStatus
 
     stuck = _FakeSession("stuck", AgentStatus.RUNNING)
     monkeypatch.setattr(system, "_drain_sessions", lambda: [stuck], raising=False)
-    monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.2, raising=False)
     kill = MagicMock()
     monkeypatch.setattr(system.os, "kill", kill)
 
     result = await asyncio.wait_for(
-        system._restart_service_after_response(), timeout=5,
+        system._restart_service_after_response(), timeout=0.5,
     )
 
     kill.assert_called_once_with(os.getpid(), signal.SIGINT)
@@ -358,30 +352,31 @@ async def test_t3_drain_deadline_is_unconditional_and_names_the_blocking_turns(m
 
 
 @pytest.mark.asyncio
-async def test_t3_handover_refusal_cuts_only_that_turn_and_still_signals(monkeypatch):
-    """Отказ одного adoptable-агента не имеет права отменять рестарт всего сервиса."""
+async def test_t3_restart_never_attempts_live_turn_handover(monkeypatch):
+    """Every live turn is cut; adopt capability is irrelevant to restart latency."""
     from app import main as app_main
     from app.routes import system
 
-    refused = {
+    would_refuse = {
         "ok": False,
         "reason": "agent-one refused the handover",
         "refused_ids": ["sid-agent-one"],
         "refused_names": ["agent-one"],
     }
+    running = _FakeSession("agent-one")
     monkeypatch.setattr(system, "_RESPONSE_FLUSH_PAUSE_S", 0)
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0)
-    monkeypatch.setattr(system, "_drain_sessions", lambda: [])
-    monkeypatch.setattr(
-        system.manager, "prepare_restart_handover", AsyncMock(return_value=refused),
-    )
+    monkeypatch.setattr(system, "_drain_sessions", lambda: [running])
+    prepare = AsyncMock(return_value=would_refuse)
+    monkeypatch.setattr(system.manager, "prepare_restart_handover", prepare)
     kill = MagicMock()
     monkeypatch.setattr(system.os, "kill", kill)
 
-    result = await asyncio.wait_for(system._restart_service_after_response(), timeout=2)
+    result = await asyncio.wait_for(system._restart_service_after_response(), timeout=0.5)
 
     kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+    prepare.assert_not_awaited()
     assert result["ok"] is True
     assert result["cut_names"] == ["agent-one"]
     assert result["restore_after_restart"] == ["sid-agent-one"]
@@ -405,7 +400,6 @@ async def test_t3_drain_outcome_is_persisted_before_the_signal(monkeypatch):
     # прежнее; изменился только путь, на котором сигнал вообще случается.
     idle = _FakeSession("idle", AgentStatus.IDLE)
     monkeypatch.setattr(system, "_drain_sessions", lambda: [idle], raising=False)
-    monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.2, raising=False)
     monkeypatch.setattr(system.os, "kill", lambda *a: order.append("kill"))
 
     record = getattr(system, "_record_restart_outcome", None)
@@ -437,7 +431,6 @@ async def test_t3_broken_recorder_does_not_cancel_the_signal(monkeypatch):
     # и «сбой учёта не отменяет сигнал» стало бы непроверяемым — сигнала не было бы и так.
     monkeypatch.setattr(system, "_drain_sessions",
                         lambda: [_FakeSession("idle", AgentStatus.IDLE)], raising=False)
-    monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 0.2, raising=False)
     monkeypatch.setattr(system.os, "kill", kill)
 
     record = getattr(system, "_record_restart_outcome", None)
@@ -501,30 +494,21 @@ async def test_guard_watchdog_gives_a_prepared_fleet_its_readers_back(monkeypatc
     rollback.assert_awaited_once_with()
 
 
-def test_guard_watchdog_outlasts_everything_the_restart_may_wait_for():
+def test_guard_watchdog_outlasts_mutating_drain_and_response_flush():
     """Охранник, добавленный ПОСЛЕ заморозки #237 — не оракул тикета.
 
-    Ревью #237 (B2): бюджет сторожа (120 с) обосновывался самым долгим мутирующим вызовом
-    (90.2 с) и не знал, что T3 подложил под те же гейты ожидание до 900 с. Сторож,
-    срабатывающий РАНЬШЕ законного ожидания, открывает гейт ходов, ходы начинаются заново,
-    `_blocking_runtimes()` перестаёт пустеть — и рестарт становится недостижим: страховка
-    кормит ровно то, чего ждёт цикл.
-
-    Усилен после раунда 2: сравнения с одним `_DRAIN_DEADLINE_S` мало. Ревьюер сложил
-    ВСЕ ожидания пути — `0.5 + 120 + 900 = 1020.5` против бюджета `1020` — и показал, что
-    прежняя формула формально проигрывала, а спасал её только census-exempt `/api/restart`.
-    Поэтому сравнение идёт с суммой, а не со слагаемым.
+    Worker turns no longer contribute any wait budget. The watchdog still has to outlast the
+    response flush and an already-admitted mutating request, the two waits restart retains.
     """
     from app import main as app_main
     from app.routes import system
 
     entitled = (system._RESPONSE_FLUSH_PAUSE_S
-                + app_main.MUTATING_DRAIN_BUDGET_S
-                + system._DRAIN_DEADLINE_S)
+                + app_main.MUTATING_DRAIN_BUDGET_S)
     assert system._watchdog_budget_s() > entitled, (
         f"сторож ({system._watchdog_budget_s()}s) обязан переживать ВСЁ, что рестарт вправе "
-        f"ждать после взведения ({entitled}s): паузу на ответ, повторный дренаж HTTP и "
-        f"ожидание непередаваемых ходов. Иначе он срабатывает посреди законного ожидания")
+        f"ждать после взведения ({entitled}s): паузу на ответ и повторный дренаж HTTP. "
+        f"Worker turns do not extend this budget")
 
 
 @pytest.mark.asyncio

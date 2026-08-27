@@ -19,7 +19,6 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, Form
@@ -2197,15 +2196,11 @@ async def release_lock_endpoint(req: TestLockRequest):
 
 _restart_tasks: set[asyncio.Task] = set()
 
-# Десять секунд — потолок только для штатного завершения уже идущего agent turn. История
-# #220 даёт p50 остатка 72 с и ≥20.2% дольше прежних 15 минут: долгое ожидание почти не
-# покупает сохранность, зато делает кнопку непредсказуемой. После 10 с сессия помечается
-# прерванной; `shutdown_all()` сохраняет её состояние, а `auto_resume_all()` поднимает снова.
-_DRAIN_DEADLINE_S = 10.0
+# Compatibility field in restart outcomes: worker-turn grace is deliberately zero.
+_DRAIN_DEADLINE_S = 0.0
 RESTART_DURABLE_STATE_BUDGET_S = 30.0
 RESTART_OUTCOME_RECORD_BUDGET_S = 5.0
-# 10 с grace + до 30 с durable flush + 5 с handover + 5 с outcome journal.
-# Preflight mutating HTTP имеет отдельный 120-секундный safety budget и идёт раньше.
+# Durable flush and outcome journal are bounded; worker turns add no wait at all.
 RESTART_PREPARATION_BUDGET_S = 50.0
 # restart_guard reap <= 6 с; resume <= 2 с, а его INTERRUPTED fallback stop <= 5 с.
 RESTART_ABORT_CLEANUP_BUDGET_S = 15.0
@@ -2345,20 +2340,13 @@ async def restart_preflight() -> dict:
     }
 
 
-_RESPONSE_FLUSH_PAUSE_S = 0.5  # so the caller sees `scheduled` before we start
-_WATCHDOG_MARGIN_S = 120.0  # fleet quiesce + store + the outcome write, generously
+# HTTP uses Starlette BackgroundTasks, so the response lifecycle itself is the flush barrier.
+_RESPONSE_FLUSH_PAUSE_S = 0.0
+_WATCHDOG_MARGIN_S = 120.0  # durable flush + outcome write, generously
 
 
 def _watchdog_budget_s() -> float:
     """How long the safety net waits before deciding the restart is not coming.
-
-    Summed from the waits themselves rather than picked, because picking is how this broke
-    once already: the constant was sized against the 90.2s slowest mutating call, then T3 put
-    a 900s wait for live turns underneath the same gates and nobody re-added the numbers.
-
-    Firing early is not a harmless false alarm — it reopens the turn gate while the drain loop
-    is still legitimately waiting, new turns start, `_blocking_runtimes()` stops emptying, and
-    the restart becomes UNREACHABLE: the safety net feeding exactly what the loop waits on.
 
     `MUTATING_DRAIN_BUDGET_S` is read at call time on purpose: `app.main` imports this module,
     so a module-level import would be circular, and copying the number would give one budget
@@ -2368,8 +2356,7 @@ def _watchdog_budget_s() -> float:
 
     return (_RESPONSE_FLUSH_PAUSE_S          # let the HTTP response leave first
             + app_main.MUTATING_DRAIN_BUDGET_S  # the restart path drains HTTP a second time
-            + _DRAIN_DEADLINE_S              # then waits for turns it must not cut
-            + _WATCHDOG_MARGIN_S)            # fleet prepare + the outcome write
+            + _WATCHDOG_MARGIN_S)            # durable flush + the outcome write
 
 #: Which restart attempt is current. A watchdog belongs to the attempt that armed it: firing
 #: into a LATER attempt would strip descriptors out of systemd's store and reopen both gates
@@ -2386,11 +2373,9 @@ async def _reopen_admission_if_still_alive(attempt: int = 0) -> None:
     A real restart kills this process, so in the happy path this coroutine simply dies with it
     and the sleep is never observed. Reaching the end means the signal did not do its job.
 
-    Two things keep it from sawing the branch it sits on: it outlasts everything the attempt
-    may legitimately wait for, and it stands down if its own attempt is no longer the current
-    one. Without the first, it reopens the turn gate while the drain loop is still waiting —
-    new turns start, `_blocking_runtimes()` stops emptying, and the restart becomes
-    unreachable because its own safety net keeps feeding what it waits on.
+    It outlasts the remaining bounded preparation and stands down if its own attempt is no
+    longer current. Worker turns are not part of this budget because restart never waits for
+    them.
     """
     budget = _watchdog_budget_s()
     await asyncio.sleep(budget)
@@ -2567,33 +2552,12 @@ async def _do_restart_service() -> dict:
                 "cut_turns": 0, "cut_names": [], "cut_ids": []}
 
     started = time.monotonic()
-    while time.monotonic() - started < _DRAIN_DEADLINE_S:
-        if not _blocking_runtimes():
-            break
-        await asyncio.sleep(1)
-    blocked = _blocking_runtimes()
-    cut = {session.id: session for session in blocked}
-
-    live_adoptable = [
-        session for session in _drain_sessions()
-        if session.is_busy and _can_be_handed_over(session)
-    ]
-    prepared = await manager.prepare_restart_handover(live_adoptable)
-    handed_over = list(prepared.get("handed_over", []))
-    if not prepared["ok"]:
-        refused_ids = list(prepared.get("refused_ids", []))
-        refused_names = list(prepared.get("refused_names", []))
-        by_id = {session.id: session for session in live_adoptable}
-        for session_id, session_name in zip(refused_ids, refused_names):
-            cut[session_id] = by_id.get(session_id) or SimpleNamespace(
-                id=session_id, name=session_name,
-            )
-
-    # Last look before the point of no return: preparing the fleet takes real time, and both
-    # of these can have changed underneath it.
-    late = _blocking_runtimes()
-    for session in late:
-        cut[session.id] = session
+    sessions = _drain_sessions()
+    cut_sessions = [session for session in sessions if session.is_busy]
+    # Restart never hands a loaded backend over. shutdown_all() will call the ordinary
+    # session.stop() path for every session; a RUNNING one persists INTERRUPTED and startup's
+    # auto_resume_all() wakes it again.
+    manager.mark_for_restart_stop(sessions)
     if app_main.inflight_mutating_count():
         await _abort_restart("work started while the fleet was being prepared")
         return {
@@ -2605,12 +2569,11 @@ async def _do_restart_service() -> dict:
             "cut_ids": [],
         }
 
-    cut_sessions = list(cut.values())
     cut_ids = [session.id for session in cut_sessions]
     outcome = {
         "ok": True,
         "prepared": True,
-        "handed_over": handed_over,
+        "handed_over": [],
         "waited_s": time.monotonic() - started,
         "turn_grace_s": _DRAIN_DEADLINE_S,
         "cut_turns": len(cut_sessions),
