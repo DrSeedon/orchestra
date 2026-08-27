@@ -19,3 +19,5 @@
   turns unrelated activity into false stale-page fetches.
 - For browser uploads that need progress, keep the immediate object-URL card and switch its link to
   the server URL on completion; XHR `upload.progress` is the observable upload-side progress seam.
+- Inbox report Markdown may start with a blank line and uses `- **Scope:**`; parse the first `## ` heading
+  and full bold field marker instead of assuming line 1 or a plain `Scope:` token.

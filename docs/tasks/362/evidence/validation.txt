@@ -1,0 +1,5 @@
+$ find ~/.local/state/orchestra/bug-inbox/records -maxdepth 1 -type f -name "*.md" | wc -l
+116
+$ awk -F "\\t" 'NF!=9 {print NR,NF}' docs/tasks/362/inbox-triage.tsv
+$ python3 CSV row/duplicate/count validation
+{'rows': 116, 'duplicates': 77, 'statuses': {'unknown': 110, 'no': 6}}

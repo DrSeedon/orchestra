@@ -1,0 +1,144 @@
+$ git show main:app/pidfd_exec.py | sed -n "45,115p"
+    Linux 6.9, and only with it does a group stay reachable after its leader is
+    reaped. Below that we fall back to killpg, which is safe only while the
+    leader is unreaped — so callers that depend on the stronger guarantee must
+    ask here rather than assume.
+    """
+    if _pidfd_send_signal is None:
+        return False
+    fd = pidfd_open_self()
+    try:
+        if _pidfd_send_signal(fd, 0, None, PIDFD_SIGNAL_PROCESS_GROUP) == 0:
+            return True
+        return ctypes.get_errno() != errno.EINVAL
+    finally:
+        os.close(fd)
+
+
+def pidfd_pid(pidfd: int) -> int:
+    """PID behind a pidfd, or 0 once the kernel has reaped that process.
+
+    ``/proc/self/fdinfo/<fd>`` is the only way back from a pidfd to a pid. The
+    kernel reports ``Pid: 0`` (``-1`` when seen from another namespace) after
+    reaping — precisely the moment the number becomes free for reuse.
+    """
+    try:
+        with open(f"/proc/self/fdinfo/{pidfd}", encoding="ascii") as fh:
+            for line in fh:
+                if line.startswith("Pid:"):
+                    return int(line.split()[1])
+    except (OSError, ValueError, IndexError):
+        return 0
+    return 0
+
+
+def _send_group_via_killpg(pidfd: int, sig: int) -> bool:
+    """Group-signal fallback anchored on the pidfd, for kernels below 6.9.
+
+    Safe for the same reason the flag is: while the leader is unreaped its pid
+    cannot be recycled, so its pgid still names OUR group. Once the pidfd shows
+    no pid, we report the group gone instead of signalling a stranger.
+    """
+    pid = pidfd_pid(pidfd)
+    if pid <= 0:
+        return False
+    try:
+        os.killpg(pid, sig)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def pidfd_send_group(pidfd: int, sig: int) -> bool:
+    """Signal the retained process group; return False once the group is gone."""
+    if _pidfd_send_signal is None:
+        raise OSError(errno.ENOSYS, "libc pidfd functions are unavailable")
+    if _pidfd_send_signal(
+        pidfd, sig, None, PIDFD_SIGNAL_PROCESS_GROUP,
+    ) == 0:
+        return True
+    error = ctypes.get_errno()
+    if error == errno.ESRCH:
+        return False
+    if error == errno.EINVAL:
+        # PIDFD_SIGNAL_PROCESS_GROUP only exists since Linux 6.9; older kernels
+        # reject the flag outright, which killed every background job on a 6.8
+        # host. Probing the syscall beats parsing a version string.
+        return _send_group_via_killpg(pidfd, sig)
+    raise OSError(error, os.strerror(error))
+
+
+def _send_pidfd(control: socket.socket, pidfd: int) -> None:
+    rights = array.array("i", [pidfd])
+$ git show main:app/backend_codex.py | sed -n "35,45p"
+)
+from app.usage_contract import AggregateUsage, TurnUsage, current_context
+
+logger = logging.getLogger(__name__)
+
+CODEX_BIN = shutil.which("codex") or os.environ.get("CODEX_BIN", "codex")
+
+# Effective context budgets reported by the ChatGPT-auth Codex runtime. The public API
+# advertises a larger GPT-5.6 window, but that is a different surface; local rollout
+# token_count events are the runtime source of truth and may override these fallbacks.
+CODEX_CONTEXT_LIMITS = {
+$ git show main:app/merge_test_gate.py | sed -n "75,90p"
+    "tests/route_surface_snapshot.json",
+    "tests/test_routes_surface.py",
+})
+
+
+def _normalize_output(output: str | bytes | None) -> str:
+    if output is None:
+        return ""
+    if isinstance(output, bytes):
+        return output.decode("utf-8", "replace")
+    return output
+
+
+def _git(cwd: Path, *args: str) -> str | None:
+    try:
+$ git show main:app/message_deliveries.py | sed -n "410,428p"
+            mark_message_delivery_unknown(self.delivery_id, error)
+
+
+# Голова очереди — первое НЕЗАВЕРШЁННОЕ сообщение. Раньше здесь стояло только
+# `state != 'SUBMITTED'`, поэтому `FAILED_BEFORE_SUBMIT` (например от QuotaGateError)
+# навсегда вставал во главе: `ensure_target_runner` видел «голова не QUEUED» и молча
+# выходил, а всё пришедшее ПОСЛЕ не отправлялось никогда. Воркер выглядел живым и глухим —
+# 26.08 так потерялись 6 заданий подряд, отправитель получал QUEUED на каждое.
+#
+# `DELIVERY_UNKNOWN` в этот набор НЕ входит и входить не должен: он означает «неизвестно,
+# ушло ли», и барьер там СОЗНАТЕЛЬНЫЙ (#380 R7) — пропустив его, мы рискуем доставить
+# следующее сообщение раньше, чем выяснится судьба предыдущего, то есть переставить
+# порядок или продублировать. Отказ ДО отправки такой неоднозначности не создаёт.
+_TERMINAL_DELIVERY_STATES = ("SUBMITTED", "FAILED_BEFORE_SUBMIT")
+
+
+def _next_target_delivery(target_session_id: str) -> sqlite3.Row | None:
+    placeholders = ",".join("?" * len(_TERMINAL_DELIVERY_STATES))
+    with db._conn() as connection:
+$ git show main:app/routes/sessions.py | sed -n "230,252p"
+    state: str
+    summary: str = ""
+
+
+def _conditional(request: Request, payload) -> Response:
+    """Отдать payload с ETag, а при совпадении If-None-Match — пустой 304.
+
+    Дашборд опрашивает `/api/sessions` каждые 3 секунды, и ответ весит 48.8 КБ даже когда
+    ничего не изменилось (замер 21.08) — почти мегабайт в минуту и один из ШЕСТИ браузерных
+    слотов, из которых один навсегда занят SSE. Условный запрос убирает тело целиком, пока
+    состояние агентов не поменялось; ключ считается от самого ответа, поэтому рассинхрон
+    невозможен by design. `no-cache` означает «кешируй, но всегда переспрашивай» — без него
+    браузер не пришлёт If-None-Match.
+    """
+    body = json.dumps(payload, ensure_ascii=False, default=str, sort_keys=True)
+    tag = '"' + hashlib.md5(body.encode()).hexdigest() + '"'
+    headers = {"ETag": tag, "Cache-Control": "no-cache"}
+    if request.headers.get("if-none-match") == tag:
+        return Response(status_code=304, headers=headers)
+    return JSONResponse(payload, headers=headers)
+
+
+@router.get("/api/sessions")
