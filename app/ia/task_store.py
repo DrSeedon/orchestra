@@ -1211,7 +1211,11 @@ class TaskStore:
         except (KeyError, ValueError) as exc:
             raise ProvenanceError("task evidence requires a stable UUID") from exc
         states = self._states()
-        original = self._find_state(task_ref, project_id)
+        original = states.get(str(task_ref))
+        if original is None:
+            original = self._find_state(task_ref, project_id)
+        elif original["project_id"] != project_id:
+            raise ProvenanceError("task evidence crosses project identity")
         state = states[original["stable_id"]]
         if evidence.get("task_id") != state["stable_id"]:
             raise ProvenanceError("task evidence crosses stable task identity")
@@ -1228,11 +1232,14 @@ class TaskStore:
             "kind": str(evidence.get("kind") or ""),
             **{field: str(evidence[field]) for field in _PROVENANCE_FIELDS},
         }
-        if self._evidence_path(record).exists():
-            if _read_json(self._evidence_path(record)) != record:
+        evidence_path = self._evidence_path(record)
+        if evidence_path.exists():
+            if _read_json(evidence_path) != record:
                 raise ProvenanceError("evidence id already names another source")
-            return {"ok": True, "added": 0, **self._receipt(state)}
-        _write_json(self._evidence_path(record), record)
+            if uri in state.get("evidence_refs", []):
+                return {"ok": True, "added": 0, **self._receipt(state)}
+        else:
+            _write_json(evidence_path, record)
         state["evidence_refs"] = sorted({*state.get("evidence_refs", []), uri})
         state["sync_revision"] = int(state.get("sync_revision") or 0) + 1
         state["updated_at"] = _now()

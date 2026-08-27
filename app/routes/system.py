@@ -19,9 +19,10 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, Response, Form
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, Form
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -2196,11 +2197,21 @@ async def release_lock_endpoint(req: TestLockRequest):
 
 _restart_tasks: set[asyncio.Task] = set()
 
-# 15 минут: замер #220 — дренаж сходится за это время в 80% случаев (p50 1.2 мин).
-# Дедлайн БЕЗУСЛОВНЫЙ: гарантии сходимости нет вовсе, потому что ходы порождаются
-# изнутри контура (send_message между агентами, автоотчёт родителю).
-_DRAIN_DEADLINE_S = 900
+# Десять секунд — потолок только для штатного завершения уже идущего agent turn. История
+# #220 даёт p50 остатка 72 с и ≥20.2% дольше прежних 15 минут: долгое ожидание почти не
+# покупает сохранность, зато делает кнопку непредсказуемой. После 10 с сессия помечается
+# прерванной; `shutdown_all()` сохраняет её состояние, а `auto_resume_all()` поднимает снова.
+_DRAIN_DEADLINE_S = 10.0
 RESTART_DURABLE_STATE_BUDGET_S = 30.0
+RESTART_OUTCOME_RECORD_BUDGET_S = 5.0
+# 10 с grace + до 30 с durable flush + 5 с handover + 5 с outcome journal.
+# Preflight mutating HTTP имеет отдельный 120-секундный safety budget и идёт раньше.
+RESTART_PREPARATION_BUDGET_S = 50.0
+# restart_guard reap <= 6 с; resume <= 2 с, а его INTERRUPTED fallback stop <= 5 с.
+RESTART_ABORT_CLEANUP_BUDGET_S = 15.0
+RESTART_PREPARATION_CEILING_S = (
+    RESTART_PREPARATION_BUDGET_S + RESTART_ABORT_CLEANUP_BUDGET_S
+)
 
 
 def _drain_sessions() -> list:
@@ -2225,16 +2236,46 @@ def _record_restart_outcome(outcome: dict) -> None:
     logger.warning(summary)
     for session_id in outcome["cut_ids"]:
         add_log(session_id, ts, "system",
-                f"{summary}. Твой ход разорван — автоматического повтора нет.")
+                f"{summary}. Твой ход прерван; сессия восстановится после запуска, "
+                "автоматического повтора самого хода нет.")
+
+
+async def _record_restart_outcome_bounded(outcome: dict) -> dict | None:
+    """Keep a locked audit write from stretching the front-end preparation ceiling."""
+    try:
+        await asyncio.wait_for(
+            asyncio.to_thread(_record_restart_outcome, outcome),
+            timeout=RESTART_OUTCOME_RECORD_BUDGET_S,
+        )
+        return None
+    except Exception as error:
+        logger.warning("could not record restart outcome: %s: %s",
+                       type(error).__name__, error)
+        return {
+            "ok": False,
+            "phase": "restart_outcome",
+            "task_class": "_record_restart_outcome",
+            "reason": f"{type(error).__name__}: {error}",
+        }
 
 
 async def _drain_restart_durable_state() -> dict:
     """Bound the final session DB/log flush before the restart becomes irreversible."""
     try:
-        return await asyncio.wait_for(
+        result = await asyncio.wait_for(
             manager.drain_restart_persistence(),
             timeout=RESTART_DURABLE_STATE_BUDGET_S,
         )
+        if isinstance(result, dict) and result.get("ok") is False:
+            losses = result.get("losses") or []
+            reasons = [str(loss.get("reason", "")) for loss in losses if loss.get("reason")]
+            return {
+                **result,
+                "phase": "session_db",
+                "task_class": "AgentSession._drain_handoff_log_writes",
+                "reason": "; ".join(reasons) or "session journal persistence failed",
+            }
+        return result
     except TimeoutError:
         return {
             "ok": False,
@@ -2368,15 +2409,50 @@ async def _reopen_admission_if_still_alive(attempt: int = 0) -> None:
     )
 
 
-async def _restart_service_after_response() -> dict:
-    """Дренаж → запись итога → SIGINT; systemd Restart=always поднимает нас обратно.
-
-    Порядок обязателен: дренаж идёт ДО сигнала, а `shutdown_merge_operations()`,
-    `bg_manager.shutdown()` и `manager.shutdown_all()` — уже ПОСЛЕ него, внутри
-    lifespan (`app/main.py:114,126,127`).
-    """
+async def _prepare_restart_service() -> dict:
+    """Finish every fallible restart step while the HTTP caller can still see its result."""
     try:
-        return await _do_restart_service()
+        return await asyncio.wait_for(
+            _do_restart_service(), timeout=RESTART_PREPARATION_BUDGET_S,
+        )
+    except TimeoutError:
+        reason = (
+            "restart preparation deadline exceeded after "
+            f"{RESTART_PREPARATION_BUDGET_S:g}s"
+        )
+        cleanup_timed_out = False
+        try:
+            await asyncio.wait_for(
+                _abort_restart(reason), timeout=RESTART_ABORT_CLEANUP_BUDGET_S,
+            )
+        except TimeoutError:
+            cleanup_timed_out = True
+            from app import main as app_main
+            manager.end_drain()
+            app_main.open_mutating_admission()
+            logger.critical(
+                "restart abort cleanup exceeded %.0fs; admissions reopened after guard's "
+                "bounded disarm window",
+                RESTART_ABORT_CLEANUP_BUDGET_S,
+            )
+        if cleanup_timed_out:
+            reason += (
+                "; abort cleanup deadline exceeded after "
+                f"{RESTART_ABORT_CLEANUP_BUDGET_S:g}s"
+            )
+        return {
+            "ok": False,
+            "phase": "preparation",
+            "reason": reason,
+            "waited_s": (
+                RESTART_PREPARATION_CEILING_S
+                if cleanup_timed_out else RESTART_PREPARATION_BUDGET_S
+            ),
+            "preparation_ceiling_s": RESTART_PREPARATION_CEILING_S,
+            "cut_turns": 0,
+            "cut_names": [],
+            "cut_ids": [],
+        }
     except BaseException:
         from app import main as app_main
         # The fleet may already be quiesced and stored: leaving it that way would abandon
@@ -2387,10 +2463,44 @@ async def _restart_service_after_response() -> dict:
         raise
 
 
+async def _signal_restart_after_response() -> dict:
+    """Signal only after the prepared outcome had time to leave over HTTP."""
+    await asyncio.sleep(_RESPONSE_FLUSH_PAUSE_S)
+    try:
+        from app.live_broker import broker
+        broker.close_subscribers()
+        os.kill(os.getpid(), signal.SIGINT)
+        return {"ok": True}
+    except BaseException as error:
+        reason = f"{type(error).__name__}: {error}"
+        await _abort_restart(f"restart signal failed: {reason}")
+        logger.exception("restart signal failed; handover rolled back, admission reopened")
+        raise
+
+
+async def _signal_restart_and_disarm_on_failure(watchdog: asyncio.Task) -> dict:
+    try:
+        return await _signal_restart_after_response()
+    except BaseException:
+        watchdog.cancel()
+        raise
+
+
+async def _restart_service_after_response(*, signal: bool = True) -> dict:
+    """Compatibility seam for TG/tests: prepare, then optionally signal this supervisor."""
+    outcome = await _prepare_restart_service()
+    if signal and outcome.get("ok") and outcome.get("prepared"):
+        await _signal_restart_after_response()
+    return outcome
+
+
 async def _abort_restart(reason: str) -> None:
     """Give every prepared agent back its reader, and reopen both gates (#237 T3)."""
     from app import main as app_main
 
+    # Publish before cleanup: read-only heartbeat remains available even when rollback must
+    # stay fail-closed, so the dashboard still names the current attempt's failure.
+    app_main.note_restart_failure(reason)
     # One owner for every abort, including the watchdog's normal-return path. Leaving a helper
     # armed while resuming the old generation lets a later teardown marker kill a recovered
     # supervisor from an attempt that no longer owns it.
@@ -2408,6 +2518,7 @@ async def _abort_restart(reason: str) -> None:
     except Exception as error:
         logger.error("could not roll back the prepared handover: %s: %s",
                      type(error).__name__, error)
+        raise
     manager.end_drain()
     app_main.open_mutating_admission()
     # Отмена уходила ТОЛЬКО в лог: вызвавший получил ok/scheduled и ждал события, которого
@@ -2447,7 +2558,6 @@ def _blocking_runtimes() -> list:
 async def _do_restart_service() -> dict:
     from app import main as app_main
 
-    await asyncio.sleep(_RESPONSE_FLUSH_PAUSE_S)
     # Already-admitted mutating calls first: one of them may have committed its effect and
     # not yet returned it, and signalling there makes its outcome unknown to the agent.
     if not await app_main.drain_mutating_requests():
@@ -2462,46 +2572,51 @@ async def _do_restart_service() -> dict:
             break
         await asyncio.sleep(1)
     blocked = _blocking_runtimes()
-    if blocked:
-        await _abort_restart(f"{len(blocked)} non-adoptable turn(s) still running")
-        return {
-            "ok": False,
-            "reason": "a live turn on a runtime that cannot be handed over",
-            "waited_s": time.monotonic() - started,
-            "cut_turns": 0,
-            "cut_names": [s.name for s in blocked],
-            "cut_ids": [s.id for s in blocked],
-        }
+    cut = {session.id: session for session in blocked}
 
-    live_codex = [s for s in _drain_sessions()
-                  if s.is_busy and getattr(s, "backend_type", "") == "codex"]
-    prepared = await manager.prepare_restart_handover(live_codex)
+    live_adoptable = [
+        session for session in _drain_sessions()
+        if session.is_busy and _can_be_handed_over(session)
+    ]
+    prepared = await manager.prepare_restart_handover(live_adoptable)
+    handed_over = list(prepared.get("handed_over", []))
     if not prepared["ok"]:
-        await _abort_restart(prepared["reason"])
-        return {"ok": False, "reason": prepared["reason"], "waited_s": time.monotonic() - started,
-                "cut_turns": 0, "cut_names": [], "cut_ids": []}
+        refused_ids = list(prepared.get("refused_ids", []))
+        refused_names = list(prepared.get("refused_names", []))
+        by_id = {session.id: session for session in live_adoptable}
+        for session_id, session_name in zip(refused_ids, refused_names):
+            cut[session_id] = by_id.get(session_id) or SimpleNamespace(
+                id=session_id, name=session_name,
+            )
 
     # Last look before the point of no return: preparing the fleet takes real time, and both
     # of these can have changed underneath it.
     late = _blocking_runtimes()
-    if late or app_main.inflight_mutating_count():
+    for session in late:
+        cut[session.id] = session
+    if app_main.inflight_mutating_count():
         await _abort_restart("work started while the fleet was being prepared")
         return {
             "ok": False,
             "reason": "work started while the fleet was being prepared",
             "waited_s": time.monotonic() - started,
             "cut_turns": 0,
-            "cut_names": [s.name for s in late],
-            "cut_ids": [s.id for s in late],
+            "cut_names": [],
+            "cut_ids": [],
         }
 
+    cut_sessions = list(cut.values())
+    cut_ids = [session.id for session in cut_sessions]
     outcome = {
         "ok": True,
-        "handed_over": prepared["handed_over"],
+        "prepared": True,
+        "handed_over": handed_over,
         "waited_s": time.monotonic() - started,
-        "cut_turns": 0,
-        "cut_names": [],
-        "cut_ids": [],
+        "turn_grace_s": _DRAIN_DEADLINE_S,
+        "cut_turns": len(cut_sessions),
+        "cut_names": [session.name for session in cut_sessions],
+        "cut_ids": cut_ids,
+        "restore_after_restart": cut_ids,
     }
     durable_state = await _drain_restart_durable_state()
     if isinstance(durable_state, dict) and durable_state.get("ok") is False:
@@ -2512,22 +2627,15 @@ async def _do_restart_service() -> dict:
             durable_state["task_class"],
             durable_state["reason"],
         )
-        await _abort_restart(durable_state["reason"])
-        return {
-            **outcome,
-            **durable_state,
-        }
-    try:
-        _record_restart_outcome(outcome)
-    except Exception as error:
+        outcome["journal_loss"] = durable_state
+    elif isinstance(durable_state, dict) and durable_state.get("retried_log_writes"):
+        outcome["retried_log_writes"] = durable_state["retried_log_writes"]
+    record_loss = await _record_restart_outcome_bounded(outcome)
+    if record_loss is not None:
         # Побочный учёт не имеет права отменить основное действие: дедлайн назван
         # безусловным, и сбой записи не делает рестарт менее обязательным (класс #215).
-        logger.warning("could not record restart outcome: %s: %s",
-                       type(error).__name__, error)
+        outcome.setdefault("journal_loss", record_loss)
     _arm_supervisor_exit_guard()
-    from app.live_broker import broker
-    broker.close_subscribers()
-    os.kill(os.getpid(), signal.SIGINT)
     return outcome
 
 
@@ -2550,12 +2658,16 @@ def _disarm_watchdog_if_aborted(done: asyncio.Task, watchdog: asyncio.Task) -> N
         watchdog.cancel()
 
 
-@router.post("/api/restart")
-async def restart_server():
+async def restart_server(background_tasks: BackgroundTasks | None = None):
+    watchdog = None
+    preflight_succeeded = False
     try:
+        from app import main as app_main
+        app_main.clear_restart_failure()
         verdict = await restart_preflight()
         if not verdict["ok"]:
             raise HTTPException(409, verdict["reason"])
+        preflight_succeeded = True
         # The preflight left BOTH gates closed so nothing new starts. If the restart does not
         # actually happen, they must not stay shut: a stuck-closed gate answers every mutating
         # tool call with "retry later" and refuses every agent turn, forever.
@@ -2565,21 +2677,50 @@ async def restart_server():
         watchdog = asyncio.create_task(_reopen_admission_if_still_alive(attempt))
         _restart_tasks.add(watchdog)
         watchdog.add_done_callback(_restart_tasks.discard)
-        task = asyncio.create_task(_restart_service_after_response())
-        _restart_tasks.add(task)
-        task.add_done_callback(_restart_tasks.discard)
-        task.add_done_callback(lambda done: _disarm_watchdog_if_aborted(done, watchdog))
+        # Await every fallible preparation step so THIS response names THIS attempt's
+        # failure/journal loss. Only the self-signal stays deferred, giving JSON time to flush.
+        outcome = await _restart_service_after_response(signal=False)
+        if not outcome.get("ok"):
+            watchdog.cancel()
+            raise HTTPException(409, detail=outcome)
+        if outcome.get("prepared"):
+            if background_tasks is not None:
+                # Starlette runs BackgroundTasks only after the response body is sent. This is
+                # the ordering guarantee the old fixed 0.5-second guess could not provide.
+                background_tasks.add_task(
+                    _signal_restart_and_disarm_on_failure, watchdog,
+                )
+            else:
+                # In-process caller (TG) and unit tests have no ASGI response lifecycle.
+                task = asyncio.create_task(
+                    _signal_restart_and_disarm_on_failure(watchdog)
+                )
+                _restart_tasks.add(task)
+                task.add_done_callback(_restart_tasks.discard)
+                task.add_done_callback(
+                    lambda done: _disarm_watchdog_if_aborted(done, watchdog)
+                )
     except BaseException:
         # Nothing was scheduled, so nobody downstream will ever reopen the gates for us.
-        from app import main as app_main
-        app_main.open_mutating_admission()
-        manager.end_drain()
+        if watchdog is not None:
+            watchdog.cancel()
+        # Once preflight succeeded, downstream owns rollback. If guard disarm was unproven,
+        # reopening here would let new work start under a helper that may still kill us.
+        if not preflight_succeeded:
+            app_main.open_mutating_admission()
+            manager.end_drain()
         raise
     global _last_restart_abort
     previous_abort, _last_restart_abort = _last_restart_abort, None
+    response = {**outcome, "ok": True, "scheduled": bool(outcome.get("prepared"))}
     if previous_abort:
-        return {"ok": True, "scheduled": True, "previous_attempt_aborted": previous_abort}
-    return {"ok": True, "scheduled": True}
+        response["previous_attempt_aborted"] = previous_abort
+    return response
+
+
+@router.post("/api/restart")
+async def restart_server_route(background_tasks: BackgroundTasks):
+    return await restart_server(background_tasks)
 
 
 # ── GitHub Webhook (CI failure routing) ──

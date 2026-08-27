@@ -333,12 +333,9 @@ async def test_t3_restart_drains_before_signalling(monkeypatch):
 async def test_t3_drain_deadline_is_unconditional_and_names_the_blocking_turns(monkeypatch):
     """Ход может не кончиться никогда (research.md F7: цепочки agent→agent).
 
-    Дедлайн остаётся безусловным: ждём ограниченное время и не дольше. Но его ИСХОД заменён
-    в #237 T3. Раньше по дедлайну рестарт всё равно резал ход и отчитывался числом
-    разорванных; теперь живой ход на рантайме, который нельзя передать, ОТМЕНЯЕТ рестарт.
-    Сменившие смысл ассерты: `kill` вызывался ровно раз → не вызывается вовсе;
-    `cut_turns == 1` («разорвали одного») → `cut_names` называет того, кто заблокировал,
-    при `cut_turns == 0`.
+    Дедлайн остаётся безусловным: ждём ограниченное время и не дольше. После него рестарт
+    обязан состояться, а неподдерживаемый ход — попасть в список прерванных, который новое
+    поколение использует для восстановления сессии.
     """
     from app.routes import system
     from app.session import AgentStatus
@@ -353,10 +350,41 @@ async def test_t3_drain_deadline_is_unconditional_and_names_the_blocking_turns(m
         system._restart_service_after_response(), timeout=5,
     )
 
-    assert kill.called is False, "живой неподдержанный ход блокирует рестарт, а не режется"
-    assert result["ok"] is False and result["cut_names"] == ["stuck"], \
-        "рестарт называет, чей ход его остановил"
-    assert result["cut_turns"] == 0, "никто не разорван — в этом и смысл отмены"
+    kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+    assert result["ok"] is True and result["cut_names"] == ["stuck"]
+    assert result["cut_turns"] == 1
+    assert result["restore_after_restart"] == ["sid-stuck"], \
+        "прерванный ход обязан быть явно передан пути восстановления"
+
+
+@pytest.mark.asyncio
+async def test_t3_handover_refusal_cuts_only_that_turn_and_still_signals(monkeypatch):
+    """Отказ одного adoptable-агента не имеет права отменять рестарт всего сервиса."""
+    from app import main as app_main
+    from app.routes import system
+
+    refused = {
+        "ok": False,
+        "reason": "agent-one refused the handover",
+        "refused_ids": ["sid-agent-one"],
+        "refused_names": ["agent-one"],
+    }
+    monkeypatch.setattr(system, "_RESPONSE_FLUSH_PAUSE_S", 0)
+    monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
+    monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0)
+    monkeypatch.setattr(system, "_drain_sessions", lambda: [])
+    monkeypatch.setattr(
+        system.manager, "prepare_restart_handover", AsyncMock(return_value=refused),
+    )
+    kill = MagicMock()
+    monkeypatch.setattr(system.os, "kill", kill)
+
+    result = await asyncio.wait_for(system._restart_service_after_response(), timeout=2)
+
+    kill.assert_called_once_with(os.getpid(), signal.SIGINT)
+    assert result["ok"] is True
+    assert result["cut_names"] == ["agent-one"]
+    assert result["restore_after_restart"] == ["sid-agent-one"]
 
 
 @pytest.mark.asyncio
