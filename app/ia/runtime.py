@@ -198,6 +198,16 @@ class _RuntimeTaskStore:
                 expected_head=self._store.canonical_head,
             ))
 
+    def link_evidence_to_task(self, task_ref, evidence, project_id):
+        with self._lock:
+            _ensure_task_projection(self._store)
+            return self._changed(self._store.link_evidence_to_task(
+                task_ref,
+                evidence,
+                project_id=self._project(project_id),
+                expected_head=self._store.canonical_head,
+            ))
+
     def record_debt(self, debt):
         self._debt_writer(copy.deepcopy(dict(debt)))
 

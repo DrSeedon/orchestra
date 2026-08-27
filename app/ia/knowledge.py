@@ -177,6 +177,7 @@ class KnowledgeService:
         else:
             self._registry = supplied
             _write_object(canonical_registry, self._registry)
+        self.task_store = task_store
         self.evidence_resolver = EvidenceResolver(task_store)
         self.event_log = FactEventLog(self.canonical_root)
 
@@ -679,7 +680,7 @@ class KnowledgeService:
         if path.is_absolute() or ".." in path.parts or path.suffix.lower() != ".md":
             raise PromotionValidationError("evidence source path is not approved cold Markdown")
         approved = (
-            value == "TODO.md"
+            value in {"CLAUDE.md", "TODO.md"}
             or path.parts[:2] == ("docs", "tasks")
             or path.parts[:2] == ("docs", "kb")
             or path.parts[:3] == ("docs", "archive", "sessions")
@@ -767,23 +768,6 @@ class KnowledgeService:
         )
         if index.get("index_version") != 1 or not isinstance(index.get("evidence_refs"), list):
             raise CanonicalKnowledgeUnavailableError("canonical archive index is invalid")
-        indexed = [item for item in index["evidence_refs"] if item.get("stable_id") == stable_id]
-        if record_path.exists():
-            if _read_object(record_path) != record or indexed != [{
-                "stable_id": stable_id,
-                "uri": value["canonical_uri"],
-                "project_id": value["project_id"],
-                "source_path": value["path"],
-                "source_sha256": actual_sha,
-            }]:
-                raise CanonicalKnowledgeUnavailableError(
-                    "canonical evidence reference and archive index disagree"
-                )
-            return {**copy.deepcopy(record), "outcome": "noop"}
-        if indexed:
-            raise CanonicalKnowledgeUnavailableError(
-                "archive index references a missing canonical evidence record"
-            )
         entry = {
             "stable_id": stable_id,
             "uri": value["canonical_uri"],
@@ -791,9 +775,39 @@ class KnowledgeService:
             "source_path": value["path"],
             "source_sha256": actual_sha,
         }
+        indexed = [item for item in index["evidence_refs"] if item.get("stable_id") == stable_id]
+        record_exists = record_path.exists()
+        if record_exists:
+            if _read_object(record_path) != record or (indexed and indexed != [entry]):
+                raise CanonicalKnowledgeUnavailableError(
+                    "canonical evidence reference and archive index disagree"
+                )
+        elif indexed:
+            raise CanonicalKnowledgeUnavailableError(
+                "archive index references a missing canonical evidence record"
+            )
+        try:
+            self.task_store.link_evidence_to_task(
+                address.task_id,
+                {
+                    "stable_id": stable_id,
+                    "task_id": address.task_id,
+                    "kind": value["class"],
+                    "canonical_path": value["path"],
+                    "anchor": value["anchor"],
+                    "git_commit": value["git_commit"],
+                    "content_sha256": actual_sha,
+                },
+                project_id=value["project_id"],
+            )
+        except ValueError as exc:
+            raise PromotionValidationError(f"evidence task link is invalid: {exc}") from exc
+        if record_exists and indexed:
+            return {**copy.deepcopy(record), "outcome": "noop"}
         index["evidence_refs"].append(entry)
         index["evidence_refs"].sort(key=lambda item: (item["project_id"], item["stable_id"]))
-        _write_object(record_path, record)
+        if not record_exists:
+            _write_object(record_path, record)
         _write_object(index_path, index)
         return {**copy.deepcopy(record), "outcome": "created"}
 
