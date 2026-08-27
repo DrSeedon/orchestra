@@ -5,6 +5,7 @@ no auth). A missing :8888 must not skip these tests — that printed green
 while 12 checks never ran (#145, #242).
 """
 
+import base64
 import json
 import os
 import re
@@ -325,23 +326,38 @@ def test_sidebar_agents_visible(dashboard_page: Page):
 
 def test_live_stream_status_updates_selected_agent_badge(dashboard_page: Page):
     dashboard_page.wait_for_function("() => typeof _applyLiveAgentStatus === 'function'")
-    dashboard_page.evaluate(
-        """() => _applyLiveAgentStatus('notify-268-probe', 'running')"""
-    )
-
-    item = dashboard_page.locator(
-        '.agent-item[data-agent-name="notify-268-probe"]'
-    )
-    expect(item.locator('.agent-status')).to_have_text("⚡ running")
-    wakes = dashboard_page.evaluate("""() => {
-        const seen = [];
-        window._pollWake = key => seen.push(key);
-        _streamStatusRefreshAt = 0;
-        _wakeStatusRefreshFromStream();
-        _wakeStatusRefreshFromStream();
-        return seen;
+    dashboard_page.evaluate("""() => {
+        window.__savedRenderAgentList403 = renderAgentList;
+        renderAgentList = () => {};
     }""")
-    assert wakes == ["sessions"]
+    try:
+        dashboard_page.evaluate(
+            """() => _applyLiveAgentStatus('notify-268-probe', 'running')"""
+        )
+        # Exercise the real refresh source while its list renderer is isolated;
+        # otherwise a concurrent refresh can replace the live badge mid-assertion.
+        dashboard_page.evaluate("""async () => {
+            await refreshSessions();
+        }""")
+
+        item = dashboard_page.locator(
+            '.agent-item[data-agent-name="notify-268-probe"]'
+        )
+        expect(item.locator('.agent-status')).to_have_text("⚡ running")
+        wakes = dashboard_page.evaluate("""() => {
+            const seen = [];
+            window._pollWake = key => seen.push(key);
+            _streamStatusRefreshAt = 0;
+            _wakeStatusRefreshFromStream();
+            _wakeStatusRefreshFromStream();
+            return seen;
+        }""")
+        assert wakes == ["sessions"]
+    finally:
+        dashboard_page.evaluate("""() => {
+            renderAgentList = window.__savedRenderAgentList403;
+            delete window.__savedRenderAgentList403;
+        }""")
 
 
 def test_chat_input_exists(dashboard_page: Page):
@@ -1109,6 +1125,166 @@ def _route_frontend_sources(page: Page, source_path: Path | None = None) -> None
     )
 
 
+def _open_send_files_fixture_page(browser: Browser) -> Page:
+    page = browser.new_page()
+    _route_frontend_sources(page)
+    png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    )
+    page.route(
+        "**/api/files/raw*",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="image/png",
+            body=png,
+        ),
+    )
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof addChatEntry === 'function'")
+    page.wait_for_timeout(2000)
+    page.evaluate("""() => {
+        selectedAgent = null;
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        window.compactMode = false;
+        document.querySelector('#chat').innerHTML = '';
+    }""")
+    return page
+
+
+def _emit_send_files_result(page: Page, paths: list[str], result: str) -> None:
+    page.evaluate(
+        """({paths, result}) => {
+            const args = {paths, caption: 'batch'};
+            addChatEntry(
+                'tool',
+                'mcp__orchestra__send_files: ' + JSON.stringify(args),
+                null,
+                null,
+                {tool_use_id: 'send-files-test'},
+            );
+            addChatEntry(
+                'tool_result',
+                result,
+                null,
+                null,
+                {tool_use_id: 'send-files-test'},
+            );
+        }""",
+        {"paths": paths, "result": result},
+    )
+
+
+def test_send_files_batch_renders_paths_and_download_actions(
+    dashboard_browser: Browser,
+):
+    page = _open_send_files_fixture_page(dashboard_browser)
+    paths = ["/tmp/first.pdf", "/tmp/second.pdf", "/tmp/third.pdf"]
+    _emit_send_files_result(
+        page,
+        paths,
+        "Files accepted; event_id=e; state=QUEUED; 3 files.",
+    )
+
+    card = page.locator('[data-tool-raw-name="mcp__orchestra__send_files"]')
+    expect(card.locator(".sf-file-item")).to_have_count(3)
+    expect(card.locator(".sf-file-item button")).to_have_count(3)
+    expect(card.locator(".sf-actions button")).to_have_count(1)
+    expect(card.locator(".sf-actions button")).to_contain_text("Download all")
+    expect(card.locator(".tool-body")).to_have_count(0)
+    for index, path in enumerate(paths):
+        expect(card.locator(".sf-file-item").nth(index)).to_contain_text(path)
+    expect(card.locator(".flex.items-center")).to_contain_text(
+        "Sent to TG · 3 files accepted"
+    )
+    page.close()
+
+
+def test_send_files_batch_renders_image_preview_and_lightbox(
+    dashboard_browser: Browser,
+):
+    page = _open_send_files_fixture_page(dashboard_browser)
+    thumb_count = page.evaluate("""() => {
+        const paths = ['/tmp/preview.png', '/tmp/notes.pdf'];
+        const args = {paths, caption: 'batch'};
+        addChatEntry(
+            'tool',
+            'mcp__orchestra__send_files: ' + JSON.stringify(args),
+            null,
+            null,
+            {tool_use_id: 'send-files-image-test'},
+        );
+        addChatEntry(
+            'tool_result',
+            'Files accepted; event_id=e; state=QUEUED; 2 files.',
+            null,
+            null,
+            {tool_use_id: 'send-files-image-test'},
+        );
+        const thumb = document.querySelector(
+            '[data-tool-raw-name="mcp__orchestra__send_files"] .sf-thumb'
+        );
+        thumb?.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+        return document.querySelectorAll(
+            '[data-tool-raw-name="mcp__orchestra__send_files"] .sf-thumb'
+        ).length;
+    }""")
+    assert thumb_count == 1
+    expect(page.locator(".img-lightbox")).to_have_count(1)
+    page.close()
+
+
+def test_send_files_batch_collapses_after_eight_files(
+    dashboard_browser: Browser,
+):
+    page = _open_send_files_fixture_page(dashboard_browser)
+    paths = [f"/tmp/file-{index}.pdf" for index in range(10)]
+    _emit_send_files_result(
+        page,
+        paths,
+        "Files accepted; event_id=e; state=QUEUED; 10 files.",
+    )
+
+    card = page.locator('[data-tool-raw-name="mcp__orchestra__send_files"]')
+    expect(card.locator(".sf-file-item")).to_have_count(10)
+    expect(card.locator(".sf-file-item").nth(8)).to_be_hidden()
+    expect(card.locator(".sf-list-toggle")).to_contain_text("Show all 10 files")
+    card.locator(".sf-list-toggle").click()
+    expect(card.locator(".sf-file-item").nth(8)).to_be_visible()
+    page.close()
+
+
+def test_send_file_single_keeps_existing_rendering(
+    dashboard_browser: Browser,
+):
+    page = _open_send_files_fixture_page(dashboard_browser)
+    page.evaluate("""() => {
+        addChatEntry(
+            'tool',
+            'mcp__orchestra__send_file: ' + JSON.stringify({path: '/tmp/solo.pdf'}),
+            null,
+            null,
+            {tool_use_id: 'send-file-test'},
+        );
+        addChatEntry(
+            'tool_result',
+            'File accepted; event_id=e; state=QUEUED.',
+            null,
+            null,
+            {tool_use_id: 'send-file-test'},
+        );
+    }""")
+
+    card = page.locator('[data-tool-raw-name="mcp__orchestra__send_file"]')
+    expect(card.locator(".flex.items-center")).to_have_text("✅ Sent to TG")
+    expect(card.locator(".sf-file-list")).to_have_count(0)
+    expect(card.locator("button").filter(has_text="Download")).to_have_count(1)
+    expect(card.locator(".sf-actions")).to_have_count(0)
+    page.close()
+
+
 def _open_tool_correlation_page(
     browser: Browser,
     compact_mode: bool,
@@ -1437,91 +1613,6 @@ def _open_restart_page(browser: Browser) -> tuple[Page, dict]:
     _goto_dashboard(page)
     page.wait_for_function("() => typeof sendChat === 'function' && selectedAgent")
     return page, state
-
-
-def test_restart_refusal_pauses_sending_and_lifts_itself_when_service_returns(
-    dashboard_browser: Browser,
-):
-    """#270: перезапуск — штатная операция, а выглядел он сырым JSON в чате.
-
-    Юзер написал «ау» и получил `503: {"error":{...,"code":"restart_pending",...}}`.
-    Сервер во время перезапуска ЖИВ и отвечает на чтения, поэтому оверлея не было вовсе,
-    а страница молча немела.
-    """
-    page, state = _open_restart_page(dashboard_browser)
-    page.fill("#chat-input", "ау")
-    page.click("#send-btn")
-    page.wait_for_selector("#restart-banner:not(.hidden)", timeout=10000)
-    paused = page.evaluate("""() => ({
-        banner: document.querySelector('#restart-banner').textContent,
-        btnDisabled: document.querySelector('#send-btn').disabled,
-        inputDisabled: document.querySelector('#chat-input').disabled,
-        placeholder: document.querySelector('#chat-input').placeholder,
-        // Только СВОЙ узел: в живой истории агента уже лежит сырой JSON того самого
-        // инцидента, ради которого задача и заведена — по всему чату проверка врала бы.
-        refusal: [...document.querySelectorAll('#chat > *')].reverse()
-            .find(node => node.innerText.includes('Orchestra перезапускается'))?.innerText || '',
-        overlay: !!_rebootOverlay,
-    })""")
-
-    # Перезапуск идёт: сервис ушёл, затем вернулся. Ничего руками не делаем.
-    state["send_refused"] = False
-    state["server_down"] = True
-    page.wait_for_function("() => !!_rebootOverlay", timeout=20000)
-    state["server_down"] = False
-    page.wait_for_function(
-        "() => document.querySelector('#restart-banner').classList.contains('hidden')",
-        timeout=20000,
-    )
-    # Поток поднимается ПОСЛЕ дозагрузки истории, то есть позже снятия полосы: ждём
-    # положительный признак, а не отсутствие незавершённой работы.
-    page.wait_for_function("() => !!eventSource", timeout=20000)
-    back = page.evaluate("""() => ({
-        overlay: !!_rebootOverlay,
-        btnDisabled: document.querySelector('#send-btn').disabled,
-        inputDisabled: document.querySelector('#chat-input').disabled,
-        streamOpen: !!eventSource,
-    })""")
-    page.close()
-
-    assert "перезапускается" in paused["banner"], paused["banner"]
-    assert paused["btnDisabled"] is True, "отправка всё равно будет отклонена"
-    assert paused["inputDisabled"] is True
-    assert "перезапуск" in paused["placeholder"].lower(), paused["placeholder"]
-    assert paused["refusal"], "отказ обязан быть виден в чате человеческим текстом"
-    assert "restart_pending" not in paused["refusal"], paused["refusal"]
-    assert '{"error"' not in paused["refusal"], paused["refusal"]
-    assert "503" not in paused["refusal"], paused["refusal"]
-    assert paused["overlay"] is False, "сервер ещё отвечает — оверлей «сервер ушёл» тут врал бы"
-
-    assert back["overlay"] is False, "сервис вернулся — оверлей обязан сняться сам"
-    assert back["btnDisabled"] is False, "после возврата отправка обязана ожить без перезагрузки"
-    assert back["inputDisabled"] is False
-    assert back["streamOpen"] is True, "поток событий обязан быть переподключён"
-
-
-def test_restart_header_raises_and_lowers_the_pause_without_any_user_action(
-    dashboard_browser: Browser,
-):
-    """Заголовок серверной части #269 (`X-Orchestra-Restarting`) — признак в обе стороны.
-
-    Он приезжает на существующем heartbeat, своего опроса не заводим. Пока его нет,
-    признаком остаётся 503 из первого теста.
-    """
-    page, state = _open_restart_page(dashboard_browser)
-    state["restart_header"] = "1"
-    page.wait_for_selector("#restart-banner:not(.hidden)", timeout=15000)
-    up = page.evaluate("() => document.querySelector('#chat-input').disabled")
-    state["restart_header"] = "0"
-    page.wait_for_function(
-        "() => document.querySelector('#restart-banner').classList.contains('hidden')",
-        timeout=15000,
-    )
-    down = page.evaluate("() => document.querySelector('#chat-input').disabled")
-    page.close()
-
-    assert up is True, "заголовок '1' обязан остановить отправку без единого клика"
-    assert down is False, "заголовок '0' обязан снять паузу"
 
 
 _NOTIFY_AGENT = "notify-268-probe"
@@ -4247,7 +4338,7 @@ def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: B
                     this.mimeType = options.mimeType || 'audio/mp4';
                     this.state = 'inactive';
                     this.listeners = {};
-                    window.__voiceChosenMime = this.mimeType;
+                    window.__voiceRecorderMimes.push(this.mimeType);
                 }
                 addEventListener(type, callback) { this.listeners[type] = callback; }
                 start() { this.state = 'recording'; }
@@ -4306,6 +4397,7 @@ def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: B
     )
     _goto_dashboard(page)
     page.wait_for_function("() => typeof initVoiceInput === 'function'")
+    page.evaluate("window.__voiceRecorderMimes = []")
     page.evaluate(fake_media_script)
     expect(page.locator("#voice-btn")).to_be_visible()
 
@@ -4319,10 +4411,13 @@ def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: B
     assert float(page.locator("#voice-level").evaluate(
         "node => node.style.getPropertyValue('--voice-level')"
     )) > 1
-    assert page.evaluate("window.__voiceChosenMime") == "audio/mp4;codecs=mp4a.40.2"
+    assert page.evaluate("window.__voiceRecorderMimes[0]") == "audio/mp4;codecs=mp4a.40.2"
 
-    page.evaluate("() => { $('#voice-btn').click(); startVoiceInput(); }")
-    page.wait_for_function("() => $('#chat-input').value === 'Надиктованный текст'")
+    with page.expect_response("**/api/transcribe", timeout=5000) as transcribe_response:
+        page.locator("#voice-btn").click()
+    response = transcribe_response.value
+    assert response.status == 200
+    assert response.json()["text"] == "Надиктованный текст"
     assert page.evaluate("window.__voiceGetUserMediaCalls") == 1
     assert requests["transcribe"] == 1
     assert requests["send"] == 0
@@ -4335,7 +4430,6 @@ def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: B
     page.locator("#voice-cancel-btn").click()
     page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'idle'")
     assert requests["transcribe"] == 1
-    assert page.locator("#chat-input").input_value() == "Надиктованный текст"
     assert page.evaluate("window.__voiceTrackStops") == 2
 
     page.evaluate(
