@@ -678,6 +678,79 @@ async def test_t380_r3_blank_key_generates_once_before_post_and_status_tool_read
 
 
 @pytest.mark.asyncio
+async def test_t370_unknown_receipt_tells_caller_how_to_check_and_retry_safely(
+    monkeypatch,
+):
+    import app.mcp_stdio as mcp
+
+    monkeypatch.setattr(mcp, "SCOPE", SCOPE)
+    monkeypatch.setattr(mcp, "WORKER_NAME", SOURCE_NAME)
+    unknown = {
+        "ok": True,
+        "acceptance": "ALREADY_ACCEPTED",
+        "delivery_id": DELIVERY_ID,
+        "delivery_state": "DELIVERY_UNKNOWN",
+        "error": {
+            "code": "DELIVERY_OUTCOME_UNKNOWN",
+            "message": "Provider acknowledgement was lost",
+            "outcome_unknown": True,
+        },
+        "next_action": {
+            "code": "CHECK_DELIVERY_STATUS",
+            "tool": "message_delivery_status",
+            "arguments": {"delivery_id": DELIVERY_ID},
+        },
+    }
+
+    async def provider_failure_then_status(method, path, **kwargs):
+        if method == "POST":
+            raise mcp.ApiToolError(
+                code="transport_timeout",
+                message="CodexProtocolError",
+                outcome_unknown=True,
+                details={"method": "POST", "path": path},
+            )
+        assert method == "GET"
+        return unknown
+
+    monkeypatch.setattr(mcp, "_api", provider_failure_then_status)
+    output = await mcp.send_message(
+        to=TARGET_NAME,
+        message=MESSAGE,
+        delivery_id=DELIVERY_ID,
+    )
+
+    assert "DELIVERY_OUTCOME_UNKNOWN" in output
+    assert DELIVERY_ID in output
+    assert f"message_delivery_status(delivery_id=\"{DELIVERY_ID}\")" in output
+    assert "same delivery_id" in output
+    assert "new id" in output
+
+
+@pytest.mark.asyncio
+async def test_t370_same_id_unknown_receipt_is_never_replayed(message_db, monkeypatch):
+    module = _message_module()
+    monkeypatch.setattr(module, "ensure_target_runner", lambda _target_id: None)
+    await _accept(module)
+    prepare = _required_callable(module, "prepare_message_delivery")
+    dispatching = _required_callable(module, "mark_message_delivery_dispatching")
+    unknown = _required_callable(module, "mark_message_delivery_unknown")
+    prepare(DELIVERY_ID)
+    dispatching(DELIVERY_ID)
+    unknown(DELIVERY_ID, RuntimeError("provider acknowledgement lost"))
+
+    repeated, status = await _accept(module)
+    assert status == 202
+    assert repeated["acceptance"] == "ALREADY_ACCEPTED"
+    assert repeated["delivery_state"] == "DELIVERY_UNKNOWN"
+    assert repeated["next_action"]["tool"] == "message_delivery_status"
+
+    manager = _ImmediateManager()
+    await module.run_target_message_deliveries(TARGET_ID, manager=manager)
+    assert manager.provider_attempts == []
+
+
+@pytest.mark.asyncio
 async def test_t380_r4_pre_dispatch_cancel_and_restart_recover_same_receipt_once(
     message_db, monkeypatch,
 ):
