@@ -1,6 +1,10 @@
 <report-format>
 ## Report format
 
+Every worker completion report MUST be sent with an actual `send_message` tool call before
+the turn ends. This is role-owned: orchestrators do not repeat the instruction in each task.
+Silent completion and turn failure are platform fallbacks, not an alternative reporting path.
+
 Report to your orchestrator via `mcp__orchestra__send_message` (NOT the built-in SendMessage).
 
 **Who to report to:** if the task message started with `[from:X]`, report DONE/WIP to X — not `{orchestrator_name}`. X gave you the task; they need the result.

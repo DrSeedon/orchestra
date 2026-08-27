@@ -13,6 +13,7 @@ import pytest
 
 from app.ia.projections import SQLiteProjectionBackend
 from app.ia.runtime import KnowledgeRuntime, KnowledgeRuntimeError, _RuntimeTaskStore
+from app.ia.task_store import TaskStore, build_migration_manifest
 
 
 _PROMPT = "\n".join((
@@ -317,6 +318,177 @@ def test_projection_meta_upgrade_adds_resource_receipts(tmp_path):
             row[1] for row in connection.execute("PRAGMA table_info(projection_meta)")
         }
     assert {"resource_manifest_sha256", "resource_rows_sha256"} <= columns
+
+
+def test_matching_legacy_projection_head_seals_receipts_without_full_rebuild(tmp_path):
+    owner = _owner(tmp_path)
+    content = b"# immutable evidence\n"
+    resource = _resource(content)
+    task = _task_record("unchanged")
+    backend = SQLiteProjectionBackend(path=owner.paths["current_projection"])
+    backend.replace_current(
+        records=[{**resource, "content": content.decode()}, task],
+        canonical_head=owner.state["canonical_head"],
+    )
+    with sqlite3.connect(owner.paths["current_projection"]) as connection:
+        connection.execute("ALTER TABLE projection_meta RENAME TO projection_meta_with_receipts")
+        connection.execute(
+            "CREATE TABLE projection_meta ("
+            "singleton INTEGER PRIMARY KEY CHECK(singleton=1), projection_head TEXT NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO projection_meta SELECT singleton,projection_head "
+            "FROM projection_meta_with_receipts"
+        )
+        connection.execute("DROP TABLE projection_meta_with_receipts")
+
+    owner.task_store = SimpleNamespace(states=lambda: {"task-1": task})
+    owner.knowledge_service = None
+    owner.evidence_records = lambda: [resource]
+    owner._evidence_contents = lambda _records: pytest.fail(
+        "matching legacy projection must be sealed without a full rebuild"
+    )
+
+    owner._refresh_current_projection()
+
+    with sqlite3.connect(owner.paths["current_projection"]) as connection:
+        receipt = connection.execute(
+            "SELECT projection_head,resource_manifest_sha256,resource_rows_sha256 "
+            "FROM projection_meta WHERE singleton=1"
+        ).fetchone()
+    assert receipt[0] == owner.state["canonical_head"]
+    assert receipt[1].startswith("sha256:")
+    assert receipt[2].startswith("sha256:")
+    stored = backend.search_current(
+        project_id="project", text="", record_types=["resource"], limit=10,
+    )
+    assert stored["items"][0]["content"] == content.decode()
+
+
+def _task_projection_snapshot() -> dict:
+    timestamp = "2026-08-26T00:00:00+00:00"
+    return {
+        "source": {
+            "cutoff": timestamp,
+            "source_head": "sha256:" + "a" * 64,
+            "source_schema_sha256": "sha256:" + "b" * 64,
+        },
+        "projects": [{"id": "orchestra", "scope": "/repo"}],
+        "tasks": [{
+            "id": 1,
+            "par_number": 405,
+            "project_id": "orchestra",
+            "title": "projection recovery",
+            "description": "",
+            "price_rub": 0,
+            "status": "new",
+            "assignee": "",
+            "sync_revision": 0,
+            "worker_session_id": None,
+            "git_commits": [],
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "completed_at": None,
+            "priority": 2,
+            "acceptance_command": "",
+            "acceptance_oracle_json": {},
+        }],
+        "evidence": [],
+        "clients": [],
+        "payments": [],
+        "payment_allocations": [],
+        "sync_log": [],
+    }
+
+
+def test_idempotent_post_commit_link_rebuilds_deleted_task_projection(tmp_path):
+    projection = tmp_path / "task-current.db"
+    store = TaskStore(canonical_root=tmp_path / "tasks", projection_path=projection)
+    store.migrate(build_migration_manifest(_task_projection_snapshot()))
+    commit = {"hash": "c" * 40, "message": "#405: projection recovery"}
+    store.link_commits_to_task("405", [commit], "orchestra")
+    facade = _RuntimeTaskStore(
+        store=store,
+        legacy_to_canonical={"orchestra": "orchestra"},
+        debt_writer=lambda _debt: None,
+        head_writer=lambda _head: None,
+    )
+    projection.unlink()
+
+    result = facade.link_commits_to_task("405", [commit], "orchestra")
+
+    assert result["ok"] is True
+    assert result["added"] == 0
+    assert projection.is_file()
+    assert facade.projection_head == facade.canonical_head
+
+
+def test_corrupt_disposable_projections_rebuild_from_canonical(tmp_path, monkeypatch):
+    task_projection = tmp_path / "task-current.db"
+    store = TaskStore(canonical_root=tmp_path / "tasks", projection_path=task_projection)
+    store.migrate(build_migration_manifest(_task_projection_snapshot()))
+    task_projection.write_bytes(b"not a sqlite database")
+    task_sidecars = [Path(f"{task_projection}{suffix}") for suffix in ("-journal", "-wal", "-shm")]
+    for sidecar in task_sidecars:
+        sidecar.write_bytes(b"stale task projection sidecar")
+    facade = _RuntimeTaskStore(
+        store=store,
+        legacy_to_canonical={"orchestra": "orchestra"},
+        debt_writer=lambda _debt: None,
+        head_writer=lambda _head: None,
+    )
+
+    detail = facade.task_get("405", project="orchestra")
+
+    assert detail["title"] == "projection recovery"
+    with sqlite3.connect(task_projection) as connection:
+        assert connection.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+        assert connection.execute("SELECT count(*) FROM ia_task_projection").fetchone()[0] == 1
+    assert not any(sidecar.exists() for sidecar in task_sidecars)
+
+    content = b"# canonical evidence\n"
+    resource = _resource(content)
+    current_owner = _owner(tmp_path / "current-corrupt")
+    current_owner.task_store = SimpleNamespace(states=lambda: {})
+    current_owner.knowledge_service = None
+    current_owner.evidence_records = lambda: [resource]
+    current_owner._evidence_contents = lambda _records: {"resource-1": content}
+    current_owner.paths["current_projection"].write_bytes(b"not a sqlite database")
+
+    current_owner._refresh_current_projection()
+
+    stored = SQLiteProjectionBackend(
+        path=current_owner.paths["current_projection"]
+    ).search_current(
+        project_id="project", text="", record_types=["resource"], limit=1,
+    )
+    assert stored["items"][0]["content"] == content.decode()
+
+    interrupted = _owner(tmp_path / "current-interrupted")
+    interrupted.task_store = SimpleNamespace(states=lambda: {})
+    interrupted.knowledge_service = None
+    interrupted.evidence_records = lambda: []
+    interrupted._evidence_contents = lambda _records: {}
+    interrupted_path = interrupted.paths["current_projection"]
+    with sqlite3.connect(interrupted_path) as connection:
+        connection.execute("DROP TABLE current_records")
+        connection.execute("CREATE TABLE current_records (bad_column TEXT)")
+    before = interrupted_path.read_bytes()
+    replace_current = SQLiteProjectionBackend.replace_current
+
+    def fail_temporary_rebuild(backend, **kwargs):
+        if backend.path != interrupted_path:
+            raise sqlite3.OperationalError("injected rebuild interruption")
+        return replace_current(backend, **kwargs)
+
+    monkeypatch.setattr(SQLiteProjectionBackend, "replace_current", fail_temporary_rebuild)
+    with pytest.raises(sqlite3.OperationalError, match="injected rebuild interruption"):
+        interrupted._refresh_current_projection()
+
+    assert interrupted_path.read_bytes() == before
+    with sqlite3.connect(interrupted_path) as connection:
+        assert connection.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+    assert not list(interrupted_path.parent.glob(f".{interrupted_path.name}.*.rebuild*"))
 
 
 class _ParityStore:

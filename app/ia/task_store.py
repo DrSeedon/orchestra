@@ -9,7 +9,7 @@ import re
 import sqlite3
 import uuid
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -620,15 +620,16 @@ class TaskStore:
         )
 
     def task_list(self, project: str = "", status: str = "", assignee: str = "") -> dict[str, Any]:
+        all_states = list(self._states().values())
         states = [
             state
-            for state in self._states().values()
+            for state in all_states
             if (not project or state["project_id"] == project)
             and (not status or state["status"] == status)
             and (not assignee or state["assignee"] == assignee)
         ]
         states.sort(key=lambda state: (state.get("priority", 2), -state["display_number"]))
-        return {
+        result = {
             "tasks": [
                 {
                     "par": str(state["display_number"]),
@@ -643,6 +644,9 @@ class TaskStore:
             ],
             "count": len(states),
         }
+        if project:
+            result["next_display_number"] = self._next_display_number(all_states, project)
+        return result
 
     def task_get(self, ref: str, project: str = "") -> dict[str, Any]:
         state = self._find_state(ref, project)
@@ -759,14 +763,7 @@ class TaskStore:
         parent = self._ensure_expected(expected_head)
         states = self._states()
         if display_number is None:
-            display_number = 1 + max(
-                (
-                    state["display_number"]
-                    for state in states.values()
-                    if state["project_id"] == project_id
-                ),
-                default=0,
-            )
+            display_number = self._next_display_number(states.values(), project_id)
         else:
             display_number = int(display_number)
             if display_number <= 0:
@@ -830,6 +827,155 @@ class TaskStore:
             "status": status,
             **self._receipt(states[stable_id], head=head),
         }
+
+    def repair_display_collisions(
+        self,
+        repairs: Sequence[Mapping[str, Any]],
+        *,
+        expected_head: str | None = None,
+    ) -> dict[str, Any]:
+        """Move collided canonical tasks and restore the older legacy identities."""
+
+        if not repairs:
+            raise ValueError("repairs must be a non-empty sequence")
+        parent = self._ensure_expected(expected_head)
+        states = self._states()
+        claimed = {
+            (state["project_id"], int(state["display_number"])): stable_id
+            for stable_id, state in states.items()
+        }
+        moving_ids = {str(repair.get("stable_id") or "") for repair in repairs}
+        if "" in moving_ids or len(moving_ids) != len(repairs):
+            raise IdentityConflictError("repair stable ids must be unique")
+        restored_ids: set[str] = set()
+        legacy_row_ids: set[int] = set()
+        final_identities: set[tuple[str, int]] = set()
+        normalized: list[dict[str, Any]] = []
+        for repair in repairs:
+            stable_id = str(repair["stable_id"])
+            if stable_id not in states:
+                raise IdentityConflictError(f"repair task {stable_id} does not exist")
+            state = states[stable_id]
+            project_id = str(state["project_id"])
+            old_number = int(repair["from_display_number"])
+            new_number = int(repair["to_display_number"])
+            if old_number <= 0 or new_number <= 0 or old_number == new_number:
+                raise IdentityConflictError("repair display numbers must be distinct and positive")
+            if int(state["display_number"]) != old_number:
+                raise IdentityConflictError(
+                    f"repair source #{old_number} no longer names {stable_id}"
+                )
+            owner = claimed.get((project_id, new_number))
+            if owner is not None and owner not in moving_ids:
+                raise IdentityConflictError(
+                    f"repair target #{new_number} is already active in {project_id}"
+                )
+            restored = copy.deepcopy(dict(repair["restored_state"]))
+            restored_id = str(restored.get("stable_id") or "")
+            if (
+                not restored_id
+                or restored_id in states
+                or restored_id in restored_ids
+                or restored_id in moving_ids
+            ):
+                raise IdentityConflictError("restored task stable identity is not new")
+            if (
+                restored.get("project_id") != project_id
+                or int(restored.get("display_number") or 0) != old_number
+            ):
+                raise IdentityConflictError("restored task does not reclaim the collided identity")
+            for identity in ((project_id, new_number), (project_id, old_number)):
+                if identity in final_identities:
+                    raise IdentityConflictError("repair claims one display identity twice")
+                final_identities.add(identity)
+            restored_ids.add(restored_id)
+            legacy_row_id = int(repair["legacy_row_id"])
+            legacy_from_display_number = int(repair["legacy_from_display_number"])
+            if (
+                legacy_row_id <= 0
+                or legacy_from_display_number <= 0
+                or legacy_row_id in legacy_row_ids
+            ):
+                raise IdentityConflictError("repair legacy task identity is invalid")
+            legacy_row_ids.add(legacy_row_id)
+            normalized.append({
+                "stable_id": stable_id,
+                "project_id": project_id,
+                "old_number": old_number,
+                "new_number": new_number,
+                "restored": restored,
+                "legacy_row_id": legacy_row_id,
+                "legacy_from_display_number": legacy_from_display_number,
+            })
+
+        occurred_at = _now()
+        events: list[dict[str, Any]] = []
+        moves: list[dict[str, Any]] = []
+        for repair in normalized:
+            state = states[repair["stable_id"]]
+            state["display_number"] = repair["new_number"]
+            state["display_ref"] = f"#{repair['new_number']}"
+            state["updated_at"] = occurred_at
+            state["sync_revision"] = int(state.get("sync_revision") or 0) + 1
+            restored = repair["restored"]
+            states[restored["stable_id"]] = restored
+            events.extend((
+                {
+                    "event_id": str(uuid.uuid4()),
+                    "event_type": "task.display-renumbered",
+                    "stable_id": state["stable_id"],
+                    "project_id": state["project_id"],
+                    "display_number": state["display_number"],
+                    "occurred_at": occurred_at,
+                    "changes": {
+                        "from_display_number": repair["old_number"],
+                        "to_display_number": repair["new_number"],
+                        "legacy_row_id": repair["legacy_row_id"],
+                        "legacy_from_display_number": repair[
+                            "legacy_from_display_number"
+                        ],
+                    },
+                },
+                {
+                    "event_id": str(uuid.uuid4()),
+                    "event_type": "task.restored-from-legacy",
+                    "stable_id": restored["stable_id"],
+                    "project_id": restored["project_id"],
+                    "display_number": restored["display_number"],
+                    "occurred_at": occurred_at,
+                    "changes": {"source_row": copy.deepcopy(restored.get("source_row") or {})},
+                },
+            ))
+            moves.append({
+                "stable_id": state["stable_id"],
+                "from": repair["old_number"],
+                "to": repair["new_number"],
+                "legacy_row_id": repair["legacy_row_id"],
+                "restored_stable_id": restored["stable_id"],
+            })
+        head = self._commit_generation(states, events, parent_head=parent)
+        return {
+            "repaired_count": len(moves),
+            "moves": moves,
+            "canonical_head": head,
+            "projection_head": head,
+        }
+
+    @staticmethod
+    def _next_display_number(
+        states: Iterable[Mapping[str, Any]],
+        project_id: str,
+    ) -> int:
+        if not project_id:
+            raise ValueError("project is required to allocate a display number")
+        return 1 + max(
+            (
+                int(state["display_number"])
+                for state in states
+                if state["project_id"] == project_id
+            ),
+            default=0,
+        )
 
     def task_update(
         self,

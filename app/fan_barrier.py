@@ -1,5 +1,7 @@
 """Durable completion barriers for a group of child workers."""
 
+import asyncio
+import logging
 import sqlite3
 import time
 from pathlib import Path
@@ -9,6 +11,8 @@ from . import db
 
 _TERMINAL_STATES = {"done", "failed", "timeout", "killed"}
 _BYPASS_KINDS = {"out_of_scope", "false_premise", "blocked"}
+_deadline_tasks: dict[str, asyncio.Task] = {}
+logger = logging.getLogger("orchestra.fan_barrier")
 
 
 def is_terminal_report(message_kind: str | None) -> bool:
@@ -94,6 +98,7 @@ def record_terminal(
     report_path: str | None = None,
     summary: str | None = None,
     require_drained_scope: str | None = None,
+    fan_id: str | None = None,
 ) -> bool:
     """`require_drained_scope` — #231: не считать ребёнка терминальным, пока у него
     есть невыданный вход в ящике.
@@ -109,6 +114,7 @@ def record_terminal(
     if state not in _TERMINAL_STATES:
         return False
     with db._conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         if require_drained_scope is not None:
             undelivered = conn.execute(
                 """SELECT 1 FROM mailbox
@@ -118,19 +124,22 @@ def record_terminal(
             ).fetchone()
             if undelivered is not None:
                 return False
+        fan_clause = " AND m.fan_id = ?" if fan_id else ""
+        params = (child, fan_id) if fan_id else (child,)
         row = conn.execute(
-            """SELECT m.fan_id, m.state, f.released
+            """SELECT m.fan_id, m.state, f.released, m.report_path
                FROM fan_members m
                JOIN fan_barriers f ON f.fan_id = m.fan_id
-               WHERE m.child = ? AND f.released = 0
-               LIMIT 1""",
-            (child,),
+               WHERE m.child = ? AND f.released = 0"""
+            + fan_clause
+            + " LIMIT 1",
+            params,
         ).fetchone()
         if row is None or row[1] is not None:
             return False
         fan_id = row[0]
         if not report_path:
-            report_path = _persist_child_report(fan_id, child, summary or "")
+            report_path = row[3] or _persist_child_report(fan_id, child, summary or "")
         conn.execute(
             """UPDATE fan_members SET state = ?, report_path = ?
                WHERE fan_id = ? AND child = ? AND state IS NULL""",
@@ -148,7 +157,246 @@ def record_terminal(
                WHERE fan_id = ? AND released = 0""",
             (fan_id,),
         )
+        _cancel_deadline(fan_id)
         return True
+
+
+def intercept_delivery_report(
+    child: str,
+    target_name: str,
+    target_scope: str,
+    message: str,
+    message_kind: str | None,
+    require_drained_scope: str,
+    delivery_id: str | None = None,
+) -> dict | None:
+    """Capture a durable ``send_message`` report before it wakes the fan parent.
+
+    Live MCP clients predating #407 do not send ``message_kind``.  Inside an active
+    fan, their message to that fan's parent is the explicit final report promised by
+    the worker role.  New clients may name a terminal state; known non-terminal kinds
+    keep their normal direct-delivery behaviour.
+    """
+    if message_kind is not None and not is_terminal_report(message_kind):
+        return None
+    state = message_kind or "done"
+    with db._conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            """SELECT m.fan_id, m.state, m.report_path, f.parent_name, f.scope,
+                      f.reducer, f.complete
+               FROM fan_members m
+               JOIN fan_barriers f ON f.fan_id = m.fan_id
+               WHERE m.child = ? AND f.released = 0
+               ORDER BY f.created_at DESC LIMIT 1""",
+            (child,),
+        ).fetchone()
+        if row is None:
+            return None
+        fan_id, member_state, report_path, parent_name, scope, reducer, complete = row
+        recipients = {parent_name}
+        if reducer:
+            recipients.add(reducer)
+        if target_scope.rstrip("/") != scope.rstrip("/") or target_name not in recipients:
+            return None
+        if member_state is not None:
+            pending = conn.execute(
+                "SELECT 1 FROM fan_members WHERE fan_id = ? AND state IS NULL LIMIT 1",
+                (fan_id,),
+            ).fetchone()
+            if complete and pending is None:
+                conn.execute(
+                    "UPDATE fan_barriers SET released = 1 WHERE fan_id = ? AND released = 0",
+                    (fan_id,),
+                )
+                manifest = _manifest_text_connection(conn, fan_id)
+                if delivery_id:
+                    conn.execute(
+                        """UPDATE message_deliveries
+                           SET message=?, rendered_message=?
+                           WHERE delivery_id=? AND state IN ('QUEUED', 'PREPARING')""",
+                        (manifest, manifest, delivery_id),
+                    )
+                _cancel_deadline(fan_id)
+                return {
+                    "fan_id": fan_id,
+                    "released": True,
+                    "recipient": reducer or parent_name,
+                    "manifest": manifest,
+                }
+            return {
+                "fan_id": fan_id,
+                "released": False,
+                "recipient": reducer or parent_name,
+                "manifest": None,
+            }
+        if not report_path:
+            report_path = _persist_child_report(fan_id, child, message)
+            conn.execute(
+                """UPDATE fan_members SET report_path = ?
+                   WHERE fan_id = ? AND child = ? AND state IS NULL""",
+                (report_path, fan_id, child),
+            )
+        undelivered = conn.execute(
+            """SELECT 1 FROM mailbox
+               WHERE recipient = ? AND scope = ? AND delivered_at IS NULL
+               LIMIT 1""",
+            (child, require_drained_scope),
+        ).fetchone()
+        if undelivered is not None:
+            return {
+                "fan_id": fan_id,
+                "released": False,
+                "recipient": reducer or parent_name,
+            }
+        conn.execute(
+            """UPDATE fan_members SET state = ?
+               WHERE fan_id = ? AND child = ? AND state IS NULL""",
+            (state, fan_id, child),
+        )
+        pending = conn.execute(
+            "SELECT 1 FROM fan_members WHERE fan_id = ? AND state IS NULL LIMIT 1",
+            (fan_id,),
+        ).fetchone()
+        released = pending is None
+        manifest = None
+        if released:
+            conn.execute(
+                """UPDATE fan_barriers
+                   SET released = 1, complete = 1, partial_reason = NULL
+                   WHERE fan_id = ? AND released = 0""",
+                (fan_id,),
+            )
+            manifest = _manifest_text_connection(conn, fan_id)
+            if delivery_id:
+                conn.execute(
+                    """UPDATE message_deliveries
+                       SET message=?, rendered_message=?
+                       WHERE delivery_id=? AND state='QUEUED'""",
+                    (manifest, manifest, delivery_id),
+                )
+            _cancel_deadline(fan_id)
+        return {
+            "fan_id": fan_id,
+            "released": released,
+            "recipient": reducer or parent_name,
+            "manifest": manifest,
+        }
+
+
+def _manifest_text_connection(conn: sqlite3.Connection, fan_id: str) -> str:
+    fan = conn.execute(
+        """SELECT complete, partial_reason FROM fan_barriers WHERE fan_id = ?""",
+        (fan_id,),
+    ).fetchone()
+    if fan is None:
+        raise KeyError(fan_id)
+    members = conn.execute(
+        """SELECT child, state, report_path FROM fan_members
+           WHERE fan_id = ? ORDER BY rowid""",
+        (fan_id,),
+    ).fetchall()
+    lines = [
+        f"fan={fan_id} complete={str(bool(fan[0])).lower()}"
+        + (f" partial_reason={fan[1]}" if fan[1] else "")
+    ]
+    lines.extend(
+        f"{member[0]}={member[1] or 'pending'} path={member[2] or '-'}"
+        for member in members
+    )
+    return "\n".join(lines)
+
+
+def rearm_wake(fan_id: str) -> None:
+    """Known pre-submit failure: keep the completed fan waiting for its one wake."""
+    with db._conn() as conn:
+        updated = conn.execute(
+            """UPDATE fan_barriers SET released = 0
+               WHERE fan_id = ? AND released = 1 AND complete = 1""",
+            (fan_id,),
+        )
+    if updated.rowcount:
+        schedule_deadline(fan_id)
+
+
+def _cancel_deadline(fan_id: str) -> None:
+    task = _deadline_tasks.pop(fan_id, None)
+    if task is not None and task is not asyncio.current_task() and not task.done():
+        task.cancel()
+
+
+def _release_deadline(fan_id: str) -> bool:
+    with db._conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT released, deadline_at, complete FROM fan_barriers WHERE fan_id = ?",
+            (fan_id,),
+        ).fetchone()
+        if row is None or row[0] or row[1] > time.time():
+            return False
+        already_complete = bool(row[2])
+        if not already_complete:
+            conn.execute(
+                """UPDATE fan_members SET state = 'timeout'
+                   WHERE fan_id = ? AND state IS NULL""",
+                (fan_id,),
+            )
+        updated = conn.execute(
+            """UPDATE fan_barriers
+               SET released = 1,
+                   complete = CASE WHEN complete = 1 THEN 1 ELSE 0 END,
+                   partial_reason = CASE WHEN complete = 1 THEN NULL ELSE 'deadline' END
+               WHERE fan_id = ? AND released = 0""",
+            (fan_id,),
+        )
+        return updated.rowcount == 1
+
+
+async def _deadline_waiter(fan_id: str, delay: float) -> None:
+    try:
+        await asyncio.sleep(max(0.0, delay))
+        if not _release_deadline(fan_id):
+            return
+        target = parent_of(fan_id)
+        if target is None:
+            return
+        from app.deps import manager
+
+        recipient = reducer_of(fan_id) or target[0]
+        destination = await manager.ensure_loaded(recipient, target[1])
+        if destination is not None:
+            await manager.send(destination.id, manifest_text(fan_id))
+    except asyncio.CancelledError:
+        raise
+    except Exception as error:
+        logger.error("fan %s deadline wake failed: %s: %s", fan_id,
+                     type(error).__name__, error)
+    finally:
+        if _deadline_tasks.get(fan_id) is asyncio.current_task():
+            _deadline_tasks.pop(fan_id, None)
+
+
+def schedule_deadline(fan_id: str) -> None:
+    with db._conn() as conn:
+        row = conn.execute(
+            "SELECT deadline_at, released FROM fan_barriers WHERE fan_id = ?",
+            (fan_id,),
+        ).fetchone()
+    if row is None or row[1]:
+        return
+    _cancel_deadline(fan_id)
+    _deadline_tasks[fan_id] = asyncio.create_task(
+        _deadline_waiter(fan_id, row[0] - time.time())
+    )
+
+
+def recover_deadlines() -> None:
+    with db._conn() as conn:
+        rows = conn.execute(
+            "SELECT fan_id FROM fan_barriers WHERE released = 0"
+        ).fetchall()
+    for row in rows:
+        schedule_deadline(row[0])
 
 
 def on_child_killed(child: str) -> bool:
@@ -169,26 +417,15 @@ def is_released(fan_id: str) -> bool:
 
 
 def release_expired() -> list[str]:
-    now = time.time()
     with db._conn() as conn:
         rows = conn.execute(
             "SELECT fan_id FROM fan_barriers WHERE released = 0 AND deadline_at <= ?",
-            (now,),
+            (time.time(),),
         ).fetchall()
-        fan_ids = [row[0] for row in rows]
-        for fan_id in fan_ids:
-            conn.execute(
-                """UPDATE fan_members SET state = 'timeout'
-                   WHERE fan_id = ? AND state IS NULL""",
-                (fan_id,),
-            )
-            conn.execute(
-                """UPDATE fan_barriers
-                   SET released = 1, complete = 0, partial_reason = 'deadline'
-                   WHERE fan_id = ? AND released = 0""",
-                (fan_id,),
-            )
-        return fan_ids
+    released = [row[0] for row in rows if _release_deadline(row[0])]
+    for fan_id in released:
+        _cancel_deadline(fan_id)
+    return released
 
 
 def manifest(fan_id: str) -> dict:
