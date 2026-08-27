@@ -2413,6 +2413,37 @@ async def _submit_file_snapshot_once(
         )
 
 
+async def _submit_file_group_once(
+    chat_id: int,
+    items: list[dict],
+    thread_id: int | None,
+):
+    """Cross one Bot API album boundary for already snapshotted durable files."""
+    if bot is None:
+        raise RuntimeError("TG bridge not active")
+    if not 2 <= len(items) <= 10:
+        raise ValueError("Telegram media group must contain 2-10 files")
+    from aiogram.types import FSInputFile, InputMediaDocument, InputMediaPhoto
+
+    media = []
+    for item in items:
+        tg_file = FSInputFile(
+            item["snapshot_path"], filename=item["original_name"],
+        )
+        media_type = InputMediaPhoto if item["kind"] == "photo" else InputMediaDocument
+        media.append(media_type(
+            media=tg_file,
+            caption=item.get("caption") or None,
+            parse_mode=None,
+        ))
+    async with asyncio.timeout(_TG_RELIABLE_CALL_TIMEOUT):
+        return await bot.send_media_group(
+            chat_id=chat_id,
+            media=media,
+            message_thread_id=thread_id,
+        )
+
+
 async def _reserve_file_snapshot_slot(chat_id: int) -> bool:
     """Reserve the shared per-chat rate slot before a durable provider boundary."""
     if bot is None:

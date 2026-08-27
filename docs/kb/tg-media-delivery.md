@@ -9,6 +9,7 @@
 - The reliable per-chat dispatcher awaits each item before selecting the next; rate-slot waiting is bounded only for admission and cosmetic traffic may drop immediately, so one 3×30 s media item blocks sequential same-chat sends · `app/tg_bridge.py:1258-1276,1623-1699,1816-1869` · 2026-08-24, #333
 - Current positive controls recovered: Telegram proxy preflight passed through proxychains/gateway with `EXIT=0`, and three later file sends in the incident window returned message ids `162144`, `162147`, `162148` with HTTP 200 · `docs/tasks/333/evidence/current-controls.txt`, `docs/tasks/333/evidence/journal-tg-1504-1510.txt` · 2026-08-24, #333
 - The smallest truthful durable contract is per-file `event_id`/receipt/hash/status with `UNKNOWN` after the provider boundary, no blind retry, bounded outbox/backpressure, and separate primary/mirror outcomes · `docs/tasks/333/contract.md` · 2026-08-24, #333
+- A durable album needs one root manifest receipt plus deterministic per-file child receipts: claim each provider group atomically, map returned message IDs in order, and mark every claimed member `UNKNOWN` when the single `sendMediaGroup` boundary is ambiguous; batch grouping is stable by type and 10, with separate mirror groups · `docs/tasks/402/report.md`; `tests/test_tg_file_deliveries.py`; `tests/test_tg_file_batch_route.py` · 2026-08-26, #402
 
 ## Отвергнуто
 

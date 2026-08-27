@@ -18,7 +18,11 @@ from typing import Any
 
 from app import db
 from app.errtext import err_text
-from app.tg_bridge import _reserve_file_snapshot_slot, _submit_file_snapshot_once
+from app.tg_bridge import (
+    _reserve_file_snapshot_slot,
+    _submit_file_group_once,
+    _submit_file_snapshot_once,
+)
 
 logger = logging.getLogger("orchestra.tg_file_deliveries")
 
@@ -37,6 +41,8 @@ MAINTENANCE_INTERVAL_SECONDS = 21600
 
 _MAX_FILE_BYTES = 50 * 1024 * 1024
 _ACTIVE_STATES = ("QUEUED", "SUBMITTING")
+_PHOTO_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+_MEDIA_GROUP_LIMIT = 10
 _chat_runner_tasks: dict[int, asyncio.Task[None]] = {}
 _maintenance_task: asyncio.Task[None] | None = None
 
@@ -51,6 +57,12 @@ def _utcnow() -> datetime:
 
 def _validate_event_id(value: str) -> str:
     return str(uuid.UUID(str(value)))
+
+
+class BatchValidationError(ValueError):
+    def __init__(self, invalid: list[dict[str, Any]]):
+        self.invalid = invalid
+        super().__init__("one or more batch paths are invalid")
 
 
 def _ensure_spool() -> tuple[Path, Path, Path]:
@@ -101,17 +113,112 @@ def _row(event_id: str) -> sqlite3.Row | None:
         ).fetchone()
 
 
-def _resource(event_id: str, *, acceptance: str = "ALREADY_ACCEPTED") -> dict[str, Any] | None:
+def _aggregate_states(states: list[str]) -> str:
+    if not states:
+        return "UNKNOWN"
+    if "UNKNOWN" in states:
+        return "UNKNOWN"
+    if "SUBMITTING" in states:
+        return "SUBMITTING"
+    if "FAILED_BEFORE_SUBMIT" in states:
+        return "FAILED_BEFORE_SUBMIT"
+    if "QUEUED" in states:
+        return "QUEUED"
+    return "SENT" if all(state == "SENT" for state in states) else "UNKNOWN"
+
+
+def _target_resource(rows: list[sqlite3.Row]) -> dict[str, Any]:
+    state = _aggregate_states([row["state"] for row in rows])
+    message_ids = [
+        row["message_id"] for row in rows if row["message_id"] is not None
+    ]
+    errors = [
+        _load_error(row["error_json"]) for row in rows if row["error_json"]
+    ]
+    first = rows[0]
+    return {
+        "state": state,
+        "chat_id": first["chat_id"],
+        "thread_id": first["thread_id"],
+        "message_id": message_ids[0] if message_ids else None,
+        "message_ids": message_ids,
+        "error": errors[0] if errors else None,
+    }
+
+
+def _resource(
+    event_id: str, *, acceptance: str = "ALREADY_ACCEPTED",
+) -> dict[str, Any] | None:
     with db._conn() as connection:
         parent = connection.execute(
             "SELECT * FROM tg_file_deliveries WHERE event_id=?", (event_id,)
         ).fetchone()
         if parent is None:
             return None
-        targets = connection.execute(
-            "SELECT * FROM tg_file_delivery_targets WHERE event_id=? ORDER BY target_kind",
-            (event_id,),
-        ).fetchall()
+        batch_id = parent["batch_id"]
+        if batch_id:
+            parents = connection.execute(
+                "SELECT * FROM tg_file_deliveries WHERE batch_id=? ORDER BY batch_index",
+                (batch_id,),
+            ).fetchall()
+            event_ids = [row["event_id"] for row in parents]
+            placeholders = ",".join("?" for _event_id in event_ids)
+            targets = connection.execute(
+                "SELECT t.* FROM tg_file_delivery_targets AS t "
+                "JOIN tg_file_deliveries AS d ON d.event_id=t.event_id "
+                f"WHERE t.event_id IN ({placeholders}) "
+                "ORDER BY t.target_kind, d.batch_index",
+                event_ids,
+            ).fetchall()
+        else:
+            parents = [parent]
+            targets = connection.execute(
+                "SELECT * FROM tg_file_delivery_targets "
+                "WHERE event_id=? ORDER BY target_kind",
+                (event_id,),
+            ).fetchall()
+    targets_by_event: dict[str, list[sqlite3.Row]] = {}
+    targets_by_kind: dict[str, list[sqlite3.Row]] = {}
+    for row in targets:
+        targets_by_event.setdefault(row["event_id"], []).append(row)
+        targets_by_kind.setdefault(row["target_kind"], []).append(row)
+    if batch_id:
+        children = {
+            kind: _target_resource(rows) for kind, rows in targets_by_kind.items()
+        }
+        primary = children.get("primary")
+        state = primary["state"] if primary else "UNKNOWN"
+        files = []
+        for row in parents:
+            file_children = {
+                target["target_kind"]: _target_resource([target])
+                for target in targets_by_event.get(row["event_id"], [])
+            }
+            file_primary = file_children.get("primary")
+            files.append({
+                "index": row["batch_index"],
+                "event_id": row["event_id"],
+                "original_name": row["original_name"],
+                "kind": row["batch_kind"],
+                "group": row["batch_group"],
+                "delivery_state": (
+                    file_primary["state"] if file_primary else "UNKNOWN"
+                ),
+                "children": file_children,
+            })
+        return {
+            "ok": True,
+            "acceptance": acceptance,
+            "event_id": batch_id,
+            "payload_hash": parent["payload_hash"],
+            "accept_seq": parents[0]["accept_seq"],
+            "delivery_state": state,
+            "message_id": primary.get("message_id") if primary else None,
+            "status_url": f"/api/tg/file-deliveries/{batch_id}",
+            "children": children,
+            "files": files,
+            "next_action": _next_action(batch_id, state),
+        }
     children = {
         row["target_kind"]: {
             "state": row["state"],
@@ -210,6 +317,78 @@ def _payload_hash(
         payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _batch_kind(path: str, as_document: bool) -> str:
+    if as_document:
+        return "document"
+    return "photo" if Path(path).suffix.lower() in _PHOTO_EXTS else "document"
+
+
+def _plan_batch(prepared: list[dict[str, Any]], as_document: bool) -> None:
+    buckets: dict[str, list[dict[str, Any]]] = {}
+    kind_order: list[str] = []
+    for index, item in enumerate(prepared):
+        kind = _batch_kind(item["original_name"], as_document)
+        item["batch_index"] = index
+        item["batch_kind"] = kind
+        if kind not in buckets:
+            buckets[kind] = []
+            kind_order.append(kind)
+        buckets[kind].append(item)
+    group_index = 0
+    for kind in kind_order:
+        items = buckets[kind]
+        for offset in range(0, len(items), _MEDIA_GROUP_LIMIT):
+            for item in items[offset:offset + _MEDIA_GROUP_LIMIT]:
+                item["batch_group"] = group_index
+            group_index += 1
+
+
+def _batch_payload_hash(
+    *,
+    prepared: list[dict[str, Any]],
+    caption: str,
+    source_scope: str,
+    source_name: str,
+    as_document: bool,
+    targets: list[dict[str, Any]],
+) -> str:
+    canonical_targets = sorted(
+        ({
+            "target_kind": target["target_kind"],
+            "chat_id": target["chat_id"],
+            "thread_id": target.get("thread_id"),
+        } for target in targets),
+        key=lambda target: (
+            target["target_kind"], target["chat_id"], target["thread_id"] or 0,
+        ),
+    )
+    payload = {
+        "protocol": "tg-file-batch/v1",
+        "caption": caption,
+        "source_scope": source_scope,
+        "source_name": source_name,
+        "as_document": bool(as_document),
+        "targets": canonical_targets,
+        "files": [{
+            "content_sha256": item["content_sha256"],
+            "size_bytes": item["size_bytes"],
+            "original_name": item["original_name"],
+            "kind": item["batch_kind"],
+            "group": item["batch_group"],
+        } for item in prepared],
+    }
+    encoded = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _batch_child_id(batch_id: str, index: int) -> str:
+    if index == 0:
+        return batch_id
+    return str(uuid.uuid5(uuid.UUID(batch_id), f"tg-file-batch:{index}"))
 
 
 def _snapshot_to_temp(source_path: str, event_id: str) -> dict[str, Any]:
@@ -512,6 +691,325 @@ def _retry_failed(
         connection.close()
 
 
+async def _prepare_file_batch(
+    source_paths: list[str], batch_id: str,
+) -> list[dict[str, Any]]:
+    prepared: list[dict[str, Any]] = []
+    invalid: list[dict[str, Any]] = []
+    for index, source_path in enumerate(source_paths):
+        try:
+            item = await asyncio.to_thread(
+                _snapshot_to_temp, source_path, _batch_child_id(batch_id, index),
+            )
+        except (OSError, ValueError) as exc:
+            invalid.append({
+                "index": index,
+                "path": source_path,
+                "error": type(exc).__name__,
+            })
+        else:
+            item["source_path"] = source_path
+            prepared.append(item)
+    if invalid:
+        for item in prepared:
+            _cleanup_temp(item)
+        raise BatchValidationError(invalid)
+    return prepared
+
+
+def _same_batch_response(
+    batch_id: str,
+    payload_hash: str,
+    source_session_id: str | None,
+) -> tuple[dict[str, Any], int]:
+    existing = _row(batch_id)
+    if existing is None:
+        raise RuntimeError("accepted TG file batch disappeared")
+    if (
+        source_session_id is not None
+        and existing["source_session_id"] != source_session_id
+    ):
+        return _error(
+            "KEYED_AUTH_REQUIRED",
+            "event id belongs to another MCP principal",
+        ), 403
+    if existing["batch_id"] != batch_id or existing["payload_hash"] != payload_hash:
+        return _error(
+            "IDEMPOTENCY_CONFLICT",
+            "event id is already bound to another file payload",
+        ), 409
+    resource = _resource(batch_id, acceptance="ALREADY_ACCEPTED")
+    if resource is None:
+        raise RuntimeError("accepted TG file batch receipt disappeared")
+    return resource, 202
+
+
+def _retry_failed_batch(
+    batch_id: str,
+    payload_hash: str,
+    prepared: list[dict[str, Any]],
+    source_session_id: str | None,
+) -> tuple[dict[str, Any], int]:
+    connection = db._conn()
+    published: list[str] = []
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        parents = connection.execute(
+            "SELECT * FROM tg_file_deliveries WHERE batch_id=? ORDER BY batch_index",
+            (batch_id,),
+        ).fetchall()
+        if not parents:
+            connection.rollback()
+            raise RuntimeError("accepted TG file batch disappeared")
+        root = parents[0]
+        if (
+            source_session_id is not None
+            and root["source_session_id"] != source_session_id
+        ):
+            connection.rollback()
+            return _error(
+                "KEYED_AUTH_REQUIRED",
+                "event id belongs to another MCP principal",
+            ), 403
+        if root["payload_hash"] != payload_hash:
+            connection.rollback()
+            return _same_batch_response(batch_id, payload_hash, source_session_id)
+        failed = connection.execute(
+            "SELECT count(*) FROM tg_file_delivery_targets AS t "
+            "JOIN tg_file_deliveries AS d ON d.event_id=t.event_id "
+            "WHERE d.batch_id=? AND t.state='FAILED_BEFORE_SUBMIT'",
+            (batch_id,),
+        ).fetchone()[0]
+        if not failed:
+            connection.rollback()
+            return _same_batch_response(batch_id, payload_hash, source_session_id)
+        for parent, item in zip(parents, prepared, strict=True):
+            snapshot = Path(parent["snapshot_path"]) if parent["snapshot_path"] else None
+            if snapshot is not None and snapshot.is_file():
+                continue
+            published_path, published_here = _publish_temp(
+                item["temp_path"], parent["event_id"], parent["original_name"],
+            )
+            if published_here:
+                published.append(published_path)
+            connection.execute(
+                "UPDATE tg_file_deliveries SET snapshot_path=?, snapshot_deleted_at=NULL, "
+                "quarantined_at=NULL, updated_at=? WHERE event_id=?",
+                (published_path, _now(), parent["event_id"]),
+            )
+        now = _now()
+        connection.execute(
+            "UPDATE tg_file_delivery_targets SET state='QUEUED', error_json=NULL, "
+            "submitted_at=NULL, updated_at=? WHERE state='FAILED_BEFORE_SUBMIT' "
+            "AND event_id IN (SELECT event_id FROM tg_file_deliveries WHERE batch_id=?)",
+            (now, batch_id),
+        )
+        connection.commit()
+        resource = _resource(batch_id, acceptance="ALREADY_ACCEPTED")
+        if resource is None:
+            raise RuntimeError("accepted TG file batch receipt disappeared")
+        return resource, 202
+    except BaseException:
+        connection.rollback()
+        for path in published:
+            Path(path).unlink(missing_ok=True)
+        raise
+    finally:
+        connection.close()
+
+
+def _commit_batch_acceptance(
+    *,
+    batch_id: str,
+    prepared: list[dict[str, Any]],
+    source_session_id: str | None,
+    source_name: str,
+    source_scope: str,
+    caption: str,
+    as_document: bool,
+    payload_hash: str,
+    orch_name: str | None,
+    targets: list[dict[str, Any]],
+) -> tuple[dict[str, Any], int]:
+    connection = db._conn()
+    published: list[str] = []
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        existing = connection.execute(
+            "SELECT * FROM tg_file_deliveries WHERE event_id=?", (batch_id,),
+        ).fetchone()
+        if existing is not None:
+            connection.rollback()
+            if existing["batch_id"] != batch_id:
+                return _same_batch_response(
+                    batch_id, payload_hash, source_session_id,
+                )
+            return _retry_failed_batch(
+                batch_id, payload_hash, prepared, source_session_id,
+            )
+        additions = len(prepared) * len(targets)
+        active_total = connection.execute(
+            "SELECT count(*) FROM tg_file_delivery_targets "
+            "WHERE state IN ('QUEUED','SUBMITTING')"
+        ).fetchone()[0]
+        additions_by_chat: dict[int, int] = {}
+        for target in targets:
+            chat_id = int(target["chat_id"])
+            additions_by_chat[chat_id] = (
+                additions_by_chat.get(chat_id, 0) + len(prepared)
+            )
+        queue_full = active_total + additions > MAX_PENDING_TOTAL
+        if not queue_full:
+            for chat_id, chat_additions in additions_by_chat.items():
+                active_chat = connection.execute(
+                    "SELECT count(*) FROM tg_file_delivery_targets "
+                    "WHERE chat_id=? AND state IN ('QUEUED','SUBMITTING')",
+                    (chat_id,),
+                ).fetchone()[0]
+                if active_chat + chat_additions > MAX_PENDING_PER_CHAT:
+                    queue_full = True
+                    break
+        if queue_full:
+            connection.rollback()
+            return _error(
+                "TG_FILE_QUEUE_FULL",
+                "durable Telegram file queue is full",
+                retryable=True,
+                retry_after_seconds=RETRY_AFTER_SECONDS,
+            ), 429
+
+        outbound_caption = _outbound_caption(
+            caption, source_name, prepared[0]["original_name"],
+        )
+        now = _now()
+        for item in prepared:
+            child_id = _batch_child_id(batch_id, item["batch_index"])
+            published_path, published_here = _publish_temp(
+                item["temp_path"], child_id, item["original_name"],
+            )
+            if not published_here:
+                raise RuntimeError("batch snapshot already exists without a receipt")
+            published.append(published_path)
+            connection.execute(
+                """INSERT INTO tg_file_deliveries (
+                    event_id, schema_version, source_session_id, source_name,
+                    source_scope, source_path, original_name, snapshot_path,
+                    size_bytes, content_sha256, caption, outbound_caption,
+                    as_document, payload_hash, orch_name, batch_id, batch_index,
+                    batch_group, batch_kind, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    child_id, SCHEMA_VERSION, source_session_id, source_name,
+                    source_scope, item["source_path"], item["original_name"],
+                    published_path, item["size_bytes"], item["content_sha256"],
+                    caption, outbound_caption if item["batch_index"] == 0 else "",
+                    int(as_document), payload_hash, orch_name, batch_id,
+                    item["batch_index"], item["batch_group"], item["batch_kind"],
+                    now, now,
+                ),
+            )
+            for target in targets:
+                connection.execute(
+                    """INSERT INTO tg_file_delivery_targets (
+                        event_id, target_kind, chat_id, thread_id, state, updated_at
+                    ) VALUES (?, ?, ?, ?, 'QUEUED', ?)""",
+                    (
+                        child_id, target["target_kind"], target["chat_id"],
+                        target.get("thread_id"), now,
+                    ),
+                )
+        connection.commit()
+        resource = _resource(batch_id, acceptance="ACCEPTED")
+        if resource is None:
+            raise RuntimeError("committed TG file batch receipt disappeared")
+        return resource, 202
+    except BaseException:
+        try:
+            connection.rollback()
+        except sqlite3.Error:
+            pass
+        existing = _row(batch_id)
+        if (
+            existing is not None
+            and existing["batch_id"] == batch_id
+            and existing["payload_hash"] == payload_hash
+            and (
+                source_session_id is None
+                or existing["source_session_id"] == source_session_id
+            )
+        ):
+            resource = _resource(batch_id, acceptance="ALREADY_ACCEPTED")
+            if resource is not None:
+                return resource, 202
+        for path in published:
+            Path(path).unlink(missing_ok=True)
+        raise
+    finally:
+        connection.close()
+
+
+async def accept_file_batch(
+    *,
+    event_id: str,
+    source_session_id: str | None,
+    source_name: str,
+    source_scope: str,
+    source_paths: list[str],
+    caption: str,
+    as_document: bool,
+    orch_name: str | None,
+    targets: list[dict[str, Any]],
+) -> tuple[dict[str, Any], int, dict[str, str]]:
+    """Atomically snapshot and accept one ordered multi-file Telegram delivery."""
+    batch_id = _validate_event_id(event_id)
+    if not source_paths:
+        raise BatchValidationError([])
+    if _row(batch_id) is None and not ADMISSION_ENABLED:
+        return _error(
+            "TG_FILE_OUTBOX_DISABLED",
+            "durable Telegram file admission is disabled",
+            retryable=True,
+        ), 503, {}
+    prepared = await _prepare_file_batch(source_paths, batch_id)
+    try:
+        _plan_batch(prepared, as_document)
+        payload_hash = _batch_payload_hash(
+            prepared=prepared,
+            caption=caption,
+            source_scope=source_scope,
+            source_name=source_name,
+            as_document=as_document,
+            targets=targets,
+        )
+        result, status = _commit_batch_acceptance(
+            batch_id=batch_id,
+            prepared=prepared,
+            source_session_id=source_session_id,
+            source_name=source_name,
+            source_scope=source_scope,
+            caption=caption,
+            as_document=as_document,
+            payload_hash=payload_hash,
+            orch_name=orch_name,
+            targets=targets,
+        )
+    finally:
+        for item in prepared:
+            _cleanup_temp(item)
+    if status == 202:
+        for target in result.get("children", {}).values():
+            if target.get("state") == "QUEUED":
+                try:
+                    ensure_chat_runner(int(target["chat_id"]))
+                except Exception as exc:
+                    logger.error(
+                        "TG file batch runner wake failed for %s: %s: %s",
+                        batch_id, type(exc).__name__, exc,
+                    )
+    headers = {"Retry-After": str(RETRY_AFTER_SECONDS)} if status == 429 else {}
+    return result, status, headers
+
+
 async def accept_file_delivery(
     *,
     event_id: str,
@@ -610,7 +1108,8 @@ def _next_queued(chat_id: int) -> sqlite3.Row | None:
     with db._conn() as connection:
         return connection.execute(
             """SELECT t.*, d.snapshot_path, d.size_bytes, d.content_sha256,
-                      d.outbound_caption, d.as_document, d.original_name, d.accept_seq
+                      d.outbound_caption, d.as_document, d.original_name, d.accept_seq,
+                      d.batch_id, d.batch_index, d.batch_group, d.batch_kind
                FROM tg_file_delivery_targets AS t
                JOIN tg_file_deliveries AS d ON d.event_id=t.event_id
                WHERE t.chat_id=? AND t.state='QUEUED'
@@ -619,6 +1118,27 @@ def _next_queued(chat_id: int) -> sqlite3.Row | None:
                LIMIT 1""",
             (chat_id,),
         ).fetchone()
+
+
+def _queued_batch_group(first: sqlite3.Row) -> list[sqlite3.Row]:
+    if not first["batch_id"]:
+        return [first]
+    with db._conn() as connection:
+        return connection.execute(
+            """SELECT t.*, d.snapshot_path, d.size_bytes, d.content_sha256,
+                      d.outbound_caption, d.as_document, d.original_name,
+                      d.accept_seq, d.batch_id, d.batch_index, d.batch_group,
+                      d.batch_kind
+               FROM tg_file_delivery_targets AS t
+               JOIN tg_file_deliveries AS d ON d.event_id=t.event_id
+               WHERE t.chat_id=? AND t.target_kind=? AND t.state='QUEUED'
+                 AND d.batch_id=? AND d.batch_group=?
+               ORDER BY d.batch_index""",
+            (
+                first["chat_id"], first["target_kind"],
+                first["batch_id"], first["batch_group"],
+            ),
+        ).fetchall()
 
 
 async def _snapshot_failure(row: sqlite3.Row) -> dict[str, Any] | None:
@@ -794,39 +1314,44 @@ def _mark_failed_before_submit(
         connection.close()
 
 
-def _claim_submitting(
+def _claim_group_submitting(
     chat_id: int,
     owner_token: str,
     generation: int,
-    event_id: str,
-    target_kind: str,
+    rows: list[sqlite3.Row],
 ) -> bool:
     connection = db._conn()
     try:
         connection.execute("BEGIN IMMEDIATE")
         if not _current_lease(
-            connection, chat_id, owner_token, generation, require_unexpired=True
+            connection, chat_id, owner_token, generation, require_unexpired=True,
         ):
             connection.rollback()
             return False
         now = _utcnow()
-        cursor = connection.execute(
-            "UPDATE tg_file_delivery_targets SET state='SUBMITTING', "
-            "attempt_count=attempt_count+1, lease_generation=?, submitted_at=?, updated_at=? "
-            "WHERE event_id=? AND target_kind=? AND state='QUEUED'",
-            (generation, now.isoformat(), now.isoformat(), event_id, target_kind),
-        )
-        if cursor.rowcount == 1:
-            connection.execute(
-                "UPDATE tg_file_chat_leases SET lease_expires_at=?, updated_at=? "
-                "WHERE chat_id=? AND owner_token=? AND generation=?",
+        for row in rows:
+            cursor = connection.execute(
+                "UPDATE tg_file_delivery_targets SET state='SUBMITTING', "
+                "attempt_count=attempt_count+1, lease_generation=?, submitted_at=?, "
+                "updated_at=? WHERE event_id=? AND target_kind=? AND state='QUEUED'",
                 (
-                    (now + timedelta(seconds=LEASE_SECONDS)).isoformat(),
-                    now.isoformat(), chat_id, owner_token, generation,
+                    generation, now.isoformat(), now.isoformat(),
+                    row["event_id"], row["target_kind"],
                 ),
             )
+            if cursor.rowcount != 1:
+                connection.rollback()
+                return False
+        connection.execute(
+            "UPDATE tg_file_chat_leases SET lease_expires_at=?, updated_at=? "
+            "WHERE chat_id=? AND owner_token=? AND generation=?",
+            (
+                (now + timedelta(seconds=LEASE_SECONDS)).isoformat(),
+                now.isoformat(), chat_id, owner_token, generation,
+            ),
+        )
         connection.commit()
-        return cursor.rowcount == 1
+        return True
     except BaseException:
         connection.rollback()
         raise
@@ -895,7 +1420,7 @@ def _release_chat_lease(chat_id: int, owner_token: str, generation: int) -> None
 
 
 async def run_chat_deliveries(chat_id: int) -> None:
-    """Drain one chat in acceptance order through the one-call provider seam."""
+    """Drain one chat in acceptance order through single or album provider seams."""
     lease = _acquire_chat_lease(chat_id)
     if lease is None:
         return
@@ -905,75 +1430,115 @@ async def run_chat_deliveries(chat_id: int) -> None:
             row = _next_queued(chat_id)
             if row is None:
                 return
-            failure = await _snapshot_failure(row)
-            if failure is None:
-                try:
-                    reserved = await _reserve_file_snapshot_slot(chat_id)
-                except Exception as exc:
-                    reserved = False
-                    failure = {
-                        "code": "FAILED_BEFORE_SUBMIT",
-                        "message": err_text(exc),
-                        "retryable": True,
-                        "outcome_unknown": False,
-                    }
-                if not reserved and failure is None:
-                    failure = {
-                        "code": "FAILED_BEFORE_SUBMIT",
-                        "message": "Telegram rate slot is unavailable",
-                        "retryable": True,
-                        "outcome_unknown": False,
-                    }
-            if failure is not None:
-                if not _mark_failed_before_submit(
-                    chat_id, owner_token, generation,
-                    row["event_id"], row["target_kind"], failure,
-                ):
-                    return
+            rows = _queued_batch_group(row)
+            ready = []
+            for candidate in rows:
+                failure = await _snapshot_failure(candidate)
+                if failure is not None:
+                    if not _mark_failed_before_submit(
+                        chat_id, owner_token, generation,
+                        candidate["event_id"], candidate["target_kind"], failure,
+                    ):
+                        return
+                else:
+                    ready.append(candidate)
+            if not ready:
                 continue
-            if not _claim_submitting(
-                chat_id, owner_token, generation,
-                row["event_id"], row["target_kind"],
+            failure = None
+            try:
+                reserved = await _reserve_file_snapshot_slot(chat_id)
+            except Exception as exc:
+                reserved = False
+                failure = {
+                    "code": "FAILED_BEFORE_SUBMIT",
+                    "message": err_text(exc),
+                    "retryable": True,
+                    "outcome_unknown": False,
+                }
+            if not reserved and failure is None:
+                failure = {
+                    "code": "FAILED_BEFORE_SUBMIT",
+                    "message": "Telegram rate slot is unavailable",
+                    "retryable": True,
+                    "outcome_unknown": False,
+                }
+            if failure is not None:
+                for candidate in ready:
+                    if not _mark_failed_before_submit(
+                        chat_id, owner_token, generation,
+                        candidate["event_id"], candidate["target_kind"], failure,
+                    ):
+                        return
+                continue
+            if not _claim_group_submitting(
+                chat_id, owner_token, generation, ready,
             ):
                 return
             try:
-                result = await _submit_file_snapshot_once(
-                    row["chat_id"],
-                    row["snapshot_path"],
-                    row["outbound_caption"],
-                    row["thread_id"],
-                    is_photo=(
-                        not bool(row["as_document"])
-                        and Path(row["original_name"]).suffix.lower()
-                        in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
-                    ),
-                )
-                message_id = getattr(result, "message_id", None)
-                if isinstance(message_id, bool) or not isinstance(message_id, int):
-                    raise ValueError("provider returned no integer message_id")
+                if len(ready) == 1:
+                    candidate = ready[0]
+                    result = await _submit_file_snapshot_once(
+                        candidate["chat_id"],
+                        candidate["snapshot_path"],
+                        candidate["outbound_caption"],
+                        candidate["thread_id"],
+                        is_photo=(
+                            candidate["batch_kind"] == "photo"
+                            if candidate["batch_id"]
+                            else (
+                                not bool(candidate["as_document"])
+                                and Path(candidate["original_name"]).suffix.lower()
+                                in _PHOTO_EXTS
+                            )
+                        ),
+                    )
+                    results = [result]
+                else:
+                    results = await _submit_file_group_once(
+                        ready[0]["chat_id"],
+                        [{
+                            "snapshot_path": candidate["snapshot_path"],
+                            "original_name": candidate["original_name"],
+                            "caption": candidate["outbound_caption"],
+                            "kind": candidate["batch_kind"],
+                        } for candidate in ready],
+                        ready[0]["thread_id"],
+                    )
+                    if not isinstance(results, (list, tuple)):
+                        raise ValueError("provider returned no media-group message list")
+                if len(results) != len(ready):
+                    raise ValueError("provider returned incomplete media-group receipts")
+                message_ids = []
+                for result in results:
+                    message_id = getattr(result, "message_id", None)
+                    if isinstance(message_id, bool) or not isinstance(message_id, int):
+                        raise ValueError("provider returned no integer message_id")
+                    message_ids.append(message_id)
             except BaseException as exc:
-                _finish_target(
-                    chat_id,
-                    owner_token,
-                    generation,
-                    row["event_id"],
-                    row["target_kind"],
-                    state="UNKNOWN",
-                    error={
-                        "code": "PROVIDER_OUTCOME_UNKNOWN",
-                        "message": err_text(exc),
-                        "retryable": False,
-                        "outcome_unknown": True,
-                    },
-                )
+                for candidate in ready:
+                    _finish_target(
+                        chat_id,
+                        owner_token,
+                        generation,
+                        candidate["event_id"],
+                        candidate["target_kind"],
+                        state="UNKNOWN",
+                        error={
+                            "code": "PROVIDER_OUTCOME_UNKNOWN",
+                            "message": err_text(exc),
+                            "retryable": False,
+                            "outcome_unknown": True,
+                        },
+                    )
                 if isinstance(exc, asyncio.CancelledError):
                     raise
             else:
-                _finish_target(
-                    chat_id, owner_token, generation,
-                    row["event_id"], row["target_kind"], state="SENT",
-                    message_id=message_id,
-                )
+                for candidate, message_id in zip(ready, message_ids, strict=True):
+                    _finish_target(
+                        chat_id, owner_token, generation,
+                        candidate["event_id"], candidate["target_kind"],
+                        state="SENT", message_id=message_id,
+                    )
     finally:
         _release_chat_lease(chat_id, owner_token, generation)
 

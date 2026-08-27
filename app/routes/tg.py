@@ -276,15 +276,24 @@ async def tg_send_file(req: dict, request: Request):
     from app.mcp_proof import check_mcp_proof
     from app.routes.system import _is_safe_path
 
+    paths = req.get("paths")
+    is_batch = paths is not None
     path = req.get("path", "")
     caption = str(req.get("caption", ""))
     as_document = bool(req.get("as_document", False))
     event_id = str(req.get("event_id", "")).strip()
-    if not path:
+    if is_batch and (
+        not isinstance(paths, list)
+        or not paths
+        or not all(isinstance(item, str) and item for item in paths)
+    ):
+        return JSONResponse({"error": "paths must be a non-empty string list"}, status_code=400)
+    if not is_batch and not path:
         return JSONResponse({"error": "path required"}, status_code=400)
     if not event_id:
         return JSONResponse({"error": "event_id required"}, status_code=400)
-    if not _is_safe_path(path):
+    unsafe_paths = [item for item in paths if not _is_safe_path(item)] if is_batch else []
+    if unsafe_paths or (not is_batch and not _is_safe_path(path)):
         return JSONResponse({"error": "access denied"}, status_code=403)
 
     source_session_id = None
@@ -323,19 +332,47 @@ async def tg_send_file(req: dict, request: Request):
             "chat_id": int(mirror["chat_id"]),
             "thread_id": mirror.get("topic_id"),
         })
-    from app.tg_file_deliveries import accept_file_delivery
+    from app.tg_file_deliveries import (
+        BatchValidationError,
+        accept_file_batch,
+        accept_file_delivery,
+    )
     try:
-        result, status, headers = await accept_file_delivery(
-            event_id=event_id,
-            source_session_id=source_session_id,
-            source_name=sender,
-            source_scope=scope,
-            source_path=str(path),
-            caption=caption,
-            as_document=as_document,
-            orch_name=orch_name,
-            targets=targets,
-        )
+        if is_batch:
+            result, status, headers = await accept_file_batch(
+                event_id=event_id,
+                source_session_id=source_session_id,
+                source_name=sender,
+                source_scope=scope,
+                source_paths=paths,
+                caption=caption,
+                as_document=as_document,
+                orch_name=orch_name,
+                targets=targets,
+            )
+        else:
+            result, status, headers = await accept_file_delivery(
+                event_id=event_id,
+                source_session_id=source_session_id,
+                source_name=sender,
+                source_scope=scope,
+                source_path=str(path),
+                caption=caption,
+                as_document=as_document,
+                orch_name=orch_name,
+                targets=targets,
+            )
+    except BatchValidationError as exc:
+        return JSONResponse({
+            "ok": False,
+            "error": {
+                "code": "BATCH_FILE_INVALID",
+                "message": "batch rejected; no files were accepted",
+                "retryable": False,
+                "outcome_unknown": False,
+                "invalid": exc.invalid,
+            },
+        }, status_code=400)
     except (OSError, ValueError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     return JSONResponse(result, status_code=status, headers=headers)
