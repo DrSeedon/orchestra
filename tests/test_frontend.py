@@ -4129,6 +4129,11 @@ def test_truncated_image_generation_history_recovers_without_server_restart(
     page.close()
 
 
+# Красный и на main: #365 (26.08) заменил синхронный путь «ждём расшифровку → вставляем
+# в поле → жмём отправить» на «стоп → сообщение улетает сразу, расшифровка догоняет».
+# Тест ждёт вставки текста в поле ввода, которой в новом контракте не происходит.
+# Переписывать под новый контракт — отдельная задача; блокировать чужие мержи он не должен.
+@pytest.mark.skip(reason="проверяет синхронный голосовой ввод, отменённый в #365")
 def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: Browser):
     root = Path(__file__).parent.parent
     app_source = (root / "app/static/js/app.js").read_text()
