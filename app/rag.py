@@ -909,5 +909,11 @@ async def run(loop, method: str, *args, deadline: float | None = None):
             return getattr(get_rag_ro(), method)(*args)
         return await loop.run_in_executor(_read_executor, _call_ro)
     def _call():
-        return getattr(get_rag(), method)(*args)
+        try:
+            return getattr(get_rag(), method)(*args)
+        finally:
+            if method in {"backfill_files", "backfill_logs"}:
+                from app.native_memory import trim_native_heap
+
+                trim_native_heap(f"rag:{method}")
     return await loop.run_in_executor(_executor, _call)
