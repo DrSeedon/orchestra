@@ -71,6 +71,37 @@ class RuntimeConfig:
     prompt_assembler: Callable[[str, str], str]
 
 
+def _ensure_task_projection(store: Any) -> None:
+    """Rebuild the disposable task index when canonical state outlives it."""
+    projection_path = getattr(store, "projection_path", None)
+    if projection_path is None:
+        return
+    if projection_path.is_file():
+        from app.ia.task_store import ProjectionDebtError
+
+        try:
+            projection_head = store.projection_head
+            canonical_head = store.canonical_head
+            states = store._states()
+            with sqlite3.connect(projection_path) as connection:
+                row_count = int(connection.execute(
+                    "SELECT count(*) FROM ia_task_projection"
+                ).fetchone()[0])
+            if projection_head == canonical_head and row_count == len(states):
+                return
+            raise ProjectionDebtError("task projection is incomplete or stale")
+        except (ProjectionDebtError, sqlite3.DatabaseError):
+            for suffix in ("-journal", "-wal", "-shm", ""):
+                Path(f"{projection_path}{suffix}").unlink(missing_ok=True)
+    states = store._states()
+    if not states:
+        raise KnowledgeRuntimeError("canonical task state is empty during projection rebuild")
+    # TaskStore owns the projection schema; runtime owns when its rebuild is required.
+    store._rebuild_projection(states)
+    if store.projection_head != store.canonical_head:
+        raise KnowledgeRuntimeError("rebuilt task projection is not bound to canonical state")
+
+
 class _RuntimeTaskStore:
     """Serialize TaskStore and translate legacy project IDs at the facade boundary."""
 
@@ -105,6 +136,7 @@ class _RuntimeTaskStore:
     @property
     def projection_head(self):
         with self._lock:
+            _ensure_task_projection(self._store)
             return self._store.projection_head
 
     def _project(self, value: str) -> str:
@@ -146,16 +178,19 @@ class _RuntimeTaskStore:
 
     def task_get(self, ref, project=""):
         with self._lock:
+            _ensure_task_projection(self._store)
             return self._legacy_result(self._store.task_get(ref, project=self._project(project)))
 
     def task_list(self, project="", status="", assignee=""):
         with self._lock:
+            _ensure_task_projection(self._store)
             return self._legacy_result(self._store.task_list(
                 project=self._project(project), status=status, assignee=assignee,
             ))
 
     def link_commits_to_task(self, task_ref, commits, project_id, expected_head=None):
         with self._lock:
+            _ensure_task_projection(self._store)
             return self._changed(self._store.link_commits_to_task(
                 task_ref,
                 commits,
@@ -168,10 +203,12 @@ class _RuntimeTaskStore:
 
     def states(self):
         with self._lock:
+            _ensure_task_projection(self._store)
             return copy.deepcopy(self._store._states())
 
     def reconcile_legacy_tasks(self, tasks: list[Mapping[str, Any]]) -> dict[str, Any]:
         with self._lock:
+            _ensure_task_projection(self._store)
             states = self._store._states()
             canonical = {
                 (str(state["project_id"]), int(state["display_number"])): state
@@ -565,7 +602,7 @@ class KnowledgeRuntime:
             # Load-existing semantics: prove both owners are internally readable; do not replay a
             # fresh snapshot over later candidate generations.
             store.canonical_head
-            store.projection_head
+        _ensure_task_projection(store)
         return _RuntimeTaskStore(
             store=store,
             legacy_to_canonical=self._task_projects,
@@ -984,28 +1021,51 @@ class KnowledgeRuntime:
         from app.ia.projections import SQLiteProjectionBackend
 
         path = self.paths["current_projection"]
-        if path.is_file():
+        try:
+            backend = SQLiteProjectionBackend(path=path)
+            sealed = backend.seal_current_resources(
+                resource_records=self._retained_evidence_records(),
+                canonical_head=self.state["canonical_head"],
+            )
+            if sealed is not None:
+                return
+            retained = backend.replace_current_retaining_resources(
+                records=self._mutable_projection_records(),
+                resource_records=self._retained_evidence_records(),
+                canonical_head=self.state["canonical_head"],
+            )
+            if retained is not None:
+                return
+            backend.replace_current(
+                records=self._projection_records(),
+                canonical_head=self.state["canonical_head"],
+            )
+        except sqlite3.Error:
+            temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.rebuild")
             try:
-                with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as connection:
-                    row = connection.execute(
-                        "SELECT projection_head FROM projection_meta WHERE singleton=1"
-                    ).fetchone()
-                if row is not None and str(row[0]) == self.state["canonical_head"]:
-                    return
-            except sqlite3.Error:
-                pass
-        backend = SQLiteProjectionBackend(path=self.paths["current_projection"])
-        retained = backend.replace_current_retaining_resources(
-            records=self._mutable_projection_records(),
-            resource_records=self._retained_evidence_records(),
-            canonical_head=self.state["canonical_head"],
-        )
-        if retained is not None:
-            return
-        backend.replace_current(
-            records=self._projection_records(),
-            canonical_head=self.state["canonical_head"],
-        )
+                SQLiteProjectionBackend(path=temporary).replace_current(
+                    records=self._projection_records(),
+                    canonical_head=self.state["canonical_head"],
+                )
+                with sqlite3.connect(temporary) as connection:
+                    connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                    mode = str(connection.execute(
+                        "PRAGMA journal_mode=DELETE"
+                    ).fetchone()[0]).lower()
+                    if mode != "delete":
+                        raise sqlite3.DatabaseError(
+                            "temporary current projection did not leave WAL mode"
+                        )
+                    if connection.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                        raise sqlite3.DatabaseError(
+                            "temporary current projection failed quick_check"
+                        )
+                for suffix in ("-journal", "-wal", "-shm"):
+                    Path(f"{path}{suffix}").unlink(missing_ok=True)
+                os.replace(temporary, path)
+            finally:
+                for suffix in ("", "-journal", "-wal", "-shm"):
+                    Path(f"{temporary}{suffix}").unlink(missing_ok=True)
 
     def _query_evidence(self, project_id: str, text: str, limit: int) -> tuple[list[dict], list[dict]]:
         words = [word.casefold() for word in re.findall(r"\w+", text, flags=re.UNICODE)]

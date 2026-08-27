@@ -369,6 +369,8 @@ async def lifespan(app: FastAPI):
         await resume_dashboard_voice_transcriptions()
         await recover_initial_deliveries()
         await recover_message_deliveries()
+        from app.fan_barrier import recover_deadlines
+        recover_deadlines()
         # #230 T7: descriptors that came back for sessions nobody owns any more.
         # Fail-closed inside: an EMPTY registry sweeps nothing.
         swept = await manager.sweep_orphan_fds()
