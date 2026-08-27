@@ -326,6 +326,7 @@ def test_sidebar_agents_visible(dashboard_page: Page):
 
 def test_live_stream_status_updates_selected_agent_badge(dashboard_page: Page):
     dashboard_page.wait_for_function("() => typeof _applyLiveAgentStatus === 'function'")
+    dashboard_page.wait_for_selector('.agent-item[data-agent-name="notify-268-probe"]')
     dashboard_page.evaluate("""() => {
         window.__savedRenderAgentList403 = renderAgentList;
         renderAgentList = () => {};
@@ -1548,6 +1549,7 @@ def test_notify_user_call_is_highlighted_and_navigable_from_the_timeline(
 @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
 def test_notify_nav_hides_itself_when_no_calls_are_present(dashboard_browser: Browser, compact_mode: bool):
     page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+    page.evaluate("() => initChatTimeline()")
     page.evaluate("""() => {
         addChatEntry('tool', 'Bash: {"command":"echo PLAIN"}', null, null, {id:34001, tool_use_id:'toolu_plain'});
     }""")
@@ -3819,6 +3821,7 @@ def test_image_generation_history_replaces_stale_mirror_and_survives_chat_reentr
             window.__imageLogFetches = 0;
             _storeSessionId = async () => 'sid-a';
             _storeRead = async () => mirrorRows;
+            _storeWatermark = async () => 40;
             _fetchHistory = async () => {
                 window.__imageHistoryFetches += 1;
                 return [];
@@ -4066,6 +4069,243 @@ def test_indexeddb_legacy_mirror_is_rebuilt_before_chat_render(
     assert state["schema"] == 2
     assert state["streamAfterIds"] and min(state["streamAfterIds"]) >= current_rows[-1]["id"]
     assert state["staircaseCounts"] == []
+
+
+def _open_store_freshness_page(browser: Browser) -> Page:
+    page = browser.new_page()
+    _route_frontend_sources(page)
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof _showChatFor === 'function'")
+    page.evaluate("""() => {
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        selectedAgent = 'fe-orch';
+        currentScope = '/tmp/fe-scope';
+        document.querySelector('#chat').replaceChildren();
+        window.compactMode = false;
+    }""")
+    return page
+
+
+def _store_freshness_rows(prefix: str, start: int, count: int) -> list[dict]:
+    return [
+        {
+            "id": index,
+            "session_id": "fe-orch-id",
+            "type": "text",
+            "content": f"{prefix}-{index}",
+            "ts": "2026-08-27T08:00:00+00:00",
+        }
+        for index in range(start, start + count)
+    ]
+
+
+def test_stale_mirror_is_rejected_before_first_paint_and_no_staircase(
+    dashboard_browser: Browser,
+):
+    page = _open_store_freshness_page(dashboard_browser)
+    mirror_rows = _store_freshness_rows("mirror", 1, 40)
+    current_rows = _store_freshness_rows("server", 41, 100)
+    state = page.evaluate("""async ({mirrorRows, currentRows}) => {
+        window.__historyFetches404 = 0;
+        window.__staircase404 = 0;
+        window.__streamDone404 = false;
+        window.__firstRenderDone404 = false;
+        const chat = document.querySelector('#chat');
+        const observer = new MutationObserver(records => {
+            if (window.__firstRenderDone404) {
+                window.__staircase404 += records.reduce(
+                    (count, record) => count + record.addedNodes.length, 0
+                );
+            }
+        });
+        observer.observe(chat, {childList: true});
+        _storeSessionId = async () => 'fe-orch-id';
+        _storeRead = async () => mirrorRows;
+        _storeWatermark = async () => currentRows[currentRows.length - 1].id;
+        _fetchHistory = async () => {
+            window.__historyFetches404++;
+            return currentRows;
+        };
+        window.EventSource = class FreshnessEventSource404 {
+            constructor(url) {
+                const after = Number(new URL(url, location.href).searchParams.get('after_id'));
+                if (after < currentRows[currentRows.length - 1].id) {
+                    currentRows.forEach((row, index) => setTimeout(() => {
+                        this.onmessage?.({data: JSON.stringify(row)});
+                        if (index === currentRows.length - 1) window.__streamDone404 = true;
+                    }, 0));
+                } else {
+                    window.__streamDone404 = true;
+                }
+                this.readyState = 1;
+            }
+            close() { this.readyState = 2; }
+        };
+        await _showChatFor('fe-orch', '/tmp/fe-scope');
+        window.__firstRenderDone404 = true;
+        await new Promise(resolve => {
+            const check = () => window.__streamDone404 ? resolve() : setTimeout(check, 0);
+            check();
+        });
+        observer.disconnect();
+        return {
+            historyFetches: window.__historyFetches404,
+            staircase: window.__staircase404,
+            text: chat.textContent,
+        };
+    }""", {"mirrorRows": mirror_rows, "currentRows": current_rows})
+    page.close()
+
+    assert state["historyFetches"] == 1
+    assert "server-140" in state["text"]
+    assert "mirror-40" not in state["text"]
+    assert state["staircase"] == 0
+
+
+def test_fresh_mirror_is_used_without_history_request(
+    dashboard_browser: Browser,
+):
+    page = _open_store_freshness_page(dashboard_browser)
+    mirror_rows = _store_freshness_rows("mirror", 1, 40)
+    state = page.evaluate("""async ({mirrorRows}) => {
+        window.__historyFetches404 = 0;
+        window.__sseAfter404 = null;
+        _storeSessionId = async () => 'fe-orch-id';
+        _storeRead = async () => mirrorRows;
+        _storeWatermark = async () => mirrorRows[mirrorRows.length - 1].id;
+        _fetchHistory = async () => {
+            window.__historyFetches404++;
+            return [];
+        };
+        window.EventSource = class FreshMirrorEventSource404 {
+            constructor(url) {
+                window.__sseAfter404 = Number(new URL(url, location.href).searchParams.get('after_id'));
+                this.readyState = 1;
+            }
+            close() { this.readyState = 2; }
+        };
+        await _showChatFor('fe-orch', '/tmp/fe-scope');
+        return {
+            historyFetches: window.__historyFetches404,
+            sseAfter: window.__sseAfter404,
+            text: document.querySelector('#chat').textContent,
+        };
+    }""", {"mirrorRows": mirror_rows})
+    page.close()
+
+    assert state["historyFetches"] == 0
+    assert state["sseAfter"] == 40
+    assert "mirror-1" in state["text"]
+    assert "mirror-40" in state["text"]
+    assert "server-" not in state["text"]
+
+
+def test_mirror_freshness_threshold_accepts_gap_twenty_rejects_twenty_one(
+    dashboard_browser: Browser,
+):
+    page = _open_store_freshness_page(dashboard_browser)
+    mirror_rows = _store_freshness_rows("mirror", 1, 40)
+    state = page.evaluate("""async ({mirrorRows}) => {
+        window.__historyFetches404 = 0;
+        window.__serverTop404 = 60;
+        _storeSessionId = async () => 'fe-orch-id';
+        _storeRead = async () => mirrorRows;
+        _storeWatermark = async () => window.__serverTop404;
+        _fetchHistory = async () => {
+            window.__historyFetches404++;
+            return mirrorRows;
+        };
+        window.EventSource = class ThresholdEventSource404 {
+            constructor() { this.readyState = 1; }
+            close() { this.readyState = 2; }
+        };
+        await _showChatFor('fe-orch', '/tmp/fe-scope');
+        window.__serverTop404 = 61;
+        await _showChatFor('fe-orch', '/tmp/fe-scope');
+        return window.__historyFetches404;
+    }""", {"mirrorRows": mirror_rows})
+    page.close()
+
+    assert state == 1
+
+
+def test_store_watermark_is_scoped_to_session_in_real_indexeddb(
+    dashboard_browser: Browser,
+):
+    context = dashboard_browser.new_context()
+    page = context.new_page()
+    origin = _dashboard_base()
+    _route_frontend_sources(page)
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof _storeWatermark === 'function'")
+    page.evaluate("() => _pollStop('store')")
+    page.wait_for_function("() => !_pollInFlight.has('store') && !_pollTimers.has('store')")
+    state = page.evaluate("""async () => {
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        const db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open('orchestra', 1);
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                const logs = db.createObjectStore('logs', {keyPath: 'id'});
+                logs.createIndex('by_session', 'session_id');
+                db.createObjectStore('meta');
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        _storeOff = false;
+        _storeDb = db;
+        _storeReady = Promise.resolve(db);
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction('meta', 'readwrite');
+            const meta = tx.objectStore('meta');
+            meta.clear();
+            meta.put(2, 'schema_epoch');
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+        });
+        let syncUrl = '';
+        const oldFetch = window.fetch;
+        window.fetch = async url => {
+            syncUrl = String(url);
+            return new Response(JSON.stringify({logs: [], max_log_id: 0, live_sessions: []}), {
+                status: 200,
+                headers: {'content-type': 'application/json'},
+            });
+        };
+        const syncResult = await _storeSync();
+        window.fetch = oldFetch;
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction('meta', 'readwrite');
+            const meta = tx.objectStore('meta');
+            meta.put(140, 'watermark');
+            meta.put({'session-a': 40, 'session-b': 140}, 'session_watermarks');
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+        });
+        return {
+            syncResult,
+            syncUrl,
+            sessionA: await _storeWatermark('session-a'),
+            sessionB: await _storeWatermark('session-b'),
+        };
+    }""")
+    context.close()
+
+    assert state == {
+        "syncResult": 0,
+        "syncUrl": "/api/logs/sync?after_id=0&tail=0&cap=16384",
+        "sessionA": 40,
+        "sessionB": 140,
+    }
 
 
 def test_chat_expanding_one_message_keeps_neighbor_state(

@@ -762,6 +762,9 @@ const _CHAT_MIRROR_DEADLINE = 250;  // сколько ждём IndexedDB, пре
 // Замер 21.08: у редко открываемого агента зеркало отдавало 16 узлов — формально
 // «попадание», фактически пустой экран.
 const _CHAT_MIN_FROM_STORE = 40;
+// Если известный серверный верх ушёл дальше этого экранного хвоста, старый mirror
+// нельзя показывать даже на один кадр: SSE иначе достроит его строками снизу.
+const _CHAT_MIRROR_MAX_GAP = 20;
 // Потолок на СУММАРНЫЙ content ответа (db.py:1741). 16 000 Б выбирались под старую схему,
 // где страница набиралась четырьмя порциями и каждая должна была влезть под порог, на
 // котором посредник у юзера рвал ответ (~19 КБ по проводу, #70/#72). Теперь запрос ровно
@@ -906,13 +909,20 @@ async function _storeReset(why) {
 async function _storeSync() {
     const db = await _storeOpen();
     if (!db) return null;
-    let watermark = 0, knownSessions = '';
+    let watermark = 0, knownSessions = '', sessionWatermarks = {};
     try {
-        [watermark, knownSessions] = await _storeTx('readonly', ['meta'], (tx) => {
+        [watermark, knownSessions, sessionWatermarks] = await _storeTx('readonly', ['meta'], (tx) => {
             const m = tx.objectStore('meta');
-            const w = m.get('watermark'), s = m.get('sessions');
-            return new Promise((res) => { s.onsuccess = () => res([w.result || 0, s.result || '']); });
+            const read = (key) => new Promise((resolve) => {
+                const request = m.get(key);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => resolve(null);
+            });
+            return Promise.all([read('watermark'), read('sessions'), read('session_watermarks')]);
         });
+        watermark = Number.isFinite(watermark) ? watermark : 0;
+        knownSessions = typeof knownSessions === 'string' ? knownSessions : '';
+        sessionWatermarks = sessionWatermarks && typeof sessionWatermarks === 'object' ? sessionWatermarks : null;
     } catch (e) { _storeDisable('не читается watermark', e); return null; }
 
     const url = `/api/logs/sync?after_id=${watermark}&tail=${_STORE_TAIL}&cap=${_STORE_CAP}`;
@@ -944,6 +954,7 @@ async function _storeSync() {
     const liveKey = Array.isArray(live) ? live.map(s => s.id).sort().join(',') : '';
     const needPrune = Array.isArray(live) && live.length > 0 && liveKey !== knownSessions;
     try {
+        let mirrorReset = false;
         await _storeTx('readwrite', ['logs', 'meta'], (tx) => {
             const logs = tx.objectStore('logs');
             // Откатили или подменили БД: наша отметка выше, чем всё, что есть на сервере.
@@ -952,8 +963,17 @@ async function _storeSync() {
                 console.warn(`[store] watermark ${watermark} > max_log_id ${data.max_log_id} — БД подменили, стираю зеркало`);
                 logs.clear();
                 watermark = 0;
+                sessionWatermarks = {};
+                mirrorReset = true;
             }
-            for (const row of data.logs) logs.put(_storeRecord(row));
+            for (const row of data.logs) {
+                logs.put(_storeRecord(row));
+                if (row.session_id && Number.isFinite(row.id)) {
+                    sessionWatermarks[row.session_id] = Math.max(
+                        Number(sessionWatermarks[row.session_id]) || 0, row.id,
+                    );
+                }
+            }
             // Пустой список — это сбой на той стороне, а не «сессий не осталось».
             // Чистка необратима, поэтому по пустому списку не чистим никогда.
             if (needPrune) {
@@ -969,6 +989,36 @@ async function _storeSync() {
             const meta = tx.objectStore('meta');
             const top = data.logs.length ? data.logs[data.logs.length - 1].id : watermark;
             meta.put(Math.max(top, watermark, 0), 'watermark');
+            const marker = meta.get('session_watermarks');
+            marker.onsuccess = () => {
+                const merged = mirrorReset ? {} : (
+                    marker.result && typeof marker.result === 'object' ? marker.result : {}
+                );
+                const saveMarkers = () => {
+                    if (!mirrorReset && sessionWatermarks) {
+                        for (const [sessionId, value] of Object.entries(sessionWatermarks)) {
+                            merged[sessionId] = Math.max(Number(merged[sessionId]) || 0, value);
+                        }
+                    }
+                    meta.put(merged, 'session_watermarks');
+                };
+                if (!mirrorReset && !sessionWatermarks) {
+                    // Schema 2 mirrors predate the per-session marker map. Build it from
+                    // rows during this already-open sync transaction, once.
+                    const cursor = logs.index('by_session').openCursor();
+                    cursor.onsuccess = () => {
+                        const current = cursor.result;
+                        if (!current) return saveMarkers();
+                        const row = current.value;
+                        if (row.session_id && Number.isFinite(row.id)) {
+                            merged[row.session_id] = Math.max(
+                                Number(merged[row.session_id]) || 0, row.id,
+                            );
+                        }
+                        current.continue();
+                    };
+                } else saveMarkers();
+            };
             if (needPrune) meta.put(liveKey, 'sessions');
             // Карту имя+scope → id кладём В хранилище: после F5 она понадобится ДО того,
             // как вернётся первый /api/sessions, иначе читать журнал будет нечем.
@@ -1023,6 +1073,25 @@ async function _storeRead(sessionId, limit) {
         }
         return rows;
     } catch (e) { _storeDisable('не читается IndexedDB', e); return []; }
+}
+
+async function _storeWatermark(sessionId) {
+    const db = await _storeOpen();
+    if (!db) return null;
+    try {
+        return await _storeTx('readonly', ['meta'], (tx) => {
+            const request = tx.objectStore('meta').get(sessionId ? 'session_watermarks' : 'watermark');
+            return new Promise((resolve) => {
+                request.onsuccess = () => {
+                    const value = sessionId ? request.result?.[sessionId] : request.result;
+                    resolve(Number.isFinite(value) ? value : null);
+                };
+            });
+        });
+    } catch (e) {
+        _storeDisable('не читается серверный watermark', e);
+        return null;
+    }
 }
 
 function initStoreSync() {
@@ -2619,8 +2688,9 @@ async function _storePut(rows) {
     const db = await _storeOpen();
     if (!db || !rows || !rows.length) return;
     try {
-        await _storeTx('readwrite', ['logs'], (tx) => {
+        await _storeTx('readwrite', ['logs', 'meta'], (tx) => {
             const logs = tx.objectStore('logs');
+            const meta = tx.objectStore('meta');
             const touched = new Set();
             for (const row of rows) {
                 if (!Number.isFinite(row.id)) continue;
@@ -2628,6 +2698,19 @@ async function _storePut(rows) {
                 if (row.session_id) touched.add(row.session_id);
             }
             for (const sessionId of touched) _trimSessionMirror(logs, sessionId);
+            const marker = meta.get('session_watermarks');
+            marker.onsuccess = () => {
+                const sessionWatermarks = marker.result && typeof marker.result === 'object'
+                    ? marker.result : {};
+                for (const row of rows) {
+                    if (row.session_id && Number.isFinite(row.id)) {
+                        sessionWatermarks[row.session_id] = Math.max(
+                            Number(sessionWatermarks[row.session_id]) || 0, row.id,
+                        );
+                    }
+                }
+                meta.put(sessionWatermarks, 'session_watermarks');
+            };
         });
     } catch (e) { _storeDisable('не пишется в IndexedDB', e); }
 }
@@ -2675,7 +2758,12 @@ async function _showChatFor(name, scope) {
         // за 10–20 мс. Поэтому ждём зеркало ограниченно и уходим в сеть, не дожидаясь.
         const mirror = (async () => {
             const id = await _storeSessionId(scope, name);
-            return {id, rows: id ? await _storeRead(id, _CHAT_PAGE) : []};
+            if (!id) return {id: null, rows: [], watermark: null};
+            const [rows, watermark] = await Promise.all([
+                _storeRead(id, _CHAT_PAGE),
+                _storeWatermark(id),
+            ]);
+            return {id, rows, watermark};
         })();
         const hit = await Promise.race([
             mirror,
@@ -2693,7 +2781,13 @@ async function _showChatFor(name, scope) {
         // поэтому при скудном зеркале берём страницу сетью: ОДНИМ запросом и ВМЕСТО зеркала,
         // а не в дополнение. Два источника подряд — ровно та достройка на живом экране,
         // ради устранения которой всё и затевалось.
-        const fromStore = rows.length >= _CHAT_MIN_FROM_STORE;
+        const mirrorTop = rows.length ? Number(rows[rows.length - 1].id) : 0;
+        const serverTop = hit ? hit.watermark : null;
+        const mirrorGap = Number.isFinite(serverTop) ? serverTop - mirrorTop : Infinity;
+        const fromStore = rows.length >= _CHAT_MIN_FROM_STORE
+            && Number.isFinite(serverTop)
+            && mirrorGap >= 0
+            && mirrorGap <= _CHAT_MIRROR_MAX_GAP;
         if (!fromStore) rows = await _fetchHistory(name, scope);
         // ДОБОРА ПРИ ОТКРЫТИИ НЕТ. Показываем ровно то, что дал ОДИН источник: зеркало или,
         // при промахе, один запрос за страницей. Прежний добор до ровных ста строк стоил трёх
