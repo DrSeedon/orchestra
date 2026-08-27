@@ -6,6 +6,7 @@ Pure-logic tests (chunkers, _classify_log, _rrf, file_change_target) run WITHOUT
 Embed-dependent tests are marked `@pytest.mark.rag` and skip when fastembed/model unavailable.
 """
 
+import asyncio
 import sqlite3
 import os
 import subprocess
@@ -16,6 +17,36 @@ from pathlib import Path
 import pytest
 
 from app import rag
+
+
+@pytest.mark.asyncio
+async def test_background_backfill_trims_native_heap(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    trimmed = []
+
+    class FakeRag:
+        def backfill_files(self):
+            return 1
+
+        def pending_files(self):
+            return 0
+
+    executor = ThreadPoolExecutor(max_workers=1)
+    monkeypatch.setattr(rag, "_executor", executor)
+    monkeypatch.setattr(rag, "get_rag", lambda: FakeRag())
+    monkeypatch.setattr(
+        "app.native_memory.trim_native_heap",
+        lambda reason: trimmed.append(reason) or True,
+    )
+    try:
+        loop = asyncio.get_running_loop()
+        assert await rag.run(loop, "backfill_files") == 1
+        assert await rag.run(loop, "pending_files") == 0
+    finally:
+        executor.shutdown(wait=True)
+
+    assert trimmed == ["rag:backfill_files"]
 
 
 def test_background_onnx_default_is_single_thread():
