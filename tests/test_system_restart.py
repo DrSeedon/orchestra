@@ -30,6 +30,49 @@ def _restore_drain_gate():
 
 
 @pytest.mark.asyncio
+async def test_stop_worker_bypasses_restart_admission_gate():
+    """An operator must retain the stop lever while restart admission is closed."""
+    import httpx
+    from starlette.applications import Starlette
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+
+    from app import main as app_main
+
+    reached = []
+
+    async def stop(_request):
+        reached.append(("stop", app_main.inflight_mutating_count()))
+        return JSONResponse({"ok": True})
+
+    async def send(_request):
+        reached.append(("send", app_main.inflight_mutating_count()))
+        return JSONResponse({"ok": True})
+
+    probe = Starlette(routes=[
+        Route("/api/sessions/stuck/stop", stop, methods=["POST"]),
+        Route("/api/sessions/stuck/send", send, methods=["POST"]),
+    ])
+    probe.add_middleware(app_main.RequestCensusMiddleware)
+    transport = httpx.ASGITransport(app=probe)
+
+    async with httpx.AsyncClient(transport=transport, base_url="http://probe") as client:
+        app_main.close_mutating_admission()
+        try:
+            stopped = await client.post("/api/sessions/stuck/stop", json={})
+            refused = await client.post("/api/sessions/stuck/send", json={})
+        finally:
+            app_main.open_mutating_admission()
+
+    assert stopped.status_code == 200
+    assert reached == [("stop", 0)], (
+        "stop must execute outside the mutating census while an ordinary send stays gated"
+    )
+    assert refused.status_code == 503
+    assert refused.json()["error"]["code"] == "restart_pending"
+
+
+@pytest.mark.asyncio
 async def test_restart_endpoint_returns_preparation_then_defers_signal(monkeypatch):
     from app.routes import system
 
