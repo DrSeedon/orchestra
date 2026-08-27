@@ -150,6 +150,136 @@ async function _loadToolResultImage(img, origPath, inlineSrc, payload) {
     return _restoreToolResultImage(img, payload);
 }
 
+const SEND_FILES_VISIBLE_LIMIT = 8;
+
+function _sendFileName(path) {
+    return String(path || '').split('/').pop() || '?';
+}
+
+function _sendFileRawUrl(path, download = false) {
+    return `/api/files/raw?path=${encodeURIComponent(path)}${download ? '&download=1' : ''}`;
+}
+
+function _downloadSendFile(path) {
+    const link = document.createElement('a');
+    link.href = _sendFileRawUrl(path, true);
+    link.download = _sendFileName(path);
+    link.target = '_blank';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+}
+
+function _sendFileButton(label, onClick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.style.cssText = 'padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:#a5b4fc;cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
+    button.onmouseenter = () => { button.style.borderColor = 'rgba(99,102,241,0.6)'; button.style.color = '#c7d2fe'; };
+    button.onmouseleave = () => { button.style.borderColor = 'rgba(99,102,241,0.3)'; button.style.color = '#a5b4fc'; };
+    button.onclick = onClick;
+    return button;
+}
+
+function _sendFilePaths(node) {
+    try {
+        const paths = JSON.parse(node?.dataset.filePaths || '[]');
+        return Array.isArray(paths) ? paths.filter(path => typeof path === 'string' && path) : [];
+    } catch {
+        return [];
+    }
+}
+
+function renderSendFilesToolCard(node, paths, {downloads = false} = {}) {
+    if (!node || !Array.isArray(paths)) return;
+    const list = document.createElement('div');
+    list.className = 'sf-file-list';
+    list.style.cssText = 'display:flex;flex-direction:column;gap:5px;margin-top:5px';
+    const rows = [];
+    paths.forEach((path, index) => {
+        const row = document.createElement('div');
+        row.className = 'sf-file-item';
+        row.style.cssText = 'display:flex;align-items:flex-start;gap:7px;flex-wrap:wrap;padding:3px 0';
+        if (index >= SEND_FILES_VISIBLE_LIMIT) row.style.display = 'none';
+
+        if (downloads && /\.(png|jpe?g|gif|webp|svg)$/i.test(path)) {
+            const rawUrl = `${_sendFileRawUrl(path)}&t=${Date.now()}`;
+            const img = document.createElement('img');
+            img.className = 'sf-thumb';
+            img.src = rawUrl;
+            img.loading = 'lazy';
+            img.alt = _sendFileName(path);
+            img.style.cssText = 'display:block;width:44px;height:44px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid rgba(99,102,241,0.2)';
+            img.addEventListener('click', () => openImageLightbox(rawUrl));
+            img.onerror = () => img.remove();
+            row.appendChild(img);
+        }
+
+        const details = document.createElement('div');
+        details.style.cssText = 'min-width:0;flex:1;overflow:hidden';
+        const name = document.createElement('div');
+        name.textContent = _sendFileName(path);
+        name.style.cssText = 'font-size:11px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        name.title = path;
+        const pathEl = document.createElement('div');
+        pathEl.textContent = path;
+        pathEl.title = path;
+        pathEl.style.cssText = 'font-size:10px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        details.append(name, pathEl);
+        row.appendChild(details);
+        if (downloads) row.appendChild(_sendFileButton('📥 Download', () => _downloadSendFile(path)));
+        list.appendChild(row);
+        rows.push(row);
+    });
+
+    if (paths.length > SEND_FILES_VISIBLE_LIMIT) {
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'sf-list-toggle';
+        toggle.textContent = `▼ Show all ${paths.length} files`;
+        toggle.style.cssText = 'align-self:flex-start;padding:2px 8px;font-size:11px;border:0;background:transparent;color:#a5b4fc;cursor:pointer';
+        let expanded = false;
+        toggle.onclick = () => {
+            expanded = !expanded;
+            rows.slice(SEND_FILES_VISIBLE_LIMIT).forEach(row => { row.style.display = expanded ? 'flex' : 'none'; });
+            toggle.textContent = expanded ? '▲ Show fewer files' : `▼ Show all ${paths.length} files`;
+        };
+        list.appendChild(toggle);
+    }
+    node.appendChild(list);
+    if (downloads) {
+        const actions = document.createElement('div');
+        actions.className = 'sf-actions';
+        actions.style.cssText = 'margin-top:4px;display:flex;gap:6px;flex-wrap:wrap';
+        actions.appendChild(_sendFileButton('📥 Download all / Скачать все', () => paths.forEach(_downloadSendFile)));
+        node.appendChild(actions);
+    }
+}
+
+function _sendFilesResultInfo(content, fallbackCount = 0) {
+    let parsed = null;
+    try { parsed = JSON.parse(content); } catch {}
+    const body = parsed && typeof parsed === 'object' && parsed.result !== undefined ? parsed.result : parsed;
+    const text = typeof body === 'string' ? body : content;
+    const hasError = Boolean(parsed && typeof parsed === 'object' && (parsed.error || parsed.ok === false))
+        || /\b(error|failed|rejected|unknown)\b/i.test(text || '');
+    let count = null;
+    if (body && typeof body === 'object') {
+        if (Array.isArray(body.files)) count = body.files.length;
+        else for (const key of ['accepted_count', 'accepted', 'count']) {
+            if (typeof body[key] !== 'boolean' && Number.isFinite(Number(body[key]))) {
+                count = Number(body[key]);
+                break;
+            }
+        }
+    }
+    const countMatch = String(text || '').match(/(\d+)\s+(?:files?|файл(?:а|ов)?)\b/i);
+    if (count === null && countMatch) count = Number(countMatch[1]);
+    if (count === null) count = hasError ? 0 : fallbackCount;
+    return {hasError, count: Math.max(0, count)};
+}
+
 function _attachTruncNotice(node, row, type, ts) {
     const shown = new TextEncoder().encode(row.content || '').length;
     const notice = document.createElement('div');
@@ -4177,6 +4307,10 @@ function buildCompactToolLine(type, content, ts, payload) {
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
             else if (rawName === 'mcp__orchestra__send_file') preview = `📎 ${(parsed.path || '').split('/').pop() || '?'}`;
+            else if (rawName === 'mcp__orchestra__send_files') {
+                const paths = Array.isArray(parsed.paths) ? parsed.paths : [];
+                preview = `📎 ${paths.length} files`;
+            }
             else if (rawName === 'mcp__orchestra__kill_worker') preview = `💀 Kill: ${parsed.name || '?'}`;
             else if (rawName === 'mcp__orchestra__stop_worker') preview = `⏸️ Stop: ${parsed.name || '?'}`;
             else if (rawName === 'mcp__orchestra__get_worker_logs') preview = `📋 Logs: ${parsed.name || '?'} (${parsed.limit || 20})`;
@@ -4872,6 +5006,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 const isToolSearch = rawName === 'ToolSearch';
                 const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
                 const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
+                const isSendFilesCompact = rawName === 'mcp__orchestra__send_files';
         const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__send_message','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__get_worker_logs','mcp__orchestra__get_worker_info','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel'].includes(rawName);
                 const isGlobCompact = rawName === 'Glob';
                 const isSkillCompact = rawName === 'Skill';
@@ -4911,6 +5046,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     }
                 } else if (resultSpan && isSendFileCompact) {
                     resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
+                } else if (resultSpan && isSendFilesCompact) {
+                    const info = _sendFilesResultInfo(content);
+                    resultSpan.textContent = info.hasError ? '❌' : `✅ ${info.count} sent`;
                 } else if (resultSpan && isOrchSimpleCompact) {
                     const hasErr = clean.includes('error') || clean.includes('Error') || clean.includes('fail') || clean.includes('Fail');
                     if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__bg_create'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
@@ -5546,6 +5684,24 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 }
             } catch {}
         }
+        const isSendFiles = rawName === 'mcp__orchestra__send_files';
+        if (isSendFiles) {
+            try {
+                const d = JSON.parse(body);
+                const paths = Array.isArray(d.paths) ? d.paths.filter(path => typeof path === 'string' && path) : [];
+                div.dataset.filePaths = JSON.stringify(paths);
+                header.textContent = `📎 Sending ${paths.length} files`;
+                header.style.color = '#22c55e';
+                if (d.caption) {
+                    const capEl = document.createElement('div');
+                    capEl.className = 'text-xs';
+                    capEl.style.cssText = 'margin-top:2px;color:#cbd5e1';
+                    capEl.textContent = d.caption;
+                    div.appendChild(capEl);
+                }
+                renderSendFilesToolCard(div, paths);
+            } catch {}
+        }
         const _orchSimple = {
             'mcp__orchestra__kill_worker': (d) => ({ icon: '💀', label: `Kill: ${d.name||'?'}`, color: '#ef4444' }),
             'mcp__orchestra__stop_worker': (d) => ({ icon: '⏸️', label: `Stop: ${d.name||'?'}`, color: '#eab308' }),
@@ -5875,7 +6031,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         } else if (!isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
                    !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
                    !isToolSearchCall && !isBugReport && !isWebFetch &&
-                   !isSendFile && !isOrchSimple && !isGlob && !isSkill &&
+                   !isSendFile && !isSendFiles && !isOrchSimple && !isGlob && !isSkill &&
                    !isFileChangeTool && !isViewImageTool &&
                    !isImageGenerationTool && !isSleepTool && !isTodoWrite && !isReviewTool) {
             let _inputJsonRendered = false;
@@ -6037,6 +6193,19 @@ function addChatEntry(type, content, ts, anchor, payload) {
             errDiv.className = 'px-3 py-2 rounded-lg text-xs text-red-400 bg-red-950/30 border border-red-900/50';
             errDiv.textContent = '⚠️ ' + errMsg;
             if (lastTool) {
+                if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_files') {
+                    const hdr = lastTool.querySelector('.flex.items-center');
+                    if (hdr) {
+                        hdr.textContent = `❌ Send failed · 0 files accepted`;
+                        hdr.style.color = '#ef4444';
+                    }
+                } else if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_file') {
+                    const hdr = lastTool.querySelector('.flex.items-center');
+                    if (hdr) {
+                        hdr.textContent = '❌ Send failed';
+                        hdr.style.color = '#ef4444';
+                    }
+                }
                 completeCodexToolCard(lastTool, false);
                 delete lastTool.dataset.lastTool;
                 const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
@@ -6148,6 +6317,23 @@ function addChatEntry(type, content, ts, anchor, payload) {
                         }));
                     }
                     lastTool.appendChild(btnRow);
+                }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_files') {
+                const paths = _sendFilePaths(lastTool);
+                const info = _sendFilesResultInfo(content, paths.length);
+                const hdr = lastTool.querySelector('.flex.items-center');
+                if (hdr) {
+                    hdr.textContent = info.hasError
+                        ? `❌ Send failed · ${info.count} files accepted`
+                        : `✅ Sent to TG · ${info.count} files accepted`;
+                    hdr.style.color = info.hasError ? '#ef4444' : '#22c55e';
+                }
+                if (!info.hasError && paths.length) {
+                    lastTool.querySelectorAll('.sf-file-list, .sf-actions').forEach(el => el.remove());
+                    renderSendFilesToolCard(lastTool, paths, {downloads: true});
                 }
                 addTimestamp(lastTool, ts);
                 return;
