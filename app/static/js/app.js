@@ -1802,12 +1802,34 @@ async function restartServer() {
     const btn = $('#restart-btn');
     btn.disabled = true; btn.textContent = '⏳';
     try {
-        await api('/api/restart', { method: 'POST' });
-    } catch {}
+        const result = await api('/api/restart', { method: 'POST', timeoutMs: 200000 });
+        if (result.journal_loss) {
+            _showRestartAttemptNotice(
+                `Рестарт состоится, но журнал потерян: ${result.journal_loss.reason || 'причина не указана'}`,
+                true,
+            );
+        } else {
+            const waited = Number(result.waited_s || 0).toFixed(1);
+            _showRestartAttemptNotice(`Рестарт подготовлен за ${waited} с`, false);
+        }
+    } catch (error) {
+        _showRestartAttemptNotice(`Рестарт не состоялся: ${error.message || error}`, true);
+        btn.disabled = false;
+        btn.textContent = '⟳';
+    }
     // Перезагрузки здесь больше нет: она стояла на 3 с, а старт сервиса занимает 4.3-13.9 с
     // (замер по journalctl, docs/tasks/15/research.md) — то есть страница почти всегда
     // перезагружалась в мёртвый сервер и юзер получал 502 от nginx вместо дашборда.
     // Возврат ловит heartbeat и восстанавливает состояние на месте.
+}
+
+function _showRestartAttemptNotice(message, failed) {
+    const row = _noticeRow('restart');
+    row.className = 'flex items-center justify-center gap-2 px-4 py-1 text-xs border-b '
+        + (failed
+            ? 'bg-red-500/10 border-red-500/30 text-red-200'
+            : 'bg-amber-500/10 border-amber-500/30 text-amber-200');
+    row.textContent = `${failed ? '⚠' : '⟳'} ${message}`;
 }
 
 
@@ -7556,6 +7578,8 @@ async function _recoverAfterOutage() {
     try {
         _dismissRebootOverlay();
         _setRestartPending(false);   // перезапуск состоялся и кончился — пауза больше не нужна
+        const restartBtn = $('#restart-btn');
+        if (restartBtn) { restartBtn.disabled = false; restartBtn.textContent = '⟳'; }
         // Неподтверждённое серверу выбрасываем: рестарт мог потерять ход, и какой пузырь
         // чей — надёжно не определить. Перезагрузка делала это молча, теперь делаем явно.
         localMessages.clear();
@@ -7676,6 +7700,14 @@ async function _heartbeatProbe() {
         else if (_restartPending && Date.now() - _restartPendingSince > _RESTART_PENDING_MAX_MS) {
             console.warn('[restart] перезапуск не наступил за 2 минуты — снимаю паузу');
             _setRestartPending(false);
+        }
+        const restartError = r.headers.get('X-Orchestra-Restart-Error');
+        if (restartError) {
+            let reason = restartError;
+            try { reason = decodeURIComponent(restartError); } catch {}
+            _showRestartAttemptNotice(`Рестарт не состоялся: ${reason}`, true);
+            const restartBtn = $('#restart-btn');
+            if (restartBtn) { restartBtn.disabled = false; restartBtn.textContent = '⟳'; }
         }
         if (r.status < 502) {
             _pollNoteSuccess('heartbeat');

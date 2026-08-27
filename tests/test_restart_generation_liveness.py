@@ -553,7 +553,7 @@ async def test_t1_production_path_arms_guard_only_after_handoff_and_durable_stat
 
 
 @pytest.mark.asyncio
-async def test_t1_durable_state_timeout_aborts_before_guard_and_names_phase(
+async def test_t1_durable_state_timeout_still_restarts_and_reports_journal_loss(
     monkeypatch,
     caplog,
 ):
@@ -591,8 +591,14 @@ async def test_t1_durable_state_timeout_aborts_before_guard_and_names_phase(
 
     result = await system._restart_service_after_response()
 
-    assert result["ok"] is False
-    assert armed == [] and signalled == []
+    assert result["ok"] is True
+    assert armed == [True] and signalled == [True]
+    assert result["journal_loss"] == {
+        "ok": False,
+        "phase": "session_db",
+        "task_class": "AgentSession._drain_handoff_log_writes",
+        "reason": "deadline exceeded",
+    }
     assert system.manager.draining is False
     assert app_main.mutating_admission_verdict(
         "POST", "/api/sessions/worker/send",
@@ -601,6 +607,67 @@ async def test_t1_durable_state_timeout_aborts_before_guard_and_names_phase(
     assert f"pid={os.getpid()}" in message
     assert "phase=session_db" in message
     assert "task_class=AgentSession._drain_handoff_log_writes" in message
+
+
+@pytest.mark.asyncio
+async def test_t1_locked_log_write_is_retried_before_reporting_success(monkeypatch):
+    import sqlite3
+
+    from app.session import AgentSession
+
+    calls: list[str] = []
+
+    def locked_once(*_args, **_kwargs):
+        calls.append("write")
+        if len(calls) == 1:
+            raise sqlite3.OperationalError("database is locked")
+        return 1
+
+    monkeypatch.setattr("app.session.add_log", locked_once)
+    session = AgentSession(
+        id="locked-log", name="locked-log", scope="/repo", cwd="/repo",
+        model="gpt-5.6-sol", role="worker", pipeline="default",
+    )
+    session._log("status", "persist me")
+
+    result = await session._drain_handoff_log_writes()
+
+    assert calls == ["write", "write"], "database lock gets one bounded retry"
+    assert result == {"ok": True, "retried_log_writes": 1}
+
+
+@pytest.mark.asyncio
+async def test_t1_restart_response_contains_current_journal_loss(monkeypatch):
+    from app.routes import system
+
+    loss = {
+        "ok": False,
+        "phase": "session_db",
+        "task_class": "AgentSession._drain_handoff_log_writes",
+        "reason": "OperationalError: database is locked",
+    }
+    monkeypatch.setattr(
+        system, "restart_preflight", AsyncMock(return_value={"ok": True}),
+    )
+    monkeypatch.setattr(
+        system,
+        "_restart_service_after_response",
+        AsyncMock(return_value={
+            "ok": True,
+            "prepared": True,
+            "journal_loss": loss,
+            "cut_turns": 0,
+            "cut_names": [],
+            "cut_ids": [],
+        }),
+    )
+    monkeypatch.setattr(system, "_signal_restart_after_response", AsyncMock(), raising=False)
+
+    response = await system.restart_server()
+
+    assert response["scheduled"] is True
+    assert response["journal_loss"] == loss
+    system._restart_service_after_response.assert_awaited_once_with(signal=False)
 
 
 @pytest.mark.asyncio
@@ -651,6 +718,31 @@ async def test_t1_real_durable_barrier_enforces_budget_and_failure_identity(monk
         "task_class": "AgentSession._drain_handoff_log_writes",
         "reason": "TimeoutError: deadline exceeded after 0.01s",
     }
+
+
+@pytest.mark.asyncio
+async def test_t1_real_durable_barrier_names_persistent_log_loss(monkeypatch):
+    from app.routes import system
+
+    monkeypatch.setattr(
+        system.manager,
+        "drain_restart_persistence",
+        AsyncMock(return_value={
+            "ok": False,
+            "drained": 1,
+            "losses": [{
+                "session_id": "locked",
+                "session_name": "locked",
+                "reason": "RuntimeError: OperationalError: database is locked",
+            }],
+        }),
+    )
+
+    result = await system._drain_restart_durable_state()
+
+    assert result["phase"] == "session_db"
+    assert result["task_class"] == "AgentSession._drain_handoff_log_writes"
+    assert "database is locked" in result["reason"]
 
 
 @pytest.mark.asyncio

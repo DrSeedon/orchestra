@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import shutil
+import sqlite3
 import time
 import uuid
 from dataclasses import dataclass, field, replace
@@ -75,6 +76,16 @@ from app.errtext import err_text
 
 
 logger = logging.getLogger(__name__)
+
+_HANDOFF_LOG_RETRY_BUDGET_S = 6.0
+
+
+def _is_locked_database_error(error: BaseException) -> bool:
+    return (
+        isinstance(error, sqlite3.OperationalError)
+        and "locked" in str(error).lower()
+    )
+
 
 _HANDOFF_STAGING_ROOT = (
     Path(__file__).parent.parent / "data" / "runtime-handoff-staging"
@@ -441,6 +452,9 @@ class AgentSession:
     _log_write_generation: int = field(default=0, repr=False)
     _log_write_failure_generation: int = field(default=0, repr=False)
     _log_write_failure: str = field(default="", repr=False)
+    _failed_log_writes: dict[int, tuple[Callable | None, str]] = field(
+        default_factory=dict, repr=False,
+    )
     _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
@@ -1589,14 +1603,48 @@ class AgentSession:
             ),
         )
 
-    async def _drain_handoff_log_writes(self) -> None:
+    async def _drain_handoff_log_writes(self) -> dict:
         await self._drain_persist()
         while self._log_futures:
             await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
+        retried = 0
+        deadline = time.monotonic() + _HANDOFF_LOG_RETRY_BUDGET_S
+        for generation, (operation, previous_failure) in tuple(
+            self._failed_log_writes.items()
+        ):
+            if operation is None:
+                continue
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            future = asyncio.get_running_loop().run_in_executor(_db_executor(), operation)
+            try:
+                await asyncio.wait_for(asyncio.shield(future), timeout=remaining)
+            except TimeoutError:
+                self._failed_log_writes[generation] = (
+                    None,
+                    f"retry deadline exceeded after {_HANDOFF_LOG_RETRY_BUDGET_S}s; "
+                    f"previous failure: {previous_failure}",
+                )
+            except Exception as error:
+                self._failed_log_writes[generation] = (None, err_text(error))
+            else:
+                retried += 1
+                self._failed_log_writes.pop(generation, None)
+        if self._failed_log_writes:
+            generation = max(self._failed_log_writes)
+            self._log_write_failure_generation = generation
+            self._log_write_failure = self._failed_log_writes[generation][1]
+        else:
+            self._log_write_failure_generation = 0
+            self._log_write_failure = ""
         if self._log_write_failure_generation:
             raise RuntimeError(
-                "handoff_log_persistence_failed: " + self._log_write_failure
+                "handoff_log_persistence_failed: "
+                f"{len(self._failed_log_writes) or 1} write(s) lost: "
+                + self._log_write_failure
             )
+        return {"ok": True, "retried_log_writes": retried}
 
     def _expected_handoff_capability(self, target_model: str) -> dict:
         backend = self._make_backend(
@@ -5017,6 +5065,10 @@ class AgentSession:
                 if generation >= self._log_write_failure_generation:
                     self._log_write_failure_generation = generation
                     self._log_write_failure = err_text(error)
+                self._failed_log_writes[generation] = (
+                    operation if _is_locked_database_error(error) else None,
+                    err_text(error),
+                )
                 # logs висят на sessions(id) ON DELETE CASCADE: у записи для мёртвой
                 # сессии нет дома by design, восстанавливать нечего. Но потеря обязана
                 # быть ВИДНОЙ — иначе следующий FK-сбой по другой причине (битая
