@@ -8,6 +8,20 @@ import pytest
 from app.runtime_history import CODEX_CLI_HISTORY_VERSION
 
 
+def test_codex_01501_state_signature_is_pinned_exactly():
+    from app.backend_codex import _CODEX_STATE_MIGRATIONS_BY_CLI
+
+    assert CODEX_CLI_HISTORY_VERSION == "0.150.1"
+    migrations = _CODEX_STATE_MIGRATIONS_BY_CLI[CODEX_CLI_HISTORY_VERSION]
+    assert migrations[-1] == (
+        51,
+        bytes.fromhex(
+            "23360a03a7fc307c3fd5bb8b432b66034dd8f8695cdba698"
+            "b45278c20dd712c1af476b884e192237d80baa08a5f29505"
+        ),
+    )
+
+
 def _state_db(
     path: Path,
     *,
