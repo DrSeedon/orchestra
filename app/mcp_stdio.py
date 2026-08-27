@@ -1176,6 +1176,24 @@ def _message_delivery_receipt_text(
     delivery_id = str(receipt["delivery_id"])
     state = str(receipt.get("delivery_state") or receipt.get("state") or "UNKNOWN")
     target = f" to '{to}'" if to else ""
+    if state == "DELIVERY_UNKNOWN":
+        error = receipt.get("error")
+        code = error.get("code") if isinstance(error, dict) else None
+        message = error.get("message") if isinstance(error, dict) else None
+        code = str(code or "DELIVERY_OUTCOME_UNKNOWN")
+        message = _safe_response_text(str(message or "Provider outcome is unknown"))
+        output = (
+            f"Message delivery outcome is unknown{target}; delivery_id={delivery_id}; "
+            f"code={code}: {message}.\n"
+            f"Check with message_delivery_status(delivery_id=\"{delivery_id}\") "
+            "before acting; if retrying, reuse the same delivery_id and never use a new id."
+        )
+        if parent_name and parent_name != WORKER_NAME:
+            output += (
+                f"\n⚠️ This worker belongs to '{parent_name}'. "
+                f"Consider messaging '{parent_name}' instead."
+            )
+        return output
     output = f"Message accepted{target}; delivery_id={delivery_id}; state={state}."
     if parent_name and parent_name != WORKER_NAME:
         output += (
