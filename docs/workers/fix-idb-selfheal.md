@@ -17,3 +17,5 @@
   painting; an epoch/schema check alone cannot detect compatible but stale content.
 - For multi-session mirrors, the freshness watermark must be keyed by session id; a global log max
   turns unrelated activity into false stale-page fetches.
+- For browser uploads that need progress, keep the immediate object-URL card and switch its link to
+  the server URL on completion; XHR `upload.progress` is the observable upload-side progress seam.

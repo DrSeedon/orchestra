@@ -33,6 +33,7 @@ from app.turn_markers import (
     is_silent_turn_text,
 )
 from app.transcription import transcribe_audio as _transcribe_audio
+from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
 
 logger = logging.getLogger("tg-bridge")
 logger.setLevel(logging.DEBUG)
@@ -2758,8 +2759,8 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
     file_size = fp.stat().st_size
     if file_size == 0:
         return {"error": f"file is empty (0 bytes): {path}"}
-    if file_size > 50 * 1024 * 1024:
-        return {"error": "file too large (max 50MB)"}
+    if file_size > MAX_UPLOAD_BYTES:
+        return {"error": f"file too large (max {MAX_UPLOAD_MB} MB)"}
     orch_name, thread_id = _resolve_topic(scope, sender)
     logger.info(f"send_file: path={path} size={file_size} scope={scope!r} sender={sender!r} orch={orch_name!r} group_id={config['group_id']} thread_id={thread_id}")
     if not thread_id:

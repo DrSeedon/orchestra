@@ -1156,6 +1156,108 @@ def _open_send_files_fixture_page(browser: Browser) -> Page:
     return page
 
 
+def test_document_upload_card_appears_immediately_and_reports_progress(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    page.add_init_script("""
+        window.__uploadProgress405 = [];
+        class UploadXHR405 {
+            constructor() {
+                this.upload = {addEventListener: (_type, callback) => { this._progress = callback; }};
+                this._listeners = {};
+            }
+            open(method, url) { this.method = method; this.url = url; }
+            addEventListener(type, callback) { this._listeners[type] = callback; }
+            send() {
+                this._progress?.({lengthComputable: true, loaded: 1024, total: 2048});
+                window.__uploadProgress405.push(50);
+                setTimeout(() => {
+                    this.status = 200;
+                    this.responseText = JSON.stringify({path: '/tmp/report.pdf', url: '/uploads/report.pdf'});
+                    this._listeners.load?.();
+                }, 20);
+            }
+        }
+        window.XMLHttpRequest = UploadXHR405;
+    """)
+    _route_frontend_sources(page)
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof _uploadToChat === 'function'")
+    state = page.evaluate("""async () => {
+        const file = new File(['x'.repeat(2048)], 'report.pdf', {type: 'application/pdf'});
+        const upload = _uploadToChat(file, file.name);
+        const card = document.querySelector('.upload-file-card');
+        const before = {
+            count: document.querySelectorAll('.upload-file-card').length,
+            name: card?.querySelector('.upload-file-name')?.textContent || '',
+            size: card?.textContent || '',
+            progress: card?.querySelector('.upload-progress')?.value || 0,
+            download: card?.querySelector('a')?.download || '',
+        };
+        await upload;
+        return {
+            before,
+            progressEvents: window.__uploadProgress405.length,
+            path: card?.dataset.filePath || '',
+            finalProgress: card?.querySelector('.upload-progress')?.value || 0,
+            input: document.querySelector('#chat-input').value,
+        };
+    }""")
+    page.close()
+
+    assert state["before"]["count"] == 1
+    assert state["before"]["name"] == "report.pdf"
+    assert "2 КБ" in state["before"]["size"]
+    assert state["before"]["download"] == "report.pdf"
+    assert state["before"]["progress"] == 50
+    assert state["progressEvents"] >= 1
+    assert state["path"] == "/tmp/report.pdf"
+    assert state["finalProgress"] == 100
+    assert state["input"] == "/tmp/report.pdf"
+
+
+def test_document_upload_card_cancels_xhr_without_inserting_path(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    page.add_init_script("""
+        window.__uploadAborted405 = false;
+        class PendingUploadXHR405 {
+            constructor() {
+                this.upload = {addEventListener: () => {}};
+                this._listeners = {};
+            }
+            open() {}
+            addEventListener(type, callback) { this._listeners[type] = callback; }
+            send() {}
+            abort() {
+                window.__uploadAborted405 = true;
+                this._listeners.abort?.();
+            }
+        }
+        window.XMLHttpRequest = PendingUploadXHR405;
+    """)
+    _route_frontend_sources(page)
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof _uploadToChat === 'function'")
+    state = page.evaluate("""async () => {
+        const file = new File(['x'], 'cancel.pdf', {type: 'application/pdf'});
+        const upload = _uploadToChat(file, file.name);
+        const card = document.querySelector('.upload-file-card');
+        card.querySelector('button').click();
+        await upload;
+        return {
+            cards: document.querySelectorAll('.upload-file-card').length,
+            input: document.querySelector('#chat-input').value,
+            aborted: window.__uploadAborted405,
+        };
+    }""")
+    page.close()
+
+    assert state == {"cards": 0, "input": "", "aborted": True}
+
+
 def _emit_send_files_result(page: Page, paths: list[str], result: str) -> None:
     page.evaluate(
         """({paths, result}) => {
