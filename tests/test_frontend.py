@@ -1872,8 +1872,7 @@ def test_restart_owns_one_status_and_suppresses_component_diagnoses(
         Connection.stale('sessions', Date.now() - 120000);
         _usageError = true;
         renderUsageBar();
-        _quotaLinesError = 'нет данных — quota-map request failed';
-        renderQuotaLines();
+        QuotaPanel.setErrorForTest('нет данных — quota-map request failed');
         return {
             bannerCount: document.querySelectorAll('#connection-banner:not(.hidden)').length,
             banner: document.querySelector('#connection-banner')?.textContent || '',
@@ -1910,7 +1909,7 @@ def test_connection_recovery_refreshes_every_visible_data_surface(
         loadModels = async () => { hit('models'); };
         refreshOpenFolders = async () => { hit('files'); };
         fetchUsage = async () => { hit('usage'); };
-        fetchQuotaLines = async () => { hit('quota'); };
+        QuotaPanel.fetch = async () => { hit('quota'); };
         Connection.set('recovering', {reason: 'restart confirmed'});
         await Connection.recover();
         return {calls, phase: Connection.state.phase};
