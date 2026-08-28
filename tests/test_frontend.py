@@ -1930,6 +1930,55 @@ def test_connection_recovery_refreshes_every_visible_data_surface(
     assert calls["phase"] == "online"
 
 
+def test_chat_transient_state_has_one_complete_reset_owner(
+    dashboard_browser: Browser,
+):
+    page = _open_chat_snapshot_page(dashboard_browser)
+    state = page.evaluate("""() => {
+        localMessages.add('local');
+        pendingUserMsgs = ['pending'];
+        pendingBubble = document.createElement('div');
+        _finalizedBubble = document.createElement('div');
+        uiDebounceTimer = setTimeout(() => {}, 60000);
+        streamBubble = document.createElement('div');
+        streamContent = 'stream';
+        streamPending = 'pending-stream';
+        _streamDeferredFinal = {text: 'final'};
+        _lastFinalizedStreamText = 'old-final';
+        _codexThinkingLive = document.createElement('div');
+        _codexThinkingKey = 'thinking';
+        resetChatTransientState();
+        return {
+            local: localMessages.size,
+            pending: pendingUserMsgs.length,
+            pendingBubble: pendingBubble === null,
+            finalizedBubble: _finalizedBubble === null,
+            debounce: uiDebounceTimer === null,
+            streamBubble: streamBubble === null,
+            streamContent,
+            streamPending,
+            deferred: _streamDeferredFinal === null,
+            lastFinal: _lastFinalizedStreamText,
+            thinking: _codexThinkingLive === null && _codexThinkingKey === '',
+        };
+    }""")
+    page.close()
+
+    assert state == {
+        "local": 0,
+        "pending": 0,
+        "pendingBubble": True,
+        "finalizedBubble": True,
+        "debounce": True,
+        "streamBubble": True,
+        "streamContent": "",
+        "streamPending": "",
+        "deferred": True,
+        "lastFinal": "",
+        "thinking": True,
+    }
+
+
 _NOTIFY_AGENT = "notify-268-probe"
 _NOTIFY_SESSION = "sess-268"
 _SILENT_TURN_MARKER = "[[ORCHESTRA:SILENT_TURN]]"
@@ -2354,6 +2403,9 @@ def test_dashboard_polling_equivalent_twelve_minutes_before_after(
             ["git", "show", "main:app/static/js/app.js"], text=True,
         )
     )
+    main_chat_source = subprocess.check_output(
+        ["git", "show", "main:app/static/js/chat.js"], text=True,
+    )
 
     def measure(source_path: Path) -> dict[str, int]:
         page = dashboard_browser.new_page()
@@ -2373,7 +2425,9 @@ def test_dashboard_polling_equivalent_twelve_minutes_before_after(
             page.route(
                 "**/static/js/chat.js*",
                 lambda route: route.fulfill(
-                    status=200, content_type="application/javascript", body="",
+                    status=200,
+                    content_type="application/javascript",
+                    body=main_chat_source,
                 ),
             )
         counts: dict[str, int] = {}
