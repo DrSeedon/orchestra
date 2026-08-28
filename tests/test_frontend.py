@@ -1219,6 +1219,54 @@ def test_document_upload_card_appears_immediately_and_reports_progress(
     assert state["input"] == "/tmp/report.pdf"
 
 
+def test_pasted_image_previews_use_one_bounded_square_size(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof _showUploadingChip === 'function'")
+    metrics = page.evaluate("""async () => {
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4000" height="1000"></svg>';
+        const dataUrl = 'data:image/svg+xml,' + encodeURIComponent(svg);
+        const measure = image => {
+            const rect = image.getBoundingClientRect();
+            const style = getComputedStyle(image);
+            return {
+                width: rect.width,
+                height: rect.height,
+                objectFit: style.objectFit,
+                maxWidth: style.maxWidth,
+                maxHeight: style.maxHeight,
+            };
+        };
+
+        showImagePreview(dataUrl, '/tmp/panorama.svg');
+        const saved = document.querySelector('#paste-preview img');
+        await saved.decode();
+        const savedMetrics = measure(saved);
+        clearPastePreview();
+
+        const file = new File([svg], 'panorama.svg', {type: 'image/svg+xml'});
+        const cleanup = _showUploadingChip(file, file.name);
+        const uploading = document.querySelector('#paste-preview img');
+        await uploading.decode();
+        const uploadingMetrics = measure(uploading);
+        cleanup();
+        return {saved: savedMetrics, uploading: uploadingMetrics};
+    }""")
+    page.close()
+
+    expected = {
+        "width": 64,
+        "height": 64,
+        "objectFit": "cover",
+        "maxWidth": "64px",
+        "maxHeight": "64px",
+    }
+    assert metrics == {"saved": expected, "uploading": expected}
+
+
 def test_document_upload_card_cancels_xhr_without_inserting_path(
     dashboard_browser: Browser,
 ):

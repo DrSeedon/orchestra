@@ -169,6 +169,17 @@ code, pre, kbd, samp, .font-mono,
 }
 .chat-user { background: rgba(99, 102, 241, 0.15); border-left: 3px solid var(--accent); }
 .chat-bot { border-left: 3px solid rgba(99,102,241,0.1); }
+.paste-preview-image {
+  display: block;
+  flex: 0 0 64px;
+  width: 64px;
+  min-width: 64px;
+  max-width: 64px;
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+  object-fit: cover;
+}
 .chat-inline-image { display: block; max-width: 100%; max-height: 200px; margin-top: 6px; border-radius: 8px; cursor: zoom-in; }
 .chat-image-gallery { width: min(100%, 440px); margin-top: 8px; padding: 6px; border: 1px solid rgba(99,102,241,.28); border-radius: 12px; background: rgba(5,10,22,.45); }
 .chat-image-gallery-header { display: flex; align-items: center; justify-content: space-between; min-height: 26px; padding: 0 2px 5px; gap: 10px; }

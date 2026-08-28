@@ -451,7 +451,10 @@ function _showUploadingChip(file, filename = file.name || 'file') {
     if (isImage) {
         const img = document.createElement('img');
         img.src = objectUrl;
-        img.className = 'h-12 w-12 rounded border border-slate-700 object-cover';
+        img.className = 'paste-preview-image rounded border border-slate-700';
+        img.width = 64;
+        img.height = 64;
+        img.alt = cardFilename;
         wrap.appendChild(img);
         preview = img;
     } else {
@@ -564,7 +567,10 @@ function showImagePreview(url, filePath) {
     if (isImage) {
         const img = document.createElement('img');
         img.src = url;
-        img.className = 'h-16 rounded border border-slate-700';
+        img.className = 'paste-preview-image rounded border border-slate-700';
+        img.width = 64;
+        img.height = 64;
+        img.alt = (filePath || url).split('/').pop() || 'Image preview';
         img.loading = 'lazy';
         img.style.cursor = 'pointer';
         img.addEventListener('click', () => openFilePreview(filePath || url));
