@@ -1055,11 +1055,13 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
             msg += manager._context_warning(req.sender)
             if hasattr(session, 'last_task_sender'):
                 session.last_task_sender = req.sender
-        else:
-            from datetime import datetime, timezone, timedelta
-            local_tz = timezone(timedelta(hours=7))
-            now = datetime.now(local_tz).strftime("%H:%M")
-            msg = f"[{now}] {msg}"
+        # Время ставится КАЖДОМУ входящему, включая агентские: юзер требует видеть,
+        # когда сообщение написано, а не только от кого (28.08). Раньше метку получал
+        # только он сам, и в ленте нельзя было отличить свежий отчёт от вчерашнего.
+        from datetime import datetime, timezone, timedelta
+        local_tz = timezone(timedelta(hours=7))
+        now = datetime.now(local_tz).strftime("%H:%M")
+        msg = f"[{now}] {msg}"
         await manager.send(session.id, msg)
         pn = session.parent_name or ""
         result = {"ok": True, "parent_name": pn}
