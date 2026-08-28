@@ -308,7 +308,20 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         raise ValueError("price_rub must be >= 0")
 
     now = _now()
-    par = par_number if par_number is not None else _next_par(conn, project_id)
+    # Номер выдаёт ОДИН владелец — `api_create_task`, который согласует его с canonical и
+    # передаёт сюда явно. Собственная выдача номера здесь и есть механизм, которым
+    # открывается новая дверь мимо canonical: legacy-счётчик уезжает вперёд, гейт
+    # `task display counter mismatch` заклинивает проект насмерть (28.08, comfy: разрыв 3 → 8
+    # за три часа, ни одной новой задачи). Fail loud вместо тихого расхождения.
+    if par_number is None:
+        if _ia_context() is not None:
+            raise RuntimeError(
+                "create_task cannot allocate a task number: call api_create_task, "
+                "which agrees the number with the canonical store first"
+            )
+        par = _next_par(conn, project_id)
+    else:
+        par = par_number
 
     command = (acceptance_command or "").strip()
     from app.acceptance import parse_acceptance_command

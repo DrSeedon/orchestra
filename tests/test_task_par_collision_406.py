@@ -81,3 +81,26 @@ def test_spawn_task_allocation_keeps_both_stores_in_step(canonical_tasks):
     assert store.task_get("1", project="orchestra")["title"] == "spawned by fan-out"
     following = tm.api_create_task("orchestra", "next one still works")
     assert following["par"] == "2"
+
+
+def test_low_level_create_refuses_to_allocate_a_number_itself(canonical_tasks):
+    """Единственный владелец номера — `api_create_task`; обход обязан падать ГРОМКО.
+
+    Это принуждение «одного пути» в коде, а не в договорённости: собственная выдача номера
+    здесь двигает только legacy-счётчик, после чего гейт `task display counter mismatch`
+    отказывает навсегда. Дефект 28.08 прожил именно потому, что обход был тихим.
+    """
+    tm, store, database = canonical_tasks
+    canonical_head = store.canonical_head
+
+    with tm._conn() as connection:
+        with pytest.raises(RuntimeError, match="call api_create_task"):
+            tm.create_task(connection, "orchestra", "second door")
+
+    # Ни одна из сторон не сдвинулась: отказ пришёл ДО записи.
+    assert store.canonical_head == canonical_head
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM tm_tasks").fetchone()[0] == 0
+
+    # Легальный путь по-прежнему работает и остаётся единственным.
+    assert tm.api_create_task("orchestra", "through the one owner")["par"] == "1"
