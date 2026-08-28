@@ -1,7 +1,7 @@
 # Frontend refactor baseline/baseline noise control
 
 Input: local http://127.0.0.1:8888, mocked API, fresh browser context per run.
-Order: baseline/current alternating; user-visible endpoint: selectedAgent == fe-orch.
+Order: baseline_a/baseline_b alternating; user-visible endpoint: selectedAgent == fe-orch.
 
 ```json
 {
