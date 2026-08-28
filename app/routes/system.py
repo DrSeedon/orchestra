@@ -2543,13 +2543,12 @@ def _blocking_runtimes() -> list:
 async def _do_restart_service() -> dict:
     from app import main as app_main
 
-    # Already-admitted mutating calls first: one of them may have committed its effect and
-    # not yet returned it, and signalling there makes its outcome unknown to the agent.
-    if not await app_main.drain_mutating_requests():
-        left = app_main.inflight_mutating_count()
-        await _abort_restart(f"{left} mutating call(s) still in flight")
-        return {"ok": False, "reason": f"{left} mutating call(s) still in flight",
-                "cut_turns": 0, "cut_names": [], "cut_ids": []}
+    # Нажатая кнопка рестарта ничем не отменяется (решение юзера 28.08.2026). Раньше живой
+    # мутирующий вызов отменял рестарт целиком, и нажатие не делало ничего — это ровно то,
+    # чего быть не должно. Незавершённые мутации по-прежнему пересчитываются, но только для
+    # ОТЧЁТА: агент увидит неизвестный исход и переспросит, а рестарт состоится.
+    await app_main.drain_mutating_requests()
+    abandoned_mutations = app_main.inflight_mutating_count()
 
     started = time.monotonic()
     sessions = _drain_sessions()
@@ -2558,16 +2557,10 @@ async def _do_restart_service() -> dict:
     # session.stop() path for every session; a RUNNING one persists INTERRUPTED and startup's
     # auto_resume_all() wakes it again.
     manager.mark_for_restart_stop(sessions)
-    if app_main.inflight_mutating_count():
-        await _abort_restart("work started while the fleet was being prepared")
-        return {
-            "ok": False,
-            "reason": "work started while the fleet was being prepared",
-            "waited_s": time.monotonic() - started,
-            "cut_turns": 0,
-            "cut_names": [],
-            "cut_ids": [],
-        }
+    # Работа, начавшаяся во время подготовки, рестарт больше НЕ отменяет: гонка «успел ли
+    # кто-то влезть» решалась в пользу того, кто влез, и кнопка проигрывала её тем чаще, чем
+    # больше в контуре агентов.
+    abandoned_mutations = max(abandoned_mutations, app_main.inflight_mutating_count())
 
     cut_ids = [session.id for session in cut_sessions]
     outcome = {
@@ -2580,6 +2573,7 @@ async def _do_restart_service() -> dict:
         "cut_names": [session.name for session in cut_sessions],
         "cut_ids": cut_ids,
         "restore_after_restart": cut_ids,
+        "abandoned_mutations": abandoned_mutations,
     }
     durable_state = await _drain_restart_durable_state()
     if isinstance(durable_state, dict) and durable_state.get("ok") is False:

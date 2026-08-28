@@ -557,17 +557,21 @@ async def test_t3_restart_closes_both_admissions_before_its_first_wait(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_t3_inflight_mutating_http_blocks_signal_until_it_finishes(monkeypatch):
+async def test_t3_inflight_mutating_http_never_blocks_the_signal(monkeypatch):
+    """Живая мутация рестарт НЕ откладывает и НЕ отменяет (решение юзера 28.08.2026).
+
+    Мутация не заканчивается за весь тест: раньше это держало сигнал до конца бюджета и
+    затем отменяло рестарт целиком, то есть нажатие кнопки не делало ничего.
+    """
     from app import main as app_main
     from app.deps import manager
     from app.routes import system
 
-    inflight = {"count": 1}
     kill = MagicMock()
     monkeypatch.setattr(system, "_drain_sessions", lambda: [])
-    monkeypatch.setattr(system, "_DRAIN_DEADLINE_S", 2)
+    monkeypatch.setattr(system, "_RESPONSE_FLUSH_PAUSE_S", 0)
     monkeypatch.setattr(system.os, "kill", kill)
-    monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: inflight["count"])
+    monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 2)
     monkeypatch.setattr(
         manager,
         "prepare_restart_handover",
@@ -575,14 +579,24 @@ async def test_t3_inflight_mutating_http_blocks_signal_until_it_finishes(monkeyp
         raising=False,
     )
 
-    task = asyncio.create_task(system._restart_service_after_response())
-    await asyncio.sleep(0.8)
-    assert not kill.called, (
-        "an admitted mutating handler can have committed an effect but not returned it; "
-        "signalling here makes its outcome unknown")
-    inflight["count"] = 0
-    await asyncio.wait_for(task, timeout=3)
+    await asyncio.wait_for(system._restart_service_after_response(), timeout=5)
     kill.assert_called_once_with(os.getpid(), system.signal.SIGINT)
+
+
+@pytest.mark.asyncio
+async def test_t3_abandoned_mutations_are_reported_not_hidden(monkeypatch):
+    """Оборванные мутации теряют ответ — это обязано быть видно в выдаче рестарта."""
+    from app import main as app_main
+    from app.routes import system
+
+    monkeypatch.setattr(system, "_drain_sessions", lambda: [])
+    monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 3)
+    monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=False))
+
+    outcome = await system._do_restart_service()
+
+    assert outcome["ok"] is True, "a live mutation must not cancel the restart"
+    assert outcome["abandoned_mutations"] == 3, outcome
 
 
 @pytest.mark.asyncio

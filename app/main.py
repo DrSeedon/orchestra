@@ -61,7 +61,11 @@ async def _start_bridge_background(manager) -> None:
         logger.error(f"TG bridge FAILED to start: {type(e).__name__}: {e}", exc_info=True)
 
 
-MUTATING_DRAIN_BUDGET_S = 120.0  # measured: slowest mutating tool call 90.2s (merge_worker)
+# Кнопка рестарта — абсолютная команда, а не заявка (решение юзера 28.08.2026). Раньше здесь
+# стояло 120 с ожидания мутаций, и рестарт ОТМЕНЯЛСЯ, если не дождался: нажатие не делало
+# ничего. Ждать нельзя ни секунды — незавершённая мутация теряет свой ответ, и это принятая
+# цена: агент переспросит, а юзер, нажавший кнопку, обязан получить рестарт.
+MUTATING_DRAIN_BUDGET_S = 0.0
 DRAIN_POLL_S = 0.05
 
 #: Restart cannot count its own request, and an operator must retain the stop lever while
