@@ -148,3 +148,76 @@ async def test_t3_run_fan_opens_before_spawning_all_task_specs(monkeypatch):
         ["app/a/"], ["app/b/"],
     ]
     assert "started 2/2 workers" in result
+
+
+@pytest.mark.asyncio
+async def test_run_fan_spawns_children_into_the_named_repository(monkeypatch):
+    """Дети веера идут в `repo_path`, а не в scope родителя.
+
+    Без этого веер физически не мог работать по ДРУГОМУ репозиторию: `spawn_worker`
+    умеет `repo_path`, а `run_fan` жёстко подставлял `SCOPE`. 28.08.2026 у `pitch-game`
+    три отработавших воркера легли в comfy-image-pipeline вместо pitch-ball, и
+    `merge_worker` отвечал "task '1' not found in session project" — работу пришлось
+    переносить руками.
+    """
+    from app import mcp_stdio as mcp
+
+    spawns = []
+    monkeypatch.setattr(mcp, "SCOPE", "/scope-of-the-parent")
+    monkeypatch.setattr(mcp, "WORKER_NAME", "parent-407")
+
+    async def api(method, path, **kwargs):
+        # Барьер намеренно остаётся на scope РОДИТЕЛЯ: он будит вызывающего.
+        assert kwargs["json"]["scope"] == "/scope-of-the-parent"
+        return {"ok": True}
+
+    async def spawn(**kwargs):
+        spawns.append(kwargs)
+        return "spawned"
+
+    monkeypatch.setattr(mcp, "_api", api)
+    monkeypatch.setattr(mcp, "spawn_worker", spawn)
+
+    specs = [
+        {"name": "child-a", "model": "gpt-5.6-luna", "role": "worker",
+         "task": "A", "owned_dirs": []},
+        {"name": "child-b", "model": "gpt-5.6-luna", "role": "worker",
+         "task": "B", "owned_dirs": []},
+    ]
+    await mcp.run_fan(tasks=specs, repo_path="/another/repository")
+
+    assert [call["repo_path"] for call in spawns] == [
+        "/another/repository", "/another/repository",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_run_fan_without_repo_path_still_uses_the_caller_scope(monkeypatch):
+    """Обратная сторона: пустой `repo_path` не должен ломать обычный веер."""
+    from app import mcp_stdio as mcp
+
+    spawns = []
+    monkeypatch.setattr(mcp, "SCOPE", "/scope-of-the-parent")
+    monkeypatch.setattr(mcp, "WORKER_NAME", "parent-407")
+
+    async def api(method, path, **kwargs):
+        return {"ok": True}
+
+    async def spawn(**kwargs):
+        spawns.append(kwargs)
+        return "spawned"
+
+    monkeypatch.setattr(mcp, "_api", api)
+    monkeypatch.setattr(mcp, "spawn_worker", spawn)
+
+    specs = [
+        {"name": "child-a", "model": "gpt-5.6-luna", "role": "worker",
+         "task": "A", "owned_dirs": []},
+        {"name": "child-b", "model": "gpt-5.6-luna", "role": "worker",
+         "task": "B", "owned_dirs": []},
+    ]
+    await mcp.run_fan(tasks=specs)
+
+    assert [call["repo_path"] for call in spawns] == [
+        "/scope-of-the-parent", "/scope-of-the-parent",
+    ]

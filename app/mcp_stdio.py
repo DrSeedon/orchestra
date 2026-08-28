@@ -1360,6 +1360,7 @@ async def run_fan(
     tasks: list[dict[str, Any]] | None = None,
     reuse: list[dict[str, Any]] | None = None,
     deadline_seconds: float = 1800.0,
+    repo_path: str = "",
 ) -> str:
     """Start one completion fan without manual open/spawn/message plumbing.
 
@@ -1368,6 +1369,12 @@ async def run_fan(
     and the message for its next turn.  The barrier opens before any child is started,
     stays durable until every child finishes (or the deadline expires), and wakes the
     caller once with the manifest.  Workers remain normal live workers afterward.
+
+    ``repo_path`` — git-репозиторий для детей, как у ``spawn_worker``; пусто = scope
+    вызывающего. Задавать ОБЯЗАТЕЛЬНО, когда задача правит другой репозиторий: без него
+    дети создаются в scope родителя, их worktree уезжает в чужой проект, и работа потом
+    не мержится (28.08.2026, `pitch-game`: три отработавших воркера легли в
+    comfy-image-pipeline, `merge_worker` отвечал "task '1' not found in session project").
     """
     if not math.isfinite(deadline_seconds) or deadline_seconds <= 0:
         raise ApiToolError(
@@ -1384,7 +1391,8 @@ async def run_fan(
         )
     if len(set(names)) != len(names):
         raise ApiToolError(code="invalid_argument", message="fan worker names must be unique")
-    if spawned and not SCOPE:
+    target_repo = (repo_path or "").strip() or SCOPE
+    if spawned and not target_repo:
         raise ApiToolError(
             code="invalid_argument",
             message="run_fan cannot spawn without an Orchestra scope/repository path",
@@ -1428,7 +1436,7 @@ async def run_fan(
             await spawn_worker(
                 name=item["name"],
                 task=item["task"],
-                repo_path=SCOPE,
+                repo_path=target_repo,
                 model=item["model"],
                 role=item["role"],
                 owned_dirs=json.dumps(item["owned_dirs"], ensure_ascii=False),
