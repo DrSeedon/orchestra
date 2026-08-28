@@ -4257,6 +4257,26 @@ class TestTurnEndMention:
         assert any(text.startswith("━") for text in mirrored)
 
     @pytest.mark.asyncio
+    async def test_turn_without_actions_sends_no_empty_anchor(self, tb, monkeypatch):
+        """Обычный ход, где агент только ответил текстом, не шлёт голую полосу.
+
+        28.08.2026 юзер получил «━ ход окончен · 0 действий · $0.00» и прочитал это как
+        сбой. Раньше пустой якорь подавлялся ТОЛЬКО для `[[ORCHESTRA:SILENT_TURN]]`;
+        обычный ход без вызовов инструментов такую полосу отправлял.
+        """
+        rows = [
+            {"id": 1, "type": "text", "content": "коротко ответил и всё"},
+            {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.00 turn)"},
+        ]
+
+        sent, _ = await self._run(tb, monkeypatch, rows, capture_mirror=True)
+
+        anchors = [m for m in sent if m["text"].startswith("━")]
+        assert anchors == [], f"пустой якорь не должен уходить юзеру: {anchors}"
+        # Сам ответ агента при этом доставлен — гасим ТОЛЬКО полосу.
+        assert any("коротко ответил" in m["text"] for m in sent), sent
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "content",
         [

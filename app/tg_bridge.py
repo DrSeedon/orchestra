@@ -3213,7 +3213,6 @@ async def stream_logs(orch_name: str, thread_id: int):
     # и пустая) — звали, и тег обязателен: молчание это дефолт, а не забывчивость.
     _notify_reason = None
     _pending_turn_end_mention = False
-    _silent_turn = False
     _idle_ticks = 0
     current_log_previous_id = last_id
 
@@ -3260,7 +3259,6 @@ async def stream_logs(orch_name: str, thread_id: int):
                             text = f"👤\n{c}" if c.startswith("> ") else f"👤 {c}"
                     elif t == "text":
                         if is_silent_turn_text(c):
-                            _silent_turn = True
                             continue
                         from app.tool_call_guard import mark_unexecuted_tool_call
 
@@ -3335,8 +3333,12 @@ async def stream_logs(orch_name: str, thread_id: int):
                                 # Пропускаем ТОЛЬКО повтор якоря: дальше по строке живёт
                                 # тег владельца, и `continue` здесь терял бы его молча.
                                 text = ""
-                            elif _silent_turn and not turn.all_lines():
-                                # Тихий ход без действий не должен оставлять голую полосу.
+                            elif not turn.all_lines():
+                                # Ход БЕЗ ДЕЙСТВИЙ не оставляет якорь — ни тихий, ни обычный.
+                                # Раньше подавлялся только `_silent_turn`, поэтому обычный
+                                # ход, где агент лишь ответил текстом, слал юзеру голую
+                                # полосу «ход окончен · 0 действий · $0.00»: информации
+                                # ноль, а выглядит как сбой (28.08.2026, жалоба юзера).
                                 # Не делаем `continue`: ниже ещё может уйти тег владельца.
                                 text = ""
                             else:
@@ -3405,8 +3407,6 @@ async def stream_logs(orch_name: str, thread_id: int):
                         # строка вызова тула во второй раз уже не проиграется.
                         _pending_turn_end_mention = False
                         _notify_reason = None
-                    if t == "status" and "turn ended" in c:
-                        _silent_turn = False
             except _TgDeliveryOverloaded as e:
                 last_id = current_log_previous_id
                 logger.error(
