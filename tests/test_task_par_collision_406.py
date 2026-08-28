@@ -57,3 +57,27 @@ def test_canonical_create_rejects_counter_drift_without_writing(canonical_tasks)
         assert connection.execute(
             "SELECT par_number,title FROM tm_tasks ORDER BY par_number"
         ).fetchall() == [(1, "legacy occupied")]
+
+
+def test_spawn_task_allocation_keeps_both_stores_in_step(canonical_tasks):
+    """Спавн воркера обязан заводить задачу тем же путём, что и `task_create`.
+
+    Раньше `create_task_for_scope` писала прямо в legacy и была ВТОРЫМ владельцем
+    нумерации: она двигала legacy-счётчик, не трогая canonical, после чего гейт
+    `task display counter mismatch` отказывал НАВСЕГДА. 28.08 веер из трёх детей развёл
+    счётчики comfy-image-pipeline на 3, и проект не мог завести ни одной задачи.
+    """
+    tm, store, database = canonical_tasks
+    scope = str(tm._conn().execute(
+        "SELECT scope FROM tm_projects WHERE id='orchestra'"
+    ).fetchone()[0])
+
+    created = tm.create_task_for_scope(scope, "spawned by fan-out")
+
+    # Потребитель строит имя ветки из par_number — форма ответа обязана сохраниться.
+    assert created["par_number"] == 1
+
+    # И, главное, обе стороны согласны: следующий task_create проходит, а не упирается в гейт.
+    assert store.task_get("1", project="orchestra")["title"] == "spawned by fan-out"
+    following = tm.api_create_task("orchestra", "next one still works")
+    assert following["par"] == "2"

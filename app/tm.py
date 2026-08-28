@@ -358,19 +358,26 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
 
 
 def create_task_for_scope(scope: str, title: str) -> dict:
-    """Create an unbound task in the project owning ``scope``."""
+    """Create an unbound task in the project owning ``scope``.
+
+    Идёт тем же путём, что и `task_create` агента, и это ЕДИНСТВЕННАЯ причина, по которой
+    функция не пишет в legacy напрямую. Прямая запись была вторым владельцем нумерации: она
+    двигала legacy-счётчик, не трогая canonical, а `api_create_task` потом сверяет их и
+    отказывает НАВСЕГДА (`task display counter mismatch`). 28.08 веер из трёх детей развёл
+    счётчики на 3, и проект не мог завести ни одной задачи.
+    """
     with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            project = get_project_by_scope(conn, scope.rstrip("/"))
-            if not project:
-                raise ValueError(f"scope '{scope}' has no task project")
-            task = create_task(conn, project["id"], title, status="new")
-            conn.commit()
-            return task
-        except Exception:
-            conn.rollback()
-            raise
+        project = get_project_by_scope(conn, scope.rstrip("/"))
+        if not project:
+            raise ValueError(f"scope '{scope}' has no task project")
+        project_id = project["id"]
+    created = api_create_task(project_id, title, status="new")
+    # Вызывающий (спавн, app/routes/sessions.py) строит имя ветки из `par_number`, а
+    # `api_create_task` отдаёт номер как строковый `par`. Отдаём оба, чтобы форма ответа
+    # осталась прежней и ветка не превратилась в `task-None/<worker>`.
+    if "par_number" not in created:
+        created = {**created, "par_number": int(created["par"])}
+    return created
 
 
 def discard_unbound_task(task_id: int) -> bool:
