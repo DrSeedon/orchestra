@@ -6,6 +6,7 @@ from playwright.sync_api import Browser, expect, sync_playwright
 
 ROOT = Path(__file__).parent.parent
 UTILS_JS = ROOT / "app/static/js/utils.js"
+CONNECTION_JS = ROOT / "app/static/js/connection.js"
 USAGE_JS = ROOT / "app/static/js/usage.js"
 STYLE_CSS = ROOT / "app/static/css/style.css"
 USAGE_SHOT_DIR = ROOT / "docs/tasks/356"
@@ -32,6 +33,7 @@ def _page(browser: Browser, grok):
         }"""
     )
     page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
     page.evaluate(
         """grok => {
@@ -61,7 +63,7 @@ def _page(browser: Browser, grok):
 
 def _interactive_page(browser: Browser):
     page = browser.new_page(viewport={"width": 1440, "height": 900})
-    page.set_content('<body><div id="usage-bar"></div></body>')
+    page.set_content('<body><div id="connection-banner" class="hidden"></div><div id="usage-bar"></div></body>')
     page.evaluate(
         """() => {
             window.marked = {setOptions() {}, parse(value) { return value; }};
@@ -77,6 +79,7 @@ def _interactive_page(browser: Browser):
         }"""
     )
     page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
     page.evaluate("() => initUsageBar()")
     return page
@@ -253,6 +256,7 @@ def test_usage_bar_renders_each_provider_as_two_columns(browser):
         page.set_content('<body><div id="usage-bar"></div></body>')
         page.evaluate("() => { window.marked = {setOptions() {}, parse(value) { return value; } }; window.DOMPurify = { addHook() {} }; }")
         page.add_script_tag(path=str(UTILS_JS))
+        page.add_script_tag(path=str(CONNECTION_JS))
         page.add_script_tag(path=str(USAGE_JS))
         page.add_style_tag(path=str(STYLE_CSS))
 
@@ -379,6 +383,7 @@ def test_usage_fetch_failure_stays_visible_and_logs_exception(browser):
         }"""
     )
     page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
 
     page.evaluate("() => fetchUsage()")
@@ -469,8 +474,9 @@ def test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm(bro
     _settle_usage(page, 0, reject=True)
     expect(page.locator("#usage-bar")).to_contain_text("3%")
     expect(page.locator("#usage-bar")).not_to_contain_text("Usage unavailable")
-    expect(page.locator("#usage-freshness")).to_contain_text("ошибка обновления")
-    expect(page.locator("#usage-freshness")).to_contain_text("данные от сейчас")
+    expect(page.locator("#usage-freshness")).to_have_count(0)
+    expect(page.locator("#connection-banner")).to_contain_text("Связь нестабильна")
+    expect(page.locator("#connection-banner")).to_contain_text("Показано сохранённое: usage")
     assert errors == ["Usage fetch failed: TimeoutError: signal timed out"]
     page.close()
 

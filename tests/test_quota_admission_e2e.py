@@ -13,9 +13,13 @@ from app.quota_gate import QuotaGateError, evaluate_worker_admission, line_limit
 NOW = 1_770_000_000.0
 # Десятая часть окна: линия = 10 + 9.1 = 19.1 п.п.
 PROGRESS = 0.1
-LIMIT = line_limit(PROGRESS)  # 19.1
-ABOVE = LIMIT + 20.0          # 39.1 — выше линии, но далеко под жёсткими 99
-BELOW = LIMIT - 5.0           # 14.1 — под линией
+# Порог теперь свойство ПОЛОСЫ: Sol идёт по кривой, Claude по прежней прямой, поэтому
+# одного общего числа больше не существует (решение юзера 28.08.2026).
+LIMIT = {lane: line_limit(PROGRESS, lane) for lane in ("sol", "claude")}
+ABOVE = {lane: value + 20.0 for lane, value in LIMIT.items()}
+BELOW = {lane: value - 5.0 for lane, value in LIMIT.items()}
+# Значение, стопорящее ОБЕ гейтящиеся полосы: выше самого высокого из двух порогов.
+ABOVE_BOTH = max(ABOVE.values())
 
 
 def _window(minutes, utilization):
@@ -91,7 +95,7 @@ async def _spawn(mgr, name, model, **over):
     ("claude", "claude-opus-5[1m]"),
 ])
 async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, model):
-    monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE))
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE[name]))
 
     with pytest.raises(QuotaGateError):
         await _spawn(mgr, f"{name}-above", model)
@@ -106,7 +110,7 @@ async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, mo
 ])
 async def test_gated_worker_is_created_below_the_line(mgr, monkeypatch, name, model):
     """Вторая сторона: гейт, отказывающий всегда, прошёл бы проверку выше."""
-    monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(BELOW))
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(BELOW[name]))
 
     session = await _spawn(mgr, f"{name}-below", model)
 
@@ -121,7 +125,7 @@ async def test_gated_worker_is_created_below_the_line(mgr, monkeypatch, name, mo
 async def test_luna_and_spark_are_created_at_the_value_that_stops_sol(
     mgr, monkeypatch, name, model,
 ):
-    monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE))
+    monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE_BOTH))
 
     session = await _spawn(mgr, f"{name}-ok", model)
 

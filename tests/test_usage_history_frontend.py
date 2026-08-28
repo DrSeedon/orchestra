@@ -12,6 +12,7 @@ from playwright.sync_api import Browser, sync_playwright
 
 ROOT = Path(__file__).parent.parent
 UTILS_JS = ROOT / "app/static/js/utils.js"
+CONNECTION_JS = ROOT / "app/static/js/connection.js"
 USAGE_JS = ROOT / "app/static/js/usage.js"
 APP_JS = ROOT / "app/static/js/app.js"
 
@@ -41,6 +42,7 @@ def _page_with_api(browser: Browser):
     )
     page.goto("http://harness.local/")
     page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(APP_JS))
     return page
 
@@ -50,6 +52,7 @@ def _slot_text(browser: Browser, api_script: str) -> str:
     page = browser.new_page()
     page.set_content('<body><div id="usage-bar"></div></body>')
     page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
     result = page.evaluate(
         """apiScript => {
@@ -183,6 +186,7 @@ def test_older_period_is_fetched_on_demand(browser):
     page = browser.new_page()
     page.set_content("<body><div id='usage-bar'></div></body>")
     page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
     result = page.evaluate(
         """() => {
@@ -251,6 +255,7 @@ def test_history_request_gets_its_own_timeout(browser):
     сохранилось. Никакого wall-clock: бюджет снимается с самого AbortSignal.
     """
     page = _page_with_api(browser)
+    # connection.js is loaded by _page_with_api before app.js; usage relies on its state owner.
     page.add_script_tag(path=str(USAGE_JS))
     result = page.evaluate(
         """() => {

@@ -380,7 +380,7 @@ def test_usage_bar_visible(dashboard_page: Page):
 
 
 def test_stream_updates_preserve_chat_selection(dashboard_browser: Browser):
-    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
     stream_code = source.split("let streamBubble = null;", 1)[1].split(
         "function _renderJsonGrid", 1,
     )[0]
@@ -483,7 +483,8 @@ def test_unexecuted_tool_call_marker_detects_structure_without_prose_false_alarm
 ):
     from app.tool_call_guard import looks_like_unexecuted_tool_call
 
-    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
+    app_source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
     guard_code = (
         "const _UNEXECUTED_TOOL_CALL_WARNING"
         + source.split("const _UNEXECUTED_TOOL_CALL_WARNING", 1)[1].split(
@@ -521,7 +522,7 @@ def test_unexecuted_tool_call_marker_detects_structure_without_prose_false_alarm
     page.add_script_tag(content=guard_code)
     transcript_code = (
         "function _saCollapsible"
-        + source.split("function _saCollapsible", 1)[1].split(
+        + app_source.split("function _saCollapsible", 1)[1].split(
             "function renderTasksPanel", 1,
         )[0]
     )
@@ -586,7 +587,7 @@ def test_unexecuted_tool_call_marker_detects_structure_without_prose_false_alarm
     assert "_markUnexecutedToolCall(streamBubble, streamContent);" in source
     assert "_markUnexecutedToolCall(streamBubble, finalText);" in source
     assert "_markUnexecutedToolCall(div, content);" in source
-    assert "c.filter(block => block?.type === 'text')" in source
+    assert "c.filter(block => block?.type === 'text')" in app_source
     page.close()
 
 
@@ -746,6 +747,7 @@ def test_chat_drop_handles_files_tree_paths_and_upload_errors(
     dashboard_browser: Browser,
 ):
     source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    chat_source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
     assert "function initChatDrop()" in source
     assert source.index("initChatDrop();") < source.index("loadOrchestrators();")
     assert "fileDropReady" not in source
@@ -756,7 +758,7 @@ def test_chat_drop_handles_files_tree_paths_and_upload_errors(
     # ниже по файлу — страница падала на "_trackUpload is not defined".
     # Берём настоящий блок загрузки, а не заглушки: заглушка спрятала бы
     # регрессию внутри него.
-    upload_helpers = "const _pendingUploads = new Set();" + source.split(
+    upload_helpers = "const _pendingUploads = new Set();" + chat_source.split(
         "const _pendingUploads = new Set();", 1,
     )[1].split("const _COMPRESS_MIN_BYTES", 1)[0]
     drop_code = upload_helpers + drop_code
@@ -1747,9 +1749,11 @@ def test_restart_button_shows_current_attempt_failure(dashboard_browser: Browser
     page.wait_for_function("() => typeof restartServer === 'function'")
 
     page.click("#restart-btn")
-    page.wait_for_selector("#notice-restart")
+    page.wait_for_function(
+        "() => (document.querySelector('#connection-banner')?.textContent || '').includes('Рестарт не состоялся')"
+    )
     state = page.evaluate("""() => ({
-        notice: document.querySelector('#notice-restart').textContent,
+        notice: document.querySelector('#connection-banner').textContent,
         disabled: document.querySelector('#restart-btn').disabled,
         label: document.querySelector('#restart-btn').textContent,
     })""")
@@ -1785,8 +1789,10 @@ def test_restart_button_shows_journal_loss_before_reboot(dashboard_browser: Brow
     page.wait_for_function("() => typeof restartServer === 'function'")
 
     page.click("#restart-btn")
-    page.wait_for_selector("#notice-restart")
-    notice = page.locator("#notice-restart").inner_text()
+    page.wait_for_function(
+        "() => (document.querySelector('#connection-banner')?.textContent || '').includes('журнал потерян')"
+    )
+    notice = page.locator("#connection-banner").inner_text()
     page.close()
 
     assert reason in notice, notice
@@ -1803,9 +1809,12 @@ def test_restart_signal_failure_reaches_frontend_on_heartbeat(dashboard_browser:
     }""")
     state["restart_error"] = quote(reason, safe="")
 
-    page.wait_for_selector("#notice-restart", timeout=15000)
+    page.wait_for_function(
+        "() => (document.querySelector('#connection-banner')?.textContent || '').includes('synthetic signal failure')",
+        timeout=15000,
+    )
     visible = page.evaluate("""() => ({
-        notice: document.querySelector('#notice-restart').textContent,
+        notice: document.querySelector('#connection-banner').textContent,
         disabled: document.querySelector('#restart-btn').disabled,
         label: document.querySelector('#restart-btn').textContent,
     })""")
@@ -1814,6 +1823,111 @@ def test_restart_signal_failure_reaches_frontend_on_heartbeat(dashboard_browser:
     assert reason in visible["notice"]
     assert visible["disabled"] is False
     assert visible["label"] == "⟳"
+
+
+def test_connection_state_confirms_external_restart_by_process_generation(
+    dashboard_browser: Browser,
+):
+    page, _state = _open_restart_page(dashboard_browser)
+    page.wait_for_function("() => typeof Connection?.observe === 'function'")
+    state = page.evaluate("""() => {
+        localStorage.setItem('orchestra_server_generation', 'generation-old');
+        Connection.state.generation = 'generation-old';
+        Connection.fail('/api/files', new TypeError('Failed to fetch'), 3);
+        const before = {
+            phase: Connection.state.phase,
+            text: document.querySelector('#connection-banner')?.textContent || '',
+        };
+        const response = new Response('{}', {status: 200, headers: {
+            'X-Orchestra-Restarting': '0',
+            'X-Orchestra-Generation': 'generation-new',
+            'X-Orchestra-Started-At': new Date().toISOString(),
+        }});
+        Connection.observe(response, '/api/models');
+        return {
+            before,
+            after: {
+                phase: Connection.state.phase,
+                text: document.querySelector('#connection-banner')?.textContent || '',
+                generation: Connection.state.generation,
+            },
+        };
+    }""")
+    page.close()
+
+    assert state["before"]["phase"] == "offline"
+    assert "причина проверяется" in state["before"]["text"].lower()
+    assert "сервер отвечает" not in state["before"]["text"]
+    assert state["after"]["phase"] == "recovering"
+    assert "Orchestra перезапустилась" in state["after"]["text"]
+    assert state["after"]["generation"] == "generation-new"
+
+
+def test_restart_owns_one_status_and_suppresses_component_diagnoses(
+    dashboard_browser: Browser,
+):
+    page, _state = _open_restart_page(dashboard_browser)
+    page.wait_for_function("() => typeof Connection?.set === 'function'")
+    state = page.evaluate("""() => {
+        Connection.set('restarting', {reason: 'restart confirmed'});
+        Connection.fail('/api/files', new DOMException('signal timed out', 'TimeoutError'), 3);
+        Connection.stale('sessions', Date.now() - 120000);
+        _usageError = true;
+        renderUsageBar();
+        QuotaPanel.setErrorForTest('нет данных — quota-map request failed');
+        return {
+            bannerCount: document.querySelectorAll('#connection-banner:not(.hidden)').length,
+            banner: document.querySelector('#connection-banner')?.textContent || '',
+            legacyNetBanner: !!document.querySelector('#net-fail-banner'),
+            staleStrip: !!document.querySelector('#stale-notice-strip'),
+            usageFreshness: document.querySelector('#usage-freshness')?.textContent || '',
+            quotaSummary: document.querySelector('#quota-lines .ql-sum')?.textContent || '',
+        };
+    }""")
+    page.close()
+
+    assert state["bannerCount"] == 1
+    assert "Orchestra перезапускается" in state["banner"]
+    assert state["legacyNetBanner"] is False
+    assert state["staleStrip"] is False
+    assert state["usageFreshness"] == ""
+    assert "quota-map request failed" not in state["quotaSummary"]
+
+
+def test_connection_recovery_refreshes_every_visible_data_surface(
+    dashboard_browser: Browser,
+):
+    page, _state = _open_restart_page(dashboard_browser)
+    page.wait_for_function("() => typeof Connection?.set === 'function'")
+    calls = page.evaluate("""async () => {
+        const calls = {};
+        const hit = name => { calls[name] = (calls[name] || 0) + 1; };
+        Connection.resetForTest();
+        selectedAgent = 'restart-probe';
+        currentScope = '/restart-probe';
+        _showChatFor = async () => { hit('chat'); };
+        refreshSessions = async () => { hit('sessions'); };
+        loadOrchestrators = async () => { hit('orchestrators'); };
+        loadModels = async () => { hit('models'); };
+        refreshOpenFolders = async () => { hit('files'); };
+        fetchUsage = async () => { hit('usage'); };
+        QuotaPanel.fetch = async () => { hit('quota'); };
+        Connection.set('recovering', {reason: 'restart confirmed'});
+        await Connection.recover();
+        return {calls, phase: Connection.state.phase};
+    }""")
+    page.close()
+
+    assert calls["calls"] == {
+        "chat": 1,
+        "sessions": 1,
+        "orchestrators": 1,
+        "models": 1,
+        "files": 1,
+        "usage": 1,
+        "quota": 1,
+    }
+    assert calls["phase"] == "online"
 
 
 _NOTIFY_AGENT = "notify-268-probe"
@@ -2255,6 +2369,13 @@ def test_dashboard_polling_equivalent_twelve_minutes_before_after(
             };
         """)
         _route_frontend_sources(page, source_path)
+        if source_path == main_source:
+            page.route(
+                "**/static/js/chat.js*",
+                lambda route: route.fulfill(
+                    status=200, content_type="application/javascript", body="",
+                ),
+            )
         counts: dict[str, int] = {}
         polling_paths = {
             "/api/models",
@@ -2459,18 +2580,23 @@ def test_history_failure_is_fail_loud_and_never_streams_archive_row_by_row(
         ],
         history_status=500,
     )
-    page.wait_for_selector("#chat .chat-load-error", timeout=20000)
+    page.wait_for_function(
+        "() => (document.querySelector('#connection-banner')?.textContent || '').includes('Связь нестабильна')",
+        timeout=20000,
+    )
     state = page.evaluate("""() => ({
         notifications: window.__notifications,
         text: document.querySelector('#chat').textContent,
-        retry: document.querySelector('#chat .chat-load-error button')?.textContent || '',
+        localError: !!document.querySelector('#chat .chat-load-error'),
+        banners: document.querySelectorAll('#connection-banner:not(.hidden)').length,
     })""")
     page.close()
 
     assert stream_calls == []
     assert state["notifications"] == []
-    assert "Актуальные сообщения не загрузились" in state["text"]
-    assert state["retry"] == "Повторить"
+    assert "Ожидаю восстановления Orchestra" in state["text"]
+    assert state["localError"] is False
+    assert state["banners"] == 1
 
 
 def test_notification_permission_is_asked_by_click_and_never_on_load(
@@ -2648,7 +2774,7 @@ def test_load_more_keeps_tool_use_id_for_old_parallel_calls(
 
 
 def test_load_more_increases_visible_cards(dashboard_browser: Browser):
-    """Нажатие «Load 500 more» должно увеличить число рендернутых карточек."""
+    """Нажатие «Дозагрузить предыдущие 500» увеличивает число карточек один раз."""
     page = _open_tool_correlation_page(dashboard_browser, False)
     page.route(
         "**/api/sessions/history-fixture/logs*",
@@ -2690,10 +2816,90 @@ def test_load_more_increases_visible_cards(dashboard_browser: Browser):
         f"() => document.querySelectorAll('#chat [data-chat-log-id]').length > {before}",
         timeout=10000,
     )
-    after = page.evaluate("""() => document.querySelectorAll('#chat [data-chat-log-id]').length""")
+    after = page.evaluate("""() => {
+        _chatFollow = false;
+        addChatEntry('text', 'LIVE-AFTER-ARCHIVE', null, null, {id: 2001});
+        const ids = [...document.querySelectorAll('#chat [data-chat-log-id]')]
+            .map(node => Number(node.dataset.chatLogId));
+        return {
+            count: ids.length,
+            keptCurrentStart: ids.includes(1000),
+            keptCurrentEnd: ids.includes(1499),
+            keptLive: ids.includes(2001),
+        };
+    }""")
     page.close()
 
-    assert after > before, (before, after)
+    assert after["count"] > before, (before, after)
+    assert after["keptCurrentStart"] is True
+    assert after["keptCurrentEnd"] is True
+    assert after["keptLive"] is True
+
+
+def test_short_snapshot_offers_one_shot_previous_500_without_cache(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_correlation_page(dashboard_browser, False)
+    requests: list[str] = []
+    older = [
+        {"id": 90 + i, "session_id": "history-id", "type": "text",
+         "content": f"older-{i}", "ts": "2026-08-28T08:00:00+00:00"}
+        for i in range(10)
+    ]
+
+    def history_route(route):
+        requests.append(route.request.url)
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(older))
+
+    page.route("**/api/sessions/history-fixture/logs*", history_route)
+    before = page.evaluate("""() => {
+        selectedAgent = 'history-fixture';
+        currentScope = '/fixture';
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        const chat = document.querySelector('#chat');
+        chat.replaceChildren();
+        _renderHistory(selectedAgent, Array.from({length: 10}, (_, i) => ({
+            id: 100 + i,
+            session_id: 'history-id',
+            type: 'text',
+            content: `current-${i}`,
+            ts: '2026-08-28T09:00:00+00:00',
+        })));
+        return document.querySelector('#load-more-btn')?.textContent || '';
+    }""")
+
+    page.click("#load-more-btn")
+    page.wait_for_function(
+        "() => (document.querySelector('#chat')?.textContent || '').includes('older-0')",
+        timeout=10000,
+    )
+    after = page.evaluate("""() => {
+        updateLoadMoreBtn();
+        const hiddenAfterRefresh = !document.querySelector('#load-more-btn');
+        const loaded = chatLogs['history-fixture']?.olderPageLoaded === true;
+        document.querySelector('#chat').replaceChildren();
+        _renderHistory('history-fixture', [{
+            id: 109, session_id: 'history-id', type: 'text', content: 're-entry',
+            ts: '2026-08-28T09:00:00+00:00',
+        }]);
+        return {
+            hiddenAfterRefresh,
+            loaded,
+            reentryButton: document.querySelector('#load-more-btn')?.textContent || '',
+        };
+    }""")
+    page.close()
+
+    assert before == "▲ Дозагрузить предыдущие 500"
+    assert after == {
+        "hiddenAfterRefresh": True,
+        "loaded": True,
+        "reentryButton": "▲ Дозагрузить предыдущие 500",
+    }
+    assert len(requests) == 1
+    assert "before_id=100" in requests[0]
+    assert "limit=500" in requests[0]
+    assert "cap=16384" in requests[0]
 
 
 def test_tool_view_mode_is_visible_without_desktop_header_overflow(
@@ -3183,7 +3389,8 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
     dashboard_browser: Browser,
 ):
     root = Path(__file__).parent.parent
-    source = (root / "app/static/js/app.js").read_text()
+    source = (root / "app/static/js/chat.js").read_text()
+    app_source = (root / "app/static/js/app.js").read_text()
     helper_code = (
         "const _TASK_PRIORITY_META"
         + source.split("const _TASK_PRIORITY_META", 1)[1].split(
@@ -3250,7 +3457,7 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
 
     assert "taskBody.innerHTML = _taskCardBodyHtml(parsed);" in source
     assert "h += _taskCardBodyHtml(t);" in source
-    assert "html += _taskCardBodyHtml(t);" in source
+    assert "html += _taskCardBodyHtml(t);" in app_source
     page.close()
 
 
@@ -3426,6 +3633,7 @@ def test_chat_timeline_navigates_events_and_cycles_user_messages(
 ):
     root = Path(__file__).parent.parent
     source = (root / "app/static/js/app.js").read_text()
+    chat_source = (root / "app/static/js/chat.js").read_text()
     timeline_code = (
         "let _chatTimelineObserver"
         + source.split("let _chatTimelineObserver", 1)[1].split(
@@ -3518,7 +3726,7 @@ def test_chat_timeline_navigates_events_and_cycles_user_messages(
     expect(page.locator("#chat-user-count")).to_have_text("Я 3")
     page.evaluate("() => $('#chat [data-test-label=\"mine-3\"]').remove()")
     expect(page.locator("#chat-user-count")).to_have_text("Я 2")
-    assert "_tagChatTimelineNode(el, type, ts);" in source
+    assert "_tagChatTimelineNode(el, type, ts);" in chat_source
     page.close()
 
 
@@ -4655,7 +4863,7 @@ def test_dashboard_survives_lossy_channel_from_snapshot(dashboard_browser: Brows
                 usageText: document.querySelector('#usage-bar')?.innerText || '',
                 statsText: document.querySelector('#stats-line')?.innerText || '',
                 tabs: document.querySelectorAll('#orch-tabs [data-scope]').length,
-                notice: document.querySelector('#stale-notice-strip')?.innerText || '',
+                notice: document.querySelector('#connection-banner')?.innerText || '',
                 usageUnavailable:
                     (document.querySelector('#usage-bar')?.innerText || '')
                         .includes('Usage unavailable'),
@@ -4672,8 +4880,10 @@ def test_dashboard_survives_lossy_channel_from_snapshot(dashboard_browser: Brows
     assert "5h" in state["usageText"], f"usage не восстановлен из снимка: {state}"
     assert "total" in state["statsText"], f"stats не восстановлен из снимка: {state}"
     # Честность: данные показаны, но помечены как несвежие с меткой времени.
-    assert "из кеша" in state["notice"], f"нет пометки о кеше: {state}"
-    assert "данные от" in state["notice"], f"нет метки времени: {state}"
+    assert "Показано сохранённое" in state["notice"], f"нет пометки о кеше: {state}"
+    assert "sessions:" in state["notice"] or "usage:" in state["notice"], (
+        f"нет источника сохранённых данных: {state}"
+    )
 
 
 def test_dashboard_shows_error_class_when_nothing_cached(dashboard_browser: Browser):
@@ -4690,27 +4900,26 @@ def test_dashboard_shows_error_class_when_nothing_cached(dashboard_browser: Brow
         _goto_dashboard(page)
         page.wait_for_function("() => typeof snapshotLoad === 'function'")
         page.wait_for_function(
-            "() => (document.querySelector('#stale-notice-strip')?.innerText || '')"
-            ".includes('не загрузился')",
+            "() => (document.querySelector('#connection-banner')?.innerText || '')"
+            ".includes('Orchestra недоступна')",
             timeout=15000,
         )
         notice = page.evaluate(
-            "() => document.querySelector('#stale-notice-strip').innerText"
+            "() => document.querySelector('#connection-banner').innerText"
         )
         page.close()
     finally:
         context.close()
 
-    assert "не загрузился" in notice
-    # Класс исключения обязателен: «не загрузилось» без причины отправляет юзера гадать.
-    assert "TypeError" in notice or "Failed to fetch" in notice, notice
+    assert "Orchestra недоступна" in notice
+    assert "Причина проверяется" in notice
 
 
 def test_api_retry_spaces_attempts_with_jitter():
     """Пункт 1 #197: повторы не идут вплотную — иначе все три попадают в одно окно потерь."""
     source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
     body = source.split("async function api(url, opts = {})", 1)[1].split(
-        "function _showNetFailBanner", 1,
+        "// === Rate Limit Banner", 1,
     )[0]
 
     assert "_API_RETRY_JITTER_MS" in body, "между попытками нет джиттера"
