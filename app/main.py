@@ -3,7 +3,9 @@
 import asyncio
 import logging
 import os
+import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from urllib.parse import parse_qs, quote
 
 from fastapi import FastAPI, Request
@@ -84,6 +86,8 @@ _inflight_streams = 0
 _mutating_admission_open = True
 _restart_inbox_drain: "asyncio.Task | None" = None
 _restart_failure = ""
+_PROCESS_GENERATION = uuid.uuid4().hex
+_PROCESS_STARTED_AT = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def clear_restart_failure() -> None:
@@ -248,6 +252,8 @@ class RequestCensusMiddleware:
                 headers={
                     "X-Orchestra-Restarting": "1",
                     "X-Orchestra-Restart-Error": restart_failure_header(),
+                    "X-Orchestra-Generation": _PROCESS_GENERATION,
+                    "X-Orchestra-Started-At": _PROCESS_STARTED_AT,
                 },
             )
             await response(scope, receive, send)
@@ -269,6 +275,8 @@ class RequestCensusMiddleware:
                     *(message.get("headers") or []),
                     (b"x-orchestra-restarting", b"0" if _mutating_admission_open else b"1"),
                     (b"x-orchestra-restart-error", restart_failure_header().encode("ascii")),
+                    (b"x-orchestra-generation", _PROCESS_GENERATION.encode("ascii")),
+                    (b"x-orchestra-started-at", _PROCESS_STARTED_AT.encode("ascii")),
                 ]
                 headers = {k.lower(): v for k, v in message.get("headers") or []}
                 if headers.get(b"content-type", b"").startswith(b"text/event-stream"):

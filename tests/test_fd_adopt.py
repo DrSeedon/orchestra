@@ -1133,6 +1133,18 @@ async def test_269_restart_header_states_both_values_on_ordinary_responses():
         "a read-only response must still carry the pause: the dashboard's heartbeat is a GET")
     assert reopened.headers.get("X-Orchestra-Restarting") == "0", (
         "a header stuck at 1 leaves the client paused until its own 120s ceiling")
+    generations = {
+        opened.headers.get("X-Orchestra-Generation"),
+        closed.headers.get("X-Orchestra-Generation"),
+        reopened.headers.get("X-Orchestra-Generation"),
+    }
+    assert len(generations) == 1 and None not in generations
+    started = {
+        opened.headers.get("X-Orchestra-Started-At"),
+        closed.headers.get("X-Orchestra-Started-At"),
+        reopened.headers.get("X-Orchestra-Started-At"),
+    }
+    assert len(started) == 1 and None not in started
 
 
 @pytest.mark.asyncio
@@ -1170,6 +1182,8 @@ async def test_269_restart_header_is_on_the_refusal_itself():
     assert refused.json()["error"]["code"] == "restart_pending"
     assert not reached, "the refusal must happen before the handler, i.e. before send_wrapper"
     assert refused.headers.get("X-Orchestra-Restarting") == "1"
+    assert refused.headers.get("X-Orchestra-Generation")
+    assert refused.headers.get("X-Orchestra-Started-At")
 
 
 # ------------------------------------------------------------- T7: fail-closed orphan sweep

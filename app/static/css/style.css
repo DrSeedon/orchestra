@@ -16,6 +16,28 @@
 }
 html, body { overflow: hidden; margin: 0; padding: 0; width: 100%; height: 100%; }
 body { background: var(--bg); color: #c8d6e5; font-family: var(--font-sans); }
+.connection-banner {
+  min-height: 30px; flex: 0 0 auto; align-items: center; justify-content: center;
+  gap: 9px; padding: 5px 14px; border-bottom: 1px solid transparent;
+  font-size: 11px; line-height: 1.35; letter-spacing: .005em;
+}
+.connection-banner:not(.hidden) { display: flex; }
+.connection-banner[data-phase="restarting"] {
+  color: #c7d2fe; background: rgba(79,70,229,.14); border-color: rgba(129,140,248,.38);
+}
+.connection-banner[data-phase="recovering"] {
+  color: #bae6fd; background: rgba(2,132,199,.12); border-color: rgba(56,189,248,.34);
+}
+.connection-banner[data-phase="degraded"] {
+  color: #fde68a; background: rgba(161,98,7,.13); border-color: rgba(234,179,8,.34);
+}
+.connection-banner[data-phase="offline"] {
+  color: #fecaca; background: rgba(153,27,27,.15); border-color: rgba(248,113,113,.4);
+}
+.connection-banner[data-phase="online"] {
+  color: #bbf7d0; background: rgba(21,128,61,.13); border-color: rgba(74,222,128,.3);
+}
+.connection-banner .connection-detail { color: currentColor; opacity: .66; }
 /* Hybrid typography: mono for code / metrics / paths / logs, sans for prose & UI */
 code, pre, kbd, samp, .font-mono,
 .markdown-body code, .markdown-body pre,
