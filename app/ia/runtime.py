@@ -408,6 +408,16 @@ class KnowledgeRuntime:
         }
         self.scope_registry = self._scope_registry()
         self.state = self._runtime_state()
+        from app.ia.project_knowledge import ProjectKnowledgeRouter
+
+        self.project_knowledge = ProjectKnowledgeRouter(
+            project_roots={
+                str(entry["canonical_project_id"]): Path(str(entry["repository_root"]))
+                for entry in self.scope_registry.values()
+            },
+            engine_state_path=root / "project-knowledge-owner.json",
+            central_reader=self._central_project_record,
+        )
         self._task_projects = self._task_project_ids()
         self._evidence_records_cache: list[dict[str, Any]] | None = None
         self.knowledge_service = None
@@ -415,7 +425,8 @@ class KnowledgeRuntime:
         if self.state.get("active_owner") == "legacy" and self.state.get("generation") == 2:
             self.task_store.reconcile_legacy_tasks(self._task_snapshot()["tasks"])
         self._initialize_canonical_git()
-        self._import_scope_evidence()
+        if self.project_knowledge.active_owner == "central":
+            self._import_scope_evidence()
         self._ensure_vector_projection()
         self._ensure_shadow_receipt()
         self._migrate_platform_prompts()
@@ -744,6 +755,28 @@ class KnowledgeRuntime:
 
     def _evidence_root(self) -> Path:
         return self.paths["canonical_root"] / "evidence"
+
+    def _central_project_record(self, project_id: str, stable_id: str) -> dict[str, Any]:
+        direct = self._evidence_root() / project_id / f"{stable_id}.json"
+        if direct.is_file():
+            return _read_json(direct)
+        candidates = [
+            path
+            for path in (self.paths["canonical_root"] / "knowledge").rglob(
+                f"{stable_id}.json"
+            )
+            if path.is_file()
+        ]
+        matches = []
+        for path in candidates:
+            record = _read_json(path)
+            if record.get("project_id") == project_id:
+                matches.append(record)
+        if len(matches) != 1:
+            raise KnowledgeRuntimeError(
+                f"central project knowledge record is unavailable: {project_id}/{stable_id}"
+            )
+        return matches[0]
 
     def _source_record(
         self,
@@ -1094,6 +1127,19 @@ class KnowledgeRuntime:
                 trim_native_heap("knowledge projection refresh")
 
     def _query_evidence(self, project_id: str, text: str, limit: int) -> tuple[list[dict], list[dict]]:
+        project_knowledge = getattr(self, "project_knowledge", None)
+        if project_knowledge is not None and project_knowledge.active_owner == "project-local":
+            records = project_knowledge.query_records(project_id, text, limit)
+            items = []
+            for record in records:
+                value = copy.deepcopy(record)
+                value["source"] = "project-local-filesystem"
+                value["canonical_head"] = self.state["canonical_head"]
+                value["project_head"] = project_knowledge.project_heads[project_id]
+                value["projection_head"] = None
+                value["indexed_head"] = self.state.get("indexed_head")
+                items.append(value)
+            return items, []
         words = [word.casefold() for word in re.findall(r"\w+", text, flags=re.UNICODE)]
         projection = self.paths["current_projection"]
         if projection.is_file():
@@ -1357,20 +1403,35 @@ class KnowledgeRuntime:
         if entry is None:
             raise KnowledgeAuthorizationError(f"scope is not registered: {scope}")
         project_id = str(entry["canonical_project_id"])
+        items = []
+        debt = []
+        project_knowledge = getattr(self, "project_knowledge", None)
+        project_local = (
+            project_knowledge is not None
+            and project_knowledge.active_owner == "project-local"
+        )
+        if project_local:
+            evidence_items, debt = self._query_evidence(
+                project_id, str(text or ""), int(limit)
+            )
+            items.extend(evidence_items)
+        remaining = max(0, int(limit) - len(items))
         conditions = ["s.scope=?", "trim(COALESCE(l.content,''))!=''"]
         params: list[Any] = [scope]
         for word in re.findall(r"\w+", str(text or "").casefold(), flags=re.UNICODE):
             conditions.append("lower(l.content) LIKE ?")
             params.append(f"%{word}%")
-        params.append(int(limit))
+        params.append(remaining)
         sql = (
             "SELECT l.id,l.session_id,l.type,l.content,s.name FROM logs l "
             "JOIN sessions s ON s.id=l.session_id WHERE " + " AND ".join(conditions)
             + " ORDER BY l.id LIMIT ?"
         )
-        with self._connection() as connection:
-            rows = connection.execute(sql, params).fetchall()
-        items = []
+        if remaining:
+            with self._connection() as connection:
+                rows = connection.execute(sql, params).fetchall()
+        else:
+            rows = []
         for row in rows:
             stable_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"orch://legacy/log/{project_id}/{row['id']}"))
             session_uuid = str(uuid.uuid5(
@@ -1389,12 +1450,13 @@ class KnowledgeRuntime:
                 "projection_head": self.state["projection_head"],
                 "indexed_head": self.state.get("indexed_head"),
             })
-        evidence_items, debt = self._query_evidence(
-            project_id,
-            str(text or ""),
-            max(0, int(limit) - len(items)),
-        )
-        items.extend(evidence_items)
+        if not project_local:
+            evidence_items, debt = self._query_evidence(
+                project_id,
+                str(text or ""),
+                max(0, int(limit) - len(items)),
+            )
+            items.extend(evidence_items)
         if detail == "summary":
             from app.ia.projections import _summary_item
 
@@ -1409,6 +1471,9 @@ class KnowledgeRuntime:
             "projection_head": self.state["projection_head"],
             "indexed_head": self.state.get("indexed_head"),
             "debt": debt,
+            "project_knowledge_owner": (
+                project_knowledge.active_owner if project_knowledge is not None else "central"
+            ),
         }
 
     def authorized_request(self, request: Request, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -1787,9 +1852,10 @@ def knowledge_runtime_mode(config: RuntimeConfig) -> Iterator[KnowledgeRuntime]:
     _ACTIVE_RUNTIME = owner
     from app import tm
     from app.ia import knowledge, projections
+    from app.ia.project_knowledge import project_knowledge_mode
 
     try:
-        with knowledge.knowledge_service_mode(
+        with project_knowledge_mode(owner.project_knowledge), knowledge.knowledge_service_mode(
             canonical_root=owner.paths["canonical_root"] / "knowledge",
             registry_path=owner._bootstrap_topic_registry(),
             task_store=owner.task_store,
