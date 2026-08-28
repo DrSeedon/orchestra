@@ -69,3 +69,6 @@
 - [information-architecture-synthesis](information-architecture-synthesis.md) — joined typed namespace/data plane, separate task/evidence/fact/session/resource contracts, OpenViking transfer verdicts and #315 plan.
 - [data-locality](data-locality.md) — fixed project-local `docs/kb/` owner, exact distribution
   ledger, one-record JSON format, cutover consumers and rollback proof.
+- [chat-freshness](chat-freshness.md) — чат в дашборде берётся ТОЛЬКО из сети: один свежий
+  snapshot, `AbortController` на переключении, `no-store` с обеих сторон; зеркало логов в
+  IndexedDB удалено и обратно не заводится.
