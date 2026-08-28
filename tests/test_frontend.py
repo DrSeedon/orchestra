@@ -3915,6 +3915,36 @@ def test_native_codex_compact_renders_one_result_badge(
     page.close()
 
 
+def test_subagent_lifecycle_updates_one_existing_card(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_fixture_page(dashboard_browser)
+    page.evaluate("""() => {
+        const payload = {subagent_id: 'sub-1'};
+        addChatEntry('subagent_start', 'Research | id=sub-1 | type=agent', null, null, payload);
+        addChatEntry(
+            'subagent_progress',
+            'Research | id=sub-1 | tool=Bash | tokens=1200',
+            null, null, payload,
+        );
+    }""")
+
+    card = page.locator('#chat [data-subagent-id="sub-1"]')
+    expect(card).to_have_count(1)
+    expect(card.locator('.sa-progress')).to_have_text('⏳ using Bash | 1.2k tokens')
+
+    page.evaluate("""() => addChatEntry(
+        'subagent_end',
+        'Research | completed summary | id=sub-1 | status=completed',
+        null, null, {subagent_id: 'sub-1'},
+    )""")
+    expect(card).to_have_count(1)
+    expect(card).to_contain_text('Sub-agent done: "Research"')
+    expect(card).to_contain_text('completed summary')
+    expect(card.locator('.sa-progress')).to_have_count(0)
+    page.close()
+
+
 def test_codex_web_search_renders_queries_without_transport_json(
     dashboard_browser: Browser,
 ):

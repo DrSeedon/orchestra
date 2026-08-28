@@ -1784,7 +1784,7 @@ function _updateCompactToolResult(card, content, isBase64Image) {
     card.dataset.resultContent = (isTask || isAgentList) ? content : clean;
 }
 
-function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, insert, isBase64Image) {
+function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, insertAndFollow, isBase64Image) {
     if (!window.compactMode || (type !== 'tool' && type !== 'tool_result')) return false;
     if (type === 'tool_result') {
         const card = _toolForResult(chat, payload, anchor, true);
@@ -1795,12 +1795,174 @@ function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, inser
     }
 
     const line = buildCompactToolLine(type, content, ts, payload);
-    const wasAtBottom = _chatAtBottom(chat);
-    const insertedBeforeStream = !anchor && streamBubble && streamBubble.parentNode === chat;
-    insert(line);
-    _trimChatNodes(chat);
-    if (type === 'tool') _adoptOrphanResults(chat, line.dataset.toolUseId);
-    if (!anchor && !insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+    insertAndFollow(line, () => {
+        _trimChatNodes(chat);
+        if (type === 'tool') _adoptOrphanResults(chat, line.dataset.toolUseId);
+    });
+    return true;
+}
+
+function _renderStatusEntry(type, content, ts, anchor, insertAndFollow) {
+    if (type !== 'status') return false;
+    // A status row may beat the authoritative `text` row through async logging.
+    // Never finalize streamBubble here or the later text becomes a duplicate answer.
+    if (content?.startsWith('precompact timer')) return true;
+    if (/^codex hook .+: (?:running|started|completed)(?: · \d+ms)?$/i.test(content || '')) return true;
+    if (/^codex mcp .+: (?:starting|ready)$/i.test(content || '')) return true;
+    if (/^compact started \(native Codex,/i.test(content || '')) return true;
+
+    if (/^grok mcp ready\b/i.test(content || '')) {
+        const badge = document.createElement('div');
+        badge.className = 'text-center text-xs py-1 text-emerald-400 italic';
+        badge.textContent = `🔌 ${content}`;
+        addTimestamp(badge, ts);
+        insertAndFollow(badge);
+        return true;
+    }
+
+    const nativeCodexCompact = (content || '').match(
+        /^compact done \(native Codex\):\s*(\d+)%\s*→\s*(\d+)%/i
+    );
+    const rateLimit = _parseRateLimitStatus(content);
+    const codexReconnect = content.startsWith('codex reconnecting:');
+    const codexSteer = content === 'message steered into active Codex turn';
+    const codexReroute = content.startsWith('model rerouted:');
+    const codexHook = content.startsWith('codex hook ');
+    const codexMcp = content.startsWith('codex mcp ');
+    const codexCompaction = content.includes('codex context compact');
+    const badge = document.createElement('div');
+    if (rateLimit) {
+        if (!anchor && !scrollAfterLoad) {
+            _showRateLimitBanner(selectedAgent, rateLimit.retry, rateLimit.max, rateLimit.delay);
+        }
+        badge.className = 'text-center text-xs py-1 text-amber-400 italic';
+        badge.textContent = `⏳ Rate limit — Anthropic временно ограничил запросы, повтор ${rateLimit.retry}/${rateLimit.max} через ${rateLimit.delay}с (это НЕ твой лимит подписки)`;
+    } else if (codexReconnect) {
+        badge.className = 'text-center text-xs py-1 text-amber-400 italic';
+        badge.textContent = `🔌 Codex reconnecting — ${content.slice('codex reconnecting:'.length).trim()}`;
+    } else if (codexSteer) {
+        badge.className = 'text-center text-xs py-1 text-cyan-400 italic';
+        badge.textContent = '↪ Message steered into the current Codex turn';
+    } else if (codexReroute) {
+        badge.className = 'text-center text-xs py-1 text-fuchsia-400 italic';
+        badge.textContent = `⇄ Codex model rerouted — ${content.slice('model rerouted:'.length).trim()}`;
+    } else if (codexHook) {
+        badge.className = 'text-center text-xs py-1 text-sky-400 italic';
+        badge.textContent = `⌁ ${content}`;
+    } else if (codexMcp) {
+        badge.className = 'text-center text-xs py-1 text-emerald-400 italic';
+        badge.textContent = `🔌 ${content}`;
+    } else if (nativeCodexCompact) {
+        badge.className = 'text-center text-xs py-1 text-amber-300 italic';
+        badge.textContent = `🗜 Codex context compacted natively · ${nativeCodexCompact[1]}% → ${nativeCodexCompact[2]}% · same thread`;
+    } else if (codexCompaction) {
+        badge.className = 'text-center text-xs py-1 text-amber-300 italic';
+        badge.textContent = '🗜 Codex context compacted';
+    } else {
+        badge.className = 'text-center text-xs py-1 text-slate-500 italic';
+        badge.textContent = `⚡ ${content}`;
+    }
+    addTimestamp(badge, ts);
+    insertAndFollow(badge);
+    return true;
+}
+
+const SUBAGENT_LIFECYCLE_TYPES = new Set([
+    'subagent_start',
+    'subagent_end',
+    'subagent_progress',
+]);
+
+function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertAndFollow) {
+    if (!SUBAGENT_LIFECYCLE_TYPES.has(type)) return false;
+    const parts = content.split('|').map(part => part.trim());
+    const meta = {};
+    const textParts = [];
+    for (const part of parts) {
+        const separator = part.indexOf('=');
+        if (separator > 0 && /^\w+$/.test(part.slice(0, separator))) {
+            meta[part.slice(0, separator)] = part.slice(separator + 1);
+        } else if (part) {
+            textParts.push(part);
+        }
+    }
+    const description = textParts[0] || textParts[1] || '';
+    const subagentId = payload?.subagent_id || meta.id || '';
+    const isBackground = meta.type === 'local_bash';
+    const element = document.createElement('div');
+    element.style.cssText = 'font-size:11px;padding:4px 10px;margin:2px 0;border-radius:6px;overflow-wrap:anywhere';
+
+    if (type === 'subagent_start') {
+        element.style.cssText += ';border-left:3px solid #a78bfa;background:rgba(99,102,241,0.06);color:#c4b5fd';
+        if (subagentId) element.dataset.subagentId = subagentId;
+        element.dataset.subagentKind = isBackground ? 'background' : 'agent';
+        const header = document.createElement('div');
+        header.style.cssText = 'cursor:pointer;user-select:none';
+        const noun = isBackground ? 'Background task' : 'Sub-agent';
+        header.innerHTML = `<span class="sa-caret">▶</span> ${isBackground ? '⚙️' : '🤖'} <span style="color:#e2e8f0">${noun}: "${DOMPurify.sanitize(description)}"</span>${meta.type ? ` <span style="color:#64748b;font-size:10px">(${DOMPurify.sanitize(meta.type)})</span>` : ''}`;
+        const body = document.createElement('div');
+        body.className = 'sa-body';
+        body.style.cssText = 'margin-top:4px;padding-left:14px;border-left:1px dashed #4c1d95;display:none;font-size:10px;color:#94a3b8;white-space:pre-wrap;max-height:300px;overflow-y:auto';
+        let expanded = false;
+        header.addEventListener('click', () => {
+            expanded = !expanded;
+            body.style.display = expanded ? 'block' : 'none';
+            header.querySelector('.sa-caret').textContent = expanded ? '▼' : '▶';
+        });
+        element.append(header, body);
+    } else if (type === 'subagent_progress') {
+        const tokenCount = parseInt(meta.tokens || '0');
+        const tokens = meta.tokens ? (tokenCount >= 1000 ? (tokenCount / 1000).toFixed(1) + 'k' : meta.tokens) : '';
+        const line = `⏳ ${meta.tool ? 'using ' + meta.tool : 'working'}${tokens ? ' | ' + tokens + ' tokens' : ''}`;
+        const host = subagentId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subagentId)}"]`) : null;
+        if (host) {
+            let progress = host.querySelector('.sa-progress');
+            if (!progress) {
+                progress = document.createElement('div');
+                progress.className = 'sa-progress';
+                progress.style.cssText = 'font-size:10px;color:#64748b;padding-left:14px;margin-top:2px';
+                host.appendChild(progress);
+            }
+            progress.textContent = line;
+            return true;
+        }
+        element.style.cssText += ';color:#64748b';
+        element.textContent = `⏳ ${isBackground ? 'Background task' : 'Sub-agent'} "${description}" — ${line}`;
+    } else {
+        const succeeded = !meta.status || ['completed', 'shutdown'].includes(meta.status);
+        const host = subagentId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subagentId)}"]`) : null;
+        const summary = textParts.slice(1).join(' | ').trim();
+        if (host) {
+            const header = host.querySelector('div');
+            const noun = host.dataset.subagentKind === 'background' ? 'Background task' : 'Sub-agent';
+            if (header) header.innerHTML = `<span class="sa-caret">▶</span> ${succeeded ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${succeeded ? 'done' : 'failed'}: "${DOMPurify.sanitize(description)}"</span>`;
+            host.querySelector('.sa-progress')?.remove();
+            if (summary) {
+                const summaryElement = document.createElement('div');
+                summaryElement.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:14px;white-space:pre-wrap';
+                summaryElement.textContent = summary;
+                host.appendChild(summaryElement);
+            }
+            host.style.borderLeftColor = succeeded ? '#22c55e' : '#ef4444';
+            return true;
+        }
+        element.style.cssText += `;border-left:3px solid ${succeeded ? '#22c55e' : '#ef4444'};background:rgba(${succeeded ? '34,197,94' : '239,68,68'},0.06);color:${succeeded ? '#86efac' : '#fca5a5'}`;
+        const noun = isBackground ? 'Background task' : 'Sub-agent';
+        element.innerHTML = `${succeeded ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${succeeded ? 'completed' : 'failed'}${description ? ': "'+DOMPurify.sanitize(description)+'"' : ''}</span>`;
+        if (summary) {
+            const summaryElement = document.createElement('div');
+            summaryElement.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;white-space:pre-wrap';
+            summaryElement.textContent = summary.length > 300 ? summary.slice(0, 300) + '…' : summary;
+            element.appendChild(summaryElement);
+        }
+    }
+
+    addTimestamp(element, ts);
+    insertAndFollow(element, () => {
+        if (type !== 'subagent_start' || !subagentId) return;
+        _flushPendingSubagentLogs(subagentId, subagentId);
+        _flushPendingSubagentLogs(meta.tool_use_id, subagentId);
+    });
     return true;
 }
 
@@ -1832,6 +1994,13 @@ function addChatEntry(type, content, ts, anchor, payload) {
             inserted = chat.appendChild(el);
         }
         if (!scrollAfterLoad && !wasAtBottom) _markChatHasNewBelow();
+        return inserted;
+    };
+    const _insertAndFollow = (el, afterInsert) => {
+        const wasAtBottom = _chatAtBottom(chat);
+        const inserted = _insert(el);
+        if (afterInsert) afterInsert(inserted);
+        if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return inserted;
     };
 
@@ -1905,13 +2074,11 @@ function addChatEntry(type, content, ts, anchor, payload) {
             div.style.color = '#64748b';
         }
         addTimestamp(div, ts);
-        const wasAtBottom = _chatAtBottom(chat);
-        _insert(div);
-        if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+        _insertAndFollow(div);
         return;
     }
 
-    if (_renderCompactToolEntry(type, content, ts, payload, chat, anchor, _insert, _isBase64Image)) return;
+    if (_renderCompactToolEntry(type, content, ts, payload, chat, anchor, _insertAndFollow, _isBase64Image)) return;
 
     // Stream events feed the typewriter buffer — RAF loop renders incrementally
     if (type === 'stream') {
@@ -1989,167 +2156,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
         return;
     }
 
-    if (type === 'status') {
-        // precompact timer scheduled/cancelled = internal housekeeping noise, never show in chat
-        if (content && content.startsWith('precompact timer')) return;
-        if (/^codex hook .+: (?:running|started|completed)(?: · \d+ms)?$/i.test(content || '')) return;
-        if (/^codex mcp .+: (?:starting|ready)$/i.test(content || '')) return;
-        if (/^compact started \(native Codex,/i.test(content || '')) return;
-        // Do NOT finalize streamBubble on `turn ended`: `_log` is async, so status can
-        // land before the matching `text` row. Finalizing here left streamBubble=null and
-        // the later `text` painted a second copy of the same answer (Grok harness, 15.08).
-        // Orphan streams (no final text ever) are rare now that Grok flushes text on turn_end.
-        if (content && /^grok mcp ready\b/i.test(content)) {
-            const badge = document.createElement('div');
-            badge.className = 'text-center text-xs py-1 text-emerald-400 italic';
-            badge.textContent = `🔌 ${content}`;
-            addTimestamp(badge, ts);
-            const wasAtBottom = _chatAtBottom(chat);
-            _insert(badge);
-            if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
-            return;
-        }
-        const nativeCodexCompact = (content || '').match(
-            /^compact done \(native Codex\):\s*(\d+)%\s*→\s*(\d+)%/i
-        );
-        const rl = _parseRateLimitStatus(content);
-        const codexReconnect = content.startsWith('codex reconnecting:');
-        const codexSteer = content === 'message steered into active Codex turn';
-        const codexReroute = content.startsWith('model rerouted:');
-        const codexHook = content.startsWith('codex hook ');
-        const codexMcp = content.startsWith('codex mcp ');
-        const codexCompaction = content.includes('codex context compact');
-        const badge = document.createElement('div');
-        if (rl) {
-            // Rate limit: trigger the global banner (live logs only, not history/initial replay)
-            if (!anchor && !scrollAfterLoad) _showRateLimitBanner(selectedAgent, rl.retry, rl.max, rl.delay);
-            badge.className = 'text-center text-xs py-1 text-amber-400 italic';
-            badge.textContent = `⏳ Rate limit — Anthropic временно ограничил запросы, повтор ${rl.retry}/${rl.max} через ${rl.delay}с (это НЕ твой лимит подписки)`;
-        } else if (codexReconnect) {
-            badge.className = 'text-center text-xs py-1 text-amber-400 italic';
-            badge.textContent = `🔌 Codex reconnecting — ${content.slice('codex reconnecting:'.length).trim()}`;
-        } else if (codexSteer) {
-            badge.className = 'text-center text-xs py-1 text-cyan-400 italic';
-            badge.textContent = '↪ Message steered into the current Codex turn';
-        } else if (codexReroute) {
-            badge.className = 'text-center text-xs py-1 text-fuchsia-400 italic';
-            badge.textContent = `⇄ Codex model rerouted — ${content.slice('model rerouted:'.length).trim()}`;
-        } else if (codexHook) {
-            badge.className = 'text-center text-xs py-1 text-sky-400 italic';
-            badge.textContent = `⌁ ${content}`;
-        } else if (codexMcp) {
-            badge.className = 'text-center text-xs py-1 text-emerald-400 italic';
-            badge.textContent = `🔌 ${content}`;
-        } else if (nativeCodexCompact) {
-            badge.className = 'text-center text-xs py-1 text-amber-300 italic';
-            badge.textContent = `🗜 Codex context compacted natively · ${nativeCodexCompact[1]}% → ${nativeCodexCompact[2]}% · same thread`;
-        } else if (codexCompaction) {
-            badge.className = 'text-center text-xs py-1 text-amber-300 italic';
-            badge.textContent = '🗜 Codex context compacted';
-        } else {
-            badge.className = 'text-center text-xs py-1 text-slate-500 italic';
-            badge.textContent = `⚡ ${content}`;
-        }
-        addTimestamp(badge, ts);
-        const wasAtBottom = _chatAtBottom(chat);
-        _insert(badge);
-        if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
-        return;
-    }
+    if (_renderStatusEntry(type, content, ts, anchor, _insertAndFollow)) return;
 
-    if (type === 'subagent_start' || type === 'subagent_end' || type === 'subagent_progress') {
-        const parts = content.split('|').map(p => p.trim());
-        const meta = {};
-        const textParts = [];
-        for (const p of parts) {
-            const eq = p.indexOf('=');
-            if (eq > 0 && /^\w+$/.test(p.slice(0, eq))) meta[p.slice(0, eq)] = p.slice(eq + 1);
-            else if (p) textParts.push(p);
-        }
-        const desc = textParts[0] || textParts[1] || '';
-        const el = document.createElement('div');
-        el.style.cssText = 'font-size:11px;padding:4px 10px;margin:2px 0;border-radius:6px;overflow-wrap:anywhere';
-
-        const subId = (payload && payload.subagent_id) || meta.id || '';
-        const isBackground = meta.type === 'local_bash';
-
-        if (type === 'subagent_start') {
-            // Collapsible accordion: header + body where live sub-agent logs nest.
-            el.style.cssText += ';border-left:3px solid #a78bfa;background:rgba(99,102,241,0.06);color:#c4b5fd';
-            if (subId) el.dataset.subagentId = subId;
-            el.dataset.subagentKind = isBackground ? 'background' : 'agent';
-            const header = document.createElement('div');
-            header.style.cssText = 'cursor:pointer;user-select:none';
-            const noun = isBackground ? 'Background task' : 'Sub-agent';
-            header.innerHTML = `<span class="sa-caret">▶</span> ${isBackground ? '⚙️' : '🤖'} <span style="color:#e2e8f0">${noun}: "${DOMPurify.sanitize(desc)}"</span>${meta.type ? ` <span style="color:#64748b;font-size:10px">(${DOMPurify.sanitize(meta.type)})</span>` : ''}`;
-            const body = document.createElement('div');
-            body.className = 'sa-body';
-            body.style.cssText = 'margin-top:4px;padding-left:14px;border-left:1px dashed #4c1d95;display:none;font-size:10px;color:#94a3b8;white-space:pre-wrap;max-height:300px;overflow-y:auto';
-            let _expanded = false;
-            header.addEventListener('click', () => {
-                _expanded = !_expanded;
-                body.style.display = _expanded ? 'block' : 'none';
-                header.querySelector('.sa-caret').textContent = _expanded ? '▼' : '▶';
-            });
-            el.appendChild(header);
-            el.appendChild(body);
-        } else if (type === 'subagent_progress') {
-            // Update the live progress line inside the matching accordion (or standalone)
-            const tokens = meta.tokens ? (parseInt(meta.tokens) >= 1000 ? (parseInt(meta.tokens) / 1000).toFixed(1) + 'k' : meta.tokens) : '';
-            const line = `⏳ ${meta.tool ? 'using ' + meta.tool : 'working'}${tokens ? ' | ' + tokens + ' tokens' : ''}`;
-            const host = subId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`) : null;
-            if (host) {
-                let prog = host.querySelector('.sa-progress');
-                if (!prog) {
-                    prog = document.createElement('div');
-                    prog.className = 'sa-progress';
-                    prog.style.cssText = 'font-size:10px;color:#64748b;padding-left:14px;margin-top:2px';
-                    host.appendChild(prog);
-                }
-                prog.textContent = line;
-                return;  // updated in place, no new bubble
-            }
-            el.style.cssText += ';color:#64748b';
-            el.textContent = `⏳ ${isBackground ? 'Background task' : 'Sub-agent'} "${desc}" — ${line}`;
-        } else {  // subagent_end → mark the accordion done + collapse
-            const ok = !meta.status || ['completed', 'shutdown'].includes(meta.status);
-            const host = subId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`) : null;
-            const summaryText = textParts.slice(1).join(' | ').trim();
-            if (host) {
-                const hdr = host.querySelector('div');
-                const noun = host.dataset.subagentKind === 'background' ? 'Background task' : 'Sub-agent';
-                if (hdr) hdr.innerHTML = `<span class="sa-caret">▶</span> ${ok ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${ok ? 'done' : 'failed'}: "${DOMPurify.sanitize(desc)}"</span>`;
-                const prog = host.querySelector('.sa-progress');
-                if (prog) prog.remove();
-                if (summaryText) {
-                    const sumEl = document.createElement('div');
-                    sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:14px;white-space:pre-wrap';
-                    sumEl.textContent = summaryText;
-                    host.appendChild(sumEl);
-                }
-                host.style.borderLeftColor = ok ? '#22c55e' : '#ef4444';
-                return;  // updated existing accordion, no new bubble
-            }
-            el.style.cssText += `;border-left:3px solid ${ok ? '#22c55e' : '#ef4444'};background:rgba(${ok ? '34,197,94' : '239,68,68'},0.06);color:${ok ? '#86efac' : '#fca5a5'}`;
-            const noun = isBackground ? 'Background task' : 'Sub-agent';
-            el.innerHTML = `${ok ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${ok ? 'completed' : 'failed'}${desc ? ': "'+DOMPurify.sanitize(desc)+'"' : ''}</span>`;
-            if (summaryText) {
-                const sumEl = document.createElement('div');
-                sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;white-space:pre-wrap';
-                sumEl.textContent = summaryText.length > 300 ? summaryText.slice(0, 300) + '…' : summaryText;
-                el.appendChild(sumEl);
-            }
-        }
-        addTimestamp(el, ts);
-        const wasAtBottom = _chatAtBottom(chat);
-        _insert(el);
-        if (type === 'subagent_start' && subId) {
-            _flushPendingSubagentLogs(subId, subId);
-            _flushPendingSubagentLogs(meta.tool_use_id, subId);
-        }
-        if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
-        return;
-    }
+    if (_renderSubagentLifecycleEntry(type, content, ts, payload, chat, _insertAndFollow)) return;
 
     const div = document.createElement('div');
     div.className = `px-3 py-2 rounded-lg text-sm break-words ${
@@ -2973,9 +2982,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             }
             addTimestamp(target, ts);
             if (!lastTool) {
-                const wasAtBottom = _chatAtBottom(chat);
-                _insert(div);
-                if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+                _insertAndFollow(div);
             }
             return;
         }
@@ -3008,9 +3015,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             } else {
                 div.appendChild(errDiv);
                 addTimestamp(div, ts);
-                const wasAtBottom = _chatAtBottom(chat);
-                _insert(div);
-                if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+                _insertAndFollow(div);
             }
             return;
         }
@@ -3835,9 +3840,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             sep.appendChild(wsStandalone);
             div.appendChild(sep);
             addTimestamp(div, ts);
-            const wasAtBottom = _chatAtBottom(chat);
-            _insert(div);
-            if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+            _insertAndFollow(div);
             return;
         }
 
@@ -3856,9 +3859,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 _renderJsonGrid(sData, gridWrap);
                 div.appendChild(gridWrap);
                 addTimestamp(div, ts);
-                const wasAtBottom = _chatAtBottom(chat);
-                _insert(div);
-                if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+                _insertAndFollow(div);
                 return;
             }
         }
@@ -3900,9 +3901,8 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
     addCopyBtn(div, content);
     addTimestamp(div, ts);
-    const wasAtBottom = _chatAtBottom(chat);
-    _insert(div);
-    _trimChatNodes(chat);
-    if (type === 'tool') _adoptOrphanResults(chat, div.dataset.toolUseId);
-    if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+    _insertAndFollow(div, () => {
+        _trimChatNodes(chat);
+        if (type === 'tool') _adoptOrphanResults(chat, div.dataset.toolUseId);
+    });
 }
