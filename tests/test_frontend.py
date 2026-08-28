@@ -1827,13 +1827,13 @@ def test_connection_state_confirms_external_restart_by_process_generation(
     dashboard_browser: Browser,
 ):
     page, _state = _open_restart_page(dashboard_browser)
-    page.wait_for_function("() => typeof _connectionObserveResponse === 'function'")
+    page.wait_for_function("() => typeof Connection?.observe === 'function'")
     state = page.evaluate("""() => {
         localStorage.setItem('orchestra_server_generation', 'generation-old');
-        _connectionState.generation = 'generation-old';
-        _connectionNoteFailure('/api/files', new TypeError('Failed to fetch'), 3);
+        Connection.state.generation = 'generation-old';
+        Connection.fail('/api/files', new TypeError('Failed to fetch'), 3);
         const before = {
-            phase: _connectionState.phase,
+            phase: Connection.state.phase,
             text: document.querySelector('#connection-banner')?.textContent || '',
         };
         const response = new Response('{}', {status: 200, headers: {
@@ -1841,13 +1841,13 @@ def test_connection_state_confirms_external_restart_by_process_generation(
             'X-Orchestra-Generation': 'generation-new',
             'X-Orchestra-Started-At': new Date().toISOString(),
         }});
-        _connectionObserveResponse(response, '/api/models');
+        Connection.observe(response, '/api/models');
         return {
             before,
             after: {
-                phase: _connectionState.phase,
+                phase: Connection.state.phase,
                 text: document.querySelector('#connection-banner')?.textContent || '',
-                generation: _connectionState.generation,
+                generation: Connection.state.generation,
             },
         };
     }""")
@@ -1865,11 +1865,11 @@ def test_restart_owns_one_status_and_suppresses_component_diagnoses(
     dashboard_browser: Browser,
 ):
     page, _state = _open_restart_page(dashboard_browser)
-    page.wait_for_function("() => typeof _connectionSetPhase === 'function'")
+    page.wait_for_function("() => typeof Connection?.set === 'function'")
     state = page.evaluate("""() => {
-        _connectionSetPhase('restarting', {reason: 'restart confirmed'});
-        _showNetFailBanner('/api/files', 3);
-        _showStaleNotice('sessions', Date.now() - 120000);
+        Connection.set('restarting', {reason: 'restart confirmed'});
+        Connection.fail('/api/files', new DOMException('signal timed out', 'TimeoutError'), 3);
+        Connection.stale('sessions', Date.now() - 120000);
         _usageError = true;
         renderUsageBar();
         _quotaLinesError = 'нет данных — quota-map request failed';
@@ -1897,13 +1897,11 @@ def test_connection_recovery_refreshes_every_visible_data_surface(
     dashboard_browser: Browser,
 ):
     page, _state = _open_restart_page(dashboard_browser)
-    page.wait_for_function("() => typeof _connectionSetPhase === 'function'")
+    page.wait_for_function("() => typeof Connection?.set === 'function'")
     calls = page.evaluate("""async () => {
         const calls = {};
         const hit = name => { calls[name] = (calls[name] || 0) + 1; };
-        _recovering = false;
-        _connectionState.failures.clear();
-        _connectionState.stale.clear();
+        Connection.resetForTest();
         selectedAgent = 'restart-probe';
         currentScope = '/restart-probe';
         _showChatFor = async () => { hit('chat'); };
@@ -1913,9 +1911,9 @@ def test_connection_recovery_refreshes_every_visible_data_surface(
         refreshOpenFolders = async () => { hit('files'); };
         fetchUsage = async () => { hit('usage'); };
         fetchQuotaLines = async () => { hit('quota'); };
-        _connectionSetPhase('recovering', {reason: 'restart confirmed'});
-        await _recoverAfterOutage();
-        return {calls, phase: _connectionState.phase};
+        Connection.set('recovering', {reason: 'restart confirmed'});
+        await Connection.recover();
+        return {calls, phase: Connection.state.phase};
     }""")
     page.close()
 
@@ -4911,7 +4909,7 @@ def test_api_retry_spaces_attempts_with_jitter():
     """Пункт 1 #197: повторы не идут вплотную — иначе все три попадают в одно окно потерь."""
     source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
     body = source.split("async function api(url, opts = {})", 1)[1].split(
-        "function _showNetFailBanner", 1,
+        "// === Rate Limit Banner", 1,
     )[0]
 
     assert "_API_RETRY_JITTER_MS" in body, "между попытками нет джиттера"

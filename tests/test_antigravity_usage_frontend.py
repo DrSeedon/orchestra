@@ -13,6 +13,7 @@ pytestmark = pytest.mark.skipif(
     reason="#249 phase 2 not implemented (no app/backend_antigravity.py); follow-up #279",
 )
 UTILS_JS = ROOT / "app/static/js/utils.js"
+CONNECTION_JS = ROOT / "app/static/js/connection.js"
 USAGE_JS = ROOT / "app/static/js/usage.js"
 STYLE_CSS = ROOT / "app/static/css/style.css"
 
@@ -35,6 +36,7 @@ def _page(browser: Browser, antigravity, *, width: int = 1440):
         }"""
     )
     page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
     page.add_style_tag(path=str(STYLE_CSS))
     page.evaluate(

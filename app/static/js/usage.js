@@ -5,13 +5,8 @@ let _quotaMapData = null;
 let _usageError = false;
 let _usageCountdownInterval = null;
 
-function _connectionOwnsUsageErrors() {
-    return typeof connectionStatusOwnsTransientErrors === 'function'
-        && connectionStatusOwnsTransientErrors();
-}
-
 function _usageNoDataLabel() {
-    return _connectionOwnsUsageErrors() ? '—' : 'нет данных';
+    return Connection.ownsErrors() ? '—' : 'нет данных';
 }
 let _usageFetchPromise = null;
 let _usageLastSuccessAt = 0;
@@ -144,7 +139,7 @@ function _quotaMapLaneStatusText(windowData, bucketId = null) {
         return hasSeconds ? `откроется при сбросе, через ${_releaseDurationFromSeconds(seconds)}` : 'откроется при сбросе';
     }
     if (status === 'no_data') {
-        return _connectionOwnsUsageErrors() ? '' : 'нет данных';
+        return Connection.ownsErrors() ? '' : 'нет данных';
     }
     return 'работает';
 }
@@ -197,7 +192,7 @@ function _usageProviderWindows(providerId, capacity) {
 }
 
 function _usageFreshnessHtml() {
-    if (_connectionOwnsUsageErrors()) return '';
+    if (Connection.ownsErrors()) return '';
     if (_usageFetchPromise) {
         return '<span id="usage-freshness" style="color:#38bdf8">обновление…</span>';
     }
@@ -222,7 +217,7 @@ function renderUsageBar() {
     if (!bar) return;
     if (!_usageData) {
         if (_usageError) {
-            if (_connectionOwnsUsageErrors()) {
+            if (Connection.ownsErrors()) {
                 bar.innerHTML = '';
                 bar.style.display = 'none';
                 return;
@@ -244,7 +239,7 @@ function renderUsageBar() {
     const groups = [];
     const claudeParts = [];
 
-    if (_usageError && !_connectionOwnsUsageErrors()) {
+    if (_usageError && !Connection.ownsErrors()) {
         claudeParts.push('<span style="color:#eab308" title="Using cached data">⚠️</span>');
     }
 
@@ -857,13 +852,11 @@ async function fetchUsage() {
                 _usageError = false;
                 _usageLastSuccessAt = Date.now();
                 snapshotSave('usage', _usageData);
-                if (typeof _clearStaleNotice === 'function') _clearStaleNotice('usage');
+                Connection.clear('usage');
             } else {
                 _usageError = true;
                 if (!_usageData) _restoreUsageSnapshot();
-                if (_usageData && typeof _showStaleNotice === 'function') {
-                    _showStaleNotice('usage', _usageLastSuccessAt);
-                }
+                if (_usageData) Connection.stale('usage', _usageLastSuccessAt);
             }
             if (!_usageError && quotaMap.status !== 'fulfilled') {
                 console.error(`quota-map fetch failed: ${quotaMap.reason && quotaMap.reason.message || 'unknown'}`);
@@ -883,9 +876,7 @@ async function fetchUsage() {
             console.error(`Usage fetch failed: ${detail}`);
             // Своих данных ещё нет — показываем прошлые с меткой возраста вместо пустоты.
             _restoreUsageSnapshot();
-            if (_usageData && typeof _showStaleNotice === 'function') {
-                _showStaleNotice('usage', _usageLastSuccessAt);
-            }
+            if (_usageData) Connection.stale('usage', _usageLastSuccessAt);
         }
     })();
     renderUsageBar();
