@@ -47,7 +47,7 @@ window.Connection = (() => {
 
     function rerenderDependents() {
         if (typeof renderUsageBar === 'function') renderUsageBar();
-        if (typeof renderQuotaLines === 'function') renderQuotaLines();
+        window.QuotaPanel?.render?.();
     }
 
     function savedDetail() {
@@ -248,7 +248,7 @@ window.Connection = (() => {
         const calls = [
             selectedAgent && currentScope ? _showChatFor(selectedAgent, currentScope) : null,
             refreshSessions(), loadOrchestrators(), loadModels(), refreshOpenFolders(),
-            fetchUsage(), fetchQuotaLines(),
+            fetchUsage(), window.QuotaPanel?.fetch?.(),
         ].filter(Boolean);
         try {
             await Promise.allSettled(calls);
