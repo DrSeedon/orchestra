@@ -1488,6 +1488,8 @@ async def build_quota_map() -> dict:
         TOLERANCE_END_PP,
         TOLERANCE_START_PP,
         GATED_LANES,
+        CURVED_LANES,
+        CURVE_EXPONENT,
         LANE_LABELS,
         deciding_window,
         evaluate_worker_admission,
@@ -1527,6 +1529,10 @@ async def build_quota_map() -> dict:
                 "lane": decision.lane,
                 "label": LANE_LABELS.get(decision.lane, decision.lane),
                 "gated": decision.lane in GATED_LANES,
+                # Порог теперь свойство ПОЛОСЫ, а не бакета: Sol идёт по кривой, Claude
+                # по прямой, и обе живут в одном пуле Codex/Anthropic соответственно.
+                "curved": decision.lane in CURVED_LANES,
+                "limit_pct": decision.limit_pct,
                 "blocked": False,
                 "release_status": decision.release_status,
                 "release_in_seconds": decision.release_in_seconds,
@@ -1732,7 +1738,7 @@ async def build_quota_map() -> dict:
             "reference_windows": reference,
             "tolerance_pp": None if progress is None else tolerance_pp(progress),
             "limit_pct": None if progress is None else line_limit(progress),
-                "trace": {},
+            "trace": {},
             "lanes": sorted(
                 lanes_by_bucket.get(bucket, {}).values(),
                 key=lambda item: item["lane"],
@@ -1752,6 +1758,8 @@ async def build_quota_map() -> dict:
             "hard_stop_pct": HARD_STOP_PCT,
             "tolerance_start_pp": TOLERANCE_START_PP,
             "tolerance_end_pp": TOLERANCE_END_PP,
+            "curve_exponent": CURVE_EXPONENT,
+            "curved_lanes": sorted(CURVED_LANES),
         },
         "buckets": buckets,
         "outside_policy": outside_policy,
