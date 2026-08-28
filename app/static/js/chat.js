@@ -1882,6 +1882,40 @@ const SUBAGENT_LIFECYCLE_TYPES = new Set([
     'subagent_progress',
 ]);
 
+// Часы живой фоновой задачи. Единственный владелец интервала — сам узел: таймер
+// снимается и при финише (`_stopSubagentClock`), и при исчезновении узла из DOM, иначе
+// обрезка чата по MAX_CHAT_NODES оставила бы вечно тикающие таймеры на удалённых баблах.
+const _SA_CLOCK_TICK_MS = 1000;
+
+function _formatSubagentElapsed(seconds) {
+    const total = Math.max(0, Math.floor(seconds));
+    const mins = Math.floor(total / 60);
+    return mins ? `${mins}:${String(total % 60).padStart(2, '0')}` : `${total}s`;
+}
+
+function _startSubagentClock(element, ts) {
+    const started = ts ? new Date(ts).getTime() : Date.now();
+    const base = Number.isFinite(started) ? started : Date.now();
+    const clock = document.createElement('span');
+    clock.className = 'sa-clock';
+    clock.style.cssText = 'margin-left:6px;color:#a78bfa;font-size:10px;font-variant-numeric:tabular-nums';
+    element.appendChild(clock);
+    const tick = () => {
+        if (!element.isConnected) return _stopSubagentClock(element);
+        clock.textContent = `⏳ идёт ${_formatSubagentElapsed((Date.now() - base) / 1000)}`;
+    };
+    tick();
+    element._saClockId = setInterval(tick, _SA_CLOCK_TICK_MS);
+}
+
+function _stopSubagentClock(element) {
+    if (element?._saClockId) {
+        clearInterval(element._saClockId);
+        element._saClockId = null;
+    }
+    element?.querySelector?.('.sa-clock')?.remove();
+}
+
 function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertAndFollow) {
     if (!SUBAGENT_LIFECYCLE_TYPES.has(type)) return false;
     const parts = content.split('|').map(part => part.trim());
@@ -1909,6 +1943,11 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
         header.style.cssText = 'cursor:pointer;user-select:none';
         const noun = isBackground ? 'Background task' : 'Sub-agent';
         header.innerHTML = `<span class="sa-caret">▶</span> ${isBackground ? '⚙️' : '🤖'} <span style="color:#e2e8f0">${noun}: "${DOMPurify.sanitize(description)}"</span>${meta.type ? ` <span style="color:#64748b;font-size:10px">(${DOMPurify.sanitize(meta.type)})</span>` : ''}`;
+        // Между `subagent_start` и `subagent_end` НЕТ ни одного события (замер 28.08:
+        // 239 задач, только два события на задачу). Поэтому единственный честный признак
+        // жизни — часы, которые идут у клиента. Медиана задачи 3.5 с, но p90 = 34 с и
+        // максимум 598 с: без тикающего счётчика долгая задача неотличима от повисшей.
+        _startSubagentClock(element, ts);
         const body = document.createElement('div');
         body.className = 'sa-body';
         body.style.cssText = 'margin-top:4px;padding-left:14px;border-left:1px dashed #4c1d95;display:none;font-size:10px;color:#94a3b8;white-space:pre-wrap;max-height:300px;overflow-y:auto';
@@ -1946,6 +1985,7 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
             const noun = host.dataset.subagentKind === 'background' ? 'Background task' : 'Sub-agent';
             if (header) header.innerHTML = `<span class="sa-caret">▶</span> ${succeeded ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${succeeded ? 'done' : 'failed'}: "${DOMPurify.sanitize(description)}"</span>`;
             host.querySelector('.sa-progress')?.remove();
+            _stopSubagentClock(host);
             if (summary) {
                 const summaryElement = document.createElement('div');
                 summaryElement.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:14px;white-space:pre-wrap';
