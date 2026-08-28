@@ -611,11 +611,14 @@ function renderImages(el, content) {
     const matches = content.match(re);
     if (!matches) return;
 
-    const imageUrl = (path) => `/api/files/raw?path=${encodeURIComponent(path)}`;
+    const imageUrl = (path, preview = false) =>
+        `/api/files/raw?path=${encodeURIComponent(path)}${preview ? '&preview=640' : ''}`;
     const makeImage = (path, className = '', openOnClick = true) => {
         const img = document.createElement('img');
-        img.src = imageUrl(path);
+        img.src = imageUrl(path, true);
         img.loading = 'lazy';
+        img.decoding = 'async';
+        img.fetchPriority = 'low';
         img.className = className;
         if (openOnClick) {
             img.addEventListener('click', () => openImageLightbox(imageUrl(path)));
@@ -2862,10 +2865,12 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 // Image thumbnail above the buttons — click opens full-size lightbox
                 if (/\.(png|jpe?g|gif|webp|svg)$/i.test(fp) && !lastTool.querySelector('.sf-thumb')) {
                     const rawUrl = `/api/files/raw?path=${encodeURIComponent(fp)}&t=${Date.now()}`;
+                    const previewUrl = `/api/files/raw?path=${encodeURIComponent(fp)}&preview=640&t=${Date.now()}`;
                     const img = document.createElement('img');
                     img.className = 'sf-thumb';
-                    img.src = rawUrl;
+                    img.src = previewUrl;
                     img.loading = 'lazy';
+                    img.decoding = 'async';
                     img.style.cssText = 'display:block;margin-top:6px;max-height:200px;max-width:100%;border-radius:8px;cursor:pointer;border:1px solid rgba(99,102,241,0.2)';
                     img.addEventListener('click', () => openImageLightbox(rawUrl));
                     img.onerror = () => img.remove();  // broken/missing file → no ugly broken-icon
