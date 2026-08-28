@@ -1966,6 +1966,697 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
     return true;
 }
 
+function _renderFullToolCall(content, payload, div) {
+    const colonIdx = content.indexOf(':');
+    const rawName = canonicalToolName(colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30));
+    const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
+    const icon = toolIcon(rawName);
+    const short = toolShortName(rawName);
+    const isOrch = rawName.startsWith('mcp__orchestra__');
+
+    div.dataset.lastTool = '1';
+    div.dataset.toolContent = content;
+    div.dataset.toolRawName = rawName;
+    div.style.cursor = 'pointer';
+    if (payload?.tool_use_id) div.dataset.toolUseId = payload.tool_use_id;
+    let codexItemId = '';
+    try {
+        const parsed = JSON.parse(body);
+        if (parsed._codex_item_id) {
+            codexItemId = parsed._codex_item_id;
+            if (!div.dataset.toolUseId) div.dataset.toolUseId = codexItemId;
+        }
+    } catch {}
+
+    const header = document.createElement('div');
+    header.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
+    header.style.color = isOrch ? '#a78bfa' : '#38bdf8';
+    let toolDesc = '';
+    try { toolDesc = JSON.parse(body).description || ''; } catch {}
+    header.innerHTML = `${icon} ${DOMPurify.sanitize(short)}${toolDesc ? ` <span style="color:#64748b;font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
+    div.appendChild(header);
+
+    // Единственный вызов, которым оркестратор зовёт юзера (#241). Красный и без JSON:
+    // юзер ищет эти строки глазами, а `reason` объясняет, зачем дёрнули.
+    const isNotify = rawName === NOTIFY_USER_TOOL;
+    if (isNotify) {
+        let reason = '';
+        try { reason = JSON.parse(body).reason || ''; } catch {}
+        div.classList.add('chat-notify-user');
+        header.textContent = '🔔 Оркестратор зовёт';
+        header.style.color = '#fca5a5';
+        const reasonEl = document.createElement('div');
+        reasonEl.className = 'chat-notify-user-reason';
+        reasonEl.textContent = reason || body;
+        div.appendChild(reasonEl);
+    }
+    const isSendMsg = rawName === 'mcp__orchestra__send_message';
+    if (isSendMsg) {
+        try {
+            const d = JSON.parse(body);
+            const to = d.to || d.message?.substring(0, 30) || '?';
+            const msg = d.message || '';
+            header.textContent = `📨 → ${to}`;
+            header.style.color = '#a78bfa';
+            const SEND_PREVIEW_H = 90;
+            const bodyEl = document.createElement('div');
+            bodyEl.className = 'text-xs opacity-80 markdown-body';
+            bodyEl.style.cssText = `max-height:${SEND_PREVIEW_H}px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word`;
+            bodyEl.innerHTML = DOMPurify.sanitize(marked.parse(msg));
+            div.appendChild(bodyEl);
+            const hint = document.createElement('div');
+            hint.className = 'text-xs mt-1';
+            hint.style.cssText = 'color:#a78bfa;cursor:pointer';
+            hint.textContent = '▼ expand';
+            div.appendChild(hint);
+            div.style.cursor = 'pointer';
+            let sendExpanded = false;
+            div.addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                sendExpanded = !sendExpanded;
+                bodyEl.style.maxHeight = sendExpanded ? 'none' : SEND_PREVIEW_H + 'px';
+                bodyEl.style.overflowY = sendExpanded ? 'visible' : 'hidden';
+                hint.textContent = sendExpanded ? '▲ collapse' : '▼ expand';
+            });
+            requestAnimationFrame(() => {
+                if (bodyEl.scrollHeight <= SEND_PREVIEW_H + 4) { hint.style.display = 'none'; bodyEl.style.maxHeight = 'none'; bodyEl.style.overflowY = 'visible'; }
+            });
+            div.dataset.isEdit = '1';
+        } catch {}
+    }
+    const isSpawnWorker = rawName === 'mcp__orchestra__spawn_worker';
+    if (isSpawnWorker) {
+        try {
+            const d = JSON.parse(body);
+            const workerName = d.name || '?';
+            const task = d.task || '';
+            const model = d.model || 'claude-sonnet-4-6';
+            const sysPrompt = d.system_prompt || '';
+            const repoPath = d.repo_path || '';
+
+            setCodexToolTitle(header, `Spawning ${workerName}`, '🚀');
+            header.style.color = '#a78bfa';
+            div.dataset.isSpawnWorker = '1';
+            div.dataset.workerName = workerName;
+
+            if (model) {
+                const badge = document.createElement('span');
+                const color = _modelColor(model);
+                badge.textContent = _modelLabel(model);
+                badge.style.cssText = `font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:${color};border-color:${color};opacity:0.8;vertical-align:middle;margin-left:6px`;
+                header.appendChild(badge);
+            }
+            const role = d.role || '';
+            if (role && role !== 'worker') {
+                const roleBadge = document.createElement('span');
+                roleBadge.textContent = role;
+                roleBadge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:#fbbf24;border-color:#fbbf24;opacity:0.8;vertical-align:middle;margin-left:4px';
+                header.appendChild(roleBadge);
+            }
+
+            const PREVIEW = 200;
+            let cutAt = PREVIEW;
+            if (task.length > PREVIEW) {
+                const nl = task.lastIndexOf('\n', PREVIEW);
+                if (nl > PREVIEW / 2) cutAt = nl;
+            }
+            const hasMoreTask = task.length > cutAt;
+            const expandables = [];
+
+            if (task) {
+                const taskEl = document.createElement('div');
+                taskEl.className = 'text-xs opacity-80 markdown-body';
+                taskEl.innerHTML = DOMPurify.sanitize(marked.parse(hasMoreTask ? task.slice(0, cutAt) : task));
+                div.appendChild(taskEl);
+                if (hasMoreTask) {
+                    const restEl = document.createElement('div');
+                    restEl.className = 'text-xs opacity-80 markdown-body';
+                    restEl.innerHTML = DOMPurify.sanitize(marked.parse(task.slice(cutAt)));
+                    restEl.style.display = 'none';
+                    div.appendChild(restEl);
+                    expandables.push(restEl);
+                }
+            }
+
+            if (sysPrompt) {
+                const promptLabel = document.createElement('div');
+                promptLabel.className = 'text-xs mt-2';
+                promptLabel.style.cssText = 'color:#64748b;font-weight:500';
+                promptLabel.textContent = '📋 System prompt';
+                promptLabel.style.display = 'none';
+                div.appendChild(promptLabel);
+                expandables.push(promptLabel);
+                const promptEl = document.createElement('div');
+                promptEl.style.cssText = 'margin-top:4px;padding:6px 8px;background:#0d1117;border:1px solid #1e293b;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word;color:#94a3b8;max-height:200px;overflow-y:auto;display:none';
+                promptEl.textContent = sysPrompt;
+                div.appendChild(promptEl);
+                expandables.push(promptEl);
+            }
+
+            if (repoPath) {
+                const pathEl = document.createElement('div');
+                pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                pathEl.textContent = repoPath;
+                pathEl.title = repoPath;
+                div.appendChild(pathEl);
+            }
+
+            if (expandables.length) {
+                const hint = document.createElement('div');
+                hint.className = 'text-xs mt-1';
+                hint.style.cssText = 'color:#a78bfa;cursor:pointer';
+                hint.textContent = `▼ expand`;
+                div.appendChild(hint);
+                div.style.cursor = 'pointer';
+                let spawnExpanded = false;
+                div.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'A') return;
+                    spawnExpanded = !spawnExpanded;
+                    expandables.forEach(el => el.style.display = spawnExpanded ? 'block' : 'none');
+                    hint.textContent = spawnExpanded ? '▲ collapse' : '▼ expand';
+                });
+            }
+
+            div.dataset.isEdit = '1';
+        } catch {}
+    }
+    const isWebSearchCall = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
+    if (isWebSearchCall) {
+        try {
+            const d = JSON.parse(body);
+            setCodexToolTitle(header, 'Web search', '🌐');
+            header.style.color = '#38bdf8';
+            div.dataset.isCodexWebSearch = '1';
+            updateCodexWebSearchActivity(div, codexWebSearchSpec(d));
+            if (d.model) {
+                const badge = document.createElement('span');
+                badge.textContent = d.model;
+                badge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid #38bdf8;color:#38bdf8;opacity:0.8;vertical-align:middle;margin-left:6px';
+                header.appendChild(badge);
+            }
+        } catch {}
+    }
+    const isToolSearchCall = rawName === 'ToolSearch';
+    if (isToolSearchCall) {
+        try {
+            const d = JSON.parse(body);
+            const q = d.query || '';
+            header.textContent = `🔍 Loading: ${q}`;
+            header.style.color = '#38bdf8';
+        } catch {}
+    }
+    const isBugReport = rawName === 'mcp__orchestra__report_bug';
+    if (isBugReport) {
+        try {
+            const d = JSON.parse(body);
+            header.textContent = `🐛 Bug: ${d.title || '?'}`;
+            header.style.color = '#f97316';
+            if (d.description) {
+                const descLines = d.description.split('\n');
+                const PREVIEW = 5;
+                const descEl = document.createElement('div');
+                descEl.className = 'text-xs markdown-body';
+                descEl.style.cssText = 'margin-top:4px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
+                descEl.innerHTML = DOMPurify.sanitize(marked.parse(d.description));
+                div.appendChild(descEl);
+                if (descLines.length > PREVIEW) {
+                    const hint = document.createElement('div');
+                    hint.className = 'text-xs mt-1';
+                    hint.style.cssText = 'color:#f97316;cursor:pointer';
+                    hint.textContent = '▼ expand';
+                    div.appendChild(hint);
+                    let bugExpanded = false;
+                    div.style.cursor = 'pointer';
+                    div.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'A') return;
+                        bugExpanded = !bugExpanded;
+                        descEl.style.maxHeight = bugExpanded ? 'none' : '90px';
+                        descEl.style.overflowY = bugExpanded ? 'visible' : 'hidden';
+                        hint.textContent = bugExpanded ? '▲ collapse' : '▼ expand';
+                    });
+                }
+            }
+        } catch {}
+    }
+    const isWebFetch = rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch';
+    if (isWebFetch) {
+        try {
+            const d = JSON.parse(body);
+            const url = d.url || '';
+            let domain = '?';
+            try { domain = new URL(url).hostname; } catch {}
+            header.textContent = `🌐 Fetching: ${domain}`;
+            header.style.color = '#38bdf8';
+            if (url) {
+                const linkEl = document.createElement('a');
+                linkEl.href = url;
+                linkEl.target = '_blank';
+                linkEl.style.cssText = 'display:block;font-size:10px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none';
+                linkEl.textContent = url;
+                linkEl.onmouseenter = () => linkEl.style.color = '#94a3b8';
+                linkEl.onmouseleave = () => linkEl.style.color = '#64748b';
+                div.appendChild(linkEl);
+            }
+            if (d.prompt) {
+                const promptEl = document.createElement('div');
+                promptEl.className = 'text-xs';
+                promptEl.style.cssText = 'margin-top:4px;color:#94a3b8;max-height:90px;overflow:hidden;white-space:pre-wrap';
+                promptEl.textContent = d.prompt;
+                div.appendChild(promptEl);
+                if (d.prompt.split('\n').length > 5 || d.prompt.length > 300) {
+                    const hint = document.createElement('div');
+                    hint.className = 'text-xs mt-1';
+                    hint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                    hint.textContent = '▼ expand';
+                    div.appendChild(hint);
+                    let fetchExpanded = false;
+                    div.style.cursor = 'pointer';
+                    div.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'A') return;
+                        fetchExpanded = !fetchExpanded;
+                        promptEl.style.maxHeight = fetchExpanded ? 'none' : '90px';
+                        promptEl.style.overflowY = fetchExpanded ? 'visible' : 'hidden';
+                        hint.textContent = fetchExpanded ? '▲ collapse' : '▼ expand';
+                    });
+                }
+            }
+        } catch {}
+    }
+    const isSendFile = rawName === 'mcp__orchestra__send_file';
+    if (isSendFile) {
+        try {
+            const d = JSON.parse(body);
+            const filePath = d.path || '';
+            const fileName = filePath.split('/').pop() || '?';
+            header.textContent = `📎 Sending: ${fileName}`;
+            header.style.color = '#22c55e';
+            if (filePath) div.dataset.filePath = filePath;
+            _appendCaption(div, d.caption);
+            if (filePath) {
+                const pathEl = document.createElement('div');
+                pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                pathEl.textContent = filePath;
+                pathEl.title = filePath;
+                div.appendChild(pathEl);
+            }
+        } catch {}
+    }
+    const isSendFiles = rawName === 'mcp__orchestra__send_files';
+    if (isSendFiles) {
+        try {
+            const d = JSON.parse(body);
+            const paths = Array.isArray(d.paths) ? d.paths.filter(path => typeof path === 'string' && path) : [];
+            div.dataset.filePaths = JSON.stringify(paths);
+            header.textContent = `📎 Sending ${paths.length} files`;
+            header.style.color = '#22c55e';
+            _appendCaption(div, d.caption);
+            renderSendFilesToolCard(div, paths);
+        } catch {}
+    }
+    const _orchSimple = {
+        'mcp__orchestra__kill_worker': (d) => ({ icon: '💀', label: `Kill: ${d.name||'?'}`, color: '#ef4444' }),
+        'mcp__orchestra__stop_worker': (d) => ({ icon: '⏸️', label: `Stop: ${d.name||'?'}`, color: '#eab308' }),
+        'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `Compact: ${d.name||'?'}`, color: '#eab308' }),
+        'mcp__orchestra__rename_worker': (d) => ({ icon: '✏️', label: `Rename: ${d.old_name||'?'} → ${d.new_name||'?'}`, color: '#38bdf8' }),
+        'mcp__orchestra__change_worker_model': (d) => ({ icon: '🔄', label: `Model: ${d.name||'?'} → ${d.model||'?'}`, color: '#38bdf8' }),
+        'mcp__orchestra__update_worker_description': (d) => ({ icon: '✏️', label: `${d.name||'?'} — description updated`, color: '#38bdf8', sub: d.description ? `"${d.description}"` : '' }),
+        'mcp__orchestra__merge_worker': (d) => ({ icon: '🔀', label: `Merge: ${d.name||'?'}`, color: '#a78bfa' }),
+        'mcp__orchestra__list_agents': () => ({ icon: '🎼', label: 'Agents', color: '#a78bfa' }),
+        'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
+        'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `Logs: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? `${d.limit} entries` : '' }),
+        'mcp__orchestra__get_worker_info': (d) => ({ icon: '🤖', label: `Info: ${d.name||'?'}`, color: '#a78bfa' }),
+        'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `создаёт задачу «${typeof d.title === 'string' ? d.title : '?'}»`, color: '#22c55e', sub: d.price ? `${d.price} ${CUR}` : '' }),
+        'mcp__orchestra__task_update': (d) => {
+            const status = typeof d.status === 'string' && d.status.length > 0 ? ` • статус ${d.status}` : '';
+            return { icon: '✏️', label: `обновляет задачу #${taskNum(d.par)||'?'}${status}`, color: '#38bdf8' };
+        },
+        'mcp__orchestra__task_list': (d) => {
+            const _safeTaskFilter = (value) => typeof value === 'string' && value.length <= 32 && !/[<>\"'`]/.test(value);
+            const f = [d.status,d.project,d.assignee]
+                .map((value) => (typeof value === 'string' ? value.trim() : ''))
+                .filter((value) => value && _safeTaskFilter(value))
+                .join(', ');
+            return { icon: '📋', label: `читает список задач${f ? ` (${f})` : ''}`, color: '#a78bfa' };
+        },
+        'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `читает задачу #${taskNum(d.par)||'?'}`, color: '#a78bfa' }),
+        'mcp__orchestra__bg_create': (d) => { const i = _JOB_ICONS[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
+        'mcp__orchestra__bg_list': () => ({ icon: '📊', label: 'BG Jobs', color: '#a78bfa' }),
+        'mcp__orchestra__bg_cancel': (d) => ({ icon: '⏹', label: `Cancel ${(d.job_id||'').slice(0,8)}`, color: '#94a3b8' }),
+    };
+    const isOrchSimple = _orchSimple[rawName];
+    if (isOrchSimple) {
+        try {
+            const d = JSON.parse(body);
+            const cfg = isOrchSimple(d);
+            header.textContent = `${cfg.icon} ${cfg.label}`;
+            header.style.color = cfg.color;
+            if (cfg.sub) {
+                const subEl = document.createElement('div');
+                subEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+                subEl.textContent = cfg.sub;
+                div.appendChild(subEl);
+            }
+        } catch {}
+    }
+    const isGlob = rawName === 'Glob';
+    if (isGlob) {
+        try {
+            const d = JSON.parse(body);
+            header.textContent = `🔎 Glob: ${d.pattern || '?'}`;
+            header.style.color = '#38bdf8';
+            if (d.path) {
+                const pathEl = document.createElement('div');
+                pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px';
+                pathEl.textContent = d.path;
+                div.appendChild(pathEl);
+            }
+        } catch {}
+    }
+    const isSkill = rawName === 'Skill';
+    if (isSkill) {
+        try {
+            const d = JSON.parse(body);
+            header.textContent = `⚡ Skill: ${d.skill || '?'}`;
+            header.style.color = '#eab308';
+        } catch {}
+    }
+    const isBashTool = rawName === 'Bash';
+    if (isBashTool) {
+        try {
+            let cmd = body;
+            let commandData = {};
+            try {
+                commandData = JSON.parse(body);
+                cmd = commandData.command || body;
+            } catch {}
+            cmd = cmd.replace(/^\/(?:usr\/)?bin\/(?:bash|zsh) -lc /, '').replace(/^["']|["']$/g, '');
+            const cmdLines = cmd.split('\n');
+            const PREVIEW_LINES = 3;
+            const previewCmd = cmdLines.slice(0, PREVIEW_LINES).join('\n');
+            const restCmd = cmdLines.slice(PREVIEW_LINES).join('\n');
+            const hasMoreCmd = cmdLines.length > PREVIEW_LINES;
+            const cmdWrap = document.createElement('div');
+            cmdWrap.className = 'diff-view';
+            cmdWrap.style.marginTop = '4px';
+            const previewPre = document.createElement('pre');
+            previewPre.style.cssText = 'margin:0;padding:6px 8px;font-size:11px;overflow-x:auto;background:#0d1117;border:none';
+            previewPre.textContent = previewCmd;
+            cmdWrap.appendChild(previewPre);
+            if (hasMoreCmd) {
+                const restPre = document.createElement('pre');
+                restPre.style.cssText = 'margin:0;padding:0 8px 6px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;display:none';
+                restPre.dataset.role = 'bash-rest';
+                restPre.textContent = restCmd;
+                cmdWrap.appendChild(restPre);
+                const hint = document.createElement('div');
+                hint.className = 'diff-file';
+                hint.dataset.role = 'bash-hint';
+                hint.dataset.count = cmdLines.length - PREVIEW_LINES;
+                hint.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                hint.textContent = `▼ ${cmdLines.length - PREVIEW_LINES} more lines`;
+                cmdWrap.appendChild(hint);
+            }
+            div.appendChild(cmdWrap);
+            const actions = commandData.command_actions || [];
+            if (actions.length) {
+                const actionRow = document.createElement('div');
+                actionRow.className = 'codex-command-actions';
+                for (const action of actions) {
+                    const pill = document.createElement('span');
+                    pill.className = `codex-command-action codex-command-${action.type || 'unknown'}`;
+                    const actionIcon = action.type === 'read' ? '📖' :
+                        action.type === 'search' ? '🔎' :
+                        action.type === 'listFiles' ? '🗂' : '⌁';
+                    const detail = action.query || action.path || action.name || '';
+                    pill.textContent = `${actionIcon} ${action.type || 'command'}${detail ? ': ' + detail : ''}`;
+                    pill.title = action.command || '';
+                    actionRow.appendChild(pill);
+                }
+                div.appendChild(actionRow);
+            }
+            div.dataset.isBash = '1';
+            div.style.cursor = 'pointer';
+            let bashExpanded = false;
+            div.addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                bashExpanded = !bashExpanded;
+                const restPre = cmdWrap.querySelector('[data-role="bash-rest"]');
+                const hint = cmdWrap.querySelector('[data-role="bash-hint"]');
+                if (restPre) restPre.style.display = bashExpanded ? 'block' : 'none';
+                if (hint) hint.textContent = bashExpanded ? '▲ collapse' : `▼ ${hint.dataset.count} more lines`;
+                const resWrap = div.querySelector('[data-role="bash-result"]');
+                const resHint = div.querySelector('[data-role="bash-result-hint"]');
+                if (resWrap) resWrap.style.display = bashExpanded ? 'block' : 'none';
+                if (resHint) resHint.textContent = bashExpanded ? '▲ collapse result' : `▼ ${resHint.dataset.count} more lines`;
+            });
+        } catch {}
+    }
+    const isFileChangeTool = rawName === 'FileChange';
+    if (isFileChangeTool) {
+        const patch = renderCodexFileChange(body);
+        header.textContent = '📝 Applying file changes';
+        header.style.color = '#f59e0b';
+        if (patch) div.appendChild(patch);
+        div.dataset.isFileChange = '1';
+    }
+    const isViewImageTool = rawName === 'ViewImage';
+    if (isViewImageTool) {
+        try {
+            const data = JSON.parse(body);
+            const path = data.file_path || '';
+            header.textContent = `🖼 Viewing ${(path.split('/').pop() || 'image')}`;
+            const img = document.createElement('img');
+            img.src = `/api/files/raw?path=${encodeURIComponent(path)}&t=${Date.now()}`;
+            img.loading = 'eager';
+            img.className = 'codex-tool-image';
+            img.alt = path.split('/').pop() || 'Viewed image';
+            img.addEventListener('error', () => {
+                img.classList.add('codex-tool-image-error');
+                img.alt = 'Image unavailable';
+            });
+            img.addEventListener('load', () => {
+                img.classList.remove('codex-tool-image-error');
+            });
+            img.addEventListener('click', () => openImageLightbox(img.src));
+            div.appendChild(img);
+        } catch {}
+    }
+    const isImageGenerationTool = rawName === 'ImageGeneration';
+    if (isImageGenerationTool) {
+        header.textContent = '🎨 Generating image';
+        header.style.color = '#f472b6';
+    }
+    const isSleepTool = rawName === 'Sleep';
+    if (isSleepTool) {
+        try {
+            const data = JSON.parse(body);
+            header.textContent = `⏱ Waiting ${((data.duration_ms || 0) / 1000).toFixed(1)}s`;
+            header.style.color = '#94a3b8';
+        } catch {}
+    }
+    const isTodoWrite = rawName === 'TodoWrite';
+    if (isTodoWrite) {
+        try {
+            const d = JSON.parse(body);
+            const todos = Array.isArray(d.todos) ? d.todos : [];
+            const done = todos.filter(t => t.status === 'completed').length;
+            header.textContent = `📝 Todos ${done}/${todos.length}`;
+            header.style.color = '#38bdf8';
+            const listEl = document.createElement('div');
+            listEl.className = 'text-xs mt-1';
+            listEl.style.cssText = 'display:flex;flex-direction:column;gap:2px';
+            const _todoMark = (st) => st === 'completed' ? ['✅', '#4ade80', 'line-through']
+                : st === 'in_progress' ? ['◔', '#fbbf24', 'none'] : ['☐', '#64748b', 'none'];
+            for (const t of todos) {
+                const [mark, color, deco] = _todoMark(t.status);
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;gap:6px;align-items:baseline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                const m = document.createElement('span');
+                m.textContent = mark;
+                m.style.minWidth = '1.2em';
+                const c = document.createElement('span');
+                c.textContent = t.content || '';
+                c.style.cssText = `color:${color};text-decoration:${deco}`;
+                row.append(m, c);
+                listEl.appendChild(row);
+            }
+            if (todos.length) div.appendChild(listEl);
+            div.dataset.isEdit = '1';   // swallow the raw JSON result
+        } catch {}
+    }
+    const isReviewTool = rawName === 'Review';
+    if (isReviewTool) {
+        try {
+            const d = JSON.parse(body);
+            const focus = String(d.focus || '').trim();
+            header.textContent = `🧠 Review${focus ? ': ' + focus.slice(0, 100) : ''}`;
+            header.title = focus;
+            header.style.color = '#a78bfa';
+        } catch {}
+    }
+    const isAgentTool = rawName === 'Agent';
+    if (isAgentTool) {
+        try {
+            const d = JSON.parse(body);
+            const desc = d.description || '';
+            const prompt = d.prompt || '';
+            header.textContent = '🤖 Agent';
+            header.style.color = '#a78bfa';
+            if (desc) {
+                const descEl = document.createElement('div');
+                descEl.className = 'text-xs font-medium mb-1';
+                descEl.style.color = '#c7d2fe';
+                descEl.textContent = desc;
+                div.appendChild(descEl);
+            }
+            if (prompt) {
+                const promptLines = prompt.split('\n');
+                const PREVIEW_LINES = 2;
+                const previewPrompt = promptLines.slice(0, PREVIEW_LINES).join('\n');
+                const restPrompt = promptLines.slice(PREVIEW_LINES).join('\n');
+                const hasMorePrompt = promptLines.length > PREVIEW_LINES;
+                const promptWrap = document.createElement('div');
+                promptWrap.className = 'diff-view';
+                promptWrap.style.marginTop = '4px';
+                const previewPre = document.createElement('pre');
+                previewPre.style.cssText = 'margin:0;padding:6px 8px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;white-space:pre-wrap;word-break:break-word';
+                previewPre.textContent = previewPrompt;
+                promptWrap.appendChild(previewPre);
+                if (hasMorePrompt) {
+                    const restPre = document.createElement('pre');
+                    restPre.style.cssText = 'margin:0;padding:0 8px 6px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;white-space:pre-wrap;word-break:break-word;display:none';
+                    restPre.dataset.role = 'agent-rest';
+                    restPre.textContent = restPrompt;
+                    promptWrap.appendChild(restPre);
+                    const hint = document.createElement('div');
+                    hint.className = 'diff-file';
+                    hint.dataset.role = 'agent-hint';
+                    hint.dataset.count = promptLines.length - PREVIEW_LINES;
+                    hint.style.cssText = 'cursor:pointer;text-align:center;color:#a78bfa;font-size:10px';
+                    hint.textContent = `▼ ${promptLines.length - PREVIEW_LINES} more lines`;
+                    promptWrap.appendChild(hint);
+                }
+                div.appendChild(promptWrap);
+                div.style.cursor = 'pointer';
+                let agentExpanded = false;
+                div.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'A') return;
+                    agentExpanded = !agentExpanded;
+                    const restPre = promptWrap.querySelector('[data-role="agent-rest"]');
+                    const hint = promptWrap.querySelector('[data-role="agent-hint"]');
+                    if (restPre) restPre.style.display = agentExpanded ? 'block' : 'none';
+                    if (hint) hint.textContent = agentExpanded ? '▲ collapse' : `▼ ${hint.dataset.count} more lines`;
+                });
+            }
+            div.dataset.isEdit = '1';
+        } catch {}
+    }
+    const isGrepTool = rawName === 'Grep';
+    if (isGrepTool) {
+        try {
+            const d = JSON.parse(body);
+            const grepPath = d.path || d.glob || '';
+            const shortGrepPath = grepPath.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || grepPath;
+            header.textContent = `🔎 Grep: ${d.pattern || ''}${shortGrepPath ? ' in ' + shortGrepPath : ''}`;
+            header.style.color = '#38bdf8';
+            div.dataset.isGrep = '1';
+            div.dataset.grepPattern = d.pattern || '';
+            div.dataset.grepPath = grepPath;
+        } catch {}
+    }
+    const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'Write';
+    const isReadTool = rawName === 'Read';
+    if (isReadTool) {
+        try { const d = JSON.parse(body); if (d.file_path) div.dataset.filePath = d.file_path; } catch {}
+    }
+    const diffEl = isEditTool ? renderEditDiff(body) : null;
+    const readEl = isReadTool ? renderReadView(body) : null;
+
+    if (readEl) {
+        div.appendChild(readEl);
+        div.dataset.isRead = '1';
+        div.style.cursor = 'pointer';
+        div.addEventListener('click', () => {
+            const restEl = readEl.querySelector('[data-role="read-rest"]');
+            const moreEl = readEl.querySelector('[data-role="read-more"]');
+            if (restEl && moreEl) {
+                const showing = restEl.style.display !== 'none';
+                restEl.style.display = showing ? 'none' : 'block';
+                moreEl.textContent = showing ? `▼ ${moreEl.dataset.count} more lines` : `▲ collapse`;
+            }
+        });
+    } else if (diffEl) {
+        div.appendChild(diffEl);
+        div.dataset.isEdit = '1';
+        div.style.cursor = 'pointer';
+        div.addEventListener('click', () => {
+            const restEl = diffEl.querySelector('[style*="display"]');
+            const moreEl = diffEl.querySelector('.diff-file[style*="cursor"]');
+            if (restEl && moreEl) {
+                const showing = restEl.style.display !== 'none';
+                restEl.style.display = showing ? 'none' : 'block';
+                const restCount = moreEl.dataset.count || '0';
+                moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
+            }
+        });
+    } else if (!isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
+               !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
+               !isToolSearchCall && !isBugReport && !isWebFetch &&
+               !isSendFile && !isSendFiles && !isOrchSimple && !isGlob && !isSkill &&
+               !isFileChangeTool && !isViewImageTool &&
+               !isImageGenerationTool && !isSleepTool && !isTodoWrite && !isReviewTool) {
+        let _inputJsonRendered = false;
+        if (body) {
+            try {
+                const _inputParsed = JSON.parse(body);
+                if (_inputParsed && typeof _inputParsed === 'object' && !Array.isArray(_inputParsed)) {
+                    const gridWrap = document.createElement('div');
+                    gridWrap.className = 'text-xs opacity-80 tool-body';
+                    gridWrap.style.cssText = 'margin-top:2px';
+                    _renderJsonGrid(_inputParsed, gridWrap);
+                    div.appendChild(gridWrap);
+                    _inputJsonRendered = true;
+                }
+            } catch {}
+        }
+        if (!_inputJsonRendered && body) {
+            const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
+            const toolFull = body.length > 200 ? body : null;
+            const bodyEl = document.createElement('div');
+            bodyEl.style.whiteSpace = 'pre-wrap';
+            bodyEl.className = 'text-xs opacity-70 tool-body';
+            bodyEl.textContent = toolPreview;
+            bodyEl.dataset.preview = toolPreview;
+            if (toolFull) bodyEl.dataset.full = toolFull;
+            div.appendChild(bodyEl);
+            if (toolFull) {
+                const remaining = body.split('\n').length - toolPreview.split('\n').length;
+                const hint = document.createElement('div');
+                hint.className = 'text-xs mt-1';
+                hint.style.color = '#38bdf8';
+                hint.textContent = `▼ ${remaining} more lines`;
+                hint.dataset.role = 'expand-hint';
+                div.appendChild(hint);
+            }
+            let expanded = false;
+            div.addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                expanded = !expanded;
+                const tb = div.querySelector('.tool-body');
+                if (tb && tb.dataset.full) tb.textContent = expanded ? tb.dataset.full : tb.dataset.preview;
+                const hint = div.querySelector('[data-role="expand-hint"]');
+                if (hint) hint.style.display = expanded ? 'none' : 'block';
+                const rb = div.querySelector('.result-body');
+                if (rb && rb.dataset.full) rb.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? rb.dataset.full : rb.dataset.preview, {ADD_ATTR: ['target']});
+            });
+        }
+    }
+    if (codexItemId) {
+        decorateCodexToolCard(div, div.querySelector('.flex.items-center'), isOrch ? 'orchestra' : 'native');
+        _flushCodexToolUpdates(div, codexItemId);
+    }
+}
+
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
 // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
 // payload = full SSE log object (carries subagent_id for sub-agent nesting)
@@ -2198,694 +2889,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         }
     }
     else if (type === 'tool') {
-        const colonIdx = content.indexOf(':');
-        const rawName = canonicalToolName(colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30));
-        const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
-        const icon = toolIcon(rawName);
-        const short = toolShortName(rawName);
-        const isOrch = rawName.startsWith('mcp__orchestra__');
-
-        div.dataset.lastTool = '1';
-        div.dataset.toolContent = content;
-        div.dataset.toolRawName = rawName;
-        div.style.cursor = 'pointer';
-        if (payload?.tool_use_id) div.dataset.toolUseId = payload.tool_use_id;
-        let codexItemId = '';
-        try {
-            const parsed = JSON.parse(body);
-            if (parsed._codex_item_id) {
-                codexItemId = parsed._codex_item_id;
-                if (!div.dataset.toolUseId) div.dataset.toolUseId = codexItemId;
-            }
-        } catch {}
-
-        const header = document.createElement('div');
-        header.className = 'flex items-center gap-1.5 text-xs font-medium mb-1';
-        header.style.color = isOrch ? '#a78bfa' : '#38bdf8';
-        let toolDesc = '';
-        try { toolDesc = JSON.parse(body).description || ''; } catch {}
-        header.innerHTML = `${icon} ${DOMPurify.sanitize(short)}${toolDesc ? ` <span style="color:#64748b;font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
-        div.appendChild(header);
-
-        // Единственный вызов, которым оркестратор зовёт юзера (#241). Красный и без JSON:
-        // юзер ищет эти строки глазами, а `reason` объясняет, зачем дёрнули.
-        const isNotify = rawName === NOTIFY_USER_TOOL;
-        if (isNotify) {
-            let reason = '';
-            try { reason = JSON.parse(body).reason || ''; } catch {}
-            div.classList.add('chat-notify-user');
-            header.textContent = '🔔 Оркестратор зовёт';
-            header.style.color = '#fca5a5';
-            const reasonEl = document.createElement('div');
-            reasonEl.className = 'chat-notify-user-reason';
-            reasonEl.textContent = reason || body;
-            div.appendChild(reasonEl);
-        }
-        const isSendMsg = rawName === 'mcp__orchestra__send_message';
-        if (isSendMsg) {
-            try {
-                const d = JSON.parse(body);
-                const to = d.to || d.message?.substring(0, 30) || '?';
-                const msg = d.message || '';
-                header.textContent = `📨 → ${to}`;
-                header.style.color = '#a78bfa';
-                const SEND_PREVIEW_H = 90;
-                const bodyEl = document.createElement('div');
-                bodyEl.className = 'text-xs opacity-80 markdown-body';
-                bodyEl.style.cssText = `max-height:${SEND_PREVIEW_H}px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word`;
-                bodyEl.innerHTML = DOMPurify.sanitize(marked.parse(msg));
-                div.appendChild(bodyEl);
-                const hint = document.createElement('div');
-                hint.className = 'text-xs mt-1';
-                hint.style.cssText = 'color:#a78bfa;cursor:pointer';
-                hint.textContent = '▼ expand';
-                div.appendChild(hint);
-                div.style.cursor = 'pointer';
-                let sendExpanded = false;
-                div.addEventListener('click', (e) => {
-                    if (e.target.tagName === 'A') return;
-                    sendExpanded = !sendExpanded;
-                    bodyEl.style.maxHeight = sendExpanded ? 'none' : SEND_PREVIEW_H + 'px';
-                    bodyEl.style.overflowY = sendExpanded ? 'visible' : 'hidden';
-                    hint.textContent = sendExpanded ? '▲ collapse' : '▼ expand';
-                });
-                requestAnimationFrame(() => {
-                    if (bodyEl.scrollHeight <= SEND_PREVIEW_H + 4) { hint.style.display = 'none'; bodyEl.style.maxHeight = 'none'; bodyEl.style.overflowY = 'visible'; }
-                });
-                div.dataset.isEdit = '1';
-            } catch {}
-        }
-        const isSpawnWorker = rawName === 'mcp__orchestra__spawn_worker';
-        if (isSpawnWorker) {
-            try {
-                const d = JSON.parse(body);
-                const workerName = d.name || '?';
-                const task = d.task || '';
-                const model = d.model || 'claude-sonnet-4-6';
-                const sysPrompt = d.system_prompt || '';
-                const repoPath = d.repo_path || '';
-
-                setCodexToolTitle(header, `Spawning ${workerName}`, '🚀');
-                header.style.color = '#a78bfa';
-                div.dataset.isSpawnWorker = '1';
-                div.dataset.workerName = workerName;
-
-                if (model) {
-                    const badge = document.createElement('span');
-                    const color = _modelColor(model);
-                    badge.textContent = _modelLabel(model);
-                    badge.style.cssText = `font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:${color};border-color:${color};opacity:0.8;vertical-align:middle;margin-left:6px`;
-                    header.appendChild(badge);
-                }
-                const role = d.role || '';
-                if (role && role !== 'worker') {
-                    const roleBadge = document.createElement('span');
-                    roleBadge.textContent = role;
-                    roleBadge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:#fbbf24;border-color:#fbbf24;opacity:0.8;vertical-align:middle;margin-left:4px';
-                    header.appendChild(roleBadge);
-                }
-
-                const PREVIEW = 200;
-                let cutAt = PREVIEW;
-                if (task.length > PREVIEW) {
-                    const nl = task.lastIndexOf('\n', PREVIEW);
-                    if (nl > PREVIEW / 2) cutAt = nl;
-                }
-                const hasMoreTask = task.length > cutAt;
-                const expandables = [];
-
-                if (task) {
-                    const taskEl = document.createElement('div');
-                    taskEl.className = 'text-xs opacity-80 markdown-body';
-                    taskEl.innerHTML = DOMPurify.sanitize(marked.parse(hasMoreTask ? task.slice(0, cutAt) : task));
-                    div.appendChild(taskEl);
-                    if (hasMoreTask) {
-                        const restEl = document.createElement('div');
-                        restEl.className = 'text-xs opacity-80 markdown-body';
-                        restEl.innerHTML = DOMPurify.sanitize(marked.parse(task.slice(cutAt)));
-                        restEl.style.display = 'none';
-                        div.appendChild(restEl);
-                        expandables.push(restEl);
-                    }
-                }
-
-                if (sysPrompt) {
-                    const promptLabel = document.createElement('div');
-                    promptLabel.className = 'text-xs mt-2';
-                    promptLabel.style.cssText = 'color:#64748b;font-weight:500';
-                    promptLabel.textContent = '📋 System prompt';
-                    promptLabel.style.display = 'none';
-                    div.appendChild(promptLabel);
-                    expandables.push(promptLabel);
-                    const promptEl = document.createElement('div');
-                    promptEl.style.cssText = 'margin-top:4px;padding:6px 8px;background:#0d1117;border:1px solid #1e293b;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word;color:#94a3b8;max-height:200px;overflow-y:auto;display:none';
-                    promptEl.textContent = sysPrompt;
-                    div.appendChild(promptEl);
-                    expandables.push(promptEl);
-                }
-
-                if (repoPath) {
-                    const pathEl = document.createElement('div');
-                    pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-                    pathEl.textContent = repoPath;
-                    pathEl.title = repoPath;
-                    div.appendChild(pathEl);
-                }
-
-                if (expandables.length) {
-                    const hint = document.createElement('div');
-                    hint.className = 'text-xs mt-1';
-                    hint.style.cssText = 'color:#a78bfa;cursor:pointer';
-                    hint.textContent = `▼ expand`;
-                    div.appendChild(hint);
-                    div.style.cursor = 'pointer';
-                    let spawnExpanded = false;
-                    div.addEventListener('click', (e) => {
-                        if (e.target.tagName === 'A') return;
-                        spawnExpanded = !spawnExpanded;
-                        expandables.forEach(el => el.style.display = spawnExpanded ? 'block' : 'none');
-                        hint.textContent = spawnExpanded ? '▲ collapse' : '▼ expand';
-                    });
-                }
-
-                div.dataset.isEdit = '1';
-            } catch {}
-        }
-        const isWebSearchCall = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
-        if (isWebSearchCall) {
-            try {
-                const d = JSON.parse(body);
-                setCodexToolTitle(header, 'Web search', '🌐');
-                header.style.color = '#38bdf8';
-                div.dataset.isCodexWebSearch = '1';
-                updateCodexWebSearchActivity(div, codexWebSearchSpec(d));
-                if (d.model) {
-                    const badge = document.createElement('span');
-                    badge.textContent = d.model;
-                    badge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid #38bdf8;color:#38bdf8;opacity:0.8;vertical-align:middle;margin-left:6px';
-                    header.appendChild(badge);
-                }
-            } catch {}
-        }
-        const isToolSearchCall = rawName === 'ToolSearch';
-        if (isToolSearchCall) {
-            try {
-                const d = JSON.parse(body);
-                const q = d.query || '';
-                header.textContent = `🔍 Loading: ${q}`;
-                header.style.color = '#38bdf8';
-            } catch {}
-        }
-        const isBugReport = rawName === 'mcp__orchestra__report_bug';
-        if (isBugReport) {
-            try {
-                const d = JSON.parse(body);
-                header.textContent = `🐛 Bug: ${d.title || '?'}`;
-                header.style.color = '#f97316';
-                if (d.description) {
-                    const descLines = d.description.split('\n');
-                    const PREVIEW = 5;
-                    const descEl = document.createElement('div');
-                    descEl.className = 'text-xs markdown-body';
-                    descEl.style.cssText = 'margin-top:4px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
-                    descEl.innerHTML = DOMPurify.sanitize(marked.parse(d.description));
-                    div.appendChild(descEl);
-                    if (descLines.length > PREVIEW) {
-                        const hint = document.createElement('div');
-                        hint.className = 'text-xs mt-1';
-                        hint.style.cssText = 'color:#f97316;cursor:pointer';
-                        hint.textContent = '▼ expand';
-                        div.appendChild(hint);
-                        let bugExpanded = false;
-                        div.style.cursor = 'pointer';
-                        div.addEventListener('click', (e) => {
-                            if (e.target.tagName === 'A') return;
-                            bugExpanded = !bugExpanded;
-                            descEl.style.maxHeight = bugExpanded ? 'none' : '90px';
-                            descEl.style.overflowY = bugExpanded ? 'visible' : 'hidden';
-                            hint.textContent = bugExpanded ? '▲ collapse' : '▼ expand';
-                        });
-                    }
-                }
-            } catch {}
-        }
-        const isWebFetch = rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch';
-        if (isWebFetch) {
-            try {
-                const d = JSON.parse(body);
-                const url = d.url || '';
-                let domain = '?';
-                try { domain = new URL(url).hostname; } catch {}
-                header.textContent = `🌐 Fetching: ${domain}`;
-                header.style.color = '#38bdf8';
-                if (url) {
-                    const linkEl = document.createElement('a');
-                    linkEl.href = url;
-                    linkEl.target = '_blank';
-                    linkEl.style.cssText = 'display:block;font-size:10px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none';
-                    linkEl.textContent = url;
-                    linkEl.onmouseenter = () => linkEl.style.color = '#94a3b8';
-                    linkEl.onmouseleave = () => linkEl.style.color = '#64748b';
-                    div.appendChild(linkEl);
-                }
-                if (d.prompt) {
-                    const promptEl = document.createElement('div');
-                    promptEl.className = 'text-xs';
-                    promptEl.style.cssText = 'margin-top:4px;color:#94a3b8;max-height:90px;overflow:hidden;white-space:pre-wrap';
-                    promptEl.textContent = d.prompt;
-                    div.appendChild(promptEl);
-                    if (d.prompt.split('\n').length > 5 || d.prompt.length > 300) {
-                        const hint = document.createElement('div');
-                        hint.className = 'text-xs mt-1';
-                        hint.style.cssText = 'color:#38bdf8;cursor:pointer';
-                        hint.textContent = '▼ expand';
-                        div.appendChild(hint);
-                        let fetchExpanded = false;
-                        div.style.cursor = 'pointer';
-                        div.addEventListener('click', (e) => {
-                            if (e.target.tagName === 'A') return;
-                            fetchExpanded = !fetchExpanded;
-                            promptEl.style.maxHeight = fetchExpanded ? 'none' : '90px';
-                            promptEl.style.overflowY = fetchExpanded ? 'visible' : 'hidden';
-                            hint.textContent = fetchExpanded ? '▲ collapse' : '▼ expand';
-                        });
-                    }
-                }
-            } catch {}
-        }
-        const isSendFile = rawName === 'mcp__orchestra__send_file';
-        if (isSendFile) {
-            try {
-                const d = JSON.parse(body);
-                const filePath = d.path || '';
-                const fileName = filePath.split('/').pop() || '?';
-                header.textContent = `📎 Sending: ${fileName}`;
-                header.style.color = '#22c55e';
-                if (filePath) div.dataset.filePath = filePath;
-                _appendCaption(div, d.caption);
-                if (filePath) {
-                    const pathEl = document.createElement('div');
-                    pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-                    pathEl.textContent = filePath;
-                    pathEl.title = filePath;
-                    div.appendChild(pathEl);
-                }
-            } catch {}
-        }
-        const isSendFiles = rawName === 'mcp__orchestra__send_files';
-        if (isSendFiles) {
-            try {
-                const d = JSON.parse(body);
-                const paths = Array.isArray(d.paths) ? d.paths.filter(path => typeof path === 'string' && path) : [];
-                div.dataset.filePaths = JSON.stringify(paths);
-                header.textContent = `📎 Sending ${paths.length} files`;
-                header.style.color = '#22c55e';
-                _appendCaption(div, d.caption);
-                renderSendFilesToolCard(div, paths);
-            } catch {}
-        }
-        const _orchSimple = {
-            'mcp__orchestra__kill_worker': (d) => ({ icon: '💀', label: `Kill: ${d.name||'?'}`, color: '#ef4444' }),
-            'mcp__orchestra__stop_worker': (d) => ({ icon: '⏸️', label: `Stop: ${d.name||'?'}`, color: '#eab308' }),
-            'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `Compact: ${d.name||'?'}`, color: '#eab308' }),
-            'mcp__orchestra__rename_worker': (d) => ({ icon: '✏️', label: `Rename: ${d.old_name||'?'} → ${d.new_name||'?'}`, color: '#38bdf8' }),
-            'mcp__orchestra__change_worker_model': (d) => ({ icon: '🔄', label: `Model: ${d.name||'?'} → ${d.model||'?'}`, color: '#38bdf8' }),
-            'mcp__orchestra__update_worker_description': (d) => ({ icon: '✏️', label: `${d.name||'?'} — description updated`, color: '#38bdf8', sub: d.description ? `"${d.description}"` : '' }),
-            'mcp__orchestra__merge_worker': (d) => ({ icon: '🔀', label: `Merge: ${d.name||'?'}`, color: '#a78bfa' }),
-            'mcp__orchestra__list_agents': () => ({ icon: '🎼', label: 'Agents', color: '#a78bfa' }),
-            'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
-            'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `Logs: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? `${d.limit} entries` : '' }),
-            'mcp__orchestra__get_worker_info': (d) => ({ icon: '🤖', label: `Info: ${d.name||'?'}`, color: '#a78bfa' }),
-            'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `создаёт задачу «${typeof d.title === 'string' ? d.title : '?'}»`, color: '#22c55e', sub: d.price ? `${d.price} ${CUR}` : '' }),
-            'mcp__orchestra__task_update': (d) => {
-                const status = typeof d.status === 'string' && d.status.length > 0 ? ` • статус ${d.status}` : '';
-                return { icon: '✏️', label: `обновляет задачу #${taskNum(d.par)||'?'}${status}`, color: '#38bdf8' };
-            },
-            'mcp__orchestra__task_list': (d) => {
-                const _safeTaskFilter = (value) => typeof value === 'string' && value.length <= 32 && !/[<>\"'`]/.test(value);
-                const f = [d.status,d.project,d.assignee]
-                    .map((value) => (typeof value === 'string' ? value.trim() : ''))
-                    .filter((value) => value && _safeTaskFilter(value))
-                    .join(', ');
-                return { icon: '📋', label: `читает список задач${f ? ` (${f})` : ''}`, color: '#a78bfa' };
-            },
-            'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `читает задачу #${taskNum(d.par)||'?'}`, color: '#a78bfa' }),
-            'mcp__orchestra__bg_create': (d) => { const i = _JOB_ICONS[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
-            'mcp__orchestra__bg_list': () => ({ icon: '📊', label: 'BG Jobs', color: '#a78bfa' }),
-            'mcp__orchestra__bg_cancel': (d) => ({ icon: '⏹', label: `Cancel ${(d.job_id||'').slice(0,8)}`, color: '#94a3b8' }),
-        };
-        const isOrchSimple = _orchSimple[rawName];
-        if (isOrchSimple) {
-            try {
-                const d = JSON.parse(body);
-                const cfg = isOrchSimple(d);
-                header.textContent = `${cfg.icon} ${cfg.label}`;
-                header.style.color = cfg.color;
-                if (cfg.sub) {
-                    const subEl = document.createElement('div');
-                    subEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-                    subEl.textContent = cfg.sub;
-                    div.appendChild(subEl);
-                }
-            } catch {}
-        }
-        const isGlob = rawName === 'Glob';
-        if (isGlob) {
-            try {
-                const d = JSON.parse(body);
-                header.textContent = `🔎 Glob: ${d.pattern || '?'}`;
-                header.style.color = '#38bdf8';
-                if (d.path) {
-                    const pathEl = document.createElement('div');
-                    pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px';
-                    pathEl.textContent = d.path;
-                    div.appendChild(pathEl);
-                }
-            } catch {}
-        }
-        const isSkill = rawName === 'Skill';
-        if (isSkill) {
-            try {
-                const d = JSON.parse(body);
-                header.textContent = `⚡ Skill: ${d.skill || '?'}`;
-                header.style.color = '#eab308';
-            } catch {}
-        }
-        const isBashTool = rawName === 'Bash';
-        if (isBashTool) {
-            try {
-                let cmd = body;
-                let commandData = {};
-                try {
-                    commandData = JSON.parse(body);
-                    cmd = commandData.command || body;
-                } catch {}
-                cmd = cmd.replace(/^\/(?:usr\/)?bin\/(?:bash|zsh) -lc /, '').replace(/^["']|["']$/g, '');
-                const cmdLines = cmd.split('\n');
-                const PREVIEW_LINES = 3;
-                const previewCmd = cmdLines.slice(0, PREVIEW_LINES).join('\n');
-                const restCmd = cmdLines.slice(PREVIEW_LINES).join('\n');
-                const hasMoreCmd = cmdLines.length > PREVIEW_LINES;
-                const cmdWrap = document.createElement('div');
-                cmdWrap.className = 'diff-view';
-                cmdWrap.style.marginTop = '4px';
-                const previewPre = document.createElement('pre');
-                previewPre.style.cssText = 'margin:0;padding:6px 8px;font-size:11px;overflow-x:auto;background:#0d1117;border:none';
-                previewPre.textContent = previewCmd;
-                cmdWrap.appendChild(previewPre);
-                if (hasMoreCmd) {
-                    const restPre = document.createElement('pre');
-                    restPre.style.cssText = 'margin:0;padding:0 8px 6px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;display:none';
-                    restPre.dataset.role = 'bash-rest';
-                    restPre.textContent = restCmd;
-                    cmdWrap.appendChild(restPre);
-                    const hint = document.createElement('div');
-                    hint.className = 'diff-file';
-                    hint.dataset.role = 'bash-hint';
-                    hint.dataset.count = cmdLines.length - PREVIEW_LINES;
-                    hint.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
-                    hint.textContent = `▼ ${cmdLines.length - PREVIEW_LINES} more lines`;
-                    cmdWrap.appendChild(hint);
-                }
-                div.appendChild(cmdWrap);
-                const actions = commandData.command_actions || [];
-                if (actions.length) {
-                    const actionRow = document.createElement('div');
-                    actionRow.className = 'codex-command-actions';
-                    for (const action of actions) {
-                        const pill = document.createElement('span');
-                        pill.className = `codex-command-action codex-command-${action.type || 'unknown'}`;
-                        const actionIcon = action.type === 'read' ? '📖' :
-                            action.type === 'search' ? '🔎' :
-                            action.type === 'listFiles' ? '🗂' : '⌁';
-                        const detail = action.query || action.path || action.name || '';
-                        pill.textContent = `${actionIcon} ${action.type || 'command'}${detail ? ': ' + detail : ''}`;
-                        pill.title = action.command || '';
-                        actionRow.appendChild(pill);
-                    }
-                    div.appendChild(actionRow);
-                }
-                div.dataset.isBash = '1';
-                div.style.cursor = 'pointer';
-                let bashExpanded = false;
-                div.addEventListener('click', (e) => {
-                    if (e.target.tagName === 'A') return;
-                    bashExpanded = !bashExpanded;
-                    const restPre = cmdWrap.querySelector('[data-role="bash-rest"]');
-                    const hint = cmdWrap.querySelector('[data-role="bash-hint"]');
-                    if (restPre) restPre.style.display = bashExpanded ? 'block' : 'none';
-                    if (hint) hint.textContent = bashExpanded ? '▲ collapse' : `▼ ${hint.dataset.count} more lines`;
-                    const resWrap = div.querySelector('[data-role="bash-result"]');
-                    const resHint = div.querySelector('[data-role="bash-result-hint"]');
-                    if (resWrap) resWrap.style.display = bashExpanded ? 'block' : 'none';
-                    if (resHint) resHint.textContent = bashExpanded ? '▲ collapse result' : `▼ ${resHint.dataset.count} more lines`;
-                });
-            } catch {}
-        }
-        const isFileChangeTool = rawName === 'FileChange';
-        if (isFileChangeTool) {
-            const patch = renderCodexFileChange(body);
-            header.textContent = '📝 Applying file changes';
-            header.style.color = '#f59e0b';
-            if (patch) div.appendChild(patch);
-            div.dataset.isFileChange = '1';
-        }
-        const isViewImageTool = rawName === 'ViewImage';
-        if (isViewImageTool) {
-            try {
-                const data = JSON.parse(body);
-                const path = data.file_path || '';
-                header.textContent = `🖼 Viewing ${(path.split('/').pop() || 'image')}`;
-                const img = document.createElement('img');
-                img.src = `/api/files/raw?path=${encodeURIComponent(path)}&t=${Date.now()}`;
-                img.loading = 'eager';
-                img.className = 'codex-tool-image';
-                img.alt = path.split('/').pop() || 'Viewed image';
-                img.addEventListener('error', () => {
-                    img.classList.add('codex-tool-image-error');
-                    img.alt = 'Image unavailable';
-                });
-                img.addEventListener('load', () => {
-                    img.classList.remove('codex-tool-image-error');
-                });
-                img.addEventListener('click', () => openImageLightbox(img.src));
-                div.appendChild(img);
-            } catch {}
-        }
-        const isImageGenerationTool = rawName === 'ImageGeneration';
-        if (isImageGenerationTool) {
-            header.textContent = '🎨 Generating image';
-            header.style.color = '#f472b6';
-        }
-        const isSleepTool = rawName === 'Sleep';
-        if (isSleepTool) {
-            try {
-                const data = JSON.parse(body);
-                header.textContent = `⏱ Waiting ${((data.duration_ms || 0) / 1000).toFixed(1)}s`;
-                header.style.color = '#94a3b8';
-            } catch {}
-        }
-        const isTodoWrite = rawName === 'TodoWrite';
-        if (isTodoWrite) {
-            try {
-                const d = JSON.parse(body);
-                const todos = Array.isArray(d.todos) ? d.todos : [];
-                const done = todos.filter(t => t.status === 'completed').length;
-                header.textContent = `📝 Todos ${done}/${todos.length}`;
-                header.style.color = '#38bdf8';
-                const listEl = document.createElement('div');
-                listEl.className = 'text-xs mt-1';
-                listEl.style.cssText = 'display:flex;flex-direction:column;gap:2px';
-                const _todoMark = (st) => st === 'completed' ? ['✅', '#4ade80', 'line-through']
-                    : st === 'in_progress' ? ['◔', '#fbbf24', 'none'] : ['☐', '#64748b', 'none'];
-                for (const t of todos) {
-                    const [mark, color, deco] = _todoMark(t.status);
-                    const row = document.createElement('div');
-                    row.style.cssText = 'display:flex;gap:6px;align-items:baseline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-                    const m = document.createElement('span');
-                    m.textContent = mark;
-                    m.style.minWidth = '1.2em';
-                    const c = document.createElement('span');
-                    c.textContent = t.content || '';
-                    c.style.cssText = `color:${color};text-decoration:${deco}`;
-                    row.append(m, c);
-                    listEl.appendChild(row);
-                }
-                if (todos.length) div.appendChild(listEl);
-                div.dataset.isEdit = '1';   // swallow the raw JSON result
-            } catch {}
-        }
-        const isReviewTool = rawName === 'Review';
-        if (isReviewTool) {
-            try {
-                const d = JSON.parse(body);
-                const focus = String(d.focus || '').trim();
-                header.textContent = `🧠 Review${focus ? ': ' + focus.slice(0, 100) : ''}`;
-                header.title = focus;
-                header.style.color = '#a78bfa';
-            } catch {}
-        }
-        const isAgentTool = rawName === 'Agent';
-        if (isAgentTool) {
-            try {
-                const d = JSON.parse(body);
-                const desc = d.description || '';
-                const prompt = d.prompt || '';
-                header.textContent = '🤖 Agent';
-                header.style.color = '#a78bfa';
-                if (desc) {
-                    const descEl = document.createElement('div');
-                    descEl.className = 'text-xs font-medium mb-1';
-                    descEl.style.color = '#c7d2fe';
-                    descEl.textContent = desc;
-                    div.appendChild(descEl);
-                }
-                if (prompt) {
-                    const promptLines = prompt.split('\n');
-                    const PREVIEW_LINES = 2;
-                    const previewPrompt = promptLines.slice(0, PREVIEW_LINES).join('\n');
-                    const restPrompt = promptLines.slice(PREVIEW_LINES).join('\n');
-                    const hasMorePrompt = promptLines.length > PREVIEW_LINES;
-                    const promptWrap = document.createElement('div');
-                    promptWrap.className = 'diff-view';
-                    promptWrap.style.marginTop = '4px';
-                    const previewPre = document.createElement('pre');
-                    previewPre.style.cssText = 'margin:0;padding:6px 8px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;white-space:pre-wrap;word-break:break-word';
-                    previewPre.textContent = previewPrompt;
-                    promptWrap.appendChild(previewPre);
-                    if (hasMorePrompt) {
-                        const restPre = document.createElement('pre');
-                        restPre.style.cssText = 'margin:0;padding:0 8px 6px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;white-space:pre-wrap;word-break:break-word;display:none';
-                        restPre.dataset.role = 'agent-rest';
-                        restPre.textContent = restPrompt;
-                        promptWrap.appendChild(restPre);
-                        const hint = document.createElement('div');
-                        hint.className = 'diff-file';
-                        hint.dataset.role = 'agent-hint';
-                        hint.dataset.count = promptLines.length - PREVIEW_LINES;
-                        hint.style.cssText = 'cursor:pointer;text-align:center;color:#a78bfa;font-size:10px';
-                        hint.textContent = `▼ ${promptLines.length - PREVIEW_LINES} more lines`;
-                        promptWrap.appendChild(hint);
-                    }
-                    div.appendChild(promptWrap);
-                    div.style.cursor = 'pointer';
-                    let agentExpanded = false;
-                    div.addEventListener('click', (e) => {
-                        if (e.target.tagName === 'A') return;
-                        agentExpanded = !agentExpanded;
-                        const restPre = promptWrap.querySelector('[data-role="agent-rest"]');
-                        const hint = promptWrap.querySelector('[data-role="agent-hint"]');
-                        if (restPre) restPre.style.display = agentExpanded ? 'block' : 'none';
-                        if (hint) hint.textContent = agentExpanded ? '▲ collapse' : `▼ ${hint.dataset.count} more lines`;
-                    });
-                }
-                div.dataset.isEdit = '1';
-            } catch {}
-        }
-        const isGrepTool = rawName === 'Grep';
-        if (isGrepTool) {
-            try {
-                const d = JSON.parse(body);
-                const grepPath = d.path || d.glob || '';
-                const shortGrepPath = grepPath.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || grepPath;
-                header.textContent = `🔎 Grep: ${d.pattern || ''}${shortGrepPath ? ' in ' + shortGrepPath : ''}`;
-                header.style.color = '#38bdf8';
-                div.dataset.isGrep = '1';
-                div.dataset.grepPattern = d.pattern || '';
-                div.dataset.grepPath = grepPath;
-            } catch {}
-        }
-        const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'Write';
-        const isReadTool = rawName === 'Read';
-        if (isReadTool) {
-            try { const d = JSON.parse(body); if (d.file_path) div.dataset.filePath = d.file_path; } catch {}
-        }
-        const diffEl = isEditTool ? renderEditDiff(body) : null;
-        const readEl = isReadTool ? renderReadView(body) : null;
-
-        if (readEl) {
-            div.appendChild(readEl);
-            div.dataset.isRead = '1';
-            div.style.cursor = 'pointer';
-            div.addEventListener('click', () => {
-                const restEl = readEl.querySelector('[data-role="read-rest"]');
-                const moreEl = readEl.querySelector('[data-role="read-more"]');
-                if (restEl && moreEl) {
-                    const showing = restEl.style.display !== 'none';
-                    restEl.style.display = showing ? 'none' : 'block';
-                    moreEl.textContent = showing ? `▼ ${moreEl.dataset.count} more lines` : `▲ collapse`;
-                }
-            });
-        } else if (diffEl) {
-            div.appendChild(diffEl);
-            div.dataset.isEdit = '1';
-            div.style.cursor = 'pointer';
-            div.addEventListener('click', () => {
-                const restEl = diffEl.querySelector('[style*="display"]');
-                const moreEl = diffEl.querySelector('.diff-file[style*="cursor"]');
-                if (restEl && moreEl) {
-                    const showing = restEl.style.display !== 'none';
-                    restEl.style.display = showing ? 'none' : 'block';
-                    const restCount = moreEl.dataset.count || '0';
-                    moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
-                }
-            });
-        } else if (!isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
-                   !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
-                   !isToolSearchCall && !isBugReport && !isWebFetch &&
-                   !isSendFile && !isSendFiles && !isOrchSimple && !isGlob && !isSkill &&
-                   !isFileChangeTool && !isViewImageTool &&
-                   !isImageGenerationTool && !isSleepTool && !isTodoWrite && !isReviewTool) {
-            let _inputJsonRendered = false;
-            if (body) {
-                try {
-                    const _inputParsed = JSON.parse(body);
-                    if (_inputParsed && typeof _inputParsed === 'object' && !Array.isArray(_inputParsed)) {
-                        const gridWrap = document.createElement('div');
-                        gridWrap.className = 'text-xs opacity-80 tool-body';
-                        gridWrap.style.cssText = 'margin-top:2px';
-                        _renderJsonGrid(_inputParsed, gridWrap);
-                        div.appendChild(gridWrap);
-                        _inputJsonRendered = true;
-                    }
-                } catch {}
-            }
-            if (!_inputJsonRendered && body) {
-                const toolPreview = body.length > 200 ? body.slice(0, 200) + '…' : body;
-                const toolFull = body.length > 200 ? body : null;
-                const bodyEl = document.createElement('div');
-                bodyEl.style.whiteSpace = 'pre-wrap';
-                bodyEl.className = 'text-xs opacity-70 tool-body';
-                bodyEl.textContent = toolPreview;
-                bodyEl.dataset.preview = toolPreview;
-                if (toolFull) bodyEl.dataset.full = toolFull;
-                div.appendChild(bodyEl);
-                if (toolFull) {
-                    const remaining = body.split('\n').length - toolPreview.split('\n').length;
-                    const hint = document.createElement('div');
-                    hint.className = 'text-xs mt-1';
-                    hint.style.color = '#38bdf8';
-                    hint.textContent = `▼ ${remaining} more lines`;
-                    hint.dataset.role = 'expand-hint';
-                    div.appendChild(hint);
-                }
-                let expanded = false;
-                div.addEventListener('click', (e) => {
-                    if (e.target.tagName === 'A') return;
-                    expanded = !expanded;
-                    const tb = div.querySelector('.tool-body');
-                    if (tb && tb.dataset.full) tb.textContent = expanded ? tb.dataset.full : tb.dataset.preview;
-                    const hint = div.querySelector('[data-role="expand-hint"]');
-                    if (hint) hint.style.display = expanded ? 'none' : 'block';
-                    const rb = div.querySelector('.result-body');
-                    if (rb && rb.dataset.full) rb.innerHTML = '📎 ' + DOMPurify.sanitize(expanded ? rb.dataset.full : rb.dataset.preview, {ADD_ATTR: ['target']});
-                });
-            }
-        }
-        if (codexItemId) {
-            decorateCodexToolCard(div, div.querySelector('.flex.items-center'), isOrch ? 'orchestra' : 'native');
-            _flushCodexToolUpdates(div, codexItemId);
-        }
+        _renderFullToolCall(content, payload, div);
     }
     else if (type === 'tool_result') {
         const chat = $('#chat');
