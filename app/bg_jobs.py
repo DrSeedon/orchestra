@@ -339,6 +339,20 @@ class BgJobManager:
     def set_session_manager(self, mgr) -> None:
         self._session_manager = mgr
 
+    async def _spawn_managed_process(self, job_id, command, *, shell, **kwargs):
+        """Register a process or kill it if the owner is cancelled during spawn."""
+        spawn_task = asyncio.create_task(
+            _spawn_bg_process(command, shell=shell, **kwargs)
+        )
+        try:
+            proc = await asyncio.shield(spawn_task)
+        except asyncio.CancelledError:
+            proc = await asyncio.shield(spawn_task)
+            await _kill_proc(proc)
+            raise
+        self._procs[job_id] = proc
+        return proc
+
     async def create(self, job_type: str, config: dict, message: str,
                      target_session_id: str, target_name: str, target_scope: str,
                      created_by: str, timeout_seconds: int = DEFAULT_TIMEOUT,
@@ -497,6 +511,11 @@ class BgJobManager:
             if row["status"] != "active":
                 continue
             config = json.loads(row["config"])
+            if row["type"] == "run":
+                await self._interrupt_run_notify(
+                    row["id"], row["message"], row["target_name"], row["target_scope"],
+                )
+                continue
             remaining = (datetime.fromisoformat(row["expires_at"]) - datetime.now(timezone.utc)).total_seconds()
             if remaining <= 0:
                 bg_expire_job(row["id"])
@@ -513,7 +532,13 @@ class BgJobManager:
         for jid, task in list(self._tasks.items()):
             task.cancel()
         for jid, proc in list(self._procs.items()):
-            await _kill_proc(proc)
+            try:
+                await _kill_proc(proc)
+            except Exception as e:
+                logger.error(
+                    "bg_job %s: shutdown process kill failed (%s): %s",
+                    jid, type(e).__name__, e,
+                )
         self._tasks.clear()
         self._procs.clear()
 
@@ -646,6 +671,26 @@ class BgJobManager:
         except Exception as e:
             logger.error(f"bg_job {job_id}: failure-notify failed: {e}")
 
+    async def _interrupt_run_notify(self, job_id, message, target_name, target_scope):
+        reason = "Прерван рестартом сервиса, повторный запуск не выполнялся."
+        bg_fail_job(job_id, reason)
+        try:
+            session, _failure = await self._load_job_target(job_id, target_name)
+            if not session:
+                return
+            body = f"[Background job INTERRUPTED] {message}\n{reason}"
+            self._restore_report_provenance(session)
+            await self._session_manager.send(
+                session.id,
+                self._terminal_message(job_id, "interrupted", body),
+            )
+            logger.warning(
+                "bg_job %s: interrupted by service restart → notified %s",
+                job_id, target_name,
+            )
+        except Exception as e:
+            logger.error(f"bg_job {job_id}: restart-interrupt notify failed: {e}")
+
     def _fail_if_active(self, job_id: str, error: str) -> None:
         bg_fail_job_if_active(job_id, error)
 
@@ -722,8 +767,8 @@ class BgJobManager:
         proc = None
         output = ""
         try:
-            proc = await _spawn_bg_process(
-                command,
+            proc = await self._spawn_managed_process(
+                job_id, command,
                 shell=True,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -786,8 +831,8 @@ class BgJobManager:
                               target_name, target_scope, timeout):
         proc = None
         try:
-            proc = await _spawn_bg_process(
-                ["tail", "-F", "-n", "0", path],
+            proc = await self._spawn_managed_process(
+                job_id, ["tail", "-F", "-n", "0", path],
                 shell=False,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
@@ -815,8 +860,8 @@ class BgJobManager:
         deadline = (time.time() + timeout) if timeout is not None else None
         try:
             while deadline is None or time.time() < deadline:
-                proc = await _spawn_bg_process(
-                    command, shell=True,
+                proc = await self._spawn_managed_process(
+                    job_id, command, shell=True,
                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
                 )
                 self._procs[job_id] = proc
@@ -843,8 +888,8 @@ class BgJobManager:
                               target_name, target_scope, timeout):
         proc = None
         try:
-            proc = await _spawn_bg_process(
-                ["ssh", *_SSH_OPTS, host, command],
+            proc = await self._spawn_managed_process(
+                job_id, ["ssh", *_SSH_OPTS, host, command],
                 shell=False,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
@@ -878,15 +923,15 @@ class BgJobManager:
             # that exceed asyncio's default 64KB StreamReader limit → ValueError
             _STREAM_LIMIT = 16 * 1024 * 1024
             if host:
-                proc = await _spawn_bg_process(
-                    ["ssh", *_SSH_OPTS, host, command],
+                proc = await self._spawn_managed_process(
+                    job_id, ["ssh", *_SSH_OPTS, host, command],
                     shell=False,
                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
                     limit=_STREAM_LIMIT,
                 )
             else:
-                proc = await _spawn_bg_process(
-                    command, shell=True,
+                proc = await self._spawn_managed_process(
+                    job_id, command, shell=True,
                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
                     limit=_STREAM_LIMIT,
                 )

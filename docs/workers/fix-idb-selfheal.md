@@ -23,3 +23,5 @@
   and full bold field marker instead of assuming line 1 or a plain `Scope:` token.
 - In the Telegram stream, suppressing a marker row must carry explicit state to the turn boundary;
   keep boundary cleanup/mentions after setting `text = ""` instead of `continue`.
+- For restartable background jobs, shield process creation until registration; a cancelled owner must
+  await the completed spawn and kill that process, while one-shot `run` rows must fail-notify on restore.

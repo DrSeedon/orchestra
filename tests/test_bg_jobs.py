@@ -789,6 +789,132 @@ class TestRunExecOutcome:
         assert row["status"] == "triggered"
 
 
+class TestRestartProcessSafety:
+    @staticmethod
+    def _job(job_id, job_type, config):
+        now = datetime.now(timezone.utc)
+        return {
+            "id": job_id, "type": job_type, "config": json.dumps(config),
+            "message": "background task", "target_session_id": "s-1",
+            "target_name": "w1", "target_scope": "/s", "created_by_name": "orch",
+            "status": "active", "expires_at": (now + timedelta(hours=1)).isoformat(),
+            "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
+        }
+
+    @pytest.mark.asyncio
+    async def test_restore_marks_active_run_interrupted_without_restarting(
+        self, db, mgr_mock, monkeypatch,
+    ):
+        import app.bg_jobs as module
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-restart", "run", {"command": "side-effect"}))
+        started = MagicMock()
+        monkeypatch.setattr(mgr, "_start_task", started)
+
+        await mgr.restore_from_db()
+
+        started.assert_not_called()
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-restart")
+        assert row["status"] == "failed"
+        reason = "Прерван рестартом сервиса, повторный запуск не выполнялся"
+        assert reason in row["error"]
+        session.send.assert_awaited_once()
+        assert reason in session.send.await_args.args[0].text
+        assert module.bg_get_active_all() == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("job_type", "config"),
+        [
+            ("timer", {"delay_seconds": 10}),
+            ("file", {"path": "/tmp/events.log", "pattern": "MATCH"}),
+            ("command", {"command": "printf MATCH", "pattern": "MATCH"}),
+            ("ssh", {"host": "example", "command": "journalctl", "pattern": "MATCH"}),
+            ("cron", {"cron_expr": "*/5 * * * *"}),
+            ("cron_command", {
+                "cron_expr": "*/5 * * * *", "command": "printf MATCH", "pattern": "MATCH",
+            }),
+        ],
+    )
+    async def test_restore_keeps_non_run_types_restartable(
+        self, db, monkeypatch, job_type, config,
+    ):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+
+        mgr = BgJobManager()
+        bg_save_job(self._job(f"restore-{job_type}", job_type, config))
+        started = MagicMock()
+        monkeypatch.setattr(mgr, "_start_task", started)
+
+        await mgr.restore_from_db()
+
+        started.assert_called_once()
+        assert started.call_args.args[1] == job_type
+
+    @pytest.mark.asyncio
+    async def test_cancel_during_spawn_kills_unregistered_process(
+        self, db, monkeypatch,
+    ):
+        import app.bg_jobs as module
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+
+        mgr = BgJobManager()
+        bg_save_job(self._job("run-spawn-cancel", "run", {"command": "side-effect"}))
+        spawned = asyncio.Event()
+        release = asyncio.Event()
+        proc = type("Process", (), {"pid": 123, "returncode": None})()
+
+        async def spawn(*_args, **_kwargs):
+            spawned.set()
+            await release.wait()
+            return proc
+
+        killed = AsyncMock()
+        monkeypatch.setattr(module, "_spawn_bg_process", spawn)
+        monkeypatch.setattr(module, "_kill_proc", killed)
+        task = asyncio.create_task(
+            mgr._run_exec("run-spawn-cancel", "side-effect", "background task", "w1", "/s", 10)
+        )
+        await spawned.wait()
+        task.cancel()
+        release.set()
+        await asyncio.gather(task, return_exceptions=True)
+
+        killed.assert_awaited_once_with(proc)
+        assert "run-spawn-cancel" not in mgr._procs
+
+    @pytest.mark.asyncio
+    async def test_shutdown_kill_failure_does_not_skip_other_processes(
+        self, monkeypatch, caplog,
+    ):
+        import app.bg_jobs as module
+        from app.bg_jobs import BgJobManager
+
+        mgr = BgJobManager()
+        first = object()
+        second = object()
+        mgr._procs = {"first": first, "second": second}
+        killed = AsyncMock(side_effect=[RuntimeError("pidfd missing"), None])
+        monkeypatch.setattr(module, "_kill_proc", killed)
+        caplog.set_level("ERROR", logger="app.bg_jobs")
+
+        await mgr.shutdown()
+
+        assert killed.await_args_list == [
+            ((first,),), ((second,),),
+        ]
+        assert "first" in caplog.text
+        assert "RuntimeError" in caplog.text
+        assert mgr._procs == {}
+
+
 class TestPidfdProcessLifecycle:
     @pytest.mark.asyncio
     async def test_shell_and_argv_modes_preserve_arguments(self):
