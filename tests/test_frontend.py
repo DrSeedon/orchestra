@@ -4427,6 +4427,49 @@ def _chat_snapshot_rows(prefix: str, start: int, count: int) -> list[dict]:
     ]
 
 
+def test_new_worker_initial_snapshot_requests_and_renders_last_100_rows(
+    dashboard_browser: Browser,
+):
+    page = _open_chat_snapshot_page(dashboard_browser)
+    rows = _chat_snapshot_rows("fresh", 401, 100)
+    state = page.evaluate("""async rows => {
+        let requestedUrl = '';
+        const originalApi = api;
+        const originalConnectSSE = connectSSE;
+        api = async url => {
+            requestedUrl = url;
+            return rows;
+        };
+        connectSSE = () => {};
+        selectedAgent = 'fresh-worker';
+        try {
+            await _showChatFor('fresh-worker', '/tmp/fe-scope');
+        } finally {
+            api = originalApi;
+            connectSSE = originalConnectSSE;
+        }
+        const query = new URL(requestedUrl, location.href).searchParams;
+        return {
+            limit: query.get('limit'),
+            maxBytes: query.get('max_bytes'),
+            cap: query.get('cap'),
+            nodes: document.querySelectorAll('#chat [data-chat-log-id]').length,
+            first: document.querySelector('#chat [data-chat-log-id]')?.dataset.chatLogId,
+            last: document.querySelector('#chat [data-chat-log-id]:last-of-type')?.dataset.chatLogId,
+        };
+    }""", rows)
+    page.close()
+
+    assert state == {
+        "limit": "100",
+        "maxBytes": None,
+        "cap": "16384",
+        "nodes": 100,
+        "first": "401",
+        "last": "500",
+    }
+
+
 def test_authoritative_snapshot_has_no_post_paint_history_staircase(
     dashboard_browser: Browser,
 ):
