@@ -4,6 +4,10 @@ let _usageData = null;
 let _quotaMapData = null;
 let _usageError = false;
 let _usageCountdownInterval = null;
+
+function _usageNoDataLabel() {
+    return Connection.ownsErrors() ? '—' : 'нет данных';
+}
 let _usageFetchPromise = null;
 let _usageLastSuccessAt = 0;
 let _usageLastFetchStartedAt = 0;
@@ -135,7 +139,7 @@ function _quotaMapLaneStatusText(windowData, bucketId = null) {
         return hasSeconds ? `откроется при сбросе, через ${_releaseDurationFromSeconds(seconds)}` : 'откроется при сбросе';
     }
     if (status === 'no_data') {
-        return 'нет данных';
+        return Connection.ownsErrors() ? '' : 'нет данных';
     }
     return 'работает';
 }
@@ -188,6 +192,7 @@ function _usageProviderWindows(providerId, capacity) {
 }
 
 function _usageFreshnessHtml() {
+    if (Connection.ownsErrors()) return '';
     if (_usageFetchPromise) {
         return '<span id="usage-freshness" style="color:#38bdf8">обновление…</span>';
     }
@@ -212,6 +217,11 @@ function renderUsageBar() {
     if (!bar) return;
     if (!_usageData) {
         if (_usageError) {
+            if (Connection.ownsErrors()) {
+                bar.innerHTML = '';
+                bar.style.display = 'none';
+                return;
+            }
             bar.style.cssText = 'display:flex;align-items:center;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#eab308;flex-shrink:0';
             bar.textContent = '⚠ Usage unavailable';
         } else {
@@ -229,7 +239,9 @@ function renderUsageBar() {
     const groups = [];
     const claudeParts = [];
 
-    if (_usageError) claudeParts.push('<span style="color:#eab308" title="Using cached data">⚠️</span>');
+    if (_usageError && !Connection.ownsErrors()) {
+        claudeParts.push('<span style="color:#eab308" title="Using cached data">⚠️</span>');
+    }
 
     const fh = a.five_hour;
     if (fh) {
@@ -267,7 +279,7 @@ function renderUsageBar() {
             groups.push(
                 `<span class="usage-provider-group" data-usage-compact-provider="openrouter">`
                 + `<span class="usage-provider-title" style="color:${accent};font-weight:600">OpenRouter</span>`
-                + '<span class="usage-provider-values"><span style="color:#64748b">нет данных</span></span>'
+                + `<span class="usage-provider-values"><span style="color:#64748b">${_usageNoDataLabel()}</span></span>`
                 + '</span>',
             );
         } else {
@@ -304,7 +316,7 @@ function renderUsageBar() {
                 groups.push(
                     `<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">`
                     + `<span class="usage-provider-title" style="color:${color};font-weight:600">${provider.compactTitle || meta.compactTitle || meta.title}</span>`
-                    + '<span class="usage-provider-values"><span style="color:#64748b">нет данных</span></span>'
+                    + `<span class="usage-provider-values"><span style="color:#64748b">${_usageNoDataLabel()}</span></span>`
                     + '</span>'
                 );
                 continue;
@@ -840,9 +852,11 @@ async function fetchUsage() {
                 _usageError = false;
                 _usageLastSuccessAt = Date.now();
                 snapshotSave('usage', _usageData);
+                Connection.clear('usage');
             } else {
                 _usageError = true;
                 if (!_usageData) _restoreUsageSnapshot();
+                if (_usageData) Connection.stale('usage', _usageLastSuccessAt);
             }
             if (!_usageError && quotaMap.status !== 'fulfilled') {
                 console.error(`quota-map fetch failed: ${quotaMap.reason && quotaMap.reason.message || 'unknown'}`);
@@ -862,6 +876,7 @@ async function fetchUsage() {
             console.error(`Usage fetch failed: ${detail}`);
             // Своих данных ещё нет — показываем прошлые с меткой возраста вместо пустоты.
             _restoreUsageSnapshot();
+            if (_usageData) Connection.stale('usage', _usageLastSuccessAt);
         }
     })();
     renderUsageBar();

@@ -1488,6 +1488,8 @@ async def build_quota_map() -> dict:
         TOLERANCE_END_PP,
         TOLERANCE_START_PP,
         GATED_LANES,
+        CURVED_LANES,
+        CURVE_EXPONENT,
         LANE_LABELS,
         deciding_window,
         evaluate_worker_admission,
@@ -1527,6 +1529,10 @@ async def build_quota_map() -> dict:
                 "lane": decision.lane,
                 "label": LANE_LABELS.get(decision.lane, decision.lane),
                 "gated": decision.lane in GATED_LANES,
+                # Порог теперь свойство ПОЛОСЫ, а не бакета: Sol идёт по кривой, Claude
+                # по прямой, и обе живут в одном пуле Codex/Anthropic соответственно.
+                "curved": decision.lane in CURVED_LANES,
+                "limit_pct": decision.limit_pct,
                 "blocked": False,
                 "release_status": decision.release_status,
                 "release_in_seconds": decision.release_in_seconds,
@@ -1732,7 +1738,7 @@ async def build_quota_map() -> dict:
             "reference_windows": reference,
             "tolerance_pp": None if progress is None else tolerance_pp(progress),
             "limit_pct": None if progress is None else line_limit(progress),
-                "trace": {},
+            "trace": {},
             "lanes": sorted(
                 lanes_by_bucket.get(bucket, {}).values(),
                 key=lambda item: item["lane"],
@@ -1752,6 +1758,8 @@ async def build_quota_map() -> dict:
             "hard_stop_pct": HARD_STOP_PCT,
             "tolerance_start_pp": TOLERANCE_START_PP,
             "tolerance_end_pp": TOLERANCE_END_PP,
+            "curve_exponent": CURVE_EXPONENT,
+            "curved_lanes": sorted(CURVED_LANES),
         },
         "buckets": buckets,
         "outside_policy": outside_policy,
@@ -2543,13 +2551,12 @@ def _blocking_runtimes() -> list:
 async def _do_restart_service() -> dict:
     from app import main as app_main
 
-    # Already-admitted mutating calls first: one of them may have committed its effect and
-    # not yet returned it, and signalling there makes its outcome unknown to the agent.
-    if not await app_main.drain_mutating_requests():
-        left = app_main.inflight_mutating_count()
-        await _abort_restart(f"{left} mutating call(s) still in flight")
-        return {"ok": False, "reason": f"{left} mutating call(s) still in flight",
-                "cut_turns": 0, "cut_names": [], "cut_ids": []}
+    # Нажатая кнопка рестарта ничем не отменяется (решение юзера 28.08.2026). Раньше живой
+    # мутирующий вызов отменял рестарт целиком, и нажатие не делало ничего — это ровно то,
+    # чего быть не должно. Незавершённые мутации по-прежнему пересчитываются, но только для
+    # ОТЧЁТА: агент увидит неизвестный исход и переспросит, а рестарт состоится.
+    await app_main.drain_mutating_requests()
+    abandoned_mutations = app_main.inflight_mutating_count()
 
     started = time.monotonic()
     sessions = _drain_sessions()
@@ -2558,16 +2565,10 @@ async def _do_restart_service() -> dict:
     # session.stop() path for every session; a RUNNING one persists INTERRUPTED and startup's
     # auto_resume_all() wakes it again.
     manager.mark_for_restart_stop(sessions)
-    if app_main.inflight_mutating_count():
-        await _abort_restart("work started while the fleet was being prepared")
-        return {
-            "ok": False,
-            "reason": "work started while the fleet was being prepared",
-            "waited_s": time.monotonic() - started,
-            "cut_turns": 0,
-            "cut_names": [],
-            "cut_ids": [],
-        }
+    # Работа, начавшаяся во время подготовки, рестарт больше НЕ отменяет: гонка «успел ли
+    # кто-то влезть» решалась в пользу того, кто влез, и кнопка проигрывала её тем чаще, чем
+    # больше в контуре агентов.
+    abandoned_mutations = max(abandoned_mutations, app_main.inflight_mutating_count())
 
     cut_ids = [session.id for session in cut_sessions]
     outcome = {
@@ -2580,6 +2581,7 @@ async def _do_restart_service() -> dict:
         "cut_names": [session.name for session in cut_sessions],
         "cut_ids": cut_ids,
         "restore_after_restart": cut_ids,
+        "abandoned_mutations": abandoned_mutations,
     }
     durable_state = await _drain_restart_durable_state()
     if isinstance(durable_state, dict) and durable_state.get("ok") is False:

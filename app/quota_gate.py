@@ -75,6 +75,18 @@ TOLERANCE_START_PP = _env_float_var(
 TOLERANCE_END_PP = _env_float_var(
     "QUOTA_TOLERANCE_END_PP", _ENV_TOLERANCE_END_DEFAULT, minimum=0.0, maximum=100.0,
 )
+# Кривизна порога для полос из `CURVED_LANES`: порог идёт не по диагонали, а по
+# `progress ** (1/CURVE_EXPONENT)` — круто вверх в начале окна и плавно к жёсткому стопу
+# у сброса. Решение юзера 28.08.2026: пул Codex сбрасывают часто, поэтому его надо ЖЕЧЬ
+# в начале окна, а не размазывать ровно. Диагональ (exponent = 1.0) держала четырёх
+# Sol-воркеров запертыми при незанятом Claude-пуле.
+_ENV_CURVE_EXPONENT_DEFAULT = 2.5
+CURVE_EXPONENT = _env_float_var(
+    "QUOTA_CURVE_EXPONENT", _ENV_CURVE_EXPONENT_DEFAULT, minimum=1.0, maximum=10.0,
+)
+# Полосы с параболой. Claude намеренно НЕ здесь: его стена означает «работать нечем»,
+# поэтому он остаётся на прежней прямой.
+_ENV_CURVED_LANES_DEFAULT = ("sol",)
 # Наблюдение старше этого возраста считается отсутствующим.
 QUOTA_OBSERVATION_MAX_AGE = 300.0
 
@@ -85,6 +97,7 @@ LUNA_MODEL = "gpt-5.6-luna"
 # Полосы, которым диагональ применяется. Всё, чего здесь нет, ограничено только
 # жёстким стопом.
 GATED_LANES = _env_gated_lanes("QUOTA_GATED_LANES", _ENV_GATED_LANES_DEFAULT)
+CURVED_LANES = _env_gated_lanes("QUOTA_CURVED_LANES", _ENV_CURVED_LANES_DEFAULT)
 
 LANE_LABELS = {
     "claude": "Claude-воркеры",
@@ -99,13 +112,41 @@ def tolerance_pp(progress: float) -> float:
     return TOLERANCE_START_PP + (TOLERANCE_END_PP - TOLERANCE_START_PP) * progress
 
 
-def line_limit(progress: float) -> float:
-    """Порог гейтящейся полосы: диагональ + допуск, но никогда выше жёсткого стопа."""
-    return min(HARD_STOP_PCT, progress * 100.0 + tolerance_pp(progress))
+def line_limit(progress: float, lane: str | None = None) -> float:
+    """Порог гейтящейся полосы: норма + допуск, но никогда выше жёсткого стопа.
+
+    Норма для полос из `CURVED_LANES` — не диагональ, а `progress ** (1/CURVE_EXPONENT)`:
+    в начале окна порог взлетает, к сбросу сходится с диагональю в той же точке 100%.
+    Полоса без кривизны (Claude) получает прежнюю прямую, как и вызов без `lane`.
+    """
+    norm = progress
+    if lane is not None and lane in CURVED_LANES and progress > 0.0:
+        norm = progress ** (1.0 / CURVE_EXPONENT)
+    return min(HARD_STOP_PCT, norm * 100.0 + tolerance_pp(progress))
 
 
-def line_release_progress(utilization: float) -> float:
-    """Доля окна, где линия достигает `utilization`."""
+def line_release_progress(utilization: float, lane: str | None = None) -> float:
+    """Доля окна, где линия достигает `utilization`.
+
+    У кривой полосы обратной функции в замкнутом виде нет (норма степенная, допуск
+    линейный), поэтому корень ищется делением пополам. `line_limit` монотонно растёт по
+    `progress`, значит корень единственный, и прогноз «откроется через» остаётся
+    согласованным с самим порогом — иначе воркер ждал бы по чужой формуле.
+    """
+    if lane is not None and lane in CURVED_LANES:
+        if utilization <= line_limit(0.0, lane):
+            return 0.0
+        if utilization > line_limit(1.0, lane):
+            return float("inf")
+        low, high = 0.0, 1.0
+        for _ in range(60):
+            middle = (low + high) / 2.0
+            if line_limit(middle, lane) < utilization:
+                low = middle
+            else:
+                high = middle
+        return high
+
     line_denominator = 100.0 + TOLERANCE_END_PP - TOLERANCE_START_PP
     if line_denominator == 0:
         return float("inf")
@@ -121,6 +162,7 @@ def _line_release_in_seconds(
     reset_at: float | None,
     *,
     now: float,
+    lane: str | None = None,
 ) -> tuple[str, float | None]:
     """Возвращает статус открытия и секунды до открытия/сброса окна.
 
@@ -139,7 +181,7 @@ def _line_release_in_seconds(
     if not gated_window_open(progress, window_minutes):
         return "no_data", None
 
-    p_release = line_release_progress(utilization)
+    p_release = line_release_progress(utilization, lane)
     if p_release <= progress:
         return "open", None
     if p_release <= 1.0:
@@ -446,7 +488,7 @@ def evaluate_worker_admission(
         else None
     )
     tolerance = None if progress is None else tolerance_pp(progress)
-    limit = None if (progress is None or not gated) else line_limit(progress)
+    limit = None if (progress is None or not gated) else line_limit(progress, lane)
     release_status, release_in_seconds = _line_release_in_seconds(
         utilization=utilization,
         progress=progress,
@@ -455,6 +497,7 @@ def evaluate_worker_admission(
         window_minutes=window_minutes,
         reset_at=reset_at,
         now=checked_at,
+        lane=lane,
     )
 
     if utilization >= HARD_STOP_PCT:
@@ -467,7 +510,7 @@ def evaluate_worker_admission(
         state = "blocked"
         reason = (
             f"utilization {utilization:g}% is above the line limit {limit:.4g}% "
-            f"(norm {progress * 100:.4g}% + tolerance {tolerance:.4g} pp)"
+            f"(norm {limit - tolerance:.4g}% + tolerance {tolerance:.4g} pp)"
         )
     elif gated and limit is None:
         state = "available"

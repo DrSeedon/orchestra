@@ -308,7 +308,20 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
         raise ValueError("price_rub must be >= 0")
 
     now = _now()
-    par = par_number if par_number is not None else _next_par(conn, project_id)
+    # Номер выдаёт ОДИН владелец — `api_create_task`, который согласует его с canonical и
+    # передаёт сюда явно. Собственная выдача номера здесь и есть механизм, которым
+    # открывается новая дверь мимо canonical: legacy-счётчик уезжает вперёд, гейт
+    # `task display counter mismatch` заклинивает проект насмерть (28.08, comfy: разрыв 3 → 8
+    # за три часа, ни одной новой задачи). Fail loud вместо тихого расхождения.
+    if par_number is None:
+        if _ia_context() is not None:
+            raise RuntimeError(
+                "create_task cannot allocate a task number: call api_create_task, "
+                "which agrees the number with the canonical store first"
+            )
+        par = _next_par(conn, project_id)
+    else:
+        par = par_number
 
     command = (acceptance_command or "").strip()
     from app.acceptance import parse_acceptance_command
@@ -358,19 +371,26 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
 
 
 def create_task_for_scope(scope: str, title: str) -> dict:
-    """Create an unbound task in the project owning ``scope``."""
+    """Create an unbound task in the project owning ``scope``.
+
+    Идёт тем же путём, что и `task_create` агента, и это ЕДИНСТВЕННАЯ причина, по которой
+    функция не пишет в legacy напрямую. Прямая запись была вторым владельцем нумерации: она
+    двигала legacy-счётчик, не трогая canonical, а `api_create_task` потом сверяет их и
+    отказывает НАВСЕГДА (`task display counter mismatch`). 28.08 веер из трёх детей развёл
+    счётчики на 3, и проект не мог завести ни одной задачи.
+    """
     with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            project = get_project_by_scope(conn, scope.rstrip("/"))
-            if not project:
-                raise ValueError(f"scope '{scope}' has no task project")
-            task = create_task(conn, project["id"], title, status="new")
-            conn.commit()
-            return task
-        except Exception:
-            conn.rollback()
-            raise
+        project = get_project_by_scope(conn, scope.rstrip("/"))
+        if not project:
+            raise ValueError(f"scope '{scope}' has no task project")
+        project_id = project["id"]
+    created = api_create_task(project_id, title, status="new")
+    # Вызывающий (спавн, app/routes/sessions.py) строит имя ветки из `par_number`, а
+    # `api_create_task` отдаёт номер как строковый `par`. Отдаём оба, чтобы форма ответа
+    # осталась прежней и ветка не превратилась в `task-None/<worker>`.
+    if "par_number" not in created:
+        created = {**created, "par_number": int(created["par"])}
+    return created
 
 
 def discard_unbound_task(task_id: int) -> bool:

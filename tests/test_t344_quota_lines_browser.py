@@ -4,7 +4,7 @@
 «работает» там, где сервер сказал `data_available=false`. Проверяется браузером,
 а не чтением исходника: рассуждение о вёрстке ничего не доказывает.
 
-Первым делом тесты ждут символ, которого в main НЕТ (`initQuotaLines`,
+Первым делом тесты ждут символ, которого в main НЕТ (`QuotaPanel`,
 `#quota-lines`, `.ql-chart`), — иначе прогон зеленел бы на старом коде.
 """
 import json
@@ -15,6 +15,8 @@ from playwright.sync_api import Browser, sync_playwright
 
 ROOT = Path(__file__).parent.parent
 UTILS_JS = ROOT / "app/static/js/utils.js"
+QUOTA_JS = ROOT / "app/static/js/quota-lines.js"
+CONNECTION_JS = ROOT / "app/static/js/connection.js"
 APP_JS = ROOT / "app/static/js/app.js"
 STYLE_CSS = ROOT / "app/static/css/style.css"
 # Те же вендорные файлы, что грузит dashboard.html (строки 8-11). Без них app.js
@@ -116,9 +118,11 @@ def _render(browser: Browser, payload, as_json: bool = False) -> "tuple":
     for vendor in VENDOR_JS:
         page.add_script_tag(path=str(vendor))
     page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(QUOTA_JS))
+    page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(APP_JS))
     # Символа нет в main: зелень на старом коде исключена.
-    assert page.evaluate("typeof initQuotaLines") == "function"
+    assert page.evaluate("typeof QuotaPanel?.init") == "function"
     if payload is None:
         page_payload = None
     elif as_json:
@@ -128,8 +132,8 @@ def _render(browser: Browser, payload, as_json: bool = False) -> "tuple":
     page.evaluate(
         """async raw => {
             api = async () => (raw === null ? Promise.reject(new Error('boom')) : raw);
-            initQuotaLines();
-            await fetchQuotaLines();
+            QuotaPanel.init();
+            await QuotaPanel.fetch();
         }""",
         page_payload,
     )
@@ -167,7 +171,7 @@ def test_panel_curve_matches_the_limit_the_server_computed(browser):
     page, _ = _render(browser, payload)
     server_limit = next(b for b in payload["buckets"] if b["bucket"] == "codex")["limit_pct"]
     drawn = page.evaluate(
-        "p => _qlLimitAt(p, {hard_stop_pct: 99, tolerance_start_pp: 10, tolerance_end_pp: 1})", 0.37
+        "p => QuotaPanel.limitAt(p, {hard_stop_pct: 99, tolerance_start_pp: 10, tolerance_end_pp: 1}, 'claude')", 0.37
     )
     assert abs(drawn - server_limit) < 0.01, (drawn, server_limit)
     page.close()

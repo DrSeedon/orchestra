@@ -233,7 +233,8 @@ def test_gated_lane_blocks_just_above_the_line_and_admits_just_below(
     model, key, progress,
 ):
     """Обе стороны, а не только отказ: гейт, блокирующий всё, прошёл бы проверку из одной."""
-    limit = line_limit(progress)
+    # Порог — свойство полосы: Sol по кривой, Claude по прямой (решение юзера 28.08.2026).
+    limit = line_limit(progress, "sol" if key == "codex" else "claude")
 
     below = _decide(model, _providers(progress=progress, **{key: limit - 0.5}))
     above = _decide(model, _providers(progress=progress, **{key: limit + 0.5}))
@@ -246,13 +247,16 @@ def test_gated_lane_blocks_just_above_the_line_and_admits_just_below(
 
 def test_exactly_on_the_line_is_admitted():
     """Отказ строго ВЫШЕ линии: `>`, не `>=`. Граница принадлежит разрешению."""
-    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=line_limit(0.5)))
+    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=line_limit(0.5, "sol")))
     assert decision.state == "available"
 
 
 def test_the_same_percent_flips_verdict_as_the_window_advances():
-    """Правило смотрит на точку, а не на процент: 40% рано — блок, поздно — норма."""
-    early = _decide("gpt-5.6-sol", _providers(progress=0.2, codex=40.0))
+    """Правило смотрит на точку, а не на процент: рано — блок, поздно — норма.
+
+    Значение взято от кривой Sol: на 2% окна порог 30.7%, на 80% — 94.6%.
+    """
+    early = _decide("gpt-5.6-sol", _providers(progress=0.02, codex=40.0))
     late = _decide("gpt-5.6-sol", _providers(progress=0.8, codex=40.0))
 
     assert early.state == "blocked"
@@ -401,7 +405,8 @@ def test_unknown_model_is_unknown_not_exempt(model):
 # ── форма отказа ──────────────────────────────────────────────────────────────
 
 def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
-    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=70.0))
+    # 95% на середине окна: выше кривой Sol (81.3%) и ещё под жёстким стопом.
+    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=95.0))
     with pytest.raises(quota_gate.QuotaGateError) as error:
         require_worker_admission(decision)
 
@@ -410,9 +415,12 @@ def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
     envelope = error.value.envelope()["error"]
     assert envelope["code"] == "weekly_quota_blocked"
     assert envelope["retryable"] is False
-    assert envelope["details"]["limit_pct"] == pytest.approx(55.5)
-    assert envelope["details"]["utilization"] == 70.0
-    assert "55.5" in str(error.value) and "70%" in str(error.value)
+    assert envelope["details"]["limit_pct"] == pytest.approx(line_limit(0.5, "sol"))
+    assert envelope["details"]["utilization"] == 95.0
+    # Сообщение обязано называть ФАКТИЧЕСКИЙ порог полосы и фактическую норму под ним,
+    # иначе агент читает числа от чужой формулы (прямой) и не понимает отказ.
+    assert "81.29" in str(error.value) and "95%" in str(error.value)
+    assert "norm 75.79%" in str(error.value)
 
 
 def test_a_non_blocked_decision_cannot_be_turned_into_a_refusal():
@@ -422,7 +430,7 @@ def test_a_non_blocked_decision_cannot_be_turned_into_a_refusal():
 
 
 def test_decision_serializes_every_field_the_panel_draws():
-    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=70.0))
+    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=95.0))
     payload = decision.to_dict()
 
     assert payload["state"] == "blocked" and payload["allowed"] is False

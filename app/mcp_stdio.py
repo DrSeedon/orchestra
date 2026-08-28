@@ -901,6 +901,34 @@ async def _quota_refusal(model: str) -> ApiToolError | None:
     return _quota_refusal_from_readiness(model, readiness)
 
 
+def _cross_repo_note(scope: str, mapping: dict) -> str:
+    """Предупреждение, когда воркер заведён в РЕПОЗИТОРИИ, отличном от проекта родителя.
+
+    Сравнение идёт по git common dir, а не по строкам путей: worktree всегда лежит внутри
+    каталога Orchestra, поэтому сравнение `worktree_path` со `scope` даёт ложные
+    срабатывания на каждом обычном воркере.
+    """
+    if not scope:
+        return ""
+    common = str(mapping.get("git_common_dir") or "")
+    if not common:
+        return ""
+    scope_git = os.path.join(scope.rstrip("/"), ".git")
+    try:
+        same = os.path.realpath(common) == os.path.realpath(scope_git)
+    except OSError:
+        same = common.rstrip("/") == scope_git
+    if same:
+        return ""
+    return (
+        f"⚠️ ДРУГОЙ РЕПОЗИТОРИЙ: воркер коммитит в {mapping.get('repo_path')}, "
+        f"а проект этой сессии — {scope}. Это законно для портфеля из нескольких "
+        "проектов, но помни: задачи и их номера остаются в проекте родителя, а "
+        "merge_worker сливает ветку в main ТОГО репозитория, где воркер работает. "
+        "Не сливай сюда чужую работу и не ищи её в проекте родителя."
+    )
+
+
 @mcp.tool()
 async def spawn_worker(name: str, task: str, repo_path: str,
                        model: str = "",
@@ -1018,12 +1046,25 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     if not delivery_id:
         delivery_id = str(uuid.uuid4())
     try:
-        delivery = await _post_initial_delivery(name, task, delivery_id, scope)
+        # Предупреждение уходит и САМОМУ воркеру, а не только вызывающему: сегодня в
+        # чужой репозиторий закоммитил именно ребёнок, который своего расхождения не знал.
+        worker_task = task
+        note_for_worker = _cross_repo_note(scope, mapping_data)
+        if note_for_worker:
+            worker_task = f"{task}\n\n{note_for_worker}"
+        delivery = await _post_initial_delivery(name, worker_task, delivery_id, scope)
     except ApiToolError as exc:
         raise _spawn_delivery_error(
             name, mapping_data, exc, task=task, delivery_id=delivery_id,
         ) from exc
     out = _delivery_receipt_text(name, model, mapping_data, delivery)
+    # Воркер заведён в ДРУГОМ репозитории, чем проект родителя. Это законно для портфеля
+    # из нескольких проектов у одного оркестратора, но молчать нельзя: 28.08.2026 три
+    # ребёнка отработали research по pitch-ball и закоммитили его в репозиторий
+    # comfy-image-pipeline — расхождения не видел никто, ни родитель, ни дети.
+    cross_repo = _cross_repo_note(scope, mapping_data)
+    if cross_repo:
+        out += f"\n{cross_repo}"
     if isinstance(result, dict) and result.get("spawn_warning"):
         out += f"\n⚠️ {result['spawn_warning']}"
     if isinstance(result, dict) and isinstance(result.get("task"), dict):
@@ -1360,6 +1401,7 @@ async def run_fan(
     tasks: list[dict[str, Any]] | None = None,
     reuse: list[dict[str, Any]] | None = None,
     deadline_seconds: float = 1800.0,
+    repo_path: str = "",
 ) -> str:
     """Start one completion fan without manual open/spawn/message plumbing.
 
@@ -1368,6 +1410,12 @@ async def run_fan(
     and the message for its next turn.  The barrier opens before any child is started,
     stays durable until every child finishes (or the deadline expires), and wakes the
     caller once with the manifest.  Workers remain normal live workers afterward.
+
+    ``repo_path`` — git-репозиторий для детей, как у ``spawn_worker``; пусто = scope
+    вызывающего. Задавать ОБЯЗАТЕЛЬНО, когда задача правит другой репозиторий: без него
+    дети создаются в scope родителя, их worktree уезжает в чужой проект, и работа потом
+    не мержится (28.08.2026, `pitch-game`: три отработавших воркера легли в
+    comfy-image-pipeline, `merge_worker` отвечал "task '1' not found in session project").
     """
     if not math.isfinite(deadline_seconds) or deadline_seconds <= 0:
         raise ApiToolError(
@@ -1384,7 +1432,8 @@ async def run_fan(
         )
     if len(set(names)) != len(names):
         raise ApiToolError(code="invalid_argument", message="fan worker names must be unique")
-    if spawned and not SCOPE:
+    target_repo = (repo_path or "").strip() or SCOPE
+    if spawned and not target_repo:
         raise ApiToolError(
             code="invalid_argument",
             message="run_fan cannot spawn without an Orchestra scope/repository path",
@@ -1428,7 +1477,7 @@ async def run_fan(
             await spawn_worker(
                 name=item["name"],
                 task=item["task"],
-                repo_path=SCOPE,
+                repo_path=target_repo,
                 model=item["model"],
                 role=item["role"],
                 owned_dirs=json.dumps(item["owned_dirs"], ensure_ascii=False),

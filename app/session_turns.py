@@ -68,6 +68,10 @@ def _rewind_past_safeguard_refusal(s: "AgentSession") -> str:
 
 logger = logging.getLogger("app.session")
 
+# At this point the next ordinary model call can hit the provider's hard context limit.
+# It is a safety threshold, not a tuning knob: every runtime and role compacts immediately.
+CRITICAL_AUTO_COMPACT_PCT = 99
+
 
 def _unknown_quota_state() -> dict:
     return {
@@ -606,6 +610,17 @@ class TurnManager:
     def schedule_context_compaction(self, live_pct: int) -> None:
         """Run both automatic compaction decisions from one validated context."""
         s = self.s
+        if live_pct >= CRITICAL_AUTO_COMPACT_PCT:
+            if s._compacting:
+                return
+            s._cancel_precompact_timer("critical_context")
+            s._log(
+                "status",
+                f"critical auto-compact triggered ({live_pct}%): "
+                "running immediately; configured window and AUTO_COMPACT_ENABLED do not apply",
+            )
+            s._spawn_bg(s._auto_compact(delay_seconds=0))
+            return
         s._schedule_precompact_timer(live_pct)
         if (
             live_pct > 90
