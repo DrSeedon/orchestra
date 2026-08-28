@@ -307,7 +307,6 @@ def test_t1_byte_preserving_distribution_is_scoped_and_manifested(tmp_path: Path
     assert central_head != source_head
 
 
-@pytest.mark.xfail(strict=True, reason="T3 не реализован, оракул заморожен заранее")
 def test_t3_owner_switch_is_global_and_project_isolated(tmp_path: Path):
     module = _project_knowledge_module()
     assert hasattr(module, "ProjectKnowledgeRouter"), "T3 missing ProjectKnowledgeRouter"
@@ -316,6 +315,9 @@ def test_t3_owner_switch_is_global_and_project_isolated(tmp_path: Path):
     repo_a, repo_b = tmp_path / "a", tmp_path / "b"
     _init_repo(repo_a)
     _init_repo(repo_b)
+    (repo_a / ".gitignore").write_text("docs/kb/\n", encoding="utf-8")
+    _git(repo_a, "add", ".gitignore")
+    _git(repo_a, "commit", "-qm", "ignore local knowledge")
     id_a = "00000000-0000-4000-8000-00000000000a"
     id_b = "00000000-0000-4000-8000-00000000000b"
     record_a = repo_a / f"docs/kb/records/evidence/{id_a}.json"
@@ -324,10 +326,9 @@ def test_t3_owner_switch_is_global_and_project_isolated(tmp_path: Path):
     record_b.parent.mkdir(parents=True)
     record_a.write_bytes(_record("a", id_a, "docs/kb/a.md"))
     record_b.write_bytes(_record("b", id_b, "docs/kb/b.md"))
-    _git(repo_a, "add", "docs/kb")
-    _git(repo_b, "add", "docs/kb")
-    _git(repo_a, "commit", "-qm", "kb")
-    _git(repo_b, "commit", "-qm", "kb")
+    assert _git(repo_a, "check-ignore", "docs/kb/records/evidence/" + id_a + ".json")
+    assert _git(repo_a, "ls-files", "docs/kb") == ""
+    assert _git(repo_b, "ls-files", "docs/kb") == ""
 
     engine_state = tmp_path / "owner.json"
     central_records = {("a", "central"): {"project_id": "a", "stable_id": "central"}}
@@ -384,6 +385,26 @@ def test_t3_owner_switch_is_global_and_project_isolated(tmp_path: Path):
     )
     assert fresh.active_owner == "project-local"
     assert fresh.read_record("a", new_id)["stable_id"] == new_id
+    from app.ia.runtime import KnowledgeRuntime
+
+    runtime = object.__new__(KnowledgeRuntime)
+    runtime.project_knowledge = fresh
+    runtime.state = {
+        "canonical_head": "central-head",
+        "projection_head": "central-head",
+        "indexed_head": None,
+    }
+    items, debt = runtime._query_evidence("a", id_a, 1)
+    assert debt == []
+    assert items[0]["stable_id"] == id_a
+    assert items[0]["source"] == "project-local-filesystem"
+    runtime.scope_registry = {"/scope-a": {"canonical_project_id": "a"}}
+    runtime._connection = lambda: pytest.fail(
+        "project-local result must be preferred before legacy logs"
+    )
+    query = runtime.query_for_scope("/scope-a", id_a, limit=1, detail="record")
+    assert query["items"][0]["stable_id"] == id_a
+    assert query["project_knowledge_owner"] == "project-local"
     assert hasattr(module, "project_knowledge_mode")
     assert hasattr(module, "active_project_knowledge")
     with module.project_knowledge_mode(fresh):
