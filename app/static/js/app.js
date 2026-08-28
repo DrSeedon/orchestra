@@ -957,7 +957,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFilePreviewModal();
     initUsageBar();
     initQuotaLines();
-    initHeartbeat();
+    Connection.init();
     _startCacheCountdown();
 });
 
@@ -1165,7 +1165,7 @@ function connectSSE(fromHistoryLoad) {
         // Он не имеет права закрыть новый поток через глобальную переменную.
         if (eventSource !== source) return;
         eventSource = null;
-        _onServerError();
+        Connection.fail(`/api/sessions/${encodeURIComponent(targetAgent)}/stream`, new TypeError('SSE disconnected'));
         setTimeout(() => {
             if (selectedAgent === targetAgent
                 && currentScope === targetScope
@@ -1698,16 +1698,16 @@ async function restartServer() {
     try {
         const result = await api('/api/restart', { method: 'POST', timeoutMs: 200000 });
         if (result.journal_loss) {
-            _showRestartAttemptNotice(
+            Connection.restartAttempt(
                 `Рестарт состоится, но журнал потерян: ${result.journal_loss.reason || 'причина не указана'}`,
                 true,
             );
         } else {
             const waited = Number(result.waited_s || 0).toFixed(1);
-            _showRestartAttemptNotice(`Рестарт подготовлен за ${waited} с`, false);
+            Connection.restartAttempt(`Рестарт подготовлен за ${waited} с`, false);
         }
     } catch (error) {
-        _showRestartAttemptNotice(`Рестарт не состоялся: ${error.message || error}`, true);
+        Connection.restartAttempt(`Рестарт не состоялся: ${error.message || error}`, true);
         btn.disabled = false;
         btn.textContent = '⟳';
     }
@@ -1716,26 +1716,6 @@ async function restartServer() {
     // перезагружалась в мёртвый сервер и юзер получал 502 от nginx вместо дашборда.
     // Возврат ловит heartbeat и восстанавливает состояние на месте.
 }
-
-function _showRestartAttemptNotice(message, failed) {
-    if (failed) {
-        _connectionSetPhase('degraded', {
-            reason: 'restart_failed',
-            title: 'Рестарт не выполнен',
-            message,
-        });
-        return;
-    }
-    _restartPending = true;
-    _restartPendingSince = Date.now();
-    _wasDown = true;
-    _connectionSetPhase('restarting', {
-        reason: 'restart',
-        title: 'Orchestra перезапускается',
-        message,
-    });
-}
-
 
 // === Orchestrator Picker ===
 let orchData = [];
@@ -1792,7 +1772,7 @@ async function _loadOrchestratorsNow() {
         _orchFreshAt = Date.now();
         _renderOrchestrators(allOrchs);
         snapshotSave('orchestrators', allOrchs);
-        _clearStaleNotice('orchestrators');
+        Connection.clear('orchestrators');
     } catch (e) {
         // Пустые вкладки без причины — это то, на что юзер и жалуется. Молчать нельзя:
         // без вкладок дашборд не выбирает scope, и не работает ВООБЩЕ ничего.
@@ -1800,9 +1780,9 @@ async function _loadOrchestratorsNow() {
         const snapshot = orchData.length ? null : snapshotLoad('orchestrators');
         if (snapshot) {
             _renderOrchestrators(snapshot.data);
-            _showStaleNotice('orchestrators', snapshot.ts);
+            Connection.stale('orchestrators', snapshot.ts);
         } else if (!orchData.length) {
-            _showErrorNotice('orchestrators', 'Список оркестраторов не загрузился', e);
+            Connection.fail('/api/orchestrators', e);
         }
     }
 }
@@ -2364,8 +2344,7 @@ function _renderChatLoadState(name, error = null) {
     const chat = $('#chat');
     if (!chat) return;
     const connectionOwns = Boolean(
-        error && typeof connectionStatusOwnsTransientErrors === 'function'
-        && connectionStatusOwnsTransientErrors()
+        error && Connection.ownsErrors()
     );
     const localError = error && !connectionOwns;
     chat.replaceChildren();
@@ -7185,11 +7164,9 @@ async function refreshSessions() {
         ]);
 
         if (capturedScope !== currentScope) return;
-        _onServerOk();
-
         _renderSessionsAndStats(sessions, stats);
         snapshotSave(`sessions:${capturedScope}`, {sessions, stats});
-        _clearStaleNotice('sessions');
+        Connection.clear('sessions');
 
         // Список оркестраторов нужен для меток непрочитанного по ЧУЖИМ вкладкам, но он
         // весит 55 КБ и раньше тянулся каждые 3 с вместе с сессиями — 1.1 МБ в минуту на
@@ -7226,7 +7203,6 @@ async function refreshSessions() {
     } catch (e) {
         if (e.name !== 'AbortError') {
             console.warn('refresh error:', e);
-            _onFetchFail(e);
             _restoreSessionsSnapshot(capturedScope, e);
         }
     } finally {
@@ -7248,11 +7224,11 @@ function _restoreSessionsSnapshot(scope, error) {
     if ($('#agent-list')?.children.length) return;
     const snapshot = snapshotLoad(`sessions:${scope}`);
     if (!snapshot?.data?.sessions || !snapshot.data.stats) {
-        _showErrorNotice('sessions', 'Список агентов не загрузился', error);
+        Connection.fail('/api/sessions', error);
         return;
     }
     _renderSessionsAndStats(snapshot.data.sessions, snapshot.data.stats);
-    _showStaleNotice('sessions', snapshot.ts);
+    Connection.stale('sessions', snapshot.ts);
 }
 
 // === API ===
@@ -7399,13 +7375,13 @@ async function api(url, opts = {}) {
                 const timeout = AbortSignal.timeout(opts.timeoutMs ?? (isGet ? _API_TIMEOUT_MS : _API_MUTATION_TIMEOUT_MS));
                 const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
                 const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...requestOpts, signal });
-                _connectionObserveResponse(resp, url);
+                Connection.observe(resp, url);
                 if (!resp.ok) {
                     const text = await resp.text();
                     // Отказ на время перезапуска — штатный и повторяемый: вызов отклонён ДО
                     // побочного эффекта. Юзер до этого получал в чат сырой служебный JSON.
-                    if (_restartPendingFromBody(resp.status, text)) {
-                        _setRestartPending(true);
+                    if (Connection.restartFromBody(resp.status, text)) {
+                        Connection.setRestarting(true);
                         const refused = new Error('Orchestra перезапускается — вызов отклонён до изменений. Повтори через несколько секунд.');
                         refused.name = 'RestartPendingError';
                         throw refused;
@@ -7416,8 +7392,7 @@ async function api(url, opts = {}) {
                 }
                 data = await resp.json();
                 _pollNoteSuccess(pollKey);
-                _hideNetFailBanner(url);
-                _onServerOk();
+                Connection.ok(url);
             } catch (e) {
                 error = e;
             }
@@ -7432,346 +7407,15 @@ async function api(url, opts = {}) {
         const transient = broken || (Number(error.status) >= 500 && Number(error.status) < 600);
         if (!broken || attempt >= attempts) {
             if (transient) _pollNoteFailure(pollKey, error);
-            if (broken && attempts > 1) _showNetFailBanner(url, attempts);
-            else if (transient) _connectionNoteFailure(url, error, attempt);
+            if (broken && attempts > 1) {
+                Connection.fail(url, new DOMException('signal timed out', 'TimeoutError'), attempts);
+            } else if (transient) Connection.fail(url, error, attempt);
             throw error;
         }
         const pause = Math.round(Math.random() * _API_RETRY_JITTER_MS);
         console.warn(`api ${url}: попытка ${attempt}/${attempts} — ${error.name}, пауза ${pause} мс`);
         await new Promise(resolve => setTimeout(resolve, pause));
     }
-}
-
-// === Единое состояние связи ===
-// Компоненты не ставят диагнозы сами. Они сообщают сюда факт (успех, отказ, кеш), а одна
-// полоса выбирает ровно один пользовательский статус. Generation приходит от процесса:
-// только её смена позволяет честно отличить внешний systemctl restart от обычного обрыва.
-const _CONNECTION_GENERATION_KEY = 'orchestra_server_generation';
-const _connectionState = {
-    phase: 'online',
-    reason: '',
-    title: '',
-    message: '',
-    path: '',
-    attempts: 0,
-    generation: localStorage.getItem(_CONNECTION_GENERATION_KEY) || '',
-    startedAt: '',
-    lastOkAt: Date.now(),
-    stale: new Map(),
-    failures: new Map(),
-    flash: '',
-    flashTimer: null,
-};
-
-function connectionStatusOwnsTransientErrors() {
-    return _connectionState.phase !== 'online';
-}
-
-function _connectionRerenderDependents() {
-    if (typeof renderUsageBar === 'function') renderUsageBar();
-    if (typeof renderQuotaLines === 'function') renderQuotaLines();
-}
-
-function _connectionBannerDetail() {
-    if (_connectionState.message) return _connectionState.message;
-    const stale = [..._connectionState.stale.entries()]
-        .map(([key, ts]) => `${key}: ${snapshotAgeLabel(ts)}`);
-    if (_connectionState.phase === 'restarting') {
-        return 'Данные на экране сохранены; chat, files, sessions и usage обновятся автоматически.'
-            + (stale.length ? ` Показано сохранённое: ${stale.join(' · ')}.` : '');
-    }
-    if (_connectionState.phase === 'recovering') {
-        return 'Обновляю chat, files, sessions, usage, quota и models.'
-            + (stale.length ? ` Показано сохранённое: ${stale.join(' · ')}.` : '');
-    }
-    if (_connectionState.phase === 'offline') {
-        return 'Причина проверяется автоматически; сохранённые данные не выдаются за свежие.'
-            + (stale.length ? ` Показано сохранённое: ${stale.join(' · ')}.` : '');
-    }
-    if (_connectionState.phase === 'degraded') {
-        const source = _connectionState.path ? `${_connectionState.path} не ответил вовремя.` : 'Часть данных не обновилась.';
-        return `${source}${stale.length ? ` Показано сохранённое: ${stale.join(' · ')}.` : ''}`;
-    }
-    return _connectionState.flash;
-}
-
-function _renderConnectionStatus() {
-    const banner = document.getElementById('connection-banner');
-    if (!banner) return;
-    const phase = _connectionState.phase;
-    const flash = phase === 'online' ? _connectionState.flash : '';
-    if (phase === 'online' && !flash) {
-        banner.classList.add('hidden');
-        banner.replaceChildren();
-        delete banner.dataset.phase;
-        return;
-    }
-    const labels = {
-        restarting: ['🔄', 'Orchestra перезапускается'],
-        recovering: ['↻', _connectionState.reason === 'restart' ? 'Orchestra перезапустилась' : 'Связь восстановлена'],
-        degraded: ['⚠', 'Связь нестабильна'],
-        offline: ['●', 'Orchestra недоступна'],
-        online: ['✓', flash || 'Связь восстановлена'],
-    };
-    const [icon, defaultTitle] = labels[phase] || labels.offline;
-    const title = _connectionState.title || defaultTitle;
-    const detail = _connectionBannerDetail();
-    banner.dataset.phase = phase;
-    banner.classList.remove('hidden');
-    banner.innerHTML = `<span aria-hidden="true">${icon}</span><b>${escHtml(title)}</b>`
-        + (detail ? `<span class="connection-detail">${escHtml(detail)}</span>` : '');
-}
-
-function _connectionSetPhase(phase, detail = {}) {
-    _connectionState.phase = phase;
-    if (Object.hasOwn(detail, 'reason')) _connectionState.reason = detail.reason || '';
-    _connectionState.title = detail.title || '';
-    _connectionState.message = detail.message || '';
-    if (Object.hasOwn(detail, 'path')) _connectionState.path = detail.path || '';
-    if (Object.hasOwn(detail, 'attempts')) _connectionState.attempts = Number(detail.attempts) || 0;
-    if (Object.hasOwn(detail, 'flash')) _connectionState.flash = detail.flash || '';
-    if (_connectionState.flashTimer) {
-        clearTimeout(_connectionState.flashTimer);
-        _connectionState.flashTimer = null;
-    }
-    _renderConnectionStatus();
-    _connectionRerenderDependents();
-}
-
-function _connectionNoteFailure(url, error, attempts = 1) {
-    const path = String(url || '').split('?')[0];
-    _connectionState.failures.set(path, {error, at: Date.now()});
-    if (_restartPending || _connectionState.phase === 'restarting') {
-        _wasDown = true;
-        _connectionSetPhase('restarting', {reason: 'restart', path, attempts});
-        return;
-    }
-    const hardDown = error?.name === 'TypeError'
-        || Number(error?.status) >= 502
-        || navigator.onLine === false;
-    if (hardDown) _wasDown = true;
-    _connectionSetPhase(hardDown ? 'offline' : 'degraded', {
-        reason: hardDown ? 'unconfirmed' : 'slow', path, attempts,
-    });
-}
-
-function _connectionObserveResponse(response, url = '') {
-    const restarting = response.headers.get('X-Orchestra-Restarting');
-    const generation = response.headers.get('X-Orchestra-Generation') || '';
-    const startedAt = response.headers.get('X-Orchestra-Started-At') || '';
-    const previous = _connectionState.generation
-        || localStorage.getItem(_CONNECTION_GENERATION_KEY) || '';
-    const generationChanged = Boolean(previous && generation && previous !== generation);
-    const startedMs = Date.parse(startedAt);
-    const firstObservationAfterRecentStart = Boolean(
-        !previous && generation && Number.isFinite(startedMs)
-        && Date.now() - startedMs >= 0 && Date.now() - startedMs < 120000
-    );
-    if (generation) {
-        _connectionState.generation = generation;
-        localStorage.setItem(_CONNECTION_GENERATION_KEY, generation);
-    }
-    if (startedAt) _connectionState.startedAt = startedAt;
-    _connectionState.lastOkAt = Date.now();
-    if (restarting === '1') {
-        _setRestartPending(true);
-        return;
-    }
-    if (generationChanged || firstObservationAfterRecentStart) {
-        _wasDown = true;
-        _restartPending = false;
-        _connectionSetPhase('recovering', {reason: 'restart', path: String(url).split('?')[0]});
-        return;
-    }
-    if (restarting === '0' && _restartPending) {
-        _restartPending = false;
-        _connectionSetPhase('recovering', {reason: 'restart', path: String(url).split('?')[0]});
-    }
-}
-
-function _connectionNoteSuccess(url) {
-    const path = String(url || '').split('?')[0];
-    _connectionState.lastOkAt = Date.now();
-    _connectionState.failures.delete(path);
-    if (_connectionState.phase === 'degraded'
-        && _connectionState.reason !== 'restart_failed'
-        && !_connectionState.failures.size && !_connectionState.stale.size) {
-        _connectionSetPhase('online');
-    }
-}
-
-function _showNetFailBanner(url, attempts) {
-    _connectionNoteFailure(url, new DOMException('signal timed out', 'TimeoutError'), attempts);
-}
-
-function _hideNetFailBanner(url) {
-    _connectionNoteSuccess(url);
-}
-
-function _showStaleNotice(key, ts) {
-    _connectionState.stale.set(key, ts);
-    if (!['restarting', 'recovering', 'offline'].includes(_connectionState.phase)) {
-        _connectionSetPhase('degraded', {reason: 'stale'});
-    } else _renderConnectionStatus();
-}
-
-function _showErrorNotice(key, _what, error) {
-    _connectionNoteFailure(`/api/${key}`, error, 1);
-}
-
-function _clearStaleNotice(key) {
-    _connectionState.stale.delete(key);
-    _connectionState.failures.delete(`/api/${key}`);
-    if (_connectionState.phase === 'degraded'
-        && !_connectionState.failures.size && !_connectionState.stale.size) {
-        _connectionSetPhase('online');
-    } else _renderConnectionStatus();
-}
-
-// === Usage Bar ===
-
-// === Перезапуск Orchestra (#270) ===
-// Во время перезапуска сервер ЖИВ и отвечает на чтения — немеют только мутирующие вызовы,
-// и юзер узнавал об этом сырым служебным JSON в чате. Признак ловим на существующем пути
-// ответов (503 + `error.code = restart_pending`), своего опроса не заводим.
-let _restartPending = false;
-let _restartPendingSince = 0;
-// Перезапуск может не состояться: preflight не смог слить хвост мутаций и молча
-// переоткрыл приём, не сказав об этом ни одному клиенту. Без потолка полоса висела бы вечно.
-const _RESTART_PENDING_MAX_MS = 120000;
-
-function _restartPendingFromBody(status, text) {
-    if (status !== 503) return false;
-    try { return JSON.parse(text)?.error?.code === 'restart_pending'; } catch { return false; }
-}
-
-// Ввод на время рестарта не блокируем (решение юзера 26.08). Единая полоса только
-// объясняет состояние; мутирующий вызов получает честный retryable-отказ без сайд-эффекта.
-function _setRestartPending(on) {
-    if (on) _restartPendingSince = Date.now();   // каждый новый отказ продлевает окно
-    if (on === _restartPending) return;
-    const wasPending = _restartPending;
-    _restartPending = on;
-    if (on) {
-        _wasDown = true;
-        _connectionSetPhase('restarting', {reason: 'restart'});
-    } else if (wasPending && _connectionState.phase === 'restarting') {
-        _connectionSetPhase('recovering', {reason: 'restart'});
-    }
-}
-
-// === Reconnect loop ===
-let _reconnectPolling = false;
-let _rebootFails = 0;
-let _wasDown = false;   // был ли хоть один отказ с прошлого успешного ответа
-
-function _showRebootOverlay() {
-    _connectionSetPhase(_restartPending ? 'restarting' : 'offline', {
-        reason: _restartPending ? 'restart' : 'unconfirmed',
-    });
-    if (_reconnectPolling) return;
-    _reconnectPolling = true;
-    _pollReconnect();
-}
-
-function _dismissRebootOverlay() {
-    _reconnectPolling = false;
-    _rebootFails = 0;
-}
-
-async function _pollReconnect() {
-    while (_reconnectPolling) {
-        await new Promise(r => setTimeout(r, 2000));
-        if (!_reconnectPolling) return;
-        try {
-            const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
-            _connectionObserveResponse(r, '/api/models');
-            if (r.status < 502) {
-                _connectionNoteSuccess('/api/models');
-                _onServerOk();
-                return;
-            }
-            _connectionNoteFailure('/api/models', {name: 'TypeError', status: r.status}, 1);
-        } catch (error) {
-            _connectionNoteFailure('/api/models', error, 1);
-        }
-    }
-}
-
-// Сервер снова отвечает. Раньше здесь была location.reload(), хотя свежий snapshot умеет
-// восстановить чат без полной перезагрузки. Замер (docs/tasks/15/research.md): reload стоит
-// полсекунды, но клиент замечает возврат сервера через 1.7-159 с, медиана 23 с — платить
-// ещё и за перезагрузку незачем. Свежесть версии фронта перезагрузка всё равно не давала:
-// JS брался из кеша без обращения к серверу.
-let _recovering = false;
-async function _recoverAfterOutage() {
-    if (_recovering) return;   // _onServerOk зовут и heartbeat, и refreshSessions, и опрос
-    _recovering = true;
-    const recoveryReason = _connectionState.reason;
-    _connectionSetPhase('recovering', {reason: recoveryReason});
-    try {
-        _dismissRebootOverlay();
-        _restartPending = false;
-        const restartBtn = $('#restart-btn');
-        if (restartBtn) { restartBtn.disabled = false; restartBtn.textContent = '⟳'; }
-        // Неподтверждённое серверу выбрасываем: рестарт мог потерять ход, и какой пузырь
-        // чей — надёжно не определить. Перезагрузка делала это молча, теперь делаем явно.
-        localMessages.clear();
-        pendingUserMsgs = [];
-        pendingBubble = null;
-        _finalizedBubble = null;
-        if (_streamRafId) { cancelAnimationFrame(_streamRafId); _streamRafId = null; }
-        streamBubble = null;
-        streamContent = '';
-        streamPending = '';
-        _streamDeferredFinal = null;
-        const refreshes = [
-            selectedAgent && currentScope ? _showChatFor(selectedAgent, currentScope) : null,
-            refreshSessions(),
-            loadOrchestrators(),
-            loadModels(),
-            refreshOpenFolders(),
-            fetchUsage(),
-            fetchQuotaLines(),
-        ].filter(Boolean);
-        await Promise.allSettled(refreshes);
-        _wasDown = false;
-        if (_connectionState.failures.size || _connectionState.stale.size) {
-            const failedPath = _connectionState.failures.keys().next().value || '';
-            _connectionSetPhase('degraded', {
-                reason: 'partial_recovery',
-                path: failedPath,
-            });
-            return;
-        }
-        const flash = recoveryReason === 'restart'
-            ? 'Orchestra перезапустилась · данные обновлены'
-            : 'Связь восстановлена · данные обновлены';
-        _connectionSetPhase('online', {reason: '', path: '', flash});
-        _connectionState.flashTimer = setTimeout(() => {
-            _connectionState.flash = '';
-            _renderConnectionStatus();
-        }, 5000);
-    } finally {
-        _recovering = false;
-    }
-}
-
-// Two consecutive failures before showing overlay — one transient error shouldn't panic the UI
-function _onServerError() {
-    _rebootFails++;
-    _wasDown = true;
-    if (_rebootFails >= 2) _showRebootOverlay();
-}
-
-// A timed-out request means the server is SLOW, not gone — under disk pressure /api/models
-// takes over 2s from a perfectly healthy server. A server that is actually down refuses the
-// connection (TypeError) or answers 502+ through the proxy, and both still raise the overlay.
-function _onFetchFail(e) {
-    if (e.name === 'AbortError') return;
-    _connectionNoteFailure('/api/heartbeat', e, 1);
-    if (e.name === 'TimeoutError') return;
-    _onServerError();
 }
 
 // === Rate Limit Banner (Anthropic server-side rate_limit, not subscription) ===
@@ -7809,84 +7453,6 @@ function _parseRateLimitStatus(content) {
     const m = content.match(/rate limited\s*—\s*retry\s*(\d+)\/(\d+)\s*in\s*(\d+)s/i);
     if (!m) return null;
     return { retry: +m[1], max: +m[2], delay: +m[3] };
-}
-
-// Единственное место, где ловится переход «был недоступен → отвечает». Зовётся из
-// heartbeat, из refreshSessions и из опроса под оверлеем — потому восстановление и
-// защищено флагом, иначе чат перерисуется столько раз, сколько источников успело.
-function _onServerOk() {
-    _rebootFails = 0;
-    if (_restartPending || _connectionState.phase === 'restarting') return;
-    if (!_wasDown) return;
-    _recoverAfterOutage();
-}
-
-// Версия фронта, с которой загружена эта страница. HTML отдаётся с no-cache (#9),
-// значит значение всегда свежее — в отличие от самого JS, который браузер берёт из кеша.
-const _pageBuild = document.body.dataset.build || '';
-let _buildBannerShown = false;
-
-// Сервер уехал вперёд. Перезагружать страницу за юзера НЕ будем: измерено, что reload
-// берёт JS из кеша и новую версию всё равно может не привезти, а решение перезагрузить
-// чужую вкладку — не наше. Говорим и уходим.
-function _showBuildBanner(serverBuild) {
-    if (_buildBannerShown) return;
-    _buildBannerShown = true;
-    console.warn(`[build] страница собрана на ${_pageBuild}, сервер отдаёт ${serverBuild}`);
-    const el = document.createElement('div');
-    el.id = 'build-banner';
-    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:99998;' +
-        'display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:10px;' +
-        'background:#1e293b;border:1px solid #f59e0b66;color:#fde68a;font-size:12px;' +
-        'font-family:system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.4)';
-    el.innerHTML = '<span>Сервер обновился — обнови страницу, чтобы взять новую версию</span>';
-    const btn = document.createElement('button');
-    btn.style.cssText = 'padding:3px 10px;border:1px solid #475569;border-radius:6px;' +
-        'background:transparent;color:#cbd5e1;cursor:pointer;font-size:12px';
-    btn.textContent = 'Скрыть';
-    btn.onclick = () => el.remove();
-    el.appendChild(btn);
-    document.body.appendChild(el);
-}
-
-async function _heartbeatProbe() {
-    try {
-        const r = await fetch('/api/models', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
-        _connectionObserveResponse(r, '/api/models');
-        // Старый сервер без заголовка: только для него остаётся потолок зависшей паузы.
-        if (r.headers.get('X-Orchestra-Restarting') === null
-            && _restartPending && Date.now() - _restartPendingSince > _RESTART_PENDING_MAX_MS) {
-            console.warn('[restart] перезапуск не наступил за 2 минуты — снимаю паузу');
-            _setRestartPending(false);
-        }
-        const restartError = r.headers.get('X-Orchestra-Restart-Error');
-        if (restartError) {
-            let reason = restartError;
-            try { reason = decodeURIComponent(restartError); } catch {}
-            _showRestartAttemptNotice(`Рестарт не состоялся: ${reason}`, true);
-            const restartBtn = $('#restart-btn');
-            if (restartBtn) { restartBtn.disabled = false; restartBtn.textContent = '⟳'; }
-        }
-        if (r.status < 502) {
-            _pollNoteSuccess('heartbeat');
-            _connectionNoteSuccess('/api/models');
-            _onServerOk();
-            // Версию сверяем после регистрации успешного ответа: единая полоса уже знает,
-            // завершился ли рестарт и нужен ли общий recovery.
-            const serverBuild = r.headers.get('X-Orchestra-Build');
-            if (serverBuild && _pageBuild && serverBuild !== _pageBuild) _showBuildBanner(serverBuild);
-        } else {
-            _pollNoteFailure('heartbeat', {name: 'TypeError'});
-            _connectionNoteFailure('/api/models', {name: 'TypeError', status: r.status}, 1);
-            _onServerError();
-        }
-    } catch (e) { _pollNoteFailure('heartbeat', e); _onFetchFail(e); }
-}
-
-function initHeartbeat() {
-        // Первый `/api/models` уже делает loadModels; ещё один тот же GET на старте лишь
-        // отнимал соединение у списка агентов и истории чата.
-        _pollRegister('heartbeat', _heartbeatProbe, 8000, false);
 }
 
 // === Tasks Panel ===
@@ -8959,7 +8525,7 @@ function _qlChartSvg(panel, rule) {
 // Подпись обязана прямо говорить, кто работает, а кто стоит, — и не выдумывать
 // «работает», когда сервер сказал data_available=false.
 function _qlVerdict(panel) {
-    if (connectionStatusOwnsTransientErrors()) return {text: '—', nodata: true};
+    if (Connection.ownsErrors()) return {text: '—', nodata: true};
     if (_quotaLinesError) return {text: _quotaLinesError, nodata: true};
     if (!_quotaLinesData) return {text: 'правило допуска — загрузка…', nodata: true};
     // Без констант правила неизвестно само правило: вердикт не считается ни для
