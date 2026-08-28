@@ -67,3 +67,5 @@
 - [knowledge-base-architecture](knowledge-base-architecture.md) — canonical evidence, typed fact promotion/supersession, freshness generations, hot/warm/cold delivery and #256 baseline.
 - [task-storage-architecture](task-storage-architecture.md) — Git-canonical задачи с SQLite-проекцией, стабильным ID и сохраняемым проектным `#N`; двухконтурная синхронизация и baseline #299.
 - [information-architecture-synthesis](information-architecture-synthesis.md) — joined typed namespace/data plane, separate task/evidence/fact/session/resource contracts, OpenViking transfer verdicts and #315 plan.
+- [data-locality](data-locality.md) — fixed project-local `docs/kb/` owner, exact distribution
+  ledger, one-record JSON format, cutover consumers and rollback proof.
