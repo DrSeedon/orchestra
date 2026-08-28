@@ -21,3 +21,5 @@
   the server URL on completion; XHR `upload.progress` is the observable upload-side progress seam.
 - Inbox report Markdown may start with a blank line and uses `- **Scope:**`; parse the first `## ` heading
   and full bold field marker instead of assuming line 1 or a plain `Scope:` token.
+- In the Telegram stream, suppressing a marker row must carry explicit state to the turn boundary;
+  keep boundary cleanup/mentions after setting `text = ""` instead of `continue`.

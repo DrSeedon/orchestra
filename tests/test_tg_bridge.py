@@ -4231,11 +4231,30 @@ class TestTurnEndMention:
         assert not [m for m in sent if "ORCHESTRA:SILENT_TURN" in m["text"]]
         assert not [text for text in mirrored if "ORCHESTRA:SILENT_TURN" in text]
         assert not [m for m in sent if "@DrSeedon" in m["text"]]
+        assert sent == [], sent
+        assert mirrored == [], mirrored
         assert rows[0] == {
             "id": 1,
             "type": "text",
             "content": "[[ORCHESTRA:SILENT_TURN]]",
         }
+
+    @pytest.mark.asyncio
+    async def test_silent_turn_with_actions_keeps_completion_anchor(self, tb, monkeypatch):
+        rows = [
+            {"id": 1, "type": "tool", "content": 'Bash: {"command":"ls"}'},
+            {"id": 2, "type": "text", "content": "[[ORCHESTRA:SILENT_TURN]]"},
+            {"id": 3, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
+        ]
+
+        sent, mirrored = await self._run(
+            tb, monkeypatch, rows, capture_mirror=True,
+        )
+
+        anchors = [m for m in sent if m["text"].startswith("━")]
+        assert len(anchors) == 1, sent
+        assert anchors[0]["text"].startswith("━" * 19)
+        assert any(text.startswith("━") for text in mirrored)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
