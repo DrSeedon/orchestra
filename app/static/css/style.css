@@ -1034,3 +1034,12 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .ql-badge-always { border-color: var(--accent); background: rgba(129,140,248,.10); color: #c7d2fe; }
 .ql-reasons { margin: 8px 0 0; padding-left: 18px; color: var(--ink-faint); font-size: 11px; line-height: 1.6; }
 .ql-reasons b { color: var(--ink-soft); }
+
+/* Часы живой фоновой задачи: между start и end событий нет вообще, поэтому пульсация —
+   единственный признак «идёт, а не повисло». Гаснет вместе с самим элементом на финише. */
+.sa-clock { animation: sa-clock-pulse 1.6s ease-in-out infinite; }
+@keyframes sa-clock-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) { .sa-clock { animation: none; } }
