@@ -847,26 +847,23 @@ async def test_t5_session_without_inheritance_still_resets_to_idle(mgr, monkeypa
 # ---------------------------------- T6: the gate runs BEFORE systemd, classification fail-closed
 
 @pytest.mark.asyncio
-async def test_t6_drain_waits_for_a_mutating_call(monkeypatch):
+async def test_t6_drain_never_waits_for_a_mutating_call(monkeypatch):
+    """Кнопка рестарта не ждёт мутаций (решение юзера 28.08.2026).
+
+    Ловит возврат ожидания: если бюджет снова станет положительным, дефолтный вызов
+    провисит те самые секунды, ради отсутствия которых правка и делалась.
+    """
     from app import main as app_main
 
-    assert app_main.MUTATING_DRAIN_BUDGET_S == 120.0
-    assert app_main.DRAIN_POLL_S == 0.05
+    assert app_main.MUTATING_DRAIN_BUDGET_S == 0.0
 
-    state = {"n": 1}
-    monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: state["n"], raising=False)
+    monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 1, raising=False)
 
-    async def finish_soon():
-        await asyncio.sleep(0.2)
-        state["n"] = 0
-
-    task = asyncio.create_task(finish_soon())
     loop = asyncio.get_running_loop()
     t0 = loop.time()
-    assert await app_main.drain_mutating_requests(budget_s=2.0) is True
+    await app_main.drain_mutating_requests()
     waited = loop.time() - t0
-    await task
-    assert 0.15 < waited < 1.5, f"drain must wait for the in-flight mutating call, {waited}"
+    assert waited < 0.05, f"restart must not wait for in-flight mutating calls, waited {waited}"
 
 
 @pytest.mark.asyncio
