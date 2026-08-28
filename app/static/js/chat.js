@@ -1646,6 +1646,164 @@ function renderSystemChatEntry(type, content, ts) {
     return el;
 }
 
+const COMPACT_EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write']);
+const COMPACT_TASK_TOOLS = new Set([
+    'mcp__orchestra__task_create',
+    'mcp__orchestra__task_get',
+    'mcp__orchestra__task_update',
+    'mcp__orchestra__task_list',
+]);
+const COMPACT_AGENT_LIST_TOOLS = new Set([
+    'mcp__orchestra__list_agents',
+    'mcp__orchestra__list_orchestrators',
+]);
+const COMPACT_ORCHESTRA_ACK_TOOLS = new Set([
+    'mcp__orchestra__kill_worker',
+    'mcp__orchestra__stop_worker',
+    'mcp__orchestra__rename_worker',
+    'mcp__orchestra__change_worker_model',
+    'mcp__orchestra__update_worker_description',
+    'mcp__orchestra__merge_worker',
+    'mcp__orchestra__bg_create',
+]);
+const COMPACT_ORCHESTRA_SIMPLE_TOOLS = new Set([
+    ...COMPACT_ORCHESTRA_ACK_TOOLS,
+    'mcp__orchestra__compact_worker',
+    'mcp__orchestra__send_message',
+    'mcp__orchestra__get_worker_logs',
+    'mcp__orchestra__get_worker_info',
+    'mcp__orchestra__bg_cancel',
+]);
+
+function _updateCompactToolResult(card, content, isBase64Image) {
+    const resultSpan = card.querySelector('.compact-result');
+    if (isBase64Image) {
+        if (resultSpan) resultSpan.textContent = '🖼 image';
+        card.dataset.resultContent = '[image]';
+        return;
+    }
+
+    const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
+    const rawName = card.dataset.toolRaw || '';
+    const isTask = COMPACT_TASK_TOOLS.has(rawName);
+    const isAgentList = COMPACT_AGENT_LIST_TOOLS.has(rawName);
+    if (!resultSpan) {
+        card.dataset.resultContent = (isTask || isAgentList) ? content : clean;
+        return;
+    }
+
+    if (isTask) {
+        let parsed = null;
+        try { parsed = JSON.parse(content); } catch {}
+        if (!parsed || parsed.error) {
+            resultSpan.textContent = '❌';
+        } else if (rawName === 'mcp__orchestra__task_create') {
+            const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
+            resultSpan.textContent = `✅ задача #${number} создана`;
+        } else if (rawName === 'mcp__orchestra__task_get') {
+            const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
+            resultSpan.textContent = `📋 читает задачу #${number}`;
+        } else if (rawName === 'mcp__orchestra__task_list') {
+            resultSpan.textContent = `📋 читает список задач (${(parsed.tasks || []).length})`;
+        } else {
+            const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
+            const status = parsed.new_status || parsed.status;
+            resultSpan.textContent = `✏️ обновляет задачу #${number}${typeof status === 'string' && status ? ` • ${status}` : ''}`;
+        }
+    } else if (isAgentList) {
+        const summary = _agentResultSummary(clean);
+        if (summary) {
+            resultSpan.textContent = `${summary.agents.length} всего · ${_agentCountText(summary.counts).join(' · ')}`;
+            resultSpan.style.color = summary.counts.broken ? '#ef4444' : summary.counts.waiting ? '#f59e0b' : '#64748b';
+        } else {
+            resultSpan.textContent = '❌ нет списка';
+        }
+    } else if (rawName === 'mcp__orchestra__send_file') {
+        resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
+    } else if (rawName === 'mcp__orchestra__send_files') {
+        const info = _sendFilesResultInfo(content);
+        resultSpan.textContent = info.hasError ? '❌' : `✅ ${info.count} sent`;
+    } else if (COMPACT_ORCHESTRA_SIMPLE_TOOLS.has(rawName)) {
+        const hasError = /error|fail/i.test(clean);
+        if (COMPACT_ORCHESTRA_ACK_TOOLS.has(rawName)) resultSpan.textContent = hasError ? '❌' : '✅';
+        else if (rawName === 'mcp__orchestra__send_message') {
+            const recipient = clean.match(/sent to '(.+?)'/i);
+            resultSpan.textContent = hasError ? '❌' : recipient ? `✅ → ${recipient[1]}` : '✅';
+        } else if (rawName === 'mcp__orchestra__bg_cancel') {
+            resultSpan.textContent = hasError ? '❌' : '⏹';
+        } else if (rawName === 'mcp__orchestra__compact_worker') {
+            const percentage = clean.match(/(\d+)%/);
+            resultSpan.textContent = percentage ? `✅ ${percentage[1]}%` : '✅';
+        } else if (rawName === 'mcp__orchestra__get_worker_info') {
+            try {
+                const worker = JSON.parse(clean);
+                const status = worker.status === 'running' ? '🟢' : worker.status === 'idle' ? '🟡' : '⚪';
+                resultSpan.textContent = `${status} ${worker.name || '?'}`;
+            } catch {
+                resultSpan.textContent = '✅';
+            }
+        } else {
+            resultSpan.textContent = `📎 ${clean.split('\n').filter(line => line.trim()).length} items`;
+        }
+    } else if (rawName === 'Glob') {
+        resultSpan.textContent = `📎 ${clean.split('\n').filter(line => line.trim()).length} files`;
+    } else if (rawName === 'Skill') {
+        resultSpan.textContent = clean.includes('error') ? '❌' : '✅';
+    } else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') {
+        const singleLine = clean.replace(/\n/g, ' ');
+        resultSpan.textContent = '📎 ' + (singleLine.length > 40 ? singleLine.slice(0, 40) + '…' : singleLine);
+    } else if (rawName === 'mcp__orchestra__report_bug') {
+        resultSpan.textContent = '✅ reported';
+    } else if (rawName === 'ToolSearch') {
+        let toolName = '';
+        try { toolName = JSON.parse(content).tool_name || ''; } catch {}
+        if (!toolName) toolName = clean.match(/tool_name['":\s]+(\w+)/)?.[1] || '';
+        resultSpan.textContent = toolName ? `✅ ${toolName}` : '✅ loaded';
+    } else if (['mcp__websearch__search', 'mcp__websearch__search_web', 'WebSearch'].includes(rawName)) {
+        const spec = codexWebSearchSpec(content);
+        const preview = card.querySelector('.compact-preview');
+        if (preview && spec) preview.textContent = codexWebSearchCompactLabel(spec);
+        resultSpan.textContent = spec?.queries.length ? `✅ ${spec.queries.length} queries` : '✅';
+    } else if (rawName === 'mcp__orchestra__spawn_worker') {
+        resultSpan.textContent = clean.toLowerCase().includes('error') ? '❌' : '✅ spawned';
+    } else if (COMPACT_EDIT_TOOLS.has(rawName)) {
+        resultSpan.textContent = '📎 updated';
+    } else if (rawName === 'Read') {
+        let readShort = 'OK';
+        try {
+            const colon = card.dataset.toolContent.indexOf(':');
+            const args = colon > 0 ? card.dataset.toolContent.slice(colon + 1).trim() : '';
+            const filePath = JSON.parse(args).file_path;
+            if (filePath) readShort = filePath.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || filePath;
+        } catch {}
+        resultSpan.textContent = '📖 ' + readShort;
+    } else {
+        const singleLine = clean.replace(/\n/g, ' ');
+        resultSpan.textContent = '📎 ' + (singleLine.length > 40 ? singleLine.slice(0, 40) + '…' : singleLine);
+    }
+    card.dataset.resultContent = (isTask || isAgentList) ? content : clean;
+}
+
+function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, insert, isBase64Image) {
+    if (!window.compactMode || (type !== 'tool' && type !== 'tool_result')) return false;
+    if (type === 'tool_result') {
+        const card = _toolForResult(chat, payload, anchor, true);
+        if (card) {
+            _updateCompactToolResult(card, content, isBase64Image);
+            return true;
+        }
+    }
+
+    const line = buildCompactToolLine(type, content, ts, payload);
+    const wasAtBottom = _chatAtBottom(chat);
+    const insertedBeforeStream = !anchor && streamBubble && streamBubble.parentNode === chat;
+    insert(line);
+    _trimChatNodes(chat);
+    if (type === 'tool') _adoptOrphanResults(chat, line.dataset.toolUseId);
+    if (!anchor && !insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
+    return true;
+}
+
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
 // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
 // payload = full SSE log object (carries subagent_id for sub-agent nesting)
@@ -1753,124 +1911,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         return;
     }
 
-    if (window.compactMode && (type === 'tool' || type === 'tool_result')) {
-        if (type === 'tool_result') {
-            const lastC = _toolForResult(chat, payload, anchor, true);
-            if (lastC && _isBase64Image) {
-                const resultSpan = lastC.querySelector('.compact-result');
-                if (resultSpan) resultSpan.textContent = '🖼 image';
-                lastC.dataset.resultContent = '[image]';
-                return;
-            }
-            if (lastC) {
-                const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
-                const rawName = lastC.dataset.toolRaw || '';
-                const isEditTool = rawName === 'Edit' || rawName === 'MultiEdit' || rawName === 'Write';
-                const isReadTool = rawName === 'Read';
-                const isToolSearch = rawName === 'ToolSearch';
-                const isBugReportCompact = rawName === 'mcp__orchestra__report_bug';
-                const isSendFileCompact = rawName === 'mcp__orchestra__send_file';
-                const isSendFilesCompact = rawName === 'mcp__orchestra__send_files';
-        const isOrchSimpleCompact = ['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__compact_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__send_message','mcp__orchestra__list_agents','mcp__orchestra__list_orchestrators','mcp__orchestra__get_worker_logs','mcp__orchestra__get_worker_info','mcp__orchestra__bg_create','mcp__orchestra__bg_cancel'].includes(rawName);
-                const isGlobCompact = rawName === 'Glob';
-                const isSkillCompact = rawName === 'Skill';
-                const isWebFetchCompact = rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch';
-                const isWebSearchCompact = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
-                const isSpawnWorkerCompact = rawName === 'mcp__orchestra__spawn_worker';
-                const isTaskCompact = ['mcp__orchestra__task_create','mcp__orchestra__task_get','mcp__orchestra__task_update','mcp__orchestra__task_list'].includes(rawName);
-                const isAgentListCompact = rawName === 'mcp__orchestra__list_agents' || rawName === 'mcp__orchestra__list_orchestrators';
-                const resultSpan = lastC.querySelector('.compact-result');
-                if (resultSpan && isTaskCompact) {
-                    let parsed = null;
-                    try { parsed = JSON.parse(content); } catch {}
-                    if (parsed && !parsed.error) {
-                        if (rawName === 'mcp__orchestra__task_create') {
-                            const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
-                            resultSpan.textContent = `✅ задача #${number} создана`;
-                        } else if (rawName === 'mcp__orchestra__task_get') {
-                            const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
-                            resultSpan.textContent = `📋 читает задачу #${number}`;
-                        } else if (rawName === 'mcp__orchestra__task_list') {
-                            resultSpan.textContent = `📋 читает список задач (${(parsed.tasks || []).length})`;
-                        } else {
-                            const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
-                            const status = parsed.new_status || parsed.status;
-                            resultSpan.textContent = `✏️ обновляет задачу #${number}${typeof status === 'string' && status ? ` • ${status}` : ''}`;
-                        }
-                    } else {
-                        resultSpan.textContent = '❌';
-                    }
-                } else if (resultSpan && isAgentListCompact) {
-                    const summary = _agentResultSummary(clean);
-                    if (summary) {
-                        resultSpan.textContent = `${summary.agents.length} всего · ${_agentCountText(summary.counts).join(' · ')}`;
-                        resultSpan.style.color = summary.counts.broken ? '#ef4444' : summary.counts.waiting ? '#f59e0b' : '#64748b';
-                    } else {
-                        resultSpan.textContent = '❌ нет списка';
-                    }
-                } else if (resultSpan && isSendFileCompact) {
-                    resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
-                } else if (resultSpan && isSendFilesCompact) {
-                    const info = _sendFilesResultInfo(content);
-                    resultSpan.textContent = info.hasError ? '❌' : `✅ ${info.count} sent`;
-                } else if (resultSpan && isOrchSimpleCompact) {
-                    const hasErr = clean.includes('error') || clean.includes('Error') || clean.includes('fail') || clean.includes('Fail');
-                    if (['mcp__orchestra__kill_worker','mcp__orchestra__stop_worker','mcp__orchestra__rename_worker','mcp__orchestra__change_worker_model','mcp__orchestra__update_worker_description','mcp__orchestra__merge_worker','mcp__orchestra__bg_create'].includes(rawName)) resultSpan.textContent = hasErr ? '❌' : '✅';
-                    else if (rawName === 'mcp__orchestra__send_message') { const m = clean.match(/sent to '(.+?)'/i); resultSpan.textContent = hasErr ? '❌' : m ? `✅ → ${m[1]}` : '✅'; }
-                    else if (rawName === 'mcp__orchestra__bg_cancel') resultSpan.textContent = hasErr ? '❌' : '⏹';
-                    else if (rawName === 'mcp__orchestra__compact_worker') { const m = clean.match(/(\d+)%/); resultSpan.textContent = m ? `✅ ${m[1]}%` : '✅'; }
-                    else if (rawName === 'mcp__orchestra__get_worker_info') { try { const d = JSON.parse(clean); resultSpan.textContent = `${d.status === 'running' ? '🟢' : d.status === 'idle' ? '🟡' : '⚪'} ${d.name || '?'}`; } catch { resultSpan.textContent = '✅'; } }
-                    else { const ct = clean.split('\n').filter(l=>l.trim()).length; resultSpan.textContent = `📎 ${ct} items`; }
-                } else if (resultSpan && isGlobCompact) {
-                    const ct = clean.split('\n').filter(l=>l.trim()).length;
-                    resultSpan.textContent = `📎 ${ct} files`;
-                } else if (resultSpan && isSkillCompact) {
-                    resultSpan.textContent = clean.includes('error') ? '❌' : '✅';
-                } else if (resultSpan && isWebFetchCompact) {
-                    const short = clean.length > 40 ? clean.replace(/\n/g, ' ').slice(0, 40) + '…' : clean.replace(/\n/g, ' ');
-                    resultSpan.textContent = '📎 ' + short;
-                } else if (resultSpan && isBugReportCompact) {
-                    resultSpan.textContent = '✅ reported';
-                } else if (resultSpan && isToolSearch) {
-                    let toolName = '';
-                    try { const d = JSON.parse(content); toolName = d.tool_name || ''; } catch {}
-                    if (!toolName) { const m = clean.match(/tool_name['":\s]+(\w+)/); toolName = m ? m[1] : ''; }
-                    resultSpan.textContent = toolName ? `✅ ${toolName}` : '✅ loaded';
-                } else if (resultSpan && isWebSearchCompact) {
-                    const spec = codexWebSearchSpec(content);
-                    const compactPreview = lastC.querySelector('.compact-preview');
-                    if (compactPreview && spec) compactPreview.textContent = codexWebSearchCompactLabel(spec);
-                    resultSpan.textContent = spec?.queries.length ? `✅ ${spec.queries.length} queries` : '✅';
-                } else if (resultSpan && isSpawnWorkerCompact) {
-                    resultSpan.textContent = clean.toLowerCase().includes('error') ? '❌' : '✅ spawned';
-                } else if (resultSpan && !isEditTool && !isReadTool) {
-                    const short = clean.length > 40 ? clean.slice(0, 40).replace(/\n/g, ' ') + '…' : clean.replace(/\n/g, ' ');
-                    resultSpan.textContent = '📎 ' + short;
-                } else if (resultSpan && isEditTool) {
-                    resultSpan.textContent = '📎 updated';
-                } else if (resultSpan && isReadTool) {
-                    let readShort = 'OK';
-                    try {
-                        const colonIdx = lastC.dataset.toolContent.indexOf(':');
-                        const bd = colonIdx > 0 ? lastC.dataset.toolContent.slice(colonIdx + 1).trim() : '';
-                        const parsed = JSON.parse(bd);
-                        if (parsed.file_path) readShort = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || parsed.file_path;
-                    } catch {}
-                    resultSpan.textContent = '📖 ' + readShort;
-                }
-                lastC.dataset.resultContent = (isTaskCompact || isAgentListCompact) ? content : clean;
-                return;
-            }
-        }
-        const line = buildCompactToolLine(type, content, ts, payload);
-        const wasAtBottom = _chatAtBottom(chat);
-        _insert(line);
-        // Trim oldest nodes to cap memory — loses old history but prevents unbounded DOM growth
-        _trimChatNodes(chat);
-        if (type === 'tool') _adoptOrphanResults(chat, line.dataset.toolUseId);
-        if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
-        return;
-    }
+    if (_renderCompactToolEntry(type, content, ts, payload, chat, anchor, _insert, _isBase64Image)) return;
 
     // Stream events feed the typewriter buffer — RAF loop renders incrementally
     if (type === 'stream') {
