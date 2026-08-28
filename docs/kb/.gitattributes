@@ -1,0 +1,2 @@
+*.json -text -filter -working-tree-encoding
+records/**/*.json -text -filter -working-tree-encoding
