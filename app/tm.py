@@ -1581,32 +1581,38 @@ def api_create_task(project_id: str, title: str, price: int = 0,
     assert store is not None
 
     if context.mode == "shadow":
-        legacy = _legacy_api_create_task(
-            project_id, title, price, description, assignee, status,
-            scope=scope, priority=priority,
-            acceptance_command=acceptance_command,
-            acceptance_manifest=acceptance_manifest,
-            acceptance_required=acceptance_required,
-            acceptance_actor=acceptance_actor,
-        )
-        try:
-            candidate = store.task_create(
-                project_id=legacy["project"],
-                title=title,
-                price=price,
-                description=description,
-                assignee=assignee,
-                status=status,
-                priority=priority,
-                acceptance_command=acceptance_command,
-                acceptance_manifest=acceptance_manifest,
-                acceptance_required=acceptance_required,
-                display_number=int(legacy["par"]),
-                expected_head=store.canonical_head,
-            )
-        except Exception as error:
-            return _shadow_failure(legacy, context, error)
-        return _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
+        with _TASK_CREATE_LOCK:
+            # The shadow adapter owns the legacy write; let its internal allocator run
+            # under an explicit legacy context without disabling the process-wide adapter
+            # for concurrent HTTP requests. Keep the projection in this lock too, so its
+            # display number and expected canonical head stay paired with that write.
+            with ia_task_store_mode(mode="legacy"):
+                legacy = _legacy_api_create_task(
+                    project_id, title, price, description, assignee, status,
+                    scope=scope, priority=priority,
+                    acceptance_command=acceptance_command,
+                    acceptance_manifest=acceptance_manifest,
+                    acceptance_required=acceptance_required,
+                    acceptance_actor=acceptance_actor,
+                )
+            try:
+                candidate = store.task_create(
+                    project_id=legacy["project"],
+                    title=title,
+                    price=price,
+                    description=description,
+                    assignee=assignee,
+                    status=status,
+                    priority=priority,
+                    acceptance_command=acceptance_command,
+                    acceptance_manifest=acceptance_manifest,
+                    acceptance_required=acceptance_required,
+                    display_number=int(legacy["par"]),
+                    expected_head=store.canonical_head,
+                )
+            except Exception as error:
+                return _shadow_failure(legacy, context, error)
+            return _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
 
     with _TASK_CREATE_LOCK:
         with _conn() as conn:
