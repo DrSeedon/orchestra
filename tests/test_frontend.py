@@ -2376,10 +2376,8 @@ def _open_notify_stream_page(
     page.evaluate("() => _pollStop('sessions')")
     page.evaluate("name => selectAgent(name)", _NOTIFY_AGENT)
     page.wait_for_function("name => selectedAgent === name", arg=_NOTIFY_AGENT)
-    # selectAgent starts one final refreshSessions directly; wait for that request
-    # to settle before reading chat DOM, otherwise it can replace the history after
-    # a row-specific wait. SSE/history remain live for the actual renderer paths.
-    page.wait_for_function("() => !refreshInProgress", timeout=8000)
+    # Worker selection no longer refreshes the whole sidebar; the fresh snapshot and SSE
+    # are the only chat-critical requests.
     return page, stream_calls
 
 
@@ -2424,20 +2422,6 @@ def test_live_call_notifies_once_while_history_and_replays_stay_silent(
     if len(stream_calls) < 2:
         pytest.fail(f"stream did not reconnect, connections={len(stream_calls)}")
 
-    page.evaluate(
-        """row => _prependHistory(selectedAgent, currentScope, [row])""",
-        _notify_row(41010, live_reason),
-    )
-    try:
-        page.wait_for_function(
-            "() => document.querySelectorAll('#chat .chat-notify-user').length >= 1",
-            timeout=5000,
-        )
-    except PlaywrightTimeout:
-        pytest.fail(
-            "notify card gone after history prepend: count="
-            f"{page.evaluate('() => document.querySelectorAll(\"#chat .chat-notify-user\").length')}"
-        )
     state = page.evaluate("""() => ({
         notifications: window.__notifications,
         cards: document.querySelectorAll('#chat .chat-notify-user').length,
@@ -2461,14 +2445,10 @@ def test_live_call_notifies_once_while_history_and_replays_stay_silent(
     assert state["permissionBtn"] is False, "разрешение уже есть — кнопке неоткуда взяться"
 
 
-def test_history_carried_by_the_stream_itself_stays_silent_then_arms(
+def test_history_failure_is_fail_loud_and_never_streams_archive_row_by_row(
     dashboard_browser: Browser,
 ):
-    """Запасной режим: `_fetchHistory` упал, историю везёт сам поток (`after_id=0`).
-
-    Эта пачка — архив, а не свежее, и уведомлять по ней нельзя. Но и замолчать до
-    следующего реконнекта нельзя: канал оказался бы тихо мёртвым на весь сеанс.
-    """
+    """A failed snapshot must not resurrect the exact stale/SSE staircase being fixed."""
     page, stream_calls = _open_notify_stream_page(
         dashboard_browser,
         "granted",
@@ -2479,14 +2459,18 @@ def test_history_carried_by_the_stream_itself_stays_silent_then_arms(
         ],
         history_status=500,
     )
-    page.wait_for_function("() => window.__notifications.length >= 1", timeout=20000)
-    notifications = page.evaluate("() => window.__notifications")
+    page.wait_for_selector("#chat .chat-load-error", timeout=20000)
+    state = page.evaluate("""() => ({
+        notifications: window.__notifications,
+        text: document.querySelector('#chat').textContent,
+        retry: document.querySelector('#chat .chat-load-error button')?.textContent || '',
+    })""")
     page.close()
 
-    assert len(stream_calls) >= 2, "второе подключение обязано было состояться"
-    assert len(notifications) == 1, notifications
-    assert notifications[0]["body"] == "живой зов после взвода"
-    assert notifications[0]["tag"] == "orchestra-call-43010"
+    assert stream_calls == []
+    assert state["notifications"] == []
+    assert "Актуальные сообщения не загрузились" in state["text"]
+    assert state["retry"] == "Повторить"
 
 
 def test_notification_permission_is_asked_by_click_and_never_on_load(
@@ -3967,7 +3951,7 @@ def test_truncated_read_image_restores_full_log_when_source_file_is_gone(
     page.close()
 
 
-def test_image_generation_history_replaces_stale_mirror_and_survives_chat_reentry(
+def test_image_generation_history_restores_full_result_and_survives_chat_reentry(
     dashboard_browser: Browser,
 ):
     page = dashboard_browser.new_page()
@@ -4011,19 +3995,16 @@ def test_image_generation_history_replaces_stale_mirror_and_survives_chat_reentr
     full_row.pop("trunc")
 
     state = page.evaluate(
-        """async ({mirrorRows, fullRow}) => {
+        """async ({historyRows, fullRow}) => {
             if (eventSource) { eventSource.close(); eventSource = null; }
             selectedAgent = 'agent-a';
             currentScope = '/scope-a';
             window.compactMode = false;
             window.__imageHistoryFetches = 0;
             window.__imageLogFetches = 0;
-            _storeSessionId = async () => 'sid-a';
-            _storeRead = async () => mirrorRows;
-            _storeWatermark = async () => 40;
             _fetchHistory = async () => {
                 window.__imageHistoryFetches += 1;
-                return [];
+                return historyRows;
             };
             api = async (path) => {
                 if (path === '/api/logs/40') {
@@ -4059,13 +4040,13 @@ def test_image_generation_history_replaces_stale_mirror_and_survives_chat_reentr
             };
         }""",
         {
-            "mirrorRows": filler + [call, stale],
+            "historyRows": filler + [call, stale],
             "fullRow": full_row,
         },
     )
     page.close()
 
-    assert state["historyFetches"] <= 1
+    assert state["historyFetches"] == 2
     assert state["logFetches"] == 2
     for rendered in (state["first"], state):
         assert rendered["prompt"] == (
@@ -4075,202 +4056,7 @@ def test_image_generation_history_replaces_stale_mirror_and_survives_chat_reentr
         assert "Image generated" in rendered["title"]
 
 
-def test_indexeddb_legacy_mirror_is_rebuilt_before_chat_render(
-    dashboard_browser: Browser,
-):
-    """A mirror written before row metadata existed must not drive current history."""
-    page = dashboard_browser.new_page()
-    origin = _dashboard_base()
-    page.goto(f"{origin}/static/css/style.css", wait_until="domcontentloaded")
-
-    legacy_rows = [
-        {
-            "id": i,
-            "session_id": "fe-orch-id",
-            "type": "text",
-            "content": f"legacy-row-{i}",
-            "ts": "2026-08-03T08:00:00+00:00",
-        }
-        for i in range(1, 37)
-    ] + [
-        {
-            "id": 37,
-            "session_id": "fe-orch-id",
-            "type": "tool",
-            "content": 'LegacyTool: {"payload":"' + "a" * 260 + '"}',
-            "ts": "2026-08-03T08:01:00+00:00",
-        },
-        {
-            "id": 38,
-            "session_id": "fe-orch-id",
-            "type": "tool_result",
-            "content": "legacy-result-a\n" * 8,
-            "ts": "2026-08-03T08:01:01+00:00",
-        },
-        {
-            "id": 39,
-            "session_id": "fe-orch-id",
-            "type": "tool",
-            "content": 'LegacyTool: {"payload":"' + "b" * 260 + '"}',
-            "ts": "2026-08-03T08:01:02+00:00",
-        },
-        {
-            "id": 40,
-            "session_id": "fe-orch-id",
-            "type": "tool_result",
-            "content": "legacy-result-b\n" * 8,
-            "ts": "2026-08-03T08:01:03+00:00",
-        },
-    ]
-    current_rows = [
-        {
-            "id": 1000 + i,
-            "session_id": "fe-orch-id",
-            "type": "text",
-            "content": f"current-row-{i}",
-            "ts": "2026-08-25T08:00:00+00:00",
-            "event_id": "",
-            "tool_use_id": None,
-            "tool_name": None,
-            "tool_is_error": None,
-        }
-        for i in range(1, 43)
-    ]
-
-    page.evaluate(
-        """async ({rows}) => {
-            await new Promise((resolve, reject) => {
-                const drop = indexedDB.deleteDatabase('orchestra');
-                drop.onsuccess = resolve;
-                drop.onerror = () => reject(drop.error);
-            });
-            const db = await new Promise((resolve, reject) => {
-                const rq = indexedDB.open('orchestra', 1);
-                rq.onupgradeneeded = () => {
-                    const logs = rq.result.createObjectStore('logs', {keyPath: 'id'});
-                    logs.createIndex('by_session', 'session_id');
-                    rq.result.createObjectStore('meta');
-                };
-                rq.onsuccess = () => resolve(rq.result);
-                rq.onerror = () => reject(rq.error);
-            });
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction(['logs', 'meta'], 'readwrite');
-                for (const row of rows) tx.objectStore('logs').put(row);
-                const meta = tx.objectStore('meta');
-                meta.put(40, 'watermark');
-                meta.put('fe-orch-id', 'sessions');
-                meta.put([{id: 'fe-orch-id', name: 'fe-orch', scope: '/tmp/fe-scope'}], 'session_map');
-                tx.oncomplete = resolve;
-                tx.onerror = () => reject(tx.error);
-                tx.onabort = () => reject(tx.error);
-            });
-            db.close();
-        }""",
-        {"rows": legacy_rows},
-    )
-
-    page.add_init_script(f"""
-        const staleTail = {json.dumps(current_rows)};
-        window.__streamAfterIds364 = [];
-        window.__staircaseCounts364 = [];
-        window.EventSource = class StableEventSource {{
-            constructor(url) {{
-                this.url = url;
-                this.readyState = 1;
-                const after = Number(new URL(url, location.href).searchParams.get('after_id'));
-                window.__streamAfterIds364.push(after);
-                if (after < 1000) {{
-                    staleTail.forEach((row, index) => setTimeout(() => {{
-                        if (this.readyState !== 1) return;
-                        this.onmessage?.({{data: JSON.stringify(row)}});
-                        setTimeout(() => window.__staircaseCounts364.push(
-                            document.querySelector('#chat')?.children.length || 0
-                        ), 0);
-                    }}, 200 + index * 10));
-                }}
-            }}
-            close() {{ this.readyState = 2; }}
-        }};
-    """)
-    _route_frontend_sources(page)
-    history_calls: list[str] = []
-
-    def history_route(route):
-        history_calls.append(route.request.url)
-        route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps(current_rows),
-        )
-
-    def sync_route(route):
-        route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps({
-                "logs": [],
-                "max_log_id": current_rows[-1]["id"],
-                "live_sessions": [
-                    {"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"},
-                ],
-            }),
-        )
-
-    page.route(re.compile(r"/api/sessions/fe-orch/logs\?"), history_route)
-    page.route(re.compile(r"/api/logs/sync\?"), sync_route)
-    _goto_dashboard(page)
-    page.wait_for_function(
-        """() => {
-            const text = document.querySelector('#chat')?.textContent || '';
-            return text.includes('legacy-row-36') || text.includes('current-row-42');
-        }""",
-        timeout=8000,
-    )
-    page.wait_for_timeout(800)
-    assert history_calls, (
-        "legacy mirror was rendered and its newer server tail arrived row-by-row: "
-        f"after_ids={page.evaluate('() => window.__streamAfterIds364')} "
-        f"steps={page.evaluate('() => window.__staircaseCounts364')}"
-    )
-    page.wait_for_function(
-        """() => new Promise(resolve => {
-            const rq = indexedDB.open('orchestra', 1);
-            rq.onsuccess = () => {
-                const db = rq.result;
-                const tx = db.transaction(['logs', 'meta'], 'readonly');
-                const rows = tx.objectStore('logs').getAll();
-                const schema = tx.objectStore('meta').get('schema_epoch');
-                tx.oncomplete = () => {
-                    window.__mirror364 = {rows: rows.result, schema: schema.result};
-                    db.close();
-                    resolve(rows.result.length === 42);
-                };
-                tx.onerror = () => resolve(false);
-            };
-            rq.onerror = () => resolve(false);
-        })""",
-        timeout=8000,
-    )
-    state = page.evaluate(
-        """() => ({
-            text: document.querySelector('#chat').textContent,
-            mirrorIds: window.__mirror364.rows.map(row => row.id),
-            schema: window.__mirror364.schema,
-            streamAfterIds: window.__streamAfterIds364,
-            staircaseCounts: window.__staircaseCounts364,
-        })"""
-    )
-    page.close()
-
-    assert "legacy-row" not in state["text"]
-    assert state["mirrorIds"] == [row["id"] for row in current_rows]
-    assert state["schema"] == 2
-    assert state["streamAfterIds"] and min(state["streamAfterIds"]) >= current_rows[-1]["id"]
-    assert state["staircaseCounts"] == []
-
-
-def _open_store_freshness_page(browser: Browser) -> Page:
+def _open_chat_snapshot_page(browser: Browser) -> Page:
     page = browser.new_page()
     _route_frontend_sources(page)
     _goto_dashboard(page)
@@ -4288,7 +4074,7 @@ def _open_store_freshness_page(browser: Browser) -> Page:
     return page
 
 
-def _store_freshness_rows(prefix: str, start: int, count: int) -> list[dict]:
+def _chat_snapshot_rows(prefix: str, start: int, count: int) -> list[dict]:
     return [
         {
             "id": index,
@@ -4301,13 +4087,12 @@ def _store_freshness_rows(prefix: str, start: int, count: int) -> list[dict]:
     ]
 
 
-def test_stale_mirror_is_rejected_before_first_paint_and_no_staircase(
+def test_authoritative_snapshot_has_no_post_paint_history_staircase(
     dashboard_browser: Browser,
 ):
-    page = _open_store_freshness_page(dashboard_browser)
-    mirror_rows = _store_freshness_rows("mirror", 1, 40)
-    current_rows = _store_freshness_rows("server", 41, 100)
-    state = page.evaluate("""async ({mirrorRows, currentRows}) => {
+    page = _open_chat_snapshot_page(dashboard_browser)
+    current_rows = _chat_snapshot_rows("server", 41, 100)
+    state = page.evaluate("""async ({currentRows}) => {
         window.__historyFetches404 = 0;
         window.__staircase404 = 0;
         window.__streamDone404 = false;
@@ -4321,9 +4106,6 @@ def test_stale_mirror_is_rejected_before_first_paint_and_no_staircase(
             }
         });
         observer.observe(chat, {childList: true});
-        _storeSessionId = async () => 'fe-orch-id';
-        _storeRead = async () => mirrorRows;
-        _storeWatermark = async () => currentRows[currentRows.length - 1].id;
         _fetchHistory = async () => {
             window.__historyFetches404++;
             return currentRows;
@@ -4355,156 +4137,129 @@ def test_stale_mirror_is_rejected_before_first_paint_and_no_staircase(
             staircase: window.__staircase404,
             text: chat.textContent,
         };
-    }""", {"mirrorRows": mirror_rows, "currentRows": current_rows})
+    }""", {"currentRows": current_rows})
     page.close()
 
     assert state["historyFetches"] == 1
     assert "server-140" in state["text"]
-    assert "mirror-40" not in state["text"]
     assert state["staircase"] == 0
 
 
-def test_fresh_mirror_is_used_without_history_request(
+def test_chat_open_waits_for_authoritative_snapshot_and_paints_once(
     dashboard_browser: Browser,
 ):
-    page = _open_store_freshness_page(dashboard_browser)
-    mirror_rows = _store_freshness_rows("mirror", 1, 40)
-    state = page.evaluate("""async ({mirrorRows}) => {
-        window.__historyFetches404 = 0;
-        window.__sseAfter404 = null;
-        _storeSessionId = async () => 'fe-orch-id';
-        _storeRead = async () => mirrorRows;
-        _storeWatermark = async () => mirrorRows[mirrorRows.length - 1].id;
+    """A cached tail must never be presented as the current chat while the network catches up."""
+    page = _open_chat_snapshot_page(dashboard_browser)
+    current_rows = _chat_snapshot_rows("current", 101, 40)
+    state = page.evaluate("""async ({currentRows}) => {
+        let releaseHistory;
+        const historyGate = new Promise(resolve => { releaseHistory = resolve; });
+        window.__historyFetchesFresh = 0;
+        window.__streamAfterFresh = null;
+        document.querySelector('#chat').textContent = 'stale-visible-before-click';
         _fetchHistory = async () => {
-            window.__historyFetches404++;
-            return [];
+            window.__historyFetchesFresh += 1;
+            await historyGate;
+            return currentRows;
         };
-        window.EventSource = class FreshMirrorEventSource404 {
-            constructor(url) {
-                window.__sseAfter404 = Number(new URL(url, location.href).searchParams.get('after_id'));
-                this.readyState = 1;
-            }
-            close() { this.readyState = 2; }
+        connectSSE = () => {
+            window.__streamAfterFresh = chatLogs[selectedAgent]?.lastId || 0;
         };
-        await _showChatFor('fe-orch', '/tmp/fe-scope');
+
+        const pending = _showChatFor('fe-orch', '/tmp/fe-scope');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const during = document.querySelector('#chat').textContent;
+        releaseHistory();
+        await pending;
         return {
-            historyFetches: window.__historyFetches404,
-            sseAfter: window.__sseAfter404,
+            historyFetches: window.__historyFetchesFresh,
+            during,
+            finalText: document.querySelector('#chat').textContent,
+            streamAfter: window.__streamAfterFresh,
+        };
+    }""", {"currentRows": current_rows})
+    page.close()
+
+    assert state["historyFetches"] == 1
+    assert "stale-" not in state["during"]
+    assert "Загружаю актуальные сообщения" in state["during"]
+    assert "stale-" not in state["finalText"]
+    assert "current-140" in state["finalText"]
+    assert state["streamAfter"] == 140
+
+
+def test_rapid_chat_switch_aborts_old_snapshot_before_render(
+    dashboard_browser: Browser,
+):
+    page = _open_chat_snapshot_page(dashboard_browser)
+    state = page.evaluate("""async () => {
+        let resolveA;
+        let resolveB;
+        let abortedA = false;
+        const rows = name => [{
+            id: name === 'agent-a' ? 10 : 20,
+            session_id: `sid-${name}`,
+            type: 'text',
+            content: `fresh-${name}`,
+            ts: '2026-08-28T08:00:00+00:00',
+        }];
+        _fetchHistory = (name, scope, signal) => new Promise((resolve, reject) => {
+            if (name === 'agent-a') resolveA = () => resolve(rows(name));
+            else resolveB = () => resolve(rows(name));
+            signal?.addEventListener('abort', () => {
+                if (name === 'agent-a') abortedA = true;
+                reject(signal.reason || new DOMException('aborted', 'AbortError'));
+            }, {once: true});
+        });
+        const streams = [];
+        connectSSE = () => streams.push(selectedAgent);
+
+        selectedAgent = 'agent-a';
+        const first = _showChatFor('agent-a', '/tmp/fe-scope');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        selectedAgent = 'agent-b';
+        const second = _showChatFor('agent-b', '/tmp/fe-scope');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        resolveB();
+        await second;
+        resolveA?.();
+        await Promise.allSettled([first]);
+        return {
+            abortedA,
+            streams,
             text: document.querySelector('#chat').textContent,
         };
-    }""", {"mirrorRows": mirror_rows})
-    page.close()
-
-    assert state["historyFetches"] == 0
-    assert state["sseAfter"] == 40
-    assert "mirror-1" in state["text"]
-    assert "mirror-40" in state["text"]
-    assert "server-" not in state["text"]
-
-
-def test_mirror_freshness_threshold_accepts_gap_twenty_rejects_twenty_one(
-    dashboard_browser: Browser,
-):
-    page = _open_store_freshness_page(dashboard_browser)
-    mirror_rows = _store_freshness_rows("mirror", 1, 40)
-    state = page.evaluate("""async ({mirrorRows}) => {
-        window.__historyFetches404 = 0;
-        window.__serverTop404 = 60;
-        _storeSessionId = async () => 'fe-orch-id';
-        _storeRead = async () => mirrorRows;
-        _storeWatermark = async () => window.__serverTop404;
-        _fetchHistory = async () => {
-            window.__historyFetches404++;
-            return mirrorRows;
-        };
-        window.EventSource = class ThresholdEventSource404 {
-            constructor() { this.readyState = 1; }
-            close() { this.readyState = 2; }
-        };
-        await _showChatFor('fe-orch', '/tmp/fe-scope');
-        window.__serverTop404 = 61;
-        await _showChatFor('fe-orch', '/tmp/fe-scope');
-        return window.__historyFetches404;
-    }""", {"mirrorRows": mirror_rows})
-    page.close()
-
-    assert state == 1
-
-
-def test_store_watermark_is_scoped_to_session_in_real_indexeddb(
-    dashboard_browser: Browser,
-):
-    context = dashboard_browser.new_context()
-    page = context.new_page()
-    origin = _dashboard_base()
-    _route_frontend_sources(page)
-    _goto_dashboard(page)
-    page.wait_for_function("() => typeof _storeWatermark === 'function'")
-    page.evaluate("() => _pollStop('store')")
-    page.wait_for_function("() => !_pollInFlight.has('store') && !_pollTimers.has('store')")
-    state = page.evaluate("""async () => {
-        if (eventSource) {
-            eventSource.close();
-            eventSource = null;
-        }
-        const db = await new Promise((resolve, reject) => {
-            const request = indexedDB.open('orchestra', 1);
-            request.onupgradeneeded = () => {
-                const db = request.result;
-                const logs = db.createObjectStore('logs', {keyPath: 'id'});
-                logs.createIndex('by_session', 'session_id');
-                db.createObjectStore('meta');
-            };
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-        _storeOff = false;
-        _storeDb = db;
-        _storeReady = Promise.resolve(db);
-        await new Promise((resolve, reject) => {
-            const tx = db.transaction('meta', 'readwrite');
-            const meta = tx.objectStore('meta');
-            meta.clear();
-            meta.put(2, 'schema_epoch');
-            tx.oncomplete = resolve;
-            tx.onerror = () => reject(tx.error);
-            tx.onabort = () => reject(tx.error);
-        });
-        let syncUrl = '';
-        const oldFetch = window.fetch;
-        window.fetch = async url => {
-            syncUrl = String(url);
-            return new Response(JSON.stringify({logs: [], max_log_id: 0, live_sessions: []}), {
-                status: 200,
-                headers: {'content-type': 'application/json'},
-            });
-        };
-        const syncResult = await _storeSync();
-        window.fetch = oldFetch;
-        await new Promise((resolve, reject) => {
-            const tx = db.transaction('meta', 'readwrite');
-            const meta = tx.objectStore('meta');
-            meta.put(140, 'watermark');
-            meta.put({'session-a': 40, 'session-b': 140}, 'session_watermarks');
-            tx.oncomplete = resolve;
-            tx.onerror = () => reject(tx.error);
-            tx.onabort = () => reject(tx.error);
-        });
-        return {
-            syncResult,
-            syncUrl,
-            sessionA: await _storeWatermark('session-a'),
-            sessionB: await _storeWatermark('session-b'),
-        };
     }""")
-    context.close()
+    page.close()
 
-    assert state == {
-        "syncResult": 0,
-        "syncUrl": "/api/logs/sync?after_id=0&tail=0&cap=16384",
-        "sessionA": 40,
-        "sessionB": 140,
-    }
+    assert state["abortedA"] is True
+    assert state["streams"] == ["agent-b"]
+    assert "fresh-agent-b" in state["text"]
+    assert "fresh-agent-a" not in state["text"]
+
+
+def test_selecting_worker_does_not_refresh_whole_sidebar(
+    dashboard_browser: Browser,
+):
+    page = _open_chat_snapshot_page(dashboard_browser)
+    state = page.evaluate("""async () => {
+        let refreshes = 0;
+        let contexts = 0;
+        refreshSessions = async () => { refreshes += 1; };
+        fetchAgentContext = async () => { contexts += 1; };
+        _showChatFor = async () => true;
+        currentSessions = [{
+            id: 'fe-worker-id', name: 'fe-worker', scope: '/tmp/fe-scope',
+            status: 'idle', model: 'claude-opus-5[1m]', role: 'worker',
+            cost_usd: 0, branch: 'main',
+        }];
+        selectedAgent = 'fe-orch';
+        await selectAgent('fe-worker');
+        return {refreshes, contexts};
+    }""")
+    page.close()
+
+    assert state == {"refreshes": 0, "contexts": 1}
 
 
 def test_chat_expanding_one_message_keeps_neighbor_state(
@@ -4544,126 +4299,6 @@ def test_chat_expanding_one_message_keeps_neighbor_state(
 
     assert after[0] != before[0]
     assert after[1] == before[1]
-
-
-def test_indexeddb_record_epoch_rejects_old_tab_recontamination(
-    dashboard_browser: Browser,
-):
-    context = dashboard_browser.new_context()
-    old_page = context.new_page()
-    old_page.goto(
-        f"{_dashboard_base()}/static/css/style.css", wait_until="domcontentloaded",
-    )
-    old_page.evaluate("""async () => {
-        window.__oldDb364 = await new Promise((resolve, reject) => {
-            const rq = indexedDB.open('orchestra', 1);
-            rq.onupgradeneeded = () => {
-                const logs = rq.result.createObjectStore('logs', {keyPath: 'id'});
-                logs.createIndex('by_session', 'session_id');
-                rq.result.createObjectStore('meta');
-            };
-            rq.onsuccess = () => resolve(rq.result);
-            rq.onerror = () => reject(rq.error);
-        });
-    }""")
-
-    current_page = context.new_page()
-    _route_frontend_sources(current_page)
-    _goto_dashboard(current_page)
-    current_page.wait_for_function(
-        "() => typeof _storeRecordMatchesSchema === 'function'",
-    )
-    current_page.evaluate("() => _pollStop('store')")
-    current_page.evaluate("() => _storeOpen()")
-
-    old_page.evaluate("""async () => {
-        await new Promise((resolve, reject) => {
-            const tx = window.__oldDb364.transaction('logs', 'readwrite');
-            tx.objectStore('logs').put({
-                id: 364000,
-                session_id: 'old-tab-session',
-                type: 'text',
-                content: 'written by a still-open old dashboard tab',
-                ts: '2026-08-25T08:00:00+00:00',
-                event_id: '',
-                tool_use_id: null,
-                tool_name: null,
-                tool_is_error: null,
-                _mirror_epoch: 1,
-            });
-            tx.oncomplete = resolve;
-            tx.onerror = () => reject(tx.error);
-            tx.onabort = () => reject(tx.error);
-        });
-    }""")
-    state = current_page.evaluate("""async () => {
-        const db = await _storeOpen();
-        const read = await _storeRead('old-tab-session', 100);
-        return await new Promise((resolve, reject) => {
-            const tx = db.transaction(['logs', 'meta'], 'readonly');
-            const count = tx.objectStore('logs').count();
-            const schema = tx.objectStore('meta').get('schema_epoch');
-            tx.oncomplete = () => resolve({
-                read: read.length,
-                count: count.result,
-                schema: schema.result,
-            });
-            tx.onerror = () => reject(tx.error);
-        });
-    }""")
-    context.close()
-
-    assert state == {"read": 0, "count": 0, "schema": 2}
-
-
-def test_indexeddb_schema_repair_runs_for_each_origin(
-    dashboard_browser: Browser,
-):
-    base = _dashboard_base()
-    origins = [base, base.replace("127.0.0.1", "localhost")]
-    states = []
-    for origin in origins:
-        page = dashboard_browser.new_page()
-        page.goto(f"{origin}/static/css/style.css", wait_until="domcontentloaded")
-        page.evaluate("""async () => {
-            const db = await new Promise((resolve, reject) => {
-                const rq = indexedDB.open('orchestra', 1);
-                rq.onupgradeneeded = () => {
-                    const logs = rq.result.createObjectStore('logs', {keyPath: 'id'});
-                    logs.createIndex('by_session', 'session_id');
-                    rq.result.createObjectStore('meta');
-                };
-                rq.onsuccess = () => resolve(rq.result);
-                rq.onerror = () => reject(rq.error);
-            });
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction('logs', 'readwrite');
-                tx.objectStore('logs').put({
-                    id: 1, session_id: 'old', type: 'text', content: 'old',
-                    ts: '2026-08-03T08:00:00+00:00',
-                });
-                tx.oncomplete = resolve;
-                tx.onerror = () => reject(tx.error);
-            });
-            db.close();
-        }""")
-        _route_frontend_sources(page)
-        response = page.goto(origin, wait_until="domcontentloaded")
-        assert response and response.status == 200
-        page.wait_for_function("() => typeof _storePrepareOpen === 'function'")
-        states.append(page.evaluate("""async () => {
-            const db = await _storeOpen();
-            return await new Promise((resolve, reject) => {
-                const tx = db.transaction(['logs', 'meta'], 'readonly');
-                const count = tx.objectStore('logs').count();
-                const schema = tx.objectStore('meta').get('schema_epoch');
-                tx.oncomplete = () => resolve({count: count.result, schema: schema.result});
-                tx.onerror = () => reject(tx.error);
-            });
-        }"""))
-        page.close()
-
-    assert states == [{"count": 0, "schema": 2}, {"count": 0, "schema": 2}]
 
 
 def test_truncated_image_generation_history_recovers_without_server_restart(
@@ -5081,3 +4716,47 @@ def test_api_retry_spaces_attempts_with_jitter():
     assert "_API_RETRY_JITTER_MS" in body, "между попытками нет джиттера"
     assert "Math.random()" in body, "пауза обязана быть случайной, иначе она не разносит попытки"
     assert "await new Promise" in body, "пауза должна реально ждать, а не только считаться"
+
+
+def test_chat_request_uses_reserved_slot_ahead_of_background_gets(
+    dashboard_browser: Browser,
+):
+    page = _open_chat_snapshot_page(dashboard_browser)
+    state = page.evaluate("""async () => {
+        for (const key of [..._pollers.keys()]) _pollStop(key);
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        refreshController?.abort();
+        const deadline = performance.now() + 5000;
+        while (_apiActiveGets !== 0 && performance.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        if (_apiActiveGets !== 0) throw new Error(`active GETs never drained: ${_apiActiveGets}`);
+
+        const originalFetch = window.fetch;
+        const gates = new Map();
+        window.fetch = url => new Promise(resolve => gates.set(String(url), resolve));
+        const requests = [1, 2, 3].map(i => api(`/test/background-${i}`));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const fourthBackground = api('/test/background-4');
+        const chat = api('/test/chat', {priority: 'critical'});
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const beforeRelease = [...gates.keys()];
+
+        for (const resolve of [...gates.values()]) {
+            resolve(new Response('{}', {status: 200, headers: {'content-type': 'application/json'}}));
+        }
+        const queuedDeadline = performance.now() + 1000;
+        while (!gates.has('/test/background-4') && performance.now() < queuedDeadline) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        const queued = gates.get('/test/background-4');
+        if (!queued) throw new Error('background request was never released');
+        queued(new Response('{}', {status: 200, headers: {'content-type': 'application/json'}}));
+        await Promise.all([...requests, fourthBackground, chat]);
+        window.fetch = originalFetch;
+        return {beforeRelease};
+    }""")
+    page.close()
+
+    assert "/test/chat" in state["beforeRelease"]
+    assert "/test/background-4" not in state["beforeRelease"]

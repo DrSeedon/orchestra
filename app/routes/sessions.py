@@ -574,8 +574,13 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
 
 
 @router.get("/api/sessions/{name}/logs")
-async def get_session_logs(name: str, scope: str, after_id: int = 0, before_id: int = 0,
+async def get_session_logs(name: str, response: Response, scope: str,
+                           after_id: int = 0, before_id: int = 0,
                            limit: int = 500, max_bytes: int = 0, cap: int = 0):
+    # Live chat snapshots are authoritative state, not an asset. A browser/intermediary
+    # replaying an older 200 here recreates the exact "old messages, then SSE catches up"
+    # staircase that the network-first client is designed to eliminate.
+    response.headers["Cache-Control"] = "no-store"
     limit = min(limit, 1000)
     session_id = manager.get_session_id(name, scope)
     if not session_id:
