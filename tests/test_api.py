@@ -1021,9 +1021,13 @@ async def test_merge_persists_actual_branch_and_base_for_loaded_or_detached(
     result = await _call_merge_session(sessmod, f"merge-{loaded}", {"scope": "/s"})
 
     assert result["ok"] is True
+    assert any(
+        warning.get("code") == "LEGACY_MERGE_CONTINUE"
+        for warning in result.get("warnings", [])
+    )
     row = get_session(f"merge-{loaded}")
     assert (row["branch"], row["base_branch"], row["task_id"], row["needs_switch"]) == (
-        "task-90/w", "master", "", 1,
+        "task-90/w", "master", "90", 1,
     )
     assert found.branch == "task-90/w"
     assert found.base_branch == "master"
@@ -2040,7 +2044,7 @@ async def test_delete_orchestrator_reports_worktree_remove_failure(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_send_delegates_auto_switch_to_manager(monkeypatch):
+async def test_send_delegates_auto_switch_to_manager(db, monkeypatch):
     import app.main as mainmod
     import app.routes.sessions as sessmod
     from unittest.mock import AsyncMock
@@ -2057,6 +2061,7 @@ async def test_send_delegates_auto_switch_to_manager(monkeypatch):
         "parent_name": "orch",
     })()
     monkeypatch.setattr(mainmod.manager, "ensure_loaded", AsyncMock(return_value=session))
+    monkeypatch.setattr(mainmod.manager, "preflight_message_delivery", AsyncMock())
     monkeypatch.setattr(mainmod.manager, "send", AsyncMock())
 
     result = await sessmod.send_message(
@@ -3039,6 +3044,7 @@ async def test_create_worktree_response_contains_server_repo_metadata(
             _spawn_warning = ""
             _spawn_repo_path = repo_root
             _spawn_git_common_dir = common_dir
+            task_id = ""
 
             def to_dict(self):
                 return {
@@ -3238,13 +3244,24 @@ async def test_create_quota_refusal_is_canonical_nonretryable_429(tmp_path, monk
 
 
 @pytest.mark.asyncio
-async def test_send_quota_refusal_is_canonical_429(monkeypatch):
+async def test_send_quota_refusal_is_canonical_429(db, monkeypatch):
     import json
     from app.routes import sessions as routes
+    from app.db import save_session
+    from datetime import datetime, timezone
 
     found = SimpleNamespace(id="s1", parent_name="root", last_task_sender="")
     monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=found))
+    monkeypatch.setattr(routes.manager, "preflight_message_delivery", AsyncMock())
     monkeypatch.setattr(routes.manager, "send", AsyncMock(side_effect=_quota_block_error()))
+    save_session({
+        "id": "s1", "name": "worker", "scope": "/s", "cwd": "/tmp",
+        "model": "gpt-5.6-sol", "system_prompt": "", "status": "idle",
+        "session_id": None, "cost_usd": 0.0, "worktree_path": None, "branch": "",
+        "is_orchestrator": False, "color": "", "task_id": "90",
+        "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+        "parent_name": "root",
+    })
 
     response = await routes.send_message(
         "worker", routes.SendRequest(message="new work", scope="/s", sender="root"),
