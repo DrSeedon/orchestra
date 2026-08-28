@@ -2307,6 +2307,7 @@ async function _fetchHistory(name, scope, signal) {
         signal,
         priority: 'critical',
         pollKey: 'chat',
+        cache: 'no-store',
     });
     if (!Array.isArray(rows)) throw new TypeError('chat history response is not an array');
     return rows;
