@@ -398,6 +398,9 @@ async def test_t2_merge_rejects_target_equal_worker_branch_before_git(monkeypatc
     assert result["ok"] is False
     assert result["commit_point"] == "not_reached"
     assert "worker branch" in result["error"]
+    assert found.branch in result["error"]
+    assert found.branch in result["target_branch"]
+    assert found.branch in result["worker_branch"]
     merge.assert_not_called()
     with tm._conn() as connection:
         unchanged = tm.get_task_by_id(connection, task["id"])
@@ -710,6 +713,61 @@ async def test_t3_complete_merge_atomically_links_and_closes_current_task(monkey
     assert closed["worker_session_id"] is None
     assert closed["completed_at"]
     assert "abc123" in closed["git_commits"]
+
+
+@pytest.mark.asyncio
+async def test_t3_real_complete_merge_transfers_commits_before_closing_task(
+    monkeypatch, tmp_path,
+):
+    """The success control uses Git, so task closure cannot hide a no-op merge."""
+    import app.routes.sessions as sessions_route
+    import app.workspace as workspace
+    from app import tm
+
+    _init_db()
+    repo = _make_git_scope(monkeypatch, tmp_path)
+    scope = str(repo)
+    with tm._conn() as connection:
+        tm.ensure_project(connection, "project", scope=scope)
+        task = tm.create_task(
+            connection, "project", "Real transfer", par_number=42, status="in_progress",
+        )
+        connection.execute(
+            "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
+            ("real-complete-worker", task["id"]),
+        )
+    worktree = workspace.create_worktree(scope, "real-complete-worker", task_id="42")
+    worker_head = _commit_file(worktree.path, "real.txt", "#42: real transfer")
+    _save_worker(
+        session_id="real-complete-worker", task_id="42", scope=scope,
+        worktree_path=worktree.path, branch=worktree.branch,
+    )
+    found = _prepare_merge(monkeypatch, session_id="real-complete-worker", scope=scope)
+    target_before = subprocess.run(
+        ["git", "rev-parse", "main"], cwd=repo,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+    result = await sessions_route.execute_merge_session(
+        session_id=found.id,
+        expected_name=found.name,
+        expected_scope=found.scope,
+        expected_branch=found.branch,
+        expected_head=worker_head,
+        req={"scope": scope, "task_outcome": "complete", "merge_schema_version": 2},
+    )
+
+    target_after = subprocess.run(
+        ["git", "rev-parse", "main"], cwd=repo,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert result["ok"] is True, result
+    assert target_after != target_before
+    assert (repo / "real.txt").read_text() == "#42: real transfer"
+    with tm._conn() as connection:
+        closed = tm.get_task_by_id(connection, task["id"])
+    assert closed["status"] == "done"
+    assert closed["worker_session_id"] is None
 
 
 @pytest.mark.asyncio
