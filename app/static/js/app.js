@@ -159,8 +159,8 @@ function _sendFileName(path) {
     return String(path || '').split('/').pop() || '?';
 }
 
-function _sendFileRawUrl(path, download = false) {
-    return `/api/files/raw?path=${encodeURIComponent(path)}${download ? '&download=1' : ''}`;
+function _sendFileRawUrl(path, download = false, preview = false) {
+    return `/api/files/raw?path=${encodeURIComponent(path)}${download ? '&download=1' : preview ? '&preview=640' : ''}`;
 }
 
 function _downloadSendFile(path) {
@@ -207,11 +207,13 @@ function renderSendFilesToolCard(node, paths, {downloads = false} = {}) {
         if (index >= SEND_FILES_VISIBLE_LIMIT) row.style.display = 'none';
 
         if (downloads && /\.(png|jpe?g|gif|webp|svg)$/i.test(path)) {
-            const rawUrl = `${_sendFileRawUrl(path)}&t=${Date.now()}`;
+            const rawUrl = _sendFileRawUrl(path);
+            const previewUrl = `${_sendFileRawUrl(path, false, true)}&t=${Date.now()}`;
             const img = document.createElement('img');
             img.className = 'sf-thumb';
-            img.src = rawUrl;
+            img.src = previewUrl;
             img.loading = 'lazy';
+            img.decoding = 'async';
             img.alt = _sendFileName(path);
             img.style.cssText = 'display:block;width:44px;height:44px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid rgba(99,102,241,0.2)';
             img.addEventListener('click', () => openImageLightbox(rawUrl));

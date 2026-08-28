@@ -93,6 +93,34 @@ async def test_raw_non_html_response_has_no_artifact_csp(tmp_path, monkeypatch):
     assert "content-security-policy" not in response.headers
 
 
+@pytest.mark.asyncio
+async def test_raw_image_preview_is_bounded_webp_and_original_stays_untouched(
+    tmp_path,
+    monkeypatch,
+):
+    from io import BytesIO
+
+    from PIL import Image
+    from starlette.responses import FileResponse
+
+    from app.routes import system
+
+    target = tmp_path / "wedding.jpg"
+    Image.new("RGB", (1200, 800), "#b45309").save(target, "JPEG", quality=96)
+    monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
+
+    preview = await system.get_file_raw(str(target), preview=320)
+    with Image.open(BytesIO(preview.body)) as rendered:
+        assert rendered.format == "WEBP"
+        assert rendered.size == (320, 213)
+
+    original = await system.get_file_raw(str(target))
+    assert isinstance(original, FileResponse)
+    assert Path(original.path) == target
+    assert len(preview.body) < target.stat().st_size
+    assert preview.headers["cache-control"] == "private, max-age=3600"
+
+
 def _dashboard_base() -> str:
     if not _DASHBOARD_ORIGIN:
         pytest.fail("dashboard fixture did not start — dashboard_browser is required")
@@ -1069,7 +1097,19 @@ def test_photo_batch_renders_as_compact_expandable_gallery(
     expect(gallery.locator(".chat-image-gallery-count")).to_have_text("📷 85 фото")
     expect(gallery.locator(".chat-image-gallery-thumb")).to_have_count(4)
     expect(gallery.locator(".chat-image-gallery-more")).to_have_text("+81")
+    assert gallery.locator("img").first.get_attribute("src").endswith(
+        "&preview=640"
+    )
+    assert gallery.locator("img").first.get_attribute("decoding") == "async"
     assert gallery.bounding_box()["height"] < 500
+    opened = page.evaluate("""() => {
+        window.__openedPhoto = '';
+        openImageLightbox = src => { window.__openedPhoto = src; };
+        document.querySelector('.chat-image-gallery-thumb').click();
+        return window.__openedPhoto;
+    }""")
+    assert "preview=" not in opened
+    assert "telegram-photo-00.jpg" in opened
 
     toggle = gallery.locator(".chat-image-gallery-toggle")
     expect(toggle).to_have_attribute("aria-expanded", "false")
@@ -1101,7 +1141,10 @@ def test_single_chat_photo_keeps_plain_preview(dashboard_browser: Browser):
     )
 
     expect(page.locator("#chat .chat-image-gallery")).to_have_count(0)
-    expect(page.locator("#chat img.chat-inline-image")).to_have_count(1)
+    image = page.locator("#chat img.chat-inline-image")
+    expect(image).to_have_count(1)
+    assert image.get_attribute("src").endswith("&preview=640")
+    assert image.get_attribute("decoding") == "async"
     page.close()
 
 

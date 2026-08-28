@@ -18,6 +18,8 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
+from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
@@ -216,15 +218,64 @@ BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
                      '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.mp3', '.mp4',
                      '.wav', '.avi', '.mov', '.ttf', '.otf', '.woff', '.woff2'}
 
+_IMAGE_PREVIEW_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'}
+_IMAGE_PREVIEW_MIN_EDGE = 64
+_IMAGE_PREVIEW_MAX_EDGE = 1600
+
+
+@lru_cache(maxsize=256)
+def _render_image_preview(path: str, mtime_ns: int, size: int, edge: int) -> tuple[bytes, int, int]:
+    """Render a bounded WebP; stat values are cache-key invalidators."""
+    del mtime_ns, size
+    from PIL import Image, ImageOps
+
+    with Image.open(path) as source:
+        # JPEG decoders can discard high-resolution DCT layers before allocating the
+        # full image. The wedding originals are ~24 MP, while dashboard cards are tiny.
+        source.draft("RGB", (edge, edge))
+        image = ImageOps.exif_transpose(source)
+        image.thumbnail((edge, edge), Image.Resampling.LANCZOS)
+        if image.mode not in {"RGB", "RGBA"}:
+            image = image.convert("RGBA" if "transparency" in image.info else "RGB")
+        output = BytesIO()
+        image.save(output, "WEBP", quality=82, method=4)
+        return output.getvalue(), image.width, image.height
+
 
 @router.get("/api/files/raw")
-async def get_file_raw(path: str, download: bool = False):
+async def get_file_raw(path: str, download: bool = False, preview: int = 0):
     if not _is_safe_path(path):
         return JSONResponse({"error": "access denied"}, status_code=403)
-    from starlette.responses import FileResponse
     target = Path(path)
     if not target.is_file():
         return JSONResponse({"error": "not found"}, status_code=404)
+    if preview > 0 and not download and target.suffix.lower() in _IMAGE_PREVIEW_EXTENSIONS:
+        edge = max(_IMAGE_PREVIEW_MIN_EDGE, min(preview, _IMAGE_PREVIEW_MAX_EDGE))
+        stat_result = target.stat()
+        try:
+            body, width, height = await asyncio.to_thread(
+                _render_image_preview,
+                str(target),
+                stat_result.st_mtime_ns,
+                stat_result.st_size,
+                edge,
+            )
+        except (OSError, ValueError) as error:
+            logger.warning("image preview failed for %s: %s", target, err_text(error))
+        else:
+            etag = hashlib.sha256(
+                f"{target}:{stat_result.st_mtime_ns}:{stat_result.st_size}:{edge}".encode()
+            ).hexdigest()[:24]
+            return Response(
+                body,
+                media_type="image/webp",
+                headers={
+                    "Cache-Control": "private, max-age=3600",
+                    "ETag": f'"{etag}"',
+                    "X-Preview-Width": str(width),
+                    "X-Preview-Height": str(height),
+                },
+            )
     headers = {}
     if target.suffix.lower() in {".html", ".htm"}:
         headers["Content-Security-Policy"] = (
