@@ -105,4 +105,9 @@ def requires_auth(path: str, method: str) -> bool:
         return False
     # Malformed slash-prefixed API paths are protected too; only the exact artifact shapes above
     # may bypass auth, and a proxy must not turn a doubled slash into an anonymous API request.
-    return path == "/" or path.startswith("/api/") or path.startswith("//api/")
+    return (
+        path == "/"
+        or path.startswith("/api/")
+        or path.startswith("//api/")
+        or path in {"/openapi.json", "/docs", "/redoc"}
+    )

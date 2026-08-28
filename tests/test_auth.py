@@ -1,5 +1,6 @@
 """Тесты авторизации дашборда — чистые функции, без TestClient/SDK."""
 from app.auth import requires_auth
+from fastapi.testclient import TestClient
 
 
 def test_send_endpoint_requires_auth():
@@ -23,6 +24,26 @@ def test_login_logout_and_static_exempt():
 def test_api_and_root_require_auth():
     assert requires_auth("/api/sessions", "GET") is True
     assert requires_auth("/", "GET") is True
+
+
+def test_openapi_docs_require_auth_but_authenticated_cookie_can_read_schema(monkeypatch):
+    monkeypatch.setenv("DASHBOARD_USER", "operator")
+    monkeypatch.setenv("DASHBOARD_PASSWORD", "secret")
+    from app.auth import create_session
+    from app.main import app
+
+    with TestClient(app) as client:
+        anonymous_statuses = {}
+        for path in ("/openapi.json", "/docs", "/redoc"):
+            response = client.get(path, follow_redirects=False)
+            if response.status_code == 200:
+                anonymous_statuses[path] = response.status_code
+        assert anonymous_statuses == {}, anonymous_statuses
+
+        client.cookies.set("session", create_session("operator"))
+        response = client.get("/openapi.json")
+        assert response.status_code == 200
+        assert response.json()["info"]["title"] == "Orchestra"
 
 
 def _valid_artifact_env(monkeypatch):
