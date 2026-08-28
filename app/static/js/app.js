@@ -26,6 +26,15 @@ let currentScope = null;
 let selectedAgent = null;
 let chatLogs = {};
 let currentSessions = [];
+
+function _newChatLogState() {
+    return {
+        lastId: 0,
+        firstId: null,
+        canLoadOlder: false,
+        olderPageLoaded: false,
+    };
+}
 // localMessages tracks messages sent from this tab so SSE echo doesn't create duplicates
 let localMessages = new Set();
 let pendingUserMsgs = [];
@@ -1123,19 +1132,12 @@ function connectSSE(fromHistoryLoad) {
                 addChatEntry(l.type, l.content, l.ts, null, l);
             }
             _maybeNotifyCall(l, targetAgent);
-            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
+            if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = _newChatLogState();
             // Live stream partials carry no id — skip id bookkeeping for them
             if (Number.isFinite(l.id)) {
                 if (l.id > chatLogs[selectedAgent].lastId) chatLogs[selectedAgent].lastId = l.id;
                 if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
                     chatLogs[selectedAgent].firstId = l.id;
-                }
-                // Count only the initial history burst (scrollAfterLoad is true during it).
-                // Load-more shows only if that burst hit the page-size cap (100) → more may exist.
-                // Log IDs are global (shared across sessions), so firstId can't tell "start of history".
-                if (scrollAfterLoad) {
-                    chatLogs[selectedAgent].initialCount++;
-                    updateLoadMoreBtn();
                 }
             }
             // Следуем за новыми сообщениями ТОЛЬКО если юзер внизу — правило одно для
@@ -1162,21 +1164,20 @@ function connectSSE(fromHistoryLoad) {
     };
 }
 
-const _LOAD_MORE_THRESHOLD = 100;  // matches initial history page size (connectSSE limit=100)
 function _addLoadMoreBtn() {
     if ($('#load-more-btn')) return;
-    const btn = document.createElement('div');
+    const btn = document.createElement('button');
+    btn.type = 'button';
     btn.id = 'load-more-btn';
-    btn.className = 'text-xs text-slate-500 hover:text-indigo-300 py-2 text-center cursor-pointer select-none';
-    btn.textContent = '▲ Load 500 more';
+    btn.className = 'w-full text-xs text-slate-500 hover:text-indigo-300 py-2 text-center cursor-pointer select-none';
+    btn.textContent = '▲ Дозагрузить предыдущие 500';
     btn.addEventListener('click', loadMoreLogs);
     $('#chat').prepend(btn);
 }
 function updateLoadMoreBtn() {
-    // Show only if the initial burst filled the page — otherwise all history is loaded.
-    // Can't use firstId: log IDs are global, a fresh session's first id is far above 1.
-    const initialCount = chatLogs[selectedAgent]?.initialCount || 0;
-    if (initialCount < _LOAD_MORE_THRESHOLD) {
+    const meta = chatLogs[selectedAgent];
+    const canLoadOlder = meta?.canLoadOlder ?? Boolean(meta?.firstId);
+    if (!meta?.firstId || !canLoadOlder || meta.olderPageLoaded) {
         const existing = $('#load-more-btn');
         if (existing) existing.remove();
         return;
@@ -1192,14 +1193,26 @@ async function loadMoreLogs() {
     const firstId = chatLogs[targetAgent]?.firstId;
     if (!firstId) return;
     const btn = $('#load-more-btn');
-    if (btn) { btn.textContent = '⏳ Loading…'; btn.style.pointerEvents = 'none'; }
+    if (btn) { btn.textContent = '⏳ Загружаю предыдущие сообщения…'; btn.disabled = true; }
     try {
+        const q = new URLSearchParams({
+            scope: targetScope,
+            before_id: String(firstId),
+            limit: '500',
+            cap: String(_CHAT_ROW_CAP),
+        });
         const logs = await api(
-            `/api/sessions/${encodeURIComponent(targetAgent)}/logs?scope=${encodeURIComponent(targetScope)}&before_id=${firstId}&limit=500`,
-            {signal: _chatLoadController?.signal, priority: 'critical'},
+            `/api/sessions/${encodeURIComponent(targetAgent)}/logs?${q}`,
+            {
+                signal: _chatLoadController?.signal,
+                priority: 'critical',
+                cache: 'no-store',
+            },
         );
         if (!_chatLoadIsCurrent(targetGeneration, targetAgent, targetScope)) return;
-        if (!Array.isArray(logs) || logs.length === 0) {
+        if (!Array.isArray(logs)) throw new TypeError('older chat history response is not an array');
+        chatLogs[targetAgent].olderPageLoaded = true;
+        if (logs.length === 0) {
             if (btn) btn.remove();
             return;
         }
@@ -1215,7 +1228,7 @@ async function loadMoreLogs() {
         try {
             for (const l of logs) {
                 addChatEntry(l.type, l.content, l.ts, anchor, l);
-                if (!chatLogs[targetAgent]) chatLogs[targetAgent] = { lastId: 0, firstId: null, initialCount: 0 };
+                if (!chatLogs[targetAgent]) chatLogs[targetAgent] = _newChatLogState();
                 if (chatLogs[targetAgent].firstId === null || l.id < chatLogs[targetAgent].firstId) {
                     chatLogs[targetAgent].firstId = l.id;
                 }
@@ -1225,11 +1238,9 @@ async function loadMoreLogs() {
             _replayingHistory = false;
         }
         chat.scrollTop = chat.scrollHeight - oldHeight;
-        // Full page (500) returned → more may exist, re-add button. Fewer → reached the start.
-        if (logs.length >= 500) _addLoadMoreBtn();
     } catch (e) {
         if (!_chatLoadIsCurrent(targetGeneration, targetAgent, targetScope)) return;
-        if (btn) { btn.textContent = '▲ Load 500 more'; btn.style.pointerEvents = ''; }
+        if (btn) { btn.textContent = '▲ Дозагрузить предыдущие 500'; btn.disabled = false; }
         console.warn('loadMoreLogs error:', e);
     }
 }
@@ -2264,7 +2275,7 @@ function selectOrchestrator(name, scope) {
 // а `let` не поднимается: обращение до инициализации бросило бы ReferenceError.
 
 function _renderHistory(agent, rows) {
-    const meta = chatLogs[agent] = {lastId: 0, firstId: null, initialCount: 0};
+    const meta = chatLogs[agent] = _newChatLogState();
     const chat = $('#chat');
     // Страница рисуется ЦЕЛИКОМ и показывается один раз. Пока идёт цикл, контейнер скрыт:
     // сотня узлов вставляется десятками мутаций, браузер успевает показать промежуточные
@@ -2278,12 +2289,12 @@ function _renderHistory(agent, rows) {
         if (!Number.isFinite(l.id)) continue;
         if (l.id > meta.lastId) meta.lastId = l.id;
         if (meta.firstId === null || l.id < meta.firstId) meta.firstId = l.id;
-        meta.initialCount++;
     }
     } finally {
         _replayingHistory = false;
         if (chat) { chat.scrollTop = chat.scrollHeight; chat.style.visibility = ''; }
     }
+    meta.canLoadOlder = rows.length > 0;
     updateLoadMoreBtn();
     $('#chat').scrollTop = $('#chat').scrollHeight;
     _scheduleChatInitialSettle();
@@ -2366,7 +2377,7 @@ async function _showChatFor(name, scope) {
     _chatLoadController = controller;
     _chatSnapshotReady = false;
     _chatSessionId = null;
-    chatLogs[name] = {lastId: 0, firstId: null, initialCount: 0};
+    chatLogs[name] = _newChatLogState();
     scrollAfterLoad = true;
     _chatLoading = true;
     _renderChatLoadState(name);
