@@ -3845,7 +3845,12 @@ async def start_bridge(manager):
         from aiogram.client.telegram import TelegramAPIServer
         server = TelegramAPIServer(base=f"{local_api}/bot{{token}}/{{method}}", file=f"{local_api}/file/bot{{token}}/{{path}}")
         from aiogram.client.session.aiohttp import AiohttpSession
-        session = AiohttpSession(api=server)
+        # Дефолт aiogram — 60 с на вызов, и на большом файле его срубает раньше, чем
+        # Local Bot API успевает дописать файл на диск: `get_file` для .wav на 494 МБ
+        # упал на 60 948 мс, хотя файл уже лежал в `data/tg-bot-api/`. Ждём мы СВОЙ
+        # локальный сервер на том же диске, а не сеть Telegram, поэтому бюджет щедрый:
+        # цена ожидания — задержка одного сообщения, цена таймаута — потерянный файл.
+        session = AiohttpSession(api=server, timeout=1800)
         bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None), session=session)
         logger.info(f"TG Bot using LOCAL API: {local_api}")
     else:
