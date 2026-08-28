@@ -990,7 +990,10 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .ql-grid { stroke: var(--border-soft); stroke-width: 1; }
 .ql-diag { stroke: var(--ink-faint); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .ql-band { fill: #f472b6; opacity: .09; }
-.ql-gated { fill: none; stroke: #f472b6; stroke-width: 2; }
+/* Прямая — порог Claude, цвет его полосы. Кривая Sol рисуется поверх своим цветом:
+   пороги у полос разные, и одинаковый цвет читался бы как один общий предел. */
+.ql-gated { fill: none; stroke: #fb923c; stroke-width: 2; }
+.ql-gated-sol { stroke: #f472b6; stroke-width: 2.5; }
 .ql-hard { stroke: #fb923c; stroke-width: 1.5; stroke-dasharray: 2 4; }
 .ql-orch { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 8 5; opacity: .75; }
 .ql-trace { fill: none; stroke-width: 1.8; stroke-linecap: round; opacity: .92; }

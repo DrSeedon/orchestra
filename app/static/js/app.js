@@ -8847,13 +8847,22 @@ function _qlChartSvg(panel, rule) {
     }
     p.push(`<text class="ql-axis" x="${_QL_ML + _QL_PW / 2}" y="${_QL_H - 7}" text-anchor="middle">доля пройденного окна</text>`);
 
-    const band = [], line = [];
+    // Порогов теперь ДВА, потому что Sol идёт по кривой, а Claude по прямой: одна общая
+    // ломаная показывала бы половине воркеров чужой предел. Полосу заливки строим по
+    // прямой — она нижняя из двух и означает «здесь не блокируют никого».
+    const band = [], lineClaude = [], lineSol = [];
     for (let i = 0; i <= 100; i++) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(t * 100)}`); }
-    for (let i = 100; i >= 0; i--) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule))}`); }
-    for (let i = 0; i <= 100; i++) { const t = i / 100; line.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule))}`); }
+    for (let i = 100; i >= 0; i--) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule, 'claude'))}`); }
+    for (let i = 0; i <= 100; i++) { const t = i / 100; lineClaude.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule, 'claude'))}`); }
+    for (let i = 0; i <= 100; i++) { const t = i / 100; lineSol.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule, 'sol'))}`); }
     p.push(`<polygon class="ql-band" points="${band.join(' ')}"/>`);
     p.push(`<line class="ql-diag" x1="${_qlX(0)}" y1="${_qlY(0)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
-    p.push(`<polyline class="ql-gated" points="${line.join(' ')}"/>`);
+    p.push(`<polyline class="ql-gated" points="${lineClaude.join(' ')}"/>`);
+    if ((rule.curved_lanes || []).includes('sol')) {
+        p.push(`<polyline class="ql-gated ql-gated-sol" points="${lineSol.join(' ')}"/>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.30)}" y="${_qlY(_qlLimitAt(0.30, rule, 'sol')) - 9}" fill="#f472b6">порог Sol — жжём пул рано</text>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.62)}" y="${_qlY(_qlLimitAt(0.62, rule, 'claude')) + 17}" fill="#fb923c">порог Claude</text>`);
+    }
 
     const hard = Number(rule.hard_stop_pct);
     p.push(`<line class="ql-hard" x1="${_qlX(0)}" y1="${_qlY(hard)}" x2="${_qlX(1)}" y2="${_qlY(hard)}"/>`);
