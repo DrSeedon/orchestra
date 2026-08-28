@@ -2,6 +2,10 @@
 // Optimistic UI: show message immediately, debounce actual send so rapid
 // follow-up messages get batched. The server echoes back via SSE which
 // replaces the bubble with the canonical version.
+let pendingUserMsgs = [];
+let pendingBubble = null;
+let uiDebounceTimer = null;
+
 async function sendChat() {
     const input = $('#chat-input');
     // Картинка ещё летит → ждём её путь, иначе сообщение уйдёт без картинки.
@@ -1278,6 +1282,23 @@ function _resetCodexActivityState() {
     _pendingCodexToolUpdates.clear();
 }
 
+function resetChatTransientState() {
+    localMessages.clear();
+    pendingUserMsgs = [];
+    pendingBubble = null;
+    _finalizedBubble = null;
+    if (uiDebounceTimer) clearTimeout(uiDebounceTimer);
+    uiDebounceTimer = null;
+    if (_streamRafId) cancelAnimationFrame(_streamRafId);
+    _streamRafId = null;
+    streamBubble = null;
+    streamContent = '';
+    streamPending = '';
+    _streamDeferredFinal = null;
+    _lastFinalizedStreamText = '';
+    _resetCodexActivityState();
+}
+
 function _removeCodexThinkingLive(activity) {
     if (!_codexThinkingLive) return;
     if (activity && _codexThinkingLive.dataset.activity !== activity) return;
@@ -1519,6 +1540,51 @@ function _taskCardBodyHtml(task) {
         ? `<div data-task-fields style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px;color:#94a3b8">${rows.join('')}</div>`
         : '';
     return fields + _taskDescriptionHtml(task.description);
+}
+
+function _attachTaskRows(host, container, total, preview, expandedDisplay) {
+    host.appendChild(container);
+    if (total <= preview) return;
+    const hint = document.createElement('div');
+    hint.className = 'text-xs mt-1';
+    hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+    let expanded = false;
+    const render = () => {
+        container.querySelectorAll('[data-task-row]').forEach((row, index) => {
+            if (index >= preview) row.style.display = expanded ? expandedDisplay : 'none';
+        });
+        hint.textContent = expanded ? '▲ collapse' : `▼ ${total - preview} more`;
+    };
+    host.style.cursor = 'pointer';
+    host.addEventListener('click', event => {
+        if (event.target.tagName === 'A') return;
+        expanded = !expanded;
+        render();
+    });
+    render();
+    host.appendChild(hint);
+}
+
+function _appendCaption(host, caption) {
+    if (!caption) return;
+    const element = document.createElement('div');
+    element.className = 'text-xs';
+    element.style.cssText = 'margin-top:2px;color:#cbd5e1';
+    element.textContent = caption;
+    host.appendChild(element);
+}
+
+function _diffContextLine(line) {
+    const row = document.createElement('div');
+    row.className = 'diff-line diff-line-ctx';
+    const gutter = document.createElement('span');
+    gutter.className = 'diff-gutter';
+    gutter.textContent = ' ';
+    const code = document.createElement('span');
+    code.className = 'diff-code';
+    code.textContent = line;
+    row.append(gutter, code);
+    return row;
 }
 
 function _appendToolTechnicalDetails(card, content) {
@@ -2366,13 +2432,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 header.textContent = `📎 Sending: ${fileName}`;
                 header.style.color = '#22c55e';
                 if (filePath) div.dataset.filePath = filePath;
-                if (d.caption) {
-                    const capEl = document.createElement('div');
-                    capEl.className = 'text-xs';
-                    capEl.style.cssText = 'margin-top:2px;color:#cbd5e1';
-                    capEl.textContent = d.caption;
-                    div.appendChild(capEl);
-                }
+                _appendCaption(div, d.caption);
                 if (filePath) {
                     const pathEl = document.createElement('div');
                     pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
@@ -2390,13 +2450,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                 div.dataset.filePaths = JSON.stringify(paths);
                 header.textContent = `📎 Sending ${paths.length} files`;
                 header.style.color = '#22c55e';
-                if (d.caption) {
-                    const capEl = document.createElement('div');
-                    capEl.className = 'text-xs';
-                    capEl.style.cssText = 'margin-top:2px;color:#cbd5e1';
-                    capEl.textContent = d.caption;
-                    div.appendChild(capEl);
-                }
+                _appendCaption(div, d.caption);
                 renderSendFilesToolCard(div, paths);
             } catch {}
         }
@@ -3148,22 +3202,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                             card.innerHTML = h;
                             container.appendChild(card);
                         }
-                        lastTool.appendChild(container);
-                        if (tasks.length > PREVIEW) {
-                            const hint = document.createElement('div');
-                            hint.className = 'text-xs mt-1';
-                            hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
-                            hint.textContent = `▼ ${tasks.length - PREVIEW} more`;
-                            lastTool.appendChild(hint);
-                            let _tlExp = false;
-                            lastTool.style.cursor = 'pointer';
-                            lastTool.addEventListener('click', (e) => {
-                                if (e.target.tagName === 'A') return;
-                                _tlExp = !_tlExp;
-                                container.querySelectorAll('[data-task-row]').forEach((r, i) => { if (i >= PREVIEW) r.style.display = _tlExp ? 'block' : 'none'; });
-                                hint.textContent = _tlExp ? '▲ collapse' : `▼ ${tasks.length - PREVIEW} more`;
-                            });
-                        }
+                        _attachTaskRows(lastTool, container, tasks.length, PREVIEW, 'block');
                     } else if (tasks.length > 0) {
                         const container = document.createElement('div');
                         container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
@@ -3176,22 +3215,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
                             row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">#${t.par}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${t.status}</span>${priceStr}`;
                             container.appendChild(row);
                         }
-                        lastTool.appendChild(container);
-                        if (tasks.length > PREVIEW) {
-                            const hint = document.createElement('div');
-                            hint.className = 'text-xs mt-1';
-                            hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
-                            hint.textContent = `▼ ${tasks.length - PREVIEW} more`;
-                            lastTool.appendChild(hint);
-                            let _tlExp = false;
-                            lastTool.style.cursor = 'pointer';
-                            lastTool.addEventListener('click', (e) => {
-                                if (e.target.tagName === 'A') return;
-                                _tlExp = !_tlExp;
-                                container.querySelectorAll('[data-task-row]').forEach((r, i) => { if (i >= PREVIEW) r.style.display = _tlExp ? 'flex' : 'none'; });
-                                hint.textContent = _tlExp ? '▲ collapse' : `▼ ${tasks.length - PREVIEW} more`;
-                            });
-                        }
+                        _attachTaskRows(lastTool, container, tasks.length, PREVIEW, 'flex');
                     }
                 } else if (tn === 'mcp__orchestra__bg_list') {
                     const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs || []);
@@ -3684,32 +3708,14 @@ function addChatEntry(type, content, ts, anchor, payload) {
                     const previewL = lines.slice(0, PREVIEW);
                     const restL = lines.slice(PREVIEW);
                     for (const line of previewL) {
-                        const row = document.createElement('div');
-                        row.className = 'diff-line diff-line-ctx';
-                        const gutter = document.createElement('span');
-                        gutter.className = 'diff-gutter';
-                        gutter.textContent = ' ';
-                        const code = document.createElement('span');
-                        code.className = 'diff-code';
-                        code.textContent = line;
-                        row.append(gutter, code);
-                        readContainer.appendChild(row);
+                        readContainer.appendChild(_diffContextLine(line));
                     }
                     if (restL.length > 0) {
                         const restEl = document.createElement('div');
                         restEl.dataset.role = 'read-rest';
                         restEl.style.display = 'none';
                         for (const line of restL) {
-                            const row = document.createElement('div');
-                            row.className = 'diff-line diff-line-ctx';
-                            const gutter = document.createElement('span');
-                            gutter.className = 'diff-gutter';
-                            gutter.textContent = ' ';
-                            const code = document.createElement('span');
-                            code.className = 'diff-code';
-                            code.textContent = line;
-                            row.append(gutter, code);
-                            restEl.appendChild(row);
+                            restEl.appendChild(_diffContextLine(line));
                         }
                         readContainer.appendChild(restEl);
                         const moreEl = document.createElement('div');
@@ -3859,5 +3865,3 @@ function addChatEntry(type, content, ts, anchor, payload) {
     if (type === 'tool') _adoptOrphanResults(chat, div.dataset.toolUseId);
     if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
 }
-
-

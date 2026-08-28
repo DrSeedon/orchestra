@@ -236,15 +236,7 @@ window.Connection = (() => {
         restartPending = false;
         const restartBtn = document.getElementById('restart-btn');
         if (restartBtn) { restartBtn.disabled = false; restartBtn.textContent = '⟳'; }
-        localMessages.clear();
-        pendingUserMsgs = [];
-        pendingBubble = null;
-        _finalizedBubble = null;
-        if (_streamRafId) { cancelAnimationFrame(_streamRafId); _streamRafId = null; }
-        streamBubble = null;
-        streamContent = '';
-        streamPending = '';
-        _streamDeferredFinal = null;
+        resetChatTransientState();
         const calls = [
             selectedAgent && currentScope ? _showChatFor(selectedAgent, currentScope) : null,
             refreshSessions(), loadOrchestrators(), loadModels(), refreshOpenFolders(),

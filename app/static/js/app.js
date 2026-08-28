@@ -37,9 +37,6 @@ function _newChatLogState() {
 }
 // localMessages tracks messages sent from this tab so SSE echo doesn't create duplicates
 let localMessages = new Set();
-let pendingUserMsgs = [];
-let pendingBubble = null;
-let uiDebounceTimer = null;
 let refreshController = null;
 // UI debounce: rapid-fire messages from the user are batched into one send before the timer fires
 const UI_DEBOUNCE_MS = 2500;
@@ -2433,17 +2430,7 @@ async function onOrchestratorChange() {
     const restoreUnreadAnchor = _unreadTabs.delete(currentScope);
     chatLogs = {};
     currentSessions = [];
-    localMessages.clear();
-    pendingUserMsgs = [];
-    pendingBubble = null;
-    _finalizedBubble = null;
-    if (_streamRafId) { cancelAnimationFrame(_streamRafId); _streamRafId = null; }
-    streamBubble = null;
-    streamContent = '';
-    streamPending = '';
-    _streamDeferredFinal = null;
-    _lastFinalizedStreamText = '';
-    _resetCodexActivityState();
+    resetChatTransientState();
     selectedAgent = opt?.dataset?.name || null;
     if (currentScope && selectedAgent) {
         localStorage.setItem('lastOrchScope', currentScope);
@@ -2470,20 +2457,9 @@ async function selectAgent(name) {
     saveDraft();
     _captureChatReadFrontier();
     if (eventSource) { eventSource.close(); eventSource = null; }
-    if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
-    localMessages.clear();
-    pendingUserMsgs = [];
-    pendingBubble = null;
-    _finalizedBubble = null;
+    resetChatTransientState();
     selectedAgent = name;
     _hideRateLimitBanner();
-    if (_streamRafId) { cancelAnimationFrame(_streamRafId); _streamRafId = null; }
-    streamBubble = null;
-    streamContent = '';
-    streamPending = '';
-    _streamDeferredFinal = null;
-    _lastFinalizedStreamText = '';
-    _resetCodexActivityState();
     $('#chat').innerHTML = '';
     _prepareChatAnchorRestore(false);
     updateInputState();
