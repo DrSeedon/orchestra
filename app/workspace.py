@@ -1344,6 +1344,19 @@ def merge_worktree_to_main(
                             result = {"ok": False, "error": f"target branch '{target_branch}' does not exist"}
                         else:
                             target_before = target_before_ref
+                            if result is None and target_before == worker_head:
+                                result = {
+                                    "ok": False,
+                                    "state": "failed",
+                                    "commit_point": "not_reached",
+                                    "code": "NO_COMMITS_MERGED",
+                                    "error": (
+                                        f"target branch '{target_branch}' and worker branch "
+                                        f"'{worker_branch}' point to the same commit; refusing "
+                                        "to merge the worker branch into its target"
+                                    ),
+                                    "commits_merged": 0,
+                                }
                             if expected_target_head:
                                 target_recheck = {
                                     "expected": expected_target_head,

@@ -300,6 +300,32 @@ def test_failed_not_reached_and_noop_are_not_permanently_deduped(merge_db):
     assert after_noop["operation_id"] != second_id
 
 
+def test_normalize_rejects_zero_commit_noop_even_when_upstream_is_failed():
+    import app.merge_operations as operations
+
+    result = operations.normalize_merge_result(
+        "noop-operation",
+        {
+            "ok": False,
+            "state": "partial",
+            "commit_point": "target_committed",
+            "target_branch": "main",
+            "target_before": "a" * 40,
+            "target_after": "a" * 40,
+            "worker_branch": "task-42/worker",
+            "worker_head": "b" * 40,
+            "commits_merged": 0,
+            "error": "post-merge accounting failed",
+        },
+        operations.normalize_request(name="worker", scope="/scope", target="main"),
+    )
+
+    assert result["operation_state"] == "FAILED"
+    assert result["commit_point"] == "NOT_REACHED"
+    assert result["git"]["status"] == "FAILED"
+    assert result["error"]["code"] == "NO_COMMITS_MERGED"
+
+
 def test_unresolved_partial_blocks_new_key_even_when_snapshot_drifted(merge_db):
     import app.merge_operations as operations
 
@@ -446,7 +472,11 @@ async def test_restore_runs_pending_once_after_fingerprint_recheck(merge_db, mon
     await asyncio.gather(*list(operations._runner_tasks.values()))
 
     assert calls == 1
-    assert operations.get_operation_result(operation_id)["operation_state"] == "SUCCEEDED"
+    result = operations.get_operation_result(operation_id)
+    assert result["operation_state"] == "FAILED"
+    assert result["git"]["status"] == "FAILED"
+    assert result["git"]["commits_merged"] == 0
+    assert result["error"]["code"] == "NO_COMMITS_MERGED"
 
 
 @pytest.mark.asyncio

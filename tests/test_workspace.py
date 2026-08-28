@@ -1325,6 +1325,21 @@ class TestMergeTarget:
                                   capture_output=True, text=True).stdout
         assert "work" in log_main
 
+    def test_same_target_and_worker_tip_is_rejected_with_both_branches(
+        self, git_repo, wt_root,
+    ):
+        from app.workspace import create_worktree, merge_worktree_to_main
+
+        wt = create_worktree(str(git_repo), "same-tip-worker", base_branch="main")
+        result = merge_worktree_to_main(wt.path, str(git_repo), target_branch="main")
+
+        assert result["ok"] is False
+        assert result["code"] == "NO_COMMITS_MERGED"
+        assert result["commit_point"] == "not_reached"
+        assert "target branch 'main'" in result["error"]
+        assert f"worker branch '{wt.branch}'" in result["error"]
+        assert result["commits_merged"] == 0
+
     def test_expected_worker_identity_mismatch_is_not_reached(
         self, git_repo, wt_root,
     ):

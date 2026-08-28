@@ -1017,6 +1017,24 @@ def normalize_merge_result(
         result["git"]["status"] = "UNKNOWN"
         return result
 
+    # A successful response with an unchanged target and no transferred commits is
+    # not a merge. Keep this invariant here as well as in the route: operation results
+    # can come from an older server or a resumed runner, and neither may close a task.
+    no_commits_merged = (
+        raw.get("target_before")
+        and raw.get("target_before") == raw.get("target_after")
+        and int(raw.get("commits_merged") or 0) == 0
+    )
+    if no_commits_merged:
+        raw = {
+            **raw,
+            "ok": False,
+            "state": "failed",
+            "commit_point": "not_reached",
+            "code": "NO_COMMITS_MERGED",
+            "error": "merge produced no new commits",
+        }
+
     raw_state = str(raw.get("state") or ("merged" if raw.get("ok") else "failed"))
     raw_point = str(raw.get("commit_point") or "unknown")
     commit_point = {
