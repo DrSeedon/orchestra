@@ -380,7 +380,7 @@ def test_usage_bar_visible(dashboard_page: Page):
 
 
 def test_stream_updates_preserve_chat_selection(dashboard_browser: Browser):
-    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
     stream_code = source.split("let streamBubble = null;", 1)[1].split(
         "function _renderJsonGrid", 1,
     )[0]
@@ -483,7 +483,8 @@ def test_unexecuted_tool_call_marker_detects_structure_without_prose_false_alarm
 ):
     from app.tool_call_guard import looks_like_unexecuted_tool_call
 
-    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
+    app_source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
     guard_code = (
         "const _UNEXECUTED_TOOL_CALL_WARNING"
         + source.split("const _UNEXECUTED_TOOL_CALL_WARNING", 1)[1].split(
@@ -521,7 +522,7 @@ def test_unexecuted_tool_call_marker_detects_structure_without_prose_false_alarm
     page.add_script_tag(content=guard_code)
     transcript_code = (
         "function _saCollapsible"
-        + source.split("function _saCollapsible", 1)[1].split(
+        + app_source.split("function _saCollapsible", 1)[1].split(
             "function renderTasksPanel", 1,
         )[0]
     )
@@ -586,7 +587,7 @@ def test_unexecuted_tool_call_marker_detects_structure_without_prose_false_alarm
     assert "_markUnexecutedToolCall(streamBubble, streamContent);" in source
     assert "_markUnexecutedToolCall(streamBubble, finalText);" in source
     assert "_markUnexecutedToolCall(div, content);" in source
-    assert "c.filter(block => block?.type === 'text')" in source
+    assert "c.filter(block => block?.type === 'text')" in app_source
     page.close()
 
 
@@ -746,6 +747,7 @@ def test_chat_drop_handles_files_tree_paths_and_upload_errors(
     dashboard_browser: Browser,
 ):
     source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+    chat_source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
     assert "function initChatDrop()" in source
     assert source.index("initChatDrop();") < source.index("loadOrchestrators();")
     assert "fileDropReady" not in source
@@ -756,7 +758,7 @@ def test_chat_drop_handles_files_tree_paths_and_upload_errors(
     # ниже по файлу — страница падала на "_trackUpload is not defined".
     # Берём настоящий блок загрузки, а не заглушки: заглушка спрятала бы
     # регрессию внутри него.
-    upload_helpers = "const _pendingUploads = new Set();" + source.split(
+    upload_helpers = "const _pendingUploads = new Set();" + chat_source.split(
         "const _pendingUploads = new Set();", 1,
     )[1].split("const _COMPRESS_MIN_BYTES", 1)[0]
     drop_code = upload_helpers + drop_code
@@ -2367,6 +2369,13 @@ def test_dashboard_polling_equivalent_twelve_minutes_before_after(
             };
         """)
         _route_frontend_sources(page, source_path)
+        if source_path == main_source:
+            page.route(
+                "**/static/js/chat.js*",
+                lambda route: route.fulfill(
+                    status=200, content_type="application/javascript", body="",
+                ),
+            )
         counts: dict[str, int] = {}
         polling_paths = {
             "/api/models",
@@ -3380,7 +3389,8 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
     dashboard_browser: Browser,
 ):
     root = Path(__file__).parent.parent
-    source = (root / "app/static/js/app.js").read_text()
+    source = (root / "app/static/js/chat.js").read_text()
+    app_source = (root / "app/static/js/app.js").read_text()
     helper_code = (
         "const _TASK_PRIORITY_META"
         + source.split("const _TASK_PRIORITY_META", 1)[1].split(
@@ -3447,7 +3457,7 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
 
     assert "taskBody.innerHTML = _taskCardBodyHtml(parsed);" in source
     assert "h += _taskCardBodyHtml(t);" in source
-    assert "html += _taskCardBodyHtml(t);" in source
+    assert "html += _taskCardBodyHtml(t);" in app_source
     page.close()
 
 
@@ -3623,6 +3633,7 @@ def test_chat_timeline_navigates_events_and_cycles_user_messages(
 ):
     root = Path(__file__).parent.parent
     source = (root / "app/static/js/app.js").read_text()
+    chat_source = (root / "app/static/js/chat.js").read_text()
     timeline_code = (
         "let _chatTimelineObserver"
         + source.split("let _chatTimelineObserver", 1)[1].split(
@@ -3715,7 +3726,7 @@ def test_chat_timeline_navigates_events_and_cycles_user_messages(
     expect(page.locator("#chat-user-count")).to_have_text("Я 3")
     page.evaluate("() => $('#chat [data-test-label=\"mine-3\"]').remove()")
     expect(page.locator("#chat-user-count")).to_have_text("Я 2")
-    assert "_tagChatTimelineNode(el, type, ts);" in source
+    assert "_tagChatTimelineNode(el, type, ts);" in chat_source
     page.close()
 
 
