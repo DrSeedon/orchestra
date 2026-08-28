@@ -184,6 +184,34 @@ class TestRoute:
         assert r.status_code == 200, r.text
         assert seen == {"after_id": 0, "tail": 200, "cap": 256}
 
+    def test_chat_snapshot_is_never_served_from_http_cache(self, db, monkeypatch):
+        from app.db import add_log, save_session
+
+        monkeypatch.delenv("DASHBOARD_USER", raising=False)
+        monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
+        save_session(_session("fresh-snapshot", "chat", scope="/proj"))
+        add_log(
+            "fresh-snapshot",
+            datetime.now(timezone.utc),
+            "text",
+            "authoritative tail",
+        )
+
+        from fastapi.testclient import TestClient
+        from app.main import app
+
+        with TestClient(app) as client:
+            monkeypatch.delenv("DASHBOARD_USER", raising=False)
+            monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
+            response = client.get(
+                "/api/sessions/chat/logs",
+                params={"scope": "/proj", "before_id": 2**31 - 1, "limit": 100},
+            )
+
+        assert response.status_code == 200, response.text
+        assert response.headers["cache-control"] == "no-store"
+        assert response.json()[-1]["content"] == "authoritative tail"
+
 
 class TestHistoryChunkBudget:
     """#72 — страница истории едет порциями, ограниченными БАЙТАМИ, а не только строками."""

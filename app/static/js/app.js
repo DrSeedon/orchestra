@@ -5,10 +5,6 @@
 // на каждом кадре. 200 узлов ≈ 44 000 px при той же странице входа в 100 сообщений;
 // старшее уходит из DOM, но не из истории — оно возвращается кнопкой «загрузить ещё».
 const MAX_CHAT_NODES = 200;
-// Зеркало логов в IndexedDB держит только хвост каждой сессии. Без этого оно росло
-// бесконечно: чистка была лишь для УДАЛЁННЫХ сессий, а внутри живой копилось всё.
-// Промах зеркала не теряет историю — она догружается обычным запросом.
-const MIRROR_KEEP_PER_SESSION = 100;
 function fmtCost(v) { v = Number(v) || 0; if (v === 0) return MODEL_COST_CURRENCY + '0.00'; if (v < 0.01) return MODEL_COST_CURRENCY + v.toFixed(4); return MODEL_COST_CURRENCY + v.toFixed(2); }
 const _MODEL_COLORS = {
     'claude-opus-5[1m]': '#d8b4fe',
@@ -29,6 +25,7 @@ function _modelColor(id) {
 let currentScope = null;
 let selectedAgent = null;
 let chatLogs = {};
+let currentSessions = [];
 // localMessages tracks messages sent from this tab so SSE echo doesn't create duplicates
 let localMessages = new Set();
 let pendingUserMsgs = [];
@@ -747,24 +744,11 @@ function _scheduleChatInitialSettle() {
     }, 500);
 }
 
-// === Откуда берётся история чата (#8) ===
-// Раньше здесь жил кеш отрисованного DOM в памяти вкладки (#2): он давал 30 мс на
-// повторном заходе, но умирал на F5 и ключевался по ИМЕНИ агента, из-за чего проверка
-// на пересоздание сессии зависела от гонки с фоновым опросом. Теперь история берётся из
-// зеркала журнала в IndexedDB (см. _storeRead выше) — одинаково для первого захода,
-// повторного и после F5. Один источник, одна инвалидация.
-const _sessionIds = {};  // _chatPositionKey() -> session.id, заполняется в renderAgentList и _storeSync
+// === Актуальный snapshot истории чата ===
+// Единственный первый источник — серверный tail. Локальный кеш не может доказать, что
+// после его watermark ничего не появилось, и поэтому непригоден для live-чата.
+const _sessionIds = {};  // _chatPositionKey() -> session.id, сверяется с handshake SSE
 const _CHAT_PAGE = 100;  // столько строк показываем при заходе — как и раньше при limit=100
-// Столько строк рисуем в ПЕРВОМ кадре; остальное — после него. Двадцать — это ровно то,
-// что раньше лежало в зеркале и давало чат за 871 мс против 1186 мс на сотне строк.
-const _CHAT_MIRROR_DEADLINE = 250;  // сколько ждём IndexedDB, прежде чем идти в сеть
-// Ниже этого числа строк зеркало считается непригодным и страница берётся сетью.
-// Замер 21.08: у редко открываемого агента зеркало отдавало 16 узлов — формально
-// «попадание», фактически пустой экран.
-const _CHAT_MIN_FROM_STORE = 40;
-// Если известный серверный верх ушёл дальше этого экранного хвоста, старый mirror
-// нельзя показывать даже на один кадр: SSE иначе достроит его строками снизу.
-const _CHAT_MIRROR_MAX_GAP = 20;
 // Потолок на СУММАРНЫЙ content ответа (db.py:1741). 16 000 Б выбирались под старую схему,
 // где страница набиралась четырьмя порциями и каждая должна была влезть под порог, на
 // котором посредник у юзера рвал ответ (~19 КБ по проводу, #70/#72). Теперь запрос ровно
@@ -774,338 +758,7 @@ const _CHAT_MIRROR_MAX_GAP = 20;
 // даёт ~16 КБ по проводу — под тем же порогом. Увидишь в консоли «история не пришла» —
 // это первый кандидат на откат.
 const _CHAT_CHUNK_BYTES = 32000;
-
-// === Зеркало журнала в IndexedDB (#8) ===
-// Строки logs неизменяемы (в app/db.py ровно один INSERT и оптовый DELETE по возрасту),
-// но их клиентская проекция меняется вместе с renderer-ом. Поэтому кроме удаления мёртвых
-// сессий и отката watermark зеркало обязано отвергать чужую эпоху до первой отрисовки.
-const _STORE_DB = 'orchestra';
-const _STORE_SCHEMA_EPOCH = 2;
-// Холодная синхронизация НЕ тянет строки: tail=0 — только карта сессий и отметка.
-// Замер (#72, по проводу через домен): tail=20 на все сессии стоил 145.5 КБ, а рисовалось
-// из них ~5% — хвост открытого агента. Причём даже при попадании в зеркало страница чата
-// всё равно добиралась с сервера (в зеркале 20 строк, показываем 100), так что предзагрузка
-// экономила не запрос, а один кадр отрисовки. Зеркало наполняется тем, что юзер открыл
-// (_storePut в _fetchHistory) и живёт между заходами — F5 по-прежнему
-// рисует открытого агента без сети.
-const _STORE_TAIL = 0;
-const _STORE_CAP = 16384;       // байт на сообщение; блоб со скриншотом приедет обрезанным
-const _STORE_SYNC_MS = 15000;
-let _storeDb = null;            // IDBDatabase | null (null = хранилища нет, работаем как раньше)
-let _storeReady = null;         // Promise, чтобы не открывать базу дважды
-let _storeOff = false;          // отключились навсегда: приватное окно, отказ квоты, старый сервер
-let _storeSessionMap = null;    // [{id, name, scope}] — последняя известная карта агентов
-
-// Одна точка, где хранилище объявляется недоступным. Причину печатаем всегда: пустой
-// catch тут стоил бы нам тихой деградации, которую никто не заметит месяцами.
-function _storeDisable(why, err) {
-    if (_storeOff) return;
-    _storeOff = true;
-    _storeDb = null;
-    console.warn(`[store] выключен: ${why}` + (err ? ` — ${err.name || 'Error'}: ${err.message || err}` : ''));
-}
-
-function _storeRecord(row) {
-    return {...row, _mirror_epoch: _STORE_SCHEMA_EPOCH};
-}
-
-function _storeRecordMatchesSchema(row) {
-    return row && row._mirror_epoch === _STORE_SCHEMA_EPOCH
-        && Number.isFinite(row.id)
-        && typeof row.session_id === 'string'
-        && typeof row.type === 'string'
-        && typeof row.content === 'string'
-        && typeof row.ts === 'string'
-        && Object.hasOwn(row, 'tool_use_id')
-        && Object.hasOwn(row, 'tool_name')
-        && Object.hasOwn(row, 'tool_is_error');
-}
-
-// Same-version transaction: a DB version bump waits forever while an older dashboard tab
-// keeps version 1 open. This transaction is not routed through _storeTx because _storeOpen's
-// shared promise is still unresolved here.
-function _storePrepareOpen(db) {
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(['logs', 'meta'], 'readwrite');
-        const logs = tx.objectStore('logs');
-        const meta = tx.objectStore('meta');
-        const schema = meta.get('schema_epoch');
-        let rebuilt = false;
-        schema.onsuccess = () => {
-            if (schema.result === _STORE_SCHEMA_EPOCH) return;
-            rebuilt = true;
-            logs.clear();
-            meta.clear();
-            meta.put(_STORE_SCHEMA_EPOCH, 'schema_epoch');
-        };
-        tx.oncomplete = () => resolve(rebuilt);
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error);
-    });
-}
-
-function _storeOpen() {
-    if (_storeOff) return Promise.resolve(null);
-    if (_storeReady) return _storeReady;
-    _storeReady = new Promise((resolve) => {
-        let rq;
-        try { rq = indexedDB.open(_STORE_DB, 1); }
-        catch (e) { _storeDisable('indexedDB.open бросил исключение', e); return resolve(null); }
-        rq.onupgradeneeded = () => {
-            const db = rq.result;
-            const logs = db.createObjectStore('logs', {keyPath: 'id'});
-            logs.createIndex('by_session', 'session_id');
-            db.createObjectStore('meta');
-        };
-        rq.onsuccess = async () => {
-            const db = rq.result;
-            try {
-                const rebuilt = await _storePrepareOpen(db);
-                if (rebuilt) console.warn(`[store] схема зеркала обновлена до ${_STORE_SCHEMA_EPOCH} — перечитываю журнал`);
-                _storeDb = db;
-                resolve(_storeDb);
-            } catch (e) {
-                db.close();
-                _storeDisable('не удалось проверить схему IndexedDB', e);
-                resolve(null);
-            }
-        };
-        rq.onerror = () => { _storeDisable('не удалось открыть IndexedDB', rq.error); resolve(null); };
-        rq.onblocked = () => { _storeDisable('IndexedDB заблокирована другой вкладкой'); resolve(null); };
-    });
-    return _storeReady;
-}
-
-function _storeTx(mode, names, body) {
-    return new Promise((resolve, reject) => {
-        const tx = _storeDb.transaction(names, mode);
-        let out;
-        tx.oncomplete = () => resolve(out);
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error);
-        out = body(tx);
-    });
-}
-
-async function _storeReset(why) {
-    try {
-        await _storeTx('readwrite', ['logs', 'meta'], (tx) => {
-            tx.objectStore('logs').clear();
-            const meta = tx.objectStore('meta');
-            meta.clear();
-            meta.put(_STORE_SCHEMA_EPOCH, 'schema_epoch');
-        });
-        _storeSessionMap = null;
-        console.warn(`[store] ${why} — зеркало сброшено, перечитываю журнал`);
-        return true;
-    } catch (e) {
-        _storeDisable('не удалось сбросить несовместимое зеркало', e);
-        return false;
-    }
-}
-
-// Одна синхронизация: холодная при пустой отметке, дальше только новое.
-// Возвращает число принятых строк (для замеров и тестов), null — если хранилища нет.
-async function _storeSync() {
-    const db = await _storeOpen();
-    if (!db) return null;
-    let watermark = 0, knownSessions = '', sessionWatermarks = {};
-    try {
-        [watermark, knownSessions, sessionWatermarks] = await _storeTx('readonly', ['meta'], (tx) => {
-            const m = tx.objectStore('meta');
-            const read = (key) => new Promise((resolve) => {
-                const request = m.get(key);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => resolve(null);
-            });
-            return Promise.all([read('watermark'), read('sessions'), read('session_watermarks')]);
-        });
-        watermark = Number.isFinite(watermark) ? watermark : 0;
-        knownSessions = typeof knownSessions === 'string' ? knownSessions : '';
-        sessionWatermarks = sessionWatermarks && typeof sessionWatermarks === 'object' ? sessionWatermarks : null;
-    } catch (e) { _storeDisable('не читается watermark', e); return null; }
-
-    const url = `/api/logs/sync?after_id=${watermark}&tail=${_STORE_TAIL}&cap=${_STORE_CAP}`;
-    let data;
-    try {
-        const resp = await fetch(url, {cache: 'no-store'});
-        if (resp.status === 404) {
-            // Сервер ещё не перезапущен после мержа — маршрута нет. Это НЕ то же самое,
-            // что отсутствие __session в потоке (см. connectSSE): лечится рестартом.
-            _storeDisable('сервер не знает /api/logs/sync (404) — нужен рестарт orchestra');
-            return null;
-        }
-        if (!resp.ok) { _storeDisable(`/api/logs/sync ответил ${resp.status}`, new Error((await resp.text()).slice(0, 200))); return null; }
-        data = await resp.json();
-        _pollNoteSuccess('store');
-    } catch (e) {
-        _pollNoteFailure('store', e);
-        console.warn('[store] синхронизация не удалась:', e.name, e.message);
-        return null;
-    }
-
-    const live = data.live_sessions;
-    if (Array.isArray(live) && live.length) {
-        for (const s of live) _sessionIds[_chatPositionKey(s.scope, s.name)] = s.id;
-        _storeSessionMap = live;
-    }
-    // Полный обход индекса стоит денег, а список сессий меняется редко — сверяем его
-    // отпечаток и чистим только когда он реально изменился.
-    const liveKey = Array.isArray(live) ? live.map(s => s.id).sort().join(',') : '';
-    const needPrune = Array.isArray(live) && live.length > 0 && liveKey !== knownSessions;
-    try {
-        let mirrorReset = false;
-        await _storeTx('readwrite', ['logs', 'meta'], (tx) => {
-            const logs = tx.objectStore('logs');
-            // Откатили или подменили БД: наша отметка выше, чем всё, что есть на сервере.
-            // Совпадения id при этом ничего не значат — стираем целиком.
-            if (watermark > data.max_log_id) {
-                console.warn(`[store] watermark ${watermark} > max_log_id ${data.max_log_id} — БД подменили, стираю зеркало`);
-                logs.clear();
-                watermark = 0;
-                sessionWatermarks = {};
-                mirrorReset = true;
-            }
-            for (const row of data.logs) {
-                logs.put(_storeRecord(row));
-                if (row.session_id && Number.isFinite(row.id)) {
-                    sessionWatermarks[row.session_id] = Math.max(
-                        Number(sessionWatermarks[row.session_id]) || 0, row.id,
-                    );
-                }
-            }
-            // Пустой список — это сбой на той стороне, а не «сессий не осталось».
-            // Чистка необратима, поэтому по пустому списку не чистим никогда.
-            if (needPrune) {
-                const alive = new Set(live.map(s => s.id));
-                const cur = logs.index('by_session').openKeyCursor();
-                cur.onsuccess = () => {
-                    const c = cur.result;
-                    if (!c) return;
-                    if (!alive.has(c.key)) logs.delete(c.primaryKey);
-                    c.continue();
-                };
-            }
-            const meta = tx.objectStore('meta');
-            const top = data.logs.length ? data.logs[data.logs.length - 1].id : watermark;
-            meta.put(Math.max(top, watermark, 0), 'watermark');
-            const marker = meta.get('session_watermarks');
-            marker.onsuccess = () => {
-                const merged = mirrorReset ? {} : (
-                    marker.result && typeof marker.result === 'object' ? marker.result : {}
-                );
-                const saveMarkers = () => {
-                    if (!mirrorReset && sessionWatermarks) {
-                        for (const [sessionId, value] of Object.entries(sessionWatermarks)) {
-                            merged[sessionId] = Math.max(Number(merged[sessionId]) || 0, value);
-                        }
-                    }
-                    meta.put(merged, 'session_watermarks');
-                };
-                if (!mirrorReset && !sessionWatermarks) {
-                    // Schema 2 mirrors predate the per-session marker map. Build it from
-                    // rows during this already-open sync transaction, once.
-                    const cursor = logs.index('by_session').openCursor();
-                    cursor.onsuccess = () => {
-                        const current = cursor.result;
-                        if (!current) return saveMarkers();
-                        const row = current.value;
-                        if (row.session_id && Number.isFinite(row.id)) {
-                            merged[row.session_id] = Math.max(
-                                Number(merged[row.session_id]) || 0, row.id,
-                            );
-                        }
-                        current.continue();
-                    };
-                } else saveMarkers();
-            };
-            if (needPrune) meta.put(liveKey, 'sessions');
-            // Карту имя+scope → id кладём В хранилище: после F5 она понадобится ДО того,
-            // как вернётся первый /api/sessions, иначе читать журнал будет нечем.
-            if (Array.isArray(live) && live.length) meta.put(live, 'session_map');
-        });
-    } catch (e) { _storeDisable('не пишется в IndexedDB', e); return null; }
-    return data.logs.length;
-}
-
-// Какой session_id у этого агента. Свежий ответ /api/sessions главнее, но после F5 его
-// ещё нет — тогда берём карту, сохранённую прошлой синхронизацией. Ошибиться тут не страшно:
-// поток назовёт настоящую сессию, и несовпадение вычистит чат (см. connectSSE).
-async function _storeSessionId(scope, name) {
-    const key = _chatPositionKey(scope, name);
-    if (!key) return null;
-    if (_sessionIds[key]) return _sessionIds[key];
-    if (!_storeSessionMap) {
-        const db = await _storeOpen();
-        if (!db) return null;
-        try {
-            _storeSessionMap = await _storeTx('readonly', ['meta'], (tx) => {
-                const r = tx.objectStore('meta').get('session_map');
-                return new Promise((res) => { r.onsuccess = () => res(r.result || []); });
-            });
-        } catch (e) { _storeDisable('не читается карта сессий', e); return null; }
-    }
-    const hit = _storeSessionMap.find((s) => s.name === name && s.scope === scope);
-    return hit ? hit.id : null;
-}
-
-// Последние `limit` строк сессии, по возрастанию id. Пусто → зеркала для неё нет.
-async function _storeRead(sessionId, limit) {
-    const db = await _storeOpen();
-    if (!db || !sessionId) return [];
-    try {
-        const rows = await _storeTx('readonly', ['logs'], (tx) => {
-            const rows = [];
-            const cur = tx.objectStore('logs').index('by_session')
-                .openCursor(IDBKeyRange.only(sessionId), 'prev');   // от свежих к старым
-            return new Promise((res) => {
-                cur.onsuccess = () => {
-                    const c = cur.result;
-                    if (!c || rows.length >= limit) return res(rows.reverse());
-                    rows.push(c.value);
-                    c.continue();
-                };
-            });
-        });
-        if (rows.some(row => !_storeRecordMatchesSchema(row))) {
-            await _storeReset('строки сохранены другой схемой');
-            return [];
-        }
-        return rows;
-    } catch (e) { _storeDisable('не читается IndexedDB', e); return []; }
-}
-
-async function _storeWatermark(sessionId) {
-    const db = await _storeOpen();
-    if (!db) return null;
-    try {
-        return await _storeTx('readonly', ['meta'], (tx) => {
-            const request = tx.objectStore('meta').get(sessionId ? 'session_watermarks' : 'watermark');
-            return new Promise((resolve) => {
-                request.onsuccess = () => {
-                    const value = sessionId ? request.result?.[sessionId] : request.result;
-                    resolve(Number.isFinite(value) ? value : null);
-                };
-            });
-        });
-    } catch (e) {
-        _storeDisable('не читается серверный watermark', e);
-        return null;
-    }
-}
-
-function initStoreSync() {
-    const kick = () => { _pollRegister('store', _storeSync, _STORE_SYNC_MS); };
-    if (window.requestIdleCallback) requestIdleCallback(kick, {timeout: 3000});
-    else setTimeout(kick, 500);
-    // Единственное место, где обрабатывается «вкладку развернули». Дел здесь два и оба
-    // срочные: подтянуть хвост журнала и проверить, жив ли сервер, — при свёрнутой вкладке
-    // таймеры идут не по расписанию, и его возврат замечался через десятки секунд (#15).
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) return;
-        _pollWakeAll();
-    });
-}
+const _CHAT_ROW_CAP = 16384;
 
 function initChatPositionMemory() {
     const chat = $('#chat');
@@ -1287,9 +940,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initQuotaLines();
     initHeartbeat();
     _startCacheCountdown();
-    // Только после load: холодная синхронизация ~100 КБ не должна делить узкий канал
-    // с загрузкой самой страницы (HTTP/1.1, 6 соединений, одно занято SSE).
-    window.addEventListener('load', initStoreSync, {once: true});
 });
 
 let eventSource = null;
@@ -1427,17 +1077,23 @@ let _chatLoading = false;
 function connectSSE(fromHistoryLoad) {
     if (_chatLoading && !fromHistoryLoad) return;
     if (eventSource) { eventSource.close(); eventSource = null; }
-    if (!selectedAgent || !currentScope) return;
+    if (!selectedAgent || !currentScope || !_chatSnapshotReady) return;
     const targetAgent = selectedAgent;
+    const targetScope = currentScope;
+    const targetGeneration = _chatLoadGeneration;
     const lastId = chatLogs[selectedAgent]?.lastId || 0;
-    // limit нужен только в запасном режиме, когда истории у нас нет вовсе и её принесёт
-    // сам поток (_fetchHistory не смог). В обычной работе сюда приходят с lastId > 0.
+    // Пустая подтверждённая история — валидный snapshot. limit остаётся страховкой от
+    // сообщения, вставленного между SELECT snapshot и подключением потока.
     const limitParam = lastId === 0 ? `&limit=${_CHAT_PAGE}` : '';
     _armCallNotifications(lastId);
     const url = `/api/sessions/${selectedAgent}/stream?scope=${encodeURIComponent(currentScope)}&after_id=${lastId}${limitParam}`;
-    eventSource = new EventSource(url);
-    eventSource.onmessage = (event) => {
-        if (selectedAgent !== targetAgent) return;
+    const source = new EventSource(url);
+    eventSource = source;
+    source.onmessage = (event) => {
+        if (eventSource !== source
+            || selectedAgent !== targetAgent
+            || currentScope !== targetScope
+            || targetGeneration !== _chatLoadGeneration) return;
         try {
             const l = JSON.parse(event.data);
             // Живые куски стрима идут без session_id — их пропускаем, их финал придёт
@@ -1491,11 +1147,18 @@ function connectSSE(fromHistoryLoad) {
             if (scrollAfterLoad) _scheduleChatInitialSettle();
         } catch (e) { console.warn('SSE parse:', e); }
     };
-    eventSource.onerror = () => {
-        eventSource.close();
+    source.onerror = () => {
+        source.close();
+        // Закрытый старый EventSource иногда успевает прислать onerror уже после A→B.
+        // Он не имеет права закрыть новый поток через глобальную переменную.
+        if (eventSource !== source) return;
         eventSource = null;
         _onServerError();
-        setTimeout(() => { if (selectedAgent === targetAgent) connectSSE(); }, 2000);
+        setTimeout(() => {
+            if (selectedAgent === targetAgent
+                && currentScope === targetScope
+                && targetGeneration === _chatLoadGeneration) connectSSE();
+        }, 2000);
     };
 }
 
@@ -1523,13 +1186,19 @@ function updateLoadMoreBtn() {
 
 async function loadMoreLogs() {
     if (!selectedAgent || !currentScope) return;
-    const firstId = chatLogs[selectedAgent]?.firstId;
+    const targetAgent = selectedAgent;
+    const targetScope = currentScope;
+    const targetGeneration = _chatLoadGeneration;
+    const firstId = chatLogs[targetAgent]?.firstId;
     if (!firstId) return;
     const btn = $('#load-more-btn');
     if (btn) { btn.textContent = '⏳ Loading…'; btn.style.pointerEvents = 'none'; }
     try {
-        const res = await fetch(`/api/sessions/${selectedAgent}/logs?scope=${encodeURIComponent(currentScope)}&before_id=${firstId}&limit=500`);
-        const logs = await res.json();
+        const logs = await api(
+            `/api/sessions/${encodeURIComponent(targetAgent)}/logs?scope=${encodeURIComponent(targetScope)}&before_id=${firstId}&limit=500`,
+            {signal: _chatLoadController?.signal, priority: 'critical'},
+        );
+        if (!_chatLoadIsCurrent(targetGeneration, targetAgent, targetScope)) return;
         if (!Array.isArray(logs) || logs.length === 0) {
             if (btn) btn.remove();
             return;
@@ -1546,20 +1215,20 @@ async function loadMoreLogs() {
         try {
             for (const l of logs) {
                 addChatEntry(l.type, l.content, l.ts, anchor, l);
-                if (!chatLogs[selectedAgent]) chatLogs[selectedAgent] = { lastId: 0, firstId: null, initialCount: 0 };
-                if (chatLogs[selectedAgent].firstId === null || l.id < chatLogs[selectedAgent].firstId) {
-                    chatLogs[selectedAgent].firstId = l.id;
+                if (!chatLogs[targetAgent]) chatLogs[targetAgent] = { lastId: 0, firstId: null, initialCount: 0 };
+                if (chatLogs[targetAgent].firstId === null || l.id < chatLogs[targetAgent].firstId) {
+                    chatLogs[targetAgent].firstId = l.id;
                 }
             }
         } finally {
             _chatTrimLimit = previousTrimLimit;
             _replayingHistory = false;
         }
-        await _storePut(logs);
         chat.scrollTop = chat.scrollHeight - oldHeight;
         // Full page (500) returned → more may exist, re-add button. Fewer → reached the start.
         if (logs.length >= 500) _addLoadMoreBtn();
     } catch (e) {
+        if (!_chatLoadIsCurrent(targetGeneration, targetAgent, targetScope)) return;
         if (btn) { btn.textContent = '▲ Load 500 more'; btn.style.pointerEvents = ''; }
         console.warn('loadMoreLogs error:', e);
     }
@@ -2078,7 +1747,10 @@ function _renderOrchestrators(allOrchs) {
 
 async function _loadOrchestratorsNow() {
     try {
-        const allOrchs = await api('/api/orchestrators', {pollKey: 'orchestrators'});
+        const allOrchs = await api('/api/orchestrators', {
+            pollKey: 'orchestrators',
+            priority: 'critical',
+        });
         // Данные только что получены. Без этой отметки дроссель в refreshSessions считает
         // их протухшими и через полсекунды тянет тот же список второй раз (#71).
         _orchFreshAt = Date.now();
@@ -2618,222 +2290,109 @@ function _renderHistory(agent, rows) {
     _syncChatJumpButton();
 }
 
-// Добор страницы до _CHAT_PAGE и запись добранного в зеркало: следующий заход к этому же
-// агенту снова бесплатный.
-//
-// НЕДОСТАЮЩЕЕ БЕРЁТСЯ ОДНИМ ЗАПРОСОМ, а не порциями по 25. Прежнее «сотню строк
-// одним ответом не берём: это 27.1 КБ» (#70, #72) не подтвердилось замером 21.08: сервер
-// режет каждое сообщение по max_bytes, поэтому 100 строк весят 6 063 байта после gzip
-// против 16 598 сырых у 25 — четыре порции не экономят ничего, а стоят четырёх RTT.
-// Настоящая цена была видна только на канале юзера: частичное попадание в зеркало
-// запускало цепочку из ОДИННАДЦАТИ запросов подряд, и открытие чата занимало 2.40 с при
-// латентности 200 мс. Цикл оставлен на два прохода: ответ может оказаться короче
-// запрошенного из-за бюджета байт, и тогда второй проход добирает остаток.
-// Предзагружать зеркало на все сессии вместо этого нельзя: инкрементальная синхронизация
-// (after_id > 0) tail ИГНОРИРУЕТ, дозаполнить уже заведённое зеркало она не может, а
-// холодная предзагрузка стоила 145.5 КБ по проводу ради строк, из которых рисуется ~5%.
-
-// Дорисовать старые строки НАД уже показанными. Один владелец на два случая: остаток
-// страницы из зеркала (первый кадр рисует только хвост) и добор с сервера.
-function _prependHistory(name, scope, rows) {
-    if (name !== selectedAgent || scope !== currentScope) return 0;  // успели уйти к другому
-    const meta = chatLogs[name];
-    if (!meta || !rows.length) return 0;
-    const chat = $('#chat');
-    const anchor = chat.firstChild;
-    const wasAtBottom = _chatAtBottom(chat);
-    const heightBefore = chat.scrollHeight;
-    const desiredTop = chat.scrollTop;
-    _replayingHistory = true;
-    try {
-        for (const row of rows) {
-            addChatEntry(row.type, row.content, row.ts, anchor, row);
-            if (!Number.isFinite(row.id)) continue;
-            if (meta.firstId === null || row.id < meta.firstId) meta.firstId = row.id;
-            meta.initialCount++;
-        }
-    } finally { _replayingHistory = false; }
-    // Дорисовка уходит ВВЕРХ. Юзер внизу — держим его внизу; читает выше — компенсируем
-    // прирост высоты, чтобы текст под курсором не уехал (иначе добор из #38 сам себе рывок).
-    // Начальная загрузка — всегда низ: там «выше» ещё некому читать.
-    if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
-    else chat.scrollTop = desiredTop + (chat.scrollHeight - heightBefore);
-    updateLoadMoreBtn();
-    return rows.length;
-}
-
-// Выполнить после того, как первый кадр УЖЕ нарисован: один rAF срабатывает ДО отрисовки,
-// поэтому нужен второй.
 function _afterPaint(fn) {
     if (typeof requestAnimationFrame !== 'function') return setTimeout(fn, 0);
     requestAnimationFrame(() => requestAnimationFrame(fn));
 }
 
-// Кладём в зеркало то, что уже скачали и показали. Отдельно от _storeSync: тот ходит
-// за инкрементом по watermark, а здесь строки СТАРШЕ watermark, и трогать отметку нельзя.
-function _compactImageGenerationLogRow(row) {
-    if (row?.type !== 'tool_result' || row?.tool_name !== 'ImageGeneration') return row;
-    try {
-        const data = JSON.parse(row.content || '{}');
-        if (!data.saved_path && !data.revised_prompt && !data.status) return row;
-        const compact = {
-            ...row,
-            content: JSON.stringify(_imageGenerationProjection(data)),
-            projection: 'image_generation',
-            source_bytes: Number(row.source_bytes) || new Blob([row.content || '']).size,
-        };
-        delete compact.trunc;
-        return compact;
-    } catch {
-        return row;
+async function _fetchHistory(name, scope, signal) {
+    const q = new URLSearchParams({
+        scope,
+        before_id: String(2 ** 31 - 1),
+        limit: String(_CHAT_PAGE),
+        max_bytes: String(_CHAT_CHUNK_BYTES),
+        cap: String(_CHAT_ROW_CAP),
+    });
+    const rows = await api(`/api/sessions/${encodeURIComponent(name)}/logs?${q}`, {
+        signal,
+        priority: 'critical',
+        pollKey: 'chat',
+    });
+    if (!Array.isArray(rows)) throw new TypeError('chat history response is not an array');
+    return rows;
+}
+
+let _chatLoadController = null;
+let _chatLoadGeneration = 0;
+let _chatSnapshotReady = false;
+
+function _chatLoadIsCurrent(generation, name, scope) {
+    return generation === _chatLoadGeneration
+        && name === selectedAgent
+        && scope === currentScope;
+}
+
+function _renderChatLoadState(name, error = null) {
+    const chat = $('#chat');
+    if (!chat) return;
+    chat.replaceChildren();
+    chat.setAttribute('aria-busy', String(!error));
+    chat.dataset.agent = name || '';
+    const state = document.createElement('div');
+    state.className = `chat-load-state${error ? ' chat-load-error' : ''}`;
+    const marker = document.createElement('span');
+    marker.className = 'chat-load-marker';
+    marker.textContent = error ? '!' : '';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = error ? 'Актуальные сообщения не загрузились' : 'Загружаю актуальные сообщения';
+    const detail = document.createElement('span');
+    detail.textContent = error
+        ? `${error.name || 'Error'}: ${error.message || 'без текста'}`
+        : `${name} · покажу историю одним кадром`;
+    copy.append(title, detail);
+    state.append(marker, copy);
+    if (error) {
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.textContent = 'Повторить';
+        retry.addEventListener('click', () => _showChatFor(name, currentScope));
+        state.appendChild(retry);
     }
+    chat.appendChild(state);
 }
 
-// Обрезка зеркала идёт В ТОЙ ЖЕ транзакции, что и запись: отдельный проход через
-// _storeTx из колбэка даёт дедлок, а bump версии IndexedDB блокируется второй вкладкой —
-// оба подхода уже откатывались (#364). Курсор по by_session идёт от свежих к старым,
-// поэтому всё после MIRROR_KEEP_PER_SESSION — хвост, и его можно удалять на месте.
-function _trimSessionMirror(logs, sessionId) {
-    const idx = logs.index('by_session');
-    const rq = idx.openCursor(IDBKeyRange.only(sessionId), 'prev');
-    let seen = 0;
-    rq.onsuccess = () => {
-        const cur = rq.result;
-        if (!cur) return;
-        seen += 1;
-        if (seen > MIRROR_KEEP_PER_SESSION) cur.delete();
-        cur.continue();
-    };
-}
-
-async function _storePut(rows) {
-    const db = await _storeOpen();
-    if (!db || !rows || !rows.length) return;
-    try {
-        await _storeTx('readwrite', ['logs', 'meta'], (tx) => {
-            const logs = tx.objectStore('logs');
-            const meta = tx.objectStore('meta');
-            const touched = new Set();
-            for (const row of rows) {
-                if (!Number.isFinite(row.id)) continue;
-                logs.put(_storeRecord(_compactImageGenerationLogRow(row)));
-                if (row.session_id) touched.add(row.session_id);
-            }
-            for (const sessionId of touched) _trimSessionMirror(logs, sessionId);
-            const marker = meta.get('session_watermarks');
-            marker.onsuccess = () => {
-                const sessionWatermarks = marker.result && typeof marker.result === 'object'
-                    ? marker.result : {};
-                for (const row of rows) {
-                    if (row.session_id && Number.isFinite(row.id)) {
-                        sessionWatermarks[row.session_id] = Math.max(
-                            Number(sessionWatermarks[row.session_id]) || 0, row.id,
-                        );
-                    }
-                }
-                meta.put(sessionWatermarks, 'session_watermarks');
-            };
-        });
-    } catch (e) { _storeDisable('не пишется в IndexedDB', e); }
-}
-
-// Промах зеркала: тянем историю обычным маршрутом. Он отдаёт application/json, который
-// nginx жмёт, — те же 100 сообщений едут в 5 раз меньшим объёмом, чем через SSE (D1).
-//
-// СТРАНИЦА БЕРЁТСЯ ОДНИМ ЗАПРОСОМ. Раньше здесь стояла порция в 25 строк, а остальные три
-// четверти добирались отдельными запросами — открытие чата стоило ЧЕТЫРЁХ круговых
-// задержек подряд. Локально это незаметно (6 мс на порцию), а у юзера канал до сервера в
-// другой стране, и цена открытия равна 4×RTT. Замер 21.08 на живом журнале: limit=100 —
-// 22 мс и 6 063 байта после gzip, limit=25 — 16 598 байт сырых, потому что max_bytes режет
-// каждое сообщение и четыре порции почти не экономят трафик. Один запрос строго лучше.
-async function _fetchHistory(name, scope) {
-    try {
-        const q = new URLSearchParams({scope, before_id: String(2 ** 31 - 1), limit: String(_CHAT_PAGE),
-                                       max_bytes: String(_CHAT_CHUNK_BYTES), cap: String(_STORE_CAP)});
-        const rows = await api(`/api/sessions/${encodeURIComponent(name)}/logs?${q}`);
-        if (!Array.isArray(rows)) return [];
-        // Обязательно в зеркало: эти строки СТАРШЕ watermark, инкремент их уже не принесёт
-        // никогда. Без этой записи в зеркале осталась бы дыра ровно на самом свежем куске
-        // истории — а холодная синхронизация его больше не привозит (#72).
-        _storePut(rows);
-        return rows;
-    } catch (e) {
-        // Не молчим и не сдаёмся: пустой список → connectSSE пойдёт с after_id=0,
-        // и историю принесёт сам поток, как до всей этой затеи.
-        console.warn(`[chat] история ${name} не пришла — ${e.name}: ${e.message}; добираю потоком`);
-        return [];
-    }
-}
-
-// Показать чат агента: сперва из зеркала (сети нет вообще), иначе одним запросом.
+// Чат — network-first snapshot. IndexedDB не может доказать свежесть без обращения к
+// серверу: его watermark обновляется тем же фоновым poll, который может опоздать. Поэтому
+// кешированный хвост нельзя показывать как актуальный даже на один кадр. Один маленький
+// JSON snapshot приходит целиком, рисуется атомарно, затем SSE продолжает строго после
+// последнего id. При смене агента предыдущий snapshot отменяется и не занимает сетевой слот.
 async function _showChatFor(name, scope) {
-    if (!name || !scope) return;
-    $('#chat').innerHTML = '';
+    if (!name || !scope) return false;
+    if (_chatLoadController) _chatLoadController.abort();
+    const controller = new AbortController();
+    const generation = ++_chatLoadGeneration;
+    _chatLoadController = controller;
+    _chatSnapshotReady = false;
+    _chatSessionId = null;
     chatLogs[name] = {lastId: 0, firstId: null, initialCount: 0};
     scrollAfterLoad = true;
     _chatLoading = true;
+    _renderChatLoadState(name);
     try {
-        // Зеркало быстрее сети, но только пока оно свободно: холодная синхронизация
-        // (/api/logs/sync?after_id=0 — 2.23 с на замере 21.08) держит readwrite-транзакцию,
-        // и наши чтения стоят за ней в очереди. Замер того же дня: переключение на агента
-        // без зеркала = 3.08 с пустого чата при том, что /api/sessions/<name>/logs отвечает
-        // за 10–20 мс. Поэтому ждём зеркало ограниченно и уходим в сеть, не дожидаясь.
-        const mirror = (async () => {
-            const id = await _storeSessionId(scope, name);
-            if (!id) return {id: null, rows: [], watermark: null};
-            const [rows, watermark] = await Promise.all([
-                _storeRead(id, _CHAT_PAGE),
-                _storeWatermark(id),
-            ]);
-            return {id, rows, watermark};
-        })();
-        const hit = await Promise.race([
-            mirror,
-            new Promise((res) => setTimeout(() => res(null), _CHAT_MIRROR_DEADLINE)),
-        ]);
-        const sid = hit ? hit.id : null;
-        let rows = hit ? hit.rows : [];
-        // Обрезанная строка раньше делала всю историю непригодной: пометить её было нечем,
-        // и битую картинку показывать нельзя. Теперь у обрезки есть видимый маркер и кнопка
-        // «загрузить целиком» (#74), а сервер режет тем же потолком, что и зеркало, — так что
-        // обрезка перестала быть поводом перекачивать страницу целиком.
-        // Зеркало наполняется только тем, что мы уже показывали (_storePut), а холодная
-        // синхронизация строк не приносит вовсе (tail=0) — у редко открываемого агента там
-        // лежит полтора десятка строк. Полупустой экран это не «быстро», а другой дефект,
-        // поэтому при скудном зеркале берём страницу сетью: ОДНИМ запросом и ВМЕСТО зеркала,
-        // а не в дополнение. Два источника подряд — ровно та достройка на живом экране,
-        // ради устранения которой всё и затевалось.
-        const mirrorTop = rows.length ? Number(rows[rows.length - 1].id) : 0;
-        const serverTop = hit ? hit.watermark : null;
-        const mirrorGap = Number.isFinite(serverTop) ? serverTop - mirrorTop : Infinity;
-        const fromStore = rows.length >= _CHAT_MIN_FROM_STORE
-            && Number.isFinite(serverTop)
-            && mirrorGap >= 0
-            && mirrorGap <= _CHAT_MIRROR_MAX_GAP;
-        if (!fromStore) rows = await _fetchHistory(name, scope);
-        // ДОБОРА ПРИ ОТКРЫТИИ НЕТ. Показываем ровно то, что дал ОДИН источник: зеркало или,
-        // при промахе, один запрос за страницей. Прежний добор до ровных ста строк стоил трёх
-        // круговых задержек подряд (замер 21.08 при латентности 200 мс), а чат из-за них
-        // появлялся почти на секунду позже. Не хватило строк — они в одном клике по
-        // «загрузить ещё», и этот клик делает юзер тогда, когда они ему понадобились.
-        if (name !== selectedAgent || scope !== currentScope) return;  // успели уйти к другому агенту
-        // Чей журнал мы показали. Поток назовёт свою сессию, и несовпадение вычистит чат.
-        _chatSessionId = sid || (rows.length ? rows[0].session_id : null);
-        // Одна отрисовка на всю страницу, сразу внизу. Прежнее разбиение «сперва хвост из
-        // 20 строк, остальное потом» экономило ~300 мс до первого кадра, но платило за это
-        // тремя видимыми достройками экрана.
+        const rows = await _fetchHistory(name, scope, controller.signal);
+        if (!_chatLoadIsCurrent(generation, name, scope)) return false;
+        _chatSessionId = rows.length ? rows[0].session_id : null;
+        $('#chat').replaceChildren();
         _renderHistory(name, rows);
+        $('#chat').setAttribute('aria-busy', 'false');
+        _chatSnapshotReady = true;
+        _chatLoading = false;
         connectSSE(true);
-        _afterPaint(async () => {
-            if (name === selectedAgent && scope === currentScope) {
-                if (_chatAtBottom()) $('#chat').scrollTop = $('#chat').scrollHeight;
+        _afterPaint(() => {
+            if (_chatLoadIsCurrent(generation, name, scope) && _chatAtBottom()) {
+                $('#chat').scrollTop = $('#chat').scrollHeight;
             }
         });
-        return fromStore;
+        return true;
+    } catch (error) {
+        if (controller.signal.aborted || !_chatLoadIsCurrent(generation, name, scope)) return false;
+        console.warn(`[chat] история ${name} не пришла — ${error.name}: ${error.message}`);
+        _pollNoteFailure('chat', error);
+        _renderChatLoadState(name, error);
+        return false;
     } finally {
-        // Обязательно снимаем даже на раннем выходе: иначе восстановительный connectSSE
-        // окажется заблокирован навсегда и умерший поток никто не поднимет.
-        _chatLoading = false;
+        if (_chatLoadIsCurrent(generation, name, scope)) _chatLoading = false;
     }
 }
 
@@ -2841,11 +2400,14 @@ async function onOrchestratorChange() {
     saveDraft();
     _captureChatReadFrontier();
     if (eventSource) { eventSource.close(); eventSource = null; }
+    if (_chatLoadController) _chatLoadController.abort();
+    _chatSnapshotReady = false;
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
     currentScope = picker.value || null;
     const restoreUnreadAnchor = _unreadTabs.delete(currentScope);
     chatLogs = {};
+    currentSessions = [];
     localMessages.clear();
     pendingUserMsgs = [];
     pendingBubble = null;
@@ -2863,6 +2425,7 @@ async function onOrchestratorChange() {
         localStorage.setItem('lastOrchName', selectedAgent);
     }
     $('#chat').innerHTML = '';
+    $('#agent-list')?.replaceChildren();
     _prepareChatAnchorRestore(restoreUnreadAnchor);
     updateAgentInfo(null);
     updateInputState();
@@ -2878,6 +2441,7 @@ async function onOrchestratorChange() {
 
 // === Agent Selection ===
 async function selectAgent(name) {
+    if (name === selectedAgent && (_chatSnapshotReady || _chatLoading)) return;
     saveDraft();
     _captureChatReadFrontier();
     if (eventSource) { eventSource.close(); eventSource = null; }
@@ -2899,10 +2463,10 @@ async function selectAgent(name) {
     _prepareChatAnchorRestore(false);
     updateInputState();
     restoreDraft();
-    renderAgentList();
-    fetchAgentContext(name);
+    const hadContext = Boolean(contextCache[`${currentScope}:${name}`]);
+    renderAgentList(currentSessions);
+    if (hadContext) fetchAgentContext(name);
     await _showChatFor(name, currentScope);
-    refreshSessions();  // не в критическом пути: чат уже на экране (D2)
 }
 
 function updateInputState() {
@@ -3148,8 +2712,8 @@ function updateAgentInfo(session) {
         setContextDisplay(contextCache[ctxKey]);
     } else {
         setContextDisplay('...');
+        fetchAgentContext(session.name);
     }
-    fetchAgentContext(session.name);
 }
 
 function setContextDisplay(text) {
@@ -3178,29 +2742,36 @@ function formatContext(ctx) {
     return s;
 }
 
-async function _fetchAgentContextNow(name) {
-    if (!currentScope) return;
+async function _fetchAgentContextNow(name, scope) {
+    if (!scope) return;
     try {
-        const ctx = await api(`/api/sessions/${name}/context?scope=${encodeURIComponent(currentScope)}`, {pollKey: 'context'});
+        const ctx = await api(`/api/sessions/${name}/context?scope=${encodeURIComponent(scope)}`, {pollKey: 'context'});
         const text = formatContext(ctx);
-        contextCache[`${currentScope}:${name}`] = text;
-        if (name === selectedAgent) setContextDisplay(text);
+        contextCache[`${scope}:${name}`] = text;
+        if (scope === currentScope && name === selectedAgent) setContextDisplay(text);
     } catch (e) {
         console.warn(`context ${name}: ${e.name}: ${e.message}`);
         // Прошлое значение показать честнее, чем прочерк: контекст растёт медленно, и
         // цифра минутной давности осмысленна, а «-» неотличим от «агент только что создан».
-        const known = contextCache[`${currentScope}:${name}`];
-        if (known && name === selectedAgent) setContextDisplay(`${known} (не обновлено)`);
+        const known = contextCache[`${scope}:${name}`];
+        if (known && scope === currentScope && name === selectedAgent) {
+            setContextDisplay(`${known} (не обновлено)`);
+        }
     }
 }
 
 function fetchAgentContext(name) {
-    return _pollCoalesce(`context-request:${name}`, () => _fetchAgentContextNow(name));
+    const scope = currentScope;
+    return _pollCoalesce(
+        `context-request:${scope}:${name}`,
+        () => _fetchAgentContextNow(name, scope),
+    );
 }
 
 // === Agent List ===
 function renderAgentList(sessions) {
     if (!sessions) return;
+    currentSessions = sessions;
     const list = $('#agent-list');
     list.innerHTML = '';
 
@@ -3379,7 +2950,7 @@ function _startCacheCountdown() {
     }, 30000);
     // Refresh orch tabs every 60s to pick up new last_turn_ts; the poll coordinator
     // pauses it while hidden and coalesces the startup request with this first tick.
-    _pollRegister('orchestrators', loadOrchestrators, 60000);
+    _pollRegister('orchestrators', loadOrchestrators, 60000, false);
 }
 
 function createAgentItem(s) {
@@ -4731,8 +4302,8 @@ function _adoptOrphanResults(chat, toolUseId) {
     for (const node of [...chat.querySelectorAll(selector)]) {
         const saved = node._orphanResult;
         if (!saved) continue;
-        // Узел НЕ удаляем: он может быть якорем текущей пачки дорисовки — `_prependHistory`
-        // держит `chat.firstChild` на весь цикл, и удаление роняет вставку следующей строки
+        // Узел НЕ удаляем: он может быть якорем текущей пачки истории или load-more;
+        // удаление роняет вставку следующей строки
         // с NotFoundError. Гасим его и перерисовываем результат ровно на его месте.
         delete node.dataset.orphanResultFor;
         delete node.dataset.unmatchedToolResult;
@@ -4925,14 +4496,6 @@ async function _restoreImageGenerationResult(host, payload) {
         const data = JSON.parse(row.content || '{}');
         const projected = _imageGenerationProjection(data);
         if (host.isConnected) _completeImageGenerationTool(host, projected);
-        const compactRow = {
-            ...row,
-            content: JSON.stringify(projected),
-            projection: 'image_generation',
-            source_bytes: Number(payload.trunc) || String(row.content || '').length,
-        };
-        delete compactRow.trunc;
-        _storePut([compactRow]);
     } catch (error) {
         if (host.isConnected && header) {
             header.textContent = `❌ Image unavailable · ${error.name}`;
@@ -7652,8 +7215,8 @@ function _restoreSessionsSnapshot(scope, error) {
 // браузера доносит 19–23 КБ. Каждая попытка падает с вероятностью ~0.48, три попытки
 // опускают «сломано навсегда» с 48% до ~5%.
 // Величина таймаута — цена ожидания перед повтором, и она снижена с 3.5 с до 2 с: замер с
-// ноутбука юзера через зеркало показал, что самое тяжёлое приезжает быстрее — `logs/sync`
-// 130 КБ за 0.72–1.33 с, `app.js` 382 КБ за 0.75–0.98 с, обычный API 0.2–0.7 с. Двойка
+// ноутбука юзера показал, что даже `app.js` 382 КБ приезжает за 0.75–0.98 с, а обычный
+// API — за 0.2–0.7 с. Двойка
 // накрывает виденный максимум с запасом 1.5×, а «аномалия 3.5 с на холодном заходе»,
 // которую искали полдня, была этим самым таймаутом: первая попытка `wire=0 Б dur=3500`,
 // вторая `wire=2009 Б dur=228`. Повтор отработал штатно — дорого стоило ожидание.
@@ -7687,13 +7250,20 @@ const _API_RETRY_JITTER_MS = 800;
 // они делают ДО ответа — оборвать спавн воркера раньше значит соврать юзеру про неудачу.
 const _API_MUTATION_TIMEOUT_MS = 5000;
 const _API_MAX_CONCURRENT_GETS = 4;
+const _API_MAX_BACKGROUND_GETS = 3;
 
 let _apiActiveGets = 0;
 const _apiGetQueue = [];
 
-function _apiAcquireGetPermit(signal) {
+function _apiPermitAvailable(priority) {
+    return _apiActiveGets < (
+        priority === 'critical' ? _API_MAX_CONCURRENT_GETS : _API_MAX_BACKGROUND_GETS
+    );
+}
+
+function _apiAcquireGetPermit(signal, priority = 'normal') {
     return new Promise((resolve, reject) => {
-        const waiter = {signal, resolve, reject, cancelled: false, onAbort: null};
+        const waiter = {signal, priority, resolve, reject, cancelled: false, onAbort: null};
         waiter.grant = () => {
             if (waiter.cancelled) return;
             waiter.onAbort && signal.removeEventListener('abort', waiter.onAbort);
@@ -7716,20 +7286,30 @@ function _apiAcquireGetPermit(signal) {
             };
             signal.addEventListener('abort', waiter.onAbort, {once: true});
         }
-        if (_apiActiveGets < _API_MAX_CONCURRENT_GETS) waiter.grant();
+        if (_apiPermitAvailable(priority)) waiter.grant();
         else _apiGetQueue.push(waiter);
     });
 }
 
 function _apiReleaseGetPermit() {
     _apiActiveGets--;
-    while (_apiActiveGets < _API_MAX_CONCURRENT_GETS && _apiGetQueue.length) {
-        const waiter = _apiGetQueue.shift();
-        if (waiter.cancelled || waiter.signal?.aborted) {
-            waiter.cancelled = true;
-            waiter.onAbort && waiter.signal.removeEventListener('abort', waiter.onAbort);
-            continue;
-        }
+    for (let i = _apiGetQueue.length - 1; i >= 0; i--) {
+        const waiter = _apiGetQueue[i];
+        if (!waiter.cancelled && !waiter.signal?.aborted) continue;
+        waiter.cancelled = true;
+        waiter.onAbort && waiter.signal.removeEventListener('abort', waiter.onAbort);
+        _apiGetQueue.splice(i, 1);
+    }
+    while (_apiGetQueue.length) {
+        // У чата и первого списка оркестраторов есть зарезервированный четвёртый слот.
+        // Фоновые poll-запросы используют максимум три и не могут поставить клик за собой.
+        let index = _apiGetQueue.findIndex(waiter =>
+            !waiter.cancelled && !waiter.signal?.aborted
+            && waiter.priority === 'critical' && _apiPermitAvailable('critical'));
+        if (index < 0) index = _apiGetQueue.findIndex(waiter =>
+            !waiter.cancelled && !waiter.signal?.aborted && _apiPermitAvailable(waiter.priority));
+        if (index < 0) break;
+        const [waiter] = _apiGetQueue.splice(index, 1);
         waiter.grant();
     }
 }
@@ -7757,12 +7337,15 @@ function _fetchQuotaMapShared() {
 // запрос долгий по своей природе (агрегация usage) — такой бюджет он и получает, без повторов.
 async function api(url, opts = {}) {
     const isGet = !opts.method || opts.method.toUpperCase() === 'GET';
+    const priority = opts.priority === 'critical' ? 'critical' : 'normal';
     const attempts = (isGet && opts.timeoutMs === undefined) ? _API_ATTEMPTS : 1;
     const pollKey = opts.pollKey;
     const requestOpts = {...opts};
     delete requestOpts.pollKey;
+    delete requestOpts.priority;
+    delete requestOpts.timeoutMs;
     for (let attempt = 1; ; attempt++) {
-        const releaseGetPermit = isGet ? await _apiAcquireGetPermit(opts.signal) : null;
+        const releaseGetPermit = isGet ? await _apiAcquireGetPermit(opts.signal, priority) : null;
         let data;
         let error;
         try {
@@ -7963,9 +7546,8 @@ async function _pollReconnect() {
     }
 }
 
-// Сервер снова отвечает. Раньше здесь была location.reload(), и это оказалось дорогим
-// способом сделать то, что уже умеет зеркало журнала из #8: историю догоняет одна дельта,
-// чат перерисовывается локально. Замер (docs/tasks/15/research.md): сама перезагрузка стоит
+// Сервер снова отвечает. Раньше здесь была location.reload(), хотя свежий snapshot умеет
+// восстановить чат без полной перезагрузки. Замер (docs/tasks/15/research.md): reload стоит
 // полсекунды, но клиент замечает возврат сервера через 1.7-159 с, медиана 23 с — платить
 // ещё и за перезагрузку незачем. Свежесть версии фронта перезагрузка всё равно не давала:
 // JS брался из кеша без обращения к серверу.
@@ -7989,7 +7571,6 @@ async function _recoverAfterOutage() {
         streamContent = '';
         streamPending = '';
         _streamDeferredFinal = null;
-        await _storeSync();
         if (selectedAgent && currentScope) await _showChatFor(selectedAgent, currentScope);
         refreshSessions();
         loadOrchestrators();
@@ -8122,7 +7703,9 @@ async function _heartbeatProbe() {
 }
 
 function initHeartbeat() {
-        _pollRegister('heartbeat', _heartbeatProbe, 8000);
+        // Первый `/api/models` уже делает loadModels; ещё один тот же GET на старте лишь
+        // отнимал соединение у списка агентов и истории чата.
+        _pollRegister('heartbeat', _heartbeatProbe, 8000, false);
 }
 
 // === Tasks Panel ===
