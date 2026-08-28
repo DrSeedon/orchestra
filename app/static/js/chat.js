@@ -2657,6 +2657,1004 @@ function _renderFullToolCall(content, payload, div) {
     }
 }
 
+function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFollow, isBase64Image) {
+    const chat = $('#chat');
+    const resultToolId = payload?.tool_use_id || '';
+    const lastTool = _toolForResult(chat, payload, anchor, false);
+    if (!lastTool) {
+        div.dataset.unmatchedToolResult = '1';
+        if (resultToolId) {
+            div.dataset.orphanResultFor = resultToolId;
+            div._orphanResult = {content, ts, payload};
+        }
+        const warning = document.createElement('div');
+        warning.className = 'text-amber-400 text-xs font-medium mb-1';
+        warning.textContent = `⚠️ Результат без вызова${resultToolId ? ` · ${resultToolId}` : ''}`;
+        div.appendChild(warning);
+    }
+    if (lastTool) {
+        const liveOutput = lastTool.querySelector('.codex-live-output');
+        if (liveOutput) liveOutput.remove();
+        completeCodexToolCard(lastTool);
+        if (lastTool.dataset.isFileChange) {
+            let data = {};
+            try { data = JSON.parse(content); } catch {}
+            const header = lastTool.querySelector('.flex.items-center');
+            const ok = !data.status || data.status === 'completed';
+            if (header) {
+                header.textContent = `${ok ? '✅' : '❌'} File changes ${ok ? 'applied' : 'failed'}${data.files != null ? ` · ${data.files} file${data.files === 1 ? '' : 's'}` : ''}`;
+                header.style.color = ok ? '#4ade80' : '#f87171';
+            }
+            delete lastTool.dataset.lastTool;
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        if (lastTool.dataset.toolRawName === 'ImageGeneration') {
+            let data = {};
+            try { data = JSON.parse(content); } catch {}
+            delete lastTool.dataset.lastTool;
+            addTimestamp(lastTool, ts);
+            if (payload?.trunc && payload?.id) {
+                void _restoreImageGenerationResult(lastTool, payload);
+                return;
+            }
+            _completeImageGenerationTool(lastTool, data);
+            return;
+        }
+        if (lastTool.dataset.toolRawName === 'ViewImage') {
+            const header = lastTool.querySelector('.flex.items-center');
+            if (header) header.style.color = '#7dd3fc';
+            const img = lastTool.querySelector('.codex-tool-image');
+            if (img && (!img.complete || !img.naturalWidth)) {
+                img.src = img.src.replace(/([?&])t=\d+/, `$1t=${Date.now()}`);
+            }
+            delete lastTool.dataset.lastTool;
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        if (lastTool.dataset.toolRawName === 'Sleep') {
+            const header = lastTool.querySelector('.flex.items-center');
+            if (header) {
+                header.textContent = '✓ Wait completed';
+                header.style.color = '#64748b';
+            }
+            delete lastTool.dataset.lastTool;
+            addTimestamp(lastTool, ts);
+            return;
+        }
+    }
+    if (isBase64Image) {
+        const inlineSrc = _toolResultImageSrc(content);
+        if (lastTool) {
+            delete lastTool.dataset.lastTool;
+            const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
+            if (skeleton) skeleton.remove();
+        }
+        const target = lastTool || div;
+        const origPath = lastTool && lastTool.dataset.filePath;
+        if (inlineSrc || origPath || payload?.id) {
+            const img = document.createElement('img');
+            img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin-top:6px;cursor:pointer';
+            img.style.display = 'none';
+            img.addEventListener('click', () => _showImageOverlay(img.src));
+            target.appendChild(img);
+            // Use original file via API if Read tool has file_path — SDK compresses base64
+            _loadToolResultImage(img, origPath, inlineSrc, payload).then(ok => {
+                if (ok) img.style.display = '';
+                else img.replaceWith(Object.assign(document.createElement('div'), {textContent: '🖼 Image unavailable'}));
+            });
+        } else {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'text-xs';
+            placeholder.style.cssText = 'color:#64748b;margin-top:4px';
+            placeholder.textContent = '🖼 [Image result]';
+            target.appendChild(placeholder);
+        }
+        addTimestamp(target, ts);
+        if (!lastTool) {
+            _insertAndFollow(div);
+        }
+        return;
+    }
+    const toolErrorMatch = content.match(/<tool_use_error>([\s\S]*?)<\/tool_use_error>/);
+    if (toolErrorMatch) {
+        const errMsg = toolErrorMatch[1].trim();
+        const errDiv = document.createElement('div');
+        errDiv.className = 'px-3 py-2 rounded-lg text-xs text-red-400 bg-red-950/30 border border-red-900/50';
+        errDiv.textContent = '⚠️ ' + errMsg;
+        if (lastTool) {
+            if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_files') {
+                const hdr = lastTool.querySelector('.flex.items-center');
+                if (hdr) {
+                    hdr.textContent = `❌ Send failed · 0 files accepted`;
+                    hdr.style.color = '#ef4444';
+                }
+            } else if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_file') {
+                const hdr = lastTool.querySelector('.flex.items-center');
+                if (hdr) {
+                    hdr.textContent = '❌ Send failed';
+                    hdr.style.color = '#ef4444';
+                }
+            }
+            completeCodexToolCard(lastTool, false);
+            delete lastTool.dataset.lastTool;
+            const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
+            if (skeleton) skeleton.remove();
+            lastTool.appendChild(errDiv);
+            addTimestamp(lastTool, ts);
+        } else {
+            div.appendChild(errDiv);
+            addTimestamp(div, ts);
+            _insertAndFollow(div);
+        }
+        return;
+    }
+    const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
+    // Strip raw JSON link arrays from WebSearch results (shown as ugly JSON at top)
+    const stripped = clean.replace(/^(Links:\s*\[.*?\}\]\s*\n?)+/gms, '');
+    const escaped = _escHtml(stripped);
+    // Render markdown links [text](url) first, then bare URLs
+    const mdLinked = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
+    const linked = mdLinked.replace(/((?<!href="|">)https?:\/\/[^\s\])"&<]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
+    const _resultLines = linked.split('\n');
+    const _RESULT_PREVIEW = 5;
+    const _hasMore = _resultLines.length > _RESULT_PREVIEW;
+    const preview = _hasMore ? _resultLines.slice(0, _RESULT_PREVIEW).join('\n') : linked;
+    const full = _hasMore ? linked : null;
+
+    if (lastTool) {
+        if (lastTool.dataset.isCodexWebSearch) {
+            // Codex шлёт результатом ту же структуру с action/queries — ею обновляем шапку.
+            // Встроенный WebSearch и MCP-поиск отдают ТЕКСТ: spec=null, и его надо
+            // отрисовать обычным телом результата, а не проглотить ранним return.
+            const resultSpec = codexWebSearchSpec(content);
+            if (resultSpec) {
+                updateCodexWebSearchActivity(lastTool, resultSpec);
+                delete lastTool.dataset.lastTool;
+                addTimestamp(lastTool, ts);
+                return;
+            }
+        }
+        if (lastTool.dataset.isSpawnWorker) {
+            const hdr = lastTool.querySelector('.flex.items-center');
+            if (hdr) setCodexToolTitle(hdr, `${lastTool.dataset.workerName || 'Worker'} spawned`);
+            delete lastTool.dataset.lastTool;
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        delete lastTool.dataset.lastTool;
+        if (lastTool.dataset.isEdit) {
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        const isToolSearch = lastTool.dataset.toolRawName === 'ToolSearch';
+        if (isToolSearch) {
+            let toolName = '';
+            try { const d = JSON.parse(content); toolName = d.tool_name || ''; } catch {}
+            if (!toolName) { const m = content.match(/tool_name['":\s]+(\w+)/); toolName = m ? m[1] : ''; }
+            const hdr = lastTool.querySelector('.flex.items-center');
+            if (hdr && toolName) hdr.textContent = `✅ Loaded: ${toolName}`;
+            else if (hdr) hdr.textContent = '✅ Tool loaded';
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        if (lastTool.dataset.toolRawName === 'mcp__orchestra__report_bug') {
+            const hdr = lastTool.querySelector('.flex.items-center');
+            if (hdr) { hdr.textContent = '✅ Bug reported'; hdr.style.color = '#22c55e'; }
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_file') {
+            const hdr = lastTool.querySelector('.flex.items-center');
+            const hasError = content.includes('error') || content.includes('Error') || content.includes('failed');
+            if (hdr) {
+                hdr.textContent = hasError ? '❌ Send failed' : '✅ Sent to TG';
+                hdr.style.color = hasError ? '#ef4444' : '#22c55e';
+            }
+            const fp = lastTool.dataset.filePath;
+            if (!hasError && fp) {
+                // Image thumbnail above the buttons — click opens full-size lightbox
+                if (/\.(png|jpe?g|gif|webp|svg)$/i.test(fp) && !lastTool.querySelector('.sf-thumb')) {
+                    const rawUrl = `/api/files/raw?path=${encodeURIComponent(fp)}&t=${Date.now()}`;
+                    const img = document.createElement('img');
+                    img.className = 'sf-thumb';
+                    img.src = rawUrl;
+                    img.loading = 'lazy';
+                    img.style.cssText = 'display:block;margin-top:6px;max-height:200px;max-width:100%;border-radius:8px;cursor:pointer;border:1px solid rgba(99,102,241,0.2)';
+                    img.addEventListener('click', () => openImageLightbox(rawUrl));
+                    img.onerror = () => img.remove();  // broken/missing file → no ugly broken-icon
+                    lastTool.appendChild(img);
+                }
+                const btnRow = document.createElement('div');
+                btnRow.style.cssText = 'margin-top:4px;display:flex;gap:6px;flex-wrap:wrap';
+                const _fileBtn = (label, onClick) => {
+                    const b = document.createElement('button');
+                    b.textContent = label;
+                    b.style.cssText = 'padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:#a5b4fc;cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
+                    b.onmouseenter = () => { b.style.borderColor = 'rgba(99,102,241,0.6)'; b.style.color = '#c7d2fe'; };
+                    b.onmouseleave = () => { b.style.borderColor = 'rgba(99,102,241,0.3)'; b.style.color = '#a5b4fc'; };
+                    b.onclick = onClick;
+                    return b;
+                };
+                btnRow.appendChild(_fileBtn('📥 Download', () => {
+                    window.open(`/api/files/raw?path=${encodeURIComponent(fp)}&download=1`, '_blank');
+                }));
+                if (/\.html?$/i.test(fp)) {
+                    btnRow.appendChild(_fileBtn('👁 Preview', () => {
+                        window.open(`/api/files/raw?path=${encodeURIComponent(fp)}`, '_blank');
+                    }));
+                }
+                lastTool.appendChild(btnRow);
+            }
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_files') {
+            const paths = _sendFilePaths(lastTool);
+            const info = _sendFilesResultInfo(content, paths.length);
+            const hdr = lastTool.querySelector('.flex.items-center');
+            if (hdr) {
+                hdr.textContent = info.hasError
+                    ? `❌ Send failed · ${info.count} files accepted`
+                    : `✅ Sent to TG · ${info.count} files accepted`;
+                hdr.style.color = info.hasError ? '#ef4444' : '#22c55e';
+            }
+            if (!info.hasError && paths.length) {
+                lastTool.querySelectorAll('.sf-file-list, .sf-actions').forEach(el => el.remove());
+                renderSendFilesToolCard(lastTool, paths, {downloads: true});
+            }
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__bg_list','mcp__orchestra__get_worker_info'];
+        if (_tmTools.includes(lastTool.dataset.toolRawName)) {
+            const hdr = lastTool.querySelector('.flex.items-center');
+            let parsed = null;
+            try { parsed = JSON.parse(content); } catch {}
+            const tn = lastTool.dataset.toolRawName;
+            if (!parsed || parsed.error) {
+                if (hdr) { hdr.textContent = `❌ ${parsed?.error || clean.slice(0, 80)}`; hdr.style.color = '#ef4444'; }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (tn === 'mcp__orchestra__task_create' || tn === 'mcp__orchestra__task_get') {
+                const taskNumber = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
+                if (hdr) {
+                    if (tn.includes('create')) {
+                        hdr.textContent = `✅ создаёт задачу «${parsed.title || '?'}»`;
+                    } else {
+                        hdr.textContent = `📋 читает задачу #${taskNumber}`;
+                    }
+                    hdr.style.color = tn.includes('create') ? '#22c55e' : '#a78bfa';
+                }
+                const taskBody = document.createElement('div');
+                taskBody.style.marginTop = '4px';
+                taskBody.innerHTML = _taskCardBodyHtml(parsed);
+                lastTool.appendChild(taskBody);
+                const sys = [];
+                if (parsed.yougile_id || parsed.yougile_task_id) sys.push(`yougile: ${parsed.yougile_id || parsed.yougile_task_id}`);
+                if (parsed.sync_revision) sys.push(`rev: ${parsed.sync_revision}`);
+                if (sys.length > 0) {
+                    const sEl = document.createElement('div');
+                    sEl.style.cssText = 'margin-top:4px;font-size:9px;color:#475569;font-family:monospace';
+                    sEl.textContent = sys.join(' · ');
+                    lastTool.appendChild(sEl);
+                }
+            } else if (tn === 'mcp__orchestra__task_update') {
+                const _kr = (v) => typeof v === 'number' ? String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : v;
+                const changes = [];
+                if (parsed.old_status && parsed.new_status && parsed.old_status !== parsed.new_status) changes.push(`status ${parsed.old_status}→${parsed.new_status}`);
+                if (parsed.updated) {
+                    for (const f of parsed.updated) {
+                        if (f === 'status') continue;
+                        if (f === 'price' && parsed.price_rub != null) changes.push(`price ${_kr(parsed.price_rub)} ${CUR}`);
+                        else if (f === 'assignee' && parsed.assignee != null) changes.push(`assignee→${parsed.assignee || '—'}`);
+                        else if (f === 'title') changes.push('title');
+                        else if (f === 'description') changes.push('description');
+                        else changes.push(f);
+                    }
+                }
+                const parNum = (parsed.par || '?').replace(/^[A-Z]+-/, '');
+                const titleStr = parsed.title ? ` "${parsed.title.slice(0,40)}"` : '';
+                const status = parsed.new_status || parsed.status;
+                const statusLabel = typeof status === 'string' && status ? ` • статус ${status}` : '';
+                if (hdr) {
+                    hdr.textContent = `✏️ обновляет задачу #${parNum}${titleStr}${statusLabel}`;
+                    hdr.style.color = '#22c55e';
+                }
+                if (parsed.old_title && parsed.title && parsed.old_title !== parsed.title) {
+                    const titleDiff = document.createElement('div');
+                    titleDiff.style.cssText = 'margin-top:3px;font-size:10px';
+                    titleDiff.innerHTML = `<span style="color:#64748b;text-decoration:line-through">${DOMPurify.sanitize(parsed.old_title.slice(0,60))}</span> → <span style="color:#e2e8f0">${DOMPurify.sanitize(parsed.title.slice(0,60))}</span>`;
+                    lastTool.appendChild(titleDiff);
+                }
+                if (parsed.description && (parsed.updated || []).includes('description')) {
+                    const descWrap = document.createElement('div');
+                    descWrap.style.cssText = 'margin-top:4px';
+                    if (parsed.old_description) {
+                        const oldEl = document.createElement('div');
+                        oldEl.style.cssText = 'font-size:10px;color:#64748b;text-decoration:line-through;max-height:40px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
+                        oldEl.textContent = parsed.old_description.split('\n').slice(0,3).join('\n');
+                        descWrap.appendChild(oldEl);
+                    }
+                    const newEl = document.createElement('div');
+                    newEl.style.cssText = 'font-size:10px;color:#86efac;max-height:40px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px';
+                    newEl.textContent = parsed.description.split('\n').slice(0,3).join('\n') + (parsed.description.split('\n').length > 3 ? '…' : '');
+                    descWrap.appendChild(newEl);
+                    lastTool.appendChild(descWrap);
+                    if (parsed.description.split('\n').length > 3) {
+                        lastTool.style.cursor = 'pointer';
+                        let _duExp = false;
+                        lastTool.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            _duExp = !_duExp;
+                            newEl.textContent = _duExp ? parsed.description : parsed.description.split('\n').slice(0,3).join('\n') + '…';
+                            newEl.style.maxHeight = _duExp ? 'none' : '40px';
+                            newEl.style.overflowY = _duExp ? 'visible' : 'hidden';
+                        });
+                    }
+                }
+                const detail = document.createElement('div');
+                detail.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b;display:flex;gap:8px;flex-wrap:wrap';
+                if (parsed.price_rub > 0) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ${CUR}</b></span>`;
+                if (detail.innerHTML) lastTool.appendChild(detail);
+            } else if (tn === 'mcp__orchestra__task_list') {
+                const tasks = parsed.tasks || [];
+                const resultMeta = document.createElement('div');
+                resultMeta.className = 'text-xs mt-1';
+                resultMeta.style.color = '#64748b';
+                resultMeta.textContent = `Результат: ${tasks.length}`;
+                lastTool.appendChild(resultMeta);
+                if (tasks.length > 0 && parsed.detailed) {
+                    const container = document.createElement('div');
+                    container.style.cssText = 'margin-top:6px;display:flex;flex-direction:column;gap:6px';
+                    const PREVIEW = 3;
+                    for (const [i, t] of tasks.entries()) {
+                        const card = document.createElement('div');
+                        card.style.cssText = `padding:6px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${t.status==='done'||t.status==='paid'?'#22c55e':t.status==='in_progress'?'#38bdf8':'#334155'}${i >= PREVIEW ? ';display:none' : ''}`;
+                        card.dataset.taskRow = '1';
+                        let h = `<div style="font-size:11px;color:#e2e8f0;font-weight:600">${DOMPurify.sanitize(t.par)}: ${DOMPurify.sanitize(t.title)}</div>`;
+                        h += _taskCardBodyHtml(t);
+                        card.innerHTML = h;
+                        container.appendChild(card);
+                    }
+                    _attachTaskRows(lastTool, container, tasks.length, PREVIEW, 'block');
+                } else if (tasks.length > 0) {
+                    const container = document.createElement('div');
+                    container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
+                    const PREVIEW = 4;
+                    for (const [i, t] of tasks.entries()) {
+                        const row = document.createElement('div');
+                        row.style.cssText = `font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:6px;align-items:center${i >= PREVIEW ? ';display:none' : ''}`;
+                        row.dataset.taskRow = '1';
+                        const priceStr = t.price && t.price !== '0' ? `<span style="color:#eab308">${t.price}</span>` : '';
+                        row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">#${t.par}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${t.status}</span>${priceStr}`;
+                        container.appendChild(row);
+                    }
+                    _attachTaskRows(lastTool, container, tasks.length, PREVIEW, 'flex');
+                }
+            } else if (tn === 'mcp__orchestra__bg_list') {
+                const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs || []);
+                if (hdr) hdr.textContent = `📊 ${jobs.length} jobs`;
+                if (jobs.length > 0) {
+                    const container = document.createElement('div');
+                    container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
+                    for (const j of jobs.slice(0, 8)) {
+                        const icon = _JOB_ICONS[j.type] || '⚙️';
+                        const st = _JOB_STATUS[j.status] || '⚪';
+                        const row = document.createElement('div');
+                        row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:4px;align-items:center';
+                        row.innerHTML = `<span>${icon}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(j.target_name || '')} ${DOMPurify.sanitize((j.message||'').slice(0,30))}</span><span>${st}</span>`;
+                        container.appendChild(row);
+                    }
+                    lastTool.appendChild(container);
+                }
+            } else if (tn === 'mcp__orchestra__get_worker_info') {
+                const stColor = _STATUS_COLOR[parsed.status] || '#94a3b8';
+                const modelShort = _modelLabel(parsed.model);
+                if (hdr) {
+                    hdr.innerHTML = `🤖 <b>${DOMPurify.sanitize(parsed.name || '?')}</b> <span style="font-size:10px;color:#64748b">(${DOMPurify.sanitize(modelShort)})</span> — <span style="color:${stColor}">${parsed.status || '?'}</span>`;
+                }
+                const grid = document.createElement('div');
+                grid.style.cssText = 'margin-top:4px;display:grid;grid-template-columns:auto 1fr;gap:1px 10px;font-size:10px';
+                const _row = (label, val, color) => { if (val != null && val !== '') grid.innerHTML += `<span style="color:#64748b">${label}</span><span style="color:${color||'#cbd5e1'}">${DOMPurify.sanitize(String(val))}</span>`; };
+                _row('Role', parsed.is_orchestrator ? '🎯 orchestrator' : '⚙️ worker');
+                _row('Branch', parsed.branch, '#818cf8');
+                const ctxPct = parsed.context_pct || 0;
+                const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
+                _row('Context', `${ctxPct}%`, ctxColor);
+                _row('Cost', `${MODEL_COST_CURRENCY}${parsed.cost_usd ?? 0}`, '#22c55e');
+                if (parsed.task_id) _row('Task', `#${parsed.task_id}`, '#a78bfa');
+                if (parsed.total_turns) _row('Turns', parsed.total_turns);
+                if (parsed.total_tool_calls) _row('Tool calls', parsed.total_tool_calls);
+                if (parsed.total_input_tokens || parsed.total_output_tokens) _row('Tokens', `${(parsed.total_input_tokens||0).toLocaleString()} in / ${(parsed.total_output_tokens||0).toLocaleString()} out`);
+                lastTool.appendChild(grid);
+                if (parsed.description) {
+                    const descEl = document.createElement('div');
+                    descEl.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8;font-style:italic;max-height:40px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere';
+                    descEl.textContent = parsed.description;
+                    lastTool.appendChild(descEl);
+                    if (parsed.description.length > 120) {
+                        lastTool.style.cursor = 'pointer';
+                        let _wiExp = false;
+                        lastTool.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            _wiExp = !_wiExp;
+                            descEl.style.maxHeight = _wiExp ? 'none' : '40px';
+                            descEl.style.overflowY = _wiExp ? 'visible' : 'hidden';
+                        });
+                    }
+                }
+            }
+            if (tn.startsWith('mcp__orchestra__task_')) {
+                _appendToolTechnicalDetails(lastTool, content);
+            }
+            addTimestamp(lastTool, ts);
+            // Панель задач обновляется на ЖИВОМ вызове инструмента. При отрисовке
+            // истории те же строки — это прошлое, и каждая из них дёргала бы полную
+            // перезагрузку панели: замер по живому дашборду — 8 пар запросов
+            if (!_replayingHistory
+                && ['mcp__orchestra__task_create','mcp__orchestra__task_update'].includes(tn)) loadTasks();
+            return;
+        }
+        const _orchSimpleResults = {
+            'mcp__orchestra__kill_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped/); return m ? { text: `💀 ${m[1]} killed`, color: '#22c55e' } : null; },
+            'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} stopped`, color: '#22c55e' } : null; },
+            'mcp__orchestra__rename_worker': (c) => { const m = c.match(/Worker '(.+?)' renamed to '(.+?)'/); return m ? { text: `✏️ ${m[1]} → ${m[2]}`, color: '#22c55e' } : null; },
+            'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: '✅ Model changed', color: '#22c55e' }; },
+            'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — description updated`, color: '#22c55e' } : { text: '✅ description updated', color: '#22c55e' }; },
+            'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 Merged${m[1] ? ' ('+m[1]+' commits)' : ''}`, color: '#22c55e' } : null; },
+            'mcp__orchestra__send_message': (c) => { const m = c.match(/sent to '(.+?)'/i); return m ? { text: `✅ → ${m[1]}`, color: '#22c55e' } : c.includes('fail') || c.includes('error') || c.includes('Error') ? { text: `❌ ${c.substring(0, 60)}`, color: '#ef4444' } : { text: '✅ Sent', color: '#22c55e' }; },
+            'mcp__orchestra__compact_worker': null,
+            'mcp__orchestra__list_agents': null,
+            'mcp__orchestra__list_orchestrators': null,
+            'mcp__orchestra__get_worker_logs': null,
+            'mcp__orchestra__bg_create': (c) => { const m = c.match(/Background job created: (\S+)/); return m ? { text: `✅ Job ${m[1].slice(0,12)}`, color: '#22c55e' } : c.includes('rror') ? null : { text: '✅ Job created', color: '#22c55e' }; },
+            'mcp__orchestra__bg_cancel': (c) => { const m = c.match(/Job (\S+) cancelled/); return m ? { text: `⏹ ${m[1].slice(0,12)} cancelled`, color: '#94a3b8' } : c.includes('rror') ? null : { text: '⏹ Cancelled', color: '#94a3b8' }; },
+        };
+        const _orchResultCfg = _orchSimpleResults[lastTool.dataset.toolRawName];
+        if (_orchResultCfg !== undefined) {
+            const hdr = lastTool.querySelector('.flex.items-center');
+            if (typeof _orchResultCfg === 'function') {
+                const hasErr = content.includes('failed') || content.includes('Failed') || content.includes('error') || content.includes('Error');
+                if (hasErr) {
+                    const toolAction = lastTool.dataset.toolRawName.split('__').pop().replace(/_/g, ' ');
+                    if (hdr) { hdr.textContent = `❌ ${toolAction} failed`; hdr.style.color = '#ef4444'; }
+                    const errEl = document.createElement('div');
+                    errEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fca5a5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:54px;overflow-y:hidden;overflow-x:hidden';
+                    errEl.textContent = clean;
+                    lastTool.appendChild(errEl);
+                    if (clean.split('\n').length > 3 || clean.length > 200) {
+                        lastTool.style.cursor = 'pointer';
+                        let _errExp = false;
+                        lastTool.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            _errExp = !_errExp;
+                            errEl.style.maxHeight = _errExp ? 'none' : '54px';
+                            errEl.style.overflowY = _errExp ? 'visible' : 'hidden';
+                        });
+                    }
+                } else {
+                    const result = _orchResultCfg(clean);
+                    if (hdr) { hdr.textContent = result?.text || '✅ Done'; hdr.style.color = result?.color || '#22c55e'; }
+                }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'mcp__orchestra__compact_worker') {
+                let workerName = '';
+                try { const ci = lastTool.dataset.toolContent.indexOf(':'); const cd = JSON.parse(lastTool.dataset.toolContent.slice(ci+1)); workerName = cd.name || ''; } catch {}
+                const pctMatch = clean.match(/(\d+)%\s*→\s*(\d+)%/);
+                const sumMatch = clean.match(/Summary \((\d+) chars?\):\s*([\s\S]*)/);
+                if (hdr && pctMatch) { hdr.textContent = `🗜 ${workerName ? workerName+': ' : ''}${pctMatch[1]}% → ${pctMatch[2]}%`; hdr.style.color = '#22c55e'; }
+                else if (hdr) { hdr.textContent = `✅ ${workerName ? workerName+' ' : ''}Compacted`; hdr.style.color = '#22c55e'; }
+                if (sumMatch) {
+                    const chars = sumMatch[1];
+                    const summaryText = sumMatch[2].trim();
+                    const charEl = document.createElement('div');
+                    charEl.style.cssText = 'font-size:10px;color:#64748b;margin-top:2px';
+                    charEl.textContent = `Summary: ${chars} chars`;
+                    lastTool.appendChild(charEl);
+                    if (summaryText) {
+                        const sumEl = document.createElement('div');
+                        sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;max-height:48px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
+                        sumEl.textContent = summaryText;
+                        lastTool.appendChild(sumEl);
+                        if (summaryText.split('\n').length > 3 || summaryText.length > 200) {
+                            lastTool.style.cursor = 'pointer';
+                            let _cExp = false;
+                            lastTool.addEventListener('click', (e) => {
+                                if (e.target.tagName === 'A') return;
+                                _cExp = !_cExp;
+                                sumEl.style.maxHeight = _cExp ? 'none' : '48px';
+                                sumEl.style.overflowY = _cExp ? 'visible' : 'hidden';
+                            });
+                        }
+                    }
+                }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            if (lastTool.dataset.toolRawName === 'mcp__orchestra__list_agents' || lastTool.dataset.toolRawName === 'mcp__orchestra__list_orchestrators') {
+                const agentSummary = _agentResultSummary(clean);
+                const agentLines = agentSummary?.lines || [];
+                if (agentLines.length > 0) {
+                    const PREVIEW_COUNT = 4;
+                    const container = document.createElement('div');
+                    container.style.cssText = 'margin-top:6px;display:flex;flex-direction:column;gap:4px';
+                    for (const [i, line] of agentLines.entries()) {
+                        const parts = line.split('|').map(p => p.trim());
+                        const nameRaw = parts[0] || '';
+                        const status = parts[1] || '';
+                        const model = parts[2] || '';
+                        let ctxRaw = '', taskId = '', desc = '';
+                        for (let pi = 3; pi < parts.length; pi++) {
+                            const p = parts[pi];
+                            if (p.match(/ctx:\d+%/)) ctxRaw = p;
+                            else if (p.startsWith('"')) desc = p.replace(/^"|"$/g, '');
+                            else if (p && !p.startsWith('$')) taskId = p;
+                        }
+                        const nameClean = nameRaw.replace(/\*\*/g, '').replace(/^[^\w]*/, '').trim();
+                        const icon = nameRaw.match(/[🎯⚙️🔧]/)?.[0] || '⚙️';
+                        const ctxPct = parseInt(ctxRaw.match(/(\d+)%/)?.[1] || '0');
+                        const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
+                        const isRunning = status.includes('running');
+                        const row = document.createElement('div');
+                        row.style.cssText = `padding:4px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${isRunning ? '#22c55e' : '#334155'}`;
+                        if (i >= PREVIEW_COUNT) row.style.display = 'none';
+                        row.dataset.agentRow = '1';
+                        let h = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(status)}</span></div>`;
+                        h += `<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span>`;
+                        if (taskId) h += `<span style="color:#a78bfa;font-weight:600">#${DOMPurify.sanitize(taskId.replace(/^[A-Z]+-/, ''))}</span>`;
+                        h += `<span style="display:inline-flex;align-items:center;gap:3px">ctx:<span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
+                        if (desc) h += `<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(desc)}</div>`;
+                        row.innerHTML = h;
+                        container.appendChild(row);
+                    }
+                    lastTool.appendChild(container);
+                    if (hdr) {
+                        const counts = agentSummary.counts;
+                        hdr.textContent = `🎼 Агенты · ${agentLines.length} всего`;
+                        hdr.style.color = counts.broken ? '#ef4444' : counts.waiting ? '#f59e0b' : '#a78bfa';
+                    }
+                    const counts = agentSummary.counts;
+                    const summary = document.createElement('div');
+                    summary.dataset.agentSummary = '1';
+                    summary.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8;display:flex;gap:10px;flex-wrap:wrap';
+                    const countText = _agentCountText(counts);
+                    summary.innerHTML = `<span style="color:#4ade80">${countText[0]}</span><span style="color:${counts.waiting ? '#f59e0b' : '#64748b'}">${countText[1]}</span><span style="color:${counts.broken ? '#ef4444' : '#64748b'}">${countText[2]}</span>`;
+                    lastTool.insertBefore(summary, container);
+                    const attention = agentSummary.agents.filter(agent => agent.status === 'waiting' || agent.status === 'broken');
+                    if (attention.length) {
+                        const attentionEl = document.createElement('div');
+                        attentionEl.dataset.agentAttention = '1';
+                        attentionEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fbbf24';
+                        attentionEl.textContent = `Требуют внимания: ${attention.map(agent => `${agent.name} — ${agent.status}`).join(', ')}`;
+                        lastTool.insertBefore(attentionEl, container);
+                    }
+                    if (agentLines.length > PREVIEW_COUNT) {
+                        const hint = document.createElement('div');
+                        hint.className = 'text-xs mt-1';
+                        hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+                        hint.textContent = `▼ ${agentLines.length - PREVIEW_COUNT} more`;
+                        lastTool.appendChild(hint);
+                        let _alExp = false;
+                        lastTool.style.cursor = 'pointer';
+                        lastTool.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            _alExp = !_alExp;
+                            container.querySelectorAll('[data-agent-row]').forEach((r, i) => {
+                                if (i >= PREVIEW_COUNT) r.style.display = _alExp ? 'block' : 'none';
+                            });
+                            hint.textContent = _alExp ? '▲ collapse' : `▼ ${agentLines.length - PREVIEW_COUNT} more`;
+                        });
+                    }
+                    _appendToolTechnicalDetails(lastTool, content);
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
+            }
+            if (lastTool.dataset.toolRawName === 'mcp__orchestra__get_worker_logs') {
+                const lines = clean.split('\n').filter(l => l.trim());
+                let workerName = '';
+                try { const ci = lastTool.dataset.toolContent.indexOf(':'); const cd = JSON.parse(lastTool.dataset.toolContent.slice(ci+1)); workerName = cd.name || ''; } catch {}
+                if (hdr) { hdr.textContent = `📋 ${workerName ? workerName+': ' : ''}${lines.length} log entries`; hdr.style.color = '#a78bfa'; }
+                if (lines.length > 0) {
+                    const PREVIEW_LOG = 6;
+                    const container = document.createElement('div');
+                    container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:1px';
+                    for (const [i, line] of lines.entries()) {
+                        const row = document.createElement('div');
+                        row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:3px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                        row.dataset.logRow = '1';
+                        if (i >= PREVIEW_LOG) row.style.display = 'none';
+                        if (line.startsWith('❌')) row.style.color = '#f87171';
+                        else if (line.startsWith('👤')) row.style.color = '#818cf8';
+                        else if (line.startsWith('🔧')) row.style.color = '#38bdf8';
+                        row.textContent = line;
+                        row.title = line;
+                        container.appendChild(row);
+                    }
+                    lastTool.appendChild(container);
+                    if (lines.length > PREVIEW_LOG) {
+                        const hint = document.createElement('div');
+                        hint.className = 'text-xs mt-1';
+                        hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+                        hint.textContent = `▼ ${lines.length - PREVIEW_LOG} more`;
+                        lastTool.appendChild(hint);
+                        let _logExp = false;
+                        lastTool.style.cursor = 'pointer';
+                        lastTool.addEventListener('click', (e) => {
+                            if (e.target.tagName === 'A') return;
+                            _logExp = !_logExp;
+                            container.querySelectorAll('[data-log-row]').forEach((r, i) => { if (i >= PREVIEW_LOG) r.style.display = _logExp ? 'block' : 'none'; });
+                            hint.textContent = _logExp ? '▲ collapse' : `▼ ${lines.length - PREVIEW_LOG} more`;
+                        });
+                    }
+                }
+                addTimestamp(lastTool, ts);
+                return;
+            }
+            const resultEl = document.createElement('div');
+            resultEl.className = 'text-xs markdown-body';
+            resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
+            resultEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
+            lastTool.appendChild(resultEl);
+            const resLines = clean.split('\n');
+            if (resLines.length > 5) {
+                const hint = document.createElement('div');
+                hint.className = 'text-xs mt-1';
+                hint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                hint.textContent = `▼ ${resLines.length - 5} more lines`;
+                lastTool.appendChild(hint);
+                let _orchExp = false;
+                lastTool.style.cursor = 'pointer';
+                lastTool.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'A') return;
+                    _orchExp = !_orchExp;
+                    resultEl.style.maxHeight = _orchExp ? 'none' : '90px';
+                    resultEl.style.overflowY = _orchExp ? 'visible' : 'hidden';
+                    hint.textContent = _orchExp ? '▲ collapse' : `▼ ${resLines.length - 5} more lines`;
+                });
+            }
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        if (lastTool.dataset.toolRawName === 'Glob') {
+            let _globPattern = '';
+            try { const _gp = JSON.parse(lastTool.dataset.toolContent.slice(lastTool.dataset.toolContent.indexOf(':') + 1)); _globPattern = _gp.pattern || ''; } catch {}
+            const globEl = renderGlobView(_globPattern, clean);
+            if (globEl) {
+                lastTool.appendChild(globEl);
+                const hdr = lastTool.querySelector('.flex.items-center');
+                if (hdr) {
+                    const count = clean.split('\n').filter(l => l.trim()).length;
+                    hdr.textContent = `📂 Glob: ${_globPattern || '?'} (${count})`;
+                }
+                lastTool.style.cursor = 'pointer';
+                lastTool.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'A') return;
+                    const rest = globEl.querySelector('[data-role="read-rest"]');
+                    const more = globEl.querySelector('[data-role="read-more"]');
+                    if (rest && more) {
+                        const exp = rest.style.display !== 'none';
+                        rest.style.display = exp ? 'none' : 'block';
+                        const cnt = more.dataset.count;
+                        more.textContent = exp ? `▼ ${cnt} more files` : '▲ collapse';
+                    }
+                });
+            } else {
+                const noMatch = document.createElement('div');
+                noMatch.className = 'text-xs';
+                noMatch.style.cssText = 'margin-top:4px;color:#64748b;font-style:italic';
+                noMatch.textContent = 'No files found';
+                lastTool.appendChild(noMatch);
+            }
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        if (lastTool.dataset.toolRawName === 'Skill') {
+            const resultEl = document.createElement('div');
+            resultEl.className = 'text-xs';
+            resultEl.style.cssText = 'margin-top:6px;overflow-wrap:anywhere;white-space:pre-wrap;color:#cbd5e1';
+            resultEl.textContent = clean.length > 300 ? clean.slice(0, 300) + '…' : clean;
+            if (clean.length > 5) lastTool.appendChild(resultEl);
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        const isWebFetchResult = lastTool.dataset.toolRawName === 'WebFetch' || lastTool.dataset.toolRawName === 'mcp__websearch__web_fetch';
+        if (isWebFetchResult) {
+            const bodyEl = document.createElement('div');
+            bodyEl.className = 'text-xs markdown-body';
+            bodyEl.style.cssText = 'margin-top:6px;line-height:1.5;color:#cbd5e1;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word';
+            bodyEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
+            lastTool.appendChild(bodyEl);
+            const fetchLines = clean.split('\n');
+            if (fetchLines.length > 5) {
+                const hint = document.createElement('div');
+                hint.className = 'text-xs mt-1';
+                hint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                hint.textContent = `▼ ${fetchLines.length - 5} more lines`;
+                lastTool.appendChild(hint);
+                let wfExpanded = false;
+                lastTool.style.cursor = 'pointer';
+                lastTool.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'A') return;
+                    wfExpanded = !wfExpanded;
+                    bodyEl.style.maxHeight = wfExpanded ? 'none' : '90px';
+                    bodyEl.style.overflowY = wfExpanded ? 'visible' : 'hidden';
+                    hint.textContent = wfExpanded ? '▲ collapse' : `▼ ${fetchLines.length - 5} more lines`;
+                });
+            }
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        const isWebSearch = lastTool.dataset.toolRawName === 'mcp__websearch__search' ||
+                            lastTool.dataset.toolRawName === 'mcp__websearch__search_web' ||
+                            lastTool.dataset.toolRawName === 'WebSearch';
+        if (isWebSearch) {
+            const wsEl = renderWebSearchResults(content);
+            if (wsEl) {
+                const sep = document.createElement('div');
+                sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
+                sep.appendChild(wsEl);
+                lastTool.appendChild(sep);
+                addTimestamp(lastTool, ts);
+                return;
+            }
+        }
+        if (lastTool.dataset.isBash) {
+            // harness bash (#369) prefixes the result with "exit_code=N" — surface it as a
+            // status mark in the header instead of a glued first output line.
+            let resText = clean;
+            const rcMatch = resText.match(/^exit_code=(-?\d+)[ \t]*\r?\n?/);
+            if (rcMatch) {
+                const rc = parseInt(rcMatch[1], 10);
+                const hdrEl = lastTool.querySelector('.flex.items-center');
+                if (hdrEl) {
+                    const st = document.createElement('span');
+                    st.textContent = rc === 0 ? '✓ 0' : `✗ exit ${rc}`;
+                    st.style.cssText = `font-size:10px;font-weight:normal;margin-left:auto;color:${rc === 0 ? '#4ade80' : '#f87171'}`;
+                    hdrEl.appendChild(st);
+                }
+                if (rc === 0) resText = resText.slice(rcMatch[0].length);
+            }
+            const sep = document.createElement('div');
+            sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
+            const resLines = resText.split('\n');
+            const BASH_PREVIEW = 5;
+            const resWrap = document.createElement('div');
+            resWrap.className = 'diff-view';
+            const previewPre = document.createElement('pre');
+            previewPre.style.cssText = 'margin:0;padding:6px 8px;font-size:11px;overflow-x:auto;background:#0d1117;border:none';
+            previewPre.textContent = resLines.slice(0, BASH_PREVIEW).join('\n');
+            resWrap.appendChild(previewPre);
+            if (resLines.length > BASH_PREVIEW) {
+                const restPre = document.createElement('pre');
+                restPre.style.cssText = 'margin:0;padding:0 8px 6px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;display:none';
+                restPre.dataset.role = 'bash-result';
+                restPre.textContent = resLines.slice(BASH_PREVIEW).join('\n');
+                resWrap.appendChild(restPre);
+                const resHint = document.createElement('div');
+                resHint.className = 'diff-file';
+                resHint.dataset.role = 'bash-result-hint';
+                resHint.dataset.count = resLines.length - BASH_PREVIEW;
+                resHint.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                resHint.textContent = `▼ ${resLines.length - BASH_PREVIEW} more lines`;
+                resWrap.appendChild(resHint);
+            }
+            sep.appendChild(resWrap);
+            lastTool.appendChild(sep);
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        if (lastTool.dataset.isGrep) {
+            const grepEl = renderGrepResults(clean, lastTool.dataset.grepPattern);
+            if (grepEl) {
+                lastTool.appendChild(grepEl);
+                lastTool.style.cursor = 'pointer';
+                lastTool.addEventListener('click', () => {
+                    const restEl = grepEl.querySelector('[data-role="read-rest"]');
+                    const moreEl = grepEl.querySelector('[data-role="read-more"]');
+                    if (restEl && moreEl) {
+                        const showing = restEl.style.display !== 'none';
+                        restEl.style.display = showing ? 'none' : 'block';
+                        moreEl.textContent = showing ? `▼ ${moreEl.dataset.count} more lines` : `▲ collapse`;
+                    }
+                });
+            }
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        if (lastTool.dataset.isRead) {
+            delete lastTool.dataset.lastTool;
+            const readContainer = lastTool.querySelector('.diff-view');
+            if (readContainer) {
+                const skeletonEl = readContainer.querySelector('[data-role="read-skeleton"]');
+                if (skeletonEl) skeletonEl.remove();
+                const readPath = readContainer.dataset.readPath || '';
+                if (/\.md$/i.test(readPath)) {
+                    const mdClean = clean.replace(/^\s*\d+\t/gm, '');
+                    readContainer.style.overflowX = 'hidden';
+                    readContainer.style.maxWidth = '100%';
+                    const mdEl = document.createElement('div');
+                    mdEl.className = 'markdown-body';
+                    mdEl.style.cssText = 'padding:6px 8px;font-size:11px;overflow-wrap:anywhere;word-break:break-word;overflow-x:hidden;max-width:100%;max-height:90px;overflow-y:hidden';
+                    mdEl.innerHTML = DOMPurify.sanitize(marked.parse(mdClean), {ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'disabled', 'type']});
+                    const MD_PREVIEW_H = 90;
+                    readContainer.appendChild(mdEl);
+                    const moreEl = document.createElement('div');
+                    moreEl.className = 'diff-file';
+                    moreEl.dataset.role = 'read-more';
+                    moreEl.dataset.count = '0';
+                    moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                    moreEl.textContent = '▼ more';
+                    readContainer.appendChild(moreEl);
+                    requestAnimationFrame(() => {
+                        if (mdEl.scrollHeight <= MD_PREVIEW_H + 4) {
+                            moreEl.style.display = 'none';
+                            mdEl.style.maxHeight = 'none';
+                            mdEl.style.overflowY = 'visible';
+                        }
+                    });
+                    let mdExpanded = false;
+                    const toggleMd = () => {
+                        mdExpanded = !mdExpanded;
+                        mdEl.style.maxHeight = mdExpanded ? 'none' : MD_PREVIEW_H + 'px';
+                        mdEl.style.overflowY = mdExpanded ? 'visible' : 'hidden';
+                        moreEl.textContent = mdExpanded ? '▲ collapse' : '▼ more';
+                    };
+                    lastTool.style.cursor = 'pointer';
+                    lastTool.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleMd(); });
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
+                if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(readPath)) {
+                    const img = document.createElement('img');
+                    img.src = `/api/files/raw?path=${encodeURIComponent(readPath)}&t=${Date.now()}`;
+                    img.loading = 'lazy';
+                    img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
+                    img.addEventListener('click', () => openImageLightbox(img.src));
+                    readContainer.appendChild(img);
+                    addTimestamp(lastTool, ts);
+                    return;
+                }
+                const lines = clean.split('\n').map(l => l.length > 200 ? l.slice(0, 200) + '…' : l);
+                const PREVIEW = 5;
+                const previewL = lines.slice(0, PREVIEW);
+                const restL = lines.slice(PREVIEW);
+                for (const line of previewL) {
+                    readContainer.appendChild(_diffContextLine(line));
+                }
+                if (restL.length > 0) {
+                    const restEl = document.createElement('div');
+                    restEl.dataset.role = 'read-rest';
+                    restEl.style.display = 'none';
+                    for (const line of restL) {
+                        restEl.appendChild(_diffContextLine(line));
+                    }
+                    readContainer.appendChild(restEl);
+                    const moreEl = document.createElement('div');
+                    moreEl.className = 'diff-file';
+                    moreEl.dataset.role = 'read-more';
+                    moreEl.dataset.count = restL.length;
+                    moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                    moreEl.textContent = `▼ ${restL.length} more lines`;
+                    readContainer.appendChild(moreEl);
+                }
+            }
+            addTimestamp(lastTool, ts);
+            return;
+        }
+        let _resultJsonParsed = null;
+        try { _resultJsonParsed = JSON.parse(content); } catch {}
+        if (_resultJsonParsed && typeof _resultJsonParsed === 'object' && !Array.isArray(_resultJsonParsed)) {
+            let data = _resultJsonParsed;
+            if (data.result !== undefined && Object.keys(data).length === 1) {
+                if (typeof data.result === 'string') {
+                    try { data = JSON.parse(data.result); } catch { data = null; }
+                } else if (typeof data.result === 'object' && data.result !== null) {
+                    data = data.result;
+                } else { data = null; }
+            }
+            if (data && typeof data === 'object' && !Array.isArray(data)) {
+                const hdr = lastTool.querySelector('.flex.items-center');
+                const hasErr = data.error || data.Error;
+                if (hdr && hasErr) {
+                    hdr.textContent = `❌ ${DOMPurify.sanitize(String(data.error || data.Error)).slice(0, 80)}`;
+                    hdr.style.color = '#ef4444';
+                } else if (hdr && !hdr.textContent.includes('✅') && !hdr.textContent.includes('❌')) {
+                    hdr.textContent = hdr.textContent.replace(/⏳.*$/, '✅ Done');
+                }
+                lastTool.dataset.toolContent += '\n\n' + content;
+                const gridWrap = document.createElement('div');
+                gridWrap.style.cssText = 'margin-top:4px';
+                _renderJsonGrid(data, gridWrap);
+                lastTool.appendChild(gridWrap);
+                addTimestamp(lastTool, ts);
+                return;
+            }
+        }
+        lastTool.dataset.toolContent += '\n\n' + content;
+        const oldCopy = lastTool.querySelector('.copy-btn');
+        if (oldCopy) oldCopy.remove();
+        addCopyBtn(lastTool, lastTool.dataset.toolContent);
+
+        const resultEl = document.createElement('div');
+        resultEl.className = 'text-xs result-body';
+        resultEl.style.cssText = 'white-space:pre-wrap;margin-top:6px';
+        resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
+        lastTool.appendChild(resultEl);
+        if (full) {
+            const rHint = document.createElement('div');
+            rHint.className = 'text-xs mt-1 result-hint';
+            rHint.style.cssText = 'color:#38bdf8;cursor:pointer';
+            rHint.textContent = `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
+            lastTool.appendChild(rHint);
+            let rExpanded = false;
+            const toggleResult = () => {
+                rExpanded = !rExpanded;
+                resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(rExpanded ? full : preview, {ADD_ATTR: ['target']});
+                rHint.textContent = rExpanded ? '▲ collapse' : `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
+            };
+            lastTool.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleResult(); });
+        }
+        addTimestamp(lastTool, ts);
+        return;
+    }
+
+    const wsStandalone = renderWebSearchResults(content);
+    if (wsStandalone) {
+        const sep = document.createElement('div');
+        sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
+        sep.appendChild(wsStandalone);
+        div.appendChild(sep);
+        addTimestamp(div, ts);
+        _insertAndFollow(div);
+        return;
+    }
+
+    let _standaloneJson = null;
+    try { _standaloneJson = JSON.parse(content); } catch {}
+    if (_standaloneJson && typeof _standaloneJson === 'object' && !Array.isArray(_standaloneJson)) {
+        let sData = _standaloneJson;
+        if (sData.result !== undefined && Object.keys(sData).length === 1) {
+            if (typeof sData.result === 'string') { try { sData = JSON.parse(sData.result); } catch { sData = null; } }
+            else if (typeof sData.result === 'object' && sData.result !== null) sData = sData.result;
+            else sData = null;
+        }
+        if (sData && typeof sData === 'object' && !Array.isArray(sData)) {
+            const gridWrap = document.createElement('div');
+            gridWrap.style.cssText = 'margin-top:4px';
+            _renderJsonGrid(sData, gridWrap);
+            div.appendChild(gridWrap);
+            addTimestamp(div, ts);
+            _insertAndFollow(div);
+            return;
+        }
+    }
+    const resultBody = document.createElement('div');
+    resultBody.style.whiteSpace = 'pre-wrap';
+    resultBody.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
+    div.appendChild(resultBody);
+    if (full) {
+        const sHint = document.createElement('div');
+        sHint.className = 'text-xs mt-1';
+        sHint.style.cssText = 'color:#38bdf8;cursor:pointer';
+        sHint.textContent = `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
+        div.appendChild(sHint);
+        let sExpanded = false;
+        const toggleStandalone = () => {
+            sExpanded = !sExpanded;
+            resultBody.innerHTML = '📎 ' + DOMPurify.sanitize(sExpanded ? full : preview, {ADD_ATTR: ['target']});
+            sHint.textContent = sExpanded ? '▲ collapse' : `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
+        };
+        div.style.cursor = 'pointer';
+        div.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleStandalone(); });
+    }
+    return div;
+}
+
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
 // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
 // payload = full SSE log object (carries subagent_id for sub-agent nesting)
@@ -2892,1000 +3890,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         _renderFullToolCall(content, payload, div);
     }
     else if (type === 'tool_result') {
-        const chat = $('#chat');
-        const resultToolId = payload?.tool_use_id || '';
-        const lastTool = _toolForResult(chat, payload, anchor, false);
-        if (!lastTool) {
-            div.dataset.unmatchedToolResult = '1';
-            if (resultToolId) {
-                div.dataset.orphanResultFor = resultToolId;
-                div._orphanResult = {content, ts, payload};
-            }
-            const warning = document.createElement('div');
-            warning.className = 'text-amber-400 text-xs font-medium mb-1';
-            warning.textContent = `⚠️ Результат без вызова${resultToolId ? ` · ${resultToolId}` : ''}`;
-            div.appendChild(warning);
-        }
-        if (lastTool) {
-            const liveOutput = lastTool.querySelector('.codex-live-output');
-            if (liveOutput) liveOutput.remove();
-            completeCodexToolCard(lastTool);
-            if (lastTool.dataset.isFileChange) {
-                let data = {};
-                try { data = JSON.parse(content); } catch {}
-                const header = lastTool.querySelector('.flex.items-center');
-                const ok = !data.status || data.status === 'completed';
-                if (header) {
-                    header.textContent = `${ok ? '✅' : '❌'} File changes ${ok ? 'applied' : 'failed'}${data.files != null ? ` · ${data.files} file${data.files === 1 ? '' : 's'}` : ''}`;
-                    header.style.color = ok ? '#4ade80' : '#f87171';
-                }
-                delete lastTool.dataset.lastTool;
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            if (lastTool.dataset.toolRawName === 'ImageGeneration') {
-                let data = {};
-                try { data = JSON.parse(content); } catch {}
-                delete lastTool.dataset.lastTool;
-                addTimestamp(lastTool, ts);
-                if (payload?.trunc && payload?.id) {
-                    void _restoreImageGenerationResult(lastTool, payload);
-                    return;
-                }
-                _completeImageGenerationTool(lastTool, data);
-                return;
-            }
-            if (lastTool.dataset.toolRawName === 'ViewImage') {
-                const header = lastTool.querySelector('.flex.items-center');
-                if (header) header.style.color = '#7dd3fc';
-                const img = lastTool.querySelector('.codex-tool-image');
-                if (img && (!img.complete || !img.naturalWidth)) {
-                    img.src = img.src.replace(/([?&])t=\d+/, `$1t=${Date.now()}`);
-                }
-                delete lastTool.dataset.lastTool;
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            if (lastTool.dataset.toolRawName === 'Sleep') {
-                const header = lastTool.querySelector('.flex.items-center');
-                if (header) {
-                    header.textContent = '✓ Wait completed';
-                    header.style.color = '#64748b';
-                }
-                delete lastTool.dataset.lastTool;
-                addTimestamp(lastTool, ts);
-                return;
-            }
-        }
-        if (_isBase64Image) {
-            const inlineSrc = _toolResultImageSrc(content);
-            if (lastTool) {
-                delete lastTool.dataset.lastTool;
-                const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
-                if (skeleton) skeleton.remove();
-            }
-            const target = lastTool || div;
-            const origPath = lastTool && lastTool.dataset.filePath;
-            if (inlineSrc || origPath || payload?.id) {
-                const img = document.createElement('img');
-                img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin-top:6px;cursor:pointer';
-                img.style.display = 'none';
-                img.addEventListener('click', () => _showImageOverlay(img.src));
-                target.appendChild(img);
-                // Use original file via API if Read tool has file_path — SDK compresses base64
-                _loadToolResultImage(img, origPath, inlineSrc, payload).then(ok => {
-                    if (ok) img.style.display = '';
-                    else img.replaceWith(Object.assign(document.createElement('div'), {textContent: '🖼 Image unavailable'}));
-                });
-            } else {
-                const placeholder = document.createElement('div');
-                placeholder.className = 'text-xs';
-                placeholder.style.cssText = 'color:#64748b;margin-top:4px';
-                placeholder.textContent = '🖼 [Image result]';
-                target.appendChild(placeholder);
-            }
-            addTimestamp(target, ts);
-            if (!lastTool) {
-                _insertAndFollow(div);
-            }
-            return;
-        }
-        const toolErrorMatch = content.match(/<tool_use_error>([\s\S]*?)<\/tool_use_error>/);
-        if (toolErrorMatch) {
-            const errMsg = toolErrorMatch[1].trim();
-            const errDiv = document.createElement('div');
-            errDiv.className = 'px-3 py-2 rounded-lg text-xs text-red-400 bg-red-950/30 border border-red-900/50';
-            errDiv.textContent = '⚠️ ' + errMsg;
-            if (lastTool) {
-                if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_files') {
-                    const hdr = lastTool.querySelector('.flex.items-center');
-                    if (hdr) {
-                        hdr.textContent = `❌ Send failed · 0 files accepted`;
-                        hdr.style.color = '#ef4444';
-                    }
-                } else if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_file') {
-                    const hdr = lastTool.querySelector('.flex.items-center');
-                    if (hdr) {
-                        hdr.textContent = '❌ Send failed';
-                        hdr.style.color = '#ef4444';
-                    }
-                }
-                completeCodexToolCard(lastTool, false);
-                delete lastTool.dataset.lastTool;
-                const skeleton = lastTool.querySelector('[data-role="read-skeleton"]');
-                if (skeleton) skeleton.remove();
-                lastTool.appendChild(errDiv);
-                addTimestamp(lastTool, ts);
-            } else {
-                div.appendChild(errDiv);
-                addTimestamp(div, ts);
-                _insertAndFollow(div);
-            }
-            return;
-        }
-        const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
-        // Strip raw JSON link arrays from WebSearch results (shown as ugly JSON at top)
-        const stripped = clean.replace(/^(Links:\s*\[.*?\}\]\s*\n?)+/gms, '');
-        const escaped = _escHtml(stripped);
-        // Render markdown links [text](url) first, then bare URLs
-        const mdLinked = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
-        const linked = mdLinked.replace(/((?<!href="|">)https?:\/\/[^\s\])"&<]+)/g, '<a href="$1" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">$1</a>');
-        const _resultLines = linked.split('\n');
-        const _RESULT_PREVIEW = 5;
-        const _hasMore = _resultLines.length > _RESULT_PREVIEW;
-        const preview = _hasMore ? _resultLines.slice(0, _RESULT_PREVIEW).join('\n') : linked;
-        const full = _hasMore ? linked : null;
-
-        if (lastTool) {
-            if (lastTool.dataset.isCodexWebSearch) {
-                // Codex шлёт результатом ту же структуру с action/queries — ею обновляем шапку.
-                // Встроенный WebSearch и MCP-поиск отдают ТЕКСТ: spec=null, и его надо
-                // отрисовать обычным телом результата, а не проглотить ранним return.
-                const resultSpec = codexWebSearchSpec(content);
-                if (resultSpec) {
-                    updateCodexWebSearchActivity(lastTool, resultSpec);
-                    delete lastTool.dataset.lastTool;
-                    addTimestamp(lastTool, ts);
-                    return;
-                }
-            }
-            if (lastTool.dataset.isSpawnWorker) {
-                const hdr = lastTool.querySelector('.flex.items-center');
-                if (hdr) setCodexToolTitle(hdr, `${lastTool.dataset.workerName || 'Worker'} spawned`);
-                delete lastTool.dataset.lastTool;
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            delete lastTool.dataset.lastTool;
-            if (lastTool.dataset.isEdit) {
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            const isToolSearch = lastTool.dataset.toolRawName === 'ToolSearch';
-            if (isToolSearch) {
-                let toolName = '';
-                try { const d = JSON.parse(content); toolName = d.tool_name || ''; } catch {}
-                if (!toolName) { const m = content.match(/tool_name['":\s]+(\w+)/); toolName = m ? m[1] : ''; }
-                const hdr = lastTool.querySelector('.flex.items-center');
-                if (hdr && toolName) hdr.textContent = `✅ Loaded: ${toolName}`;
-                else if (hdr) hdr.textContent = '✅ Tool loaded';
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            if (lastTool.dataset.toolRawName === 'mcp__orchestra__report_bug') {
-                const hdr = lastTool.querySelector('.flex.items-center');
-                if (hdr) { hdr.textContent = '✅ Bug reported'; hdr.style.color = '#22c55e'; }
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_file') {
-                const hdr = lastTool.querySelector('.flex.items-center');
-                const hasError = content.includes('error') || content.includes('Error') || content.includes('failed');
-                if (hdr) {
-                    hdr.textContent = hasError ? '❌ Send failed' : '✅ Sent to TG';
-                    hdr.style.color = hasError ? '#ef4444' : '#22c55e';
-                }
-                const fp = lastTool.dataset.filePath;
-                if (!hasError && fp) {
-                    // Image thumbnail above the buttons — click opens full-size lightbox
-                    if (/\.(png|jpe?g|gif|webp|svg)$/i.test(fp) && !lastTool.querySelector('.sf-thumb')) {
-                        const rawUrl = `/api/files/raw?path=${encodeURIComponent(fp)}&t=${Date.now()}`;
-                        const img = document.createElement('img');
-                        img.className = 'sf-thumb';
-                        img.src = rawUrl;
-                        img.loading = 'lazy';
-                        img.style.cssText = 'display:block;margin-top:6px;max-height:200px;max-width:100%;border-radius:8px;cursor:pointer;border:1px solid rgba(99,102,241,0.2)';
-                        img.addEventListener('click', () => openImageLightbox(rawUrl));
-                        img.onerror = () => img.remove();  // broken/missing file → no ugly broken-icon
-                        lastTool.appendChild(img);
-                    }
-                    const btnRow = document.createElement('div');
-                    btnRow.style.cssText = 'margin-top:4px;display:flex;gap:6px;flex-wrap:wrap';
-                    const _fileBtn = (label, onClick) => {
-                        const b = document.createElement('button');
-                        b.textContent = label;
-                        b.style.cssText = 'padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:#a5b4fc;cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
-                        b.onmouseenter = () => { b.style.borderColor = 'rgba(99,102,241,0.6)'; b.style.color = '#c7d2fe'; };
-                        b.onmouseleave = () => { b.style.borderColor = 'rgba(99,102,241,0.3)'; b.style.color = '#a5b4fc'; };
-                        b.onclick = onClick;
-                        return b;
-                    };
-                    btnRow.appendChild(_fileBtn('📥 Download', () => {
-                        window.open(`/api/files/raw?path=${encodeURIComponent(fp)}&download=1`, '_blank');
-                    }));
-                    if (/\.html?$/i.test(fp)) {
-                        btnRow.appendChild(_fileBtn('👁 Preview', () => {
-                            window.open(`/api/files/raw?path=${encodeURIComponent(fp)}`, '_blank');
-                        }));
-                    }
-                    lastTool.appendChild(btnRow);
-                }
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_files') {
-                const paths = _sendFilePaths(lastTool);
-                const info = _sendFilesResultInfo(content, paths.length);
-                const hdr = lastTool.querySelector('.flex.items-center');
-                if (hdr) {
-                    hdr.textContent = info.hasError
-                        ? `❌ Send failed · ${info.count} files accepted`
-                        : `✅ Sent to TG · ${info.count} files accepted`;
-                    hdr.style.color = info.hasError ? '#ef4444' : '#22c55e';
-                }
-                if (!info.hasError && paths.length) {
-                    lastTool.querySelectorAll('.sf-file-list, .sf-actions').forEach(el => el.remove());
-                    renderSendFilesToolCard(lastTool, paths, {downloads: true});
-                }
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            const _tmTools = ['mcp__orchestra__task_create','mcp__orchestra__task_update','mcp__orchestra__task_list','mcp__orchestra__task_get','mcp__orchestra__bg_list','mcp__orchestra__get_worker_info'];
-            if (_tmTools.includes(lastTool.dataset.toolRawName)) {
-                const hdr = lastTool.querySelector('.flex.items-center');
-                let parsed = null;
-                try { parsed = JSON.parse(content); } catch {}
-                const tn = lastTool.dataset.toolRawName;
-                if (!parsed || parsed.error) {
-                    if (hdr) { hdr.textContent = `❌ ${parsed?.error || clean.slice(0, 80)}`; hdr.style.color = '#ef4444'; }
-                    addTimestamp(lastTool, ts);
-                    return;
-                }
-                if (tn === 'mcp__orchestra__task_create' || tn === 'mcp__orchestra__task_get') {
-                    const taskNumber = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
-                    if (hdr) {
-                        if (tn.includes('create')) {
-                            hdr.textContent = `✅ создаёт задачу «${parsed.title || '?'}»`;
-                        } else {
-                            hdr.textContent = `📋 читает задачу #${taskNumber}`;
-                        }
-                        hdr.style.color = tn.includes('create') ? '#22c55e' : '#a78bfa';
-                    }
-                    const taskBody = document.createElement('div');
-                    taskBody.style.marginTop = '4px';
-                    taskBody.innerHTML = _taskCardBodyHtml(parsed);
-                    lastTool.appendChild(taskBody);
-                    const sys = [];
-                    if (parsed.yougile_id || parsed.yougile_task_id) sys.push(`yougile: ${parsed.yougile_id || parsed.yougile_task_id}`);
-                    if (parsed.sync_revision) sys.push(`rev: ${parsed.sync_revision}`);
-                    if (sys.length > 0) {
-                        const sEl = document.createElement('div');
-                        sEl.style.cssText = 'margin-top:4px;font-size:9px;color:#475569;font-family:monospace';
-                        sEl.textContent = sys.join(' · ');
-                        lastTool.appendChild(sEl);
-                    }
-                } else if (tn === 'mcp__orchestra__task_update') {
-                    const _kr = (v) => typeof v === 'number' ? String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : v;
-                    const changes = [];
-                    if (parsed.old_status && parsed.new_status && parsed.old_status !== parsed.new_status) changes.push(`status ${parsed.old_status}→${parsed.new_status}`);
-                    if (parsed.updated) {
-                        for (const f of parsed.updated) {
-                            if (f === 'status') continue;
-                            if (f === 'price' && parsed.price_rub != null) changes.push(`price ${_kr(parsed.price_rub)} ${CUR}`);
-                            else if (f === 'assignee' && parsed.assignee != null) changes.push(`assignee→${parsed.assignee || '—'}`);
-                            else if (f === 'title') changes.push('title');
-                            else if (f === 'description') changes.push('description');
-                            else changes.push(f);
-                        }
-                    }
-                    const parNum = (parsed.par || '?').replace(/^[A-Z]+-/, '');
-                    const titleStr = parsed.title ? ` "${parsed.title.slice(0,40)}"` : '';
-                    const status = parsed.new_status || parsed.status;
-                    const statusLabel = typeof status === 'string' && status ? ` • статус ${status}` : '';
-                    if (hdr) {
-                        hdr.textContent = `✏️ обновляет задачу #${parNum}${titleStr}${statusLabel}`;
-                        hdr.style.color = '#22c55e';
-                    }
-                    if (parsed.old_title && parsed.title && parsed.old_title !== parsed.title) {
-                        const titleDiff = document.createElement('div');
-                        titleDiff.style.cssText = 'margin-top:3px;font-size:10px';
-                        titleDiff.innerHTML = `<span style="color:#64748b;text-decoration:line-through">${DOMPurify.sanitize(parsed.old_title.slice(0,60))}</span> → <span style="color:#e2e8f0">${DOMPurify.sanitize(parsed.title.slice(0,60))}</span>`;
-                        lastTool.appendChild(titleDiff);
-                    }
-                    if (parsed.description && (parsed.updated || []).includes('description')) {
-                        const descWrap = document.createElement('div');
-                        descWrap.style.cssText = 'margin-top:4px';
-                        if (parsed.old_description) {
-                            const oldEl = document.createElement('div');
-                            oldEl.style.cssText = 'font-size:10px;color:#64748b;text-decoration:line-through;max-height:40px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
-                            oldEl.textContent = parsed.old_description.split('\n').slice(0,3).join('\n');
-                            descWrap.appendChild(oldEl);
-                        }
-                        const newEl = document.createElement('div');
-                        newEl.style.cssText = 'font-size:10px;color:#86efac;max-height:40px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px';
-                        newEl.textContent = parsed.description.split('\n').slice(0,3).join('\n') + (parsed.description.split('\n').length > 3 ? '…' : '');
-                        descWrap.appendChild(newEl);
-                        lastTool.appendChild(descWrap);
-                        if (parsed.description.split('\n').length > 3) {
-                            lastTool.style.cursor = 'pointer';
-                            let _duExp = false;
-                            lastTool.addEventListener('click', (e) => {
-                                if (e.target.tagName === 'A') return;
-                                _duExp = !_duExp;
-                                newEl.textContent = _duExp ? parsed.description : parsed.description.split('\n').slice(0,3).join('\n') + '…';
-                                newEl.style.maxHeight = _duExp ? 'none' : '40px';
-                                newEl.style.overflowY = _duExp ? 'visible' : 'hidden';
-                            });
-                        }
-                    }
-                    const detail = document.createElement('div');
-                    detail.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b;display:flex;gap:8px;flex-wrap:wrap';
-                    if (parsed.price_rub > 0) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ${CUR}</b></span>`;
-                    if (detail.innerHTML) lastTool.appendChild(detail);
-                } else if (tn === 'mcp__orchestra__task_list') {
-                    const tasks = parsed.tasks || [];
-                    const resultMeta = document.createElement('div');
-                    resultMeta.className = 'text-xs mt-1';
-                    resultMeta.style.color = '#64748b';
-                    resultMeta.textContent = `Результат: ${tasks.length}`;
-                    lastTool.appendChild(resultMeta);
-                    if (tasks.length > 0 && parsed.detailed) {
-                        const container = document.createElement('div');
-                        container.style.cssText = 'margin-top:6px;display:flex;flex-direction:column;gap:6px';
-                        const PREVIEW = 3;
-                        for (const [i, t] of tasks.entries()) {
-                            const card = document.createElement('div');
-                            card.style.cssText = `padding:6px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${t.status==='done'||t.status==='paid'?'#22c55e':t.status==='in_progress'?'#38bdf8':'#334155'}${i >= PREVIEW ? ';display:none' : ''}`;
-                            card.dataset.taskRow = '1';
-                            let h = `<div style="font-size:11px;color:#e2e8f0;font-weight:600">${DOMPurify.sanitize(t.par)}: ${DOMPurify.sanitize(t.title)}</div>`;
-                            h += _taskCardBodyHtml(t);
-                            card.innerHTML = h;
-                            container.appendChild(card);
-                        }
-                        _attachTaskRows(lastTool, container, tasks.length, PREVIEW, 'block');
-                    } else if (tasks.length > 0) {
-                        const container = document.createElement('div');
-                        container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
-                        const PREVIEW = 4;
-                        for (const [i, t] of tasks.entries()) {
-                            const row = document.createElement('div');
-                            row.style.cssText = `font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:6px;align-items:center${i >= PREVIEW ? ';display:none' : ''}`;
-                            row.dataset.taskRow = '1';
-                            const priceStr = t.price && t.price !== '0' ? `<span style="color:#eab308">${t.price}</span>` : '';
-                            row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">#${t.par}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${t.status}</span>${priceStr}`;
-                            container.appendChild(row);
-                        }
-                        _attachTaskRows(lastTool, container, tasks.length, PREVIEW, 'flex');
-                    }
-                } else if (tn === 'mcp__orchestra__bg_list') {
-                    const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs || []);
-                    if (hdr) hdr.textContent = `📊 ${jobs.length} jobs`;
-                    if (jobs.length > 0) {
-                        const container = document.createElement('div');
-                        container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
-                        for (const j of jobs.slice(0, 8)) {
-                            const icon = _JOB_ICONS[j.type] || '⚙️';
-                            const st = _JOB_STATUS[j.status] || '⚪';
-                            const row = document.createElement('div');
-                            row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:4px;align-items:center';
-                            row.innerHTML = `<span>${icon}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(j.target_name || '')} ${DOMPurify.sanitize((j.message||'').slice(0,30))}</span><span>${st}</span>`;
-                            container.appendChild(row);
-                        }
-                        lastTool.appendChild(container);
-                    }
-                } else if (tn === 'mcp__orchestra__get_worker_info') {
-                    const stColor = _STATUS_COLOR[parsed.status] || '#94a3b8';
-                    const modelShort = _modelLabel(parsed.model);
-                    if (hdr) {
-                        hdr.innerHTML = `🤖 <b>${DOMPurify.sanitize(parsed.name || '?')}</b> <span style="font-size:10px;color:#64748b">(${DOMPurify.sanitize(modelShort)})</span> — <span style="color:${stColor}">${parsed.status || '?'}</span>`;
-                    }
-                    const grid = document.createElement('div');
-                    grid.style.cssText = 'margin-top:4px;display:grid;grid-template-columns:auto 1fr;gap:1px 10px;font-size:10px';
-                    const _row = (label, val, color) => { if (val != null && val !== '') grid.innerHTML += `<span style="color:#64748b">${label}</span><span style="color:${color||'#cbd5e1'}">${DOMPurify.sanitize(String(val))}</span>`; };
-                    _row('Role', parsed.is_orchestrator ? '🎯 orchestrator' : '⚙️ worker');
-                    _row('Branch', parsed.branch, '#818cf8');
-                    const ctxPct = parsed.context_pct || 0;
-                    const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
-                    _row('Context', `${ctxPct}%`, ctxColor);
-                    _row('Cost', `${MODEL_COST_CURRENCY}${parsed.cost_usd ?? 0}`, '#22c55e');
-                    if (parsed.task_id) _row('Task', `#${parsed.task_id}`, '#a78bfa');
-                    if (parsed.total_turns) _row('Turns', parsed.total_turns);
-                    if (parsed.total_tool_calls) _row('Tool calls', parsed.total_tool_calls);
-                    if (parsed.total_input_tokens || parsed.total_output_tokens) _row('Tokens', `${(parsed.total_input_tokens||0).toLocaleString()} in / ${(parsed.total_output_tokens||0).toLocaleString()} out`);
-                    lastTool.appendChild(grid);
-                    if (parsed.description) {
-                        const descEl = document.createElement('div');
-                        descEl.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8;font-style:italic;max-height:40px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere';
-                        descEl.textContent = parsed.description;
-                        lastTool.appendChild(descEl);
-                        if (parsed.description.length > 120) {
-                            lastTool.style.cursor = 'pointer';
-                            let _wiExp = false;
-                            lastTool.addEventListener('click', (e) => {
-                                if (e.target.tagName === 'A') return;
-                                _wiExp = !_wiExp;
-                                descEl.style.maxHeight = _wiExp ? 'none' : '40px';
-                                descEl.style.overflowY = _wiExp ? 'visible' : 'hidden';
-                            });
-                        }
-                    }
-                }
-                if (tn.startsWith('mcp__orchestra__task_')) {
-                    _appendToolTechnicalDetails(lastTool, content);
-                }
-                addTimestamp(lastTool, ts);
-                // Панель задач обновляется на ЖИВОМ вызове инструмента. При отрисовке
-                // истории те же строки — это прошлое, и каждая из них дёргала бы полную
-                // перезагрузку панели: замер по живому дашборду — 8 пар запросов
-                if (!_replayingHistory
-                    && ['mcp__orchestra__task_create','mcp__orchestra__task_update'].includes(tn)) loadTasks();
-                return;
-            }
-            const _orchSimpleResults = {
-                'mcp__orchestra__kill_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped/); return m ? { text: `💀 ${m[1]} killed`, color: '#22c55e' } : null; },
-                'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} stopped`, color: '#22c55e' } : null; },
-                'mcp__orchestra__rename_worker': (c) => { const m = c.match(/Worker '(.+?)' renamed to '(.+?)'/); return m ? { text: `✏️ ${m[1]} → ${m[2]}`, color: '#22c55e' } : null; },
-                'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: '✅ Model changed', color: '#22c55e' }; },
-                'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — description updated`, color: '#22c55e' } : { text: '✅ description updated', color: '#22c55e' }; },
-                'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 Merged${m[1] ? ' ('+m[1]+' commits)' : ''}`, color: '#22c55e' } : null; },
-                'mcp__orchestra__send_message': (c) => { const m = c.match(/sent to '(.+?)'/i); return m ? { text: `✅ → ${m[1]}`, color: '#22c55e' } : c.includes('fail') || c.includes('error') || c.includes('Error') ? { text: `❌ ${c.substring(0, 60)}`, color: '#ef4444' } : { text: '✅ Sent', color: '#22c55e' }; },
-                'mcp__orchestra__compact_worker': null,
-                'mcp__orchestra__list_agents': null,
-                'mcp__orchestra__list_orchestrators': null,
-                'mcp__orchestra__get_worker_logs': null,
-                'mcp__orchestra__bg_create': (c) => { const m = c.match(/Background job created: (\S+)/); return m ? { text: `✅ Job ${m[1].slice(0,12)}`, color: '#22c55e' } : c.includes('rror') ? null : { text: '✅ Job created', color: '#22c55e' }; },
-                'mcp__orchestra__bg_cancel': (c) => { const m = c.match(/Job (\S+) cancelled/); return m ? { text: `⏹ ${m[1].slice(0,12)} cancelled`, color: '#94a3b8' } : c.includes('rror') ? null : { text: '⏹ Cancelled', color: '#94a3b8' }; },
-            };
-            const _orchResultCfg = _orchSimpleResults[lastTool.dataset.toolRawName];
-            if (_orchResultCfg !== undefined) {
-                const hdr = lastTool.querySelector('.flex.items-center');
-                if (typeof _orchResultCfg === 'function') {
-                    const hasErr = content.includes('failed') || content.includes('Failed') || content.includes('error') || content.includes('Error');
-                    if (hasErr) {
-                        const toolAction = lastTool.dataset.toolRawName.split('__').pop().replace(/_/g, ' ');
-                        if (hdr) { hdr.textContent = `❌ ${toolAction} failed`; hdr.style.color = '#ef4444'; }
-                        const errEl = document.createElement('div');
-                        errEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fca5a5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:54px;overflow-y:hidden;overflow-x:hidden';
-                        errEl.textContent = clean;
-                        lastTool.appendChild(errEl);
-                        if (clean.split('\n').length > 3 || clean.length > 200) {
-                            lastTool.style.cursor = 'pointer';
-                            let _errExp = false;
-                            lastTool.addEventListener('click', (e) => {
-                                if (e.target.tagName === 'A') return;
-                                _errExp = !_errExp;
-                                errEl.style.maxHeight = _errExp ? 'none' : '54px';
-                                errEl.style.overflowY = _errExp ? 'visible' : 'hidden';
-                            });
-                        }
-                    } else {
-                        const result = _orchResultCfg(clean);
-                        if (hdr) { hdr.textContent = result?.text || '✅ Done'; hdr.style.color = result?.color || '#22c55e'; }
-                    }
-                    addTimestamp(lastTool, ts);
-                    return;
-                }
-                if (lastTool.dataset.toolRawName === 'mcp__orchestra__compact_worker') {
-                    let workerName = '';
-                    try { const ci = lastTool.dataset.toolContent.indexOf(':'); const cd = JSON.parse(lastTool.dataset.toolContent.slice(ci+1)); workerName = cd.name || ''; } catch {}
-                    const pctMatch = clean.match(/(\d+)%\s*→\s*(\d+)%/);
-                    const sumMatch = clean.match(/Summary \((\d+) chars?\):\s*([\s\S]*)/);
-                    if (hdr && pctMatch) { hdr.textContent = `🗜 ${workerName ? workerName+': ' : ''}${pctMatch[1]}% → ${pctMatch[2]}%`; hdr.style.color = '#22c55e'; }
-                    else if (hdr) { hdr.textContent = `✅ ${workerName ? workerName+' ' : ''}Compacted`; hdr.style.color = '#22c55e'; }
-                    if (sumMatch) {
-                        const chars = sumMatch[1];
-                        const summaryText = sumMatch[2].trim();
-                        const charEl = document.createElement('div');
-                        charEl.style.cssText = 'font-size:10px;color:#64748b;margin-top:2px';
-                        charEl.textContent = `Summary: ${chars} chars`;
-                        lastTool.appendChild(charEl);
-                        if (summaryText) {
-                            const sumEl = document.createElement('div');
-                            sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;max-height:48px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
-                            sumEl.textContent = summaryText;
-                            lastTool.appendChild(sumEl);
-                            if (summaryText.split('\n').length > 3 || summaryText.length > 200) {
-                                lastTool.style.cursor = 'pointer';
-                                let _cExp = false;
-                                lastTool.addEventListener('click', (e) => {
-                                    if (e.target.tagName === 'A') return;
-                                    _cExp = !_cExp;
-                                    sumEl.style.maxHeight = _cExp ? 'none' : '48px';
-                                    sumEl.style.overflowY = _cExp ? 'visible' : 'hidden';
-                                });
-                            }
-                        }
-                    }
-                    addTimestamp(lastTool, ts);
-                    return;
-                }
-                if (lastTool.dataset.toolRawName === 'mcp__orchestra__list_agents' || lastTool.dataset.toolRawName === 'mcp__orchestra__list_orchestrators') {
-                    const agentSummary = _agentResultSummary(clean);
-                    const agentLines = agentSummary?.lines || [];
-                    if (agentLines.length > 0) {
-                        const PREVIEW_COUNT = 4;
-                        const container = document.createElement('div');
-                        container.style.cssText = 'margin-top:6px;display:flex;flex-direction:column;gap:4px';
-                        for (const [i, line] of agentLines.entries()) {
-                            const parts = line.split('|').map(p => p.trim());
-                            const nameRaw = parts[0] || '';
-                            const status = parts[1] || '';
-                            const model = parts[2] || '';
-                            let ctxRaw = '', taskId = '', desc = '';
-                            for (let pi = 3; pi < parts.length; pi++) {
-                                const p = parts[pi];
-                                if (p.match(/ctx:\d+%/)) ctxRaw = p;
-                                else if (p.startsWith('"')) desc = p.replace(/^"|"$/g, '');
-                                else if (p && !p.startsWith('$')) taskId = p;
-                            }
-                            const nameClean = nameRaw.replace(/\*\*/g, '').replace(/^[^\w]*/, '').trim();
-                            const icon = nameRaw.match(/[🎯⚙️🔧]/)?.[0] || '⚙️';
-                            const ctxPct = parseInt(ctxRaw.match(/(\d+)%/)?.[1] || '0');
-                            const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
-                            const isRunning = status.includes('running');
-                            const row = document.createElement('div');
-                            row.style.cssText = `padding:4px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${isRunning ? '#22c55e' : '#334155'}`;
-                            if (i >= PREVIEW_COUNT) row.style.display = 'none';
-                            row.dataset.agentRow = '1';
-                            let h = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(status)}</span></div>`;
-                            h += `<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span>`;
-                            if (taskId) h += `<span style="color:#a78bfa;font-weight:600">#${DOMPurify.sanitize(taskId.replace(/^[A-Z]+-/, ''))}</span>`;
-                            h += `<span style="display:inline-flex;align-items:center;gap:3px">ctx:<span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
-                            if (desc) h += `<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(desc)}</div>`;
-                            row.innerHTML = h;
-                            container.appendChild(row);
-                        }
-                        lastTool.appendChild(container);
-                        if (hdr) {
-                            const counts = agentSummary.counts;
-                            hdr.textContent = `🎼 Агенты · ${agentLines.length} всего`;
-                            hdr.style.color = counts.broken ? '#ef4444' : counts.waiting ? '#f59e0b' : '#a78bfa';
-                        }
-                        const counts = agentSummary.counts;
-                        const summary = document.createElement('div');
-                        summary.dataset.agentSummary = '1';
-                        summary.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8;display:flex;gap:10px;flex-wrap:wrap';
-                        const countText = _agentCountText(counts);
-                        summary.innerHTML = `<span style="color:#4ade80">${countText[0]}</span><span style="color:${counts.waiting ? '#f59e0b' : '#64748b'}">${countText[1]}</span><span style="color:${counts.broken ? '#ef4444' : '#64748b'}">${countText[2]}</span>`;
-                        lastTool.insertBefore(summary, container);
-                        const attention = agentSummary.agents.filter(agent => agent.status === 'waiting' || agent.status === 'broken');
-                        if (attention.length) {
-                            const attentionEl = document.createElement('div');
-                            attentionEl.dataset.agentAttention = '1';
-                            attentionEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fbbf24';
-                            attentionEl.textContent = `Требуют внимания: ${attention.map(agent => `${agent.name} — ${agent.status}`).join(', ')}`;
-                            lastTool.insertBefore(attentionEl, container);
-                        }
-                        if (agentLines.length > PREVIEW_COUNT) {
-                            const hint = document.createElement('div');
-                            hint.className = 'text-xs mt-1';
-                            hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
-                            hint.textContent = `▼ ${agentLines.length - PREVIEW_COUNT} more`;
-                            lastTool.appendChild(hint);
-                            let _alExp = false;
-                            lastTool.style.cursor = 'pointer';
-                            lastTool.addEventListener('click', (e) => {
-                                if (e.target.tagName === 'A') return;
-                                _alExp = !_alExp;
-                                container.querySelectorAll('[data-agent-row]').forEach((r, i) => {
-                                    if (i >= PREVIEW_COUNT) r.style.display = _alExp ? 'block' : 'none';
-                                });
-                                hint.textContent = _alExp ? '▲ collapse' : `▼ ${agentLines.length - PREVIEW_COUNT} more`;
-                            });
-                        }
-                        _appendToolTechnicalDetails(lastTool, content);
-                        addTimestamp(lastTool, ts);
-                        return;
-                    }
-                }
-                if (lastTool.dataset.toolRawName === 'mcp__orchestra__get_worker_logs') {
-                    const lines = clean.split('\n').filter(l => l.trim());
-                    let workerName = '';
-                    try { const ci = lastTool.dataset.toolContent.indexOf(':'); const cd = JSON.parse(lastTool.dataset.toolContent.slice(ci+1)); workerName = cd.name || ''; } catch {}
-                    if (hdr) { hdr.textContent = `📋 ${workerName ? workerName+': ' : ''}${lines.length} log entries`; hdr.style.color = '#a78bfa'; }
-                    if (lines.length > 0) {
-                        const PREVIEW_LOG = 6;
-                        const container = document.createElement('div');
-                        container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:1px';
-                        for (const [i, line] of lines.entries()) {
-                            const row = document.createElement('div');
-                            row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:3px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-                            row.dataset.logRow = '1';
-                            if (i >= PREVIEW_LOG) row.style.display = 'none';
-                            if (line.startsWith('❌')) row.style.color = '#f87171';
-                            else if (line.startsWith('👤')) row.style.color = '#818cf8';
-                            else if (line.startsWith('🔧')) row.style.color = '#38bdf8';
-                            row.textContent = line;
-                            row.title = line;
-                            container.appendChild(row);
-                        }
-                        lastTool.appendChild(container);
-                        if (lines.length > PREVIEW_LOG) {
-                            const hint = document.createElement('div');
-                            hint.className = 'text-xs mt-1';
-                            hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
-                            hint.textContent = `▼ ${lines.length - PREVIEW_LOG} more`;
-                            lastTool.appendChild(hint);
-                            let _logExp = false;
-                            lastTool.style.cursor = 'pointer';
-                            lastTool.addEventListener('click', (e) => {
-                                if (e.target.tagName === 'A') return;
-                                _logExp = !_logExp;
-                                container.querySelectorAll('[data-log-row]').forEach((r, i) => { if (i >= PREVIEW_LOG) r.style.display = _logExp ? 'block' : 'none'; });
-                                hint.textContent = _logExp ? '▲ collapse' : `▼ ${lines.length - PREVIEW_LOG} more`;
-                            });
-                        }
-                    }
-                    addTimestamp(lastTool, ts);
-                    return;
-                }
-                const resultEl = document.createElement('div');
-                resultEl.className = 'text-xs markdown-body';
-                resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
-                resultEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
-                lastTool.appendChild(resultEl);
-                const resLines = clean.split('\n');
-                if (resLines.length > 5) {
-                    const hint = document.createElement('div');
-                    hint.className = 'text-xs mt-1';
-                    hint.style.cssText = 'color:#38bdf8;cursor:pointer';
-                    hint.textContent = `▼ ${resLines.length - 5} more lines`;
-                    lastTool.appendChild(hint);
-                    let _orchExp = false;
-                    lastTool.style.cursor = 'pointer';
-                    lastTool.addEventListener('click', (e) => {
-                        if (e.target.tagName === 'A') return;
-                        _orchExp = !_orchExp;
-                        resultEl.style.maxHeight = _orchExp ? 'none' : '90px';
-                        resultEl.style.overflowY = _orchExp ? 'visible' : 'hidden';
-                        hint.textContent = _orchExp ? '▲ collapse' : `▼ ${resLines.length - 5} more lines`;
-                    });
-                }
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            if (lastTool.dataset.toolRawName === 'Glob') {
-                let _globPattern = '';
-                try { const _gp = JSON.parse(lastTool.dataset.toolContent.slice(lastTool.dataset.toolContent.indexOf(':') + 1)); _globPattern = _gp.pattern || ''; } catch {}
-                const globEl = renderGlobView(_globPattern, clean);
-                if (globEl) {
-                    lastTool.appendChild(globEl);
-                    const hdr = lastTool.querySelector('.flex.items-center');
-                    if (hdr) {
-                        const count = clean.split('\n').filter(l => l.trim()).length;
-                        hdr.textContent = `📂 Glob: ${_globPattern || '?'} (${count})`;
-                    }
-                    lastTool.style.cursor = 'pointer';
-                    lastTool.addEventListener('click', (e) => {
-                        if (e.target.tagName === 'A') return;
-                        const rest = globEl.querySelector('[data-role="read-rest"]');
-                        const more = globEl.querySelector('[data-role="read-more"]');
-                        if (rest && more) {
-                            const exp = rest.style.display !== 'none';
-                            rest.style.display = exp ? 'none' : 'block';
-                            const cnt = more.dataset.count;
-                            more.textContent = exp ? `▼ ${cnt} more files` : '▲ collapse';
-                        }
-                    });
-                } else {
-                    const noMatch = document.createElement('div');
-                    noMatch.className = 'text-xs';
-                    noMatch.style.cssText = 'margin-top:4px;color:#64748b;font-style:italic';
-                    noMatch.textContent = 'No files found';
-                    lastTool.appendChild(noMatch);
-                }
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            if (lastTool.dataset.toolRawName === 'Skill') {
-                const resultEl = document.createElement('div');
-                resultEl.className = 'text-xs';
-                resultEl.style.cssText = 'margin-top:6px;overflow-wrap:anywhere;white-space:pre-wrap;color:#cbd5e1';
-                resultEl.textContent = clean.length > 300 ? clean.slice(0, 300) + '…' : clean;
-                if (clean.length > 5) lastTool.appendChild(resultEl);
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            const isWebFetchResult = lastTool.dataset.toolRawName === 'WebFetch' || lastTool.dataset.toolRawName === 'mcp__websearch__web_fetch';
-            if (isWebFetchResult) {
-                const bodyEl = document.createElement('div');
-                bodyEl.className = 'text-xs markdown-body';
-                bodyEl.style.cssText = 'margin-top:6px;line-height:1.5;color:#cbd5e1;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word';
-                bodyEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
-                lastTool.appendChild(bodyEl);
-                const fetchLines = clean.split('\n');
-                if (fetchLines.length > 5) {
-                    const hint = document.createElement('div');
-                    hint.className = 'text-xs mt-1';
-                    hint.style.cssText = 'color:#38bdf8;cursor:pointer';
-                    hint.textContent = `▼ ${fetchLines.length - 5} more lines`;
-                    lastTool.appendChild(hint);
-                    let wfExpanded = false;
-                    lastTool.style.cursor = 'pointer';
-                    lastTool.addEventListener('click', (e) => {
-                        if (e.target.tagName === 'A') return;
-                        wfExpanded = !wfExpanded;
-                        bodyEl.style.maxHeight = wfExpanded ? 'none' : '90px';
-                        bodyEl.style.overflowY = wfExpanded ? 'visible' : 'hidden';
-                        hint.textContent = wfExpanded ? '▲ collapse' : `▼ ${fetchLines.length - 5} more lines`;
-                    });
-                }
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            const isWebSearch = lastTool.dataset.toolRawName === 'mcp__websearch__search' ||
-                                lastTool.dataset.toolRawName === 'mcp__websearch__search_web' ||
-                                lastTool.dataset.toolRawName === 'WebSearch';
-            if (isWebSearch) {
-                const wsEl = renderWebSearchResults(content);
-                if (wsEl) {
-                    const sep = document.createElement('div');
-                    sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
-                    sep.appendChild(wsEl);
-                    lastTool.appendChild(sep);
-                    addTimestamp(lastTool, ts);
-                    return;
-                }
-            }
-            if (lastTool.dataset.isBash) {
-                // harness bash (#369) prefixes the result with "exit_code=N" — surface it as a
-                // status mark in the header instead of a glued first output line.
-                let resText = clean;
-                const rcMatch = resText.match(/^exit_code=(-?\d+)[ \t]*\r?\n?/);
-                if (rcMatch) {
-                    const rc = parseInt(rcMatch[1], 10);
-                    const hdrEl = lastTool.querySelector('.flex.items-center');
-                    if (hdrEl) {
-                        const st = document.createElement('span');
-                        st.textContent = rc === 0 ? '✓ 0' : `✗ exit ${rc}`;
-                        st.style.cssText = `font-size:10px;font-weight:normal;margin-left:auto;color:${rc === 0 ? '#4ade80' : '#f87171'}`;
-                        hdrEl.appendChild(st);
-                    }
-                    if (rc === 0) resText = resText.slice(rcMatch[0].length);
-                }
-                const sep = document.createElement('div');
-                sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
-                const resLines = resText.split('\n');
-                const BASH_PREVIEW = 5;
-                const resWrap = document.createElement('div');
-                resWrap.className = 'diff-view';
-                const previewPre = document.createElement('pre');
-                previewPre.style.cssText = 'margin:0;padding:6px 8px;font-size:11px;overflow-x:auto;background:#0d1117;border:none';
-                previewPre.textContent = resLines.slice(0, BASH_PREVIEW).join('\n');
-                resWrap.appendChild(previewPre);
-                if (resLines.length > BASH_PREVIEW) {
-                    const restPre = document.createElement('pre');
-                    restPre.style.cssText = 'margin:0;padding:0 8px 6px;font-size:11px;overflow-x:auto;background:#0d1117;border:none;display:none';
-                    restPre.dataset.role = 'bash-result';
-                    restPre.textContent = resLines.slice(BASH_PREVIEW).join('\n');
-                    resWrap.appendChild(restPre);
-                    const resHint = document.createElement('div');
-                    resHint.className = 'diff-file';
-                    resHint.dataset.role = 'bash-result-hint';
-                    resHint.dataset.count = resLines.length - BASH_PREVIEW;
-                    resHint.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
-                    resHint.textContent = `▼ ${resLines.length - BASH_PREVIEW} more lines`;
-                    resWrap.appendChild(resHint);
-                }
-                sep.appendChild(resWrap);
-                lastTool.appendChild(sep);
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            if (lastTool.dataset.isGrep) {
-                const grepEl = renderGrepResults(clean, lastTool.dataset.grepPattern);
-                if (grepEl) {
-                    lastTool.appendChild(grepEl);
-                    lastTool.style.cursor = 'pointer';
-                    lastTool.addEventListener('click', () => {
-                        const restEl = grepEl.querySelector('[data-role="read-rest"]');
-                        const moreEl = grepEl.querySelector('[data-role="read-more"]');
-                        if (restEl && moreEl) {
-                            const showing = restEl.style.display !== 'none';
-                            restEl.style.display = showing ? 'none' : 'block';
-                            moreEl.textContent = showing ? `▼ ${moreEl.dataset.count} more lines` : `▲ collapse`;
-                        }
-                    });
-                }
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            if (lastTool.dataset.isRead) {
-                delete lastTool.dataset.lastTool;
-                const readContainer = lastTool.querySelector('.diff-view');
-                if (readContainer) {
-                    const skeletonEl = readContainer.querySelector('[data-role="read-skeleton"]');
-                    if (skeletonEl) skeletonEl.remove();
-                    const readPath = readContainer.dataset.readPath || '';
-                    if (/\.md$/i.test(readPath)) {
-                        const mdClean = clean.replace(/^\s*\d+\t/gm, '');
-                        readContainer.style.overflowX = 'hidden';
-                        readContainer.style.maxWidth = '100%';
-                        const mdEl = document.createElement('div');
-                        mdEl.className = 'markdown-body';
-                        mdEl.style.cssText = 'padding:6px 8px;font-size:11px;overflow-wrap:anywhere;word-break:break-word;overflow-x:hidden;max-width:100%;max-height:90px;overflow-y:hidden';
-                        mdEl.innerHTML = DOMPurify.sanitize(marked.parse(mdClean), {ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'disabled', 'type']});
-                        const MD_PREVIEW_H = 90;
-                        readContainer.appendChild(mdEl);
-                        const moreEl = document.createElement('div');
-                        moreEl.className = 'diff-file';
-                        moreEl.dataset.role = 'read-more';
-                        moreEl.dataset.count = '0';
-                        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
-                        moreEl.textContent = '▼ more';
-                        readContainer.appendChild(moreEl);
-                        requestAnimationFrame(() => {
-                            if (mdEl.scrollHeight <= MD_PREVIEW_H + 4) {
-                                moreEl.style.display = 'none';
-                                mdEl.style.maxHeight = 'none';
-                                mdEl.style.overflowY = 'visible';
-                            }
-                        });
-                        let mdExpanded = false;
-                        const toggleMd = () => {
-                            mdExpanded = !mdExpanded;
-                            mdEl.style.maxHeight = mdExpanded ? 'none' : MD_PREVIEW_H + 'px';
-                            mdEl.style.overflowY = mdExpanded ? 'visible' : 'hidden';
-                            moreEl.textContent = mdExpanded ? '▲ collapse' : '▼ more';
-                        };
-                        lastTool.style.cursor = 'pointer';
-                        lastTool.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleMd(); });
-                        addTimestamp(lastTool, ts);
-                        return;
-                    }
-                    if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(readPath)) {
-                        const img = document.createElement('img');
-                        img.src = `/api/files/raw?path=${encodeURIComponent(readPath)}&t=${Date.now()}`;
-                        img.loading = 'lazy';
-                        img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
-                        img.addEventListener('click', () => openImageLightbox(img.src));
-                        readContainer.appendChild(img);
-                        addTimestamp(lastTool, ts);
-                        return;
-                    }
-                    const lines = clean.split('\n').map(l => l.length > 200 ? l.slice(0, 200) + '…' : l);
-                    const PREVIEW = 5;
-                    const previewL = lines.slice(0, PREVIEW);
-                    const restL = lines.slice(PREVIEW);
-                    for (const line of previewL) {
-                        readContainer.appendChild(_diffContextLine(line));
-                    }
-                    if (restL.length > 0) {
-                        const restEl = document.createElement('div');
-                        restEl.dataset.role = 'read-rest';
-                        restEl.style.display = 'none';
-                        for (const line of restL) {
-                            restEl.appendChild(_diffContextLine(line));
-                        }
-                        readContainer.appendChild(restEl);
-                        const moreEl = document.createElement('div');
-                        moreEl.className = 'diff-file';
-                        moreEl.dataset.role = 'read-more';
-                        moreEl.dataset.count = restL.length;
-                        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
-                        moreEl.textContent = `▼ ${restL.length} more lines`;
-                        readContainer.appendChild(moreEl);
-                    }
-                }
-                addTimestamp(lastTool, ts);
-                return;
-            }
-            let _resultJsonParsed = null;
-            try { _resultJsonParsed = JSON.parse(content); } catch {}
-            if (_resultJsonParsed && typeof _resultJsonParsed === 'object' && !Array.isArray(_resultJsonParsed)) {
-                let data = _resultJsonParsed;
-                if (data.result !== undefined && Object.keys(data).length === 1) {
-                    if (typeof data.result === 'string') {
-                        try { data = JSON.parse(data.result); } catch { data = null; }
-                    } else if (typeof data.result === 'object' && data.result !== null) {
-                        data = data.result;
-                    } else { data = null; }
-                }
-                if (data && typeof data === 'object' && !Array.isArray(data)) {
-                    const hdr = lastTool.querySelector('.flex.items-center');
-                    const hasErr = data.error || data.Error;
-                    if (hdr && hasErr) {
-                        hdr.textContent = `❌ ${DOMPurify.sanitize(String(data.error || data.Error)).slice(0, 80)}`;
-                        hdr.style.color = '#ef4444';
-                    } else if (hdr && !hdr.textContent.includes('✅') && !hdr.textContent.includes('❌')) {
-                        hdr.textContent = hdr.textContent.replace(/⏳.*$/, '✅ Done');
-                    }
-                    lastTool.dataset.toolContent += '\n\n' + content;
-                    const gridWrap = document.createElement('div');
-                    gridWrap.style.cssText = 'margin-top:4px';
-                    _renderJsonGrid(data, gridWrap);
-                    lastTool.appendChild(gridWrap);
-                    addTimestamp(lastTool, ts);
-                    return;
-                }
-            }
-            lastTool.dataset.toolContent += '\n\n' + content;
-            const oldCopy = lastTool.querySelector('.copy-btn');
-            if (oldCopy) oldCopy.remove();
-            addCopyBtn(lastTool, lastTool.dataset.toolContent);
-
-            const resultEl = document.createElement('div');
-            resultEl.className = 'text-xs result-body';
-            resultEl.style.cssText = 'white-space:pre-wrap;margin-top:6px';
-            resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
-            lastTool.appendChild(resultEl);
-            if (full) {
-                const rHint = document.createElement('div');
-                rHint.className = 'text-xs mt-1 result-hint';
-                rHint.style.cssText = 'color:#38bdf8;cursor:pointer';
-                rHint.textContent = `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
-                lastTool.appendChild(rHint);
-                let rExpanded = false;
-                const toggleResult = () => {
-                    rExpanded = !rExpanded;
-                    resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(rExpanded ? full : preview, {ADD_ATTR: ['target']});
-                    rHint.textContent = rExpanded ? '▲ collapse' : `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
-                };
-                lastTool.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleResult(); });
-            }
-            addTimestamp(lastTool, ts);
-            return;
-        }
-
-        const wsStandalone = renderWebSearchResults(content);
-        if (wsStandalone) {
-            const sep = document.createElement('div');
-            sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
-            sep.appendChild(wsStandalone);
-            div.appendChild(sep);
-            addTimestamp(div, ts);
-            _insertAndFollow(div);
-            return;
-        }
-
-        let _standaloneJson = null;
-        try { _standaloneJson = JSON.parse(content); } catch {}
-        if (_standaloneJson && typeof _standaloneJson === 'object' && !Array.isArray(_standaloneJson)) {
-            let sData = _standaloneJson;
-            if (sData.result !== undefined && Object.keys(sData).length === 1) {
-                if (typeof sData.result === 'string') { try { sData = JSON.parse(sData.result); } catch { sData = null; } }
-                else if (typeof sData.result === 'object' && sData.result !== null) sData = sData.result;
-                else sData = null;
-            }
-            if (sData && typeof sData === 'object' && !Array.isArray(sData)) {
-                const gridWrap = document.createElement('div');
-                gridWrap.style.cssText = 'margin-top:4px';
-                _renderJsonGrid(sData, gridWrap);
-                div.appendChild(gridWrap);
-                addTimestamp(div, ts);
-                _insertAndFollow(div);
-                return;
-            }
-        }
-        const resultBody = document.createElement('div');
-        resultBody.style.whiteSpace = 'pre-wrap';
-        resultBody.innerHTML = '📎 ' + DOMPurify.sanitize(preview, {ADD_ATTR: ['target']});
-        div.appendChild(resultBody);
-        if (full) {
-            const sHint = document.createElement('div');
-            sHint.className = 'text-xs mt-1';
-            sHint.style.cssText = 'color:#38bdf8;cursor:pointer';
-            sHint.textContent = `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
-            div.appendChild(sHint);
-            let sExpanded = false;
-            const toggleStandalone = () => {
-                sExpanded = !sExpanded;
-                resultBody.innerHTML = '📎 ' + DOMPurify.sanitize(sExpanded ? full : preview, {ADD_ATTR: ['target']});
-                sHint.textContent = sExpanded ? '▲ collapse' : `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
-            };
-            div.style.cursor = 'pointer';
-            div.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleStandalone(); });
-        }
+        if (!_renderFullToolResult(content, ts, payload, anchor, div, _insertAndFollow, _isBase64Image)) return;
     }
     else if (type === 'error') {
         if (/rate.?limit/i.test(content)) {
