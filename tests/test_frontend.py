@@ -2648,7 +2648,7 @@ def test_load_more_keeps_tool_use_id_for_old_parallel_calls(
 
 
 def test_load_more_increases_visible_cards(dashboard_browser: Browser):
-    """Нажатие «Load 500 more» должно увеличить число рендернутых карточек."""
+    """Нажатие «Дозагрузить предыдущие 500» увеличивает число карточек один раз."""
     page = _open_tool_correlation_page(dashboard_browser, False)
     page.route(
         "**/api/sessions/history-fixture/logs*",
@@ -2694,6 +2694,72 @@ def test_load_more_increases_visible_cards(dashboard_browser: Browser):
     page.close()
 
     assert after > before, (before, after)
+
+
+def test_short_snapshot_offers_one_shot_previous_500_without_cache(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_correlation_page(dashboard_browser, False)
+    requests: list[str] = []
+    older = [
+        {"id": 90 + i, "session_id": "history-id", "type": "text",
+         "content": f"older-{i}", "ts": "2026-08-28T08:00:00+00:00"}
+        for i in range(10)
+    ]
+
+    def history_route(route):
+        requests.append(route.request.url)
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(older))
+
+    page.route("**/api/sessions/history-fixture/logs*", history_route)
+    before = page.evaluate("""() => {
+        selectedAgent = 'history-fixture';
+        currentScope = '/fixture';
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        const chat = document.querySelector('#chat');
+        chat.replaceChildren();
+        _renderHistory(selectedAgent, Array.from({length: 10}, (_, i) => ({
+            id: 100 + i,
+            session_id: 'history-id',
+            type: 'text',
+            content: `current-${i}`,
+            ts: '2026-08-28T09:00:00+00:00',
+        })));
+        return document.querySelector('#load-more-btn')?.textContent || '';
+    }""")
+
+    page.click("#load-more-btn")
+    page.wait_for_function(
+        "() => (document.querySelector('#chat')?.textContent || '').includes('older-0')",
+        timeout=10000,
+    )
+    after = page.evaluate("""() => {
+        updateLoadMoreBtn();
+        const hiddenAfterRefresh = !document.querySelector('#load-more-btn');
+        const loaded = chatLogs['history-fixture']?.olderPageLoaded === true;
+        document.querySelector('#chat').replaceChildren();
+        _renderHistory('history-fixture', [{
+            id: 109, session_id: 'history-id', type: 'text', content: 're-entry',
+            ts: '2026-08-28T09:00:00+00:00',
+        }]);
+        return {
+            hiddenAfterRefresh,
+            loaded,
+            reentryButton: document.querySelector('#load-more-btn')?.textContent || '',
+        };
+    }""")
+    page.close()
+
+    assert before == "▲ Дозагрузить предыдущие 500"
+    assert after == {
+        "hiddenAfterRefresh": True,
+        "loaded": True,
+        "reentryButton": "▲ Дозагрузить предыдущие 500",
+    }
+    assert len(requests) == 1
+    assert "before_id=100" in requests[0]
+    assert "limit=500" in requests[0]
+    assert "cap=16384" in requests[0]
 
 
 def test_tool_view_mode_is_visible_without_desktop_header_overflow(
