@@ -59,7 +59,7 @@ from app.session_hibernate import HibernateManager
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER,
 )
-from app.session_turns import TurnManager
+from app.session_turns import CRITICAL_AUTO_COMPACT_PCT, TurnManager
 from app.usage_contract import KnownContext, current_context
 
 if TYPE_CHECKING:
@@ -322,11 +322,11 @@ def _configured_auto_compact_window_state(
 
 
 def auto_compact_enabled() -> bool:
-    """`AUTO_COMPACT_ENABLED=0` полностью выключает АВТОМАТИЧЕСКИЙ компакт оркестратора.
+    """`AUTO_COMPACT_ENABLED=0` выключает плановый автокомпакт оркестратора.
 
     Ручной `compact_worker` не затрагивается — это аварийный выход. Воркерский автокомпакт
-    по >90% тоже: он держит воркера работоспособным, а жалоба была про оркестратора, который
-    к утру приходил с компакта посреди начатой ночью работы.
+    по >90% тоже. Критический компакт при >=99% обходит выключатель для любой роли и модели:
+    это последняя защита от жёсткого лимита runtime, а не фоновая оптимизация по расписанию.
 
     Читается на КАЖДОМ решении, а не при импорте: иначе значение застывает на момент старта
     процесса, и правка `.env` не действует до перезапуска даже там, где могла бы.
@@ -570,6 +570,8 @@ class AgentSession:
     def _auto_compact_window_blocked(
             self, context_pct: int, now_utc: datetime | None = None,
             *, log_status: bool = True, deferred: bool = False) -> bool:
+        if context_pct >= CRITICAL_AUTO_COMPACT_PCT:
+            return False
         if not self.is_orchestrator:
             return False
         if not auto_compact_enabled():
@@ -726,8 +728,13 @@ class AgentSession:
             self._precompact_timer = None
             return
 
+        critical_context = (
+            self._context_is_known()
+            and self._last_context.get("percentage", 0) >= CRITICAL_AUTO_COMPACT_PCT
+        )
+
         from app.bg_jobs import bg_manager
-        if bg_manager and bg_manager.has_active_jobs(self.id):
+        if not critical_context and bg_manager and bg_manager.has_active_jobs(self.id):
             state["skip_reason"] = "active_bg_jobs"
             self._log(
                 "status",
@@ -737,7 +744,9 @@ class AgentSession:
             return
 
         policy = self._precompact_policy()
-        if policy is None or state.get("backend") != self.backend_type:
+        if not critical_context and (
+            policy is None or state.get("backend") != self.backend_type
+        ):
             state["skip_reason"] = "backend_changed"
             self._log(
                 "status",
@@ -755,8 +764,11 @@ class AgentSession:
             self._precompact_timer = None
             return
 
-        threshold = int(state.get("context_threshold", policy["context_threshold"]))
-        if self._last_context.get("percentage", 0) < threshold:
+        threshold = (
+            0 if critical_context
+            else int(state.get("context_threshold", policy["context_threshold"]))
+        )
+        if not critical_context and self._last_context.get("percentage", 0) < threshold:
             state["skip_reason"] = "low_context"
             self._log(
                 "status",
@@ -765,7 +777,13 @@ class AgentSession:
             self._precompact_timer = None
             return
 
-        if self._auto_compact_window_blocked(
+        if critical_context:
+            self._log(
+                "status",
+                f"critical auto-compact firing ({self._last_context.get('percentage', 0)}%): "
+                "configured window and AUTO_COMPACT_ENABLED bypassed",
+            )
+        elif self._auto_compact_window_blocked(
                 self._last_context.get("percentage", 0), fired_at,
                 log_status=not state.get("window_warning_logged", False)):
             state["skip_reason"] = "outside_auto_compact_window"
@@ -2754,7 +2772,7 @@ class AgentSession:
             return {"ok": False, "error": "compact already in progress"}
         if self.status == AgentStatus.RUNNING:
             return {"ok": False, "error": "cannot compact while agent is running"}
-        if _claude_subscription_limit_active():
+        if self.backend_type == "claude" and _claude_subscription_limit_active():
             error = "Claude subscription limit active; compact postponed until quota reset"
             self._log("error", error)
             return {"ok": False, "error": error}
@@ -3149,8 +3167,9 @@ class AgentSession:
         except Exception as e:
             logger.debug(f"[{self.name}] context refresh failed: {e}")
 
-    async def _auto_compact(self) -> None:
-        await asyncio.sleep(2)
+    async def _auto_compact(self, *, delay_seconds: float = 2) -> None:
+        if delay_seconds > 0:
+            await asyncio.sleep(delay_seconds)
         try:
             await self.compact()
         except Exception as e:

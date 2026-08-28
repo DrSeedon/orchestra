@@ -2396,6 +2396,102 @@ class TestPrecompactTimer:
         ]
         session.compact.assert_not_awaited()
 
+    @pytest.mark.parametrize("backend", ["claude", "codex", "grok", "harness"])
+    @pytest.mark.parametrize("is_orchestrator", [False, True])
+    def test_critical_99_compacts_immediately_for_every_runtime_and_role(
+        self, session, monkeypatch, backend, is_orchestrator,
+    ):
+        logs = []
+        spawned = []
+        session.backend_type = backend
+        session._is_orchestrator = is_orchestrator
+        session._compacting = False
+        session._schedule_precompact_timer = MagicMock()
+        session._cancel_precompact_timer = MagicMock()
+        session._auto_compact_window_state = MagicMock(side_effect=AssertionError)
+        session._auto_compact = MagicMock()
+        session._log = lambda kind, content, **_kw: logs.append((kind, content))
+        monkeypatch.setenv("AUTO_COMPACT_ENABLED", "0")
+
+        async def immediate_compact():
+            return None
+
+        session._auto_compact.return_value = immediate_compact()
+
+        def capture(coro):
+            spawned.append(coro)
+            coro.close()
+
+        session._spawn_bg = capture
+        session._turns.schedule_context_compaction(99)
+
+        session._schedule_precompact_timer.assert_not_called()
+        session._cancel_precompact_timer.assert_called_once_with("critical_context")
+        session._auto_compact.assert_called_once_with(delay_seconds=0)
+        assert len(spawned) == 1
+        assert any(
+            kind == "status" and "critical auto-compact triggered (99%)" in content
+            for kind, content in logs
+        )
+        session._auto_compact_window_state.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("backend", ["claude", "codex", "grok", "harness"])
+    async def test_already_armed_timer_at_99_bypasses_window_and_kill_switch(
+        self, session, monkeypatch, backend,
+    ):
+        from app.session import AgentStatus
+
+        logs = []
+        session.backend_type = backend
+        session._is_orchestrator = True
+        session.status = AgentStatus.IDLE
+        session._last_context = {"percentage": 99, "known": True}
+        session._log = lambda kind, content, **_kw: logs.append((kind, content))
+        session.compact = AsyncMock(return_value={"ok": True})
+        session._auto_compact_window_state = MagicMock(side_effect=AssertionError)
+        session._precompact_timer = {
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
+            "backend": backend,
+            "context_threshold": 20 if backend == "claude" else 60,
+        }
+        monkeypatch.setenv("AUTO_COMPACT_ENABLED", "0")
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager",
+            MagicMock(has_active_jobs=lambda *_: False),
+        )
+
+        await session._fire_precompact_timer()
+
+        session.compact.assert_awaited_once_with()
+        session._auto_compact_window_state.assert_not_called()
+        assert any(
+            kind == "status" and "critical auto-compact firing (99%)" in content
+            for kind, content in logs
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("backend", ["grok", "harness"])
+    async def test_non_claude_critical_compact_ignores_claude_subscription_limit(
+        self, session, monkeypatch, backend,
+    ):
+        from app.session import AgentStatus
+
+        session.backend_type = backend
+        session.status = AgentStatus.IDLE
+        session._compacting = False
+        session._compaction_permit = AsyncMock(
+            side_effect=RuntimeError("non-claude permit marker")
+        )
+        monkeypatch.setattr(
+            "app.session._claude_subscription_limit_active", lambda: True,
+        )
+
+        result = await session.compact()
+
+        assert result == {"ok": False, "error": "non-claude permit marker"}
+        session._compaction_permit.assert_awaited_once_with(reserve=True)
+
     def test_codex_post_turn_schedules_native_precompact_without_generic_handoff(self, session):
         spawned = []
         logs = []
