@@ -1387,7 +1387,10 @@ def test_send_files_batch_renders_paths_and_download_actions(
 
     card = page.locator('[data-tool-raw-name="mcp__orchestra__send_files"]')
     expect(card.locator(".sf-file-item")).to_have_count(3)
-    expect(card.locator(".sf-file-item button")).to_have_count(3)
+    # У просматриваемого файла (PDF) кнопок ДВЕ: «Открыть» и «Download». Считаем их
+    # раздельно — общее число молча поменяется от любого нового действия в строке.
+    expect(card.locator(".sf-file-item button", has_text="Download")).to_have_count(3)
+    expect(card.locator(".sf-file-item button", has_text="Открыть")).to_have_count(3)
     expect(card.locator(".sf-actions button")).to_have_count(1)
     expect(card.locator(".sf-actions button")).to_contain_text("Download all")
     expect(card.locator(".tool-body")).to_have_count(0)

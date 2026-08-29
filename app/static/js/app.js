@@ -163,6 +163,15 @@ function _sendFileRawUrl(path, download = false, preview = false) {
     return `/api/files/raw?path=${encodeURIComponent(path)}${download ? '&download=1' : preview ? '&preview=640' : ''}`;
 }
 
+// Форматы, которые браузер ОТКРЫВАЕТ, а не предлагает сохранить. Картинки сюда не входят:
+// у них уже есть превью и лайтбокс по клику, вторая кнопка была бы дублем.
+const _SEND_FILE_OPENABLE = /\.(html?|pdf|txt|md|json|csv|log|xml|ya?ml)$/i;
+
+function _openSendFile(path) {
+    // `download=1` НЕ ставим: именно этот флаг заставляет браузер сохранять вместо показа.
+    window.open(_sendFileRawUrl(path), '_blank', 'noopener');
+}
+
 function _downloadSendFile(path) {
     const link = document.createElement('a');
     link.href = _sendFileRawUrl(path, true);
@@ -233,6 +242,9 @@ function renderSendFilesToolCard(node, paths, {downloads = false} = {}) {
         pathEl.style.cssText = 'font-size:10px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
         details.append(name, pathEl);
         row.appendChild(details);
+        if (downloads && _SEND_FILE_OPENABLE.test(path)) {
+            row.appendChild(_sendFileButton('🔗 Открыть', () => _openSendFile(path)));
+        }
         if (downloads) row.appendChild(_sendFileButton('📥 Download', () => _downloadSendFile(path)));
         list.appendChild(row);
         rows.push(row);
