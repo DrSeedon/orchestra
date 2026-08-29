@@ -845,7 +845,8 @@ def _clean_worktree_error(path: Path, label: str) -> str | None:
     dirty_files = [line[3:] for line in dirty_lines[:10]]
     suffix = f", +{len(dirty_lines) - 10} more" if len(dirty_lines) > 10 else ""
     return (
-        f"{label} working tree is dirty ({len(dirty_lines)} file(s): "
+        f"{label} working tree is dirty at '{path.resolve()}' "
+        f"({len(dirty_lines)} file(s): "
         f"{', '.join(dirty_files)}{suffix}) — commit or discard first"
     )
 

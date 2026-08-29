@@ -939,6 +939,12 @@ def _classify_failure(raw: dict[str, Any], message: str) -> tuple[str, dict[str,
             "Target moved after admission; start a fresh merge operation.",
         )
     if raw.get("code") == "NO_COMMITS_MERGED":
+        if "target working tree is dirty" in lower:
+            details["paths_text"] = message
+            return "NO_COMMITS_MERGED", details, _action(
+                "CLEAN_TARGET_THEN_NEW_OPERATION",
+                "Clean the target worktree, then start a new merge operation.",
+            )
         return "NO_COMMITS_MERGED", details, _action(
             "CHECK_WORKER_THEN_NEW_OPERATION",
             "No commits reached the target branch; verify the worker branch before retrying.",
@@ -1032,7 +1038,7 @@ def normalize_merge_result(
             "state": "failed",
             "commit_point": "not_reached",
             "code": "NO_COMMITS_MERGED",
-            "error": "merge produced no new commits",
+            "error": raw.get("error") or "merge produced no new commits",
         }
 
     raw_state = str(raw.get("state") or ("merged" if raw.get("ok") else "failed"))
@@ -1049,6 +1055,8 @@ def normalize_merge_result(
         git_status = "SUCCEEDED"
     elif raw_state == "conflict" or conflicts:
         git_status = "CONFLICT"
+    elif raw.get("code") == "NO_COMMITS_MERGED":
+        git_status = "FAILED"
     elif "working tree is dirty" in message.lower():
         git_status = "DIRTY"
     elif commit_point == "UNKNOWN":
