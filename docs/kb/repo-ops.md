@@ -12,6 +12,8 @@
 
 ### Git, файлы, деплой
 
+- **#416 исправляет ложный `NO_COMMITS_MERGED` без новой state-машины:** no-op сохраняет непустой raw error, пустой error получает прежний default; dirty target добавляет абсолютный checkout path и cleanup action, а code остаётся `NO_COMMITS_MERGED`. Оракулы поймали обе обратные мутации (`RC=1`) и позеленели после restore; полный охват 180 test-файлов дал 46 падений, все 46 воспроизвелись на `main@152300b5` · `docs/tasks/416/report.md`, commits `8f836a39`, `05fa35bc`, `88ea0353` · 2026-08-29, #416
+- **`normalize_merge_result` не должен превращать well-typed pre-merge отказ в `NO_COMMITS_MERGED` только потому, что target ref не изменился и `commits_merged=0`.** Инцидент `cradle-globe`: target checkout содержал `?? docs/tasks/49/`; scratch дал raw `target working tree is dirty`, затем текущий normalizer заменил его на «verify the worker branch», а после очистки target тот же worker дал `commits_merged=1`. Причина — predicate из `43a96ed3` не отличает success claim от `ok=false/state=failed/commit_point=not_reached` · `docs/tasks/416/research.md`, stand `/tmp/orchestra-416-stand-qPWTxz`, logs id `532074` · 2026-08-29, #416
 - **`uv run` не делает exec — он порождает ребёнка, поэтому `ExecStart=uv run …` ломает любой контракт systemd, завязанный на pid exec'нутого процесса (`LISTEN_PID`/`sd_listen_fds`, `sd_notify`, `MainPID`). В юнитах — прямой путь к интерпретатору.** Сервис при этом выглядит рабочим, расхождение вскрывается только там, где на pid кто-то опирается. Замер 18.08 (#324), обе стороны одной командой: `LISTEN_PID=$$ exec uv run --no-project python …` → `LISTEN_PID=2751595, pid=2751601, MATCH=False`; `LISTEN_PID=$$ exec .venv/bin/python …` → `2751602 == 2751602, MATCH=True`. На этом признаке висят усыновление агентов (`app/fdstore.py:92`) и гейт TG-моста (`app/tg_bridge.py:3751`): живой сервис проходит их только благодаря untracked drop-in `60-runtime-isolation.conf` с прямым exec, а трекнутый `deploy/orchestra.service` до #324 содержал `uv run` — на конфигурации из репозитория мост отказал бы молча. Отсюда же: **эффективный юнит смотреть `systemctl cat <unit>`, а не `cat` файла** (drop-in прячет фактический `ExecStart`), и расхождение «наблюдаемый процесс (`ps`) ≠ прочитанный конфиг» — это САМА находка, а не фон: автор #324 видел оба факта на экране одновременно и не спросил, почему они разные
 - merge воркера не проходит на ровном месте → инжектированные `.claude/skills/` дёргают дерево → исключать через git common-dir `info/exclude`, не `.gitignore`. НО `info/exclude` бессилен против ОТСЛЕЖИВАЕМЫХ файлов: в репо, который версионирует свои `.claude/skills/*/SKILL.md`, инъекция = модификация трекнутого файла, дерево грязное навсегда. Правило общее: платформа НИКОГДА не пишет поверх файла, который репозиторий трекает (`workspace.tracked_paths`) — как и зеркало `AGENTS.md`. Untracked-копии (`.env`) при спавне сами попадают в `info/exclude`
 - В `.gitignore` строка `workers/` глотает и `docs/workers/` → нужен `!docs/workers/` (строки 9-10, не «почистить»): иначе воркер молча теряет личную память или делает `git add -f`
@@ -64,10 +66,12 @@
 ## Отвергнуто
 
 - (пусто на момент переноса #347 — отозванные утверждения помечены прямо внутри пунктов выше)
+- «Обычная занятость target-ветки другим worktree ломает `merge_worktree_to_main`» · прямой `git checkout main` из worker дал RC 128, но owner-aware production path на той же топологии смержил 1 коммит; два focused теста дали `2 passed` · 2026-08-29, #416
 - «Обычный restart service не помог, потому что socket сохранил старую очередь» · новый PID 1191988 до полного recycle обслужил `/api/usage/readiness` → 200 и `/` → 302; stand с queue 350 дал свежий 200 в 3/3 · 2026-08-23, #379
 
 ## Пробелы
 
+- Raw cause второй `cradle-globe` operation не восстановить: persistent result уже нормализован; для третьей операции dirty target подтверждён log snapshot за 5.4 с до вызова · 2026-08-29, #416
 - Пункты выше не проверялись на дубли между собой построчно: перенос #347 сохранял текст
   дословно, слияние формулировок делалось только в `CLAUDE.md` · 2026-08-19, #347
 - Точный blocking asyncio/default-executor work item PID 1092440 не снят до hard recovery; journal доказывает живой loop через +600 с, но thread/task stack отсутствует · 2026-08-23, #379
@@ -76,6 +80,8 @@
 
 ## Источники
 
+- docs/tasks/416/report.md — minimal no-op/raw-error fix, actionable dirty target и mutation/full-corpus evidence
+- docs/tasks/416/research.md — dirty-target incident, refuted busy-branch hypothesis и destructive normalization
 - docs/tasks/379/research.md — causal postmortem socket queue, post-Uvicorn hang и uvloop listener-FD leak
 
 - `CLAUDE.md` — короткие правила «триггер → действие», ссылающиеся сюда
