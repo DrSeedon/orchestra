@@ -5,6 +5,7 @@
 не менялась никогда. Молчаливая заглушка вместо причины и есть баг.
 """
 import re
+import time
 from pathlib import Path
 
 import pytest
@@ -71,6 +72,53 @@ def _slot_text(browser: Browser, api_script: str) -> str:
     )
     page.close()
     return result
+
+
+def test_slow_usage_aggregation_is_one_valid_request_not_a_network_failure(browser):
+    page = _page_with_api(browser)
+    page.evaluate("""() => {
+        const banner = document.createElement('div');
+        banner.id = 'connection-banner';
+        banner.className = 'hidden';
+        document.body.prepend(banner);
+        window.marked = {setOptions() {}, parse(value) { return value; }};
+        window.DOMPurify = {addHook() {}};
+    }""")
+    calls = []
+
+    def api_route(route):
+        path = route.request.url.split("?", 1)[0]
+        calls.append(path)
+        if path.endswith("/api/usage"):
+            time.sleep(2.5)
+            body = {
+                "anthropic": {
+                    "five_hour": {"utilization": 27, "resets_at": None},
+                    "seven_day": {"utilization": 41, "resets_at": None},
+                },
+                "codex": None,
+                "grok": None,
+                "orchestra": {},
+            }
+        else:
+            body = {"buckets": []}
+        route.fulfill(status=200, content_type="application/json", json=body)
+
+    page.route("**/api/usage**", api_route)
+    page.add_script_tag(path=str(USAGE_JS))
+
+    started = time.monotonic()
+    page.evaluate("() => fetchUsage()")
+    page.wait_for_function("() => _usageFetchPromise === null", timeout=10_000)
+    elapsed = time.monotonic() - started
+
+    assert calls.count("http://harness.local/api/usage") == 1
+    assert 2.4 <= elapsed < 6
+    assert "27%" in (page.locator("#usage-bar").text_content() or "")
+    assert "Связь нестабильна" not in (
+        page.locator("#connection-banner").text_content() or ""
+    )
+    page.close()
 
 
 def _history(count: int, *, provider_usage=None, step: int = 30, skip: int = 0,

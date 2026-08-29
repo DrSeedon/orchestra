@@ -837,7 +837,10 @@ async function fetchUsage() {
     _usageFetchPromise = (async () => {
         try {
             const [usage] = await Promise.allSettled([
-                api('/api/usage'),
+                // Provider refresh may legitimately spend up to 10s each on Anthropic,
+                // Codex and Grok. Cached values stay visible while this single request
+                // runs; the generic 2s×3 retry policy only multiplies the same refresh.
+                api('/api/usage', {timeoutMs: 30000}),
             ]);
             // `/api/usage` — единственный владелец provider refresh. Карта читает уже
             // обновлённый кеш, иначе два параллельных GET снова увидят старую точку.
