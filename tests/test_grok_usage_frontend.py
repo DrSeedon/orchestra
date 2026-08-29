@@ -394,6 +394,39 @@ def test_usage_fetch_failure_stays_visible_and_logs_exception(browser):
     page.close()
 
 
+def test_usage_refresh_uses_one_long_budget_for_external_aggregation(browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    page.set_content(
+        '<body><div id="connection-banner" class="hidden"></div>'
+        '<div id="usage-bar"></div></body>'
+    )
+    page.evaluate(
+        """() => {
+            window.marked = {setOptions() {}, parse(value) { return value; }};
+            window.DOMPurify = {addHook() {}};
+            window.usageCalls = [];
+            window.api = async (url, opts = {}) => {
+                usageCalls.push({url, timeoutMs: opts.timeoutMs ?? null});
+                if (url === '/api/usage/quota-map') return {buckets: []};
+                return {anthropic: null, codex: null, grok: null, orchestra: {}};
+            };
+        }"""
+    )
+    page.add_script_tag(path=str(UTILS_JS))
+    page.add_script_tag(path=str(CONNECTION_JS))
+    page.add_script_tag(path=str(USAGE_JS))
+
+    page.evaluate("() => fetchUsage()")
+    page.wait_for_function("() => _usageFetchPromise === null")
+    calls = page.evaluate("() => usageCalls")
+    page.close()
+
+    assert calls == [
+        {"url": "/api/usage", "timeoutMs": 30000},
+        {"url": "/api/usage/quota-map", "timeoutMs": None},
+    ]
+
+
 def test_usage_info_click_opens_details_without_refreshing_usage(browser):
     page = _interactive_page(browser)
     _settle_usage(page, 42)
