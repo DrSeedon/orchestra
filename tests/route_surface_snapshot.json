@@ -613,6 +613,12 @@
   ]
  ],
  [
+  "/api/tm/repair-shadow-drift",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/tm/tasks",
   [
    "GET"

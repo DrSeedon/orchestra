@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app import tm as _tm
+from app.auth import check_internal_token
 
 router = APIRouter(prefix="/api/tm", tags=["task-manager"])
 
@@ -37,6 +38,45 @@ class TmTaskUpdate(BaseModel):
     acceptance_required: bool | None = None
     clear_acceptance_command: bool = False
     clear_acceptance_oracle: bool = False
+
+
+@router.post("/repair-shadow-drift")
+async def tm_repair_shadow_drift(request: Request):
+    """Repair approved task drift through the process-owned canonical store."""
+    if not check_internal_token(request.headers.get("authorization", "")):
+        return JSONResponse(
+            {"error": "internal token required"},
+            status_code=403,
+        )
+    try:
+        payload = await request.json()
+    except (TypeError, ValueError):
+        return JSONResponse(
+            {"error": "repair request must be JSON"},
+            status_code=400,
+        )
+    if not isinstance(payload, dict):
+        return JSONResponse(
+            {"error": "repair request must be an object"},
+            status_code=400,
+        )
+    owner = getattr(request.app.state, "knowledge_runtime", None)
+    store = getattr(owner, "task_store", None)
+    if store is None:
+        return JSONResponse(
+            {"error": "canonical task store is not available"},
+            status_code=503,
+        )
+    try:
+        return await asyncio.to_thread(
+            _tm.repair_shadow_task_drift,
+            store,
+            expected_refs=payload.get("expected_refs"),
+        )
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=409)
+    except RuntimeError as error:
+        return JSONResponse({"error": str(error)}, status_code=503)
 
 
 def _resolve_scope_project_id(scope: str) -> str:
