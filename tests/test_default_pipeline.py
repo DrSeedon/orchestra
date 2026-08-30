@@ -736,7 +736,11 @@ class TestSubOrchestratorGetsMemorySearch:
         assert "<memory-search>" in prompt, (
             "listing the module in pipeline.yaml is not enough — its text must assemble in"
         )
-        assert "search_memory(" in prompt
+        assert "Выдели 1–3 отличительных поисковых якоря" in prompt
+        assert (
+            "`search_memory` остаётся compatibility-тулом и не является обязательным шагом"
+            in prompt
+        )
         assert "/api/sessions/" in prompt, (
             "the own-transcript recipe added to this module must reach the role too"
         )

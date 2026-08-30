@@ -141,6 +141,33 @@ Rules:
 5. New topic → also add its one-line entry to `docs/kb/README.md`. A topic with no entry becomes a
    second file about the same thing three weeks later.
 
+#### Forward-only lexical fact contract
+
+Каждый новый или изменённый факт — одна самодостаточная строка без местоименных ссылок. Начинай
+её со стабильного kebab-case ключа `` `fact:<durable-key>` ``; ключ остаётся тем же при будущей
+переформулировке claim. `искать:` содержит 1–6 буквальных якорей будущего вопроса.
+Сохраняй точные symbol, path, command и прежнее имя.
+Добавь русскую или английскую формулировку, которой пользователь реально задаст вопрос.
+Evidence остаётся в той же строке.
+
+Новые current facts пишутся в **Установлено**, закрытые или ошибочные дороги — в **Отвергнуто**
+либо получают `ОТОЗВАНО`; модель не удаляет и не перезаписывает старый факт автоматически.
+Legacy-факты не переписываются пачкой; контракт применяется только к новым и изменённым строкам.
+Перед merge проверь unified diff repository-скриптом `scripts/check_kb_contract.py --root docs/kb
+--diff <patch>`; обычный read и `rg` отдельным тулом не оборачиваются.
+
+#### Связи: proposal → approval → canonical fact
+
+LLM не записывает предложенную связь в `docs/kb/` как истину.
+`candidate-link` остаётся в `docs/tasks/` до явного апрува. Approval receipt в одобренном
+ticket/plan обязан дословно назвать source `fact:` key, relation и существующий target topic.
+
+Canonical `связи:` требует ссылку на approved ticket/plan anchor. Допустимые типы записываются
+ровно как `` `depends_on|explains|contradicts|supersedes|evidence_for|related` ``; validator
+отвергает unknown relation, missing или mismatched receipt, отсутствующий target, self-link,
+absolute path и `../` traversal. Модель может предложить строку в task artifact, но canonical
+fact меняется только в implementation уже одобренного ticket.
+
 Then write `docs/tasks/<task-id>/research.md`:
 - **Question** — the framed question (Step 0)
 - **Hypotheses considered** — including the ones you ruled out, and why
