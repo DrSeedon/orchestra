@@ -340,6 +340,106 @@ def test_run_pytest_reports_all_deselected_as_skipped_not_failed(tmp_path, monke
     assert result["exit_code"] == gate.NO_TESTS_EXIT_CODE
 
 
+def _fake_python(path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("", encoding="utf-8")
+    path.chmod(0o755)
+    return path
+
+
+def test_run_pytest_prefers_worktree_venv_and_prints_interpreter(tmp_path, monkeypatch):
+    from app import merge_test_gate as gate
+
+    worktree = tmp_path / "worktree"
+    interpreter = _fake_python(worktree / ".venv" / "bin" / "python")
+    calls = []
+
+    def fake_run(argv, **_kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "two passed", "")
+
+    monkeypatch.setattr(gate.subprocess, "run", fake_run)
+
+    result = gate.run_pytest(str(worktree), ["tests/test_widget.py"])
+
+    assert calls[0][0] == str(interpreter)
+    assert f"interpreter={interpreter}" in result["output"]
+
+
+def test_run_pytest_uses_repo_root_venv_before_orchestra_python(tmp_path, monkeypatch):
+    from app import merge_test_gate as gate
+
+    worktree = tmp_path / "worktree"
+    repo_root = tmp_path / "repo"
+    (worktree / ".git").mkdir(parents=True)
+    interpreter = _fake_python(repo_root / ".venv" / "bin" / "python")
+    monkeypatch.setattr(
+        gate,
+        "_git",
+        lambda _cwd, *args: str(repo_root) + "\n"
+        if args == ("rev-parse", "--show-toplevel")
+        else None,
+    )
+    calls = []
+
+    def fake_run(argv, **_kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "two passed", "")
+
+    monkeypatch.setattr(gate.subprocess, "run", fake_run)
+
+    result = gate.run_pytest(str(worktree), ["tests/test_widget.py"])
+
+    assert calls[0][0] == str(interpreter)
+    assert f"interpreter={interpreter}" in result["output"]
+
+
+def test_run_pytest_reports_project_pytest_missing_without_fallback(tmp_path, monkeypatch):
+    from app import merge_test_gate as gate
+    from app.acceptance import INCONCLUSIVE
+
+    worktree = tmp_path / "worktree"
+    interpreter = _fake_python(worktree / ".venv" / "bin" / "python")
+    calls = []
+
+    def fake_run(argv, **_kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess(
+            argv, 1, "", "/bin/python: No module named pytest",
+        )
+
+    monkeypatch.setattr(gate.subprocess, "run", fake_run)
+
+    result = gate.run_pytest(str(worktree), ["tests/test_widget.py"])
+
+    assert result["status"] == INCONCLUSIVE
+    assert result["reason"] == "pytest_unavailable"
+    assert result["exit_code"] == 1
+    assert calls == [[
+        str(interpreter), "-m", "pytest", "-q", "-vv", "-m", "not live_probe",
+        "tests/test_widget.py",
+    ]]
+    assert f"interpreter={interpreter}" in result["output"]
+    assert str(sys.executable) not in result["output"]
+
+
+def test_run_pytest_uses_orchestra_python_when_project_venv_is_absent(tmp_path, monkeypatch):
+    from app import merge_test_gate as gate
+
+    calls = []
+
+    def fake_run(argv, **_kwargs):
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "two passed", "")
+
+    monkeypatch.setattr(gate.subprocess, "run", fake_run)
+
+    result = gate.run_pytest(str(tmp_path), ["tests/test_widget.py"])
+
+    assert calls[0][0] == sys.executable
+    assert f"interpreter={sys.executable}" in result["output"]
+
+
 def test_live_probe_inventory_is_explicit():
     """Живая проба не может исчезнуть из гейта незаметно.
 
@@ -402,7 +502,8 @@ def test_run_pytest_timeout_normalizes_output_types(tmp_path, monkeypatch, stdou
     result = gate.run_pytest(str(tmp_path), tests, timeout=1)
     assert result["status"] == INCONCLUSIVE
     assert result["reason"] == "timeout"
-    assert result["output"] == expected
+    assert result["output"].startswith(f"interpreter={sys.executable}\n")
+    assert result["output"].endswith(expected)
     assert result["tests"] == tests
 
 
@@ -448,7 +549,9 @@ def test_run_pytest_timeout_truncates_to_last_4000_chars(tmp_path, monkeypatch):
     result = gate.run_pytest(str(tmp_path), tests, timeout=1)
     assert result["reason"] == "timeout"
     assert len(result["output"]) == 4000
-    assert result["output"] == payload[-4000:]
+    marker = f"interpreter={sys.executable}\n"
+    assert result["output"].startswith(marker)
+    assert result["output"].endswith(payload[-(4000 - len(marker)):])
 
 
 # Дословно снято с убитого прогона (#336): `-q -vv`, kill на 10 с. Формат фикстуры не
