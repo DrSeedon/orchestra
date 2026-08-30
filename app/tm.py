@@ -1639,6 +1639,43 @@ def _canonical_result(
     }
 
 
+def _merge_canonical_task_identity(
+    legacy: TaskIdentity,
+    detail: dict,
+) -> TaskIdentity:
+    """Require canonical and legacy readers to identify the same task."""
+    stable_id = str(detail.get("stable_id") or "")
+    project_id = str(detail.get("project") or detail.get("project_id") or "")
+    raw_par = detail.get("par", detail.get("display_number"))
+    try:
+        par_number = int(raw_par)
+    except (TypeError, ValueError):
+        par_number = 0
+    if not stable_id:
+        raise ValueError(
+            "canonical task identity missing stable_id for "
+            f"project '{legacy['project_id']}' task #{legacy['par_number']}"
+        )
+    if (
+        project_id != str(legacy["project_id"])
+        or par_number != int(legacy["par_number"])
+        or (
+            legacy.get("stable_id")
+            and str(legacy["stable_id"]) != stable_id
+        )
+    ):
+        raise ValueError(
+            "canonical task identity mismatch for "
+            f"project '{legacy['project_id']}' task #{legacy['par_number']}: "
+            f"reader returned project '{project_id}' task #{par_number} "
+            f"stable_id '{stable_id}'"
+        )
+    merged = dict(legacy)
+    merged.pop("canonical_head", None)
+    merged["stable_id"] = stable_id
+    return merged
+
+
 def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
     legacy = _legacy_resolve_scoped_task_identity(scope, ref)
     context = _ia_context()
@@ -1648,20 +1685,12 @@ def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
     assert store is not None
     try:
         candidate = store.task_get(str(legacy["par_number"]), project=legacy["project_id"])
-    except Exception as error:
-        recorder = getattr(store, "record_debt", None)
-        if callable(recorder):
-            recorder({
-                "reason": "candidate_read_failed",
-                "exception_type": type(error).__name__,
-                "message": str(error),
-            })
-        return legacy
-    return {
-        **legacy,
-        "stable_id": candidate["stable_id"],
-        "canonical_head": candidate["canonical_head"],
-    }
+    except (KeyError, ValueError) as error:
+        raise ValueError(
+            "canonical task identity unavailable for "
+            f"project '{legacy['project_id']}' task #{legacy['par_number']}: {error}"
+        ) from error
+    return _merge_canonical_task_identity(legacy, candidate)
 
 
 def api_create_task(project_id: str, title: str, price: int = 0,
@@ -1851,16 +1880,17 @@ def _api_update_task_if_current_unlocked(
         )
     store = context.store
     assert store is not None
-    candidate_identity = dict(identity)
-    if not candidate_identity.get("stable_id"):
+    try:
         detail = store.task_get(
             str(identity["par_number"]),
             project=identity["project_id"],
         )
-        candidate_identity.update(
-            stable_id=detail["stable_id"],
-            canonical_head=detail["canonical_head"],
-        )
+    except (KeyError, ValueError) as error:
+        raise ValueError(
+            "canonical task identity unavailable for "
+            f"project '{identity['project_id']}' task #{identity['par_number']}: {error}"
+        ) from error
+    candidate_identity = _merge_canonical_task_identity(identity, detail)
     if context.mode == "shadow":
         legacy = _legacy_api_update_task_if_current(
             identity,
