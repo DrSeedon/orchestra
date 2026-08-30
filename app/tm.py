@@ -3,6 +3,7 @@
 Takes sqlite3.Connection; callers manage transactions. External integrations are inert.
 """
 
+import copy
 import json
 import logging
 import sqlite3
@@ -869,6 +870,228 @@ def release_merge_finalization(payload: dict) -> None:
                 "DELETE FROM tm_task_reservations WHERE task_id=? AND operation_id=?",
                 (task_id, reservation_id),
             )
+
+
+_REPAIR_COMPARE_FIELDS = ("status", "completed_at", "sync_revision")
+
+
+def _repair_snapshot(legacy: dict, canonical: dict) -> dict:
+    canonical_project = canonical.get("project", canonical.get("project_id"))
+    canonical_par = canonical.get("par", canonical.get("display_number"))
+    canonical_state = {
+        "status": canonical.get("status"),
+        "completed_at": canonical.get("completed_at"),
+        "sync_revision": canonical.get("sync_revision"),
+    }
+    legacy_state = {
+        "status": legacy.get("status"),
+        "completed_at": legacy.get("completed_at"),
+        "sync_revision": legacy.get("sync_revision"),
+    }
+    mismatches = {
+        field: {"legacy": legacy_state[field], "canonical": canonical_state[field]}
+        for field in _REPAIR_COMPARE_FIELDS
+        if legacy_state[field] != canonical_state[field]
+    }
+    if (
+        str(canonical_project) != str(legacy["project_id"])
+        or int(canonical_par) != int(legacy["par_number"])
+    ):
+        raise ValueError(
+            "repair reader identity mismatch for "
+            f"project '{legacy['project_id']}' task #{legacy['par_number']}"
+        )
+    return {
+        "shadow_match": not mismatches,
+        "projection_debt": {"mismatches": mismatches} if mismatches else {},
+        "legacy": legacy_state,
+        "canonical": canonical_state,
+    }
+
+
+def _canonical_state_snapshot(store):
+    raw_store = getattr(store, "_store", store)
+    if not all(hasattr(raw_store, name) for name in ("_states", "_write_states")):
+        return None
+    states = copy.deepcopy(raw_store._states())
+    return raw_store, states, raw_store.canonical_head
+
+
+def _restore_canonical_state(snapshot) -> None:
+    if snapshot is None:
+        return
+    raw_store, states, head = snapshot
+    raw_store._write_states(states, head)
+
+
+def repair_shadow_task_drift(
+    store,
+    *,
+    expected_refs: list[dict],
+) -> dict:
+    """Repair one operator-approved, freshly recomputed shadow-drift set.
+
+    The caller must provide the runtime-owned store while the service is stopped. The
+    store is deliberately not opened here, preventing a second owner of its Git lock.
+    """
+    if not expected_refs:
+        raise ValueError("repair list is empty")
+    expected: dict[tuple[str, int], dict] = {}
+    for raw in expected_refs:
+        if not isinstance(raw, dict):
+            raise ValueError("repair list contains an invalid task reference")
+        project_id = str(raw.get("project_id") or "")
+        raw_par_number = raw.get("par_number")
+        if (
+            isinstance(raw_par_number, bool)
+            or not isinstance(raw_par_number, int)
+            or raw_par_number <= 0
+        ):
+            raise ValueError("repair list contains an invalid task reference")
+        par_number = raw_par_number
+        if not project_id:
+            raise ValueError("repair list contains an invalid task reference")
+        key = (project_id, par_number)
+        if key in expected:
+            raise ValueError(f"repair list contains duplicate task {project_id}#{par_number}")
+        expected[key] = {"project_id": project_id, "par_number": par_number}
+
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT t.id, t.project_id, t.par_number, t.status, t.completed_at, "
+            "t.sync_revision FROM tm_tasks t WHERE t.status='done' "
+            "ORDER BY t.project_id, t.par_number"
+        ).fetchall()
+    fresh: dict[tuple[str, int], dict] = {}
+    states: dict[tuple[str, int], tuple[dict, dict]] = {}
+    scan_errors = []
+    for row in rows:
+        legacy = dict(row)
+        key = (legacy["project_id"], int(legacy["par_number"]))
+        try:
+            canonical = store.task_get(
+                str(legacy["par_number"]), project=legacy["project_id"]
+            )
+            snapshot = _repair_snapshot(legacy, canonical)
+        except Exception as error:
+            scan_errors.append({
+                "ref": {"project_id": key[0], "par_number": key[1]},
+                "error": f"{type(error).__name__}: {error}",
+                "before": {"shadow_match": False, "projection_debt": {}},
+                "after": {"shadow_match": False, "projection_debt": {}},
+            })
+            continue
+        states[key] = (legacy, snapshot)
+        if not snapshot["shadow_match"]:
+            fresh[key] = expected.get(key, {"project_id": key[0], "par_number": key[1]})
+
+    if scan_errors:
+        return {
+            "ok": False,
+            "changed": 0,
+            "idempotent": False,
+            "items": [],
+            "errors": scan_errors,
+            "reason": "fresh scan failed; no records were mutated",
+        }
+
+    if not fresh:
+        if set(expected).issubset(states) and all(
+            states[key][1]["shadow_match"] for key in expected
+        ):
+            return {"ok": True, "changed": 0, "idempotent": True, "items": []}
+        raise ValueError("fresh repair drift list is empty")
+    if set(fresh) != set(expected):
+        raise ValueError(
+            "repair drift list changed: "
+            f"expected={sorted(expected)} fresh={sorted(fresh)}"
+        )
+
+    items = []
+    errors = []
+    changed = 0
+    for key in sorted(fresh):
+        legacy, before = states[key]
+        ref = expected[key]
+        canonical_state_before = None
+        try:
+            canonical_state_before = _canonical_state_snapshot(store)
+            with _conn() as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                canonical_current = store.task_get(str(key[1]), project=key[0])
+                canonical_revision = int(canonical_current.get("sync_revision") or 0)
+                legacy_revision = int(legacy.get("sync_revision") or 0)
+                if legacy_revision != canonical_revision + 1:
+                    raise ValueError(
+                        "repair revision transition is not one step: "
+                        f"legacy={legacy_revision}, canonical={canonical_revision}"
+                    )
+                store.task_update(str(key[1]), project=key[0], status="done")
+                canonical = store.task_get(str(key[1]), project=key[0])
+                completed_at = canonical.get("completed_at")
+                conn.execute(
+                    "UPDATE tm_tasks SET completed_at=? WHERE id=? AND status='done'",
+                    (completed_at, legacy["id"]),
+                )
+                conn.commit()
+            with _conn() as conn:
+                repaired_legacy = dict(conn.execute(
+                    "SELECT project_id, par_number, status, completed_at, sync_revision "
+                    "FROM tm_tasks WHERE id=?", (legacy["id"],)
+                ).fetchone())
+            after = _repair_snapshot(repaired_legacy, canonical)
+            item = {"ref": ref, "before": before, "after": after}
+            if not after["shadow_match"]:
+                errors.append({
+                    "ref": ref,
+                    "error": "post-repair verification failed",
+                    "state": "committed_unknown",
+                    "before": before,
+                    "after": after,
+                })
+                continue
+            changed += 1
+            items.append(item)
+        except Exception as error:
+            restore_error = (
+                "canonical rollback unavailable"
+                if canonical_state_before is None else None
+            )
+            try:
+                _restore_canonical_state(canonical_state_before)
+            except Exception as rollback_error:
+                restore_error = f"{type(rollback_error).__name__}: {rollback_error}"
+            try:
+                with _conn() as conn:
+                    current_legacy = dict(conn.execute(
+                        "SELECT project_id, par_number, status, completed_at, sync_revision "
+                        "FROM tm_tasks WHERE id=?", (legacy["id"],)
+                    ).fetchone())
+                current_canonical = store.task_get(str(key[1]), project=key[0])
+                after = _repair_snapshot(current_legacy, current_canonical)
+            except Exception as snapshot_error:
+                after = {
+                    "shadow_match": False,
+                    "projection_debt": {
+                        "error": f"{type(snapshot_error).__name__}: {snapshot_error}"
+                    },
+                }
+            errors.append({
+                "ref": ref,
+                "error": f"{type(error).__name__}: {error}",
+                "state": "rolled_back" if restore_error is None else "committed_unknown",
+                "before": before,
+                "after": after,
+            })
+            if restore_error is not None:
+                errors[-1]["rollback_error"] = restore_error
+    return {
+        "ok": not errors,
+        "changed": changed,
+        "idempotent": False,
+        "items": items,
+        "errors": errors,
+    }
 
 
 def _finalization_task_identity(task_id: int) -> TaskIdentity:
