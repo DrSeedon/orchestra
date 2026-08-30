@@ -924,6 +924,18 @@ def _restore_canonical_state(snapshot) -> None:
     raw_store._write_states(states, head)
 
 
+def _canonical_task_details_by_identity(store):
+    raw_store = getattr(store, "_store", store)
+    states_reader = getattr(raw_store, "_states", None)
+    facade_detail = getattr(raw_store, "_facade_detail", None)
+    if not callable(states_reader) or not callable(facade_detail):
+        return None
+    return {
+        (state["project_id"], int(state["display_number"])): facade_detail(state)
+        for state in states_reader().values()
+    }
+
+
 def repair_shadow_task_drift(
     store,
     *,
@@ -974,6 +986,27 @@ def _repair_shadow_task_drift_unlocked(
             "t.sync_revision FROM tm_tasks t WHERE t.status='done' "
             "ORDER BY t.project_id, t.par_number"
         ).fetchall()
+    try:
+        canonical_details = _canonical_task_details_by_identity(store)
+    except Exception as error:
+        details = f"{type(error).__name__}: {error}"
+        errors = [
+            {
+                "ref": ref,
+                "error": details,
+                "before": {"needs_repair": True, "projection_debt": {}},
+                "after": {"needs_repair": True, "projection_debt": {}},
+            }
+            for ref in expected.values()
+        ]
+        return {
+            "ok": False,
+            "changed": 0,
+            "idempotent": False,
+            "items": [],
+            "errors": errors,
+            "reason": "fresh scan failed; no records were mutated",
+        }
     fresh: dict[tuple[str, int], dict] = {}
     states: dict[tuple[str, int], tuple[dict, dict]] = {}
     scan_errors = []
@@ -981,9 +1014,16 @@ def _repair_shadow_task_drift_unlocked(
         legacy = dict(row)
         key = (legacy["project_id"], int(legacy["par_number"]))
         try:
-            canonical = store.task_get(
-                str(legacy["par_number"]), project=legacy["project_id"]
-            )
+            if canonical_details is None:
+                canonical = store.task_get(
+                    str(legacy["par_number"]), project=legacy["project_id"]
+                )
+            else:
+                canonical = canonical_details.get(key)
+                if canonical is None:
+                    raise ValueError(
+                        f"{legacy['par_number']} not found in project {legacy['project_id']}"
+                    )
             snapshot = _repair_snapshot(legacy, canonical)
         except Exception as error:
             scan_errors.append({
