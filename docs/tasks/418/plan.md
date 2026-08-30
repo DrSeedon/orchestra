@@ -497,9 +497,11 @@ old tasks have no links and goal/watchdog are opt-in.
   TG attention path and standalone board.
 - Author: `research-projects-board`, `gpt-5.6-sol`, runtime Codex (live session metadata from Phase 1).
 - AC: decisions in §1 + ticket commands below.
-- Oracle: first RED `d4c634de` is **excluded** after reviewer found dependency-only route gates.
-  Strengthened immutable RED is commit `be398ad6`: four vertical tests, full command `4 failed`,
-  RC=1, each at its own foundation/watchdog/board/attention behavior and no collection error.
+- Oracle: `d4c634de` is excluded for dependency-only route gates; `be398ad6` is excluded because its
+  DB fixture wrote fake sessions to production. `cb8ea22d` is excluded because two tests imported
+  application modules before installing the guard. Current immutable RED is `f05eb5e1`: four vertical
+  tests, full command `4 failed`, RC=1, each at its own foundation/watchdog/board/attention behavior,
+  no collection error, and production `sessions` count unchanged `563 → 563`.
 - Risk floor: persistence schema, cross-project authorization, shared message delivery and lifecycle
   observer. Sol review would be the preferred route but auxiliary Sol is not authorized; use one
   fresh Luna plan/test pass and report the limitation.
@@ -508,14 +510,14 @@ old tasks have no links and goal/watchdog are opt-in.
 
 ### T1 — Complete project foundation: membership, optional tasks, goal and wait
 - Files: `app/db.py`; new `app/portfolio.py`; new `app/routes/portfolio.py`; `app/main.py` router registration; `app/mcp_stdio.py` (`project_goal`, `project_wait`, existing `task_update` portfolio-link extension); session archive/reparent membership hook; focused tests under `tests/`. Do not change task binding or canonical `task.state.project_id` semantics.
-- Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t1_project_foundation_preserves_tasks_and_enforces_membership_goal_wait` — committed RED in `be398ad6`; prior `d4c634de` oracle excluded.
+- Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t1_project_foundation_preserves_tasks_and_enforces_membership_goal_wait` — committed RED in `f05eb5e1`; `d4c634de`, `be398ad6`, `cb8ea22d` excluded.
 - RED: `uv run python -m pytest -q docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t1_project_foundation_preserves_tasks_and_enforces_membership_goal_wait` → exit 1: `AssertionError: #418 missing portfolio route: /api/portfolio/projects`.
 - AC: named command is green + one project has exactly one active root-orchestrator owner; one owner owns two projects; explicit direct/ancestral sub contributor reads/progresses/waits; worker membership and sub ownership return 422; outsider/respawn/reparented-away sub get 403; task link additionally enforces caller-scope technical task authorization and rejects foreign task; linking preserves `tm_tasks.project_id`, session/binding/merge and canonical task project; unlinked task stays legal; project may have no goal; goal watchdog defaults off; owner controls policy; two concurrent identical waits return one id/row via server-derived claim; migration auto-creates zero projects/links; disposable live MCP call proves `project_goal` and `project_wait` before prompt delivery.
 - blocked-by: none
 
 ### T2 — Goal-only watchdog with atomic durable outbox
 - Files: new `app/portfolio_watchdog.py`; `app/portfolio.py`; `app/db.py`; `app/main.py` lifespan startup/teardown; existing durable message delivery seam; focused async/race tests.
-- Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t2_watchdog_goal_only_atomic_claim_and_retry_reuse_delivery_id` — committed RED in `be398ad6`.
+- Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t2_watchdog_goal_only_atomic_claim_and_retry_reuse_delivery_id` — committed RED in `f05eb5e1`.
 - RED: `uv run python -m pytest -q docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t2_watchdog_goal_only_atomic_claim_and_retry_reuse_delivery_id` → exit 1: `AssertionError: #418 T2 missing behavior: app.portfolio_watchdog`.
 - AC: named command is green + loop interval 300s; active/enabled goal with zero linked tasks is eligible; no goal/off watchdog/open wait/unexpired lease/linked running-or-waiting worker suppress correctly; threshold `>=1800s`; concurrent evaluators call delivery once; claim is durable before delivery; failure/crash recovery reuses exact delivery id; progress creates new generation; target owner only; fresh migration candidates=0/wakes=0; shadow mode emits no delivery.
 - Additional focused regression required before T2 completion: lifespan starts one 300-second loop and cancels it cleanly; a fresh DB returns candidates=0 in both active and shadow modes; a pending outbox row survives closing/reopening the SQLite connection and reuses its delivery id.
@@ -523,7 +525,7 @@ old tasks have no links and goal/watchdog are opt-in.
 
 ### T3 — Standalone board backed by real project data
 - Files: `app/routes/portfolio.py`; new `app/templates/project_board.html`; new `app/static/js/project-board.js`; new `app/static/css/project-board.css`; focused route/browser tests. Do not edit `dashboard.html` or agent-list JS/CSS.
-- Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t3_board_renders_real_project_data_and_keeps_dashboard_separate` — committed RED in `be398ad6`.
+- Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t3_board_renders_real_project_data_and_keeps_dashboard_separate` — committed RED in `f05eb5e1`.
 - RED: `uv run python -m pytest -q docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t3_board_renders_real_project_data_and_keeps_dashboard_separate` → exit 1: `AssertionError: #418 missing portfolio route: /project-board`.
 - AC: named command is green + standalone page contains four columns; seeded linked task, goal, exact wait question, owner and contributor render; seeded unlinked task does not render; goal-only project remains visible; exact SQL/IDs only, no semantic search; existing dashboard template contains no portfolio-board container and agent UI stays unchanged.
 - Additional focused regression required before T3 completion: seed a **second** project with active goal and zero task links, then assert its lane/objective renders.
@@ -531,7 +533,7 @@ old tasks have no links and goal/watchdog are opt-in.
 
 ### T4 — Durable typed attention integration; wait/watchdog never tag
 - Files: `app/db.py`; `app/portfolio.py`; `app/routes/portfolio.py`; `app/mcp_stdio.py`; `app/tg_bridge.py`; `pipelines/default/prompts/roles/orchestrator.md` only after live route/tool proof; focused tests.
-- Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t4_attention_is_durable_before_tag_and_wait_watchdog_never_tag` — committed RED in `be398ad6`.
+- Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t4_attention_is_durable_before_tag_and_wait_watchdog_never_tag` — committed RED in `f05eb5e1`.
 - RED: `uv run python -m pytest -q docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t4_attention_is_durable_before_tag_and_wait_watchdog_never_tag` → exit 1: `AssertionError: #418 T4 missing project attention integration`.
 - AC: named command is green + legacy one-argument call remains legal with `kind=legacy` and no project; typed `incident|reversal|plan_change` accepts optional exact project; attention row is durable before tool result and TG bridge tags only a durable-result marker; `kind=waiting` points to `project_wait`; project-wait/watchdog result markers never tag; prompt stops recommending notify for decisions and changes only after live success.
 - Additional focused regression required before T4 completion: use a real isolated portfolio DB/route and bridge parser (no `_api` fake) to prove the attention row is committed before tag eligibility; project-wait/watchdog rows remain ineligible.
@@ -548,13 +550,46 @@ exit 1
 
 Per-ticket rerun produced RC=1 for all four named nodes and the exact missing-behavior assertion
 recorded in each ticket. No collection/import failure is used as RED. Commit `d4c634de` is excluded
-forever because reviewer proved its T2/T3/T5 failures were dependency-only route gates.
+forever because reviewer proved its T2/T3/T5 failures were dependency-only route gates. Commit
+`be398ad6` is excluded because `_init_db()` used the production DB. `cb8ea22d` is excluded because
+T2/T3 installed the guard after their first application-module import. Current `f05eb5e1` patches
+`DB_PATH` and `ORCHESTRA_DB_PATH` to `tmp_path` before `init_db()` and guards every
+`sqlite3.connect` against the production path **before any DB/application-layer import in each
+DB-using test**.
+
+Isolation proof for the full current RED run:
+
+```text
+PRODUCTION_SESSIONS_BEFORE=563
+PRODUCTION_SESSIONS_AFTER=563
+PYTEST_RC=1
+FFFF / 4 failed
+```
+
+Task-local Python audit: the acceptance file is the only #418 writer importing `app.db`, and its
+three DB-using tests all call the isolated helper. `watchdog_replay.py` opens its DB with
+`mode=ro`; the other #418 artifacts contain no DB fixture.
 
 ## 13. Review outcome
 
 Route: fresh Luna, two prose rounds. Round 1 found five blocking issues in cleanup, membership,
 task authorization, wait idempotency and watchdog delivery claiming. They were accepted; RED
 `d4c634de` was excluded and strengthened oracle `be398ad6` frozen. Round 2 verdict: **APPROVED**,
-blocking 0; exact command `4 failed`, RC=1. Nonblocking KB/SQL suggestions were applied, and the
-three remaining acceptance-strength suggestions are explicit per-ticket focused regressions above.
+blocking 0. Post-review, `be398ad6` was excluded for production DB pollution, `cb8ea22d` for late
+guard installation, and safety-only oracle `f05eb5e1` frozen; production count proof is 563→563 and
+the same four RED seams remain.
+Nonblocking KB/SQL suggestions were applied, and the three remaining acceptance-strength
+suggestions are explicit per-ticket focused regressions above.
 Evidence: `docs/tasks/418/review-plan-luna.md`.
+
+## 14. Oracle isolation incident
+
+The excluded `be398ad6` oracle created ten fake `owner/sub/helper/worker/outsider` sessions in the
+production DB during two RED runs. The orchestrator removed them after a backup; supplied incident
+check reports 563 real sessions intact, no logs and no tasks for the fakes. `cb8ea22d` was an
+intermediate excluded freeze; current oracle `f05eb5e1` has the direct 563→563 invariant in §12.
+
+Rule candidate for orchestrator triage:
+
+> 📝 RULE: When an oracle starts the application or its DB layer → prove isolation with a
+> production row-count before/after invariant, not the author's intent.
