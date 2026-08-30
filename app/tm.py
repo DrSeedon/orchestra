@@ -930,10 +930,24 @@ def _canonical_task_details_by_identity(store):
     facade_detail = getattr(raw_store, "_facade_detail", None)
     if not callable(states_reader) or not callable(facade_detail):
         return None
-    return {
-        (state["project_id"], int(state["display_number"])): facade_detail(state)
-        for state in states_reader().values()
-    }
+    canonical_to_legacy = getattr(store, "_canonical_to_legacy", {})
+    details = {}
+    for state in states_reader().values():
+        canonical_project = str(state["project_id"])
+        legacy_project = str(canonical_to_legacy.get(canonical_project, canonical_project))
+        detail = dict(facade_detail(state))
+        detail["project"] = legacy_project
+        detail["_canonical_project_id"] = canonical_project
+        key = (legacy_project, int(state["display_number"]))
+        if key in details:
+            previous = details[key]["_canonical_project_id"]
+            raise ValueError(
+                "canonical projects "
+                f"'{previous}' and '{canonical_project}' both map to "
+                f"legacy project '{legacy_project}' task #{key[1]}"
+            )
+        details[key] = detail
+    return details
 
 
 def repair_shadow_task_drift(
@@ -1013,6 +1027,8 @@ def _repair_shadow_task_drift_unlocked(
     for row in rows:
         legacy = dict(row)
         key = (legacy["project_id"], int(legacy["par_number"]))
+        if key not in expected:
+            continue
         try:
             if canonical_details is None:
                 canonical = store.task_get(
@@ -1021,8 +1037,20 @@ def _repair_shadow_task_drift_unlocked(
             else:
                 canonical = canonical_details.get(key)
                 if canonical is None:
+                    if key not in expected:
+                        continue
+                    canonical_projects = sorted({
+                        str(detail.get("_canonical_project_id") or detail.get("project"))
+                        for (project, number), detail in canonical_details.items()
+                        if number == key[1]
+                    })
+                    suffix = (
+                        "; canonical project ids: " + ", ".join(canonical_projects)
+                        if canonical_projects else ""
+                    )
                     raise ValueError(
                         f"{legacy['par_number']} not found in project {legacy['project_id']}"
+                        f"{suffix}"
                     )
             snapshot = _repair_snapshot(legacy, canonical)
         except Exception as error:
@@ -1052,6 +1080,11 @@ def _repair_shadow_task_drift_unlocked(
             not states[key][1]["needs_repair"] for key in expected
         ):
             return {"ok": True, "changed": 0, "idempotent": True, "items": []}
+        if not set(expected).issubset(states):
+            raise ValueError(
+                "repair drift list changed: "
+                f"expected={sorted(expected)} fresh=[]"
+            )
         raise ValueError("fresh repair drift list is empty")
     if set(fresh) != set(expected):
         raise ValueError(
