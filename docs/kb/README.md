@@ -72,3 +72,4 @@
 - [chat-freshness](chat-freshness.md) — чат в дашборде берётся ТОЛЬКО из сети: один свежий
   snapshot, `AbortController` на переключении, `no-store` с обеих сторон; зеркало логов в
   IndexedDB удалено и обратно не заводится.
+- [agent-memory-architecture](agent-memory-architecture.md) — общая память поверх project-local `docs/kb`: agentic keyword control, связи тем, версии фактов, tool-utility gate и судьба vector projection.
