@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import inspect
+import sqlite3
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -15,10 +16,27 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
-def _init_db():
+def _init_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     from app import db
 
+    isolated_path = tmp_path / "portfolio-oracle.sqlite"
+    production_path = db._DEFAULT_DB_PATH.resolve()
+    real_connect = sqlite3.connect
+
+    def guarded_connect(database, *args, **kwargs):
+        raw = str(database)
+        if raw.startswith("file:"):
+            raw = raw.removeprefix("file:").split("?", 1)[0]
+        if raw != ":memory:" and Path(raw).resolve() == production_path:
+            raise AssertionError(f"#418 oracle attempted production DB: {production_path}")
+        return real_connect(database, *args, **kwargs)
+
+    monkeypatch.setattr(db, "DB_PATH", isolated_path)
+    monkeypatch.setenv("ORCHESTRA_DB_PATH", str(isolated_path))
+    monkeypatch.setattr(sqlite3, "connect", guarded_connect)
     db.init_db()
+    assert db.DB_PATH == isolated_path
+    assert isolated_path.is_file()
     return db
 
 
@@ -104,8 +122,10 @@ def _seed_namespace(tm, namespace: str, scope: str) -> None:
         tm.ensure_project(connection, namespace, name=namespace, scope=scope)
 
 
-def test_t1_project_foundation_preserves_tasks_and_enforces_membership_goal_wait():
-    db = _init_db()
+def test_t1_project_foundation_preserves_tasks_and_enforces_membership_goal_wait(
+    tmp_path, monkeypatch
+):
+    db = _init_db(tmp_path, monkeypatch)
     owner, owner_name = _save_session(db, "owner", role="orchestrator")
     sub, _ = _save_session(
         db, "sub", role="sub-orchestrator", parent_id=owner, parent_name=owner_name
@@ -248,14 +268,16 @@ def test_t1_project_foundation_preserves_tasks_and_enforces_membership_goal_wait
 
 
 @pytest.mark.asyncio
-async def test_t2_watchdog_goal_only_atomic_claim_and_retry_reuse_delivery_id():
+async def test_t2_watchdog_goal_only_atomic_claim_and_retry_reuse_delivery_id(
+    tmp_path, monkeypatch
+):
+    db = _init_db(tmp_path, monkeypatch)
     spec = importlib.util.find_spec("app.portfolio_watchdog")
     assert spec is not None, "#418 T2 missing behavior: app.portfolio_watchdog"
     watchdog = importlib.import_module("app.portfolio_watchdog")
     evaluate_once = getattr(watchdog, "evaluate_once", None)
     assert callable(evaluate_once), "#418 T2 missing behavior: evaluate_once"
 
-    db = _init_db()
     owner, _ = _save_session(db, "owner", role="orchestrator")
     now = datetime(2026, 8, 30, 12, 0, tzinfo=timezone.utc)
     app = _portfolio_app("/api/portfolio/projects/{project_id}/goals")
@@ -324,9 +346,11 @@ async def test_t2_watchdog_goal_only_atomic_claim_and_retry_reuse_delivery_id():
     assert len(recovered) == 1
 
 
-def test_t3_board_renders_real_project_data_and_keeps_dashboard_separate():
+def test_t3_board_renders_real_project_data_and_keeps_dashboard_separate(
+    tmp_path, monkeypatch
+):
+    db = _init_db(tmp_path, monkeypatch)
     assert "/project-board" in _production_paths(), "#418 missing portfolio route: /project-board"
-    db = _init_db()
     owner, owner_name = _save_session(db, "owner", role="orchestrator")
     sub, sub_name = _save_session(
         db, "sub", role="sub-orchestrator", parent_id=owner, parent_name=owner_name

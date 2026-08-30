@@ -128,3 +128,10 @@ Exact new sentence from `plan.md`: “Goal with zero linked tasks **is watchdog-
 - KB Phase-1 statements about `tm_projects` and one-tool scope are explicitly withdrawn and replaced with the selected Phase-2 architecture.
 - Aggregate inventory SQL now repeats its statement-scoped CTE and is executable alone.
 - Watchdog lifespan/fresh/shadow/reopen, a second goal-only board project, and real DB→TG attention ordering are mandatory focused regressions in T2/T3/T4 AC. Frozen acceptance file `be398ad6` is unchanged after review.
+
+## Post-review oracle safety correction
+
+- `be398ad6` excluded: its `_init_db()` reached production `data/orchestra.db` and created fake sessions during RED runs.
+- Intermediate `cb8ea22d` excluded because T2/T3 imported application modules before installing the guard. Replacement immutable RED: `f05eb5e1`; each DB-using test patches `app.db.DB_PATH` plus `ORCHESTRA_DB_PATH` to `tmp_path` and guards `sqlite3.connect` before any DB/application-layer import.
+- Full RED isolation measurement: production `sessions` count `563 → 563`; four ticket seams remain RED, RC=1.
+- No additional model round: architecture/AC are unchanged; this is an exact harness-safety correction with a direct production-row invariant.
