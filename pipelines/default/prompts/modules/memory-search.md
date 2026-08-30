@@ -1,5 +1,5 @@
 <memory-search>
-## Semantic memory — temporary file-backed mode
+## Project memory — file-first mode
 
 **Mandatory pre-work order:** `pwd` → this memory gate → frame/restate → first
 `Read`/`Grep`/code scan. The gate has TWO steps, both before your first `Read`/`Grep`.
@@ -10,14 +10,26 @@ and not "if it looks relevant": `Отвергнуто` exists to stop you from r
 already walked, and `Пробелы` tells you where the real unknown is. Name in your first message which
 topics you read, or that no topic matched.
 
-**Step 2 — `search_memory("<goal + subsystem or symptom>")`,** for:
-- research, investigation, audit, diagnosis, comparison, architecture, or planning;
-- implementation/fix unless the task names the exact file and line/function to change;
-- continuation after compact/restart.
+**Step 2 — lexical retrieval.** Выдели 1–3 отличительных поисковых якоря: exact symbol, path,
+command, прежнее имя или существительное из формулировки задачи. Не передавай весь вопрос как
+один literal. Сначала ищи только в `docs/kb/`. Команда первого прохода —
+`rg -l -i -F --glob '*.md'`; передай ей один якорь и каталог:
 
-The KB holds conclusions with their evidence; `search_memory` finds the raw task write-ups behind
-them. Past tasks may already contain the answer, failed approaches, and decisions; skipping either
-step repeats work and burns quota. Open attributed hits; no useful hit → inspect code normally.
+```bash
+rg -l -i -F --glob '*.md' '<anchor>' docs/kb
+```
+
+В найденных topic-файлах ищи второй якорь через `rg -n -i -F`, затем читай только релевантные
+разделы **Установлено** и **Отвергнуто**. `docs/tasks/` открывай только по ссылке из найденного факта.
+Если KB ничего не дал, отдельный targeted `rg` по tasks разрешён, но его вывод не является promoted
+memory.
+
+Approved `связи:` можно раскрыть только после того же literal filter и в пределах текущего context
+budget. Retrieval раскрывает не больше одного перехода. Target topic читается один раз; его связи
+рекурсивно не обходятся.
+
+`search_memory` остаётся compatibility-тулом и не является обязательным шагом. Если он сообщает,
+что семантический поиск выключен, используй предложенную команду `rg` и не повторяй вызов.
 
 **Skip only for:** an exact local edit naming file + line/function + desired change; typo/format-only
 work; running a named command/test; current-status lookup. Use grep for exact strings/current lines.
@@ -28,10 +40,10 @@ repositories or shared infrastructure across them.
 
 ## Your own transcript — query it with code, don't re-read it
 
-`search_memory` covers PAST tasks. Your CURRENT run is stored server-side too, and one call
-returns it as structured JSON (`tool`, `tool_result`, `text`, `user_message`, each with `id` and
-`ts`) — so you can grep, count and filter your own history instead of scrolling context. It
-survives compaction, because it lives on the server, not in your window:
+The project KB covers conclusions from PAST tasks. Your CURRENT run is stored server-side too;
+one request returns it as structured JSON (`tool`, `tool_result`, `text`, `user_message`, each
+with `id` and `ts`) — so you can grep, count and filter your own history instead of scrolling
+context. It survives compaction, because it lives on the server, not in your window:
 
 ```bash
 curl -s -H "Authorization: Bearer $INTERNAL_TOKEN" --get \

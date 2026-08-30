@@ -53,6 +53,44 @@ def test_builtin_runtime_capabilities_are_explicit():
         get_runtime("opencode")
 
 
+@pytest.mark.parametrize(
+    ("runtime", "model", "provider"),
+    [
+        ("claude", "claude-sonnet-5[1m]", "anthropic"),
+        ("codex", "gpt-5.6-sol", "openai"),
+        ("grok", "grok-4.5", "x-ai"),
+    ],
+)
+def test_builtin_runtime_receives_file_first_memory_prompt(
+    runtime, model, provider, tmp_path,
+):
+    from app.pipeline import build_system_prompt
+
+    assembled = build_system_prompt("default", "worker") + "\n\nRUNTIME_SENTINEL_417"
+    ctx = BackendBuildContext(
+        model=model,
+        provider=provider,
+        cwd=str(tmp_path),
+        system_prompt=assembled,
+        resume_session_id=None,
+        mcp_servers={},
+        is_orchestrator=False,
+        scope=str(tmp_path),
+        pipeline="default",
+        role="worker",
+        profile="",
+        effort="high",
+        context_limit=256_000,
+        validation_profile=True,
+    )
+
+    backend = build_backend(runtime, ctx)
+
+    assert "RUNTIME_SENTINEL_417" in backend.system_prompt
+    assert "Выдели 1–3 отличительных поисковых якоря" in backend.system_prompt
+    assert "`search_memory` остаётся compatibility-тулом" in backend.system_prompt
+
+
 def test_runtime_registry_accepts_external_adapter_without_core_branch():
     runtime_id = "test-runtime"
 

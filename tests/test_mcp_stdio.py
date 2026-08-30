@@ -2283,6 +2283,31 @@ async def test_search_memory_reports_index_debt_and_tolerates_its_absence(
 
 
 @pytest.mark.asyncio
+async def test_file_first_memory_tool_surface_keeps_only_search_fallback(monkeypatch):
+    import app.mcp_stdio as m
+
+    registered = {tool.name: tool for tool in m.mcp._tool_manager.list_tools()}
+    assert "knowledge" not in registered
+    assert "knowledge" not in m.READ_ONLY_MCP_TOOLS
+    assert "knowledge" not in m.REDUCER_MCP_TOOLS
+    assert "search_memory" in registered
+
+    async def disabled_rag(*_args, **_kwargs):
+        raise m.ApiToolError(
+            code="http_503",
+            message="RAG disabled (set RAG_ENABLED=true)",
+        )
+
+    monkeypatch.setattr(m, "_api", disabled_rag)
+    monkeypatch.setattr(m, "SCOPE", "/project")
+
+    out = await registered["search_memory"].run({"query": "needle"})
+
+    assert "RAG_ENABLED=false" in out
+    assert 'rg "needle"' in out
+
+
+@pytest.mark.asyncio
 async def test_merge_warning_is_visible_in_the_tool_text(monkeypatch):
     """#80: успешный мерж с ненайденным номером задачи не читается как чистый успех."""
     import app.mcp_stdio as m

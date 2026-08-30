@@ -93,7 +93,6 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "task_list",
     "task_get",
     "bg_list",
-    "knowledge",
     "search_memory",
     "delivery_status",
     "message_delivery_status",
@@ -104,7 +103,6 @@ REDUCER_MCP_TOOLS = frozenset({
     "send_message",
     "update_progress",
     "list_agents",
-    "knowledge",
     "search_memory",
 })
 
@@ -2985,7 +2983,6 @@ async def bg_cancel(job_id: str) -> str:
     return f"Job {job_id} cancelled."
 
 
-@mcp.tool()
 async def knowledge(
     operation: str,
     detail: str = "summary",
