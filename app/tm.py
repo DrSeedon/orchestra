@@ -27,6 +27,7 @@ from app.ia.task_store import (
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "cancelled"}
 _TASK_CREATE_LOCK = threading.RLock()
+_TASK_BINDING_LOCK = threading.RLock()
 
 
 class TaskIdentity(TypedDict):
@@ -682,7 +683,7 @@ def resolve_scoped_task_identities(
         )
 
 
-def bind_task_to_session(scope: str, session_id: str, task_ref: str) -> dict:
+def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -> dict:
     """Atomically bind one scoped task to one durable session."""
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -699,37 +700,60 @@ def bind_task_to_session(scope: str, session_id: str, task_ref: str) -> dict:
             task = resolve_task_ref(conn, task_ref, project["id"])
             if not task:
                 raise ValueError(f"task '{task_ref}' not found in session project {project['id']}")
-            if session["task_id"]:
-                if str(session["task_id"]) != str(task["par_number"]):
-                    raise ValueError("session is already bound to another task")
-                conn.rollback()
-                return task_dto(task)
+            session_task_id = str(session["task_id"] or "")
+            task_worker_session_id = str(task["worker_session_id"] or "")
+            if session_task_id and session_task_id != str(task["par_number"]):
+                raise ValueError("session is already bound to another task")
+            if task_worker_session_id and task_worker_session_id != session_id:
+                if session_task_id == str(task["par_number"]):
+                    raise ValueError(
+                        f"session '{session_id}' is bound to task #{task['par_number']}, "
+                        f"but that task is bound to session '{task['worker_session_id']}'"
+                    )
+                raise ValueError(
+                    f"task #{task['par_number']} is already bound to session "
+                    f"'{task['worker_session_id']}', while session '{session_id}' "
+                    "has no matching task binding"
+                )
             if conn.execute(
                 "SELECT 1 FROM tm_task_reservations WHERE task_id = ?", (task["id"],)
             ).fetchone():
                 raise ValueError(f"task #{task['par_number']} is reserved")
-            if task["worker_session_id"]:
-                raise ValueError(f"task #{task['par_number']} is already bound")
             now = _now()
-            updated = conn.execute(
-                "UPDATE tm_tasks SET worker_session_id=?, status='in_progress', "
-                "sync_revision=sync_revision+1, updated_at=? WHERE id=? AND worker_session_id IS NULL",
-                (session_id, now, task["id"]),
-            )
-            if updated.rowcount != 1:
-                raise ValueError("task binding compare-and-swap failed")
-            updated = conn.execute(
-                "UPDATE sessions SET task_id=? WHERE id=? AND task_id=''",
-                (str(task["par_number"]), session_id),
-            )
-            if updated.rowcount != 1:
-                raise ValueError("session binding compare-and-swap failed")
+            if not task_worker_session_id:
+                updated = conn.execute(
+                    "UPDATE tm_tasks SET worker_session_id=?, status='in_progress', "
+                    "sync_revision=sync_revision+1, updated_at=? "
+                    "WHERE id=? AND worker_session_id IS NULL",
+                    (session_id, now, task["id"]),
+                )
+                if updated.rowcount != 1:
+                    raise ValueError("task binding compare-and-swap failed")
+            elif task["status"] != "in_progress":
+                conn.execute(
+                    "UPDATE tm_tasks SET status='in_progress', "
+                    "sync_revision=sync_revision+1, updated_at=? WHERE id=? "
+                    "AND worker_session_id=?",
+                    (now, task["id"], session_id),
+                )
+            if not session_task_id:
+                updated = conn.execute(
+                    "UPDATE sessions SET task_id=? WHERE id=? AND task_id=''",
+                    (str(task["par_number"]), session_id),
+                )
+                if updated.rowcount != 1:
+                    raise ValueError("session binding compare-and-swap failed")
             bound = get_task_by_id(conn, task["id"])
             conn.commit()
             return task_dto(bound)
         except Exception:
             conn.rollback()
             raise
+
+
+def bind_task_to_session(scope: str, session_id: str, task_ref: str) -> dict:
+    with _TASK_BINDING_LOCK:
+        return _bind_task_to_session_unlocked(scope, session_id, task_ref)
 
 
 def _live_bindings(
@@ -1143,6 +1167,80 @@ def api_update_task(par: str, title: str | None = None,
     }
 
 
+def _infer_task_worker_session(
+    identity: TaskIdentity,
+    *,
+    status: str,
+    worker_session_id: str | None,
+) -> str | None:
+    """Recover the session side published by a branch switch before task update."""
+    if status != "in_progress" or worker_session_id is not None:
+        return worker_session_id
+    with _conn() as conn:
+        task = get_task_by_id(conn, identity["id"])
+        if not task:
+            return None
+        project = conn.execute(
+            "SELECT scope FROM tm_projects WHERE id = ?", (task["project_id"],)
+        ).fetchone()
+        if not project:
+            return None
+        rows = conn.execute(
+            "SELECT id FROM sessions WHERE task_id = ? "
+            "AND RTRIM(scope, '/') = RTRIM(?, '/') "
+            "AND status != 'archived' ORDER BY id",
+            (str(task["par_number"]), project["scope"]),
+        ).fetchall()
+    if len(rows) > 1:
+        owners = ", ".join(row["id"] for row in rows)
+        raise ValueError(
+            f"task #{task['par_number']} has multiple session bindings: {owners}"
+        )
+    task_worker_session_id = str(task["worker_session_id"] or "")
+    if task_worker_session_id:
+        if rows and rows[0]["id"] != task_worker_session_id:
+            raise ValueError(
+                f"task #{task['par_number']} is bound to session "
+                f"'{task_worker_session_id}', but session '{rows[0]['id']}' "
+                "is bound to that task"
+            )
+        return None
+    return rows[0]["id"] if rows else None
+
+
+def _validate_inferred_task_worker(
+    conn: sqlite3.Connection,
+    task: dict,
+    worker_session_id: str,
+) -> None:
+    """Reject a stale session-side owner while the task write lock is held."""
+    current_worker = str(task["worker_session_id"] or "")
+    if current_worker and current_worker != worker_session_id:
+        raise ValueError(
+            f"task #{task['par_number']} worker binding changed to "
+            f"'{task['worker_session_id']}' before status update"
+        )
+    project = conn.execute(
+        "SELECT scope FROM tm_projects WHERE id = ?", (task["project_id"],)
+    ).fetchone()
+    if not project:
+        raise ValueError(
+            f"task #{task['par_number']} project disappeared before status update"
+        )
+    rows = conn.execute(
+        "SELECT id FROM sessions WHERE task_id = ? "
+        "AND RTRIM(scope, '/') = RTRIM(?, '/') "
+        "AND status != 'archived' ORDER BY id",
+        (str(task["par_number"]), project["scope"]),
+    ).fetchall()
+    if len(rows) != 1 or rows[0]["id"] != worker_session_id:
+        owners = ", ".join(row["id"] for row in rows) or "none"
+        raise ValueError(
+            f"task #{task['par_number']} session binding changed before status update: "
+            f"expected '{worker_session_id}', found {owners}"
+        )
+
+
 def api_update_task_if_current(
     identity: TaskIdentity,
     *,
@@ -1152,6 +1250,10 @@ def api_update_task_if_current(
     """Update a prevalidated task only while its immutable identity/version matches."""
     if status not in VALID_STATUSES:
         raise ValueError(f"Invalid status: {status}")
+    binding_inferred = worker_session_id is None and status == "in_progress"
+    worker_session_id = _infer_task_worker_session(
+        identity, status=status, worker_session_id=worker_session_id,
+    )
     task_id = identity["id"]
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -1185,6 +1287,8 @@ def api_update_task_if_current(
                         f"found {task['sync_revision']}"
                     ),
                 }
+            if binding_inferred and worker_session_id:
+                _validate_inferred_task_worker(conn, task, worker_session_id)
             result = update_task(
                 conn,
                 task_id,
@@ -1715,12 +1819,29 @@ def api_update_task(par: str, title: str | None = None,
     return _canonical_result(candidate, legacy, context, _UPDATE_COMPARE_FIELDS)
 
 
-def api_update_task_if_current(
+def _api_update_task_if_current_unlocked(
     identity: TaskIdentity,
     *,
     status: str,
     worker_session_id: str | None = None,
 ) -> dict:
+    binding_inferred = worker_session_id is None and status == "in_progress"
+    worker_session_id = _infer_task_worker_session(
+        identity, status=status, worker_session_id=worker_session_id,
+    )
+    if binding_inferred and worker_session_id:
+        with _conn() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            task = get_task_by_id(conn, identity["id"])
+            if not task:
+                conn.rollback()
+                return {
+                    "ok": False,
+                    "task_id": identity["id"],
+                    "error": "prevalidated task no longer exists",
+                }
+            _validate_inferred_task_worker(conn, task, worker_session_id)
+            conn.commit()
     context = _ia_context()
     if context is None:
         return _legacy_api_update_task_if_current(
@@ -1778,6 +1899,20 @@ def api_update_task_if_current(
         context,
         ("ok", "par", "updated", "new_status", "sync_revision"),
     )
+
+
+def api_update_task_if_current(
+    identity: TaskIdentity,
+    *,
+    status: str,
+    worker_session_id: str | None = None,
+) -> dict:
+    with _TASK_BINDING_LOCK:
+        return _api_update_task_if_current_unlocked(
+            identity,
+            status=status,
+            worker_session_id=worker_session_id,
+        )
 
 
 def api_list_tasks(project: str = "", status: str = "",
