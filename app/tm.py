@@ -1101,7 +1101,12 @@ def _repair_shadow_task_drift_unlocked(
         canonical_state_before = None
         try:
             canonical_state_before = _canonical_state_snapshot(store)
-            store.task_update(str(key[1]), project=key[0], status="done")
+            store.task_update(
+                str(key[1]),
+                project=key[0],
+                status="done",
+                completed_at=legacy.get("completed_at"),
+            )
             canonical = store.task_get(str(key[1]), project=key[0])
             with _conn() as conn:
                 repaired_legacy = dict(conn.execute(
