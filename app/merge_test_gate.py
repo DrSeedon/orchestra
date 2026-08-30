@@ -86,6 +86,32 @@ def _normalize_output(output: str | bytes | None) -> str:
     return output
 
 
+def _pytest_interpreter(worktree: str) -> str:
+    """Select the project's interpreter before falling back to this process."""
+    wt = Path(worktree).resolve()
+    candidates = [wt / ".venv" / "bin" / "python"]
+    root = _git(wt, "rev-parse", "--show-toplevel") if (wt / ".git").exists() else None
+    if root:
+        candidates.append(Path(root.strip()) / ".venv" / "bin" / "python")
+    candidates.append(Path(sys.executable))
+    seen: set[Path] = set()
+    for candidate in candidates:
+        is_current = candidate == Path(sys.executable)
+        resolved = candidate if is_current else candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if resolved.is_file() and os.access(resolved, os.X_OK):
+            return sys.executable if is_current else str(resolved)
+    return sys.executable
+
+
+def _diagnostic_output(interpreter: str, output: str | bytes | None) -> str:
+    marker = f"interpreter={interpreter}\n"
+    body = _normalize_output(output)
+    return marker + body[-max(0, 4000 - len(marker)):]
+
+
 def _git(cwd: Path, *args: str) -> str | None:
     try:
         proc = subprocess.run(
@@ -159,7 +185,7 @@ LIVE_PROBE_MARKER = "live_probe"
 NO_TESTS_EXIT_CODE = 5  # pytest EXIT_NOTESTSCOLLECTED
 
 
-def pytest_argv(tests: list[str]) -> list[str]:
+def pytest_argv(tests: list[str], *, interpreter: str | None = None) -> list[str]:
     # No -x / --exitfirst / --maxfail=1: one red must not hide the rest.
     # `-m "not live_probe"` снимает с гейта пробы, тратящие настоящий ход провайдера: они
     # краснеют от квоты и недоступности, а не от диффа, и блокируют чужие мержи (18.08:
@@ -174,8 +200,9 @@ def pytest_argv(tests: list[str]) -> list[str]:
     # `-q` на том же прогоне — 0 символов.
     # Арифметика флагов проверена прогоном и неочевидна: `-q` это −1, `-vv` это +2, сумма
     # +1 — тот же режим, что голый `-v`. Писать `-q -v` НЕЛЬЗЯ: сумма 0, снова точки.
+    python = interpreter or sys.executable
     return [
-        sys.executable, "-m", "pytest", "-q", "-vv",
+        python, "-m", "pytest", "-q", "-vv",
         "-m", f"not {LIVE_PROBE_MARKER}",
         *tests,
     ]
@@ -249,7 +276,8 @@ def describe_progress(result: dict) -> str:
 
 def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None) -> dict:
     budget = budget_for(len(tests)) if timeout is None else timeout
-    argv = pytest_argv(tests)
+    interpreter = _pytest_interpreter(worktree)
+    argv = pytest_argv(tests, interpreter=interpreter)
     env = os.environ.copy()
     root = str(Path(worktree).resolve())
     prior = env.get("PYTHONPATH", "")
@@ -267,7 +295,8 @@ def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None)
     except FileNotFoundError:
         return {
             "status": INCONCLUSIVE, "reason": "not_found",
-            "exit_code": None, "output": argv[0], "tests": tests,
+            "exit_code": None, "output": _diagnostic_output(interpreter, argv[0]),
+            "tests": tests,
         }
     except subprocess.TimeoutExpired as exc:
         out = _normalize_output(exc.stdout) + _normalize_output(exc.stderr)
@@ -278,24 +307,28 @@ def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None)
         if progress["failed_tests"]:
             return {
                 "status": FAILED, "reason": "timeout_with_failures",
-                "exit_code": None, "output": out[-4000:], "tests": tests,
+                "exit_code": None, "output": _diagnostic_output(interpreter, out),
+                "tests": tests,
                 **progress,
             }
         return {
             "status": INCONCLUSIVE, "reason": "timeout",
-            "exit_code": None, "output": out[-4000:], "tests": tests,
+            "exit_code": None, "output": _diagnostic_output(interpreter, out),
+            "tests": tests,
             **progress,
         }
     except OSError as exc:
         return {
             "status": INCONCLUSIVE, "reason": "os_error",
-            "exit_code": None, "output": str(exc), "tests": tests,
+            "exit_code": None, "output": _diagnostic_output(interpreter, str(exc)),
+            "tests": tests,
         }
-    output = (_normalize_output(proc.stdout) + _normalize_output(proc.stderr))[-4000:]
+    output = _normalize_output(proc.stdout) + _normalize_output(proc.stderr)
+    diagnostic = _diagnostic_output(interpreter, output)
     if proc.returncode == 0:
         return {
-            "status": PASSED, "reason": "",
-            "exit_code": 0, "output": output, "tests": tests,
+            "status": PASSED, "reason": "", "exit_code": 0,
+            "output": diagnostic, "tests": tests,
         }
     if proc.returncode == NO_TESTS_EXIT_CODE:
         # Файл выбран, но после `-m "not live_probe"` в нём не осталось ни одного теста —
@@ -303,11 +336,16 @@ def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None)
         # FAILED врал бы про красноту, PASSED — про пустой прогон.
         return {
             "status": SKIPPED, "reason": "no_tests_after_deselect",
-            "exit_code": proc.returncode, "output": output, "tests": tests,
+            "exit_code": proc.returncode, "output": diagnostic, "tests": tests,
+        }
+    if re.search(r"No module named ['\"]?pytest['\"]?", output):
+        return {
+            "status": INCONCLUSIVE, "reason": "pytest_unavailable",
+            "exit_code": proc.returncode, "output": diagnostic, "tests": tests,
         }
     return {
         "status": FAILED, "reason": "exit_nonzero",
-        "exit_code": proc.returncode, "output": output, "tests": tests,
+        "exit_code": proc.returncode, "output": diagnostic, "tests": tests,
     }
 
 
