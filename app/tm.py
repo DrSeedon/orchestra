@@ -871,6 +871,57 @@ def release_merge_finalization(payload: dict) -> None:
             )
 
 
+def _finalization_task_identity(task_id: int) -> TaskIdentity:
+    with _conn() as conn:
+        task = get_task_by_id(conn, task_id)
+    if not task:
+        raise ValueError(f"task {task_id} disappeared before finalization")
+    return {
+        "id": task["id"],
+        "project_id": task["project_id"],
+        "par_number": task["par_number"],
+        "sync_revision": task["sync_revision"],
+    }
+
+
+def _apply_finalization_task_update(
+    payload: dict,
+    task_id: int,
+    *,
+    status: str,
+    worker_session_id: str | None = None,
+) -> dict:
+    identity = _finalization_task_identity(task_id)
+    try:
+        result = api_update_task_if_current(
+            identity,
+            status=status,
+            worker_session_id=worker_session_id,
+            _canonical_first=True,
+        )
+    except Exception as error:
+        detail = f"{type(error).__name__}: {error}"
+        payload["task_status"] = {"ok": False, "error": detail}
+        raise RuntimeError(f"task finalization failed: {detail}") from error
+    debt = result.get("projection_debt") or {}
+    mismatches = debt.get("mismatches") or {}
+    replay_match = (
+        result.get("shadow_match") is False
+        and set(mismatches) == {"updated"}
+        and result.get("new_status") == status
+    )
+    if not result.get("ok") or (result.get("shadow_match") is False and not replay_match):
+        detail = str(debt.get("message") or result.get("error") or "task update failed")
+        payload["task_status"] = {
+            "ok": False,
+            "error": detail,
+            "result": result,
+        }
+        raise RuntimeError(f"canonical task finalization failed: {detail}")
+    payload["task_status"] = {"ok": True, "result": result}
+    return result
+
+
 def finalize_merge_outcome(payload: dict) -> dict:
     """Apply the whole post-commit tracker stage of one merge. Safe to run twice.
 
@@ -892,15 +943,19 @@ def finalize_merge_outcome(payload: dict) -> dict:
     outcome = payload["outcome"]
     next_task = payload.get("next_task")
     reservation_id = payload["reservation_id"]
+    if outcome == "complete":
+        _apply_finalization_task_update(payload, task_db_id, status="done")
+    if next_task:
+        _apply_finalization_task_update(
+            payload,
+            next_task["task_id"],
+            status="in_progress",
+            worker_session_id=payload["session_id"],
+        )
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
             if outcome == "complete":
-                task = get_task_by_id(conn, task_db_id)
-                if not task:
-                    raise ValueError(f"task {task_db_id} disappeared before finalization")
-                if task["status"] != "done":
-                    update_task(conn, task_db_id, status="done")
                 conn.execute(
                     "UPDATE tm_tasks SET worker_session_id=NULL, "
                     "sync_revision=sync_revision+1, updated_at=? WHERE id=?",
@@ -911,11 +966,6 @@ def finalize_merge_outcome(payload: dict) -> dict:
                     (task_db_id, reservation_id),
                 )
             if next_task:
-                conn.execute(
-                    "UPDATE tm_tasks SET worker_session_id=?, status='in_progress', "
-                    "sync_revision=sync_revision+1, updated_at=? WHERE id=?",
-                    (payload["session_id"], _now(), next_task["task_id"]),
-                )
                 conn.execute(
                     "DELETE FROM tm_task_reservations WHERE task_id=? AND operation_id=?",
                     (next_task["task_id"], reservation_id),
@@ -1853,6 +1903,7 @@ def _api_update_task_if_current_unlocked(
     *,
     status: str,
     worker_session_id: str | None = None,
+    _canonical_first: bool = False,
 ) -> dict:
     binding_inferred = worker_session_id is None and status == "in_progress"
     worker_session_id = _infer_task_worker_session(
@@ -1891,7 +1942,41 @@ def _api_update_task_if_current_unlocked(
             f"project '{identity['project_id']}' task #{identity['par_number']}: {error}"
         ) from error
     candidate_identity = _merge_canonical_task_identity(identity, detail)
+    if _canonical_first:
+        candidate_identity["sync_revision"] = int(
+            detail.get("sync_revision", candidate_identity["sync_revision"])
+        )
     if context.mode == "shadow":
+        if _canonical_first:
+            try:
+                candidate = store.task_update_if_current(
+                    candidate_identity,
+                    status=status,
+                    worker_session_id=worker_session_id,
+                )
+            except Exception:
+                raise
+            if not candidate.get("ok"):
+                return {
+                    **candidate,
+                    "ia_mode": context.mode,
+                    "shadow_match": False,
+                    "projection_debt": {
+                        "reason": "candidate_update_rejected",
+                        "message": str(candidate.get("error") or "canonical task update rejected"),
+                    },
+                }
+            legacy = _legacy_api_update_task_if_current(
+                identity,
+                status=status,
+                worker_session_id=worker_session_id,
+            )
+            return _shadow_result(
+                legacy,
+                candidate,
+                context,
+                ("ok", "par", "updated", "new_status", "sync_revision"),
+            )
         legacy = _legacy_api_update_task_if_current(
             identity,
             status=status,
@@ -1936,12 +2021,14 @@ def api_update_task_if_current(
     *,
     status: str,
     worker_session_id: str | None = None,
+    _canonical_first: bool = False,
 ) -> dict:
     with _TASK_BINDING_LOCK:
         return _api_update_task_if_current_unlocked(
             identity,
             status=status,
             worker_session_id=worker_session_id,
+            _canonical_first=_canonical_first,
         )
 
 
