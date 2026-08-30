@@ -90,26 +90,32 @@ def _pytest_interpreter(worktree: str) -> str:
     """Select the project's interpreter before falling back to this process."""
     wt = Path(worktree).resolve()
     candidates = [wt / ".venv" / "bin" / "python"]
-    root = _git(wt, "rev-parse", "--show-toplevel") if (wt / ".git").exists() else None
+    common_dir = (
+        _git(wt, "rev-parse", "--path-format=absolute", "--git-common-dir")
+        if (wt / ".git").exists()
+        else None
+    )
+    root = Path(common_dir.strip()).parent if common_dir else None
     if root:
-        candidates.append(Path(root.strip()) / ".venv" / "bin" / "python")
+        candidates.append(root / ".venv" / "bin" / "python")
     candidates.append(Path(sys.executable))
     seen: set[Path] = set()
     for candidate in candidates:
-        is_current = candidate == Path(sys.executable)
-        resolved = candidate if is_current else candidate.resolve()
+        resolved = candidate.resolve()
         if resolved in seen:
             continue
         seen.add(resolved)
-        if resolved.is_file() and os.access(resolved, os.X_OK):
-            return sys.executable if is_current else str(resolved)
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
     return sys.executable
 
 
 def _diagnostic_output(interpreter: str, output: str | bytes | None) -> str:
     marker = f"interpreter={interpreter}\n"
+    trailer = marker.rstrip("\n")
     body = _normalize_output(output)
-    return marker + body[-max(0, 4000 - len(marker)):]
+    body_limit = max(0, 4000 - len(marker) - len(trailer) - 1)
+    return marker + body[-body_limit:] + "\n" + trailer
 
 
 def _git(cwd: Path, *args: str) -> str | None:
