@@ -1,0 +1,22 @@
+# source=https://openrouter.ai/api/v1/models
+# retrieved_at_utc=2026-08-30T12:28:29Z
+# columns=model_id,input_modalities,output_modalities,tools
+# normalized_sha256=d2f8132fa8b62bf70b108041f97da48cbd65f1886feeed0376fd3914095f766e
+cohere/north-mini-code:free	text	text	true
+dots-studio/dots-3-note-preview:free	text,image	text	true
+google/gemma-4-26b-a4b-it:free	image,text,video	text	true
+google/gemma-4-31b-it:free	image,text,video	text	true
+inclusionai/ling-3.0-flash-fin:free	text	text	true
+liquid/lfm-2.5-2.6b:free	text	text	true
+minimax/minimax-m2.7:free	text	text	true
+minimax/minimax-m3:free	text,image,video	text	true
+nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free	text,audio,image,video	text	true
+nvidia/nemotron-3-super-120b-a12b:free	text	text	true
+nvidia/nemotron-3-ultra-550b-a55b:free	text	text	true
+nvidia/nemotron-3.5-content-safety:free	text,image	text	false
+nvidia/nemotron-3.5-lightning:free	text	text	true
+poolside/laguna-s-2.1:free	text	text	true
+poolside/laguna-xs-2.1:free	text	text	true
+thinkingmachines/inkling-small:free	text,image,audio	text	true
+thinkingmachines/inkling:free	text,image,audio	text	true
+z-ai/glm-5.2:free	text	text	true

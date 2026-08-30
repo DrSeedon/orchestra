@@ -1,0 +1,52 @@
+group	log_ids	rule_anchor	claude_promotion_commit
+P01	365795	first handler/API authorization boundary	NONE
+P02	365924	provider pool load => sequential research	NONE
+P03	373872	ambiguous message changes task => ask	fd050bfc
+P04	376546	blind judge receives measured side effects	NONE
+P05	383141	CPU-heavy benchmark shared laptop sequential nice	958ec363
+P06	383436	blocked evidence can expire => freeze commit	d74f0005
+P07	387961	full-vs-isolated flip => verify config/commit	33776de9
+P08	391836	multi-package audit => current file	fef05578
+P09	392081	spawn/IO rename => redirect old mocks	49ccc8f7
+P10	393952	eval finding => inspect raw outputs	2167e166
+P11	396315	loud claim => primary source wording	c934150e
+P12	399471	code premise => inspect branch	6d312339
+P13	400068	correction about code => trace to end	6d312339
+P14	401045,401315	document period => git log main + task reports	e146bf57
+P15	403044	repository transfer cost => .git + tracked files	d6453d09
+P16	403391	check must distinguish success/failure	d296b853
+P17	403464	forget context => clear session id, not compact	d296b853
+P18	403808	deploy under User => file ownership	e9492aec
+P19	406590,407497	research conflict line citations => re-grep	NONE
+P20	406686	pytest pipeline exit masked by tail	252da4ad
+P21	406780	branch behind/conflict => check work already landed	NONE
+P22	407314	loaded ML model => anonymous RSS	0cb7fe01
+P23	409090	heavy shared-machine run => MemoryMax	52e71500
+P24	409537	rule and workaround in different files => grep both	994aae1c
+P25	410987	assigned path => git check-ignore first	4549d041
+P26	412184	symptom task => git log -S current code	4549d041
+P27	412231	period document => locate top-entry commit	NONE
+P28	412315	measured improvement => split-half noise	4549d041
+P29	414922	heterogeneous data average => stratify before reject	NONE
+P30	420007	mutation survives fallback => isolate case	534478ae
+P31	420144	literal argv/code test => behavior vs form	534478ae
+P32	420933	fake matcher input => supply all required traits	NONE
+P33	422445	at-least-once replay => flag after side effect	402bf88e
+P34	422475	premise says artifact absent => verify existence	402bf88e
+P35	422631	test red but manual repro green => inspect harness	NONE
+P36	423576	document commands => execute verbatim	c3407372
+P37	423768	returned response test => do not reread storage	NONE
+P38	424843	text mutation => grep count unique anchor	b58cbe6c
+P39	444673	literal structure derived => verify fill order	NONE
+P40	456705	source unavailable => try headless browser	NONE
+P41	456744	docs say nothing => positive grep/file control	NONE
+P42	456888	before/after runs => before-vs-before noise	e95b0b8f
+P43	457378	production library version => ExecStart interpreter	7238df7d
+P44	470212	local hard stop => resume proven remote protocol	NONE
+P45	478713	path/symbol acceptance => smoke, freeze behavior oracle	NONE
+P46	483202	new seam behind adapters => production-entry mutation	NONE
+P47	490547	ephemeral tool user-config fallback => isolation receipts	NONE
+P48	511458	new/fixed failures => compare node-id sets	9a656413
+P49	539784	dependent RED tests => distinct seams	30a36cc3
+P50	540032	application/DB oracle => production row invariant	f556a51a
+P51	540774	full-cycle owns oracles/dirs => no child delegation	6da6822d
