@@ -376,8 +376,8 @@ def test_run_pytest_uses_repo_root_venv_before_orchestra_python(tmp_path, monkey
     monkeypatch.setattr(
         gate,
         "_git",
-        lambda _cwd, *args: str(repo_root) + "\n"
-        if args == ("rev-parse", "--show-toplevel")
+        lambda _cwd, *args: str(repo_root / ".git") + "\n"
+        if args == ("rev-parse", "--path-format=absolute", "--git-common-dir")
         else None,
     )
     calls = []
@@ -391,6 +391,74 @@ def test_run_pytest_uses_repo_root_venv_before_orchestra_python(tmp_path, monkey
     result = gate.run_pytest(str(worktree), ["tests/test_widget.py"])
 
     assert calls[0][0] == str(interpreter)
+    assert f"interpreter={interpreter}" in result["output"]
+
+
+def test_linked_worktree_uses_main_checkout_venv(tmp_path):
+    from app import merge_test_gate as gate
+
+    main = tmp_path / "project"
+    main.mkdir()
+    _git(main, "init", "-b", "main")
+    _git(main, "config", "user.email", "t@t")
+    _git(main, "config", "user.name", "t")
+    (main / "README").write_text("base\n", encoding="utf-8")
+    _git(main, "add", "README")
+    _git(main, "commit", "-m", "base")
+    interpreter = _fake_python(main / ".venv" / "bin" / "python")
+    interpreter.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    interpreter.chmod(0o755)
+    linked = tmp_path / "linked"
+    subprocess.run(
+        ["git", "worktree", "add", str(linked), "-b", "worker"],
+        cwd=main, check=True, capture_output=True, text=True,
+    )
+
+    result = gate.run_pytest(str(linked), ["tests/test_widget.py"])
+
+    assert result["status"] == gate.PASSED
+    assert result["output"].startswith(f"interpreter={interpreter}\n")
+
+
+def test_linked_worktree_symlinked_python_retains_venv_packages(tmp_path):
+    from app import merge_test_gate as gate
+
+    main = tmp_path / "project"
+    main.mkdir()
+    _git(main, "init", "-b", "main")
+    _git(main, "config", "user.email", "t@t")
+    _git(main, "config", "user.name", "t")
+    (main / "README").write_text("base\n", encoding="utf-8")
+    _git(main, "add", "README")
+    _git(main, "commit", "-m", "base")
+    venv = main / ".venv"
+    (venv / "bin").mkdir(parents=True)
+    (venv / "pyvenv.cfg").write_text(
+        "home = /usr\ninclude-system-site-packages = false\nversion = 3.12.3\n",
+        encoding="utf-8",
+    )
+    interpreter = venv / "bin" / "python"
+    interpreter.symlink_to("/usr/bin/python3")
+    import pytest as pytest_module
+    site_packages = Path(pytest_module.__file__).resolve().parent.parent
+    python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    (venv / "lib" / python_version).mkdir(parents=True)
+    (venv / "lib" / python_version / "site-packages").symlink_to(
+        site_packages, target_is_directory=True,
+    )
+    linked = tmp_path / "linked"
+    subprocess.run(
+        ["git", "worktree", "add", str(linked), "-b", "worker"],
+        cwd=main, check=True, capture_output=True, text=True,
+    )
+    (linked / "tests").mkdir()
+    (linked / "tests" / "test_placeholder.py").write_text(
+        "def test_placeholder():\n    assert True\n", encoding="utf-8",
+    )
+
+    result = gate.run_pytest(str(linked), ["tests/test_placeholder.py"])
+
+    assert result["status"] == gate.PASSED
     assert f"interpreter={interpreter}" in result["output"]
 
 
@@ -421,6 +489,25 @@ def test_run_pytest_reports_project_pytest_missing_without_fallback(tmp_path, mo
     ]]
     assert f"interpreter={interpreter}" in result["output"]
     assert str(sys.executable) not in result["output"]
+
+
+def test_run_pytest_keeps_interpreter_marker_in_trimmed_refusal(tmp_path, monkeypatch):
+    from app import merge_test_gate as gate
+
+    interpreter = _fake_python(tmp_path / "worktree" / ".venv" / "bin" / "python")
+    output = "pytest refusal " + ("x" * 5000)
+    monkeypatch.setattr(
+        gate.subprocess,
+        "run",
+        lambda argv, **_kwargs: subprocess.CompletedProcess(argv, 1, output, ""),
+    )
+
+    result = gate.run_pytest(str(tmp_path / "worktree"), ["tests/test_widget.py"])
+
+    marker = f"interpreter={interpreter}"
+    assert result["status"] == gate.FAILED
+    assert marker in result["output"]
+    assert result["output"].endswith(marker)
 
 
 def test_run_pytest_uses_orchestra_python_when_project_venv_is_absent(tmp_path, monkeypatch):
@@ -502,8 +589,10 @@ def test_run_pytest_timeout_normalizes_output_types(tmp_path, monkeypatch, stdou
     result = gate.run_pytest(str(tmp_path), tests, timeout=1)
     assert result["status"] == INCONCLUSIVE
     assert result["reason"] == "timeout"
-    assert result["output"].startswith(f"interpreter={sys.executable}\n")
-    assert result["output"].endswith(expected)
+    marker = f"interpreter={sys.executable}"
+    assert result["output"].startswith(marker + "\n")
+    assert expected in result["output"]
+    assert result["output"].endswith(marker)
     assert result["tests"] == tests
 
 
@@ -527,6 +616,8 @@ def test_run_pytest_timeout_replaces_invalid_utf8(tmp_path, monkeypatch):
     assert result["status"] == "inconclusive"
     assert result["reason"] == "timeout"
     assert "bad�bytes" in result["output"]
+    assert result["output"].startswith(f"interpreter={sys.executable}\n")
+    assert result["output"].endswith(f"interpreter={sys.executable}")
 
 
 def test_run_pytest_timeout_truncates_to_last_4000_chars(tmp_path, monkeypatch):
@@ -551,7 +642,8 @@ def test_run_pytest_timeout_truncates_to_last_4000_chars(tmp_path, monkeypatch):
     assert len(result["output"]) == 4000
     marker = f"interpreter={sys.executable}\n"
     assert result["output"].startswith(marker)
-    assert result["output"].endswith(payload[-(4000 - len(marker)):])
+    assert result["output"].endswith(marker.rstrip("\n"))
+    assert payload[-100:] in result["output"]
 
 
 # Дословно снято с убитого прогона (#336): `-q -vv`, kill на 10 с. Формат фикстуры не
