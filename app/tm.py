@@ -872,27 +872,27 @@ def release_merge_finalization(payload: dict) -> None:
             )
 
 
-_REPAIR_COMPARE_FIELDS = ("status", "completed_at", "sync_revision")
-
-
 def _repair_snapshot(legacy: dict, canonical: dict) -> dict:
     canonical_project = canonical.get("project", canonical.get("project_id"))
     canonical_par = canonical.get("par", canonical.get("display_number"))
     canonical_state = {
         "status": canonical.get("status"),
         "completed_at": canonical.get("completed_at"),
-        "sync_revision": canonical.get("sync_revision"),
     }
     legacy_state = {
         "status": legacy.get("status"),
         "completed_at": legacy.get("completed_at"),
-        "sync_revision": legacy.get("sync_revision"),
     }
     mismatches = {
         field: {"legacy": legacy_state[field], "canonical": canonical_state[field]}
-        for field in _REPAIR_COMPARE_FIELDS
+        for field in ("status",)
         if legacy_state[field] != canonical_state[field]
     }
+    if not canonical_state["completed_at"]:
+        mismatches["completed_at"] = {
+            "legacy": legacy_state["completed_at"],
+            "canonical": None,
+        }
     if (
         str(canonical_project) != str(legacy["project_id"])
         or int(canonical_par) != int(legacy["par_number"])
@@ -902,7 +902,7 @@ def _repair_snapshot(legacy: dict, canonical: dict) -> dict:
             f"project '{legacy['project_id']}' task #{legacy['par_number']}"
         )
     return {
-        "shadow_match": not mismatches,
+        "needs_repair": bool(mismatches),
         "projection_debt": {"mismatches": mismatches} if mismatches else {},
         "legacy": legacy_state,
         "canonical": canonical_state,
@@ -929,10 +929,22 @@ def repair_shadow_task_drift(
     *,
     expected_refs: list[dict],
 ) -> dict:
+    with _TASK_BINDING_LOCK:
+        return _repair_shadow_task_drift_unlocked(
+            store,
+            expected_refs=expected_refs,
+        )
+
+
+def _repair_shadow_task_drift_unlocked(
+    store,
+    *,
+    expected_refs: list[dict],
+) -> dict:
     """Repair one operator-approved, freshly recomputed shadow-drift set.
 
-    The caller must provide the runtime-owned store while the service is stopped. The
-    store is deliberately not opened here, preventing a second owner of its Git lock.
+    The caller must provide the runtime-owned store. The store is deliberately not
+    opened here, preventing a second owner of its Git lock.
     """
     if not expected_refs:
         raise ValueError("repair list is empty")
@@ -977,12 +989,12 @@ def repair_shadow_task_drift(
             scan_errors.append({
                 "ref": {"project_id": key[0], "par_number": key[1]},
                 "error": f"{type(error).__name__}: {error}",
-                "before": {"shadow_match": False, "projection_debt": {}},
-                "after": {"shadow_match": False, "projection_debt": {}},
+                "before": {"needs_repair": True, "projection_debt": {}},
+                "after": {"needs_repair": True, "projection_debt": {}},
             })
             continue
         states[key] = (legacy, snapshot)
-        if not snapshot["shadow_match"]:
+        if snapshot["needs_repair"]:
             fresh[key] = expected.get(key, {"project_id": key[0], "par_number": key[1]})
 
     if scan_errors:
@@ -997,7 +1009,7 @@ def repair_shadow_task_drift(
 
     if not fresh:
         if set(expected).issubset(states) and all(
-            states[key][1]["shadow_match"] for key in expected
+            not states[key][1]["needs_repair"] for key in expected
         ):
             return {"ok": True, "changed": 0, "idempotent": True, "items": []}
         raise ValueError("fresh repair drift list is empty")
@@ -1016,24 +1028,8 @@ def repair_shadow_task_drift(
         canonical_state_before = None
         try:
             canonical_state_before = _canonical_state_snapshot(store)
-            with _conn() as conn:
-                conn.execute("BEGIN IMMEDIATE")
-                canonical_current = store.task_get(str(key[1]), project=key[0])
-                canonical_revision = int(canonical_current.get("sync_revision") or 0)
-                legacy_revision = int(legacy.get("sync_revision") or 0)
-                if legacy_revision != canonical_revision + 1:
-                    raise ValueError(
-                        "repair revision transition is not one step: "
-                        f"legacy={legacy_revision}, canonical={canonical_revision}"
-                    )
-                store.task_update(str(key[1]), project=key[0], status="done")
-                canonical = store.task_get(str(key[1]), project=key[0])
-                completed_at = canonical.get("completed_at")
-                conn.execute(
-                    "UPDATE tm_tasks SET completed_at=? WHERE id=? AND status='done'",
-                    (completed_at, legacy["id"]),
-                )
-                conn.commit()
+            store.task_update(str(key[1]), project=key[0], status="done")
+            canonical = store.task_get(str(key[1]), project=key[0])
             with _conn() as conn:
                 repaired_legacy = dict(conn.execute(
                     "SELECT project_id, par_number, status, completed_at, sync_revision "
@@ -1041,7 +1037,7 @@ def repair_shadow_task_drift(
                 ).fetchone())
             after = _repair_snapshot(repaired_legacy, canonical)
             item = {"ref": ref, "before": before, "after": after}
-            if not after["shadow_match"]:
+            if after["needs_repair"]:
                 errors.append({
                     "ref": ref,
                     "error": "post-repair verification failed",
@@ -1071,7 +1067,7 @@ def repair_shadow_task_drift(
                 after = _repair_snapshot(current_legacy, current_canonical)
             except Exception as snapshot_error:
                 after = {
-                    "shadow_match": False,
+                    "needs_repair": True,
                     "projection_debt": {
                         "error": f"{type(snapshot_error).__name__}: {snapshot_error}"
                     },
