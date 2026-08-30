@@ -986,6 +986,7 @@ class TaskStore:
         description: str | None = None,
         price: int | None = None,
         status: str | None = None,
+        completed_at: str | None = None,
         assignee: str | None = None,
         priority: int | None = None,
         worker_session_id: str | None = None,
@@ -1028,7 +1029,16 @@ class TaskStore:
             changed.append("status")
             event_changes.append(("status", status))
             if status == "done" and not state.get("completed_at"):
-                state["completed_at"] = _now()
+                state["completed_at"] = completed_at or _now()
+                event_changes.append(("completed_at", state["completed_at"]))
+        if status == "done" and not state.get("completed_at"):
+            state["completed_at"] = completed_at or _now()
+            changed.append("completed_at")
+            event_changes.append(("completed_at", state["completed_at"]))
+        elif completed_at is not None and completed_at != state.get("completed_at"):
+            state["completed_at"] = completed_at
+            changed.append("completed_at")
+            event_changes.append(("completed_at", completed_at))
 
         acceptance_touched = any(
             value is not None
