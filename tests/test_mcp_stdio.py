@@ -1198,12 +1198,14 @@ async def test_t3_spawn_delivery_posts_caller_key_and_returns_accepted_receipt(
             }
         assert path == "/api/sessions/child/initial-deliveries"
         body = kwargs["json"]
-        assert body == {
+        # Поведение, а не дословный текст: платформа вправе дописать к сообщению врезку
+        # (например `_cross_repo_note`, когда repo_path воркера не совпадает со scope сессии).
+        assert {k: v for k, v in body.items() if k != "message"} == {
             "delivery_id": delivery_id,
-            "message": "do it",
             "scope": "/s",
             "sender": "parent-orchestrator",
         }
+        assert body["message"].startswith("do it")
         return {
             "ok": True,
             "delivery_id": delivery_id,
