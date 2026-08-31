@@ -200,13 +200,21 @@ def test_same_key_payload_mismatch_is_typed_409_without_second_row(merge_db):
     )
 
     assert created is True and status == 202
+    assert operations.claim_operation(operation_id, "owner") is True
+    running = operations.get_operation_result(operation_id)
+    assert running["next_action"]["code"] == "CHECK_SAME_OPERATION"
+    assert "payload" in running["next_action"]["message"].lower()
+    assert "original payload" in running["next_action"]["message"].lower()
+    assert "payload differs" in running["next_action"]["message"].lower()
     assert created_again is False and second_status == 409
     assert second["operation_state"] == "FAILED"
     assert second["error"]["code"] == "IDEMPOTENCY_CONFLICT"
     assert second["error"]["message"]
+    assert "payload" in second["next_action"]["message"].lower()
     with dbmod._conn() as connection:
         assert connection.execute("SELECT COUNT(*) FROM merge_operations").fetchone()[0] == 1
-    assert operations.get_operation_result(operation_id) == first
+        stored = operations.get_operation_result(operation_id)
+    assert stored["operation_id"] == first["operation_id"]
 
 
 def test_terminal_dedupe_only_for_mutating_equivalent_snapshot(merge_db):

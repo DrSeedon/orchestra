@@ -2250,13 +2250,21 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
             f"STILL {state} — NOT a failure, nothing was lost, do NOT report an error. "
             f"Merge operation {operation_id} is still running on the server after "
             f"{int(_MERGE_WAIT_SECONDS)}s of waiting. "
-            f"Call merge_worker again with operation_id='{operation_id}' to pick up this "
-            f"same operation. Do NOT start a new merge and do NOT merge manually. "
+            f"Current stage and elapsed time are reported in the progress fields. "
+            f"Call merge_worker again with operation_id='{operation_id}' and the original "
+            f"payload (including task_outcome, next_task_id, target, and waive_diff_budget) "
+            f"to pick up this same operation; if the payload differs, the server rejects "
+            f"it as a different merge request. "
+            f"Do NOT start a new merge and do NOT merge manually. "
             f"If that call is refused because the worker moved to another branch, the "
             f"refusal names the actual branch — check worker_wip there and start a new "
             f"operation without operation_id."
             + (f" Server note: {_safe_response_text(reason)}" if reason else "")
         )
+        progress = result.get("progress") if isinstance(result.get("progress"), dict) else {}
+        if progress.get("stage"):
+            elapsed = float(progress.get("elapsed_seconds") or 0)
+            text += f" Current stage: {progress['stage']}; elapsed {elapsed:.0f}s."
         return mcp_tool_result(result, text=text)
     if state == "SUCCEEDED":
         git = result.get("git") if isinstance(result.get("git"), dict) else {}
