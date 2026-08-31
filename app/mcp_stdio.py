@@ -2105,7 +2105,7 @@ async def send_chart(kind: str, title: str, data: dict, caption: str = "") -> st
 
 
 @mcp.tool()
-async def notify_user(reason: str) -> str:
+async def notify_user(reason: str, project: str = "", kind: str = "legacy") -> str:
     """Дёрнуть юзера тегом в Telegram на границе ЭТОГО хода. Только для оркестраторов.
 
     Молчание — нормальный режим: без этого вызова тега не будет, и это не забывчивость.
@@ -2118,15 +2118,33 @@ async def notify_user(reason: str) -> str:
     «воркер начал/закончил» — на это он смотреть не хочет.
 
     `reason` — одна короткая фраза, ЗАЧЕМ дёрнули; она уедет юзеру вместе с тегом.
-    Тег ставится один раз за ход независимо от числа вызовов.
+    kind: legacy | incident | reversal | plan_change. Решения пользователя фиксируются
+    только через project_wait — kind=waiting здесь запрещён. `project` опционален.
+    Тег ставится один раз за ход, только после durable result marker.
     """
     reason = reason.strip()
     if not reason:
         return "notify_user needs a non-empty reason — one short phrase saying WHY."
-    # Тул сознательно ничего не делает: сигналом служит САМА строка вызова в журнале,
-    # которую пишет рантайм, а читает `stream_logs`. Никакого нового контракта
-    # MCP↔route — значит правка доезжает без окна «новый MCP против старого роута».
-    return f"User will be tagged at the end of this turn: {reason}"
+    kind = kind.strip().casefold()
+    if kind == "waiting":
+        raise ValueError("Use project_wait for decisions; notify_user(kind='waiting') is forbidden")
+    if kind not in {"legacy", "incident", "reversal", "plan_change"}:
+        raise ValueError("kind must be legacy|incident|reversal|plan_change")
+    project = project.strip()
+    path = (
+        f"/api/portfolio/projects/{project}/attention"
+        if project
+        else "/api/portfolio/attention"
+    )
+    result = await _api("POST", path, json={"reason": reason, "kind": kind})
+    event_id = str(result.get("event_id") or "") if isinstance(result, dict) else ""
+    if not event_id:
+        raise ApiToolError(
+            code="invalid_response",
+            message="attention API returned no durable event id",
+            status=200,
+        )
+    return f"ATTENTION_DURABLE:{event_id}\n{json.dumps(result, ensure_ascii=False)}"
 
 
 @mcp.tool()
@@ -2734,6 +2752,146 @@ def _reject_lifecycle_status(status: str, tool: str) -> None:
         )
 
 
+async def _current_project_goal(project: str, goal_id: str = "") -> tuple[str, dict]:
+    if goal_id.strip():
+        return goal_id.strip(), {}
+    current = await _api("GET", f"/api/portfolio/projects/{project}/goal")
+    goal = current.get("goal") if isinstance(current, dict) else None
+    if not isinstance(goal, dict) or not str(goal.get("id") or "").strip():
+        raise ApiToolError(
+            code="project_goal_missing",
+            message=f"portfolio project '{project}' has no current goal",
+            status=409,
+        )
+    return str(goal["id"]), goal
+
+
+@mcp.tool()
+async def project_goal(
+    project: str,
+    action: str = "get",
+    objective: str = "",
+    goal_id: str = "",
+    note: str = "",
+    watchdog_enabled: bool | None = None,
+    stall_after_seconds: int = 0,
+) -> str:
+    """Read or advance a durable project-owned goal.
+
+    Actions: get, set, progress, pause, resume, complete, cancel, watchdog.
+    `set` needs objective. `progress` accepts note. Policy actions are owner-only;
+    contributors may get/progress. The server atomically updates revision, generation
+    and activity lease, which is why this is a tool rather than a file edit.
+    """
+    project = project.strip()
+    action = action.strip().casefold()
+    if not project:
+        raise ApiToolError(code="invalid_argument", message="project is required")
+    if action == "get":
+        result = await _api("GET", f"/api/portfolio/projects/{project}/goal")
+    elif action == "set":
+        if not objective.strip():
+            raise ApiToolError(code="invalid_argument", message="objective is required for set")
+        body: dict[str, Any] = {"objective": objective.strip()}
+        if watchdog_enabled is not None:
+            body["watchdog_enabled"] = watchdog_enabled
+        if stall_after_seconds > 0:
+            body["stall_after_seconds"] = stall_after_seconds
+        result = await _api("POST", f"/api/portfolio/projects/{project}/goals", json=body)
+    elif action == "progress":
+        resolved_goal_id, _goal = await _current_project_goal(project, goal_id)
+        result = await _api(
+            "POST",
+            f"/api/portfolio/projects/{project}/goals/{resolved_goal_id}/progress",
+            json={"note": note.strip()},
+        )
+    elif action in {"pause", "resume", "complete", "cancel", "watchdog"}:
+        resolved_goal_id, _goal = await _current_project_goal(project, goal_id)
+        if action == "watchdog":
+            if watchdog_enabled is None and stall_after_seconds <= 0:
+                raise ApiToolError(
+                    code="invalid_argument",
+                    message="watchdog needs watchdog_enabled or stall_after_seconds",
+                )
+            body = {}
+            if watchdog_enabled is not None:
+                body["watchdog_enabled"] = watchdog_enabled
+            if stall_after_seconds > 0:
+                body["stall_after_seconds"] = stall_after_seconds
+        else:
+            body = {
+                "status": {
+                    "pause": "paused",
+                    "resume": "active",
+                    "complete": "completed",
+                    "cancel": "cancelled",
+                }[action]
+            }
+        result = await _api(
+            "PUT",
+            f"/api/portfolio/projects/{project}/goals/{resolved_goal_id}",
+            json=body,
+        )
+    else:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=(
+                "unknown project_goal action; use get|set|progress|pause|resume|"
+                "complete|cancel|watchdog"
+            ),
+        )
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def project_wait(
+    project: str,
+    action: str,
+    question: str = "",
+    wait_id: str = "",
+    task_ref: str = "",
+) -> str:
+    """Open, resolve or cancel a durable project blocker without tagging the user.
+
+    `open` needs question; `resolve`/`cancel` need wait_id. Owner and explicit
+    sub-orchestrator contributors are allowed. The server owns authenticated membership,
+    goal suppression and duplicate-safe claim CAS.
+    """
+    project = project.strip()
+    action = action.strip().casefold()
+    if not project:
+        raise ApiToolError(code="invalid_argument", message="project is required")
+    if action == "open":
+        if not question.strip():
+            raise ApiToolError(code="invalid_argument", message="question is required for open")
+        result = await _api(
+            "POST",
+            f"/api/portfolio/projects/{project}/waits",
+            json={"question": question.strip(), "task_ref": task_ref.strip()},
+        )
+    elif action in {"resolve", "cancel"}:
+        if not wait_id.strip():
+            raise ApiToolError(code="invalid_argument", message=f"wait_id is required for {action}")
+        result = await _api(
+            "POST",
+            f"/api/portfolio/projects/{project}/waits/{wait_id.strip()}/{action}",
+            json={},
+        )
+    else:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="unknown project_wait action; use open|resolve|cancel",
+        )
+    durable_id = str(result.get("id") or "") if isinstance(result, dict) else ""
+    if not durable_id:
+        raise ApiToolError(
+            code="invalid_response",
+            message="project_wait response has no durable wait id",
+            status=200,
+        )
+    return f"PROJECT_WAIT_DURABLE:{durable_id}\n{json.dumps(result, ensure_ascii=False)}"
+
+
 @mcp.tool()
 async def task_create(title: str, project: str = "", price: int = 0,
                       description: str = "", assignee: str = "",
@@ -2779,13 +2937,15 @@ async def task_update(par: str, title: str = "", description: str = "",
                       acceptance_manifest: list[str] | None = None,
                       acceptance_required: bool | None = None,
                       clear_acceptance_command: bool = False,
-                      clear_acceptance_oracle: bool = False) -> str:
+                      clear_acceptance_oracle: bool = False,
+                      portfolio_project: str = "") -> str:
     """Update an existing task. Only provided fields are changed.
     par: '42' or 'PAR-42' (legacy). price in exact currency units (-1 = don't change, 0 = set to zero).
     Empty string = don't change for text fields. priority: 0-3 or -1=don't change.
     acceptance_command is orchestrator-only; empty means don't change.
     clear_acceptance_command=true explicitly clears it.
     project: explicit project returned by task_list; omitted uses the caller's mapped scope.
+    portfolio_project: optional authoritative human project to link this task to.
     status: lifecycle statuses (in_progress/done) are platform-owned and rejected."""
     _reject_lifecycle_status(status, "task_update")
     body: dict = {}
@@ -2816,12 +2976,31 @@ async def task_update(par: str, title: str = "", description: str = "",
                 body["acceptance_manifest"] = list(acceptance_manifest)
             if acceptance_required is not None:
                 body["acceptance_required"] = bool(acceptance_required)
-    if not body:
+    if not body and not portfolio_project.strip():
         return "Nothing to update"
     params = {"project": project} if project else ({"scope": SCOPE} if SCOPE else None)
-    result = await _api("PUT", f"/api/tm/tasks/{par}", json=body, params=params)
+    if body:
+        result = await _api("PUT", f"/api/tm/tasks/{par}", json=body, params=params)
+    else:
+        result = await _api("GET", f"/api/tm/tasks/{par}", params=params)
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
+    if portfolio_project.strip():
+        task_project = project.strip() or (
+            str(result.get("project") or "") if isinstance(result, dict) else ""
+        )
+        if not task_project:
+            raise ApiToolError(
+                code="invalid_response",
+                message="task response has no technical project identity",
+                status=200,
+            )
+        link = await _api(
+            "POST",
+            f"/api/portfolio/projects/{portfolio_project.strip()}/tasks",
+            json={"task_project": task_project, "task_ref": par},
+        )
+        return json.dumps({"task": result, "portfolio_link": link}, ensure_ascii=False)
     return json.dumps(result, ensure_ascii=False)
 
 

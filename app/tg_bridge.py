@@ -108,11 +108,16 @@ UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
 # text_mention and notifies even when the username does not resolve for the bot.
 TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
 
-# Единственный повод дёрнуть юзера (#241). Признак СТРУКТУРНЫЙ — строка журнала должна
-# БЫТЬ вызовом тула (`type == "tool"` + это имя в колонке `tool_name`), а не текстом,
-# который имя упоминает: иначе тегает любой, кто объясняет устройство тега (замер #161).
+# Повод дёрнуть юзера (#241/#418): явный вызов `notify_user` остаётся fail-loud
+# fallback, а durable result marker подтверждает сохранённое событие. Marker достаточен,
+# но не обязателен: сбой записи не должен молча проглотить явную просьбу. Wait/watchdog
+# используют другие tool names и markers, поэтому физически не входят в этот путь.
 TG_NOTIFY_TOOL = "mcp__orchestra__notify_user"
 TG_NOTIFY_REASON_MAX = 200
+_ATTENTION_RESULT_RE = re.compile(
+    r"(?<![A-Z_])ATTENTION_DURABLE:([a-z0-9][a-z0-9._-]{0,127})(?![a-z0-9._-])",
+    re.IGNORECASE,
+)
 
 
 def _mention_markup(mention: str, reason: str = "") -> str:
@@ -129,18 +134,48 @@ def _mention_markup(mention: str, reason: str = "") -> str:
     return f"{head} — {reason}" if reason else head
 
 
-def _notify_reason_from_args(content: str) -> str:
-    """`reason` из аргументов вызова `notify_user`.
+def _attention_from_tool_result(content: str) -> dict | None:
+    """Extract only notify's durable marker; wait/watchdog markers never match."""
+    match = _ATTENTION_RESULT_RE.search(str(content or ""))
+    return {"event_id": match.group(1).lower()} if match else None
 
-    Разбор — побочная услуга: тег определяется САМИМ фактом вызова, поэтому нечитаемые
-    аргументы дают тег без причины. Потеря тега здесь была бы проглоченной просьбой —
-    единственное опасное направление отказа в этой задаче.
-    """
+
+def _notify_reason_from_args(content: str) -> str:
+    """Best-effort reason for the fail-loud explicit-call fallback (#241)."""
     _, _, raw = content.partition(":")
     try:
         return str(json.loads(raw).get("reason") or "").strip()
     except Exception:
         return ""
+
+
+def _durable_attention_from_tool_result(
+    content: str, source_session_id: str
+) -> dict | None:
+    receipt = _attention_from_tool_result(content)
+    if receipt is None:
+        return None
+    try:
+        from app.portfolio import get_attention_event
+
+        event = get_attention_event(receipt["event_id"])
+    except Exception as error:
+        logger.warning("durable attention lookup failed: %s", err_text(error))
+        return None
+    if event is None or event.get("source_session_id") != source_session_id:
+        return None
+    return event
+
+
+def _notify_attention_from_tool_result(
+    content: str,
+    source_session_id: str,
+    tool_name: str = "",
+    resolved_tool_name: str = "",
+) -> dict | None:
+    if TG_NOTIFY_TOOL not in {tool_name, resolved_tool_name}:
+        return None
+    return _durable_attention_from_tool_result(content, source_session_id)
 
 
 def _cleanup_uploads():
@@ -3209,8 +3244,8 @@ async def stream_logs(orch_name: str, thread_id: int):
     # Отметка «якорь по этой строке уже ушёл» живёт ВНЕ состояния хода: состояние
     # обнуляется на границе, а откат курсора переигрывает саму строку `turn ended`.
     _anchor_sent_for = None
-    # None — `notify_user` в текущем ходе не звали, значит тега не будет. Строка (пусть
-    # и пустая) — звали, и тег обязателен: молчание это дефолт, а не забывчивость.
+    # None — ни явного notify call, ни durable attention result в ходе не было.
+    # Строка — есть хотя бы один из сигналов; explicit call остаётся fallback при сбое БД.
     _notify_reason = None
     _pending_turn_end_mention = False
     _idle_ticks = 0
@@ -3289,6 +3324,16 @@ async def stream_logs(orch_name: str, thread_id: int):
                         # Картинка настоящего файла, который агент СМОТРЕЛ, — это содержимое,
                         # а не машинерия: она остаётся отдельным сообщением.
                         _action_id = turn.resolve(log["id"], log.get("tool_use_id") or "")
+                        _attention_event = _notify_attention_from_tool_result(
+                            c,
+                            session_id,
+                            str(log.get("tool_name") or ""),
+                            str(turn.names.get(_action_id) or ""),
+                        )
+                        if _attention_event is not None:
+                            _notify_reason = str(
+                                _attention_event.get("reason") or ""
+                            ).strip()
                         if turn.names.get(_action_id) == "Read" and (
                             "'type': 'image'" in c or '"type": "image"' in c
                             or "'type':'image'" in c
