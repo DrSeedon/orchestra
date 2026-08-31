@@ -1019,6 +1019,9 @@ def test_resolve_is_idempotent_and_refuses_non_blocking_states(merge_db, monkeyp
     _first, first_status = operations.resolve_operation(operation_id, reason="reconciled")
     second, second_status = operations.resolve_operation(operation_id, reason="again")
     assert first_status == 200 and second_status == 200
+    assert "error" not in _first
+    assert _first["resolution"]["previous_error"]["code"]
+    assert "error" not in second
     assert second["resolution"]["reason"] == "reconciled"
 
     missing, missing_status = operations.resolve_operation(

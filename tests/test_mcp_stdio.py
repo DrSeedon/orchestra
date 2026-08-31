@@ -1234,6 +1234,45 @@ async def test_t3_spawn_delivery_posts_caller_key_and_returns_accepted_receipt(
 
 
 @pytest.mark.asyncio
+async def test_t3_spawn_delivery_same_repository_has_no_cross_repo_note(monkeypatch):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000314"
+    monkeypatch.setattr(m, "SCOPE", "/repo")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+
+    async def fake_api(method, path, **kwargs):
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-314/child",
+                "repo_path": "/repo",
+                "git_common_dir": "/repo/.git",
+            }
+        assert path == "/api/sessions/child/initial-deliveries"
+        assert kwargs["json"]["message"] == "do it"
+        return {
+            "ok": True,
+            "delivery_id": delivery_id,
+            "delivery_state": "QUEUED",
+            "payload_hash": "hash-314",
+            "status_url": f"/api/initial-deliveries/{delivery_id}",
+        }
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    result = await m.spawn_worker(
+        name="child",
+        task="do it",
+        repo_path="/repo",
+        model="gpt-5.6-sol",
+        delivery_id=delivery_id,
+    )
+
+    assert delivery_id in result
+    assert "ДРУГОЙ РЕПОЗИТОРИЙ" not in result
+
+
+@pytest.mark.asyncio
 async def test_t3_spawn_delivery_timeout_reconciles_without_second_post(monkeypatch):
     import app.mcp_stdio as m
 

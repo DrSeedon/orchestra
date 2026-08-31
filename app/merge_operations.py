@@ -343,15 +343,25 @@ def resolve_operation(
             )
             return {**result, "error": error}, 409
         now = _now()
+        previous_error = result.get("error")
         resolved = {
-            **result,
-            "resolution": {"resolved_at": now, "reason": reason, "actor": actor},
+            key: value for key, value in result.items() if key != "error"
+        }
+        resolution = {
+            "resolved_at": now,
+            "reason": reason,
+            "actor": actor,
+        }
+        if previous_error is not None:
+            resolution["previous_error"] = previous_error
+        resolved.update({
+            "resolution": resolution,
             "next_action": _action(
                 "NONE",
                 f"Operation {operation_id} is resolved; new merges for this worker are "
                 f"unblocked. Its state stays {record['state']} as the record of what happened.",
             ),
-        }
+        })
         connection.execute(
             "DELETE FROM tm_task_reservations WHERE operation_id=?",
             (operation_id,),
