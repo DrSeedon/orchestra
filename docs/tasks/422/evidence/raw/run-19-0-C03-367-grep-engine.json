@@ -1,0 +1,88 @@
+{
+  "attempts": [
+    {
+      "id": 107,
+      "started_at": "2026-08-31T08:35:30.401330Z",
+      "status": 200
+    },
+    {
+      "id": 108,
+      "started_at": "2026-08-31T08:35:38.505541Z",
+      "status": 200
+    },
+    {
+      "id": 109,
+      "started_at": "2026-08-31T08:36:20.826121Z",
+      "status": 200
+    }
+  ],
+  "case_id": "C03-367-grep-engine",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tA grep tool uses rg when installed and GNU BRE grep otherwise; the same `a|b` query changes meaning silently. Choose keep_fallback, one_python_regex_engine, or shell_detect_and_guess. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"path\": \"answer.json\", \"content\": \"{\\\"answer\\\": \\\"one_python_regex_engine\\\", \\\"evidence\\\": \\\"Using a single Python regex engine ensures consistent interpretation of regex patterns like 'a|b', avoiding silent meaning changes between rg (PCRE) and GNU BRE.\\\"}\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (214 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "Task completed. The correct choice is `one_python_regex_engine`, ensuring consistent regex interpretation across tools. The result is saved in `answer.json`.",
+      "type": "text"
+    }
+  ],
+  "evidence": "missing anchors; evidence=Using a single Python regex engine ensures consistent interpretation of regex patterns like 'a|b', avoiding silent meaning changes between rg (PCRE) and GNU BRE.",
+  "http_attempts": 3,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-19-0-C03-367-grep-engine/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "a2281f5cbbd9c949caa5c99f1fa15b2a67a3b44e74a519d59ef8f78e4d041ffb"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "a2281f5cbbd9c949caa5c99f1fa15b2a67a3b44e74a519d59ef8f78e4d041ffb"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-19-0-C03-367-grep-engine/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-19-0-C03-367-grep-engine/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": true,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:107",
+    "attempt:108",
+    "attempt:109"
+  ],
+  "outcome": "explicit_wrong_answer",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-19-0-C03-367-grep-engine",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "end_turn"
+}

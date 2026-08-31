@@ -1,0 +1,52 @@
+{
+  "attempts": [
+    {
+      "id": 8,
+      "started_at": "2026-08-31T08:17:29.645585Z",
+      "status": 429
+    }
+  ],
+  "case_id": "R01-419-vector-verdict",
+  "events": [
+    {
+      "content": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+  "http_attempts": 1,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/pilot-R01-419-vector-verdict-2/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "35e85dbf8dd9371e5592a5fb260cf878c6f7608b153bd4d0ef56ffde65c7d4a8"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "35e85dbf8dd9371e5592a5fb260cf878c6f7608b153bd4d0ef56ffde65c7d4a8"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/pilot-R01-419-vector-verdict-2/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/pilot-R01-419-vector-verdict-2/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:8"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "google/gemma-4-26b-a4b-it:free",
+  "route": "google/gemma-4-26b-a4b-it:free",
+  "run_id": "pilot-R01-419-vector-verdict-2",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

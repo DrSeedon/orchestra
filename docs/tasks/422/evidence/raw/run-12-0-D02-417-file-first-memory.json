@@ -1,0 +1,98 @@
+{
+  "attempts": [
+    {
+      "id": 68,
+      "started_at": "2026-08-31T08:27:36.987455Z",
+      "status": 200
+    },
+    {
+      "id": 69,
+      "started_at": "2026-08-31T08:27:40.089417Z",
+      "status": 200
+    },
+    {
+      "id": 70,
+      "started_at": "2026-08-31T08:27:43.191304Z",
+      "status": 200
+    },
+    {
+      "id": 71,
+      "started_at": "2026-08-31T08:27:46.293352Z",
+      "status": 200
+    }
+  ],
+  "case_id": "D02-417-file-first-memory",
+  "events": [
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "glob: {\"pattern\": \"**/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "TASK.md",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tThe vector arm had zero unique wins and literal rg had six. The prompt must keep project-local docs/kb canonical. Choose vector_first, file_first_literal, or memory_disabled. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+  "http_attempts": 4,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-12-0-D02-417-file-first-memory/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "f59f8f910e3c267005fc91e91a27679c1aaef2e3c2f5cdd60e46ddf796389909"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "f59f8f910e3c267005fc91e91a27679c1aaef2e3c2f5cdd60e46ddf796389909"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-12-0-D02-417-file-first-memory/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-12-0-D02-417-file-first-memory/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:68",
+    "attempt:69",
+    "attempt:70",
+    "attempt:71"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "run-12-0-D02-417-file-first-memory",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

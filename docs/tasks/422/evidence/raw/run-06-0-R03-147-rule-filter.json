@@ -1,0 +1,112 @@
+{
+  "attempts": [
+    {
+      "id": 43,
+      "started_at": "2026-08-31T08:24:49.936432Z",
+      "status": 200
+    },
+    {
+      "id": 44,
+      "started_at": "2026-08-31T08:25:34.752058Z",
+      "status": 200
+    },
+    {
+      "id": 45,
+      "started_at": "2026-08-31T08:25:41.667622Z",
+      "status": 200
+    },
+    {
+      "id": 46,
+      "started_at": "2026-08-31T08:25:58.440940Z",
+      "status": 200
+    },
+    {
+      "id": 47,
+      "started_at": "2026-08-31T08:26:07.248097Z",
+      "status": 200
+    }
+  ],
+  "case_id": "R03-147-rule-filter",
+  "events": [
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "bash: {\"command\": \"ls -la /workspace\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "exit_code=0\ntotal 12\ndrwxr-xr-x  3 1000 1000 4096 Aug 31 08:24 .\ndrwxr-xr-x 11 1000 1000  220 Aug 31 08:25 ..\n-rw-r--r--  1 1000 1000  230 Aug 31 08:24 TASK.md\n-rw-r--r--  1 1000 1000    0 Aug 31 08:24 counter.db\ndrwxr-xr-x  2 1000 1000 4096 Aug 31 08:24 session-store\n-rw-r--r--  1 1000 1000    0 Aug 31 08:24 session.db\n",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "bash: {\"command\": \"cat /workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "exit_code=0\nObserved triage: TAKE=42, REJECT=1. In 55% of rejected candidates the action sounded general but the trigger existed only in one domain. Choose benefit_test, trigger_impossibility_test, or two_occurrences_test. Write answer.json.\n",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+  "http_attempts": 5,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-06-0-R03-147-rule-filter/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "19dd30873cb21d6cff5396e8d158ddb7204943addcec241b92b9cc384c66ee53"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "19dd30873cb21d6cff5396e8d158ddb7204943addcec241b92b9cc384c66ee53"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-06-0-R03-147-rule-filter/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-06-0-R03-147-rule-filter/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:43",
+    "attempt:44",
+    "attempt:45",
+    "attempt:46",
+    "attempt:47"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "run-06-0-R03-147-rule-filter",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

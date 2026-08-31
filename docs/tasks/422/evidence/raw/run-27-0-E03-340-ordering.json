@@ -1,0 +1,130 @@
+{
+  "attempts": [
+    {
+      "id": 148,
+      "started_at": "2026-08-31T08:52:07.826879Z",
+      "status": 200
+    },
+    {
+      "id": 149,
+      "started_at": "2026-08-31T08:53:19.458642Z",
+      "status": 200
+    },
+    {
+      "id": 150,
+      "started_at": "2026-08-31T08:54:27.908334Z",
+      "status": 200
+    },
+    {
+      "id": 151,
+      "started_at": "2026-08-31T08:55:45.405427Z",
+      "status": 200
+    },
+    {
+      "id": 152,
+      "started_at": "2026-08-31T08:57:10.436537Z",
+      "status": 200
+    },
+    {
+      "id": 153,
+      "started_at": "2026-08-31T08:59:08.096800Z",
+      "status": 200
+    }
+  ],
+  "case_id": "E03-340-ordering",
+  "events": [
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "read: {\"path\": \"/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "glob: {\"pattern\": \"**/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "TASK.md",
+      "type": "tool_result"
+    },
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tIn 4,266 of 42,661 pairs, the result row had a smaller autoincrement id than the call; timestamps were ordered correctly in all 42,661. Choose sort_by_id, sort_by_ts, or random_pair. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"path\": \"answer.json\", \"content\": \"{\\\"answer\\\": \\\"sort_by_ts\\\", \\\"evidence\\\": \\\"Timestamps were ordered correctly in all 42,661 pairs, while autoincrement IDs had 4,266 inversions where the result row had a smaller ID than the call. This makes sort_by_ts the reliable ordering method.\\\"}\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (244 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+  "http_attempts": 6,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-27-0-E03-340-ordering/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "09796d5283978da1018494d071d6c1db1aaabdc2864b7a12f7ca4a57cc8db077"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "09796d5283978da1018494d071d6c1db1aaabdc2864b7a12f7ca4a57cc8db077"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-27-0-E03-340-ordering/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-27-0-E03-340-ordering/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:148",
+    "attempt:149",
+    "attempt:150",
+    "attempt:151",
+    "attempt:152",
+    "attempt:153"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "run-27-0-E03-340-ordering",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

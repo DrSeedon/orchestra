@@ -1,0 +1,492 @@
+{
+  "account": {
+    "is_free_tier": false,
+    "limit": null,
+    "usage": 52.761658917
+  },
+  "frozen_at": "2026-08-31T08:13:57.274534Z",
+  "routes": [
+    {
+      "available": true,
+      "id": "inclusionai/ling-3.0-flash-fin:free",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logprobs",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "seed",
+        "stop",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274334Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "dots-studio/dots-3-note-preview:free",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274361Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "liquid/lfm-2.5-2.6b:free",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logprobs",
+        "max_completion_tokens",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274369Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "nvidia/nemotron-3.5-lightning:free",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "seed",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274373Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "thinkingmachines/inkling-small:free",
+      "input_modalities": [
+        "text",
+        "image",
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "seed",
+        "stop",
+        "temperature",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274379Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "poolside/laguna-s-2.1:free",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "temperature",
+        "tool_choice",
+        "tools"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274384Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "thinkingmachines/inkling:free",
+      "input_modalities": [
+        "text",
+        "image",
+        "audio"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "seed",
+        "stop",
+        "temperature",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274389Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "poolside/laguna-xs-2.1:free",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "temperature",
+        "tool_choice",
+        "tools"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274401Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "cohere/north-mini-code:free",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "seed",
+        "stop",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274406Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "z-ai/glm-5.2:free",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274410Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "seed",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274416Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "minimax/minimax-m3:free",
+      "input_modalities": [
+        "text",
+        "image",
+        "video"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "seed",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274424Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "input_modalities": [
+        "text",
+        "audio",
+        "image",
+        "video"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "seed",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274432Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "google/gemma-4-26b-a4b-it:free",
+      "input_modalities": [
+        "image",
+        "text",
+        "video"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "seed",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274444Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "google/gemma-4-31b-it:free",
+      "input_modalities": [
+        "image",
+        "text",
+        "video"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "seed",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274452Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "minimax/minimax-m2.7:free",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "seed",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274458Z",
+        "ok": true
+      }
+    },
+    {
+      "available": true,
+      "id": "nvidia/nemotron-3-super-120b-a12b:free",
+      "input_modalities": [
+        "text"
+      ],
+      "output_modalities": [
+        "text"
+      ],
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
+        "seed",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "tools": true,
+      "transport_canary": {
+        "checked_at": "2026-08-31T08:13:57.274463Z",
+        "ok": true
+      }
+    }
+  ],
+  "schema": "orchestra-422-catalog-v1"
+}

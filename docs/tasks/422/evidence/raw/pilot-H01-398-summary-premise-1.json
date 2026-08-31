@@ -1,0 +1,66 @@
+{
+  "attempts": [
+    {
+      "id": 2,
+      "started_at": "2026-08-31T08:17:01.302344Z",
+      "status": 200
+    },
+    {
+      "id": 3,
+      "started_at": "2026-08-31T08:17:05.314510Z",
+      "status": 200
+    }
+  ],
+  "case_id": "H01-398-summary-premise",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tThe task claims detail=summary returns full content and says projections.py only copies detail. The supplied current source excerpt says `_summary_item` truncates content to `_SUMMARY_CONTENT_LIMIT = 300` and query_current applies it. Do not patch a false premise. Record WIP/STOP with the exact contradicting symbols.",
+      "type": "tool_result"
+    },
+    {
+      "content": "{\n  \"status\": \"WIP/STOP\",\n  \"evidence\": \"The task claims detail=summary returns full content and says projections.py only copies detail. The supplied current source excerpt says `_summary_item` truncates content to `_SUMMARY_CONTENT_LIMIT = 300` and query_current applies it.\"\n}",
+      "type": "text"
+    }
+  ],
+  "evidence": "{\n  \"status\": \"WIP/STOP\",\n  \"evidence\": \"The task claims detail=summary returns full content and says projections.py only copies detail. The supplied current source excerpt says `_summary_item` truncates content to `_SUMMARY_CONTENT_LIMIT = 300` and query_current applies it.\"\n}",
+  "http_attempts": 2,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/pilot-H01-398-summary-premise-1/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "c427a0e054ef51ec3ab23cc808ac9bc5f9185a62bce84d3addb21ec7166e7f9e"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "c427a0e054ef51ec3ab23cc808ac9bc5f9185a62bce84d3addb21ec7166e7f9e"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/pilot-H01-398-summary-premise-1/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/pilot-H01-398-summary-premise-1/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": true,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:2",
+    "attempt:3"
+  ],
+  "outcome": "explicit_wrong_answer",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "pilot-H01-398-summary-premise-1",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "end_turn"
+}

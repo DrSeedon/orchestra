@@ -18,6 +18,7 @@ import os
 import re
 from pathlib import Path
 from typing import AsyncIterator, Optional
+from uuid import uuid4
 
 from app.events import AgentEvent
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
@@ -342,6 +343,7 @@ class HarnessBackend:
         )
         content = f"stop_reason={stop_reason}" + (f" ({detail})" if detail else "")
         return AgentEvent("turn_end", content, metadata={
+            "event_id": str(uuid4()),
             "session_id": self.session_id,
             "ok": ok,
             "stop_reason": stop_reason,
@@ -366,6 +368,7 @@ class HarnessBackend:
             ),
         )
         return AgentEvent("turn_end", f"stop_reason={reason}", metadata={
+            "event_id": str(uuid4()),
             "session_id": self.session_id,
             "ok": False,
             "stop_reason": reason,

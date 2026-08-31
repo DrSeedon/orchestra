@@ -1,0 +1,18 @@
+{
+  "bwrap_policy_source_sha256": "138a46601ab2ed955094eed690367a358972f0c29f237f79b0606b0e4c0bfc59",
+  "controls": {
+    "controller_openrouter_transport": true,
+    "production_db_hidden": true,
+    "production_env_hidden": true,
+    "tool_env_contains_internal_token": false,
+    "tool_env_contains_openrouter_key": false,
+    "tool_environment_exact": true,
+    "tool_proxy_env_hidden": true,
+    "tool_public_network_denied": true,
+    "workspace_read": true,
+    "workspace_write": true
+  },
+  "frozen_at": "2026-08-31T08:13:57.311615Z",
+  "ok": true,
+  "schema": "orchestra-422-isolation-v1"
+}

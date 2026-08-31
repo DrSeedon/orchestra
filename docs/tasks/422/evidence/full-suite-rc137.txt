@@ -1,0 +1,8 @@
+Command: /mnt/data/Projects/Python/orchestra/.venv/bin/python -m pytest -q
+Background job: bg-ed2f13c36c
+Exit code: 137
+Terminal stderr: bash: строка 1: 3821516 Убито /mnt/data/Projects/Python/orchestra/.venv/bin/python -m pytest -q > /tmp/pytest-422.log 2>&1
+Saved log size: 3249 bytes, 40 lines
+Last progress marker: 81%
+Terminal pytest summary: absent; the process was killed before completion
+Interpretation: inconclusive full-suite attempt, not evidence for or against this diff

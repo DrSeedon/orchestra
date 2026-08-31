@@ -1,0 +1,84 @@
+{
+  "attempts": [
+    {
+      "id": 13,
+      "started_at": "2026-08-31T08:17:45.689303Z",
+      "status": 200
+    },
+    {
+      "id": 14,
+      "started_at": "2026-08-31T08:17:48.790384Z",
+      "status": 200
+    },
+    {
+      "id": 15,
+      "started_at": "2026-08-31T08:17:58.442515Z",
+      "status": 200
+    }
+  ],
+  "case_id": "C01-423-preserve-error",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tComplete the expression for a wrapper error: `message = ______ or DEFAULT_ERROR`. The raw object is `raw`. Choose raw.get_error, raw.get('error'), or DEFAULT_ERROR. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"content\": \"{\\\"answer\\\": \\\"raw.get('error')\\\", \\\"evidence\\\": \\\"Complete the expression for a wrapper error: `message = ______ or DEFAULT_ERROR`. The raw object is `raw`. Choose raw.get_error, raw.get('error'), or DEFAULT_ERROR. Write answer.json.\\\"}\", \"path\": \"answer.json\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (229 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "{\n  \"answer\": \"raw.get('error')\",\n  \"evidence\": \"Complete the expression for a wrapper error: `message = ______ or DEFAULT_ERROR`. The raw object is `raw`. Choose raw.get_error, raw.get('error'), or DEFAULT_ERROR. Write answer.json.\"\n}",
+      "type": "text"
+    }
+  ],
+  "evidence": "Complete the expression for a wrapper error: `message = ______ or DEFAULT_ERROR`. The raw object is `raw`. Choose raw.get_error, raw.get('error'), or DEFAULT_ERROR. Write answer.json.",
+  "http_attempts": 3,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/pilot-C01-423-preserve-error-1/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "ba77b04029726e20069cfa83e7cb6f7dd6be9bdd93c10a5b16f6aff5eb5c88d0"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "ba77b04029726e20069cfa83e7cb6f7dd6be9bdd93c10a5b16f6aff5eb5c88d0"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/pilot-C01-423-preserve-error-1/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/pilot-C01-423-preserve-error-1/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": true,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:13",
+    "attempt:14",
+    "attempt:15"
+  ],
+  "outcome": "success",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "pilot-C01-423-preserve-error-1",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "end_turn"
+}

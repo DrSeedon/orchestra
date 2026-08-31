@@ -1,0 +1,52 @@
+{
+  "attempts": [
+    {
+      "id": 59,
+      "started_at": "2026-08-31T08:26:57.559332Z",
+      "status": 200
+    }
+  ],
+  "case_id": "R02-364-embedding-noise",
+  "events": [
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+  "http_attempts": 1,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-09-1-R02-364-embedding-noise/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "4d8fd164d8e61543fd77c90dd2d5b0228da6b7ce8424d0283466b15e06345c4f"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "4d8fd164d8e61543fd77c90dd2d5b0228da6b7ce8424d0283466b15e06345c4f"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-09-1-R02-364-embedding-noise/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-09-1-R02-364-embedding-noise/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:59"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-09-1-R02-364-embedding-noise",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

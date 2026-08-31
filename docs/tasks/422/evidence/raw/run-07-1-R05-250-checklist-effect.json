@@ -1,0 +1,52 @@
+{
+  "attempts": [
+    {
+      "id": 53,
+      "started_at": "2026-08-31T08:26:38.951432Z",
+      "status": 429
+    }
+  ],
+  "case_id": "R05-250-checklist-effect",
+  "events": [
+    {
+      "content": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+  "http_attempts": 1,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-07-1-R05-250-checklist-effect/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "47efcb20bdf1d8f58224e6aeb6eb4a31783141b5a7b8b41dd5291ab85ad24915"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "47efcb20bdf1d8f58224e6aeb6eb4a31783141b5a7b8b41dd5291ab85ad24915"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-07-1-R05-250-checklist-effect/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-07-1-R05-250-checklist-effect/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:53"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "google/gemma-4-26b-a4b-it:free",
+  "route": "google/gemma-4-26b-a4b-it:free",
+  "run_id": "run-07-1-R05-250-checklist-effect",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

@@ -1,0 +1,66 @@
+{
+  "attempts": [
+    {
+      "id": 30,
+      "started_at": "2026-08-31T08:21:02.854629Z",
+      "status": 200
+    },
+    {
+      "id": 31,
+      "started_at": "2026-08-31T08:23:04.732846Z",
+      "status": 200
+    }
+  ],
+  "case_id": "H05-333-file-unknown",
+  "events": [
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+  "http_attempts": 2,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-03-0-H05-333-file-unknown/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "8e1d361a99af4815214554c883a6bea5a20e158ca353976d931e5f800492c8fd"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "8e1d361a99af4815214554c883a6bea5a20e158ca353976d931e5f800492c8fd"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-03-0-H05-333-file-unknown/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-03-0-H05-333-file-unknown/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:30",
+    "attempt:31"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "run-03-0-H05-333-file-unknown",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

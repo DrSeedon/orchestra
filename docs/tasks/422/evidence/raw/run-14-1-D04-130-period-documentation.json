@@ -1,0 +1,84 @@
+{
+  "attempts": [
+    {
+      "id": 81,
+      "started_at": "2026-08-31T08:31:04.191336Z",
+      "status": 200
+    },
+    {
+      "id": 82,
+      "started_at": "2026-08-31T08:31:23.553342Z",
+      "status": 200
+    },
+    {
+      "id": 83,
+      "started_at": "2026-08-31T08:32:32.483266Z",
+      "status": 200
+    }
+  ],
+  "case_id": "D04-130-period-documentation",
+  "events": [
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "glob: {\"pattern\": \"**/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "TASK.md",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+  "http_attempts": 3,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-14-1-D04-130-period-documentation/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "94293a729c21dfce054d05e0c66febbabbb3f628d7a640297c42667764e3a18d"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "94293a729c21dfce054d05e0c66febbabbb3f628d7a640297c42667764e3a18d"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-14-1-D04-130-period-documentation/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-14-1-D04-130-period-documentation/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:81",
+    "attempt:82",
+    "attempt:83"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "run-14-1-D04-130-period-documentation",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

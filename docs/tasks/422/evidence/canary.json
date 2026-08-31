@@ -1,0 +1,16 @@
+{
+  "schema": "orchestra-free-canary-v1",
+  "run_nonce": "CANARY422-e8f40ba7e15b4352b70faeb9733c3818",
+  "session_id": "f1ebb58f-da44-429a-8c9a-5c3ce497b216",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "started_at": "2026-08-31T07:56:00.756997Z",
+  "completed_at": "2026-08-31T07:57:04.708970Z",
+  "user_log_id": 551838,
+  "text_log_id": 551867,
+  "terminal_log_id": 551868,
+  "openrouter_attempt_id": 1,
+  "openrouter_http_status": 200,
+  "turn_usage_rows": 0,
+  "observed_cost_text": "$0.00 turn",
+  "boundary": "Before app/backend_harness.py event_id fix, Harness completed turns did not enter turn_usage; the canary is proven by exact input/text/end_turn logs."
+}

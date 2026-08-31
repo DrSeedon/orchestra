@@ -1,0 +1,88 @@
+{
+  "attempts": [
+    {
+      "id": 121,
+      "started_at": "2026-08-31T08:37:30.957389Z",
+      "status": 200
+    },
+    {
+      "id": 122,
+      "started_at": "2026-08-31T08:37:34.058322Z",
+      "status": 200
+    },
+    {
+      "id": 123,
+      "started_at": "2026-08-31T08:38:03.916090Z",
+      "status": 200
+    }
+  ],
+  "case_id": "C02-398-summary-truncate",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tA summary API must return at most 300 characters of `content` and preserve the original size in `content_length`. Choose slice_and_length, full_content, or remove_content. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"path\": \"answer.json\", \"content\": \"{\\n  \\\"answer\\\": \\\"slice_and_length\\\",\\n  \\\"evidence\\\": \\\"The task requires the API to return no more than 300 characters of `content` while preserving the original `content_length`. The `slice_and_length` function can truncate `content` to the specified limit and also return the original size, satisfying both constraints. `full_content` would exceed the 300‑character limit, and `remove_content` would not return the required content at all.\\\"\\n}\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (438 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+  "http_attempts": 3,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-22-0-C02-398-summary-truncate/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "98c0c88c5f40fa2041f6382ebdf1fb5fec3c035ca7235a58caac79ae67f62616"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "98c0c88c5f40fa2041f6382ebdf1fb5fec3c035ca7235a58caac79ae67f62616"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-22-0-C02-398-summary-truncate/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-22-0-C02-398-summary-truncate/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:121",
+    "attempt:122",
+    "attempt:123"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-22-0-C02-398-summary-truncate",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

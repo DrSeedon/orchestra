@@ -1,0 +1,18 @@
+{
+  "schema": "orchestra-422-reconciliation-provenance-v1",
+  "source_commit": "867b517f",
+  "source_summary_sha256": "5e8d687e22b0d2e19d794a6e3fd59173e9b5d5b656280340b05f6a8c97d2257d",
+  "receipts_verified_against_source_commit": 69,
+  "identity_fields_verified": [
+    "run_id",
+    "case_id",
+    "route",
+    "http_attempts"
+  ],
+  "identity_verified_count": 69,
+  "source_loop_ok_false": 60,
+  "provider_calls_made_during_reconciliation": 0,
+  "production_openrouter_attempts_before": 1,
+  "production_openrouter_attempts_after": 1,
+  "result": "Every pre-reconciliation raw receipt matched the immutable summary digest and identity at commit 867b517f before offline reclassification."
+}

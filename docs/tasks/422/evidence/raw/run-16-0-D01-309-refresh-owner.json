@@ -1,0 +1,88 @@
+{
+  "attempts": [
+    {
+      "id": 91,
+      "started_at": "2026-08-31T08:33:46.514398Z",
+      "status": 200
+    },
+    {
+      "id": 92,
+      "started_at": "2026-08-31T08:33:49.615419Z",
+      "status": 200
+    },
+    {
+      "id": 93,
+      "started_at": "2026-08-31T08:33:59.549715Z",
+      "status": 200
+    }
+  ],
+  "case_id": "D01-309-refresh-owner",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tA route snapshot lists two handlers that both call refresh_models and expose the same behavior. The contract requires one owner. Choose keep_both, keep_one_owner, or add_third_alias. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"content\": \"{\\n  \\\"answer\\\": \\\"keep_one_owner\\\",\\n  \\\"evidence\\\": \\\"The TASK.md states: 'A route snapshot lists two handlers that both call refresh_models and expose the same behavior. The contract requires one owner.'\\\"\\n}\", \"path\": \"answer.json\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (200 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+  "http_attempts": 3,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-16-0-D01-309-refresh-owner/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "b92005e1d45bb410b4cc3834f5ba77a441e13853a17f9fd6347ab78da8bf3675"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "b92005e1d45bb410b4cc3834f5ba77a441e13853a17f9fd6347ab78da8bf3675"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-16-0-D01-309-refresh-owner/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-16-0-D01-309-refresh-owner/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:91",
+    "attempt:92",
+    "attempt:93"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-16-0-D01-309-refresh-owner",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}
