@@ -482,6 +482,8 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS portfolio_projects (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
+                task_namespace_id TEXT REFERENCES tm_projects(id),
+                stage_order_json TEXT NOT NULL DEFAULT '[]',
                 revision INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
@@ -509,6 +511,7 @@ def init_db() -> None:
                 task_namespace_id TEXT NOT NULL,
                 task_display_number INTEGER NOT NULL,
                 linked_by_session_id TEXT NOT NULL REFERENCES sessions(id),
+                stage_label TEXT,
                 created_at TEXT NOT NULL,
                 removed_at TEXT
             );
@@ -566,7 +569,10 @@ def init_db() -> None:
                 task_stable_id TEXT,
                 status TEXT NOT NULL CHECK(status IN ('open','resolved','cancelled')),
                 opened_at TEXT NOT NULL,
-                resolved_at TEXT
+                resolved_at TEXT,
+                response_text TEXT,
+                response_delivery_id TEXT,
+                response_attempt INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS idx_portfolio_waits_goal
                 ON portfolio_waits(goal_id, status);
@@ -960,12 +966,119 @@ def _migrate_tg_file_deliveries(c) -> None:
         )
 
 
+def _migrate_portfolio_roadmap(c) -> None:
+    """Add the optional roadmap source/order without synthesizing task links."""
+    project_columns = {
+        row[1] for row in c.execute("PRAGMA table_info(portfolio_projects)").fetchall()
+    }
+    if "task_namespace_id" not in project_columns:
+        c.execute(
+            "ALTER TABLE portfolio_projects ADD COLUMN "
+            "task_namespace_id TEXT REFERENCES tm_projects(id)"
+        )
+    if "stage_order_json" not in project_columns:
+        c.execute(
+            "ALTER TABLE portfolio_projects ADD COLUMN "
+            "stage_order_json TEXT NOT NULL DEFAULT '[]'"
+        )
+
+    link_columns = {
+        row[1] for row in c.execute("PRAGMA table_info(portfolio_task_links)").fetchall()
+    }
+    if "stage_label" not in link_columns:
+        c.execute("ALTER TABLE portfolio_task_links ADD COLUMN stage_label TEXT")
+
+    wait_columns = {
+        row[1] for row in c.execute("PRAGMA table_info(portfolio_waits)").fetchall()
+    }
+    if "response_text" not in wait_columns:
+        c.execute("ALTER TABLE portfolio_waits ADD COLUMN response_text TEXT")
+    if "response_delivery_id" not in wait_columns:
+        c.execute("ALTER TABLE portfolio_waits ADD COLUMN response_delivery_id TEXT")
+    if "response_attempt" not in wait_columns:
+        c.execute(
+            "ALTER TABLE portfolio_waits ADD COLUMN "
+            "response_attempt INTEGER NOT NULL DEFAULT 0"
+        )
+
+    # A matching slug is not sufficient evidence. Bind only when the sole active
+    # root owner maps to exactly one normalized technical scope and that row has
+    # the same immutable id as the portfolio project.
+    projects = c.execute(
+        """SELECT id FROM portfolio_projects
+           WHERE archived_at IS NULL AND task_namespace_id IS NULL
+           ORDER BY id"""
+    ).fetchall()
+    for project in projects:
+        owners = c.execute(
+            """SELECT s.scope FROM portfolio_members m
+               JOIN sessions s ON s.id=m.session_id
+               WHERE m.project_id=? AND m.role='owner' AND m.revoked_at IS NULL
+                 AND s.status!='archived' AND s.role='orchestrator'
+                 AND TRIM(COALESCE(s.parent_id,''))=''""",
+            (project["id"],),
+        ).fetchall()
+        if len(owners) != 1:
+            continue
+        matches = c.execute(
+            """SELECT id FROM tm_projects
+               WHERE RTRIM(scope,'/')=RTRIM(?,'/') ORDER BY id""",
+            (owners[0]["scope"],),
+        ).fetchall()
+        if len(matches) != 1 or matches[0]["id"] != project["id"]:
+            continue
+        duplicate = c.execute(
+            """SELECT 1 FROM portfolio_projects
+               WHERE id!=? AND archived_at IS NULL AND task_namespace_id=?""",
+            (project["id"], project["id"]),
+        ).fetchone()
+        if duplicate is None:
+            c.execute(
+                "UPDATE portfolio_projects SET task_namespace_id=? WHERE id=?",
+                (project["id"], project["id"]),
+            )
+
+    # These objects must be created only after legacy columns exist. Putting the
+    # index in the early CREATE TABLE script makes old databases fail before
+    # _migrate() can run.
+    c.execute(
+        """CREATE UNIQUE INDEX IF NOT EXISTS uq_portfolio_primary_task_source
+           ON portfolio_projects(task_namespace_id)
+           WHERE archived_at IS NULL AND task_namespace_id IS NOT NULL"""
+    )
+    c.execute(
+        """CREATE UNIQUE INDEX IF NOT EXISTS uq_portfolio_wait_response_delivery
+           ON portfolio_waits(response_delivery_id)
+           WHERE response_delivery_id IS NOT NULL"""
+    )
+    c.executescript(
+        """CREATE TRIGGER IF NOT EXISTS portfolio_wait_response_submitted
+           AFTER UPDATE OF state ON message_deliveries
+           WHEN OLD.state!='SUBMITTED' AND NEW.state='SUBMITTED'
+           BEGIN
+             UPDATE portfolio_goals
+                SET last_progress_at=NEW.updated_at,
+                    stall_generation=stall_generation+1,
+                    revision=revision+1,
+                    updated_at=NEW.updated_at
+              WHERE id=(
+                    SELECT goal_id FROM portfolio_waits
+                     WHERE response_delivery_id=NEW.delivery_id AND status='open'
+              );
+             UPDATE portfolio_waits
+                SET status='resolved',resolved_at=NEW.updated_at
+              WHERE response_delivery_id=NEW.delivery_id AND status='open';
+           END;"""
+    )
+
+
 def _migrate(c) -> None:
     # Additive ALTER TABLE migrations — safe to re-run (IF NOT EXISTS / column check).
     # Never drop columns: old Orchestra versions reading the same DB must still work.
     _guard_session_id(c)
     _migrate_message_deliveries(c)
     _migrate_tg_file_deliveries(c)
+    _migrate_portfolio_roadmap(c)
     mb_cols = {row[1] for row in c.execute("PRAGMA table_info(mailbox)").fetchall()}
     if "claimed_at" not in mb_cols:
         c.execute("ALTER TABLE mailbox ADD COLUMN claimed_at REAL")

@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23133a2e'/><path d='M4 22h6l4-9 4 14 4-11h6' stroke='%2334d399' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>"/>
+<title>Дорожная карта проекта — три концепции</title>
+<style>
+:root{
+  --bg:#0e0e12; --surface:#16161c; --surface-2:#1c1c24; --border:#2a2a32;
+  --ink:#f1f1f4; --ink-soft:#a8a8b3; --accent:#34d399; --accent-soft:#34d39926;
+  --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444; --info:#3b82f6; --idle:#6b7280;
+  --serif:Charter,"Iowan Old Style",ui-serif,Georgia,serif;
+  --sans:system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: light){
+  :root{--bg:#fafaf7;--surface:#fff;--surface-2:#f5f5f0;--border:#e7e5df;--ink:#1a1a1f;--ink-soft:#555560;--idle:#9ca3af}
+}
+@media print{
+  :root{--bg:#fff;--surface:#f8f8f8;--surface-2:#f0f0f0;--border:#ddd;--ink:#000;--ink-soft:#555}
+  .no-print,button{display:none!important}
+  *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}
+*,*::before,*::after{box-sizing:border-box;margin:0}
+html{background:var(--bg);color:var(--ink)}
+body{font:16px/1.55 var(--sans);max-width:1180px;margin:2.5rem auto;padding:0 1.25rem}
+.crumb{font:600 12px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:.7rem}
+h1{font:600 30px/1.2 var(--sans);letter-spacing:-.02em;margin-bottom:.6rem}
+h2{font:600 20px/1.3 var(--sans);margin:0 0 .5rem}
+h3{font:600 15px/1.3 var(--sans);margin:1.4rem 0 .5rem}
+.tldr{font:17px/1.5 var(--serif);color:var(--ink-soft);max-width:75ch;margin-bottom:.5rem}
+.tldr b{color:var(--ink)}
+header{border-bottom:1px solid var(--border);padding-bottom:1.6rem;margin-bottom:1.8rem}
+
+.goalbar{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);padding:.85rem 1.1rem;margin:1.2rem 0 0;font:14px/1.45 var(--sans)}
+.goalbar .lbl{color:var(--ink-soft);font-size:12px;letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:.25rem}
+
+section{margin:2.6rem 0}
+.lead{font:15px/1.55 var(--sans);color:var(--ink-soft);max-width:80ch;margin-bottom:1rem}
+
+.concept{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:1.4rem 1.5rem;margin-bottom:1.7rem}
+.chead{display:flex;align-items:baseline;gap:.8rem;flex-wrap:wrap;margin-bottom:.15rem}
+.num{font:600 12px/1 var(--sans);letter-spacing:.09em;color:var(--accent);border:1px solid var(--accent);padding:.28em .5em;border-radius:3px}
+.verdict{margin-left:auto;font:600 12px/1 var(--sans);letter-spacing:.05em;text-transform:uppercase;padding:.3em .6em;border-radius:3px}
+.v-rec{background:var(--accent-soft);color:var(--accent)}
+.v-no{background:#ef444422;color:var(--danger)}
+.v-may{background:#f59e0b22;color:var(--warn)}
+.desc{font:15px/1.5 var(--sans);color:var(--ink-soft);margin-bottom:1rem;max-width:82ch}
+
+.mock{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:.9rem;overflow-x:auto;margin:1rem 0}
+.mock svg{display:block;width:100%;height:auto;min-width:640px}
+figcaption{font:12px/1.4 var(--sans);color:var(--ink-soft);margin-top:.55rem;padding:0 .2rem}
+
+table{width:100%;border-collapse:collapse;font:14px/1.45 var(--sans);margin:.9rem 0}
+th,td{text-align:left;padding:.5em .7em;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-weight:600;color:var(--ink-soft);font-size:12px;letter-spacing:.05em;text-transform:uppercase}
+td.num-cell,th.num-cell{text-align:right;font-family:var(--mono)}
+.proscons th:first-child{color:var(--ok)}
+.proscons th:last-child{color:var(--danger)}
+.proscons td{width:50%}
+
+.legend{display:flex;gap:1.1rem;flex-wrap:wrap;font:12px/1 var(--sans);color:var(--ink-soft);margin:.7rem 0 0;padding:.55rem .2rem 0;border-top:1px solid var(--border)}
+.legend span{display:inline-flex;align-items:center;gap:.4em}
+.dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+
+.recommend{border-left:3px solid var(--accent);background:var(--surface);padding:1.3rem 1.6rem;margin-top:2rem}
+.recommend h2{margin-bottom:.6rem}
+.recommend p{font:15px/1.55 var(--sans);color:var(--ink-soft);max-width:80ch;margin-bottom:.6rem}
+.recommend p b,.recommend li b{color:var(--ink)}
+.recommend ol{margin:.4rem 0 0 1.2rem;font:15px/1.6 var(--sans);color:var(--ink-soft)}
+.q{background:var(--surface-2);border:1px solid var(--border);padding:.9rem 1.1rem;margin-top:1.1rem;font:14px/1.5 var(--sans)}
+.q b{color:var(--accent)}
+code{font:13px/1.4 var(--mono);background:var(--surface-2);padding:.12em .38em;border-radius:3px}
+.note{font:13px/1.5 var(--sans);color:var(--ink-soft);border-top:1px solid var(--border);margin-top:1rem;padding-top:.7rem}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <p class="crumb">Концепции · Дашборд Orchestra</p>
+  <h1>Дорожная карта вместо канбана</h1>
+  <p class="tldr">Три способа показать проект как <b>дорогу слева направо</b>, а не как доску карточек. Все макеты нарисованы на наших настоящих задачах #410–#424. Внизу — что я рекомендую и какие два вопроса нужно решить до реализации.</p>
+  <div class="goalbar">
+    <span class="lbl">Цель проекта Orchestra (уже заведена на доске)</span>
+    Кор-фичи: доска проектов, память агентов на файлах, самоулучшатель, надёжность мержа и рестарта
+  </div>
+</header>
+
+<section>
+  <p class="lead">Зачем вообще карта, а не список. Список задач отвечает на вопрос «что есть», карта — на вопрос <b>«где мы на пути к цели и что мешает»</b>. Это разные вопросы: у нас 153 задачи закрыто, 19 в работе и 96 в очереди — в списке такого объёма цель не видна вообще, а на дороге видно, какой участок пройден и где стоим.</p>
+</section>
+
+<!-- ============ 01 ============ -->
+<article class="concept">
+  <div class="chead">
+    <span class="num">01</span>
+    <h2>Дорога по этапам</h2>
+    <span class="verdict v-rec">рекомендую</span>
+  </div>
+  <p class="desc">Строка = проект. Слева направо — <b>этапы</b> (осмысленные куски пути к цели), внутри этапа задачи. Параллельные ветки уходят вниз. Ровно то, что ты описал словами.</p>
+
+  <figure class="mock">
+    <svg viewBox="0 0 900 260" role="img" aria-label="Дорога по этапам">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 0L10 5L0 10z" fill="currentColor" opacity=".45"/>
+        </marker>
+      </defs>
+      <g font-family="system-ui" font-size="11">
+        <!-- ось -->
+        <line x1="30" y1="118" x2="862" y2="118" stroke="currentColor" stroke-opacity=".22" stroke-width="2" marker-end="url(#ar)"/>
+        <text x="30" y="26" font-size="12" font-weight="600" fill="currentColor">Orchestra — кор-фичи</text>
+        <text x="30" y="44" font-size="11" fill="currentColor" opacity=".55">строка проекта · слева направо путь к цели</text>
+
+        <!-- этап 1 -->
+        <g>
+          <text x="46" y="70" font-size="11" font-weight="600" fill="#22c55e">НАДЁЖНОСТЬ ✓</text>
+          <rect x="40" y="80" width="200" height="76" rx="4" fill="#22c55e" fill-opacity=".07" stroke="#22c55e" stroke-opacity=".35"/>
+          <rect x="52" y="92" width="80" height="24" rx="3" fill="#22c55e" fill-opacity=".9"/>
+          <text x="62" y="108" fill="#06240f" font-weight="600">#416 мерж</text>
+          <rect x="142" y="92" width="84" height="24" rx="3" fill="#22c55e" fill-opacity=".9"/>
+          <text x="152" y="108" fill="#06240f" font-weight="600">#423 конфл.</text>
+          <rect x="52" y="124" width="80" height="24" rx="3" fill="#3b82f6" fill-opacity=".85"/>
+          <text x="60" y="140" fill="#f1f1f4" font-weight="600">#411 рестарт</text>
+          <rect x="142" y="124" width="84" height="24" rx="3" fill="#3b82f6" fill-opacity=".85"/>
+          <text x="150" y="140" fill="#f1f1f4" font-weight="600">#413 рестарт</text>
+        </g>
+        <!-- этап 2 -->
+        <g>
+          <text x="266" y="70" font-size="11" font-weight="600" fill="#22c55e">ПАМЯТЬ ✓</text>
+          <rect x="260" y="80" width="180" height="76" rx="4" fill="#22c55e" fill-opacity=".07" stroke="#22c55e" stroke-opacity=".35"/>
+          <rect x="272" y="92" width="76" height="24" rx="3" fill="#22c55e" fill-opacity=".9"/>
+          <text x="284" y="108" fill="#06240f" font-weight="600">#417 KB</text>
+          <rect x="358" y="92" width="70" height="24" rx="3" fill="#22c55e" fill-opacity=".9"/>
+          <text x="368" y="108" fill="#06240f" font-weight="600">#419 A/B</text>
+          <rect x="272" y="124" width="156" height="24" rx="3" fill="#6b7280" fill-opacity=".5"/>
+          <text x="282" y="140" fill="#f1f1f4">#420 отменена</text>
+        </g>
+        <!-- этап 3 -->
+        <g>
+          <text x="466" y="70" font-size="11" font-weight="600" fill="#3b82f6">ДОСКА · сейчас</text>
+          <rect x="460" y="80" width="170" height="76" rx="4" fill="#3b82f6" fill-opacity=".08" stroke="#3b82f6" stroke-opacity=".5"/>
+          <rect x="472" y="92" width="76" height="24" rx="3" fill="#22c55e" fill-opacity=".9"/>
+          <text x="482" y="108" fill="#06240f" font-weight="600">#418 доска</text>
+          <rect x="558" y="92" width="60" height="24" rx="3" fill="#22c55e" fill-opacity=".9"/>
+          <text x="566" y="108" fill="#06240f" font-weight="600">#422</text>
+          <rect x="472" y="124" width="146" height="24" rx="3" fill="#3b82f6" fill-opacity=".85"/>
+          <text x="482" y="140" fill="#f1f1f4" font-weight="600">#424 самоулучшатель</text>
+        </g>
+        <!-- этап 4 -->
+        <g>
+          <text x="656" y="70" font-size="11" font-weight="600" fill="currentColor" opacity=".5">ДАЛЬШЕ</text>
+          <rect x="650" y="80" width="200" height="76" rx="4" fill="currentColor" fill-opacity=".03" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="4 3"/>
+          <rect x="662" y="92" width="80" height="24" rx="3" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-opacity=".25"/>
+          <text x="672" y="108" fill="currentColor" opacity=".65">#421 Prime</text>
+          <rect x="752" y="92" width="84" height="24" rx="3" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-opacity=".25"/>
+          <text x="762" y="108" fill="currentColor" opacity=".65">#415 фон</text>
+          <text x="662" y="140" fill="currentColor" opacity=".45">+96 в очереди</text>
+        </g>
+        <!-- маркер «мы здесь» -->
+        <line x1="545" y1="166" x2="545" y2="196" stroke="#34d399" stroke-width="2"/>
+        <circle cx="545" cy="118" r="5" fill="#34d399"/>
+        <text x="545" y="212" text-anchor="middle" font-size="11" font-weight="600" fill="#34d399">мы здесь</text>
+      </g>
+    </svg>
+    <figcaption>Этап = осмысленный кусок цели, а не срок. Пунктирный этап справа — то, что ещё не начато. Вертикаль внутри этапа = параллельные задачи.</figcaption>
+  </figure>
+
+  <div class="legend">
+    <span><i class="dot" style="background:#22c55e"></i>сделано</span>
+    <span><i class="dot" style="background:#3b82f6"></i>в работе</span>
+    <span><i class="dot" style="background:#6b7280"></i>отменено</span>
+    <span><i class="dot" style="background:currentColor;opacity:.25"></i>очередь</span>
+  </div>
+
+  <table class="proscons">
+    <tr><th>Плюсы</th><th>Минусы</th></tr>
+    <tr>
+      <td>Видно «где мы» одним взглядом — есть маркер текущей позиции<br>Этапы дают смысл, а не просто кучу карточек<br>Параллельность читается вертикалью</td>
+      <td>Этапы надо кем-то задавать: сами из задач они не выведутся<br>При 96 задачах в очереди правый край придётся сворачивать</td>
+    </tr>
+  </table>
+  <p class="note">Что нужно сверх текущей доски: поле «этап» у задачи и порядок этапов у проекта. Всё остальное уже есть.</p>
+</article>
+
+<!-- ============ 02 ============ -->
+<article class="concept">
+  <div class="chead">
+    <span class="num">02</span>
+    <h2>Лента времени</h2>
+    <span class="verdict v-may">как второй режим</span>
+  </div>
+  <p class="desc">То же слева направо, но ось — <b>календарь</b>, а не этапы. Задача занимает отрезок от старта до закрытия. Это классическая диаграмма Ганта.</p>
+
+  <figure class="mock">
+    <svg viewBox="0 0 900 210" role="img" aria-label="Лента времени">
+      <g font-family="system-ui" font-size="11">
+        <text x="30" y="24" font-size="12" font-weight="600" fill="currentColor">Orchestra — по датам</text>
+        <!-- сетка дней -->
+        <g stroke="currentColor" stroke-opacity=".12">
+          <line x1="150" y1="40" x2="150" y2="180"/><line x1="290" y1="40" x2="290" y2="180"/>
+          <line x1="430" y1="40" x2="430" y2="180"/><line x1="570" y1="40" x2="570" y2="180"/>
+          <line x1="710" y1="40" x2="710" y2="180"/><line x1="850" y1="40" x2="850" y2="180"/>
+        </g>
+        <g fill="currentColor" opacity=".5" font-size="10">
+          <text x="150" y="36">28.08</text><text x="290" y="36">29.08</text><text x="430" y="36">30.08</text>
+          <text x="570" y="36">31.08</text><text x="710" y="36">01.09</text><text x="850" y="36">02.09</text>
+        </g>
+        <!-- полосы -->
+        <g>
+          <text x="30" y="62" fill="currentColor" opacity=".75">#417 память</text>
+          <rect x="430" y="52" width="120" height="14" rx="3" fill="#22c55e" fill-opacity=".85"/>
+          <text x="30" y="88" fill="currentColor" opacity=".75">#418 доска</text>
+          <rect x="430" y="78" width="215" height="14" rx="3" fill="#22c55e" fill-opacity=".85"/>
+          <text x="30" y="114" fill="currentColor" opacity=".75">#422 харнес</text>
+          <rect x="470" y="104" width="180" height="14" rx="3" fill="#22c55e" fill-opacity=".85"/>
+          <text x="30" y="140" fill="currentColor" opacity=".75">#424 самоулучш.</text>
+          <rect x="560" y="130" width="130" height="14" rx="3" fill="#3b82f6" fill-opacity=".85"/>
+          <text x="30" y="166" fill="currentColor" opacity=".75">#421 Prime</text>
+          <rect x="545" y="156" width="105" height="14" rx="3" fill="#3b82f6" fill-opacity=".85"/>
+        </g>
+        <line x1="655" y1="40" x2="655" y2="185" stroke="#34d399" stroke-width="2" stroke-dasharray="3 3"/>
+        <text x="655" y="199" text-anchor="middle" font-size="11" font-weight="600" fill="#34d399">сегодня</text>
+      </g>
+    </svg>
+    <figcaption>Ось — реальные даты. Хорошо показывает, что делалось одновременно, и сколько заняло.</figcaption>
+  </figure>
+
+  <table class="proscons">
+    <tr><th>Плюсы</th><th>Минусы</th></tr>
+    <tr>
+      <td>Ничего не надо заводить руками — даты уже есть в базе<br>Честно показывает, сколько на самом деле заняло<br>Видна одновременность работ</td>
+      <td>Показывает <b>историю</b>, а не путь к цели: «где мы» не отвечает<br>Очередь из 96 задач без дат вообще не рисуется<br>Полезно раз в неделю, а не каждый день</td>
+    </tr>
+  </table>
+</article>
+
+<!-- ============ 03 ============ -->
+<article class="concept">
+  <div class="chead">
+    <span class="num">03</span>
+    <h2>Граф зависимостей</h2>
+    <span class="verdict v-no">не сейчас</span>
+  </div>
+  <p class="desc">Задачи как узлы, стрелки — «что после чего». Порядок выводится из связей, а не задаётся вручную.</p>
+
+  <figure class="mock">
+    <svg viewBox="0 0 900 190" role="img" aria-label="Граф зависимостей">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0 0L10 5L0 10z" fill="currentColor" opacity=".4"/>
+        </marker>
+      </defs>
+      <g font-family="system-ui" font-size="11">
+        <g stroke="currentColor" stroke-opacity=".3" fill="none" marker-end="url(#ar2)">
+          <path d="M150 70 L235 70"/><path d="M150 70 L235 130"/>
+          <path d="M355 70 L440 70"/><path d="M355 130 L440 70"/>
+          <path d="M560 70 L645 70"/>
+        </g>
+        <g>
+          <rect x="40" y="55" width="110" height="30" rx="4" fill="#22c55e" fill-opacity=".85"/><text x="62" y="74" fill="#06240f" font-weight="600">#416 мерж</text>
+          <rect x="240" y="55" width="115" height="30" rx="4" fill="#22c55e" fill-opacity=".85"/><text x="258" y="74" fill="#06240f" font-weight="600">#423 конфл.</text>
+          <rect x="240" y="115" width="115" height="30" rx="4" fill="#22c55e" fill-opacity=".85"/><text x="262" y="134" fill="#06240f" font-weight="600">#417 память</text>
+          <rect x="445" y="55" width="115" height="30" rx="4" fill="#22c55e" fill-opacity=".85"/><text x="466" y="74" fill="#06240f" font-weight="600">#418 доска</text>
+          <rect x="650" y="55" width="150" height="30" rx="4" fill="#3b82f6" fill-opacity=".85"/><text x="662" y="74" fill="#f1f1f4" font-weight="600">#424 самоулучш.</text>
+        </g>
+        <text x="40" y="175" fill="currentColor" opacity=".5" font-size="11">стрелка = «нельзя начать, пока не закрыто предыдущее»</text>
+      </g>
+    </svg>
+    <figcaption>Красиво и точно — но только если связи кто-то проставил. У нас их сейчас нет ни одной.</figcaption>
+  </figure>
+
+  <table class="proscons">
+    <tr><th>Плюсы</th><th>Минусы</th></tr>
+    <tr>
+      <td>Порядок вычисляется сам, руками ничего не расставляешь<br>Сразу видно, что кого блокирует</td>
+      <td><b>Связей в базе нет вообще</b> — 249 задач пришлось бы связывать руками<br>Граф на 96 узлах превращается в кашу<br>Самый дорогой вариант из трёх</td>
+    </tr>
+  </table>
+</article>
+
+<!-- ============ сравнение ============ -->
+<section>
+  <h2>Три варианта рядом</h2>
+  <table>
+    <tr>
+      <th>&nbsp;</th>
+      <th>01 Этапы</th>
+      <th>02 Время</th>
+      <th>03 Граф</th>
+    </tr>
+    <tr><td>Отвечает «где мы к цели»</td><td>да</td><td>нет</td><td>частично</td></tr>
+    <tr><td>Нужно заводить руками</td><td>этапы у проекта</td><td>ничего</td><td>связи у 249 задач</td></tr>
+    <tr><td>Данные уже есть</td><td>почти все</td><td>все</td><td>нет</td></tr>
+    <tr><td>Читается при 96 задачах в очереди</td><td>да, сворачиванием</td><td>плохо</td><td>нет</td></tr>
+    <tr><td>Смотреть каждый день</td><td>да</td><td>раз в неделю</td><td>редко</td></tr>
+  </table>
+</section>
+
+<!-- ============ рекомендация ============ -->
+<footer class="recommend">
+  <h2>Что предлагаю</h2>
+  <p><b>Основной вид — 01 «Дорога по этапам».</b> Он единственный отвечает на вопрос, ради которого всё затевалось: где мы на пути к цели. Канбан этого не показывает принципиально — там колонки статуса, а не движение.</p>
+  <p><b>02 «Лента времени» — вторым переключателем</b>, когда захочется посмотреть «а что было на той неделе». Данные для неё уже есть, делать почти нечего.</p>
+  <p><b>03 «Граф» — не сейчас.</b> Связей в базе ноль, проставить их для 249 задач вручную дороже, чем вся остальная карта. Вернёмся, если появятся из самоулучшателя.</p>
+
+  <h3>Как это связано с целью проекта</h3>
+  <p>Цель у проекта уже есть (наверху страницы). Смысл карты — <b>показать цель и путь к ней в одном экране</b>: цель сверху строкой, под ней дорога с маркером «мы здесь». Тогда сторож застоя из #418 получает видимый смысл: если по цели давно нет движения, это видно на карте, а не только в письме.</p>
+
+  <div class="q">
+    <p><b>Два вопроса, без которых не начинаю:</b></p>
+    <ol>
+      <li><b>Кто задаёт этапы?</b> Вариант А — ты называешь их сам под каждый проект (точнее, но требует твоего участия). Вариант Б — я предлагаю разбивку, ты правишь (быстрее стартует, но первые этапы будут кривые).</li>
+      <li><b>Задачи открываются прямо в карте?</b> Ты сказал «хочу открыть эти таски» — значит клик по задаче показывает её описание, коммиты и статус, не уводя со страницы. Подтверди, что нужен именно просмотр, а не редактирование.</li>
+    </ol>
+  </div>
+
+  <p class="note">Все задачи на макетах — настоящие, из нашей базы: 153 закрыто, 19 в работе, 96 в очереди. Ни одна карточка не выдумана.</p>
+</footer>
+</main>
+</body>
+</html>

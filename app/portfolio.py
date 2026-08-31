@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import sqlite3
 import uuid
 from datetime import datetime, timedelta, timezone
 
 from app import db, tm
+
+
+MAX_STAGE_LABELS = 7
+MAX_STAGE_LABEL_LENGTH = 64
 
 
 class PortfolioError(Exception):
@@ -60,6 +65,42 @@ def _project(conn: sqlite3.Connection, project_id: str) -> sqlite3.Row:
     if row is None:
         raise PortfolioError(404, f"portfolio project '{project_id}' not found")
     return row
+
+
+def _stage_order(project: sqlite3.Row | dict) -> list[str]:
+    try:
+        raw = json.loads(str(project["stage_order_json"] or "[]"))
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        raw = []
+    if not isinstance(raw, list):
+        return []
+    return [str(value) for value in raw if isinstance(value, str)]
+
+
+def _normalize_stage_label(value: str) -> str:
+    label = " ".join(str(value).split())
+    if not label:
+        raise PortfolioError(422, "stage label is required")
+    if len(label) > MAX_STAGE_LABEL_LENGTH:
+        raise PortfolioError(
+            422, f"stage label must not exceed {MAX_STAGE_LABEL_LENGTH} characters"
+        )
+    return label
+
+
+def _task_namespace_for_actor(
+    conn: sqlite3.Connection, actor: sqlite3.Row
+) -> str:
+    rows = conn.execute(
+        """SELECT id FROM tm_projects
+           WHERE RTRIM(scope,'/')=RTRIM(?,'/') ORDER BY id""",
+        (actor["scope"],),
+    ).fetchall()
+    if not rows:
+        raise PortfolioError(403, "owner scope has no technical task project")
+    if len(rows) != 1:
+        raise PortfolioError(409, "owner scope maps to multiple technical task projects")
+    return str(rows[0]["id"])
 
 
 def _owner(conn: sqlite3.Connection, project_id: str) -> sqlite3.Row:
@@ -146,10 +187,20 @@ def _goal_payload(row: sqlite3.Row | None) -> dict | None:
 
 def _task_payloads(conn: sqlite3.Connection, project_id: str) -> list[dict]:
     rows = conn.execute(
-        """SELECT t.*, l.task_stable_id
-           FROM portfolio_task_links l
-           JOIN tm_tasks t ON t.id=l.task_row_id
-           WHERE l.project_id=? AND l.removed_at IS NULL
+        """SELECT t.*, t.project_id AS task_namespace_id,
+                  t.par_number AS task_display_number,
+                  l.task_stable_id, l.stage_label
+           FROM portfolio_projects p
+           JOIN tm_tasks t ON (
+               t.project_id=p.task_namespace_id OR EXISTS (
+                   SELECT 1 FROM portfolio_task_links x
+                   WHERE x.project_id=p.id AND x.task_row_id=t.id
+                     AND x.removed_at IS NULL
+               )
+           )
+           LEFT JOIN portfolio_task_links l
+             ON l.project_id=p.id AND l.task_row_id=t.id AND l.removed_at IS NULL
+           WHERE p.id=? AND p.archived_at IS NULL
            ORDER BY t.created_at, t.id""",
         (project_id,),
     ).fetchall()
@@ -158,11 +209,25 @@ def _task_payloads(conn: sqlite3.Connection, project_id: str) -> list[dict]:
 
 def _wait_payloads(conn: sqlite3.Connection, project_id: str) -> list[dict]:
     rows = conn.execute(
-        """SELECT * FROM portfolio_waits WHERE project_id=?
-           ORDER BY opened_at, id""",
+        """SELECT w.*,d.state AS response_delivery_state,
+                  d.error_json AS response_delivery_error_json
+           FROM portfolio_waits w
+           LEFT JOIN message_deliveries d ON d.delivery_id=w.response_delivery_id
+           WHERE w.project_id=? ORDER BY w.opened_at,w.id""",
         (project_id,),
     ).fetchall()
-    return [dict(row) for row in rows]
+    result = []
+    for row in rows:
+        payload = dict(row)
+        raw_error = payload.pop("response_delivery_error_json", None)
+        try:
+            payload["response_delivery_error"] = (
+                json.loads(raw_error) if raw_error else None
+            )
+        except (TypeError, ValueError, json.JSONDecodeError):
+            payload["response_delivery_error"] = {"message": str(raw_error)}
+        result.append(payload)
+    return result
 
 
 def _project_payload(conn: sqlite3.Connection, project_id: str) -> dict:
@@ -178,6 +243,8 @@ def _project_payload(conn: sqlite3.Connection, project_id: str) -> dict:
         if row["status"] != "archived" and _ancestry_reaches(conn, row, str(owner["id"])):
             contributors.append(_member_payload(row))
     result = dict(project)
+    result["stage_order"] = _stage_order(project)
+    result.pop("stage_order_json", None)
     result.update(
         {
             "scope": None,
@@ -282,14 +349,257 @@ def add_member(session_id: str, project_id: str, target_session_id: str, role: s
         return {"project_id": project_id, "session_id": target_session_id, "role": role}
 
 
+def set_task_source(session_id: str, project_id: str, task_project: str) -> dict:
+    task_project = task_project.strip()
+    if not task_project:
+        raise PortfolioError(422, "task_project is required")
+    with db._conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        project, actor, _role = authorize(conn, project_id, session_id, owner_only=True)
+        mapped = _task_namespace_for_actor(conn, actor)
+        if mapped != task_project:
+            raise PortfolioError(403, "task source must match the owner's technical scope")
+        current = str(project["task_namespace_id"] or "")
+        if current == task_project:
+            return _project_payload(conn, project_id)
+        if current:
+            raise PortfolioError(409, "project task source is already bound")
+        try:
+            conn.execute(
+                """UPDATE portfolio_projects
+                   SET task_namespace_id=?,revision=revision+1,updated_at=?
+                   WHERE id=? AND task_namespace_id IS NULL""",
+                (task_project, _timestamp(), project_id),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise PortfolioError(409, "technical task source is already in use") from exc
+        return _project_payload(conn, project_id)
+
+
+def set_stage_order(
+    session_id: str,
+    project_id: str,
+    stages: list[str],
+    renames: dict[str, str] | None = None,
+) -> dict:
+    if len(stages) > MAX_STAGE_LABELS:
+        raise PortfolioError(422, f"a project may have at most {MAX_STAGE_LABELS} stages")
+    normalized = [_normalize_stage_label(value) for value in stages]
+    by_key = {label.casefold(): label for label in normalized}
+    if len(by_key) != len(normalized):
+        raise PortfolioError(422, "stage labels must be unique ignoring case and whitespace")
+
+    rename_map: dict[str, str] = {}
+    for old, new in (renames or {}).items():
+        old_label = _normalize_stage_label(old)
+        new_label = _normalize_stage_label(new)
+        old_key = old_label.casefold()
+        if old_key in rename_map:
+            raise PortfolioError(422, "duplicate stage rename source")
+        canonical_new = by_key.get(new_label.casefold())
+        if canonical_new is None:
+            raise PortfolioError(422, "renamed stage must appear in the final order")
+        rename_map[old_key] = canonical_new
+
+    with db._conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        project, _actor_row, _role = authorize(
+            conn, project_id, session_id, owner_only=True
+        )
+        current = _stage_order(project)
+        current_keys = {label.casefold() for label in current}
+        if not set(rename_map).issubset(current_keys):
+            raise PortfolioError(422, "rename source is not in the current stage order")
+
+        links = conn.execute(
+            """SELECT rowid AS link_rowid,stage_label FROM portfolio_task_links
+               WHERE project_id=? AND removed_at IS NULL AND stage_label IS NOT NULL""",
+            (project_id,),
+        ).fetchall()
+        updates: list[tuple[str, int]] = []
+        for link in links:
+            key = str(link["stage_label"]).casefold()
+            target = rename_map.get(key) or by_key.get(key)
+            if target is None:
+                raise PortfolioError(422, "stage order cannot omit a label still used by tasks")
+            if target != link["stage_label"]:
+                updates.append((target, int(link["link_rowid"])))
+
+        encoded = json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
+        if current == normalized and not updates:
+            return _project_payload(conn, project_id)
+        for label, rowid in updates:
+            conn.execute(
+                "UPDATE portfolio_task_links SET stage_label=? WHERE rowid=?",
+                (label, rowid),
+            )
+        conn.execute(
+            """UPDATE portfolio_projects
+               SET stage_order_json=?,revision=revision+1,updated_at=? WHERE id=?""",
+            (encoded, _timestamp(), project_id),
+        )
+        return _project_payload(conn, project_id)
+
+
+def _resolve_project_task(
+    conn: sqlite3.Connection,
+    project: sqlite3.Row,
+    task_ref: str,
+    task_project: str = "",
+) -> sqlite3.Row:
+    namespaces: list[str] = []
+    if task_project:
+        namespaces.append(task_project)
+    else:
+        source = str(project["task_namespace_id"] or "")
+        if source:
+            namespaces.append(source)
+        namespaces.extend(
+            str(row["task_namespace_id"])
+            for row in conn.execute(
+                """SELECT DISTINCT task_namespace_id FROM portfolio_task_links
+                   WHERE project_id=? AND removed_at IS NULL
+                   ORDER BY task_namespace_id""",
+                (project["id"],),
+            ).fetchall()
+            if str(row["task_namespace_id"]) not in namespaces
+        )
+
+    matches: dict[int, sqlite3.Row] = {}
+    for namespace in namespaces:
+        try:
+            task = tm.resolve_task_ref(conn, task_ref, namespace)
+        except ValueError:
+            continue
+        if task is None:
+            continue
+        allowed = namespace == str(project["task_namespace_id"] or "") or conn.execute(
+            """SELECT 1 FROM portfolio_task_links
+               WHERE project_id=? AND task_row_id=? AND removed_at IS NULL""",
+            (project["id"], task["id"]),
+        ).fetchone() is not None
+        if allowed:
+            matches[int(task["id"])] = task
+    if not matches:
+        raise PortfolioError(404, f"task '{task_ref}' is not on this project road")
+    if len(matches) != 1:
+        raise PortfolioError(409, "task reference is ambiguous; provide task_project")
+    return next(iter(matches.values()))
+
+
+def set_task_stage(
+    session_id: str,
+    project_id: str,
+    task_ref: str,
+    stage: str | None,
+    *,
+    task_project: str = "",
+) -> dict:
+    requested = _normalize_stage_label(stage) if stage is not None else None
+    pending_stable_id: str | None = None
+    expected_task_id: int | None = None
+    with db._conn() as conn:
+        project, _actor_row, _role = authorize(
+            conn, project_id, session_id, owner_only=True
+        )
+        order = _stage_order(project)
+        canonical = None
+        if requested is not None:
+            canonical = next(
+                (label for label in order if label.casefold() == requested.casefold()),
+                None,
+            )
+            if canonical is None:
+                raise PortfolioError(422, "task stage must appear in the project stage order")
+        task = _resolve_project_task(conn, project, task_ref, task_project.strip())
+        namespace = str(task["project_id"])
+        existing = conn.execute(
+            """SELECT task_stable_id FROM portfolio_task_links
+               WHERE project_id=? AND task_row_id=? AND removed_at IS NULL""",
+            (project_id, task["id"]),
+        ).fetchone()
+        if canonical is not None and existing is None:
+            # Only primary-source rows may reach this branch. Explicit foreign
+            # rows already have a saved link authorizing their metadata.
+            if namespace != str(project["task_namespace_id"] or ""):
+                raise PortfolioError(409, "foreign task has no active project link")
+            expected_task_id = int(task["id"])
+
+    if expected_task_id is not None:
+        try:
+            detail = tm.api_get_task(task_ref, project=namespace)
+        except (ValueError, RuntimeError) as exc:
+            raise PortfolioError(409, f"canonical task resolution failed: {exc}") from exc
+        pending_stable_id = str(
+            detail.get("stable_id") or f"legacy:{namespace}:{expected_task_id}"
+        )
+
+    with db._conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        project, _actor_row, _role = authorize(
+            conn, project_id, session_id, owner_only=True
+        )
+        order = _stage_order(project)
+        if requested is not None:
+            canonical = next(
+                (label for label in order if label.casefold() == requested.casefold()),
+                None,
+            )
+            if canonical is None:
+                raise PortfolioError(422, "task stage must appear in the project stage order")
+        task = _resolve_project_task(conn, project, task_ref, task_project.strip())
+        if expected_task_id is not None and int(task["id"]) != expected_task_id:
+            raise PortfolioError(409, "task identity changed during stage assignment")
+        link = conn.execute(
+            """SELECT * FROM portfolio_task_links
+               WHERE project_id=? AND task_row_id=? AND removed_at IS NULL""",
+            (project_id, task["id"]),
+        ).fetchone()
+        if link is not None:
+            conn.execute(
+                """UPDATE portfolio_task_links SET stage_label=?
+                   WHERE project_id=? AND task_row_id=? AND removed_at IS NULL""",
+                (canonical, project_id, task["id"]),
+            )
+            stable_id = link["task_stable_id"]
+        elif canonical is not None and pending_stable_id is not None:
+            try:
+                conn.execute(
+                    """INSERT INTO portfolio_task_links(
+                           project_id,task_stable_id,task_row_id,task_namespace_id,
+                           task_display_number,linked_by_session_id,stage_label,created_at)
+                       VALUES(?,?,?,?,?,?,?,?)""",
+                    (
+                        project_id,
+                        pending_stable_id,
+                        int(task["id"]),
+                        str(task["project_id"]),
+                        int(task["par_number"]),
+                        session_id,
+                        canonical,
+                        _timestamp(),
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise PortfolioError(409, "task already has an active portfolio link") from exc
+            stable_id = pending_stable_id
+        else:
+            stable_id = None
+        return {
+            "project_id": project_id,
+            "task_stable_id": stable_id,
+            "task_row_id": int(task["id"]),
+            "task_namespace_id": str(task["project_id"]),
+            "task_display_number": int(task["par_number"]),
+            "stage_label": canonical,
+        }
+
+
 def _resolve_scoped_task(
     conn: sqlite3.Connection, actor: sqlite3.Row, task_project: str, task_ref: str
 ) -> sqlite3.Row:
-    mapped = conn.execute(
-        "SELECT id FROM tm_projects WHERE RTRIM(scope,'/')=RTRIM(?,'/')",
-        (actor["scope"],),
-    ).fetchone()
-    if mapped is None or mapped["id"] != task_project:
+    mapped = _task_namespace_for_actor(conn, actor)
+    if mapped != task_project:
         raise PortfolioError(403, "task must belong to the caller's technical scope")
     try:
         task = tm.resolve_task_ref(conn, task_ref, task_project)
@@ -671,6 +981,135 @@ def list_waits(session_id: str, project_id: str) -> dict:
         return {"waits": _wait_payloads(conn, project_id)}
 
 
+def wait_payload(project_id: str, wait_id: str) -> dict:
+    with db._conn() as conn:
+        _project(conn, project_id)
+        waits = _wait_payloads(conn, project_id)
+        row = next((wait for wait in waits if wait["id"] == wait_id), None)
+        if row is None:
+            raise PortfolioError(404, "wait not found")
+        return row
+
+
+def _wait_response_delivery_id(wait_id: str, attempt: int) -> str:
+    return str(
+        uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"orchestra:portfolio-wait-answer:{wait_id}:{attempt}",
+        )
+    )
+
+
+def prepare_wait_response(project_id: str, wait_id: str, response: str) -> dict:
+    response = response.strip()
+    if not 1 <= len(response) <= 4000:
+        raise PortfolioError(422, "wait response must contain 1..4000 characters")
+    with db._conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            """SELECT w.*,p.name AS project_name,
+                      s.name AS target_name,s.scope AS target_scope,
+                      s.task_id AS target_task_id,s.branch AS target_branch,
+                      s.needs_switch AS target_needs_switch,s.status AS target_status,
+                      l.task_display_number
+               FROM portfolio_waits w
+               JOIN portfolio_projects p ON p.id=w.project_id
+               LEFT JOIN sessions s ON s.id=w.opened_by_session_id
+               LEFT JOIN portfolio_task_links l
+                 ON l.project_id=w.project_id AND l.task_stable_id=w.task_stable_id
+                AND l.removed_at IS NULL
+               WHERE w.id=? AND w.project_id=?""",
+            (wait_id, project_id),
+        ).fetchone()
+        if row is None:
+            raise PortfolioError(404, "wait not found")
+        existing_text = str(row["response_text"] or "")
+        if existing_text and existing_text != response:
+            raise PortfolioError(409, "wait already has a different response")
+        if row["status"] == "cancelled":
+            raise PortfolioError(409, "wait is already cancelled")
+
+        delivery = None
+        delivery_id = str(row["response_delivery_id"] or "")
+        if delivery_id:
+            delivery = conn.execute(
+                "SELECT * FROM message_deliveries WHERE delivery_id=?",
+                (delivery_id,),
+            ).fetchone()
+        if row["status"] == "resolved":
+            if not existing_text or existing_text != response or delivery is None:
+                raise PortfolioError(409, "wait is already resolved")
+            return {"delivery_id": delivery_id, "existing": True}
+
+        # An open/pending response always remains addressed to the exact opener.
+        # Cached manager state is insufficient: archived sessions stay hydrated.
+        if row["target_name"] is None or row["target_status"] == "archived":
+            raise PortfolioError(409, "wait opener is archived or missing")
+
+        if delivery is not None and delivery["state"] != "FAILED_BEFORE_SUBMIT":
+            return {"delivery_id": delivery_id, "existing": True}
+
+        if delivery is not None:
+            attempt = int(row["response_attempt"] or 0) + 1
+            delivery_id = _wait_response_delivery_id(wait_id, attempt)
+        elif delivery_id:
+            # Crash after reservation and before receipt: preserve the frozen id.
+            attempt = max(1, int(row["response_attempt"] or 0))
+        else:
+            attempt = 1
+            delivery_id = _wait_response_delivery_id(wait_id, attempt)
+
+        conn.execute(
+            """UPDATE portfolio_waits
+               SET response_text=?,response_delivery_id=?,response_attempt=?
+               WHERE id=? AND project_id=? AND status='open'""",
+            (response, delivery_id, attempt, wait_id, project_id),
+        )
+        task_number = row["task_display_number"]
+        if task_number is not None:
+            message = f"Пользователь ответил по задаче #{task_number}: {response}"
+        else:
+            message = f"Пользователь ответил по проекту {row['project_name']}: {response}"
+        target_generation = (
+            f"session={row['opened_by_session_id']}|task={row['target_task_id'] or ''}|"
+            f"branch={row['target_branch'] or ''}|"
+            f"needs_switch={int(bool(row['target_needs_switch']))}"
+        )
+        return {
+            "delivery_id": delivery_id,
+            "existing": False,
+            "target_session_id": str(row["opened_by_session_id"]),
+            "target_name": str(row["target_name"]),
+            "target_scope": str(row["target_scope"] or ""),
+            "target_task_id": str(row["target_task_id"] or ""),
+            "target_generation": target_generation,
+            "message": message,
+        }
+
+
+def validate_wait_response_delivery(
+    project_id: str,
+    wait_id: str,
+    delivery_id: str,
+    target_session_id: str,
+) -> None:
+    """Recheck the durable wait/target immediately before receipt acceptance."""
+    with db._conn() as conn:
+        row = conn.execute(
+            """SELECT w.status,w.response_delivery_id,s.status AS target_status
+               FROM portfolio_waits w
+               LEFT JOIN sessions s ON s.id=w.opened_by_session_id
+               WHERE w.id=? AND w.project_id=? AND w.opened_by_session_id=?""",
+            (wait_id, project_id, target_session_id),
+        ).fetchone()
+        if row is None:
+            raise PortfolioError(409, "wait or opener changed before delivery")
+        if row["status"] != "open" or row["response_delivery_id"] != delivery_id:
+            raise PortfolioError(409, "wait changed before delivery acceptance")
+        if row["target_status"] is None or row["target_status"] == "archived":
+            raise PortfolioError(409, "wait opener is archived or missing")
+
+
 def close_wait(
     session_id: str,
     project_id: str,
@@ -696,6 +1135,8 @@ def close_wait(
             return dict(row)
         if row["status"] != "open":
             raise PortfolioError(409, f"wait is already {row['status']}")
+        if row["response_delivery_id"]:
+            raise PortfolioError(409, "wait response delivery is already pending")
         conn.execute(
             "UPDATE portfolio_waits SET status=?,resolved_at=? WHERE id=?",
             (status, timestamp, wait_id),
