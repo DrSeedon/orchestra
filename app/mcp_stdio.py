@@ -2537,6 +2537,20 @@ async def resolve_merge_operation(operation_id: str, reason: str) -> CallToolRes
         if isinstance(api_error.result, dict):
             result = api_error.result
             error = result.get("error") if isinstance(result.get("error"), dict) else None
+            resolution = result.get("resolution") if isinstance(result.get("resolution"), dict) else None
+            if resolution is not None and result.get("operation_state") in {"PARTIAL", "UNKNOWN"}:
+                if error is not None:
+                    resolution = {**resolution, "previous_error": error}
+                    result = {**result, "resolution": resolution}
+                result.pop("error", None)
+                return mcp_tool_result(
+                    result,
+                    text=(
+                        f"Merge operation {operation_id} resolved (state stays "
+                        f"{result.get('operation_state')}); merges for this worker are "
+                        f"unblocked. Reason: {_safe_response_text(str(resolution.get('reason') or reason))}"
+                    ),
+                )
             message = str((error or {}).get("message") or api_error.message)
             return mcp_tool_result(
                 result, error=error, is_error=True,
