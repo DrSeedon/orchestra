@@ -938,6 +938,12 @@ def _classify_failure(raw: dict[str, Any], message: str) -> tuple[str, dict[str,
             "REFRESH_TARGET_THEN_NEW_OPERATION",
             "Target moved after admission; start a fresh merge operation.",
         )
+    if raw.get("conflicts"):
+        details["paths"] = list(raw["conflicts"])
+        return "CONFLICT", details, _action(
+            "RESOLVE_ON_WORKER_THEN_NEW_OPERATION",
+            "Resolve and commit the conflict on the worker branch, then start a new operation; do not merge the target manually.",
+        )
     if raw.get("code") == "NO_COMMITS_MERGED":
         if "target working tree is dirty" in lower:
             details["paths_text"] = message
@@ -948,12 +954,6 @@ def _classify_failure(raw: dict[str, Any], message: str) -> tuple[str, dict[str,
         return "NO_COMMITS_MERGED", details, _action(
             "CHECK_WORKER_THEN_NEW_OPERATION",
             "No commits reached the target branch; verify the worker branch before retrying.",
-        )
-    if raw.get("conflicts"):
-        details["paths"] = list(raw["conflicts"])
-        return "CONFLICT", details, _action(
-            "RESOLVE_ON_WORKER_THEN_NEW_OPERATION",
-            "Resolve and commit the conflict on the worker branch, then start a new operation; do not merge the target manually.",
         )
     if "target working tree is dirty" in lower:
         details["paths_text"] = message
@@ -1030,6 +1030,7 @@ def normalize_merge_result(
         raw.get("target_before")
         and raw.get("target_before") == raw.get("target_after")
         and int(raw.get("commits_merged") or 0) == 0
+        and not raw.get("conflicts")
     )
     if no_commits_merged:
         raw = {
