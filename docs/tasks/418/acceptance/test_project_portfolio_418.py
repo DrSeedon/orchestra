@@ -346,57 +346,119 @@ async def test_t2_watchdog_goal_only_atomic_claim_and_retry_reuse_delivery_id(
     assert len(recovered) == 1
 
 
-def test_t3_board_renders_real_project_data_and_keeps_dashboard_separate(
-    tmp_path, monkeypatch
-):
-    db = _init_db(tmp_path, monkeypatch)
-    assert "/project-board" in _production_paths(), "#418 missing portfolio route: /project-board"
-    owner, owner_name = _save_session(db, "owner", role="orchestrator")
-    sub, sub_name = _save_session(
-        db, "sub", role="sub-orchestrator", parent_id=owner, parent_name=owner_name
-    )
-    app = _portfolio_app("/project-board")
-    with TestClient(app) as client:
-        _create_project(client, owner)
-        _add_contributor(client, owner, "alpha", sub)
-        from app import tm
+def test_t3_dashboard_button_opens_portfolio_panel_with_real_project_payload():
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_playwright
 
-        _seed_namespace(tm, "namespace", "/portfolio-home")
-        linked = tm.api_create_task("namespace", "Linked board task")
-        tm.api_create_task("namespace", "Unlinked hidden task")
-        assert client.post(
-            "/api/portfolio/projects/alpha/tasks",
-            headers=_headers(owner),
-            json={"task_project": "namespace", "task_ref": linked["par"]},
-        ).status_code == 201
-        assert client.post(
-            "/api/portfolio/projects/alpha/goals",
-            headers=_headers(owner),
-            json={"objective": "Goal visible without task dependence"},
-        ).status_code == 201
-        assert client.post(
-            "/api/portfolio/projects/alpha/waits",
-            headers=_headers(sub),
-            json={"question": "Exact visible question?"},
-        ).status_code == 201
+    root = Path(__file__).parents[4]
+    app_js = root / "app/static/js/app.js"
+    utils_js = root / "app/static/js/utils.js"
+    connection_js = root / "app/static/js/connection.js"
+    style_css = root / "app/static/css/style.css"
+    vendor_js = [
+        root / "app/static/css/vendor/marked.min.js",
+        root / "app/static/css/vendor/purify.min.js",
+        root / "app/static/css/vendor/diff_match_patch.js",
+        root / "app/static/css/vendor/highlight.min.js",
+    ]
+    payload = {
+        "projects": [
+            {
+                "id": "alpha",
+                "name": "Alpha",
+                "owner": {"session_id": "owner-1", "name": "owner-visible"},
+                "contributors": [{"session_id": "sub-1", "name": "sub-visible"}],
+                "goal": {"objective": "Goal visible without task dependence", "status": "active"},
+                "tasks": [
+                    {"id": "task-1", "title": "Linked board task", "status": "in_progress"},
+                ],
+                "waits": [{"id": "wait-1", "question": "Exact visible question?", "status": "open"}],
+            },
+            {
+                "id": "goal-only",
+                "name": "Goal Only",
+                "owner": {"session_id": "owner-1", "name": "owner-visible"},
+                "contributors": [],
+                "goal": {"objective": "Goal-only project remains visible", "status": "active"},
+                "tasks": [],
+                "waits": [],
+            },
+        ]
+    }
 
-        board = client.get("/project-board", headers=_headers(owner))
-        assert board.status_code == 200, board.text
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        errors: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.route(
+            "http://portfolio.test/",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="text/html",
+                body="""
+                    <body class="bg-slate-950">
+                      <div id="file-panel">
+                        <div id="left-tabs">
+                          <button data-left-tab="files" class="left-tab">FILES</button>
+                          <button data-left-tab="tasks" class="left-tab">TASKS</button>
+                          <button data-left-tab="jobs" class="left-tab">JOBS</button>
+                          <button id="open-folder-btn">FOLDER</button>
+                        </div>
+                        <div id="file-tree"></div>
+                        <div id="tasks-panel" class="hidden"></div>
+                        <div id="jobs-panel" class="hidden"></div>
+                      </div>
+                    </body>
+                """,
+            ),
+        )
+        page.goto("http://portfolio.test/")
+        page.add_style_tag(path=str(style_css))
+        for vendor in vendor_js:
+            page.add_script_tag(path=str(vendor))
+        page.add_script_tag(path=str(utils_js))
+        page.add_script_tag(path=str(connection_js))
+        page.add_script_tag(path=str(app_js))
+
+        try:
+            page.wait_for_function(
+                "typeof window.PortfolioPanel?.init === 'function'", timeout=500
+            )
+        except PlaywrightTimeoutError:
+            pytest.fail("#418 T3 missing behavior: portfolio dashboard panel control")
+        page.evaluate(
+            """payload => {
+                api = async path => {
+                    if (path === '/api/portfolio/projects') return payload;
+                    throw new Error(`unexpected API call: ${path}`);
+                };
+                PortfolioPanel.init();
+            }""",
+            payload,
+        )
+        assert page.locator('[data-left-tab="portfolio"]').count() == 1
+        page.locator('[data-left-tab="portfolio"]').click()
+        page.wait_for_selector('#tasks-panel [data-portfolio-board="true"]')
+
+        panel = page.locator("#tasks-panel")
+        assert not panel.evaluate("element => element.classList.contains('hidden')")
+        assert page.locator("#file-panel").evaluate(
+            "element => parseFloat(getComputedStyle(element).width)"
+        ) >= 900
         for anchor in ("Планируется", "В работе", "Ждёт решения", "Сделано"):
-            assert anchor in board.text
+            assert anchor in panel.inner_text()
         for value in (
             "Linked board task",
             "Goal visible without task dependence",
             "Exact visible question?",
-            owner_name,
-            sub_name,
+            "owner-visible",
+            "sub-visible",
+            "Goal-only project remains visible",
         ):
-            assert value in board.text
-        assert "Unlinked hidden task" not in board.text
-        assert "agent-list" not in board.text
-
-    dashboard_template = Path("app/templates/dashboard.html").read_text(encoding="utf-8")
-    assert 'id="portfolio-board"' not in dashboard_template
+            assert value in panel.inner_text()
+        assert "Unlinked hidden task" not in panel.inner_text()
+        assert errors == []
+        browser.close()
 
 
 @pytest.mark.asyncio

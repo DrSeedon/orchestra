@@ -202,8 +202,10 @@ id, created/delivered timestamps. Existing one-argument `notify_user(reason)` re
 projectless `kind='legacy'` during rollout. Waiting is rejected here and goes only through
 `project_wait`.
 
-TG bridge stops triggering on the tool-call log. It tags only after a successful tool-result carries
-a durable attention event id; project-wait and watchdog results have distinct markers and never tag.
+TG bridge accepts a successful tool-result carrying a durable attention event id. The explicit
+`notify_user` tool-call remains a fail-loud fallback under the pre-existing #241 contract: a DB
+failure must not silently swallow an explicit request to tag. Project-wait and watchdog have
+different tool names and result markers, so neither can enter either tag path.
 
 ## 4. Owner и sub-orchestrator
 
@@ -304,8 +306,10 @@ allowing wakes.
 
 ## 7. Board contract
 
-New standalone `GET /project-board`; existing dashboard template, agent list and chat remain
-unchanged.
+The board opens as a panel inside the existing dashboard. JavaScript injects a `PROJECTS` button
+beside the existing `FILES` / `TASKS` / `JOBS` controls and renders into the existing
+`#tasks-panel`; the agent list and chat remain unchanged. There is no standalone `/project-board`
+route and no second page shell.
 
 Each project lane shows owner, contributors, current goal/watchdog badge, last progress and:
 
@@ -475,7 +479,7 @@ old tasks have no links and goal/watchdog are opt-in.
 1. T1 complete foundation (schema/membership/task links/goal/wait); migrate no legacy rows and
    reconnect a disposable agent to prove tools before any prompt instruction references them.
 2. T2 watchdog in shadow mode; initial candidates/wakes must be 0.
-3. T3 standalone board populated from real rows.
+3. T3 dashboard panel populated from the portfolio API.
 4. T4 attention integration; prompt change last, after live route/tool-result success.
 5. Operator separately runs §8 cleanup with fresh evidence. It is not a prerequisite for watchdog
    because unlinked tasks are outside the predicate.
@@ -494,14 +498,17 @@ old tasks have no links and goal/watchdog are opt-in.
 
 - Changed artifacts/consumers: `plan.md`, frozen acceptance test, KB supersession; future production
   consumers are schema, task API wrapper, membership authorization, lifecycle observer, scheduler,
-  TG attention path and standalone board.
+  TG attention path and dashboard portfolio panel.
 - Author: `research-projects-board`, `gpt-5.6-sol`, runtime Codex (live session metadata from Phase 1).
 - AC: decisions in §1 + ticket commands below.
 - Oracle: `d4c634de` is excluded for dependency-only route gates; `be398ad6` is excluded because its
   DB fixture wrote fake sessions to production. `cb8ea22d` is excluded because two tests imported
-  application modules before installing the guard. Current immutable RED is `f05eb5e1`: four vertical
-  tests, full command `4 failed`, RC=1, each at its own foundation/watchdog/board/attention behavior,
-  no collection error, and production `sessions` count unchanged `563 → 563`.
+  application modules before installing the guard. `f05eb5e1` remains immutable for T1/T2/T4;
+  its T3 standalone-page oracle is excluded after the user changed scope to an in-dashboard panel.
+  T3 replacement `2f6e7256` is also excluded: its browser harness loaded `utils.js` without
+  the production `marked`/`DOMPurify` vendor chain and therefore could not reach its own final
+  no-console-errors assertion. Current T3 immutable RED is `d4fd8d2c`: production vendor chain,
+  RC=1 at `#418 T3 missing behavior: portfolio dashboard panel control`.
 - Risk floor: persistence schema, cross-project authorization, shared message delivery and lifecycle
   observer. Sol review would be the preferred route but auxiliary Sol is not authorized; use one
   fresh Luna plan/test pass and report the limitation.
@@ -523,19 +530,18 @@ old tasks have no links and goal/watchdog are opt-in.
 - Additional focused regression required before T2 completion: lifespan starts one 300-second loop and cancels it cleanly; a fresh DB returns candidates=0 in both active and shadow modes; a pending outbox row survives closing/reopening the SQLite connection and reuses its delivery id.
 - blocked-by: T1
 
-### T3 — Standalone board backed by real project data
-- Files: `app/routes/portfolio.py`; new `app/templates/project_board.html`; new `app/static/js/project-board.js`; new `app/static/css/project-board.css`; focused route/browser tests. Do not edit `dashboard.html` or agent-list JS/CSS.
-- Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t3_board_renders_real_project_data_and_keeps_dashboard_separate` — committed RED in `f05eb5e1`.
-- RED: `uv run python -m pytest -q docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t3_board_renders_real_project_data_and_keeps_dashboard_separate` → exit 1: `AssertionError: #418 missing portfolio route: /project-board`.
-- AC: named command is green + standalone page contains four columns; seeded linked task, goal, exact wait question, owner and contributor render; seeded unlinked task does not render; goal-only project remains visible; exact SQL/IDs only, no semantic search; existing dashboard template contains no portfolio-board container and agent UI stays unchanged.
-- Additional focused regression required before T3 completion: seed a **second** project with active goal and zero task links, then assert its lane/objective renders.
+### T3 — Dashboard portfolio panel backed by real project data
+- Files: `app/routes/portfolio.py`; `app/static/js/app.js`; `app/static/css/style.css`; focused browser tests. Reuse existing `#tasks-panel`; create the button and panel contents in JavaScript; do not replace the dashboard, agent list or chat.
+- Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t3_dashboard_button_opens_portfolio_panel_with_real_project_payload` — committed RED in `d4fd8d2c`; T3 from `f05eb5e1` excluded because the user changed scope from a standalone page to a dashboard panel; `2f6e7256` excluded because its browser harness omitted production vendor assets.
+- RED: `uv run python -m pytest -q docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t3_dashboard_button_opens_portfolio_panel_with_real_project_payload` → exit 1: `AssertionError: #418 T3 missing behavior: portfolio dashboard panel control`.
+- AC: named command is green at a 1440×900 desktop viewport + injected `PROJECTS` button opens the existing `#tasks-panel`; four left-to-right columns render the linked task, goal, exact wait question, owner and contributor; an unlinked task is absent; a second goal-only project remains visible; exact SQL/IDs only, no semantic search; agent list/chat behavior stays unchanged; no `/project-board` route or separate page is added.
 - blocked-by: T1
 
 ### T4 — Durable typed attention integration; wait/watchdog never tag
 - Files: `app/db.py`; `app/portfolio.py`; `app/routes/portfolio.py`; `app/mcp_stdio.py`; `app/tg_bridge.py`; `pipelines/default/prompts/roles/orchestrator.md` only after live route/tool proof; focused tests.
 - Test: `docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t4_attention_is_durable_before_tag_and_wait_watchdog_never_tag` — committed RED in `f05eb5e1`.
 - RED: `uv run python -m pytest -q docs/tasks/418/acceptance/test_project_portfolio_418.py::test_t4_attention_is_durable_before_tag_and_wait_watchdog_never_tag` → exit 1: `AssertionError: #418 T4 missing project attention integration`.
-- AC: named command is green + legacy one-argument call remains legal with `kind=legacy` and no project; typed `incident|reversal|plan_change` accepts optional exact project; attention row is durable before tool result and TG bridge tags only a durable-result marker; `kind=waiting` points to `project_wait`; project-wait/watchdog result markers never tag; prompt stops recommending notify for decisions and changes only after live success.
+- AC: named command is green + legacy one-argument call remains legal with `kind=legacy` and no project; typed `incident|reversal|plan_change` accepts optional exact project; attention row is durable before tool result; durable marker is sufficient for a tag and explicit `notify_user` call remains the #241 fail-loud fallback; `kind=waiting` points to `project_wait`; project-wait/watchdog tool names and result markers never tag; prompt stops recommending notify for decisions and changes only after live success.
 - Additional focused regression required before T4 completion: use a real isolated portfolio DB/route and bridge parser (no `_api` fake) to prove the attention row is committed before tag eligibility; project-wait/watchdog rows remain ineligible.
 - blocked-by: T1, T3
 
@@ -552,7 +558,10 @@ Per-ticket rerun produced RC=1 for all four named nodes and the exact missing-be
 recorded in each ticket. No collection/import failure is used as RED. Commit `d4c634de` is excluded
 forever because reviewer proved its T2/T3/T5 failures were dependency-only route gates. Commit
 `be398ad6` is excluded because `_init_db()` used the production DB. `cb8ea22d` is excluded because
-T2/T3 installed the guard after their first application-module import. Current `f05eb5e1` patches
+T2/T3 installed the guard after their first application-module import. T3 in `f05eb5e1` is also
+excluded after the user changed scope from a standalone page to a dashboard panel. Replacement
+`2f6e7256` is excluded because it loaded `utils.js` without the production `marked`/`DOMPurify`
+assets and failed outside the T3 seam. Current T3 immutable RED is `d4fd8d2c`; current T1/T2/T4 in `f05eb5e1` patch
 `DB_PATH` and `ORCHESTRA_DB_PATH` to `tmp_path` before `init_db()` and guards every
 `sqlite3.connect` against the production path **before any DB/application-layer import in each
 DB-using test**.

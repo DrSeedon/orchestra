@@ -479,6 +479,136 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_bg_jobs_scope ON bg_jobs(target_scope, status);
         """)
         c.executescript("""
+            CREATE TABLE IF NOT EXISTS portfolio_projects (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                archived_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS portfolio_members (
+                project_id TEXT NOT NULL REFERENCES portfolio_projects(id) ON DELETE CASCADE,
+                session_id TEXT NOT NULL REFERENCES sessions(id),
+                role TEXT NOT NULL CHECK (role IN ('owner','contributor')),
+                created_at TEXT NOT NULL,
+                revoked_at TEXT,
+                PRIMARY KEY (project_id, session_id, created_at)
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_portfolio_one_owner
+                ON portfolio_members(project_id)
+                WHERE role='owner' AND revoked_at IS NULL;
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_portfolio_active_member
+                ON portfolio_members(project_id, session_id)
+                WHERE revoked_at IS NULL;
+
+            CREATE TABLE IF NOT EXISTS portfolio_task_links (
+                project_id TEXT NOT NULL REFERENCES portfolio_projects(id) ON DELETE CASCADE,
+                task_stable_id TEXT NOT NULL,
+                task_row_id INTEGER NOT NULL REFERENCES tm_tasks(id) ON DELETE CASCADE,
+                task_namespace_id TEXT NOT NULL,
+                task_display_number INTEGER NOT NULL,
+                linked_by_session_id TEXT NOT NULL REFERENCES sessions(id),
+                created_at TEXT NOT NULL,
+                removed_at TEXT
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_portfolio_active_stable_task
+                ON portfolio_task_links(task_stable_id)
+                WHERE removed_at IS NULL;
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_portfolio_active_legacy_task
+                ON portfolio_task_links(task_row_id)
+                WHERE removed_at IS NULL;
+            CREATE INDEX IF NOT EXISTS idx_portfolio_task_links_project
+                ON portfolio_task_links(project_id)
+                WHERE removed_at IS NULL;
+
+            CREATE TABLE IF NOT EXISTS portfolio_goals (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES portfolio_projects(id) ON DELETE CASCADE,
+                objective TEXT NOT NULL CHECK(length(objective) BETWEEN 1 AND 4000),
+                status TEXT NOT NULL CHECK(status IN ('active','paused','completed','cancelled')),
+                watchdog_enabled INTEGER NOT NULL DEFAULT 0,
+                stall_after_seconds INTEGER NOT NULL DEFAULT 1800 CHECK(stall_after_seconds > 0),
+                last_progress_at TEXT NOT NULL,
+                stall_generation INTEGER NOT NULL DEFAULT 1,
+                revision INTEGER NOT NULL DEFAULT 1,
+                created_by_session_id TEXT NOT NULL REFERENCES sessions(id),
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                completed_at TEXT
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_portfolio_active_goal
+                ON portfolio_goals(project_id)
+                WHERE status IN ('active','paused');
+            CREATE INDEX IF NOT EXISTS idx_portfolio_goals_project
+                ON portfolio_goals(project_id, status);
+
+            CREATE TABLE IF NOT EXISTS portfolio_goal_progress (
+                id TEXT PRIMARY KEY,
+                claim_key TEXT NOT NULL UNIQUE,
+                goal_id TEXT NOT NULL REFERENCES portfolio_goals(id) ON DELETE CASCADE,
+                session_id TEXT NOT NULL REFERENCES sessions(id),
+                note TEXT NOT NULL,
+                stall_generation INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_portfolio_goal_progress_goal
+                ON portfolio_goal_progress(goal_id, created_at);
+
+            CREATE TABLE IF NOT EXISTS portfolio_waits (
+                id TEXT PRIMARY KEY,
+                claim_key TEXT NOT NULL UNIQUE,
+                open_key TEXT NOT NULL,
+                project_id TEXT NOT NULL REFERENCES portfolio_projects(id) ON DELETE CASCADE,
+                goal_id TEXT NOT NULL REFERENCES portfolio_goals(id) ON DELETE CASCADE,
+                opened_by_session_id TEXT NOT NULL REFERENCES sessions(id),
+                question TEXT NOT NULL,
+                task_stable_id TEXT,
+                status TEXT NOT NULL CHECK(status IN ('open','resolved','cancelled')),
+                opened_at TEXT NOT NULL,
+                resolved_at TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_portfolio_waits_goal
+                ON portfolio_waits(goal_id, status);
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_portfolio_open_wait
+                ON portfolio_waits(open_key) WHERE status='open';
+
+            CREATE TABLE IF NOT EXISTS portfolio_activity_leases (
+                project_id TEXT NOT NULL REFERENCES portfolio_projects(id) ON DELETE CASCADE,
+                goal_id TEXT NOT NULL REFERENCES portfolio_goals(id) ON DELETE CASCADE,
+                session_id TEXT NOT NULL REFERENCES sessions(id),
+                heartbeat_at TEXT NOT NULL,
+                lease_expires_at TEXT NOT NULL,
+                PRIMARY KEY(project_id, goal_id, session_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS portfolio_watchdog_outbox (
+                goal_id TEXT NOT NULL REFERENCES portfolio_goals(id) ON DELETE CASCADE,
+                stall_generation INTEGER NOT NULL,
+                delivery_id TEXT NOT NULL UNIQUE,
+                claim_token TEXT NOT NULL,
+                target_owner_session_id TEXT NOT NULL REFERENCES sessions(id),
+                state TEXT NOT NULL CHECK(state IN ('pending','delivering','accepted','retryable')),
+                attempts INTEGER NOT NULL DEFAULT 0,
+                claimed_at TEXT NOT NULL,
+                lease_expires_at TEXT NOT NULL,
+                accepted_at TEXT,
+                PRIMARY KEY(goal_id, stall_generation)
+            );
+
+            CREATE TABLE IF NOT EXISTS portfolio_attention_events (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL CHECK(kind IN ('legacy','incident','reversal','plan_change')),
+                reason TEXT NOT NULL,
+                source_session_id TEXT NOT NULL REFERENCES sessions(id),
+                project_id TEXT REFERENCES portfolio_projects(id),
+                created_at TEXT NOT NULL,
+                delivered_at TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_portfolio_attention_project
+                ON portfolio_attention_events(project_id, created_at);
+        """)
+        c.executescript("""
             CREATE TABLE IF NOT EXISTS usage_snapshots (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ts TEXT NOT NULL,

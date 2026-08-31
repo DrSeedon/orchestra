@@ -324,9 +324,10 @@ async def _shutdown_runtime(
     restart_inbox_drain: "asyncio.Task | None",
     snapshot_task: asyncio.Task,
     bridge_task: asyncio.Task,
+    portfolio_watchdog_task: asyncio.Task,
 ) -> None:
     startup_tasks = {
-        task for task in (restart_inbox_drain, snapshot_task)
+        task for task in (restart_inbox_drain, snapshot_task, portfolio_watchdog_task)
         if task is not None and not task.done()
     }
     for task in startup_tasks:
@@ -427,6 +428,8 @@ async def lifespan(app: FastAPI):
         bridge_task = asyncio.create_task(_start_bridge_background(manager))
         from app.routes.system import _usage_snapshot_loop
         snapshot_task = asyncio.create_task(_usage_snapshot_loop())
+        from app.portfolio_watchdog import ensure_task as ensure_portfolio_watchdog
+        portfolio_watchdog_task = ensure_portfolio_watchdog(app)
         from app import rag_service
         if rag_service.is_enabled():
             rag_service.initialize()
@@ -439,7 +442,10 @@ async def lifespan(app: FastAPI):
         _restart_inbox_drain,
         snapshot_task,
         bridge_task,
+        portfolio_watchdog_task,
     )
+    if getattr(app.state, "portfolio_watchdog_task", None) is portfolio_watchdog_task:
+        app.state.portfolio_watchdog_task = None
 
 
 class VersionedStatic(StaticFiles):
@@ -476,6 +482,7 @@ from app.routes.memory import router as memory_router
 from app.routes.knowledge import router as knowledge_router
 from app.routes.merge_operations import router as merge_operations_router
 from app.routes.artifacts import router as artifacts_router
+from app.routes.portfolio import router as portfolio_router
 app.include_router(tm_router)
 app.include_router(bg_router)
 app.include_router(sessions_router)
@@ -486,6 +493,7 @@ app.include_router(memory_router)
 app.include_router(knowledge_router)
 app.include_router(merge_operations_router)
 app.include_router(artifacts_router)
+app.include_router(portfolio_router)
 
 
 @app.exception_handler(Exception)

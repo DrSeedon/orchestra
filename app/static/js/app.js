@@ -962,6 +962,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFilePreviewModal();
     initUsageBar();
     QuotaPanel.init();
+    PortfolioPanel.init();
     Connection.init();
     _startCacheCountdown();
 });
@@ -2455,6 +2456,7 @@ async function onOrchestratorChange() {
     refreshSessions();
     initFilePanel();
     if (_tasksTabActive) loadTasks();
+    if (_portfolioTabActive) PortfolioPanel.load();
     if (_jobsTabActive) loadJobs();
 }
 
@@ -3245,7 +3247,7 @@ function initFilePanel() {
 
     if (currentScope) {
         loadFileTree(currentScope, tree);
-        if (!_tasksTabActive && !_jobsTabActive) {
+        if (!_tasksTabActive && !_jobsTabActive && !_portfolioTabActive) {
             _pollRegister('files', refreshOpenFolders, 10000);
             _pollWake('files');
         } else _pollStop('files');
@@ -3580,6 +3582,135 @@ let _tasksTabActive = false;
 
 let _jobsTabActive = false;
 
+let _portfolioTabActive = false;
+
+const PortfolioPanel = (() => {
+    let requestGeneration = 0;
+
+    const laneDefinitions = [
+        { id: 'plan', label: 'Планируется', number: '01' },
+        { id: 'work', label: 'В работе', number: '02' },
+        { id: 'wait', label: 'Ждёт решения', number: '03' },
+        { id: 'done', label: 'Сделано', number: '04' },
+    ];
+
+    function init() {
+        if (document.querySelector('[data-left-tab="portfolio"]')) return;
+        const folderButton = document.getElementById('open-folder-btn');
+        const tabs = folderButton?.parentElement;
+        if (!tabs) return;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.leftTab = 'portfolio';
+        button.className = 'left-tab portfolio-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors';
+        button.textContent = 'PROJECTS';
+        button.title = 'Portfolio projects';
+        button.setAttribute('aria-label', 'Открыть доску проектов');
+        button.addEventListener('click', () => switchLeftTab('portfolio'));
+        tabs.insertBefore(button, folderButton);
+    }
+
+    function projectMeta(project) {
+        const owner = project.owner?.name || 'owner missing';
+        const contributors = (project.contributors || []).map(member => member.name).filter(Boolean);
+        const contributorText = contributors.length
+            ? contributors.map(name => `<span class="portfolio-person">+ ${escHtml(name)}</span>`).join('')
+            : '<span class="portfolio-person portfolio-person-muted">без саба</span>';
+        return `<div class="portfolio-project-meta">
+            <span class="portfolio-owner">◆ ${escHtml(owner)}</span>${contributorText}
+        </div>`;
+    }
+
+    function laneItem(kind, title, subtitle = '') {
+        return `<article class="portfolio-item portfolio-item-${kind}">
+            <span class="portfolio-item-kind">${escHtml(kind)}</span>
+            <strong>${escHtml(title)}</strong>
+            ${subtitle ? `<small>${escHtml(subtitle)}</small>` : ''}
+        </article>`;
+    }
+
+    function itemsByLane(project) {
+        const items = { plan: [], work: [], wait: [], done: [] };
+        const goal = project.goal;
+        if (goal && ['active', 'paused'].includes(goal.status)) {
+            const watchdog = goal.watchdog_enabled ? ' · сторож включён' : '';
+            items.plan.push(laneItem('goal', goal.objective, `${goal.status}${watchdog}`));
+        }
+        for (const task of project.tasks || []) {
+            if (['backlog', 'new'].includes(task.status)) {
+                items.plan.push(laneItem('task', task.title, task.status));
+            } else if (task.status === 'in_progress') {
+                items.work.push(laneItem('task', task.title, 'in progress'));
+            } else if (['done', 'paid', 'cancelled'].includes(task.status)) {
+                items.done.push(laneItem('task', task.title, task.status));
+            }
+        }
+        for (const wait of project.waits || []) {
+            if (wait.status === 'open') {
+                items.wait.push(laneItem('question', wait.question, 'нужно решение'));
+            }
+        }
+        return items;
+    }
+
+    function render(payload) {
+        const panel = document.getElementById('tasks-panel');
+        if (!panel) return;
+        const projects = Array.isArray(payload?.projects) ? payload.projects : [];
+        const lanes = Object.fromEntries(laneDefinitions.map(lane => [lane.id, []]));
+        for (const project of projects) {
+            const items = itemsByLane(project);
+            for (const lane of laneDefinitions) {
+                if (!items[lane.id].length) continue;
+                lanes[lane.id].push(`<section class="portfolio-project-card" data-project-id="${escHtml(project.id)}">
+                    <header><span>${escHtml(project.name)}</span><code>${escHtml(project.id)}</code></header>
+                    ${projectMeta(project)}
+                    <div class="portfolio-project-items">${items[lane.id].join('')}</div>
+                </section>`);
+            }
+        }
+        const board = laneDefinitions.map(lane => {
+            const cards = lanes[lane.id];
+            return `<section class="portfolio-lane portfolio-lane-${lane.id}" data-portfolio-lane="${lane.id}">
+                <header class="portfolio-lane-head">
+                    <span>${lane.number}</span><h3>${lane.label}</h3><b>${cards.length}</b>
+                </header>
+                <div class="portfolio-lane-body">${cards.join('') || '<div class="portfolio-empty">ТИХО<br><span>нет элементов</span></div>'}</div>
+            </section>`;
+        }).join('');
+        panel.innerHTML = `<div class="portfolio-shell" data-portfolio-board="true">
+            <header class="portfolio-board-head">
+                <div><span>PORTFOLIO / LIVE</span><h2>Доска проектов</h2></div>
+                <div class="portfolio-board-actions">
+                    <span>${projects.length} ${projects.length === 1 ? 'проект' : 'проектов'}</span>
+                    <button type="button" data-portfolio-refresh aria-label="Обновить доску">↻</button>
+                </div>
+            </header>
+            <div class="portfolio-board">${board}</div>
+        </div>`;
+        panel.querySelector('[data-portfolio-refresh]')?.addEventListener('click', load);
+    }
+
+    async function load() {
+        const panel = document.getElementById('tasks-panel');
+        if (!panel || !_portfolioTabActive) return;
+        const generation = ++requestGeneration;
+        panel.innerHTML = '<div class="portfolio-loading"><span></span>Собираю точное состояние проектов…</div>';
+        try {
+            const payload = await api('/api/portfolio/projects');
+            if (generation !== requestGeneration || !_portfolioTabActive) return;
+            render(payload);
+        } catch (error) {
+            if (generation !== requestGeneration || !_portfolioTabActive) return;
+            panel.innerHTML = `<div class="portfolio-error"><strong>Доска недоступна</strong><span>${escHtml(error.message || String(error))}</span></div>`;
+        }
+    }
+
+    return { init, load, render };
+})();
+
+window.PortfolioPanel = PortfolioPanel;
+
 function switchLeftTab(tab) {
     const fileTree = document.getElementById('file-tree');
     const tasksPanel = document.getElementById('tasks-panel');
@@ -3592,10 +3723,12 @@ function switchLeftTab(tab) {
         btn.classList.toggle('border-transparent', !isActive);
     });
     if (fileTree) fileTree.classList.toggle('hidden', tab !== 'files');
-    if (tasksPanel) tasksPanel.classList.toggle('hidden', tab !== 'tasks');
+    if (tasksPanel) tasksPanel.classList.toggle('hidden', !['tasks', 'portfolio'].includes(tab));
     if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
     _tasksTabActive = tab === 'tasks';
     _jobsTabActive = tab === 'jobs';
+    _portfolioTabActive = tab === 'portfolio';
+    document.getElementById('file-panel')?.classList.toggle('portfolio-mode', _portfolioTabActive);
     if (tab === 'files') initFilePanel();
     else _pollStop('files');
     if (_tasksTabActive) {
@@ -3606,6 +3739,10 @@ function switchLeftTab(tab) {
         _pollRegister('jobs', loadJobs, 10000);
         _pollWake('jobs');
     } else _pollStop('jobs');
+    if (_portfolioTabActive) {
+        _pollRegister('portfolio', PortfolioPanel.load, 15000);
+        _pollWake('portfolio');
+    } else _pollStop('portfolio');
 }
 
 function openClientModal() {
