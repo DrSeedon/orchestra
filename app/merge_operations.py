@@ -182,6 +182,7 @@ def get_operation_record(operation_id: str) -> dict[str, Any] | None:
     if not row:
         return None
     record = _decode_record(row)
+    record["result"] = _live_operation_result(record)
     from app.ia import merge_receipts
 
     result = record["result"]
@@ -212,6 +213,46 @@ def get_operation_record(operation_id: str) -> dict[str, Any] | None:
             )
             record["result"] = result
     return record
+
+
+def _live_operation_result(record: dict[str, Any]) -> dict[str, Any]:
+    """Overlay durable progress columns onto the accepted result snapshot."""
+    result = copy.deepcopy(record["result"])
+    state = str(record.get("state") or result.get("operation_state") or "")
+    if state not in {"PENDING", "RUNNING"}:
+        return result
+    result["operation_state"] = state
+    commit_point = str(record.get("commit_point") or result.get("commit_point") or "")
+    result["commit_point"] = commit_point
+    if commit_point == "REACHED":
+        git = dict(result.get("git") or {})
+        git["status"] = "REACHED"
+        try:
+            finalization = json.loads(record.get("finalization_json") or "{}")
+        except (TypeError, json.JSONDecodeError):
+            finalization = {}
+        if isinstance(finalization, dict):
+            for field in ("target_before", "target_after"):
+                if finalization.get(field):
+                    git[field] = finalization[field]
+        result["git"] = git
+        stage = "post-commit finalization"
+    elif str(record.get("finalization_stage") or "") == "PREPARED":
+        stage = "Git merge preparation"
+    else:
+        stage = "test-gate / merge preparation"
+    started_at = record.get("started_at")
+    elapsed = 0.0
+    if started_at:
+        try:
+            started = datetime.fromisoformat(str(started_at))
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            elapsed = max(0.0, (datetime.now(timezone.utc) - started).total_seconds())
+        except ValueError:
+            pass
+    result["progress"] = {"stage": stage, "elapsed_seconds": elapsed}
+    return result
 
 
 def get_operation_result(operation_id: str) -> dict[str, Any] | None:
@@ -565,7 +606,10 @@ def claim_operation(operation_id: str, owner_token: str) -> bool:
         result["operation_state"] = "RUNNING"
         result["next_action"] = _action(
             "CHECK_SAME_OPERATION",
-            f"Merge operation {operation_id} is running; do not merge manually.",
+            f"Merge operation {operation_id} is running; call merge_worker again with "
+            "the original payload (including task_outcome, next_task_id, target, and "
+            "waive_diff_budget). If the payload differs, the server rejects it as a "
+            "different merge request; do not merge manually.",
         )
         now = _now()
         cursor = connection.execute(
