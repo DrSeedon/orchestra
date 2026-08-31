@@ -73,3 +73,8 @@
   snapshot, `AbortController` на переключении, `no-store` с обеих сторон; зеркало логов в
   IndexedDB удалено и обратно не заводится.
 - [agent-memory-architecture](agent-memory-architecture.md) — общая память поверх project-local `docs/kb`: agentic keyword control, связи тем, версии фактов, tool-utility gate и судьба vector projection.
+- [prime-agent](prime-agent.md) — Prime Agent и Hermes против нашего контура: кто и когда имеет право записать навык в память, две модели доверия у Hermes (LLM не трогает bundled, детерминированная уборка трогает), реальная дельта возможностей.
+- [auto-work](auto-work.md) — что у нас может запускаться автоматически: `bg_jobs` уже даёт периодический триггер и пробуждение, чего нет для автоспавна, состояние самоулучшения (51 предложение → 34 правила) и почему бесплатная полоса харнеса не отработала ни одного хода.
+- [project-portfolio](project-portfolio.md) — `scope` как технический ключ против человеческого проекта: `tm_projects` уже владеет задачами, один владелец на проект, правдивая доска и доказательства по сторожу застоя.
+- [dashboard-quota-map](dashboard-quota-map.md) — браузерный `TimeoutError` при обновлении квоты: 2-секундный `AbortSignal` стартует раньше ответа HTTP/1.1, лечится очередью, а не увеличением бюджета.
+- [feature-usage-audit](feature-usage-audit.md) — замороженный срез #309: сколько у нас реально тулов, путей OpenAPI и маршрутов, и какие из них никто не зовёт.
