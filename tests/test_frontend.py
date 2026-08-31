@@ -5190,3 +5190,61 @@ def test_chat_request_uses_reserved_slot_ahead_of_background_gets(
 
     assert "/test/chat" in state["beforeRelease"]
     assert "/test/background-4" not in state["beforeRelease"]
+
+
+def test_project_road_425_uses_real_dashboard_dom_and_load_path(dashboard_page: Page):
+    """#425 delivery check: real template/assets/tab, not a synthetic render-only shell."""
+    payload = {
+        "csrf_token": "csrf-real-425",
+        "projects": [
+            {
+                "id": "real-road",
+                "name": "Real Dashboard Road",
+                "task_namespace_id": "real-ns",
+                "stage_order": ["Now"],
+                "owner": {"session_id": "owner", "name": "owner"},
+                "contributors": [],
+                "goal": {"objective": "Exercise PortfolioPanel.load", "status": "active"},
+                "tasks": [
+                    {
+                        "id": 1,
+                        "par_number": 1,
+                        "task_namespace_id": "real-ns",
+                        "task_stable_id": "real-task",
+                        "title": "Loaded through real tab",
+                        "status": "in_progress",
+                        "stage_label": "Now",
+                    }
+                ],
+                "waits": [],
+            }
+        ],
+    }
+    dashboard_page.evaluate(
+        """payload => {
+            window.__apiBeforeRoad425 = api;
+            api = async path => {
+                if (path === '/api/portfolio/projects') return payload;
+                return window.__apiBeforeRoad425(path);
+            };
+        }""",
+        payload,
+    )
+    try:
+        dashboard_page.locator('[data-left-tab="portfolio"]').click()
+        dashboard_page.evaluate("() => PortfolioPanel.load()")
+        try:
+            dashboard_page.wait_for_selector(
+                '#tasks-panel [data-portfolio-road="true"]', timeout=1000
+            )
+        except PlaywrightTimeout:
+            pytest.fail("#425 T3 missing behavior: real dashboard project road load path")
+        assert "Loaded through real tab" in dashboard_page.locator("#tasks-panel").inner_text()
+    finally:
+        dashboard_page.evaluate(
+            """() => {
+                api = window.__apiBeforeRoad425;
+                delete window.__apiBeforeRoad425;
+                switchLeftTab('files');
+            }"""
+        )

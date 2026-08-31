@@ -3586,13 +3586,12 @@ let _portfolioTabActive = false;
 
 const PortfolioPanel = (() => {
     let requestGeneration = 0;
+    let currentPayload = {projects: []};
+    let operatorCsrf = '';
+    const openDisclosures = new Set();
 
-    const laneDefinitions = [
-        { id: 'plan', label: 'Планируется', number: '01' },
-        { id: 'work', label: 'В работе', number: '02' },
-        { id: 'wait', label: 'Ждёт решения', number: '03' },
-        { id: 'done', label: 'Сделано', number: '04' },
-    ];
+    const _terminalStatuses = new Set(['done', 'paid', 'cancelled']);
+    const _queueStatuses = new Set(['new', 'backlog']);
 
     function init() {
         if (document.querySelector('[data-left-tab="portfolio"]')) return;
@@ -3621,74 +3620,211 @@ const PortfolioPanel = (() => {
         </div>`;
     }
 
-    function laneItem(kind, title, subtitle = '') {
-        return `<article class="portfolio-item portfolio-item-${kind}">
-            <span class="portfolio-item-kind">${escHtml(kind)}</span>
-            <strong>${escHtml(title)}</strong>
-            ${subtitle ? `<small>${escHtml(subtitle)}</small>` : ''}
+    function taskNumber(task) {
+        return task.task_display_number ?? task.par_number ?? task.par ?? task.id;
+    }
+
+    function waitsForTask(project, task) {
+        const stableId = task.task_stable_id || '';
+        if (!stableId) return [];
+        return (project.waits || []).filter(wait =>
+            wait.status === 'open' && wait.task_stable_id === stableId
+        );
+    }
+
+    function taskCard(project, task, kind) {
+        const waits = waitsForTask(project, task);
+        const par = String(taskNumber(task));
+        const namespace = task.task_namespace_id || project.task_namespace_id || '';
+        const stableId = task.task_stable_id || '';
+        const waitAttrs = waits.length
+            ? ' data-wait-open="true"'
+            : ' data-wait-open="false"';
+        return `<button type="button" class="portfolio-road-task"
+            data-road-task="true" data-road-task-kind="${escHtml(kind)}"
+            data-task-par="${escHtml(par)}" data-task-project="${escHtml(namespace)}"
+            data-task-status="${escHtml(task.status || '')}"
+            data-task-stable-id="${escHtml(stableId)}"${waitAttrs}>
+            <span class="portfolio-road-task-ref">#${escHtml(par)}</span>
+            <strong>${escHtml(task.title || 'Без названия')}</strong>
+            <small>${escHtml(task.status || 'unknown')}</small>
+            ${waits.map(wait => `<em>НУЖЕН ОТВЕТ · ${escHtml(wait.question)}</em>`).join('')}
+        </button>`;
+    }
+
+    function markerTarget(project, stageOrder, staged, unassigned) {
+        let target = '';
+        for (const label of stageOrder) {
+            if ((staged.get(label) || []).some(task => task.status === 'in_progress')) {
+                target = label;
+            }
+        }
+        if (target) return `stage:${target}`;
+        for (const label of stageOrder) {
+            if ((staged.get(label) || []).some(task => _queueStatuses.has(task.status))) {
+                return `stage:${label}`;
+            }
+        }
+        if (unassigned.some(task => !_terminalStatuses.has(task.status))) return 'unassigned';
+        return stageOrder.length ? `stage:${stageOrder[stageOrder.length - 1]}` : 'unassigned';
+    }
+
+    function markerHtml(active) {
+        return active ? `<div class="portfolio-road-marker" data-road-marker="true">
+            <i></i><span>мы здесь</span>
+        </div>` : '';
+    }
+
+    function stageHtml(project, label, tasks, marker) {
+        const active = tasks.some(task => task.status === 'in_progress');
+        return `<section class="portfolio-road-stage" data-road-stage="true"
+            data-road-stage-label="${escHtml(label)}" data-stage-active="${active}">
+            <header><span>${escHtml(label)}</span><b>${tasks.length}</b></header>
+            <div class="portfolio-road-stage-tasks">
+                ${tasks.map(task => taskCard(project, task, 'stage')).join('') || '<span class="portfolio-road-empty">пока пусто</span>'}
+            </div>
+            ${markerHtml(marker)}
+        </section>`;
+    }
+
+    function disclosure(project, kind, tasks) {
+        if (!tasks.length) return '';
+        const key = `${project.id}:${kind}`;
+        const expanded = openDisclosures.has(key);
+        const label = kind === 'queue'
+            ? `${expanded ? '−' : '+'}${tasks.length} в очереди`
+            : `${expanded ? '−' : '+'}${tasks.length} в истории`;
+        return `<div class="portfolio-road-disclosure-block">
+            <button type="button" class="portfolio-road-disclosure"
+                data-road-disclosure="${kind}" data-disclosure-key="${escHtml(key)}"
+                aria-expanded="${expanded}">${escHtml(label)}</button>
+            ${expanded ? `<div class="portfolio-road-disclosed">
+                ${tasks.map(task => taskCard(project, task, kind)).join('')}
+            </div>` : ''}
+        </div>`;
+    }
+
+    function unassignedHtml(project, tasks, marker, noStages) {
+        const active = tasks.filter(task => !_queueStatuses.has(task.status) && !_terminalStatuses.has(task.status));
+        const queue = tasks.filter(task => _queueStatuses.has(task.status));
+        const history = tasks.filter(task => _terminalStatuses.has(task.status));
+        const expanded = openDisclosures.has(`${project.id}:queue`) || openDisclosures.has(`${project.id}:history`);
+        const title = noStages ? 'БЕЗ ЭТАПОВ' : 'БЕЗ ЯРЛЫКА';
+        const empty = !tasks.length ? '<span class="portfolio-road-empty">Этапы не заданы · задач пока нет</span>' : '';
+        return `<section class="portfolio-road-unassigned ${expanded ? 'is-expanded' : ''}"
+            data-road-unassigned="true">
+            <header><span>${title}</span><b>${tasks.length}</b></header>
+            <div class="portfolio-road-stage-tasks">
+                ${active.map(task => taskCard(project, task, 'active')).join('')}${empty}
+                ${disclosure(project, 'queue', queue)}
+                ${disclosure(project, 'history', history)}
+            </div>
+            ${markerHtml(marker)}
+        </section>`;
+    }
+
+    function projectRoad(project) {
+        const stageOrder = Array.isArray(project.stage_order) ? project.stage_order : [];
+        const staged = new Map(stageOrder.map(label => [label, []]));
+        const unassigned = [];
+        for (const task of project.tasks || []) {
+            const canonical = stageOrder.find(label => label === task.stage_label);
+            if (canonical) staged.get(canonical).push(task);
+            else unassigned.push(task);
+        }
+        const marker = markerTarget(project, stageOrder, staged, unassigned);
+        const taskStableIds = new Set(
+            (project.tasks || []).map(task => task.task_stable_id).filter(Boolean)
+        );
+        const projectWaits = (project.waits || []).filter(wait =>
+            wait.status === 'open' && (
+                !wait.task_stable_id || !taskStableIds.has(wait.task_stable_id)
+            )
+        );
+        const goal = project.goal && ['active', 'paused'].includes(project.goal.status)
+            ? `<div class="portfolio-road-goal"><span>ЦЕЛЬ</span><strong>${escHtml(project.goal.objective)}</strong></div>`
+            : '';
+        const road = stageOrder.map(label => stageHtml(
+            project, label, staged.get(label), marker === `stage:${label}`
+        )).join('');
+        return `<article class="portfolio-project-road" data-project-id="${escHtml(project.id)}">
+            <header class="portfolio-project-road-head">
+                <div><h3>${escHtml(project.name)}</h3><code>${escHtml(project.id)}</code></div>
+                ${projectMeta(project)}
+            </header>
+            ${goal}
+            ${projectWaits.map(wait => `<button type="button" class="portfolio-project-wait"
+                data-project-wait-id="${escHtml(wait.id)}">НУЖНО РЕШЕНИЕ · ${escHtml(wait.question)} · ОТВЕТИТЬ</button>`).join('')}
+            <div class="portfolio-road-scroll" data-road-scroll="true">
+                <div class="portfolio-road-track">
+                    ${road}
+                    ${unassignedHtml(project, unassigned, marker === 'unassigned', stageOrder.length === 0)}
+                </div>
+            </div>
         </article>`;
     }
 
-    function itemsByLane(project) {
-        const items = { plan: [], work: [], wait: [], done: [] };
-        const goal = project.goal;
-        if (goal && ['active', 'paused'].includes(goal.status)) {
-            const watchdog = goal.watchdog_enabled ? ' · сторож включён' : '';
-            items.plan.push(laneItem('goal', goal.objective, `${goal.status}${watchdog}`));
-        }
-        for (const task of project.tasks || []) {
-            if (['backlog', 'new'].includes(task.status)) {
-                items.plan.push(laneItem('task', task.title, task.status));
-            } else if (task.status === 'in_progress') {
-                items.work.push(laneItem('task', task.title, 'in progress'));
-            } else if (['done', 'paid', 'cancelled'].includes(task.status)) {
-                items.done.push(laneItem('task', task.title, task.status));
-            }
-        }
-        for (const wait of project.waits || []) {
-            if (wait.status === 'open') {
-                items.wait.push(laneItem('question', wait.question, 'нужно решение'));
-            }
-        }
-        return items;
+    function bindInteractions(panel) {
+        panel.querySelector('[data-portfolio-refresh]')?.addEventListener('click', load);
+        panel.querySelectorAll('[data-road-disclosure]').forEach(button => {
+            button.addEventListener('click', event => {
+                event.stopPropagation();
+                const key = button.dataset.disclosureKey;
+                if (openDisclosures.has(key)) openDisclosures.delete(key);
+                else openDisclosures.add(key);
+                render(currentPayload);
+            });
+        });
+        panel.querySelectorAll('[data-road-task]').forEach(button => {
+            button.addEventListener('click', () => {
+                const project = (currentPayload.projects || []).find(item =>
+                    item.id === button.closest('[data-project-id]')?.dataset.projectId
+                );
+                const stableId = button.dataset.taskStableId || '';
+                const waits = (project?.waits || []).filter(item =>
+                    item.status === 'open' && item.task_stable_id === stableId
+                ).map(wait => ({...wait, project_id: project.id}));
+                showTaskDetail(
+                    button.dataset.taskPar,
+                    button.dataset.taskProject,
+                    waits,
+                );
+            });
+        });
+        panel.querySelectorAll('[data-project-wait-id]').forEach(button => {
+            button.addEventListener('click', () => {
+                const project = (currentPayload.projects || []).find(item =>
+                    item.id === button.closest('[data-project-id]')?.dataset.projectId
+                );
+                const wait = (project?.waits || []).find(item =>
+                    item.id === button.dataset.projectWaitId
+                );
+                if (project && wait) {
+                    showProjectWaitResponse(project, {...wait, project_id: project.id});
+                }
+            });
+        });
     }
 
     function render(payload) {
         const panel = document.getElementById('tasks-panel');
         if (!panel) return;
-        const projects = Array.isArray(payload?.projects) ? payload.projects : [];
-        const lanes = Object.fromEntries(laneDefinitions.map(lane => [lane.id, []]));
-        for (const project of projects) {
-            const items = itemsByLane(project);
-            for (const lane of laneDefinitions) {
-                if (!items[lane.id].length) continue;
-                lanes[lane.id].push(`<section class="portfolio-project-card" data-project-id="${escHtml(project.id)}">
-                    <header><span>${escHtml(project.name)}</span><code>${escHtml(project.id)}</code></header>
-                    ${projectMeta(project)}
-                    <div class="portfolio-project-items">${items[lane.id].join('')}</div>
-                </section>`);
-            }
-        }
-        const board = laneDefinitions.map(lane => {
-            const cards = lanes[lane.id];
-            return `<section class="portfolio-lane portfolio-lane-${lane.id}" data-portfolio-lane="${lane.id}">
-                <header class="portfolio-lane-head">
-                    <span>${lane.number}</span><h3>${lane.label}</h3><b>${cards.length}</b>
-                </header>
-                <div class="portfolio-lane-body">${cards.join('') || '<div class="portfolio-empty">ТИХО<br><span>нет элементов</span></div>'}</div>
-            </section>`;
-        }).join('');
+        currentPayload = payload && typeof payload === 'object' ? payload : {projects: []};
+        operatorCsrf = currentPayload.csrf_token || operatorCsrf;
+        const projects = Array.isArray(currentPayload.projects) ? currentPayload.projects : [];
         panel.innerHTML = `<div class="portfolio-shell" data-portfolio-board="true">
             <header class="portfolio-board-head">
-                <div><span>PORTFOLIO / LIVE</span><h2>Доска проектов</h2></div>
+                <div><span>PORTFOLIO / ROAD</span><h2>Дорога к цели</h2></div>
                 <div class="portfolio-board-actions">
                     <span>${projects.length} ${projects.length === 1 ? 'проект' : 'проектов'}</span>
                     <button type="button" data-portfolio-refresh aria-label="Обновить доску">↻</button>
                 </div>
             </header>
-            <div class="portfolio-board">${board}</div>
+            <div class="portfolio-road-board" data-portfolio-road="true">
+                ${projects.map(projectRoad).join('') || '<div class="portfolio-empty">ПРОЕКТОВ ПОКА НЕТ</div>'}
+            </div>
         </div>`;
-        panel.querySelector('[data-portfolio-refresh]')?.addEventListener('click', load);
+        bindInteractions(panel);
     }
 
     async function load() {
@@ -3706,7 +3842,7 @@ const PortfolioPanel = (() => {
         }
     }
 
-    return { init, load, render };
+    return { init, load, render, csrfToken: () => operatorCsrf };
 })();
 
 window.PortfolioPanel = PortfolioPanel;
@@ -4231,11 +4367,77 @@ function injectTask(par) {
     }
 }
 
-async function showTaskDetail(par) {
+function _waitResponseSectionHtml(waitContext) {
+    return `<section class="portfolio-wait-response"
+        data-wait-response-section="true" data-wait-id="${escHtml(waitContext.id)}"
+        data-wait-project="${escHtml(waitContext.project_id)}">
+        <span>НУЖЕН ОТВЕТ</span>
+        <strong>${escHtml(waitContext.question || '')}</strong>
+        <textarea data-wait-response rows="4" maxlength="4000" placeholder="Напиши решение для оркестратора"></textarea>
+        <div class="portfolio-wait-response-actions">
+            <small data-wait-feedback></small>
+            <button type="button" data-wait-submit>Отправить ответ</button>
+        </div>
+    </section>`;
+}
+
+function _bindWaitResponseSections(bodyEl) {
+    bodyEl.querySelectorAll('[data-wait-response-section]').forEach(section => {
+        const submit = section.querySelector('[data-wait-submit]');
+        submit?.addEventListener('click', async () => {
+            const textarea = section.querySelector('[data-wait-response]');
+            const feedback = section.querySelector('[data-wait-feedback]');
+            const response = textarea?.value.trim() || '';
+            if (!response) {
+                feedback.textContent = 'Ответ не может быть пустым';
+                return;
+            }
+            submit.disabled = true;
+            feedback.textContent = 'Отправляю…';
+            try {
+                const result = await api(
+                    `/api/portfolio/projects/${encodeURIComponent(section.dataset.waitProject)}/waits/${encodeURIComponent(section.dataset.waitId)}/resolve`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': PortfolioPanel.csrfToken(),
+                        },
+                        body: JSON.stringify({response}),
+                    },
+                );
+                const state = result?.delivery?.delivery_state || result?.wait?.response_delivery_state || '';
+                if (state === 'SUBMITTED') feedback.textContent = 'Ответ доставлен';
+                else if (state === 'FAILED_BEFORE_SUBMIT') feedback.textContent = 'Не отправлено — можно повторить';
+                else if (state === 'DELIVERY_UNKNOWN') feedback.textContent = 'Статус доставки неизвестен — повтор не отправлен';
+                else feedback.textContent = 'Ответ принят и отправляется';
+                textarea.disabled = true;
+            } catch (error) {
+                feedback.textContent = error.message || String(error);
+                submit.disabled = false;
+            }
+        });
+    });
+}
+
+function showProjectWaitResponse(project, waitContext) {
+    const modal = document.getElementById('prompt-modal');
+    const nameEl = document.getElementById('prompt-modal-name');
+    const bodyEl = document.getElementById('prompt-modal-body');
+    if (!modal || !nameEl || !bodyEl) return;
+    nameEl.textContent = `${project.name} · ответ`;
+    bodyEl.innerHTML = `<div class="space-y-3">${_waitResponseSectionHtml(waitContext)}</div>`;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    _bindWaitResponseSections(bodyEl);
+}
+
+async function showTaskDetail(par, projectSelector = '', waitContext = null) {
     try {
-        const scope = currentScope ? `?scope=${encodeURIComponent(currentScope)}` : '';
-        const r = await fetch(`/api/tm/tasks/${par}${scope}`);
-        const t = await r.json();
+        const selector = projectSelector
+            ? `?project=${encodeURIComponent(projectSelector)}`
+            : (currentScope ? `?scope=${encodeURIComponent(currentScope)}` : '');
+        const t = await api(`/api/tm/tasks/${encodeURIComponent(par)}${selector}`);
         if (t.error) return;
         const modal = document.getElementById('prompt-modal');
         const nameEl = document.getElementById('prompt-modal-name');
@@ -4264,10 +4466,15 @@ async function showTaskDetail(par) {
             html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">SYSTEM</div>';
             html += `<div class="text-[10px] text-slate-600 font-mono">${sys.join(' · ')}</div></div>`;
         }
+        const waits = Array.isArray(waitContext)
+            ? waitContext
+            : (waitContext?.id ? [waitContext] : []);
+        html += waits.map(_waitResponseSectionHtml).join('');
         html += '</div>';
         bodyEl.innerHTML = html;
         modal.classList.remove('hidden');
         modal.classList.add('flex');
+        _bindWaitResponseSections(bodyEl);
     } catch (e) { console.error('Task detail error:', e); }
 }
 

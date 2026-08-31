@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+import os
 from collections.abc import Callable
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import portfolio
 
@@ -27,6 +29,20 @@ class MemberCreate(BaseModel):
 class TaskLinkCreate(BaseModel):
     task_project: str
     task_ref: str
+
+
+class ProjectSourceUpdate(BaseModel):
+    task_project: str
+
+
+class StageOrderUpdate(BaseModel):
+    stages: list[str]
+    renames: dict[str, str] = Field(default_factory=dict)
+
+
+class TaskStageUpdate(BaseModel):
+    stage: str | None = None
+    task_project: str = ""
 
 
 class GoalCreate(BaseModel):
@@ -59,6 +75,11 @@ class WaitClose(BaseModel):
     now: str | None = None
 
 
+class WaitResolve(BaseModel):
+    response: str | None = None
+    now: str | None = None
+
+
 class AttentionCreate(BaseModel):
     reason: str
     kind: str = "legacy"
@@ -84,6 +105,14 @@ def _project_list_actor(request: Request) -> str:
     raise portfolio.PortfolioError(403, "dashboard session or agent session is required")
 
 
+def _dashboard_operator(request: Request) -> bool:
+    from app.auth import is_auth_enabled, validate_session
+
+    return bool(
+        is_auth_enabled() and validate_session(request.cookies.get("session", ""))
+    )
+
+
 def _call(action: Callable[[], object], *, status_code: int = 200):
     try:
         result = action()
@@ -104,7 +133,12 @@ def create_project(req: ProjectCreate, request: Request):
 
 @router.get("/projects")
 def list_projects(request: Request):
-    return _call(lambda: portfolio.list_projects(_project_list_actor(request)))
+    result = _call(lambda: portfolio.list_projects(_project_list_actor(request)))
+    if isinstance(result, dict) and _dashboard_operator(request):
+        from app.auth import create_csrf_token
+
+        result["csrf_token"] = create_csrf_token(os.environ.get("DASHBOARD_USER", ""))
+    return result
 
 
 @router.get("/projects/{project_id}")
@@ -119,6 +153,28 @@ def add_member(project_id: str, req: MemberCreate, request: Request):
             _actor(request), project_id, req.session_id, req.role
         ),
         status_code=201,
+    )
+
+
+@router.put("/projects/{project_id}/source")
+def set_project_task_source(
+    project_id: str, req: ProjectSourceUpdate, request: Request
+):
+    return _call(
+        lambda: portfolio.set_task_source(
+            _actor(request), project_id, req.task_project
+        )
+    )
+
+
+@router.put("/projects/{project_id}/stages")
+def set_project_stage_order(
+    project_id: str, req: StageOrderUpdate, request: Request
+):
+    return _call(
+        lambda: portfolio.set_stage_order(
+            _actor(request), project_id, req.stages, req.renames
+        )
     )
 
 
@@ -139,6 +195,21 @@ def unlink_task(
     return _call(
         lambda: portfolio.unlink_task(
             _actor(request), project_id, task_project, task_ref
+        )
+    )
+
+
+@router.put("/projects/{project_id}/tasks/{task_ref}/stage")
+def set_task_stage(
+    project_id: str, task_ref: str, req: TaskStageUpdate, request: Request
+):
+    return _call(
+        lambda: portfolio.set_task_stage(
+            _actor(request),
+            project_id,
+            task_ref,
+            req.stage,
+            task_project=req.task_project,
         )
     )
 
@@ -217,12 +288,76 @@ def list_waits(project_id: str, request: Request):
 
 
 @router.post("/projects/{project_id}/waits/{wait_id}/resolve")
-def resolve_wait(project_id: str, wait_id: str, req: WaitClose, request: Request):
-    return _call(
-        lambda: portfolio.close_wait(
-            _actor(request), project_id, wait_id, "resolved", now=req.now
+async def resolve_wait(
+    project_id: str, wait_id: str, req: WaitResolve, request: Request
+):
+    if req.response is None:
+        try:
+            return await asyncio.to_thread(
+                portfolio.close_wait,
+                _actor(request),
+                project_id,
+                wait_id,
+                "resolved",
+                now=req.now,
+            )
+        except portfolio.PortfolioError as exc:
+            return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+
+    from app.auth import require_operator_csrf
+
+    require_operator_csrf(request)
+    try:
+        prepared = await asyncio.to_thread(
+            portfolio.prepare_wait_response, project_id, wait_id, req.response
         )
-    )
+    except portfolio.PortfolioError as exc:
+        return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+
+    from app import message_deliveries
+
+    existing = message_deliveries._row(prepared["delivery_id"])
+    if prepared["existing"]:
+        if existing is None:
+            return JSONResponse(
+                {"error": "reserved wait delivery is missing"}, status_code=409
+            )
+        delivery = message_deliveries._resource(
+            existing, acceptance="ALREADY_ACCEPTED"
+        )
+    else:
+        from app.deps import manager
+
+        await manager.preflight_message_delivery(prepared["target_session_id"])
+        try:
+            await asyncio.to_thread(
+                portfolio.validate_wait_response_delivery,
+                project_id,
+                wait_id,
+                prepared["delivery_id"],
+                prepared["target_session_id"],
+            )
+        except portfolio.PortfolioError as exc:
+            return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+        delivery, _status_code = await message_deliveries.accept_message_delivery(
+            delivery_id=prepared["delivery_id"],
+            source_session_id=None,
+            source_principal=f"operator:{os.environ.get('DASHBOARD_USER', '')}",
+            source_name="dashboard-user",
+            source_scope="",
+            source_task_id="",
+            target_session_id=prepared["target_session_id"],
+            target_name=prepared["target_name"],
+            target_scope=prepared["target_scope"],
+            target_task_id=prepared["target_task_id"],
+            target_generation=prepared["target_generation"],
+            message=prepared["message"],
+            rendered_message=prepared["message"],
+            message_kind="portfolio_wait_answer",
+            wake=True,
+        )
+    wait = await asyncio.to_thread(portfolio.wait_payload, project_id, wait_id)
+    return {"wait": wait, "delivery": delivery}
 
 
 @router.post("/projects/{project_id}/waits/{wait_id}/cancel")

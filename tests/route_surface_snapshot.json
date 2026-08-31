@@ -277,9 +277,21 @@
   ]
  ],
  [
-  "/api/portfolio/projects/{project_id}/members",
+ "/api/portfolio/projects/{project_id}/members",
+ [
+  "POST"
+ ]
+],
+ [
+  "/api/portfolio/projects/{project_id}/source",
   [
-   "POST"
+   "PUT"
+  ]
+ ],
+ [
+  "/api/portfolio/projects/{project_id}/stages",
+  [
+   "PUT"
   ]
  ],
  [
@@ -295,9 +307,15 @@
   ]
  ],
  [
-  "/api/portfolio/projects/{project_id}/tasks/{task_ref}",
+ "/api/portfolio/projects/{project_id}/tasks/{task_ref}",
+ [
+  "DELETE"
+ ]
+],
+ [
+  "/api/portfolio/projects/{project_id}/tasks/{task_ref}/stage",
   [
-   "DELETE"
+   "PUT"
   ]
  ],
  [
