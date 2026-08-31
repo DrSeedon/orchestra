@@ -138,6 +138,31 @@ def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(args, **kwargs)
 
 
+def _merge_conflict_result(branch: str, conflicts: list[str]) -> dict[str, object]:
+    shown = ", ".join(conflicts[:10])
+    if len(conflicts) > 10:
+        shown += f" … and {len(conflicts) - 10} more"
+    return {
+        "ok": False,
+        "state": "conflict",
+        "conflicts": conflicts,
+        "error": f"merge conflict in {len(conflicts)} file(s): {shown}",
+        "branch": branch,
+    }
+
+
+def _conflict_paths(cwd: str) -> list[str]:
+    result = _git_cmd(
+        ["git", "diff", "--name-only", "--diff-filter=U", "-z"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return []
+    return [path for path in result.stdout.split("\0") if path]
+
+
 def _repo_lock_path(repo: str | Path) -> Path:
     """Stable cross-process lock identity for one Git common directory."""
     repo_path = Path(repo).resolve()
@@ -1515,10 +1540,9 @@ def merge_worktree_to_main(
                                                         "error": f"merge precheck failed: {err}",
                                                     }
                                                 else:
-                                                    result = {
-                                                        "ok": False,
-                                                        "conflicts": conflict_files,
-                                                    }
+                                                    result = _merge_conflict_result(
+                                                        branch, conflict_files,
+                                                    )
                                                 precheck_ok = False
                                             else:
                                                 # `--write-tree` печатает OID итогового
@@ -1613,6 +1637,7 @@ def merge_worktree_to_main(
                                                     text=True,
                                                 )
                                                 if merge.returncode != 0:
+                                                    conflict_files = _conflict_paths(merge_cwd)
                                                     _git_cmd(
                                                         ["git", "reset", "--merge"],
                                                         cwd=merge_cwd,
@@ -1629,7 +1654,11 @@ def merge_worktree_to_main(
                                                         "repo=%s branch=%s err=%s",
                                                         repo, branch, err,
                                                     )
-                                                    result = {"ok": False, "error": err}
+                                                    result = (
+                                                        _merge_conflict_result(branch, conflict_files)
+                                                        if conflict_files
+                                                        else {"ok": False, "error": err}
+                                                    )
                                                 else:
                                                     staged = _git_cmd(
                                                         ["git", "diff", "--cached", "--quiet"],
@@ -1668,12 +1697,17 @@ def merge_worktree_to_main(
                                                                 "merged_commits": merged_commits,
                                                             }
                                                     else:
-                                                        result = {
-                                                            "ok": True,
-                                                            "commits_merged": 0,
-                                                            "branch": branch,
-                                                            "merged_commits": {},
-                                                        }
+                                                        conflict_files = _conflict_paths(merge_cwd)
+                                                        result = (
+                                                            _merge_conflict_result(branch, conflict_files)
+                                                            if conflict_files
+                                                            else {
+                                                                "ok": True,
+                                                                "commits_merged": 0,
+                                                                "branch": branch,
+                                                                "merged_commits": {},
+                                                            }
+                                                        )
 
                                             if result and result.get("ok"):
                                                 target_commit_succeeded = True
