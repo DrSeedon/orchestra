@@ -1,0 +1,66 @@
+{
+  "attempts": [
+    {
+      "id": 22,
+      "started_at": "2026-08-31T08:18:37.651325Z",
+      "status": 200
+    },
+    {
+      "id": 23,
+      "started_at": "2026-08-31T08:18:40.754271Z",
+      "status": 200
+    }
+  ],
+  "case_id": "H03-380-delivery-unknown",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tA message delivery timed out after dispatch_started=true. It is unknown whether the provider accepted it. Choose exactly one action: retry, drop, or quarantine. Write answer.json with answer and evidence.",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+  "http_attempts": 2,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-01-0-H03-380-delivery-unknown/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "379427559f287a41a727993e17d2f406ae621f481caf1c820dad3be86041949d"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "379427559f287a41a727993e17d2f406ae621f481caf1c820dad3be86041949d"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-01-0-H03-380-delivery-unknown/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-01-0-H03-380-delivery-unknown/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:22",
+    "attempt:23"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-01-0-H03-380-delivery-unknown",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

@@ -1,0 +1,144 @@
+{
+  "attempts": [
+    {
+      "id": 97,
+      "started_at": "2026-08-31T08:34:11.958406Z",
+      "status": 200
+    },
+    {
+      "id": 98,
+      "started_at": "2026-08-31T08:34:17.798486Z",
+      "status": 200
+    },
+    {
+      "id": 99,
+      "started_at": "2026-08-31T08:34:23.112019Z",
+      "status": 200
+    },
+    {
+      "id": 100,
+      "started_at": "2026-08-31T08:34:32.969465Z",
+      "status": 200
+    },
+    {
+      "id": 101,
+      "started_at": "2026-08-31T08:34:41.698410Z",
+      "status": 200
+    },
+    {
+      "id": 102,
+      "started_at": "2026-08-31T08:34:47.152249Z",
+      "status": 200
+    },
+    {
+      "id": 103,
+      "started_at": "2026-08-31T08:35:02.458338Z",
+      "status": 200
+    }
+  ],
+  "case_id": "C06-155-sqlite-backup",
+  "events": [
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "bash: {\"command\": \"ls -la /workspace\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "exit_code=0\ntotal 12\ndrwxr-xr-x  3 1000 1000 4096 Aug 31 08:34 .\ndrwxr-xr-x 11 1000 1000  220 Aug 31 08:34 ..\n-rw-r--r--  1 1000 1000  156 Aug 31 08:34 TASK.md\n-rw-r--r--  1 1000 1000    0 Aug 31 08:34 counter.db\ndrwxr-xr-x  2 1000 1000 4096 Aug 31 08:34 session-store\n-rw-r--r--  1 1000 1000    0 Aug 31 08:34 session.db\n",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tA live SQLite database uses WAL and fresh rows may be only in `-wal`. Choose cp_main_file, sqlite_connection_backup, or rsync_main_file. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"path\": \"/workspace/answer.json\", \"content\": \"{\\\"answer\\\": \\\"sqlite_connection_backup\\\", \\\"evidence\\\": \\\"In SQLite WAL mode, committed transactions are written to the -wal file first and only later checkpointed to the main database file. Simply copying the main file (cp_main_file or rsync_main_file) would miss data that exists only in the WAL file. SQLite's backup API (sqlite3_backup_init/step/finish) properly handles WAL mode by coordinating with the WAL file to produce a consistent backup.\\\"}\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[write error] path '/workspace/answer.json' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"path\": \"answer.json\", \"content\": \"{\\\"answer\\\": \\\"sqlite_connection_backup\\\", \\\"evidence\\\": \\\"In SQLite WAL mode, committed transactions are written to the -wal file first and only later checkpointed to the main database file. Simply copying the main file (cp_main_file or rsync_main_file) would miss data that exists only in the WAL file. SQLite's backup API (sqlite3_backup_init/step/finish) properly handles WAL mode by coordinating with the WAL file to produce a consistent backup.\\\"}\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (445 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "read: {\"path\": \"answer.json\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\t{\"answer\": \"sqlite_connection_backup\", \"evidence\": \"In SQLite WAL mode, committed transactions are written to the -wal file first and only later checkpointed to the main database file. Simply copying the main file (cp_main_file or rsync_main_file) would miss data that exists only in the WAL file. SQLite's backup API (sqlite3_backup_init/step/finish) properly handles WAL mode by coordinating with the WAL file to produce a consistent backup.\"}",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+  "http_attempts": 7,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-18-0-C06-155-sqlite-backup/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "3f1f04e470b18c27d4d745ab4dc767f8cd4725b2adb322ba6ccf364953a59d5a"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "3f1f04e470b18c27d4d745ab4dc767f8cd4725b2adb322ba6ccf364953a59d5a"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-18-0-C06-155-sqlite-backup/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-18-0-C06-155-sqlite-backup/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:97",
+    "attempt:98",
+    "attempt:99",
+    "attempt:100",
+    "attempt:101",
+    "attempt:102",
+    "attempt:103"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "run-18-0-C06-155-sqlite-backup",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

@@ -1,0 +1,98 @@
+{
+  "attempts": [
+    {
+      "id": 144,
+      "started_at": "2026-08-31T08:47:30.121592Z",
+      "status": 200
+    },
+    {
+      "id": 145,
+      "started_at": "2026-08-31T08:48:36.123068Z",
+      "status": 200
+    },
+    {
+      "id": 146,
+      "started_at": "2026-08-31T08:49:47.847641Z",
+      "status": 200
+    },
+    {
+      "id": 147,
+      "started_at": "2026-08-31T08:51:01.902874Z",
+      "status": 200
+    }
+  ],
+  "case_id": "E05-368-quota-unit",
+  "events": [
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "bash: {\"command\": \"ls -la /workspace/\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "exit_code=0\ntotal 12\ndrwxr-xr-x  3 1000 1000 4096 Aug 31 08:47 .\ndrwxr-xr-x 11 1000 1000  220 Aug 31 08:49 ..\n-rw-r--r--  1 1000 1000  215 Aug 31 08:47 TASK.md\n-rw-r--r--  1 1000 1000    0 Aug 31 08:47 counter.db\ndrwxr-xr-x  2 1000 1000 4096 Aug 31 08:47 session-store\n-rw-r--r--  1 1000 1000    0 Aug 31 08:47 session.db\n",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+  "http_attempts": 4,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-26-1-E05-368-quota-unit/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "d81b8d091f043cb6d45db1ee2635bba450c6a4c56f547f7672971c7eac80f1c4"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "d81b8d091f043cb6d45db1ee2635bba450c6a4c56f547f7672971c7eac80f1c4"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-26-1-E05-368-quota-unit/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-26-1-E05-368-quota-unit/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:144",
+    "attempt:145",
+    "attempt:146",
+    "attempt:147"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "run-26-1-E05-368-quota-unit",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

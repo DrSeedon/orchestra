@@ -1,0 +1,66 @@
+{
+  "attempts": [
+    {
+      "id": 140,
+      "started_at": "2026-08-31T08:47:17.709412Z",
+      "status": 200
+    },
+    {
+      "id": 141,
+      "started_at": "2026-08-31T08:47:20.811986Z",
+      "status": 200
+    }
+  ],
+  "case_id": "E04-419-storage-map",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\t`knowledge-v1/current.db` contains current_records/current_fts and no embeddings; `data/vec.db` is the vector store. Choose current_is_vector, vec_is_vector, or both_vector. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+  "http_attempts": 2,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-25-0-E04-419-storage-map/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "eb89641663c39024a7b88e481fbca92dbaa7a1a11570af51c31897422e7e1c70"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "eb89641663c39024a7b88e481fbca92dbaa7a1a11570af51c31897422e7e1c70"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-25-0-E04-419-storage-map/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-25-0-E04-419-storage-map/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:140",
+    "attempt:141"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-25-0-E04-419-storage-map",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

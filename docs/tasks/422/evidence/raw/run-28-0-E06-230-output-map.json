@@ -1,0 +1,52 @@
+{
+  "attempts": [
+    {
+      "id": 156,
+      "started_at": "2026-08-31T09:00:27.119176Z",
+      "status": 200
+    }
+  ],
+  "case_id": "E06-230-output-map",
+  "events": [
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+  "http_attempts": 1,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-28-0-E06-230-output-map/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "115bfd93c00beab4038641349d0a97f2bc7a074d31f4ec6142f5281677b1d5b3"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "115bfd93c00beab4038641349d0a97f2bc7a074d31f4ec6142f5281677b1d5b3"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-28-0-E06-230-output-map/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-28-0-E06-230-output-map/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:156"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-28-0-E06-230-output-map",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

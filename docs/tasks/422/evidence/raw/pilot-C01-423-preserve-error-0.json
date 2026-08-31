@@ -1,0 +1,94 @@
+{
+  "attempts": [
+    {
+      "id": 9,
+      "started_at": "2026-08-31T08:17:32.748505Z",
+      "status": 200
+    },
+    {
+      "id": 10,
+      "started_at": "2026-08-31T08:17:36.385638Z",
+      "status": 200
+    },
+    {
+      "id": 11,
+      "started_at": "2026-08-31T08:17:39.486320Z",
+      "status": 200
+    },
+    {
+      "id": 12,
+      "started_at": "2026-08-31T08:17:42.587354Z",
+      "status": 404
+    }
+  ],
+  "case_id": "C01-423-preserve-error",
+  "events": [
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "bash: {\"command\": \"pwd && ls -la\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "exit_code=0\n/workspace\ntotal 12\ndrwxr-xr-x  3 1000 1000 4096 Aug 31 08:17 .\ndrwxr-xr-x 11 1000 1000  220 Aug 31 08:17 ..\n-rw-r--r--  1 1000 1000  184 Aug 31 08:17 TASK.md\n-rw-r--r--  1 1000 1000    0 Aug 31 08:17 counter.db\ndrwxr-xr-x  2 1000 1000 4096 Aug 31 08:17 session-store\n-rw-r--r--  1 1000 1000    0 Aug 31 08:17 session.db\n",
+      "type": "tool_result"
+    },
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tComplete the expression for a wrapper error: `message = ______ or DEFAULT_ERROR`. The raw object is `raw`. Choose raw.get_error, raw.get('error'), or DEFAULT_ERROR. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter 404: {\"error\":{\"message\":\"Provider returned error\",\"code\":404,\"metadata\":{\"raw\":\"\",\"provider_name\":\"Nvidia\",\"is_byok\":false}},\"user_id\":\"user_2osoXQ5eMBkhcZEtw5nfFee535L\"}",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter 404: {\"error\":{\"message\":\"Provider returned error\",\"code\":404,\"metadata\":{\"raw\":\"\",\"provider_name\":\"Nvidia\",\"is_byok\":false}},\"user_id\":\"user_2osoXQ5eMBkhcZEtw5nfFee535L\"}",
+  "http_attempts": 4,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/pilot-C01-423-preserve-error-0/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "ba77b04029726e20069cfa83e7cb6f7dd6be9bdd93c10a5b16f6aff5eb5c88d0"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "ba77b04029726e20069cfa83e7cb6f7dd6be9bdd93c10a5b16f6aff5eb5c88d0"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/pilot-C01-423-preserve-error-0/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/pilot-C01-423-preserve-error-0/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:9",
+    "attempt:10",
+    "attempt:11",
+    "attempt:12"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "pilot-C01-423-preserve-error-0",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

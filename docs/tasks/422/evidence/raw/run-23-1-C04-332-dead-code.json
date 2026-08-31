@@ -1,0 +1,154 @@
+{
+  "attempts": [
+    {
+      "id": 126,
+      "started_at": "2026-08-31T08:38:13.222365Z",
+      "status": 200
+    },
+    {
+      "id": 127,
+      "started_at": "2026-08-31T08:38:47.304567Z",
+      "status": 200
+    },
+    {
+      "id": 128,
+      "started_at": "2026-08-31T08:39:30.197021Z",
+      "status": 200
+    },
+    {
+      "id": 129,
+      "started_at": "2026-08-31T08:40:19.090501Z",
+      "status": 200
+    },
+    {
+      "id": 130,
+      "started_at": "2026-08-31T08:41:20.640856Z",
+      "status": 200
+    },
+    {
+      "id": 131,
+      "started_at": "2026-08-31T08:42:25.413343Z",
+      "status": 200
+    },
+    {
+      "id": 132,
+      "started_at": "2026-08-31T08:43:12.483362Z",
+      "status": 200
+    },
+    {
+      "id": 133,
+      "started_at": "2026-08-31T08:44:08.186776Z",
+      "status": 200
+    }
+  ],
+  "case_id": "C04-332-dead-code",
+  "events": [
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "bash: {\"command\": \"ls -la /workspace\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "exit_code=0\ntotal 12\ndrwxr-xr-x  3 1000 1000 4096 Aug 31 08:38 .\ndrwxr-xr-x 11 1000 1000  220 Aug 31 08:39 ..\n-rw-r--r--  1 1000 1000  251 Aug 31 08:38 TASK.md\n-rw-r--r--  1 1000 1000    0 Aug 31 08:38 counter.db\ndrwxr-xr-x  2 1000 1000 4096 Aug 31 08:38 session-store\n-rw-r--r--  1 1000 1000    0 Aug 31 08:38 session.db\n",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tA helper is referenced only by its own unreachable cluster and no registry/getattr/static string points to it. A committed mutation test fails when a production root is added. Choose delete_cluster, keep_forever, or grep_name_only. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "glob: {\"pattern\": \"**/*\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "TASK.md\ncounter.db\nsession.db",
+      "type": "tool_result"
+    },
+    {
+      "content": "bash: {\"command\": \"ls -la session-store/\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "exit_code=0\ntotal 8\ndrwxr-xr-x 2 1000 1000 4096 Aug 31 08:38 .\ndrwxr-xr-x 3 1000 1000 4096 Aug 31 08:38 ..\n",
+      "type": "tool_result"
+    },
+    {
+      "content": "bash: {\"command\": \"sqlite3 counter.db .dump\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "exit_code=0\nPRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\nCOMMIT;\n",
+      "type": "tool_result"
+    },
+    {
+      "content": "bash: {\"command\": \"sqlite3 session.db .dump\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "exit_code=0\nPRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\nCOMMIT;\n",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+  "http_attempts": 8,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-23-1-C04-332-dead-code/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "5c6c5bed5b948a55ae2ac6218bf0dbb76b9b494a9e8ce8935bdb619fa968b023"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "5c6c5bed5b948a55ae2ac6218bf0dbb76b9b494a9e8ce8935bdb619fa968b023"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-23-1-C04-332-dead-code/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-23-1-C04-332-dead-code/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:126",
+    "attempt:127",
+    "attempt:128",
+    "attempt:129",
+    "attempt:130",
+    "attempt:131",
+    "attempt:132",
+    "attempt:133"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "run-23-1-C04-332-dead-code",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

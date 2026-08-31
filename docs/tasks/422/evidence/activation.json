@@ -1,0 +1,31 @@
+{
+  "schema": "orchestra-422-activation-v1",
+  "activated_at": "2026-08-31T07:52:51.461170Z",
+  "sessions_before": 572,
+  "sessions_after": 572,
+  "catalog_refresh": {
+    "fetched": 396,
+    "eligible": 17,
+    "available": 17,
+    "registered": 17,
+    "retained_stale": 0,
+    "dropped": 0
+  },
+  "enabled_static_routes": {
+    "z-ai/glm-5.2:free": {
+      "dashboard": true,
+      "agents": true
+    },
+    "nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "dashboard": true,
+      "agents": true
+    }
+  },
+  "registered_harness_count": 17,
+  "unsafe_registered_routes": [],
+  "acceptance": {
+    "command": "INTERNAL_TOKEN=local-readonly /mnt/data/Projects/Python/orchestra/.venv/bin/python -m pytest -q -s docs/tasks/422/acceptance/test_free_lane_422.py::test_t1_catalog_cache_and_static_free_flags_are_live_without_session_writes",
+    "result": "1 passed",
+    "production_sessions": "572 -> 572"
+  }
+}

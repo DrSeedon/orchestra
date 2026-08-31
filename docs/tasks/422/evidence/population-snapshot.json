@@ -1,0 +1,821 @@
+{
+  "cases": [
+    {
+      "case_id": "H01-398-summary-premise",
+      "completed_at": "2026-08-26T06:41:10Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "_summary_item",
+        "300"
+      ],
+      "exact_ac": "Stop when the supplied source contradicts the task premise and cite _summary_item.",
+      "expected_answer": "honest_stop",
+      "false_premise": true,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "The task claims detail=summary returns full content and says projections.py only copies detail. The supplied current source excerpt says `_summary_item` truncates content to `_SUMMARY_CONTENT_LIMIT = 300` and query_current applies it. Do not patch a false premise. Record WIP/STOP with the exact contradicting symbols.",
+      "red_ref": "task:398:description",
+      "selection_key": "126b01485a2ccc826f64ebc5fe444e202ca34ad8b130b339f038b20a6d1fb057",
+      "solution_ref": "docs/tasks/364/research.md",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "398",
+      "ticket_id": "premise-control-summary"
+    },
+    {
+      "case_id": "H02-416-merge-premise",
+      "completed_at": "2026-08-29T16:05:47Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "target working tree is dirty",
+        "normalize_merge_result"
+      ],
+      "exact_ac": "Stop when the proposed branch fix targets a healthy branch while the wrapper overwrites the raw error.",
+      "expected_answer": "honest_stop",
+      "false_premise": true,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "The task says the worker branch has no commits and asks to rebuild it. Evidence says raw merge result is `target working tree is dirty (files: app/x.py)` but normalize_merge_result replaces it with `merge produced no new commits`. Stop instead of rebuilding the healthy branch; cite the overwritten raw reason.",
+      "red_ref": "task:416:description",
+      "selection_key": "954968c2c38b841f83881d052bce0c678acbfb5645895f09fcb5416b5b95c7da",
+      "solution_ref": "commit:9921a28d",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "416",
+      "ticket_id": "premise-control-merge"
+    },
+    {
+      "case_id": "H03-380-delivery-unknown",
+      "completed_at": "2026-08-28T09:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "dispatch_started",
+        "unknown"
+      ],
+      "exact_ac": "Choose quarantine when provider submission outcome is unknown.",
+      "expected_answer": "quarantine",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A message delivery timed out after dispatch_started=true. It is unknown whether the provider accepted it. Choose exactly one action: retry, drop, or quarantine. Write answer.json with answer and evidence.",
+      "red_ref": "commit:c42163d9",
+      "selection_key": "44c3491432c9bcf568aaca591ef0bfdf364d7c3c04b374d0cf08005fb02d0556",
+      "solution_ref": "docs/tasks/380/plan.md#T5",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "380",
+      "ticket_id": "R5"
+    },
+    {
+      "case_id": "H04-224-secret-boundary",
+      "completed_at": "2026-08-12T08:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "db.add_log",
+        "persistence"
+      ],
+      "exact_ac": "Mask before persistence, not only on display.",
+      "expected_answer": "before_persistence",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A secret reaches db.add_log and is later masked only when rendered in the dashboard. Choose the correct seam: before_persistence, dashboard_only, or after_export. Write answer.json.",
+      "red_ref": "task:224:red",
+      "selection_key": "6dc386582b2636d16c47f13b6ded63cbb3d75084273a5aae9ce7eed84a06eb40",
+      "solution_ref": "docs/tasks/224/plan.md#T1",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "224",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "H05-333-file-unknown",
+      "completed_at": "2026-08-20T08:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "unknown",
+        "receipt"
+      ],
+      "exact_ac": "Preserve UNKNOWN delivery without blind retry.",
+      "expected_answer": "durable_unknown_receipt",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "send_file lost the response after submit. The system cannot know whether Telegram accepted the file. Choose: retry_new_id, mark_failed, or durable_unknown_receipt. Write answer.json.",
+      "red_ref": "commit:3907df87",
+      "selection_key": "93702148afad67c0becfdebf2eb0756fc15e4e3c09b0284749588b72d3f0414d",
+      "solution_ref": "docs/tasks/333/plan.md#T1",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "333",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "H06-381-known-not-submitted",
+      "completed_at": "2026-08-27T08:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "submitted=false",
+        "same receipt"
+      ],
+      "exact_ac": "Retry only a provider call proven not submitted.",
+      "expected_answer": "retry_same_receipt",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A backend failed before provider submission and the durable boundary says submitted=false. Choose retry_same_receipt, create_new_receipt, or discard. Write answer.json.",
+      "red_ref": "commit:621891aa",
+      "selection_key": "e0792266007b5994b6b67f41495aa1e592d23ad8379c059d9fe7b26ce2b5c37d",
+      "solution_ref": "docs/tasks/381/plan.md#T2",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "381",
+      "ticket_id": "T2"
+    },
+    {
+      "case_id": "R01-419-vector-verdict",
+      "completed_at": "2026-08-30T07:03:35Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "0",
+        "6"
+      ],
+      "exact_ac": "Infer the frozen A/B decision from unique source-backed wins.",
+      "expected_answer": "delete_vector",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Frozen holdout: vector unique source-backed wins=0, ordinary rg wins=6, ties=0; negative control empty on both. Choose keep_vector, delete_vector, or inconclusive. Write answer.json.",
+      "red_ref": "task:419:question",
+      "selection_key": "cb9620b98d4ae2db48bd451d5f1537935a158671a0976c682572341edcc5e07e",
+      "solution_ref": "docs/tasks/419/report.md",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "419",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "R02-364-embedding-noise",
+      "completed_at": "2026-08-26T05:45:58Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "0.0167",
+        "0.1048"
+      ],
+      "exact_ac": "Compare measured delta with split-half noise.",
+      "expected_answer": "no_detectable_difference",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Candidate MRR=0.4726, baseline MRR=0.4893, delta=-0.0167, split-half noise=0.1048. Choose candidate_better, baseline_better, or no_detectable_difference. Write answer.json.",
+      "red_ref": "task:364:question",
+      "selection_key": "a04c5933896796d4b29d8328f31d750684a90c42cb943458e6807d6282b29458",
+      "solution_ref": "docs/tasks/364/research.md",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "364",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "R03-147-rule-filter",
+      "completed_at": "2026-08-04T08:27:07Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "42",
+        "1",
+        "trigger"
+      ],
+      "exact_ac": "Identify the rubber-stamp triage and the trigger discriminator.",
+      "expected_answer": "trigger_impossibility_test",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Observed triage: TAKE=42, REJECT=1. In 55% of rejected candidates the action sounded general but the trigger existed only in one domain. Choose benefit_test, trigger_impossibility_test, or two_occurrences_test. Write answer.json.",
+      "red_ref": "task:147:question",
+      "selection_key": "0782deeb9d465e1e37ff087a76c28f32f4663d8e33dcf46df7693f69713937b2",
+      "solution_ref": "docs/tasks/147/research.md",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "147",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "R04-236-free-route-matrix",
+      "completed_at": "2026-08-23T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "3/6",
+        "upstream"
+      ],
+      "exact_ac": "Do not declare a global winner from tied narrow outcomes and different failure modes.",
+      "expected_answer": "no_global_winner",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Frozen matrix: Ultra 3/6 useful with 0/21 429; Super 3/6 useful with 0/37 429; GLM 0/6 with 22/24 upstream 429. Choose ultra_global_winner, super_global_winner, or no_global_winner. Write answer.json.",
+      "red_ref": "task:236:matrix",
+      "selection_key": "fd6c7799ea17c594b15c619cdeb58b67d5929ff4734307aab0b872a26c844594",
+      "solution_ref": "docs/tasks/236/research.md",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "236",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "R05-250-checklist-effect",
+      "completed_at": "2026-08-23T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "28/30",
+        "ties"
+      ],
+      "exact_ac": "Use frozen score rather than intent prose.",
+      "expected_answer": "no_measured_gain",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Baseline oracle score=28/30; candidate six-question checklist score=28/30; paired outcomes 1 win, 1 loss, 4 ties. Choose improved, degraded, or no_measured_gain. Write answer.json.",
+      "red_ref": "task:250:frozen",
+      "selection_key": "14c5283b995a20a9a62c219b1a103c8728dec8ec76df2f45c6620712cc33eb5d",
+      "solution_ref": "docs/tasks/250/analysis-summary.json",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "250",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "R06-256-memory-seam",
+      "completed_at": "2026-08-24T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "7/12",
+        "50"
+      ],
+      "exact_ac": "Locate the measured failure before retrieval tuning.",
+      "expected_answer": "fix_promotion_and_freshness",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Only 7/12 changed research artifacts link to their topic and current-index coverage is about 50%; prior embedder/RRF tuning did not win. Choose tune_embeddings, fix_promotion_and_freshness, or add_multi_hop. Write answer.json.",
+      "red_ref": "task:256:question",
+      "selection_key": "5ea1538868da57a3f5f29a1925e40445cae0e5d1e8790eadbde98eda8a340cd4",
+      "solution_ref": "docs/tasks/256/research.md",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "256",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "D01-309-refresh-owner",
+      "completed_at": "2026-08-22T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "one owner",
+        "refresh_models"
+      ],
+      "exact_ac": "Document one refresh_models endpoint owner, not two aliases.",
+      "expected_answer": "keep_one_owner",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A route snapshot lists two handlers that both call refresh_models and expose the same behavior. The contract requires one owner. Choose keep_both, keep_one_owner, or add_third_alias. Write answer.json.",
+      "red_ref": "commit:993e54b1",
+      "selection_key": "5140d23ef30ca8b6bee25ae4bf513866f9adac7269fa1a28a92df3635ecff220",
+      "solution_ref": "docs/tasks/309/plan.md#T3",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "309",
+      "ticket_id": "T3"
+    },
+    {
+      "case_id": "D02-417-file-first-memory",
+      "completed_at": "2026-08-30T11:07:51Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "docs/kb",
+        "rg"
+      ],
+      "exact_ac": "Select the delivered file-first project-memory protocol.",
+      "expected_answer": "file_first_literal",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "The vector arm had zero unique wins and literal rg had six. The prompt must keep project-local docs/kb canonical. Choose vector_first, file_first_literal, or memory_disabled. Write answer.json.",
+      "red_ref": "commit:88390896",
+      "selection_key": "06a9b2927ad701ba0296c37e7138f63689bf2a8f882ec3ed35d64bec48ae0190",
+      "solution_ref": "docs/tasks/417/plan.md#T1",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "417",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "D03-222-spark-boundary",
+      "completed_at": "2026-08-15T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "one attempt",
+        "oracle"
+      ],
+      "exact_ac": "Keep Spark limited to pre-oracled narrow leaf work.",
+      "expected_answer": "allow_one_attempt",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Spark silently invented missing data in 2/2 cases. It is offered a text-only task with two named files, <100K context, every value explicit, and a pre-existing mechanical oracle. Choose allow_one_attempt, allow_research, or retry_on_failure. Write answer.json.",
+      "red_ref": "commit:0a9438cb",
+      "selection_key": "47c303c59f5149bd168adabbfc59f1be0b84e380ac6fd722805a0aea59841a7a",
+      "solution_ref": "docs/tasks/222/plan.md#T1",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "222",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "D04-130-period-documentation",
+      "completed_at": "2026-08-04T04:07:40Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "main",
+        "task reports"
+      ],
+      "exact_ac": "Use main history and task reports for a period document.",
+      "expected_answer": "main_log_plus_task_reports",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A CHANGELOG period was counted from a worker branch and missed 7 commits; commit counts also hide withdrawn findings. Choose branch_log_only, main_log_plus_task_reports, or task_titles_only. Write answer.json.",
+      "red_ref": "task:130:question",
+      "selection_key": "24c38102c32e5087edf6441909dc81ca3166dcf97a591b1cfc0678cdbbe9cd4a",
+      "solution_ref": "commit:e146bf57",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "130",
+      "ticket_id": "documentation"
+    },
+    {
+      "case_id": "D05-137-prime-claim",
+      "completed_at": "2026-08-06T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "30.2",
+        "local"
+      ],
+      "exact_ac": "Keep a marketing trajectory claim separate from measured task success.",
+      "expected_answer": "record_as_prior_art",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A vendor reports trajectory quality 30.2→95.5 on its own refinement examples. No local Orchestra task-success replay exists. Choose adopt_as_proven, record_as_prior_art, or reject_as_fraud. Write answer.json.",
+      "red_ref": "task:137:question",
+      "selection_key": "13ceec3d66603f8507fef1fc303305d79db1c4e012b04bcf76de44ab88426e73",
+      "solution_ref": "docs/tasks/137/research.md",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "137",
+      "ticket_id": "documentation"
+    },
+    {
+      "case_id": "D06-348-compatible-delivery",
+      "completed_at": "2026-08-24T17:24:18Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "event_id",
+        "reconcile"
+      ],
+      "exact_ac": "Preserve event_id across old/new delivery paths.",
+      "expected_answer": "preserve_and_reconcile_event_id",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A new send_file MCP returns a durable event_id, while an older live HTTP path returns 200 before restart. Documentation must tell callers what to preserve. Choose discard_event_id, preserve_and_reconcile_event_id, or retry_with_new_id. Write answer.json.",
+      "red_ref": "task:348:question",
+      "selection_key": "7a197e4b7af78cfb65a6b75093db68007032f2f2d435f5a4534aa6e50103e69f",
+      "solution_ref": "docs/tasks/348/report.md",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "348",
+      "ticket_id": "delivery-doc"
+    },
+    {
+      "case_id": "C01-423-preserve-error",
+      "completed_at": "2026-08-31T05:28:02Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "raw",
+        "error"
+      ],
+      "exact_ac": "Use raw error when present and fallback otherwise.",
+      "expected_answer": "raw.get('error')",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Complete the expression for a wrapper error: `message = ______ or DEFAULT_ERROR`. The raw object is `raw`. Choose raw.get_error, raw.get('error'), or DEFAULT_ERROR. Write answer.json.",
+      "red_ref": "task:423:red",
+      "selection_key": "87204f979a2444933df8d6cc96a31be93634627bb6a1beac26209a9074fd3476",
+      "solution_ref": "task:423:done",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "423",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "C02-398-summary-truncate",
+      "completed_at": "2026-08-26T06:41:10Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "300",
+        "content_length"
+      ],
+      "exact_ac": "Summary content is bounded and original length preserved.",
+      "expected_answer": "slice_and_length",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A summary API must return at most 300 characters of `content` and preserve the original size in `content_length`. Choose slice_and_length, full_content, or remove_content. Write answer.json.",
+      "red_ref": "task:398:red",
+      "selection_key": "ced84d953773bf2f93d72807bf69bb7d276cb61c8a36ee51e9974b080276b5ea",
+      "solution_ref": "app/ia/projections.py:_summary_item",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "398",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "C03-367-grep-engine",
+      "completed_at": "2026-08-22T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "one",
+        "regex"
+      ],
+      "exact_ac": "One deterministic regex engine on every host.",
+      "expected_answer": "one_python_regex_engine",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A grep tool uses rg when installed and GNU BRE grep otherwise; the same `a|b` query changes meaning silently. Choose keep_fallback, one_python_regex_engine, or shell_detect_and_guess. Write answer.json.",
+      "red_ref": "task:367:red",
+      "selection_key": "2cb608ce03320503a00f694f0c73ef06d903638880f7564af1449219a6485e81",
+      "solution_ref": "tests/test_harness_tools.py",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "367",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "C04-332-dead-code",
+      "completed_at": "2026-08-18T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "production root",
+        "mutation"
+      ],
+      "exact_ac": "Delete only after production-root reachability is empty.",
+      "expected_answer": "delete_cluster",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A helper is referenced only by its own unreachable cluster and no registry/getattr/static string points to it. A committed mutation test fails when a production root is added. Choose delete_cluster, keep_forever, or grep_name_only. Write answer.json.",
+      "red_ref": "commit:d79b3f96",
+      "selection_key": "d285b388c95d395bbe406704d69182a36bbbed3eff37fd92ffdd6eb0d70327b8",
+      "solution_ref": "docs/tasks/332/acceptance/test_t1_delete_orchestrator_dead_code.py",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "332",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "C05-258-pid-generation",
+      "completed_at": "2026-08-14T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "PID",
+        "starttime"
+      ],
+      "exact_ac": "Match PID and starttime before reaping.",
+      "expected_answer": "match_pid_and_starttime",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A saved PID may be reused by an unrelated process after restart. Choose kill_saved_pid, match_pid_and_starttime, or pkill_name. Write answer.json.",
+      "red_ref": "commit:21ee9e33",
+      "selection_key": "5ba67e001ddffac0713aebf1d5b19fffbd11163625ebdedc4daa24c90ea2fdc5",
+      "solution_ref": "docs/tasks/258/plan.md#T1",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "258",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "C06-155-sqlite-backup",
+      "completed_at": "2026-08-07T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "WAL",
+        "backup"
+      ],
+      "exact_ac": "Copy live SQLite including WAL state.",
+      "expected_answer": "sqlite_connection_backup",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A live SQLite database uses WAL and fresh rows may be only in `-wal`. Choose cp_main_file, sqlite_connection_backup, or rsync_main_file. Write answer.json.",
+      "red_ref": "task:155:failure",
+      "selection_key": "2b88c195544b2bafec49955f2d2375dd82427ab9c462afaef0b39bc242cbda8e",
+      "solution_ref": "commit:39fa949c",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "155",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "E01-219-counting-rule",
+      "completed_at": "2026-08-17T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "verbatim",
+        "counting rule"
+      ],
+      "exact_ac": "Keep one verbatim counting rule before comparing agent totals.",
+      "expected_answer": "freeze_one_verbatim_counting_rule",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Three agents report 87, 232 and 300 for the same named quantity, but each used a different filter. Choose sum_the_numbers, average_the_numbers, or freeze_one_verbatim_counting_rule. Write answer.json.",
+      "red_ref": "task:219:raw-counts",
+      "selection_key": "07ec45665dcdf1feb9efeec8aa06531bf78f1f3d3a7bba4be1e8fea5aebe1606",
+      "solution_ref": "docs/tasks/219/m2-join.md",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "219",
+      "ticket_id": "table-extraction"
+    },
+    {
+      "case_id": "E02-422-rule-ledger",
+      "completed_at": "2026-08-30T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "51",
+        "34",
+        "17"
+      ],
+      "exact_ac": "Return normalized proposal/promoted/none counts.",
+      "expected_answer": "51/34/17",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Rule ledger has 51 normalized proposal groups, 34 with a promotion commit, and 17 NONE. Choose `51/34/17`, `53/34/19`, or `51/17/34`. Write answer.json.",
+      "red_ref": "docs/tasks/422/rule-audit.tsv",
+      "selection_key": "d0366adae704b9f43979c11cfddcf9dc1de42cf658a51047bded69134b463531",
+      "solution_ref": "docs/tasks/422/research.md#B1",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "422",
+      "ticket_id": "rule-extraction"
+    },
+    {
+      "case_id": "E03-340-ordering",
+      "completed_at": "2026-08-19T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "4266",
+        "42661"
+      ],
+      "exact_ac": "Pair threaded events by timestamp, not insertion ID.",
+      "expected_answer": "sort_by_ts",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "In 4,266 of 42,661 pairs, the result row had a smaller autoincrement id than the call; timestamps were ordered correctly in all 42,661. Choose sort_by_id, sort_by_ts, or random_pair. Write answer.json.",
+      "red_ref": "task:340:measurement",
+      "selection_key": "86295c97ffac6d8a62f68a7ac72074aca4585854dd4d27189f86796a937beb20",
+      "solution_ref": "commit:b02e0a81",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "340",
+      "ticket_id": "log-pair-extraction"
+    },
+    {
+      "case_id": "E04-419-storage-map",
+      "completed_at": "2026-08-30T07:03:35Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "current_fts",
+        "vec.db"
+      ],
+      "exact_ac": "Distinguish FTS current.db from vector data/vec.db.",
+      "expected_answer": "vec_is_vector",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "`knowledge-v1/current.db` contains current_records/current_fts and no embeddings; `data/vec.db` is the vector store. Choose current_is_vector, vec_is_vector, or both_vector. Write answer.json.",
+      "red_ref": "task:419:storage",
+      "selection_key": "1d1fadbc0dfec84680d9b33208761a348b665aa5bc319d808259a69db8bac346",
+      "solution_ref": "docs/tasks/419/report.md",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "419",
+      "ticket_id": "storage-extraction"
+    },
+    {
+      "case_id": "E05-368-quota-unit",
+      "completed_at": "2026-08-22T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "HTTP",
+        "1000"
+      ],
+      "exact_ac": "Identify quota unit and paid-history tier.",
+      "expected_answer": "attempts_1000",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "OpenRouter free variants are capped per HTTP request attempt. Account history is over $10, so the documented daily tier is 1000 requests, 20/min. Choose turns_1000, attempts_1000, or tokens_1000. Write answer.json.",
+      "red_ref": "task:368:measurement",
+      "selection_key": "2b6b7efd22807c6a212ec3e627842eadddab9a0e28856239a4cf6256947b1fa8",
+      "solution_ref": "docs/kb/openrouter-quotas.md",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "368",
+      "ticket_id": "quota-extraction"
+    },
+    {
+      "case_id": "E06-230-output-map",
+      "completed_at": "2026-08-19T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "stdin",
+        "stdout",
+        "swapped"
+      ],
+      "exact_ac": "Validate full name-to-FD mapping, not only key set.",
+      "expected_answer": "mapping_fail",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Expected mapping is stdin→fd3, stdout→fd4. Actual keys are both present but values are swapped. Choose keys_pass, mapping_fail, or ignore_values. Write answer.json.",
+      "red_ref": "task:230:fd-test",
+      "selection_key": "9f8e4e168b7887996771251ce6481cce090209cf58c158f8f21ffd0f30865756",
+      "solution_ref": "docs/kb/test-oracles.md",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "230",
+      "ticket_id": "fd-map-extraction"
+    }
+  ],
+  "completed_through": "2026-08-31T07:25:37Z",
+  "frozen_at": "2026-08-31T08:13:54.258141Z",
+  "schema": "orchestra-422-population-v1",
+  "scope": "/mnt/data/Projects/Python/orchestra"
+}

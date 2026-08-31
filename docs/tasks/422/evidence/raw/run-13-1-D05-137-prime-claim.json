@@ -1,0 +1,52 @@
+{
+  "attempts": [
+    {
+      "id": 79,
+      "started_at": "2026-08-31T08:30:57.986148Z",
+      "status": 429
+    }
+  ],
+  "case_id": "D05-137-prime-claim",
+  "events": [
+    {
+      "content": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+  "http_attempts": 1,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-13-1-D05-137-prime-claim/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "4f937c4998a6c0c05114c318abb590605651bb8a5b08c3ef2fbc886c759aeed4"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "4f937c4998a6c0c05114c318abb590605651bb8a5b08c3ef2fbc886c759aeed4"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-13-1-D05-137-prime-claim/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-13-1-D05-137-prime-claim/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:79"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "google/gemma-4-26b-a4b-it:free",
+  "route": "google/gemma-4-26b-a4b-it:free",
+  "run_id": "run-13-1-D05-137-prime-claim",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

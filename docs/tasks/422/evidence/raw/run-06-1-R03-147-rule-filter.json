@@ -1,0 +1,88 @@
+{
+  "attempts": [
+    {
+      "id": 48,
+      "started_at": "2026-08-31T08:26:10.349470Z",
+      "status": 200
+    },
+    {
+      "id": 49,
+      "started_at": "2026-08-31T08:26:13.450354Z",
+      "status": 200
+    },
+    {
+      "id": 50,
+      "started_at": "2026-08-31T08:26:29.643686Z",
+      "status": 200
+    }
+  ],
+  "case_id": "R03-147-rule-filter",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tObserved triage: TAKE=42, REJECT=1. In 55% of rejected candidates the action sounded general but the trigger existed only in one domain. Choose benefit_test, trigger_impossibility_test, or two_occurrences_test. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"path\": \"answer.json\", \"content\": \"{\\n  \\\"answer\\\": \\\"trigger_impossibility_test\\\",\\n  \\\"evidence\\\": \\\"In 55% of rejected candidates the action sounded general but the trigger existed only in one domain.\\\"\\n}\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (162 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+  "http_attempts": 3,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-06-1-R03-147-rule-filter/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "19dd30873cb21d6cff5396e8d158ddb7204943addcec241b92b9cc384c66ee53"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "19dd30873cb21d6cff5396e8d158ddb7204943addcec241b92b9cc384c66ee53"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-06-1-R03-147-rule-filter/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-06-1-R03-147-rule-filter/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:48",
+    "attempt:49",
+    "attempt:50"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-06-1-R03-147-rule-filter",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

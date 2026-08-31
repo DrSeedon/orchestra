@@ -1,0 +1,88 @@
+{
+  "attempts": [
+    {
+      "id": 104,
+      "started_at": "2026-08-31T08:35:05.559332Z",
+      "status": 200
+    },
+    {
+      "id": 105,
+      "started_at": "2026-08-31T08:35:08.660379Z",
+      "status": 200
+    },
+    {
+      "id": 106,
+      "started_at": "2026-08-31T08:35:27.298407Z",
+      "status": 200
+    }
+  ],
+  "case_id": "C06-155-sqlite-backup",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tA live SQLite database uses WAL and fresh rows may be only in `-wal`. Choose cp_main_file, sqlite_connection_backup, or rsync_main_file. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"path\": \"answer.json\", \"content\": \"{\\\"answer\\\": \\\"sqlite_connection_backup\\\", \\\"evidence\\\": \\\"In WAL mode, the main database file may miss recent commits that are only in the -wal file. The SQLite backup API (sqlite_connection_backup) reads the live connection and safely copies all pages, including any WAL data, producing a consistent snapshot. cp_main_file and rsync_main_file copy the file at a single point and can miss in‑flight WAL entries.\\\"}\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (407 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+  "http_attempts": 3,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-18-1-C06-155-sqlite-backup/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "3f1f04e470b18c27d4d745ab4dc767f8cd4725b2adb322ba6ccf364953a59d5a"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "3f1f04e470b18c27d4d745ab4dc767f8cd4725b2adb322ba6ccf364953a59d5a"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-18-1-C06-155-sqlite-backup/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-18-1-C06-155-sqlite-backup/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:104",
+    "attempt:105",
+    "attempt:106"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-18-1-C06-155-sqlite-backup",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

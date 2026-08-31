@@ -1,0 +1,25 @@
+{
+  "schema": "orchestra-422-post-ceiling-provenance-binding-v1",
+  "source_commit": "867b517f",
+  "source_summary_sha256": "5e8d687e22b0d2e19d794a6e3fd59173e9b5d5b656280340b05f6a8c97d2257d",
+  "red_oracle_commit": "4e58c322",
+  "red_command": "./.venv/bin/python -m pytest -q docs/tasks/422/acceptance/test_reconciliation_provenance_422.py",
+  "red_exit_code": 1,
+  "red_assertion": "paired summary+receipt forgery was accepted",
+  "green_result": "1 passed",
+  "production_openrouter_attempts_before": 1,
+  "production_openrouter_attempts_after": 1,
+  "provider_calls_made": 0,
+  "mutation": {
+    "production_marker_before": 1,
+    "production_marker_after_restore": 1,
+    "mutant_marker_during": 1,
+    "mutant_marker_after_restore": 0,
+    "mutant_test_exit_code": 1,
+    "restored_test_exit_code": 0
+  },
+  "review_rounds": 3,
+  "external_review_after_fix": false,
+  "published_result_affected": false,
+  "reason": "The existing 2/30 publication was independently audited 69/69 against the immutable source; this fix makes future reconciliation self-protecting."
+}

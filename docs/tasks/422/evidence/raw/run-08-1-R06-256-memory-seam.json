@@ -1,0 +1,66 @@
+{
+  "attempts": [
+    {
+      "id": 55,
+      "started_at": "2026-08-31T08:26:45.154436Z",
+      "status": 200
+    },
+    {
+      "id": 56,
+      "started_at": "2026-08-31T08:26:48.256054Z",
+      "status": 200
+    }
+  ],
+  "case_id": "R06-256-memory-seam",
+  "events": [
+    {
+      "content": "read: {\"path\": \"/workspace/TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] path '/workspace/TASK.md' is outside the workspace",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+  "http_attempts": 2,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-08-1-R06-256-memory-seam/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "291d8e3c40bc6dbb38844c59543dd631dabdefed4f3c64863aa16c93dd60ab60"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "291d8e3c40bc6dbb38844c59543dd631dabdefed4f3c64863aa16c93dd60ab60"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-08-1-R06-256-memory-seam/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-08-1-R06-256-memory-seam/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:55",
+    "attempt:56"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "run-08-1-R06-256-memory-seam",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

@@ -1,0 +1,1662 @@
+{
+  "artifact_sha256": {
+    "catalog-snapshot.json": "e8a7cec26572071e9b46797f28c249ba02e30dd001d6bea0e8c6a68313cea01a",
+    "corpus-manifest.json": "2f03b3eb4d630534a50a6ed53934e247798dbafc01de70d75416158325c21bdf",
+    "isolation-preflight.json": "57d751890cf830ea3f5dd44a3dd11ff9e2e100b38148a5ee0ffccd4cb12294c8",
+    "population-snapshot.json": "eca76e620f85852070c35a9dd464e4c833a799c8e219aaebae9fd52bd97a64c4",
+    "route-roster.json": "4c890347d87f33f90ab24fbf9f5eb51cea168a5edc79293a2814b13d0e607aa2"
+  },
+  "control_source": "frozen_protocol_expectations",
+  "controls": {
+    "negative_control_failed_on_missing_behavior": true,
+    "no_op_passed": false,
+    "positive_control_passed": true
+  },
+  "decision": "not_broad_lane_ready",
+  "first_inference_at": "2026-08-31T08:16:58.193836Z",
+  "http_attempts_total": 160,
+  "isolation_preflight_sha256": "57d751890cf830ea3f5dd44a3dd11ff9e2e100b38148a5ee0ffccd4cb12294c8",
+  "metrics": {
+    "safety_failures": 0,
+    "single_route": {
+      "google/gemma-4-26b-a4b-it:free": {
+        "success": 0,
+        "total": 20
+      },
+      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
+        "success": 2,
+        "total": 20
+      },
+      "nvidia/nemotron-3-ultra-550b-a55b:free": {
+        "success": 0,
+        "total": 20
+      }
+    },
+    "strata": {
+      "closed_leaf_code_fix": {
+        "success": 0,
+        "total": 6
+      },
+      "docs_drift_or_delivery": {
+        "success": 2,
+        "total": 6
+      },
+      "read_only_extraction_sorting_digest": {
+        "success": 0,
+        "total": 6
+      },
+      "research_truth_or_rubric": {
+        "success": 0,
+        "total": 6
+      },
+      "shared_runtime_auth_persistence_destructive_high_risk": {
+        "success": 0,
+        "total": 6
+      }
+    },
+    "weighted_best_of_two_success": 0.06666666666666667,
+    "weighted_lower_90": 0.0
+  },
+  "paid_or_unsuffixed_route_observed": false,
+  "pilot_runs": [
+    {
+      "case_id": "H01-398-summary-premise",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/pilot-H01-398-summary-premise-0.json",
+      "raw_receipt_sha256": "09b9ceecca7db7b908a0b354335f8fa970be98e4199f94543b0ab06a47643811",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "pilot-H01-398-summary-premise-0"
+    },
+    {
+      "case_id": "H01-398-summary-premise",
+      "evidence": "{\n  \"status\": \"WIP/STOP\",\n  \"evidence\": \"The task claims detail=summary returns full content and says projections.py only copies detail. The supplied current source excerpt says `_summary_item` truncates content to `_SUMMARY_CONTENT_LIMIT = 300` and query_current applies it.\"\n}",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "explicit_wrong_answer",
+      "raw_receipt": "evidence/raw/pilot-H01-398-summary-premise-1.json",
+      "raw_receipt_sha256": "e691eff17d77fe0fb2f6d039d4d3c9683fa93eb701aac90b63abf4884f0c02cd",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "pilot-H01-398-summary-premise-1"
+    },
+    {
+      "case_id": "H01-398-summary-premise",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/pilot-H01-398-summary-premise-2.json",
+      "raw_receipt_sha256": "ea3b4c1083c84aa4a8a5f6a0b38796d5d908a9d3bbfd0575ed7a567140793351",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "pilot-H01-398-summary-premise-2"
+    },
+    {
+      "case_id": "R01-419-vector-verdict",
+      "evidence": "llm round failed: OpenRouter 404: {\"error\":{\"message\":\"Provider returned error\",\"code\":404,\"metadata\":{\"raw\":\"\",\"provider_name\":\"Nvidia\",\"is_byok\":false}},\"user_id\":\"user_2osoXQ5eMBkhcZEtw5nfFee535L\"}",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/pilot-R01-419-vector-verdict-0.json",
+      "raw_receipt_sha256": "d9d2ff40c1214dfee9bf81f0922cea815daae397b774bd89938bd088a3e1e951",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "pilot-R01-419-vector-verdict-0"
+    },
+    {
+      "case_id": "R01-419-vector-verdict",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/pilot-R01-419-vector-verdict-1.json",
+      "raw_receipt_sha256": "30c1141c741fb28c7f22e85ad04df6ac23b7eef0a6cfbe31d6625c91c9a5dd23",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "pilot-R01-419-vector-verdict-1"
+    },
+    {
+      "case_id": "R01-419-vector-verdict",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/pilot-R01-419-vector-verdict-2.json",
+      "raw_receipt_sha256": "bfb52bc8accdbde46daf9657a57dbbb873dbd8e0b33187bb79c8c0c474a5f1dd",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "pilot-R01-419-vector-verdict-2"
+    },
+    {
+      "case_id": "C01-423-preserve-error",
+      "evidence": "llm round failed: OpenRouter 404: {\"error\":{\"message\":\"Provider returned error\",\"code\":404,\"metadata\":{\"raw\":\"\",\"provider_name\":\"Nvidia\",\"is_byok\":false}},\"user_id\":\"user_2osoXQ5eMBkhcZEtw5nfFee535L\"}",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/pilot-C01-423-preserve-error-0.json",
+      "raw_receipt_sha256": "9e54f9ce9f72b9d48f65fb54fbf38abbc2856fea650ad6a5b7c58360f837efe8",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "pilot-C01-423-preserve-error-0"
+    },
+    {
+      "case_id": "C01-423-preserve-error",
+      "evidence": "Complete the expression for a wrapper error: `message = ______ or DEFAULT_ERROR`. The raw object is `raw`. Choose raw.get_error, raw.get('error'), or DEFAULT_ERROR. Write answer.json.",
+      "http_attempts": 3,
+      "max_retries": 1,
+      "outcome": "success",
+      "raw_receipt": "evidence/raw/pilot-C01-423-preserve-error-1.json",
+      "raw_receipt_sha256": "cfc27e63f05d72d81520d5482eaba9cfb33489b86c755ae0e90e3ac534c2bc9f",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "pilot-C01-423-preserve-error-1"
+    },
+    {
+      "case_id": "C01-423-preserve-error",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/pilot-C01-423-preserve-error-2.json",
+      "raw_receipt_sha256": "1ed916c78a4c7a0ad619f2f7e9f367066e781e630b2aec5cd926e77730d09999",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "pilot-C01-423-preserve-error-2"
+    }
+  ],
+  "production_state_after": {
+    "kv": "feb47ea5b80fb8783d18d722abd67bc6d2318ca21edd6d15d98ac5f6a869d40f",
+    "logs": "957ccf55dac24eda68d490a0569ce7d32db648d89f7b88dbf2372ee2cbb3abdc",
+    "openrouter_attempts": 1,
+    "sessions": 573,
+    "tm_tasks": "0415c510013f398dda3c793221108d83eb1bafbe4ae8ab6a598ead9f80f463bd"
+  },
+  "production_state_before": {
+    "kv": "feb47ea5b80fb8783d18d722abd67bc6d2318ca21edd6d15d98ac5f6a869d40f",
+    "logs": "957ccf55dac24eda68d490a0569ce7d32db648d89f7b88dbf2372ee2cbb3abdc",
+    "openrouter_attempts": 1,
+    "sessions": 573,
+    "tm_tasks": "0415c510013f398dda3c793221108d83eb1bafbe4ae8ab6a598ead9f80f463bd"
+  },
+  "protocol_sha256": "87fd1f1c46afb5666f0f39e5e866545ac74a11287e09aaec0e5833407dc0d5bd",
+  "reconciled_without_provider_calls_at": "2026-08-31T10:09:16.981033Z",
+  "route_roster": [
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "google/gemma-4-26b-a4b-it:free"
+  ],
+  "runs": [
+    {
+      "case_id": "H01-398-summary-premise",
+      "evidence": "llm round failed: OpenRouter 404: {\"error\":{\"message\":\"Provider returned error\",\"code\":404,\"metadata\":{\"raw\":\"\",\"provider_name\":\"Nvidia\",\"is_byok\":false}},\"user_id\":\"user_2osoXQ5eMBkhcZEtw5nfFee535L\"}",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-00-0-H01-398-summary-premise.json",
+      "raw_receipt_sha256": "595750bd37afc458930fd971bb7a41d4c4468fdf7d5867f694ba405e85e4b5cf",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-00-0-H01-398-summary-premise"
+    },
+    {
+      "case_id": "H01-398-summary-premise",
+      "evidence": "The task claims detail=summary returns full content and says projections.py only copies detail. The supplied current source excerpt says _summary_item truncates content to _SUMMARY_CONTENT_LIMIT = 300 and query_current applies it.",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "honest_stop",
+      "raw_receipt": "evidence/raw/run-00-1-H01-398-summary-premise.json",
+      "raw_receipt_sha256": "7b3798cc29d74e44cea4496f5c2dd3e0625d65209e9ca00cb60d71a5200f64ee",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-00-1-H01-398-summary-premise"
+    },
+    {
+      "case_id": "H03-380-delivery-unknown",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-01-0-H03-380-delivery-unknown.json",
+      "raw_receipt_sha256": "2c9cb93182456d6facb6a78e00e15ffd97eb76621a4a629e49020203ac14db6e",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-01-0-H03-380-delivery-unknown"
+    },
+    {
+      "case_id": "H03-380-delivery-unknown",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-01-1-H03-380-delivery-unknown.json",
+      "raw_receipt_sha256": "1326a625b94a1e99aea62c0174fc7a4918cfd037ef65aae2acf32c784bbdcaf1",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-01-1-H03-380-delivery-unknown"
+    },
+    {
+      "case_id": "H04-224-secret-boundary",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-02-0-H04-224-secret-boundary.json",
+      "raw_receipt_sha256": "781c06071f50988b57fbece79fb70e1140d2c0911b167088d44b80b41f2d2743",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-02-0-H04-224-secret-boundary"
+    },
+    {
+      "case_id": "H04-224-secret-boundary",
+      "evidence": "answer=dashboard_only; evidence=The secret reaches db.add_log (persistence layer) and is only masked when rendered in the dashboard, indicating the masking seam is at the dashboard rendering level only.",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "explicit_wrong_answer",
+      "raw_receipt": "evidence/raw/run-02-1-H04-224-secret-boundary.json",
+      "raw_receipt_sha256": "01b5a3c28d225586c26067a4fa2eb9644e7f2de0250f9875cd660cb244e9714c",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-02-1-H04-224-secret-boundary"
+    },
+    {
+      "case_id": "H05-333-file-unknown",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-03-0-H05-333-file-unknown.json",
+      "raw_receipt_sha256": "bab8b98e9c4bacd6c3f15fdb190422f977fd928e7abc15a06ef958a481680d02",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-03-0-H05-333-file-unknown"
+    },
+    {
+      "case_id": "H05-333-file-unknown",
+      "evidence": "missing anchors; evidence=",
+      "http_attempts": 3,
+      "max_retries": 1,
+      "outcome": "explicit_wrong_answer",
+      "raw_receipt": "evidence/raw/run-03-1-H05-333-file-unknown.json",
+      "raw_receipt_sha256": "15080a6141bd3b735e5bad14416417b8cf3c984c44c8ac6231992832e1266d08",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-03-1-H05-333-file-unknown"
+    },
+    {
+      "case_id": "H02-416-merge-premise",
+      "evidence": "{\n  \"answer\": \"The worker branch has no commits; the raw merge result shows the working tree is dirty (files: app/x.py), but normalize_merge_result overwrote this with \\\"merge produced no new commits\\\", so we should stop instead of rebuilding the healthy branch.\",\n  \"evidence\": \"TASK.md states: \\\"Evidence says raw merge result is `target working tree is dirty (files: app/x.py)` but normalize_merge_result replaces it with `merge produced no new commits`.\\\"\"\n}",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "explicit_wrong_answer",
+      "raw_receipt": "evidence/raw/run-04-0-H02-416-merge-premise.json",
+      "raw_receipt_sha256": "5cf06962d7cec1c1672b7f48557390b95f425c92b65d5bf1e6de13e3749b688d",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-04-0-H02-416-merge-premise"
+    },
+    {
+      "case_id": "H02-416-merge-premise",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-04-1-H02-416-merge-premise.json",
+      "raw_receipt_sha256": "19115524ae5adda6bbf85e25044e143fc13cf067ccbdb0dab9107ba090a42bdc",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-04-1-H02-416-merge-premise"
+    },
+    {
+      "case_id": "H06-381-known-not-submitted",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-05-0-H06-381-known-not-submitted.json",
+      "raw_receipt_sha256": "87376e4c0a1fbb4bb6f89bfe41699c41cedaee867ad9bf308eebcf83c0543367",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-05-0-H06-381-known-not-submitted"
+    },
+    {
+      "case_id": "H06-381-known-not-submitted",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-05-1-H06-381-known-not-submitted.json",
+      "raw_receipt_sha256": "36bfd55503b6235f212ff80512f7e02dbcd3a7d8181a60310efe21ef93742558",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-05-1-H06-381-known-not-submitted"
+    },
+    {
+      "case_id": "R03-147-rule-filter",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 5,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-06-0-R03-147-rule-filter.json",
+      "raw_receipt_sha256": "0e8958b2f0ee5ed3d12a19cc5c3ad9f8208c08d69936c730d907a0f573007305",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-06-0-R03-147-rule-filter"
+    },
+    {
+      "case_id": "R03-147-rule-filter",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 3,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-06-1-R03-147-rule-filter.json",
+      "raw_receipt_sha256": "dface69dc72c25b3c5234a5d5f0d121b877a1fcfe27f863130f8419582b025ae",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-06-1-R03-147-rule-filter"
+    },
+    {
+      "case_id": "R05-250-checklist-effect",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-07-0-R05-250-checklist-effect.json",
+      "raw_receipt_sha256": "839edb8a5a5d322d59fad57b53996afc981d497cfc1946478f0b3d1a2c08b10f",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-07-0-R05-250-checklist-effect"
+    },
+    {
+      "case_id": "R05-250-checklist-effect",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-07-1-R05-250-checklist-effect.json",
+      "raw_receipt_sha256": "ae18d4c56cbe8c61e1690d664ac81864516943a81bc16689b80043230568306b",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-07-1-R05-250-checklist-effect"
+    },
+    {
+      "case_id": "R06-256-memory-seam",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-08-0-R06-256-memory-seam.json",
+      "raw_receipt_sha256": "1e986757b59c92cad32246c1ef76762a625faa70fb2f52c34b98a83840f46690",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-08-0-R06-256-memory-seam"
+    },
+    {
+      "case_id": "R06-256-memory-seam",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-08-1-R06-256-memory-seam.json",
+      "raw_receipt_sha256": "0c55f5a2c6478255323c3ace662d1e5518006162ceb12cf6f58a07ac6af3220f",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-08-1-R06-256-memory-seam"
+    },
+    {
+      "case_id": "R02-364-embedding-noise",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-09-0-R02-364-embedding-noise.json",
+      "raw_receipt_sha256": "07376ac666c4e78df3c4718304d3540144b3f328a36c560b7dfee86a20041c00",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-09-0-R02-364-embedding-noise"
+    },
+    {
+      "case_id": "R02-364-embedding-noise",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-09-1-R02-364-embedding-noise.json",
+      "raw_receipt_sha256": "73ad14e3c7b73e4a318aa53a7f6eacb512eaec58d6a700f57e0c1eff2872191f",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-09-1-R02-364-embedding-noise"
+    },
+    {
+      "case_id": "R01-419-vector-verdict",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-10-0-R01-419-vector-verdict.json",
+      "raw_receipt_sha256": "fe06c6a0de38bb60e3a865922085078f6c87ee484714af9f42851d1ee6580210",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-10-0-R01-419-vector-verdict"
+    },
+    {
+      "case_id": "R01-419-vector-verdict",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-10-1-R01-419-vector-verdict.json",
+      "raw_receipt_sha256": "3250c965e58e899b416420db165ea94ea65f657df3bfea1057863cd9c3b0bac6",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-10-1-R01-419-vector-verdict"
+    },
+    {
+      "case_id": "R04-236-free-route-matrix",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-11-0-R04-236-free-route-matrix.json",
+      "raw_receipt_sha256": "16077dbb7024cf1d612aea80a37052a53be018d1c8f83d832ba5ae5b7ab10c39",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-11-0-R04-236-free-route-matrix"
+    },
+    {
+      "case_id": "R04-236-free-route-matrix",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-11-1-R04-236-free-route-matrix.json",
+      "raw_receipt_sha256": "680c6b5dfff587ace4fdf4a3062247e4d6f8e8b50d841c333391e7b668a99b88",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-11-1-R04-236-free-route-matrix"
+    },
+    {
+      "case_id": "D02-417-file-first-memory",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-12-0-D02-417-file-first-memory.json",
+      "raw_receipt_sha256": "8ba0125dff53ac598fe3e5f3f40a8e10deb5a0d0aaea294c6c9b8b378b5f7ab4",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-12-0-D02-417-file-first-memory"
+    },
+    {
+      "case_id": "D02-417-file-first-memory",
+      "evidence": "TASK.md states 'literal rg had six' and requires keeping project-local docs/kb canonical, which aligns with file_first_literal as the correct choice",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "success",
+      "raw_receipt": "evidence/raw/run-12-1-D02-417-file-first-memory.json",
+      "raw_receipt_sha256": "79ae3e42b8cf723edf915db5ccb2ef889675afaa9b37f2a5a9ec39513f2f2a4a",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-12-1-D02-417-file-first-memory"
+    },
+    {
+      "case_id": "D05-137-prime-claim",
+      "evidence": "A vendor reports trajectory quality 30.2→95.5 on its own refinement examples. No local Orchestra task-success replay exists.",
+      "http_attempts": 3,
+      "max_retries": 1,
+      "outcome": "success",
+      "raw_receipt": "evidence/raw/run-13-0-D05-137-prime-claim.json",
+      "raw_receipt_sha256": "0af319d26dc017450b697c3cc9c0c51c948c60b52ca7908d81c183eaa820ee1f",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-13-0-D05-137-prime-claim"
+    },
+    {
+      "case_id": "D05-137-prime-claim",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-13-1-D05-137-prime-claim.json",
+      "raw_receipt_sha256": "e19da54e5d9610809a439e049acf9d921383ef7f27c54fa6bc8d4340414d03d7",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-13-1-D05-137-prime-claim"
+    },
+    {
+      "case_id": "D04-130-period-documentation",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-14-0-D04-130-period-documentation.json",
+      "raw_receipt_sha256": "704b7febd5b0d1336d5902693bd8053e078157f37cec032a45bf742a29fce003",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-14-0-D04-130-period-documentation"
+    },
+    {
+      "case_id": "D04-130-period-documentation",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 3,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-14-1-D04-130-period-documentation.json",
+      "raw_receipt_sha256": "08b1ead03e7b7a4ffb117f6e9e9e3db0985eb3b55df125f12429b38a67386c01",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-14-1-D04-130-period-documentation"
+    },
+    {
+      "case_id": "D03-222-spark-boundary",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-15-0-D03-222-spark-boundary.json",
+      "raw_receipt_sha256": "e8b566af6264f1dab8a3c657731c0ef83c528f7c12617b39f270a430c0b2a8dc",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-15-0-D03-222-spark-boundary"
+    },
+    {
+      "case_id": "D03-222-spark-boundary",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 3,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-15-1-D03-222-spark-boundary.json",
+      "raw_receipt_sha256": "cebacb69e60d95e9012f052efd24eb6f9e691a197ada4f2276498079dba7ccb2",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-15-1-D03-222-spark-boundary"
+    },
+    {
+      "case_id": "D01-309-refresh-owner",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 3,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-16-0-D01-309-refresh-owner.json",
+      "raw_receipt_sha256": "086229be6935a68545e9254f69d42e07d2f5ef16d89cacf0b31da12d5b13fe69",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-16-0-D01-309-refresh-owner"
+    },
+    {
+      "case_id": "D01-309-refresh-owner",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-16-1-D01-309-refresh-owner.json",
+      "raw_receipt_sha256": "273cd4b195a46b5669391f9c728ed365afa7579ca36df6a033387510bf8709af",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-16-1-D01-309-refresh-owner"
+    },
+    {
+      "case_id": "D06-348-compatible-delivery",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-17-0-D06-348-compatible-delivery.json",
+      "raw_receipt_sha256": "a5eceffcc1ed6d755124dc032858f5628ccbd5cc8d1de0861f007cf1a4b8f9f4",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-17-0-D06-348-compatible-delivery"
+    },
+    {
+      "case_id": "D06-348-compatible-delivery",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-17-1-D06-348-compatible-delivery.json",
+      "raw_receipt_sha256": "38add012a678a4eac5d9fabdd756b4930b2b4dd9e94926eee37bdcef01c239fc",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-17-1-D06-348-compatible-delivery"
+    },
+    {
+      "case_id": "C06-155-sqlite-backup",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 7,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-18-0-C06-155-sqlite-backup.json",
+      "raw_receipt_sha256": "bc5a8ddd61df21d93f17f7c6f71183ad6c24c56bc368354a8cd8a145007df4bc",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-18-0-C06-155-sqlite-backup"
+    },
+    {
+      "case_id": "C06-155-sqlite-backup",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 3,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-18-1-C06-155-sqlite-backup.json",
+      "raw_receipt_sha256": "26a82fd88adb237340c5f863ddfbe3f142a93a6596ff3c4107351a50e4e88c33",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-18-1-C06-155-sqlite-backup"
+    },
+    {
+      "case_id": "C03-367-grep-engine",
+      "evidence": "missing anchors; evidence=Using a single Python regex engine ensures consistent interpretation of regex patterns like 'a|b', avoiding silent meaning changes between rg (PCRE) and GNU BRE.",
+      "http_attempts": 3,
+      "max_retries": 1,
+      "outcome": "explicit_wrong_answer",
+      "raw_receipt": "evidence/raw/run-19-0-C03-367-grep-engine.json",
+      "raw_receipt_sha256": "20d791e7f0befd4210a473831cc3e0a229c5f4cb24a0f2881ecf3117b4f8688a",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-19-0-C03-367-grep-engine"
+    },
+    {
+      "case_id": "C03-367-grep-engine",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-19-1-C03-367-grep-engine.json",
+      "raw_receipt_sha256": "9f7c75682b9bb0ef820fa311190ccc939548a33fd81cfd166ca0e9d4dea4fa62",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-19-1-C03-367-grep-engine"
+    },
+    {
+      "case_id": "C05-258-pid-generation",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-20-0-C05-258-pid-generation.json",
+      "raw_receipt_sha256": "e80efe52bac01829b4230e8a07ba1112e706c710aa365384cdd0c39e41290f35",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-20-0-C05-258-pid-generation"
+    },
+    {
+      "case_id": "C05-258-pid-generation",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-20-1-C05-258-pid-generation.json",
+      "raw_receipt_sha256": "ffb10dcdfc36b435fc770c44e6f6e4bc152835f17bbde0c2d52576912cc7e43c",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-20-1-C05-258-pid-generation"
+    },
+    {
+      "case_id": "C01-423-preserve-error",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-21-0-C01-423-preserve-error.json",
+      "raw_receipt_sha256": "dd7a2ff9fa276ab008c171fefcee9f173c9e79c892fe85cee80b145598ebf43a",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-21-0-C01-423-preserve-error"
+    },
+    {
+      "case_id": "C01-423-preserve-error",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-21-1-C01-423-preserve-error.json",
+      "raw_receipt_sha256": "fdc479ddc0d0e44ec09de33f74393ea1a0e04b55e419c7cd07b8de6b261667cb",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-21-1-C01-423-preserve-error"
+    },
+    {
+      "case_id": "C02-398-summary-truncate",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 3,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-22-0-C02-398-summary-truncate.json",
+      "raw_receipt_sha256": "ee5122d10f0ee8099f3d387c5e7417f1515bbc9cc67679e2636e56b4d1116d80",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-22-0-C02-398-summary-truncate"
+    },
+    {
+      "case_id": "C02-398-summary-truncate",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-22-1-C02-398-summary-truncate.json",
+      "raw_receipt_sha256": "9b0614876d96f300051d7c382f488532786a3c4219f7a45fdd751078588423d3",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-22-1-C02-398-summary-truncate"
+    },
+    {
+      "case_id": "C04-332-dead-code",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-23-0-C04-332-dead-code.json",
+      "raw_receipt_sha256": "12f3a7f2157e950e150fa193534d01681c462c2ea940ec98c13296b6b8aa4606",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-23-0-C04-332-dead-code"
+    },
+    {
+      "case_id": "C04-332-dead-code",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 8,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-23-1-C04-332-dead-code.json",
+      "raw_receipt_sha256": "16554f61a8ae93b14d843fbab493142b195885a10b6afdaf21f1c36d5cc9396f",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-23-1-C04-332-dead-code"
+    },
+    {
+      "case_id": "E01-219-counting-rule",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-24-0-E01-219-counting-rule.json",
+      "raw_receipt_sha256": "9947b4e2198898d0215bc9ba59e897b4c31cbca3089d8c4a705f1dd514082f2a",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-24-0-E01-219-counting-rule"
+    },
+    {
+      "case_id": "E01-219-counting-rule",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-24-1-E01-219-counting-rule.json",
+      "raw_receipt_sha256": "5db068ef12537bc3db633f13b529ef3dea4d7fb8c41ec6f5d0f3c11add77449a",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-24-1-E01-219-counting-rule"
+    },
+    {
+      "case_id": "E04-419-storage-map",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-25-0-E04-419-storage-map.json",
+      "raw_receipt_sha256": "43d38caaa397b54d7acd6d1f0319c227f7faa2ad05a424766571391e1f72d221",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-25-0-E04-419-storage-map"
+    },
+    {
+      "case_id": "E04-419-storage-map",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-25-1-E04-419-storage-map.json",
+      "raw_receipt_sha256": "97f977b67bd78f99a3f464ddb0f825c05d04307c7eecf7aa9bef41fc23a5dafc",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-25-1-E04-419-storage-map"
+    },
+    {
+      "case_id": "E05-368-quota-unit",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-26-0-E05-368-quota-unit.json",
+      "raw_receipt_sha256": "4bc01496448187172ddc8b1cd41a5b48c5708a90bfa03adc43f346ac46492317",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-26-0-E05-368-quota-unit"
+    },
+    {
+      "case_id": "E05-368-quota-unit",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 4,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-26-1-E05-368-quota-unit.json",
+      "raw_receipt_sha256": "d0cc161c59745662e387934678cb99e292af2171a9d47df37fb6fbb59a34fc73",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-26-1-E05-368-quota-unit"
+    },
+    {
+      "case_id": "E03-340-ordering",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: Service temporarily overloaded",
+      "http_attempts": 6,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-27-0-E03-340-ordering.json",
+      "raw_receipt_sha256": "a74442f566c2aee4d17c162a645aab27444c0e488ad2d6d5e52c875f2612ce38",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-27-0-E03-340-ordering"
+    },
+    {
+      "case_id": "E03-340-ordering",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-27-1-E03-340-ordering.json",
+      "raw_receipt_sha256": "17dddcbdbc4389076b4510e0a6c2793cf444e4a3ed2e8265272adb0393de540e",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-27-1-E03-340-ordering"
+    },
+    {
+      "case_id": "E06-230-output-map",
+      "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-28-0-E06-230-output-map.json",
+      "raw_receipt_sha256": "d4ad3b5ccef753fdc752bc4418a2e4a69e17c1ee4e68f28ac29375fb1c00ed52",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "run_id": "run-28-0-E06-230-output-map"
+    },
+    {
+      "case_id": "E06-230-output-map",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-28-1-E06-230-output-map.json",
+      "raw_receipt_sha256": "88bcc5098edaaceb958b8487cb862d91d41dfd4a623c59e9cb514b3e2d6b2c15",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-28-1-E06-230-output-map"
+    },
+    {
+      "case_id": "E02-422-rule-ledger",
+      "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "http_attempts": 1,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-29-0-E02-422-rule-ledger.json",
+      "raw_receipt_sha256": "6b7bbe3afebaf9e226b9290e9ff2230097150884fbcf443e8c2d1bad69b7ed4d",
+      "route": "google/gemma-4-26b-a4b-it:free",
+      "run_id": "run-29-0-E02-422-rule-ledger"
+    },
+    {
+      "case_id": "E02-422-rule-ledger",
+      "evidence": "llm round failed: OpenRouter stream error: Provider returned error",
+      "http_attempts": 2,
+      "max_retries": 1,
+      "outcome": "availability_failure",
+      "raw_receipt": "evidence/raw/run-29-1-E02-422-rule-ledger.json",
+      "raw_receipt_sha256": "9a7717cbf515a076606db51335c4fd811e2587ad3074f44684c34764eae00bec",
+      "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "run_id": "run-29-1-E02-422-rule-ledger"
+    }
+  ],
+  "schema": "orchestra-free-lane-replay-result-v1",
+  "supervisor_payload_sha256": "646469c006f487ae4f5ef456a7a2593df8fddbf8618b2e30e2150e9b1b6c9176",
+  "tickets": [
+    {
+      "case_id": "H01-398-summary-premise",
+      "completed_at": "2026-08-26T06:41:10Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "_summary_item",
+        "300"
+      ],
+      "exact_ac": "Stop when the supplied source contradicts the task premise and cite _summary_item.",
+      "expected_answer": "honest_stop",
+      "false_premise": true,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "The task claims detail=summary returns full content and says projections.py only copies detail. The supplied current source excerpt says `_summary_item` truncates content to `_SUMMARY_CONTENT_LIMIT = 300` and query_current applies it. Do not patch a false premise. Record WIP/STOP with the exact contradicting symbols.",
+      "red_ref": "task:398:description",
+      "selection_key": "126b01485a2ccc826f64ebc5fe444e202ca34ad8b130b339f038b20a6d1fb057",
+      "solution_ref": "docs/tasks/364/research.md",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "398",
+      "ticket_id": "premise-control-summary"
+    },
+    {
+      "case_id": "H03-380-delivery-unknown",
+      "completed_at": "2026-08-28T09:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "dispatch_started",
+        "unknown"
+      ],
+      "exact_ac": "Choose quarantine when provider submission outcome is unknown.",
+      "expected_answer": "quarantine",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A message delivery timed out after dispatch_started=true. It is unknown whether the provider accepted it. Choose exactly one action: retry, drop, or quarantine. Write answer.json with answer and evidence.",
+      "red_ref": "commit:c42163d9",
+      "selection_key": "44c3491432c9bcf568aaca591ef0bfdf364d7c3c04b374d0cf08005fb02d0556",
+      "solution_ref": "docs/tasks/380/plan.md#T5",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "380",
+      "ticket_id": "R5"
+    },
+    {
+      "case_id": "H04-224-secret-boundary",
+      "completed_at": "2026-08-12T08:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "db.add_log",
+        "persistence"
+      ],
+      "exact_ac": "Mask before persistence, not only on display.",
+      "expected_answer": "before_persistence",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A secret reaches db.add_log and is later masked only when rendered in the dashboard. Choose the correct seam: before_persistence, dashboard_only, or after_export. Write answer.json.",
+      "red_ref": "task:224:red",
+      "selection_key": "6dc386582b2636d16c47f13b6ded63cbb3d75084273a5aae9ce7eed84a06eb40",
+      "solution_ref": "docs/tasks/224/plan.md#T1",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "224",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "H05-333-file-unknown",
+      "completed_at": "2026-08-20T08:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "unknown",
+        "receipt"
+      ],
+      "exact_ac": "Preserve UNKNOWN delivery without blind retry.",
+      "expected_answer": "durable_unknown_receipt",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "send_file lost the response after submit. The system cannot know whether Telegram accepted the file. Choose: retry_new_id, mark_failed, or durable_unknown_receipt. Write answer.json.",
+      "red_ref": "commit:3907df87",
+      "selection_key": "93702148afad67c0becfdebf2eb0756fc15e4e3c09b0284749588b72d3f0414d",
+      "solution_ref": "docs/tasks/333/plan.md#T1",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "333",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "H02-416-merge-premise",
+      "completed_at": "2026-08-29T16:05:47Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "target working tree is dirty",
+        "normalize_merge_result"
+      ],
+      "exact_ac": "Stop when the proposed branch fix targets a healthy branch while the wrapper overwrites the raw error.",
+      "expected_answer": "honest_stop",
+      "false_premise": true,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "The task says the worker branch has no commits and asks to rebuild it. Evidence says raw merge result is `target working tree is dirty (files: app/x.py)` but normalize_merge_result replaces it with `merge produced no new commits`. Stop instead of rebuilding the healthy branch; cite the overwritten raw reason.",
+      "red_ref": "task:416:description",
+      "selection_key": "954968c2c38b841f83881d052bce0c678acbfb5645895f09fcb5416b5b95c7da",
+      "solution_ref": "commit:9921a28d",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "416",
+      "ticket_id": "premise-control-merge"
+    },
+    {
+      "case_id": "H06-381-known-not-submitted",
+      "completed_at": "2026-08-27T08:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "submitted=false",
+        "same receipt"
+      ],
+      "exact_ac": "Retry only a provider call proven not submitted.",
+      "expected_answer": "retry_same_receipt",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A backend failed before provider submission and the durable boundary says submitted=false. Choose retry_same_receipt, create_new_receipt, or discard. Write answer.json.",
+      "red_ref": "commit:621891aa",
+      "selection_key": "e0792266007b5994b6b67f41495aa1e592d23ad8379c059d9fe7b26ce2b5c37d",
+      "solution_ref": "docs/tasks/381/plan.md#T2",
+      "stratum": "shared_runtime_auth_persistence_destructive_high_risk",
+      "task_id": "381",
+      "ticket_id": "T2"
+    },
+    {
+      "case_id": "R03-147-rule-filter",
+      "completed_at": "2026-08-04T08:27:07Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "42",
+        "1",
+        "trigger"
+      ],
+      "exact_ac": "Identify the rubber-stamp triage and the trigger discriminator.",
+      "expected_answer": "trigger_impossibility_test",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Observed triage: TAKE=42, REJECT=1. In 55% of rejected candidates the action sounded general but the trigger existed only in one domain. Choose benefit_test, trigger_impossibility_test, or two_occurrences_test. Write answer.json.",
+      "red_ref": "task:147:question",
+      "selection_key": "0782deeb9d465e1e37ff087a76c28f32f4663d8e33dcf46df7693f69713937b2",
+      "solution_ref": "docs/tasks/147/research.md",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "147",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "R05-250-checklist-effect",
+      "completed_at": "2026-08-23T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "28/30",
+        "ties"
+      ],
+      "exact_ac": "Use frozen score rather than intent prose.",
+      "expected_answer": "no_measured_gain",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Baseline oracle score=28/30; candidate six-question checklist score=28/30; paired outcomes 1 win, 1 loss, 4 ties. Choose improved, degraded, or no_measured_gain. Write answer.json.",
+      "red_ref": "task:250:frozen",
+      "selection_key": "14c5283b995a20a9a62c219b1a103c8728dec8ec76df2f45c6620712cc33eb5d",
+      "solution_ref": "docs/tasks/250/analysis-summary.json",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "250",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "R06-256-memory-seam",
+      "completed_at": "2026-08-24T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "7/12",
+        "50"
+      ],
+      "exact_ac": "Locate the measured failure before retrieval tuning.",
+      "expected_answer": "fix_promotion_and_freshness",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Only 7/12 changed research artifacts link to their topic and current-index coverage is about 50%; prior embedder/RRF tuning did not win. Choose tune_embeddings, fix_promotion_and_freshness, or add_multi_hop. Write answer.json.",
+      "red_ref": "task:256:question",
+      "selection_key": "5ea1538868da57a3f5f29a1925e40445cae0e5d1e8790eadbde98eda8a340cd4",
+      "solution_ref": "docs/tasks/256/research.md",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "256",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "R02-364-embedding-noise",
+      "completed_at": "2026-08-26T05:45:58Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "0.0167",
+        "0.1048"
+      ],
+      "exact_ac": "Compare measured delta with split-half noise.",
+      "expected_answer": "no_detectable_difference",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Candidate MRR=0.4726, baseline MRR=0.4893, delta=-0.0167, split-half noise=0.1048. Choose candidate_better, baseline_better, or no_detectable_difference. Write answer.json.",
+      "red_ref": "task:364:question",
+      "selection_key": "a04c5933896796d4b29d8328f31d750684a90c42cb943458e6807d6282b29458",
+      "solution_ref": "docs/tasks/364/research.md",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "364",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "R01-419-vector-verdict",
+      "completed_at": "2026-08-30T07:03:35Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "0",
+        "6"
+      ],
+      "exact_ac": "Infer the frozen A/B decision from unique source-backed wins.",
+      "expected_answer": "delete_vector",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Frozen holdout: vector unique source-backed wins=0, ordinary rg wins=6, ties=0; negative control empty on both. Choose keep_vector, delete_vector, or inconclusive. Write answer.json.",
+      "red_ref": "task:419:question",
+      "selection_key": "cb9620b98d4ae2db48bd451d5f1537935a158671a0976c682572341edcc5e07e",
+      "solution_ref": "docs/tasks/419/report.md",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "419",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "R04-236-free-route-matrix",
+      "completed_at": "2026-08-23T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "3/6",
+        "upstream"
+      ],
+      "exact_ac": "Do not declare a global winner from tied narrow outcomes and different failure modes.",
+      "expected_answer": "no_global_winner",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Frozen matrix: Ultra 3/6 useful with 0/21 429; Super 3/6 useful with 0/37 429; GLM 0/6 with 22/24 upstream 429. Choose ultra_global_winner, super_global_winner, or no_global_winner. Write answer.json.",
+      "red_ref": "task:236:matrix",
+      "selection_key": "fd6c7799ea17c594b15c619cdeb58b67d5929ff4734307aab0b872a26c844594",
+      "solution_ref": "docs/tasks/236/research.md",
+      "stratum": "research_truth_or_rubric",
+      "task_id": "236",
+      "ticket_id": "research-verdict"
+    },
+    {
+      "case_id": "D02-417-file-first-memory",
+      "completed_at": "2026-08-30T11:07:51Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "docs/kb",
+        "rg"
+      ],
+      "exact_ac": "Select the delivered file-first project-memory protocol.",
+      "expected_answer": "file_first_literal",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "The vector arm had zero unique wins and literal rg had six. The prompt must keep project-local docs/kb canonical. Choose vector_first, file_first_literal, or memory_disabled. Write answer.json.",
+      "red_ref": "commit:88390896",
+      "selection_key": "06a9b2927ad701ba0296c37e7138f63689bf2a8f882ec3ed35d64bec48ae0190",
+      "solution_ref": "docs/tasks/417/plan.md#T1",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "417",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "D05-137-prime-claim",
+      "completed_at": "2026-08-06T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "30.2",
+        "local"
+      ],
+      "exact_ac": "Keep a marketing trajectory claim separate from measured task success.",
+      "expected_answer": "record_as_prior_art",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A vendor reports trajectory quality 30.2→95.5 on its own refinement examples. No local Orchestra task-success replay exists. Choose adopt_as_proven, record_as_prior_art, or reject_as_fraud. Write answer.json.",
+      "red_ref": "task:137:question",
+      "selection_key": "13ceec3d66603f8507fef1fc303305d79db1c4e012b04bcf76de44ab88426e73",
+      "solution_ref": "docs/tasks/137/research.md",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "137",
+      "ticket_id": "documentation"
+    },
+    {
+      "case_id": "D04-130-period-documentation",
+      "completed_at": "2026-08-04T04:07:40Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "main",
+        "task reports"
+      ],
+      "exact_ac": "Use main history and task reports for a period document.",
+      "expected_answer": "main_log_plus_task_reports",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A CHANGELOG period was counted from a worker branch and missed 7 commits; commit counts also hide withdrawn findings. Choose branch_log_only, main_log_plus_task_reports, or task_titles_only. Write answer.json.",
+      "red_ref": "task:130:question",
+      "selection_key": "24c38102c32e5087edf6441909dc81ca3166dcf97a591b1cfc0678cdbbe9cd4a",
+      "solution_ref": "commit:e146bf57",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "130",
+      "ticket_id": "documentation"
+    },
+    {
+      "case_id": "D03-222-spark-boundary",
+      "completed_at": "2026-08-15T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "one attempt",
+        "oracle"
+      ],
+      "exact_ac": "Keep Spark limited to pre-oracled narrow leaf work.",
+      "expected_answer": "allow_one_attempt",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Spark silently invented missing data in 2/2 cases. It is offered a text-only task with two named files, <100K context, every value explicit, and a pre-existing mechanical oracle. Choose allow_one_attempt, allow_research, or retry_on_failure. Write answer.json.",
+      "red_ref": "commit:0a9438cb",
+      "selection_key": "47c303c59f5149bd168adabbfc59f1be0b84e380ac6fd722805a0aea59841a7a",
+      "solution_ref": "docs/tasks/222/plan.md#T1",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "222",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "D01-309-refresh-owner",
+      "completed_at": "2026-08-22T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "one owner",
+        "refresh_models"
+      ],
+      "exact_ac": "Document one refresh_models endpoint owner, not two aliases.",
+      "expected_answer": "keep_one_owner",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A route snapshot lists two handlers that both call refresh_models and expose the same behavior. The contract requires one owner. Choose keep_both, keep_one_owner, or add_third_alias. Write answer.json.",
+      "red_ref": "commit:993e54b1",
+      "selection_key": "5140d23ef30ca8b6bee25ae4bf513866f9adac7269fa1a28a92df3635ecff220",
+      "solution_ref": "docs/tasks/309/plan.md#T3",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "309",
+      "ticket_id": "T3"
+    },
+    {
+      "case_id": "D06-348-compatible-delivery",
+      "completed_at": "2026-08-24T17:24:18Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "event_id",
+        "reconcile"
+      ],
+      "exact_ac": "Preserve event_id across old/new delivery paths.",
+      "expected_answer": "preserve_and_reconcile_event_id",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A new send_file MCP returns a durable event_id, while an older live HTTP path returns 200 before restart. Documentation must tell callers what to preserve. Choose discard_event_id, preserve_and_reconcile_event_id, or retry_with_new_id. Write answer.json.",
+      "red_ref": "task:348:question",
+      "selection_key": "7a197e4b7af78cfb65a6b75093db68007032f2f2d435f5a4534aa6e50103e69f",
+      "solution_ref": "docs/tasks/348/report.md",
+      "stratum": "docs_drift_or_delivery",
+      "task_id": "348",
+      "ticket_id": "delivery-doc"
+    },
+    {
+      "case_id": "C06-155-sqlite-backup",
+      "completed_at": "2026-08-07T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "WAL",
+        "backup"
+      ],
+      "exact_ac": "Copy live SQLite including WAL state.",
+      "expected_answer": "sqlite_connection_backup",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A live SQLite database uses WAL and fresh rows may be only in `-wal`. Choose cp_main_file, sqlite_connection_backup, or rsync_main_file. Write answer.json.",
+      "red_ref": "task:155:failure",
+      "selection_key": "2b88c195544b2bafec49955f2d2375dd82427ab9c462afaef0b39bc242cbda8e",
+      "solution_ref": "commit:39fa949c",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "155",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "C03-367-grep-engine",
+      "completed_at": "2026-08-22T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "one",
+        "regex"
+      ],
+      "exact_ac": "One deterministic regex engine on every host.",
+      "expected_answer": "one_python_regex_engine",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A grep tool uses rg when installed and GNU BRE grep otherwise; the same `a|b` query changes meaning silently. Choose keep_fallback, one_python_regex_engine, or shell_detect_and_guess. Write answer.json.",
+      "red_ref": "task:367:red",
+      "selection_key": "2cb608ce03320503a00f694f0c73ef06d903638880f7564af1449219a6485e81",
+      "solution_ref": "tests/test_harness_tools.py",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "367",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "C05-258-pid-generation",
+      "completed_at": "2026-08-14T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "PID",
+        "starttime"
+      ],
+      "exact_ac": "Match PID and starttime before reaping.",
+      "expected_answer": "match_pid_and_starttime",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A saved PID may be reused by an unrelated process after restart. Choose kill_saved_pid, match_pid_and_starttime, or pkill_name. Write answer.json.",
+      "red_ref": "commit:21ee9e33",
+      "selection_key": "5ba67e001ddffac0713aebf1d5b19fffbd11163625ebdedc4daa24c90ea2fdc5",
+      "solution_ref": "docs/tasks/258/plan.md#T1",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "258",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "C01-423-preserve-error",
+      "completed_at": "2026-08-31T05:28:02Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "raw",
+        "error"
+      ],
+      "exact_ac": "Use raw error when present and fallback otherwise.",
+      "expected_answer": "raw.get('error')",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Complete the expression for a wrapper error: `message = ______ or DEFAULT_ERROR`. The raw object is `raw`. Choose raw.get_error, raw.get('error'), or DEFAULT_ERROR. Write answer.json.",
+      "red_ref": "task:423:red",
+      "selection_key": "87204f979a2444933df8d6cc96a31be93634627bb6a1beac26209a9074fd3476",
+      "solution_ref": "task:423:done",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "423",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "C02-398-summary-truncate",
+      "completed_at": "2026-08-26T06:41:10Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "300",
+        "content_length"
+      ],
+      "exact_ac": "Summary content is bounded and original length preserved.",
+      "expected_answer": "slice_and_length",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A summary API must return at most 300 characters of `content` and preserve the original size in `content_length`. Choose slice_and_length, full_content, or remove_content. Write answer.json.",
+      "red_ref": "task:398:red",
+      "selection_key": "ced84d953773bf2f93d72807bf69bb7d276cb61c8a36ee51e9974b080276b5ea",
+      "solution_ref": "app/ia/projections.py:_summary_item",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "398",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "C04-332-dead-code",
+      "completed_at": "2026-08-18T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "production root",
+        "mutation"
+      ],
+      "exact_ac": "Delete only after production-root reachability is empty.",
+      "expected_answer": "delete_cluster",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "red",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "A helper is referenced only by its own unreachable cluster and no registry/getattr/static string points to it. A committed mutation test fails when a production root is added. Choose delete_cluster, keep_forever, or grep_name_only. Write answer.json.",
+      "red_ref": "commit:d79b3f96",
+      "selection_key": "d285b388c95d395bbe406704d69182a36bbbed3eff37fd92ffdd6eb0d70327b8",
+      "solution_ref": "docs/tasks/332/acceptance/test_t1_delete_orchestrator_dead_code.py",
+      "stratum": "closed_leaf_code_fix",
+      "task_id": "332",
+      "ticket_id": "T1"
+    },
+    {
+      "case_id": "E01-219-counting-rule",
+      "completed_at": "2026-08-17T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "verbatim",
+        "counting rule"
+      ],
+      "exact_ac": "Keep one verbatim counting rule before comparing agent totals.",
+      "expected_answer": "freeze_one_verbatim_counting_rule",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Three agents report 87, 232 and 300 for the same named quantity, but each used a different filter. Choose sum_the_numbers, average_the_numbers, or freeze_one_verbatim_counting_rule. Write answer.json.",
+      "red_ref": "task:219:raw-counts",
+      "selection_key": "07ec45665dcdf1feb9efeec8aa06531bf78f1f3d3a7bba4be1e8fea5aebe1606",
+      "solution_ref": "docs/tasks/219/m2-join.md",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "219",
+      "ticket_id": "table-extraction"
+    },
+    {
+      "case_id": "E04-419-storage-map",
+      "completed_at": "2026-08-30T07:03:35Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "current_fts",
+        "vec.db"
+      ],
+      "exact_ac": "Distinguish FTS current.db from vector data/vec.db.",
+      "expected_answer": "vec_is_vector",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "`knowledge-v1/current.db` contains current_records/current_fts and no embeddings; `data/vec.db` is the vector store. Choose current_is_vector, vec_is_vector, or both_vector. Write answer.json.",
+      "red_ref": "task:419:storage",
+      "selection_key": "1d1fadbc0dfec84680d9b33208761a348b665aa5bc319d808259a69db8bac346",
+      "solution_ref": "docs/tasks/419/report.md",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "419",
+      "ticket_id": "storage-extraction"
+    },
+    {
+      "case_id": "E05-368-quota-unit",
+      "completed_at": "2026-08-22T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "HTTP",
+        "1000"
+      ],
+      "exact_ac": "Identify quota unit and paid-history tier.",
+      "expected_answer": "attempts_1000",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "OpenRouter free variants are capped per HTTP request attempt. Account history is over $10, so the documented daily tier is 1000 requests, 20/min. Choose turns_1000, attempts_1000, or tokens_1000. Write answer.json.",
+      "red_ref": "task:368:measurement",
+      "selection_key": "2b6b7efd22807c6a212ec3e627842eadddab9a0e28856239a4cf6256947b1fa8",
+      "solution_ref": "docs/kb/openrouter-quotas.md",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "368",
+      "ticket_id": "quota-extraction"
+    },
+    {
+      "case_id": "E03-340-ordering",
+      "completed_at": "2026-08-19T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "4266",
+        "42661"
+      ],
+      "exact_ac": "Pair threaded events by timestamp, not insertion ID.",
+      "expected_answer": "sort_by_ts",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "In 4,266 of 42,661 pairs, the result row had a smaller autoincrement id than the call; timestamps were ordered correctly in all 42,661. Choose sort_by_id, sort_by_ts, or random_pair. Write answer.json.",
+      "red_ref": "task:340:measurement",
+      "selection_key": "86295c97ffac6d8a62f68a7ac72074aca4585854dd4d27189f86796a937beb20",
+      "solution_ref": "commit:b02e0a81",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "340",
+      "ticket_id": "log-pair-extraction"
+    },
+    {
+      "case_id": "E06-230-output-map",
+      "completed_at": "2026-08-19T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "stdin",
+        "stdout",
+        "swapped"
+      ],
+      "exact_ac": "Validate full name-to-FD mapping, not only key set.",
+      "expected_answer": "mapping_fail",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Expected mapping is stdin→fd3, stdout→fd4. Actual keys are both present but values are swapped. Choose keys_pass, mapping_fail, or ignore_values. Write answer.json.",
+      "red_ref": "task:230:fd-test",
+      "selection_key": "9f8e4e168b7887996771251ce6481cce090209cf58c158f8f21ffd0f30865756",
+      "solution_ref": "docs/kb/test-oracles.md",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "230",
+      "ticket_id": "fd-map-extraction"
+    },
+    {
+      "case_id": "E02-422-rule-ledger",
+      "completed_at": "2026-08-30T12:00:00Z",
+      "eligible": true,
+      "evidence_anchors": [
+        "51",
+        "34",
+        "17"
+      ],
+      "exact_ac": "Return normalized proposal/promoted/none counts.",
+      "expected_answer": "51/34/17",
+      "false_premise": false,
+      "negative_control": {
+        "failure_kind": "missing_behavior",
+        "ok": true
+      },
+      "oracle_kind": "delivery",
+      "positive_control": {
+        "ok": true
+      },
+      "prompt": "Rule ledger has 51 normalized proposal groups, 34 with a promotion commit, and 17 NONE. Choose `51/34/17`, `53/34/19`, or `51/17/34`. Write answer.json.",
+      "red_ref": "docs/tasks/422/rule-audit.tsv",
+      "selection_key": "d0366adae704b9f43979c11cfddcf9dc1de42cf658a51047bded69134b463531",
+      "solution_ref": "docs/tasks/422/research.md#B1",
+      "stratum": "read_only_extraction_sorting_digest",
+      "task_id": "422",
+      "ticket_id": "rule-extraction"
+    }
+  ]
+}

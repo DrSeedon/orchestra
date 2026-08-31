@@ -1,0 +1,52 @@
+{
+  "attempts": [
+    {
+      "id": 5,
+      "started_at": "2026-08-31T08:17:20.340326Z",
+      "status": 404
+    }
+  ],
+  "case_id": "R01-419-vector-verdict",
+  "events": [
+    {
+      "content": "llm round failed: OpenRouter 404: {\"error\":{\"message\":\"Provider returned error\",\"code\":404,\"metadata\":{\"raw\":\"\",\"provider_name\":\"Nvidia\",\"is_byok\":false}},\"user_id\":\"user_2osoXQ5eMBkhcZEtw5nfFee535L\"}",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter 404: {\"error\":{\"message\":\"Provider returned error\",\"code\":404,\"metadata\":{\"raw\":\"\",\"provider_name\":\"Nvidia\",\"is_byok\":false}},\"user_id\":\"user_2osoXQ5eMBkhcZEtw5nfFee535L\"}",
+  "http_attempts": 1,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/pilot-R01-419-vector-verdict-0/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "35e85dbf8dd9371e5592a5fb260cf878c6f7608b153bd4d0ef56ffde65c7d4a8"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "35e85dbf8dd9371e5592a5fb260cf878c6f7608b153bd4d0ef56ffde65c7d4a8"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/pilot-R01-419-vector-verdict-0/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/pilot-R01-419-vector-verdict-0/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:5"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "route": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "run_id": "pilot-R01-419-vector-verdict-0",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

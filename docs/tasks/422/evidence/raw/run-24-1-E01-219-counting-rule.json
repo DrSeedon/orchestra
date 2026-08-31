@@ -1,0 +1,98 @@
+{
+  "attempts": [
+    {
+      "id": 136,
+      "started_at": "2026-08-31T08:47:01.858944Z",
+      "status": 200
+    },
+    {
+      "id": 137,
+      "started_at": "2026-08-31T08:47:04.959971Z",
+      "status": 200
+    },
+    {
+      "id": 138,
+      "started_at": "2026-08-31T08:47:08.061108Z",
+      "status": 200
+    },
+    {
+      "id": 139,
+      "started_at": "2026-08-31T08:47:14.607261Z",
+      "status": 200
+    }
+  ],
+  "case_id": "E01-219-counting-rule",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tThree agents report 87, 232 and 300 for the same named quantity, but each used a different filter. Choose sum_the_numbers, average_the_numbers, or freeze_one_verbatim_counting_rule. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "glob: {\"pattern\": \"**/*\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "TASK.md\ncounter.db\nsession.db",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "read: {\"path\": \"counter.db\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "[read error] offset 0 past EOF (file has 0 lines)",
+      "type": "tool_result"
+    },
+    {
+      "content": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter stream error: Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+  "http_attempts": 4,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-24-1-E01-219-counting-rule/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "64acb76527231ec425cb9fa85c9c92becb40935f9dd35846606fba5070e50d28"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "64acb76527231ec425cb9fa85c9c92becb40935f9dd35846606fba5070e50d28"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-24-1-E01-219-counting-rule/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-24-1-E01-219-counting-rule/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:136",
+    "attempt:137",
+    "attempt:138",
+    "attempt:139"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-24-1-E01-219-counting-rule",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

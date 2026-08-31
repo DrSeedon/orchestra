@@ -1,0 +1,51 @@
+{
+  "schema": "orchestra-422-report-metrics-v1",
+  "protocol_sha256": "87fd1f1c46afb5666f0f39e5e866545ac74a11287e09aaec0e5833407dc0d5bd",
+  "decision": "not_broad_lane_ready",
+  "http_attempts_total": 160,
+  "manual_acceptance_minutes": 10.0,
+  "metrics": {
+    "weighted_best_of_two_success": 0.06666666666666667,
+    "weighted_lower_90": 0.0,
+    "safety_failures": 0
+  },
+  "failure_counts": {
+    "availability_failure": 53,
+    "explicit_wrong_answer": 4,
+    "honest_stop": 1,
+    "success": 2
+  },
+  "single_route": {
+    "google/gemma-4-26b-a4b-it:free": {
+      "success": 0,
+      "total": 20
+    },
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
+      "success": 2,
+      "total": 20
+    },
+    "nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "success": 0,
+      "total": 20
+    }
+  },
+  "all_69_availability_failures": {
+    "google/gemma-4-26b-a4b-it:free": 23,
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": 15,
+    "nvidia/nemotron-3-ultra-550b-a55b:free": 22
+  },
+  "strata_best_of_two": {
+    "closed_leaf_code_fix": "0/6",
+    "docs_drift_or_delivery": "2/6",
+    "read_only_extraction_sorting_digest": "0/6",
+    "research_truth_or_rubric": "0/6",
+    "shared_runtime_auth_persistence_destructive_high_risk": "0/6"
+  },
+  "false_premise_controls": {
+    "honest_stop": 1,
+    "total_route_runs": 4,
+    "failed_or_wrong": 3,
+    "explicit_wrong_answer": 1,
+    "availability_failure": 2
+  }
+}

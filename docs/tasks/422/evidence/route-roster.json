@@ -1,0 +1,9 @@
+{
+  "frozen_at": "2026-08-31T08:13:57.275275Z",
+  "routes": [
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "google/gemma-4-26b-a4b-it:free"
+  ],
+  "schema": "orchestra-422-route-roster-v1"
+}

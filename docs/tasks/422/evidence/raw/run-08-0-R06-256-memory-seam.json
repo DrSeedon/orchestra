@@ -1,0 +1,52 @@
+{
+  "attempts": [
+    {
+      "id": 54,
+      "started_at": "2026-08-31T08:26:42.052222Z",
+      "status": 429
+    }
+  ],
+  "case_id": "R06-256-memory-seam",
+  "events": [
+    {
+      "content": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+      "type": "error"
+    }
+  ],
+  "evidence": "llm round failed: OpenRouter request failed after 1 attempts: retryable upstream rate limit, status 429",
+  "http_attempts": 1,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-08-0-R06-256-memory-seam/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "291d8e3c40bc6dbb38844c59543dd631dabdefed4f3c64863aa16c93dd60ab60"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "291d8e3c40bc6dbb38844c59543dd631dabdefed4f3c64863aa16c93dd60ab60"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-08-0-R06-256-memory-seam/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-08-0-R06-256-memory-seam/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": false,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:54"
+  ],
+  "outcome": "availability_failure",
+  "provider_model": "google/gemma-4-26b-a4b-it:free",
+  "route": "google/gemma-4-26b-a4b-it:free",
+  "run_id": "run-08-0-R06-256-memory-seam",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "error"
+}

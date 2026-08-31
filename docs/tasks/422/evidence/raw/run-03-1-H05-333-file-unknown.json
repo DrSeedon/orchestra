@@ -1,0 +1,88 @@
+{
+  "attempts": [
+    {
+      "id": 32,
+      "started_at": "2026-08-31T08:23:07.834064Z",
+      "status": 200
+    },
+    {
+      "id": 33,
+      "started_at": "2026-08-31T08:23:10.936203Z",
+      "status": 200
+    },
+    {
+      "id": 34,
+      "started_at": "2026-08-31T08:23:24.843876Z",
+      "status": 200
+    }
+  ],
+  "case_id": "H05-333-file-unknown",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tsend_file lost the response after submit. The system cannot know whether Telegram accepted the file. Choose: retry_new_id, mark_failed, or durable_unknown_receipt. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"path\": \"answer.json\", \"content\": \"{\\n  \\\"answer\\\": \\\"durable_unknown_receipt\\\"\\n}\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (41 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "Task completed: answer.json written with \"durable_unknown_receipt\".",
+      "type": "text"
+    }
+  ],
+  "evidence": "missing anchors; evidence=",
+  "http_attempts": 3,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-03-1-H05-333-file-unknown/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "8e1d361a99af4815214554c883a6bea5a20e158ca353976d931e5f800492c8fd"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "8e1d361a99af4815214554c883a6bea5a20e158ca353976d931e5f800492c8fd"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-03-1-H05-333-file-unknown/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-03-1-H05-333-file-unknown/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": true,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:32",
+    "attempt:33",
+    "attempt:34"
+  ],
+  "outcome": "explicit_wrong_answer",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-03-1-H05-333-file-unknown",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "end_turn"
+}

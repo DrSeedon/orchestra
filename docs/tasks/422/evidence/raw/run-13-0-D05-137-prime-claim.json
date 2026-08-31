@@ -1,0 +1,88 @@
+{
+  "attempts": [
+    {
+      "id": 76,
+      "started_at": "2026-08-31T08:30:30.544731Z",
+      "status": 200
+    },
+    {
+      "id": 77,
+      "started_at": "2026-08-31T08:30:38.925849Z",
+      "status": 200
+    },
+    {
+      "id": 78,
+      "started_at": "2026-08-31T08:30:50.576208Z",
+      "status": 200
+    }
+  ],
+  "case_id": "D05-137-prime-claim",
+  "events": [
+    {
+      "content": "read: {\"limit\": 1000, \"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tA vendor reports trajectory quality 30.2→95.5 on its own refinement examples. No local Orchestra task-success replay exists. Choose adopt_as_proven, record_as_prior_art, or reject_as_fraud. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"content\": \"{\\\"answer\\\": \\\"record_as_prior_art\\\", \\\"evidence\\\": \\\"A vendor reports trajectory quality 30.2→95.5 on its own refinement examples. No local Orchestra task-success replay exists.\\\"}\", \"path\": \"answer.json\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (173 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "Task completed successfully. answer.json has been written with the correct response based on the requirements in TASK.md. No further actions needed.",
+      "type": "text"
+    }
+  ],
+  "evidence": "A vendor reports trajectory quality 30.2→95.5 on its own refinement examples. No local Orchestra task-success replay exists.",
+  "http_attempts": 3,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-13-0-D05-137-prime-claim/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "4f937c4998a6c0c05114c318abb590605651bb8a5b08c3ef2fbc886c759aeed4"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "4f937c4998a6c0c05114c318abb590605651bb8a5b08c3ef2fbc886c759aeed4"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-13-0-D05-137-prime-claim/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-13-0-D05-137-prime-claim/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": true,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:76",
+    "attempt:77",
+    "attempt:78"
+  ],
+  "outcome": "success",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-13-0-D05-137-prime-claim",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "end_turn"
+}

@@ -1,0 +1,102 @@
+{
+  "attempts": [
+    {
+      "id": 72,
+      "started_at": "2026-08-31T08:27:49.395479Z",
+      "status": 200
+    },
+    {
+      "id": 73,
+      "started_at": "2026-08-31T08:27:56.128180Z",
+      "status": 200
+    },
+    {
+      "id": 74,
+      "started_at": "2026-08-31T08:28:14.364201Z",
+      "status": 200
+    },
+    {
+      "id": 75,
+      "started_at": "2026-08-31T08:30:25.327465Z",
+      "status": 200
+    }
+  ],
+  "case_id": "D02-417-file-first-memory",
+  "events": [
+    {
+      "content": "read: {\"path\": \"TASK.md\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "1\tThe vector arm had zero unique wins and literal rg had six. The prompt must keep project-local docs/kb canonical. Choose vector_first, file_first_literal, or memory_disabled. Write answer.json.",
+      "type": "tool_result"
+    },
+    {
+      "content": "write: {\"content\": \"{\\\"answer\\\": \\\"file_first_literal\\\", \\\"evidence\\\": \\\"TASK.md states 'literal rg had six' and requires keeping project-local docs/kb canonical, which aligns with file_first_literal as the correct choice\\\"}\", \"path\": \"answer.json\"}",
+      "type": "tool_use"
+    },
+    {
+      "content": "add answer.json",
+      "type": "file_change"
+    },
+    {
+      "content": "wrote answer.json (196 chars)",
+      "type": "tool_result"
+    },
+    {
+      "content": "[round guard] 10 tool rounds remain THIS TURN — wrap up and report your findings now.",
+      "type": "warning"
+    },
+    {
+      "content": "write: {\"content\": \"{\\\"answer\\\": \\\"file<unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><",
+      "type": "tool_use"
+    },
+    {
+      "content": "[write error] [Errno 21] Is a directory: '/var/tmp/orchestra-422-replay/.harness-tmp-cjhjvnj_' -> '/var/tmp/orchestra-422-replay/run-12-1-D02-417-file-first-memory'",
+      "type": "tool_result"
+    },
+    {
+      "content": "<unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk>: 0.5\n2. 0.5\n3. 4.0\n4. 200\n<unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk><unk>: 24\n44\n30",
+      "type": "text"
+    }
+  ],
+  "evidence": "TASK.md states 'literal rg had six' and requires keeping project-local docs/kb canonical, which aligns with file_first_literal as the correct choice",
+  "http_attempts": 4,
+  "isolation": {
+    "alternates": [],
+    "counter_db": "/var/tmp/orchestra-422-replay/run-12-1-D02-417-file-first-memory/counter.db",
+    "oracle_hashes_after": {
+      "TASK.md": "f59f8f910e3c267005fc91e91a27679c1aaef2e3c2f5cdd60e46ddf796389909"
+    },
+    "oracle_hashes_before": {
+      "TASK.md": "f59f8f910e3c267005fc91e91a27679c1aaef2e3c2f5cdd60e46ddf796389909"
+    },
+    "remotes": [],
+    "scratch_db": "/var/tmp/orchestra-422-replay/run-12-1-D02-417-file-first-memory/session.db",
+    "session_store": "/var/tmp/orchestra-422-replay/run-12-1-D02-417-file-first-memory/session-store",
+    "solution_after": false,
+    "solution_before": false,
+    "tool_environment": {
+      "HOME": "/workspace",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/venv/bin:/usr/local/bin:/usr/bin:/bin",
+      "PWD": "/workspace",
+      "PYTHONPATH": "/workspace"
+    }
+  },
+  "loop_ok": true,
+  "max_retries": 1,
+  "openrouter_response_ids": [
+    "attempt:72",
+    "attempt:73",
+    "attempt:74",
+    "attempt:75"
+  ],
+  "outcome": "success",
+  "provider_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "run_id": "run-12-1-D02-417-file-first-memory",
+  "schema": "orchestra-422-raw-run-v1",
+  "stop_reason": "end_turn"
+}
