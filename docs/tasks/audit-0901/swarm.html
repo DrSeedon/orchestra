@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; }
+    img { max-width: 100%; }
+    [hidden] { display: none !important; }
+  </style>
+  <title>Разбор роя</title>
+</head>
+<body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700&family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+:root {
+  --ground: #eceef2;
+  --surface: #ffffff;
+  --surface-2: #f5f6f9;
+  --ink: #171a21;
+  --ink-2: #4a5263;
+  --ink-3: #79808f;
+  --line: #d4d9e2;
+  --line-soft: #e6e9ef;
+  --accent: #2f4858;
+  --on-accent: #ffffff;
+  --good: #1c6b4c;
+  --good-bg: #dcefe5;
+  --bad: #a3231b;
+  --bad-bg: #f9e4e2;
+  --open: #8f5600;
+  --open-bg: #f8ecd8;
+  --shadow: 0 1px 2px rgba(23,26,33,.06), 0 4px 14px rgba(23,26,33,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0d1016;
+    --surface: #151a22;
+    --surface-2: #1b212b;
+    --ink: #e6eaf1;
+    --ink-2: #a5aebd;
+    --ink-3: #767f8e;
+    --line: #29313d;
+    --line-soft: #212832;
+    --accent: #7fb0c6;
+    --on-accent: #0a1116;
+    --good: #62c39b;
+    --good-bg: #12291f;
+    --bad: #ee8279;
+    --bad-bg: #33201e;
+    --open: #dfa551;
+    --open-bg: #2f2510;
+    --shadow: 0 1px 2px rgba(0,0,0,.32), 0 4px 16px rgba(0,0,0,.26);
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0d1016;
+  --surface: #151a22;
+  --surface-2: #1b212b;
+  --ink: #e6eaf1;
+  --ink-2: #a5aebd;
+  --ink-3: #767f8e;
+  --line: #29313d;
+  --line-soft: #212832;
+  --accent: #7fb0c6;
+  --on-accent: #0a1116;
+  --good: #62c39b;
+  --good-bg: #12291f;
+  --bad: #ee8279;
+  --bad-bg: #33201e;
+  --open: #dfa551;
+  --open-bg: #2f2510;
+  --shadow: 0 1px 2px rgba(0,0,0,.32), 0 4px 16px rgba(0,0,0,.26);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 400 15.5px/1.65 "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1000px; margin: 0 auto; padding: 40px 22px 76px; }
+code, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+header.top { border-bottom: 3px double var(--ink); padding-bottom: 20px; margin-bottom: 28px; }
+.kicker {
+  font: 500 11px/1 "JetBrains Mono", monospace; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--accent);
+  display: flex; gap: 9px; flex-wrap: wrap;
+}
+.kicker span:not(:last-child)::after { content: " ·"; color: var(--ink-3); }
+h1 {
+  font: 700 clamp(31px, 5.4vw, 48px)/1.03 Bitter, Georgia, serif;
+  margin: 13px 0 10px; letter-spacing: -.012em; text-wrap: balance;
+}
+.lede { color: var(--ink-2); max-width: 66ch; margin: 0; font-size: 16.5px; }
+
+h2 {
+  font: 700 23px/1.2 Bitter, Georgia, serif; margin: 40px 0 6px; letter-spacing: -.01em;
+  padding-bottom: 8px; border-bottom: 1px solid var(--line);
+}
+h2 + .note { color: var(--ink-3); font-size: 14px; margin: 8px 0 16px; }
+h3 { font: 600 17px/1.3 Bitter, Georgia, serif; margin: 26px 0 8px; }
+p { margin: 0 0 12px; }
+p.tight { margin-bottom: 0; }
+
+.tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 11px; margin: 24px 0 6px; }
+.tally div {
+  background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--bar, var(--accent));
+  border-radius: 2px; padding: 13px 14px; box-shadow: var(--shadow);
+}
+.tally b { display: block; font: 700 27px/1 Bitter, serif; font-variant-numeric: tabular-nums; }
+.tally i {
+  display: block; font: 500 10px/1.35 "JetBrains Mono", monospace; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-3); font-style: normal; margin-top: 6px;
+}
+.tally .g { --bar: var(--good); } .tally .b { --bar: var(--bad); } .tally .o { --bar: var(--open); }
+
+.scroll { overflow-x: auto; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+th {
+  font: 500 10.5px/1.3 "JetBrains Mono", monospace; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--ink-3); border-bottom: 1px solid var(--line);
+}
+td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tbody tr:hover { background: var(--surface-2); }
+
+.pill {
+  display: inline-block; font: 500 11px/1.5 "JetBrains Mono", monospace;
+  padding: 1px 7px; border-radius: 2px; white-space: nowrap;
+}
+.pill.g { color: var(--good); background: var(--good-bg); }
+.pill.b { color: var(--bad); background: var(--bad-bg); }
+.pill.o { color: var(--open); background: var(--open-bg); }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 3px;
+  padding: 18px 20px; margin: 14px 0; box-shadow: var(--shadow);
+}
+.card.warn { border-left: 3px solid var(--bad); }
+.card.key { border-left: 3px solid var(--accent); }
+.card h3 { margin-top: 0; }
+.card p:last-child { margin-bottom: 0; }
+
+pre.mermaid {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 3px;
+  padding: 16px; margin: 16px 0; overflow-x: auto; box-shadow: var(--shadow);
+}
+
+ul.lessons { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 10px; }
+ul.lessons li {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 3px;
+  padding: 13px 16px; box-shadow: var(--shadow);
+}
+ul.lessons b { display: block; margin-bottom: 3px; }
+ul.lessons span { color: var(--ink-2); font-size: 14.5px; }
+
+ol.ledger { padding-left: 0; list-style: none; counter-reset: d; display: grid; gap: 8px; margin: 14px 0; }
+ol.ledger li {
+  counter-increment: d; display: grid; grid-template-columns: 30px 1fr; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 3px;
+  padding: 12px 15px; box-shadow: var(--shadow);
+}
+ol.ledger li::before {
+  content: counter(d); font: 500 12px/1.6 "JetBrains Mono", monospace; color: var(--ink-3);
+}
+ol.ledger .h { font-weight: 600; }
+ol.ledger .f {
+  font: 500 12px/1.6 "JetBrains Mono", monospace; color: var(--accent); display: block;
+}
+ol.ledger .d { color: var(--ink-2); font-size: 14.5px; }
+
+footer {
+  margin-top: 46px; padding-top: 16px; border-top: 1px solid var(--line);
+  font: 400 13px/1.7 "JetBrains Mono", monospace; color: var(--ink-3);
+}
+@media (max-width: 620px) { ol.ledger li { grid-template-columns: 1fr; } ol.ledger li::before { display: none; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="kicker"><span>Orchestra</span><span>01.09.2026</span><span>5 воркфлоу</span><span>165 агентов</span><span>отчёт для агента-преемника</span></div>
+  <h1>Разбор роя</h1>
+  <p class="lede">Как отработала мультиагентная оркестрация на реальном аудите кодовой базы: что нашли, что починили, где рой чуть не протащил ухудшение под видом улучшения, и что из этого стоит переиспользовать.</p>
+</header>
+
+<div class="tally">
+  <div><b>33</b><i>находки</i></div>
+  <div class="g"><b>24</b><i>починено</i></div>
+  <div class="b"><b>6</b><i>опровергнуто</i></div>
+  <div class="b"><b>2</b><i>откачено</i></div>
+  <div class="o"><b>1</b><i>ложная посылка</i></div>
+</div>
+
+<h2>Прогоны</h2>
+<p class="note">Все агенты — Opus 5, эффорт наследовался от сессии (xhigh). Потолок параллельности min(16, ядра−2) = 10.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>#</th><th>Воркфлоу</th><th>Агентов</th><th>Токенов</th><th>Время</th><th>Исход</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td><b>bug-review</b><br><span style="color:var(--ink-2)">10 ревьюеров → 33 находки → 2 скептика на каждую</span></td><td class="num">78 / 32 ✓</td><td class="num">5.33M</td><td class="num">32 мин</td><td><span class="pill b">46 убито квотой</span></td></tr>
+<tr><td class="num">2</td><td><b>dynwf-research</b><br><span style="color:var(--ink-2)">5 читателей → 3 архитектора → критик</span></td><td class="num">9 / 9 ✓</td><td class="num">1.26M</td><td class="num">20 мин</td><td><span class="pill g">чисто</span></td></tr>
+<tr><td class="num">3</td><td><b>audit-fix (раунд 1)</b><br><span style="color:var(--ink-2)">доверка 19 → фиксы по 9 группам → ревью</span></td><td class="num">59 / 59 ✓</td><td class="num">8.37M</td><td class="num">78 мин</td><td><span class="pill o">7 concerns, 2 broken</span></td></tr>
+<tr><td class="num">4</td><td><b>audit-round2</b><br><span style="color:var(--ink-2)">каждая группа чинит своё ревью → переревью</span></td><td class="num">19 / 19 ✓</td><td class="num">2.78M</td><td class="num">23 мин</td><td><span class="pill o">1 ok, 7 concerns, 1 broken</span></td></tr>
+<tr><td class="num">5</td><td><b>audit-round3</b><br><span style="color:var(--ink-2)">3 кросс-файловых мажора</span></td><td class="num">частично</td><td class="num">—</td><td class="num">—</td><td><span class="pill b">остановлен вручную</span></td></tr>
+</tbody>
+</table></div>
+
+<p>Итого <b>17.7M токенов субагентов и 4195 вызовов инструментов</b>. Пятый прогон я снял на середине: две из трёх его задач стали неактуальны по ходу — их предмет был удалён редизайном (см. ниже). Две правки он успел положить, обе проверены и оставлены.</p>
+
+<h2>Топология</h2>
+<p class="note">Единственный барьер стоит там, где он обязателен: нарезка по владению файлами требует ВСЕХ вердиктов сразу. Дальше — конвейер.</p>
+
+<pre class="mermaid">
+flowchart LR
+  L[load: findings.json] --> V1[скептик 1]
+  L --> V2[скептик 2]
+  V1 --> T{разошлись?}
+  V2 --> T
+  T -->|да| TB[третейский]
+  T -->|нет| B
+  TB --> B[( БАРЬЕР<br/>нарезка по владению )]
+  B --> F1[fix: tm] --> R1[review: tm]
+  B --> F2[fix: session] --> R2[review: session]
+  B --> F3[fix: ... ещё 7 групп] --> R3[review: ...]
+</pre>
+
+<p><b>Почему без worktree-изоляции.</b> Девять веток пришлось бы мержить обратно с конфликтами. Вместо этого группы нарезаны так, что <b>ни один файл не принадлежит двум агентам</b> — правки в разные файлы одного дерева не конфликтуют физически. Побочный эффект: <code>routes/system.py</code> оказался в одной группе с <code>quota-lines.js</code> и <code>quota_gate.py</code>, хотя рестарт и график — разные баги. Файл один, значит агент один.</p>
+
+<h2>Что поймал адверсариальный слой</h2>
+<p class="note">Самое ценное в прогоне — не 24 фикса, а два ухудшения, которые вторая половина роя не пропустила.</p>
+
+<div class="card warn">
+  <h3>Бакет Fable в квота-гейте — fail-open</h3>
+  <p>Находка была верной: бакет <code>anthropic_fable</code> собирается, но <code>_model_target</code> его никогда не возвращает, поэтому ветки под него — мёртвый код. Прямолинейный фикс завернул ревьюер: живой лимит <code>weekly_scoped</code> приходит с <code>resets_at: None</code>, значит бакет появился бы <b>без разбираемого окна</b> — диагональ к нему не применилась бы вовсе, и Fable остался бы только под жёстким стопом 99%. Гейт стал бы <b>слабее</b> нынешнего.</p>
+  <p class="tight">Проверил улику лично: в одной детали ревьюер ошибся (<code>display_name: 'Fable'</code> в кеше есть), но решающая — <code>resets_at: None</code> — подтвердилась. Откачено, дефект вернулся в TODO с описанием, почему наивный фикс не годится.</p>
+</div>
+
+<div class="card warn">
+  <h3>Принудительный teardown в <code>interrupt()</code> — новая гонка</h3>
+  <p>Раунд 2 добавил эскалацию: если ход не умер за 5 секунд после подтверждения — рвать бэкенд по таймауту. Ревьюер раунда 2 показал, что фоновый <code>_disconnect_backend()</code> отменяет <code>_heartbeat_task</code> и <code>_listen_task</code> <b>безусловно</b> — а пришедшее в это окно сообщение уже стартовало новый ход на умирающем бэкенде. Поздний teardown убивает слушателя нового хода И сторожа: сессия остаётся <code>RUNNING</code> без watchdog, который мог бы её вытащить.</p>
+  <p class="tight">Это строго хуже исходного ложного отчёта. Снято целиком вместе с тремя тестами — по правилу «лечение опаснее болезни снимают, а не докручивают».</p>
+</div>
+
+<div class="card">
+  <h3>Шесть находок опровергнуты до того, как их начали чинить</h3>
+  <p class="tight">Скептики сняли 6 из 33. Образец качества: заявку «SSE переставляет партиалы соседних ходов» опровергли не рассуждением, а таймингом — между ходами стоит безусловный <code>sleep(0.3)</code> плюс round-trip провайдера, тогда как поллер опрашивает базу каждые 0.1–0.5 с, и финальная строка предыдущего хода коммитится за миллисекунды. Инверсия физически не помещается в описанное окно.</p>
+</div>
+
+<h2>Что починено</h2>
+<p class="note">Каждый пункт закрыт тестом, который краснеет без фикса. Всего 45 новых тестов в девяти файлах <code>tests/test_audit0901_*.py</code>.</p>
+
+<ol class="ledger">
+<li><div><span class="h">Canonical и legacy расходились в трёх местах — один дефект</span><span class="f">app/tm.py · 3×P0</span><span class="d">Отказ canonical CAS ронял <code>KeyError: 'stable_id'</code>, когда legacy был уже закоммичен; <code>discard_unbound_task</code> удалял только legacy-строку и разводил счётчики так, что проект переставал заводить задачи; <code>api_create_task</code> коммитил canonical до legacy-валидации, которая может упасть. Это корень дефекта «switch_worker_branch не атомарен» и аварии со счётчиками comfy от 28.08.</span></div></li>
+<li><div><span class="h">Вечный дедлок session lock</span><span class="f">app/session_hibernate.py · P1</span><span class="d">Три перехода RUNNING→IDLE в heartbeat не публиковали событие конца хода, а ожидание парковалось на нём без таймаута внутри удерживаемого лока. Воркер заклинивало до рестарта, дашборд показывал его <code>idle</code>.</span></div></li>
+<li><div><span class="h">Кнопка рестарта не срабатывала при живой мутации</span><span class="f">app/routes/system.py · P1</span><span class="d">Гейт убрали из одного места и обнулили бюджет, но <code>restart_preflight</code> впереди остался со старым условием: при бюджете 0.0 любая мутация давала 409 «still in flight after 0s». Правило «рестарт без спроса» кодом не исполнялось.</span></div></li>
+<li><div><span class="h">График квот печатал не тот порог для Sol</span><span class="f">app/static/js/quota-lines.js · P1</span><span class="d">Подпись бралась из бакетного <code>limit_pct</code> — прямой — и печаталась у каждого маркера, включая изогнутую полосу. На 50% окна текст говорил «порог 55.5%», а кривая на том же SVG шла по 81.3%.</span></div></li>
+<li><div><span class="h">Токены харнеса считались квадратично</span><span class="f">app/backend_harness.py · P1</span><span class="d">Кумулятивные счётчики не сбрасывались по ходам и отдавались как per-turn. Десять ходов по 50K давали ~2.75M вместо 500K — все цифры бесплатной полосы были завышены.</span></div></li>
+<li><div><span class="h">Управляющие сообщения харнесу молча терялись</span><span class="f">app/harness/loop.py · P1</span><span class="d">Очередь разгребалась только в начале раунда тулов; на финальном раунде и при обрыве остаток уничтожался следующим <code>clear()</code> — при этом доставка уже была помечена <code>SUBMITTED</code>.</span></div></li>
+<li><div><span class="h">Голосовые дольше 30 секунд пропадали молча</span><span class="f">app/tg_bridge.py · P1 ×4</span><span class="d">После таймаута ожидания медиа ротировалась эпоха буфера, и поздняя транскрипция уходила в <code>return</code> без уведомления; если голосовое было единственным сообщением, не отправлялось ничего. Плюс двойной резолв токена, потеря флага <code>important</code> в зеркале и синхронный <code>subprocess.run</code>, мо'réзивший весь event loop.</span></div></li>
+<li><div><span class="h">MCP печатал «accepted» для провалившихся доставок</span><span class="f">app/mcp_stdio.py · P1</span><span class="d">Разбирался особо только один статус, поэтому терминальный отказ печатался как приёмка. Та же болезнь у receipt'а спавна; плюс восстановление мержа отбрасывало подтверждённый <code>FAILED</code> и врало «status could not be confirmed».</span></div></li>
+<li><div><span class="h">Барьер доставки теперь снимается рестартом, а не человеком</span><span class="f">app/message_deliveries.py · P1</span><span class="d">Неразобранная голова FIFO глушила воркера бессрочно (25 часов, 6 потерянных заданий), отправитель получал бодрый <code>QUEUED</code>. Барьер обоснован, пока исход может измениться — но после рестарта процесс, который мог дослать, мёртв, и переставить порядок доставка уже не может. Развёрнуто подробно ниже.</span></div></li>
+<li><div><span class="h">SSE замораживал статус агента на момент коннекта</span><span class="f">app/routes/sessions.py · P2</span><span class="d">Живая сессия резолвилась один раз за соединение, поэтому у не загруженной в тот момент сессии события идущего хода штамповались <code>idle</code>, и клиент затирал ими верный статус.</span></div></li>
+<li><div><span class="h">Миграция денег ×1000 могла сработать повторно</span><span class="f">app/db.py · P1</span><span class="d">Условие было по значениям, а не по факту применения: легитимно маленькие цены запускали её снова. Заведён durable-маркер и журнальная строка на срабатывание.</span></div></li>
+<li><div><span class="h">Успешный bg-джоб рапортовался как прерванный</span><span class="f">app/bg_jobs.py · P1</span><span class="d">Строка в фазе <code>triggering</code> означает, что команда УЖЕ отработала и рестарт убил доставку результата. Пользователю при этом писали «повторный запуск не выполнялся», а результат из строки выбрасывали. Теперь досылается штатным путём.</span></div></li>
+<li><div><span class="h">Проверка целевой ветки роняла мерж исключением</span><span class="f">app/workspace.py · P2</span><span class="d">Она не трогает ни одного рефа, то есть исход Git известен — ничего не произошло. Но исключение улетало в catch-all роута и становилось <code>partial/unknown</code> с удержанной резервацией задачи.</span></div></li>
+</ol>
+
+<h2>Редизайн вместо фичи</h2>
+
+<div class="card key">
+  <p>Агент раунда 2 закрыл «нет штатного разбора застрявшей очереди» так: HTTP-эндпоинт под гейтом операторской сессии. Ревью показало, что на рабочем контуре <code>.env</code> не содержит <code>DASHBOARD_USER</code>, поэтому <code>is_auth_enabled()</code> ложно, а <code>require_operator_session</code> при выключенной авторизации отказывает <b>всем</b> — ручка мертва именно там, где нужна.</p>
+  <p>Замер по боевой базе: за <b>1043 доставки с 25 августа состояние <code>DELIVERY_UNKNOWN</code> не возникло ни разу</b>. Строить эндпоинт с авторизацией под событие, которого не было за неделю, — оверинжиниринг.</p>
+  <p class="tight"><b>Решение:</b> человек тут не нужен вовсе. Барьер обоснован, пока исход может измениться; после рестарта процесс, который мог дослать сообщение, мёртв — переставить порядок доставка уже не может, а именно перестановки барьер и не допускает. Рестарт переводит такие в <code>DELIVERY_UNKNOWN_ORPHANED</code>: очередь едет, неизвестность остаётся записью и «доставленным» не читается. Эндпоинт, состояние под ручной разбор и гейт оператора удалены целиком.</p>
+</div>
+
+<h2>Что забрать в следующий рой</h2>
+<ul class="lessons">
+<li><b>Скептик по умолчанию опровергает</b><span>«Остались сомнения после чтения → refuted=true». Асимметрия намеренная: ложное подтверждение дороже пропуска. Сняло 6 находок из 33 до того, как в них вложились.</span></li>
+<li><b>Ревьюер отдельно проверяет вакуумность теста</b><span>Не «есть ли тест», а «покраснел бы он, если фикс откатить». Без этого пункта половина тестов проходит на сломанном коде.</span></li>
+<li><b>Номера строк объявлять недостоверными</b><span>Находки снимались до утренних коммитов. Инструкция «ищи по символу через rg, не по номеру» сняла целый класс промахов.</span></li>
+<li><b>Границу владения файлами выдавать вместе с заданием</b><span>Три мажора раунда 2 не закрылись только потому, что лежали в чужих файлах. Кросс-файловые связи надо разводить ДО запуска, а не собирать из risk_notes потом.</span></li>
+<li><b>Право отказаться — часть задания</b><span>«Ревьюер может быть неправ; не делай правку, которую считаешь неверной, — обоснуй отказ кодом». Иначе агент чинит выдуманное и ломает рабочее.</span></li>
+<li><b>Сравнивать множества падений, а не их число</b><span>Прогон той же команды на чистом main показал: из 8 красных 7 были красными и до нас. Без этого замера отчёт «сломал тесты» был бы ложью в обе стороны.</span></li>
+<li><b>Потолок раундов держать жёстко</b><span>Три раунда на исполняемый артефакт. К третьему предмет двух задач исчез из-за редизайна — это нормальный признак, что пора останавливаться и решать самому.</span></li>
+</ul>
+
+<h2>Что осталось открытым</h2>
+<div class="scroll"><table>
+<thead><tr><th>Дефект</th><th>Статус</th><th>Почему не закрыт</th></tr></thead>
+<tbody>
+<tr><td>Бакет <code>anthropic_fable</code> недостижим</td><td><span class="pill o">P2 открыт</span></td><td>Наивный фикс — регрессия. Чинить вместе с продюсером: пока у бакета нет <code>resets_at</code>, он не годится как основание допуска</td></tr>
+<tr><td><code>stop_worker</code> врёт про остановку хода</td><td><span class="pill o">P1 открыт</span></td><td>Эскалация по таймауту завела гонку. Нужен сигнал фактического конца хода; у Claude ack тоже не означает остановку</td></tr>
+<tr><td><code>merge_worker</code> рапортует успех при нулевом переносе</td><td><span class="pill o">открыт</span></td><td>Не входил в аудит, лежал в TODO до него</td></tr>
+<tr><td>Мелкие замечания трёх раундов ревью</td><td><span class="pill o">открыт</span></td><td>Мёртвый <code>_blocking_runtimes()</code>, второй владелец порога в <code>buckets[].limit_pct</code>, второй владелец карты модель→пул в <code>limit_wake.py</code></td></tr>
+</tbody>
+</table></div>
+
+<footer>
+Коммит 9093641f · 915 тестов зелёные, EXIT=0 · Orchestra рестартована и здорова<br>
+Полный аудит: docs/tasks/audit-0901/report.md · замечания ревью: docs/tasks/audit-0901/review-round1.json
+</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script>
+  // Артефактный рантайм рисует mermaid сам; в локальном файле это делаем руками.
+  // Не загрузился (нет сети) — исходник диаграммы остаётся читаемым текстом.
+  if (window.mermaid) {
+    const dark = matchMedia('(prefers-color-scheme: dark)').matches
+      || document.documentElement.dataset.theme === 'dark';
+    mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default' });
+  }
+</script>
+</body>
+</html>
