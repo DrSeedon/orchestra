@@ -1204,11 +1204,19 @@ def _apply_finalization_task_update(
     mismatches = debt.get("mismatches") or {}
     replay_match = (
         result.get("shadow_match") is False
-        and set(mismatches) == {"updated"}
+        and mismatches
+        and set(mismatches) <= {"updated", "sync_revision"}
         and result.get("new_status") == status
     )
     if not result.get("ok") or (result.get("shadow_match") is False and not replay_match):
-        detail = str(debt.get("message") or result.get("error") or "task update failed")
+        if mismatches:
+            detail = "; ".join(
+                f"{field}: canonical={values.get('canonical')!r}, "
+                f"legacy={values.get('legacy')!r}"
+                for field, values in mismatches.items()
+            )
+        else:
+            detail = str(debt.get("message") or result.get("error") or "task update failed")
         payload["task_status"] = {
             "ok": False,
             "error": detail,
