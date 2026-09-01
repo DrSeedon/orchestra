@@ -938,10 +938,11 @@ class ClaudeBackend:
             options.allowed_tools = []
             options.disallowed_tools = ["*"]
         if self._effort:
-            eff = self._effort
-            if eff == "xhigh" and "claude" in (self.model or ""):
-                eff = "high"
-            options.effort = eff
+            if self._effort == "xhigh" and "claude" in (self.model or ""):
+                # xhigh отвергается API при выключенном thinking — включаем adaptive
+                # явно вместо прежнего тихого даунгрейда в high (проверено пробой 01.09.2026)
+                options.thinking = {"type": "adaptive"}
+            options.effort = self._effort
         if self._history_import:
             options.resume = self._history_import.session_id
             options.session_store = ClaudeLogSessionStore(self._history_import)
