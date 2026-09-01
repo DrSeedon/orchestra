@@ -637,6 +637,12 @@
   ]
  ],
  [
+  "/api/tm/task-create-requests/{request_key}",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/tm/tasks",
   [
    "GET"

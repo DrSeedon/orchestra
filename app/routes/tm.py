@@ -121,6 +121,22 @@ def _acceptance_actor(request: Request) -> tuple[dict, str]:
 
 @router.post("/tasks")
 async def tm_create_task(req: TmTaskCreate, request: Request):
+    raw_request_key = (
+        request.headers.get("idempotency-key")
+        or request.headers.get("x-request-id")
+        or ""
+    )
+    try:
+        request_key = _tm.normalize_task_create_request_key(raw_request_key)
+    except _tm.TaskCreateRequestError as exc:
+        return JSONResponse(
+            {
+                "error": str(exc),
+                "reason": exc.reason,
+                "request_key": exc.request_key,
+            },
+            status_code=400,
+        )
     command = (req.acceptance_command or "").strip()
     caller_scope = ""
     actor = None
@@ -173,14 +189,52 @@ async def tm_create_task(req: TmTaskCreate, request: Request):
                 acceptance_manifest=req.acceptance_manifest,
                 acceptance_required=req.acceptance_required,
                 acceptance_actor=actor,
+                request_key=request_key,
             )
         return await asyncio.to_thread(_do)
+    except _tm.TaskCreateRequestError as e:
+        headers = {"Retry-After": "1"} if e.reason == "IDEMPOTENCY_REQUEST_PENDING" else None
+        return JSONResponse(
+            {
+                "error": str(e),
+                "reason": e.reason,
+                "request_key": e.request_key,
+            },
+            status_code=409,
+            headers=headers,
+        )
     except (ValueError, RuntimeError) as e:
         payload = {"error": str(e)}
         reason = getattr(e, "reason", "")
         if reason:
             payload["reason"] = reason
         return JSONResponse(payload, status_code=400)
+
+
+@router.get("/task-create-requests/{request_key}")
+async def tm_task_create_status(
+    request_key: str,
+    project: str = "",
+    scope: str = "",
+):
+    try:
+        return await asyncio.to_thread(
+            _tm.api_task_create_status,
+            request_key,
+            project_id=project,
+            scope=scope,
+        )
+    except _tm.TaskCreateRequestError as exc:
+        return JSONResponse(
+            {
+                "error": str(exc),
+                "reason": exc.reason,
+                "request_key": exc.request_key,
+            },
+            status_code=400,
+        )
+    except (ValueError, RuntimeError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=404)
 
 
 @router.get("/tasks")

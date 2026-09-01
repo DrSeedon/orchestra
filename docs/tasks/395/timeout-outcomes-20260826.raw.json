@@ -1,0 +1,389 @@
+{
+  "counting_rules": {
+    "exploratory_followup": "After the preregistered rule missed one known task, group by resolved project_id + exact title; assign each matching tm_tasks row created from call_ts-2s through call_ts+300s to the latest preceding call",
+    "preregistered": "logs.type='tool_result' AND tool_name='mcp__orchestra__task_create' AND content='transport_timeout: ReadTimeout'; pair by tool_use_id; outcome exists iff exactly one tm_tasks row has resolved project_id + exact title and created_at between call_ts-2s and timeout_ts+2s"
+  },
+  "duplicate_project_title_sha256": [
+    "sha256:b66388855cbb359afbd4519e1768165e132fd3610036632aedc66dfdfc5ff880"
+  ],
+  "exploratory_timeouts_with_exactly_one_created_task": 17,
+  "exploratory_timeouts_with_multiple_created_tasks": 0,
+  "exploratory_timeouts_with_zero_created_tasks": 0,
+  "preregistered_timeouts_with_exactly_one_created_task": 16,
+  "preregistered_timeouts_with_multiple_created_tasks": 0,
+  "preregistered_timeouts_with_zero_created_tasks": 1,
+  "rows": [
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:1e6b78759071b45b507274401070275d8569bff3ae160889b3a7265d07ce4a30",
+      "call_ts": "2026-08-25T07:19:06.022066+00:00",
+      "project_title_sha256": "sha256:3c1e3954db2edc97fa1ffabbc4f0d982cc2d91bf9fe3771af21fc88071727127",
+      "seconds_to_timeout": 0.68554,
+      "session_sha256": "sha256:f3afad3af70726d7a76a5bc53718588d819f52da16bcc4f60526093b03a53a8b",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T07:21:17.614982+00:00",
+          "seconds_after_call": 131.592916,
+          "task_identity_sha256": "sha256:61b4696b4b72bb400597159433d9c397016456c98d67ebd81eaf3bcfe65595f7"
+        }
+      ],
+      "tasks_created_before_logged_result": [],
+      "timeout_ts": "2026-08-25T07:19:06.707606+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:1cac6badc15d9d5f84d300fcb7a122e00893f0c06a0eeb9e65923fb199af22cb",
+      "call_ts": "2026-08-25T09:43:59.981242+00:00",
+      "project_title_sha256": "sha256:c087b79f05e2117c771c4d9719757c531b5a08d0800e3e71d53e21936fe12e4f",
+      "seconds_to_timeout": 30.104679,
+      "session_sha256": "sha256:84de2563813f6af03e5bb68f89cbccec405a5c83b6da22feb26147eb7c7820d0",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T09:44:00.062966+00:00",
+          "seconds_after_call": 0.081724,
+          "task_identity_sha256": "sha256:e2e31558ff05221cf965b0cf47167bedf816c6e3b73e20ef22aec26a89b25288"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T09:44:00.062966+00:00",
+          "task_identity_sha256": "sha256:e2e31558ff05221cf965b0cf47167bedf816c6e3b73e20ef22aec26a89b25288"
+        }
+      ],
+      "timeout_ts": "2026-08-25T09:44:30.085921+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:2e2e7754b2b7d0c96b2edb2421c08934dc5e5caba2ccf35792e474737055319e",
+      "call_ts": "2026-08-25T10:30:20.276509+00:00",
+      "project_title_sha256": "sha256:731f3c26dd43309c4de56884dc664befcbdfcfab73679b4d784f2f095dde1b4e",
+      "seconds_to_timeout": 30.384922,
+      "session_sha256": "sha256:84de2563813f6af03e5bb68f89cbccec405a5c83b6da22feb26147eb7c7820d0",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T10:30:20.548675+00:00",
+          "seconds_after_call": 0.272166,
+          "task_identity_sha256": "sha256:bd0b73fde90f9ab3f4220ef290060babe81db52b2d04b875430a558e33c3acff"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T10:30:20.548675+00:00",
+          "task_identity_sha256": "sha256:bd0b73fde90f9ab3f4220ef290060babe81db52b2d04b875430a558e33c3acff"
+        }
+      ],
+      "timeout_ts": "2026-08-25T10:30:50.661431+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:18f8bbd1b79e0595d4f6daf7a333edba4b37eb04f08efe01f070aee67ce9897b",
+      "call_ts": "2026-08-25T13:11:39.945608+00:00",
+      "project_title_sha256": "sha256:56e9f5c082bed56f8ef0aee8e424ee929de964d2771493f8df324576c5439fe4",
+      "seconds_to_timeout": 30.230665,
+      "session_sha256": "sha256:17bc9ad85b0fb8b8932c99ac7300070427899fe23015c7b220b1485d2ae397c4",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T13:11:40.117259+00:00",
+          "seconds_after_call": 0.171651,
+          "task_identity_sha256": "sha256:b22d9b3a65ecf223a4095df6e43c7c0c35df784f024f1125aad2f863d628f38d"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T13:11:40.117259+00:00",
+          "task_identity_sha256": "sha256:b22d9b3a65ecf223a4095df6e43c7c0c35df784f024f1125aad2f863d628f38d"
+        }
+      ],
+      "timeout_ts": "2026-08-25T13:12:10.176273+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:ae766c0e044bd5850dd849498b322c803294313a6931ed49e0cb58f6dde4bc78",
+      "call_ts": "2026-08-25T14:29:58.129486+00:00",
+      "project_title_sha256": "sha256:366676f9b84dedd86eea930c25d18303e34a3ae8afbae22b6ab9ff04146e6d2a",
+      "seconds_to_timeout": 33.270803,
+      "session_sha256": "sha256:f3afad3af70726d7a76a5bc53718588d819f52da16bcc4f60526093b03a53a8b",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T14:30:00.748231+00:00",
+          "seconds_after_call": 2.618745,
+          "task_identity_sha256": "sha256:91804f6685976844b7fd68cf77b6243f516035defddcb707a08fba165479c6d5"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T14:30:00.748231+00:00",
+          "task_identity_sha256": "sha256:91804f6685976844b7fd68cf77b6243f516035defddcb707a08fba165479c6d5"
+        }
+      ],
+      "timeout_ts": "2026-08-25T14:30:31.400289+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:546badcdf144873b4e846d015c08f0d1c3e6426a3a177e19b1b006bd87bdf2da",
+      "call_ts": "2026-08-25T14:34:09.228763+00:00",
+      "project_title_sha256": "sha256:064566b5847354c681db13307d06742b5b6f4795e4bb5128e1cd2bc3d03dfe94",
+      "seconds_to_timeout": 30.140768,
+      "session_sha256": "sha256:f3afad3af70726d7a76a5bc53718588d819f52da16bcc4f60526093b03a53a8b",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T14:34:09.304412+00:00",
+          "seconds_after_call": 0.075649,
+          "task_identity_sha256": "sha256:8c97bffe29ee78b1312ccabb43523c14d1c62012ab514c8f76a63468443bf80f"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T14:34:09.304412+00:00",
+          "task_identity_sha256": "sha256:8c97bffe29ee78b1312ccabb43523c14d1c62012ab514c8f76a63468443bf80f"
+        }
+      ],
+      "timeout_ts": "2026-08-25T14:34:39.369531+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:d555c75a5b3868ff636401f004a8ba5c5c3ca07e909d9a3bb78f1653a9af4e96",
+      "call_ts": "2026-08-25T14:45:17.617691+00:00",
+      "project_title_sha256": "sha256:3d4ab3f53c8c218a16f9e40e050105c1a64bad981a086011a9bda07c11457ec8",
+      "seconds_to_timeout": 30.145089,
+      "session_sha256": "sha256:17bc9ad85b0fb8b8932c99ac7300070427899fe23015c7b220b1485d2ae397c4",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T14:45:17.713222+00:00",
+          "seconds_after_call": 0.095531,
+          "task_identity_sha256": "sha256:9302f40bd3147698c5177207d31ef008a7f6a2187ba9fa1cfbc8cbce0b6e9cec"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T14:45:17.713222+00:00",
+          "task_identity_sha256": "sha256:9302f40bd3147698c5177207d31ef008a7f6a2187ba9fa1cfbc8cbce0b6e9cec"
+        }
+      ],
+      "timeout_ts": "2026-08-25T14:45:47.762780+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:db0d17d1d76cd984ab023f6c8aeda28c9f12c55498ce550567bcc1d3d57fba64",
+      "call_ts": "2026-08-25T16:08:33.335160+00:00",
+      "project_title_sha256": "sha256:87eb2022b73c558a7f10b269412022af677a325fe4d185af99fd8054e811c6f3",
+      "seconds_to_timeout": 30.201002,
+      "session_sha256": "sha256:84de2563813f6af03e5bb68f89cbccec405a5c83b6da22feb26147eb7c7820d0",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T16:08:33.394674+00:00",
+          "seconds_after_call": 0.059514,
+          "task_identity_sha256": "sha256:f890721d98982f042773db3e7cadee5eedded842faddf1214045476fbf81bcf8"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T16:08:33.394674+00:00",
+          "task_identity_sha256": "sha256:f890721d98982f042773db3e7cadee5eedded842faddf1214045476fbf81bcf8"
+        }
+      ],
+      "timeout_ts": "2026-08-25T16:09:03.536162+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:ccc91455a0b0de675aab5d44fabfc40de1f4fa6047d4c69361de7d5a6dcfa5e2",
+      "call_ts": "2026-08-25T16:57:39.727827+00:00",
+      "project_title_sha256": "sha256:437d05b5bc9d846fde771a91c02aaca261e8f12793f7fea5ea0b99f1d0b935cf",
+      "seconds_to_timeout": 30.166906,
+      "session_sha256": "sha256:17bc9ad85b0fb8b8932c99ac7300070427899fe23015c7b220b1485d2ae397c4",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T16:57:39.823925+00:00",
+          "seconds_after_call": 0.096098,
+          "task_identity_sha256": "sha256:b9b5f7649d8f5f5563301694410f91274c8f7f34773567fb2bbe6d020ae01731"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T16:57:39.823925+00:00",
+          "task_identity_sha256": "sha256:b9b5f7649d8f5f5563301694410f91274c8f7f34773567fb2bbe6d020ae01731"
+        }
+      ],
+      "timeout_ts": "2026-08-25T16:58:09.894733+00:00"
+    },
+    {
+      "all_exact_title_matches": 2,
+      "call_sha256": "sha256:93a3ea9d3678c708c4541c11c607d7843665c22fb79f00a094fc3523c28122cd",
+      "call_ts": "2026-08-25T17:06:46.323094+00:00",
+      "project_title_sha256": "sha256:b66388855cbb359afbd4519e1768165e132fd3610036632aedc66dfdfc5ff880",
+      "seconds_to_timeout": 30.109439,
+      "session_sha256": "sha256:84de2563813f6af03e5bb68f89cbccec405a5c83b6da22feb26147eb7c7820d0",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T17:06:46.397956+00:00",
+          "seconds_after_call": 0.074862,
+          "task_identity_sha256": "sha256:70d1f61045be3e34047f77f35e5d33f2b69831f4f3f720fb5ac6e41546b7bb09"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T17:06:46.397956+00:00",
+          "task_identity_sha256": "sha256:70d1f61045be3e34047f77f35e5d33f2b69831f4f3f720fb5ac6e41546b7bb09"
+        }
+      ],
+      "timeout_ts": "2026-08-25T17:07:16.432533+00:00"
+    },
+    {
+      "all_exact_title_matches": 2,
+      "call_sha256": "sha256:eaf75bb1d9de08f81c305568a0039b44944573e23777607ccf55c7fea2b51e50",
+      "call_ts": "2026-08-25T17:08:30.949288+00:00",
+      "project_title_sha256": "sha256:b66388855cbb359afbd4519e1768165e132fd3610036632aedc66dfdfc5ff880",
+      "seconds_to_timeout": 30.287451,
+      "session_sha256": "sha256:84de2563813f6af03e5bb68f89cbccec405a5c83b6da22feb26147eb7c7820d0",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T17:08:31.123115+00:00",
+          "seconds_after_call": 0.173827,
+          "task_identity_sha256": "sha256:70ccff39bfcb77bfd86d8761ed74f9aaccd73e561ee2f600a705df717dc339a4"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T17:08:31.123115+00:00",
+          "task_identity_sha256": "sha256:70ccff39bfcb77bfd86d8761ed74f9aaccd73e561ee2f600a705df717dc339a4"
+        }
+      ],
+      "timeout_ts": "2026-08-25T17:09:01.236739+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:43e723a9ce0211a30b716e9b0ca5ab269d8ffc20c5f524fb293bd87fe72da699",
+      "call_ts": "2026-08-25T17:31:07.018479+00:00",
+      "project_title_sha256": "sha256:213adbfd87fdd6fb6b71bd17d9d65afdac3dcb7637917253d6e582d13dcbf83a",
+      "seconds_to_timeout": 30.128446,
+      "session_sha256": "sha256:84de2563813f6af03e5bb68f89cbccec405a5c83b6da22feb26147eb7c7820d0",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T17:31:07.122469+00:00",
+          "seconds_after_call": 0.10399,
+          "task_identity_sha256": "sha256:2924192d6dba1a13d28579ff5b13fbee6660d19899b568e93ba41079983b79f3"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T17:31:07.122469+00:00",
+          "task_identity_sha256": "sha256:2924192d6dba1a13d28579ff5b13fbee6660d19899b568e93ba41079983b79f3"
+        }
+      ],
+      "timeout_ts": "2026-08-25T17:31:37.146925+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:60dc24340b75147e61a459525ecc367fa4f3e739e05011f7ac03476f968ec157",
+      "call_ts": "2026-08-25T17:32:55.977191+00:00",
+      "project_title_sha256": "sha256:f28fbbbd6a7e985eb240afb9cf518756aba050263017d6d1b62c113f9f394a90",
+      "seconds_to_timeout": 30.138637,
+      "session_sha256": "sha256:84de2563813f6af03e5bb68f89cbccec405a5c83b6da22feb26147eb7c7820d0",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T17:32:56.078367+00:00",
+          "seconds_after_call": 0.101176,
+          "task_identity_sha256": "sha256:fa4fccdeca03f40e3298bd6fc9ece8f6dabe6410abe724d387028d2d8ad3e7d8"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T17:32:56.078367+00:00",
+          "task_identity_sha256": "sha256:fa4fccdeca03f40e3298bd6fc9ece8f6dabe6410abe724d387028d2d8ad3e7d8"
+        }
+      ],
+      "timeout_ts": "2026-08-25T17:33:26.115828+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:4db6b0cc21cce36b3af1cc1d9042ebc35e40a58a67ed1db86e1db18fb560e0eb",
+      "call_ts": "2026-08-25T17:56:11.362280+00:00",
+      "project_title_sha256": "sha256:a7ceaa8c22cc0ba7be88cc39a898afb2076fb78492c7597221cd43af4096d835",
+      "seconds_to_timeout": 30.214496,
+      "session_sha256": "sha256:17bc9ad85b0fb8b8932c99ac7300070427899fe23015c7b220b1485d2ae397c4",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-25T17:56:11.483925+00:00",
+          "seconds_after_call": 0.121645,
+          "task_identity_sha256": "sha256:fe3ed527cacface0fccdb12e4f091467563f7559ff961ccf3ecab27603c2baa9"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-25T17:56:11.483925+00:00",
+          "task_identity_sha256": "sha256:fe3ed527cacface0fccdb12e4f091467563f7559ff961ccf3ecab27603c2baa9"
+        }
+      ],
+      "timeout_ts": "2026-08-25T17:56:41.576776+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:f5e3dfd6a0ea3b2a5eb9f81efa0981ee37929f82b529ef874fb5c58accd671a2",
+      "call_ts": "2026-08-26T00:51:42.302357+00:00",
+      "project_title_sha256": "sha256:1f8aac4102acad0a166e0cf4184772b212efbfffcb101c28ef22a134b87c5360",
+      "seconds_to_timeout": 30.194548,
+      "session_sha256": "sha256:84de2563813f6af03e5bb68f89cbccec405a5c83b6da22feb26147eb7c7820d0",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-26T00:51:42.402223+00:00",
+          "seconds_after_call": 0.099866,
+          "task_identity_sha256": "sha256:c818ebe94a2ce9ddadcebdb30978d39701191a995ca37985256271502228ee40"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-26T00:51:42.402223+00:00",
+          "task_identity_sha256": "sha256:c818ebe94a2ce9ddadcebdb30978d39701191a995ca37985256271502228ee40"
+        }
+      ],
+      "timeout_ts": "2026-08-26T00:52:12.496905+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:635547a3da9958be4651f2b249be2d91beff4dd1dafe20ec7f18c606ddc96c89",
+      "call_ts": "2026-08-26T06:53:19.970918+00:00",
+      "project_title_sha256": "sha256:5952ee00bdb32e48d79acf71565d50d64e66161c43396af6cec78ed669eb0fbb",
+      "seconds_to_timeout": 30.210286,
+      "session_sha256": "sha256:17bc9ad85b0fb8b8932c99ac7300070427899fe23015c7b220b1485d2ae397c4",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-26T06:53:20.139239+00:00",
+          "seconds_after_call": 0.168321,
+          "task_identity_sha256": "sha256:a7b063086460d10d55170df754caef5d3841023546c26cfc37d1b8783c04414a"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-26T06:53:20.139239+00:00",
+          "task_identity_sha256": "sha256:a7b063086460d10d55170df754caef5d3841023546c26cfc37d1b8783c04414a"
+        }
+      ],
+      "timeout_ts": "2026-08-26T06:53:50.181204+00:00"
+    },
+    {
+      "all_exact_title_matches": 1,
+      "call_sha256": "sha256:1ed00cc891f4f69a6486c6b1670abf517bbf5342b311e81e2ab27a9b5f9a5ada",
+      "call_ts": "2026-08-26T06:55:16.303580+00:00",
+      "project_title_sha256": "sha256:d6945f6d20c3e1c5ce8c6763eee56eecb4f75d9ce4147c6b280d11b3a9d0c031",
+      "seconds_to_timeout": 30.166096,
+      "session_sha256": "sha256:17bc9ad85b0fb8b8932c99ac7300070427899fe23015c7b220b1485d2ae397c4",
+      "tasks_assigned_to_call": [
+        {
+          "created_at": "2026-08-26T06:55:16.387897+00:00",
+          "seconds_after_call": 0.084317,
+          "task_identity_sha256": "sha256:e7a641e1617d3f59b5bedf06211ce3a1ef396af82e1afc8f675ca877e1a3dfa7"
+        }
+      ],
+      "tasks_created_before_logged_result": [
+        {
+          "created_at": "2026-08-26T06:55:16.387897+00:00",
+          "task_identity_sha256": "sha256:e7a641e1617d3f59b5bedf06211ce3a1ef396af82e1afc8f675ca877e1a3dfa7"
+        }
+      ],
+      "timeout_ts": "2026-08-26T06:55:46.469676+00:00"
+    }
+  ],
+  "since": "2026-08-25T00:00:00+00:00",
+  "source": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-tm-hang/data/task-395/outcome-20260826.db",
+  "timeout_calls": 17
+}

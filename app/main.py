@@ -324,10 +324,16 @@ async def _shutdown_runtime(
     restart_inbox_drain: "asyncio.Task | None",
     snapshot_task: asyncio.Task,
     bridge_task: asyncio.Task,
-    portfolio_watchdog_task: asyncio.Task,
+    projection_repair_task: "asyncio.Task | None",
+    portfolio_watchdog_task: "asyncio.Task | None",
 ) -> None:
     startup_tasks = {
-        task for task in (restart_inbox_drain, snapshot_task, portfolio_watchdog_task)
+        task for task in (
+            restart_inbox_drain,
+            snapshot_task,
+            projection_repair_task,
+            portfolio_watchdog_task,
+        )
         if task is not None and not task.done()
     }
     for task in startup_tasks:
@@ -437,11 +443,13 @@ async def lifespan(app: FastAPI):
         await restore_merge_operations()
         if _fdstore.notify_ready():
             logger.info("systemd readiness published after application startup gates")
+        projection_repair_task = knowledge_owner.schedule_projection_repair()
         yield
     await _shutdown_runtime(
         _restart_inbox_drain,
         snapshot_task,
         bridge_task,
+        projection_repair_task,
         portfolio_watchdog_task,
     )
     if getattr(app.state, "portfolio_watchdog_task", None) is portfolio_watchdog_task:

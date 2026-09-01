@@ -1,0 +1,31 @@
+{
+  "backup_method": "sqlite3.Connection.backup from mode=ro sources",
+  "current_projection_receipts": {
+    "projection_head": "sha256:d67a54b8fdfbd0e51ba6b408cc2e6b2f96762fe61c72d30dd17fca4d5b887fc3",
+    "receipts_present": true,
+    "record_type_counts": {
+      "resource": 16126,
+      "task.state": 604
+    },
+    "resource_manifest_sha256": "sha256:a3a7524b70c39d73f7c0ad6330560dff435aa1ecc436b3c15a4a6a1a271069f6",
+    "resource_rows_sha256": "sha256:0fd553fcd22eaf89b163ce27bae5e9cfabfd1185bce920893e4c4f6ac215e524"
+  },
+  "files": {
+    "knowledge-v1/current.db": 887365632,
+    "knowledge-v1/task-current.db": 2363392,
+    "orchestra.db": 857763840
+  },
+  "live_database": "/home/kesha/orchestra/data/orchestra.db",
+  "live_state": "/home/kesha/.local/state/orchestra/knowledge-v1",
+  "watermark": {
+    "current_projection_head": "sha256:d67a54b8fdfbd0e51ba6b408cc2e6b2f96762fe61c72d30dd17fca4d5b887fc3",
+    "current_rows": 16730,
+    "legacy_task_count": 604,
+    "legacy_task_max_id": 604,
+    "runtime_canonical_head": "sha256:d67a54b8fdfbd0e51ba6b408cc2e6b2f96762fe61c72d30dd17fca4d5b887fc3",
+    "runtime_projection_head": "sha256:d67a54b8fdfbd0e51ba6b408cc2e6b2f96762fe61c72d30dd17fca4d5b887fc3",
+    "task_canonical_head": "sha256:836a79650f2eecd9d34e53d8524ea7c564971a256aa5b34318286ebcd47dbb9e",
+    "task_projection_head": "sha256:836a79650f2eecd9d34e53d8524ea7c564971a256aa5b34318286ebcd47dbb9e",
+    "task_states": 604
+  }
+}
