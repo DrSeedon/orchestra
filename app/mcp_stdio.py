@@ -43,6 +43,7 @@ SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
 # замер 03.08.2026 docs/tasks/18/measurements/search-latency-p8.log. Привязан к 8 ядрам
 # и текущему размеру индекса — меняется железо, перемеряй, а не подкручивай.
 SEARCH_DEADLINE_S = 5.0
+MESSAGE_FILE_MAX_BYTES = 64 * 1024
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
 WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
 # Имя агента меняется и может быть переиспользовано; id — нет. Нужен там, где
@@ -1169,9 +1170,95 @@ async def test_lock_status() -> str:
             f"(reason: {result.get('reason') or 'n/a'}, since {result.get('acquired_at')}).")
 
 
+def _read_message_file(file_path: str) -> tuple[str, int]:
+    path = Path(file_path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    try:
+        file_size = path.stat().st_size
+    except FileNotFoundError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"attachment file not found: {file_path}",
+            details={"field": "file_path"},
+        ) from error
+    except IsADirectoryError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"attachment path is not a file: {file_path}",
+            details={"field": "file_path"},
+        ) from error
+    except OSError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"could not read attachment file {file_path}: {type(error).__name__}",
+            details={"field": "file_path"},
+        ) from error
+    if not path.is_file():
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"attachment path is not a file: {file_path}",
+            details={"field": "file_path"},
+        )
+    if file_size > MESSAGE_FILE_MAX_BYTES:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=(
+                f"attachment file is too large ({file_size} bytes; maximum is "
+                f"{MESSAGE_FILE_MAX_BYTES} bytes); split the file or send a summary"
+            ),
+            details={"field": "file_path", "max_bytes": MESSAGE_FILE_MAX_BYTES},
+        )
+    try:
+        with path.open("rb") as attachment_file:
+            content = attachment_file.read(MESSAGE_FILE_MAX_BYTES + 1)
+    except IsADirectoryError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"attachment path is not a file: {file_path}",
+            details={"field": "file_path"},
+        ) from error
+    except OSError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"could not read attachment file {file_path}: {type(error).__name__}",
+            details={"field": "file_path"},
+        ) from error
+    if len(content) > MESSAGE_FILE_MAX_BYTES:
+        try:
+            file_size = path.stat().st_size
+        except OSError:
+            file_size = len(content)
+        raise ApiToolError(
+            code="invalid_argument",
+            message=(
+                f"attachment file is too large ({file_size} bytes; maximum is "
+                f"{MESSAGE_FILE_MAX_BYTES} bytes); split the file or send a summary"
+            ),
+            details={"field": "file_path", "max_bytes": MESSAGE_FILE_MAX_BYTES},
+        )
+    try:
+        return content.decode("utf-8"), len(content)
+    except UnicodeDecodeError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"attachment file must be UTF-8 text: {file_path}",
+            details={"field": "file_path"},
+        ) from error
+
+
 @mcp.tool()
-async def send_message(to: str, message: str, delivery_id: str = "") -> str:
+async def send_message(
+    to: str, message: str, delivery_id: str = "", file_path: str = "",
+) -> str:
     """Send a message to any agent by name. Triggers a new turn."""
+    if file_path:
+        attachment, attachment_size = _read_message_file(file_path)
+        attachment_header = (
+            f"--- attachment: {file_path} ({attachment_size} bytes) ---"
+        )
+        attachment_message = f"{attachment_header}\n{attachment}"
+        message = f"{message}\n\n{attachment_message}" if message else attachment_message
     delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
     if not delivery_id:
         delivery_id = str(uuid.uuid4())
