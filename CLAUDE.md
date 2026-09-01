@@ -298,7 +298,7 @@ Orchestra ноутбука: репозиторий `/mnt/data/Projects/Python/or
 **Модели и лимиты**
 - Opus 5 вдруг с 200K контекста → голый `claude-opus-5` репортит `contextWindow: 200000`, а `claude-opus-5[1m]` — 1000000 → всегда пинить `[1m]`, alias `opus` в сохранённой модели сессии не использовать. Отдельного бакета у Opus 5 нет — ест общий 5h/7d счётчик
 - `UPDATE sessions SET model=...` отработал, а после рестарта модель прежняя → живой сервер перезаписывает `sessions.model` из памяти при auto_resume → править при остановленном сервере и ПЕРЕПРОВЕРЯТЬ после рестарта; при смене бэкенда Codex→Claude обнулять ещё и `session_id`
-- full-cycle крашится сразу на старте на Claude-модели → `effort=xhigh` из pipeline.yaml, а Claude API отвергает xhigh без thinking → auto-downgrade xhigh→high (`backend_claude.py`)
+- xhigh на Claude-модели: API отвергает xhigh только при ЯВНО выключенном thinking (400 ловится в интерактивном Claude Code, где thinking — тумблер сессии). Прежний тихий auto-downgrade xhigh→high в `backend_claude.py` удалён 01.09.2026 как протухший — он молча воровал заказанный эффорт; теперь при `effort=xhigh` включается `thinking={"type":"adaptive"}` и xhigh идёт как есть (проверено живой пробой на Opus 5). Дефолт pipeline.yaml для Opus остаётся `high` (#208, внешние данные AA)
 - Финальные ревью не роутить на дешёвую модель: в A/B Spark прошляпил реальный double-count, который поймал Sol
 
 **Codex / Sol** (подробности — `docs/kb/codex-runtime.md`)
