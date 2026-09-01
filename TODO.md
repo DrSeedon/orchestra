@@ -48,3 +48,5 @@
 - [ ] **Codex как streaming tool** — видеть прогресс в реальном времени.
 - [ ] **Cross-server messaging** — связь между Orchestra на разных серверах.
 - [ ] **Best-of-N solving** — N воркеров, reviewer выбирает лучший.
+
+- **При следующем рестарте: переназначить `sessions.parent_name` восьми воркерам seedon** на `seedon-orchestrator` (сейчас указывает на архивные `dev-lead` и `feat-service-demo`): `infra`, `seo-cro`, `revert-259`, `fix-receipt-gates`, `feat-landings-209-semantic`, `impl208-t6`, `impl208-t6-sol`, `impl208-t6-fresh`. Правка ТОЛЬКО при остановленном сервисе: `_save_session` перезаписывает поле из памяти (`db.py:1624`, `ON CONFLICT … parent_name=excluded.parent_name`). Суть дефекта узкая: архивный родитель остаётся `last_task_sender` по умолчанию (`bg_jobs.py:552`), поэтому автоотчёт воркера, которому ещё не давали задания, уходит в архив — работа сделана, результат не доходит. Управление НЕ потеряно, гейта на `send_message` по владельцу нет; убивать и пересоздавать воркеров ради этого нельзя.
