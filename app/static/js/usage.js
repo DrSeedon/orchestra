@@ -43,7 +43,13 @@ function _resetPctNum(isoStr, windowMs) {
     if (!isoStr) return null;
     const remaining = new Date(isoStr) - Date.now();
     const elapsed = windowMs - remaining;
-    return Math.max(0, Math.min(100, Math.round(elapsed / windowMs * 100)));
+    return Math.max(0, Math.min(100, elapsed / windowMs * 100));
+}
+
+// Прогресс окна считается из времени, поэтому сотые тут настоящие —
+// в отличие от utilization, который провайдер отдаёт уже округлённым.
+function _resetPctText(pct) {
+    return pct.toFixed(2);
 }
 
 // Computes how long to wait (or "ok") based on pace vs. ideal linear burn.
@@ -247,7 +253,7 @@ function renderUsageBar() {
     if (fh) {
         const rpNum = _resetPctNum(fh.resets_at, 5 * 3600000);
         const c = _usageColor(fh.utilization, rpNum);
-        const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
+        const rp = rpNum != null ? ` <span style="color:#64748b">(${_resetPctText(rpNum)}%)</span>` : '';
         const cd = _resetCountdown(fh.resets_at);
         const release = '';
         claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
@@ -256,7 +262,7 @@ function renderUsageBar() {
     if (sd) {
         const rpNum = _resetPctNum(sd.resets_at, 7 * 86400000);
         const c = _usageColor(sd.utilization, rpNum);
-        const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
+        const rp = rpNum != null ? ` <span style="color:#64748b">(${_resetPctText(rpNum)}%)</span>` : '';
         const cd = _resetCountdown(sd.resets_at);
         const release = _quotaMapLaneStatusText(sd, 'anthropic');
         claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
@@ -326,7 +332,7 @@ function renderUsageBar() {
                 const windowMs = window.window_minutes * 60000;
                 const rpNum = _resetPctNum(window.resets_at, windowMs);
                 const c = _usageColor(window.utilization, rpNum);
-                const rp = rpNum != null ? ` <span style="color:#64748b">(${rpNum}%)</span>` : '';
+                const rp = rpNum != null ? ` <span style="color:#64748b">(${_resetPctText(rpNum)}%)</span>` : '';
                 const cd = _resetCountdown(window.resets_at);
                 const release = _quotaMapLaneStatusText(window, provider.bucketId);
                 const label = _codexWindowLabel(window.window_minutes);
@@ -376,7 +382,7 @@ function renderUsageBar() {
                     let html = `<div style="margin-bottom:9px"><div style="color:${accent};font-weight:600;margin-bottom:2px">${label} окно</div>`;
                     html += _row('Использовано', `${window.utilization}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
                     if (cd) html += _row('Сброс через', cd, '#64748b');
-                    if (rpNum != null) html += _row('Прогресс окна', `${rpNum}%`, '#64748b');
+                    if (rpNum != null) html += _row('Прогресс окна', `${_resetPctText(rpNum)}%`, '#64748b');
                     html += _row('Отклонение', pace, null);
                     if (eta) html += _row('Лимит через', eta, null);
                     return html + '</div>';
