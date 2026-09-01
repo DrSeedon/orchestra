@@ -1,0 +1,24 @@
+```json
+{
+  "state_patch": {
+    "current_facts": {
+      "F1": "knowledge-v1/current.db is labeled as an 808 MB vector index.",
+      "F2": "Deletion of knowledge-v1/current.db is provisional."
+    },
+    "decisions": {},
+    "open_questions": {
+      "Q1": "Is knowledge-v1/current.db actually a vector database, or is it an FTS/current knowledge database?"
+    },
+    "artifacts": {
+      "PC01-E01": {
+        "text": "Candidate: delete knowledge-v1/current.db because it is labeled as an 808 MB vector index. Keep the candidate provisional and continue."
+      }
+    },
+    "objective": "Determine which database can be deleted while preserving the required knowledge and search data.",
+    "next_action": "Continue processing chronological evidence."
+  },
+  "action": {
+    "kind": "continue"
+  }
+}
+```

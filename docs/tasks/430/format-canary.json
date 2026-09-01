@@ -1,0 +1,104 @@
+{
+  "runs": [
+    {
+      "call_outcome": "provider_success",
+      "content": "{\n  \"state_patch\": {\n    \"fact_E01\": \"Inventory labels ~/.local/state/orchestra/knowledge-v1/current.db (808 MB) as the vector index. Candidate action: delete current.db to remove the unused vector path.\",\n    \"source_event_id\": \"P01-419-memory-projection-E01\",\n    \"unresolved_question\": \"Should we delete current.db to remove the unused vector path?\"\n  },\n  \"action\": {\n    \"kind\": \"continue\"\n  }\n}",
+      "http_attempts": 1,
+      "http_status": 200,
+      "model_parse_outcome": "valid",
+      "payload_error": null,
+      "response_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "usage": {
+        "completion_tokens": 1106,
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "image_tokens": 0,
+          "reasoning_tokens": 1070
+        },
+        "cost": 0,
+        "cost_details": {
+          "upstream_inference_completions_cost": 0,
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0
+        },
+        "is_byok": false,
+        "prompt_tokens": 293,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cache_write_tokens": 0,
+          "cached_tokens": 0,
+          "video_tokens": 0
+        },
+        "total_tokens": 1399
+      }
+    },
+    {
+      "call_outcome": "provider_success",
+      "content": "",
+      "http_attempts": 1,
+      "http_status": 200,
+      "model_parse_outcome": "invalid_json:JSONDecodeError",
+      "payload_error": null,
+      "response_model": "cohere/north-mini-code:free",
+      "route": "cohere/north-mini-code:free",
+      "usage": {
+        "completion_tokens": 700,
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "image_tokens": 0,
+          "reasoning_tokens": 817
+        },
+        "cost": 0,
+        "cost_details": {
+          "upstream_inference_completions_cost": 0,
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0
+        },
+        "is_byok": false,
+        "prompt_tokens": 256,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cache_write_tokens": 0,
+          "cached_tokens": 0,
+          "video_tokens": 0
+        },
+        "total_tokens": 956
+      }
+    },
+    {
+      "call_outcome": "provider_success",
+      "content": "",
+      "http_attempts": 1,
+      "http_status": 200,
+      "model_parse_outcome": "invalid_json:JSONDecodeError",
+      "payload_error": null,
+      "response_model": "dots-studio/dots-3-note-preview:free",
+      "route": "dots-studio/dots-3-note-preview:free",
+      "usage": {
+        "completion_tokens": 700,
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "image_tokens": 0,
+          "reasoning_tokens": 722
+        },
+        "cost": 0,
+        "cost_details": {
+          "upstream_inference_completions_cost": 0,
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0
+        },
+        "is_byok": false,
+        "prompt_tokens": 275,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cache_write_tokens": 0,
+          "cached_tokens": 0,
+          "video_tokens": 0
+        },
+        "total_tokens": 975
+      }
+    }
+  ],
+  "schema": "skillstate430-format-canary-v1"
+}

@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________________________ test_t1_luna_runner_contract _________________________
+
+    def test_t1_luna_runner_contract() -> None:
+>       assert RUNNER.is_file(), "T1 missing stateless Luna runner"
+E       AssertionError: T1 missing stateless Luna runner
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/skillstate-bench/scripts/skillstate430/run_luna_benchmark.py').is_file
+
+docs/tasks/430/acceptance/test_t1_luna_runner_contract.py:16: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/430/acceptance/test_t1_luna_runner_contract.py::test_t1_luna_runner_contract
+1 failed in 0.43s
+
+RC=1

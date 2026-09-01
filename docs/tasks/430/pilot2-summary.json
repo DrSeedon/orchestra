@@ -1,0 +1,290 @@
+{
+  "completed_three_arm_cases": 0,
+  "frozen_full_benchmark_thresholds": {
+    "critical_reason_losses_allowed": 0,
+    "derivation": "worst observed same-arm append-vs-append_repeat instability on completed pilot cases",
+    "minimum_total_token_saving": null,
+    "quality_noninferiority_margin": null
+  },
+  "interleaving": "arm order rotates on every case step; loadavg recorded per request",
+  "model_parameters": {
+    "max_tokens": 700,
+    "seed": "case-derived",
+    "temperature": 0
+  },
+  "noise": {
+    "same_arm_quality_abs": [],
+    "same_arm_total_token_relative_abs": []
+  },
+  "observed_primary_ab_total_token_saving": [],
+  "provider_outcomes": {
+    "provider_malformed_success": 9
+  },
+  "request_order": [
+    {
+      "arm": "append",
+      "case_id": "P01-419-memory-projection",
+      "loadavg": "4.63 4.49 4.02 11/1308 1767750",
+      "sequence": 1,
+      "step": 1
+    },
+    {
+      "arm": "state",
+      "case_id": "P01-419-memory-projection",
+      "loadavg": "6.19 4.81 4.12 10/1311 1767900",
+      "sequence": 2,
+      "step": 1
+    },
+    {
+      "arm": "append_repeat",
+      "case_id": "P01-419-memory-projection",
+      "loadavg": "6.19 4.81 4.12 6/1294 1767965",
+      "sequence": 3,
+      "step": 1
+    },
+    {
+      "arm": "append_repeat",
+      "case_id": "P01-419-memory-projection",
+      "loadavg": "5.40 4.80 4.15 6/1308 1768804",
+      "sequence": 4,
+      "step": 2
+    },
+    {
+      "arm": "state",
+      "case_id": "P02-422-free-lane-reconciliation",
+      "loadavg": "5.61 4.85 4.17 5/1306 1768841",
+      "sequence": 5,
+      "step": 1
+    },
+    {
+      "arm": "append_repeat",
+      "case_id": "P02-422-free-lane-reconciliation",
+      "loadavg": "5.53 4.88 4.19 6/1310 1769260",
+      "sequence": 6,
+      "step": 1
+    },
+    {
+      "arm": "append",
+      "case_id": "P02-422-free-lane-reconciliation",
+      "loadavg": "5.32 4.84 4.18 4/1310 1769318",
+      "sequence": 7,
+      "step": 1
+    },
+    {
+      "arm": "append",
+      "case_id": "P02-422-free-lane-reconciliation",
+      "loadavg": "5.99 5.01 4.25 3/1309 1769733",
+      "sequence": 8,
+      "step": 2
+    },
+    {
+      "arm": "state",
+      "case_id": "P02-422-free-lane-reconciliation",
+      "loadavg": "7.03 5.46 4.45 1/1305 1770834",
+      "sequence": 9,
+      "step": 2
+    },
+    {
+      "arm": "append",
+      "case_id": "P02-422-free-lane-reconciliation",
+      "loadavg": "7.03 5.46 4.45 1/1306 1770895",
+      "sequence": 10,
+      "step": 3
+    },
+    {
+      "arm": "append",
+      "case_id": "P02-422-free-lane-reconciliation",
+      "loadavg": "7.89 5.97 4.67 4/1305 1771668",
+      "sequence": 11,
+      "step": 4
+    },
+    {
+      "arm": "append_repeat",
+      "case_id": "P03-416-merge-error-normalization",
+      "loadavg": "7.89 5.97 4.67 1/1295 1771675",
+      "sequence": 12,
+      "step": 1
+    },
+    {
+      "arm": "append",
+      "case_id": "P03-416-merge-error-normalization",
+      "loadavg": "7.19 5.96 4.71 1/1299 1772091",
+      "sequence": 13,
+      "step": 1
+    },
+    {
+      "arm": "state",
+      "case_id": "P03-416-merge-error-normalization",
+      "loadavg": "8.52 6.36 4.87 2/1310 1772288",
+      "sequence": 14,
+      "step": 1
+    },
+    {
+      "arm": "append",
+      "case_id": "P03-416-merge-error-normalization",
+      "loadavg": "7.14 6.16 4.83 5/1286 1772441",
+      "sequence": 15,
+      "step": 2
+    },
+    {
+      "arm": "state",
+      "case_id": "P03-416-merge-error-normalization",
+      "loadavg": "7.21 6.28 4.92 17/1290 1772913",
+      "sequence": 16,
+      "step": 2
+    },
+    {
+      "arm": "append_repeat",
+      "case_id": "P03-416-merge-error-normalization",
+      "loadavg": "6.49 6.19 4.92 4/1288 1773324",
+      "sequence": 17,
+      "step": 2
+    },
+    {
+      "arm": "state",
+      "case_id": "P03-416-merge-error-normalization",
+      "loadavg": "6.24 6.12 4.95 13/1285 1774329",
+      "sequence": 18,
+      "step": 3
+    },
+    {
+      "arm": "append_repeat",
+      "case_id": "P03-416-merge-error-normalization",
+      "loadavg": "5.98 6.07 4.94 6/1288 1774455",
+      "sequence": 19,
+      "step": 3
+    },
+    {
+      "arm": "append",
+      "case_id": "P03-416-merge-error-normalization",
+      "loadavg": "5.83 6.03 4.95 3/1280 1774785",
+      "sequence": 20,
+      "step": 3
+    },
+    {
+      "arm": "append_repeat",
+      "case_id": "P03-416-merge-error-normalization",
+      "loadavg": "5.83 6.03 4.95 1/1278 1774851",
+      "sequence": 21,
+      "step": 4
+    }
+  ],
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "rows": [
+    {
+      "arms": {
+        "append": {
+          "grade": {
+            "call_outcome": "provider_malformed_success",
+            "model_outcome": "not_graded"
+          },
+          "usage": {
+            "completion_tokens": 0,
+            "prompt_tokens": 0,
+            "total_tokens": 0
+          }
+        },
+        "append_repeat": {
+          "grade": {
+            "call_outcome": "provider_malformed_success",
+            "model_outcome": "not_graded"
+          },
+          "usage": {
+            "completion_tokens": 1799,
+            "prompt_tokens": 294,
+            "total_tokens": 2093
+          }
+        },
+        "state": {
+          "grade": {
+            "call_outcome": "provider_malformed_success",
+            "model_outcome": "not_graded"
+          },
+          "usage": {
+            "completion_tokens": 0,
+            "prompt_tokens": 0,
+            "total_tokens": 0
+          }
+        }
+      },
+      "case_id": "P01-419-memory-projection"
+    },
+    {
+      "arms": {
+        "append": {
+          "grade": {
+            "call_outcome": "provider_malformed_success",
+            "model_outcome": "not_graded"
+          },
+          "usage": {
+            "completion_tokens": 4557,
+            "prompt_tokens": 2074,
+            "total_tokens": 6631
+          }
+        },
+        "append_repeat": {
+          "grade": {
+            "call_outcome": "provider_malformed_success",
+            "model_outcome": "not_graded"
+          },
+          "usage": {
+            "completion_tokens": 0,
+            "prompt_tokens": 0,
+            "total_tokens": 0
+          }
+        },
+        "state": {
+          "grade": {
+            "call_outcome": "provider_malformed_success",
+            "model_outcome": "not_graded"
+          },
+          "usage": {
+            "completion_tokens": 710,
+            "prompt_tokens": 297,
+            "total_tokens": 1007
+          }
+        }
+      },
+      "case_id": "P02-422-free-lane-reconciliation"
+    },
+    {
+      "arms": {
+        "append": {
+          "grade": {
+            "call_outcome": "provider_malformed_success",
+            "model_outcome": "not_graded"
+          },
+          "usage": {
+            "completion_tokens": 2379,
+            "prompt_tokens": 867,
+            "total_tokens": 3246
+          }
+        },
+        "append_repeat": {
+          "grade": {
+            "call_outcome": "provider_malformed_success",
+            "model_outcome": "not_graded"
+          },
+          "usage": {
+            "completion_tokens": 3146,
+            "prompt_tokens": 1927,
+            "total_tokens": 5073
+          }
+        },
+        "state": {
+          "grade": {
+            "call_outcome": "provider_malformed_success",
+            "model_outcome": "not_graded"
+          },
+          "usage": {
+            "completion_tokens": 2008,
+            "prompt_tokens": 714,
+            "total_tokens": 2722
+          }
+        }
+      },
+      "case_id": "P03-416-merge-error-normalization"
+    }
+  ],
+  "schema": "skillstate430-pilot-summary-v1"
+}

@@ -1,0 +1,28 @@
+```json
+{
+  "state_patch": {
+    "current_facts": {
+      "PC01-E03": {
+        "status": "confirmed",
+        "text": "The current decision is to delete the unused data/vec.db vector store while preserving the lexical current.db knowledge projection and search memory."
+      }
+    },
+    "decisions": {
+      "DELETE_DATA_VEC_DB": {
+        "because": "The vector store is unused; current.db is the lexical FTS projection and should be preserved.",
+        "status": "accepted"
+      }
+    },
+    "next_action": "finalize"
+  },
+  "action": {
+    "decision": "DELETE_DATA_VEC_DB",
+    "keep": [
+      "KNOWLEDGE_CURRENT_DB",
+      "SEARCH_MEMORY"
+    ],
+    "rejected": "DELETE_CURRENT_DB",
+    "reason_code": "LOW_USAGE_ONLY"
+  }
+}
+```

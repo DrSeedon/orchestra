@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_t2_luna_positive_control_green_before_calibration ____________
+
+    def test_t2_luna_positive_control_green_before_calibration() -> None:
+>       assert RECEIPT.is_file(), "T2 missing live Luna positive-control receipt"
+E       AssertionError: T2 missing live Luna positive-control receipt
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/skillstate-bench/docs/tasks/430/evidence/luna-positive-control.json').is_file
+
+docs/tasks/430/acceptance/test_t2_luna_positive_control.py:19: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/430/acceptance/test_t2_luna_positive_control.py::test_t2_luna_positive_control_green_before_calibration
+1 failed in 0.25s
+
+RC=1

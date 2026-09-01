@@ -1,0 +1,10 @@
+CACHED_DIFF_CHECK=OK
+JSON_AND_JSONL_PARSE=OK
+PYTHON_AST_PARSE=OK files=4
+scripts/skillstate430/pilot_cases.json: OK
+scripts/skillstate430/run_pilot.py: OK
+ORDER_AUDITS=OK pilot1_checks=3 pilot2_checks=6 surface_hash_gap=recorded
+KB contract OK
+LUNA_VERDICT_EVIDENCE=OK blockers=0
+PROD_DB_SESSIONS=467->467
+PRODUCTION_FILES_CHANGED=0 UV_LOCK_CHANGED=0 SECRET_SHAPES=0
