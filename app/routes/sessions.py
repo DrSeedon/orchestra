@@ -516,10 +516,14 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
-    live_session = manager.get(session_id)
-    stored = get_session_row(session_id) if live_session is None else None
+    stored = get_session_row(session_id)
 
     def with_status(payload: dict) -> dict:
+        # Живую сессию перерешаем на КАЖДОМ событии: на коннекте её может не быть в
+        # реестре (idle-воркер не загружен), а через минуту её грузит `ensure_loaded`
+        # и она идёт ход по ЭТОМУ же стриму. Клиент верит `agent_status` каждого
+        # события, поэтому статус, замороженный на коннекте, затирал бы верный.
+        live_session = manager.get(session_id)
         status = (
             live_session.status.value
             if live_session is not None
