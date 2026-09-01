@@ -1,0 +1,29 @@
+```json
+{
+  "state_patch": {
+    "artifacts": {
+      "PC01-E02": {
+        "text": "sqlite_master shows current_records and current_fts with no embeddings. current.db is the lexical FTS projection; the real unused vector store is data/vec.db. Reject DELETE_CURRENT_DB because it targets the wrong store."
+      }
+    },
+    "current_facts": {
+      "F3": "knowledge-v1/current.db contains current_records and current_fts with no embeddings.",
+      "F4": "knowledge-v1/current.db is the lexical FTS projection.",
+      "F5": "data/vec.db is the real unused vector store."
+    },
+    "decisions": {
+      "DELETE_CURRENT_DB": {
+        "status": "rejected",
+        "because": "current.db is an FTS projection, not the vector store; data/vec.db is the unused vector store."
+      }
+    },
+    "next_action": "Continue processing chronological evidence.",
+    "open_questions": {
+      "Q1": "Can data/vec.db be deleted while preserving required knowledge and search data?"
+    }
+  },
+  "action": {
+    "kind": "continue"
+  }
+}
+```

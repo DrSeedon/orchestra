@@ -868,6 +868,13 @@ class AgentSession:
         )
         return build_backend(runtime, context)
 
+    def _log_codex_connect_stage(self, stage: str, started: float) -> None:
+        if self.backend_type == "codex":
+            logger.info(
+                "codex_connect_stage worker=%s stage=%s duration=%.3fs",
+                self.name, stage, time.monotonic() - started,
+            )
+
     @property
     def is_busy(self) -> bool:
         """Идёт ли работа, которую рестарт разорвёт (#220 T3).
@@ -1066,11 +1073,15 @@ class AgentSession:
         return self.status == AgentStatus.IDLE
 
     async def _worker_admission(self, model: str) -> "QuotaDecision":
-        if self._admission_service is not None:
-            return await self._admission_service(model)
-        from app.quota_gate import get_worker_admission
+        started = time.monotonic()
+        try:
+            if self._admission_service is not None:
+                return await self._admission_service(model)
+            from app.quota_gate import get_worker_admission
 
-        return await get_worker_admission(model)
+            return await get_worker_admission(model)
+        finally:
+            self._log_codex_connect_stage("quota_gate", started)
 
     async def preflight_delivery_admission(self) -> None:
         """Check a new direct delivery before its durable receipt is accepted."""
@@ -1290,6 +1301,7 @@ class AgentSession:
             did_inject = False
             pending_th = ""
             templates_changed = False
+            prompt_started = time.monotonic()
             if self.session_id and self._current_prompt and not self._prompt_injected:
                 # Inject updated system prompt once per session — workers list, role
                 # catalog, and template content drift as other agents spawn/die.
@@ -1341,6 +1353,7 @@ class AgentSession:
                         )
                 message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
                 did_inject = True
+            self._log_codex_connect_stage("prompt_assembly", prompt_started)
 
             await self._apply_pending_identity_restart()
             await self._apply_manifest_effort()
@@ -1912,13 +1925,20 @@ class AgentSession:
             # otherwise a long-lived worker keeps the project rules from its spawn day.
             # Orchestrators have no worktree, so cwd must be included too; omitting it left
             # every root Codex orchestrator without its repository's CLAUDE.md rules.
+            agents_started = time.monotonic()
             try:
                 from app.workspace import sync_agents_md
                 await asyncio.to_thread(sync_agents_md, project_path)
             except Exception as e:
                 logger.warning(f"[{self.name}] AGENTS.md mirror refresh failed: {e}")
+            finally:
+                self._log_codex_connect_stage("agents_sync", agents_started)
+        skills_started = time.monotonic()
         await self._refresh_skills()
+        self._log_codex_connect_stage("skills_sync", skills_started)
+        project_doc_started = time.monotonic()
         await self._refresh_codex_project_doc()
+        self._log_codex_connect_stage("project_doc_sync", project_doc_started)
         if (
             history_import is None
             and not force_fresh

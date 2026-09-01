@@ -1,0 +1,179 @@
+{
+  "schema": "skillstate430-luna-benchmark-spec-v1",
+  "model": "gpt-5.6-luna",
+  "codex": {
+    "fresh_process_per_step": true,
+    "resume_allowed": false,
+    "sandbox": "read-only",
+    "ignore_user_config": true,
+    "ignore_rules": true,
+    "tool_calls_allowed": 0,
+    "provider_structured_output": false,
+    "output_message_path_kind": "absolute",
+    "model_output_protocol": "ordinary text containing exactly one fenced json block",
+    "json_fence_label": "json",
+    "json_top_level_keys": ["state_patch", "action"],
+    "malformed_output_bucket": "missing, multiple, syntactically invalid, wrong-top-level, or wrong-type fenced JSON; neither success nor model error"
+  },
+  "positive_control": {
+    "case_id": "PC01-current-db-is-fts",
+    "source": "docs/tasks/419/report.md; docs/kb/agent-memory-architecture.md",
+    "steps": [
+      {
+        "event_id": "PC01-E01",
+        "text": "Candidate: delete knowledge-v1/current.db because it is labeled as an 808 MB vector index. Keep the candidate provisional and continue."
+      },
+      {
+        "event_id": "PC01-E02",
+        "text": "sqlite_master shows current_records and current_fts with no embeddings. current.db is the lexical FTS projection; the real unused vector store is data/vec.db. Reject DELETE_CURRENT_DB because it targets the wrong store."
+      },
+      {
+        "event_id": "PC01-E03",
+        "text": "FINAL: choose the current decision, preserved components, rejected option, and reason code from the disclosed action schema."
+      }
+    ],
+    "action_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "enum": ["DELETE_DATA_VEC_DB", "DELETE_CURRENT_DB", "KEEP_ALL"]
+        },
+        "keep": {
+          "type": "array",
+          "items": {
+            "enum": ["KNOWLEDGE_CURRENT_DB", "SEARCH_MEMORY", "DATA_VEC_DB"]
+          },
+          "x-normalization": "sorted_unique_set"
+        },
+        "rejected": {
+          "enum": ["DELETE_CURRENT_DB", "NONE"]
+        },
+        "reason_code": {
+          "enum": ["CURRENT_DB_IS_FTS_NOT_VECTOR", "LOW_USAGE_ONLY"]
+        }
+      },
+      "required": ["decision", "keep", "rejected", "reason_code"]
+    },
+    "gold_action": {
+      "decision": "DELETE_DATA_VEC_DB",
+      "keep": ["KNOWLEDGE_CURRENT_DB", "SEARCH_MEMORY"],
+      "rejected": "DELETE_CURRENT_DB",
+      "reason_code": "CURRENT_DB_IS_FTS_NOT_VECTOR"
+    },
+    "critical_keys": ["decision", "rejected", "reason_code"],
+    "forbidden_values": ["CURRENT_DB_IS_VECTOR"],
+    "arms": ["append", "state", "append_repeat"],
+    "expected_codex_exec_calls": 9
+  },
+  "strata": [
+    {
+      "order": 1,
+      "key": "research_architecture",
+      "definition": "Accepted deliverable selects among competing hypotheses or architectures and preserves rejected alternatives with reasons."
+    },
+    {
+      "order": 2,
+      "key": "shared_runtime_auth_persistence_high_risk",
+      "definition": "Task touches shared process/session/message delivery, authentication, persistence, destructive paths, or another high-risk boundary."
+    },
+    {
+      "order": 3,
+      "key": "incident_diagnosis",
+      "definition": "Accepted deliverable identifies a causal chain and rejects at least one earlier diagnosis using later evidence."
+    },
+    {
+      "order": 4,
+      "key": "closed_behavioral_code_change",
+      "definition": "Closed code task with a behavioral oracle and no match in higher strata."
+    },
+    {
+      "order": 5,
+      "key": "readonly_extraction_docs_delivery",
+      "definition": "Read-only extraction, sorting, digest, documentation, or delivery task not matched above."
+    }
+  ],
+  "stratum_classifier": "Apply strata in ascending order; first match wins.",
+  "case_format": {
+    "required_fields": [
+      "case_id",
+      "task_id",
+      "source_paths",
+      "source_sha256",
+      "stratum",
+      "observations",
+      "action_schema",
+      "gold_action",
+      "critical_keys",
+      "forbidden_values",
+      "normalizers"
+    ],
+    "observation_count_min": 8,
+    "observation_count_max": 12,
+    "action_schema_requires_disclosed_enums": true,
+    "allowed_normalizers": ["identity", "sorted_unique_set"]
+  },
+  "quality": {
+    "Q_definition": "correct normalized gold-action fields divided by total gold-action fields; protocol-invalid or forbidden-resurrection outcome has Q=0",
+    "field_weight": 1,
+    "task_success": "Q=1 and every critical key correct and no forbidden value present",
+    "critical_reason_loss": "any incorrect critical key"
+  },
+  "calibration": {
+    "case_count": 6,
+    "steps_per_case": 8,
+    "arms": ["append", "state", "append_repeat"],
+    "requires_every_stratum": true,
+    "requires_complete_three_arm_cases": 6,
+    "token_noise": "abs(T_append-T_append_repeat)/mean(T_append,T_append_repeat)",
+    "quality_noise": "abs(Q_append-Q_append_repeat)",
+    "eta_tokens": "max(token_noise over six completed cases)",
+    "eta_quality": "max(quality_noise over six completed cases)",
+    "critical_reason_losses_allowed": 0
+  },
+  "main": {
+    "case_count": 30,
+    "selected_per_stratum": 6,
+    "arms": ["append", "state"],
+    "calls_min": 480,
+    "calls_max": 720,
+    "requires_completed_pairs": 30,
+    "selection_key": "sha256(utf8('skillstate430-luna-v1:' + decimal(case.task_id)))",
+    "selection_algorithm": "classify every eligible case by first-match stratum; within each stratum sort ascending by (selection_key_hex, numeric task_id) and take the first six",
+    "order": "case-round-robin strict A/B; first arm balanced by frozen selection hash"
+  },
+  "bootstrap": {
+    "seed": 43020260901,
+    "replicates": 10000,
+    "resampling_unit": "paired case",
+    "sampling": "draw N paired cases with replacement for each replicate",
+    "token_statistic": "sum(T_state)/sum(T_append)",
+    "quality_statistic": "mean(Q_state-Q_append)",
+    "sort": "ascending numeric",
+    "lower_10_index": "floor(0.10*(replicates-1))",
+    "upper_90_index": "ceil(0.90*(replicates-1))",
+    "token_bound": "sorted token ratios at upper_90_index",
+    "quality_bound": "sorted quality differences at lower_10_index"
+  },
+  "decision": {
+    "token_gate": "total_token_ratio_ci90_upper < 1 - eta_tokens",
+    "quality_gate": "quality_diff_ci90_lower >= -eta_quality",
+    "critical_gate": "state_critical_reason_losses == 0",
+    "state_harms": "not quality_gate or not critical_gate",
+    "state_wins": "token_gate and quality_gate and critical_gate",
+    "no_measured_win": "not token_gate and quality_gate and critical_gate"
+  },
+  "production_db_guard": {
+    "database": "/home/kesha/orchestra/data/orchestra.db",
+    "sqlite_connections": "URI mode=ro plus PRAGMA query_only=ON; total_changes remains 0",
+    "backup": "sqlite3.Connection.backup to task-local .scratch on real disk; any DB-dependent probe targets the backup",
+    "traced_paths": [
+      "/home/kesha/orchestra/data/orchestra.db",
+      "/home/kesha/orchestra/data/orchestra.db-wal",
+      "/home/kesha/orchestra/data/orchestra.db-shm"
+    ],
+    "trace": "strace -ff follows controller and Codex children; no O_WRONLY/O_RDWR/O_CREAT/O_TRUNC or mutating path syscall may target a traced path",
+    "sessions_count_receipt": "record read-only count immediately before and after; equality is required by the task",
+    "write_syscalls_allowed": 0
+  }
+}

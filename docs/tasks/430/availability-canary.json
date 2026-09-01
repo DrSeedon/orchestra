@@ -1,0 +1,53 @@
+{
+  "catalog": {
+    "eligible_exact_free_text_tools": 17,
+    "selected": [
+      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "cohere/north-mini-code:free",
+      "dots-studio/dots-3-note-preview:free"
+    ],
+    "status": 200
+  },
+  "runs": [
+    {
+      "attempts": 1,
+      "call_outcome": "provider_success",
+      "http_status": 200,
+      "response_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "usage": {
+        "completion_tokens": 44,
+        "cost": 0,
+        "prompt_tokens": 21,
+        "total_tokens": 65
+      }
+    },
+    {
+      "attempts": 1,
+      "call_outcome": "provider_success",
+      "http_status": 200,
+      "response_model": "cohere/north-mini-code:free",
+      "route": "cohere/north-mini-code:free",
+      "usage": {
+        "completion_tokens": 8,
+        "cost": 0,
+        "prompt_tokens": 5,
+        "total_tokens": 13
+      }
+    },
+    {
+      "attempts": 1,
+      "call_outcome": "provider_success",
+      "http_status": 200,
+      "response_model": "dots-studio/dots-3-note-preview:free",
+      "route": "dots-studio/dots-3-note-preview:free",
+      "usage": {
+        "completion_tokens": 8,
+        "cost": 0,
+        "prompt_tokens": 18,
+        "total_tokens": 26
+      }
+    }
+  ],
+  "schema": "skillstate430-availability-v1"
+}

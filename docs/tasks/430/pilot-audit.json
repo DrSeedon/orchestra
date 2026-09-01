@@ -1,0 +1,78 @@
+{
+  "availability_canary": [
+    {
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "call_outcome": "provider_success",
+      "http_status": 200
+    },
+    {
+      "route": "cohere/north-mini-code:free",
+      "call_outcome": "provider_success",
+      "http_status": 200
+    },
+    {
+      "route": "dots-studio/dots-3-note-preview:free",
+      "call_outcome": "provider_success",
+      "http_status": 200
+    }
+  ],
+  "format_canary": [
+    {
+      "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "call_outcome": "provider_success",
+      "model_parse_outcome": "valid",
+      "http_status": 200
+    },
+    {
+      "route": "cohere/north-mini-code:free",
+      "call_outcome": "provider_success",
+      "model_parse_outcome": "invalid_json:JSONDecodeError",
+      "http_status": 200
+    },
+    {
+      "route": "dots-studio/dots-3-note-preview:free",
+      "call_outcome": "provider_success",
+      "model_parse_outcome": "invalid_json:JSONDecodeError",
+      "http_status": 200
+    }
+  ],
+  "pilot1": {
+    "requests": 33,
+    "request_call_outcomes": {
+      "provider_malformed_success": 7,
+      "provider_success": 26
+    },
+    "completed_three_arm_cases": 0
+  },
+  "pilot2": {
+    "requests": 21,
+    "request_call_outcomes": {
+      "provider_malformed_success": 9,
+      "provider_success": 12
+    },
+    "upstream_payload_errors": [
+      {
+        "message": "Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)",
+        "code": 502,
+        "n": 7
+      },
+      {
+        "message": "Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (2367/16)",
+        "code": 502,
+        "n": 1
+      },
+      {
+        "message": "Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (2493/16)",
+        "code": 502,
+        "n": 1
+      }
+    ],
+    "completed_three_arm_cases": 0
+  },
+  "thresholds": {
+    "minimum_total_token_saving": null,
+    "quality_noninferiority_margin": null,
+    "critical_reason_losses_allowed": 0,
+    "reason": "no completed three-arm pilot case"
+  }
+}
