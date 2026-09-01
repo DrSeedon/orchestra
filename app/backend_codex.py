@@ -10,6 +10,7 @@ import re
 import shutil
 import sqlite3
 import sys
+import time
 import tomllib
 import uuid
 import weakref
@@ -839,6 +840,17 @@ class CodexBackend(JsonRpcStdioTransport):
         self._teardown_error: str | None = None
         self._reader_failure: BaseException | None = None
         self._terminal_reader_failure = False
+        self._connect_stage_started: float | None = None
+
+    def _log_connect_stage(self, stage: str, started: float | None = None) -> None:
+        if started is None:
+            started = self._connect_stage_started
+        if started is not None:
+            logger.info(
+                "codex_connect_stage worker=%s stage=%s duration=%.3fs",
+                self._mcp_env.get("WORKER_NAME", "unknown"),
+                stage, time.monotonic() - started,
+            )
 
     @property
     def session_id(self) -> Optional[str]:
@@ -1017,6 +1029,8 @@ class CodexBackend(JsonRpcStdioTransport):
         if self.is_alive and not self._teardown_error:
             return
 
+        self._connect_stage_started = time.monotonic()
+
         if self.has_owned_processes:
             await self.disconnect()
         await self._verify_history_version()
@@ -1066,6 +1080,7 @@ class CodexBackend(JsonRpcStdioTransport):
             else:
                 child_stdin, child_stdout, our_stdin, our_stdout = self.new_child_pipes()
                 stdio = {"stdin": child_stdin, "stdout": child_stdout}
+            spawn_started = time.monotonic()
             self._proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 **stdio,
@@ -1074,6 +1089,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 cwd=self.cwd,
                 limit=CODEX_STREAM_LIMIT,
             )
+            self._log_connect_stage("cli_spawn", spawn_started)
             if our_stdin is not None:
                 # Ownership passes at the CALL, not on success: half-attached, one of these
                 # already belongs to a live transport and the cleanup below cannot tell which.
@@ -1100,7 +1116,9 @@ class CodexBackend(JsonRpcStdioTransport):
             }
             if self._history_import or metadata_only_resume:
                 initialize_params["capabilities"] = {"experimentalApi": True}
+            initialize_started = time.monotonic()
             await self._request("initialize", initialize_params)
+            self._log_connect_stage("cli_initialize", initialize_started)
             await self._notify("initialized", {})
             params = {
                 "cwd": self.cwd,
@@ -1121,16 +1139,22 @@ class CodexBackend(JsonRpcStdioTransport):
             if history_import:
                 params["threadId"] = history_import.thread_id
                 params["history"] = list(history_import.history)
+                resume_started = time.monotonic()
                 result = await self._request("thread/resume", params)
+                self._log_connect_stage("cli_thread_resume_import", resume_started)
             elif requested_thread_id:
                 params["threadId"] = requested_thread_id
                 # The app-server otherwise reconstructs and serializes the complete native
                 # history into one JSONL response. Image-heavy threads have exceeded 16 MiB
                 # in production; Orchestra only needs the live subscription and thread id.
                 params["excludeTurns"] = True
+                resume_started = time.monotonic()
                 result = await self._request("thread/resume", params)
+                self._log_connect_stage("cli_thread_resume", resume_started)
             else:
+                start_started = time.monotonic()
                 result = await self._request("thread/start", params)
+                self._log_connect_stage("cli_thread_start", start_started)
             thread_id = ((result.get("thread") or {}).get("id"))
             if not thread_id:
                 raise RuntimeError("Codex app-server returned no thread id")
@@ -1146,7 +1170,9 @@ class CodexBackend(JsonRpcStdioTransport):
                 # tools stay absent until the supported reload RPC queues a refresh for
                 # the next active turn.  This preserves thread/context continuity while
                 # making restart-cli a real tool-registry refresh.
+                reload_started = time.monotonic()
                 await self._request("config/mcpServer/reload", None)
+                self._log_connect_stage("mcp_reload", reload_started)
             self._history_import = None
             self._rollout_path = None
             self._teardown_error = None
@@ -1708,6 +1734,11 @@ class CodexBackend(JsonRpcStdioTransport):
                 if message.get("method"):
                     if message["method"] == "thread/tokenUsage/updated":
                         self._record_token_usage(message.get("params") or {})
+                    if message["method"] == "mcpServer/startupStatus/updated":
+                        params = message.get("params") or {}
+                        name = params.get("name") or "unknown"
+                        status = params.get("status") or "unknown"
+                        self._log_connect_stage(f"mcp_{name}_{status}")
                     self._complete_compaction_from_notification(message)
                     notifications = self._compact_notifications
                     if notifications is None:
