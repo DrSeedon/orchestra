@@ -21,6 +21,7 @@
 - Current `main` after #405 still serializes readers behind synchronous resource/FTS verification and mutable-row refresh: on a fresh 887,365,632-byte / 16,730-row backup, preserved-receipt medians were startup/create/concurrent-list 8.616/9.524/9.355 s; all 3 creates used zero full replacements · `docs/tasks/395/benchmark-main-8aed30c2-current-20260827.raw.jsonl`; `docs/tasks/395/fixture-current-manifest.json` · 2026-08-27 #395
 - On the same clone with only receipt fields cleared and cloned `current.db` advised `POSIX_FADV_DONTNEED`, current main took startup 213.691 s (`_refresh_current_projection` 205.054 s), create 108.216 s and concurrent list 107.953 s; at 30.005 s create was incomplete while exactly one legacy task row already existed, so #405 does not close the timeout/outcome-unknown boundary · `docs/tasks/395/benchmark-main-8aed30c2-cold-cache-startup-20260827.raw.jsonl` · 2026-08-27 #395
 - Production startup totals on 2026-08-27 were 179.711 and 299.018 s followed by 22.425 s on the immediate next start; journal totals corroborate a cold/warm split but do not by themselves attribute all elapsed time to projection code · `docs/tasks/395/startup-journal-20260827.txt` · 2026-08-27 #395
+- `fact:task-write-volume-latency` — Pre-#395 production POST was 20.84 s and PUT 19.60/18.12 s on 47,834 evidence records plus 2.32 GB `current.db`, while a 20,948-record/704 MB laptop had no symptom; current #395 source removed the full steady-state rebuild but still deep-copies/serializes all evidence, runs `git add -A`, and waits for selected `current.db` CAS before response · искать: `_record_task_head`, `task_create`, `evidence_records`, `current.db`, «запись задачи висит» · evidence: `docs/tasks/426/finding-task-write-latency.md`; `app/ia/runtime.py:655-708,778-788`; `docs/tasks/426/research.md` Findings 1–3 · 2026-09-01 #426
 
 ## Отвергнуто
 
@@ -43,8 +44,10 @@
 - Exact migration from per-row global heads to an atomic projection receipt, crash behavior across canonical Git plus two SQLite projections, and idempotency-key retention remain open for Phase 2 · no production change or failure-injection oracle exists yet · 2026-08-26, #395
 - Post-change latency and old/new snapshot behavior remain unmeasured · repeat the exact benchmark command and interleave old/new arms while retaining loadavg · 2026-08-26, #395 — ЧАСТИЧНО ЗАКРЫТО 2026-08-27 #395: #405 warm/cold latency measured; final record-level implementation and old/new snapshot behavior remain open
 - Cold-cache latency distribution and exact live page residency remain open · isolated `POSIX_FADV_DONTNEED` arm is n=1 and production journal measures total lifespan · 2026-08-27, #395
+- Architecture approval must choose bounded successful canonical-mode projection durability versus broad automatic canonical↔legacy recovery for pre-response create/update crashes in both ownership orders · `docs/tasks/426/research.md` § Architecture decision required; `docs/tasks/426/review-research-luna.md` round 2 · 2026-09-01, #426
 
 ## Источники
 
 - docs/tasks/299/research.md — current model, safe aggregates, external comparison, identity, sync state machine and migration gates.
 - docs/tasks/395/research.md — hot-path call graph, old/current-main warm+cold baselines, real timeout outcomes, startup, reader/idempotency/integrity design boundary.
+- docs/tasks/426/research.md — post-#395 residual O(E) path, exact-head cache experiment, durable projection-outbox constraints and cross-store scope decision.
