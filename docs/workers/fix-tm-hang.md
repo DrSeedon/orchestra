@@ -10,3 +10,6 @@
 - Across non-atomic canonical+projection writes, never delete a PENDING request merely because the
   writer raised: first resolve its deterministic canonical identity. Existing identity means
   recover; proven absence means the reservation can be released for a real retry.
+- When merging contours that reused task numbers, inspect both task directories by filename even
+  if the handoff says artifacts do not conflict; preserve one side under descriptive names and
+  repair every KB evidence link so a fact cannot silently point at the other task's document.

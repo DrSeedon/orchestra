@@ -2,6 +2,7 @@
 
 ## Установлено
 
+- `fact:merge-finalization-canonical-gap` — Первичные финализации #399/#400/#410 падали до смены статуса, потому что failure-time canonical snapshots не содержали целевую задачу: `finalize_merge_outcome` связывает коммиты первым, `TaskStore._find_state` бросает `ValueError: <N> not found` на `app/ia/task_store.py:583`; изолированный process-global IA stand воспроизвёл `399 not found`, healthy dual-owner control прошёл, боевой `sessions` остался 583→583, canonical tree digest не изменился, а immutable Git snapshots непосредственно перед failing tool-result logs 508291/508303/510918 дали target matches 0/0/0 для #399/#400/#410 · искать: `merge_worker`, `POST_COMMIT_PARTIAL`, `ValueError not found`, `finalize_merge_outcome`, `_find_state` · evidence: `uv run python docs/tasks/426/repro_stand.py`; `uv run python docs/tasks/426/operation_time_evidence.py`; `docs/tasks/426/research-laptop-merge-finalization.md` F1–F3 · 2026-09-01 #426
 - Generation 3 inherited two independent task-number allocators: a 2026-08-26 full join of 693 legacy and 684 canonical tasks found 684 paired identities, zero unresolved mappings, and two semantic collisions in `orchestra` (#398 and #399); both newer canonical records had different older legacy tasks under the same number · `docs/tasks/406/report.md` § Pre-fix inventory; sqlite backup + 684 `state.json` records · 2026-08-26 #406
 - Under canonical ownership, task creation must read `next_display_number` from canonical, compare it with legacy `_next_par` before either write, and pass that exact number to legacy; a mismatch is an `IdentityConflictError`, not projection debt returned after two successful but different writes · `app/ia/task_store.py:task_list`; `app/tm.py:api_create_task`; `tests/test_task_par_collision_406.py` · 2026-08-26 #406
 - Collision repair is content-bound to one fresh snapshot: dry-run emits a token, `--apply` rereads both stores inside `BEGIN IMMEDIATE`, and any new/changed task refuses the pass before mutation; a copy probe inserted #410 between calls and got `REFUSED`, RC=2, with #404/#405 unchanged · `scripts/repair_task_par_collisions.py`; `docs/tasks/406/report.md` § Repair script · 2026-08-26 #406
@@ -38,6 +39,8 @@
 
 ## Пробелы
 
+- Архитектура восстановления post-commit finalization при отсутствующей canonical-задаче не выбрана: legacy-only fallback нарушает canonical ownership, а автоматическое создание обязано различать свободный номер и номер, занятый другой stable identity · `docs/tasks/426/research-laptop-merge-finalization.md` Counter-evidence / risks; решение отложено до обсуждения Phase 2 · 2026-09-01 #426
+- Падает ли свежий `merge_worker` при наличии задачи в обоих owners, не установлено: isolated healthy control проходит, а наблюдения 31.08 повторяют те же operation UUID, чьи первичные ошибки возникли 26–27.08; нужен real-worker acceptance probe до выбора правки · `docs/tasks/426/research-laptop-merge-finalization.md` F3 / Counter-evidence · 2026-09-01 #426
 - Legal policy for storing payment/client notes in private Git and the required history-rewrite/remote-retention procedure is not supplied · technical tombstone is not GDPR erasure · 2026-08-23, task #299
 - User acceptance of lease gaps versus requirement for one contiguous global #N sequence is not measured · central allocator is required if gaps/offline creates are unacceptable · 2026-08-23, task #299
 - Performance baseline for current task_list/task_get and 10k-record replay is not measured · thresholds are defined in research §10 for implementation phase · 2026-08-23, task #299
@@ -48,6 +51,7 @@
 
 ## Источники
 
+- docs/tasks/426/research-laptop-merge-finalization.md — failure-time canonical gap, exact `_find_state` throw and isolated process-global reproduction.
 - docs/tasks/299/research.md — current model, safe aggregates, external comparison, identity, sync state machine and migration gates.
 - docs/tasks/395/research.md — hot-path call graph, old/current-main warm+cold baselines, real timeout outcomes, startup, reader/idempotency/integrity design boundary.
 - docs/tasks/426/research.md — post-#395 residual O(E) path, exact-head cache experiment, durable projection-outbox constraints and cross-store scope decision.

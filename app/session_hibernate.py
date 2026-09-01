@@ -139,6 +139,7 @@ class HibernateManager:
                                 await s._disconnect_backend()
                             s.status = AgentStatus.IDLE
                             s._persist()
+                            s._turns.publish_turn_finished()
                             if s._pending_messages:
                                 s._spawn_bg(s._flush_pending())
                         elif capabilities.event_stream == "per_turn":
@@ -156,6 +157,7 @@ class HibernateManager:
                             s._log("error", f"zombie detected: {silence:.0f}s silence, auto-recovering")
                             s.status = AgentStatus.IDLE
                             s._persist()
+                            s._turns.publish_turn_finished()
                             if s._pending_messages:
                                 s._spawn_bg(s._flush_pending())
                         else:
@@ -182,6 +184,10 @@ class HibernateManager:
                         s._backend = None
                         s.status = AgentStatus.IDLE
                         s._persist()
+                        # Every RUNNING→IDLE publishes: switch/merge park on that event
+                        # inside the session lock, and a missed publish holds the lock
+                        # until the process restarts.
+                        s._turns.publish_turn_finished()
             except asyncio.CancelledError:
                 logger.info(f"[{s.name}] heartbeat cancelled")
                 return

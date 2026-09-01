@@ -37,7 +37,7 @@ const _QL_LANE_MARKERS = [
 const _QL_LANE_COLORS = {sol: '#f472b6', luna: '#38bdf8', spark: '#c084fc', claude: '#fb923c'};
 
 // Форма диагонали допуска между началом и концом окна. Значение В ТЕКУЩЕЙ точке
-// берётся из bucket.limit_pct сервера, а не отсюда, — иначе панель и гейт разойдутся.
+// берётся из lanes[].limit_pct сервера, а не отсюда, — иначе панель и гейт разойдутся.
 // `lane` обязателен для полос с кривой: Sol идёт по `t ** (1/exponent)`, Claude по прямой.
 // Формула обязана совпадать с `line_limit` в app/quota_gate.py — расхождение здесь означает,
 // что юзер видит на графике не тот порог, по которому его воркеров реально блокируют.
@@ -139,7 +139,6 @@ function _qlPoint(bucket) {
     return {
         util,
         progress: Number.isFinite(progress) ? Number(progress) : null,
-        limit: Number.isFinite(bucket.limit_pct) ? Number(bucket.limit_pct) : null,
         tolerance: Number.isFinite(bucket.tolerance_pp) ? Number(bucket.tolerance_pp) : null,
         fresh: bucket.fresh !== false,
     };
@@ -253,16 +252,16 @@ function _qlChartSvg(panel, rule) {
         const stackedLabelY = _qlPlaceY(avoidHardY ? hardY + 22 : rawLabelY, usedLabelBands);
         const stackedDetailY = _qlPlaceY(stackedLabelY + 15, usedLabelBands);
         p.push(`<circle data-ql-point="${_escHtml(lane.lane)}" class="${markerClass}" cx="${x}" cy="${y}" r="5.5" fill="none" stroke="${color}" stroke-width="2.5"/>`);
-        // Порог диагонали печатается только там, где он ДЕЙСТВУЕТ. У пула без
-        // гейтящихся полос (Spark) допуск считается, но никого не останавливает —
-        // напечатать его значило бы приписать Spark ограничение, которого нет.
-        const gatedHere = (bucket.lanes || []).some(lane => lane.gated);
+        // Порог — свойство ПОЛОСЫ, а не бакета: Sol идёт по кривой, Claude по прямой, а
+        // Luna и Spark не гейтятся вовсе. Печатать бакетную прямую рядом с кривой полосой
+        // значит показать юзеру не тот предел, по которому его воркеров блокируют.
+        const laneLimit = Number.isFinite(lane.limit_pct) ? Number(lane.limit_pct) : null;
         const head = `факт ${_qlNum(point.util)}% · норма ${_qlNum(point.progress * 100)}%`;
-        const detail = !gatedHere
+        const detail = !lane.gated
             ? `${head} · диагональ не применяется — только жёсткие ${_qlNum(hard)}%`
-            : point.limit === null
+            : laneLimit === null
             ? `${head} · порога нет`
-            : `${head} · допуск ${_qlNum(point.tolerance, 1)} п.п. · порог ${_qlNum(point.limit, 1)}%`;
+            : `${head} · допуск ${_qlNum(point.tolerance, 1)} п.п. · порог ${_qlNum(laneLimit, 1)}%`;
         p.push(`<text class="ql-halo ql-point-label" data-ql-label="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY}" text-anchor="${anchor}" fill="${color}">${label}${point.fresh ? '' : ' (телеметрия устарела)'}</text>`);
         p.push(`<text class="ql-axis ql-halo" data-ql-detail="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedDetailY}" text-anchor="${anchor}">${detail}</text>`);
     }

@@ -294,11 +294,13 @@ class _BufState:
     epoch: object = field(default_factory=object)
 
 
-@dataclass(frozen=True)
+@dataclass
 class _MediaToken:
     sid: str
     epoch: object
     reservation: object
+    msg: object
+    consumed: bool = False
 
 
 _buffers: dict[str, _BufState] = {}
@@ -504,7 +506,7 @@ async def _register_media(msg: types.Message, session) -> _MediaToken:
     buf = _get_buf(sid)
     async with buf.lock:
         reservation = object()
-        token = _MediaToken(sid, buf.epoch, reservation)
+        token = _MediaToken(sid, buf.epoch, reservation, msg)
         buf.entries.append((msg, None, reservation))
         buf.pending_media += 1
         await _arm_debounce(sid, buf)
@@ -517,30 +519,42 @@ async def _resolve_media(token: _MediaToken, content: str):
         return
     flush_batch = None
     async with buf.lock:
-        if buf.epoch is not token.epoch:
+        # Отсутствие записи в батче означает РАЗНОЕ: «батч уехал без нас» и «мы этот
+        # токен уже отрезолвили» (тогда reservation затёрт в None и найтись не может).
+        # Без этого флага второй резолв уходил бы в позднюю ветку и доставлял бы
+        # содержимое ВТОРЫМ сообщением.
+        if token.consumed:
             return
-        idx = next(
-            (
-                i for i, (_msg, _content, reservation)
-                in enumerate(buf.entries)
-                if reservation is token.reservation
-            ),
-            None,
-        )
+        token.consumed = True
+        idx = None
+        if buf.epoch is token.epoch:
+            idx = next(
+                (
+                    i for i, (_msg, _content, reservation)
+                    in enumerate(buf.entries)
+                    if reservation is token.reservation
+                ),
+                None,
+            )
         if idx is None:
-            return
-        m, _, _reservation = buf.entries[idx]
-        buf.entries[idx] = (m, content, None)
-        buf.pending_media = max(0, buf.pending_media - 1)
-        if buf.pending_media == 0 and buf.phase == _Phase.WAITING_MEDIA:
-            batch = list(buf.entries)
-            buf.entries.clear()
-            buf.phase = _Phase.IDLE
-            buf.epoch = object()
-            if buf.debounce_task and not buf.debounce_task.done():
-                buf.debounce_task.cancel()
-            buf.debounce_task = None
-            flush_batch = batch
+            # Батч уехал без нас: дебаунс сдался на MEDIA_WAIT_MAX и провернул epoch,
+            # а транскрипция доехала позже. Отдаём её отдельным батчем — молчание тут
+            # неотличимо от «агент прочитал и не ответил» (#30, тот же довод, что у
+            # _flush_batch), а голосовое для юзера — основной способ поставить задачу.
+            flush_batch = [(token.msg, content, None)]
+        else:
+            m, _, _reservation = buf.entries[idx]
+            buf.entries[idx] = (m, content, None)
+            buf.pending_media = max(0, buf.pending_media - 1)
+            if buf.pending_media == 0 and buf.phase == _Phase.WAITING_MEDIA:
+                batch = list(buf.entries)
+                buf.entries.clear()
+                buf.phase = _Phase.IDLE
+                buf.epoch = object()
+                if buf.debounce_task and not buf.debounce_task.done():
+                    buf.debounce_task.cancel()
+                buf.debounce_task = None
+                flush_batch = batch
     if flush_batch is not None:
         await _flush_batch(token.sid, flush_batch)
 
@@ -3008,6 +3022,7 @@ class _MirrorItem:
     path: str | None = None
     caption: str | None = None
     is_photo: bool = False
+    important: bool = False
 
 
 async def _mirror_worker(orch_name: str, outbox: asyncio.Queue) -> None:
@@ -3029,7 +3044,8 @@ async def _mirror_worker(orch_name: str, outbox: asyncio.Queue) -> None:
                     item.text or "",
                     item.topic_id,
                     entities=item.entities,
-                    best_effort=True,
+                    important=item.important,
+                    best_effort=not item.important,
                 )
             if isinstance(completion, (asyncio.Future, asyncio.Task)):
                 await completion
@@ -3088,6 +3104,7 @@ async def _mirror_send(orch_name: str, text: str, entities=None, *, important: b
             topic_id=topic_id,
             text=text,
             entities=entities,
+            important=important,
         ),
     )
 
@@ -3419,10 +3436,18 @@ async def stream_logs(orch_name: str, thread_id: int):
                     # Якорь идёт по НАДЁЖНОЙ полосе: это единственная отметка «ход
                     # окончен», и потерять её значит вернуть исходную жалобу.
                     is_important = is_anchor or t in ("text", "error", "user_message")
-                    for converted, aio_ents in (_formatted_chunks(text) if text else []):
+                    for chunk_no, (converted, aio_ents) in enumerate(
+                        _formatted_chunks(text) if text else []
+                    ):
                         await _tg_send_safe(
                             config["group_id"], converted, thread_id,
                             entities=aio_ents, important=is_important,
+                            # Своя строка журнала — своё сообщение: по общему ключу
+                            # ("send_message", топик) очередь схлопывала РАЗНЫЕ тексты
+                            # в последний, и из трёх `subagent_end` веера юзер видел
+                            # один. Повтор той же строки (откат курсора) по-прежнему
+                            # схлопывается — ключ у неё тот же.
+                            telemetry_key=("stream", thread_id, log["id"], chunk_no),
                         )
                         if is_anchor:
                             # Отмечаем СРАЗУ после доставки якоря, до зеркала: всё, что
@@ -3946,7 +3971,22 @@ async def _bot_api_health_loop(local_api: str):
         logger.warning(f"Bot API health check failed ({fails}/3)")
         if fails >= 3:
             logger.error("Bot API unresponsive — restarting telegram-bot-api service")
-            subprocess.run(["sudo", "systemctl", "restart", "telegram-bot-api"], capture_output=True)
+            # В потоке, а не в корутине: юнит рестартят именно потому, что он ЗАВИС, и
+            # systemctl ждёт его остановки до TimeoutStopSec — прямой вызов морозил на
+            # это время весь процесс (дашборд, SSE, MCP, ходы агентов).
+            # check=True: отбитый sudo молча ничего не делает, а лог рапортовал об
+            # успешном лечении, которого не было.
+            try:
+                await asyncio.to_thread(
+                    subprocess.run,
+                    ["sudo", "systemctl", "restart", "telegram-bot-api"],
+                    capture_output=True, check=True,
+                )
+            except subprocess.CalledProcessError as e:
+                logger.error(
+                    "telegram-bot-api restart FAILED (rc=%s): %s",
+                    e.returncode, (e.stderr or b"").decode(errors="replace").strip(),
+                )
             fails = 0
             await asyncio.sleep(30)
 
