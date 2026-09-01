@@ -1,0 +1,36 @@
+```json
+{
+  "state_patch": {
+    "artifacts": {
+      "knowledge-v1/current.db": {
+        "label": "lexical FTS projection",
+        "status": "keep"
+      },
+      "data/vec.db": {
+        "label": "unused vector store",
+        "status": "candidate_for_deletion"
+      }
+    },
+    "current_facts": {
+      "PC01-E03": "current.db is an FTS database; data/vec.db is the unused vector store."
+    },
+    "decisions": {
+      "DB_CLEANUP": {
+        "because": "data/vec.db is unused, while current.db and search memory are preserved.",
+        "decision": "DELETE_DATA_VEC_DB"
+      }
+    },
+    "next_action": "Finalize the disclosed cleanup decision.",
+    "open_questions": {}
+  },
+  "action": {
+    "decision": "DELETE_DATA_VEC_DB",
+    "keep": [
+      "KNOWLEDGE_CURRENT_DB",
+      "SEARCH_MEMORY"
+    ],
+    "rejected": "DELETE_CURRENT_DB",
+    "reason_code": "LOW_USAGE_ONLY"
+  }
+}
+```

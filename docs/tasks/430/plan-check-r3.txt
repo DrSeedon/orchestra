@@ -1,0 +1,7 @@
+FINAL_ORACLES_UNCHANGED=4 spec=1 commit=8c53f1ba old=19dafd1b,89753fed_superseded
+RED3_COMMANDS=4 RC=1_EACH DISTINCT_SEAMS=4
+PER_CASE_SELECTION=sha256_prefix_plus_decimal_task_id SORT=hash,task_id TAKE=6
+ROUND2_BLOCKERS_DELIVERED=model_valid,protocol,attempt,resume,fresh_thread,stratum
+TICKETS=4 ACYCLIC=T1->T2->T3->T4 PLACEHOLDERS=0
+PRODUCTION_APP_FILES_CHANGED=0
+WORKTREE_DIFF_CHECK=OK
