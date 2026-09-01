@@ -34,6 +34,9 @@ _TASK_CREATE_LOCK = threading.RLock()
 _TASK_CREATE_REQUEST_KEY = re.compile(r"[A-Za-z0-9._:-]{16,128}")
 _TASK_BINDING_LOCK = threading.RLock()
 
+# TEMPORARY 2026-09-01: VPS and laptop both issued #426-#435 independently.
+_VPS_TASK_PAR_FLOOR = 500
+
 
 class TaskCreateRequestError(RuntimeError):
     def __init__(self, reason: str, request_key: str, message: str) -> None:
@@ -172,6 +175,13 @@ def _parse_task_ref(ref: str) -> tuple[str, int]:
     raise ValueError(f"Cannot parse task ref: {ref}")
 
 
+def _task_project_scope(conn: sqlite3.Connection, project_id: str) -> str:
+    row = conn.execute(
+        "SELECT scope FROM tm_projects WHERE id = ?", (project_id,)
+    ).fetchone()
+    return str(row[0] or "") if row else ""
+
+
 def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
     row = conn.execute(
         "SELECT COALESCE(MAX(par_number), 0) + 1 FROM tm_tasks WHERE project_id = ?",
@@ -179,11 +189,10 @@ def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
     ).fetchone()
     n = row[0]
     # docs/tasks/<n>/ survives task deletion — never reissue a number that still has a dir
-    scope_row = conn.execute(
-        "SELECT scope FROM tm_projects WHERE id = ?", (project_id,)
-    ).fetchone()
-    scope = scope_row[0] if scope_row else None
+    scope = _task_project_scope(conn, project_id)
     if scope:
+        if scope == "/home/kesha/orchestra":
+            n = max(n, _VPS_TASK_PAR_FLOOR)
         tasks_root = Path(scope) / "docs" / "tasks"
         while (tasks_root / str(n)).is_dir():
             n += 1
@@ -407,16 +416,86 @@ def create_task_for_scope(scope: str, title: str) -> dict:
 
 
 def discard_unbound_task(task_id: int) -> bool:
-    """Remove a task allocated for a spawn that never published its worker."""
+    """Retire a task allocated for a spawn that never published its worker.
+
+    Отменяем, а не удаляем: canonical-хранилище удаления задач не поддерживает, поэтому
+    снос одной legacy-строки возвращал legacy-счётчик назад при неподвижном canonical, и
+    гейт `task display counter mismatch` заклинивал проект насмерть. Отмена идёт через
+    того же владельца, что и остальные переходы статуса, — он пишет оба хранилища.
+    """
+    with _conn() as conn:
+        task = conn.execute(
+            "SELECT id, project_id, par_number, sync_revision FROM tm_tasks "
+            "WHERE id=? AND worker_session_id IS NULL AND status='new' "
+            "AND NOT EXISTS (SELECT 1 FROM tm_task_reservations WHERE task_id=tm_tasks.id)",
+            (task_id,),
+        ).fetchone()
+    if not task:
+        return False
+    identity = TaskIdentity(
+        id=task["id"],
+        project_id=task["project_id"],
+        par_number=task["par_number"],
+        sync_revision=task["sync_revision"],
+    )
+    return bool(api_update_task_if_current(identity, status="cancelled").get("ok"))
+
+
+def _discard_shadow_created_task(legacy: dict) -> bool:
+    """Remove only the untouched legacy half of a failed shadow create."""
     with _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         cur = conn.execute(
-            "DELETE FROM tm_tasks WHERE id=? AND worker_session_id IS NULL AND status='new' "
-            "AND NOT EXISTS (SELECT 1 FROM tm_task_reservations WHERE task_id=tm_tasks.id)",
-            (task_id,),
+            "DELETE FROM tm_tasks WHERE id=? AND project_id=? AND par_number=? "
+            "AND sync_revision=0 AND worker_session_id IS NULL AND git_commits='[]' "
+            "AND NOT EXISTS (SELECT 1 FROM tm_task_reservations "
+            "WHERE task_id=tm_tasks.id)",
+            (int(legacy["id"]), str(legacy["project"]), int(legacy["par"])),
         )
         conn.commit()
         return cur.rowcount == 1
+
+
+def _compensate_failed_task_create(store, legacy: dict) -> None:
+    """Undo the legacy half of a failed create ONLY when canonical proves it wrote nothing.
+
+    Canonical материализует состояние ДО перестройки проекции, поэтому исключение из
+    `task_create` не доказывает отсутствие задачи. Снос legacy-строки вслепую двигает
+    legacy-счётчик назад при уехавшем canonical — это и есть `task display counter
+    mismatch`, который хоронит нумерацию проекта насмерть.
+    """
+    candidate_absent = False
+    try:
+        store.task_get(str(legacy["par"]), project=legacy["project"])
+    except ValueError as probe_error:
+        candidate_absent = str(probe_error) == f"{legacy['par']} not found"
+        if not candidate_absent:
+            logger.warning(
+                "task create candidate probe was ambiguous for %s#%s: %s: %s",
+                legacy["project"], legacy["par"],
+                type(probe_error).__name__, probe_error,
+            )
+    except Exception as probe_error:
+        logger.warning(
+            "task create candidate probe failed for %s#%s: %s: %s",
+            legacy["project"], legacy["par"],
+            type(probe_error).__name__, probe_error,
+        )
+    if not candidate_absent:
+        return
+    try:
+        discarded = _discard_shadow_created_task(legacy)
+    except Exception as cleanup_error:
+        logger.warning(
+            "task create compensation failed: %s: %s",
+            type(cleanup_error).__name__, cleanup_error,
+        )
+        return
+    if not discarded:
+        logger.warning(
+            "task create compensation refused for %s#%s",
+            legacy["project"], legacy["par"],
+        )
 
 
 def update_task(conn: sqlite3.Connection, task_id: int, *,
@@ -1893,6 +1972,14 @@ def _candidate_receipts(candidate: dict, context: _IATaskStoreContext) -> dict:
     }
 
 
+def _candidate_rejection_debt(candidate: dict) -> dict:
+    """Describe a store rejection, which carries no receipts to report."""
+    return {
+        "reason": "candidate_update_rejected",
+        "message": str(candidate.get("error") or "canonical task update rejected"),
+    }
+
+
 def _list_receipts(context: _IATaskStoreContext) -> dict:
     store = context.store
     assert store is not None
@@ -2432,6 +2519,9 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                     acceptance_required: bool = False,
                     acceptance_actor: dict | None = None,
                     request_key: str = "") -> dict:
+    # A caller-held key makes an ambiguous shadow result replayable. Internal allocations have
+    # no key to retry with, so they must compensate a proven legacy-only row and fail loudly.
+    durable_request = bool(str(request_key or "").strip())
     request_key = normalize_task_create_request_key(request_key)
     resolved_project_id = _resolve_task_create_project(project_id, scope)
     fingerprint = task_create_fingerprint(
@@ -2469,6 +2559,47 @@ def api_create_task(project_id: str, title: str, price: int = 0,
     assert store is not None
 
     if context.mode == "shadow":
+        if not durable_request:
+            with _TASK_CREATE_LOCK:
+                with ia_task_store_mode(mode="legacy"):
+                    legacy = _legacy_api_create_task(
+                        resolved_project_id, title, price, description, assignee, status,
+                        priority=priority,
+                        acceptance_command=acceptance_command,
+                        acceptance_manifest=acceptance_manifest,
+                        acceptance_required=acceptance_required,
+                        acceptance_actor=acceptance_actor,
+                    )
+                try:
+                    candidate = store.task_create(
+                        project_id=legacy["project"],
+                        title=title,
+                        price=price,
+                        description=description,
+                        assignee=assignee,
+                        status=status,
+                        priority=priority,
+                        acceptance_command=acceptance_command,
+                        acceptance_manifest=acceptance_manifest,
+                        acceptance_required=acceptance_required,
+                        display_number=int(legacy["par"]),
+                        expected_head=store.canonical_head,
+                    )
+                except Exception as error:
+                    _compensate_failed_task_create(store, legacy)
+                    try:
+                        _shadow_failure(legacy, context, error)
+                    except Exception as debt_error:
+                        logger.warning(
+                            "shadow task create debt recording failed: %s: %s",
+                            type(debt_error).__name__, debt_error,
+                        )
+                    raise RuntimeError(
+                        "shadow task creation failed: "
+                        f"{type(error).__name__}: {error}"
+                    ) from error
+                return _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
+
         with _TASK_CREATE_LOCK:
             with ia_task_store_mode(mode="legacy"):
                 legacy, replayed = _legacy_create_idempotent(
@@ -2530,6 +2661,57 @@ def api_create_task(project_id: str, title: str, price: int = 0,
             )
             return result
 
+    if not durable_request:
+        with _TASK_CREATE_LOCK:
+            with _conn() as conn:
+                legacy_next = _next_par(conn, resolved_project_id)
+                vps_task_range = (
+                    _task_project_scope(conn, resolved_project_id)
+                    == "/home/kesha/orchestra"
+                )
+            canonical_next = int(
+                store.task_list(project=resolved_project_id)["next_display_number"]
+            )
+            if (
+                vps_task_range
+                and canonical_next < _VPS_TASK_PAR_FLOOR
+            ):
+                canonical_next = legacy_next
+            if canonical_next != legacy_next:
+                raise IdentityConflictError(
+                    f"task display counter mismatch in {resolved_project_id}: "
+                    f"canonical={canonical_next}, legacy={legacy_next}"
+                )
+            legacy = _legacy_api_create_task(
+                resolved_project_id, title, price, description, assignee, status,
+                priority=priority,
+                acceptance_command=acceptance_command,
+                acceptance_manifest=acceptance_manifest,
+                acceptance_required=acceptance_required,
+                acceptance_actor=acceptance_actor,
+                _canonical_par_number=canonical_next,
+            )
+            try:
+                candidate = store.task_create(
+                    project_id=resolved_project_id,
+                    title=title,
+                    price=price,
+                    description=description,
+                    assignee=assignee,
+                    status=status,
+                    priority=priority,
+                    acceptance_command=acceptance_command,
+                    acceptance_manifest=acceptance_manifest,
+                    acceptance_required=acceptance_required,
+                    display_number=canonical_next,
+                    expected_head=store.canonical_head,
+                )
+            except Exception:
+                _compensate_failed_task_create(store, legacy)
+                raise
+        candidate["id"] = legacy["id"]
+        return _canonical_result(candidate, legacy, context, _CREATE_COMPARE_FIELDS)
+
     new_request, replay = _reserve_canonical_create(
         resolved_project_id,
         request_key,
@@ -2557,19 +2739,45 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 request_key,
                 "canonical request identity has a different task body",
             )
+
     with _TASK_CREATE_LOCK:
+        legacy = None
         if candidate is None:
             try:
                 with _conn() as conn:
                     legacy_next = _next_par(conn, resolved_project_id)
+                    vps_task_range = (
+                        _task_project_scope(conn, resolved_project_id)
+                        == "/home/kesha/orchestra"
+                    )
                 canonical_next = int(
                     store.task_list(project=resolved_project_id)["next_display_number"]
                 )
+                if (
+                    vps_task_range
+                    and canonical_next < _VPS_TASK_PAR_FLOOR
+                ):
+                    canonical_next = legacy_next
                 if canonical_next != legacy_next:
                     raise IdentityConflictError(
                         f"task display counter mismatch in {resolved_project_id}: "
                         f"canonical={canonical_next}, legacy={legacy_next}"
                     )
+                legacy = _legacy_mirror_canonical_create(
+                    project_id=resolved_project_id,
+                    display_number=canonical_next,
+                    request_key=request_key,
+                    title=title,
+                    price=price,
+                    description=description,
+                    assignee=assignee,
+                    status=status,
+                    priority=priority,
+                    acceptance_command=acceptance_command,
+                    acceptance_manifest=acceptance_manifest,
+                    acceptance_required=acceptance_required,
+                    acceptance_actor=acceptance_actor,
+                )
                 candidate = store.task_create(
                     project_id=resolved_project_id,
                     title=title,
@@ -2599,6 +2807,8 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 except Exception:
                     raise error
                 if recovered is None:
+                    if legacy is not None:
+                        _compensate_failed_task_create(store, legacy)
                     _delete_pending_task_create_request(
                         project_id=resolved_project_id,
                         request_key=request_key,
@@ -2612,6 +2822,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                         "canonical request identity has a different task body",
                     )
                 candidate = recovered
+
         canonical_next = int(candidate["par"])
         candidate.setdefault("request_key", request_key)
         candidate.setdefault("request_fingerprint", fingerprint)
@@ -2626,21 +2837,22 @@ def api_create_task(project_id: str, title: str, price: int = 0,
             response=candidate,
         )
         try:
-            legacy = _legacy_mirror_canonical_create(
-                project_id=resolved_project_id,
-                display_number=canonical_next,
-                request_key=request_key,
-                title=title,
-                price=price,
-                description=description,
-                assignee=assignee,
-                status=status,
-                priority=priority,
-                acceptance_command=acceptance_command,
-                acceptance_manifest=acceptance_manifest,
-                acceptance_required=acceptance_required,
-                acceptance_actor=acceptance_actor,
-            )
+            if legacy is None:
+                legacy = _legacy_mirror_canonical_create(
+                    project_id=resolved_project_id,
+                    display_number=canonical_next,
+                    request_key=request_key,
+                    title=title,
+                    price=price,
+                    description=description,
+                    assignee=assignee,
+                    status=status,
+                    priority=priority,
+                    acceptance_command=acceptance_command,
+                    acceptance_manifest=acceptance_manifest,
+                    acceptance_required=acceptance_required,
+                    acceptance_actor=acceptance_actor,
+                )
         except Exception as error:
             result = {**candidate, **_candidate_receipts(candidate, context)}
             _save_task_create_request(
@@ -2654,6 +2866,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 error=error,
             )
             return result
+
     candidate["id"] = legacy["id"]
     result = _canonical_result(candidate, legacy, context, _CREATE_COMPARE_FIELDS)
     _save_task_create_request(
@@ -2716,12 +2929,16 @@ def api_update_task(par: str, title: str | None = None,
         except Exception as error:
             return _shadow_failure(legacy, context, error)
         return _shadow_result(legacy, candidate, context, _UPDATE_COMPARE_FIELDS)
+    # Тот же порядок, что и в создании: валидирующее хранилище идёт ПЕРВЫМ. Приёмочный
+    # оракул, актора и манифест проверяет только legacy (`acceptance_actor` в canonical не
+    # передаётся вовсе), а отменить canonical-обновление нечем — валидация после коммита
+    # оставляла бы canonical с правкой, которую вызывающий получил как 400.
+    legacy = _legacy_api_update_task(*legacy_args)
     candidate = store.task_update(
         par,
         **candidate_args,
         expected_head=store.canonical_head,
     )
-    legacy = _legacy_api_update_task(*legacy_args)
     return _canonical_result(candidate, legacy, context, _UPDATE_COMPARE_FIELDS)
 
 
@@ -2769,10 +2986,13 @@ def _api_update_task_if_current_unlocked(
             f"project '{identity['project_id']}' task #{identity['par_number']}: {error}"
         ) from error
     candidate_identity = _merge_canonical_task_identity(identity, detail)
-    if _canonical_first:
-        candidate_identity["sync_revision"] = int(
-            detail.get("sync_revision", candidate_identity["sync_revision"])
-        )
+    # У каждого хранилища СВОЙ счётчик ревизий: legacy двигают привязки воркеров
+    # (`bind_task_to_session`, requeue, финализация), canonical их не видит. Прогонять
+    # legacy-ревизию через canonical CAS — сравнение разных величин: любая задача, которую
+    # хоть раз привязывали, отказывается навсегда.
+    candidate_identity["sync_revision"] = int(
+        detail.get("sync_revision", candidate_identity["sync_revision"])
+    )
     if context.mode == "shadow":
         if _canonical_first:
             try:
@@ -2788,10 +3008,7 @@ def _api_update_task_if_current_unlocked(
                     **candidate,
                     "ia_mode": context.mode,
                     "shadow_match": False,
-                    "projection_debt": {
-                        "reason": "candidate_update_rejected",
-                        "message": str(candidate.get("error") or "canonical task update rejected"),
-                    },
+                    "projection_debt": _candidate_rejection_debt(candidate),
                 }
             legacy = _legacy_api_update_task_if_current(
                 identity,
@@ -2819,6 +3036,13 @@ def _api_update_task_if_current_unlocked(
             )
         except Exception as error:
             return _shadow_failure(legacy, context, error)
+        if not candidate.get("ok"):
+            return {
+                **legacy,
+                "ia_mode": context.mode,
+                "shadow_match": False,
+                "projection_debt": _candidate_rejection_debt(candidate),
+            }
         return _shadow_result(
             legacy,
             candidate,
@@ -2830,11 +3054,33 @@ def _api_update_task_if_current_unlocked(
         status=status,
         worker_session_id=worker_session_id,
     )
+    # Отказ canonical обязан остановить ход ДО записи в legacy: иначе legacy уже
+    # мутирован, а вызывающий получает исключение и снимает привязку сессии.
+    if not candidate.get("ok"):
+        return {
+            **candidate,
+            "ia_mode": context.mode,
+            "projection_debt": _candidate_rejection_debt(candidate),
+        }
     legacy = _legacy_api_update_task_if_current(
         identity,
         status=status,
         worker_session_id=worker_session_id,
     )
+    # Legacy-CAS — единственный оставшийся детектор устаревшей ревизии, и его отказ обязан
+    # дойти до вызывающего отказом: иначе canonical переведён в in_progress с привязкой, а
+    # `tm_tasks` остался `new`/NULL — то невозможное состояние, на котором гейт мержа
+    # отказывает навсегда («task 'N' is not bound to session»).
+    if not legacy.get("ok"):
+        return {
+            **legacy,
+            **_candidate_receipts(candidate, context),
+            "projection_debt": {
+                "reason": "legacy_update_rejected",
+                "message": str(legacy.get("error") or "legacy task update rejected"),
+                "canonical_applied": True,
+            },
+        }
     return _canonical_result(
         candidate,
         legacy,
@@ -2942,11 +3188,16 @@ def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str) ->
         except Exception as error:
             return _shadow_failure(legacy, context, error)
         return _shadow_result(legacy, candidate, context, ("ok", "added"))
+    # Legacy впереди по той же причине, что и в обновлении, плюс его отказ обязан
+    # остановить связывание: canonical нашёл задачу, а legacy — нет, и тихий `ok=True`
+    # из canonical объявил бы успехом коммиты, которых в `tm_tasks` нет.
+    legacy = _legacy_link_commits_to_task(task_ref, commits, project_id)
+    if not legacy.get("ok"):
+        return legacy
     candidate = store.link_commits_to_task(
         task_ref,
         commits,
         project_id,
         expected_head=store.canonical_head,
     )
-    legacy = _legacy_link_commits_to_task(task_ref, commits, project_id)
     return _canonical_result(candidate, legacy, context, ("ok", "added"))

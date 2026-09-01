@@ -1356,15 +1356,27 @@ def _migrate(c) -> None:
     client_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_clients)").fetchall()}
     if client_cols and "journal_yougile_id" not in client_cols:
         c.execute("ALTER TABLE tm_clients ADD COLUMN journal_yougile_id TEXT DEFAULT ''")
-    if task_cols:
+    if task_cols and not c.execute(
+        "SELECT 1 FROM kv WHERE key='money_units_v1'"
+    ).fetchone():
+        # Однократность держит маркер, а не значения: цена 1..999 — законный ввод
+        # (task_create принимает любое price >= 0), и без маркера сторож повторно
+        # умножал бы живые деньги на 1000 при каждом старте
         max_price = c.execute("SELECT MAX(price_rub) FROM tm_tasks").fetchone()[0] or 0
         if 0 < max_price < 1000:
             # Schema changed from "thousands" to exact kopeks — multiply all money
-            # columns by 1000 to bring old data in line with the new unit
+            # columns by 1000 to bring old data in line with the new unit.
+            # Маркер после ветки одинаков и при срабатывании, и при no-op, поэтому
+            # единственный след умножения живых денег — эта строка журнала
+            logger.warning("money units v1 migration fired: max_price=%s", max_price)
             c.execute("UPDATE tm_tasks SET price_rub = price_rub * 1000, paid_rub = paid_rub * 1000")
             c.execute("UPDATE tm_payment_allocations SET amount_rub = amount_rub * 1000")
             c.execute("UPDATE tm_payments SET amount_rub = amount_rub * 1000")
             c.execute("UPDATE tm_clients SET balance_rub = balance_rub * 1000")
+        c.execute(
+            "INSERT INTO kv(key, value) VALUES('money_units_v1', '1') "
+            "ON CONFLICT(key) DO NOTHING"
+        )
     if "role" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN role TEXT DEFAULT 'worker'")
         c.execute("UPDATE sessions SET role = 'orchestrator' WHERE is_orchestrator = 1")
@@ -2836,12 +2848,14 @@ def bg_expire_overdue() -> list[str]:
         return ids + [r["id"] for r in stale]
 
 
-def bg_reset_stale_triggering(max_age_seconds: int = 120) -> list[str]:
-    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)).isoformat()
+def bg_reset_stale_triggering() -> list[str]:
+    """Зовётся только при старте, где ЛЮБОЙ 'triggering' — сирота: процесс, забравший
+    его через bg_claim_trigger, мёртв. Порог по возрасту оставлял джоб, чей триггер
+    убит рестартом секунды назад, в 'triggering' навсегда: никто больше этот статус
+    не трогает, а слот scope он занимать продолжает.
+    """
     with _conn() as c:
-        rows = c.execute(
-            "SELECT id FROM bg_jobs WHERE status='triggering' AND triggered_at < ?", (cutoff,)
-        ).fetchall()
+        rows = c.execute("SELECT id FROM bg_jobs WHERE status='triggering'").fetchall()
         ids = [r["id"] for r in rows]
         if ids:
             placeholders = ",".join("?" * len(ids))

@@ -78,6 +78,7 @@ from app.errtext import err_text
 logger = logging.getLogger(__name__)
 
 _HANDOFF_LOG_RETRY_BUDGET_S = 6.0
+TURN_COMPLETION_RECHECK = 1.0
 
 
 def _is_locked_database_error(error: BaseException) -> bool:
@@ -1067,9 +1068,19 @@ class AgentSession:
         self.tools_are_stale = False
 
     async def wait_for_turn_completion(self) -> bool:
-        """Wait for the active logical turn to publish its terminal status."""
+        """Wait for the active logical turn to publish its terminal status.
+
+        Re-reads the status instead of trusting the event alone: callers park here while
+        holding the session lock, so one transition that forgets to publish would block
+        every later switch/merge of this worker until Orchestra restarts.
+        """
         while self.status == AgentStatus.RUNNING:
-            await self._turn_finished_event.wait()
+            try:
+                await asyncio.wait_for(
+                    self._turn_finished_event.wait(), TURN_COMPLETION_RECHECK,
+                )
+            except asyncio.TimeoutError:
+                pass
         return self.status == AgentStatus.IDLE
 
     async def _worker_admission(self, model: str) -> "QuotaDecision":
@@ -1359,10 +1370,10 @@ class AgentSession:
             await self._apply_manifest_effort()
 
             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
+                await self._refresh_stale_backend()  # new turn -> fresh tools (#230 T9)
                 _refuse_if_draining(self)  # no await between here and RUNNING below
                 self._manually_interrupted = False
                 self._did_report = False
-                await self._refresh_stale_backend()  # new turn -> fresh tools (#230 T9)
                 self._turns.bump_turn_gen()
                 self._turn_logs = []
                 self._last_text_output = None
@@ -2498,10 +2509,10 @@ class AgentSession:
                 )
             self._log("status", f"delivering {len(msgs)} queued message(s)")
             try:
+                await self._refresh_stale_backend()  # new turn -> fresh tools (#230 T9)
                 _refuse_if_draining(self)  # no await between here and RUNNING below
                 self._manually_interrupted = False
                 self._did_report = False
-                await self._refresh_stale_backend()  # new turn -> fresh tools (#230 T9)
                 self._turns.bump_turn_gen()
                 self._turn_logs = []
                 self._last_text_output = None

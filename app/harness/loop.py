@@ -41,6 +41,7 @@ REVIEW_MAX_ROUNDS = 15        # tighter ceiling for a reviewer sub-loop (#126)
 WIND_DOWN_AT = (10, 3)        # warn the agent N rounds before the cap so it can finish
                               # with a report instead of dying silently (#367)
 CONTEXT_GUARD_RATIO = 0.85    # compact when estimated tokens exceed this × max_context
+CARRIED_OVER_PREFIX = "[carried over from the previous turn — not the latest instruction] "
 BYTES_PER_TOKEN = 3.5         # conservative across ASCII/Cyrillic; no tokenizer dependency
 
 
@@ -71,7 +72,8 @@ class AgentLoop:
                  abort: Callable[[], bool] | None = None, effort: str | None = None,
                  todo_store=None, allow_review: bool = False, review_ctx=None,
                  readonly_mode: bool = False, max_rounds: int = MAX_TOOL_ROUNDS,
-                 drain_injected: Callable[[], list[str]] | None = None):
+                 drain_injected: Callable[[], list[str]] | None = None,
+                 carried_over: list[str] | None = None):
         self.llm = llm
         self.mcp = mcp
         self.cwd = cwd
@@ -90,6 +92,10 @@ class AgentLoop:
         # Drained at the TOP of a round, never between an assistant tool_calls message
         # and its tool results — a gap there makes the next request malformed.
         self._drain_injected = drain_injected or (lambda: [])
+        # Steering the PREVIOUS turn never drained. It was written BEFORE this turn's user
+        # message, so it goes into history first and labelled: the last position is the
+        # recency slot and belongs to the newest instruction, not to a stale one.
+        self.carried_over = list(carried_over or [])
         # terminal state read by the backend after run() exhausts
         self.stop_reason = "end_turn"
         self.ok = True
@@ -104,6 +110,12 @@ class AgentLoop:
         self.new_messages: list[dict] = []  # messages produced this turn (for persistence)
 
     async def run(self, user_msg: str) -> AsyncIterator[AgentEvent]:
+        for stale in self.carried_over:
+            entry = {"role": "user", "content": CARRIED_OVER_PREFIX + stale}
+            self.history.append(entry)
+            self.new_messages.append(entry)
+            yield AgentEvent("status", "steering carried over from the previous turn")
+
         user_entry = {"role": "user", "content": user_msg}
         self.history.append(user_entry)
         self.new_messages.append(user_entry)
@@ -124,10 +136,7 @@ class AgentLoop:
                     self._terminal("aborted", ok=False, detail="aborted by interrupt")
                     return
 
-                for injected in self._drain_injected():
-                    entry = {"role": "user", "content": injected}
-                    self.history.append(entry)
-                    self.new_messages.append(entry)
+                for _ in self._absorb_injected():
                     yield AgentEvent("status", "message steered into active turn")
 
                 if not self._fit_context():
@@ -160,6 +169,13 @@ class AgentLoop:
 
                 tool_calls = assistant_msg.get("tool_calls") or []
                 if not tool_calls:
+                    # Steering that landed while this round was streaming has no later drain
+                    # point — ending here would strand it. Answer it in this turn instead.
+                    absorbed = self._absorb_injected()
+                    for _ in absorbed:
+                        yield AgentEvent("status", "message steered into active turn")
+                    if absorbed:
+                        continue
                     # No tools requested → turn is done. Normalize the OpenAI "stop"/""
                     # finish to "end_turn" (parity with other backends); pass through other
                     # explicit reasons (e.g. "length", "content_filter").
@@ -193,6 +209,15 @@ class AgentLoop:
                                if not str(m.get("content", "")).startswith("[round guard]")]
             self.new_messages[:] = [m for m in self.new_messages
                                     if not str(m.get("content", "")).startswith("[round guard]")]
+
+    def _absorb_injected(self) -> list[str]:
+        """Move steering that arrived mid-turn into history; returns what was absorbed."""
+        taken = self._drain_injected()
+        for injected in taken:
+            entry = {"role": "user", "content": injected}
+            self.history.append(entry)
+            self.new_messages.append(entry)
+        return taken
 
     async def _one_round(self, assistant_msg: dict) -> AsyncIterator[AgentEvent]:
         """Stream one LLM completion. Yields text AgentEvents LIVE (so the session sees
