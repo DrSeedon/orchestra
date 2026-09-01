@@ -1079,6 +1079,7 @@ async def test_t3_spawn_task_delivery_error_reports_created_worker(monkeypatch):
 
     monkeypatch.setattr(m, "SCOPE", "/s")
     calls = []
+    delivered = {}
 
     async def fake_api(method, path, **kw):
         calls.append(path)
@@ -1089,6 +1090,7 @@ async def test_t3_spawn_task_delivery_error_reports_created_worker(monkeypatch):
                 "repo_path": "/repo",
                 "git_common_dir": "/repo/.git",
             }
+        delivered["message"] = kw["json"]["message"]
         raise m.ApiToolError(
             code="DELIVERY_ACCEPT_REJECTED",
             message="delivery transaction rolled back before commit",
@@ -1114,12 +1116,19 @@ async def test_t3_spawn_task_delivery_error_reports_created_worker(monkeypatch):
     assert caught.value.result["worktree_path"] == "/worktrees/child"
     delivery_id = caught.value.result["delivery_id"]
     assert delivery_id
+    # Воркер заведён в /repo при scope /s, поэтому доставленный текст несёт
+    # предупреждение о чужом репозитории — и повтор обязан нести его же: иначе
+    # payload_hash даст 409, а ребёнок предупреждения не увидит.
+    retry_task = caught.value.result["next_action"]["arguments"]["task"]
+    assert retry_task == delivered["message"]
+    assert retry_task.startswith("do it\n\n")
+    assert "ДРУГОЙ РЕПОЗИТОРИЙ" in retry_task
     assert caught.value.result["next_action"] == {
         "code": "RETRY_SAME_DELIVERY",
         "tool": "retry_initial_delivery",
         "arguments": {
             "name": "child",
-            "task": "do it",
+            "task": retry_task,
             "delivery_id": delivery_id,
         },
         "message": "Retry only this delivery id; do not create a new logical task.",
@@ -2018,6 +2027,112 @@ async def test_send_message_cross_scope_warning(monkeypatch):
     with patch.object(m, "_api", side_effect=fake_api):
         out = await m.send_message(to="coder", message="hi")
     assert "⚠️" in out or "warning" in out.lower() or "orch-b" in out
+
+
+@pytest.mark.asyncio
+async def test_send_message_file_appends_utf8_text_to_payload(monkeypatch, tmp_path):
+    import app.mcp_stdio as m
+
+    monkeypatch.chdir(tmp_path)
+    attachment = tmp_path / "research.md"
+    attachment.write_text("# Findings\n\nТекст отчёта", encoding="utf-8")
+    captured = {}
+
+    async def fake_api(method, path, **kwargs):
+        captured.update(method=method, path=path, payload=kwargs["json"])
+        return {"ok": True}
+
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orch-a")
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    await m.send_message("coder", "прочитай вложение", file_path="research.md")
+
+    assert captured["method"] == "POST"
+    assert captured["path"] == "/api/sessions/coder/send"
+    assert captured["payload"]["message"] == (
+        "прочитай вложение\n\n"
+        "--- attachment: research.md (35 bytes) ---\n"
+        "# Findings\n\nТекст отчёта"
+    )
+
+
+@pytest.mark.asyncio
+async def test_send_message_rejects_oversized_file_before_delivery(monkeypatch, tmp_path):
+    import app.mcp_stdio as m
+
+    attachment = tmp_path / "large.md"
+    attachment.write_bytes(b"x" * (m.MESSAGE_FILE_MAX_BYTES + 1))
+    api = AsyncMock()
+    monkeypatch.setattr(m, "_api", api)
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m.send_message("coder", "прочитай", file_path=str(attachment))
+
+    assert "too large" in caught.value.message
+    assert f"{m.MESSAGE_FILE_MAX_BYTES + 1} bytes" in caught.value.message
+    assert f"maximum is {m.MESSAGE_FILE_MAX_BYTES} bytes" in caught.value.message
+    assert "split the file or send a summary" in caught.value.message
+    api.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("filename", "content", "expected"),
+    [
+        ("missing.md", None, "attachment file not found"),
+        ("bad.md", b"not utf-8: \xff", "must be UTF-8 text"),
+    ],
+)
+async def test_send_message_rejects_unreadable_attachment(
+    monkeypatch, tmp_path, filename, content, expected,
+):
+    import app.mcp_stdio as m
+
+    attachment = tmp_path / filename
+    if content is not None:
+        attachment.write_bytes(content)
+    api = AsyncMock()
+    monkeypatch.setattr(m, "_api", api)
+
+    with pytest.raises(m.ApiToolError, match=expected):
+        await m.send_message("coder", "прочитай", file_path=str(attachment))
+
+    api.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_send_message_rejects_attachment_directory_before_delivery(monkeypatch, tmp_path):
+    import app.mcp_stdio as m
+
+    attachment = tmp_path / "directory"
+    attachment.mkdir()
+    api = AsyncMock()
+    monkeypatch.setattr(m, "_api", api)
+
+    with pytest.raises(m.ApiToolError, match="path is not a file"):
+        await m.send_message("coder", "прочитай", file_path=str(attachment))
+
+    api.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_send_message_without_file_preserves_message_payload(monkeypatch):
+    import app.mcp_stdio as m
+
+    captured = {}
+
+    async def fake_api(method, path, **kwargs):
+        captured.update(method=method, path=path, payload=kwargs["json"])
+        return {"ok": True}
+
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orch-a")
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    await m.send_message("coder", "текст без вложения")
+
+    assert captured["payload"]["message"] == "текст без вложения"
 
 
 @pytest.mark.asyncio

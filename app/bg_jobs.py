@@ -503,6 +503,7 @@ class BgJobManager:
         reset_ids = bg_reset_stale_triggering()
         if reset_ids:
             logger.info(f"bg_jobs: reset {len(reset_ids)} stale triggering jobs")
+        interrupted_delivery = set(reset_ids)
         active = bg_get_active_all()
         restored = 0
         for row in active:
@@ -512,6 +513,15 @@ class BgJobManager:
                 continue
             config = json.loads(row["config"])
             if row["type"] == "run":
+                if row["id"] in interrupted_delivery:
+                    # 'triggering' у run значит, что команда УЖЕ вышла и рестарт убил
+                    # ДОСТАВКУ её результата: «повторный запуск не выполнялся» здесь ложь,
+                    # а результат лежит в строке. Досылаем его штатным путём триггера.
+                    await self._trigger(
+                        row["id"], row["message"], row["target_name"],
+                        row["target_scope"], row["last_output"],
+                    )
+                    continue
                 await self._interrupt_run_notify(
                     row["id"], row["message"], row["target_name"], row["target_scope"],
                 )
