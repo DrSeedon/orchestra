@@ -12,8 +12,13 @@ from types import SimpleNamespace
 import pytest
 
 from app.ia.projections import SQLiteProjectionBackend
-from app.ia.runtime import KnowledgeRuntime, KnowledgeRuntimeError, _RuntimeTaskStore
-from app.ia.task_store import TaskStore, build_migration_manifest
+from app.ia.runtime import (
+    KnowledgeRuntime,
+    KnowledgeRuntimeError,
+    _RuntimeTaskStore,
+    _ensure_task_projection,
+)
+from app.ia.task_store import ProjectionDebtError, TaskStore, build_migration_manifest
 
 
 _PROMPT = "\n".join((
@@ -255,7 +260,9 @@ def test_task_head_refresh_retains_verified_evidence_without_git_reads(tmp_path)
         "unchanged evidence must not be reread during a task-only refresh"
     )
 
-    owner._refresh_current_projection()
+    admission = owner._refresh_current_projection()
+    assert admission["repair_required"] is True
+    owner._repair_current_projection()
 
     backend = SQLiteProjectionBackend(path=owner.paths["current_projection"])
     task = backend.search_current(
@@ -290,7 +297,9 @@ def test_task_head_refresh_rebuilds_when_evidence_digest_changed(tmp_path):
     owner.evidence_records = lambda: [new_resource]
     owner._evidence_contents = lambda _records: {"resource-1": new_content}
 
-    owner._refresh_current_projection()
+    admission = owner._refresh_current_projection()
+    assert admission["repair_required"] is True
+    owner._repair_current_projection()
 
     evidence = SQLiteProjectionBackend(
         path=owner.paths["current_projection"]
@@ -372,7 +381,9 @@ def test_matching_legacy_projection_head_seals_receipts_without_full_rebuild(tmp
         "matching legacy projection must be sealed without a full rebuild"
     )
 
-    owner._refresh_current_projection()
+    admission = owner._refresh_current_projection()
+    assert admission["repair_required"] is True
+    owner._repair_current_projection()
 
     with sqlite3.connect(owner.paths["current_projection"]) as connection:
         receipt = connection.execute(
@@ -466,6 +477,9 @@ def test_corrupt_disposable_projections_rebuild_from_canonical(tmp_path, monkeyp
         head_writer=lambda _head: None,
     )
 
+    with pytest.raises(ProjectionDebtError, match="task projection read failed"):
+        facade.task_get("405", project="orchestra")
+    _ensure_task_projection(store)
     detail = facade.task_get("405", project="orchestra")
 
     assert detail["title"] == "projection recovery"
@@ -483,7 +497,10 @@ def test_corrupt_disposable_projections_rebuild_from_canonical(tmp_path, monkeyp
     current_owner._evidence_contents = lambda _records: {"resource-1": content}
     current_owner.paths["current_projection"].write_bytes(b"not a sqlite database")
 
-    current_owner._refresh_current_projection()
+    admission = current_owner._refresh_current_projection()
+    assert admission["repair_required"] is True
+    assert trimmed == []
+    current_owner._repair_current_projection()
     assert trimmed == ["knowledge projection refresh"]
 
     stored = SQLiteProjectionBackend(
@@ -511,8 +528,10 @@ def test_corrupt_disposable_projections_rebuild_from_canonical(tmp_path, monkeyp
         return replace_current(backend, **kwargs)
 
     monkeypatch.setattr(SQLiteProjectionBackend, "replace_current", fail_temporary_rebuild)
+    admission = interrupted._refresh_current_projection()
+    assert admission["repair_required"] is False  # receipt admission is not a corruption scan
     with pytest.raises(sqlite3.OperationalError, match="injected rebuild interruption"):
-        interrupted._refresh_current_projection()
+        interrupted._repair_current_projection()
     assert trimmed == [
         "knowledge projection refresh",
         "knowledge projection refresh",

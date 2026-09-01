@@ -81,3 +81,28 @@ curl -s -m 55 -H "Authorization: Bearer $INTERNAL_TOKEN" \
 # сразу во втором, пока висит
 ssh kesha@localhost 'sudo -n py-spy dump --pid $(systemctl show orchestra -p MainPID --value)'
 ```
+
+## Дополнение Phase 1 (26.08.2026)
+
+Полный разбор второго O(N)-контура (`task-current.db`), всех callers, shadow/debt-инвариантов,
+идемпотентности и backup-only baseline вынесен в `research.md`. На фиксированном клоне
+175 276 032 Б / 3 258 строк неизменный код дал две серии: при loadavg-1m 4.632–5.210 median
+`task_create` 32.661 с / concurrent `task_list` 32.353 с (3/3 выше 30 с), при loadavg-1m
+1.129–1.377 — 21.738/21.519 с (0/3 выше 30 с). Значит сам serialized stall подтверждён, а
+пересечение клиентского дедлайна зависит от нагрузки. Инструментация: один `current.db` rebuild
+13.239–16.098 с и один task-projection rebuild 0.095–0.241 с на create. Сырой вывод:
+`benchmark-3d72fe961b42-high-load.raw.jsonl` и `benchmark-3d72fe961b42.raw.jsonl`.
+
+## Current-main recheck (27.08.2026)
+
+`main` уже содержит частичную #405: immutable resource payloads не переписываются, но resource/FTS
+verification и все mutable rows по-прежнему обрабатываются синхронно под тем же RLock. На свежем
+`Connection.backup`-снимке 887 365 632 Б / 16 730 строк preserved-receipt median составил:
+startup 8.616 с, create 9.524 с, concurrent list 9.355 с. При `POSIX_FADV_DONTNEED` только для
+клонированного `current.db` и очищенных receipt fields: startup 213.691 с
+(`_refresh_current_projection` 205.054 с), create 108.216 с, concurrent list 107.953 с; на 30-й
+секунде create ещё шёл, а legacy task row уже существовал. Full `replace_current()` не вызывался.
+
+Production journal независимо дал 179.711 и 299.018 с до readiness, затем 22.425 с на следующем
+старте. Значит #405 снял обычный полный rewrite, но не устранил O(N) cold-cache stall, reader
+serialization и outcome-unknown contract. Артефакты и границы вывода — `research.md` §2a.

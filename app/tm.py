@@ -6,8 +6,10 @@ Takes sqlite3.Connection; callers manage transactions. External integrations are
 import copy
 import json
 import logging
+import re
 import sqlite3
 import threading
+import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -24,11 +26,20 @@ from app.ia.task_store import (
     ProjectionDebtError,
     TaskStore,
     build_migration_manifest,
+    task_create_fingerprint,
 )
 
 VALID_STATUSES = {"backlog", "new", "in_progress", "done", "cancelled"}
 _TASK_CREATE_LOCK = threading.RLock()
+_TASK_CREATE_REQUEST_KEY = re.compile(r"[A-Za-z0-9._:-]{16,128}")
 _TASK_BINDING_LOCK = threading.RLock()
+
+
+class TaskCreateRequestError(RuntimeError):
+    def __init__(self, reason: str, request_key: str, message: str) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.request_key = request_key
 
 
 class TaskIdentity(TypedDict):
@@ -2048,41 +2059,436 @@ def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
     return _merge_canonical_task_identity(legacy, candidate)
 
 
+def normalize_task_create_request_key(value: str = "") -> str:
+    request_key = str(value or "").strip() or uuid.uuid4().hex
+    if _TASK_CREATE_REQUEST_KEY.fullmatch(request_key) is None:
+        raise TaskCreateRequestError(
+            "INVALID_IDEMPOTENCY_KEY",
+            request_key,
+            "idempotency key must be 16-128 ASCII letters, digits, '.', '_', ':', or '-'",
+        )
+    return request_key
+
+
+def _resolve_task_create_project(project_id: str, scope: str) -> str:
+    with _conn() as conn:
+        project = resolve_project_selector(conn, project_id) if project_id else None
+        if project is None and scope:
+            project = _project_for_session_scope(conn, scope)
+        if project and str(project.get("scope") or "").strip():
+            return str(project["id"])
+        allowed = sorted(
+            row["scope"]
+            for row in conn.execute(
+                "SELECT scope FROM tm_projects "
+                "WHERE NULLIF(TRIM(scope), '') IS NOT NULL"
+            ).fetchall()
+        )
+    requested = project_id or scope
+    raise ValueError(
+        f"project '{requested}' is not registered; "
+        f"allowed project scopes: {', '.join(allowed) or 'none'}"
+    )
+
+
+def _task_create_request_row(
+    conn: sqlite3.Connection,
+    project_id: str,
+    request_key: str,
+) -> sqlite3.Row | None:
+    return conn.execute(
+        "SELECT * FROM tm_task_create_requests WHERE project_id=? AND request_key=?",
+        (project_id, request_key),
+    ).fetchone()
+
+
+def _task_create_replay(row: sqlite3.Row) -> dict | None:
+    raw = str(row["response_json"] or "")
+    if not raw:
+        return None
+    response = json.loads(raw)
+    if not isinstance(response, dict):
+        raise RuntimeError("task-create receipt response is not an object")
+    response["request_key"] = str(row["request_key"])
+    response["replayed"] = True
+    return response
+
+
+def _raise_task_create_conflict(row: sqlite3.Row, fingerprint: str) -> None:
+    if str(row["fingerprint"]) != fingerprint:
+        raise TaskCreateRequestError(
+            "IDEMPOTENCY_FINGERPRINT_MISMATCH",
+            str(row["request_key"]),
+            "idempotency key was already used with a different task body",
+        )
+
+
+def _legacy_task_create_response(
+    task: dict,
+    *,
+    request_key: str,
+    replayed: bool,
+) -> dict:
+    return {
+        "par": str(task["par_number"]),
+        "id": task["id"],
+        "title": task["title"],
+        "project": task["project_id"],
+        "price_rub": task["price_rub"],
+        "status": task["status"],
+        "request_key": request_key,
+        "replayed": replayed,
+    }
+
+
+def _legacy_create_idempotent(
+    *,
+    project_id: str,
+    request_key: str,
+    fingerprint: str,
+    final_state: str,
+    title: str,
+    price: int,
+    description: str,
+    assignee: str,
+    status: str,
+    priority: int,
+    acceptance_command: str,
+    acceptance_manifest: list[str] | None,
+    acceptance_required: bool,
+    acceptance_actor: dict | None,
+) -> tuple[dict, bool]:
+    now = _now()
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = _task_create_request_row(conn, project_id, request_key)
+            if row is not None:
+                _raise_task_create_conflict(row, fingerprint)
+                replay = _task_create_replay(row)
+                if replay is None:
+                    raise TaskCreateRequestError(
+                        "IDEMPOTENCY_REQUEST_PENDING",
+                        request_key,
+                        "task-create request is still pending",
+                    )
+                conn.commit()
+                return replay, True
+            conn.execute(
+                "INSERT INTO tm_task_create_requests("
+                "project_id,request_key,fingerprint,active_owner,generation,state,"
+                "created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    project_id,
+                    request_key,
+                    fingerprint,
+                    "legacy",
+                    1,
+                    "PENDING",
+                    now,
+                    now,
+                ),
+            )
+            task = create_task(
+                conn,
+                project_id,
+                title,
+                price_rub=price,
+                description=description,
+                assignee=assignee,
+                status=status,
+                priority=priority,
+                acceptance_command=acceptance_command,
+                acceptance_manifest=acceptance_manifest,
+                acceptance_required=acceptance_required,
+                acceptance_actor=acceptance_actor,
+            )
+            response = _legacy_task_create_response(
+                task,
+                request_key=request_key,
+                replayed=False,
+            )
+            conn.execute(
+                "UPDATE tm_task_create_requests SET state=?,task_id=?,par_number=?,"
+                "response_json=?,updated_at=? WHERE project_id=? AND request_key=?",
+                (
+                    final_state,
+                    task["id"],
+                    task["par_number"],
+                    json.dumps(response, ensure_ascii=False, sort_keys=True),
+                    _now(),
+                    project_id,
+                    request_key,
+                ),
+            )
+            conn.commit()
+            return response, False
+        except Exception:
+            conn.rollback()
+            raise
+
+
+def _reserve_canonical_create(
+    project_id: str,
+    request_key: str,
+    fingerprint: str,
+) -> tuple[bool, dict | None]:
+    now = _now()
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = _task_create_request_row(conn, project_id, request_key)
+            if row is not None:
+                _raise_task_create_conflict(row, fingerprint)
+                replay = _task_create_replay(row)
+                conn.commit()
+                return False, replay
+            conn.execute(
+                "INSERT INTO tm_task_create_requests("
+                "project_id,request_key,fingerprint,active_owner,generation,state,"
+                "created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    project_id,
+                    request_key,
+                    fingerprint,
+                    "canonical",
+                    1,
+                    "PENDING",
+                    now,
+                    now,
+                ),
+            )
+            conn.commit()
+            return True, None
+        except Exception:
+            conn.rollback()
+            raise
+
+
+def _save_task_create_request(
+    *,
+    project_id: str,
+    request_key: str,
+    fingerprint: str,
+    state: str,
+    task_id: str | int,
+    par_number: int,
+    response: dict,
+    error: BaseException | None = None,
+) -> None:
+    error_json = ""
+    if error is not None:
+        error_json = json.dumps(
+            {"exception_type": type(error).__name__, "message": str(error)},
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    with _conn() as conn:
+        updated = conn.execute(
+            "UPDATE tm_task_create_requests SET state=?,task_id=?,par_number=?,"
+            "response_json=?,error_json=?,updated_at=? "
+            "WHERE project_id=? AND request_key=? AND fingerprint=?",
+            (
+                state,
+                task_id,
+                par_number,
+                json.dumps(response, ensure_ascii=False, sort_keys=True),
+                error_json,
+                _now(),
+                project_id,
+                request_key,
+                fingerprint,
+            ),
+        )
+        if updated.rowcount != 1:
+            raise RuntimeError("task-create receipt disappeared during commit")
+        conn.commit()
+
+
+def _delete_pending_task_create_request(
+    *,
+    project_id: str,
+    request_key: str,
+    fingerprint: str,
+) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "DELETE FROM tm_task_create_requests "
+            "WHERE project_id=? AND request_key=? AND fingerprint=? AND state='PENDING'",
+            (project_id, request_key, fingerprint),
+        )
+        conn.commit()
+
+
+def _legacy_mirror_canonical_create(
+    *,
+    project_id: str,
+    display_number: int,
+    request_key: str,
+    title: str,
+    price: int,
+    description: str,
+    assignee: str,
+    status: str,
+    priority: int,
+    acceptance_command: str,
+    acceptance_manifest: list[str] | None,
+    acceptance_required: bool,
+    acceptance_actor: dict | None,
+) -> dict:
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            stored = conn.execute(
+                "SELECT * FROM tm_tasks WHERE project_id=? AND par_number=?",
+                (project_id, display_number),
+            ).fetchone()
+            if stored is not None:
+                task = dict(stored)
+                expected = (
+                    title,
+                    description,
+                    price,
+                    status,
+                    assignee,
+                    priority,
+                )
+                observed = tuple(task[field] for field in (
+                    "title",
+                    "description",
+                    "price_rub",
+                    "status",
+                    "assignee",
+                    "priority",
+                ))
+                if observed != expected:
+                    raise IdentityConflictError(
+                        f"legacy mirror #{display_number} has different task content"
+                    )
+            else:
+                legacy_next = _next_par(conn, project_id)
+                if legacy_next != display_number:
+                    raise IdentityConflictError(
+                        f"task display counter mismatch in {project_id}: "
+                        f"canonical={display_number}, legacy={legacy_next}"
+                    )
+                task = create_task(
+                    conn,
+                    project_id,
+                    title,
+                    price_rub=price,
+                    description=description,
+                    assignee=assignee,
+                    status=status,
+                    par_number=display_number,
+                    priority=priority,
+                    acceptance_command=acceptance_command,
+                    acceptance_manifest=acceptance_manifest,
+                    acceptance_required=acceptance_required,
+                    acceptance_actor=acceptance_actor,
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return _legacy_task_create_response(task, request_key=request_key, replayed=False)
+
+
+def api_task_create_status(
+    request_key: str,
+    *,
+    project_id: str = "",
+    scope: str = "",
+) -> dict:
+    request_key = normalize_task_create_request_key(request_key)
+    resolved_project_id = _resolve_task_create_project(project_id, scope)
+    with _conn() as conn:
+        row = _task_create_request_row(conn, resolved_project_id, request_key)
+    if row is None:
+        raise ValueError("task-create request not found")
+    response = _task_create_replay(row) or {}
+    task_id: str | int | None = response.get("id") or response.get("task_id") or row["task_id"]
+    if isinstance(task_id, str) and task_id.isdigit():
+        task_id = int(task_id)
+    return {
+        "project": resolved_project_id,
+        "request_key": request_key,
+        "fingerprint": row["fingerprint"],
+        "active_owner": row["active_owner"],
+        "generation": row["generation"],
+        "state": row["state"],
+        "task_id": task_id,
+        "par_number": row["par_number"],
+        "result": response or None,
+        "error": json.loads(row["error_json"]) if row["error_json"] else None,
+    }
+
+
 def api_create_task(project_id: str, title: str, price: int = 0,
                     description: str = "", assignee: str = "",
                     status: str = "new", scope: str = "",
                     priority: int = 2, acceptance_command: str = "",
                     acceptance_manifest: list[str] | None = None,
                     acceptance_required: bool = False,
-                    acceptance_actor: dict | None = None) -> dict:
+                    acceptance_actor: dict | None = None,
+                    request_key: str = "") -> dict:
+    request_key = normalize_task_create_request_key(request_key)
+    resolved_project_id = _resolve_task_create_project(project_id, scope)
+    fingerprint = task_create_fingerprint(
+        project_id=resolved_project_id,
+        title=title,
+        price=price,
+        description=description,
+        assignee=assignee,
+        status=status,
+        priority=priority,
+        acceptance_command=acceptance_command,
+        acceptance_manifest=acceptance_manifest,
+        acceptance_required=acceptance_required,
+    )
     context = _ia_context()
     if context is None:
-        return _legacy_api_create_task(
-            project_id, title, price, description, assignee, status,
-            scope=scope, priority=priority,
+        result, _replayed = _legacy_create_idempotent(
+            project_id=resolved_project_id,
+            request_key=request_key,
+            fingerprint=fingerprint,
+            final_state="MIRRORS_COMMITTED",
+            title=title,
+            price=price,
+            description=description,
+            assignee=assignee,
+            status=status,
+            priority=priority,
             acceptance_command=acceptance_command,
             acceptance_manifest=acceptance_manifest,
             acceptance_required=acceptance_required,
             acceptance_actor=acceptance_actor,
         )
+        return result
     store = context.store
     assert store is not None
 
     if context.mode == "shadow":
         with _TASK_CREATE_LOCK:
-            # The shadow adapter owns the legacy write; let its internal allocator run
-            # under an explicit legacy context without disabling the process-wide adapter
-            # for concurrent HTTP requests. Keep the projection in this lock too, so its
-            # display number and expected canonical head stay paired with that write.
             with ia_task_store_mode(mode="legacy"):
-                legacy = _legacy_api_create_task(
-                    project_id, title, price, description, assignee, status,
-                    scope=scope, priority=priority,
+                legacy, replayed = _legacy_create_idempotent(
+                    project_id=resolved_project_id,
+                    request_key=request_key,
+                    fingerprint=fingerprint,
+                    final_state="ACTIVE_COMMITTED",
+                    title=title,
+                    price=price,
+                    description=description,
+                    assignee=assignee,
+                    status=status,
+                    priority=priority,
                     acceptance_command=acceptance_command,
                     acceptance_manifest=acceptance_manifest,
                     acceptance_required=acceptance_required,
                     acceptance_actor=acceptance_actor,
                 )
+            if replayed:
+                return legacy
             try:
                 candidate = store.task_create(
                     project_id=legacy["project"],
@@ -2097,53 +2503,169 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                     acceptance_required=acceptance_required,
                     display_number=int(legacy["par"]),
                     expected_head=store.canonical_head,
+                    request_key=request_key,
                 )
             except Exception as error:
-                return _shadow_failure(legacy, context, error)
-            return _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
-
-    with _TASK_CREATE_LOCK:
-        with _conn() as conn:
-            project = resolve_project_selector(conn, project_id) if project_id else None
-            if project is None and scope:
-                project = _project_for_session_scope(conn, scope)
-            if not project or not str(project.get("scope") or "").strip():
-                raise ValueError(f"project '{project_id or scope}' is not registered")
-            resolved_project_id = project["id"]
-            legacy_next = _next_par(conn, resolved_project_id)
-        canonical_next = int(
-            store.task_list(project=resolved_project_id)["next_display_number"]
-        )
-        if canonical_next != legacy_next:
-            raise IdentityConflictError(
-                f"task display counter mismatch in {resolved_project_id}: "
-                f"canonical={canonical_next}, legacy={legacy_next}"
+                result = _shadow_failure(legacy, context, error)
+                _save_task_create_request(
+                    project_id=resolved_project_id,
+                    request_key=request_key,
+                    fingerprint=fingerprint,
+                    state="ACTIVE_COMMITTED",
+                    task_id=legacy["id"],
+                    par_number=int(legacy["par"]),
+                    response=result,
+                    error=error,
+                )
+                return result
+            result = _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
+            _save_task_create_request(
+                project_id=resolved_project_id,
+                request_key=request_key,
+                fingerprint=fingerprint,
+                state="MIRRORS_COMMITTED",
+                task_id=legacy["id"],
+                par_number=int(legacy["par"]),
+                response=result,
             )
-        candidate = store.task_create(
+            return result
+
+    new_request, replay = _reserve_canonical_create(
+        resolved_project_id,
+        request_key,
+        fingerprint,
+    )
+    if replay is not None:
+        return replay
+    candidate = None
+    if not new_request:
+        lookup = getattr(store, "task_create_request", None)
+        if callable(lookup):
+            candidate = lookup(
+                project_id=resolved_project_id,
+                request_key=request_key,
+            )
+        if candidate is None:
+            raise TaskCreateRequestError(
+                "IDEMPOTENCY_REQUEST_PENDING",
+                request_key,
+                "task-create request is still pending",
+            )
+        if candidate.get("request_fingerprint") != fingerprint:
+            raise TaskCreateRequestError(
+                "IDEMPOTENCY_FINGERPRINT_MISMATCH",
+                request_key,
+                "canonical request identity has a different task body",
+            )
+    with _TASK_CREATE_LOCK:
+        if candidate is None:
+            try:
+                with _conn() as conn:
+                    legacy_next = _next_par(conn, resolved_project_id)
+                canonical_next = int(
+                    store.task_list(project=resolved_project_id)["next_display_number"]
+                )
+                if canonical_next != legacy_next:
+                    raise IdentityConflictError(
+                        f"task display counter mismatch in {resolved_project_id}: "
+                        f"canonical={canonical_next}, legacy={legacy_next}"
+                    )
+                candidate = store.task_create(
+                    project_id=resolved_project_id,
+                    title=title,
+                    price=price,
+                    description=description,
+                    assignee=assignee,
+                    status=status,
+                    priority=priority,
+                    acceptance_command=acceptance_command,
+                    acceptance_manifest=acceptance_manifest,
+                    acceptance_required=acceptance_required,
+                    display_number=canonical_next,
+                    expected_head=store.canonical_head,
+                    request_key=request_key,
+                )
+            except Exception as error:
+                lookup = getattr(store, "task_create_request", None)
+                try:
+                    recovered = (
+                        lookup(
+                            project_id=resolved_project_id,
+                            request_key=request_key,
+                        )
+                        if callable(lookup)
+                        else None
+                    )
+                except Exception:
+                    raise error
+                if recovered is None:
+                    _delete_pending_task_create_request(
+                        project_id=resolved_project_id,
+                        request_key=request_key,
+                        fingerprint=fingerprint,
+                    )
+                    raise error
+                if recovered.get("request_fingerprint") != fingerprint:
+                    raise TaskCreateRequestError(
+                        "IDEMPOTENCY_FINGERPRINT_MISMATCH",
+                        request_key,
+                        "canonical request identity has a different task body",
+                    )
+                candidate = recovered
+        canonical_next = int(candidate["par"])
+        candidate.setdefault("request_key", request_key)
+        candidate.setdefault("request_fingerprint", fingerprint)
+        candidate.setdefault("replayed", False)
+        _save_task_create_request(
             project_id=resolved_project_id,
-            title=title,
-            price=price,
-            description=description,
-            assignee=assignee,
-            status=status,
-            priority=priority,
-            acceptance_command=acceptance_command,
-            acceptance_manifest=acceptance_manifest,
-            acceptance_required=acceptance_required,
-            display_number=canonical_next,
-            expected_head=store.canonical_head,
+            request_key=request_key,
+            fingerprint=fingerprint,
+            state="ACTIVE_COMMITTED",
+            task_id=candidate["task_id"],
+            par_number=canonical_next,
+            response=candidate,
         )
-        legacy = _legacy_api_create_task(
-            resolved_project_id, title, price, description, assignee, status,
-            priority=priority,
-            acceptance_command=acceptance_command,
-            acceptance_manifest=acceptance_manifest,
-            acceptance_required=acceptance_required,
-            acceptance_actor=acceptance_actor,
-            _canonical_par_number=canonical_next,
-        )
+        try:
+            legacy = _legacy_mirror_canonical_create(
+                project_id=resolved_project_id,
+                display_number=canonical_next,
+                request_key=request_key,
+                title=title,
+                price=price,
+                description=description,
+                assignee=assignee,
+                status=status,
+                priority=priority,
+                acceptance_command=acceptance_command,
+                acceptance_manifest=acceptance_manifest,
+                acceptance_required=acceptance_required,
+                acceptance_actor=acceptance_actor,
+            )
+        except Exception as error:
+            result = {**candidate, **_candidate_receipts(candidate, context)}
+            _save_task_create_request(
+                project_id=resolved_project_id,
+                request_key=request_key,
+                fingerprint=fingerprint,
+                state="ACTIVE_COMMITTED",
+                task_id=candidate["task_id"],
+                par_number=canonical_next,
+                response=result,
+                error=error,
+            )
+            return result
     candidate["id"] = legacy["id"]
-    return _canonical_result(candidate, legacy, context, _CREATE_COMPARE_FIELDS)
+    result = _canonical_result(candidate, legacy, context, _CREATE_COMPARE_FIELDS)
+    _save_task_create_request(
+        project_id=resolved_project_id,
+        request_key=request_key,
+        fingerprint=fingerprint,
+        state="MIRRORS_COMMITTED",
+        task_id=candidate["task_id"],
+        par_number=canonical_next,
+        response=result,
+    )
+    return result
 
 
 def api_update_task(par: str, title: str | None = None,
@@ -2344,6 +2866,13 @@ def api_list_tasks(project: str = "", status: str = "",
         return _legacy_api_list_tasks(project, status, assignee)
     store = context.store
     assert store is not None
+    if context.mode == "canonical":
+        candidate = store.task_list(project=project, status=status, assignee=assignee)
+        return {
+            **candidate,
+            **_list_receipts(context),
+            "projection_debt": [],
+        }
     legacy = _legacy_api_list_tasks(project, status, assignee)
     try:
         candidate = store.task_list(project=project, status=status, assignee=assignee)
@@ -2372,6 +2901,15 @@ def api_get_task(par: str, project: str = "") -> dict:
         return _legacy_api_get_task(par, project)
     store = context.store
     assert store is not None
+    if context.mode == "canonical":
+        candidate = store.task_get(par, project=project)
+        return {
+            **candidate,
+            "ia_mode": context.mode,
+            "canonical_head": candidate.get("canonical_head") or store.canonical_head,
+            "projection_head": candidate.get("projection_head") or store.projection_head,
+            "projection_debt": list(candidate.get("projection_debt") or []),
+        }
     legacy = _legacy_api_get_task(par, project)
     try:
         candidate = store.task_get(par, project=project)

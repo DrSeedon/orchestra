@@ -502,7 +502,8 @@ def _transport_error(
 async def _api(method: str, path: str, **kwargs) -> dict | list | None:
     # New client per call: avoids shared state across tool invocations in the same MCP session
     method = method.upper()
-    request_id = uuid.uuid4().hex
+    request_id = str(kwargs.pop("request_id", "") or uuid.uuid4().hex)
+    idempotency_key = str(kwargs.pop("idempotency_key", "") or "")
     if method not in {"GET", "POST", "PUT", "DELETE"}:
         raise ApiToolError(
             code="unsupported_method",
@@ -513,6 +514,8 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
     t = kwargs.pop("timeout", 30)
     headers = _auth_headers()
     headers["X-Request-ID"] = request_id
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key
     try:
         async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=t, headers=headers) as client:
             if method == "GET":
@@ -2920,13 +2923,15 @@ async def task_create(title: str, project: str = "", price: int = 0,
                       status: str = "new", priority: int = 2,
                       acceptance_command: str = "",
                       acceptance_manifest: list[str] | None = None,
-                      acceptance_required: bool = False) -> str:
+                      acceptance_required: bool = False,
+                      request_key: str = "") -> str:
     """Create a new task. Returns task number and details.
     project: registered project scope or id; omitted uses the caller's mapped scope.
     price in exact currency units (e.g. 20000 = 20 000). 0 is valid (no price).
     priority: 0=critical, 1=high, 2=medium (default), 3=low.
     status: lifecycle statuses (in_progress/done) are platform-owned and rejected."""
     _reject_lifecycle_status(status, "task_create")
+    request_key = request_key.strip() or uuid.uuid4().hex
     command = _acceptance_command_from_caller(acceptance_command)
     payload = {
         "title": title, "price": price,
@@ -2939,7 +2944,13 @@ async def task_create(title: str, project: str = "", price: int = 0,
         payload["acceptance_required"] = bool(acceptance_required)
     if project:
         payload["project"] = project
-    result = await _api("POST", "/api/tm/tasks", json=payload)
+    result = await _api(
+        "POST",
+        "/api/tm/tasks",
+        json=payload,
+        request_id=request_key,
+        idempotency_key=request_key,
+    )
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     if isinstance(result, dict):
@@ -2948,6 +2959,21 @@ async def task_create(title: str, project: str = "", price: int = 0,
         result.setdefault("assignee", assignee)
         result.setdefault("priority", priority)
         result.setdefault("task_id", result.get("id"))
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def task_create_status(request_key: str, project: str = "") -> str:
+    """Resolve a task_create outcome after a timeout without creating another task."""
+
+    params = {"project": project} if project else {"scope": SCOPE}
+    result = await _api(
+        "GET",
+        f"/api/tm/task-create-requests/{request_key}",
+        params=params,
+    )
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
     return json.dumps(result, ensure_ascii=False)
 
 
