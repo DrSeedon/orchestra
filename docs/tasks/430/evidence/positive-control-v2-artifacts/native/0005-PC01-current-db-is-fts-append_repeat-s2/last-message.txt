@@ -1,0 +1,28 @@
+```json
+{
+  "state_patch": {
+    "artifacts": {
+      "knowledge-v1/current.db": {
+        "label": "lexical FTS projection",
+        "status": "keep"
+      },
+      "data/vec.db": {
+        "label": "unused vector store",
+        "status": "candidate_for_deletion"
+      }
+    },
+    "current_facts": {
+      "PC01-E01": "Candidate: delete knowledge-v1/current.db because it is labeled as an 808 MB vector index. Candidate remains provisional.",
+      "PC01-E02": "sqlite_master shows current_records and current_fts with no embeddings. current.db is the lexical FTS projection; data/vec.db is the real unused vector store."
+    },
+    "decisions": {},
+    "next_action": "Continue processing chronological evidence.",
+    "open_questions": {
+      "Q1": "Resolved: knowledge-v1/current.db is an FTS database, not a vector database."
+    }
+  },
+  "action": {
+    "kind": "continue"
+  }
+}
+```

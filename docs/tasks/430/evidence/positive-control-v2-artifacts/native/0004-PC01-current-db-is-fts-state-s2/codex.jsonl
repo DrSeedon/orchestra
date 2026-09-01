@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"01a05df3-3b9e-7e31-b90f-31182847df66"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"```json\n{\n  \"state_patch\": {\n    \"current_facts\": {\n      \"PC01-E02\": {\n        \"status\": \"confirmed\",\n        \"text\": \"current.db is the lexical FTS projection without embeddings; data/vec.db is the real unused vector store.\"\n      }\n    },\n    \"decisions\": {\n      \"DELETE_CURRENT_DB\": {\n        \"status\": \"rejected\",\n        \"because\": \"It targets the lexical FTS projection rather than the unused vector store.\"\n      }\n    },\n    \"next_action\": \"continue\"\n  },\n  \"action\": {\n    \"kind\": \"continue\"\n  }\n}\n```"}}
+{"type":"turn.completed","usage":{"input_tokens":16706,"cached_input_tokens":8960,"cache_write_input_tokens":0,"output_tokens":259,"reasoning_output_tokens":120}}

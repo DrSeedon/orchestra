@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "state_patch": {
+      "type": "object"
+    },
+    "action": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "state_patch",
+    "action"
+  ]
+}

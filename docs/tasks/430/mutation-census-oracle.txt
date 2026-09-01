@@ -1,0 +1,54 @@
+PROD_HELPER_COUNT_BEFORE=1
+MUTANT_MARKER_COUNT=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_t4_census_oracle_rejects_arbitrary_well_formed_cohort __________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-8044/test_t4_census_oracle_rejects_0')
+
+    def test_t4_census_oracle_rejects_arbitrary_well_formed_cohort(tmp_path: Path) -> None:
+        strata = [f"stratum_{index}" for index in range(5)]
+        rows: list[dict] = []
+        for stratum_index, stratum in enumerate(strata):
+            for offset in range(7):
+                task_id = 1000 + stratum_index * 100 + offset
+                relative = f"sources/{task_id}.md"
+                source = tmp_path / relative
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_text(f"task {task_id} source v1\n", encoding="utf-8")
+                rows.append({
+                    "task_id": task_id,
+                    "eligible": True,
+                    "exclusion_reason": None,
+                    "stratum": stratum,
+                    "source_paths": [relative],
+                    "source_sha256": _source_digest([relative], lambda path: (tmp_path / path).read_bytes()),
+                    "selection_key": _selection_key(task_id),
+                })
+        discovered = {row["task_id"] for row in rows}
+        cohort: list[dict] = []
+        for stratum in strata:
+            selected = sorted(
+                (row for row in rows if row["stratum"] == stratum),
+                key=lambda row: (row["selection_key"], row["task_id"]),
+            )[:6]
+            cohort.extend(deepcopy(selected))
+        census = {"rows": rows}
+        loader = lambda path: (tmp_path / path).read_bytes()
+        assert _assert_census_selection(census, cohort, strata, loader, discovered)["selected_total"] == 30
+
+        missing_task_id = deepcopy(cohort)
+        missing_task_id[0].pop("task_id")
+>       with pytest.raises(AssertionError, match="missing case.task_id"):
+E       Failed: DID NOT RAISE <class 'AssertionError'>
+
+docs/tasks/430/acceptance/test_t4_luna_main_benchmark.py:160: Failed
+=========================== short test summary info ============================
+FAILED docs/tasks/430/acceptance/test_t4_luna_main_benchmark.py::test_t4_census_oracle_rejects_arbitrary_well_formed_cohort
+1 failed in 0.43s
+MUTANT_RC=1
+MUTANT_MARKER_AFTER_RESTORE=0
+.                                                                        [100%]
+1 passed in 0.42s
+RESTORED_RC=0
+PROD_HELPER_COUNT_AFTER=1

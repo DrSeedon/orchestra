@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_t3_luna_calibration_freezes_noise_derived_thresholds ___________
+
+    def test_t3_luna_calibration_freezes_noise_derived_thresholds() -> None:
+>       assert CALIBRATION.is_file(), "T3 missing six-case Luna calibration receipt"
+E       AssertionError: T3 missing six-case Luna calibration receipt
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/skillstate-bench/docs/tasks/430/evidence/luna-calibration.json').is_file
+
+docs/tasks/430/acceptance/test_t3_luna_calibration.py:19: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/430/acceptance/test_t3_luna_calibration.py::test_t3_luna_calibration_freezes_noise_derived_thresholds
+1 failed in 0.34s
+
+RC=1
