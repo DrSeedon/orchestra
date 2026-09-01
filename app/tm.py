@@ -408,6 +408,21 @@ def discard_unbound_task(task_id: int) -> bool:
         return cur.rowcount == 1
 
 
+def _discard_shadow_created_task(legacy: dict) -> bool:
+    """Remove only the untouched legacy half of a failed shadow create."""
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        cur = conn.execute(
+            "DELETE FROM tm_tasks WHERE id=? AND project_id=? AND par_number=? "
+            "AND sync_revision=0 AND worker_session_id IS NULL AND git_commits='[]' "
+            "AND NOT EXISTS (SELECT 1 FROM tm_task_reservations "
+            "WHERE task_id=tm_tasks.id)",
+            (int(legacy["id"]), str(legacy["project"]), int(legacy["par"])),
+        )
+        conn.commit()
+        return cur.rowcount == 1
+
+
 def update_task(conn: sqlite3.Connection, task_id: int, *,
                 title: str | None = None, description: str | None = None,
                 price_rub: int | None = None, status: str | None = None,
@@ -2091,7 +2106,48 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                     expected_head=store.canonical_head,
                 )
             except Exception as error:
-                return _shadow_failure(legacy, context, error)
+                candidate_absent = False
+                try:
+                    store.task_get(str(legacy["par"]), project=legacy["project"])
+                except ValueError as probe_error:
+                    candidate_absent = str(probe_error) == f"{legacy['par']} not found"
+                    if not candidate_absent:
+                        logger.warning(
+                            "shadow task candidate probe was ambiguous for %s#%s: %s: %s",
+                            legacy["project"], legacy["par"],
+                            type(probe_error).__name__, probe_error,
+                        )
+                except Exception as probe_error:
+                    logger.warning(
+                        "shadow task candidate probe failed for %s#%s: %s: %s",
+                        legacy["project"], legacy["par"],
+                        type(probe_error).__name__, probe_error,
+                    )
+                if candidate_absent:
+                    try:
+                        discarded = _discard_shadow_created_task(legacy)
+                    except Exception as cleanup_error:
+                        logger.warning(
+                            "shadow task create compensation failed: %s: %s",
+                            type(cleanup_error).__name__, cleanup_error,
+                        )
+                    else:
+                        if not discarded:
+                            logger.warning(
+                                "shadow task create compensation refused for %s#%s",
+                                legacy["project"], legacy["par"],
+                            )
+                try:
+                    _shadow_failure(legacy, context, error)
+                except Exception as debt_error:
+                    logger.warning(
+                        "shadow task create debt recording failed: %s: %s",
+                        type(debt_error).__name__, debt_error,
+                    )
+                raise RuntimeError(
+                    "shadow task creation failed: "
+                    f"{type(error).__name__}: {error}"
+                ) from error
             return _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
 
     with _TASK_CREATE_LOCK:
