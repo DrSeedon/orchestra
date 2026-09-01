@@ -58,7 +58,42 @@ def _resource(row: sqlite3.Row | dict, *, acceptance: str = "ACCEPTED") -> dict:
     }
 
 
+def _queue_block(row: sqlite3.Row | dict) -> dict:
+    """Почему принятое сообщение никуда не поедет: неразобранная голова очереди.
+
+    Барьер `DELIVERY_UNKNOWN` намеренный (#380 R7), но молчать про него нельзя:
+    отправитель получал бодрый `state=QUEUED` на каждое следующее сообщение, воркер
+    выглядел живым и глухим, и так простояли 25 часов и три задания.
+    """
+    head = _next_target_delivery(row["target_session_id"])
+    if (
+        head is None
+        or head["state"] != "DELIVERY_UNKNOWN"
+        or head["delivery_id"] == row["delivery_id"]
+    ):
+        return {}
+    return {
+        "code": "TARGET_QUEUE_BLOCKED",
+        "tool": "message_delivery_status",
+        "arguments": {"delivery_id": head["delivery_id"]},
+        "blocked_since": head["updated_at"],
+        "retryable": False,
+        "message": (
+            f"Message accepted but NOT delivered: the target queue has been blocked "
+            f"since {head['updated_at']} by delivery {head['delivery_id']}, whose "
+            "provider outcome is still unknown. Nothing queued after it moves while "
+            "that outcome could still change. Do not resend this message: the next "
+            "restart settles the head and the queue drains on its own."
+        ),
+    }
+
+
 def _next_action(row: sqlite3.Row | dict) -> dict:
+    # Блокировка очереди едет в `next_action`, а не отдельным ключом: это единственное
+    # поле receipt'а, которое читают потребители остальных доставок и мержей, — второй
+    # носитель той же мысли просто никто бы не открыл.
+    if row["state"] == "QUEUED":
+        return _queue_block(row)
     if row["state"] in {"DISPATCHING", "DELIVERY_UNKNOWN"}:
         return {
             "code": "CHECK_DELIVERY_STATUS",
@@ -68,6 +103,20 @@ def _next_action(row: sqlite3.Row | dict) -> dict:
             "message": (
                 "Provider acceptance may have occurred. Check this delivery_id; "
                 "do not resend the direct message automatically."
+            ),
+        }
+    if row["state"] == "DELIVERY_UNKNOWN_ORPHANED":
+        # Рестарт снимает БАРЬЕР, а не неизвестность: исход провайдера так и не выяснен.
+        # Пустой `next_action` здесь читался бы отправителем как «доставлено» — ровно то
+        # утверждение, которого у нас нет.
+        return {
+            "code": "DELIVERY_OUTCOME_UNRECONCILED",
+            "retryable": False,
+            "message": (
+                "A restart settled this delivery: the process that could still have "
+                "completed it is gone, so it no longer holds the queue. The provider "
+                "outcome was never established — it may or may not have reached the "
+                "target. Do not assume delivery, and do not resend automatically."
             ),
         }
     return {}
@@ -420,7 +469,13 @@ class MessageDeliveryContext:
 # ушло ли», и барьер там СОЗНАТЕЛЬНЫЙ (#380 R7) — пропустив его, мы рискуем доставить
 # следующее сообщение раньше, чем выяснится судьба предыдущего, то есть переставить
 # порядок или продублировать. Отказ ДО отправки такой неоднозначности не создаёт.
-_TERMINAL_DELIVERY_STATES = ("SUBMITTED", "FAILED_BEFORE_SUBMIT")
+# `DELIVERY_UNKNOWN_ORPHANED` ставит РЕСТАРТ, и барьером он не является: процесс,
+# который мог дослать сообщение, мёртв, поэтому переставить порядок оно уже не может —
+# а именно перестановки и дубля барьер и не допускает. Исход так и остался неизвестным,
+# и запись об этом хранит состояние; блокировать очередь ему больше незачем.
+_TERMINAL_DELIVERY_STATES = (
+    "SUBMITTED", "FAILED_BEFORE_SUBMIT", "DELIVERY_UNKNOWN_ORPHANED",
+)
 
 
 def _next_target_delivery(target_session_id: str) -> sqlite3.Row | None:
@@ -571,8 +626,8 @@ async def recover_message_deliveries() -> None:
         )
         connection.execute(
             """UPDATE message_deliveries
-               SET state='DELIVERY_UNKNOWN', error_json=?, updated_at=?
-               WHERE state='DISPATCHING'""",
+               SET state='DELIVERY_UNKNOWN_ORPHANED', error_json=?, updated_at=?
+               WHERE state IN ('DISPATCHING','DELIVERY_UNKNOWN')""",
             (orphan_error_json, _now()),
         )
         rows = connection.execute(

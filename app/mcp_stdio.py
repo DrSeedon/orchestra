@@ -43,6 +43,7 @@ SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
 # замер 03.08.2026 docs/tasks/18/measurements/search-latency-p8.log. Привязан к 8 ядрам
 # и текущему размеру индекса — меняется железо, перемеряй, а не подкручивай.
 SEARCH_DEADLINE_S = 5.0
+MESSAGE_FILE_MAX_BYTES = 64 * 1024
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
 WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
 # Имя агента меняется и может быть переиспользовано; id — нет. Нужен там, где
@@ -657,8 +658,26 @@ def _delivery_receipt_text(
     delivery_id = str(delivery.get("delivery_id") or "?")
     state = str(delivery.get("delivery_state") or delivery.get("state") or "UNKNOWN")
     status_url = str(delivery.get("status_url") or _delivery_status_path(delivery_id))
+    # Сверка после сбоя транспорта возвращает запись в ЛЮБОМ состоянии, включая
+    # терминальный отказ до отправки. «Task accepted» на нём — молчаливая потеря:
+    # воркер создан и стоит без задания, а спавнящий читает приёмку и уходит.
+    if state == "FAILED_BEFORE_SUBMIT":
+        headline = (
+            "Task was NOT delivered — the worker has no task yet. Resend the SAME task "
+            f"text with retry_initial_delivery(name='{name}', delivery_id='{delivery_id}')."
+        )
+    elif state in {"DELIVERY_UNKNOWN", "UNKNOWN"}:
+        # Та же сверка может вернуть запись, чей исход у провайдера неизвестен, — или
+        # ответ вовсе без состояния (`_normalize_delivery_receipt` подставляет UNKNOWN).
+        # «Task accepted» здесь читается как доставка, которую никто не подтверждал.
+        headline = (
+            "Task delivery outcome is UNKNOWN — the worker may still have no task; "
+            "check before resending and never resend with a new delivery_id."
+        )
+    else:
+        headline = "Task accepted."
     out = (
-        f"Worker '{name}' spawned. Model: {model}. Task accepted. "
+        f"Worker '{name}' spawned. Model: {model}. {headline} "
         f"delivery_id={delivery_id}; state={state}. "
         f"Check delivery status with delivery_status('{delivery_id}') or GET {status_url}."
     )
@@ -1046,17 +1065,19 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
     if not delivery_id:
         delivery_id = str(uuid.uuid4())
+    # Предупреждение уходит и САМОМУ воркеру, а не только вызывающему: сегодня в
+    # чужой репозиторий закоммитил именно ребёнок, который своего расхождения не знал.
+    worker_task = task
+    note_for_worker = _cross_repo_note(scope, mapping_data)
+    if note_for_worker:
+        worker_task = f"{task}\n\n{note_for_worker}"
     try:
-        # Предупреждение уходит и САМОМУ воркеру, а не только вызывающему: сегодня в
-        # чужой репозиторий закоммитил именно ребёнок, который своего расхождения не знал.
-        worker_task = task
-        note_for_worker = _cross_repo_note(scope, mapping_data)
-        if note_for_worker:
-            worker_task = f"{task}\n\n{note_for_worker}"
         delivery = await _post_initial_delivery(name, worker_task, delivery_id, scope)
     except ApiToolError as exc:
+        # Повтор обязан нести ТОТ ЖЕ текст: без предупреждения воркер чужого репозитория
+        # его не увидит, а у уже принятой доставки payload_hash даст 409 на честный повтор.
         raise _spawn_delivery_error(
-            name, mapping_data, exc, task=task, delivery_id=delivery_id,
+            name, mapping_data, exc, task=worker_task, delivery_id=delivery_id,
         ) from exc
     out = _delivery_receipt_text(name, model, mapping_data, delivery)
     # Воркер заведён в ДРУГОМ репозитории, чем проект родителя. Это законно для портфеля
@@ -1152,9 +1173,95 @@ async def test_lock_status() -> str:
             f"(reason: {result.get('reason') or 'n/a'}, since {result.get('acquired_at')}).")
 
 
+def _read_message_file(file_path: str) -> tuple[str, int]:
+    path = Path(file_path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    try:
+        file_size = path.stat().st_size
+    except FileNotFoundError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"attachment file not found: {file_path}",
+            details={"field": "file_path"},
+        ) from error
+    except IsADirectoryError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"attachment path is not a file: {file_path}",
+            details={"field": "file_path"},
+        ) from error
+    except OSError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"could not read attachment file {file_path}: {type(error).__name__}",
+            details={"field": "file_path"},
+        ) from error
+    if not path.is_file():
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"attachment path is not a file: {file_path}",
+            details={"field": "file_path"},
+        )
+    if file_size > MESSAGE_FILE_MAX_BYTES:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=(
+                f"attachment file is too large ({file_size} bytes; maximum is "
+                f"{MESSAGE_FILE_MAX_BYTES} bytes); split the file or send a summary"
+            ),
+            details={"field": "file_path", "max_bytes": MESSAGE_FILE_MAX_BYTES},
+        )
+    try:
+        with path.open("rb") as attachment_file:
+            content = attachment_file.read(MESSAGE_FILE_MAX_BYTES + 1)
+    except IsADirectoryError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"attachment path is not a file: {file_path}",
+            details={"field": "file_path"},
+        ) from error
+    except OSError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"could not read attachment file {file_path}: {type(error).__name__}",
+            details={"field": "file_path"},
+        ) from error
+    if len(content) > MESSAGE_FILE_MAX_BYTES:
+        try:
+            file_size = path.stat().st_size
+        except OSError:
+            file_size = len(content)
+        raise ApiToolError(
+            code="invalid_argument",
+            message=(
+                f"attachment file is too large ({file_size} bytes; maximum is "
+                f"{MESSAGE_FILE_MAX_BYTES} bytes); split the file or send a summary"
+            ),
+            details={"field": "file_path", "max_bytes": MESSAGE_FILE_MAX_BYTES},
+        )
+    try:
+        return content.decode("utf-8"), len(content)
+    except UnicodeDecodeError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"attachment file must be UTF-8 text: {file_path}",
+            details={"field": "file_path"},
+        ) from error
+
+
 @mcp.tool()
-async def send_message(to: str, message: str, delivery_id: str = "") -> str:
+async def send_message(
+    to: str, message: str, delivery_id: str = "", file_path: str = "",
+) -> str:
     """Send a message to any agent by name. Triggers a new turn."""
+    if file_path:
+        attachment, attachment_size = _read_message_file(file_path)
+        attachment_header = (
+            f"--- attachment: {file_path} ({attachment_size} bytes) ---"
+        )
+        attachment_message = f"{attachment_header}\n{attachment}"
+        message = f"{message}\n\n{attachment_message}" if message else attachment_message
     delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
     if not delivery_id:
         delivery_id = str(uuid.uuid4())
@@ -1218,25 +1325,63 @@ def _message_delivery_receipt_text(
     delivery_id = str(receipt["delivery_id"])
     state = str(receipt.get("delivery_state") or receipt.get("state") or "UNKNOWN")
     target = f" to '{to}'" if to else ""
-    if state == "DELIVERY_UNKNOWN":
-        error = receipt.get("error")
-        code = error.get("code") if isinstance(error, dict) else None
-        message = error.get("message") if isinstance(error, dict) else None
-        code = str(code or "DELIVERY_OUTCOME_UNKNOWN")
-        message = _safe_response_text(str(message or "Provider outcome is unknown"))
+    error = receipt.get("error") if isinstance(receipt.get("error"), dict) else {}
+    code = str(error.get("code") or "")
+    message = _safe_response_text(str(error.get("message") or ""))
+    action = receipt.get("next_action") if isinstance(receipt.get("next_action"), dict) else {}
+    if action.get("code") == "TARGET_QUEUE_BLOCKED":
+        # Условие блокировки принадлежит message_deliveries._queue_block; здесь только
+        # рендер его вывода. Свой пересчёт «голова очереди неразобрана» разошёлся бы с
+        # владельцем, а отправитель за барьером читал бы бодрый QUEUED — как те 25 часов.
+        output = (
+            f"Message NOT delivered{target}; delivery_id={delivery_id}; state={state}.\n"
+            f"{_safe_response_text(str(action.get('message') or ''))}"
+        )
+    elif state == "DELIVERY_UNKNOWN":
         output = (
             f"Message delivery outcome is unknown{target}; delivery_id={delivery_id}; "
-            f"code={code}: {message}.\n"
+            f"code={code or 'DELIVERY_OUTCOME_UNKNOWN'}: "
+            f"{message or 'Provider outcome is unknown'}.\n"
             f"Check with message_delivery_status(delivery_id=\"{delivery_id}\") "
             "before acting; if retrying, reuse the same delivery_id and never use a new id."
         )
-        if parent_name and parent_name != WORKER_NAME:
-            output += (
-                f"\n⚠️ This worker belongs to '{parent_name}'. "
-                f"Consider messaging '{parent_name}' instead."
+    elif state == "FAILED_BEFORE_SUBMIT":
+        # Терминальный отказ ДО отправки: провайдер сообщения не видел. Печатать его как
+        # приёмку — молчаливая потеря задания (штатный исход QuotaGateError), отправитель
+        # читает acceptance и уходит дальше, а повтора не будет никогда.
+        if error.get("retryable") is False:
+            # Повтор тем же id перепроверяется против ЗАМОРОЖЕННОГО target_generation
+            # (routes/sessions.py отдаёт его из существующей строки), поэтому у
+            # TARGET_TASK_CHANGED причина по построению не исчезает: «повтори тем же
+            # id» — вечный цикл, доставить может только новое сообщение.
+            next_step = (
+                "this delivery id is dead — retrying it repeats the same refusal. "
+                "Send a new message with a new delivery_id to the target's current task."
             )
-        return output
-    output = f"Message accepted{target}; delivery_id={delivery_id}; state={state}."
+        else:
+            next_step = (
+                "once the cause is gone, resend the SAME text with the same "
+                f"delivery_id=\"{delivery_id}\" — a new id would create a second "
+                "logical message."
+            )
+        output = (
+            f"Message was NOT delivered{target}; delivery_id={delivery_id}; "
+            f"state={state}; code={code or 'DELIVERY_NOT_SUBMITTED'}: "
+            f"{message or 'Provider submission did not begin'}.\n"
+            f"Nothing reached the target: {next_step}"
+        )
+    elif state == "DELIVERY_UNKNOWN_ORPHANED":
+        # Рестарт снял БЛОКИРОВКУ очереди, а не выяснил судьбу сообщения: процесс, который
+        # мог его дослать, мёртв, но дошло оно или нет — так и неизвестно. «Accepted» здесь
+        # читается как доставка, которой никто не подтверждал.
+        output = (
+            f"Message delivery outcome is STILL unknown{target}; delivery_id={delivery_id}; "
+            f"state={state}: a restart settled this delivery and released the queue, "
+            "which did not deliver this message.\n"
+            "Do not read this as delivered; confirm with the target before acting."
+        )
+    else:
+        output = f"Message accepted{target}; delivery_id={delivery_id}; state={state}."
     if parent_name and parent_name != WORKER_NAME:
         output += (
             f"\n⚠️ This worker belongs to '{parent_name}'. "
@@ -2493,7 +2638,16 @@ async def merge_worker(
                 )
             else:
                 recovered = await _recover_merge_status(operation_id)
-                if recovered is not None and recovered.get("operation_state") != "FAILED":
+                # 404 приходит как псевдо-FAILED с кодом OPERATION_NOT_FOUND — это «записи
+                # нет», а не исход мержа. Отличать надо по КОДУ, а не по состоянию:
+                # настоящий FAILED уже несёт причину (грязное дерево, конфликт), и терять
+                # её ради текста транспорта нельзя — статус тут как раз подтверждён.
+                recovered_error = recovered.get("error") if isinstance(recovered, dict) else None
+                operation_missing = (
+                    isinstance(recovered_error, dict)
+                    and recovered_error.get("code") == "OPERATION_NOT_FOUND"
+                )
+                if recovered is not None and not operation_missing:
                     result = recovered
                 else:
                     unknown = api_error.outcome_unknown

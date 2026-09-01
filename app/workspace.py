@@ -1288,7 +1288,35 @@ def merge_worktree_to_main(
     reset_worker_pending = False
 
     with repo_mutation_lock(repo):
-        target_branch = resolve_base_branch(str(repo), target_branch)
+        try:
+            target_branch = resolve_base_branch(str(repo), target_branch)
+        except Exception as e:
+            # Ловим по МЕСТУ, а не по типу: это первый шаг под локом, ни один реф ещё не
+            # тронут, поэтому исход Git известен для ЛЮБОГО отказа здесь — ничего не
+            # произошло. resolve_base_branch поднимает не только ValueError, но и
+            # RuntimeError (битый репозиторий, права) и OSError (нет git); улетев из
+            # функции, они попадали в catch-all роута и становились partial/unknown с
+            # удержанной резервацией задачи — хотя двумя шагами ниже то же условие
+            # возвращается как failed/not_reached.
+            from app.errtext import err_text
+
+            return {
+                "ok": False,
+                "state": "failed",
+                "commit_point": "not_reached",
+                "error": f"cannot resolve target branch: {err_text(e)}",
+                "target_branch": target_branch,
+                "target_before": "",
+                "target_after": "",
+                # Запиннённые роутом значения: отказ обязан описывать воркера не беднее,
+                # чем описывал улетавший наружу путь.
+                "worker_branch": expected_worker_branch,
+                "worker_head": expected_worker_head,
+                "conflicts": [],
+                "commits_merged": 0,
+                # Негодная цель — ошибка запроса, отказ git'а — ошибка окружения.
+                "_http_status": 400 if isinstance(e, ValueError) else 500,
+            }
         try:
             worker_head_result = _git_cmd(
                 ["git", "rev-parse", "HEAD"],

@@ -1,0 +1,771 @@
+{
+ "findings": [
+  {
+   "file": "app/routes/system.py",
+   "line": 2386,
+   "title": "Restart preflight still cancels the restart on any in-flight mutating call, with a 0-second budget",
+   "severity": "P1",
+   "description": "Commit 732d89cc ('рестарт по кнопке не ждёт мутаций и не отменяется') removed the mutation-abort from _do_restart_service and set MUTATING_DRAIN_BUDGET_S = 0.0 (app/main.py:70, comment: 'юзер, нажавший кнопку, обязан получить рестарт'), but restart_preflight (app/routes/system.py:2386-2400) was not touched: it calls drain_mutating_requests() — which with a zero budget returns inflight_mutating_count() == 0 immediately, giving in-flight calls no time at all — and on False the restart is refused: restart_server raises HTTPException(409) at system.py:2683-2685. So the 'absolute' restart button loses to any mutating HTTP request that happens to be in flight at that instant (spawn POST /api/sessions takes seconds building a worktree; POST /api/memory/reindex, merge-operation accept, plus a constant stream of send/task calls from ~20 agents). Worse, the TG /restart handler (app/tg_bridge.py:3643-3649) replies '🔄 Перезапуск Orchestra…' BEFORE awaiting restart_server(), so the HTTPException is swallowed by aiogram and the user is told the restart started when nothing happened — exactly the 'нажатие не делало ничего' defect the commit claims to have killed, now confined to the preflight path.",
+   "failure_scenario": "User sends /restart in TG (or presses the dashboard button) while any worker's spawn_worker HTTP call (POST /api/sessions, several seconds creating a worktree) is in flight. restart_preflight closes both gates, drain_mutating_requests() returns False instantly (budget 0s), gates reopen, restart_server raises HTTPException(409, '1 mutating tool call(s) still in flight after 0s'). TG user has already received 'перезапуск запущен' and the exception dies in aiogram's dispatcher — no restart, no error message; the merged Python fixes keep waiting for a restart that silently never happened.",
+   "focus": "app/routes/*.py"
+  },
+  {
+   "file": "app/routes/sessions.py",
+   "line": 520,
+   "title": "SSE stream freezes agent_status at connect time for sessions not loaded when the stream opened",
+   "severity": "P2",
+   "description": "stream_session_logs resolves live_session = manager.get(session_id) and stored = get_session_row(session_id) ONCE per SSE connection (app/routes/sessions.py:519-520). manager.get() only returns sessions already loaded in manager.sessions; for an unloaded (idle/hibernated) agent it returns None and with_status() (lines 522-528) stamps every subsequent event with the status frozen in the connect-time DB row — 'idle' — for the stream's whole lifetime, even after the session is loaded via ensure_loaded and starts running. The client trusts this field on every event: app/static/js/app.js:1130 calls _applyLiveAgentStatus(targetAgent, l.agent_status), which rewrites the status badge, #ai-status and updateStopButton(); the else-branch _wakeStatusRefreshFromStream() is dead code on this stream because agent_status is always present. Since a streaming agent emits events several times a second, each SSE event immediately overwrites the correct 'running' status set by the 3-second refreshSessions poll.",
+   "failure_scenario": "User opens the chat of an idle, unloaded worker (SSE connects, live_session=None, stored.status='idle'). Another agent then sends that worker a message: the session loads and starts a turn, logs flow through the same SSE stream, each stamped agent_status='idle'. The dashboard shows the worker as idle (flickering to 'running' for at most one poll interval before the next SSE event reverts it), and updateStopButton('idle') keeps the stop control in the wrong state while the agent is actually burning a turn — the user cannot see it is running or reliably stop it until they reselect the agent.",
+   "focus": "app/routes/*.py"
+  },
+  {
+   "file": "app/routes/sessions.py",
+   "line": 562,
+   "title": "SSE emits next turn's live partials before the previous turn's persisted final row (cross-turn inversion)",
+   "severity": "P2",
+   "description": "The generator loop drains broker partials FIRST and only then polls DB rows (app/routes/sessions.py:551-566), justified by the comment 'they always precede their final text row'. That invariant only holds within one turn. Across turns it inverts: turn A's final 'text' is written to the DB (session.py:2325-2335, clear_accum then _log), and if the next queued message starts turn B within the same 0.1-0.5s poll window (the inbox drains right at turn end), turn B publishes 'stream' partials to the broker before the generator's next tick. The tick then yields B's partials first and A's persisted final after them. The client (app/static/js/chat.js:3845-3850) treats any 'text' event while a streamBubble is active as that bubble's finale: _completeStreamBubble(A_content) stamps turn A's log id and text onto turn B's live bubble, discarding B's already-rendered partial text; B's next partial then opens a new bubble below.",
+   "failure_scenario": "Worker finishes answer A (final row committed, accum cleared); a queued follow-up message is delivered immediately and turn B starts streaming within ~500ms. A viewer with the chat open sees B's typing bubble appear, then get abruptly replaced by answer A's full text (rendered in B's position, after B visually started), then B's typing restarts in a second bubble — messages appear out of order until the next full snapshot reload.",
+   "focus": "app/routes/*.py"
+  },
+  {
+   "file": "app/live_broker.py",
+   "line": 28,
+   "title": "SSE reconnect mid-turn duplicates the live stream text: full accum replay appended to a surviving stream bubble",
+   "severity": "P2",
+   "description": "LiveBroker.subscribe replays the ENTIRE accumulated stream text of the current turn to every new subscriber (app/live_broker.py:28-33) so a reconnecting client 'sees what it missed'. But the dashboard's SSE onerror reconnect path (app/static/js/app.js:1170-1180) reopens the EventSource after 2s without resetting chat stream state: resetChatTransientState() runs only on agent/scope switch and Connection.recover() (which requires wasDown, i.e. a detected server outage — a transient SSE-only drop such as a tunnel/proxy idle timeout never sets it). The surviving streamBubble already contains the partials rendered before the drop; the replayed full accum arrives as one 'stream' event and chat.js does streamPending += content (chat.js:3839), appending the whole turn-so-far text after the already-shown prefix.",
+   "failure_scenario": "Agent is mid-answer, bubble shows 'Hello wor'. The SSE connection drops (SSH-tunnel idle timeout; all other API calls keep succeeding, so Connection never goes down/recover). connectSSE reopens with after_id=lastId; the server's subscribe replays accum 'Hello world, here is the plan…' as one stream event; the bubble now reads 'Hello worHello world, here is the plan…' and keeps growing doubled until the turn's final 'text' row replaces it with authoritative content — the user watches visibly corrupted live output for the rest of the turn.",
+   "focus": "app/routes/*.py"
+  },
+  {
+   "file": "app/workspace.py",
+   "line": 1115,
+   "title": "Empty-pick recovery in _cherry_pick_branch unstages all previously applied picks",
+   "severity": "P1",
+   "description": "The unrelated-histories fallback applies each commit with `git cherry-pick --no-commit`, accumulating the result in the index, and commits the index once at the end. When a mid-sequence pick fails with 'empty'/'nothing to commit' (common for orphaned/re-rooted branches whose content already overlaps the target), the recovery runs plain `git reset` (mixed) at line 1115, which resets the index to HEAD and silently discards every previously staged pick; their edits survive only as unstaged working-tree changes in the target checkout. The final `git commit -m` (line 1137) commits the index only, so the squash lands in the target missing the pre-empty picks while still reporting ok=True, state='merged' and the full commits_merged count; the outer success path then hard-resets the worker branch to the target head (lines 1821-1826), leaving the dropped commits reachable only via reflog, and the target checkout stays dirty, failing every subsequent merge with 'target working tree is dirty'. If the empty pick is last, nothing is committed at all, yet the classifier's `elif result.get(\"ok\")` branch (lines 1758-1767) runs before the `mutation_started and not rollback_verified` check (line 1775), so the dirty target is reported as state='failed', commit_point='not_reached'.",
+   "failure_scenario": "Worker branch with no merge-base against main (cross-repo spawn or orphaned branch, the documented #349 case) is merged; rev-list yields picks A, B, C where B's changes already exist in target. Pick A stages +200 lines; B fails 'the previous cherry-pick is now empty' -> `git reset` wipes A from the index; C stages its own files (disjoint, so cherry-pick proceeds). Final commit contains only C. merge_worker returns state='merged', commits_merged=3; worker branch is reset --hard to target; A's 200 lines exist only as unstaged edits in the primary checkout and in the worker's reflog — a silently incomplete merge reported as success, plus every later merge into this repo fails on the dirty target.",
+   "focus": "app/workspace.py"
+  },
+  {
+   "file": "app/workspace.py",
+   "line": 2517,
+   "title": "cleanup_stale_worktrees races an in-flight spawn and deletes its fresh worktree",
+   "severity": "P2",
+   "description": "The cleanup roster is built solely from persisted DB sessions (get_all_sessions), but spawn publishes the session row only after prepare() finishes: create_worktree -> skill injection -> docs scaffold -> session.start() backend connect, and only then publish_ready_session (app/manager.py:861-944). During that window (typically 10-60s of CLI connect) the brand-new worktree is on disk, git-clean (planted files are in info/exclude), its path is not in alive_paths and its name is not in live_names — it matches every deletion criterion at lines 2517-2535. The documented safety catches (empty roster refusal, live-name guard) do not cover a session that has not been persisted yet. _periodic_worktree_cleanup runs at startup and every 24h (app/manager.py:2345-2365), so a timer firing inside the spawn window force-removes the directory the worker CLI is starting in.",
+   "failure_scenario": "The 24h cleanup timer fires while spawn_worker is between create_worktree returning and publish_ready_session committing the row (e.g. during a slow backend connect). cleanup_stale_worktrees sees the clean worktree, no matching session, runs remove_worktree(--force) and deletes it. The spawn then either fails opaquely or publishes a session whose cwd no longer exists — the worker starts in a deleted directory and every file operation fails, with nothing in logs connecting the two events.",
+   "focus": "app/workspace.py"
+  },
+  {
+   "file": "app/workspace.py",
+   "line": 1291,
+   "title": "resolve_base_branch ValueError escapes merge_worktree_to_main, misreported as partial/unknown with stuck reservation",
+   "severity": "P2",
+   "description": "`target_branch = resolve_base_branch(str(repo), target_branch)` sits inside the repo lock but BEFORE the `try:` that feeds the MergeOutcome machinery, so a nonexistent requested target raises ValueError out of the function — while the identical condition detected two steps later (line 1370, `target branch does not exist`) returns a clean failed/not_reached result. On the receipt path the route trusts admission-time resolution and passes the target unvalidated (`target = requested_target or found.base_branch`, app/routes/sessions.py:1949; the non-receipt path pre-validates via _session_base_branch and returns a clean 400). The escaped exception hits the route's catch-all (sessions.py:2086-2100), which stamps state='partial', commit_point='unknown', HTTP 500 and deliberately keeps the task reservation held because 'the Git outcome is unknown' — for a pure validation failure where no ref was touched. This is exactly the documented platform failure class: the report describes what the last layer returned, not what happened.",
+   "failure_scenario": "A receipt-required merge operation is admitted with target branch X; before execution X is deleted (branch cleanup, history surgery) or the operation record carries a stale name. merge_worker executes, resolve_base_branch raises 'local base branch X does not exist', the route returns state='partial', commit_point='unknown' (500). The orchestrator is told the Git outcome is unknown and the reservation stays locked, forcing a manual resolve_merge_operation cycle — although the truth is 'nothing happened, retry with a valid target', which line 1370 would have reported cleanly.",
+   "focus": "app/workspace.py"
+  },
+  {
+   "file": "app/mcp_stdio.py",
+   "line": 725,
+   "title": "spawn_worker reconcile reports 'Task accepted' for terminally failed initial deliveries",
+   "severity": "P1",
+   "description": "_is_delivery_receipt (app/mcp_stdio.py:671-677) accepts ANY delivery_state — it only checks delivery_id match and that a state string exists. When the initial-delivery POST fails with outcome_unknown/5xx, _reconcile_initial_delivery (line 725) fetches GET /api/initial-deliveries/{id} and returns the record as a SUCCESS receipt regardless of state. _delivery_receipt_text (line 648-668) then renders it as \"Worker 'X' spawned. Model: M. Task accepted. delivery_id=…; state=FAILED_BEFORE_SUBMIT.\" with isError=False. The server record for FAILED_BEFORE_SUBMIT carries the real error (error_json) and a RETRY_SAME_DELIVERY next_action (app/initial_deliveries.py:35-45) — both are dropped. The file's own comment in _merge_tool_result says models act on the first line; the first line here asserts acceptance for a delivery the platform has already recorded as never submitted.",
+   "failure_scenario": "Orchestrator calls spawn_worker under load; POST /api/sessions/{name}/initial-deliveries exceeds the 30s default timeout (documented frequent transport_timeout class, 28.08). Meanwhile the async runner hits QuotaGateError before dispatch and marks the row FAILED_BEFORE_SUBMIT (app/initial_deliveries.py:505-509). The reconcile GET finds the row, _is_delivery_receipt returns True, and the tool replies 'Worker spawned … Task accepted' with isError=False. The orchestrator ends its turn believing the worker is working; the worker sits idle forever with no task — the documented 'alive and deaf worker' failure, now presented as success.",
+   "focus": "app/mcp_stdio.py"
+  },
+  {
+   "file": "app/mcp_stdio.py",
+   "line": 1190,
+   "title": "send_message reconcile prints 'Message accepted' for FAILED_BEFORE_SUBMIT deliveries",
+   "severity": "P1",
+   "description": "Same defect class as the spawn path, in the direct-message tool. After an outcome_unknown POST, send_message GETs /api/message-deliveries/{id}; the route returns _resource(row, acceptance=\"ALREADY_ACCEPTED\") for ANY state (app/message_deliveries.py:84-91), so _is_message_delivery_receipt (line 1203-1210) passes for a FAILED_BEFORE_SUBMIT row. _message_delivery_receipt_text (line 1212-1243) special-cases only DELIVERY_UNKNOWN; every other state — including the terminal failure FAILED_BEFORE_SUBMIT — falls through to \"Message accepted{target}; delivery_id=…; state=FAILED_BEFORE_SUBMIT.\" The resource's error field (real cause) and its RETRY_SAME_DELIVERY next_action are both discarded.",
+   "failure_scenario": "Orchestrator sends a task via send_message to a Sol worker; the POST times out (outcome_unknown). The delivery runner had already refused the turn at the quota gate, marking the row FAILED_BEFORE_SUBMIT (the exact documented QuotaGateError case). Reconcile GET finds the row, and the tool returns 'Message accepted; delivery_id=…; state=FAILED_BEFORE_SUBMIT.' The sender reads acceptance and moves on; the message is never delivered and never retried — silent message loss reported as success.",
+   "focus": "app/mcp_stdio.py"
+  },
+  {
+   "file": "app/mcp_stdio.py",
+   "line": 2493,
+   "title": "merge_worker recovery discards a confirmed FAILED outcome and claims 'status could not be confirmed'",
+   "severity": "P2",
+   "description": "In merge_worker's POST-error recovery, `if recovered is not None and recovered.get(\"operation_state\") != \"FAILED\": result = recovered` (line 2493) exists to reject the 404 operation_not_found_result pseudo-FAILED (app/merge_operations.py:263-280, code OPERATION_NOT_FOUND). But it equally rejects a GENUINE recovered FAILED record whose error names the real cause (e.g. 'target working tree is dirty (…)'). The code then builds a local result with message 'Merge request failed and status could not be confirmed: <transport error>' (line 2502) and state UNKNOWN — a lie on both counts: the follow-up GET succeeded, the status WAS confirmed as FAILED, and the real cause is replaced by the transport message. This is the exact documented anti-pattern class ('платформа отчитывается о том, что вернул последний слой', 31.08). The guard should distinguish by error.code == 'OPERATION_NOT_FOUND', not by state.",
+   "failure_scenario": "Worker's merge is retried with the same operation_id after a server stall: POST /api/merge-operations raises transport_timeout (no .result, outcome_unknown=True). By the time _recover_merge_status GETs the operation, it has run and FAILED fast with 'target working tree is dirty (files …)'. merge_worker discards that record and reports operation UNKNOWN, 'status could not be confirmed', next_action RECONCILE_SAME_OPERATION. The orchestrator burns extra rounds reconciling and checking a supposedly-unknown merge whose precise failure cause was already in hand.",
+   "focus": "app/mcp_stdio.py"
+  },
+  {
+   "file": "app/mcp_stdio.py",
+   "line": 1055,
+   "title": "Retry guidance after spawn delivery failure drops the cross-repo warning from the worker's task",
+   "severity": "P2",
+   "description": "spawn_worker delivers worker_task = task + _cross_repo_note(...) (lines 1049-1053) when the worker's repo differs from the parent's project. But on delivery failure it raises _spawn_delivery_error(name, mapping_data, exc, task=task, …) (line 1055) — the ORIGINAL task without the note — and the RETRY_SAME_DELIVERY next_action embeds that plain task (line 590). Following the instruction, retry_initial_delivery(name, task, delivery_id) posts a payload whose message lacks the cross-repo warning. In the branches where retry is prescribed (DELIVERY_ACCEPT_REJECTED 503 NOT_COMMITTED, connect_error, request_not_sent) no row exists yet, so the retry succeeds — silently creating the delivery WITHOUT the warning that spawn_worker injects specifically to prevent the 28.08 wrong-repo incident. (Had the noted payload committed, the same task mismatch would 409 IDEMPOTENCY_CONFLICT on a legitimate retry, since payload_hash covers message — app/initial_deliveries.py:174-182.)",
+   "failure_scenario": "Orchestrator of project A spawns a worker with repo_path pointing at project B (legitimate multi-project portfolio). The initial-delivery POST hits connect_error during a restart window; _spawn_delivery_error returns next_action RETRY_SAME_DELIVERY with the plain task. The orchestrator retries as instructed; delivery succeeds, but the worker's task no longer contains the '⚠️ ДРУГОЙ РЕПОЗИТОРИЙ' warning. The worker commits into project B unaware of the divergence — the exact failure mode the note was added to prevent after 28.08 (three children committed research into comfy-image-pipeline).",
+   "focus": "app/mcp_stdio.py"
+  },
+  {
+   "file": "app/static/js/quota-lines.js",
+   "line": 265,
+   "title": "Chart prints straight-line bucket limit as the threshold for curved Sol lane",
+   "severity": "P1",
+   "description": "build_quota_map computes the bucket-level limit_pct without a lane — `\"limit_pct\": None if progress is None else line_limit(progress)` (app/routes/system.py:1791) — which is the STRAIGHT line. The frontend _qlPoint picks up bucket.limit_pct (quota-lines.js:142) and _qlChartSvg prints it as `порог X%` in the detail label next to EVERY lane marker of that bucket (quota-lines.js:260-265), including the curved Sol lane and the ungated Luna lane of the codex bucket. The per-lane limit the server already sends (lanes[].limit_pct, system.py:1586, built from decision.limit_pct which DOES use the curve) is never read anywhere in the frontend (`rg 'limit_pct' app/static/js` shows only bucket.limit_pct). The Sol curve polyline itself is drawn correctly via _qlLimitAt, so the numeric label contradicts the drawn curve on the same SVG. This is exactly the divergence the frozen rule in CLAUDE.md forbids: the user sees on the graph a threshold that is not the one his workers are actually blocked by.",
+   "failure_scenario": "Defaults (start 10pp, end 1pp, hard 99, exponent 2.5, curved={sol}). Codex window 50% elapsed, utilization 70%. Gate: Sol limit = 0.5**0.4*100 + 5.5 = 81.3% -> 70 < 81.3, Sol is OPEN and the badge says 'работает'. But the detail text next to the Sol point reads 'допуск 5.5 п.п. · порог 55.5%' (bucket straight limit 0.5*91+10), so the user reads Sol as 14.5 points OVER its threshold while the pink curve above the point sits at 81.3%. At 2% progress the printed threshold is 11.8% vs the real 30.7% — same contradiction. The same wrong number is also printed beside the Luna marker, which has no line at all (gatedHere is bucket-wide, quota-lines.js:259).",
+   "focus": "app/quota_gate.py plus _qlLimitAt in static/app.js"
+  },
+  {
+   "file": "app/quota_gate.py",
+   "line": 288,
+   "title": "anthropic_fable bucket is collected but unreachable — Fable workers gated on the wrong pool",
+   "severity": "P2",
+   "description": "_model_target returns bucket 'anthropic' for every claude-runtime model unconditionally (app/quota_gate.py:288-289), so the explicit anthropic_fable branches in lane_for_model (quota_gate.py:309) and deciding_window (quota_gate.py:381) can never execute: bucket only ever comes from _model_target. Meanwhile _provider_usage_snapshot publishes providers['anthropic_fable'] from the live Anthropic weekly_scoped Fable limit (app/routes/system.py:777-799) and _quota_observation_from_cache carries its timestamp (system.py:1258), i.e. the telemetry exists in the very observation the gate reads and is silently ignored. The registered model claude-fable-5[1m] (app/models.py:56, runtime 'claude') is therefore admitted against the shared anthropic 7d bucket only, and the fable bucket never appears in the quota map either (buckets iterate models_by_bucket|lanes_by_bucket, system.py:1758).",
+   "failure_scenario": "Fable weekly-scoped limit at 100% (provider refuses Fable calls) while shared anthropic 7d is at 40% with 60% of the window elapsed: evaluate_worker_admission('claude-fable-5[1m]') sees bucket 'anthropic', limit 64.6%, state 'available'. spawn_worker/send admit the Fable worker, the first turn dies at the provider with a limit error — the dead-session class (#227) this gate was built to prevent, and the dashboard shows no fable bucket explaining why.",
+   "focus": "app/quota_gate.py plus _qlLimitAt in static/app.js"
+  },
+  {
+   "file": "app/backend_harness.py",
+   "line": 245,
+   "title": "Harness steering messages are silently dropped (after being logged and marked SUBMITTED)",
+   "severity": "P1",
+   "description": "HarnessBackend.send() queues a message into self._injected when a turn is active (app/backend_harness.py:231), but the queue is only drained at the TOP of a tool round (app/harness/loop.py:127-131). Two paths never drain it: (a) the final round of a turn — after the last drain point the model streams its final answer, run() returns at loop.py:161-169 without draining; (b) an aborted turn — the abort check (loop.py:123-125, and 175-179) precedes the drain, so an interrupted loop terminates with leftovers. Any leftover is then destroyed by `self._injected.clear()` at the start of the NEXT turn (app/backend_harness.py:245). Session-side the loss is invisible: the mid-turn inject path logs the text as user_message and calls delivery.mark_submitted() right after backend.send() (app/session.py:1218-1236, 1244/1265), so a durable inter-agent delivery is recorded as SUBMITTED while the model never receives the text. The interrupt window is especially wide: session.interrupt() flips status to IDLE immediately (app/session.py:2569) while the harness loop keeps running its current LLM stream / bash (600s) / MCP call (120s) — llm.stream() checks abort only between retry attempts (app/harness/llm.py:206-208) — and during that whole window every new send() lands in _injected of the dying turn; the follow-up turn's events() also returns instantly (`_pending_msg is None`, backend_harness.py:240) and _turn_event_loop's finally flips the session back to IDLE.",
+   "failure_scenario": "Harness worker runs a long bash tool. User hits stop (status→IDLE, abort flag set) and immediately sends a correction. session.send() takes the idle path, calls backend.send() → _turn_active is still True → correction appended to _injected; the new _turn_event_loop's events() exits at once and sets IDLE. The old loop reaches its abort checkpoint and terminates without draining. The next turn's events() executes _injected.clear() — the correction is gone forever, though the chat log shows it as sent and a durable delivery row says SUBMITTED. Same loss with zero interrupts: another agent's send_message arriving while the model streams its final answer of a turn (a round with no tool calls) is queued after the last drain point and cleared at the next turn start.",
+   "focus": "app/harness/, app/backend_harness.py, app/backend_codex.py, app/backend_claude.py"
+  },
+  {
+   "file": "app/backend_harness.py",
+   "line": 335,
+   "title": "Harness turn_end reports cumulative session tokens as the per-turn aggregate — token accounting overcounts quadratically",
+   "severity": "P1",
+   "description": "_turn_end() and _error_turn_end() build the turn's AggregateUsage from self._cumulative_input/_cumulative_output (app/backend_harness.py:334-336, 361-364), counters that grow for the backend's whole life across turns (_accumulate, lines 313-315, never reset per turn). AggregateUsage is contractually \"billed totals … in one runtime turn\" (app/usage_contract.py:27), and both other runtimes honor that: Claude emits the ResultMessage's per-turn usage (app/backend_claude.py:1433-1443), Codex explicitly normalizes cumulative thread counters to a per-turn delta via _usage_baseline (app/backend_codex.py:1189-1194, 2385-2386). Only cost has cumulative-delta handling downstream (`max(0, new - last)`); tokens do not: CostTracker.apply_turn_result adds aggregate.input_tokens/output_tokens to session totals every turn (app/session_cost.py:66-74), and handle_turn_end writes meta input_tokens/output_tokens verbatim into the per-turn turn_usage row (app/session_turns.py:340-355). So turn N's turn_usage row contains the token sum of turns 1..N, and session token totals grow ~quadratically with turn count. This silently falsifies exactly the accounting that #422 introduced for the free lane (turn_usage rows for harness turns).",
+   "failure_scenario": "A harness worker does 10 turns of ~50K prompt tokens each. Turn 1's turn_usage row says 50K input; turn 10's row says ~500K; sessions.total_input_tokens ends at ~2.75M instead of ~500K (5.5x, growing with turn count). Any usage analytics over turn_usage for runtime='harness' (e.g. re-measuring the free lane after #422, per-turn token budgets, cost-per-token sanity checks once a paid route is ever admitted) reads inflated numbers, worst for the longest sessions.",
+   "focus": "app/harness/, app/backend_harness.py, app/backend_codex.py, app/backend_claude.py"
+  },
+  {
+   "file": "app/db.py",
+   "line": 2807,
+   "title": "Bg job interrupted mid-trigger <120s before restart is stuck in 'triggering' forever",
+   "severity": "P1",
+   "description": "At startup every row in status 'triggering' is an orphan by definition — the process that claimed it (bg_claim_trigger, app/db.py:2680) is dead and no in-memory task exists. Yet recovery is only bg_reset_stale_triggering(max_age_seconds=120) (app/db.py:2807), called exactly once, from BgJobManager.restore_from_db (app/bg_jobs.py:503, invoked only at startup via app/main.py:422). Jobs whose triggered_at is younger than 120s are not reset; the restore loop then skips them ('if row[\"status\"] != \"active\": continue', app/bg_jobs.py:511), bg_expire_overdue's stale query (app/db.py:2800-2804) returns their ids but performs no state change, bg_cleanup_old deletes only ('triggered','expired','cancelled','failed') (app/db.py:2849) so the row is never purged, and no other code touches 'triggering' (verified: zero other references outside db.py/bg_jobs.py). The job therefore never fires, never fails, never expires for the entire process uptime, while bg_count_active (app/db.py:2837-2842) keeps counting it against MAX_JOBS_PER_SCOPE=50 (app/bg_jobs.py:34, 363-365). The 120s threshold protects against races between scheduler ticks in a live process, but at startup it excludes precisely the common case: a trigger interrupted by the restart itself is almost always <120s old (restart downtime is seconds).",
+   "failure_scenario": "A codex_review bg job (type='run') finishes; _trigger claims it — status becomes 'triggering' (app/bg_jobs.py:590). 30s later Orchestra restarts (project policy: restart immediately, never wait for running turns). New process runs restore_from_db ~10s later: job age 40s < 120s, so it is neither reset to 'active' nor restored nor failed. The review result is silently never delivered (report_undelivered fires only on an exception inside _trigger, which never resumes), the dashboard shows a phantom 'triggering' job indefinitely, and the scope permanently loses one of its 50 active-job slots until a *second* restart happens ≥120s later — at which point the job is reset to 'active' and then usually silently expired (app/bg_jobs.py:521).",
+   "focus": "app/db.py, app/models.py"
+  },
+  {
+   "file": "app/db.py",
+   "line": 1329,
+   "title": "Value-guarded x1000 money migration re-fires on legitimate small prices, corrupting all money columns",
+   "severity": "P1",
+   "description": "The unit migration at app/db.py:1327-1335 runs inside _migrate() on every server start (init_db, app/main.py:385) and is keyed on data values, not on a schema marker: 'if 0 < max_price < 1000' it multiplies tm_tasks.price_rub, tm_tasks.paid_rub, tm_payment_allocations.amount_rub, tm_payments.amount_rub and tm_clients.balance_rub by 1000. But prices of 1-999 are legal current-unit input: the MCP tool documents 'price in exact currency units (e.g. 20000 = 20 000). 0 is valid' (app/mcp_stdio.py:2926) and tm.task_create only validates price_rub >= 0 (app/tm.py:309). The kv table exists (app/db.py:746) and could carry a one-shot marker, like cost_reset_v1 does for _reconstruct_costs (app/db.py:1125-1127), but this migration has none. The production DB is immune only by accident (its max price happens to be >= 1000); any DB where the largest task price is 1-999 is one restart away from silent corruption. Per-worktree/test DBs via ORCHESTRA_DB_PATH (app/db.py:17-27) and fresh deployments (vps-migrate flow) start empty and hit this state naturally.",
+   "failure_scenario": "New deployment (or new ORCHESTRA_DB_PATH database). User creates tasks priced 300 and 500 rubles via task_create(price=500) — legal input, max(price_rub)=500. On the next Orchestra restart init_db runs _migrate: the guard 0 < 500 < 1000 fires and every money column is multiplied by 1000 — the 500 rub task silently becomes 500 000, paid amounts, payment records and client balances follow. No log line marks the rewrite, the guard then goes dormant (max >= 1000), and the corrupted figures feed payment reconciliation and client balance displays.",
+   "focus": "app/db.py, app/models.py"
+  },
+  {
+   "file": "app/tg_bridge.py",
+   "line": 3075,
+   "title": "_mirror_send молча игнорирует important — зеркало всегда best-effort и теряет финальные тексты",
+   "severity": "P1",
+   "description": "`_mirror_send(..., important: bool = False)` принимает флаг, но не передаёт его дальше: `_MirrorItem` не имеет поля important, а `_mirror_worker` (строка 3032) шлёт текст с захардкоженным `best_effort=True`. До коммита 912d6cfb флаг честно уходил в `_tg_send_safe(important=important)` (проверено по `git log -L`); сейчас call sites в stream_logs (3308-3310 для текста агента, 3433-3435 для якоря хода) передают `important=True` в пустоту. Optional-полоса дропает элемент мгновенно при занятом rate-слоте (`_tg_run_attempts` 1349-1355, wait_for_slot=False: любой элемент в пределах ~1.05 с после предыдущей отправки), при переполнении (1835-1838) и по старению 15 с (`_tg_drop_stale_cosmetics` 1586-1596). Зеркало живое в проде: data/tg_bridge.json содержит mirror ParsingMaxim (chat -1003809665290).",
+   "failure_scenario": "Агент заканчивает ход; stream_logs зеркалит финальный текст из 2 чанков + якорь с important=True. _mirror_worker доставляет чанк 1, реервирует слот; чанк 2 и якорь встают в optional-полосу через ~0.2-0.5 с, дispatcher берёт их внутри 1.05-секундного интервала → _tg_reserve_rate_slot(wait_for_slot=False) возвращает None → оба молча дропнуты (optional_dropped++). Юзер, читающий mirror-топик ParsingMaxim, видит половину ответа без какого-либо признака потери; при флуд-барьере 30 с теряется вообще всё старше 15 с.",
+   "focus": "app/tg_bridge.py"
+  },
+  {
+   "file": "app/tg_bridge.py",
+   "line": 336,
+   "title": "Медиа, дорезолвившееся после MEDIA_WAIT_MAX, выбрасывается молча — голосовое юзера не доходит до агента вообще",
+   "severity": "P1",
+   "description": "`_debounce_elapsed` после 30 с ожидания принудительно обнуляет `pending_media` (строка 336), чистит `buf.entries` и ротирует `buf.epoch` (349). Когда `handle_voice`/`handle_video_note` наконец зовёт `_resolve_media` с готовой транскрипцией, проверка `buf.epoch is not token.epoch` (520-521) молча возвращается — контент уничтожается: не переносится в новый батч, не доставляется отдельным сообщением, юзер не уведомляется. Если голосовое было единственным сообщением, `_flush_batch` получает батч из одной записи с content=None, `valid` пуст → вообще ничего не отправляется. Это противоречит собственному правилу файла (#30, комментарий на 378-381: «Недоставку обязан увидеть ЮЗЕР»). Бюджет 5 с дебаунса + 30 с media wait реально превышается: комментарий в этом же файле (3893-3897) фиксирует живой случай get_file 60 948 мс на .wav 494 МБ; для длинных голосовых download + Deepgram тоже уходит за 35 с.",
+   "failure_scenario": "Юзер шлёт длинное голосовое (или видеокружок: ffmpeg + транскрипция). Через 5 с срабатывает дебаунс, 30 с ждёт медиа, транскрипция ещё идёт → flush c pending_media=0, epoch ротирован, батч пуст → агенту не уходит НИЧЕГО. Через минуту транскрипция готова, _resolve_media видит чужой epoch и молча выходит. Агент никогда не узнаёт о сообщении, юзер уверен, что агент его прочитал и проигнорировал; след — только warning в журнале сервера.",
+   "focus": "app/tg_bridge.py"
+  },
+  {
+   "file": "app/tg_bridge.py",
+   "line": 3949,
+   "title": "_bot_api_health_loop блокирует весь event loop синхронным subprocess.run и игнорирует код возврата sudo",
+   "severity": "P1",
+   "description": "Восстановление зависшего telegram-bot-api выполняется синхронным `subprocess.run([\"sudo\", \"systemctl\", \"restart\", ...], capture_output=True)` прямо в корутине. Это морозит единственный event loop всего процесса Orchestra (дашборд, SSE, MCP, TG-полосы, ходы агентов) на время рестарта; юнит перезапускается именно потому, что ЗАВИС, а systemctl restart зависшего сервиса ждёт его остановки вплоть до TimeoutStopSec (по умолчанию 90 с). Второй дефект той же строки: returncode и stderr отбрасываются — если sudo отбит (нет TTY у сервиса User=kesha, нет записи в sudoers, NoNewPrivileges — известный класс на этом хосте, см. CLAUDE.md), команда молча не делает ничего, `fails = 0` сбрасывается, и лог утверждает «restarting telegram-bot-api service», хотя рестарта не было.",
+   "failure_scenario": "Local Bot API виснет (документированный режим отказа, комментарий 3928-3929). После 3 фейлов health-loop зовёт sudo systemctl restart: (а) если sudo работает — весь оркестратор замирает на секунды-десятки секунд, SSE рвётся, живые ходы получают таймауты; (б) если sudo отбит — отказ невидим (capture_output, rc не проверен), счётчик обнулён, цикл повторяет пустой «рестарт» каждые ~6 минут вечно, Telegram юзера молчит, а журнал раз за разом рапортует об успешном лечении.",
+   "focus": "app/tg_bridge.py"
+  },
+  {
+   "file": "app/tg_bridge.py",
+   "line": 2043,
+   "title": "Разные некритичные сообщения одного топика схлопываются по общему ключу — выживает только последний текст",
+   "severity": "P2",
+   "description": "`_tg_send_safe` для important=False подставляет общий telemetry_key `(\"send_message\", thread_id)` (2040-2044). В `_tg_call_safe` совпадение ключа у НЕ in-flight элемента подменяет `call_factory` и текст целиком (1941-1946) — это корректно для правок одного и того же прогресс-сообщения, но по этому же пути идут семантически разные сообщения stream_logs: `subagent_end` и строки `_STATUS_RELIABLE` (3421-3426, is_important=False). Файл сам фиксирует этот эффект как проблему («при схлопывании по ключу выживал только последний текст», 1975-1976) и чинит его bucket'ом только для тул-строк.",
+   "failure_scenario": "Веер из трёх воркеров завершается почти одновременно; stream_logs обрабатывает три строки subagent_end в одном poll-батче. Первая встаёт в telemetry map; пока диспетчер не взял её (rate-слот занят предыдущей отправкой), вторая и третья с тем же ключом (\"send_message\", thread_id) последовательно ПОДМЕНЯЮТ её содержимое. В топик уезжает только «✅ Sub-agent done: <третий>»; о завершении (или провале — «❌ Sub-agent failed») первых двух юзер не узнаёт, счётчик telemetry_coalesced растёт, потери в журнале нет.",
+   "focus": "app/tg_bridge.py"
+  },
+  {
+   "file": "app/tm.py",
+   "line": 2298,
+   "title": "Canonical CAS rejection crashes with KeyError: 'stable_id' after legacy already committed",
+   "severity": "P0",
+   "description": "In canonical mode `_api_update_task_if_current_unlocked` calls `store.task_update_if_current` (app/tm.py:2298), and when the store rejects it returns a plain dict {\"ok\": False, \"error\": \"prevalidated task revision changed\"} with no `stable_id`. That dict is fed to `_canonical_result` -> `_candidate_receipts` (app/tm.py:1871), which does `candidate[\"stable_id\"]` -> KeyError. The shadow `_canonical_first` branch handles this rejection explicitly (app/tm.py:2256), the canonical branch does not. The rejection is systematic, not rare: the identity comes from `resolve_scoped_task_identity`, which keeps the LEGACY `sync_revision` (app/tm.py:2020-2023, 631-636), while the store compares it to the canonical store's own independent counter (app/ia/task_store.py:1135). Legacy-only writers — `bind_task_to_session` (+1, tm.py:726-729), `release_session_task_binding` requeue/heir (+1, tm.py:1297-1308), `finalize_merge_outcome` worker-clear (+1, tm.py:1256-1260) — bump only the legacy counter, so any task that was ever bound has legacy_rev > canonical_rev forever. Worse, the legacy update at tm.py:2303 commits BEFORE the KeyError is raised, so the caller (switch_worker_branch route, app/routes/sessions.py:2446) reports \"task assignment failed: KeyError: 'stable_id'\", clears session.task_id and sets needs_switch=1 while the legacy task row is already mutated. This is the root cause of the live TODO defect \"switch_worker_branch не атомарен: ветку переключает, привязку теряет\" (katya-work, russian-soul-luna).",
+   "failure_scenario": "Task auto-created and bound (legacy sync_revision=1, canonical=0), worker dies, task requeued (legacy=2, canonical=0). Orchestrator runs switch_worker_branch assigning that task to a new worker -> store CAS compares legacy rev 2 vs canonical rev 0 -> rejection dict -> legacy row still updated to in_progress -> KeyError: 'stable_id' raised -> route quarantines lifecycle, task_id='' + needs_switch=1, merge_worker later answers 'session has no bound task'. Worker is wedged with no self-service exit; manual DB repair required.",
+   "focus": "app/tm.py"
+  },
+  {
+   "file": "app/tm.py",
+   "line": 403,
+   "title": "discard_unbound_task deletes only the legacy row; canonical task survives and wedges the counter gate",
+   "severity": "P0",
+   "description": "`discard_unbound_task` (app/tm.py:398-408) issues a raw DELETE against `tm_tasks` with no canonical counterpart, and `TaskStore` has no delete API at all (app/ia/task_store.py — only task_list/get/create/update/update_if_current/link exist). It is called from spawn compensation (app/manager.py:912) after `create_task_for_scope` already created the task in BOTH stores via canonical-mode `api_create_task`. After the delete, legacy `_next_par` reissues N (MAX(par_number)+1, no docs/tasks/N dir exists because the worker never started), while canonical `_next_display_number` returns N+1 (max over ALL states, deleted-nothing, app/ia/task_store.py:965-978). The equality gate at app/tm.py:2109-2113 then raises IdentityConflictError('task display counter mismatch') on EVERY subsequent create in that project — the exact 28.08-comfy failure class this codebase documents as wedging a project permanently. This is a write bypassing the public create/update owners, the known bug class.",
+   "failure_scenario": "Parent spawns a worker with an auto-allocated task in a canonical-mode project; spawn fails after allocation (quota admission error, worktree prep failure — routine events). compensate() calls discard_unbound_task(N): legacy row N deleted, canonical task N remains. Next task_create in the project: canonical_next=N+1 vs legacy_next=N -> IdentityConflictError -> no task can be created in that project until manual canonical-store surgery.",
+   "focus": "app/tm.py"
+  },
+  {
+   "file": "app/tm.py",
+   "line": 2114,
+   "title": "Canonical-mode api_create_task commits canonical before legacy validation that can still raise — one bad request wedges the project",
+   "severity": "P0",
+   "description": "In canonical mode `api_create_task` commits the canonical task first (`store.task_create`, app/tm.py:2114-2127) and only then runs `_legacy_api_create_task` (app/tm.py:2128-2136). Several validations exist ONLY on the legacy side inside `create_task`: `_normalize_acceptance_actor` (actor must be an orchestrator, tm.py:337/90-99), 'required acceptance oracle has no command' (tm.py:335-336), manifest must include 'tests' + a pytest config (tm.py:123-126), `_normalize_acceptance_manifest` glob/absolute/duplicate checks (tm.py:69-87). `store.task_create` validates none of these — it does not even accept acceptance_actor and stores the manifest blindly (app/ia/task_store.py:797-801). There is no try/except around the legacy call, no compensation, and TaskStore has no delete, so a legacy-side ValueError (or a plain sqlite3.OperationalError: database is locked) leaves the canonical counter one ahead of legacy forever; the next create hits IdentityConflictError at tm.py:2109. Note the shadow branch has the safe order (legacy validates first, tm.py:2070); the canonical branch inverted it without adding prevalidation.",
+   "failure_scenario": "Orchestrator session POSTs /api/tm/tasks with acceptance_required=true and an empty acceptance_command (or a manifest missing 'tests'). The route builds the actor and calls api_create_task; canonical task N is committed to the git-backed store; legacy create_task raises 'required acceptance oracle has no command'; the caller gets a 400. From then on every task_create in the project raises 'task display counter mismatch in <project>: canonical=N+1, legacy=N' — project can no longer create tasks.",
+   "focus": "app/tm.py"
+  },
+  {
+   "file": "app/tm.py",
+   "line": 726,
+   "title": "Task binding lifecycle writes bypass the canonical store — canonical-mode reads show wrong status",
+   "severity": "P1",
+   "description": "`_bind_task_to_session_unlocked` sets status='in_progress' + worker_session_id by direct legacy UPDATE (app/tm.py:724-739), `release_session_task_binding` requeues to 'new'/elects an heir by direct legacy UPDATE (tm.py:1297-1308), and `finalize_merge_outcome` clears worker_session_id by direct legacy UPDATE (tm.py:1255-1260). None of these touch the canonical store, although the store does model status and worker_session_id (task_store.task_update_if_current) and the branch-switch flows do write it. In production (`ia_mode: canonical`) `api_get_task`/`api_list_tasks` return the CANONICAL candidate (tm.py:2354-2358, 2376), so every auto-created task bound at first assignment (app/routes/sessions.py:978) reads status='new' with worker_session_id=None in the dashboard task board (/api/tm/tasks) and MCP task_get for the whole time the worker is working on it; a task requeued after its worker was archived reads 'in_progress' in canonical while legacy honestly says 'new'. These same legacy-only sync_revision bumps are what desynchronize the revision counters that make the P0 KeyError finding fire.",
+   "failure_scenario": "Parent sends the first message to a taskless worker -> task #N auto-created (both stores, status 'new') -> bind_task_to_session sets legacy in_progress+binding, canonical untouched. User opens the task board or an agent calls task_get(N): status shows 'new', no worker, plus a permanent projection_debt.mismatches.status — while the worker is actively working the task. Status only becomes truthful again at merge finalization (canonical jumps new->done directly).",
+   "focus": "app/tm.py"
+  },
+  {
+   "file": "app/tm.py",
+   "line": 2232,
+   "title": "Merge finalization still crashes 'ValueError: <N> not found' — tasks cannot be closed via merge_worker",
+   "severity": "P1",
+   "description": "TODO.md claim (31.08, reproduced on #399/#400/#410) is still live: no code commit touched app/tm.py, app/ia/ or app/routes/sessions.py after the TODO entry e9cb39ea (the #421/#422 commits only added repair scripts for the resulting status drift, not the lookup path). The path: merge_worker(task_outcome=\"complete\") -> finalize_merge_outcome (app/tm.py:1244) -> _apply_finalization_task_update (app/tm.py:1184) -> api_update_task_if_current(_canonical_first=True) -> store.task_get at app/tm.py:2232 / store.task_update_if_current at app/tm.py:2249, both of which resolve the task through TaskStore._find_state, which raises ValueError(f\"{ref} not found\") at app/ia/task_store.py:583 when the canonical states set misses the number even though ia_task_projection has it. The exception is re-raised as RuntimeError at app/tm.py:1202 and converted to state=partial / \"merge finalization failed\" at app/routes/sessions.py:1756-1767, leaving the operation PARTIAL and the worker blocked until a manual resolve_merge_operation.",
+   "failure_scenario": "Worker finishes a task, orchestrator calls merge_worker(task_outcome=\"complete\") on a task whose number resolves in ia_task_projection but not in TaskStore._states() (observed three times on 31.08). Git merge fully lands in main, then _apply_finalization_task_update raises ValueError '<N> not found'; the operation stays PARTIAL, the worker is held, task_update(status=\"done\") is platform-forbidden, so the only closure is status=cancelled with a 'ВЫПОЛНЕНО' note — the task board reports a completed task as cancelled.",
+   "focus": "TODO.md, BUGS.md, docs/tasks/ (recent entries), git log --oneline -30"
+  },
+  {
+   "file": "app/message_deliveries.py",
+   "line": 521,
+   "title": "DELIVERY_UNKNOWN at FIFO head still deafens a worker forever; senders get 'QUEUED', no resolve path exists",
+   "severity": "P1",
+   "description": "TODO.md claim (delivery c39339bd stuck 25h) is unfixed. _TERMINAL_DELIVERY_STATES = (\"SUBMITTED\", \"FAILED_BEFORE_SUBMIT\") at app/message_deliveries.py:424 deliberately excludes DELIVERY_UNKNOWN, so _next_target_delivery keeps returning the UNKNOWN row and ensure_target_runner silently returns at app/message_deliveries.py:520-521 (same guard in run_target_message_deliveries at :499 and _observe_target_runner at :545-546). Neither promised remedy exists in main: send_message still answers 'Message accepted; state=QUEUED' with no queue-blocked warning (app/mcp_stdio.py:1237, _message_delivery_receipt_text only annotates the UNKNOWN delivery itself, not later sends behind it), and grep finds no resolve tool for a delivery head (unlike resolve_merge_operation). recover_message_deliveries even manufactures such heads on every restart: DISPATCHING rows become DELIVERY_UNKNOWN (app/message_deliveries.py:573-577) and runners are started only for targets whose head is QUEUED/PREPARING (:579-584).",
+   "failure_scenario": "Server restarts (or provider call times out) while a delivery to worker W is DISPATCHING -> its state becomes DELIVERY_UNKNOWN and sits at the head of W's queue. Every subsequent send_message(to=W) returns 'Message accepted; delivery_id=...; state=QUEUED' and is never delivered; W shows idle and looks alive-but-deaf indefinitely (observed 25 hours, 3 queued messages). The only recovery is manual SQL on message_deliveries.",
+   "focus": "TODO.md, BUGS.md, docs/tasks/ (recent entries), git log --oneline -30"
+  },
+  {
+   "file": "app/tm.py",
+   "line": 1870,
+   "title": "Canonical store rejection during task assignment becomes KeyError: 'stable_id' — switch_worker_branch fails on drifted tasks",
+   "severity": "P1",
+   "description": "Root cause of the TODO.md switch_worker_branch claim (katya-work, russian-soul-luna) is still in main. TaskStore.task_update_if_current returns rejection dicts without a stable_id key: {\"ok\": False, \"error\": \"prevalidated task stable identity changed\"} / \"prevalidated task revision changed\" (app/ia/task_store.py:1133-1135). The shadow path at app/tm.py:2285-2297 and the canonical path at app/tm.py:2298-2312 pass that dict straight into _shadow_result/_canonical_result, which unconditionally call _candidate_receipts -> candidate[\"stable_id\"] at app/tm.py:1870 -> KeyError. The _canonical_first branch proves the missing guard: it checks candidate.get(\"ok\") first (app/tm.py:2252-2262). The KeyError escapes api_update_task_if_current after the legacy UPDATE already succeeded, so the caller sees a crash instead of the rejection reason.",
+   "failure_scenario": "switch_worker_branch(name, task_id=N) on a task whose legacy and canonical sync_revision have drifted (the exact drift class the #421/#422 repair commits document as occurring in production): git branch switches, legacy tm_tasks is set in_progress, then the canonical store rejects the prevalidated update and _candidate_receipts raises KeyError 'stable_id'. The route's exception handler (app/routes/sessions.py:2446-2521) rolls the branch back, or — if the rollback itself fails — quarantines the session with task_id='' and needs_switch=1, after which merge_worker answers 'session has no bound task' and a repeat switch cannot recreate the binding: the worker is stuck exactly as reported.",
+   "focus": "TODO.md, BUGS.md, docs/tasks/ (recent entries), git log --oneline -30"
+  },
+  {
+   "file": "app/session.py",
+   "line": 2569,
+   "title": "stop_worker still reports 'interrupted and set to idle' before the turn is actually stopped",
+   "severity": "P1",
+   "description": "TODO.md claim (seedon feat-service-demo wrote files 3 minutes after 'stop') is unfixed. AgentSession.interrupt sets self.status = AgentStatus.IDLE, logs 'interrupted', persists and publishes turn-finished BEFORE awaiting the backend (app/session.py:2564-2572, deliberately per the comment); only then it calls backend.interrupt() (app/session.py:2574-2578). For Codex, interrupt() returns True as soon as the turn/interrupt RPC is acknowledged within 5s — not when the turn ends (app/backend_codex.py:1408-1419). The stop route returns {ok: true} right after manager.stop_worker (app/routes/sessions.py:1276-1282, app/manager.py:1172-1175), and the MCP tool prints 'Worker <name> interrupted and set to idle.' for any non-error response (app/mcp_stdio.py:1761). Nothing verifies the provider turn actually terminated, so both list_agents (reads the persisted idle status) and the tool text lie in agreement while the provider process keeps executing its current tool.",
+   "failure_scenario": "Orchestrator calls stop_worker on a worker that is mid-tool-execution. The RPC is acked, the session row is persisted as idle, the tool answers 'interrupted and set to idle', list_agents confirms idle — and the provider process continues writing files in the worktree for minutes (observed: 3 minutes of writes after 'stop'). Any follow-up action taken on the 'idle' worker (branch switch, merge, new message) races against a turn that is still mutating the worktree.",
+   "focus": "TODO.md, BUGS.md, docs/tasks/ (recent entries), git log --oneline -30"
+  },
+  {
+   "file": "app/session.py",
+   "line": 2780,
+   "title": "Отмена Claude-compact в фазе summary навсегда оставляет _compacting=True — сессия глохнет до рестарта",
+   "severity": "P1",
+   "description": "В compact() (Claude-путь) `_compaction_permit(reserve=True)` на app/session.py:2780 ставит `_compacting=True`, но try/finally, снимающий флаг (app/session.py:2988-2991), покрывает ТОЛЬКО ack-фазу (после строки 2933). Вся фаза summary (строки 2811-2931: `_run_compaction_start`, `async for event in backend.events()`, ретраи с `await asyncio.sleep(30/60/90)`) не накрыта ни одним finally, который сбрасывает `_compacting`: QuotaGateError и Exception пойманы и идут через `abort_compact` (строка 2793), а `asyncio.CancelledError` (BaseException) пролетает мимо всех обработчиков. Других мест сброса нет (grep: только строки 2717, 2793, 2991). Контраст: `_compact_codex_context` имеет полный `finally: self._compacting = False` (строка 2717). При залипшем `_compacting` каждый send() вечно кладёт сообщения в память (`message queued (compact in progress...)`, строка ~1199), `_flush_pending` выходит по первой проверке (строка 2406), hibernate отказывает — сессия выглядит живой и глухой до рестарта сервиса.",
+   "failure_scenario": "Оркестратор зовёт MCP compact_worker → httpx-таймаут 120с (app/mcp_stdio.py:1738). Claude-compact с одним неудачным attempt легко превышает 120с (ход summary 30-120с + sleep 30с + повтор). Клиент рвёт соединение → AuthMiddleware (BaseHTTPMiddleware, app/main.py:511) отменяет task эндпоинта /api/sessions/{name}/compact (routes/sessions.py:1176) → CancelledError прилетает в `async for event in backend.events()` (строка 2839) → compact() умирает с `_compacting=True`. Все последующие сообщения воркеру бесконечно копятся в `_pending_messages` (память, умрут с процессом), воркер не отвечает никому до рестарта Orchestra.",
+   "focus": "app/session.py, app/main.py"
+  },
+  {
+   "file": "app/session_hibernate.py",
+   "line": 183,
+   "title": "Heartbeat-восстановление RUNNING→IDLE без publish_turn_finished — вечно висящий waiter, session lock держится навсегда",
+   "severity": "P1",
+   "description": "wait_for_turn_completion (app/session.py:1062-1066) парковается на `_turn_finished_event.wait()` и полагается на то, что КАЖДЫЙ переход RUNNING→IDLE публикует событие. Три перехода в heartbeat_loop это не делают: app/session_hibernate.py:183-184 (реконнект слушателя провалился: `s._backend = None; s.status = IDLE; s._persist()` — без publish), :157-158 (zombie при backend=None) и :140 (мёртвый process-runtime; здесь publish обычно спасает done-callback listen-задачи, но у путей 157/183 задачи нет вовсе, будить некому). Предусловие пути 183 реально достижимо: `_ensure_backend` при живом `self._backend` возвращается ранним return (app/session.py:1905-1907), НЕ пересоздавая listen-задачу через `_activate_backend_tasks` — новый ход стартует без слушателя, что heartbeat и чинит (комментарий 'listener dead but status=RUNNING — reconnecting'). Ждущий на событии merge/switch не просыпается никогда: событие никто не выставит до следующего конца хода, которого у ушедшей в IDLE сессии может не быть.",
+   "failure_scenario": "(1) Claude CLI закрывает stream между ходами → _persistent_event_loop выходит по `status == IDLE` (app/session.py:2144), backend остаётся установлен; (2) новое сообщение → send() → RUNNING, `_ensure_backend` вернул старый backend без пересоздания слушателя; (3) оркестратор зовёт switch_worker_branch → routes/sessions.py:2370 внутри `wait_for_session_lock` паркуется в wait_for_turn_completion; (4) heartbeat через ≤60с видит task_dead+RUNNING, `_reconnect_backend()` падает (CLI мёртв) → backend=None, status=IDLE, publish НЕ вызван; (5) HTTP-запрос switch висит вечно, session lock не отпускается — все последующие switch/merge этого воркера получают LockBusy до рестарта Orchestra, хотя дашборд показывает воркера idle.",
+   "focus": "app/session.py, app/main.py"
+  },
+  {
+   "file": "app/routes/system.py",
+   "line": 2393,
+   "title": "restart_preflight по-прежнему отменяет рестарт при живой мутации — при бюджете 0.0 кнопка не делает ничего",
+   "severity": "P1",
+   "description": "Коммит 732d89cc («рестарт по кнопке не ждёт мутаций и не отменяется», решение юзера 28.08) убрал отказ по in-flight мутациям только из `_do_restart_service` (routes/system.py:2606-2610 теперь лишь считает abandoned_mutations для отчёта) и обнулил бюджет `MUTATING_DRAIN_BUDGET_S = 0.0` (app/main.py:71). Но `restart_server` (routes/system.py:2682-2684) СНАЧАЛА зовёт `restart_preflight`, где старый гейт остался: `drained = await drain_mutating_requests()` при бюджете 0 == `inflight_mutating_count() == 0` мгновенно, и при любой живой мутации возвращается `{\"ok\": False}` (routes/system.py:2392-2399, код от 13.08 не тронут коммитом) → HTTPException 409, рестарт не происходит. Это ровно поведение «нажатие не делало ничего», которое коммит и правило CLAUDE.md объявили недопустимым; вдобавок текст отказа теперь абсурден: «still in flight after 0s». TG /restart (tg_bridge.py:3649) идёт через тот же restart_server и падает так же.",
+   "failure_scenario": "Оркестратор вызвал switch_worker_branch на RUNNING-воркере — POST /api/sessions/{name}/switch-branch мутирующий и висит в `_wait_for_merge_idle` (routes/sessions.py:2370) без таймаута весь ход воркера (минуты-десятки минут). Всё это время каждое нажатие кнопки рестарта в дашборде и каждая команда /restart в TG возвращают 409 «1 mutating tool call(s) still in flight after 0s» — рестарт, который по решению юзера обязан состояться безусловно, не происходит вовсе, повторные нажатия бесполезны до конца чужого хода.",
+   "focus": "app/session.py, app/main.py"
+  },
+  {
+   "file": "app/session.py",
+   "line": 1352,
+   "title": "await _refresh_stale_backend() между drain-гейтом и status=RUNNING нарушает документированный инвариант дренажа",
+   "severity": "P2",
+   "description": "Инвариант задокументирован дважды: `_refuse_if_draining` (app/session.py:119-127 — «Ни здесь, ни между этим вызовом и status = RUNNING не должно быть ни одного await») и `begin_drain` (app/manager.py:482-490). Но и в send() (строки 1349→1352→1358), и в `_flush_pending` (строки 2481→2484→2490) между проверкой и присвоением RUNNING стоит `await self._refresh_stale_backend()`. При `tools_are_stale=True` (усыновлённый после рестарта CLI, app/session.py:1013 — единственный источник флага) внутри реально awaited `old.disconnect()` — настоящая точка переключения. В этом окне `manager.begin_drain()` (routes/system.py:2384) успевает встать и снимок живых ходов — сняться, после чего корутина досыпает и присваивает RUNNING уже ПОСЛЕ снимка: стартует ход, который дренаж не видел, — класс дефекта #237 T3, от которого гейт и защищает.",
+   "failure_scenario": "Рестарт N усыновил CLI воркера (tools_are_stale=True). Первое сообщение после этого: send() проходит `_refuse_if_draining` (дренажа ещё нет) → зависает в `old.disconnect()` (убийство процесса, сотни мс). В этот момент нажат рестарт N+1: begin_drain() ставит флаг, `_do_restart_service` снимает `_drain_sessions()`. send() досыпает → status=RUNNING → provider_send уходит в бэкенд. Ход не попал ни в handover, ни в отказ DrainingRefused: сигнал рестарта режет его молча, отправитель не получил ни ответа, ни честного отказа «повтори через минуту» — сообщение теряется вместо громкого reject.",
+   "focus": "app/session.py, app/main.py"
+  }
+ ],
+ "verdicts": {
+  "app/workspace.py:2517": [
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "Bug is real in current main. cleanup_stale_worktrees builds its roster solely from the DB (app/workspace.py:2491 `get_all_sessions()`), while spawn_worker persists the session only in finalize() via publish_ready_session (app/manager.py:938-941, app/db.py:1606) — after prepare() has already run create_worktree, skill injection, docs scaffold and session.start(persist=False) (app/manager.py:851-897; session.py:952-965 confirms persist=False writes nothing). During that window the worktree matches every deletion criterion: path not in alive_paths (workspace.py:2517), name not in live_names (2519 — worker name not yet in DB), .git file present (2526), and git-clean because planted files are excluded (_exclude_worktree_artifacts, workspace.py:620; _WORKTREE_EXCLUDES line 402; docs_work is gitignored). There is no age/mtime grace period anywhere in 2475-2570 and no in-flight-spawn registry; repo_mutation_lock is held only inside create_worktree (workspace.py:521) and is free during the rest of prepare, so remove_worktree's `git worktree remove --force` (2460-2466) proceeds. Cleanup runs concurrently via asyncio.to_thread at startup and every 24h (app/manager.py:2350, 2359). Both documented safety catches (empty roster at 2502, live-name guard at 2519) depend on the not-yet-existing DB row. One inaccuracy in the claim that narrows but does not refute it: session.start(persist=False) does NOT do a backend connect (no initial message → it only sets status IDLE), so the window is seconds (worktree add + checkout + copies + scaffold + publish), not the claimed 10-60s CLI connect. Conversely, exposure is slightly wider than claimed in another way: the roster is snapshotted at 2491 before the filesystem scan, so a worktree created after the snapshot can be deleted even if published before the scanner reaches it.",
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/quota_gate.py:288": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/tm.py:726": [
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "Confirmed against current main. All three lifecycle writes bypass the canonical store: (1) bind — app/tm.py:726-730 \"UPDATE tm_tasks SET worker_session_id=?, status='in_progress', sync_revision=sync_revision+1 ... WHERE ... worker_session_id IS NULL\", the sole definition (tm.py:755) with no canonical-aware override; (2) requeue/heir — release_session_task_binding (tm.py:1277-1307) issues direct legacy UPDATEs on a raw conn, called from db.archive_session (db.py:1841) and merge_operations.py:426; (3) finalize — tm.py:1256-1258 clears worker_session_id legacy-only, while canonical only receives status='done' via _apply_finalization_task_update → api_update_task_if_current(_canonical_first=True) (tm.py:1193-1197), which uses canonical's own sync_revision (tm.py:2243-2245), so canonical jumps new→done directly; canonical task_update treats worker_session_id=None as no-op (task_store.py:1075). In canonical mode (production: runtime.py:1873-1876, CLAUDE.md \"ia_mode: canonical\") api_get_task/api_list_tasks return the canonical candidate ({**candidate}, tm.py:2376, 2354-2358, 1975-1986) whose status/worker_session_id come from canonical state (task_store.py:594, 605, 641); dashboard /api/tm/tasks (routes/tm.py:198, 209) and MCP task_get (mcp_stdio.py:3049-3052) both route through them. The failure scenario is reachable exactly as claimed: parent's first message to a taskless worker (routes/sessions.py:936-981) does create_task_for_scope (both stores, 'new') → switch_worktree_branch (git-only) → bind_task_to_session (legacy-only), never touching api_update_task_if_current — the canonical-writing switch flow (sessions.py:2267) is a different endpoint. So canonical reads show status='new'/worker_session_id=None for the entire working period, with projection_debt.mismatches on status/sync_revision (_GET_COMPARE_FIELDS, tm.py:1888-1901). No self-healing: the store is event-sourced with its own heads; repair_shadow_task_drift is only reachable via a manual POST endpoint (routes/tm.py:72).",
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/tg_bridge.py:336": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/mcp_stdio.py:1055": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/routes/system.py:2393": [
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "CONFIRMED against current main. restart_preflight (app/routes/system.py:2372-2399) still refuses on in-flight mutations: `drained = await app_main.drain_mutating_requests()` (line 2386) → on False returns `{\"ok\": False, \"reason\": f\"{left} mutating tool call(s) still in flight after {MUTATING_DRAIN_BUDGET_S:.0f}s; ...\"}` (2392-2399). With MUTATING_DRAIN_BUDGET_S = 0.0 (app/main.py:70), drain_mutating_requests (main.py:306-320) skips its wait loop (deadline = now+0) and returns `inflight_mutating_count() == 0` immediately — False for any live mutation, and the refusal text reads the absurd \"after 0s\". restart_server (system.py:2683-2685) raises HTTPException(409, verdict[\"reason\"]) on ok=False and re-raises in its except block (2728), so the restart never happens; both the dashboard button (app/static/js/app.js:1705 → POST /api/restart → system.py:2737-2739) and TG /restart (tg_bridge.py:3649 → system.restart_server()) go through this path. Commit 732d89cc's diff touches only _do_restart_service (removed its two aborts, kept abandoned_mutations for reporting) plus main.py budget=0.0; git log -L shows restart_preflight last changed in 017ca19c (#237), no later fix. Failure scenario holds: POST /api/sessions/{name}/switch-branch (routes/sessions.py:2311) is a counted mutating request (not in _CENSUS_EXEMPT_PATHS, main.py:75-78) that hangs at routes/sessions.py:2370 in _wait_for_merge_idle → wait_for_turn_completion (session.py:1062-1066, unbounded loop on _turn_finished_event while status==RUNNING) for the whole worker turn; begin_drain/close_mutating_admission only block NEW work (manager.py:482-494) and never terminate the in-flight call, so every restart press returns 409 until the foreign turn ends — exactly the \"button does nothing\" behavior that main.py:66-69's own comment and the 28.08 user decision declare impossible.",
+    "tie": false
+   },
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "CONFIRMED. Current main: restart_server (app/routes/system.py:2683-2685) calls restart_preflight first and raises HTTPException(409) on {\"ok\": False}. restart_preflight (system.py:2386-2399) still refuses whenever drain fails, and with MUTATING_DRAIN_BUDGET_S = 0.0 (app/main.py:70) drain_mutating_requests (app/main.py:306-320) degenerates to an instant snapshot returning inflight_mutating_count() == 0 — so ANY live mutating HTTP request yields 409 \"N mutating tool call(s) still in flight after 0s\". Commit 732d89cc removed the abort only inside _do_restart_service (kept as abandoned_mutations reporting, system.py:2609-2622) and its new tests call _do_restart_service directly, bypassing the restart_server→restart_preflight path, so the leftover gate is untested. The failure scenario holds: POST /api/sessions/{name}/switch-branch is classified mutating (app/main.py:132-150; not in _CENSUS_EXEMPT_PATHS at main.py:75-78) and blocks in _wait_for_merge_idle (routes/sessions.py:2370) → wait_for_turn_completion (session.py:1062-1066, unbounded loop while RUNNING) for the whole worker turn; during that window every dashboard button press (POST /api/restart → restart_server) and TG /restart (tg_bridge.py:3649, which even replies \"перезапуск запущен\" before the exception) returns 409 and no restart happens — exactly the \"нажатие не делало ничего\" behavior the commit and the 28.08 user decision declared unacceptable. Only mitigation: the failed preflight reopens admission (system.py:2390-2391), so gates don't stick — but the restart never occurs.",
+    "tie": false
+   }
+  ],
+  "app/routes/system.py:2386": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/tm.py:403": [
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "CONFIRMED against current main. (1) app/tm.py:398-408 `discard_unbound_task` issues a raw legacy `DELETE FROM tm_tasks ...` with no canonical counterpart, and TaskStore (app/ia/task_store.py) has no delete API at all (only task_list/get/create/update/update_if_current at lines 622/651/742/980/1120). (2) Production runs canonical mode (live ~/.local/state/orchestra/knowledge-v1/runtime-state.json = {'active_owner': 'canonical', 'generation': 3} → task_mode=\"canonical\", app/ia/runtime.py:1873-1876), so spawn auto-allocation (app/manager.py:800-809 → create_task_for_scope → api_create_task, tm.py:2097-2138) creates the task in BOTH stores. (3) On prepare() failure (create_worktree at manager.py:860 or session.start at :895 — both after allocation) compensate() calls discard_unbound_task (manager.py:910-913); the DELETE matches (status='new', worker_session_id NULL — nothing binds it during spawn; reservations only come from merge ops, tm.py:855). (4) Afterwards legacy _next_par = MAX(par_number)+1 = N (tm.py:164-179; the docs/tasks/N dir-skip doesn't help — scaffold writes docs_work/ in the discarded worktree, manager.py:379), while canonical _next_display_number = 1+max over ALL states = N+1 (task_store.py:965-978, fed all_states at :648 — the orphan still counts). The gate at tm.py:2109-2113 then raises IdentityConflictError('task display counter mismatch') on every create in that project. (5) No self-heal: reconcile_legacy_tasks runs only when active_owner=='legacy' and generation==2 (runtime.py:425-426, 1634-1635) — never in current config — and even then treats a canonical orphan as 'extra' and RAISES KnowledgeRuntimeError (runtime.py:231-236) instead of removing it. Minor correction to the claim, not affecting the verdict: quota admission (require_worker_admission, manager.py:789) runs BEFORE allocation (:798-810), so a quota error does not reach the discard path; worktree-prep and session-start failures do. Also, the wedge requires the discarded task to still be the project's max number at the next create (the common sequential case); an interleaved later create re-aligns the counters but leaves a phantom canonical task that fails parity/verify_gates instead.",
+    "tie": false
+   },
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "CONFIRMED against current main. discard_unbound_task (app/tm.py:398-409) issues a raw `DELETE FROM tm_tasks ...` with no canonical counterpart, and TaskStore (app/ia/task_store.py) has no delete API whatsoever (rg for discard/delete: zero hits; public surface is task_list/get/create/update/update_if_current/link_* only). The spawn path allocates the task in BOTH stores first: manager.py:801-809 calls create_task_for_scope → api_create_task, which in canonical mode (production: ia_mode canonical, wired via ia_process_task_store_mode at app/ia/runtime.py:1873-1876) writes canonical `store.task_create` + legacy (tm.py:2114-2139). Worktree creation (manager.py:859-864) and session.start (manager.py:895) both run AFTER allocation inside prepare(); any failure there triggers compensate() → discard_unbound_task(allocated_task_id) (manager.py:910-913). The DELETE's guards pass for a fresh task (status='new', unbound, reservations only created by merge finalization at tm.py:844-858). Afterwards legacy _next_par = MAX(par_number)+1 reissues N (tm.py:164-179; no docs/tasks/N dir since worker never started) while canonical _next_display_number = 1+max over ALL states returns N+1 (task_store.py:965-978, fed all_states with no status filter at 623/648). The gate at tm.py:2105-2113 (`if canonical_next != legacy_next: raise IdentityConflictError(\"task display counter mismatch...\")`) then raises on EVERY subsequent create, before either store is written, so the mismatch never self-heals; the only repair is the manual scripts/repair_task_par_collisions.py. git log -S shows no later fix. Two non-load-bearing inaccuracies in the claim: quota admission runs BEFORE allocation (manager.py:770-790), so it cannot trigger this path (worktree/session.start failures do); and the wedge requires the discarded task to still hold the max display number at next-create time — the common case for the immediately following create.",
+    "tie": false
+   }
+  ],
+  "app/tg_bridge.py:3075": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/static/js/quota-lines.js:265": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/tg_bridge.py:2043": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/backend_harness.py:335": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/tm.py:2232": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/tm.py:1870": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/session_hibernate.py:183": [
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "NOT REFUTED — verified against current main. (1) wait_for_turn_completion (app/session.py:1062-1066) parks exclusively on `_turn_finished_event.wait()` with no timeout; the event is cleared at each turn start by bump_turn_gen (app/session_turns.py:217-218, called at session.py:1353), and `status` is a plain field (session.py:393), so flipping it wakes nobody. (2) The heartbeat reconnect-failure branch (app/session_hibernate.py:179-184) does `s._backend = None; s.status = AgentStatus.IDLE; s._persist()` with no publish — the file contains zero occurrences of publish_turn_finished/_finish_failed_running_turn, unlike every RUNNING→IDLE transition in session.py which publishes (e.g. _finish_failed_running_turn session.py:2090-2099). Paths :140 and :157-158 also skip publish; on :140 the cancelled listen task's done-callback returns early on CancelledError (session.py:2533-2535) without publishing. (3) The precondition is reachable: _persistent_event_loop exits leaving backend set when the stream ends while IDLE (session.py:2141-2143); the next send() reuses that backend via the early return in _ensure_backend (session.py:1905-1907) without _activate_backend_tasks (only invoked for newly connected backends, session.py:1989); claude declares reconnect=True (runtime_registry.py:337), so session_hibernate.py:170 fires within ≤60s; _reconnect_backend genuinely raises (e.g. session.py:2115 'DB-backed Claude reconnect has no session id'). (4) The consequence holds: the waiter at routes/sessions.py:2370 sits inside wait_for_session_lock (2366) with no timeout; Starlette 1.1.0's request_response (routing.py:46-66) has no client-disconnect cancellation, so the handler keeps the session lock after the MCP client's 30s ReadTimeout; later switch/merge get LockBusy after 25s (manager.py:94-127) and deliveries block on plain `async with get_session_lock` (manager.py:1099/1115/1136), so no future turn can ever set the event — a real deadlock until manual interrupt() (which publishes, session.py:2572) or restart. No fix in session_hibernate.py history (latest 05e9a806).",
+    "tie": false
+   },
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "CONFIRMED against current main. (1) wait_for_turn_completion (app/session.py:1062-1066) parks on `await self._turn_finished_event.wait()` and only rechecks status after the event is set. (2) The heartbeat reconnect-failure path (app/session_hibernate.py:179-184) does `s._backend = None; s.status = AgentStatus.IDLE; s._persist()` with no publish — rg confirms zero references to publish_turn_finished/_turn_finished_event anywhere in session_hibernate.py (paths at :140 and :157-158 likewise). (3) The precondition is reachable exactly as claimed: _persistent_event_loop returns while IDLE keeping _backend set (session.py:2139-2141); _ensure_backend early-returns an existing backend without _activate_backend_tasks (session.py:1905-1907), so a new claude turn starts listener-less (send() recreates listeners only for per_turn runtimes, lines 1467-1470; claude is persistent+reconnect=True, runtime_registry.py:335-337); bump_turn_gen clears the event at turn start (session_turns.py:217). Notably task_dead+RUNNING is essentially ONLY reachable this way, since a listener dying mid-turn triggers _on_task_done → _finish_failed_running_turn → IDLE+publish (session.py:2090-2099, 2531-2549) — the heartbeat branch exists for precisely this state. (4) The deadlock follows: routes/sessions.py:2366-2371 awaits wait_for_turn_completion INSIDE wait_for_session_lock with the lock held and no timeout on the wait; subsequent switches get LockBusy after 25s (manager.py:108-125), merge (routes/sessions.py:1804) and all message deliveries (manager.py:1099) block on the same lock, so no future turn can ever start to publish the event — the hang is self-sustaining. Only manual interrupt/stop_worker (manager.py:1168-1175, bypasses the session lock; session.interrupt() publishes unconditionally at session.py:2571) or a restart can unstick it; that is a manual escape hatch on a session shown as idle, not handling. Minor claim imprecision (the :140 path's done-callback does not reliably publish either — CancelledError short-circuits _on_task_done) makes the bug slightly broader, not refuted.",
+    "tie": false
+   }
+  ],
+  "app/mcp_stdio.py:725": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/workspace.py:1115": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": true,
+    "refuted": true,
+    "reason": "The trigger is impossible: the recovery branch (app/workspace.py:1112-1116: `if cp.returncode != 0: ... if \"nothing to commit\" in cp_err or \"empty\" in cp_err.lower(): _git_cmd([\"git\", \"reset\"] ...)`) requires `git cherry-pick --no-commit` to EXIT NON-ZERO with an empty-pick message, and that cannot happen. Git's \"The previous cherry-pick is now empty\"/\"nothing to commit\" stop is produced only by the commit step (empty_cherry_pick_advice in builtin/commit.c, reached via run_git_commit, which sequencer.c guards with `if (!opts->no_commit && !drop_commit)`); under `-n` the commit step is skipped, so an already-applied commit merges cleanly as a no-op and cherry-pick exits 0 — the loop continues with all previously staged picks intact. Second, independent lock against the exact A→B→C scenario: git's emptiness predicate is is_index_unchanged() (index tree == HEAD tree); since pick A already staged +200 lines, the index differs from HEAD when B is picked, so git structurally cannot classify B as \"empty\" mid-sequence at all — the line-1115 `git reset` is reachable at most when nothing has been staged yet (index == HEAD), where a mixed reset discards nothing. Genuine mid-sequence failures (conflicts \"could not apply\", merge commits \"is a merge but no -m option was given\") contain neither marker string and take the `cherry-pick --abort` path (lines 1117-1127) returning ok=False — no silent success. History corroborates: the empty-handling shipped verbatim in the original fallback commit 40bc0030, defensive rather than a fix for any observed -n empty failure. The claim's description of downstream mechanics (mixed reset clears index; line 1137 `git commit -m` commits index only; line 1826 resets the worker worktree) is accurate in isolation, but the mid-sequence empty failure it hinges on cannot occur, so no picks can be silently dropped this way. Only residual (different from the claim): the substring match could misfire on a conflict message naming a file path containing \"empty\", which is not the asserted scenario.",
+    "tie": false
+   }
+  ],
+  "app/backend_harness.py:245": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/session.py:1352": [
+   {
+    "done": true,
+    "refuted": true,
+    "reason": "The textual core is true (app/session.py:1349 \"no await between here and RUNNING below\" is followed by `await self._refresh_stale_backend()` at 1352, which really suspends in `await old.disconnect()` when tools_are_stale=True), but the claimed failure scenario is impossible against current main because the drain snapshot it \"escapes\" no longer protects turns at all, and the racing turn is handled elsewhere. Since the 27-28.08 restart redesign (#413, 732d89cc): (1) `_DRAIN_DEADLINE_S = 0.0` (routes/system.py:2259) and \"worker turns add no wait at all\" (system.py:2262) — every live turn, snapshotted or not, is cut; `_blocking_runtimes` has no callers and `restore_after_restart` no consumers, so the busy-snapshot (`cut_sessions`, system.py:2614) is reporting-only. (2) Handover doesn't exist on restart for ANY session: `mark_for_restart_stop(sessions)` covers ALL sessions from `_drain_sessions()` = `list(manager.sessions.values())` (system.py:2613-2618, 2271-2273 — the racing IDLE session IS in this list), and shutdown_all routes every marked session through ordinary `stop()` (manager.py:2592-2601). (3) The cut is not silent and the message is not lost: `stop()` sees RUNNING, logs \"⏹️ stopped (server shutdown)\" and persists INTERRUPTED (session.py:4991-4999); `auto_resume_all()` treats both 'running' and 'interrupted' as \"ход прерван рестартом\" (manager.py:2213-2220, #160) and injects \"[system] Orchestra server restarted... continue where you left off\" (manager.py:2325-2327, 2331-2344); the user message was journaled to the DB log BEFORE the gate (`_log(\"user_message\", ...)`, session.py:1287-1288). This is identical treatment to a turn legitimately snapshotted as busy — \"автоматического повтора самого хода нет\" (system.py:2293) is the documented user-accepted semantics for ALL cut turns. (4) The missed DrainingRefused is inherent to the race, not created by the await: a message admitted one tick before `begin_drain()` gets RUNNING legitimately and is cut identically; the design explicitly resolves this race in favor of the restart (system.py:2605-2608, 2619-2622). What remains is stale documentation (session.py:119-126, manager.py:482-490 describe pre-#413 drain semantics and contradict the code) — a doc-cleanup item, not the claimed P2 message-loss defect.",
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": true
+   },
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "CONFIRMED against current main. The invariant is documented twice: app/session.py:122-125 («Ни здесь, ни между этим вызовом и `status = RUNNING` не должно быть ни одного `await`») and app/manager.py:485-488 (begin_drain: «ход, уже прошедший проверку гейта, успеет присвоить себе RUNNING после того, как дренаж снял снимок живых ходов, и попадёт под сигнал как раз тот, кого дренаж защищал»). Yet send() has _refuse_if_draining at session.py:1349 (with the comment \"no await between here and RUNNING below\"), `await self._refresh_stale_backend()` at 1352, and `self.status = AgentStatus.RUNNING` at 1358; _flush_pending repeats the pattern (2481→2484→2490). The await genuinely suspends in a reachable state: with tools_are_stale=True (set only by adopt_backend, session.py:1013, and persisting until the FIRST new turn after adoption — possibly hours later) _refresh_stale_backend awaits old.disconnect() (session.py:1052 → backend_claude.py:1159, real CLI process teardown). begin_drain() (routes/system.py:2384) is synchronous and unsynchronized with send() — the interleaving is possible; manager.draining is never re-checked after the await. The third gate site (compact-ack, session.py:2938-2947) has NO await before RUNNING, proving the invariant is followable and the two cited sites deviate. Blame: gate+comment added 2026-08-12 (6dac7dcb, #220), the await inserted inside the window the next day (a01a4b2a, #230 T9). Severity caveat: the session itself is not lost — auto_resume_all resumes by DB status 'running'/'interrupted' (manager.py:2218-2220), independent of the drain snapshot — but a turn whose RUNNING lands after the cut_sessions snapshot (system.py:2614) misses the «Твой ход прерван» notice (system.py:2291-2294) and, decisively, the sender gets neither a result nor DrainingRefused; per DrainingRefused's docstring (session.py:112-115) there is no durable message queue, so the loud refusal is the only retry mechanism and the mid-flight cut leaves the message with unknown/lost outcome, exactly per the failure scenario.",
+    "tie": false
+   }
+  ],
+  "app/tm.py:2114": [
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "Claim CONFIRMED against current main; every refutation angle failed. (1) Order is as claimed: canonical branch of api_create_task calls store.task_create at app/tm.py:2114-2127, then _legacy_api_create_task at tm.py:2128-2136 with no try/except and no compensation — the exception propagates out of the `with _TASK_CREATE_LOCK` block. (2) The canonical write is durable before legacy runs: TaskStore._commit_generation writes event JSON and states to disk immediately (`_write_json(event_path, event)` / `self._write_states(states, head)`, app/ia/task_store.py:727-728), and deletion is impossible — task_store.py:718 literally raises \"task deletion events are not supported in T2\"; the only repair tool (repair_display_collisions) moves numbers, cannot remove a task, and is called only from the manual scripts/repair_task_par_collisions.py. (3) The cited validations exist ONLY on the legacy side: create_task at tm.py:334-336 `if acceptance_required or manifest: if not command: raise ValueError(\"required acceptance oracle has no command\")`, actor check tm.py:337 → _normalize_acceptance_actor (90-99), manifest 'tests'+pytest-config check via _acceptance_oracle_json (tm.py:123-126), glob/absolute/duplicate checks in _normalize_acceptance_manifest (69-87), plus parse_acceptance_command (tm.py:331). Canonical task_create validates only status and price (task_store.py:759-762), stores the manifest blindly (`sorted(acceptance_manifest or [])`, 797-801) and has no acceptance_actor parameter at all. (4) No upstream guard blocks the scenario: the HTTP route POST /api/tm/tasks (app/routes/tm.py:122-176) checks orchestrator privilege and builds an actor, but never checks required→non-empty command or manifest contents — an orchestrator with acceptance_required=true and empty acceptance_command (or a manifest missing 'tests', or a glob path) passes straight into api_create_task; the MCP tool task_create (app/mcp_stdio.py:2918-2942) forwards these fields verbatim for ROLE in _ORCH_ROLES. (5) The wedge is real: after canonical commits task N and legacy rolls back (legacy path wraps in BEGIN IMMEDIATE + rollback, tm.py:1402-1452), the next create computes legacy_next=N (_next_par = MAX(par_number)+1, tm.py:164-179) vs canonical_next=N+1 (_next_display_number = 1+max over states, task_store.py:965-978, orphan state included) and raises IdentityConflictError \"task display counter mismatch\" at tm.py:2109-2113 on every subsequent create; no code catches IdentityConflictError to heal (route just maps it to 400). (6) Canonical mode is the live path: app/ia/runtime.py:1873-1876 sets mode=\"canonical\" when active_owner==\"canonical\", which CLAUDE.md attests is production state (\"ia_mode: canonical\"). (7) The shadow branch indeed has the safe inverse order — legacy first (tm.py:2070), canonical second inside try/except → _shadow_failure (2078-2094) — confirming the canonical branch inverted the order without adding prevalidation. CLAUDE.md's 28.08 comfy incident confirms the wedge behavior class (\"гейт task display counter mismatch заклинивает проект насмерть\").",
+    "tie": false
+   },
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "CONFIRMED. Canonical branch of api_create_task commits the canonical task first (store.task_create, app/tm.py:2114-2127) and only then calls _legacy_api_create_task (tm.py:2128-2136) with no try/except and no compensation, while the shadow branch has the safe order (legacy first at tm.py:2070, canonical wrapped in try/except at 2078-2094 with _shadow_failure). The validations 'required acceptance oracle has no command' (tm.py:335-336), _normalize_acceptance_actor (tm.py:337/90-99), manifest must include 'tests' + pytest config (tm.py:123-126), and _normalize_acceptance_manifest checks (tm.py:69-87) exist only on the legacy side; TaskStore.task_create validates only status and price (app/ia/task_store.py:759-762), stores the acceptance dict blindly (797-801) and has no acceptance_actor parameter. The sole caller POST /api/tm/tasks (app/routes/tm.py:169) performs no acceptance prevalidation — an orchestrator request with acceptance_required=true and empty acceptance_command reaches the canonical commit, then legacy raises and the canonical task N survives. No recovery exists: TaskStore has no delete method, repair_display_collisions (task_store.py:831) has zero callers, nothing catches IdentityConflictError, and reconcile_legacy_tasks runs only when active_owner==\"legacy\" (runtime.py:425-426, 1634-1635) and raises on extra canonical tasks (runtime.py:232-236) instead of deleting them. Afterwards _next_display_number returns N+1 (task_store.py:971-978) vs legacy _next_par N (tm.py:164-168), so tm.py:2109-2113 raises 'task display counter mismatch' on every subsequent create — the project is wedged, surviving restarts. Production runs this branch: runtime-state.json has active_owner=\"canonical\", mapped to mode=\"canonical\" at runtime.py:1873-1876; _ia_context (tm.py:1741-1747) routes to tm.py:2097. Not fixed in current main (latest tm.py commits are #422 oracle freezes and number-ownership changes, none touch the ordering). Only cosmetic imprecision: a sqlite3.OperationalError from the legacy call would surface as 500 rather than 400, with identical wedge.",
+    "tie": false
+   }
+  ],
+  "app/live_broker.py:28": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/tm.py:2298": [
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "CONFIRMED against current main; every element of the claim checks out and the live system already exhibits the exact symptom. (1) KeyError path is real: in canonical mode `_api_update_task_if_current_unlocked` calls `candidate = store.task_update_if_current(...)` at app/tm.py:2298 and passes the result straight to `_canonical_result` at tm.py:2308 with NO `candidate.get(\"ok\")` check — unlike the shadow `_canonical_first` branch which explicitly returns on rejection (tm.py:2256-2265, `if not candidate.get(\"ok\"): return {...}`). The store's rejection is a bare dict: app/ia/task_store.py:1134-1135 `if int(identity.get(\"sync_revision\", -1)) != int(state.get(\"sync_revision\", 0)): return {\"ok\": False, \"error\": \"prevalidated task revision changed\"}` — no `stable_id`. `_canonical_result` calls `_candidate_receipts`, whose first bracket access is tm.py:1870 `\"stable_id\": candidate[\"stable_id\"]` → KeyError (`_comparison_debt` uses only `.get`, so nothing raises earlier). (2) Legacy commits before the raise: tm.py:2303 runs `_legacy_api_update_task_if_current` unconditionally after the rejected candidate; its CAS (tm.py:1626) passes because the identity carries the fresh LEGACY sync_revision — `resolve_scoped_task_identity` merges only `stable_id` into the legacy identity (`merged = dict(legacy); merged[\"stable_id\"] = stable_id`, tm.py:2019-2022) — and `conn.commit()` lands at tm.py:1646 before `_canonical_result` raises. Both route callers (app/routes/sessions.py:2267 and 2446) pass no `_canonical_first`, so the canonical-rev override at tm.py:2242-2245 never applies. (3) Divergence is systematic: `bind_task_to_session` (tm.py:726-729), `release_session_task_binding` heir/requeue (tm.py:1297-1309) and `finalize_merge_outcome` worker-clear (tm.py:1256-1260) all run raw `UPDATE tm_tasks ... sync_revision=sync_revision+1` with no canonical mirror; the canonical TaskStore has no bind/release API at all (grep of task_store.py). Nothing resyncs the counters in production: `reconcile_legacy_tasks` runs only when `active_owner==\"legacy\" and generation==2` (app/ia/runtime.py:425-426), while the live state is `\"active_owner\":\"canonical\",\"generation\":3` (~/.local/state/orchestra/knowledge-v1/runtime-state.json), and the #422 repair endpoint (/api/tm/repair-shadow-drift) is manual, requires an explicit task list, and repairs only status/completed_at (tm.py:875-909) — not revisions. (4) The claimed downstream effect is confirmed and already observed in production: the route catches the exception, and `_persist_lifecycle_quarantine` defaults `task_id=\"\"` + `needs_switch=True` (sessions.py:1593-1602) while the legacy row stays mutated; TODO.md:13 records the identical live signature — \"branch switched, but task assignment failed: KeyError: 'stable_id'\" → `task_id=''` + `needs_switch=1` → `merge_worker` answers \"session has no bound task\" (katya-work, russian-soul-luna). Retries cannot self-heal: each retry re-resolves a fresh legacy rev, passes the legacy CAS, bumps legacy again, and the canonical CAS keeps rejecting.",
+    "tie": false
+   },
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "Bug confirmed against current main. (1) The canonical store's CAS rejection returns a plain dict without stable_id: app/ia/task_store.py:1134-1135 `return {\"ok\": False, \"error\": \"prevalidated task revision changed\"}`. (2) The canonical branch of _api_update_task_if_current_unlocked (app/tm.py:2298-2313) feeds that dict unguarded into _canonical_result -> _candidate_receipts, which does `\"stable_id\": candidate[\"stable_id\"]` (tm.py:1870) -> KeyError. The shadow _canonical_first branch has the exact guard the canonical branch lacks (tm.py:2256-2264 `if not candidate.get(\"ok\"): return {...}`). (3) The legacy update at tm.py:2303 runs and commits (conn.commit() at tm.py:1646) BEFORE the KeyError, so the legacy row is mutated to in_progress while the caller sees a crash. (4) The revision mismatch is systematic: resolve_scoped_task_identity carries the LEGACY sync_revision (tm.py:635; _merge_canonical_task_identity keeps it via `merged = dict(legacy)` at tm.py:2020, canonical override only under _canonical_first at 2242-2246), while the store compares against its own persistent counter; legacy-only writers bump only the legacy counter (bind: tm.py:726-739; finalize worker-clear: tm.py:1256-1260; release requeue/heir: tm.py:1297-1308), and reconcile_legacy_tasks runs only in legacy/gen2 (runtime.py:425-426), never in the live configuration. (5) Production runs canonical mode: runtime-state.json shows active_owner=canonical, generation=3 -> ia_process_task_store_mode(mode=\"canonical\") (runtime.py:1873-1876); the switch_worker_branch route calls api_update_task_if_current without _canonical_first (sessions.py:2446), catches the exception, and quarantines with task_id=\"\" and needs_switch=True (sessions.py:1588-1602). (6) TODO.md line 13 documents the exact live symptom (`KeyError: 'stable_id'` -> task_id='' + needs_switch=1 -> `session has no bound task`) on katya-work/russian-soul-luna. Only nits: the KeyError is caught by the route (wedge, not a 500), and _candidate_receipts is at line 1870 not 1871 — neither refutes the claim.",
+    "tie": false
+   }
+  ],
+  "app/db.py:1329": [
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "CONFIRMED against current main. The migration at app/db.py:1327-1335 is guarded only by data values: `max_price = c.execute(\"SELECT MAX(price_rub) FROM tm_tasks\").fetchone()[0] or 0; if 0 < max_price < 1000:` then multiplies tm_tasks.price_rub/paid_rub, tm_payment_allocations.amount_rub, tm_payments.amount_rub and tm_clients.balance_rub by 1000 — with no log line and no one-shot marker, although the kv table exists (db.py:745-750) and the codebase uses one-shot markers elsewhere (cost_reset_v1 at db.py:1125-1127, kv markers at db.py:1477-1484). It re-fires on every start: _migrate(c) is called unconditionally from init_db (db.py:751), which runs in the FastAPI lifespan (app/main.py:385). The guard is reachable on fresh DBs: tm_tasks is created by CREATE TABLE IF NOT EXISTS (db.py:387) before _migrate, so task_cols is non-empty; ORCHESTRA_DB_PATH (db.py:22-27) makes fresh per-worktree DBs routine. Prices 1-999 are legal current-unit input: the MCP docstring says \"price in exact currency units (e.g. 20000 = 20 000). 0 is valid\" (app/mcp_stdio.py:2926), create_task only rejects negatives (\"if price_rub < 0: raise ValueError\", app/tm.py:309-310), and the value flows unchanged (routes/tm.py:169 -> api_create_task -> create_task(price_rub=price), tm.py:1437-1438), so task_create(price=500) stores 500. On the next restart 0 < 500 < 1000 fires and every money column is silently multiplied by 1000, after which the guard goes dormant (max >= 1000). No fix exists: git log -S shows only the introducing commit 835ebcfd, unchanged since. The failure scenario is possible exactly as stated; nothing handles it elsewhere.",
+    "tie": false
+   },
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "Confirmed against current main. app/db.py:1327-1335 contains exactly the claimed value-guarded migration: `if 0 < max_price < 1000:` multiplies tm_tasks.price_rub/paid_rub, tm_payment_allocations.amount_rub, tm_payments.amount_rub and tm_clients.balance_rub by 1000, with no log line and no one-shot marker (the kv table at db.py:746 is available but unused for this; the only kv writes in _migrate are unrelated collector timestamps at db.py:1477-1484). It runs on every server start: init_db (app/main.py:385) → _migrate (app/db.py:751). Prices 1-999 are legal current-unit input: the very commit that added the migration (835ebcfd, 2026-06-04) switched the contract to exact units — app/mcp_stdio.py:2926 documents \"price in exact currency units (e.g. 20000 = 20 000). 0 is valid\", and the only validation on the whole path is `if price_rub < 0: raise` (app/tm.py:302-303); the value passes untransformed through routes/tm.py:170 and api_create_task → create_task(price_rub=price) (tm.py:1437-1439), including the canonical/shadow ia-mode which still performs the legacy write (tm.py:2063-2077). The failure scenario replays: a fresh DB (new deployment or ORCHESTRA_DB_PATH per db.py:17-27) creates tm_tasks in init_db's executescript (db.py:387), first start sees MAX=NULL→0 (guard false); after a user creates a 500-unit task, the next restart fires the guard and silently multiplies every money column by 1000, then goes dormant since max ≥ 1000. The guard is keyed on data values and cannot distinguish legal small exact-unit prices from pre-June-2026 \"thousands\" data; production data/orchestra.db is protected only by its accidental max price ≥ 1000, not by any code guarantee. Bug is real.",
+    "tie": false
+   }
+  ],
+  "app/message_deliveries.py:521": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/db.py:2807": [
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "CONFIRMED against current main. (1) bg_claim_trigger (app/db.py:2680-2688) sets status='triggering' before the awaits in _trigger (app/bg_jobs.py:590-606); an interrupt mid-trigger leaves the row 'triggering' — notably even a GRACEFUL restart does: bg_manager.shutdown() (app/main.py:369) cancels the task, and _trigger's `except Exception` (app/bg_jobs.py:608) does not catch CancelledError, while spawn_supervised's callback returns on `finished.cancelled()` (app/tasks.py:30-31) without touching the DB. (2) The only recovery is bg_reset_stale_triggering(max_age_seconds=120) (app/db.py:2807-2817, `WHERE status='triggering' AND triggered_at < now-120s`), called exactly once from restore_from_db (app/bg_jobs.py:503), invoked only at startup (app/main.py:422) — rg confirms no other callers and no periodic sweeper. A row younger than 120s (the normal case: restart downtime is seconds) is not reset. (3) The restore loop skips it: `if row[\"status\"] != \"active\": continue` (app/bg_jobs.py:511); bg_expire_overdue's stale select (app/db.py:2800-2804) returns ids but performs no UPDATE on 'triggering' rows; bg_reset_wake_triggering (app/db.py:2820-2833) applies only to config.action='wake_subscription_limited', not type='run' (codex_review creates \"type\": \"run\", app/mcp_stdio.py:3562). (4) No escape: bg_cleanup_old deletes only ('triggered','expired','cancelled','failed') (app/db.py:2849); bg_cancel_job/bg_expire_job/bg_cancel_by_session all require status='active' (app/db.py:2721-2740, 2777-2781), so even manual bg_cancel returns \"job not found or not active\". (5) Slot leak real: bg_count_active counts 'triggering' (app/db.py:2837-2842) against MAX_JOBS_PER_SCOPE=50 (app/bg_jobs.py:34, 363-365). Only one peripheral detail is off: after a second restart ≥120s later, a type='run' job reset to 'active' is routed to _interrupt_run_notify → bg_fail_job_if_active with a notification (app/bg_jobs.py:514-517, 674-695), not \"silently expired\" at line 521 (that branch is for non-run types). This does not affect the core defect: the job is stuck in 'triggering' for the entire process uptime, undeliverable, uncancellable, and consuming an active-job slot.",
+    "tie": false
+   },
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "Confirmed against current main. bg_claim_trigger sets status='triggering' (app/db.py:2685, called at app/bg_jobs.py:590). The ONLY recovery for non-wake 'triggering' rows is bg_reset_stale_triggering(120) (app/db.py:2807-2818), called once at startup (app/bg_jobs.py:503 in restore_from_db, invoked solely from app/main.py:422) — no periodic loop exists (verified by repo-wide grep). A 'triggering' row younger than 120s at restore time is skipped by the restore loop (app/bg_jobs.py:511: `if row[\"status\"] != \"active\": continue`), which also makes _interrupt_run_notify unreachable for it. bg_expire_overdue's stale query (db.py:2800-2804) only SELECTs, performs no UPDATE. Every other transition requires status='active': bg_cancel_job (db.py:2724 `WHERE id=? AND status='active'`), bg_expire_job (db.py:2733), bg_cancel_by_session (db.py:2731-2736) — so even manual cancel via /api/bg returns \"job not found or not active\". bg_cleanup_old deletes only terminal statuses (db.py:2849). bg_count_active counts 'triggering' (db.py:2838-2841) against MAX_JOBS_PER_SCOPE=50 (bg_jobs.py:34, 363-365). Sole refutation candidate found: bg_replace_job (db.py:2617-2635) can cancel a 'triggering' row, but only for replace_key jobs — the only user is app/limit_wake.py:462 (wake jobs), already reset by bg_reset_wake_triggering regardless of age; a codex_review run job has no replace_key. Graceful shutdown doesn't help either: shutdown() writes nothing to DB, and CancelledError (BaseException) bypasses `except Exception` in _trigger, so bg_fail_job never runs. The scenario is real: a trigger interrupted by restart is <120s old at the next startup's restore (downtime is seconds), leaving the job in 'triggering' for the entire process uptime — never fired, never failed, uncancellable, holding one of the scope's 50 slots — until a second restart ≥120s later. Minor claim imprecision (bg_replace_job does touch 'triggering') does not affect the scenario.",
+    "tie": false
+   }
+  ],
+  "app/session.py:2780": [
+   {
+    "done": true,
+    "refuted": true,
+    "reason": "The claimed failure scenario is impossible on current code: no CancelledError can reach compact() via the described MCP-timeout path. The claim's premise \"клиент рвёт соединение → AuthMiddleware (BaseHTTPMiddleware) отменяет task эндпоинта\" is false for the installed stack (uvicorn 0.48.0 + starlette 1.1.0 + fastapi 0.136.3). Decisive code: (1) uvicorn's connection_lost (.venv/.../uvicorn/protocols/http/httptools_impl.py:115-132) only sets `self.cycle.disconnected = True` and `self.cycle.message_event.set()` — it never cancels the running ASGI task; (2) starlette 1.1.0 BaseHTTPMiddleware (.venv/.../starlette/middleware/base.py) runs the endpoint via `task_group.start_soon(coro)` and blocks in `await recv_stream.receive()` until the endpoint responds — this version has NO listen_for_disconnect and no cancel-on-disconnect (the historical Starlette behavior the claim relies on was removed; `receive_or_disconnect` is only awaited when the app itself calls receive, and the JSON body of ScopeRequest is consumed before the endpoint runs); (3) `request_response` in starlette/routing.py runs the handler to completion with no disconnect race. Therefore, when the httpx timeout=120 in compact_worker (app/mcp_stdio.py:1738) fires, the server-side compact() at routes/sessions.py:1176 simply keeps running and always terminates through a path that clears the flag — abort_compact (app/session.py:2793), the ack-phase finally (app/session.py:2991), or success — and uvicorn silently discards the late response. The static observations in the claim are accurate (summary phase 2811-2931 lacks a finally clearing `_compacting`; `except Exception` at 2855 would not catch CancelledError), so the code is fragile against cancellation in principle — but the only real cancellation vector I found is a different, unclaimed one (auto-compact runs inside `_precompact_timer_task`, session.py:698→799, hard-cancelled by `_cancel_precompact_timer` from interrupt()/stop(), session.py:607-610/2566/4995), which is a separate scenario deserving its own claim. Per the stated P1 scenario against current main, the wedge cannot happen.",
+    "tie": false
+   },
+   {
+    "done": true,
+    "refuted": true,
+    "reason": "The code-shape half of the claim is accurate: app/session.py:2780 reserves the permit (setting _compacting=True via session.py:2592/2611), the summary-phase finally (session.py:2868-2874) only disconnects the backend, and _compacting is reset solely at lines 2717, 2793 (abort_compact) and 2991 (ack finally) — so a CancelledError delivered mid-summary would leak the flag. But the claimed delivery vector is impossible in the installed stack, and no other vector reaches the summary phase. The scenario hinges on \"AuthMiddleware (BaseHTTPMiddleware) отменяет task эндпоинта\" after the httpx 120s timeout (confirmed timeout=120 at app/mcp_stdio.py:1739). With the installed starlette 1.1.0 / uvicorn 0.48.0 / fastapi 0.136.3: (1) uvicorn connection_lost (httptools_impl.py:115-132) only sets `self.cycle.disconnected = True` and `message_event.set()` — it never cancels the ASGI task; (2) uvicorn send (httptools_impl.py:466-467) does `if self.disconnected: return` — post-disconnect sends are silently dropped, no exception; (3) starlette 1.1.0 BaseHTTPMiddleware runs the downstream app via `task_group.start_soon(coro)` and contains NO disconnect-watcher that cancels it — the only `cancel_scope.cancel()` in middleware/base.py is the inner race in `receive_or_disconnect`, exercised only if the app calls receive during the handler, which a FastAPI JSON endpoint (compact_session, routes/sessions.py:1169-1179, body consumed before handler) never does; `request_response` (starlette routing.py:46-66) has no disconnect cancellation either. So on MCP timeout the server-side compact() keeps running to completion and always resets _compacting via abort_compact (2793) or the ack finally (2991); QuotaGateError paths call abort_compact before re-raising. Other cancellation vectors were checked and are closed: interrupt() (session.py:2556-2578) is cooperative (gen bump + backend.interrupt(), compact exits through abort_compact at its checkpoints); a fired precompact timer cannot be cancelled mid-compact because _fire_precompact_timer nulls _precompact_timer_task before awaiting compact() (session.py:714-715) and _cancel_precompact_timer (session.py:608) only cancels a non-None task; _background_tasks (holding _auto_compact) are mass-cancelled only in abort_unpublished() for unpublished prep sessions (session.py:974-983); stop() runs only at server shutdown and cancels nothing relevant. The missing CancelledError-safe finally is a real latent fragility worth hardening (mirror _compact_codex_context's finally at 2716-2717), but the claimed P1 failure — session permanently deaf after an MCP compact timeout — cannot happen against current main.",
+    "tie": false
+   }
+  ],
+  "app/mcp_stdio.py:2493": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/tg_bridge.py:3949": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/session.py:2569": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/routes/sessions.py:562": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/workspace.py:1291": [
+   {
+    "done": true,
+    "refuted": false,
+    "reason": "Confirmed against current main; every asserted code fact checks out. (1) app/workspace.py:1290-1292: `with repo_mutation_lock(repo):` / `target_branch = resolve_base_branch(str(repo), target_branch)` / `try:` — the resolve call sits inside the lock but BEFORE the try that produces MergeOutcome dicts, and the function body above it (lines 1273-1289) is plain assignments with no enclosing try, so the exception escapes merge_worktree_to_main. (2) app/workspace.py:344: a nonexistent requested target raises `ValueError(f\"local base branch '{branch}' does not exist in {repo}\")`. (3) app/workspace.py:1370: the identical condition detected inside the try returns a clean result `{\"ok\": False, \"error\": f\"target branch '{target_branch}' does not exist\"}` — unreachable for a requested target because resolve raises first. (4) app/routes/sessions.py:1946-1949: on the receipt path (`if expected_target_head:`) the target is NOT re-validated — `target = requested_target or getattr(found, \"base_branch\", \"\")`, with a comment trusting admission-time resolution; the non-receipt path (1951-1960) calls `_session_base_branch` and converts ValueError into a clean `_merge_not_reached(..., http_status=400)`. (5) app/routes/sessions.py:2086-2100: the only handler around the `asyncio.to_thread(merge_worktree_to_main, ...)` call is `except Exception as e:`, which returns `\"state\": \"partial\", \"commit_point\": \"unknown\"` with http_status=500 and, per its own comment, deliberately keeps the task reservation held because the Git outcome is \"unknown\". asyncio.to_thread propagates the ValueError unchanged. The scenario is feasible: admission resolves and persists target X, X is deleted externally before execution (branch cleanup / history surgery — nothing prevents it, the repo lock is only held during each call), and the merge then dies at resolve_base_branch before any git mutation. The truthful outcome is \"nothing happened, invalid target, retry\" (exactly what line 1370 reports for the same condition), but the caller is told partial/unknown-500 with a stuck reservation requiring a manual resolve_merge_operation cycle. No fix in recent history (last workspace.py commits cc15369d, 8239760c leave the ordering intact).",
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/routes/sessions.py:520": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ],
+  "app/mcp_stdio.py:1190": [
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   },
+   {
+    "done": false,
+    "refuted": null,
+    "reason": null,
+    "tie": false
+   }
+  ]
+ }
+}

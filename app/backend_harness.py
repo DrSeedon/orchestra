@@ -98,6 +98,10 @@ class HarnessBackend:
         self._cumulative_cost: float = 0.0
         self._cumulative_input: int = 0
         self._cumulative_output: int = 0
+        # Cost stays cumulative (session_cost takes its own delta), tokens do NOT: they are
+        # added verbatim to the session totals and to the per-turn turn_usage row. Same
+        # normalization CodexBackend does with _usage_baseline.
+        self._usage_baseline: tuple[int, int] = (0, 0)
 
         # Gated planning (#125) — a per-session todo list; the todo_write tool is hard-gated onto
         # complex (effort=="high") turns only (_turn_tool_schemas). Simple turns never see it.
@@ -242,14 +246,19 @@ class HarnessBackend:
 
         user_msg = self._pending_msg
         self._pending_msg = None
-        self._injected.clear()   # nothing steered yet; leftovers would replay stale text
+        self._usage_baseline = (self._cumulative_input, self._cumulative_output)
+        # Leftovers are steering the previous turn never drained (it ended or aborted past
+        # its last drain point) — session.py already marked them SUBMITTED, so dropping them
+        # loses the text silently. They predate `user_msg`, so the loop puts them AHEAD of it
+        # and labels them: delivered late, but never in the recency slot as the latest word.
+        carried_over = self._drain_injected()
         effort = classify_effort(user_msg, self._is_orchestrator)  # once per turn
         loop = AgentLoop(
             llm=self._llm, mcp=self._mcp, cwd=self.cwd, history=self._history,
             tool_schemas=self._turn_tool_schemas(effort), max_context=self._max_context(),
             abort=lambda: self._abort_flag, effort=effort, todo_store=self._todos,
             allow_review=True, review_ctx=self._review_ctx(),
-            drain_injected=self._drain_injected,
+            drain_injected=self._drain_injected, carried_over=carried_over,
         )
 
         error_out: str | None = None
@@ -332,8 +341,8 @@ class HarnessBackend:
         # history each round, so the final prompt carries everything the model still holds.
         turn_usage = TurnUsage(
             AggregateUsage.normalized(
-                input_tokens=self._cumulative_input,
-                output_tokens=self._cumulative_output,
+                input_tokens=self._cumulative_input - self._usage_baseline[0],
+                output_tokens=self._cumulative_output - self._usage_baseline[1],
             ),
             current_context(
                 turn_input or None,
@@ -355,12 +364,12 @@ class HarnessBackend:
         }, usage=turn_usage)
 
     def _error_turn_end(self, reason: str) -> AgentEvent:
-        # Even on error, cost/tokens are the AUTHORITATIVE cumulative — NOT 0 (plan B5),
-        # so session_cost's delta does not overcount the next turn.
+        # Even on error, cost is the AUTHORITATIVE cumulative — NOT 0 (plan B5), so
+        # session_cost's delta does not overcount the next turn. Tokens are this turn's.
         turn_usage = TurnUsage(
             AggregateUsage.normalized(
-                input_tokens=self._cumulative_input,
-                output_tokens=self._cumulative_output,
+                input_tokens=self._cumulative_input - self._usage_baseline[0],
+                output_tokens=self._cumulative_output - self._usage_baseline[1],
             ),
             current_context(
                 None, self._max_context(),
