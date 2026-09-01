@@ -38,6 +38,7 @@
 - [ ] **Grok: включать ли в `pipeline.yaml` роль.** Сейчас registry-only, выбирается вручную по модели.
 
 ## Next
+- [ ] **Dynamic Workflows в Оркестре: v0 = wf_run (вариант A), затем quota-роутер из LaneBurner (C)** — апрув юзера 01.09.2026. Скриптовый Python-веер `agent()/parallel()/pipeline()` поверх существующего `bg_create(type="run")` отдельным процессом, one-shot агенты (`codex exec` Luna / `claude --print`) без 49-62K сессионного префикса, оркестратор будится один раз с манифестом; после v0 — роутер из C внутрь `agent()`: механика → Luna, verify → Sol, синтез → Claude. Вариант B (движок в процессе сервера) отклонён — OOM blast radius. **Гейт до старта: живые пробы `claude --print` под подпиской и двух параллельных `codex exec`.** Смета: 4-6 агенто-дней v0 + 8-12 роутер. Ресёрч (3 дизайна + критика по живому коду): `docs/tasks/dynwf/research.md`.
 - [ ] **Раздробить `app.js`** — модули: chat, tools, tasks, files, agents, sse.
 - [ ] **`merge_worker` показывать diff** — changeset перед мержем.
 - [ ] **Sound notification on idle** — Web Audio API + Notification когда агент закончил.
