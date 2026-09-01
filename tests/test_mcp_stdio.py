@@ -1079,6 +1079,7 @@ async def test_t3_spawn_task_delivery_error_reports_created_worker(monkeypatch):
 
     monkeypatch.setattr(m, "SCOPE", "/s")
     calls = []
+    delivered = {}
 
     async def fake_api(method, path, **kw):
         calls.append(path)
@@ -1089,6 +1090,7 @@ async def test_t3_spawn_task_delivery_error_reports_created_worker(monkeypatch):
                 "repo_path": "/repo",
                 "git_common_dir": "/repo/.git",
             }
+        delivered["message"] = kw["json"]["message"]
         raise m.ApiToolError(
             code="DELIVERY_ACCEPT_REJECTED",
             message="delivery transaction rolled back before commit",
@@ -1114,12 +1116,19 @@ async def test_t3_spawn_task_delivery_error_reports_created_worker(monkeypatch):
     assert caught.value.result["worktree_path"] == "/worktrees/child"
     delivery_id = caught.value.result["delivery_id"]
     assert delivery_id
+    # Воркер заведён в /repo при scope /s, поэтому доставленный текст несёт
+    # предупреждение о чужом репозитории — и повтор обязан нести его же: иначе
+    # payload_hash даст 409, а ребёнок предупреждения не увидит.
+    retry_task = caught.value.result["next_action"]["arguments"]["task"]
+    assert retry_task == delivered["message"]
+    assert retry_task.startswith("do it\n\n")
+    assert "ДРУГОЙ РЕПОЗИТОРИЙ" in retry_task
     assert caught.value.result["next_action"] == {
         "code": "RETRY_SAME_DELIVERY",
         "tool": "retry_initial_delivery",
         "arguments": {
             "name": "child",
-            "task": "do it",
+            "task": retry_task,
             "delivery_id": delivery_id,
         },
         "message": "Retry only this delivery id; do not create a new logical task.",

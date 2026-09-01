@@ -1284,7 +1284,11 @@ async def current_quota_observation(
     now: float | None = None,
 ) -> dict:
     """Return quota telemetry, refreshing only the requested provider family."""
-    family = "codex" if required_provider in {"codex", "codex_spark"} else required_provider
+    # Своего источника у `codex_spark` и `anthropic_fable` нет: оба живут в снимке семьи,
+    # и по собственному имени `_get_usage_data` пропустил бы обновление вовсе.
+    family = {"codex_spark": "codex", "anthropic_fable": "anthropic"}.get(
+        required_provider, required_provider,
+    )
     if family not in _quota_refresh_locks:
         return _quota_observation_from_cache()
 
@@ -1311,7 +1315,7 @@ async def current_quota_observation(
             async with asyncio.timeout(timeout):
                 await _get_usage_data(
                     force_refresh=True,
-                    required_provider=required_provider,
+                    required_provider=family,
                 )
         except Exception as error:
             logger.warning(
@@ -1788,6 +1792,9 @@ async def build_quota_map() -> dict:
             "window": gating,
             "reference_windows": reference,
             "tolerance_pp": None if progress is None else tolerance_pp(progress),
+            # Справочная прямая пула, а НЕ порог, по которому блокируют: полосы у него
+            # разные (Sol идёт по кривой), и оба потребителя — гейт и панель — читают
+            # `lanes[].limit_pct`. Нарисовать это число значит вернуть то самое расхождение.
             "limit_pct": None if progress is None else line_limit(progress),
             "trace": {},
             "lanes": sorted(
@@ -2370,11 +2377,18 @@ def _arm_supervisor_exit_guard(
 
 
 async def restart_preflight() -> dict:
-    """Decide whether a restart may proceed, BEFORE systemd is invoked (#230 T6).
+    """Close both admission gates BEFORE systemd is invoked (#230 T6).
 
     A gate inside the lifespan is too late: by then `systemctl restart` is already committed
     and nobody can be told "no". Order matters — close admission FIRST, so nothing new starts
     a side effect while we wait, THEN drain what was already accepted.
+
+    Живая мутация рестарт больше НЕ отменяет (решение юзера 28.08.2026). Отсюда возвращался
+    `ok: False`, и `restart_server` отвечал 409 «still in flight after 0s» — то самое «нажатие
+    не делало ничего», ради отмены которого бюджет дренажа и обнулили. Дренаж оставлен
+    вызовом, но ждёт он ровно `app.main.MUTATING_DRAIN_BUDGET_S`, а тот 0.0 — сегодня здесь
+    не ждут ничего, и ненулевой бюджет вернул бы сюда ожидание, которого никто не просил.
+    Незавершённые мутации считает `_do_restart_service` для отчёта.
     """
     from app import main as app_main
 
@@ -2383,20 +2397,8 @@ async def restart_preflight() -> dict:
     # the drain protects was the one the signal cut (#237 T3).
     manager.begin_drain()
     app_main.close_mutating_admission()
-    drained = await app_main.drain_mutating_requests()
-    if drained:
-        return {"ok": True}
-    left = app_main.inflight_mutating_count()
-    app_main.open_mutating_admission()  # the restart is off: do not starve the agents
-    manager.end_drain()
-    return {
-        "ok": False,
-        "reason": (
-            f"{left} mutating tool call(s) still in flight after "
-            f"{app_main.MUTATING_DRAIN_BUDGET_S:.0f}s; restarting now would leave their "
-            "outcome unknown to the agent"
-        ),
-    }
+    await app_main.drain_mutating_requests()
+    return {"ok": True}
 
 
 # HTTP uses Starlette BackgroundTasks, so the response lifecycle itself is the flush barrier.
@@ -2590,10 +2592,12 @@ def _can_be_handed_over(session) -> bool:
 
 
 def _blocking_runtimes() -> list:
-    """Live turns that CANNOT be handed over, so the restart must wait for them (#237 T3).
+    """Ходы, которые нельзя передать. ПРОДОВЫХ вызывающих нет: рестарт не ждёт никого.
 
-    Сегодня это Claude и Grok: у их бэкендов нет `adopt`. Как только он появляется, ожидание
-    для этого рантайма исчезает само — без правки этой функции (#230 T5).
+    Ожидание живых ходов снято решением юзера 28.08.2026, поэтому «блокирует» здесь уже
+    ничего не значит. Функцию держит один оракул #230 T5 —
+    `tests/test_instant_restart.py::test_t5_blocking_follows_capability_not_a_literal`;
+    удалять её надо вместе с ним (follow-up), а не с одной стороны.
     """
     return [s for s in _drain_sessions()
             if s.is_busy and not _can_be_handed_over(s)]
@@ -2681,6 +2685,8 @@ async def restart_server(background_tasks: BackgroundTasks | None = None):
         from app import main as app_main
         app_main.clear_restart_failure()
         verdict = await restart_preflight()
+        # В проде ветка недостижима: preflight отказов больше не возвращает. Держит её мок в
+        # tests/test_fd_adopt.py — снимать вместе с ним и контрактом `ok` (follow-up).
         if not verdict["ok"]:
             raise HTTPException(409, verdict["reason"])
         preflight_succeeded = True

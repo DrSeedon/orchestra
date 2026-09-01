@@ -915,8 +915,10 @@ async def test_t380_r5_post_dispatch_failure_is_unknown_and_never_replayed(
     repeated, status = await _accept(module)
     assert status == 202
     assert repeated["acceptance"] == "ALREADY_ACCEPTED"
-    assert repeated["delivery_state"] == "DELIVERY_UNKNOWN"
-    assert repeated["next_action"]["code"] == "CHECK_DELIVERY_STATUS"
+    # Пережившая рестарт неизвестность перестаёт держать очередь, но «доставлено» из неё
+    # по-прежнему не следует — исход провайдера так и не выяснен.
+    assert repeated["delivery_state"] == "DELIVERY_UNKNOWN_ORPHANED"
+    assert repeated["next_action"]["code"] == "DELIVERY_OUTCOME_UNRECONCILED"
     assert repeated["next_action"]["retryable"] is False
     assert scheduled == []
     assert external_attempts == [RENDERED]
@@ -942,7 +944,10 @@ async def test_t380_r5_recovery_quarantines_orphan_dispatching_without_schedule(
     await recover()
     row = _delivery_row(message_db)
     error = json.loads(row["error_json"])
-    assert row["state"] == "DELIVERY_UNKNOWN"
+    # Рестарт закрывает неизвестность: процесс, который мог дослать, мёртв, поэтому
+    # переставить порядок доставка уже не может и очередь за собой не держит. Сам
+    # исход так и остался неизвестным — это по-прежнему НЕ «доставлено».
+    assert row["state"] == "DELIVERY_UNKNOWN_ORPHANED"
     assert error["outcome_unknown"] is True
     assert error["details"]["phase"] == "PROVIDER_CALL_STARTED"
     assert scheduled == []
@@ -950,7 +955,7 @@ async def test_t380_r5_recovery_quarantines_orphan_dispatching_without_schedule(
 
     repeated, status = await _accept(module)
     assert status == 202
-    assert repeated["delivery_state"] == "DELIVERY_UNKNOWN"
+    assert repeated["delivery_state"] == "DELIVERY_UNKNOWN_ORPHANED"
     assert repeated["next_action"]["retryable"] is False
     assert scheduled == []
     assert external_attempts == [RENDERED]
