@@ -25,7 +25,9 @@
 
 **Orchestra is an AI agent orchestration platform where you manage a team of agents the way a CEO manages a company — not the way a programmer writes a pipeline.**
 
-You describe the goal. The orchestrator (Claude) breaks it down, assigns workers (Claude), reviews their output through a different model (GPT), and deploys the result. Each worker runs in an isolated git worktree. They communicate via messages, not function calls. They persist for hours or days, not the length of one API request.
+You describe the goal. The orchestrator decomposes it, spawns the workers it needs, routes their output to a different model for review, and merges what passes. Each worker runs in an isolated git worktree. They message each other directly, not through you, and they persist for hours or days, not the length of one API request.
+
+You are not the dispatcher. Deciding what to cut into tasks, who gets which one, when to review and what to merge is the orchestrator's job — an agent's, not yours. What stays with you is the goal, the approvals you choose to keep, and a dashboard to look at when you want to.
 
 > **The AI agent market is moving from SDKs to products.**
 > 2024: "here's an SDK, build it yourself." 2025: "here's an agent, give it a task." 2026: "here's a TEAM, give it a goal." Orchestra is the third thing.
@@ -45,7 +47,7 @@ You describe the goal. The orchestrator (Claude) breaks it down, assigns workers
 git clone https://github.com/DrSeedon/orchestra.git
 cd orchestra
 cp .env.example .env
-uv sync              # or: uv sync --extra rag   (optional vector memory, see Features)
+uv sync              # --extra rag adds the deprecated vector memory, see Features
 
 # Run
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
@@ -151,13 +153,16 @@ Agents file platform bugs through `report_bug`. Reports land in the service stat
 
 ### 🧠 Project Memory
 Agents search past work across task docs, project rules and prior agent messages before they start.
-Retrieval is lexical by default — plain `rg` over the knowledge base — because that is what won our
-own A/B: on an 18-question holdout from this repository, vector search scored 0 unique wins against
-6 for ordinary `rg`. The hybrid path (fastembed + sqlite-vec, fused with RRF, reindexed on every
-merge) ships in the code and turns on with `uv sync --extra rag` + `RAG_ENABLED=true`; off by
-default, nothing ML is loaded, and `search_memory` answers with the grep command to run instead.
-On a corpus where every fact is already written down with exact paths and symbols, exact match beat
-embeddings — so it stays an option, not a headline.
+Retrieval is lexical: plain `rg` over the knowledge base, which is written for that — one fact per
+line, with exact paths, symbols and the command that proves it.
+
+**The vector path is deprecated.** Hybrid retrieval (fastembed + sqlite-vec, fused with RRF,
+reindexed on every merge) is still in the code and still runs for anyone who turns it on with
+`uv sync --extra rag` + `RAG_ENABLED=true`, but it is off by default, it is not where new work
+goes, and we don't recommend building on it. The reason is our own A/B, not a preference: on an
+18-question holdout from this repository, vector search scored **0 unique wins against 6 for
+ordinary `rg`**. With the flag off nothing ML is loaded and `search_memory` replies with the grep
+command to run instead.
 
 ### 📊 Real-Time Dashboard
 HTMX + SSE dashboard shows every agent, their status, context usage, cache hit rate, current task, and live logs. No polling, no refresh.
@@ -176,7 +181,7 @@ These aren't demos — they run in production. Orchestra's own figures are as of
 |---------|-------------|-------|
 | **Parsing** (client, Kamchatka) | Data import, dedup, genealogy search | 166M records in MySQL |
 | **[Seedon](https://seedon.ru)** (our company) | Registration, accounting, legal, site, marketing, first client | Full business ops |
-| **Kesha** | Personal Telegram bot on Claude Agent SDK | 24/7 on VPS |
+| **[Kesha](https://github.com/DrSeedon/kesha-tg-bot)** | Personal Telegram bot on Claude Agent SDK | 24/7 on VPS |
 | **VPN Service** | Marzban VLESS+Reality management | Self-hosted |
 | **RimWorld Mods** | 70+ mod translations, C# DLL | 2000+ text keys |
 | **Sensar** (medtech) | Software validation protocol for video laryngoscope | 36 test items, 20 pages |
@@ -223,7 +228,7 @@ DEEPGRAM_API_KEY=your_key
 - `claude-agent-sdk` — Claude Code SDK (persistent client per session)
 - Codex and Grok runtimes behind one backend contract (JSON-RPC over stdio), plus the in-process OpenRouter Harness
 - SQLite (WAL mode), git worktrees
-- fastembed + sqlite-vec — optional semantic memory (`--extra rag`)
+- fastembed + sqlite-vec — deprecated vector memory, off by default (`--extra rag`)
 - Tailwind CSS, highlight.js, marked.js (bundled offline)
 - aiogram 3.x (Telegram bridge)
 - Deepgram Nova-3 (voice transcription)
