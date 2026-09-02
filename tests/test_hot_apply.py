@@ -16,6 +16,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from tests.test_session import _MockBackend
+from app.events import MessageProvenance
+
+
+USER_PROVENANCE = MessageProvenance(origin="user", senders=("user",))
 
 
 @pytest.fixture(autouse=True)
@@ -53,7 +57,7 @@ def _worker(**kw):
 async def _run_one_turn(session, backend, message="do the thing"):
     """Прогнать ровно один ход и вернуть то, что доехало до бэкенда."""
     with patch.object(session, "_make_backend", return_value=backend):
-        task = asyncio.create_task(session.send(message))
+        task = asyncio.create_task(session.send(message, provenance=USER_PROVENANCE))
         for _ in range(200):
             await asyncio.sleep(0.01)
             if backend.sent:
@@ -202,7 +206,10 @@ async def test_t2_new_turn_is_refused_loudly_while_draining(mock_db, monkeypatch
     try:
         with patch.object(s, "_make_backend", return_value=backend):
             with pytest.raises(refused):
-                await asyncio.wait_for(s.send("work that must not start now"), timeout=5)
+                await asyncio.wait_for(
+                    s.send("work that must not start now", provenance=USER_PROVENANCE),
+                    timeout=5,
+                )
     finally:
         manager.end_drain()
 
@@ -240,7 +247,10 @@ async def test_t2_gate_closes_atomically_against_turn_start(mock_db, monkeypatch
     try:
         with patch.object(s, "_make_backend", return_value=backend):
             with pytest.raises(refused):
-                await asyncio.wait_for(s.send("started before the gate closed"), timeout=5)
+                await asyncio.wait_for(
+                    s.send("started before the gate closed", provenance=USER_PROVENANCE),
+                    timeout=5,
+                )
     finally:
         manager.end_drain()
 

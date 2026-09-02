@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 
 import pytest
 
+from app.events import MessageProvenance
+
 
 SCOPE = "/fan-modes-407"
 PARENT_ID = "parent-modes-407"
@@ -53,12 +55,14 @@ class _WakeRecorder:
     async def ensure_loaded(self, name, scope=None):
         return type("Parent", (), {"id": PARENT_ID})()
 
-    async def send(self, session_id, message):
+    async def send(self, session_id, message, *, provenance):
+        assert provenance.origin == "platform"
         self.records.append({"path": "auto-report", "message": message})
 
     async def send_message_delivery(
-        self, session_id, message, *, delivery, target_generation,
+        self, session_id, message, *, delivery, target_generation, provenance,
     ):
+        assert provenance.origin == "agent"
         self.records.append({"path": "explicit", "message": message})
         await delivery.before_submit()
         await delivery.mark_submitted(provider_ref="fan-wake")
@@ -84,6 +88,7 @@ async def _explicit_report(module, child, delivery_id=None):
         rendered_message=f"[from:{child}] explicit report from {child}",
         message_kind=None,
         wake=True,
+        provenance=MessageProvenance(origin="agent", senders=(child,)),
     )
     return delivery_id
 
@@ -218,7 +223,10 @@ async def test_t2_known_pre_submit_failure_rearms_fan_and_same_receipt_retries(
     delivery_id = await _explicit_report(message_deliveries, child)
 
     class FailingManager:
-        async def send_message_delivery(self, *args, **kwargs):
+        async def send_message_delivery(
+            self, session_id, message, *, delivery, target_generation, provenance,
+        ):
+            assert provenance.origin == "agent"
             raise RuntimeError("provider was not called")
 
     with pytest.raises(RuntimeError, match="provider was not called"):

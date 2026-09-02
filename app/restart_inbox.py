@@ -20,6 +20,7 @@ import logging
 import time
 
 from app import db
+from app.events import MessageProvenance
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +120,14 @@ async def deliver_pending(manager) -> int:
     for row in rows:
         try:
             await asyncio.wait_for(
-                manager.send(row["session_id"], row["body"]), timeout=DELIVERY_TIMEOUT_S,
+                manager.send(
+                    row["session_id"], row["body"],
+                    provenance=MessageProvenance(
+                        origin="user", senders=("user",),
+                        subtype="tg_restart_inbox", ref=str(row["id"]),
+                    ),
+                ),
+                timeout=DELIVERY_TIMEOUT_S,
             )
         except Exception as error:
             detail = f"{type(error).__name__}: {error}"

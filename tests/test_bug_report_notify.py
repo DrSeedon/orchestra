@@ -76,7 +76,8 @@ def test_platform_owner_is_notified(env, client, monkeypatch):
     owner_id = _save_owner(dbmod)
     sent = []
 
-    async def capture(sid, text):
+    async def capture(sid, text, *, provenance):
+        assert provenance.origin == "platform"
         sent.append((sid, text))
 
     monkeypatch.setattr(manager, "send", capture)
@@ -97,7 +98,8 @@ def test_author_of_the_report_is_not_notified(env, client, monkeypatch):
     _save_owner(dbmod, name="Orchestra-orchestrator")
     sent = []
 
-    async def capture(sid, text):
+    async def capture(sid, text, *, provenance):
+        assert provenance.origin == "platform"
         sent.append(sid)
 
     monkeypatch.setattr(manager, "send", capture)
@@ -119,7 +121,8 @@ def test_root_orchestrator_wins_over_sub_orchestrator(env, client, monkeypatch):
     assert sub_id != owner_id
     sent = []
 
-    async def capture(sid, text):
+    async def capture(sid, text, *, provenance):
+        assert provenance.origin == "platform"
         sent.append(sid)
 
     monkeypatch.setattr(manager, "send", capture)
@@ -132,7 +135,8 @@ def test_no_orchestrator_is_said_out_loud_and_nobody_is_invented(env, client, mo
 
     sent = []
 
-    async def capture(sid, text):
+    async def capture(sid, text, *, provenance):
+        assert provenance.origin == "platform"
         sent.append(sid)
 
     monkeypatch.setattr(manager, "send", capture)
@@ -152,7 +156,8 @@ def test_report_survives_a_failed_notification(env, client, monkeypatch):
 
     orch_id = _save_owner(dbmod)
 
-    async def boom(sid, text):
+    async def boom(sid, text, *, provenance):
+        assert provenance.origin == "platform"
         raise RuntimeError("auto-switch failed: branch already exists")
 
     monkeypatch.setattr(manager, "send", boom)
@@ -176,7 +181,8 @@ def test_notification_is_sent_once_per_record(env, client, monkeypatch):
     _save_owner(dbmod)
     sent = []
 
-    async def capture(sid, text):
+    async def capture(sid, text, *, provenance):
+        assert provenance.origin == "platform"
         sent.append(text)
 
     monkeypatch.setattr(manager, "send", capture)
@@ -202,7 +208,8 @@ def test_cross_project_report_goes_to_the_platform_owner(env, client, monkeypatc
                    scope="/home/kesha/projects/seedon")
     sent = []
 
-    async def capture(sid, text):
+    async def capture(sid, text, *, provenance):
+        assert provenance.origin == "platform"
         sent.append(sid)
 
     monkeypatch.setattr(manager, "send", capture)

@@ -803,12 +803,14 @@ class TestBugReports:
 
 
 class TestSendMessage:
-    def test_send(self, client):
+    def test_send(self, client, monkeypatch):
+        monkeypatch.setattr("app.auth.validate_session", lambda _cookie: True)
         client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5[1m]"})
         r = client.post("/api/sessions/w1/send", json={"message": "hello", "scope": "/s"})
         assert r.status_code == 200
 
-    def test_send_404(self, client):
+    def test_send_404(self, client, monkeypatch):
+        monkeypatch.setattr("app.auth.validate_session", lambda _cookie: True)
         r = client.post("/api/sessions/ghost/send", json={"message": "hi", "scope": "/s"})
         assert r.status_code == 404
 
@@ -2063,9 +2065,12 @@ async def test_send_delegates_auto_switch_to_manager(db, monkeypatch):
     monkeypatch.setattr(mainmod.manager, "ensure_loaded", AsyncMock(return_value=session))
     monkeypatch.setattr(mainmod.manager, "preflight_message_delivery", AsyncMock())
     monkeypatch.setattr(mainmod.manager, "send", AsyncMock())
+    monkeypatch.setattr("app.auth.validate_session", lambda _cookie: True)
+    request = SimpleNamespace(headers={}, cookies={"session": "operator-test"})
 
     result = await sessmod.send_message(
         "w", sessmod.SendRequest(message="next", scope="/s"),
+        request=request,
     )
 
     assert result["ok"] is True

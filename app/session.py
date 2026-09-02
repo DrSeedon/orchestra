@@ -20,7 +20,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app.events import AgentEvent, InjectedMessage
+from app.events import AgentEvent, InjectedMessage, MessageProvenance
 from app.models import backend_for_model, get_model_spec
 from app.prompting import (
     codex_project_doc_preflight, inject_skills_to_worktree,
@@ -1012,11 +1012,14 @@ class AgentSession:
         initial_message: str | None = None,
         *,
         persist: bool = True,
+        provenance: MessageProvenance | None = None,
     ) -> None:
         if initial_message and not persist:
             raise ValueError("unpublished session cannot accept an initial message")
         if initial_message:
-            await self.send(initial_message)
+            if provenance is None:
+                raise ValueError("initial message provenance is required")
+            await self.send(initial_message, provenance=provenance)
         else:
             self.status = AgentStatus.IDLE
             if persist:
@@ -1183,7 +1186,12 @@ class AgentSession:
                 self._lifecycle_lock.release()
             return
 
-    async def send(self, message: str | InjectedMessage, *, delivery=None) -> None:
+    async def send(
+        self, message: str | InjectedMessage, *, provenance: MessageProvenance,
+        delivery=None,
+    ) -> None:
+        if isinstance(message, InjectedMessage) and message.provenance != provenance:
+            raise ValueError("injected message provenance mismatch")
         message_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
         message = message.text if isinstance(message, InjectedMessage) else message
         original_user_message = message
@@ -1249,9 +1257,9 @@ class AgentSession:
                 raise RuntimeError("initial delivery requires an idle session")
         # Retry budgets belong to one logical request. A real new message resets both;
         # each internal retry preserves only its own failure class.
-            if not message.startswith("[system] Retrying after rate limit."):
+            if provenance.subtype != "rate_limit_retry":
                 self._rate_limit_retries = 0
-            if not message.startswith("[system] Retrying after transient server error."):
+            if provenance.subtype != "server_error_retry":
                 self._server_error_retries = 0
                 self._session_limit_hit = False
             self._safeguard_refusal = ""
@@ -1262,7 +1270,10 @@ class AgentSession:
                 if delivery is not None and allow_running_delivery:
                     return
                 self._pending_messages.append(message)
-                self._log("user_message", message, event_id=message_event_id)
+                self._log(
+                    "user_message", message, event_id=message_event_id,
+                    provenance=provenance,
+                )
                 self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
                 return
             if self.status == AgentStatus.RUNNING:
@@ -1309,7 +1320,10 @@ class AgentSession:
                             await delivery.mark_unknown(error)
                         raise
 
-                self._log("user_message", message, event_id=message_event_id)
+                self._log(
+                    "user_message", message, event_id=message_event_id,
+                    provenance=provenance,
+                )
                 if (
                     self.backend_type == "codex"
                     and self._backend is not None
@@ -1353,7 +1367,10 @@ class AgentSession:
             self.progress_pct = 0
             self.progress_status = ""
             if delivery is None:
-                self._log("user_message", message, event_id=message_event_id)
+                self._log(
+                    "user_message", message, event_id=message_event_id,
+                    provenance=provenance,
+                )
 
             did_inject = False
             pending_th = ""
@@ -2982,7 +2999,13 @@ class AgentSession:
                 self.status = AgentStatus.RUNNING
                 self._persist()
                 backend = await self._ensure_backend(force_fresh=True)
-                self._log("user_message", preamble + "Acknowledge briefly.")
+                self._log(
+                    "user_message", preamble + "Acknowledge briefly.",
+                    provenance=MessageProvenance(
+                        origin="platform", senders=("Orchestra",),
+                        subtype="compact",
+                    ),
+                )
                 await backend.send(preamble + "Acknowledge briefly.")
 
             await self._run_compaction_start(permit, start_ack_turn)
@@ -3094,7 +3117,13 @@ class AgentSession:
     async def _rate_limit_retry(self, delay: int) -> None:
         await asyncio.sleep(delay)
         try:
-            await self.send("[system] Retrying after rate limit. Continue where you left off.")
+            provenance = MessageProvenance(
+                origin="system", senders=("system",), subtype="rate_limit_retry",
+            )
+            await self.send(
+                "[system] Retrying after rate limit. Continue where you left off.",
+                provenance=provenance,
+            )
             logger.info(f"[{self.name}] rate-limit retry after {delay}s")
         except DrainingRefused as refusal:
             self._log("status", f"drain: {refusal}")
@@ -3118,10 +3147,14 @@ class AgentSession:
                 if self._turn_gen != expected_turn_gen or self.status != AgentStatus.IDLE:
                     return
                 await self._disconnect_backend()
+            provenance = MessageProvenance(
+                origin="system", senders=("system",), subtype="server_error_retry",
+            )
             await self.send(
                 "[system] Retrying after transient server error. Continue where you "
                 "left off. Do not repeat completed research; execute the pending "
-                "deliverable now."
+                "deliverable now.",
+                provenance=provenance,
             )
             logger.info(f"[{self.name}] server-error retry after {delay}s")
         except DrainingRefused as refusal:
@@ -3141,7 +3174,13 @@ class AgentSession:
     async def _auto_continue(self) -> None:
         await asyncio.sleep(1)
         try:
-            await self.send("[system] Turn limit reached. Continue where you left off.")
+            provenance = MessageProvenance(
+                origin="system", senders=("system",), subtype="turn_limit_continue",
+            )
+            await self.send(
+                "[system] Turn limit reached. Continue where you left off.",
+                provenance=provenance,
+            )
             logger.info(f"[{self.name}] auto-continue after max_turns")
         except DrainingRefused as refusal:
             self._log("status", f"drain: {refusal}")
@@ -3242,7 +3281,7 @@ class AgentSession:
             if label == "User" and excluded[content] > 0:
                 excluded[content] -= 1
                 continue
-            if content.startswith("[Orchestra platform note:"):
+            if entry.get("origin") == "platform":
                 continue
             visible.append((label, content))
 
@@ -5091,6 +5130,7 @@ class AgentSession:
         content: str,
         *,
         event_id: str = "",
+        provenance: MessageProvenance | None = None,
         tool_use_id: str | None = None,
         tool_name: str | None = None,
         tool_is_error: bool | None = None,
@@ -5098,11 +5138,12 @@ class AgentSession:
         # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
         args = (self.id, datetime.now(timezone.utc), type, content, event_id)
         if tool_use_id is None and tool_name is None and tool_is_error is None:
-            operation = partial(add_log, *args)
+            operation = partial(add_log, *args, provenance=provenance)
         else:
             operation = partial(
                 add_log,
                 *args,
+                provenance=provenance,
                 tool_use_id=tool_use_id,
                 tool_name=tool_name,
                 tool_is_error=tool_is_error,

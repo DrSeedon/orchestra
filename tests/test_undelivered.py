@@ -163,7 +163,8 @@ class TestNotifyHasNoInventedRecipient:
         got = []
 
         class Mgr:
-            async def send(self, sid, text):
+            async def send(self, sid, text, *, provenance):
+                assert provenance.origin == "platform"
                 got.append((sid, text))
 
         outcome = await report_undelivered(Mgr(), scope=env["repo"], worker="worker",
@@ -180,7 +181,8 @@ class TestNotifyHasNoInventedRecipient:
         sent = []
 
         class Mgr:
-            async def send(self, sid, text):
+            async def send(self, sid, text, *, provenance):
+                assert provenance.origin == "platform"
                 sent.append(sid)
 
         with caplog.at_level(logging.WARNING):
@@ -213,7 +215,8 @@ async def test_bg_job_failure_reaches_the_orchestrator(env, monkeypatch):
         async def ensure_loaded_by_id(self, session_id):
             raise RuntimeError("auto-switch failed: branch already exists")
 
-        async def send(self, sid, text):
+        async def send(self, sid, text, *, provenance):
+            assert provenance.origin == "platform"
             told.append((sid, text))
 
     manager = bg.BgJobManager()

@@ -26,7 +26,7 @@ from app.db import (
     bg_reset_wake_triggering,
 )
 from app.pidfd_exec import pidfd_send_group
-from app.events import InjectedMessage
+from app.events import InjectedMessage, MessageProvenance
 from app.tasks import spawn_supervised
 
 logger = logging.getLogger(__name__)
@@ -566,8 +566,12 @@ class BgJobManager:
     def _terminal_message(job_id: str, outcome: str, text: str) -> InjectedMessage:
         return InjectedMessage(
             text=text,
-            origin="orchestra.bg_jobs",
-            job_id=job_id,
+            provenance=MessageProvenance(
+                origin="background_task",
+                senders=(job_id,),
+                subtype=outcome,
+                ref=job_id,
+            ),
             event_id=f"bgjob:v1:{job_id}:{outcome}",
         )
 
@@ -609,9 +613,11 @@ class BgJobManager:
             if output:
                 body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
             self._restore_report_provenance(session)
+            injected = self._terminal_message(job_id, "completed", body)
             await self._session_manager.send(
                 session.id,
-                self._terminal_message(job_id, "completed", body),
+                injected,
+                provenance=injected.provenance,
             )
             bg_finish_trigger(job_id, output)
             logger.info(f"bg_job {job_id}: triggered → {target_name}")
@@ -653,9 +659,11 @@ class BgJobManager:
             if output:
                 body += f"\n\nPartial output (last 3000 chars):\n{output[-3000:]}"
             self._restore_report_provenance(session)
+            injected = self._terminal_message(job_id, "timed_out", body)
             await self._session_manager.send(
                 session.id,
-                self._terminal_message(job_id, "timed_out", body),
+                injected,
+                provenance=injected.provenance,
             )
             logger.warning(f"bg_job {job_id}: TIMED OUT after {dur} → notified {target_name}")
         except Exception as e:
@@ -673,9 +681,11 @@ class BgJobManager:
             if output:
                 body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
             self._restore_report_provenance(session)
+            injected = self._terminal_message(job_id, "failed", body)
             await self._session_manager.send(
                 session.id,
-                self._terminal_message(job_id, "failed", body),
+                injected,
+                provenance=injected.provenance,
             )
             logger.warning(f"bg_job {job_id}: FAILED → notified {target_name}: {error}")
         except Exception as e:
@@ -690,9 +700,11 @@ class BgJobManager:
                 return
             body = f"[Background job INTERRUPTED] {message}\n{reason}"
             self._restore_report_provenance(session)
+            injected = self._terminal_message(job_id, "interrupted", body)
             await self._session_manager.send(
                 session.id,
-                self._terminal_message(job_id, "interrupted", body),
+                injected,
+                provenance=injected.provenance,
             )
             logger.warning(
                 "bg_job %s: interrupted by service restart → notified %s",
@@ -761,8 +773,13 @@ class BgJobManager:
             if not session:
                 # Расписание живёт дальше: цель могла быть выгружена временно.
                 return
+            provenance = MessageProvenance(
+                origin="background_task", senders=(job_id,),
+                subtype="cron", ref=job_id,
+            )
             await self._session_manager.send(
                 session.id, f"[Cron job fired] {message}",
+                provenance=provenance,
             )
             bg_cron_record_fire(job_id)
             logger.info(f"cron {job_id}: fired → {target_name}")
@@ -819,7 +836,13 @@ class BgJobManager:
             body = f"[Cron command matched] {message}"
             if output:
                 body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
-            await self._session_manager.send(session.id, body)
+            provenance = MessageProvenance(
+                origin="background_task", senders=(job_id,),
+                subtype="cron_command", ref=job_id,
+            )
+            await self._session_manager.send(
+                session.id, body, provenance=provenance,
+            )
             bg_cron_record_fire(job_id)
             bg_update_output(job_id, output)
             logger.info("cron_command %s: matched → %s", job_id, target_name)

@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from app.db import turn_usage_add
-from app.events import AgentEvent
+from app.events import AgentEvent, MessageProvenance
 from app.session_state import AgentStatus
 from app.turn_markers import is_successful_silent_turn
 
@@ -297,8 +297,13 @@ class TurnManager:
                         from app.deps import manager
                         dest = await manager.ensure_loaded(name, scope)
                         if dest:
+                            provenance = MessageProvenance(
+                                origin="platform", senders=("Orchestra",),
+                                subtype="fan_manifest", ref=str(fid or ""),
+                            )
                             await manager.send(
-                                dest.id, fan_barrier.manifest_text(fid)
+                                dest.id, fan_barrier.manifest_text(fid),
+                                provenance=provenance,
                             )
                     s._auto_report_task = asyncio.create_task(_deliver_manifest())
             return
@@ -592,10 +597,25 @@ class TurnManager:
         from app import mailbox
         from app.errtext import err_text
         s = self.s
-        text = "\n\n".join(f"[from:{m['sender']}] {m['body']}" for m in queued)
         ids = [m["id"] for m in queued]
         try:
-            await s.send(text)
+            text = "\n\n".join(
+                f"[from:{m['sender'] or ', '.join(m['provenance'].senders)}] {m['body']}"
+                for m in queued
+            )
+            origins = {m["provenance"].origin for m in queued}
+            senders = tuple(dict.fromkeys(
+                sender
+                for message in queued
+                for sender in message["provenance"].senders
+            ))
+            provenance = MessageProvenance(
+                origin=next(iter(origins)) if len(origins) == 1 else "unknown",
+                senders=senders,
+                subtype="mailbox" if len(origins) == 1 else "mailbox_mixed",
+                ref=f"mailbox:{ids[0]}-{ids[-1]}",
+            )
+            await s.send(text, provenance=provenance)
         except asyncio.CancelledError:
             # `CancelledError` НЕ наследует `Exception` (3.8+): без отдельной ветки
             # отмена задачи оставляла бы строки под арендой до её протухания
@@ -615,7 +635,7 @@ class TurnManager:
             # не случиться никогда, и сообщения залягут (F3 ревью реализации).
             try:
                 from app.deps import manager as _mgr
-                await _mgr.send(s.id, text)
+                await _mgr.send(s.id, text, provenance=provenance)
             except Exception as esc:
                 s._log("error", f"mailbox: эскалация тоже не удалась, {len(queued)} "
                                 f"ждут в ящике: {err_text(esc)}")

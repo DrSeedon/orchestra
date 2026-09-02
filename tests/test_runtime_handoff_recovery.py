@@ -192,7 +192,11 @@ async def test_recovery_required_blocks_send_before_backend_use():
     session._handoff_recovery_required = True
 
     with pytest.raises(RuntimeError, match="handoff_recovery_required"):
-        await session.send("must not reach provider")
+        from app.events import MessageProvenance
+        await session.send(
+            "must not reach provider",
+            provenance=MessageProvenance(origin="user", senders=("user",)),
+        )
 
     backend.connect.assert_not_awaited()
     backend.send.assert_not_awaited()

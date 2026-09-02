@@ -13,6 +13,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.events import MessageProvenance
+
 
 DELIVERY_ID = "00000000-0000-4000-8000-000000000380"
 DELIVERY_ID_2 = "00000000-0000-4000-8000-000000000382"
@@ -28,6 +30,9 @@ TARGET_GENERATION = (
 )
 MESSAGE = "Current #380: preserve this exact direct message"
 RENDERED = f"[from:{SOURCE_NAME}] {MESSAGE}"
+PROVENANCE = MessageProvenance(
+    origin="agent", senders=(SOURCE_NAME,), subtype="direct_message", ref=DELIVERY_ID,
+)
 
 
 def _message_module():
@@ -122,6 +127,7 @@ async def _accept(
         rendered_message=rendered_message,
         message_kind=None,
         wake=True,
+        provenance=PROVENANCE,
     )
 
 
@@ -167,8 +173,9 @@ class _ImmediateManager:
         self.provider_attempts = []
 
     async def send_message_delivery(
-        self, session_id, message, *, delivery, target_generation,
+        self, session_id, message, *, delivery, target_generation, provenance,
     ):
+        assert provenance == PROVENANCE
         self.calls.append((session_id, message, target_generation))
         await delivery.before_submit()
         self.provider_attempts.append(message)
@@ -190,10 +197,11 @@ async def test_t380_r1_idle_accepts_before_blocked_manager_send_and_dedupes(
 
     class BlockingIdleManager:
         async def send_message_delivery(
-            self, session_id, message, *, delivery, target_generation,
+            self, session_id, message, *, delivery, target_generation, provenance,
         ):
             assert session_id == TARGET_ID
             assert target_generation == TARGET_GENERATION
+            assert provenance == PROVENANCE
             entered.set()
             await release.wait()  # deliberately unbounded: this represents >30 seconds
             await delivery.before_submit()
@@ -280,8 +288,9 @@ async def test_t380_r1_http_202_returns_while_manager_send_is_blocked(
 
     class BlockingManager:
         async def send_message_delivery(
-            self, session_id, message, *, delivery, target_generation,
+            self, session_id, message, *, delivery, target_generation, provenance,
         ):
+            assert provenance == PROVENANCE
             entered.set()
             await release.wait()
             await delivery.before_submit()
@@ -411,7 +420,8 @@ async def test_t380_r1_legacy_blank_key_and_unsupported_keyed_ingress_split_clea
     monkeypatch.setattr(routes.manager, "ensure_loaded_any", AsyncMock(return_value=None))
     legacy_send = AsyncMock()
     monkeypatch.setattr(routes.manager, "send", legacy_send)
-    request = SimpleNamespace(headers={}, cookies={})
+    monkeypatch.setattr("app.auth.validate_session", lambda _cookie: True)
+    request = SimpleNamespace(headers={}, cookies={"session": "operator-test"})
 
     legacy = await routes.send_message(
         TARGET_NAME,
@@ -508,12 +518,14 @@ async def test_t380_r2_running_receipt_steers_once_without_new_turn_or_second_lo
     context = context_type(
         DELIVERY_ID,
         history_user_message=prepared["history_user_message"],
+        provenance=prepared["provenance"],
     )
     steer = asyncio.create_task(send_delivery(
         TARGET_ID,
         RENDERED,
         delivery=context,
         target_generation=TARGET_GENERATION,
+        provenance=PROVENANCE,
     ))
     assert await _spin_until(entered.is_set), "#380 keyed running steer never reached backend"
     assert session.status == AgentStatus.RUNNING
@@ -762,8 +774,9 @@ async def test_t380_r4_pre_dispatch_cancel_and_restart_recover_same_receipt_once
 
     class CancelBeforeSubmit:
         async def send_message_delivery(
-            self, session_id, message, *, delivery, target_generation,
+            self, session_id, message, *, delivery, target_generation, provenance,
         ):
+            assert provenance == PROVENANCE
             entered.set()
             await asyncio.Event().wait()
 
@@ -883,8 +896,9 @@ async def test_t380_r5_post_dispatch_failure_is_unknown_and_never_replayed(
 
     class AcceptedThenLost:
         async def send_message_delivery(
-            self, session_id, message, *, delivery, target_generation,
+            self, session_id, message, *, delivery, target_generation, provenance,
         ):
+            assert provenance == PROVENANCE
             await delivery.before_submit()
             external_attempts.append(message)
             if failure == "cancel":

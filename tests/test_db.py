@@ -571,10 +571,15 @@ class TestLogs:
 
     def test_log_types(self, db, sample_session):
         from app.db import save_session, add_log, get_logs
+        from app.events import MessageProvenance
         save_session(sample_session)
         sid = sample_session["id"]
         for t in ("text", "tool", "error", "status", "user_message", "notification"):
-            add_log(sid, datetime.now(timezone.utc), t, f"type-{t}")
+            kwargs = (
+                {"provenance": MessageProvenance(origin="user", senders=("user",))}
+                if t == "user_message" else {}
+            )
+            add_log(sid, datetime.now(timezone.utc), t, f"type-{t}", **kwargs)
         logs = get_logs(sid)
         types = {l["type"] for l in logs}
         assert types == {"text", "tool", "error", "status", "user_message", "notification"}
