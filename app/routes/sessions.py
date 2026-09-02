@@ -911,19 +911,17 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 request is not None
                 and validate_session(request.cookies.get("session", ""))
             )
-            if not operator:
-                return JSONResponse(
-                    {
-                        "error": {
-                            "code": "SOURCE_PROVENANCE_REQUIRED",
-                            "message": "a sender or authenticated operator is required",
-                            "outcome_unknown": False,
-                        }
-                    },
-                    status_code=403,
-                )
+            # Оператор НЕДОКАЗУЕМ, когда авторизация дашборда выключена: при пустых
+            # `DASHBOARD_USER`/`DASHBOARD_PASSWORD` `validate_session` возвращает False
+            # всегда (`app/auth.py:58-61`), а фронт шлёт в `/send` только
+            # `{message, scope}`. Отказ здесь означал не «не соврать», а «не доставить»:
+            # чат дашборда переставал работать целиком. Правило #433 на этот случай
+            # уже есть — недоказанное происхождение рисуется как `unknown`, никогда как
+            # `user`, — и оно выполняется без потери сообщения.
             provenance = MessageProvenance(
-                origin="user", senders=("user",), subtype="http_send",
+                origin="user" if operator else "unknown",
+                senders=("user",) if operator else ("unknown",),
+                subtype="http_send",
             )
         # A non-waking delivery must not load or activate the recipient.  The
         # requested scope is the mailbox address supplied by the sender.
