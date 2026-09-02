@@ -130,7 +130,7 @@ Numbers below come from the primary installation's own database, read **2026-09-
 | | |
 |---|---|
 | Agent sessions | **598** (577 workers, 21 orchestrators) |
-| Sub-agents spawned | **5 593** |
+| Background jobs and sub-agents recorded | **5 593** (of which 197 are spawned sub-agents; the rest are background shell tasks) |
 | Messages logged | **250 877** |
 | Agent turns | **7 047** |
 | Tasks tracked | **781** across 19 projects |
