@@ -1460,9 +1460,11 @@ class ClaudeBackend:
                 and not isinstance(msg, (TaskStartedMessage, TaskProgressMessage, TaskNotificationMessage))
                 and getattr(msg, "subtype", "") == "compact_boundary"):
             data = getattr(msg, "data", {}) or {}
-            meta = data.get("compactMetadata", data)
-            pre = meta.get("preTokens", 0)
-            post = meta.get("postTokens", 0)
+            meta = data.get("compact_metadata")
+            if not isinstance(meta, dict):
+                meta = data.get("compactMetadata", data)
+            pre = meta.get("pre_tokens", meta.get("preTokens", 0))
+            post = meta.get("post_tokens", meta.get("postTokens", 0))
             trigger = meta.get("trigger", "unknown")
             events.append(AgentEvent("status",
                 f"CLI auto-compacted ({trigger}): {pre:,}→{post:,} tokens"))

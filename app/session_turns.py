@@ -68,9 +68,27 @@ def _rewind_past_safeguard_refusal(s: "AgentSession") -> str:
 
 logger = logging.getLogger("app.session")
 
-# At this point the next ordinary model call can hit the provider's hard context limit.
-# It is a safety threshold, not a tuning knob: every runtime and role compacts immediately.
-CRITICAL_AUTO_COMPACT_PCT = 99
+# Leave room for the CLI's own compaction and any in-flight context growth.
+CRITICAL_AUTO_COMPACT_PCT = 95
+CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT = 1
+
+
+def _auto_compact_threshold_pct(s: "AgentSession") -> int:
+    """Return our threshold, staying ahead of the CLI threshold when known."""
+    threshold = CRITICAL_AUTO_COMPACT_PCT
+    cli_tokens = s._last_context.get("auto_compact_threshold")
+    max_tokens = s._last_context.get("max_tokens")
+    if isinstance(cli_tokens, bool) or isinstance(max_tokens, bool):
+        return threshold
+    try:
+        cli_tokens = int(cli_tokens or 0)
+        max_tokens = int(max_tokens or 0)
+    except (TypeError, ValueError, OverflowError):
+        return threshold
+    if cli_tokens <= 0 or max_tokens <= 0:
+        return threshold
+    cli_pct = math.ceil(cli_tokens * 100 / max_tokens)
+    return max(0, min(threshold, cli_pct - CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT))
 
 
 def _unknown_quota_state() -> dict:
@@ -610,14 +628,16 @@ class TurnManager:
     def schedule_context_compaction(self, live_pct: int) -> None:
         """Run both automatic compaction decisions from one validated context."""
         s = self.s
-        if live_pct >= CRITICAL_AUTO_COMPACT_PCT:
+        if live_pct >= _auto_compact_threshold_pct(s):
+            if s._auto_compact_window_blocked(live_pct):
+                return
             if s._compacting:
                 return
             s._cancel_precompact_timer("critical_context")
             s._log(
                 "status",
                 f"critical auto-compact triggered ({live_pct}%): "
-                "running immediately; configured window and AUTO_COMPACT_ENABLED do not apply",
+                "running immediately; configured window does not apply",
             )
             s._spawn_bg(s._auto_compact(delay_seconds=0))
             return

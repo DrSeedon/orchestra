@@ -1996,7 +1996,7 @@ class TestPrecompactTimer:
         ))
         await session._drain_persist()
 
-        session._schedule_precompact_timer.assert_called_once_with(95)
+        session._schedule_precompact_timer.assert_not_called()
         assert "_auto_compact" in spawned
 
     @pytest.mark.asyncio
@@ -2349,7 +2349,7 @@ class TestPrecompactTimer:
         session.compact.assert_awaited_once_with()
 
     @pytest.mark.asyncio
-    async def test_critical_orchestrator_context_warns_once_outside_window(
+    async def test_critical_orchestrator_context_compacts_outside_window(
         self, session, monkeypatch,
     ):
         from app.session import AgentStatus
@@ -2380,25 +2380,20 @@ class TestPrecompactTimer:
             MagicMock(has_active_jobs=lambda *_: False),
         )
 
-        session._schedule_precompact_timer(95)
-        await session._fire_precompact_timer()
+        session._turns.schedule_context_compaction(95)
 
         assert len(launched) == 1
         warnings = [
             content for log_type, content in logs
             if log_type == "status" and content.startswith("auto-compact deferred")
         ]
-        assert len(warnings) == 1
-        assert "context 95%" in warnings[0]
-        assert not [
-            content for log_type, content in logs
-            if log_type == "status" and content.startswith("auto-compact blocked")
-        ]
+        assert warnings == []
+        session._auto_compact_window_state.assert_not_called()
         session.compact.assert_not_awaited()
 
     @pytest.mark.parametrize("backend", ["claude", "codex", "grok", "harness"])
     @pytest.mark.parametrize("is_orchestrator", [False, True])
-    def test_critical_99_compacts_immediately_for_every_runtime_and_role(
+    def test_critical_context_respects_kill_switch_for_every_runtime_and_role(
         self, session, monkeypatch, backend, is_orchestrator,
     ):
         logs = []
@@ -2413,11 +2408,6 @@ class TestPrecompactTimer:
         session._log = lambda kind, content, **_kw: logs.append((kind, content))
         monkeypatch.setenv("AUTO_COMPACT_ENABLED", "0")
 
-        async def immediate_compact():
-            return None
-
-        session._auto_compact.return_value = immediate_compact()
-
         def capture(coro):
             spawned.append(coro)
             coro.close()
@@ -2426,18 +2416,15 @@ class TestPrecompactTimer:
         session._turns.schedule_context_compaction(99)
 
         session._schedule_precompact_timer.assert_not_called()
-        session._cancel_precompact_timer.assert_called_once_with("critical_context")
-        session._auto_compact.assert_called_once_with(delay_seconds=0)
-        assert len(spawned) == 1
-        assert any(
-            kind == "status" and "critical auto-compact triggered (99%)" in content
-            for kind, content in logs
-        )
+        session._cancel_precompact_timer.assert_not_called()
+        session._auto_compact.assert_not_called()
+        assert spawned == []
+        assert any("AUTO_COMPACT_ENABLED=0" in content for _, content in logs)
         session._auto_compact_window_state.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("backend", ["claude", "codex", "grok", "harness"])
-    async def test_already_armed_timer_at_99_bypasses_window_and_kill_switch(
+    async def test_already_armed_timer_at_99_respects_kill_switch(
         self, session, monkeypatch, backend,
     ):
         from app.session import AgentStatus
@@ -2463,12 +2450,10 @@ class TestPrecompactTimer:
 
         await session._fire_precompact_timer()
 
-        session.compact.assert_awaited_once_with()
+        session.compact.assert_not_awaited()
         session._auto_compact_window_state.assert_not_called()
-        assert any(
-            kind == "status" and "critical auto-compact firing (99%)" in content
-            for kind, content in logs
-        )
+        assert session._precompact_timer is None
+        assert any("AUTO_COMPACT_ENABLED=0" in content for _, content in logs)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("backend", ["grok", "harness"])
@@ -2492,7 +2477,7 @@ class TestPrecompactTimer:
         assert result == {"ok": False, "error": "non-claude permit marker"}
         session._compaction_permit.assert_awaited_once_with(reserve=True)
 
-    def test_codex_post_turn_schedules_native_precompact_without_generic_handoff(self, session):
+    def test_codex_post_turn_compacts_at_critical_threshold(self, session):
         spawned = []
         logs = []
 
@@ -2511,11 +2496,10 @@ class TestPrecompactTimer:
 
         session._turns.after_turn_idle_actions(95)
 
-        session._schedule_precompact_timer.assert_called_once_with(95)
-        assert "_auto_compact" not in spawned
-        assert not any("auto-compact triggered" in content for _, content in logs)
+        session._schedule_precompact_timer.assert_not_called()
+        assert "_auto_compact" in spawned
 
-    def test_claude_post_turn_keeps_orchestra_compaction(self, session):
+    def test_claude_post_turn_compacts_at_critical_threshold(self, session):
         spawned = []
 
         def capture(coro):
@@ -2533,7 +2517,7 @@ class TestPrecompactTimer:
 
         session._turns.after_turn_idle_actions(95)
 
-        session._schedule_precompact_timer.assert_called_once_with(95)
+        session._schedule_precompact_timer.assert_not_called()
         assert "_auto_compact" in spawned
         assert any(
             "auto-compact triggered" in call.args[1]
@@ -3447,7 +3431,8 @@ class TestCompactPromptContract:
         self, session, monkeypatch
     ):
         prompt = await self._captured_prompt(session, monkeypatch)
-        assert "last three user messages verbatim" in prompt
+        assert "all user messages verbatim, in order of arrival" in prompt
+        assert "/api/sessions/" in prompt
 
     @pytest.mark.asyncio
     async def test_prompt_is_identical_for_orchestrator_and_worker(
@@ -4782,11 +4767,14 @@ class TestAutoCompactKillSwitch:
         allowed_hour = datetime(2026, 7, 28, 14, 0, tzinfo=timezone.utc)  # 21:00 Krasnoyarsk
         assert s._auto_compact_window_blocked(95, allowed_hour, log_status=False) is False
 
-    def test_worker_path_is_untouched_by_the_switch(self, session, monkeypatch):
-        """Воркерский автокомпакт защищает от упора в лимит — флаг его не касается."""
+    def test_worker_path_respects_the_switch(self, session, monkeypatch):
+        """The automatic compact switch applies to workers as well as orchestrators."""
         monkeypatch.setenv("AUTO_COMPACT_ENABLED", "0")
         session._is_orchestrator = False
-        assert session._auto_compact_window_blocked(95) is False
+        session._log = MagicMock()
+
+        assert session._auto_compact_window_blocked(95) is True
+        assert "AUTO_COMPACT_ENABLED=0" in session._log.call_args.args[1]
 
     @pytest.mark.parametrize(
         ("raw", "enabled"),

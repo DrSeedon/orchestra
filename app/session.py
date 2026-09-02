@@ -59,7 +59,11 @@ from app.session_hibernate import HibernateManager
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER,
 )
-from app.session_turns import CRITICAL_AUTO_COMPACT_PCT, TurnManager
+from app.session_turns import (
+    CRITICAL_AUTO_COMPACT_PCT,
+    TurnManager,
+    _auto_compact_threshold_pct,
+)
 from app.usage_contract import KnownContext, current_context
 
 if TYPE_CHECKING:
@@ -79,6 +83,51 @@ logger = logging.getLogger(__name__)
 
 _HANDOFF_LOG_RETRY_BUDGET_S = 6.0
 TURN_COMPLETION_RECHECK = 1.0
+_COMPACT_USER_MESSAGES_REQUIREMENT = (
+    "Preserve all user messages verbatim, in order of arrival "
+    "(все сообщения юзера, дословно, в порядке поступления)."
+)
+
+
+def _compact_prompt(session_name: str, scope: str = "") -> str:
+    transcript_endpoint = f"/api/sessions/{session_name}/logs"
+    if scope:
+        transcript_endpoint += f"?scope={scope}"
+    return (
+        "[SYSTEM: Context compaction requested — structured handoff]\n\n"
+        "Before writing the handoff, promote a durable fact only when the conversation explicitly "
+        "names an existing canonical Markdown path and the exact fact to store. Update only that "
+        "path, preserve unrelated content, and make the write idempotent. Otherwise do not write "
+        "files. Never create CLAUDE.md, TODO.md, BUGS.md, or a new note solely for compaction. "
+        "Never write credentials.\n\n"
+        "Write a compact task-state handoff from supported evidence only.\n\n"
+        "TASK STATE\n"
+        "- Current objective, phase, and evidence-backed status.\n\n"
+        "DECISIONS\n"
+        "- Only active decisions and reversals needed to continue; retain provisional/final state "
+        "and rationale.\n\n"
+        "FILES AND ARTIFACTS\n"
+        "- Exact path; read/changed/created state; the material change or measured diff; whether "
+        "committed, merged, or deployed. Never invent a path.\n\n"
+        "COMMANDS AND TOOL OUTCOMES\n"
+        "- Only what is needed to continue: the exact non-secret command, exit status, the measured "
+        "value, the relevant error string, and what it proves. Drop redundant raw output.\n\n"
+        "BLOCKER / NEXT\n"
+        "- Current blocker and owner if known; then the single next executable action. If "
+        "continuity is uncertain, write `UNKNOWN — source gap` instead of guessing.\n\n"
+        "CONSTRAINTS\n"
+        "- Still-active user preferences, safety constraints, and unresolved conflicts. Distinguish "
+        "durable preferences from one-off instructions.\n\n"
+        "USER MESSAGES AND RAW TRANSCRIPT\n"
+        f"- {_COMPACT_USER_MESSAGES_REQUIREMENT} Include a link to the raw session transcript at "
+        f"`{transcript_endpoint}`.\n\n"
+        "Do not claim a file was read, changed, committed, deployed, or tested unless the "
+        "conversation or tool evidence says so. Do not assert the negative either: absence of a "
+        "tool event means the outcome is unknown, not that the action did not happen. Write "
+        "`no evidence of X` rather than `X did not happen`. A measured empty diff supports only "
+        "`not modified`; it never supports `not read`. Omit redundant tool output and all "
+        "credentials. Output only these seven short sections."
+    )
 
 
 def _is_locked_database_error(error: BaseException) -> bool:
@@ -323,11 +372,10 @@ def _configured_auto_compact_window_state(
 
 
 def auto_compact_enabled() -> bool:
-    """`AUTO_COMPACT_ENABLED=0` выключает плановый автокомпакт оркестратора.
+    """`AUTO_COMPACT_ENABLED=0` выключает автоматический компакт для всех ролей.
 
-    Ручной `compact_worker` не затрагивается — это аварийный выход. Воркерский автокомпакт
-    по >90% тоже. Критический компакт при >=99% обходит выключатель для любой роли и модели:
-    это последняя защита от жёсткого лимита runtime, а не фоновая оптимизация по расписанию.
+    Ручной `compact_worker` не затрагивается — это аварийный выход. Критический порог не
+    обходит выключатель: явное отключение автоматического действия имеет приоритет над ним.
 
     Читается на КАЖДОМ решении, а не при импорте: иначе значение застывает на момент старта
     процесса, и правка `.env` не действует до перезапуска даже там, где могла бы.
@@ -571,20 +619,19 @@ class AgentSession:
     def _auto_compact_window_blocked(
             self, context_pct: int, now_utc: datetime | None = None,
             *, log_status: bool = True, deferred: bool = False) -> bool:
-        if context_pct >= CRITICAL_AUTO_COMPACT_PCT:
-            return False
-        if not self.is_orchestrator:
-            return False
         if not auto_compact_enabled():
-            # Таймер мог быть взведён до того, как флаг выставили: решение о компакте
-            # принимается здесь, поэтому здесь же он и обязан гаситься.
-            if log_status:
+            if log_status and not self._auto_compact_off_logged:
+                self._auto_compact_off_logged = True
                 self._log(
                     "status",
                     "auto-compact disabled (AUTO_COMPACT_ENABLED=0); "
                     "manual compact remains available",
                 )
             return True
+        if context_pct >= _auto_compact_threshold_pct(self):
+            return False
+        if not self.is_orchestrator:
+            return False
         state = self._auto_compact_window_state(now_utc)
         if state["allowed"]:
             return False
@@ -668,7 +715,7 @@ class AgentSession:
         policy = self._precompact_policy()
         if policy is None or context_pct < policy["arm_threshold"]:
             return
-        if self.is_orchestrator and not auto_compact_enabled():
+        if not auto_compact_enabled():
             # Не взводим вовсе: гейт ниже по течению отменил бы компакт, но таймер писал бы
             # в журнал «запланирован» и «пропущен» на каждом ходу.
             if not self._auto_compact_off_logged:
@@ -720,6 +767,16 @@ class AgentSession:
         state["fired_at"] = fired_at.isoformat()
         state["context_pct"] = self._last_context.get("percentage", 0)
 
+        if not auto_compact_enabled():
+            self._auto_compact_window_blocked(state["context_pct"])
+            state["skip_reason"] = "auto_compact_disabled"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
         if self.status != AgentStatus.IDLE:
             state["skip_reason"] = "not_idle"
             self._log(
@@ -731,7 +788,7 @@ class AgentSession:
 
         critical_context = (
             self._context_is_known()
-            and self._last_context.get("percentage", 0) >= CRITICAL_AUTO_COMPACT_PCT
+            and self._last_context.get("percentage", 0) >= _auto_compact_threshold_pct(self)
         )
 
         from app.bg_jobs import bg_manager
@@ -2739,40 +2796,7 @@ class AgentSession:
         # #106 Q6: hot_state_ledger bundle. Bounded promotion replaces the old
         # unconditional CLAUDE.md/TODO.md/BUGS.md presave, which drove 218
         # unrelated writes across 63 measured outputs (candidate: 0).
-        COMPACT_PROMPT = (
-            "[SYSTEM: Context compaction requested — structured handoff]\n\n"
-            "Before writing the handoff, promote a durable fact only when the conversation explicitly "
-            "names an existing canonical Markdown path and the exact fact to store. Update only that "
-            "path, preserve unrelated content, and make the write idempotent. Otherwise do not write "
-            "files. Never create CLAUDE.md, TODO.md, BUGS.md, or a new note solely for compaction. "
-            "Never write credentials.\n\n"
-            "Write a compact task-state handoff from supported evidence only.\n\n"
-            "TASK STATE\n"
-            "- Current objective, phase, and evidence-backed status.\n\n"
-            "DECISIONS\n"
-            "- Only active decisions and reversals needed to continue; retain provisional/final state "
-            "and rationale.\n\n"
-            "FILES AND ARTIFACTS\n"
-            "- Exact path; read/changed/created state; the material change or measured diff; whether "
-            "committed, merged, or deployed. Never invent a path.\n\n"
-            "COMMANDS AND TOOL OUTCOMES\n"
-            "- Only what is needed to continue: the exact non-secret command, exit status, the measured "
-            "value, the relevant error string, and what it proves. Drop redundant raw output.\n\n"
-            "BLOCKER / NEXT\n"
-            "- Current blocker and owner if known; then the single next executable action. If "
-            "continuity is uncertain, write `UNKNOWN — source gap` instead of guessing.\n\n"
-            "CONSTRAINTS\n"
-            "- Still-active user preferences, safety constraints, and unresolved conflicts. Distinguish "
-            "durable preferences from one-off instructions.\n\n"
-            "Preserve the last three user messages verbatim, including exact commands, paths, numbers, "
-            "and error strings.\n\n"
-            "Do not claim a file was read, changed, committed, deployed, or tested unless the "
-            "conversation or tool evidence says so. Do not assert the negative either: absence of a "
-            "tool event means the outcome is unknown, not that the action did not happen. Write "
-            "`no evidence of X` rather than `X did not happen`. A measured empty diff supports only "
-            "`not modified`; it never supports `not read`. Omit redundant tool output and all "
-            "credentials. Output only these six short sections."
-        )
+        COMPACT_PROMPT = _compact_prompt(self.name, self.scope)
         PREAMBLE = "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n[END OF SUMMARY — continue naturally]\n\n"
         COMPACT_MAX_RETRIES = 3
         COMPACT_RETRY_DELAY = 30
@@ -3164,6 +3188,10 @@ class AgentSession:
                 self._last_context["percentage"] = context.percentage
                 self._last_context["total_tokens"] = context.tokens
                 self._last_context["max_tokens"] = context.max_tokens
+                if "auto_compact_threshold" in usage:
+                    self._last_context["auto_compact_threshold"] = usage[
+                        "auto_compact_threshold"
+                    ]
                 self._last_context["known"] = True
                 if abs(old_pct - context.percentage) > 30:
                     logger.info(
