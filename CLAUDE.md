@@ -1,5 +1,11 @@
 # Orchestra — AI Agent Orchestrator
 
+> **Note for English-speaking readers:** This file contains internal operating instructions for
+> Orchestra's AI agents, not end-user documentation. It remains in Russian because its
+> incident-derived wording is an active operational contract; translating it would create a second,
+> drifting source of truth. For an English overview, setup, and release history see
+> [README.md](README.md), [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
+
 [Changelog](CHANGELOG.md)
 
 ## 🚚 ПЕРВЫЙ ЗАПУСК КОПИИ НА VPS — ЧИТАТЬ ПЕРВЫМ
