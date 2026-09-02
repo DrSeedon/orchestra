@@ -502,11 +502,15 @@ def test_t1_unknown_start_time_refuses_to_signal(monkeypatch, tmp_path):
     monkeypatch.setattr(
         backend_jsonrpc.os, "kill", lambda pid, sig: numeric_kills.append(pid)
     )
-    monkeypatch.setattr(backend_jsonrpc.os, "pidfd_open", lambda pid, flags=0: 91_110)
+    monkeypatch.setattr(
+        backend_jsonrpc.os, "pidfd_open", lambda pid, flags=0: 91_110,
+        raising=False,
+    )
     monkeypatch.setattr(
         backend_jsonrpc.signal,
         "pidfd_send_signal",
         lambda pidfd, sig, *args, **kwargs: pidfd_signals.append((pidfd, sig)),
+        raising=False,
     )
     real_close = backend_jsonrpc.os.close
     monkeypatch.setattr(
@@ -522,8 +526,10 @@ def test_t1_unknown_start_time_refuses_to_signal(monkeypatch, tmp_path):
             return real_open(tmp_path / "cmdline", *a, **kw)
         return real_open(path, *a, **kw)
 
+    from app.backend_codex import CODEX_BIN
+    codex_path = backend_jsonrpc._normalise_executable(CODEX_BIN)
     (tmp_path / "cmdline").write_bytes(
-        b"node\0/usr/bin/codex\0app-server\0--stdio\0"
+        b"node\0" + os.fsencode(codex_path) + b"\0app-server\0--stdio\0"
     )
     monkeypatch.setattr("builtins.open", fake_open)
 
@@ -544,11 +550,15 @@ def test_t1_helper_uses_pidfd_and_refuses_a_reused_pid(monkeypatch, tmp_path):
     monkeypatch.setattr(
         backend_jsonrpc.os, "kill", lambda pid, sig: numeric_kills.append(pid)
     )
-    monkeypatch.setattr(backend_jsonrpc.os, "pidfd_open", lambda pid, flags=0: 91_111)
+    monkeypatch.setattr(
+        backend_jsonrpc.os, "pidfd_open", lambda pid, flags=0: 91_111,
+        raising=False,
+    )
     monkeypatch.setattr(
         backend_jsonrpc.signal,
         "pidfd_send_signal",
         lambda pidfd, sig, *args, **kwargs: pidfd_signals.append((pidfd, sig)),
+        raising=False,
     )
     real_close = backend_jsonrpc.os.close
     monkeypatch.setattr(
@@ -565,8 +575,10 @@ def test_t1_helper_uses_pidfd_and_refuses_a_reused_pid(monkeypatch, tmp_path):
             return real_open(tmp_path / "cmdline", *a, **kw)
         return real_open(path, *a, **kw)
 
+    from app.backend_codex import CODEX_BIN
+    codex_path = backend_jsonrpc._normalise_executable(CODEX_BIN)
     (tmp_path / "cmdline").write_bytes(
-        b"node\0/usr/bin/codex\0app-server\0--stdio\0"
+        b"node\0" + os.fsencode(codex_path) + b"\0app-server\0--stdio\0"
     )
     monkeypatch.setattr("builtins.open", fake_open)
 
@@ -1286,7 +1298,14 @@ async def test_t9_stale_adopted_session_respawns_cli_on_next_turn(mgr, monkeypat
                 # never calls would swap nothing in production. Bounded because send() takes
                 # the non-reentrant `_lifecycle_lock` (app/session.py:411): a refresh that
                 # re-enters it would deadlock the suite instead of failing.
-                await asyncio.wait_for(session.send("next turn starts here"), timeout=10)
+                from app.events import MessageProvenance
+                await asyncio.wait_for(
+                    session.send(
+                        "next turn starts here",
+                        provenance=MessageProvenance(origin="user", senders=("user",)),
+                    ),
+                    timeout=10,
+                )
 
             assert session._backend is not old_backend, (
                 "toggling a flag and calling connect() on the SAME backend keeps the old "

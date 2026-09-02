@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from . import db
+from app.events import MessageProvenance
 
 
 _TERMINAL_STATES = {"done", "failed", "timeout", "killed"}
@@ -365,7 +366,13 @@ async def _deadline_waiter(fan_id: str, delay: float) -> None:
         recipient = reducer_of(fan_id) or target[0]
         destination = await manager.ensure_loaded(recipient, target[1])
         if destination is not None:
-            await manager.send(destination.id, manifest_text(fan_id))
+            provenance = MessageProvenance(
+                origin="platform", senders=("Orchestra",),
+                subtype="fan_manifest", ref=fan_id,
+            )
+            await manager.send(
+                destination.id, manifest_text(fan_id), provenance=provenance,
+            )
     except asyncio.CancelledError:
         raise
     except Exception as error:

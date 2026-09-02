@@ -1853,6 +1853,27 @@ async def list_orchestrators() -> str:
     return "\n".join(lines)
 
 
+def _format_worker_log(log: dict) -> str:
+    content = str(log.get("content") or "")[:200]
+    log_type = log.get("type")
+    if log_type == "text":
+        return f"💬 {content}"
+    if log_type == "user_message":
+        origin = str(log.get("origin") or "unknown")
+        detail = log.get("origin_detail")
+        senders = detail.get("senders") if isinstance(detail, dict) else None
+        if not isinstance(senders, list) or not senders:
+            origin, senders = "unknown", ["unknown"]
+        if origin == "user":
+            return f"👤 {content}"
+        return f"📨 {origin} ({', '.join(str(sender) for sender in senders)}): {content}"
+    if log_type == "tool":
+        return f"🔧 {content}"
+    if log_type == "error":
+        return f"❌ {content}"
+    return ""
+
+
 @mcp.tool()
 async def get_worker_logs(name: str, limit: int = 20) -> str:
     """Get recent logs from a worker."""
@@ -1863,15 +1884,9 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
         return f"No logs for '{name}'"
     lines = []
     for l in logs[-limit:]:
-        t, c = l['type'], l['content'][:200]
-        if t == 'text':
-            lines.append(f"💬 {c}")
-        elif t == 'user_message':
-            lines.append(f"👤 {c}")
-        elif t == 'tool':
-            lines.append(f"🔧 {c}")
-        elif t == 'error':
-            lines.append(f"❌ {c}")
+        formatted = _format_worker_log(l)
+        if formatted:
+            lines.append(formatted)
     return "\n".join(lines) if lines else f"No meaningful logs for '{name}'"
 
 

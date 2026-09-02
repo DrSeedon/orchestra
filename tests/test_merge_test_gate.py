@@ -433,12 +433,15 @@ def test_linked_worktree_symlinked_python_retains_venv_packages(tmp_path):
     _git(main, "commit", "-m", "base")
     venv = main / ".venv"
     (venv / "bin").mkdir(parents=True)
+    base_python = Path(sys._base_executable).resolve()
     (venv / "pyvenv.cfg").write_text(
-        "home = /usr\ninclude-system-site-packages = false\nversion = 3.12.3\n",
+        f"home = {base_python.parent}\n"
+        "include-system-site-packages = false\n"
+        f"version = {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}\n",
         encoding="utf-8",
     )
     interpreter = venv / "bin" / "python"
-    interpreter.symlink_to("/usr/bin/python3")
+    interpreter.symlink_to(base_python)
     import pytest as pytest_module
     site_packages = Path(pytest_module.__file__).resolve().parent.parent
     python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
@@ -537,7 +540,10 @@ def test_live_probe_inventory_is_explicit():
     """
     from app.merge_test_gate import LIVE_PROBE_MARKER
 
-    expected = {"tests/test_native_history_import.py": 2}
+    expected = {
+        "tests/test_native_history_import.py": 2,
+        "tests/test_runtime_history.py": 1,
+    }
 
     # Считаем ДЕКОРАТОРЫ, а не вхождения строки: первая версия этой проверки насчитала 3
     # вместо 2, потому что имя маркера упомянуто в докстринге файла. Проза не должна ни

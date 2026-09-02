@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
 from app.session import AgentSession, AgentStatus
-from app.events import InjectedMessage
+from app.events import InjectedMessage, MessageProvenance
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
     prompt_template_hash, inject_skills_to_worktree, load_worker_memory,
@@ -1090,7 +1090,10 @@ class SessionManager:
                 "auto-switch %s to %s before delivery", session.name, switched_branch,
             )
 
-    async def send(self, session_id: str, message: str | InjectedMessage) -> None:
+    async def send(
+        self, session_id: str, message: str | InjectedMessage, *,
+        provenance: MessageProvenance,
+    ) -> None:
         session = self.sessions.get(session_id)
         if not session:
             raise KeyError(f"session not found: {session_id}")
@@ -1100,13 +1103,16 @@ class SessionManager:
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
                 await self._auto_switch_before_delivery(session)
-                await session.send(message)
+                await session.send(message, provenance=provenance)
 
         delivery_task = asyncio.create_task(deliver())
         await _wait_owned_task(delivery_task)
         delivery_task.result()
 
-    async def send_initial_delivery(self, session_id: str, message: str, *, delivery) -> None:
+    async def send_initial_delivery(
+        self, session_id: str, message: str, *, delivery,
+        provenance: MessageProvenance,
+    ) -> None:
         session = self.sessions.get(session_id)
         if not session:
             raise KeyError(f"session not found: {session_id}")
@@ -1116,7 +1122,9 @@ class SessionManager:
                 if self.sessions.get(session_id) is not session:
                     raise KeyError(f"session changed before delivery: {session_id}")
                 await self._auto_switch_before_delivery(session)
-                await session.send(message, delivery=delivery)
+                await session.send(
+                    message, delivery=delivery, provenance=provenance,
+                )
 
         delivery_task = asyncio.create_task(deliver())
         await _wait_owned_task(delivery_task)
@@ -1124,6 +1132,7 @@ class SessionManager:
 
     async def send_message_delivery(
         self, session_id: str, message: str, *, delivery, target_generation: str,
+        provenance: MessageProvenance,
     ) -> None:
         """Send one accepted direct message under the normal target lock."""
         session = self.sessions.get(session_id)
@@ -1148,7 +1157,9 @@ class SessionManager:
                         "target task generation changed before delivery"
                     )
                 await self._auto_switch_before_delivery(session)
-                await session.send(message, delivery=delivery)
+                await session.send(
+                    message, delivery=delivery, provenance=provenance,
+                )
 
         delivery_task = asyncio.create_task(deliver())
         await _wait_owned_task(delivery_task)
@@ -1998,7 +2009,12 @@ class SessionManager:
             )
             logger.info(f"Auto-report: {worker_name} → {orch}")
             try:
-                await self.send(orch_session.id, msg)
+                provenance = MessageProvenance(
+                    origin="agent", senders=(worker_name,), subtype="auto_report",
+                )
+                await self.send(
+                    orch_session.id, msg, provenance=provenance,
+                )
             except Exception as error:
                 await self._record_undelivered_auto_report(
                     worker_name, worker_scope or scope, worker_session,
@@ -2021,7 +2037,13 @@ class SessionManager:
                 parent = self.get_by_name(worker.parent_name, worker.scope)
             if parent is not None and parent.is_orchestrator:
                 try:
-                    await self.send(parent.id, message)
+                    provenance = MessageProvenance(
+                        origin="agent", senders=(worker.name,),
+                        subtype="quota_blocked",
+                    )
+                    await self.send(
+                        parent.id, message, provenance=provenance,
+                    )
                     return
                 except Exception as delivery_error:
                     reason = f"{error}; parent delivery failed: {err_text(delivery_error)}"
@@ -2334,10 +2356,14 @@ class SessionManager:
         # concurrently and cause a connection storm; spread them over 15s
         await asyncio.sleep(3 + random.uniform(0, 12))
         try:
+            provenance = MessageProvenance(
+                origin="system", senders=("system",), subtype="restart",
+            )
             await self.send(
                 session.id,
                 "[system] Orchestra server restarted. "
-                "Your session was restored — continue where you left off."
+                "Your session was restored — continue where you left off.",
+                provenance=provenance,
             )
             logger.info(f"Restart notice injected: {session.name}")
         except Exception as e:

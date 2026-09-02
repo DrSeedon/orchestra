@@ -3,19 +3,37 @@
 import time
 
 from app import db
+from app.events import MessageProvenance
 
 
-def enqueue(recipient: str, scope: str, sender: str, body: str) -> int:
+def enqueue(
+    recipient: str,
+    scope: str,
+    sender: str,
+    body: str,
+    *,
+    provenance: MessageProvenance,
+) -> int:
     """Store a message and return its durable identifier."""
+    origin, origin_detail = provenance.to_storage()
     with db._conn() as connection:
         cursor = connection.execute(
             """
-            INSERT INTO mailbox (recipient, scope, sender, body, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO mailbox (
+                recipient, scope, sender, body, origin, origin_detail, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (recipient, scope, sender, body, time.time()),
+            (recipient, scope, sender, body, origin, origin_detail, time.time()),
         )
         return int(cursor.lastrowid)
+
+
+def _resource(row) -> dict:
+    value = dict(row)
+    value["provenance"] = MessageProvenance.from_storage(
+        value.pop("origin"), value.pop("origin_detail"),
+    )
+    return value
 
 
 def pending(recipient: str, scope: str) -> list[dict]:
@@ -23,14 +41,14 @@ def pending(recipient: str, scope: str) -> list[dict]:
     with db._conn() as connection:
         rows = connection.execute(
             """
-            SELECT id, sender, body
+            SELECT id, sender, body, origin, origin_detail
             FROM mailbox
             WHERE recipient = ? AND scope = ? AND delivered_at IS NULL
             ORDER BY id
             """,
             (recipient, scope),
         ).fetchall()
-    return [dict(row) for row in rows]
+    return [_resource(row) for row in rows]
 
 
 def mark_delivered(ids: list[int]) -> None:
@@ -64,7 +82,7 @@ def claim(recipient: str, scope: str, lease_seconds: float = CLAIM_LEASE_SECONDS
     stale = now - lease_seconds
     with db._conn() as conn:
         rows = conn.execute(
-            """SELECT id, sender, body FROM mailbox
+            """SELECT id, sender, body, origin, origin_detail FROM mailbox
                WHERE recipient = ? AND scope = ? AND delivered_at IS NULL
                  AND (claimed_at IS NULL OR claimed_at < ?)
                ORDER BY id""",
@@ -72,6 +90,7 @@ def claim(recipient: str, scope: str, lease_seconds: float = CLAIM_LEASE_SECONDS
         ).fetchall()
         if not rows:
             return []
+        resources = [_resource(row) for row in rows]
         ids = [r[0] for r in rows]
         placeholders = ",".join("?" * len(ids))
         conn.execute(
@@ -79,7 +98,7 @@ def claim(recipient: str, scope: str, lease_seconds: float = CLAIM_LEASE_SECONDS
                 WHERE id IN ({placeholders}) AND delivered_at IS NULL""",
             (now, *ids),
         )
-        return [{"id": r[0], "sender": r[1], "body": r[2]} for r in rows]
+        return resources
 
 
 def release_claim(ids: list[int]) -> None:

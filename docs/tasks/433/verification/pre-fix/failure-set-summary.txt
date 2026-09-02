@@ -1,0 +1,118 @@
+base rcs=[1, 1, 1, 1, 1, 1]
+base shard 1: 14 failed, 538 passed, 58 skipped, 2 warnings in 23.47s
+base shard 2: 6 failed, 597 passed, 7 skipped, 2 warnings in 26.19s
+base shard 3: 1 failed, 693 passed, 4 skipped, 1 warning in 32.45s
+base shard 4: 10 failed, 504 passed, 6 skipped, 2 warnings in 27.77s
+base shard 5: 11 failed, 585 passed, 13 skipped, 1 warning in 97.53s (0:01:37)
+base shard 6: 9 failed, 597 passed, 3 deselected, 3 xfailed, 2 warnings in 38.50s
+branch rcs=[1, 1, 1, 1, 1, 1]
+branch shard 1: 61 failed, 491 passed, 58 skipped, 2 warnings in 24.28s
+branch shard 2: 8 failed, 595 passed, 7 skipped, 2 warnings in 28.23s
+branch shard 3: 19 failed, 675 passed, 4 skipped, 1 warning in 35.06s
+branch shard 4: 30 failed, 484 passed, 6 skipped, 2 warnings in 29.59s
+branch shard 5: 20 failed, 576 passed, 13 skipped, 1 warning in 98.06s (0:01:38)
+branch shard 6: 10 failed, 596 passed, 3 deselected, 3 xfailed, 2 warnings in 38.06s
+base_bad_count=51
+branch_bad_count=148
+common_bad_count=51
+branch_only_bad_count=97
+base_only_bad_count=0
+--- branch only ---
+tests/test_audit0901_db.py::test_restart_mid_delivery_sends_run_result_instead_of_interruption
+tests/test_audit0901_delivery.py::test_blocked_queue_is_named_to_the_sender_and_a_restart_clears_it
+tests/test_audit0901_session.py::test_drain_landing_during_stale_cli_release_refuses_the_turn
+tests/test_audit0901_tg.py::test_late_transcription_still_reaches_the_agent
+tests/test_bug_report_notify.py::test_cross_project_report_goes_to_the_platform_owner
+tests/test_bug_report_notify.py::test_notification_is_sent_once_per_record
+tests/test_bug_report_notify.py::test_platform_owner_is_notified
+tests/test_bug_report_notify.py::test_report_survives_a_failed_notification
+tests/test_bug_report_notify.py::test_root_orchestrator_wins_over_sub_orchestrator
+tests/test_db.py::TestLogs::test_log_types
+tests/test_fan_barrier_gates.py::test_message_without_sender_is_never_buffered
+tests/test_fan_barrier_intercept.py::test_t1_three_durable_reports_create_exactly_one_parent_wake
+tests/test_fan_completion_modes_407.py::test_t2_buffered_receipt_never_enters_dispatching_state
+tests/test_fan_completion_modes_407.py::test_t2_known_pre_submit_failure_rearms_fan_and_same_receipt_retries
+tests/test_fan_completion_modes_407.py::test_t2_mixed_explicit_silent_and_failed_turns_wake_parent_once
+tests/test_fan_completion_modes_407.py::test_t2_releasing_report_replays_as_manifest_after_preparation_crash
+tests/test_fan_enable.py::test_impl5_exact_silent_marker_completes_fan_without_manifest_noise
+tests/test_fan_enable.py::test_impl5_silent_completion_wakes_reducer_not_parent
+tests/test_fan_terminal_kind.py::test_tool_report_then_turn_end_is_one_terminal_and_one_wake
+tests/test_fan_terminal_kind.py::test_turn_end_after_a_question_is_still_terminal
+tests/test_fd_adopt.py::test_t9_stale_adopted_session_respawns_cli_on_next_turn
+tests/test_hot_apply.py::test_t1_broken_role_file_falls_back_to_the_startup_prompt
+tests/test_hot_apply.py::test_t1_guard_custom_full_prompt_is_not_overwritten_by_rebuild
+tests/test_hot_apply.py::test_t1_reinjected_prompt_rebuilds_role_text_from_disk
+tests/test_hot_apply.py::test_t2_gate_closes_atomically_against_turn_start
+tests/test_hot_apply.py::test_t2_new_turn_is_refused_loudly_while_draining
+tests/test_mailbox.py::test_impl3_escalates_to_normal_delivery_when_continuation_fails
+tests/test_mailbox.py::test_t3_drains_at_turn_end_instead_of_waking
+tests/test_manager.py::TestEnsureLoadedSingleFlight::test_simultaneous_model_change_and_send_share_one_cold_load
+tests/test_manager.py::TestRestartWake::test_graceful_restart_wakes_interrupted_worker
+tests/test_manager.py::TestRestartWake::test_hard_kill_restart_still_wakes_worker
+tests/test_manager.py::TestSendAndControl::test_auto_switch_exceptions_have_detail_and_keep_quarantine[resolve]
+tests/test_manager.py::TestSendAndControl::test_auto_switch_exceptions_have_detail_and_keep_quarantine[switch]
+tests/test_manager.py::TestSendAndControl::test_auto_switch_failure_keeps_quarantine_and_surfaces_git_error
+tests/test_manager.py::TestSendAndControl::test_auto_switch_persist_failure_requarantines_without_delivery
+tests/test_manager.py::TestSendAndControl::test_concurrent_sends_switch_once_and_deliver_serially
+tests/test_manager.py::TestSendAndControl::test_delivery_owns_commit_point_despite_repeated_cancellation[backend]
+tests/test_manager.py::TestSendAndControl::test_delivery_owns_commit_point_despite_repeated_cancellation[persist]
+tests/test_manager.py::TestSendAndControl::test_delivery_owns_commit_point_despite_repeated_cancellation[switch]
+tests/test_manager.py::TestSendAndControl::test_running_send_preserves_mid_turn_delivery
+tests/test_manager.py::TestSendAndControl::test_send_rechecks_needs_switch_after_session_lock
+tests/test_manager.py::TestSendAndControl::test_send_routes
+tests/test_manager.py::TestSendAndControl::test_send_unknown_raises
+tests/test_manager.py::TestSendAndControl::test_send_waits_for_lifecycle_holder_before_git_and_backend
+tests/test_manager.py::TestSendAndControl::test_waiting_needs_switch_rejects_without_git_or_backend
+tests/test_project_roadmap_backend_425.py::test_t2_wait_text_delivery_targets_opener_and_resolves_only_on_submission
+tests/test_restart_inbox.py::test_269_a_hanging_delivery_does_not_block_the_rest_of_the_queue
+tests/test_restart_inbox.py::test_269_aborted_restart_still_delivers_what_it_promised
+tests/test_restart_inbox.py::test_269_failed_delivery_stays_queued_for_the_next_start
+tests/test_restart_inbox.py::test_269_message_during_restart_is_queued_instead_of_pushed
+tests/test_restart_inbox.py::test_269_message_for_a_session_that_never_came_back_is_given_up_and_reported
+tests/test_restart_inbox.py::test_269_queued_messages_are_delivered_once_after_startup
+tests/test_run_fan_407.py::test_t3_deadline_closes_fan_and_wakes_parent_without_another_tool_call
+tests/test_runtime_handoff_recovery.py::test_recovery_required_blocks_send_before_backend_use
+tests/test_session.py::TestClaudeTurnLifecycle::test_imported_claude_listener_reconnect_refreshes_history_from_logs
+tests/test_session.py::TestCodexTurnLifecycle::test_native_compact_cannot_leak_lifecycle_into_next_listener
+tests/test_session.py::TestCompactGuards::test_compact_logs_preamble_as_user_message
+tests/test_session.py::TestCompactReArmsPromptInjection::test_personal_memory_written_mid_session_is_re_read_from_disk
+tests/test_session.py::TestCompactReArmsPromptInjection::test_prompt_reinjection_reads_worktree_memory_not_parent_copy
+tests/test_session.py::TestCompactReArmsPromptInjection::test_role_is_back_in_the_prompt_on_the_turn_after_compact
+tests/test_session.py::TestHibernateDeliveryRaces::test_failed_steer_queues_before_hibernate_can_observe_state
+tests/test_session.py::TestHibernateDeliveryRaces::test_send_wakes_without_changing_native_session_id
+tests/test_session.py::TestManifestEffortAtTurnBoundary::test_broken_manifest_keeps_current_effort
+tests/test_session.py::TestManifestEffortAtTurnBoundary::test_effort_follows_model_switch_without_manifest_edit
+tests/test_session.py::TestManifestEffortAtTurnBoundary::test_legacy_session_without_role_is_untouched
+tests/test_session.py::TestManifestEffortAtTurnBoundary::test_manifest_edit_applies_on_next_turn
+tests/test_session.py::TestManifestEffortAtTurnBoundary::test_role_without_effort_keeps_db_value
+tests/test_session.py::TestManifestEffortAtTurnBoundary::test_running_turn_is_not_interrupted
+tests/test_session.py::TestManifestEffortAtTurnBoundary::test_typo_in_level_keeps_live_agent_on_current_effort
+tests/test_session.py::TestManifestEffortAtTurnBoundary::test_unchanged_manifest_rebuilds_nothing
+tests/test_session.py::TestPrecompactTimer::test_codex_native_compact_queues_message_until_completion
+tests/test_session.py::TestRateLimitClassification::test_new_user_message_resets_retry_budget
+tests/test_session.py::TestRuntimeCapabilities::test_codex_runtime_steers_mid_turn_message
+tests/test_session.py::TestRuntimeCapabilities::test_non_steering_runtime_queues_mid_turn_message
+tests/test_session.py::TestRuntimeCapabilities::test_runtime_handoff_is_one_shot_user_message_context
+tests/test_session.py::TestRuntimeCapabilities::test_text_tail_v1_keeps_last_ten_users_and_assistant_text_only
+tests/test_session.py::TestSend::test_send_idle_sets_running
+tests/test_session.py::TestSend::test_send_on_running_queues_message
+tests/test_session.py::TestStart::test_with_message_sets_running_then_idle
+tests/test_session.py::TestStop::test_message_waits_for_interrupt_before_starting_clean_turn
+tests/test_session.py::TestStop::test_stop_marks_running_session_interrupted
+tests/test_session.py::TestTurn::test_connect_error_returns_to_idle
+tests/test_session.py::TestTurn::test_stale_claude_resume_uses_bounded_log_handoff
+tests/test_session.py::TestTurn::test_turn_end_returns_to_idle
+tests/test_session.py::TestWeeklyQuotaAdmission::test_decision_expiring_before_lock_reacquire_is_rechecked
+tests/test_session.py::TestWeeklyQuotaAdmission::test_idle_available_worker_starts_exactly_one_backend_turn
+tests/test_session.py::TestWeeklyQuotaAdmission::test_idle_worker_is_blocked_before_log_status_or_backend
+tests/test_session.py::TestWeeklyQuotaAdmission::test_model_change_during_refresh_rechecks_new_bucket
+tests/test_session.py::TestWeeklyQuotaAdmission::test_orchestrator_idle_turn_never_reads_quota
+tests/test_session.py::TestWeeklyQuotaAdmission::test_running_steering_never_reads_quota
+tests/test_session.py::TestWeeklyQuotaAdmission::test_stop_during_refresh_cancels_delayed_start
+tests/test_session.py::test_idempotent_handoff_reuses_frozen_project_bytes
+tests/test_session.py::test_t1_385_message_during_deferred_interrupt_queues_until_native_terminal
+tests/test_session.py::test_tool_metadata_is_persisted_with_log
+tests/test_session.py::test_two_db_backed_claude_connects_render_identical_history
+tests/test_undelivered.py::TestNotifyHasNoInventedRecipient::test_reports_to_scope_orchestrator
+tests/test_undelivered.py::test_bg_job_failure_reaches_the_orchestrator
+--- base only ---

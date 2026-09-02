@@ -2867,7 +2867,15 @@ async def github_webhook(request: Request):
         return JSONResponse({"error": f"orchestrator {orch_name} not loadable"}, status_code=404)
 
     try:
-        await manager.send(session.id, message)
+        from app.events import MessageProvenance
+
+        provenance = MessageProvenance(
+            origin="system", senders=("ci",),
+            subtype="ci_failure", ref=str(run_id or ""),
+        )
+        await manager.send(
+            session.id, message, provenance=provenance,
+        )
         logger.info(f"CI failure routed to {orch_name}: {repo_full} run #{run_id}")
         return {"ok": True, "routed_to": orch_name}
     except Exception as e:

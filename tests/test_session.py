@@ -9,6 +9,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.events import MessageProvenance
+
+
+USER_PROVENANCE = MessageProvenance(origin="user", senders=("user",))
+
 
 @pytest.fixture
 def mock_sdk():
@@ -154,7 +159,9 @@ class TestStart:
 
         with patch.object(session, "_make_backend", return_value=backend):
             # Запускаем send в фоне (он стартует event loop)
-            send_task = asyncio.create_task(session.start("hi"))
+            send_task = asyncio.create_task(
+                session.start("hi", provenance=USER_PROVENANCE)
+            )
             # Ждём пока статус станет RUNNING
             for _ in range(50):
                 await asyncio.sleep(0.01)
@@ -344,7 +351,9 @@ class TestSend:
         backend = _MockBackend()
 
         with patch.object(session, "_make_backend", return_value=backend):
-            send_task = asyncio.create_task(session.send("task"))
+            send_task = asyncio.create_task(
+                session.send("task", provenance=USER_PROVENANCE)
+            )
             for _ in range(50):
                 await asyncio.sleep(0.01)
                 if session.status == AgentStatus.RUNNING:
@@ -364,7 +373,9 @@ class TestSend:
 
         with patch.object(session, "_make_backend", return_value=backend):
             # Первый send запускает ход
-            send_task = asyncio.create_task(session.send("first"))
+            send_task = asyncio.create_task(
+                session.send("first", provenance=USER_PROVENANCE)
+            )
             for _ in range(50):
                 await asyncio.sleep(0.01)
                 if session.status == AgentStatus.RUNNING:
@@ -372,7 +383,7 @@ class TestSend:
             assert session.status == AgentStatus.RUNNING
 
             # Второй send пока RUNNING — inject или pending
-            await session.send("second")
+            await session.send("second", provenance=USER_PROVENANCE)
             # Проверяем что второй send обработан (inject или pending queue)
             second_injected = "second" in backend.sent
             second_queued = "second" in session._pending_messages
@@ -510,7 +521,9 @@ class TestTurn:
         backend = _MockBackend()
 
         with patch.object(session, "_make_backend", return_value=backend):
-            send_task = asyncio.create_task(session.send("task"))
+            send_task = asyncio.create_task(
+                session.send("task", provenance=USER_PROVENANCE)
+            )
             for _ in range(50):
                 await asyncio.sleep(0.01)
                 if session.status == AgentStatus.RUNNING:
@@ -535,7 +548,7 @@ class TestTurn:
             "User:\nold request\n\nAssistant:\nold answer"
         ))
 
-        await session.send("what do you remember?")
+        await session.send("what do you remember?", provenance=USER_PROVENANCE)
 
         assert session.session_id is None
         sent = backend.send.await_args.args[0]
@@ -558,7 +571,7 @@ class TestTurn:
 
         with patch.object(session, "_make_backend", return_value=backend):
             with pytest.raises(ConnectionError):
-                await session.send("task")
+                await session.send("task", provenance=USER_PROVENANCE)
 
         assert session.status == AgentStatus.IDLE
 
@@ -697,7 +710,9 @@ class TestStop:
         backend = _MockBackend()
 
         with patch.object(session, "_make_backend", return_value=backend):
-            send_task = asyncio.create_task(session.send("task"))
+            send_task = asyncio.create_task(
+                session.send("task", provenance=USER_PROVENANCE)
+            )
             for _ in range(50):
                 await asyncio.sleep(0.01)
                 if session.status == AgentStatus.RUNNING:
@@ -784,7 +799,9 @@ class TestStop:
 
         interrupt_task = asyncio.create_task(session.interrupt())
         await interrupt_started.wait()
-        send_task = asyncio.create_task(session.send("new direction"))
+        send_task = asyncio.create_task(
+            session.send("new direction", provenance=USER_PROVENANCE)
+        )
         await asyncio.sleep(0)
 
         assert backend.sent == []
@@ -910,6 +927,7 @@ class TestClaudeTurnLifecycle:
             datetime.now(timezone.utc),
             "user_message",
             "initial durable message",
+            provenance=USER_PROVENANCE,
         )
         initial = await session._build_claude_history_import(
             session.session_id,
@@ -1783,7 +1801,11 @@ class TestCompactGuards:
 
         logged = []
 
-        def fake_log(log_type, content):
+        def fake_log(log_type, content, *, provenance=None):
+            if log_type == "user_message":
+                assert provenance.origin == "platform"
+            else:
+                assert provenance is None
             logged.append((log_type, content))
 
         session._log = fake_log
@@ -2652,7 +2674,9 @@ class TestPrecompactTimer:
 
         task = asyncio.create_task(session.compact())
         await asyncio.wait_for(compact_started.wait(), timeout=1)
-        await session.send("follow-up while compacting")
+        await session.send(
+            "follow-up while compacting", provenance=USER_PROVENANCE,
+        )
 
         assert session._pending_messages == ["follow-up while compacting"]
         finish_compact.set()
@@ -3037,7 +3061,7 @@ class TestRateLimitClassification:
         backend.send = AsyncMock()
         session._backend = backend
 
-        await session.send("new user request")
+        await session.send("new user request", provenance=USER_PROVENANCE)
 
         assert session._rate_limit_retries == 0
         assert session._server_error_retries == 0
@@ -3260,7 +3284,7 @@ class TestCompactReArmsPromptInjection:
         monkeypatch.setattr("app.session.get_logs", lambda *_a, **_kw: [])
 
         with patch.object(session, "_ensure_backend", AsyncMock(return_value=resumed)):
-            await session.send("next task")
+            await session.send("next task", provenance=USER_PROVENANCE)
 
         assert sent, "the turn after compact must reach the backend"
         assert "[Orchestra platform note:" in sent[0], (
@@ -3314,7 +3338,7 @@ class TestCompactReArmsPromptInjection:
         monkeypatch.setattr("app.session.get_logs", lambda *_a, **_kw: [])
 
         with patch.object(session, "_ensure_backend", AsyncMock(return_value=resumed)):
-            await session.send("next task")
+            await session.send("next task", provenance=USER_PROVENANCE)
 
         assert sent, "the turn after compact must reach the backend"
         assert "FRESH: learned this mid-session" in sent[0], (
@@ -3370,7 +3394,7 @@ class TestCompactReArmsPromptInjection:
         monkeypatch.setattr("app.session.get_logs", lambda *_a, **_kw: [])
 
         with patch.object(session, "_ensure_backend", AsyncMock(return_value=resumed)):
-            await session.send("next task")
+            await session.send("next task", provenance=USER_PROVENANCE)
 
         assert "FRESH: canonical worktree memory" in sent[0]
         assert "STALE: copied into parent scope" not in sent[0]
@@ -3528,7 +3552,9 @@ class TestManifestEffortAtTurnBoundary:
         return s
 
     async def _turn(self, session, backend, message):
-        send_task = asyncio.create_task(session.send(message))
+        send_task = asyncio.create_task(
+            session.send(message, provenance=USER_PROVENANCE)
+        )
         for _ in range(200):
             await asyncio.sleep(0.01)
             if backend.sent and message in backend.sent[-1]:
@@ -3610,7 +3636,9 @@ class TestManifestEffortAtTurnBoundary:
         session._disconnect_backend = counting_disconnect
         with patch.object(session, "_make_backend", return_value=backend):
             from app.session import AgentStatus
-            send_task = asyncio.create_task(session.send("first"))
+            send_task = asyncio.create_task(
+                session.send("first", provenance=USER_PROVENANCE)
+            )
             for _ in range(200):
                 await asyncio.sleep(0.01)
                 if session.status == AgentStatus.RUNNING:
@@ -3624,7 +3652,7 @@ class TestManifestEffortAtTurnBoundary:
                 "effort: {\"claude-sonnet-5[1m]\": high, default: low}}\n"
             )
             # сообщение в живой ход: инжект, а не смена эффорта и не дисконнект
-            await session.send("steer")
+            await session.send("steer", provenance=USER_PROVENANCE)
             assert session.effort == "medium"
             assert disconnects == 0
 
@@ -3913,7 +3941,9 @@ class TestHibernateDeliveryRaces:
             return MagicMock()
 
         session._spawn_bg = capture
-        send_task = asyncio.create_task(session.send("late message"))
+        send_task = asyncio.create_task(
+            session.send("late message", provenance=USER_PROVENANCE)
+        )
         await steer_started.wait()
         session.status = AgentStatus.IDLE
         hibernate_task = asyncio.create_task(session.hibernate_now())
@@ -4018,7 +4048,7 @@ class TestHibernateDeliveryRaces:
         session._hibernated = True
         session._ensure_backend = AsyncMock(return_value=backend)
 
-        await session.send("wake")
+        await session.send("wake", provenance=USER_PROVENANCE)
 
         assert session._hibernated is False
         assert session.session_id == "thread-preserved"
@@ -4180,7 +4210,7 @@ class TestCodexTurnLifecycle:
             session.backend_type = "codex"
             session._backend = backend
             session.status = AgentStatus.IDLE
-            await session.send("FIRST")
+            await session.send("FIRST", provenance=USER_PROVENANCE)
 
             for message in (
                 {
@@ -4314,6 +4344,8 @@ class TestRuntimeCapabilities:
                 "ts": f"2026-08-25T00:{index:02d}:00+00:00",
                 "type": "user_message",
                 "content": f"user-{index}",
+                "origin": "user",
+                "origin_detail": {"senders": ["user"]},
             })
             row_id += 1
             rows.append({
@@ -4334,6 +4366,8 @@ class TestRuntimeCapabilities:
             "ts": "2026-08-25T00:59:00+00:00",
             "type": "user_message",
             "content": "[Orchestra platform note: hidden]",
+            "origin": "platform",
+            "origin_detail": {"senders": ["orchestra"]},
         })
         monkeypatch.setattr(
             "app.session.get_logs",
@@ -4364,7 +4398,7 @@ class TestRuntimeCapabilities:
         session._backend = backend
         session._log = lambda *_args, **_kwargs: None
 
-        await session.send("queue me")
+        await session.send("queue me", provenance=USER_PROVENANCE)
 
         backend.send.assert_not_awaited()
         assert session._pending_messages == ["queue me"]
@@ -4380,7 +4414,7 @@ class TestRuntimeCapabilities:
         session._backend = backend
         session._log = lambda *_args, **_kwargs: None
 
-        await session.send("steer now")
+        await session.send("steer now", provenance=USER_PROVENANCE)
 
         backend.send.assert_awaited_once_with("steer now")
         assert session._pending_messages == []
@@ -4667,7 +4701,7 @@ class TestRuntimeCapabilities:
         session.runtime_handoff = "User:\nold request\n\nAssistant:\nold answer"
 
         with patch.object(session, "_make_backend", return_value=backend):
-            await session.send("first after switch")
+            await session.send("first after switch", provenance=USER_PROVENANCE)
             assert "<prior-conversation>" in backend.sent[0]
             assert "old answer" in backend.sent[0]
             assert "<current-user-message>\nfirst after switch" in backend.sent[0]
@@ -4679,7 +4713,7 @@ class TestRuntimeCapabilities:
                 if session.status == AgentStatus.IDLE:
                     break
 
-            await session.send("second after switch")
+            await session.send("second after switch", provenance=USER_PROVENANCE)
             assert backend.sent[1] == "second after switch"
             backend.finish()
             for _ in range(50):
@@ -5020,7 +5054,7 @@ class TestWeeklyQuotaAdmission:
         session._log = MagicMock()
 
         with pytest.raises(QuotaGateError):
-            await session.send("new work")
+            await session.send("new work", provenance=USER_PROVENANCE)
 
         session._ensure_backend.assert_not_awaited()
         session._log.assert_not_called()
@@ -5033,7 +5067,7 @@ class TestWeeklyQuotaAdmission:
         session._admission_service = AsyncMock(return_value=_quota_decision())
         session._ensure_backend = AsyncMock(return_value=backend)
 
-        await session.send("new work")
+        await session.send("new work", provenance=USER_PROVENANCE)
 
         session._admission_service.assert_awaited_once_with("claude-sonnet-5[1m]")
         backend.send.assert_awaited_once()
@@ -5049,7 +5083,7 @@ class TestWeeklyQuotaAdmission:
         session._ensure_backend = AsyncMock(return_value=backend)
         session._admission_service = AsyncMock(side_effect=AssertionError("quota read"))
 
-        await session.send("steer current turn")
+        await session.send("steer current turn", provenance=USER_PROVENANCE)
 
         session._admission_service.assert_not_awaited()
         backend.send.assert_awaited_once()
@@ -5062,7 +5096,7 @@ class TestWeeklyQuotaAdmission:
         session._admission_service = AsyncMock(side_effect=AssertionError("quota read"))
         session._ensure_backend = AsyncMock(return_value=backend)
 
-        await session.send("root chat")
+        await session.send("root chat", provenance=USER_PROVENANCE)
 
         session._admission_service.assert_not_awaited()
         backend.send.assert_awaited_once()
@@ -5081,7 +5115,9 @@ class TestWeeklyQuotaAdmission:
 
         session._admission_service = slow
         session._ensure_backend = AsyncMock()
-        task = asyncio.create_task(session.send("new work"))
+        task = asyncio.create_task(
+            session.send("new work", provenance=USER_PROVENANCE)
+        )
         await entered.wait()
 
         await session.interrupt()
@@ -5109,7 +5145,9 @@ class TestWeeklyQuotaAdmission:
         backend.resume_failed = False
         session._admission_service = admission
         session._ensure_backend = AsyncMock(return_value=backend)
-        task = asyncio.create_task(session.send("new work"))
+        task = asyncio.create_task(
+            session.send("new work", provenance=USER_PROVENANCE)
+        )
         await entered.wait()
         session.model = "gpt-5.6-sol"
         session.backend_type = "codex"
@@ -5137,7 +5175,9 @@ class TestWeeklyQuotaAdmission:
         session._admission_service = admission
         session._ensure_backend = AsyncMock()
         await session._lifecycle_lock.acquire()
-        task = asyncio.create_task(session.send("new work"))
+        task = asyncio.create_task(
+            session.send("new work", provenance=USER_PROVENANCE)
+        )
         session._lifecycle_lock.release()
         await first_ready.wait()
         await session._lifecycle_lock.acquire()
@@ -5443,6 +5483,7 @@ async def test_two_db_backed_claude_connects_render_identical_history(
         datetime.now(timezone.utc),
         "user_message",
         "same history",
+        provenance=USER_PROVENANCE,
     )
     dbmod.add_log(
         session.id,
@@ -5501,15 +5542,23 @@ async def test_tool_metadata_is_persisted_with_log(session, monkeypatch):
     ))
     await asyncio.gather(*tuple(session._log_futures))
 
-    assert add_log.call_args_list[0].kwargs == {
-        "tool_use_id": "tool-1",
-        "tool_name": "Read",
-        "tool_is_error": False,
+    metadata_by_error = {
+        call.kwargs["tool_is_error"]: call.kwargs
+        for call in add_log.call_args_list
     }
-    assert add_log.call_args_list[1].kwargs == {
-        "tool_use_id": "tool-1",
-        "tool_name": "Read",
-        "tool_is_error": True,
+    assert metadata_by_error == {
+        False: {
+            "provenance": None,
+            "tool_use_id": "tool-1",
+            "tool_name": "Read",
+            "tool_is_error": False,
+        },
+        True: {
+            "provenance": None,
+            "tool_use_id": "tool-1",
+            "tool_name": "Read",
+            "tool_is_error": True,
+        },
     }
 
 
@@ -5700,6 +5749,7 @@ async def test_idempotent_handoff_reuses_frozen_project_bytes(
     dbmod.save_session(session._to_db_dict())
     dbmod.add_log(
         session.id, datetime.now(timezone.utc), "user_message", "old fact",
+        provenance=USER_PROVENANCE,
     )
     session._drain_handoff_log_writes = AsyncMock()
     session._expected_handoff_capability = MagicMock(return_value={
@@ -5921,7 +5971,7 @@ async def test_t1_385_message_during_deferred_interrupt_queues_until_native_term
 
         assert session.status == AgentStatus.RUNNING
         wake = "[Background job completed] Codex review NEEDS WORK"
-        await session.send(wake)
+        await session.send(wake, provenance=USER_PROVENANCE)
         assert session._pending_messages == [wake]
         assert backend._request.await_count == 1
         assert session._manually_interrupted is False

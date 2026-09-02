@@ -29,6 +29,7 @@ from app.db import (
 )
 from app.deps import manager
 from app.errtext import err_text
+from app.events import MessageProvenance
 from app.models import ensure_dashboard_visible, ensure_spawn_allowed, resolve_model, MODELS
 from app.quota_gate import QuotaGateError
 from app.session import AgentStatus
@@ -335,6 +336,10 @@ async def accept_initial_delivery(name: str, req: InitialDeliveryRequest):
     from app import initial_deliveries
 
     try:
+        provenance = MessageProvenance(
+            origin="agent", senders=(req.sender,), subtype="initial_delivery",
+            ref=req.delivery_id,
+        )
         resource, status_code = await initial_deliveries.accept_initial_delivery(
             delivery_id=req.delivery_id,
             session_id=found.id,
@@ -342,6 +347,7 @@ async def accept_initial_delivery(name: str, req: InitialDeliveryRequest):
             scope=req.scope,
             sender=req.sender,
             message=req.message,
+            provenance=provenance,
         )
     except sqlite3.DatabaseError:
         if initial_deliveries.get_initial_delivery(req.delivery_id, req.scope) is None:
@@ -665,8 +671,13 @@ async def mark_fan_member_terminal(req: FanMemberTerminalRequest):
             recipient = fan_barrier.reducer_of(req.fan_id) or target[0]
             destination = await manager.ensure_loaded(recipient, target[1])
             if destination is not None:
+                provenance = MessageProvenance(
+                    origin="platform", senders=("Orchestra",),
+                    subtype="fan_manifest", ref=req.fan_id,
+                )
                 await manager.send(
-                    destination.id, fan_barrier.manifest_text(req.fan_id)
+                    destination.id, fan_barrier.manifest_text(req.fan_id),
+                    provenance=provenance,
                 )
     return {"ok": True, "fan_id": req.fan_id, "released": released}
 
@@ -754,6 +765,11 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
             source_scope = source["scope"] if source else req.scope
             source_task_id = (source.get("task_id") or "") if source else ""
             rendered = req.message if operator else f"[from:{source_name}] {req.message}"
+            provenance = MessageProvenance(
+                origin="user" if operator else "agent",
+                senders=("user" if operator else source_name,),
+                subtype="direct_message", ref=delivery_id,
+            )
 
             existing = message_deliveries._row(delivery_id)
             if existing is not None:
@@ -788,6 +804,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     rendered_message=rendered,
                     message_kind=req.message_kind,
                     wake=req.wake,
+                    provenance=provenance,
                 )
                 return JSONResponse(resource, status_code=status_code)
 
@@ -880,8 +897,34 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 rendered_message=rendered,
                 message_kind=req.message_kind,
                 wake=req.wake,
+                provenance=provenance,
             )
             return JSONResponse(resource, status_code=status_code)
+        if req.sender:
+            provenance = MessageProvenance(
+                origin="agent", senders=(req.sender,), subtype="http_send",
+            )
+        else:
+            from app.auth import validate_session
+
+            operator = bool(
+                request is not None
+                and validate_session(request.cookies.get("session", ""))
+            )
+            if not operator:
+                return JSONResponse(
+                    {
+                        "error": {
+                            "code": "SOURCE_PROVENANCE_REQUIRED",
+                            "message": "a sender or authenticated operator is required",
+                            "outcome_unknown": False,
+                        }
+                    },
+                    status_code=403,
+                )
+            provenance = MessageProvenance(
+                origin="user", senders=("user",), subtype="http_send",
+            )
         # A non-waking delivery must not load or activate the recipient.  The
         # requested scope is the mailbox address supplied by the sender.
         if not req.wake:
@@ -918,6 +961,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                         scope=req.scope,
                         sender=req.sender or "",
                         body=req.message,
+                        provenance=provenance,
                     )
                     return {"ok": True, "queued": True}
             # известно, что получатель простаивает → будим, иначе сообщение залежится
@@ -1004,6 +1048,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 scope=req.scope,
                 sender=req.sender or "",
                 body=req.message,
+                provenance=provenance,
             )
             result = {"ok": True, "queued": True}
             if task_state:
@@ -1022,7 +1067,13 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
             if reducer_fan:
                 manifest = fan_barrier.manifest_text(reducer_fan)
                 body = f"{req.message}\n\n{manifest}" if req.message else manifest
-                await manager.send(session.id, body)
+                provenance = MessageProvenance(
+                    origin="agent", senders=(req.sender,),
+                    subtype="fan_summary", ref=reducer_fan,
+                )
+                await manager.send(
+                    session.id, body, provenance=provenance,
+                )
                 # Гасим ПОСЛЕ доставки: сбой между пометкой и отправкой уничтожил бы
                 # манифест навсегда, а повтор всего лишь пришлёт его дважды (#158).
                 fan_barrier.mark_summarised(reducer_fan)
@@ -1054,8 +1105,13 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                         reducer = fan_barrier.reducer_of(fan_id)
                         if reducer:
                             target = await manager.ensure_loaded(reducer, req.scope) or session
+                        provenance = MessageProvenance(
+                            origin="platform", senders=("Orchestra",),
+                            subtype="fan_manifest", ref=str(fan_id or ""),
+                        )
                         await manager.send(
-                            target.id, fan_barrier.manifest_text(fan_id)
+                            target.id, fan_barrier.manifest_text(fan_id),
+                            provenance=provenance,
                         )
                 return {"ok": True, "buffered": not released,
                         "parent_name": session.parent_name or ""}
@@ -1071,7 +1127,9 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
         local_tz = timezone(timedelta(hours=7))
         now = datetime.now(local_tz).strftime("%H:%M")
         msg = f"[{now}] {msg}"
-        await manager.send(session.id, msg)
+        await manager.send(
+            session.id, msg, provenance=provenance,
+        )
         pn = session.parent_name or ""
         result = {"ok": True, "parent_name": pn}
         if task_state:

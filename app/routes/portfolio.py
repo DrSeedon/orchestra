@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app import portfolio
+from app.events import MessageProvenance
 
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
@@ -339,6 +340,12 @@ async def resolve_wait(
             )
         except portfolio.PortfolioError as exc:
             return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+        provenance = MessageProvenance(
+            origin="user",
+            senders=("user",),
+            subtype="portfolio_wait_answer",
+            ref=prepared["delivery_id"],
+        )
         delivery, _status_code = await message_deliveries.accept_message_delivery(
             delivery_id=prepared["delivery_id"],
             source_session_id=None,
@@ -355,6 +362,7 @@ async def resolve_wait(
             rendered_message=prepared["message"],
             message_kind="portfolio_wait_answer",
             wake=True,
+            provenance=provenance,
         )
     wait = await asyncio.to_thread(portfolio.wait_payload, project_id, wait_id)
     return {"wait": wait, "delivery": delivery}

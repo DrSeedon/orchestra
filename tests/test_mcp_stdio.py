@@ -578,6 +578,7 @@ async def test_task_create_returns_fields_needed_by_dashboard_card(monkeypatch):
 async def test_task_update_distinguishes_omitted_and_explicitly_cleared_command(monkeypatch):
     import app.mcp_stdio as m
 
+    monkeypatch.setattr(m, "ROLE", "orchestrator")
     captured = []
 
     async def fake_api(method, path, **kwargs):

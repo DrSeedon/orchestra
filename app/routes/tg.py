@@ -11,6 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from app.events import MessageProvenance
 from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
 
 router = APIRouter()
@@ -107,7 +108,13 @@ async def _process_dashboard_voice(row: dict) -> None:
         session = await manager.ensure_loaded_by_id(row["session_id"])
         if not session:
             raise RuntimeError(f"target session {row['session_id']} is unavailable")
-        await manager.send(session.id, text)
+        provenance = MessageProvenance(
+            origin="user", senders=("user",),
+            subtype="dashboard_voice", ref=voice_id,
+        )
+        await manager.send(
+            session.id, text, provenance=provenance,
+        )
     except Exception as error:
         detail = f"{type(error).__name__}: {error}"
         await asyncio.to_thread(dashboard_voice_mark_failed, voice_id, detail)

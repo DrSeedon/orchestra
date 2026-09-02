@@ -18,6 +18,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from app.events import MessageProvenance
+
 # NB: sqlite_vec / fastembed / onnxruntime are OPTIONAL deps (`orchestra[rag]`). They are
 # imported LAZILY inside RagMemory.__init__ / _get_embedder — so pure-logic functions
 # (chunkers, _classify_log, _rrf, file_change_target) and `import app.rag` work WITHOUT them.
@@ -104,7 +106,6 @@ _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 # Логи: индексируем только эти типы (plan §0 — 94% байт логов = tool_result/tool = машинный шум).
 LOG_TYPES = ("user_message", "text")
 MIN_LOG_LEN = 200  # порог для user_msg/text (нарратив <100 симв = tool-шум). agent_msg — без порога.
-_FROM_RE = re.compile(r"^\[from:([^\]]+)\]")  # inter-agent send_message префикс
 
 
 def _pack(vec: list[float]) -> bytes:
@@ -253,14 +254,16 @@ def file_change_target(abs_path: str, root: Path) -> str | None:
     return str(rel)
 
 
-def _classify_log(log_type: str, content: str) -> tuple[str, str | None]:
-    """Тип+контент лога → (kind, author). user_message с [from:X] = inter-agent send_message
-    (высочайший сигнал, plan §0), без префикса = человек, text = ответ агента."""
+def _classify_log(
+    log_type: str, content: str, *, origin: str = "unknown",
+    origin_detail: str | dict | None = None,
+) -> tuple[str, str | None]:
+    """Classify a log from stored provenance; content is never authority."""
     if log_type == "user_message":
-        m = _FROM_RE.match(content or "")
-        if m:
-            return "agent_msg", m.group(1).strip()
-        return "user_msg", None
+        provenance = MessageProvenance.from_storage(origin, origin_detail)
+        if provenance.origin == "user":
+            return "user_msg", None
+        return "agent_msg", provenance.senders[0]
     return "text", None  # log_type == "text"
 
 
@@ -568,7 +571,7 @@ class RagMemory:
             # batch_size <= 0 → -1, в SQLite это «без ограничения» (нужно для точечного reindex).
             params.append(batch_size if batch_size > 0 else -1)
             rows = self.conn.execute(f"""
-                SELECT l.id, l.type, l.content
+                SELECT l.id, l.type, l.content, l.origin, l.origin_detail
                 FROM orch.logs l JOIN orch.sessions s ON l.session_id = s.id
                 WHERE s.scope = ? AND l.type IN ({type_ph}) {name_sql}
                   AND l.id NOT IN (SELECT log_id FROM logs_indexed)
@@ -588,7 +591,10 @@ class RagMemory:
                 left = f", {deadline - now:.0f}s budget left" if deadline else ""
                 logger.info(f"RAG backfill_logs[{project}] progress: {count}/{len(rows)} logs{left}")
                 next_report = now + _PROGRESS_SECONDS
-            kind, author = _classify_log(r["type"], r["content"])
+            kind, author = _classify_log(
+                r["type"], r["content"], origin=r["origin"],
+                origin_detail=r["origin_detail"],
+            )
             if not self._log_is_signal(kind, r["content"]):
                 # помечаем как обработанный, чтобы не пересматривать каждый backfill
                 self.conn.execute("INSERT OR IGNORE INTO logs_indexed(log_id, project) VALUES(?,?)",

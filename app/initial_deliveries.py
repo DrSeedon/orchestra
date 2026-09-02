@@ -10,9 +10,10 @@ from datetime import datetime, timezone
 
 from app import db
 from app.errtext import err_text
+from app.events import MessageProvenance
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 _runner_tasks: dict[str, asyncio.Task[None]] = {}
 logger = logging.getLogger("orchestra.initial_deliveries")
 
@@ -81,7 +82,9 @@ def _payload_hash(
     scope: str,
     sender: str,
     message: str,
+    provenance: MessageProvenance,
 ) -> str:
+    origin, origin_detail = provenance.to_storage()
     payload = {
         "schema_version": SCHEMA_VERSION,
         "session_id": session_id,
@@ -89,6 +92,8 @@ def _payload_hash(
         "scope": scope,
         "sender": sender,
         "message": message,
+        "origin": origin,
+        "origin_detail": json.loads(origin_detail),
     }
     encoded = json.dumps(
         payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
@@ -148,6 +153,7 @@ async def accept_initial_delivery(
     scope: str,
     sender: str,
     message: str,
+    provenance: MessageProvenance,
 ) -> tuple[dict, int]:
     """Atomically accept an idempotent delivery, then wake its runner once."""
     delivery_id = _validate_delivery_id(delivery_id)
@@ -157,7 +163,9 @@ async def accept_initial_delivery(
         scope=scope,
         sender=sender,
         message=message,
+        provenance=provenance,
     )
+    origin, origin_detail = provenance.to_storage()
     now = _now()
     connection = db._conn()
     wake_runner = False
@@ -200,8 +208,9 @@ async def accept_initial_delivery(
             connection.execute(
                 """INSERT INTO initial_deliveries (
                        delivery_id, schema_version, session_id, worker_name, scope,
-                       sender, message, payload_hash, state, created_at, updated_at
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?)""",
+                       sender, message, origin, origin_detail, payload_hash,
+                       state, created_at, updated_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?)""",
                 (
                     delivery_id,
                     SCHEMA_VERSION,
@@ -210,6 +219,8 @@ async def accept_initial_delivery(
                     scope,
                     sender,
                     message,
+                    origin,
+                    origin_detail,
                     payload_hash,
                     now,
                     now,
@@ -248,9 +259,13 @@ def prepare_initial_delivery(delivery_id: str) -> dict:
             from app.secret_mask import mask_secrets
 
             cursor = connection.execute(
-                """INSERT INTO logs (session_id, ts, type, content)
-                   VALUES (?, ?, 'user_message', ?)""",
-                (row["session_id"], _now(), mask_secrets(row["message"])),
+                """INSERT INTO logs (
+                       session_id, ts, type, content, origin, origin_detail
+                   ) VALUES (?, ?, 'user_message', ?, ?, ?)""",
+                (
+                    row["session_id"], _now(), mask_secrets(row["message"]),
+                    row["origin"], row["origin_detail"],
+                ),
             )
             user_log_id = cursor.lastrowid
             connection.execute(
@@ -282,6 +297,9 @@ def prepare_initial_delivery(delivery_id: str) -> dict:
             **_resource(row),
             "user_log_id": row["user_log_id"],
             "history_user_message": user_log["content"],
+            "provenance": MessageProvenance.from_storage(
+                row["origin"], row["origin_detail"]
+            ),
         }
 
 
@@ -452,9 +470,13 @@ def mark_initial_delivery_unknown(
 class InitialDeliveryContext:
     """Session-side persistence hooks for one prepared initial delivery."""
 
-    def __init__(self, delivery_id: str, *, history_user_message: str):
+    def __init__(
+        self, delivery_id: str, *, history_user_message: str,
+        provenance: MessageProvenance,
+    ):
         self.delivery_id = _validate_delivery_id(delivery_id)
         self.history_user_message = history_user_message
+        self.provenance = provenance
         self.dispatched = False
 
     async def before_submit(self) -> None:
@@ -486,6 +508,7 @@ async def run_initial_delivery(delivery_id: str, *, manager=None) -> None:
     context = InitialDeliveryContext(
         delivery_id,
         history_user_message=prepared["history_user_message"],
+        provenance=prepared["provenance"],
     )
     payload = _delivery_payload(delivery_id)
     try:
@@ -493,6 +516,7 @@ async def run_initial_delivery(delivery_id: str, *, manager=None) -> None:
             payload["session_id"],
             payload["message"],
             delivery=context,
+            provenance=context.provenance,
         )
     except asyncio.CancelledError as error:
         if context.dispatched:
