@@ -135,7 +135,7 @@ Numbers below come from the primary installation's own database, read **2026-09-
 | Agent turns | **7 047** |
 | Tasks tracked | **781** across 19 projects |
 
-None of these are concurrency figures — peak observed parallelism is up to 10 workers at once. A second installation runs on a separate server and is counted separately, never added to these: 469 sessions, 5 043 sub-agents, 248 867 messages, 660 tasks across 9 projects.
+None of these are concurrency figures — peak observed parallelism is up to 10 workers at once. A second installation runs on a separate server and is counted separately, never added to these: 469 sessions, 5 043 background jobs and sub-agents recorded (18 of them spawned sub-agents), 248 867 messages, 660 tasks across 9 projects.
 
 ### ⚙️ Per-Role Model Policy
 Every role declares its model in the pipeline manifest, and the orchestrator routes new workers by task class and remaining quota rather than by name or habit. Runtimes are mixable per worker — Claude Code, Codex, Grok and Orchestra's OpenRouter Harness all run as workers behind one contract, so a task can be written by one vendor's model and reviewed by another's.
@@ -186,7 +186,7 @@ These aren't demos — they run in production. Orchestra's own figures are as of
 | **RimWorld Mods** | 70+ mod translations, C# DLL | 2000+ text keys |
 | **Sensar** (medtech) | Software validation protocol for video laryngoscope | 36 test items, 20 pages |
 | **University** | MSc thesis, lecture notes, ML dashboards | 45 pages, 29 DOI sources |
-| **Orchestra itself** | Self-development: workers build the platform they run on | 598 agent sessions, 5 593 sub-agents (see above) |
+| **Orchestra itself** | Self-development: workers build the platform they run on | 598 agent sessions, 197 spawned sub-agents (see above) |
 
 ## Architecture
 
