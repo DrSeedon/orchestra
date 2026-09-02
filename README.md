@@ -45,7 +45,7 @@ You describe the goal. The orchestrator (Claude) breaks it down, assigns workers
 git clone https://github.com/DrSeedon/orchestra.git
 cd orchestra
 cp .env.example .env
-uv sync              # or: uv sync --extra rag   (semantic memory, see Features)
+uv sync              # or: uv sync --extra rag   (optional vector memory, see Features)
 
 # Run
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
@@ -123,17 +123,17 @@ One orchestrator per project. Sub-orchestrators manage sub-teams. Workers do the
 ### 🔄 Built by Itself
 Orchestra-orchestrator is the agent that builds Orchestra: workers write the code for the platform they run on, and this section was edited by one of them.
 
-Numbers below come from the primary installation's own database, measured **2026-08-07** across 75 active days (2026-05-05 → 2026-08-07):
+Numbers below come from the primary installation's own database, read **2026-09-02**. Sessions, tasks and sub-agents are cumulative; messages and turns cover the current log window, which opens 2026-07-27:
 
 | | |
 |---|---|
-| Agent sessions | **413** (381 workers, 19 orchestrators) |
-| Sub-agents spawned | **3 733** |
-| Messages logged | **113 263** |
-| Agent turns | **3 163** |
-| Tasks tracked | **510** across 15 projects |
+| Agent sessions | **598** (577 workers, 21 orchestrators) |
+| Sub-agents spawned | **5 593** |
+| Messages logged | **250 877** |
+| Agent turns | **7 047** |
+| Tasks tracked | **781** across 19 projects |
 
-These are **cumulative totals, not concurrency** — peak observed parallelism is up to 10 workers at once. A second, newer installation runs on a separate server and is counted separately, never added to these.
+None of these are concurrency figures — peak observed parallelism is up to 10 workers at once. A second installation runs on a separate server and is counted separately, never added to these: 469 sessions, 5 043 sub-agents, 248 867 messages, 660 tasks across 9 projects.
 
 ### ⚙️ Per-Role Model Policy
 Every role declares its model in the pipeline manifest, and the orchestrator routes new workers by task class and remaining quota rather than by name or habit. Runtimes are mixable per worker — Claude Code, Codex, Grok and Orchestra's OpenRouter Harness all run as workers behind one contract, so a task can be written by one vendor's model and reviewed by another's.
@@ -149,33 +149,39 @@ An idle agent costs nothing: Claude and Codex workers hibernate after their idle
 ### 🐞 Durable Bug Inbox
 Agents file platform bugs through `report_bug`. Reports land in the service state directory outside every Git checkout — one immutable record per report, published by atomic rename — so a bug filed mid-task can never dirty a worktree and block merges. Unread reports raise a banner in the dashboard.
 
-### 🧠 Semantic Memory
-Agents search past work by meaning, not by grep: `search_memory("how did we solve X")` runs hybrid
-retrieval (vector + FTS5, fused with RRF) over task docs, project rules and prior agent messages,
-reindexed on every merge. Optional — install with `uv sync --extra rag` and set `RAG_ENABLED=true`;
-without it Orchestra runs unchanged and nothing ML is loaded.
+### 🧠 Project Memory
+Agents search past work across task docs, project rules and prior agent messages before they start.
+Retrieval is lexical by default — plain `rg` over the knowledge base — because that is what won our
+own A/B: on an 18-question holdout from this repository, vector search scored 0 unique wins against
+6 for ordinary `rg`. The hybrid path (fastembed + sqlite-vec, fused with RRF, reindexed on every
+merge) ships in the code and turns on with `uv sync --extra rag` + `RAG_ENABLED=true`; off by
+default, nothing ML is loaded, and `search_memory` answers with the grep command to run instead.
+On a corpus where every fact is already written down with exact paths and symbols, exact match beat
+embeddings — so it stays an option, not a headline.
 
 ### 📊 Real-Time Dashboard
 HTMX + SSE dashboard shows every agent, their status, context usage, cache hit rate, current task, and live logs. No polling, no refresh.
 
-Chat history is mirrored into IndexedDB and rendered from there, so switching between agents normally
-costs no network round trip; on a cache miss it is one gzipped fetch. The stream opens straight at the
-tail and names its own session, so one agent's history can never bleed into another's view.
+Chat history is never served from a local cache. Selecting an agent fetches one fresh snapshot, and
+the live stream continues strictly after the last message id that snapshot contained. Freshness is
+enforced from both ends — `Cache-Control: no-store` on the server, `cache: 'no-store'` on the client
+— and switching agents aborts the previous request, so one agent's history can never bleed into
+another's view.
 
 ## Real Projects Built with Orchestra
 
-These aren't demos — they run in production. Scale figures are as of 2026-08-07; some of these projects are private client work, so the repositories are not public.
+These aren't demos — they run in production. Orchestra's own figures are as of 2026-09-02, the rest as of 2026-08-07; some of these projects are private client work, so the repositories are not public.
 
 | Project | What it does | Scale |
 |---------|-------------|-------|
 | **Parsing** (client, Kamchatka) | Data import, dedup, genealogy search | 166M records in MySQL |
-| **Seedon** (our company) | Registration, accounting, legal, site, marketing, first client | Full business ops |
+| **[Seedon](https://seedon.ru)** (our company) | Registration, accounting, legal, site, marketing, first client | Full business ops |
 | **Kesha** | Personal Telegram bot on Claude Agent SDK | 24/7 on VPS |
 | **VPN Service** | Marzban VLESS+Reality management | Self-hosted |
 | **RimWorld Mods** | 70+ mod translations, C# DLL | 2000+ text keys |
 | **Sensar** (medtech) | Software validation protocol for video laryngoscope | 36 test items, 20 pages |
 | **University** | MSc thesis, lecture notes, ML dashboards | 45 pages, 29 DOI sources |
-| **Orchestra itself** | Self-development: workers build the platform they run on | 413 agent sessions, 3 733 sub-agents (see above) |
+| **Orchestra itself** | Self-development: workers build the platform they run on | 598 agent sessions, 5 593 sub-agents (see above) |
 
 ## Architecture
 
