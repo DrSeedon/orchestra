@@ -14,8 +14,13 @@ Itself») и `gh api`; ничего сверх этого в черновика�
 
 | Факт | Чем подтверждён |
 |---|---|
-| 598 сессий агентов (577 воркеров, 21 оркестратор), 5 593 суб-агента, 250 877 сообщений, 7 047 ходов, 781 задача в 19 проектах | README:130–136, замер обеих БД 02.09 |
-| Вторая инсталляция считается отдельно: 469 сессий, 5 043 суб-агента, 660 задач в 9 проектах | README:138 |
+| 598 сессий агентов (577 воркеров, 21 оркестратор), 250 877 сообщений, 7 047 ходов, 781 задача в 19 проектах | README:130–136, замер обеих БД 02.09 |
+| **Суб-агентов 197**, а не 5 593: в таблице `subagents` 5 593 строки, но 96,5% из них — фоновые bash-команды (`task_type='local_bash'`) | README:133 после правки 02.09, замер `select task_type, count(*)` на обеих базах, #503 |
+| Вторая инсталляция считается отдельно: 469 сессий, 660 задач в 9 проектах | README:138 |
+| Время жизни воркера: медиана 0,8 ч, p90 **130,6 ч**, максимум **531,8 ч**, дольше суток жили 81 из 431 завершённых; медиана 77,5 ходов на сессию | `sessions` боевой БД, #503 |
+| Время жизни суб-агента в нашем же контуре: медиана **12,5 с**, p90 75,1 с, максимум 587,2 с, дольше 10 минут — **0,0%** | `subagents` боевой БД, #503 |
+| Субагенты Claude Code имеют свой контекст, `SendMessage` между собой, вложенность до трёх уровней и опциональный `isolation: worktree` | `code.claude.com/docs/en/sub-agents`, 02.09, #503 |
+| Субагент не пересекает границу вендора: у Claude Code это Claude, у Codex — Codex | обе документации, #503 |
 | Четыре рантайма воркеров за одним контрактом: Claude Code, Codex, Grok, OpenRouter Harness | `app/runtime_registry.py:330`, `BUILTIN_RUNTIMES` |
 | Изоляция: git worktree на воркера, squash-merge в main | README «Git Worktree Isolation» |
 | Ревью чужой моделью до мержа | README «Cross-Model Review» |
@@ -87,56 +92,76 @@ Itself») и `gh api`; ничего сверх этого в черновика�
 
 ## 2. Черновики
 
-### 2.1 @deksden_notes — ВАРИАНТ А (без акцента «наш человек»)
+### 2.0 Рамка всех текстов (решение юзера 03.09.2026)
 
-> Первый абзац — единственное отличие от варианта Б. Дальше текст общий.
+Прежние две рамки сняты: «оркестратор устроен так-то» — слабая, «ADE/harness, опередивший
+Orca» — недоказуемая и неверная (матрица #503: мы не впереди Orca, мы в другой нише и по
+половине столбцов позади).
+
+**Рабочая рамка — три пункта, все из замеров #503:**
+1. **Исполнитель живёт неделями, а не секундами.** Воркер: медиана 0,8 ч, p90 130,6 ч,
+   максимум 531,8 ч, 81 сессия дольше суток, медиана 77,5 ходов. Суб-агент на наших же
+   данных: медиана 12,5 с, p90 75,1 с, дольше 10 минут — 0,0%. Это разные классы сущностей.
+2. **Граница вендора.** Субагент принадлежит своему вендору, поэтому ревью чужой моделью
+   внутри него структурно невозможно. У нас «написал Codex — проверяет Claude» — обычный ход.
+3. **Ревью — обязательный гейт мержа**, а не просьба к помощнику.
+
+**Обязательная честность в каждом тексте:** за 2026 год субагенты забрали часть прежних
+отличий — свой контекст, переписка между собой, вложенность, опциональная worktree-изоляция.
+Это не ослабляет текст: читатель, знающий матчасть, проверит первым делом именно это. И везде
+остаётся фраза о том, где субагенты объективно лучше нас.
+
+### 2.1 @deksden_notes — ВАРИАНТ А (действующий)
 
 ```
-Orchestra — оркестратор, где агентами управляет агент, а не человек
+Orchestra — агенты, которые живут неделями, а не один ход
 
 https://github.com/DrSeedon/orchestra
 
 Год назад я перестал успевать быть диспетчером у собственных агентов: нарезать задачи,
-раздавать, помнить кто что делает, сводить ветки. Получилось так, что диспетчер — тоже
-работа для агента. Так появилась Orchestra.
+раздавать, помнить кто что делает, сводить ветки. Диспетчер оказался такой же работой для
+агента — так появилась Orchestra.
 
-Что это: оркестратор ставит задачу воркерам, каждый воркер — отдельная CLI-сессия в
-собственном git worktree. Человек формулирует цель и апрувит; кого спавнить, что резать,
-когда звать ревью и что мержить — решает оркестратор.
+Главное отличие видно в цифрах, а не в описании. Померил по своей же базе:
 
-Как устроено:
+• воркер Orchestra — медиана жизни 0,8 ч, p90 130,6 ч, максимум 531,8 ч (22 дня),
+  81 сессия прожила дольше суток, медиана 77,5 ходов на сессию
+• суб-агент в том же контуре — медиана 12,5 с, p90 75,1 с, дольше 10 минут ноль случаев
 
-• Воркер = свой worktree + своя ветка, мерж squash-ем. Двое в одном репозитории не дерутся
-  за файлы, конфликты структурно редкие
-• Агентская почта: воркеры пишут друг другу напрямую, без человека-ретранслятора
-• Ревью чужой моделью — обязательный шаг перед мержем. Написал Codex — смотрит Claude, и
-  наоборот; у разных моделей разные слепые зоны
-• Четыре рантайма за одним контрактом: Claude Code, Codex, Grok и свой OpenRouter-харнесс.
-  Модель выбирается на воркера, не на проект
-• Свой таск-менеджер с приоритетами и оплатами, TG-мост с топиками на агента, дашборд на
-  FastAPI + HTMX + SSE
-• Память проекта — файлы и грепы. Векторный поиск в коде остался, но помечен deprecated:
-  на своих же 18 вопросах он дал 0 уникальных побед против 6 у обычного rg. Оставлять его
-  рекомендованным было бы нечестно
+То есть это не «субагент, только подольше». Субагент разгружает контекст одного разговора,
+воркер — отдельный процесс со своей задачей, веткой и историей, который переживает рестарт
+платформы и возвращается тем же тредом.
 
-Сколько наработано: по собственной БД — 598 сессий агентов (577 воркеров, 21 оркестратор),
-5 593 суб-агента, 781 задача в 19 проектах. Вторая инсталляция считается отдельно и никогда
-не складывается с первой.
+Второе отличие — граница вендора. Субагенты Claude Code это Claude, субагенты Codex это
+Codex; ревью чужой моделью внутри них невозможно по устройству. У меня воркер — сессия
+любого из четырёх рантаймов (Claude Code, Codex, Grok, свой OpenRouter-харнесс), поэтому
+«написал Codex — проверяет Claude» обычный ход, а не самоделка.
 
-Граница честности: это один человек с агентами и один рабочий контур, а не команда и не
-продукт. Рядом в нише есть среды на десятки тысяч звёзд, где за флотом смотрит человек;
-у меня ставка другая — смотрит оркестратор, человек ставит цель.
+Третье — ревью стоит гейтом на мерже: работа не попадает в main мимо него, и мержит не тот
+агент, который писал код.
 
-AGPL-3.0, ставится через uv, нужен свой Claude Code CLI. Вопросы — в комментариях, отвечу.
+Честно про то, что изменилось: за 2026 субагенты забрали часть прежних отличий — свой
+контекст, SendMessage между собой, вложенность до трёх уровней и worktree-изоляцию опцией.
+И там, где надо «сходи посмотри в двадцати файлах и вернись», субагент дешевле моего
+воркера — это правильный инструмент для такой задачи.
+
+Что ещё в коробке: worktree и squash-merge на воркера, агентская почта, свой таск-менеджер,
+TG-мост, дашборд. Векторную память пометил deprecated после собственного замера: 0 уникальных
+побед против 6 у обычного rg на 18 вопросах.
+
+Границы: это один человек с агентами и один рабочий контур, а не команда и не продукт.
+AGPL-3.0, ставится через uv, нужен свой Claude Code CLI. Вопросы — в комментариях.
 
 #opensource #agpl
 ```
 
-Длина ≈2 100 знаков — попадает в диапазон гостевых постов канала (1 231–2 242).
+Длина 2 027 знаков (посчитано по файлу) — внутри диапазона гостевых постов канала
+(1 231–2 242). Резать при необходимости абзац «Что ещё в коробке».
 
-### 2.2 @deksden_notes — ВАРИАНТ Б (с акцентом «сделал наш человек»)
+### 2.2 @deksden_notes — ВАРИАНТ Б (ОТВЕРГНУТ юзером 02.09, оставлен как история)
 
-Заменяет первые два абзаца варианта А, остальное — без изменений:
+Не использовать. Ссылается на редакцию варианта А ДО переписывания 03.09 (#505) — сам текст Б
+намеренно не трогался. Заменял первые два абзаца прежнего варианта А:
 
 ```
 Orchestra — оркестратор, где агентами управляет агент, а не человек
@@ -156,26 +181,27 @@ https://github.com/DrSeedon/orchestra
 не добавляет ни одного факта о самом инструменте — если Денис возьмёт пост в рубрику
 `#opensource`, там ни у одного из трёх предыдущих гостей такой рамки нет.
 
-### 2.3 Сопроводительное сообщение Денису (в чат канала)
+### 2.3 Как заходить в чат канала (в личку не пишем)
+
+Порядок: постим текст §2.1 прямо в чат канала, дальше договариваемся там. Отдельного письма
+Денису не нужно — перед постом достаточно одной строки, чтобы было видно, что это заявка в
+рубрику, а не самореклама в чужой ленте:
 
 ```
-Денис, привет. Я делаю Orchestra — оркестратор агентов с открытым кодом: оркестратор сам режет
-задачу, спавнит воркеров (каждый в своём git worktree), гоняет ревью на другой модели и мержит.
-Заметил, что у вас выходили гостевые посты про инструменты (Rejudge, KeySwitcher, knowledge-base),
-и подумал, что тема попадает в канал.
-
-Готов пост на 2к знаков в вашем формате, с ссылкой на репозиторий и без маркетинга — прикладываю
-ниже. Если формат не подходит или нужно короче, скажите, перепишу.
-
-https://github.com/DrSeedon/orchestra
+Сделал оркестратор агентов, выкладываю в опенсорс. Видел, что у вас выходили гостевые посты
+про инструменты (Rejudge, KeySwitcher, knowledge-base) — если тема подходит каналу, вот пост
+в том же формате; скажите, если надо короче или иначе.
 ```
+
+Дальше сразу текст из §2.1 отдельным сообщением, чтобы его можно было забрать целиком без
+редактуры.
 
 ### 2.4 Hacker News — Show HN
 
-Заголовок (79 знаков, начинается с обязательного `Show HN:`):
+Заголовок (72 знака, начинается с обязательного `Show HN:`):
 
 ```
-Show HN: Orchestra – an orchestrator agent that manages a fleet of coding agents
+Show HN: Orchestra – coding agents that live for weeks, not for one turn
 ```
 
 URL: `https://github.com/DrSeedon/orchestra`
@@ -187,29 +213,40 @@ I built Orchestra because I became the bottleneck in my own agent setup: splitti
 assigning it, remembering who was doing what, merging the branches. That dispatcher job turned
 out to be a job an agent can do.
 
-How it works: you give the orchestrator a goal. It decomposes the work, spawns workers, routes
-their output to a different model for review, and merges what passes. Each worker is a full CLI
-session in its own git worktree on its own branch, squash-merged back. Workers message each other
-directly instead of relaying through a human. Four runtimes sit behind one backend contract —
-Claude Code, Codex, Grok and an in-process OpenRouter harness — so the model that writes the code
-is not the model that reviews it.
+The difference from subagents is measurable, so here are the measurements from my own database
+rather than an argument. An Orchestra worker: median lifetime 0.8 h, p90 130.6 h, max 531.8 h
+(22 days), 81 sessions ran longer than a day, median 77.5 turns per session. A subagent in the
+same setup: median 12.5 s, p90 75.1 s, and not one of them lived past ten minutes. These are two
+different classes of thing. A subagent takes noisy work off one conversation; a worker is a
+process with its own task, branch and history that survives a platform restart and comes back on
+the same native thread.
 
-Some numbers from the primary installation's own database: 598 agent sessions (577 workers,
-21 orchestrators), 5 593 sub-agents, 781 tasks across 19 projects. A second installation on
-another server is counted separately and never added in.
+The second difference is the vendor boundary. Claude Code subagents are Claude, Codex subagents
+are Codex, so review by another vendor's model is structurally impossible inside them. In
+Orchestra a worker is a session of any of four runtimes — Claude Code, Codex, Grok, or an
+in-process OpenRouter harness — so "Codex wrote it, Claude reviews it" is an ordinary step.
+
+Third: that review is a merge gate, not a favour you ask an assistant. Work does not reach main
+without it, and the agent that wrote the code is not the one that merges it.
+
+What honestly changed in 2026: subagents took over part of what used to be my differentiators —
+their own context window, SendMessage between agents, nesting several layers deep, and optional
+git worktree isolation. And for "go read twenty files and come back", a subagent is cheaper than
+one of my workers; that is the right tool for that job.
+
+Scale, from the primary installation: 598 agent sessions (577 workers, 21 orchestrators), 197
+spawned sub-agents, 781 tasks across 19 projects. A second installation on another server is
+counted separately and never added in.
 
 One thing I removed rather than added: semantic memory. The vector path is still in the code but
-it is deprecated — on an 18-question holdout from this repository, vector retrieval scored 0
-unique wins against 6 for plain `rg`, so lexical search over a knowledge base written for grep is
-the default now.
+deprecated — on an 18-question holdout from this repository it scored 0 unique wins against 6 for
+plain `rg`.
 
-Honest limits before you try it: this is one person and one working installation, not a team and
-not a product. It is not zero-friction to run — you need your own Claude Code CLI and a Claude Max
-subscription (Codex/Grok/OpenRouter optional), so it is not a click-and-play demo. AGPL-3.0, with
-a commercial license available.
+Honest limits: one person, one working installation, not a team and not a product. It is not
+zero-friction — you need your own Claude Code CLI and a subscription, so this is not a
+click-and-play demo. AGPL-3.0, commercial license available.
 
-Happy to answer anything about the worktree isolation, the merge gate or the cross-model review
-loop.
+Happy to answer anything about the merge gate, the worktree isolation or the cross-model review.
 ```
 
 **Риск, который надо принять сознательно:** правила Show HN просят «make it easy to try, ideally
@@ -222,26 +259,28 @@ without barriers such as signups». Подписка и CLI — это барь�
 & parallel runners`, строка ставится по числу звёзд (сейчас — в конец раздела):
 
 ```markdown
-- **[Orchestra](https://github.com/DrSeedon/orchestra)** `⭐ 3` — Self-hosted orchestrator where an agent, not a human, runs the fleet: it decomposes the goal, spawns workers in isolated git worktrees, routes each result to a different model for review, and squash-merges what passes. Claude Code, Codex, Grok and an OpenRouter harness behind one backend contract; FastAPI dashboard and a Telegram bridge. AGPL-3.0.
+- **[Orchestra](https://github.com/DrSeedon/orchestra)** `⭐ 3` — Self-hosted orchestrator for long-lived workers rather than per-turn helpers: each worker is a CLI session in its own git worktree that survives restarts (measured p90 lifetime 130.6 h against 75.1 s for subagents in the same setup), workers message each other directly, and every merge is gated by a review from a *different vendor's* model — Claude Code, Codex, Grok and an OpenRouter harness sit behind one backend contract. AGPL-3.0.
 ```
 
 Заголовок PR: `Add Orchestra to Session managers & parallel runners`
 Текст PR:
 ```
-Adds Orchestra — an orchestrator that manages CLI coding agents rather than a UI for a human to
-manage them. Meets the inclusion requirements: CLI/terminal agents driven autonomously (Claude
-Code, Codex, Grok, OpenRouter harness), reads/writes code and runs commands, repo is active.
-Placed at the end of the section per the star sort (3 stars). Disclosure: I am the author.
+Adds Orchestra — an orchestrator for agents that live for days, not for one turn: workers are
+CLI sessions persisted in SQLite, each in its own git worktree, and a merge is gated by review
+from a different vendor's model (Claude Code, Codex, Grok, OpenRouter harness behind one
+contract). Meets the inclusion requirements: drives CLI/terminal agents autonomously,
+reads/writes code and runs commands, repo is active. Placed at the end of the section per the
+star sort (3 stars). Disclosure: I am the author.
 ```
 
 **(б) ai-boost/awesome-harness-engineering** — здесь берут за приём, поэтому строка про идею, а не
 про продукт:
 
 ```markdown
-- [Orchestra](https://github.com/DrSeedon/orchestra) — Harness where the dispatcher itself is an agent: an orchestrator decomposes the goal, spawns workers into isolated git worktrees, and gates every merge behind a review by a *different* model, on the premise that two vendors' models fail differently. Two harness decisions are worth stealing regardless of the tool: isolation is per-worker worktree plus squash merge, so parallel agents cannot corrupt each other's state; and project memory is deliberately lexical — the vector path is deprecated after an internal A/B where embeddings scored 0 unique wins against 6 for plain `rg` on an 18-question holdout, which is a rare published negative result on agent memory.
+- [Orchestra](https://github.com/DrSeedon/orchestra) — Harness built on the premise that the unit of work should outlive the conversation: workers are CLI sessions persisted in SQLite, each in its own git worktree, and the author measured them against subagents in the same setup — p90 lifetime 130.6 h and median 77.5 turns per worker, against a subagent median of 12.5 s with none surviving ten minutes. Two decisions are worth stealing regardless of the tool: the merge is gated by a review from a *different vendor's* model, which subagents cannot do because a subagent belongs to its own vendor; and project memory is deliberately lexical — the vector path is deprecated after an internal A/B where embeddings scored 0 unique wins against 6 for plain `rg` on an 18-question holdout, a rare published negative result on agent memory.
 ```
 
-Заголовок PR: `Add Orchestra (agent-run dispatcher, cross-model merge gate, negative result on vector memory)`
+Заголовок PR: `Add Orchestra (workers that outlive the conversation, cross-vendor merge gate, negative result on vector memory)`
 
 **(в) Agent-Analytics/awesome-multi-agent-orchestrators** — правится `src/data/orchestrators.ts`,
 копирайт по их CONTRIBUTING без маркетинга. Поля для записи:
@@ -249,13 +288,17 @@ Placed at the end of the section per the star sort (3 stars). Disclosure: I am t
 ```
 name:    Orchestra
 url:     https://github.com/DrSeedon/orchestra
-summary: Self-hosted orchestrator where an agent decomposes the goal and runs the fleet: workers
-         are full CLI sessions in isolated git worktrees, they message each other directly, and
-         every merge is gated by a review from a different model.
-tags:    multi-agent coordination, parallel coding agents, git worktree isolation, cross-model
-         review, self-hosted, AGPL-3.0
+summary: Self-hosted orchestrator for workers that outlive a single conversation: each worker is
+         a CLI session persisted in SQLite with its own git worktree and branch, workers message
+         each other directly, and every merge is gated by a review from a different vendor's
+         model.
+tags:    multi-agent coordination, long-lived agent sessions, git worktree isolation,
+         cross-vendor review, self-hosted, AGPL-3.0
 note:    Runtimes are mixable per worker (Claude Code, Codex, Grok, OpenRouter harness) behind one
-         backend contract. Includes a task manager, a Telegram bridge and a FastAPI/HTMX dashboard.
+         backend contract, which is what makes cross-vendor review possible — a subagent belongs
+         to its own vendor and cannot be reviewed by another. Measured on the author's own
+         installation: worker p90 lifetime 130.6 h against 75.1 s for subagents in the same setup.
+         Includes a task manager, a Telegram bridge and a FastAPI/HTMX dashboard.
          Single-maintainer project.
 ```
 
@@ -270,31 +313,46 @@ note:    Runtimes are mixable per worker (Claude Code, Codex, Grok, OpenRouter h
 
 Заголовок:
 ```
-I built an orchestrator where an agent, not me, assigns the work to other coding agents
+I measured my agents against subagents: 130 hours vs 75 seconds, and what that changes
 ```
 
 Тело:
 ```
 Disclosure up front: I built this and I run it daily.
 
-The setup most multi-agent tools give you is a grid where *you* watch the fleet. Mine is the
-opposite: the orchestrator decomposes the goal, decides how many workers to spawn, gives each one
-an isolated git worktree, routes the result to a different model for review, and squash-merges
-what passes. I supply the goal and the approvals I care about.
+I kept being told my orchestrator is "just subagents with extra steps", so I measured both in the
+same setup, from my own database:
 
-Concrete design decisions, in case they are useful even if you never run it:
+- Orchestra worker: median lifetime 0.8 h, p90 130.6 h, max 531.8 h (22 days), 81 sessions ran
+  longer than a day, median 77.5 turns per session.
+- Subagent in the same setup: median 12.5 s, p90 75.1 s, zero of them lived past ten minutes.
 
-- Isolation is a git worktree per worker, not shared state. Two workers cannot edit each other's
-  files; merges are squash, one commit per task.
-- Workers talk to each other directly (worker A tells worker B "endpoint is ready, here is the
-  schema") instead of relaying through the human.
-- The review before merge runs on a different vendor's model than the one that wrote the code.
+That is not "the same thing but longer". A subagent exists to take noisy work off one
+conversation. A worker is a process with its own task, branch and history, persisted in SQLite,
+that survives a restart of the platform and resumes on the same native thread.
+
+The second difference is the one people miss: a subagent belongs to its vendor. Claude Code
+subagents are Claude, Codex subagents are Codex — so having another vendor's model review the
+work is structurally impossible inside them. In my setup a worker is a session of any of four
+runtimes (Claude Code, Codex, Grok, an in-process OpenRouter harness), and that review is a merge
+gate: nothing reaches main without it, and the agent that wrote the code does not merge it.
+
+Being fair about 2026: subagents took over a lot of what used to be the gap — their own context
+window, messaging between agents, nesting several layers deep, optional git worktree isolation.
+And when the job is "go read twenty files and report back", a subagent is cheaper than one of my
+workers and is the right tool.
+
+Other design decisions, in case they are useful even if you never run it:
+
+- Isolation is a git worktree per worker; merges are squash, one commit per task.
+- Workers message each other directly (worker A tells worker B "endpoint is ready, here is the
+  schema") instead of relaying through me.
 - Memory is lexical on purpose. I shipped a vector path, measured it against plain `rg` on an
   18-question holdout from my own repo, got 0 unique wins for vectors against 6 for grep, and
   marked the vector path deprecated instead of quietly keeping it as a feature.
 
-Scale so far, from the installation's own database: 598 agent sessions, 5 593 sub-agents, 781
-tasks across 19 projects.
+Scale so far, from the installation's own database: 598 agent sessions, 197 spawned sub-agents,
+781 tasks across 19 projects.
 
 Limits: one maintainer, one production installation, and it needs your own Claude Code CLI plus a
 subscription — this is not a hosted product. AGPL-3.0.
@@ -323,7 +381,24 @@ Happy to answer design questions, especially about the merge gate.
 
 ---
 
-## 2.8 РЕШЕНИЯ ЮЗЕРА от 02.09.2026 — что отменено и что заменено
+## 2.8 РЕШЕНИЯ ЮЗЕРА — что отменено и что заменено
+
+### Решение 03.09.2026 (#505): новая рамка, все черновики переписаны
+
+Дословно: «Да согласен». Отменены ОБЕ прежние рамки — «как устроен оркестратор» (слабая) и
+«ADE/harness, опередивший Orca» (недоказуемая и неверная: матрица #503 показала, что мы не
+впереди Orca, а в другой нише, и по половине столбцов позади). Действующая рамка — §2.0:
+время жизни исполнителя, граница вендора, ревью как гейт мержа, плюс обязательное признание
+того, что субагенты за 2026 год забрали часть прежних отличий.
+
+Переписаны: §2.1 (вариант А), §2.3 (заход в чат вместо письма в личку), §2.4 (Show HN и первый
+комментарий), §2.5 (все три PR), §2.6 (Reddit). Не трогался §2.2 — он отвергнут 02.09.
+
+**Числовая поправка, обязательная к соблюдению:** в постах стоит **197 суб-агентов**, а не
+5 593. Строка README исправлена после находки #503: 96,5% строк таблицы `subagents` — фоновые
+bash-команды. Публиковать 5 593 как «суб-агентов» — повторить ту же ошибку публично.
+
+### Решения 02.09.2026
 
 Три решения приняты, черновики выше читать с этими поправками:
 
