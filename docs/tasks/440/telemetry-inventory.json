@@ -1,0 +1,94 @@
+{
+  "database_precision": {
+    "laptop": {
+      "database": "/mnt/data/Projects/Python/orchestra/data/orchestra.db",
+      "turn_usage_noninteger": {
+        "quota_five_hour_pct": {"rows": 3359, "noninteger": 0},
+        "quota_seven_day_pct": {"rows": 3349, "noninteger": 0}
+      },
+      "usage_snapshot_columns_noninteger": {
+        "five_hour_pct": {"rows": 12459, "noninteger": 0},
+        "seven_day_pct": {"rows": 12459, "noninteger": 0}
+      },
+      "provider_usage_json": {
+        "snapshot_rows_scanned": 14201,
+        "five_hour_windows": 6654,
+        "five_hour_noninteger": 0,
+        "five_hour_window_minutes_not_300": 0,
+        "seven_day_windows": 6654,
+        "seven_day_noninteger": 0
+      }
+    },
+    "vps": {
+      "database": "/home/kesha/orchestra/data/orchestra.db",
+      "turn_usage_noninteger": {
+        "quota_five_hour_pct": {"rows": 4166, "noninteger": 0},
+        "quota_seven_day_pct": {"rows": 4166, "noninteger": 0}
+      },
+      "usage_snapshot_columns_noninteger": {
+        "five_hour_pct": {"rows": 13561, "noninteger": 0},
+        "seven_day_pct": {"rows": 13561, "noninteger": 0}
+      },
+      "provider_usage_json": {
+        "snapshot_rows_scanned": 14947,
+        "five_hour_windows": 7090,
+        "five_hour_noninteger": 0,
+        "five_hour_window_minutes_not_300": 0,
+        "seven_day_windows": 7090,
+        "seven_day_noninteger": 0
+      }
+    }
+  },
+  "stored_raw_event_anchor_file_counts": {
+    "roots": {
+      "laptop": ["/home/maxim/.claude/projects", "/home/maxim/.claude/debug"],
+      "vps": ["/home/kesha/.claude/projects", "/home/kesha/.claude/debug"]
+    },
+    "laptop": {
+      "rate_limit_event": 0,
+      "unifiedWindows": 0,
+      "unified_windows": 0,
+      "message_limit": 0,
+      "anthropic-ratelimit-unified": 0
+    },
+    "vps": {
+      "rate_limit_event": 0,
+      "unifiedWindows": 0,
+      "unified_windows": 0,
+      "message_limit": 0,
+      "anthropic-ratelimit-unified": 0
+    }
+  },
+  "laptop_transcript_reasoning_check": {
+    "range": [
+      "2026-07-26T04:48:33.960178+00:00",
+      "2026-09-02T03:49:33.877143+00:00"
+    ],
+    "jsonl_files_scanned": 581,
+    "dedupe_key": "message.id, falling back to row uuid",
+    "unique_usage_records": 28235,
+    "records_with_output_tokens_details": 11647,
+    "records_with_positive_thinking_tokens": 660,
+    "thinking_tokens_sum": 405074,
+    "output_tokens_on_detail_records_sum": 6223471,
+    "records_where_thinking_tokens_exceed_output_tokens": 0
+  },
+  "runtime_seams": {
+    "laptop": {
+      "claude_cli": "2.1.258",
+      "claude_agent_sdk": "0.2.114",
+      "rate_limit_event_literal_present": true,
+      "unifiedWindows_literal_present": true
+    },
+    "vps": {
+      "claude_cli": "2.1.205",
+      "claude_agent_sdk": "0.2.114",
+      "rate_limit_event_literal_present": true,
+      "unifiedWindows_literal_present": false
+    }
+  },
+  "fraction_recovery_control": {
+    "command": "python3 docs/tasks/440/reproduce_credit_formula.py --self-test",
+    "output": "SELF_TEST_OK fraction=449/2750 lcm_control=3300000"
+  }
+}
