@@ -1,36 +1,37 @@
-# Orchestra Bug Reports — переехали из этого файла
+# Orchestra Bug Reports — Moved Out of This File
 
-Этот файл больше НЕ живой. `report_bug` пишет мимо него — в инбокс вне рабочего дерева,
-поэтому баг-репорт не пачкает checkout и не блокирует мержи.
+This file is no longer live. `report_bug` writes to an inbox outside the working tree,
+so a bug report neither dirties the checkout nor blocks merges.
 
-## Как посмотреть репорты
+## How to view reports
 
-- **Уведомлением** — при подаче репорта оркестратор того scope, где он подан, получает
-  сообщение (#56, 04.08.2026). Автору собственного репорта уведомление не шлётся.
-- **Ручкой** — `GET /api/report_bug` отдаёт весь инбокс одним Markdown-документом
-  (legacy + все репорты). Это ЕДИНСТВЕННЫЙ читатель стора: вызывающего кода у него нет
-  вовсе, но данные, которые он отдаёт, больше не отдаёт никто — не удалять.
+- **By notification** — when a report is filed, the orchestrator for that scope receives
+  a message (#56, 04.08.2026). Authors are not notified about their own reports.
+- **By endpoint** — `GET /api/report_bug` returns the entire inbox as one Markdown document
+  (legacy content plus every report). This is the store's ONLY reader: nothing calls it
+  internally, but no other endpoint exposes these data, so do not remove it.
 
-Плашки в дашборде больше НЕТ: баннер «🐛 Новые bug reports» с кнопкой «Прочитать» и
-эндпоинт `GET /api/report_bug/status` удалены 04.08.2026 (#53) по прямой просьбе владельца.
-Она мозолила глаза и тянула опрос раз в 30 с; вместо неё — уведомление оркестратору.
-Как это выглядело без читателя: 7 репортов от четырёх агентов пролежали в сторе двое суток,
-и половина одного из них всё это время была уже починена в main.
+There is no longer a dashboard notice: the “🐛 New bug reports” banner with its “Read”
+button and the `GET /api/report_bug/status` endpoint were removed on 04.08.2026 (#53) at
+the owner's direct request. It was a persistent distraction and polled every 30 seconds;
+the orchestrator notification replaced it. This was the cost of having no reader: seven
+reports from four agents sat in the store for two days, while half of one report had
+already been fixed on `main`.
 
-## Где лежит на диске
+## Where reports are stored
 
-Корень состояния зависит от того, задан ли `StateDirectory` в systemd-юните:
+The state root depends on whether the systemd unit defines `StateDirectory`:
 
-| Условие | Путь к инбоксу |
+| Condition | Inbox path |
 |---|---|
-| В юните есть `StateDirectory=orchestra` (VPS, `deploy/orchestra.service.template`) | `/var/lib/orchestra/bug-inbox/` |
-| `StateDirectory` нет → fallback на XDG (локальная машина) | `$XDG_STATE_HOME/orchestra/bug-inbox/`, по умолчанию `~/.local/state/orchestra/bug-inbox/` |
+| The unit defines `StateDirectory=orchestra` (VPS, `deploy/orchestra.service.template`) | `/var/lib/orchestra/bug-inbox/` |
+| No `StateDirectory` → fall back to XDG (local machine) | `$XDG_STATE_HOME/orchestra/bug-inbox/`, defaulting to `~/.local/state/orchestra/bug-inbox/` |
 
-Проверить конкретную машину: `systemctl cat orchestra | grep StateDirectory`.
+To check a particular machine: `systemctl cat orchestra | grep StateDirectory`.
 
-Внутри инбокса:
-- `legacy.md` — снимок этого файла на момент переезда (341 строка, всё что было открыто на
-  01.08.2026). Неизменяемый, читается первым.
-- `records/*.md` — по одному файлу на репорт, имя `<UTC-timestamp>-<uuid>.md`.
+Inside the inbox:
+- `legacy.md` — a snapshot of this file at migration time (341 lines, everything still open
+  on 01.08.2026). It is immutable and read first.
+- `records/*.md` — one file per report, named `<UTC-timestamp>-<uuid>.md`.
 
-Историю самого файла хранит Git: `git log -- BUGS.md`, последняя живая запись — `d1429b1`.
+Git retains this file's history: `git log -- BUGS.md`; the last live entry is `d1429b1`.
