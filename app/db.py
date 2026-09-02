@@ -139,6 +139,48 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_dashboard_voice_state
                 ON dashboard_voice_transcriptions(state, created_at);
             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
+            CREATE TABLE IF NOT EXISTS review_receipts (
+                receipt_id TEXT PRIMARY KEY,
+                schema_version INTEGER NOT NULL DEFAULT 1,
+                runtime TEXT NOT NULL,
+                reviewer_model TEXT NOT NULL,
+                model_source TEXT NOT NULL CHECK(model_source IN ('direct','derived','unknown')),
+                session_id TEXT NOT NULL,
+                worker_name TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                task_id TEXT NOT NULL,
+                task_source TEXT NOT NULL,
+                artifact_path TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                round INTEGER,
+                job_id TEXT NOT NULL,
+                usage_event_id TEXT NOT NULL,
+                requested_at TEXT NOT NULL,
+                completed_at TEXT,
+                status TEXT NOT NULL CHECK(status IN (
+                    'requested','completed','failed','timed_out','interrupted'
+                )),
+                return_code INTEGER,
+                failure_code TEXT NOT NULL DEFAULT '',
+                artifact_exists INTEGER,
+                artifact_bytes INTEGER,
+                artifact_sha256 TEXT NOT NULL DEFAULT '',
+                verdict_present INTEGER,
+                verdict_value TEXT NOT NULL DEFAULT '',
+                jsonl_response_present INTEGER,
+                recovery_source TEXT NOT NULL DEFAULT '',
+                author_outcome TEXT NOT NULL DEFAULT 'unknown'
+                    CHECK(author_outcome IN ('accepted','disputed','partial','unknown')),
+                outcome_source TEXT NOT NULL DEFAULT 'unknown'
+                    CHECK(outcome_source IN ('direct','derived','unknown')),
+                outcome_evidence_ref TEXT NOT NULL DEFAULT '',
+                notification_event_id TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_review_receipts_artifact
+                ON review_receipts(artifact_path, round);
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_review_receipts_artifact_round
+                ON review_receipts(artifact_path, round)
+                WHERE round IS NOT NULL;
             CREATE TABLE IF NOT EXISTS initial_deliveries (
                 delivery_id TEXT PRIMARY KEY,
                 schema_version INTEGER NOT NULL,
@@ -2610,6 +2652,190 @@ def cleanup_old_logs(days: int = 7) -> int:
         "cleanup_old_logs is disabled: agent logs must never be deleted. "
         "If disk pressure is real, export to files first and ask the owner."
     )
+
+
+# ── Review receipts ──
+
+_REVIEW_RECEIPT_COLUMNS = (
+    "receipt_id", "schema_version", "runtime", "reviewer_model", "model_source",
+    "session_id", "worker_name", "scope", "task_id", "task_source", "artifact_path",
+    "mode", "round", "job_id", "usage_event_id", "requested_at", "completed_at",
+    "status", "return_code", "failure_code", "artifact_exists", "artifact_bytes",
+    "artifact_sha256", "verdict_present", "verdict_value", "jsonl_response_present",
+    "recovery_source", "author_outcome", "outcome_source", "outcome_evidence_ref",
+    "notification_event_id",
+)
+_REVIEW_OUTCOMES = frozenset({"accepted", "disputed", "partial"})
+_REVIEW_RECEIPT_SOURCES = frozenset({"direct", "derived", "unknown"})
+
+
+def review_receipt_create(receipt: dict) -> bool:
+    """Insert one immutable review start receipt; duplicate ids are replay-safe."""
+    if not isinstance(receipt, dict):
+        raise TypeError("review receipt must be a dict")
+    missing = [
+        key for key in (
+            "receipt_id", "runtime", "reviewer_model", "model_source", "session_id",
+            "worker_name", "scope", "task_id", "task_source", "artifact_path", "mode",
+            "job_id", "usage_event_id", "status",
+        ) if key not in receipt
+    ]
+    if missing:
+        raise ValueError("review receipt missing fields: " + ", ".join(missing))
+    if receipt["model_source"] not in _REVIEW_RECEIPT_SOURCES:
+        raise ValueError("invalid review receipt model_source")
+    if receipt.get("outcome_source", "unknown") not in _REVIEW_RECEIPT_SOURCES:
+        raise ValueError("invalid review receipt outcome_source")
+    values = {key: receipt.get(key) for key in _REVIEW_RECEIPT_COLUMNS}
+    values["schema_version"] = int(values["schema_version"] or 1)
+    values["round"] = None if values["round"] is None else int(values["round"])
+    values["status"] = values["status"] or "requested"
+    values["requested_at"] = values["requested_at"] or datetime.now(timezone.utc).isoformat()
+    values["failure_code"] = values["failure_code"] or ""
+    values["artifact_sha256"] = values["artifact_sha256"] or ""
+    values["verdict_value"] = values["verdict_value"] or ""
+    values["recovery_source"] = values["recovery_source"] or ""
+    values["author_outcome"] = values["author_outcome"] or "unknown"
+    values["outcome_source"] = values["outcome_source"] or "unknown"
+    values["outcome_evidence_ref"] = values["outcome_evidence_ref"] or ""
+    values["notification_event_id"] = values["notification_event_id"] or ""
+    placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
+    columns = ", ".join(_REVIEW_RECEIPT_COLUMNS)
+    with _conn() as c:
+        cursor = c.execute(
+            f"INSERT INTO review_receipts ({columns}) VALUES ({placeholders}) "
+            "ON CONFLICT(receipt_id) DO NOTHING",
+            tuple(values[key] for key in _REVIEW_RECEIPT_COLUMNS),
+        )
+        if cursor.rowcount == 0:
+            existing = c.execute(
+                "SELECT * FROM review_receipts WHERE receipt_id=?",
+                (values["receipt_id"],),
+            ).fetchone()
+            if existing is None or any(
+                existing[key] != values[key] for key in _REVIEW_RECEIPT_COLUMNS
+            ):
+                raise ValueError("review receipt id conflicts with existing provenance")
+        return cursor.rowcount == 1
+
+
+def review_receipt_get(receipt_id: str) -> dict | None:
+    if not receipt_id:
+        return None
+    with _conn() as c:
+        row = c.execute(
+            "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def review_receipt_reserve(receipt: dict) -> dict:
+    """Allocate the next artifact round and insert its start receipt atomically."""
+    if not isinstance(receipt, dict):
+        raise TypeError("review receipt must be a dict")
+    artifact_path = str(receipt.get("artifact_path") or "")
+    if not artifact_path:
+        raise ValueError("review receipt artifact_path is required")
+    values = dict(receipt)
+    values["round"] = None
+    values.setdefault("schema_version", 1)
+    values.setdefault("requested_at", datetime.now(timezone.utc).isoformat())
+    values.setdefault("status", "requested")
+    values.setdefault("failure_code", "")
+    values.setdefault("artifact_sha256", "")
+    values.setdefault("verdict_value", "")
+    values.setdefault("recovery_source", "")
+    values.setdefault("author_outcome", "unknown")
+    values.setdefault("outcome_source", "unknown")
+    values.setdefault("outcome_evidence_ref", "")
+    values.setdefault("notification_event_id", "")
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute(
+            "SELECT COALESCE(MAX(round), 0) FROM review_receipts WHERE artifact_path=?",
+            (artifact_path,),
+        ).fetchone()
+        values["round"] = int(row[0] or 0) + 1
+        placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
+        columns = ", ".join(_REVIEW_RECEIPT_COLUMNS)
+        c.execute(
+            f"INSERT INTO review_receipts ({columns}) VALUES ({placeholders})",
+            tuple(values.get(key) for key in _REVIEW_RECEIPT_COLUMNS),
+        )
+        saved = c.execute(
+            "SELECT * FROM review_receipts WHERE receipt_id=?",
+            (values["receipt_id"],),
+        ).fetchone()
+    return dict(saved)
+
+
+def review_receipt_finish(receipt_id: str, updates: dict) -> bool:
+    """Record terminal execution facts without allowing start provenance to drift."""
+    allowed = {
+        "job_id", "completed_at", "status", "return_code", "failure_code",
+        "artifact_exists", "artifact_bytes", "artifact_sha256", "verdict_present",
+        "verdict_value", "jsonl_response_present", "recovery_source",
+        "notification_event_id",
+    }
+    unknown = set(updates) - allowed
+    if unknown:
+        raise ValueError("review receipt terminal fields not allowed: " + ", ".join(sorted(unknown)))
+    if updates.get("status") not in {None, "requested", "completed", "failed", "timed_out", "interrupted"}:
+        raise ValueError("invalid review receipt status")
+    if not updates:
+        return False
+    assignments = ", ".join(f"{key}=?" for key in updates)
+    with _conn() as c:
+        cursor = c.execute(
+            f"UPDATE review_receipts SET {assignments} WHERE receipt_id=?",
+            tuple(updates[key] for key in updates) + (receipt_id,),
+        )
+        return cursor.rowcount == 1
+
+
+def review_receipt_set_outcome(
+    receipt_id: str, outcome: str, outcome_evidence_ref: str = "",
+) -> dict:
+    """Set an author outcome once; identical replay returns the existing row."""
+    if outcome not in _REVIEW_OUTCOMES:
+        raise ValueError("outcome must be accepted, disputed, or partial")
+    evidence = str(outcome_evidence_ref or "").strip()
+    if outcome == "disputed" and not evidence:
+        raise ValueError("outcome_evidence_ref is required for disputed outcome")
+    with _conn() as c:
+        row = c.execute(
+            "SELECT author_outcome, outcome_evidence_ref FROM review_receipts WHERE receipt_id=?",
+            (receipt_id,),
+        ).fetchone()
+        if not row:
+            raise LookupError("review receipt not found")
+        current = row["author_outcome"] or "unknown"
+        current_ref = row["outcome_evidence_ref"] or ""
+        if current != "unknown":
+            if current == outcome and current_ref == evidence:
+                saved = c.execute(
+                    "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
+                ).fetchone()
+                return dict(saved)
+            raise ValueError("review receipt outcome is already fixed")
+        c.execute(
+            "UPDATE review_receipts SET author_outcome=?, outcome_source='direct', "
+            "outcome_evidence_ref=? WHERE receipt_id=? AND author_outcome='unknown'",
+            (outcome, evidence, receipt_id),
+        )
+        if c.execute("SELECT changes()").fetchone()[0] == 0:
+            current_row = c.execute(
+                "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
+            ).fetchone()
+            current = current_row["author_outcome"] or "unknown"
+            current_ref = current_row["outcome_evidence_ref"] or ""
+            if current == outcome and current_ref == evidence:
+                return dict(current_row)
+            raise ValueError("review receipt outcome is already fixed")
+        saved = c.execute(
+            "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
+        ).fetchone()
+    return dict(saved)
 
 
 # ── Background Jobs ──
