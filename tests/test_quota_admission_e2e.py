@@ -57,6 +57,10 @@ def db(tmp_path, monkeypatch):
     from app.db import init_db
 
     init_db()
+    from app import tm
+
+    with tm._conn() as conn:
+        tm.ensure_project(conn, "test", scope="/s")
 
 
 @pytest.fixture
