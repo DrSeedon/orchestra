@@ -37,6 +37,11 @@ from claude_agent_sdk.types import (
     ToolResultBlock, ServerToolResultBlock, UserMessage,
 )
 
+try:
+    from claude_agent_sdk import RateLimitEvent
+except ImportError:  # Older SDKs do not expose rate-limit events.
+    RateLimitEvent = None
+
 from app.errtext import err_text
 from app.events import AgentEvent
 from app.runtime_history import (
@@ -1381,6 +1386,14 @@ class ClaudeBackend:
                                                "tool_use_id": tool_use_id,
                                                "raw_json": _json.dumps(data, ensure_ascii=False) if data else "",
                                                **u}))
+
+        elif RateLimitEvent is not None and isinstance(msg, RateLimitEvent):
+            info = msg.rate_limit_info
+            raw = getattr(info, "raw", {}) or {}
+            events.append(AgentEvent(
+                "status",
+                f"RATE_LIMIT_RAW {_json.dumps(raw, ensure_ascii=False)}",
+            ))
 
         elif isinstance(msg, ResultMessage):
             sr = getattr(msg, "stop_reason", None) or "unknown"
