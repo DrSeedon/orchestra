@@ -28,6 +28,7 @@ from telegramify_markdown import convert as md_convert
 
 from app.errtext import err_text
 from app.events import MessageProvenance
+from app.status_policy import is_internal_telemetry_status
 from app.tasks import spawn_supervised
 from app.turn_markers import (
     SILENT_TURN_MARKER as TG_SILENT_TURN_MARKER,
@@ -3400,6 +3401,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                     elif t == "error":
                         text = f"❌ {c}"
                     elif t == "status":
+                        if is_internal_telemetry_status(c):
+                            continue
                         if "turn ended" in c:
                             still_running = _any_running_in_scope(scope)
                             if not still_running:

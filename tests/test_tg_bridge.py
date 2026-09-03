@@ -4828,6 +4828,34 @@ async def test_text_tool_call_marker_reaches_topic_and_mirror(
 class TestTurnFoldStream:
     """Поток целиком: что мост РЕАЛЬНО отправляет за ход."""
 
+    @pytest.mark.asyncio
+    async def test_rate_limit_raw_stays_in_logs_but_not_user_channel(
+        self, tb, monkeypatch,
+    ):
+        """Claude raw rate-limit telemetry is durable status, not user-facing status."""
+        from app.events import AgentEvent
+        from app.session import AgentSession
+
+        raw_content = 'RATE_LIMIT_RAW {"utilization":0.16327272727272726}'
+        persisted = []
+        session = AgentSession(
+            id="sid", name="orch", scope="/s", cwd="/tmp",
+            model="claude-sonnet-5[1m]", system_prompt="test",
+        )
+        monkeypatch.setattr(
+            session, "_log",
+            lambda log_type, content, **kwargs: persisted.append({
+                "id": 1, "type": log_type, "content": content,
+            }),
+        )
+        session._handle_event(AgentEvent("status", raw_content))
+
+        assert persisted == [{"id": 1, "type": "status", "content": raw_content}]
+        sent, _, _ = await self._run(tb, monkeypatch, [persisted])
+
+        # Anchor on the bridge's own primary-TG send node, not the whole event stream.
+        assert not [item for item in sent if raw_content in item["text"]]
+
     async def _run(self, tb, monkeypatch, batches, overload_first_anchor=False,
                    overload_after_anchor=False):
         sent, expandables, edits = [], [], []
