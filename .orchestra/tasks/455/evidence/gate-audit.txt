@@ -1,0 +1,185 @@
+PROMPT_ANCHOR_ALL
+.orchestra/pipelines/default/prompts/modules/code-quality.md:10:- 200 lines where 50 suffice → rewrite
+QUALITY_TERMS_IN_GATES
+tests/test_diff_budget.py:3:Insertions count; deletions do not (dead-code removal is healthy).
+tests/test_diff_budget.py:72:    subprocess.run(["git", "commit", "-m", "drop dead code"], cwd=wt.path, capture_output=True, check=True)
+app/diff_budget.py:3:Insertions count; deletions do not. Dead-code removal stays healthy.
+scripts/migrate_agent.py:285:        raise SystemExit  # unreachable; satisfies type checker after die()
+MERGE_GATE_CALLS
+app/diff_budget.py:22:def measure_insertions(worktree: str, base_ref: str) -> int:
+app/diff_budget.py:64:def budget_error(insertions: int, limit: int = MAX_DIFF_INSERTIONS) -> str:
+app/diff_budget.py:94:def check_diff_budget(worktree: str, base_ref: str, limit: int = MAX_DIFF_INSERTIONS) -> str:
+app/diff_budget.py:96:    return budget_error(measure_insertions(worktree, base_ref), limit)
+app/mcp_stdio.py:815:            message="Initial delivery API returned an invalid acceptance receipt",
+app/mcp_stdio.py:1318:        and bool(value.get("acceptance"))
+app/mcp_stdio.py:1351:        # читает acceptance и уходит дальше, а повтора не будет никогда.
+app/mcp_stdio.py:1425:            "acceptance": "AMBIGUOUS",
+app/mcp_stdio.py:1657:def _acceptance_command_from_caller(requested: str) -> str:
+app/mcp_stdio.py:1665:    app/acceptance.py. Против исполнителя, который целенаправленно обходит
+app/mcp_stdio.py:1941:        and bool(value.get("acceptance"))
+app/mcp_stdio.py:3093:                      acceptance_command: str = "",
+app/mcp_stdio.py:3094:                      acceptance_manifest: list[str] | None = None,
+app/mcp_stdio.py:3095:                      acceptance_required: bool = False,
+app/mcp_stdio.py:3104:    command = _acceptance_command_from_caller(acceptance_command)
+app/mcp_stdio.py:3109:        "acceptance_command": command,
+app/mcp_stdio.py:3111:    if ROLE in _ORCH_ROLES and (acceptance_manifest or acceptance_required):
+app/mcp_stdio.py:3112:        payload["acceptance_manifest"] = list(acceptance_manifest or [])
+app/mcp_stdio.py:3113:        payload["acceptance_required"] = bool(acceptance_required)
+app/mcp_stdio.py:3153:                      project: str = "", acceptance_command: str = "",
+app/mcp_stdio.py:3154:                      acceptance_manifest: list[str] | None = None,
+app/mcp_stdio.py:3155:                      acceptance_required: bool | None = None,
+app/mcp_stdio.py:3156:                      clear_acceptance_command: bool = False,
+app/mcp_stdio.py:3157:                      clear_acceptance_oracle: bool = False,
+app/mcp_stdio.py:3162:    acceptance_command is orchestrator-only; empty means don't change.
+app/mcp_stdio.py:3163:    clear_acceptance_command=true explicitly clears it.
+app/mcp_stdio.py:3181:    command = _acceptance_command_from_caller(acceptance_command)
+app/mcp_stdio.py:3182:    if (clear_acceptance_command or clear_acceptance_oracle) and command:
+app/mcp_stdio.py:3183:        return "Error: acceptance_command and clear_acceptance_command are mutually exclusive"
+app/mcp_stdio.py:3186:            body["acceptance_command"] = command
+app/mcp_stdio.py:3187:        elif clear_acceptance_command:
+app/mcp_stdio.py:3188:            body["clear_acceptance_command"] = True
+app/mcp_stdio.py:3189:        if clear_acceptance_oracle:
+app/mcp_stdio.py:3190:            body["clear_acceptance_oracle"] = True
+app/mcp_stdio.py:3192:            if acceptance_manifest is not None:
+app/mcp_stdio.py:3193:                body["acceptance_manifest"] = list(acceptance_manifest)
+app/mcp_stdio.py:3194:            if acceptance_required is not None:
+app/mcp_stdio.py:3195:                body["acceptance_required"] = bool(acceptance_required)
+app/workspace.py:1371:                        budget_error,
+app/workspace.py:1372:                        measure_insertions,
+app/workspace.py:1374:                    diff_insertions = measure_insertions(str(wt), target_branch)
+app/workspace.py:1378:                        else budget_error(diff_insertions, MAX_DIFF_INSERTIONS)
+app/merge_operations.py:441:    mapped_files: list[str] | None = None,
+app/merge_operations.py:459:        "mapped_files": list(mapped_files or []),
+app/merge_operations.py:772:    from app import acceptance
+app/merge_operations.py:799:    task_oracle = acceptance.task_oracle_for_session(accepted["session_id"])
+app/merge_operations.py:802:        raise acceptance.AcceptanceCommandError(
+app/merge_operations.py:807:        oracle = acceptance.pin_task_oracle(
+app/merge_operations.py:1632:            from app import acceptance as acceptance_module
+app/merge_operations.py:1633:            from app.acceptance import FAILED, INCONCLUSIVE, PASSED, SKIPPED
+app/merge_operations.py:1654:                acceptance = await asyncio.to_thread(
+app/merge_operations.py:1655:                    acceptance_module.evaluate_for_merge,
+app/merge_operations.py:1659:                oracle_status = str(acceptance.get("status") or INCONCLUSIVE)
+app/merge_operations.py:1665:                acceptance = await asyncio.to_thread(
+app/merge_operations.py:1666:                    acceptance_module.evaluate_pinned_oracle,
+app/merge_operations.py:1670:                oracle_status = str(acceptance.get("status") or INCONCLUSIVE)
+app/merge_operations.py:1672:                acceptance = await asyncio.to_thread(
+app/merge_operations.py:1673:                    acceptance_module.run_command,
+app/merge_operations.py:1677:                acceptance["command"] = str(oracle.get("command") or "")
+app/merge_operations.py:1678:                oracle_status = str(acceptance.get("status") or INCONCLUSIVE)
+app/merge_operations.py:1680:                acceptance = {
+app/merge_operations.py:1689:            acceptance_blocks = (
+app/merge_operations.py:1690:                acceptance["status"] != PASSED
+app/merge_operations.py:1692:                else acceptance["status"] in {FAILED, INCONCLUSIVE}
+app/merge_operations.py:1694:            if acceptance_blocks:
+app/merge_operations.py:1697:                    if acceptance["status"] == FAILED
+app/merge_operations.py:1703:                        f"Platform acceptance {acceptance['status']}"
+app/merge_operations.py:1704:                        f" ({acceptance.get('reason') or 'exit_nonzero'}): "
+app/merge_operations.py:1705:                        f"{(acceptance.get('output') or '')[-400:]}"
+app/merge_operations.py:1709:                    retryable=acceptance["status"] == INCONCLUSIVE,
+app/merge_operations.py:1720:                        "Fix the registered acceptance command, then start a new merge.",
+app/merge_operations.py:1723:                result["acceptance"] = acceptance
+app/merge_operations.py:1787:                    result["acceptance"] = acceptance
+app/merge_operations.py:1792:                        mapped_files=list(test_gate.get("mapped_files") or []),
+app/merge_operations.py:1850:                    result["acceptance"] = acceptance
+app/merge_operations.py:1855:                        mapped_files=list(test_gate.get("mapped_files") or []),
+DIFF_BUDGET_OWNER
+"""Hard ceiling on unreviewable agent diffs (#250).
+
+Insertions count; deletions do not. Dead-code removal stays healthy.
+The agent cannot waive this: merge_worktree_to_main calls it, and that
+is the only landing path.
+"""
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+# Backtest `git log main --no-merges --numstat`, 1871 commits (2026-08-14):
+# 800 insertions refused 155 (8.3%) and cut real features (#174 991, #187 983,
+# Codex runtime 878). 2000 refuses 48 (2.6%) and still catches the 25k dumps
+# the ticket named as unreviewable. Deletions do not count.
+MAX_DIFF_INSERTIONS = 2000
+_ORCH_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
+# git's well-known empty tree: the base for branches with no common ancestor.
+_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+
+def measure_insertions(worktree: str, base_ref: str) -> int:
+    """Insertions in worktree vs merge-base(HEAD, base_ref), plus untracked files."""
+    wt = str(Path(worktree))
+    mb = _run(["git", "merge-base", "HEAD", base_ref], wt)
+    if mb.returncode != 0 or not mb.stdout.strip():
+        # No common ancestor (orphan branch, worker from another repo): the merge
+        # falls back to cherry-pick and introduces the whole branch, so the empty
+        # tree is the honest base. A base_ref that does not resolve stays loud.
+        if _run(["git", "rev-parse", "--verify", f"{base_ref}^{{commit}}"], wt).returncode != 0:
+            raise RuntimeError(
+                f"cannot resolve merge-base with {base_ref!r}: "
+                f"{(mb.stderr or mb.stdout).strip() or f'exit {mb.returncode}'}"
+            )
+        base = _EMPTY_TREE
+    else:
+        base = mb.stdout.strip()
+    diff = _run(["git", "diff", "--numstat", base], wt)
+    if diff.returncode != 0:
+        raise RuntimeError(
+            f"git diff --numstat failed: {(diff.stderr or diff.stdout).strip()}"
+        )
+    insertions = 0
+    for line in diff.stdout.splitlines():
+        fields = line.split("\t", 2)
+        if len(fields) != 3 or fields[0] == "-":
+            continue
+        insertions += int(fields[0])
+    untracked = _run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"], wt,
+    )
+    if untracked.returncode == 0 and untracked.stdout:
+        for rel in untracked.stdout.split("\0"):
+            if not rel:
+                continue
+            path = Path(wt) / rel
+            try:
+                insertions += path.read_text(encoding="utf-8", errors="replace").count("\n")
+            except OSError:
+                continue
+    return insertions
+
+
+def budget_error(insertions: int, limit: int = MAX_DIFF_INSERTIONS) -> str:
+    if insertions <= limit:
+        return ""
+    return (
+        f"DIFF TOO LARGE: {insertions} insertions (limit {limit}). "
+        "Deletions do not count. Split into smaller changes and merge those, "
+        "or ask the orchestrator to retry with waive_diff_budget=True. "
+        "Do not truncate the work silently."
+    )
+
+
+def may_waive_diff_budget(
+    *,
+    caller_role: str = "",
+    cookie_ok: bool = False,
+    caller_is_orchestrator: bool = False,
+) -> bool:
+    """Human cookie or an orchestrator session may waive. Workers may not."""
+    if cookie_ok or caller_is_orchestrator:
+        return True
+    return caller_role.strip().lower() in _ORCH_ROLES
+
+
+def request_may_waive_diff_budget(request) -> bool:
+    """Cookie or a proof-bound MCP session. Session-id alone is not identity."""
+    from app.mcp_proof import caller_may_use_orchestrator_privilege
+
+    return caller_may_use_orchestrator_privilege(request)
+
+
+def check_diff_budget(worktree: str, base_ref: str, limit: int = MAX_DIFF_INSERTIONS) -> str:
+    """Empty string if under the ceiling; otherwise a loud refusal."""
+    return budget_error(measure_insertions(worktree, base_ref), limit)
+
+
+def _run(argv: list[str], cwd: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True)

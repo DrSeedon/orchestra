@@ -1,0 +1,144 @@
+{
+  "instrument_noise": {
+    "current_candidate_count": 91,
+    "current_clone_group_count": 45,
+    "current_definition_count": 3044,
+    "current_unresolved_getattr_count": 15,
+    "current_unresolved_getattrs": [
+      {
+        "line": 1212,
+        "name_expr": "k",
+        "path": "app/backend_claude.py",
+        "receiver": "usage",
+        "scope": "app.backend_claude:ClaudeBackend._task_usage"
+      },
+      {
+        "line": 915,
+        "name_expr": "method",
+        "path": "app/rag.py",
+        "receiver": "get_rag_ro()",
+        "scope": "app.rag:run._call_ro"
+      },
+      {
+        "line": 919,
+        "name_expr": "method",
+        "path": "app/rag.py",
+        "receiver": "get_rag()",
+        "scope": "app.rag:run._call"
+      },
+      {
+        "line": 626,
+        "name_expr": "name",
+        "path": "app/runtime_history.py",
+        "receiver": "manifest",
+        "scope": "app.runtime_history:_manifest_value"
+      },
+      {
+        "line": 3870,
+        "name_expr": "key",
+        "path": "app/session.py",
+        "receiver": "prepared",
+        "scope": "app.session:AgentSession._stage_runtime_handoff_target"
+      },
+      {
+        "line": 1366,
+        "name_expr": "f'{traffic_class}_max_latency'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_record_latency"
+      },
+      {
+        "line": 1412,
+        "name_expr": "f'{traffic_class}_timeouts'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1427,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1435,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1452,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1472,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1483,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1493,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1501,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1511,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      }
+    ],
+    "hashes": [
+      "bca0e9645c18ce8304e06a491d9b478c3928cbc920340d419c3b19a73a2cb5f6",
+      "bca0e9645c18ce8304e06a491d9b478c3928cbc920340d419c3b19a73a2cb5f6",
+      "bca0e9645c18ce8304e06a491d9b478c3928cbc920340d419c3b19a73a2cb5f6"
+    ],
+    "pass": true,
+    "runs": 3,
+    "unique_hashes": 1
+  },
+  "negative_control": {
+    "actual_real_sites": [
+      840,
+      893,
+      1369,
+      1453,
+      1548,
+      1596,
+      1745,
+      1904,
+      2313,
+      2350,
+      2478
+    ],
+    "pass": true,
+    "synthetic_three_statement_clone_groups": 0
+  },
+  "positive_control": {
+    "pass": true,
+    "synthetic_four_statement_clone_groups": 1
+  }
+}

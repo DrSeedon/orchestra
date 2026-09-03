@@ -1,0 +1,8 @@
+{
+  "status": "excluded",
+  "reason": "The first full call graph did not resolve ImportFrom.asname inside function scope.",
+  "positive_counterexample": "app/main.py imports ensure_task as ensure_portfolio_watchdog and calls the alias, but the invalid graph classified the app.portfolio_watchdog cluster unreachable.",
+  "invalid_persistent_dead_added_lines_candidate": 979,
+  "corrected_persistent_dead_added_lines_candidate": 741,
+  "action": "Added scope-local import-alias edges and repeated controls, full run, noise, and comparison from scratch."
+}
