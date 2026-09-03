@@ -230,17 +230,58 @@ async def _download_file(file_id: str, filename: str, unique_id: str = "") -> st
         return None
 
 
+def _telegram_post_url(chat, message_id: int | None) -> str | None:
+    if not chat or not message_id:
+        return None
+    username = getattr(chat, "username", None)
+    if username:
+        return f"https://t.me/{username.lstrip('@')}/{message_id}"
+    chat_id = str(getattr(chat, "id", ""))
+    if chat_id.startswith("-100"):
+        return f"https://t.me/c/{chat_id[4:]}/{message_id}"
+    return None
+
+
 def _forward_meta(msg: types.Message) -> str:
-    if not msg.forward_date:
-        return ""
     fwd = "Forwarded"
-    if msg.forward_from:
-        name = msg.forward_from.first_name
-        if msg.forward_from.last_name:
-            name += " " + msg.forward_from.last_name
-        fwd += f" from {name}"
-    elif msg.forward_sender_name:
-        fwd += f" from {msg.forward_sender_name}"
+    origin = getattr(msg, "forward_origin", None)
+    source = None
+    post_url = None
+    if origin:
+        origin_type = getattr(origin, "type", None)
+        if origin_type == "user":
+            user = origin.sender_user
+            source = " ".join(
+                part for part in (user.first_name, user.last_name) if part
+            )
+        elif origin_type == "hidden_user":
+            source = origin.sender_user_name
+        elif origin_type == "chat":
+            chat = origin.sender_chat
+            source = chat.title or chat.username
+        elif origin_type == "channel":
+            source = origin.chat.title or origin.chat.username
+            post_url = _telegram_post_url(origin.chat, origin.message_id)
+    elif getattr(msg, "forward_date", None):
+        if msg.forward_from:
+            source = " ".join(
+                part
+                for part in (msg.forward_from.first_name, msg.forward_from.last_name)
+                if part
+            )
+        elif msg.forward_sender_name:
+            source = msg.forward_sender_name
+        elif msg.forward_from_chat:
+            source = msg.forward_from_chat.title or msg.forward_from_chat.username
+            post_url = _telegram_post_url(
+                msg.forward_from_chat, msg.forward_from_message_id
+            )
+    else:
+        return ""
+    if source:
+        fwd += f" from {source}"
+    if post_url:
+        fwd += f" | {post_url}"
     return f"[{fwd}] "
 
 
@@ -3808,6 +3849,52 @@ async def handle_group_message(msg: types.Message):
         reply_prefix = f"> {quoted}\n\n"
     content = f"{reply_prefix}{_forward_meta(msg)}{msg.text}"
     await _send_to_agent(msg, session, content)
+
+
+def _fallback_payload(msg: types.Message) -> tuple[str, object]:
+    content_type = getattr(msg.content_type, "value", msg.content_type) or "unknown"
+    payload = getattr(msg, content_type, None) if content_type != "unknown" else None
+    if content_type == "unknown":
+        extra = {
+            key: value
+            for key, value in (msg.model_extra or {}).items()
+            if value is not None
+        }
+        if "rich_message" in extra:
+            return "rich_message", extra["rich_message"]
+        if len(extra) == 1:
+            content_type, payload = next(iter(extra.items()))
+        elif extra:
+            return "+".join(sorted(extra)), extra
+    return content_type, payload if payload is not None else msg
+
+
+def _serialize_fallback_payload(payload: object) -> str:
+    model_dump_json = getattr(payload, "model_dump_json", None)
+    if model_dump_json:
+        return model_dump_json(exclude_none=True, by_alias=True)
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str)
+
+
+@dp.message()
+async def handle_unhandled_message(msg: types.Message):
+    content_type, payload = _fallback_payload(msg)
+    logger.warning(
+        "TG ingress fallback: chat=%s thread=%s message=%s type=%s",
+        msg.chat.id,
+        msg.message_thread_id,
+        msg.message_id,
+        content_type,
+    )
+    orch_name, session = await _resolve_orch(msg)
+    if not session:
+        return
+    serialized = _serialize_fallback_payload(payload)
+    await _send_to_agent(
+        msg,
+        session,
+        f"{_forward_meta(msg)}[{content_type}] {serialized}",
+    )
 
 
 async def topic_sync_loop():

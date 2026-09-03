@@ -117,11 +117,11 @@ def tb(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_polling_does_not_override_uvicorn_signal_handlers(tb):
+async def test_polling_does_not_override_uvicorn_signal_handlers(tb, monkeypatch):
     dispatcher = AsyncMock()
     dispatcher.start_polling.side_effect = asyncio.CancelledError
     bot = object()
-    tb.dp = dispatcher
+    monkeypatch.setattr(tb, "dp", dispatcher)
     tb.bot = bot
 
     with pytest.raises(asyncio.CancelledError):
