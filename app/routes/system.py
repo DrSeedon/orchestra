@@ -1588,6 +1588,13 @@ async def build_quota_map() -> dict:
                 # по прямой, и обе живут в одном пуле Codex/Anthropic соответственно.
                 "curved": decision.lane in CURVED_LANES,
                 "limit_pct": decision.limit_pct,
+                "headroom_pp": (
+                    None
+                    if not decision.gated
+                    or decision.limit_pct is None
+                    or decision.utilization is None
+                    else decision.limit_pct - decision.utilization
+                ),
                 "blocked": False,
                 "release_status": decision.release_status,
                 "release_in_seconds": decision.release_in_seconds,
