@@ -33,6 +33,7 @@ from app.events import MessageProvenance
 from app.models import ensure_dashboard_visible, ensure_spawn_allowed, resolve_model, MODELS
 from app.quota_gate import QuotaGateError
 from app.session import AgentStatus
+from app.status_policy import is_internal_telemetry_status
 
 logger = logging.getLogger("orchestra.sessions")
 
@@ -535,7 +536,12 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
             if live_session is not None
             else str((stored or {}).get("status") or "idle")
         )
-        return {**payload, "agent_status": status}
+        result = {**payload, "agent_status": status}
+        if payload.get("type") == "status":
+            result["status_hidden"] = is_internal_telemetry_status(
+                str(payload.get("content") or "")
+            )
+        return result
 
     async def event_generator():
         from app.db import _conn
@@ -595,11 +601,24 @@ async def get_session_logs(name: str, response: Response, scope: str,
     session_id = manager.get_session_id(name, scope)
     if not session_id:
         return JSONResponse({"error": "not found"}, status_code=404)
+
+    def annotate(log: dict) -> dict:
+        if log.get("type") != "status":
+            return log
+        return {
+            **log,
+            "status_hidden": is_internal_telemetry_status(
+                str(log.get("content") or "")
+            ),
+        }
+
     if before_id > 0:
-        return get_logs_before(session_id, before_id, limit,
+        logs = get_logs_before(session_id, before_id, limit,
                                max(0, min(max_bytes, 1 << 20)),
                                max(0, min(cap, 1 << 20)))
-    return get_logs(session_id, after_id=after_id)
+    else:
+        logs = get_logs(session_id, after_id=after_id)
+    return [annotate(log) for log in logs]
 
 
 @router.get("/api/logs/sync")

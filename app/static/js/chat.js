@@ -1811,8 +1811,9 @@ function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, inser
     return true;
 }
 
-function _renderStatusEntry(type, content, ts, anchor, insertAndFollow) {
+function _renderStatusEntry(type, content, ts, anchor, insertAndFollow, payload) {
     if (type !== 'status') return false;
+    if (payload?.status_hidden === true) return true;
     // A status row may beat the authoritative `text` row through async logging.
     // Never finalize streamBubble here or the later text becomes a duplicate answer.
     if (content?.startsWith('precompact timer')) return true;
@@ -3896,7 +3897,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         return;
     }
 
-    if (_renderStatusEntry(type, content, ts, anchor, _insertAndFollow)) return;
+    if (_renderStatusEntry(type, content, ts, anchor, _insertAndFollow, payload)) return;
 
     if (_renderSubagentLifecycleEntry(type, content, ts, payload, chat, _insertAndFollow)) return;
 
