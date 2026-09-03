@@ -1,0 +1,21 @@
+{
+  "backup_method": "sqlite3.Connection.backup from mode=ro sources",
+  "files": {
+    "knowledge-v1/current.db": 172314624,
+    "knowledge-v1/task-current.db": 2293760,
+    "orchestra.db": 763842560
+  },
+  "live_database": "/home/kesha/orchestra/data/orchestra.db",
+  "live_state": "/home/kesha/.local/state/orchestra/knowledge-v1",
+  "watermark": {
+    "current_projection_head": "sha256:407092c4f408f808b00bc87f036b901b6dfcb2d640e6e0fd263d815834e544aa",
+    "current_rows": 3255,
+    "legacy_task_count": 592,
+    "legacy_task_max_id": 592,
+    "runtime_canonical_head": "sha256:407092c4f408f808b00bc87f036b901b6dfcb2d640e6e0fd263d815834e544aa",
+    "runtime_projection_head": "sha256:407092c4f408f808b00bc87f036b901b6dfcb2d640e6e0fd263d815834e544aa",
+    "task_canonical_head": "sha256:9524409b58193a390a20c90bbdfcce210696cc6a267915093ded003f3d98cc4c",
+    "task_projection_head": "sha256:9524409b58193a390a20c90bbdfcce210696cc6a267915093ded003f3d98cc4c",
+    "task_states": 589
+  }
+}

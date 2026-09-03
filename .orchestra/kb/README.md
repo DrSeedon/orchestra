@@ -80,3 +80,5 @@
 - [project-portfolio](project-portfolio.md) — `scope` как технический ключ против человеческого проекта: `tm_projects` уже владеет задачами, один владелец на проект, правдивая доска и доказательства по сторожу застоя.
 - [dashboard-quota-map](dashboard-quota-map.md) — браузерный `TimeoutError` при обновлении квоты: 2-секундный `AbortSignal` стартует раньше ответа HTTP/1.1, лечится очередью, а не увеличением бюджета.
 - [feature-usage-audit](feature-usage-audit.md) — замороженный срез #309: сколько у нас реально тулов, путей OpenAPI и маршрутов, и какие из них никто не зовёт.
+- [competitive-landscape](competitive-landscape.md) — чужие ADE/harness (Orca, omp, Multica, Paseo, cmux) и субагенты Claude Code/Codex против нас: что перестало быть отличием, измеренная разница по времени жизни агента, цена fork/exec и где мы слабее.
+- [antigravity-runtime](antigravity-runtime.md) — официальный `agy` headless/NDJSON и MCP технически совместимы с runtime Orchestra, но consumer login запрещён current Terms для third-party wrappers; quota остаётся динамической weekly/5-hour без RPD/RPM.

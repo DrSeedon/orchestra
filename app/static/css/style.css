@@ -531,6 +531,18 @@ textarea:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; }
 .codex-search-detail { color: #64748b; font-size: 10px; }
 .codex-tool-image { display: block; max-width: 100%; max-height: 260px; margin-top: 7px; border: 1px solid #273548; border-radius: 7px; object-fit: contain; cursor: zoom-in; background: #080d14; }
 .codex-tool-image-error { min-height: 44px; padding: 12px; color: #f87171; font-size: 12px; }
+.tool-full-details { margin-top: 6px; border-top: 1px solid rgba(51,65,85,.55); padding-top: 4px; }
+.tool-full-details > summary { color: #64748b; cursor: pointer; font-size: 10px; user-select: none; }
+.tool-argument-settings { display: grid; gap: 5px; margin-top: 6px; }
+.tool-argument-field { padding: 4px 7px; border-left: 2px solid rgba(56,189,248,.28); border-radius: 4px; background: rgba(15,23,42,.48); }
+.tool-argument-label { color: #64748b; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.tool-argument-value { margin: 2px 0 0; color: #cbd5e1; font-family: inherit; font-size: 10px; line-height: 1.45; max-width: 100%; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.run-fan-items { display: grid; gap: 3px; margin-top: 5px; }
+.run-fan-item { padding: 3px 7px; border-left: 2px solid rgba(167,139,250,.45); border-radius: 4px; background: rgba(76,29,149,.10); color: #c4b5fd; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-fan-detail { margin-top: 8px; border-left: 2px solid rgba(167,139,250,.38); padding-left: 8px; }
+.run-fan-detail h4 { margin: 0 0 4px; color: #c4b5fd; font-size: 10px; font-weight: 700; }
+.run-fan-task { margin: 0; color: #cbd5e1; font-family: inherit; font-size: 11px; line-height: 1.5; max-width: 100%; overflow-wrap: anywhere; white-space: pre-wrap; }
+.run-fan-owned-dirs { margin: 4px 0 0; padding-left: 17px; color: #94a3b8; font-size: 10px; line-height: 1.45; }
 .codex-image-prompt { margin-top: 5px; color: #64748b; font-size: 10px; line-height: 1.4; }
 .codex-turn-diff { border-left-color: #f59e0b; }
 .codex-diff-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

@@ -1,0 +1,28 @@
+{
+  "steps": 9,
+  "provider_success": 9,
+  "valid_json": 9,
+  "malformed_output": 0,
+  "episodes": {
+    "append": {
+      "Q": 1.0,
+      "total_tokens": 51486,
+      "reason_code": "CURRENT_DB_IS_FTS_NOT_VECTOR",
+      "critical_reason_loss": false
+    },
+    "state": {
+      "Q": 0.75,
+      "total_tokens": 50812,
+      "reason_code": "LOW_USAGE_ONLY",
+      "critical_reason_loss": true
+    },
+    "append_repeat": {
+      "Q": 0.75,
+      "total_tokens": 51397,
+      "reason_code": "LOW_USAGE_ONLY",
+      "critical_reason_loss": true
+    }
+  },
+  "state_vs_append_token_saving": 0.013090937342190134,
+  "append_repeat_noise": 0.001730120622454633
+}

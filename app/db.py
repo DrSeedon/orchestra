@@ -469,6 +469,22 @@ def init_db() -> None:
                 session_id TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS tm_task_create_requests (
+                project_id TEXT NOT NULL REFERENCES tm_projects(id),
+                request_key TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                active_owner TEXT NOT NULL,
+                generation INTEGER NOT NULL DEFAULT 1,
+                state TEXT NOT NULL,
+                task_id TEXT,
+                par_number INTEGER,
+                response_json TEXT NOT NULL DEFAULT '',
+                error_json TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY(project_id, request_key),
+                CHECK (state IN ('PENDING','ACTIVE_COMMITTED','MIRRORS_COMMITTED'))
+            );
             CREATE TABLE IF NOT EXISTS tm_clients (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -1345,7 +1361,7 @@ def _migrate(c) -> None:
     c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status)")
-    for tbl in ("tm_payment_allocations", "tm_sync_log"):
+    for tbl in ("tm_payment_allocations", "tm_sync_log", "tm_task_create_requests"):
         try:
             schema = c.execute(f"SELECT sql FROM sqlite_master WHERE name='{tbl}' AND type='table'").fetchone()
             if schema and "tm_tasks_old" in schema[0]:
@@ -1376,6 +1392,22 @@ def _migrate(c) -> None:
         kind TEXT NOT NULL,
         session_id TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS tm_task_create_requests (
+        project_id TEXT NOT NULL REFERENCES tm_projects(id),
+        request_key TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        active_owner TEXT NOT NULL,
+        generation INTEGER NOT NULL DEFAULT 1,
+        state TEXT NOT NULL,
+        task_id TEXT,
+        par_number INTEGER,
+        response_json TEXT NOT NULL DEFAULT '',
+        error_json TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(project_id, request_key),
+        CHECK (state IN ('PENDING','ACTIVE_COMMITTED','MIRRORS_COMMITTED'))
     )""")
     task_cols = {row[1] for row in c.execute("PRAGMA table_info(tm_tasks)").fetchall()}
     if task_cols and "acceptance_command" not in task_cols:

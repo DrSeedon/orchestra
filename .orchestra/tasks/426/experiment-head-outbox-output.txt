@@ -1,0 +1,16 @@
+Command:
+.venv/bin/python docs/tasks/426/experiment-head-outbox.py
+
+Pre-registered pass conditions:
+- old and cached-prefix heads are identical for 0, 2 and 1000 records;
+- ordered P→A→B finishes at B with no pending entry;
+- B-before-A is refused while observed head remains P;
+- replay with projection already at A skips the already-applied A receipt and finishes at B.
+
+Output:
+HEAD_PREFIX_EQUAL [True, True, True]
+ORDERED_FINAL ('B', [], 0)
+OUT_OF_ORDER_REFUSED ('P', [{'expected': 'A', 'target': 'B'}, {'expected': 'P', 'target': 'A'}], 1)
+CRASH_REPLAY_FINAL ('B', [], 0)
+
+RC: 0

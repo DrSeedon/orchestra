@@ -998,6 +998,39 @@ function _renderJsonGrid(obj, container, maxDepth) {
     return grid;
 }
 
+function _runFanSummary(data) {
+    const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
+    const reuse = Array.isArray(data?.reuse) ? data.reuse : [];
+    const total = tasks.length + reuse.length;
+    const count = `${total} ${total === 1 ? 'воркер' : total < 5 ? 'воркера' : 'воркеров'}`;
+    const seconds = Number(data?.deadline_seconds);
+    let deadline = 'без дедлайна';
+    if (Number.isFinite(seconds) && seconds > 0) {
+        const minutes = Math.round(seconds / 60);
+        deadline = minutes >= 60
+            ? `${Math.floor(minutes / 60)} ч${minutes % 60 ? ` ${minutes % 60} мин` : ''}`
+            : `${minutes} мин`;
+    }
+    return `🎼 run_fan → ${count} · дедлайн ${deadline}`;
+}
+
+function _runFanItems(data) {
+    const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
+    const reuse = Array.isArray(data?.reuse) ? data.reuse : [];
+    return [
+        ...tasks.map(item => ({
+            name: item?.name || '?',
+            model: item?.model || '',
+            role: item?.role || 'worker',
+        })),
+        ...reuse.map(item => ({
+            name: item?.name || '?',
+            model: '',
+            role: 'reuse',
+        })),
+    ];
+}
+
 function buildCompactToolLine(type, content, ts, payload) {
     const line = document.createElement('div');
     line.className = 'flex items-center gap-2 text-xs py-0.5 px-2 cursor-pointer rounded group';
@@ -1007,7 +1040,7 @@ function buildCompactToolLine(type, content, ts, payload) {
         const colonIdx = content.indexOf(':');
         const rawName = canonicalToolName(colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30));
         const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
-        const icon = toolIcon(rawName);
+        let icon = toolIcon(rawName);
         const short = toolShortName(rawName);
 
         let preview = body;
@@ -1021,7 +1054,30 @@ function buildCompactToolLine(type, content, ts, payload) {
         try {
             const parsed = JSON.parse(body);
             if (rawName === NOTIFY_USER_TOOL) preview = `🔔 ${parsed.reason || 'зовёт'}`;
-            else if (rawName === 'mcp__orchestra__spawn_worker') preview = `🚀 ${parsed.name || '?'} (${_modelLabel(parsed.model || 'claude-sonnet-4-6')})`;
+            else if (rawName === 'mcp__orchestra__spawn_worker') {
+                icon = '👶';
+                const role = parsed.role ? ` · ${parsed.role}` : '';
+                const task = parsed.task_id ? ` · #${taskNum(parsed.task_id)}` : '';
+                preview = `→ ${parsed.name || '?'} · ${_modelLabel(parsed.model || 'claude-sonnet-4-6')}${role}${task}`;
+            }
+            else if (rawName === 'mcp__orchestra__send_message') {
+                icon = '✉️';
+                const message = typeof parsed.message === 'string' ? parsed.message : '';
+                preview = `→ ${parsed.to || '?'} · ${message.length} симв.`;
+            }
+            else if (rawName === 'mcp__orchestra__task_create') {
+                icon = '📋';
+                const priority = parsed.priority != null ? ` · приоритет ${parsed.priority}` : '';
+                preview = `создаёт задачу «${typeof parsed.title === 'string' ? parsed.title : '?'}»${priority}`;
+            }
+            else if (rawName === 'mcp__orchestra__task_update') {
+                icon = '✏️';
+                const status = typeof parsed.status === 'string' && parsed.status ? ` • статус ${parsed.status}` : '';
+                preview = `обновляет задачу #${taskNum(parsed.par) || '?'}${status}`;
+            }
+            else if (rawName === 'mcp__orchestra__run_fan') {
+                preview = _runFanSummary(parsed).replace(/^🎼 run_fan → /, '→ ');
+            }
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = codexWebSearchCompactLabel(codexWebSearchSpec(parsed));
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
             else if (rawName === 'mcp__orchestra__report_bug') preview = `🐛 ${parsed.title || '?'}`;
@@ -1057,11 +1113,7 @@ function buildCompactToolLine(type, content, ts, payload) {
             else if (rawName === 'ViewImage') preview = `🖼 ${(parsed.file_path || '').split('/').pop() || 'image'}`;
             else if (rawName === 'ImageGeneration') preview = '🎨 generating image';
             else if (rawName === 'Sleep') preview = `⏱ ${Math.round((parsed.duration_ms || 0) / 1000)}s`;
-            else if (rawName === 'mcp__orchestra__task_create') preview = `создаёт задачу «${typeof parsed.title === 'string' ? parsed.title : '?'}»`;
-            else if (rawName === 'mcp__orchestra__task_update') {
-                const status = typeof parsed.status === 'string' && parsed.status.length > 0 ? ` • статус ${parsed.status}` : '';
-                preview = `обновляет задачу #${taskNum(parsed.par) || '?'}${status}`;
-            } else if (rawName === 'mcp__orchestra__task_list') {
+            else if (rawName === 'mcp__orchestra__task_list') {
                 const _fl = _taskListFilter(parsed);
                 preview = `читает список задач${_fl ? ` (${_fl})` : ''}`;
             } else if (rawName === 'mcp__orchestra__task_get') preview = `читает задачу #${taskNum(parsed.par) || '?'}`;
@@ -1603,11 +1655,81 @@ function _appendToolTechnicalDetails(card, content) {
     const summary = document.createElement('summary');
     summary.style.cssText = 'font-size:10px;color:#64748b;cursor:pointer;user-select:none';
     summary.textContent = 'Технические детали';
+    details.addEventListener('click', event => event.stopPropagation());
     const raw = document.createElement('pre');
     raw.style.cssText = 'margin:5px 0 0;padding:6px 8px;border-radius:6px;background:#0d1117;color:#64748b;font-size:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto';
     try { raw.textContent = JSON.stringify(JSON.parse(content), null, 2); }
     catch { raw.textContent = content; }
     details.append(summary, raw);
+    card.appendChild(details);
+}
+
+function _appendArgumentField(host, key, value) {
+    const field = document.createElement('div');
+    field.className = 'tool-argument-field';
+    const label = document.createElement('div');
+    label.className = 'tool-argument-label';
+    label.textContent = key;
+    const text = document.createElement('pre');
+    text.className = 'tool-argument-value';
+    text.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    field.append(label, text);
+    host.appendChild(field);
+}
+
+function _appendFullToolArguments(card, rawName, data) {
+    const details = document.createElement('details');
+    details.dataset.toolFullArguments = '1';
+    details.className = 'tool-full-details';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Полные аргументы';
+    details.appendChild(summary);
+    details.addEventListener('click', event => event.stopPropagation());
+
+    if (rawName === 'mcp__orchestra__run_fan') {
+        const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
+        const reuse = Array.isArray(data?.reuse) ? data.reuse : [];
+        const settings = document.createElement('div');
+        settings.className = 'tool-argument-settings';
+        for (const [key, value] of Object.entries(data || {})) {
+            if (key !== 'tasks' && key !== 'reuse') _appendArgumentField(settings, key, value);
+        }
+        details.appendChild(settings);
+        for (const item of [...tasks, ...reuse]) {
+            const worker = document.createElement('section');
+            worker.className = 'run-fan-detail';
+            const title = document.createElement('h4');
+            title.textContent = `${item?.name || '?'}${item?.model ? ` · ${item.model}` : ''}${item?.role ? ` · ${item.role}` : ''}`;
+            worker.appendChild(title);
+            for (const [key, value] of Object.entries(item || {})) {
+                if (key === 'task') {
+                    const task = document.createElement('pre');
+                    task.className = 'run-fan-task';
+                    task.textContent = String(value || '');
+                    worker.append(task);
+                } else if (key === 'owned_dirs' && Array.isArray(value)) {
+                    const dirs = document.createElement('ul');
+                    dirs.className = 'run-fan-owned-dirs';
+                    for (const dir of value) {
+                        const li = document.createElement('li');
+                        li.textContent = String(dir);
+                        dirs.appendChild(li);
+                    }
+                    worker.append(dirs);
+                } else if (!['name', 'model', 'role'].includes(key)) {
+                    _appendArgumentField(worker, key, value);
+                }
+            }
+            details.appendChild(worker);
+        }
+    } else {
+        const settings = document.createElement('div');
+        settings.className = 'tool-argument-settings';
+        for (const [key, value] of Object.entries(data || {})) {
+            _appendArgumentField(settings, key, value);
+        }
+        details.appendChild(settings);
+    }
     card.appendChild(details);
 }
 
@@ -2091,6 +2213,7 @@ function _renderFullToolCall(content, payload, div) {
             requestAnimationFrame(() => {
                 if (bodyEl.scrollHeight <= SEND_PREVIEW_H + 4) { hint.style.display = 'none'; bodyEl.style.maxHeight = 'none'; bodyEl.style.overflowY = 'visible'; }
             });
+            _appendFullToolArguments(div, rawName, d);
             div.dataset.isEdit = '1';
         } catch {}
     }
@@ -2187,9 +2310,34 @@ function _renderFullToolCall(content, payload, div) {
                 });
             }
 
+            _appendFullToolArguments(div, rawName, d);
+
             div.dataset.isEdit = '1';
         } catch {}
     }
+    const isRunFan = rawName === 'mcp__orchestra__run_fan';
+    if (isRunFan) {
+        try {
+            const d = JSON.parse(body);
+            setCodexToolTitle(header, _runFanSummary(d).replace(/^🎼 /, ''), '🎼');
+            header.style.color = '#a78bfa';
+            const items = _runFanItems(d);
+            if (items.length) {
+                const list = document.createElement('div');
+                list.className = 'run-fan-items';
+                for (const item of items) {
+                    const row = document.createElement('div');
+                    row.className = 'run-fan-item';
+                    const model = item.model ? ` · ${_modelLabel(item.model)}` : '';
+                    row.textContent = `${item.name} · ${item.role}${model}`;
+                    list.appendChild(row);
+                }
+                div.appendChild(list);
+            }
+            _appendFullToolArguments(div, rawName, d);
+        } catch {}
+    }
+    if (isRunFan) div.dataset.isEdit = '1';
     const isWebSearchCall = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
     if (isWebSearchCall) {
         try {
@@ -2650,7 +2798,7 @@ function _renderFullToolCall(content, payload, div) {
             }
         });
     } else if (!isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
-               !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
+               !isAgentTool && !isSpawnWorker && !isRunFan && !isWebSearchCall &&
                !isToolSearchCall && !isBugReport && !isWebFetch &&
                !isSendFile && !isSendFiles && !isOrchSimple && !isGlob && !isSkill &&
                !isFileChangeTool && !isViewImageTool &&

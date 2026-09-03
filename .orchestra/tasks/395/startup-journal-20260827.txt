@@ -1,0 +1,14 @@
+Command:
+journalctl -u orchestra.service --since '2026-08-26 00:00:00' --no-pager -o short-iso-precise | rg 'Started server process|Application startup complete'
+
+2026-08-27T05:09:56.829531+02:00 vmi3407579 python[3393519]: INFO:     Started server process [3393519]
+2026-08-27T05:12:56.540826+02:00 vmi3407579 python[3393519]: INFO:     Application startup complete.
+2026-08-27T07:00:34.645564+02:00 vmi3407579 python[3422849]: INFO:     Started server process [3422849]
+2026-08-27T07:05:33.663514+02:00 vmi3407579 python[3422849]: INFO:     Application startup complete.
+2026-08-27T07:05:59.506780+02:00 vmi3407579 python[3425672]: INFO:     Started server process [3425672]
+2026-08-27T07:06:21.931712+02:00 vmi3407579 python[3425672]: INFO:     Application startup complete.
+
+Calculated elapsed seconds (ISO-8601 subtraction):
+PID 3393519: 179.711295
+PID 3422849: 299.017950
+PID 3425672: 22.424932

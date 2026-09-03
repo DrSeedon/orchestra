@@ -1,0 +1,71 @@
+[
+  {
+    "case_id": "P01-419-memory-projection",
+    "arms": {
+      "append": {
+        "call_outcome": "provider_malformed_success",
+        "model_outcome": "not_graded",
+        "field_score": null,
+        "critical_loss": null
+      },
+      "append_repeat": {
+        "call_outcome": "provider_malformed_success",
+        "model_outcome": "not_graded",
+        "field_score": null,
+        "critical_loss": null
+      },
+      "state": {
+        "call_outcome": "provider_malformed_success",
+        "model_outcome": "not_graded",
+        "field_score": null,
+        "critical_loss": null
+      }
+    }
+  },
+  {
+    "case_id": "P02-422-free-lane-reconciliation",
+    "arms": {
+      "append": {
+        "call_outcome": "provider_malformed_success",
+        "model_outcome": "not_graded",
+        "field_score": null,
+        "critical_loss": null
+      },
+      "append_repeat": {
+        "call_outcome": "provider_malformed_success",
+        "model_outcome": "not_graded",
+        "field_score": null,
+        "critical_loss": null
+      },
+      "state": {
+        "call_outcome": "provider_malformed_success",
+        "model_outcome": "not_graded",
+        "field_score": null,
+        "critical_loss": null
+      }
+    }
+  },
+  {
+    "case_id": "P03-416-merge-error-normalization",
+    "arms": {
+      "append": {
+        "call_outcome": "provider_malformed_success",
+        "model_outcome": "not_graded",
+        "field_score": null,
+        "critical_loss": null
+      },
+      "append_repeat": {
+        "call_outcome": "provider_malformed_success",
+        "model_outcome": "not_graded",
+        "field_score": null,
+        "critical_loss": null
+      },
+      "state": {
+        "call_outcome": "provider_malformed_success",
+        "model_outcome": "not_graded",
+        "field_score": null,
+        "critical_loss": null
+      }
+    }
+  }
+]

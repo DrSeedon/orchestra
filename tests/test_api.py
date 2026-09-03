@@ -1031,8 +1031,10 @@ async def test_merge_persists_actual_branch_and_base_for_loaded_or_detached(
     assert (row["branch"], row["base_branch"], row["task_id"], row["needs_switch"]) == (
         "task-90/w", "master", "90", 1,
     )
+    assert result["warnings"][0]["code"] == "LEGACY_MERGE_CONTINUE"
     assert found.branch == "task-90/w"
     assert found.base_branch == "master"
+    assert found.task_id == "90"
     if loaded:
         assert found.needs_switch is True
 

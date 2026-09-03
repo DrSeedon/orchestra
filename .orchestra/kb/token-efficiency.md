@@ -183,3 +183,79 @@
   фактическим диапазонам строк, отзыв прошлой находки, размер файла как настоящая статья расхода
 - [prompt-delivery](prompt-delivery.md) — куда физически вставляется такой текст у нас и чем
   это закрыто в тестах
+
+## SKILL.state (Google, arXiv 2608.26263), оценка 01.09.2026 — заявка «98%» синтетическая, реальный выигрыш 23–60% плюс точность
+
+**Установлено из первоисточника** (абстракт с arxiv.org, таблица 4 из статьи):
+Рантайм заменяет append-only историю диалога на явное изменяемое структурированное состояние.
+На каждом шаге модель получает только спецификацию навыка, текущее состояние и последнее
+наблюдение; своё промежуточное рассуждение она отбрасывает сразу после того, как выдала
+валидный патч состояния. Ответ модели — JSON с двумя ключами: `state_patch` и `action`
+(шаблон промпта опубликован в Appendix A.4, брать можно как есть).
+
+Таблица 4, Gemini-3-Flash, публичные интерактивные бенчмарки:
+
+| рантайм | CTF Pass@1 | CTF токенов | τ-Retail | τ-Retail токенов | τ-Airline | τ-Airline токенов |
+|---|--:|--:|--:|--:|--:|--:|
+| Prompt (ReAct) | 43.2% | 977k | 48.2% | 4.48M | 21.8% | 4.85M |
+| Memory (Summary) | 46.4% | 1.03M | 29.9% | 4.24M | 23.6% | 4.65M |
+| Stateful (LangGraph) | 41.8% | 1.13M | 51.7% | 3.92M | 28.1% | 5.28M |
+| **SKILL.state** | **54.2%** | **387k** | **58.3%** | **3.47M** | **32.4%** | **2.88M** |
+
+**Разделять две цифры обязательно:** «93.8% на 100 шагах / 98% на 200» — это СИНТЕТИЧЕСКИЙ
+бенч управления складом, где состояние задачи формализуется полностью. На реальных
+бенчмарках экономия токенов 23–60%, и это её честный порядок. Зато точность растёт на
+6–11 п.п. — потому что состояние чище истории, в нём нет отброшенных гипотез.
+
+**Где это применимо у нас, а где нет:**
+- Рантаймы Claude Agent SDK и Codex CLI историю держат сами — подменить её мы не можем,
+  правило «поменяй рантайм» к ним неприменимо без своего цикла.
+- Свой цикл у нас ЕСТЬ: `app/harness/loop.py` (1 914 строк на пакет), и он именно
+  append-only — `self.history.append(...)` в четырёх местах (`loop.py:108-145`).
+- Ограничение по классу задач: бенчмарки статьи — процедурные навыки с формализуемым
+  состоянием (склад, CTF, retail-бот). Наши агенты пишут код и ведут переписку, где
+  «состояние» включает решения и отвергнутые варианты; отбрасывание рассуждений там не
+  бесплатно и требует своего замера.
+
+Не проверено, не выбрано.
+
+### Измерено на нашем контуре (#430)
+
+## Установлено
+
+- `fact:skillstate430-task-shaped-format-canary` — Простой transport canary дал HTTP 200 на 3/3 exact-free routes, но одинаковый task-shaped canary с контрактом `state_patch`+`action` прошёл только на Nano; Cohere и Dots исчерпали `max_tokens=700` с invalid JSON, поэтому availability preflight без проверки реального response schema недостаточен · искать: `format canary`, `state_patch`, `invalid JSON`, «проверка доступности SKILL.state» · evidence: `docs/tasks/430/availability-canary.json`; `docs/tasks/430/format-canary.json` · 2026-09-01, #430
+- `fact:skillstate430-pilots-have-zero-comparable-cases` — Два interleaved пилота SKILL.state сделали 54 HTTP requests: 38 request-level ответов с `choices`, 16 provider malformed/error envelopes и 0 cases, завершившихся в `append/state/append_repeat`; noise-derived token/quality thresholds поэтому равны `null`, а не нулю · искать: `0 comparable`, `54 requests`, `threshold null`, «выиграл ли SKILL.state у нас» · evidence: `docs/tasks/430/pilot-audit.json`; `docs/tasks/430/pilot-summary.json`; `docs/tasks/430/pilot2-summary.json` · 2026-09-01, #430
+- `fact:skillstate430-http200-can-contain-provider-error` — Во втором pilot все 9 provider failures пришли с outer HTTP 200, пустым `choices` и `payload.error.code=502 ResourceExhausted`; provider-success требует проверки envelope до JSON/model grading · искать: `HTTP 200`, `ResourceExhausted`, `payload.error`, `empty choices`, «ошибка провайдера не ошибка модели» · evidence: `docs/tasks/430/pilot2-raw.jsonl`; aggregate `docs/tasks/430/pilot-audit.json` · 2026-09-01, #430
+
+## Отвергнуто
+
+- `fact:skillstate430-hidden-gold-codes-invalid-judge` — «Достаточно назвать модели только final action keys, а скрытые enum-коды можно сравнить exact grader-ом» отвергнуто: P01 append корректно выбрал удаление `data/vec.db`, сохранил FTS/search_memory и дал 0/6 wins, но получил `field_score=0.4` из-за нераскрытых строк-кодов; full benchmark обязан доставить все enum и normalizer rules до первого response · искать: `hidden enum`, `field_score 0.4`, `DELETE_DATA_VEC_DB`, «ложная ошибка судьи» · evidence: `docs/tasks/430/pilot-summary.json`; `scripts/skillstate430/pilot_cases.json`; Luna review `docs/tasks/430/review-research-luna.md` · 2026-09-01, #430
+
+## Пробелы
+
+- Локальный выигрыш SKILL.state по total tokens и quality остаётся неизвестен: нужна новая frozen calibration на ≥6 полных A/B/A control cases со стабильным stateless route; Codex CLI/Luna не является эквивалентной заменой, потому что владеет своей историей · evidence: `docs/tasks/430/research.md` §§Frozen full benchmark design, Absolute thresholds; два pilot summaries с `completed_three_arm_cases=0` · 2026-09-01, #430
+
+## Источники
+
+- `docs/tasks/430/research.md` — benchmark на 30 Orchestra episodes, два исключённых availability-limited пилота, опасный класс reason-bearing задач и noise-derived acceptance gate.
+
+### Итог закрытия темы (#430, 01.09.2026)
+
+## Установлено
+
+- `fact:skillstate430-appendix-control-technically-healthy` — Paper-faithful Appendix A.4 text/fenced-JSON control технически завершил 9/9 Luna-вызовов: provider success 9/9, valid fenced JSON 9/9, `malformed_output` 0/9, protocol/tool/resume/DB-write failures 0; гейт остановился только на quality · искать: `Appendix A.4`, `9/9`, `malformed_output 0`, «технически здоровый контроль SKILL.state» · evidence: `docs/tasks/430/evidence/luna-positive-control-v2.json`; `docs/tasks/430/positive-control-v2-audit.json` · 2026-09-01, #430
+- `fact:skillstate430-short-control-effect-below-claim-and-unattributable` — На одном коротком control state дал 50 812 tokens против 51 486 у успешного append (−1.3091%) и 51 397 у append_repeat (−1.1382%), тогда как статья заявляет 23–60% на публичных бенчмарках; append получил Q=1.00, state Q=0.75 и append_repeat Q=0.75, причём оба неуспешных arm потеряли один critical `reason_code`, поэтому причинная атрибуция state невозможна, а quality/run noise полностью перекрывает наблюдаемый quality effect · искать: `1.3091%`, `1.1382%`, `Q=0.75`, `LOW_USAGE_ONLY`, «экономия состояния против шума» · evidence: `docs/tasks/430/positive-control-v2-audit.json`; raw `docs/tasks/430/evidence/luna-positive-control-v2-raw.jsonl` · 2026-09-01, #430
+- `fact:skillstate430-benchmark-closed-before-calibration-main` — Локальный benchmark закрыт без оценки эффекта: calibration=0 вызовов, main=0 измерительных вызовов; первый free-route control сделал 54 запроса (38 пригодных envelope, 16 непригодных, 0 сопоставимых троек) и упёрся в availability, второй Luna control завершил 9/9 технически, но дал только 1/3 correct arms и не прошёл quality gate · искать: `main 0`, `calibration 0`, `54 requests`, `1/3 arms`, «почему закрыли SKILL.state» · evidence: `docs/tasks/430/pilot-audit.json`; `docs/tasks/430/evidence/luna-positive-control-v2.json`; решение пользователя «закрывай тему блокнота» · 2026-09-01, #430
+
+## Отвергнуто
+
+- `fact:skillstate430-state-caused-reason-loss-not-proven` — Вывод «SKILL.state теряет важное у нас» НЕ ДОКАЗАН и цитироваться не должен: state действительно потерял critical reason и дал Q=0.75, но независимый append_repeat потерял тот же reason и также дал Q=0.75 при Q=1.00 у первого append; первоначальная причинная формулировка была озвучена пользователю и затем отозвана после сверки control arm · искать: `state теряет важное`, `append_repeat`, `причинная атрибуция`, «отозванный вывод SKILL.state» · evidence: `docs/tasks/430/positive-control-v2-audit.json`; correction receipt in task conversation; `docs/tasks/430/t2-v2-blocker.md` · 2026-09-01, #430
+- `fact:skillstate430-local-gain-was-not-measured` — Формулировка «на наших задачах измерен выигрыш или проигрыш SKILL.state» отвергнута: ни calibration, ни main не запускались, absolute thresholds остались `null`, а n=1 positive control предназначался только для допуска стенда · искать: `выигрыш не измерен`, `threshold null`, `positive control n=1`, «результат SKILL.state Orchestra» · evidence: `docs/tasks/430/research.md`; `docs/tasks/430/positive-control-v2-audit.json`; `docs/tasks/430/CLOSED.md` · 2026-09-01, #430
+
+## Пробелы
+
+- Выигрыш статьи заявлен на горизонтах в сотни шагов, а #430 измерил только короткие episodes, где экономить почти нечего; возвращаться имеет смысл только со стендом на длинных задачах и после стабилизации retention critical reason code, иначе причинный effect измерять нечем · evidence: user-supplied paper boundary; `docs/tasks/430/research.md`; `positive-control-v2-audit.json` · 2026-09-01, #430 closed by user
+
+## Источники
+
+- `docs/tasks/430/report.md` — финальное закрытие без main run: оба control, token/Q numbers, causal boundary и условия возможного возврата.

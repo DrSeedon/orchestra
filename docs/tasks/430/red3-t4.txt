@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_t4_luna_main_benchmark_is_complete_and_protocol_bound __________
+
+    def test_t4_luna_main_benchmark_is_complete_and_protocol_bound() -> None:
+>       assert POPULATION.is_file(), "T4 missing frozen Luna population ledger"
+E       AssertionError: T4 missing frozen Luna population ledger
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/skillstate-bench/docs/tasks/430/evidence/luna-population.json').is_file
+
+docs/tasks/430/acceptance/test_t4_luna_main_benchmark.py:28: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/430/acceptance/test_t4_luna_main_benchmark.py::test_t4_luna_main_benchmark_is_complete_and_protocol_bound
+1 failed in 0.39s
+
+RC=1

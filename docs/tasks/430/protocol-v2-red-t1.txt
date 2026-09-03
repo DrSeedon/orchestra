@@ -1,0 +1,28 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________________________ test_t1_luna_runner_contract _________________________
+
+    def test_t1_luna_runner_contract() -> None:
+        assert RUNNER.is_file(), "T1 missing stateless Luna runner"
+        api = runpy.run_path(str(RUNNER))
+        required = {
+            "audit_db_trace",
+            "build_codex_argv",
+            "build_rendered_request",
+            "parse_fenced_json_output",
+            "validate_state_patch",
+            "parse_turn_usage",
+        }
+>       assert required <= set(api), f"T1 missing runner API: {sorted(required - set(api))}"
+E       AssertionError: T1 missing runner API: ['parse_fenced_json_output']
+E       assert {'audit_db_tr..._state_patch'} <= {'ALLOWED_STA... 'MODEL', ...}
+E
+E         Extra items in the left set:
+E         'parse_fenced_json_output'
+
+docs/tasks/430/acceptance/test_t1_luna_runner_contract.py:25: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/430/acceptance/test_t1_luna_runner_contract.py::test_t1_luna_runner_contract
+1 failed in 0.33s
+
+RC=1

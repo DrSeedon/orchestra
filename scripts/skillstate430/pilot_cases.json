@@ -1,0 +1,95 @@
+{
+  "schema": "skillstate430-pilot-cases-v1",
+  "cases": [
+    {
+      "case_id": "P01-419-memory-projection",
+      "source": "docs/tasks/419/report.md; docs/kb/agent-memory-architecture.md",
+      "stratum": "research_architecture_with_reversal",
+      "observations": [
+        "Inventory labels ~/.local/state/orchestra/knowledge-v1/current.db (808 MB) as the vector index. Candidate action: delete current.db to remove the unused vector path.",
+        "Direct sqlite_master inspection of current.db finds current_records and current_fts. No embedding table or vector column exists. Mark the earlier label 'vector index' as rejected because the file is a lexical FTS projection.",
+        "The actual vector store is data/vec.db (779 MB). RAG_ENABLED=false means the vector path is not read. The lexical current.db rebuilds automatically and serves the surviving file-first/FTS path.",
+        "Frozen 18-question holdout plus N01 gives vector unique wins=0, ordinary rg unique wins=6, ties=0. The negative control is empty on both arms.",
+        "Accepted decision: remove the unused data/vec.db vector projection. Preserve knowledge-v1/current.db, canonical/, task-current.db, and the search_memory entry point with an actionable rg fallback.",
+        "A previous deletion of current.db freed no durable space because current.db rebuilt within an hour. Keep this rejected action and its reason so it is not repeated.",
+        "FINAL: return the current decision, preserved components, both unique-win counts, and the reason current.db must not be treated as vector storage."
+      ],
+      "final_action_keys": [
+        "decision",
+        "keep",
+        "vector_unique_wins",
+        "rg_unique_wins",
+        "reason"
+      ],
+      "gold_action": {
+        "decision": "DELETE_DATA_VEC_DB",
+        "keep": "KNOWLEDGE_CURRENT_DB_AND_SEARCH_MEMORY",
+        "vector_unique_wins": 0,
+        "rg_unique_wins": 6,
+        "reason": "CURRENT_DB_IS_FTS_NOT_VECTOR"
+      },
+      "critical_keys": ["decision", "keep", "reason"],
+      "forbidden_values": ["DELETE_CURRENT_DB", "CURRENT_DB_IS_VECTOR"]
+    },
+    {
+      "case_id": "P02-422-free-lane-reconciliation",
+      "source": "docs/tasks/422/report.md; docs/kb/auto-work.md",
+      "stratum": "evidence_reconciliation_with_withdrawal",
+      "observations": [
+        "The first benchmark summary reports best-of-two success 5/30 (16.67%). Treat it as provisional until raw provider receipts and loop status are reconciled.",
+        "Audit finding: the grader inspected answer.json even when loop_ok=false. Four failed provider calls were classified from stale or partial artifacts. The provisional 5/30 result is withdrawn.",
+        "Offline reconciliation performs zero new provider calls and first checks provider success. The corrected best-of-two result is 2/30 (6.67%), with frozen lower90=0.",
+        "In the scored 60-run matrix, 53 calls are availability_failure. Across pilot+scored 69 runs, 60 are availability failures. HTTP 404, HTTP 429, timeout, and overload belong to provider availability, not model success or model error.",
+        "All useful task completions and the only evidence-bearing honest stop came from Nemotron Nano-Omni. Gemma completed no task; Ultra's only reached artifact was wrong.",
+        "Accepted decision is not_broad_lane_ready. Preserve the withdrawn 5/30 claim with the parser-failure reason; do not silently overwrite the audit trail.",
+        "FINAL: return the lane decision, corrected success, withdrawn success, provider-failure bucket, and the route that produced useful output."
+      ],
+      "final_action_keys": [
+        "decision",
+        "success",
+        "withdrawn",
+        "provider_failure_bucket",
+        "useful_route"
+      ],
+      "gold_action": {
+        "decision": "NOT_BROAD_LANE_READY",
+        "success": "2/30",
+        "withdrawn": "5/30",
+        "provider_failure_bucket": "AVAILABILITY_FAILURE",
+        "useful_route": "NEMOTRON_NANO"
+      },
+      "critical_keys": ["decision", "success", "provider_failure_bucket"],
+      "forbidden_values": ["5/30_IS_FINAL", "COUNT_PROVIDER_FAILURE_AS_MODEL_ERROR"]
+    },
+    {
+      "case_id": "P03-416-merge-error-normalization",
+      "source": "docs/tasks/416/research.md; docs/tasks/416/report.md",
+      "stratum": "closed_code_diagnosis_with_causal_reason",
+      "observations": [
+        "A merge operation reports 'merge produced no new commits; verify the worker branch'. Initial hypothesis: the worker branch contains no useful commit.",
+        "The raw pre-merge result is ok=false, state=failed, commit_point=not_reached, error='target working tree is dirty (1 file: docs/tasks/49/)'. No merge attempt reached Git.",
+        "normalize_merge_result rewrites the raw dict whenever target ref is unchanged and commits_merged=0. That success-shaped predicate ignores the explicit failed state and replaces the useful raw error with the generic no-commits text.",
+        "After cleaning the target checkout, the same worker branch merges one commit. Reject the 'empty or unhealthy worker branch' hypothesis; the branch was healthy and target dirt caused the refusal.",
+        "Accepted minimal fix: use raw.get('error') when non-empty, otherwise fall back to the generic no-commits message. Preserve the existing typed error code as well as the specific message.",
+        "Acceptance must reject a half-fix that returns the dirty-target message under the wrong status/error code. The wrapper may add a code but may not replace the cause.",
+        "FINAL: return the owner, causal defect, minimal fix, fields that must be preserved, and the branch-health conclusion."
+      ],
+      "final_action_keys": [
+        "owner",
+        "root_cause",
+        "fix",
+        "must_preserve",
+        "branch_health"
+      ],
+      "gold_action": {
+        "owner": "NORMALIZE_MERGE_RESULT",
+        "root_cause": "WRAPPER_OVERWROTE_RAW_ERROR",
+        "fix": "PRESERVE_RAW_ERROR_WITH_FALLBACK",
+        "must_preserve": "ERROR_CODE_AND_MESSAGE",
+        "branch_health": "HEALTHY_AFTER_TARGET_CLEANUP"
+      },
+      "critical_keys": ["root_cause", "fix", "must_preserve"],
+      "forbidden_values": ["WORKER_BRANCH_EMPTY", "PRESERVE_MESSAGE_ONLY"]
+    }
+  ]
+}

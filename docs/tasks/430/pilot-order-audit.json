@@ -1,0 +1,55 @@
+{
+  "all_comparable_steps_follow_rotating_ab_order": true,
+  "comparable_step_order_checks": [
+    {
+      "actual_primary_order": [
+        "append",
+        "state"
+      ],
+      "case_id": "P01-419-memory-projection",
+      "expected_primary_order": [
+        "append",
+        "state"
+      ],
+      "ok": true,
+      "step": 1
+    },
+    {
+      "actual_primary_order": [
+        "state",
+        "append"
+      ],
+      "case_id": "P02-422-free-lane-reconciliation",
+      "expected_primary_order": [
+        "state",
+        "append"
+      ],
+      "ok": true,
+      "step": 1
+    },
+    {
+      "actual_primary_order": [
+        "append",
+        "state"
+      ],
+      "case_id": "P03-416-merge-error-normalization",
+      "expected_primary_order": [
+        "append",
+        "state"
+      ],
+      "ok": true,
+      "step": 1
+    }
+  ],
+  "rendered_surface_gap": "pilot raw did not record system/action-schema/tool/controller hashes; full benchmark must fail preflight without them",
+  "rendered_surface_hashes_captured": false,
+  "request_count_by_arm": {
+    "append": 9,
+    "append_repeat": 14,
+    "state": 10
+  },
+  "requests": 33,
+  "schema": "skillstate430-order-audit-v1",
+  "sequence_contiguous": true,
+  "summary": "docs/tasks/430/pilot-summary.json"
+}
