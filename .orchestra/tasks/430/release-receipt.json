@@ -1,0 +1,12 @@
+{
+  "fleet_current": 13,
+  "fleet_projects": 13,
+  "fleet_receipt_commit": "e748168c6eea8924999e575d9c09a88a33168d2e",
+  "fleet_summary_sha256": "92cdb4e8342c79fa98fa9d99eb785fe68ab2fc80c5115c2a5c69446a8195eedc",
+  "legacy_memory_fallback_removed_commit": "05da995c77f881395e6a8b0d33097306447ce97a",
+  "location_runtime_commit": "1f80bb50b81db380fb5f51a0894209538553087f",
+  "prompt_activation_commit": "f157420676d327553c74e8998a7bea27f2d1ad1d",
+  "schema_version": 2,
+  "startup_hook_commit": "aaee2d8eaea3d49aac9488a1af02189830eda8ff",
+  "status_preserved": 13
+}

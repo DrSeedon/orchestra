@@ -33,7 +33,7 @@ def _topic(body: str, *, section: str = "Установлено") -> str:
         f"## Установлено\n\n{established}\n\n"
         "## Отвергнуто\n\n- (пусто)\n\n"
         f"## Пробелы\n\n{gaps}\n\n"
-        "## Источники\n\n- docs/tasks/417/plan.md — fixture.\n"
+        "## Источники\n\n- .orchestra/tasks/417/plan.md — fixture.\n"
     )
 
 
@@ -55,7 +55,7 @@ def _validate_fixture(
     old: str = "",
     relative: str = "topic.md",
 ) -> list[str]:
-    root = tmp_path / "docs/kb"
+    root = tmp_path / ".orchestra/kb"
     root.mkdir(parents=True, exist_ok=True)
     target = root / "topic.md"
     target.write_text(current, encoding="utf-8")
@@ -120,7 +120,7 @@ def test_forward_only_contract_accepts_repo_relative_docs_kb_path(tmp_path):
     assert _validate_fixture(
         tmp_path,
         _topic(VALID_FACT),
-        relative="docs/kb/topic.md",
+        relative=".orchestra/kb/topic.md",
     ) == []
 
 
@@ -178,17 +178,17 @@ def _validate_link_fixture(
     *,
     source_name: str = "topic.md",
 ) -> list[str]:
-    root = tmp_path / "docs/kb"
+    root = tmp_path / ".orchestra/kb"
     root.mkdir(parents=True, exist_ok=True)
     (root / "prompt-delivery.md").write_text(_topic(LINK_BASE), encoding="utf-8")
-    plan = tmp_path / "docs/tasks/417/plan.md"
+    plan = tmp_path / ".orchestra/tasks/417/plan.md"
     plan.parent.mkdir(parents=True, exist_ok=True)
     receipts = (
         "# approved links\n\n"
         f'<a id="{APPROVAL_ID}"></a> source `fact:prompt-delivery-owner`; '
-        "relation `depends_on`; target `docs/kb/prompt-delivery.md`.\n"
+        "relation `depends_on`; target `.orchestra/kb/prompt-delivery.md`.\n"
         f'<a id="{WRONG_TUPLE_ID}"></a> source `fact:other-fact`; '
-        "relation `related`; target `docs/kb/prompt-delivery.md`.\n"
+        "relation `related`; target `.orchestra/kb/prompt-delivery.md`.\n"
     )
     plan.write_text(receipts, encoding="utf-8")
     (plan.parent / "research.md").write_text(receipts, encoding="utf-8")
@@ -205,7 +205,7 @@ def test_approved_one_hop_link_matches_exact_receipt_tuple(tmp_path):
     linked = (
         LINK_BASE
         + " · связи: `depends_on` → [prompt delivery](prompt-delivery.md)"
-        + f" · approved: `docs/tasks/417/plan.md#{APPROVAL_ID}`"
+        + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`"
     )
 
     assert _validate_link_fixture(tmp_path, linked) == []
@@ -217,20 +217,20 @@ def test_approved_one_hop_link_matches_exact_receipt_tuple(tmp_path):
         LINK_BASE + " · candidate-link: [x](prompt-delivery.md)",
         LINK_BASE
         + " · связи: `causes_magic` → [x](prompt-delivery.md)"
-        + f" · approved: `docs/tasks/417/plan.md#{APPROVAL_ID}`",
+        + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`",
         LINK_BASE
         + " · связи: `related` → [x](absent-topic.md)"
-        + f" · approved: `docs/tasks/417/plan.md#{APPROVAL_ID}`",
+        + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`",
         LINK_BASE + " · связи: `related` → [x](prompt-delivery.md)",
         LINK_BASE
         + " · связи: `depends_on` → [x](prompt-delivery.md)"
-        + " · approved: `docs/tasks/417/plan.md#missing-approval-id`",
+        + " · approved: `.orchestra/tasks/417/plan.md#missing-approval-id`",
         LINK_BASE
         + " · связи: `depends_on` → [x](prompt-delivery.md)"
-        + f" · approved: `docs/tasks/417/plan.md#{WRONG_TUPLE_ID}`",
+        + f" · approved: `.orchestra/tasks/417/plan.md#{WRONG_TUPLE_ID}`",
         LINK_BASE
         + " · связи: `related` → [x](../foreign.md)"
-        + f" · approved: `docs/tasks/417/plan.md#{APPROVAL_ID}`",
+        + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`",
     ],
     ids=[
         "candidate-canonical",
@@ -250,7 +250,7 @@ def test_self_link_is_rejected(tmp_path):
     fact = (
         LINK_BASE
         + " · связи: `related` → [self](self-link.md)"
-        + f" · approved: `docs/tasks/417/plan.md#{APPROVAL_ID}`"
+        + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`"
     )
 
     assert _validate_link_fixture(tmp_path, fact, source_name="self-link.md")
@@ -262,7 +262,7 @@ def test_absolute_link_target_is_rejected(tmp_path):
     fact = (
         LINK_BASE
         + f" · связи: `related` → [foreign]({outside.resolve()})"
-        + f" · approved: `docs/tasks/417/plan.md#{APPROVAL_ID}`"
+        + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`"
     )
 
     assert _validate_link_fixture(tmp_path, fact)
@@ -272,7 +272,7 @@ def test_approval_receipt_from_research_artifact_is_rejected(tmp_path):
     linked = (
         LINK_BASE
         + " · связи: `depends_on` → [prompt delivery](prompt-delivery.md)"
-        + f" · approved: `docs/tasks/417/research.md#{APPROVAL_ID}`"
+        + f" · approved: `.orchestra/tasks/417/research.md#{APPROVAL_ID}`"
     )
 
     assert _validate_link_fixture(tmp_path, linked)
@@ -282,7 +282,7 @@ def test_approval_receipt_without_task_id_is_rejected(tmp_path):
     linked = (
         LINK_BASE
         + " · связи: `depends_on` → [prompt delivery](prompt-delivery.md)"
-        + f" · approved: `docs/tasks/plan.md#{APPROVAL_ID}`"
+        + f" · approved: `.orchestra/tasks/plan.md#{APPROVAL_ID}`"
     )
 
     assert _validate_link_fixture(tmp_path, linked)

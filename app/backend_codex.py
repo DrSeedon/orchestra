@@ -966,7 +966,7 @@ class CodexBackend(JsonRpcStdioTransport):
 
         No process is spawned and no handshake is sent: the CLI outlived the supervisor
         restart, it is already initialized, and its turn is still streaming into fd_out
-        (measured — docs/tasks/230/research.md F1). Re-initializing here would be wrong and
+        (measured — .orchestra/tasks/230/research.md F1). Re-initializing here would be wrong and
         would also block, because the stream may be silent for minutes.
         """
         self._notifications = asyncio.Queue()

@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.events import MessageProvenance
 from app.pidfd_exec import group_signal_supported
 
 
@@ -34,7 +35,9 @@ def mgr_mock():
     # #82: пробуждение идёт по неизменяемому id, а не по имени.
     m.ensure_loaded_by_id = AsyncMock(return_value=sess)
 
-    async def deliver(_session_id, message):
+    async def deliver(_session_id, message, *, provenance):
+        assert isinstance(provenance, MessageProvenance)
+        assert provenance.senders
         await sess.send(message)
 
     m.send = AsyncMock(side_effect=deliver)
@@ -202,7 +205,12 @@ class TestFireCron:
             "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
         })
         await mgr._fire_cron("c1", "ping", "w1", "/s")
-        m.send.assert_awaited_once_with("s-1", "[Cron job fired] ping")
+        m.send.assert_awaited_once()
+        assert m.send.await_args.args == ("s-1", "[Cron job fired] ping")
+        provenance = m.send.await_args.kwargs["provenance"]
+        assert provenance == MessageProvenance(
+            origin="background_task", senders=("c1",), subtype="cron", ref="c1",
+        )
         sess.send.assert_awaited_once()
         job = next(j for j in bg_get_active_all() if j["id"] == "c1")
         assert job["status"] == "active"
@@ -703,7 +711,7 @@ class TestRunExecOutcome:
 
         await mgr._run_exec(
             "run-blind", "true",
-            "Codex review → docs/tasks/174/codex-review-plan.md",
+            "Codex review → .orchestra/tasks/174/codex-review-plan.md",
             "w1", "/s", 10,
             success_file=str(artifact),
         )
@@ -754,7 +762,7 @@ class TestRunExecOutcome:
         bg_save_job(self._job("run-bwrap", datetime.now(timezone.utc)))
 
         await mgr._run_exec(
-            "run-bwrap", "true", "Codex review → docs/tasks/179/codex-review-impl.md",
+            "run-bwrap", "true", "Codex review → .orchestra/tasks/179/codex-review-impl.md",
             "w1", "/s", 10,
             success_file=str(artifact),
         )
@@ -1292,10 +1300,11 @@ async def test_t2_385_real_bg_result_uses_immutable_provenance_through_history(
             assert session_id == session.id
             return session
 
-        async def send(self, session_id, message):
+        async def send(self, session_id, message, *, provenance):
             assert session_id == session.id
+            assert provenance is message.provenance
             deliveries.append(message)
-            await session.send(message)
+            await session.send(message, provenance=provenance)
 
     jobs = BgJobManager()
     jobs.set_session_manager(FakeManager())
@@ -1344,11 +1353,13 @@ async def test_t2_385_real_bg_result_uses_immutable_provenance_through_history(
         delivery = deliveries[0]
         assert not isinstance(delivery, str)
         assert delivery.text.startswith("[Background job")
-        assert delivery.origin == "orchestra.bg_jobs"
-        assert delivery.job_id == job_id
+        assert delivery.provenance.origin == "background_task"
+        assert delivery.provenance.senders == (job_id,)
+        assert delivery.provenance.subtype == outcome
+        assert delivery.provenance.ref == job_id
         assert delivery.event_id == f"bgjob:v1:{job_id}:{outcome}"
         with pytest.raises((FrozenInstanceError, AttributeError)):
-            delivery.origin = "model-authored"
+            delivery.provenance = delivery.provenance
 
         assert len(backend.sent) == 1
         assert isinstance(backend.sent[0], str)
@@ -1425,10 +1436,11 @@ async def test_t2_385_running_bg_delivery_logs_provenance_once_then_queues_text(
             assert session_id == session.id
             return session
 
-        async def send(self, session_id, message):
+        async def send(self, session_id, message, *, provenance):
             assert session_id == session.id
+            assert provenance is message.provenance
             deliveries.append(message)
-            await session.send(message)
+            await session.send(message, provenance=provenance)
 
     jobs = BgJobManager()
     jobs.set_session_manager(FakeManager())

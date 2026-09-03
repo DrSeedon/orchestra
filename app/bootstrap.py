@@ -33,12 +33,7 @@ async def ensure_bootstrap() -> None:
 
 
 def _fix_runtime_permissions() -> None:
-    """Ensure volume-mounted dirs are usable by agent.
-
-    Docker named volumes inherit ownership from the image layer on first create.
-    /opt/orchestra/worktrees is chown'd to agent in Dockerfile — volume preserves this.
-    Nothing to do here for now; kept as hook for future needs.
-    """
+    """Reserved hook for runtime directory ownership fixes."""
     pass
 
 

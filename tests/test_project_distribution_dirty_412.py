@@ -37,7 +37,7 @@ def _repo(root: Path) -> None:
 
 
 def _snapshot(root: Path) -> dict:
-    pathspec = ["--", ".", ":(exclude)docs/kb/**"]
+    pathspec = ["--", ".", ":(exclude).orchestra/kb/**"]
     status = subprocess.run(
         ["git", "-C", str(root), "status", "--porcelain=v1", "-z", "--untracked-files=all", *pathspec],
         check=True,
@@ -137,7 +137,7 @@ def test_t2_dirty_foreign_worktree_and_index_are_byte_identical_after_commit(
         commit=True,
     )
     assert _snapshot(repo) == before
-    assert result["projects"][0]["force_add"] is True
+    assert result["projects"][0]["force_add"] is False
     changed = _git(
         repo,
         "diff-tree",
@@ -146,7 +146,7 @@ def test_t2_dirty_foreign_worktree_and_index_are_byte_identical_after_commit(
         "-r",
         result["projects"][0]["target_commit"],
     ).splitlines()
-    assert changed and all(path.startswith("docs/kb/") for path in changed)
+    assert changed and all(path.startswith(".orchestra/kb/") for path in changed)
     assert not any(
         command in result["git_subcommands"]
         for command in ("stash", "clean", "reset", "checkout", "push")
@@ -234,7 +234,7 @@ def test_t2_uncommitted_mode_is_independently_verified_without_foreign_changes(
 
     assert _git(repo, "rev-parse", "HEAD") == before_head
     assert _snapshot(repo) == before
-    assert (repo / f"docs/kb/records/evidence/{stable_id}.json").is_file()
+    assert (repo / f".orchestra/kb/records/evidence/{stable_id}.json").is_file()
     assert "commit" not in applied["git_subcommands"]
     verified = distribution.verify_project_knowledge_distribution(
         canonical_root=central,
@@ -260,7 +260,7 @@ def test_t2_uncommitted_mode_resumes_idempotently_after_files_exist(tmp_path: Pa
     }
 
     first = distribution.distribute_project_knowledge(**kwargs)
-    record = repo / f"docs/kb/records/evidence/{stable_id}.json"
+    record = repo / f".orchestra/kb/records/evidence/{stable_id}.json"
     first_payload = record.read_bytes()
     second = distribution.distribute_project_knowledge(**kwargs)
 
@@ -279,7 +279,7 @@ def test_t2_matching_external_owner_commit_is_recorded_not_treated_as_ours(
     def owner_auto_sync(plans, *, commit, commands):
         assert commit is False
         original(plans, commit=False, commands=commands)
-        _git(repo, "add", "docs/kb")
+        _git(repo, "add", ".orchestra/kb")
         _git(repo, "commit", "-qm", "owner auto-sync")
 
     monkeypatch.setattr(distribution, "_materialize_group", owner_auto_sync)
@@ -296,5 +296,5 @@ def test_t2_matching_external_owner_commit_is_recorded_not_treated_as_ours(
     assert project["external_owner_commit"] is True
     assert project["before_head"] != project["target_commit"]
     assert project["index_sha256_before"] != project["index_sha256_after"]
-    assert (repo / f"docs/kb/records/evidence/{stable_id}.json").is_file()
+    assert (repo / f".orchestra/kb/records/evidence/{stable_id}.json").is_file()
     assert _snapshot(repo)["status"] == b" M unstaged.txt\0"

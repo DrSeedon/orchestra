@@ -15,10 +15,10 @@ from app.workspace import _exclude_worktree_artifacts, tracked_paths
 
 logger = logging.getLogger(__name__)
 
-# Single source of prompts = pipelines/default/prompts/ (app/prompts/ removed —
+# Single source of prompts = .orchestra/pipelines/default/prompts/ (app/prompts/ removed —
 # no legacy fallback). These helpers feed dashboard prompt view, role icons,
 # skill injection, and the template hash — all off the default pipeline.
-_PROMPTS_DIR = Path(__file__).parent.parent / "pipelines" / "default" / "prompts"
+_PROMPTS_DIR = Path(__file__).parent.parent / ".orchestra" / "pipelines" / "default" / "prompts"
 _MODULES_DIR = _PROMPTS_DIR / "modules"
 _SKILLS_DIR = _PROMPTS_DIR / "skills"
 
@@ -57,19 +57,42 @@ def safe_format_prompt(template: str, **kwargs: str) -> str:
 
 
 def load_worker_memory(
-    name: str, role: str, scope: str, repository_path: str = "",
+    name: str,
+    role: str,
+    scope: str,
+    repository_path: str = "",
+    allow_absent_project: bool = False,
 ) -> str:
-    """Load persistent memory from docs/workers/{name}.md or docs/workers/{role}.md.
+    """Load persistent memory from .orchestra/workers/{name}.md or {role}.md.
 
     Workers write their learned rules here; the file survives kill/respawn/compact
     and is re-read whenever the prompt is (re)assembled. A worker can belong to a
     repository below its parent's scope, so its repository checkout takes precedence.
     """
     base = Path(repository_path or scope)
+    layout_file = base / ".orchestra" / "layout.json"
+    if not layout_file.is_file():
+        # LEGACY_PATH_FIXTURE: old dirs are only evidence for a loud migration error.
+        managed_state_signals = (
+            base / "docs" / "kb",
+            base / "docs" / "tasks",
+            base / "docs" / "workers",
+            base / "docs" / "archive",
+            base / "pipelines",
+            base / ".orchestra",
+        )
+        if allow_absent_project and not any(
+            path.exists() for path in managed_state_signals
+        ):
+            return ""
+        from app.orchestra_layout import LayoutMigrationError
+        raise LayoutMigrationError(
+            "ORCHESTRA_LAYOUT_MISSING", base, ".orchestra/layout.json is missing"
+        )
     for filename in (f"{name}.md", f"{role}.md" if role else None):
         if not filename:
             continue
-        path = base / "docs" / "workers" / filename
+        path = base / ".orchestra" / "workers" / filename
         if path.is_file():
             try:
                 content = path.read_text().strip()
@@ -82,7 +105,13 @@ def load_worker_memory(
 
 
 def refresh_worker_memory(
-    prompt: str, name: str, role: str, scope: str, repository_path: str = "",
+    prompt: str,
+    name: str,
+    role: str,
+    scope: str,
+    repository_path: str = "",
+    *,
+    allow_absent_project: bool = False,
 ) -> str:
     """Re-read personal memory from disk and swap it into an already-assembled prompt.
 
@@ -92,7 +121,13 @@ def refresh_worker_memory(
     carrying a stale block, the worst missing 61% of its own file.
     """
     prompt_without_memory = strip_worker_memory(prompt)
-    mem = load_worker_memory(name, role, scope, repository_path)
+    mem = load_worker_memory(
+        name,
+        role,
+        scope,
+        repository_path,
+        allow_absent_project,
+    )
     block = f"<worker-memory>\n{mem}\n</worker-memory>" if mem else ""
     return f"{prompt_without_memory}\n\n{block}" if block else prompt_without_memory
 

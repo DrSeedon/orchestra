@@ -10,12 +10,17 @@
 закрыто 18 тестами в `tests/test_fan_barrier.py`.
 
 Дедлайн проверяется числом, потому что это НЕ «разумное значение», а точка на измеренной
-кривой (`docs/tasks/231/research.md` §3.7): 5 мин → 2.06% расхода платформы, 30 мин → 4.35%,
+кривой (`.orchestra/tasks/231/research.md` §3.7): 5 мин → 2.06% расхода платформы, 30 мин → 4.35%,
 60 мин → 4.94%.
 """
 import asyncio
 
 import pytest
+
+from app.events import MessageProvenance
+
+
+PEER_PROVENANCE = MessageProvenance(origin="agent", senders=("peer",))
 
 
 @pytest.fixture
@@ -23,6 +28,11 @@ def db(tmp_path, monkeypatch):
     monkeypatch.setattr("app.db.DB_PATH", tmp_path / "fan-enable.db")
     import app.db as _db
     _db.init_db()
+    from tests.test_message_delivery_receipts_380 import _session_record
+    _db.save_session(_session_record(
+        session_id="sid-parent", name="parent", scope="/repo",
+        task_id="fan-enable", branch="task-fan/parent",
+    ))
     return _db
 
 
@@ -48,7 +58,8 @@ class _SpyManager:
     async def ensure_loaded_any(self, name):
         return _FakeSession(name)
 
-    async def send(self, session_id, msg):
+    async def send(self, session_id, msg, *, provenance):
+        assert provenance.senders
         self.sent.append((session_id, msg))
 
     def _context_warning(self, sender):
@@ -193,7 +204,10 @@ def test_t6_explicit_report_with_pending_mailbox_does_not_release(db, spy):
         fan_id="F-solo", parent_name="parent", scope="/repo",
         children=["c1"], reducer="R",
     )))
-    mb.enqueue(recipient="c1", scope="/repo", sender="peer", body="ещё не прочитано")
+    mb.enqueue(
+        recipient="c1", scope="/repo", sender="peer", body="ещё не прочитано",
+        provenance=PEER_PROVENANCE,
+    )
 
     _report("c1", "готово")
 
@@ -267,7 +281,10 @@ def test_impl4_silent_child_with_pending_mailbox_does_not_release(db):
         fan_id="F-silent", parent_name="parent", scope="/repo",
         children=["c9"], reducer="R",
     )))
-    mb.enqueue(recipient="c9", scope="/repo", sender="peer", body="не прочитано")
+    mb.enqueue(
+        recipient="c9", scope="/repo", sender="peer", body="не прочитано",
+        provenance=PEER_PROVENANCE,
+    )
 
     TurnManager(_SilentChild("c9")).fire_auto_report()
     assert not fb.is_released("F-silent"), (
@@ -345,7 +362,8 @@ def test_impl6_manifest_survives_a_failed_delivery(db, monkeypatch):
     )))
 
     class _FailingManager(_SpyManager):
-        async def send(self, session_id, msg):
+        async def send(self, session_id, msg, *, provenance):
+            assert provenance.senders
             raise RuntimeError("доставка упала")
 
     monkeypatch.setattr("app.routes.sessions.manager", _SpyManager())

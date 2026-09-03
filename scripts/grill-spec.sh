@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Прожарка постановки «ленивым сеньором»: что здесь лишнее и что выкинуть.
 #
-#   bash scripts/grill-spec.sh docs/tasks/184/spec.md
+#   bash scripts/grill-spec.sh .orchestra/tasks/184/spec.md
 #   cat spec.md | bash scripts/grill-spec.sh
 #
 # Запускается РУКАМИ, в пайплайн не встроен и ничего не решает сам — вето у человека.

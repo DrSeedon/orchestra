@@ -4,6 +4,11 @@
 > their CHANGELOGs independently, so versions 2.31.0-2.33.0 were used TWICE for different
 > content: the VPS block comes first below, followed by the laptop block. Task #52 fixes the format.
 
+## v2.41.1 — 2026-09-02 — чат дашборда чинён: гейт происхождения отвергал КАЖДОЕ сообщение
+### Fixed
+- **`POST /api/sessions/{name}/send` без `sender` больше не отвечает `403 SOURCE_PROVENANCE_REQUIRED`** (`app/routes/sessions.py`). Гейт из #433 требовал авторизованного оператора, но `validate_session` возвращает False при пустых `DASHBOARD_USER`/`DASHBOARD_PASSWORD` (`app/auth.py:58-61`) — это наша штатная конфигурация, — а фронт шлёт в `/send` только `{message, scope}` (`app/static/js/chat.js`). Оператор был недоказуем В ПРИНЦИПЕ, поэтому чат дашборда не работал ЦЕЛИКОМ, а не иногда. Теперь недоказанное происхождение помечается `origin="unknown"` и сообщение доставляется. **Reasoning:** это правило самого #433 («отсутствующее происхождение рисуется как `unknown`, НИКОГДА как `user`») — отказ означал не «не соврать», а «не доставить». Ветка с доказанным кукой оператором по-прежнему даёт `user`, ветка с `sender` — `agent`. *Triggered case:* юзер написал агенту из дашборда и получил 403; ветка 403 не была покрыта ни одним тестом, поэтому оракулы #433 её падение не заметили.
+- **Тот же класс дефекта пойман третий раз за двое суток** — операторский гейт на контуре с выключенной авторизацией отказывает ВСЕМ: 01.09 в `POST /api/message-deliveries/{id}/resolve` (снят вместе с эндпоинтом), 01.09 в `restart_preflight`, теперь здесь. **Проверка перед любым новым `require_operator_*` / `validate_session`: пройдёт ли этот путь на контуре БЕЗ `DASHBOARD_USER`?** Нет — значит гейт не сужает доступ, а выключает функцию.
+
 ## v2.41.0 — 2026-09-01 — codebase audit: 27 defects closed, 2 fixes reverted as regressions
 
 Multi-agent audit (`docs/tasks/audit-0901/report.md`): 10 reviewers → 33 findings → adversarial

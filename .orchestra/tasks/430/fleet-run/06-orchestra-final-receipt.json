@@ -1,0 +1,19 @@
+{
+  "dirty_files_expanded": 0,
+  "final_outcome": "current",
+  "head": "12ed3d3d6611826bd47408d4c4c623d314370f5a",
+  "initial_outcome": "migrated",
+  "layout_state": "current",
+  "managed_paths": [
+    "archive",
+    "kb",
+    "tasks",
+    "workers"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "orchestra",
+  "repository": "/mnt/data/Projects/Python/orchestra",
+  "status_preserved_after_path_mapping": true
+}

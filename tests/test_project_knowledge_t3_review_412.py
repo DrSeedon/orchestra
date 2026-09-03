@@ -50,7 +50,7 @@ def _ledger(tmp_path: Path, project_ids: tuple[str, ...] = ("a", "b")):
             "status": "current",
         }
         payload = json.dumps(record, sort_keys=True).encode()
-        relative = f"docs/kb/records/evidence/{stable_id}.json"
+        relative = f".orchestra/kb/records/evidence/{stable_id}.json"
         path = root / relative
         path.parent.mkdir(parents=True)
         path.write_bytes(payload)
@@ -71,7 +71,7 @@ def _ledger(tmp_path: Path, project_ids: tuple[str, ...] = ("a", "b")):
                 }
             ],
         }
-        (root / "docs/kb/manifest.json").write_text(
+        (root / ".orchestra/kb/manifest.json").write_text(
             json.dumps(local_manifest), encoding="utf-8"
         )
         projects.append(
@@ -142,7 +142,7 @@ def test_t3_receipt_conflict_cannot_activate_owner(tmp_path: Path):
 
 def test_t3_activation_rejects_record_filename_payload_identity_mismatch(tmp_path: Path):
     distribution, registry, roots = _ledger(tmp_path)
-    project_manifest = json.loads((roots["a"] / "docs/kb/manifest.json").read_text())
+    project_manifest = json.loads((roots["a"] / ".orchestra/kb/manifest.json").read_text())
     row = project_manifest["records"][0]
     path = roots["a"] / row["destination_relative_path"]
     record = json.loads(path.read_text())
@@ -154,7 +154,7 @@ def test_t3_activation_rejects_record_filename_payload_identity_mismatch(tmp_pat
     digest = hashlib.sha256()
     digest.update(row["stable_id"].encode() + b"\0" + payload + b"\0")
     project_manifest["records_sha256"] = "sha256:" + digest.hexdigest()
-    (roots["a"] / "docs/kb/manifest.json").write_text(json.dumps(project_manifest))
+    (roots["a"] / ".orchestra/kb/manifest.json").write_text(json.dumps(project_manifest))
     global_manifest = json.loads(distribution.read_text())
     global_manifest["projects"][0]["records_sha256"] = project_manifest["records_sha256"]
     distribution.write_text(json.dumps(global_manifest))
@@ -195,7 +195,7 @@ def test_t3_record_write_failure_never_leaves_partial_final_file(
                 "stable_id": stable_id,
             },
         )
-    assert not (root / f"docs/kb/records/evidence/{stable_id}.json").exists()
+    assert not (root / f".orchestra/kb/records/evidence/{stable_id}.json").exists()
 
 
 def test_t3_owner_state_and_fact_namespace_are_durable(tmp_path: Path, monkeypatch):
@@ -225,8 +225,8 @@ def test_t3_owner_state_and_fact_namespace_are_durable(tmp_path: Path, monkeypat
             "stable_id": stable_id,
         },
     )
-    assert (root / f"docs/kb/records/facts/{stable_id}.json").is_file()
-    assert not (root / f"docs/kb/records/evidence/{stable_id}.json").exists()
+    assert (root / f".orchestra/kb/records/facts/{stable_id}.json").is_file()
+    assert not (root / f".orchestra/kb/records/evidence/{stable_id}.json").exists()
 
 
 def test_t3_post_replace_fsync_failure_restores_central_owner(
@@ -283,7 +283,7 @@ def test_t3_receipt_final_path_is_never_visible_while_writing(
 
 def test_t3_ledger_change_during_activation_is_rejected(tmp_path: Path, monkeypatch):
     distribution, registry, roots = _ledger(tmp_path)
-    local_manifest = json.loads((roots["a"] / "docs/kb/manifest.json").read_text())
+    local_manifest = json.loads((roots["a"] / ".orchestra/kb/manifest.json").read_text())
     record = roots["a"] / local_manifest["records"][0]["destination_relative_path"]
     original_head = activation._head
     mutated = False

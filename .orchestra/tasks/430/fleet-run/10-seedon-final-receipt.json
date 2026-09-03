@@ -1,0 +1,17 @@
+{
+  "dirty_files_expanded": 324,
+  "final_outcome": "current",
+  "head": "020495050626a840a1b65ad0a73e889a834cfcc6",
+  "initial_outcome": "migrated",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks",
+    "workers"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "seedon",
+  "repository": "/mnt/data/Projects/Python/seedon",
+  "status_preserved_after_path_mapping": true
+}

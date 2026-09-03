@@ -188,12 +188,12 @@ def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
         (project_id,),
     ).fetchone()
     n = row[0]
-    # docs/tasks/<n>/ survives task deletion — never reissue a number that still has a dir
+    # .orchestra/tasks/<n>/ survives task deletion — never reissue a number that still has a dir
     scope = _task_project_scope(conn, project_id)
     if scope:
         if scope == "/home/kesha/orchestra":
             n = max(n, _VPS_TASK_PAR_FLOOR)
-        tasks_root = Path(scope) / "docs" / "tasks"
+        tasks_root = Path(scope) / ".orchestra" / "tasks"
         while (tasks_root / str(n)).is_dir():
             n += 1
     return n

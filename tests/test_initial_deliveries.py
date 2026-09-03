@@ -12,6 +12,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.events import MessageProvenance
+
 
 DELIVERY_ID = "00000000-0000-4000-8000-000000000311"
 SESSION_ID = "session-311"
@@ -19,6 +21,9 @@ SCOPE = "/scope-311"
 WORKER = "worker-311"
 SENDER = "orchestrator-311"
 MESSAGE = "implement the durable initial task"
+PROVENANCE = MessageProvenance(
+    origin="agent", senders=(SENDER,), subtype="initial_delivery", ref=DELIVERY_ID,
+)
 
 
 def _delivery_module():
@@ -72,6 +77,7 @@ async def _accept(module, *, message=MESSAGE, delivery_id=DELIVERY_ID):
         scope=SCOPE,
         sender=SENDER,
         message=message,
+        provenance=PROVENANCE,
     )
 
 
@@ -283,6 +289,7 @@ async def test_t2_manager_entry_preserves_session_lock_and_auto_switch(
     delivery_db, monkeypatch,
 ):
     from app.manager import SessionManager
+    from app.session import AgentSession
 
     manager = SessionManager()
     events = []
@@ -291,8 +298,9 @@ async def test_t2_manager_entry_preserves_session_lock_and_auto_switch(
     class FakeSession:
         id = SESSION_ID
 
-        async def send(self, message, *, delivery=None):
+        async def send(self, message, *, delivery=None, provenance):
             assert manager.get_session_lock(self.id).locked()
+            assert provenance == PROVENANCE
             events.append(("send", message, delivery))
 
     session = FakeSession()
@@ -305,8 +313,20 @@ async def test_t2_manager_entry_preserves_session_lock_and_auto_switch(
 
     monkeypatch.setattr(manager, "_auto_switch_before_delivery", auto_switch)
     send_initial = _required_callable(manager, "send_initial_delivery")
+    for boundary in (
+        SessionManager.send,
+        SessionManager.send_initial_delivery,
+        SessionManager.send_message_delivery,
+        AgentSession.send,
+    ):
+        parameter = inspect.signature(boundary).parameters["provenance"]
+        assert parameter.default is inspect.Parameter.empty, (
+            f"#433 provenance must stay mandatory at {boundary.__qualname__}"
+        )
 
-    await send_initial(SESSION_ID, MESSAGE, delivery=delivery)
+    await send_initial(
+        SESSION_ID, MESSAGE, delivery=delivery, provenance=PROVENANCE,
+    )
 
     assert events == [
         ("auto-switch",),
@@ -325,12 +345,14 @@ async def test_t2_session_context_logs_no_duplicate_and_brackets_backend_send(
         datetime.now(timezone.utc),
         "user_message",
         MESSAGE,
+        provenance=PROVENANCE,
     )
     delivery_db.add_log(
         SESSION_ID,
         datetime.now(timezone.utc),
         "user_message",
         "older user context",
+        provenance=PROVENANCE,
     )
     module = _delivery_module()
     monkeypatch.setattr(module, "ensure_delivery_runner", lambda _delivery_id: None)
@@ -398,7 +420,9 @@ async def test_t2_session_context_logs_no_duplicate_and_brackets_backend_send(
     session._shadow_reserve = AsyncMock(return_value=None)
     session._notify_scope_running = AsyncMock()
 
-    await session.send(MESSAGE, delivery=DeliveryContext())
+    await session.send(
+        MESSAGE, delivery=DeliveryContext(), provenance=PROVENANCE,
+    )
     await asyncio.sleep(0)
 
     user_log_calls = [
@@ -421,8 +445,11 @@ class _RecordingManager:
         self.prompts = []
         self.backend_calls = []
 
-    async def send_initial_delivery(self, session_id, message, *, delivery):
+    async def send_initial_delivery(
+        self, session_id, message, *, delivery, provenance,
+    ):
         assert session_id == SESSION_ID
+        assert provenance == PROVENANCE
         self.prompts.append(message)
         await delivery.before_submit()
         self.backend_calls.append(message)
@@ -553,9 +580,12 @@ async def test_t2_cancel_after_dispatching_marks_unknown_and_never_replays(
     await _accept(module)
 
     class CancellingManager:
-        async def send_initial_delivery(self, session_id, message, *, delivery):
+        async def send_initial_delivery(
+            self, session_id, message, *, delivery, provenance,
+        ):
             assert session_id == SESSION_ID
             assert message == MESSAGE
+            assert provenance == PROVENANCE
             await delivery.before_submit()
             raise asyncio.CancelledError
 
@@ -629,9 +659,14 @@ class _T381SessionManager:
     def __init__(self, session):
         self.session = session
 
-    async def send_initial_delivery(self, session_id, message, *, delivery):
+    async def send_initial_delivery(
+        self, session_id, message, *, delivery, provenance,
+    ):
         assert session_id == SESSION_ID
-        await self.session.send(message, delivery=delivery)
+        assert provenance == PROVENANCE
+        await self.session.send(
+            message, delivery=delivery, provenance=provenance,
+        )
 
 
 @pytest.mark.asyncio

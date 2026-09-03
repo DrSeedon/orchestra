@@ -54,7 +54,8 @@ class _RecordingManager:
     def __init__(self):
         self.sent = []
 
-    async def send(self, sid, text):
+    async def send(self, sid, text, *, provenance):
+        assert provenance.origin == "user"
         self.sent.append((sid, text))
 
     def get(self, sid):

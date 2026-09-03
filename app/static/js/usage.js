@@ -83,9 +83,12 @@ function _releaseDurationFromSeconds(totalSeconds) {
 }
 
 function _quotaWindowMatch(bucketWindow, candidate) {
-    if (!bucketWindow || !candidate || !candidate.id) return false;
-    if (String(bucketWindow.id) !== String(candidate.id)) return false;
-    if (Number(bucketWindow.window_minutes) !== Number(candidate.window_minutes)) return false;
+    if (!bucketWindow || !candidate) return false;
+    // Raw provider responses omit the synthetic window id; duration and reset still
+    // identify the same window after _usageProviderWindows supplies its duration.
+    if (bucketWindow.id && candidate.id && String(bucketWindow.id) !== String(candidate.id)) return false;
+    if (bucketWindow.window_minutes && candidate.window_minutes
+        && Number(bucketWindow.window_minutes) !== Number(candidate.window_minutes)) return false;
 
     const bucketReset = Date.parse(bucketWindow.resets_at);
     const candidateReset = Date.parse(candidate.resets_at);
@@ -148,6 +151,33 @@ function _quotaMapLaneStatusText(windowData, bucketId = null) {
         return Connection.ownsErrors() ? '' : 'нет данных';
     }
     return 'работает';
+}
+
+function _quotaMapLaneHeadroomText(windowData, bucketId = null) {
+    if (!_quotaMapData || !Array.isArray(_quotaMapData.buckets) || !windowData) return '';
+    const bucket = _quotaMapData.buckets.find(item =>
+        (!bucketId || item.bucket === bucketId)
+        && item.data_available
+        && item.fresh !== false
+        && item.window
+        && _quotaWindowMatch(item.window, windowData)
+    );
+    const lane = bucket?.lanes?.find(item => item?.gated);
+    if (!lane || lane.headroom_pp == null) return '';
+    const headroom = Number(lane.headroom_pp);
+    if (!Number.isFinite(headroom)) return '';
+    const value = Math.abs(headroom).toFixed(1);
+    const signed = headroom < 0 ? `−${value}` : `+${value}`;
+    let text = `🎯 ${signed}`;
+    if (headroom < 0) {
+        const release = _quotaMapLaneRelease(windowData, bucketId);
+        const seconds = Number(release.release_in_seconds);
+        if ((release.status === 'opens_in' || release.status === 'at_reset')
+            && Number.isFinite(seconds)) {
+            text += ` · 🕐 ${_releaseDurationFromSeconds(seconds)}`;
+        }
+    }
+    return text;
 }
 
 function _etaToLimit(currentPct, isoStr, windowMs) {
@@ -265,7 +295,8 @@ function renderUsageBar() {
         const rp = rpNum != null ? ` <span style="color:#64748b">(${_resetPctText(rpNum)}%)</span>` : '';
         const cd = _resetCountdown(sd.resets_at);
         const release = _quotaMapLaneStatusText(sd, 'anthropic');
-        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
+        const headroom = _quotaMapLaneHeadroomText(sd, 'anthropic');
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     if (claudeParts.length) {
         groups.push(
@@ -335,8 +366,9 @@ function renderUsageBar() {
                 const rp = rpNum != null ? ` <span style="color:#64748b">(${_resetPctText(rpNum)}%)</span>` : '';
                 const cd = _resetCountdown(window.resets_at);
                 const release = _quotaMapLaneStatusText(window, provider.bucketId);
+                const headroom = _quotaMapLaneHeadroomText(window, provider.bucketId);
                 const label = _codexWindowLabel(window.window_minutes);
-                providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
+                providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
             }
             groups.push(
                 `<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">`

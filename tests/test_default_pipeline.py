@@ -1,4 +1,4 @@
-"""Тесты дефолтного пайплайна ``pipelines/default/``.
+"""Тесты дефолтного пайплайна ``.orchestra/pipelines/default/``.
 
 Проверяют реальный локальный манифест на базе mccalpink/orchestra v2.18:
 4 роли (orchestrator/sub-orchestrator/worker/full-cycle), локальные модели,
@@ -6,7 +6,7 @@ fail-open валидацию, сборку промпта без слоя ``_pip
 после слоёв роли.
 
 В отличие от test_pipeline.py (tmp-фикстуры), здесь тесты идут по РЕАЛЬНОМУ
-``pipelines/default/`` на диске. Уровень loader'а: БД/manager НЕ задействованы.
+``.orchestra/pipelines/default/`` на диске. Уровень loader'а: БД/manager НЕ задействованы.
 """
 from __future__ import annotations
 
@@ -341,7 +341,7 @@ class TestDefaultBuildSystemPrompt:
 
     def test_full_cycle_prompt_has_three_phase_pipeline(self):
         """full-cycle: 3 фазы (research+experiment / plan+tickets / implement),
-        codex review, docs/tasks/<id>/."""
+        codex review, .orchestra/tasks/<id>/."""
         out = P.build_system_prompt(PIPELINE, "full-cycle")
         assert out.startswith("<platform>")
         assert "## Role: Full-Cycle Worker" in out
@@ -349,7 +349,7 @@ class TestDefaultBuildSystemPrompt:
         assert "Phase 1: RESEARCH + EXPERIMENT" in out
         assert "Phase 2: PLAN" in out
         assert "Phase 3: IMPLEMENT" in out
-        assert "docs/tasks/" in out
+        assert ".orchestra/tasks/" in out
 
     def test_orchestrator_prompt_excludes_other_roles_bodies(self):
         """ИЗОЛЯЦИЯ слоёв: в промпте orchestrator НЕ должно быть тел worker/full-cycle
@@ -394,7 +394,7 @@ class TestTelegramFormattingOwnership:
 
 
 class TestBehaviourRulesLandedAtOwners:
-    """#348: шесть правил про поведение агентов переехали из CLAUDE.md к владельцам в pipelines/.
+    """#348: шесть правил про поведение агентов переехали из CLAUDE.md к владельцам в .orchestra/pipelines/.
 
     Каждая строка — правило: якорь в промпте, файл-владелец, роли-адресаты и снятая
     формулировка из CLAUDE.md. Утечка проверяется по всем остальным ролям.
@@ -1127,7 +1127,7 @@ def test_obsolete_priority_formulation_is_gone_everywhere():
 
 # --- #219: контракт делегирования «таблица, а не область» -------------------
 # Якоря — ЦЕЛЬНЫЕ фразы, выписанные вручную из файла-владельца
-# (pipelines/default/prompts/modules/worker-lifecycle.md). Не извлекать их из
+# (.orchestra/pipelines/default/prompts/modules/worker-lifecycle.md). Не извлекать их из
 # источника программно: клауза, извлечённая из уже переформатированного файла,
 # находится в сборке всегда и делает тест слепым к переносу строки (#210).
 FAN_CONTRACT_ANCHORS = (
@@ -1197,7 +1197,7 @@ def test_fan_contract_comes_from_its_owner_module_and_nowhere_else():
     закрывает по построению; она остаётся ручной проверкой артефакта.
     """
     from pathlib import Path
-    root = Path(__file__).resolve().parents[1] / "pipelines" / "default" / "prompts"
+    root = Path(__file__).resolve().parents[1] / ".orchestra" / "pipelines" / "default" / "prompts"
     files = {p: _norm(p.read_text(encoding="utf-8")) for p in root.rglob("*.md")}
     for anchor in FAN_CONTRACT_ANCHORS:
         owners = [p for p, text in files.items() if _norm(anchor) in text]

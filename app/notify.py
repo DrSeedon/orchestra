@@ -7,6 +7,8 @@
 import logging
 from pathlib import Path
 
+from app.events import MessageProvenance
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,8 +59,14 @@ async def report_undelivered(session_manager, *, scope: str, worker: str,
         f"Причина: {reason}\n"
         f"Работа воркера стоит. Повтор — твоё решение, автоматического ретрая нет."
     )
+    provenance = MessageProvenance(
+        origin="platform", senders=("Orchestra",),
+        subtype="undelivered", ref=dedupe_key,
+    )
     try:
-        await session_manager.send(orch["id"], text)
+        await session_manager.send(
+            orch["id"], text, provenance=provenance,
+        )
     except Exception as error:
         outcome = (f"уведомить {orch['name']} не удалось: "
                    f"{type(error).__name__}: {error}")
@@ -105,8 +113,14 @@ async def notify_bug_report(session_manager, *, scope: str, reporter: str,
         f"Полный текст — GET /api/report_bug. Разбор и приоритет — на тебе как на владельце "
         f"Orchestra; платформа его только зарегистрировала."
     )
+    provenance = MessageProvenance(
+        origin="platform", senders=("Orchestra",),
+        subtype="bug_report", ref=record_id,
+    )
     try:
-        await session_manager.send(orch["id"], text)
+        await session_manager.send(
+            orch["id"], text, provenance=provenance,
+        )
     except Exception as error:
         outcome = f"уведомить {orch['name']} не удалось: {type(error).__name__}: {error}"
         logger.warning("bug report %s from %s: %s", record_id, reporter, outcome)

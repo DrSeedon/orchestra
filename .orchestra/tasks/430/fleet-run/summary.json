@@ -1,0 +1,22 @@
+{
+  "current": 10,
+  "database": "/mnt/data/Projects/Python/orchestra/data/orchestra.db",
+  "failed": 3,
+  "outcomes": {
+    "COG-second-brain": "migrated",
+    "Sensar": "migrated",
+    "VPN-Service": "migrated",
+    "WebView": "migrated",
+    "kesha-tg-bot": "migrated",
+    "orchestra": "migrated",
+    "parsing-hub": "failed",
+    "polus": "migrated",
+    "scope:/mnt/data/projects/comfy-image-pipeline": "migrated",
+    "seedon": "migrated",
+    "stargate-tactics": "failed",
+    "tradingcryptobot": "migrated",
+    "university": "failed"
+  },
+  "projects": 13,
+  "schema_version": 1
+}

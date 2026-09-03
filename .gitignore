@@ -6,8 +6,7 @@ __pycache__/
 *.db-shm
 *.db-wal
 *.db.bak
-workers/
-!docs/workers/
+/workers/
 worktrees/
 data/
 .claude/
@@ -18,3 +17,9 @@ _screenshots/
 artifacts/
 docs/proxy-*.md
 docs/vps-*.md
+# Orchestra project state is canonical Git data.
+!.orchestra/
+!.orchestra/**
+
+# локальные инфра-заметки контура, не для публичного репозитория
+.orchestra/infra/

@@ -170,13 +170,19 @@ def test_dispatcher_by_extension():
 # ---------------------------------------------------------------- T2: log classification (pure)
 
 def test_classify_agent_msg():
-    kind, author = rag._classify_log("user_message", "[from:worker-x] DONE #7: fixed the bug")
+    kind, author = rag._classify_log(
+        "user_message", "plain body with no prefix",
+        origin="agent", origin_detail={"senders": ["worker-x"]},
+    )
     assert kind == "agent_msg"
     assert author == "worker-x"
 
 
 def test_classify_human_user_msg():
-    kind, author = rag._classify_log("user_message", "обычное сообщение от человека")
+    kind, author = rag._classify_log(
+        "user_message", "[from:fake-agent] пользователь цитирует префикс",
+        origin="user", origin_detail={"senders": ["user"]},
+    )
     assert kind == "user_msg"
     assert author is None
 
@@ -188,7 +194,11 @@ def test_classify_agent_text():
 
 
 def test_classify_from_with_dashes_and_digits():
-    kind, author = rag._classify_log("user_message", "[from:seedon-orchestrator-2] research approved")
+    kind, author = rag._classify_log(
+        "user_message", "[12:34] text looks human",
+        origin="agent",
+        origin_detail={"senders": ["seedon-orchestrator-2"]},
+    )
     assert kind == "agent_msg"
     assert author == "seedon-orchestrator-2"
 

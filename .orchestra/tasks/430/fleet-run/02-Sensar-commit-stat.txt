@@ -1,0 +1,307 @@
+70080697 Orchestra: migrate project state to .orchestra
+ .gitignore                                                  |   3 +++
+ {docs => .orchestra}/kb/.gitattributes                      |   0
+ {docs => .orchestra}/kb/manifest.json                       |   0
+ .../evidence/00c9afe2-5680-5d40-b4c5-240f8aee4377.json      |   0
+ .../evidence/06f70087-8b7c-5e32-95df-22b5cf59eba0.json      |   0
+ .../evidence/082e8574-4448-5ac6-8879-a3ad498dca37.json      |   0
+ .../evidence/0978efb4-0e4a-5aed-921e-aa6e7904dcaf.json      |   0
+ .../evidence/0e192a3a-97b7-5de9-a9f2-71a7faca2007.json      |   0
+ .../evidence/0e7c840c-f633-5901-b2d9-56eda11e36bb.json      |   0
+ .../evidence/0f4ccd49-7475-5db9-9eda-5e26f1f79a1c.json      |   0
+ .../evidence/1041fa38-8b65-5de3-aada-da639b265f2f.json      |   0
+ .../evidence/10b3fb94-10a6-5787-ad18-e45a81f238fa.json      |   0
+ .../evidence/129ad4c2-aeec-5a76-abbc-0e71c04f97f5.json      |   0
+ .../evidence/12da2d63-7303-5499-8ad1-981cc9c655ab.json      |   0
+ .../evidence/12efbcb9-839e-5bfc-be0d-d2115dbaf353.json      |   0
+ .../evidence/1304f38c-e7b7-5ad0-8771-6a3df5cd1435.json      |   0
+ .../evidence/14737b99-2be8-5f48-88fd-ab947f9ad9a9.json      |   0
+ .../evidence/15321cb7-077f-5b4a-8b97-fbf6f7cb864f.json      |   0
+ .../evidence/1570c9ce-e47b-568a-b0db-d670215a462e.json      |   0
+ .../evidence/16dd3b6c-1f06-5b98-bb4f-12ea44045bb5.json      |   0
+ .../evidence/17538fe7-c90c-5b09-ad06-53059497c8c0.json      |   0
+ .../evidence/19bfc639-80ae-5c96-bebe-5238f764d5bc.json      |   0
+ .../evidence/1afb4033-e586-5c26-aa4b-50ed7071151b.json      |   0
+ .../evidence/1b5593d7-9676-5775-ba3a-adda3b82391f.json      |   0
+ .../evidence/1d7c9fe3-a2e0-5156-b69e-be7e3d89eab6.json      |   0
+ .../evidence/1e9283f5-4d66-5afc-b061-779db1463e54.json      |   0
+ .../evidence/21d31f4a-e148-5503-ade3-a6f0ca254726.json      |   0
+ .../evidence/25693439-6bd6-5bd2-a6d8-0d079141b12e.json      |   0
+ .../evidence/26f24328-626a-57bb-90fe-09e502caa1b8.json      |   0
+ .../evidence/2722a23e-874f-5a5e-b0b5-d709e1619a66.json      |   0
+ .../evidence/274824f8-e13f-51e9-b241-3556cf350ffe.json      |   0
+ .../evidence/29a44b0c-4bf3-5038-8127-77c5709eb72f.json      |   0
+ .../evidence/2ab846a0-592b-515a-8aee-2dfa85f756e4.json      |   0
+ .../evidence/2cc9ccc1-a13f-54e3-a418-8b53bbc10230.json      |   0
+ .../evidence/2e4d827c-3a9c-50cc-a644-c4dfd543c5b3.json      |   0
+ .../evidence/2ebc3620-ba8e-59cc-8b0d-39bfc0d75f23.json      |   0
+ .../evidence/32ffa294-3555-549e-8869-9ffedc26cf42.json      |   0
+ .../evidence/383a15ee-9930-513b-bdf1-127315bf4f57.json      |   0
+ .../evidence/397fcfea-47c7-5bfb-9453-b8dfc004113b.json      |   0
+ .../evidence/3a305530-f280-5e97-822a-ea93ef0cfd67.json      |   0
+ .../evidence/3b857bf0-710e-5f51-b349-1d8f402f4b4b.json      |   0
+ .../evidence/3c9d15f9-fb97-515a-bf4b-ffc712f0a6d8.json      |   0
+ .../evidence/3d1f3946-ce25-5468-b608-70e3f6df99cb.json      |   0
+ .../evidence/3ea42b71-2e75-53b2-b916-0cf33f47cac2.json      |   0
+ .../evidence/3fc88b00-d7fa-5f1d-9ba3-78eb21b8c392.json      |   0
+ .../evidence/3ff1603a-3018-5a9a-85f2-82e52457593c.json      |   0
+ .../evidence/401d93b6-637e-5a48-82f0-954a760f54e7.json      |   0
+ .../evidence/40fc2943-596b-5ffe-b6e3-2fe0cce221c9.json      |   0
+ .../evidence/42096c23-8a45-5a3c-9b7d-8c5fbf9c0b6a.json      |   0
+ .../evidence/435bdd24-1edb-5294-8620-0ff12bb30a32.json      |   0
+ .../evidence/441983c2-3f31-5332-8c4d-409e3a6d3b5d.json      |   0
+ .../evidence/44f7e3e6-4629-5e5a-8160-566e783e9de5.json      |   0
+ .../evidence/457c7016-20db-594b-a40a-b8c69ba4571a.json      |   0
+ .../evidence/45af5829-19c7-5121-8c5a-6091831656fb.json      |   0
+ .../evidence/45e2d4e8-8704-516c-a970-90df5e431b7f.json      |   0
+ .../evidence/45ee104d-67ba-5af4-9aa2-62e5127a47b8.json      |   0
+ .../evidence/46f65271-3daa-5eef-8a43-b7e47b6d8073.json      |   0
+ .../evidence/480c6348-d03d-53a7-97a6-41142087f2a1.json      |   0
+ .../evidence/48146f01-db1d-50ee-ad39-803bd4bda6e4.json      |   0
+ .../evidence/482bbfc2-c5b5-5b60-8b72-cfa59ed2e9f4.json      |   0
+ .../evidence/48945c2a-fc6b-5d75-8253-76cfdf8ef131.json      |   0
+ .../evidence/48c27ccf-4f7f-5cb6-8810-451f68e2051e.json      |   0
+ .../evidence/496ecdf6-6ccd-513c-b72d-1991aa96e7fe.json      |   0
+ .../evidence/4995a5b2-3e94-5bb1-bc6d-0f1de7a3035e.json      |   0
+ .../evidence/4a34db41-5c9f-588d-ae38-d23c43151ef1.json      |   0
+ .../evidence/4a8acb2b-9985-5363-a6c1-767aeb7f26db.json      |   0
+ .../evidence/4a9b8290-a6a7-5b7a-bf94-6dec0b8bd51b.json      |   0
+ .../evidence/4aa3f3f8-7cb8-5757-8579-c023a967d4c7.json      |   0
+ .../evidence/4c67b40d-d3f7-592b-90e5-6c9e34ff9b2b.json      |   0
+ .../evidence/4e7c5655-f758-513b-b5bc-5b0116ea3418.json      |   0
+ .../evidence/512bd88b-598a-5350-be8a-a912a2012117.json      |   0
+ .../evidence/518d1e49-07e4-5c01-a512-31c9ef9fcc3f.json      |   0
+ .../evidence/530394c6-b890-50d3-92a5-226e066263b6.json      |   0
+ .../evidence/5430bcea-2555-53e7-b4d5-669488b47c26.json      |   0
+ .../evidence/54dc64e3-1eee-5087-9025-629d852f86af.json      |   0
+ .../evidence/5b4bb424-db1e-5dd5-8fe5-7cda36b934e3.json      |   0
+ .../evidence/5e57963a-1f6d-538a-9489-83c1d2b6c5d5.json      |   0
+ .../evidence/5e9a2048-3514-5880-9270-933495ab52ba.json      |   0
+ .../evidence/600c897f-8e61-592b-8931-ab99c6b7657c.json      |   0
+ .../evidence/6087fdd3-8396-5d55-86b5-87fe3cd247e0.json      |   0
+ .../evidence/609b9dd7-a9ae-5f6e-90a3-047485603ee3.json      |   0
+ .../evidence/60bf77a1-8289-53a1-adb0-ec42a7dccc60.json      |   0
+ .../evidence/67ad2d08-f1b7-51bd-8382-727ed5c11698.json      |   0
+ .../evidence/6dc8ba64-a89b-5941-a0ce-4e805177d70a.json      |   0
+ .../evidence/6e04361c-c75e-52ed-82e7-af366e88564c.json      |   0
+ .../evidence/735fb0b2-0a69-5882-90d8-302a92f2354d.json      |   0
+ .../evidence/74a3c1e4-f7eb-5f08-9dde-61e6ebdb836a.json      |   0
+ .../evidence/76d634a8-c6a6-52f8-ad43-bd77aeb080ff.json      |   0
+ .../evidence/7951e392-4c0d-564d-a1e3-0ad2f87f3967.json      |   0
+ .../evidence/7caf5384-883d-5d98-83c1-644e5cd4bb74.json      |   0
+ .../evidence/82c4c855-04b4-5baf-bb69-024e28eb2fbf.json      |   0
+ .../evidence/83ff0b5f-bb29-5d2a-84bc-ec84ecaee9e7.json      |   0
+ .../evidence/856f734f-3eb0-5833-a9b0-cb57dbb66595.json      |   0
+ .../evidence/8964b201-61b5-5937-b8d8-460a8dae7ee6.json      |   0
+ .../evidence/8b07ba72-eec9-599e-a865-710e31c6740b.json      |   0
+ .../evidence/8ccc9cb2-6fcc-5b78-bb67-edd259625335.json      |   0
+ .../evidence/8d9d4c50-e63d-5cae-9181-8179be274f1d.json      |   0
+ .../evidence/8da8acb1-d559-59cb-9b0d-1dd2809e47e8.json      |   0
+ .../evidence/8f59d5de-ae62-5f27-847e-b304580d0254.json      |   0
+ .../evidence/903e2523-9f8f-57f2-8d78-3a02717283a6.json      |   0
+ .../evidence/90e8ac15-2aa5-582b-ae3f-30cc17e64ca0.json      |   0
+ .../evidence/914ac1af-9c41-5708-8bc3-4c8727483c9f.json      |   0
+ .../evidence/920c0b7b-70b2-5905-8352-da6746b9d244.json      |   0
+ .../evidence/940a9201-350a-549b-9676-8025c08f1892.json      |   0
+ .../evidence/94858dfa-657f-5e58-985d-0bad0fe73bf3.json      |   0
+ .../evidence/95ef816f-80e7-5d68-9953-3acb8418c36d.json      |   0
+ .../evidence/9b59a58e-cfd9-5364-88d8-7714ece4abf6.json      |   0
+ .../evidence/9b6e78d1-32f5-5050-8fbc-b2a6a1932732.json      |   0
+ .../evidence/9c3af9bf-a59a-52b1-b7c2-115d700d921d.json      |   0
+ .../evidence/9c5a9d21-67b5-535f-b0d1-f1d3dd9fb89f.json      |   0
+ .../evidence/9df52483-bb54-5366-a971-45ba96e817b4.json      |   0
+ .../evidence/9f70ad7f-4c6c-581c-84d1-b2dde8792d2c.json      |   0
+ .../evidence/a0042c05-b5f8-50d3-88b4-20d19693ba53.json      |   0
+ .../evidence/a2ef75fc-6abb-534e-9a40-10230b35ed21.json      |   0
+ .../evidence/a31325b3-f2bc-5e62-9f86-c47259013eb1.json      |   0
+ .../evidence/a3486297-cf95-56bc-a615-56ccf7574966.json      |   0
+ .../evidence/a38a2f07-82a7-5321-96f7-322eb5ea8dc9.json      |   0
+ .../evidence/a68c0df7-4b2c-5c6f-bd79-a2279901dd51.json      |   0
+ .../evidence/a6b5ec8d-6ed1-55f4-b1f2-3a784efd9491.json      |   0
+ .../evidence/a729c1a8-4af2-5c99-827d-af9de0b5ae44.json      |   0
+ .../evidence/a7caa801-6e1a-5a6e-aa5c-61f8a1b87de2.json      |   0
+ .../evidence/a8b11d16-d37c-5119-9a43-9a9b467a3f8b.json      |   0
+ .../evidence/adc93222-c185-50b5-8634-aa8f12c36171.json      |   0
+ .../evidence/aed8aab0-1c35-581b-98d8-62f301271161.json      |   0
+ .../evidence/aede16bb-ce27-5ddd-a03a-d7acf80d6c6d.json      |   0
+ .../evidence/af705695-8c04-5cf8-9041-952f12ccd2d5.json      |   0
+ .../evidence/b014c667-5ae9-54fd-9da4-988d667f68b3.json      |   0
+ .../evidence/b3187248-664d-5947-b014-d7227229ab1f.json      |   0
+ .../evidence/b65371f9-1911-579c-8034-58363e02b404.json      |   0
+ .../evidence/b67f6ede-feef-5439-aa2e-4a988eac9c81.json      |   0
+ .../evidence/b700542c-bc1e-595d-b07e-eda0fb881354.json      |   0
+ .../evidence/b9f90045-d032-517e-838a-0e245c9ec762.json      |   0
+ .../evidence/ba8070b9-7eb7-5671-819f-3c38215b3eab.json      |   0
+ .../evidence/c0844c49-a2b8-5bf6-8ee5-3734d5cfe47b.json      |   0
+ .../evidence/c2029186-bf64-5604-8d33-7a9439f57760.json      |   0
+ .../evidence/c27818ab-b5a5-5731-a919-2ef0fa7b7e2b.json      |   0
+ .../evidence/c27e61b7-f267-5a37-a72e-adf6a2799a90.json      |   0
+ .../evidence/c36fd287-9e8c-596e-b791-53ae8c7f5158.json      |   0
+ .../evidence/c5b72fb0-18cf-5453-bcce-e99f875150ed.json      |   0
+ .../evidence/c5f22498-730c-5f49-acc5-4ef609c304fd.json      |   0
+ .../evidence/c6d559c0-d240-5be9-9845-9132feab2165.json      |   0
+ .../evidence/ca1f57cf-3a2e-56f5-90ec-d5c5c3c86155.json      |   0
+ .../evidence/cba65615-e48c-52d0-a3cb-1ee5431a9ff9.json      |   0
+ .../evidence/cbdb9324-6b9e-5eac-9ce4-f214f1d04334.json      |   0
+ .../evidence/ce5dd029-0e42-5675-a1cc-c667139995e9.json      |   0
+ .../evidence/d7143a96-0d4f-5a72-81cf-771a2bceb624.json      |   0
+ .../evidence/d862cdae-9a5d-5948-8020-568748d29b06.json      |   0
+ .../evidence/d8a16f9c-a4bf-5b9b-b3b9-bfc302f7be47.json      |   0
+ .../evidence/d8ae7f02-b831-5dd0-9386-5f566ed402b3.json      |   0
+ .../evidence/d9ae7c2e-1443-5909-818a-aeed22aa183c.json      |   0
+ .../evidence/dbfaa5b6-7323-5bef-a782-7b6bb91471aa.json      |   0
+ .../evidence/dc427970-ef7b-585c-9f15-cebdd314b621.json      |   0
+ .../evidence/dc54c64a-4b30-5482-9d86-cdd982a3b9bf.json      |   0
+ .../evidence/df69b225-b676-55d2-945b-d88a00c09fec.json      |   0
+ .../evidence/dfd95aa6-5398-50dc-be3e-21a3a69ee744.json      |   0
+ .../evidence/dfdc8da1-caa6-55f0-9ac7-7cf566e30871.json      |   0
+ .../evidence/e005eff0-89da-53e9-9c82-b0cb31ba8a09.json      |   0
+ .../evidence/e0f365f3-0c68-5c20-9618-6799faadfa32.json      |   0
+ .../evidence/e3fb5767-a959-5d44-be96-cf9799c09af6.json      |   0
+ .../evidence/e415f6cf-6ac8-5854-8d7a-144bb71cfcd3.json      |   0
+ .../evidence/e43cf144-049c-5476-b061-4f0cf163a1cf.json      |   0
+ .../evidence/e5808cb9-d244-5536-9fd8-512fad366898.json      |   0
+ .../evidence/e6846014-4d39-5674-b3f4-3a54d983bffc.json      |   0
+ .../evidence/e6d32d8c-c09b-5652-acd1-3ace68ef7818.json      |   0
+ .../evidence/e712fe2d-4ac3-5c60-99e5-fb4c2088dfee.json      |   0
+ .../evidence/e715a68e-3482-576a-93fb-4f7c9f2a7f33.json      |   0
+ .../evidence/e7890b1d-1f8e-5c19-be84-dd9df398e16f.json      |   0
+ .../evidence/e8bfc560-6558-524f-b6c5-f7157c77596d.json      |   0
+ .../evidence/e8dee089-4b3d-541a-9bd5-bd16c5ba013d.json      |   0
+ .../evidence/eb5fdf94-980e-586d-be37-e34f3a767c36.json      |   0
+ .../evidence/ed223328-3d24-5b0b-96bc-589eee8c7440.json      |   0
+ .../evidence/f11076e5-914f-5736-aeab-a4031416b2a8.json      |   0
+ .../evidence/f1e94fd1-696f-5345-837a-f1e89ff13b75.json      |   0
+ .../evidence/f2a98cfb-69af-5e4b-8bbd-9a3570989488.json      |   0
+ .../evidence/f880bf0c-2048-5c33-90ec-b54e185e84e9.json      |   0
+ .../evidence/f8c6b9b7-8fac-5531-94ba-2f338a97feac.json      |   0
+ .../evidence/f9ff0967-5e9c-5da2-900f-0a19c26704a8.json      |   0
+ .../evidence/fa2140af-a841-5a51-b277-719816cbe552.json      |   0
+ .../evidence/fb77fca6-fd2e-5239-a1ab-9931fcae0bbb.json      |   0
+ .../evidence/fbe34636-e66a-5fd7-8a12-3cd644d76433.json      |   0
+ .../evidence/fd2d2a73-25f9-5d7a-b587-f38d85d4f125.json      |   0
+ .../evidence/fe25d061-fcaa-5086-86a0-23f042fe5dd4.json      |   0
+ .../evidence/ff410517-69a7-5db7-abc8-2f06b1355075.json      |   0
+ .orchestra/layout.json                                      |   1 +
+ {docs => .orchestra}/tasks/1/assets/gated-roadmap.png       | Bin
+ {docs => .orchestra}/tasks/1/assets/gated-roadmap.svg       |   0
+ .../tasks/1/assets/program-architecture.png                 | Bin
+ .../tasks/1/assets/program-architecture.svg                 |   0
+ .../tasks/1/assets/registry-software-34471.jpg              | Bin
+ {docs => .orchestra}/tasks/1/assets/sensar-os-stack.png     | Bin
+ {docs => .orchestra}/tasks/1/assets/sensar-os-stack.svg     |   0
+ {docs => .orchestra}/tasks/1/build_docx.py                  |   0
+ {docs => .orchestra}/tasks/1/codex-review-audit-fix.md      |   0
+ {docs => .orchestra}/tasks/1/codex-review-document.md       |   0
+ {docs => .orchestra}/tasks/1/codex-review-impl.md           |   0
+ {docs => .orchestra}/tasks/1/codex-review-plan.md           |   0
+ {docs => .orchestra}/tasks/1/codex-review-research.md       |   0
+ {docs => .orchestra}/tasks/1/commercial-model.json          |   0
+ {docs => .orchestra}/tasks/1/docx-qa.md                     |   0
+ {docs => .orchestra}/tasks/1/executive-memo.md              |   0
+ {docs => .orchestra}/tasks/1/faq.md                         |   0
+ {docs => .orchestra}/tasks/1/gate-register.md               |   0
+ {docs => .orchestra}/tasks/1/plan.md                        |   0
+ {docs => .orchestra}/tasks/1/proposal.md                    |   0
+ {docs => .orchestra}/tasks/1/reader-test-audit-fix-main.md  |   0
+ {docs => .orchestra}/tasks/1/reader-test-audit-fix-memo.md  |   0
+ {docs => .orchestra}/tasks/1/reader-test-audit-fix.md       |   0
+ {docs => .orchestra}/tasks/1/reader-test-main.md            |   0
+ {docs => .orchestra}/tasks/1/reader-test-memo.md            |   0
+ {docs => .orchestra}/tasks/1/reader-test.md                 |   0
+ {docs => .orchestra}/tasks/1/report.md                      |   0
+ {docs => .orchestra}/tasks/1/research.md                    |   0
+ {docs => .orchestra}/tasks/1/retro.md                       |   0
+ .../tasks/1/sensar-development-program.docx                 | Bin
+ {docs => .orchestra}/tasks/1/sensar-executive-memo.docx     | Bin
+ {docs => .orchestra}/tasks/1/source-ledger.md               |   0
+ {docs => .orchestra}/tasks/10/mobile-os-key-decisions.md    |   0
+ {docs => .orchestra}/tasks/11/audit.md                      |   0
+ {docs => .orchestra}/tasks/11/codex-review-audit.md         |   0
+ {docs => .orchestra}/tasks/11/findings.csv                  |   0
+ {docs => .orchestra}/tasks/11/questions.md                  |   0
+ {docs => .orchestra}/tasks/11/verdict.md                    |   0
+ {docs => .orchestra}/tasks/15/build-manifest.json           |   0
+ {docs => .orchestra}/tasks/15/build_docx.py                 |   0
+ {docs => .orchestra}/tasks/15/codex-review-impl.md          |   0
+ {docs => .orchestra}/tasks/15/codex-review-plan.md          |   0
+ {docs => .orchestra}/tasks/15/codex-review-research.md      |   0
+ {docs => .orchestra}/tasks/15/internal-pricing-memo.md      |   0
+ {docs => .orchestra}/tasks/15/plan.md                       |   0
+ {docs => .orchestra}/tasks/15/reader-test-proposal.md       |   0
+ {docs => .orchestra}/tasks/15/reader-test-sow.md            |   0
+ {docs => .orchestra}/tasks/15/report.md                     |   0
+ {docs => .orchestra}/tasks/15/research.md                   |   0
+ {docs => .orchestra}/tasks/15/retro.md                      |   0
+ .../tasks/15/sensar-commercial-proposal.docx                | Bin
+ {docs => .orchestra}/tasks/15/sensar-commercial-proposal.md |   0
+ {docs => .orchestra}/tasks/15/sensar-stage1-sow.docx        | Bin
+ {docs => .orchestra}/tasks/15/sensar-stage1-sow.md          |   0
+ {docs => .orchestra}/tasks/15/source-claim-register.csv     |   0
+ {docs => .orchestra}/tasks/16/build-manifest.json           |   0
+ {docs => .orchestra}/tasks/16/build_docx.py                 |   0
+ {docs => .orchestra}/tasks/16/codex-review-impl.md          |   0
+ {docs => .orchestra}/tasks/16/codex-review-plan.md          |   0
+ {docs => .orchestra}/tasks/16/codex-review-research.md      |   0
+ {docs => .orchestra}/tasks/16/internal-pricing-memo.md      |   0
+ {docs => .orchestra}/tasks/16/module-matrix.md              |   0
+ {docs => .orchestra}/tasks/16/plan.md                       |   0
+ {docs => .orchestra}/tasks/16/proposal.md                   |   0
+ {docs => .orchestra}/tasks/16/reader-test-1.md              |   0
+ {docs => .orchestra}/tasks/16/reader-test-2.md              |   0
+ {docs => .orchestra}/tasks/16/report.md                     |   0
+ {docs => .orchestra}/tasks/16/research.md                   |   0
+ {docs => .orchestra}/tasks/16/retro.md                      |   0
+ {docs => .orchestra}/tasks/16/roadmap-map.md                |   0
+ .../tasks/16/sensar-concrete-development-proposal.docx      | Bin
+ .../tasks/16/sensar-display-stage1-sow.docx                 | Bin
+ {docs => .orchestra}/tasks/16/sow-stage1.md                 |   0
+ {docs => .orchestra}/tasks/17/build-manifest.json           |   0
+ {docs => .orchestra}/tasks/17/build_docx.py                 |   0
+ {docs => .orchestra}/tasks/17/codex-review-impl.md          |   0
+ {docs => .orchestra}/tasks/17/codex-review-plan.md          |   0
+ {docs => .orchestra}/tasks/17/codex-review-research.md      |   0
+ {docs => .orchestra}/tasks/17/decision-worksheet-sow.docx   | Bin
+ {docs => .orchestra}/tasks/17/decision-worksheet-sow.md     |   0
+ {docs => .orchestra}/tasks/17/internal-meeting-brief.md     |   0
+ {docs => .orchestra}/tasks/17/md-inventory.md               |   0
+ {docs => .orchestra}/tasks/17/md-register.md                |   0
+ {docs => .orchestra}/tasks/17/plan.md                       |   0
+ {docs => .orchestra}/tasks/17/report.md                     |   0
+ {docs => .orchestra}/tasks/17/research.md                   |   0
+ {docs => .orchestra}/tasks/17/retro.md                      |   0
+ .../tasks/17/sensar-software-portfolio.docx                 | Bin
+ {docs => .orchestra}/tasks/17/sensar-software-portfolio.md  |   0
+ .../tasks/18/__pycache__/build_docx.cpython-313.pyc         | Bin
+ {docs => .orchestra}/tasks/18/briefing-05-08.md             |   0
+ {docs => .orchestra}/tasks/18/build-manifest.json           |   0
+ {docs => .orchestra}/tasks/18/build_docx.py                 |   0
+ {docs => .orchestra}/tasks/18/sensar-mobile-platform.docx   | Bin
+ {docs => .orchestra}/tasks/18/sensar-mobile-platform.md     |   0
+ {docs => .orchestra}/tasks/2/build-manifest.json            |   0
+ {docs => .orchestra}/tasks/2/build_docx.py                  |   0
+ {docs => .orchestra}/tasks/2/check_official_links.py        |   0
+ {docs => .orchestra}/tasks/2/claim-register.csv             |   0
+ {docs => .orchestra}/tasks/2/codex-review-impl-13.md        |   0
+ {docs => .orchestra}/tasks/2/codex-review-impl.md           |   0
+ {docs => .orchestra}/tasks/2/codex-review-plan.md           |   0
+ {docs => .orchestra}/tasks/2/codex-review-research.md       |   0
+ {docs => .orchestra}/tasks/2/commercial-model.csv           |   0
+ {docs => .orchestra}/tasks/2/document-source.md             |   0
+ {docs => .orchestra}/tasks/2/docx-requirements.txt          |   0
+ {docs => .orchestra}/tasks/2/executive-memo.md              |   0
+ {docs => .orchestra}/tasks/2/mobile-os-executive-memo.docx  | Bin
+ {docs => .orchestra}/tasks/2/mobile-os-strategy.docx        | Bin
+ {docs => .orchestra}/tasks/2/plan.md                        |   0
+ {docs => .orchestra}/tasks/2/reader-test-anchors.json       |   0
+ {docs => .orchestra}/tasks/2/reader-test.md                 |   0
+ {docs => .orchestra}/tasks/2/report.md                      |   0
+ {docs => .orchestra}/tasks/2/research.md                    |   0
+ {docs => .orchestra}/tasks/2/retro.md                       |   0
+ {docs => .orchestra}/tasks/2/source-snapshot-manifest.csv   |   0
+ {docs => .orchestra}/tasks/2/stage-gate-register.csv        |   0
+ {docs => .orchestra}/tasks/2/validate_package.py            |   0
+ {docs => .orchestra}/tasks/21/build-env-research.md         |   0
+ {docs => .orchestra}/tasks/21/codex-review-research.md      |   0
+ {docs => .orchestra}/tasks/21/grep-abs-paths.txt            |   0
+ 305 files changed, 4 insertions(+)

@@ -1,0 +1,16 @@
+
+==================================== ERRORS ====================================
+__________ ERROR collecting tests/test_orchestra_layout_fleet_430.py ___________
+ImportError while importing test module '/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base/tests/test_orchestra_layout_fleet_430.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_orchestra_layout_fleet_430.py:9: in <module>
+    from app import orchestra_layout as layout
+E   ImportError: cannot import name 'orchestra_layout' from 'app' (/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base/app/__init__.py)
+=========================== short test summary info ============================
+ERROR tests/test_orchestra_layout_fleet_430.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.09s

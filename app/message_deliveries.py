@@ -12,9 +12,10 @@ from datetime import datetime, timezone
 
 from app import db
 from app.errtext import err_text
+from app.events import MessageProvenance
 
 logger = logging.getLogger("orchestra.message_deliveries")
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 _target_runner_tasks: dict[str, asyncio.Task[bool]] = {}
 _target_delivery_locks: dict[str, asyncio.Lock] = {}
 
@@ -169,9 +170,11 @@ async def accept_message_delivery(
     rendered_message: str,
     message_kind: str | None = None,
     wake: bool = True,
+    provenance: MessageProvenance,
 ) -> tuple[dict, int]:
     """Commit one receipt, then best-effort wake its target runner."""
     delivery_id = _validate_id(delivery_id)
+    origin, origin_detail = provenance.to_storage()
     payload_hash = _payload_hash(
         source_session_id=source_session_id,
         source_principal=source_principal,
@@ -185,6 +188,8 @@ async def accept_message_delivery(
         rendered_message=rendered_message,
         message_kind=message_kind,
         wake=bool(wake),
+        origin=origin,
+        origin_detail=json.loads(origin_detail),
     )
     now = _now()
     connection = db._conn()
@@ -224,13 +229,15 @@ async def accept_message_delivery(
                     source_name, source_scope, source_task_id, target_session_id,
                     target_name, target_scope, target_task_id, target_generation,
                     message, rendered_message, message_kind, wake, payload_hash,
+                    origin, origin_detail,
                     state, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?)""",
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?)""",
                 (
                     delivery_id, SCHEMA_VERSION, source_session_id, source_principal,
                     source_name, source_scope, source_task_id, target_session_id,
                     target_name, target_scope, target_task_id, target_generation,
                     message, rendered_message, message_kind, int(bool(wake)), payload_hash,
+                    origin, origin_detail,
                     now, now,
                 ),
             )
@@ -283,8 +290,14 @@ def prepare_message_delivery(delivery_id: str) -> dict:
             from app.secret_mask import mask_secrets
 
             cursor = connection.execute(
-                "INSERT INTO logs (session_id, ts, type, content) VALUES (?, ?, 'user_message', ?)",
-                (row["target_session_id"], _now(), mask_secrets(row["rendered_message"])),
+                """INSERT INTO logs (
+                       session_id, ts, type, content, origin, origin_detail
+                   ) VALUES (?, ?, 'user_message', ?, ?, ?)""",
+                (
+                    row["target_session_id"], _now(),
+                    mask_secrets(row["rendered_message"]),
+                    row["origin"], row["origin_detail"],
+                ),
             )
             connection.execute(
                 """UPDATE message_deliveries
@@ -304,6 +317,9 @@ def prepare_message_delivery(delivery_id: str) -> dict:
             **_resource(row),
             "user_log_id": row["user_log_id"],
             "history_user_message": user_log["content"] if user_log else row["rendered_message"],
+            "provenance": MessageProvenance.from_storage(
+                row["origin"], row["origin_detail"]
+            ),
         }
 
 
@@ -442,9 +458,13 @@ def mark_message_delivery_unknown(delivery_id: str, error: BaseException, *, orp
 class MessageDeliveryContext:
     allow_running = True
 
-    def __init__(self, delivery_id: str, *, history_user_message: str):
+    def __init__(
+        self, delivery_id: str, *, history_user_message: str,
+        provenance: MessageProvenance,
+    ):
         self.delivery_id = _validate_id(delivery_id)
         self.history_user_message = history_user_message
+        self.provenance = provenance
         self.dispatched = False
 
     async def before_submit(self) -> None:
@@ -511,7 +531,9 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
     if manager is None:
         from app.deps import manager as manager
     context = MessageDeliveryContext(
-        delivery_id, history_user_message=prepared["history_user_message"]
+        delivery_id,
+        history_user_message=prepared["history_user_message"],
+        provenance=prepared["provenance"],
     )
     if intercepted and not intercepted["released"]:
         _mark_message_delivery_fan_buffered(delivery_id, intercepted["fan_id"])
@@ -520,6 +542,7 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
         await manager.send_message_delivery(
             row["target_session_id"], row["rendered_message"],
             delivery=context, target_generation=row["target_generation"],
+            provenance=context.provenance,
         )
         if intercepted and intercepted["released"]:
             logger.info(

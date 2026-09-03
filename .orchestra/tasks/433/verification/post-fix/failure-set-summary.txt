@@ -1,0 +1,22 @@
+base rcs=[1, 1, 1, 1, 1, 1]
+base shard 1: 2 failed, 552 passed, 53 skipped, 3 deselected, 3 xfailed, 2 warnings in 26.42s
+base shard 2: 8 failed, 597 passed, 5 skipped, 2 warnings in 97.22s (0:01:37)
+base shard 3: 5 failed, 601 passed, 4 skipped, 1 warning in 25.91s
+base shard 4: 7 failed, 596 passed, 7 skipped, 4 warnings in 42.26s
+base shard 5: 9 failed, 582 passed, 19 skipped, 1 warning in 155.99s (0:02:35)
+base shard 6: 17 failed, 591 passed in 26.75s
+branch rcs=[1, 1, 1, 1, 1, 1]
+branch shard 1: 2 failed, 552 passed, 53 skipped, 3 deselected, 3 xfailed, 2 warnings in 21.70s
+branch shard 2: 8 failed, 597 passed, 5 skipped, 2 warnings in 30.21s
+branch shard 3: 5 failed, 601 passed, 4 skipped, 1 warning in 26.07s
+branch shard 4: 7 failed, 596 passed, 7 skipped, 4 warnings in 42.02s
+branch shard 5: 8 failed, 583 passed, 19 skipped, 1 warning in 101.29s (0:01:41)
+branch shard 6: 17 failed, 592 passed in 26.06s
+base_bad_count=48
+branch_bad_count=47
+common_bad_count=47
+branch_only_bad_count=0
+base_only_bad_count=1
+--- branch only ---
+--- base only ---
+tests/test_harness_tools.py::test_t1_grep_perf_repo_tree

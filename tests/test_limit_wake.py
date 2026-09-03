@@ -967,7 +967,10 @@ async def test_wake_job_stops_before_second_agent_when_limit_closes(
     manager = MagicMock()
     manager.ensure_loaded = AsyncMock(return_value=session)
 
-    async def deliver(_session_id, message):
+    async def deliver(_session_id, message, *, provenance):
+        assert provenance.origin == "system"
+        assert provenance.subtype == "limit_wake"
+        assert provenance.ref
         await session.send(message)
 
     manager.send = AsyncMock(side_effect=deliver)

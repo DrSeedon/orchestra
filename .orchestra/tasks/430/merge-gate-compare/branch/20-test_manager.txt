@@ -1,0 +1,191 @@
+.................F.....FF.FFFF.....FFFFFFF.............................. [ 42%]
+........................................................F............... [ 84%]
+...........................                                              [100%]
+=================================== FAILURES ===================================
+_____________________ TestCreateSession.test_with_worktree _____________________
+tests/test_manager.py:261: in test_with_worktree
+    session = await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_with_worktree0/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_with_worktree0/repo
+__ TestAtomicSpawnLifecycle.test_blocked_worktree_preparation_is_not_visible ___
+tests/test_manager.py:378: in test_blocked_worktree_preparation_is_not_visible
+    assert await asyncio.to_thread(entered.wait, 2)
+E   assert False
+_ TestAtomicSpawnLifecycle.test_cancelled_blocked_git_waits_then_removes_worktree_and_branch _
+tests/test_manager.py:425: in test_cancelled_blocked_git_waits_then_removes_worktree_and_branch
+    assert await asyncio.to_thread(entered.wait, 2)
+E   assert False
+__ TestAtomicSpawnLifecycle.test_prepare_internal_cancellation_is_compensated __
+tests/test_manager.py:506: in test_prepare_internal_cancellation_is_compensated
+    await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_prepare_internal_cancella0/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_prepare_internal_cancella0/repo
+_ TestAtomicSpawnLifecycle.test_final_db_failure_aborts_runtime_before_git_cleanup _
+tests/test_manager.py:566: in test_final_db_failure_aborts_runtime_before_git_cleanup
+    await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_final_db_failure_aborts_r0/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_final_db_failure_aborts_r0/repo
+
+During handling of the above exception, another exception occurred:
+tests/test_manager.py:565: in test_final_db_failure_aborts_runtime_before_git_cleanup
+    with pytest.raises(RuntimeError, match="final publish failed"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'final publish failed'
+E     Actual message: 'ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_final_db_failure_aborts_r0/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_final_db_failure_aborts_r0/repo'
+_ TestAtomicSpawnLifecycle.test_same_identity_spawns_are_serialized_before_git _
+tests/test_manager.py:606: in test_same_identity_spawns_are_serialized_before_git
+    assert await asyncio.to_thread(entered.wait, 2)
+E   assert False
+__ TestAtomicSpawnLifecycle.test_same_repo_name_across_scopes_has_one_winner ___
+tests/test_manager.py:648: in test_same_repo_name_across_scopes_has_one_winner
+    assert sum(not isinstance(item, BaseException) for item in results) == 1
+E   assert 0 == 1
+E    +  where 0 = sum(<generator object TestAtomicSpawnLifecycle.test_same_repo_name_across_scopes_has_one_winner.<locals>.<genexpr> at 0x7e32e4230040>)
+_ TestAtomicSpawnLifecycle.test_spawn_failure_leaves_task_unchanged_and_cleans_git[start] _
+tests/test_manager.py:804: in test_spawn_failure_leaves_task_unchanged_and_cleans_git
+    await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_spawn_failure_leaves_task1/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_spawn_failure_leaves_task1/repo
+
+During handling of the above exception, another exception occurred:
+tests/test_manager.py:803: in test_spawn_failure_leaves_task_unchanged_and_cleans_git
+    with pytest.raises(RuntimeError, match=failure_stage):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'start'
+E     Actual message: 'ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_spawn_failure_leaves_task1/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_spawn_failure_leaves_task1/repo'
+_ TestAtomicSpawnLifecycle.test_spawn_failure_leaves_task_unchanged_and_cleans_git[publish] _
+tests/test_manager.py:804: in test_spawn_failure_leaves_task_unchanged_and_cleans_git
+    await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_spawn_failure_leaves_task2/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_spawn_failure_leaves_task2/repo
+
+During handling of the above exception, another exception occurred:
+tests/test_manager.py:803: in test_spawn_failure_leaves_task_unchanged_and_cleans_git
+    with pytest.raises(RuntimeError, match=failure_stage):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'publish'
+E     Actual message: 'ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_spawn_failure_leaves_task2/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_spawn_failure_leaves_task2/repo'
+___________ TestWorktreeBaseBranch.test_worktree_from_feature_branch ___________
+tests/test_manager.py:846: in test_worktree_from_feature_branch
+    session = await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_worktree_from_feature_bra0/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_worktree_from_feature_bra0/repo
+____ TestWorktreeBaseBranch.test_omitted_base_resolves_and_persists_master _____
+tests/test_manager.py:867: in test_omitted_base_resolves_and_persists_master
+    session = await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_omitted_base_resolves_and0/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_omitted_base_resolves_and0/repo
+____________ TestInjectSkillsGating.test_skills_all_skips_injection ____________
+tests/test_manager.py:910: in test_skills_all_skips_injection
+    inject = await self._run(mgr, tmp_path, lambda p, r: rr)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_manager.py:901: in _run
+    await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_skills_all_skips_injectio0/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_skills_all_skips_injectio0/repo
+_______________ TestInjectSkillsGating.test_skills_list_injects ________________
+tests/test_manager.py:916: in test_skills_list_injects
+    inject = await self._run(mgr, tmp_path, lambda p, r: rr)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_manager.py:901: in _run
+    await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_skills_list_injects0/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_skills_list_injects0/repo
+________ TestInjectSkillsGating.test_codex_skills_list_does_not_inject _________
+tests/test_manager.py:924: in test_codex_skills_list_does_not_inject
+    inject = await self._run(
+tests/test_manager.py:901: in _run
+    await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_codex_skills_list_does_no0/repo; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_codex_skills_list_does_no0/repo
+_ TestValidateSpawnIntegration.test_forbidden_spawn_blocked_before_side_effect _
+tests/test_manager.py:2716: in test_forbidden_spawn_blocked_before_side_effect
+    await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:753: in _create_session_locked
+    worker_memory = load_worker_memory(name, role, scope, memory_repository)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/prompting.py:81: in load_worker_memory
+    raise LayoutMigrationError(
+E   app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-maxim/pytest-335/test_forbidden_spawn_blocked_b0/repo2; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-maxim/pytest-335/test_forbidden_spawn_blocked_b0/repo2
+=========================== short test summary info ============================
+FAILED tests/test_manager.py::TestCreateSession::test_with_worktree - app.orc...
+FAILED tests/test_manager.py::TestAtomicSpawnLifecycle::test_blocked_worktree_preparation_is_not_visible
+FAILED tests/test_manager.py::TestAtomicSpawnLifecycle::test_cancelled_blocked_git_waits_then_removes_worktree_and_branch
+FAILED tests/test_manager.py::TestAtomicSpawnLifecycle::test_prepare_internal_cancellation_is_compensated
+FAILED tests/test_manager.py::TestAtomicSpawnLifecycle::test_final_db_failure_aborts_runtime_before_git_cleanup
+FAILED tests/test_manager.py::TestAtomicSpawnLifecycle::test_same_identity_spawns_are_serialized_before_git
+FAILED tests/test_manager.py::TestAtomicSpawnLifecycle::test_same_repo_name_across_scopes_has_one_winner
+FAILED tests/test_manager.py::TestAtomicSpawnLifecycle::test_spawn_failure_leaves_task_unchanged_and_cleans_git[start]
+FAILED tests/test_manager.py::TestAtomicSpawnLifecycle::test_spawn_failure_leaves_task_unchanged_and_cleans_git[publish]
+FAILED tests/test_manager.py::TestWorktreeBaseBranch::test_worktree_from_feature_branch
+FAILED tests/test_manager.py::TestWorktreeBaseBranch::test_omitted_base_resolves_and_persists_master
+FAILED tests/test_manager.py::TestInjectSkillsGating::test_skills_all_skips_injection
+FAILED tests/test_manager.py::TestInjectSkillsGating::test_skills_list_injects
+FAILED tests/test_manager.py::TestInjectSkillsGating::test_codex_skills_list_does_not_inject
+FAILED tests/test_manager.py::TestValidateSpawnIntegration::test_forbidden_spawn_blocked_before_side_effect
+15 failed, 156 passed in 15.65s

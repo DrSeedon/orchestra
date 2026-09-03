@@ -1,0 +1,7 @@
+{
+  "error": "ORCHESTRA_LAYOUT_MISSING: no old or new project state exists; repository=/mnt/data/Projects/Python/stargate-tactics; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair /mnt/data/Projects/Python/stargate-tactics",
+  "error_type": "LayoutMigrationError",
+  "outcome": "failed",
+  "project_id": "stargate-tactics",
+  "repository": "/mnt/data/Projects/Python/stargate-tactics"
+}

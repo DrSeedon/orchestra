@@ -20,7 +20,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app.events import AgentEvent, InjectedMessage
+from app.events import AgentEvent, InjectedMessage, MessageProvenance
 from app.models import backend_for_model, get_model_spec
 from app.prompting import (
     codex_project_doc_preflight, inject_skills_to_worktree,
@@ -59,7 +59,11 @@ from app.session_hibernate import HibernateManager
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER,
 )
-from app.session_turns import CRITICAL_AUTO_COMPACT_PCT, TurnManager
+from app.session_turns import (
+    CRITICAL_AUTO_COMPACT_PCT,
+    TurnManager,
+    _auto_compact_threshold_pct,
+)
 from app.usage_contract import KnownContext, current_context
 
 if TYPE_CHECKING:
@@ -79,6 +83,51 @@ logger = logging.getLogger(__name__)
 
 _HANDOFF_LOG_RETRY_BUDGET_S = 6.0
 TURN_COMPLETION_RECHECK = 1.0
+_COMPACT_USER_MESSAGES_REQUIREMENT = (
+    "Preserve all user messages verbatim, in order of arrival "
+    "(все сообщения юзера, дословно, в порядке поступления)."
+)
+
+
+def _compact_prompt(session_name: str, scope: str = "") -> str:
+    transcript_endpoint = f"/api/sessions/{session_name}/logs"
+    if scope:
+        transcript_endpoint += f"?scope={scope}"
+    return (
+        "[SYSTEM: Context compaction requested — structured handoff]\n\n"
+        "Before writing the handoff, promote a durable fact only when the conversation explicitly "
+        "names an existing canonical Markdown path and the exact fact to store. Update only that "
+        "path, preserve unrelated content, and make the write idempotent. Otherwise do not write "
+        "files. Never create CLAUDE.md, TODO.md, BUGS.md, or a new note solely for compaction. "
+        "Never write credentials.\n\n"
+        "Write a compact task-state handoff from supported evidence only.\n\n"
+        "TASK STATE\n"
+        "- Current objective, phase, and evidence-backed status.\n\n"
+        "DECISIONS\n"
+        "- Only active decisions and reversals needed to continue; retain provisional/final state "
+        "and rationale.\n\n"
+        "FILES AND ARTIFACTS\n"
+        "- Exact path; read/changed/created state; the material change or measured diff; whether "
+        "committed, merged, or deployed. Never invent a path.\n\n"
+        "COMMANDS AND TOOL OUTCOMES\n"
+        "- Only what is needed to continue: the exact non-secret command, exit status, the measured "
+        "value, the relevant error string, and what it proves. Drop redundant raw output.\n\n"
+        "BLOCKER / NEXT\n"
+        "- Current blocker and owner if known; then the single next executable action. If "
+        "continuity is uncertain, write `UNKNOWN — source gap` instead of guessing.\n\n"
+        "CONSTRAINTS\n"
+        "- Still-active user preferences, safety constraints, and unresolved conflicts. Distinguish "
+        "durable preferences from one-off instructions.\n\n"
+        "USER MESSAGES AND RAW TRANSCRIPT\n"
+        f"- {_COMPACT_USER_MESSAGES_REQUIREMENT} Include a link to the raw session transcript at "
+        f"`{transcript_endpoint}`.\n\n"
+        "Do not claim a file was read, changed, committed, deployed, or tested unless the "
+        "conversation or tool evidence says so. Do not assert the negative either: absence of a "
+        "tool event means the outcome is unknown, not that the action did not happen. Write "
+        "`no evidence of X` rather than `X did not happen`. A measured empty diff supports only "
+        "`not modified`; it never supports `not read`. Omit redundant tool output and all "
+        "credentials. Output only these seven short sections."
+    )
 
 
 def _is_locked_database_error(error: BaseException) -> bool:
@@ -215,7 +264,7 @@ def safeguard_guidance(request_id: str, dump_path: str) -> str:
 def store_safeguard_refusal(session_name: str, text: str) -> str:
     """Сложить сырой отказ ВНЕ рабочего дерева и вернуть путь.
 
-    Не в `docs/tasks/`: хранилище, которое пишется само, не должно делить рабочее дерево с
+    Не в `.orchestra/tasks/`: auto-written storage must not share the Git working tree with
     Git-lifecycle — так `report_bug` пачкал чекаут и блокировал все мержи (#114). Адрес тот же,
     что у инбокса баг-репортов.
     """
@@ -323,11 +372,10 @@ def _configured_auto_compact_window_state(
 
 
 def auto_compact_enabled() -> bool:
-    """`AUTO_COMPACT_ENABLED=0` выключает плановый автокомпакт оркестратора.
+    """`AUTO_COMPACT_ENABLED=0` выключает автоматический компакт для всех ролей.
 
-    Ручной `compact_worker` не затрагивается — это аварийный выход. Воркерский автокомпакт
-    по >90% тоже. Критический компакт при >=99% обходит выключатель для любой роли и модели:
-    это последняя защита от жёсткого лимита runtime, а не фоновая оптимизация по расписанию.
+    Ручной `compact_worker` не затрагивается — это аварийный выход. Критический порог не
+    обходит выключатель: явное отключение автоматического действия имеет приоритет над ним.
 
     Читается на КАЖДОМ решении, а не при импорте: иначе значение застывает на момент старта
     процесса, и правка `.env` не действует до перезапуска даже там, где могла бы.
@@ -571,20 +619,19 @@ class AgentSession:
     def _auto_compact_window_blocked(
             self, context_pct: int, now_utc: datetime | None = None,
             *, log_status: bool = True, deferred: bool = False) -> bool:
-        if context_pct >= CRITICAL_AUTO_COMPACT_PCT:
-            return False
-        if not self.is_orchestrator:
-            return False
         if not auto_compact_enabled():
-            # Таймер мог быть взведён до того, как флаг выставили: решение о компакте
-            # принимается здесь, поэтому здесь же он и обязан гаситься.
-            if log_status:
+            if log_status and not self._auto_compact_off_logged:
+                self._auto_compact_off_logged = True
                 self._log(
                     "status",
                     "auto-compact disabled (AUTO_COMPACT_ENABLED=0); "
                     "manual compact remains available",
                 )
             return True
+        if context_pct >= _auto_compact_threshold_pct(self):
+            return False
+        if not self.is_orchestrator:
+            return False
         state = self._auto_compact_window_state(now_utc)
         if state["allowed"]:
             return False
@@ -668,7 +715,7 @@ class AgentSession:
         policy = self._precompact_policy()
         if policy is None or context_pct < policy["arm_threshold"]:
             return
-        if self.is_orchestrator and not auto_compact_enabled():
+        if not auto_compact_enabled():
             # Не взводим вовсе: гейт ниже по течению отменил бы компакт, но таймер писал бы
             # в журнал «запланирован» и «пропущен» на каждом ходу.
             if not self._auto_compact_off_logged:
@@ -720,6 +767,16 @@ class AgentSession:
         state["fired_at"] = fired_at.isoformat()
         state["context_pct"] = self._last_context.get("percentage", 0)
 
+        if not auto_compact_enabled():
+            self._auto_compact_window_blocked(state["context_pct"])
+            state["skip_reason"] = "auto_compact_disabled"
+            self._log(
+                "status",
+                f"precompact timer skipped: {self._precompact_payload(state)}",
+            )
+            self._precompact_timer = None
+            return
+
         if self.status != AgentStatus.IDLE:
             state["skip_reason"] = "not_idle"
             self._log(
@@ -731,7 +788,7 @@ class AgentSession:
 
         critical_context = (
             self._context_is_known()
-            and self._last_context.get("percentage", 0) >= CRITICAL_AUTO_COMPACT_PCT
+            and self._last_context.get("percentage", 0) >= _auto_compact_threshold_pct(self)
         )
 
         from app.bg_jobs import bg_manager
@@ -962,11 +1019,14 @@ class AgentSession:
         initial_message: str | None = None,
         *,
         persist: bool = True,
+        provenance: MessageProvenance | None = None,
     ) -> None:
         if initial_message and not persist:
             raise ValueError("unpublished session cannot accept an initial message")
         if initial_message:
-            await self.send(initial_message)
+            if provenance is None:
+                raise ValueError("initial message provenance is required")
+            await self.send(initial_message, provenance=provenance)
         else:
             self.status = AgentStatus.IDLE
             if persist:
@@ -1137,7 +1197,12 @@ class AgentSession:
                 self._lifecycle_lock.release()
             return
 
-    async def send(self, message: str | InjectedMessage, *, delivery=None) -> None:
+    async def send(
+        self, message: str | InjectedMessage, *, provenance: MessageProvenance,
+        delivery=None,
+    ) -> None:
+        if isinstance(message, InjectedMessage) and message.provenance != provenance:
+            raise ValueError("injected message provenance mismatch")
         message_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
         message = message.text if isinstance(message, InjectedMessage) else message
         original_user_message = message
@@ -1203,9 +1268,9 @@ class AgentSession:
                 raise RuntimeError("initial delivery requires an idle session")
         # Retry budgets belong to one logical request. A real new message resets both;
         # each internal retry preserves only its own failure class.
-            if not message.startswith("[system] Retrying after rate limit."):
+            if provenance.subtype != "rate_limit_retry":
                 self._rate_limit_retries = 0
-            if not message.startswith("[system] Retrying after transient server error."):
+            if provenance.subtype != "server_error_retry":
                 self._server_error_retries = 0
                 self._session_limit_hit = False
             self._safeguard_refusal = ""
@@ -1216,7 +1281,10 @@ class AgentSession:
                 if delivery is not None and allow_running_delivery:
                     return
                 self._pending_messages.append(message)
-                self._log("user_message", message, event_id=message_event_id)
+                self._log(
+                    "user_message", message, event_id=message_event_id,
+                    provenance=provenance,
+                )
                 self._log("status", f"message queued (compact in progress, {len(self._pending_messages)} pending)")
                 return
             if self.status == AgentStatus.RUNNING:
@@ -1263,7 +1331,10 @@ class AgentSession:
                             await delivery.mark_unknown(error)
                         raise
 
-                self._log("user_message", message, event_id=message_event_id)
+                self._log(
+                    "user_message", message, event_id=message_event_id,
+                    provenance=provenance,
+                )
                 if (
                     self.backend_type == "codex"
                     and self._backend is not None
@@ -1307,7 +1378,10 @@ class AgentSession:
             self.progress_pct = 0
             self.progress_status = ""
             if delivery is None:
-                self._log("user_message", message, event_id=message_event_id)
+                self._log(
+                    "user_message", message, event_id=message_event_id,
+                    provenance=provenance,
+                )
 
             did_inject = False
             pending_th = ""
@@ -1325,7 +1399,7 @@ class AgentSession:
                 # the prompt is built at spawn / _load_from_db, so anything the agent
                 # wrote to its own memory since then would otherwise wait for a restart.
                 # The same argument applies to the ROLE text itself (#220 T1): rebuild it
-                # from pipelines/** instead of replaying the string assembled at startup,
+                # from .orchestra/pipelines/** instead of replaying the string assembled at startup,
                 # otherwise a rule edit waits for a restart (median 3.3h, p75 22.9h).
                 if self.prompt_overlay is None:
                     # A full prompt set by the operator has no component boundary —
@@ -1333,6 +1407,7 @@ class AgentSession:
                     self._current_prompt = refresh_worker_memory(
                         self._current_prompt, self.name, self.role, self.scope,
                         self.worktree_path or "",
+                        allow_absent_project=True,
                     )
                 else:
                     from app.deps import manager
@@ -1347,7 +1422,7 @@ class AgentSession:
                             repository_path=self.worktree_path or "",
                         )
                     except Exception as error:
-                        # Пересборка читает pipelines/** на ГОРЯЧЕМ пути, а
+                        # Пересборка читает .orchestra/pipelines/** на ГОРЯЧЕМ пути, а
                         # ROLE_SYSTEM_PROMPT падает громко (ValueError) на битом
                         # манифесте. До T1 этого вызова здесь не было вовсе, поэтому
                         # опечатка в роли теперь убивала бы следующий ход У ВСЕХ
@@ -1361,6 +1436,7 @@ class AgentSession:
                         self._current_prompt = refresh_worker_memory(
                             self._current_prompt, self.name, self.role, self.scope,
                             self.worktree_path or "",
+                            allow_absent_project=True,
                         )
                 message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
                 did_inject = True
@@ -2759,40 +2835,7 @@ class AgentSession:
         # #106 Q6: hot_state_ledger bundle. Bounded promotion replaces the old
         # unconditional CLAUDE.md/TODO.md/BUGS.md presave, which drove 218
         # unrelated writes across 63 measured outputs (candidate: 0).
-        COMPACT_PROMPT = (
-            "[SYSTEM: Context compaction requested — structured handoff]\n\n"
-            "Before writing the handoff, promote a durable fact only when the conversation explicitly "
-            "names an existing canonical Markdown path and the exact fact to store. Update only that "
-            "path, preserve unrelated content, and make the write idempotent. Otherwise do not write "
-            "files. Never create CLAUDE.md, TODO.md, BUGS.md, or a new note solely for compaction. "
-            "Never write credentials.\n\n"
-            "Write a compact task-state handoff from supported evidence only.\n\n"
-            "TASK STATE\n"
-            "- Current objective, phase, and evidence-backed status.\n\n"
-            "DECISIONS\n"
-            "- Only active decisions and reversals needed to continue; retain provisional/final state "
-            "and rationale.\n\n"
-            "FILES AND ARTIFACTS\n"
-            "- Exact path; read/changed/created state; the material change or measured diff; whether "
-            "committed, merged, or deployed. Never invent a path.\n\n"
-            "COMMANDS AND TOOL OUTCOMES\n"
-            "- Only what is needed to continue: the exact non-secret command, exit status, the measured "
-            "value, the relevant error string, and what it proves. Drop redundant raw output.\n\n"
-            "BLOCKER / NEXT\n"
-            "- Current blocker and owner if known; then the single next executable action. If "
-            "continuity is uncertain, write `UNKNOWN — source gap` instead of guessing.\n\n"
-            "CONSTRAINTS\n"
-            "- Still-active user preferences, safety constraints, and unresolved conflicts. Distinguish "
-            "durable preferences from one-off instructions.\n\n"
-            "Preserve the last three user messages verbatim, including exact commands, paths, numbers, "
-            "and error strings.\n\n"
-            "Do not claim a file was read, changed, committed, deployed, or tested unless the "
-            "conversation or tool evidence says so. Do not assert the negative either: absence of a "
-            "tool event means the outcome is unknown, not that the action did not happen. Write "
-            "`no evidence of X` rather than `X did not happen`. A measured empty diff supports only "
-            "`not modified`; it never supports `not read`. Omit redundant tool output and all "
-            "credentials. Output only these six short sections."
-        )
+        COMPACT_PROMPT = _compact_prompt(self.name, self.scope)
         PREAMBLE = "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n[END OF SUMMARY — continue naturally]\n\n"
         COMPACT_MAX_RETRIES = 3
         COMPACT_RETRY_DELAY = 30
@@ -2978,7 +3021,13 @@ class AgentSession:
                 self.status = AgentStatus.RUNNING
                 self._persist()
                 backend = await self._ensure_backend(force_fresh=True)
-                self._log("user_message", preamble + "Acknowledge briefly.")
+                self._log(
+                    "user_message", preamble + "Acknowledge briefly.",
+                    provenance=MessageProvenance(
+                        origin="platform", senders=("Orchestra",),
+                        subtype="compact",
+                    ),
+                )
                 await backend.send(preamble + "Acknowledge briefly.")
 
             await self._run_compaction_start(permit, start_ack_turn)
@@ -3090,7 +3139,13 @@ class AgentSession:
     async def _rate_limit_retry(self, delay: int) -> None:
         await asyncio.sleep(delay)
         try:
-            await self.send("[system] Retrying after rate limit. Continue where you left off.")
+            provenance = MessageProvenance(
+                origin="system", senders=("system",), subtype="rate_limit_retry",
+            )
+            await self.send(
+                "[system] Retrying after rate limit. Continue where you left off.",
+                provenance=provenance,
+            )
             logger.info(f"[{self.name}] rate-limit retry after {delay}s")
         except DrainingRefused as refusal:
             self._log("status", f"drain: {refusal}")
@@ -3114,10 +3169,14 @@ class AgentSession:
                 if self._turn_gen != expected_turn_gen or self.status != AgentStatus.IDLE:
                     return
                 await self._disconnect_backend()
+            provenance = MessageProvenance(
+                origin="system", senders=("system",), subtype="server_error_retry",
+            )
             await self.send(
                 "[system] Retrying after transient server error. Continue where you "
                 "left off. Do not repeat completed research; execute the pending "
-                "deliverable now."
+                "deliverable now.",
+                provenance=provenance,
             )
             logger.info(f"[{self.name}] server-error retry after {delay}s")
         except DrainingRefused as refusal:
@@ -3137,7 +3196,13 @@ class AgentSession:
     async def _auto_continue(self) -> None:
         await asyncio.sleep(1)
         try:
-            await self.send("[system] Turn limit reached. Continue where you left off.")
+            provenance = MessageProvenance(
+                origin="system", senders=("system",), subtype="turn_limit_continue",
+            )
+            await self.send(
+                "[system] Turn limit reached. Continue where you left off.",
+                provenance=provenance,
+            )
             logger.info(f"[{self.name}] auto-continue after max_turns")
         except DrainingRefused as refusal:
             self._log("status", f"drain: {refusal}")
@@ -3184,6 +3249,10 @@ class AgentSession:
                 self._last_context["percentage"] = context.percentage
                 self._last_context["total_tokens"] = context.tokens
                 self._last_context["max_tokens"] = context.max_tokens
+                if "auto_compact_threshold" in usage:
+                    self._last_context["auto_compact_threshold"] = usage[
+                        "auto_compact_threshold"
+                    ]
                 self._last_context["known"] = True
                 if abs(old_pct - context.percentage) > 30:
                     logger.info(
@@ -3234,7 +3303,7 @@ class AgentSession:
             if label == "User" and excluded[content] > 0:
                 excluded[content] -= 1
                 continue
-            if content.startswith("[Orchestra platform note:"):
+            if entry.get("origin") == "platform":
                 continue
             visible.append((label, content))
 
@@ -5083,6 +5152,7 @@ class AgentSession:
         content: str,
         *,
         event_id: str = "",
+        provenance: MessageProvenance | None = None,
         tool_use_id: str | None = None,
         tool_name: str | None = None,
         tool_is_error: bool | None = None,
@@ -5090,11 +5160,12 @@ class AgentSession:
         # Fire-and-forget on dedicated DB pool — keeps event loop non-blocking for log-heavy turns
         args = (self.id, datetime.now(timezone.utc), type, content, event_id)
         if tool_use_id is None and tool_name is None and tool_is_error is None:
-            operation = partial(add_log, *args)
+            operation = partial(add_log, *args, provenance=provenance)
         else:
             operation = partial(
                 add_log,
                 *args,
+                provenance=provenance,
                 tool_use_id=tool_use_id,
                 tool_name=tool_name,
                 tool_is_error=tool_is_error,

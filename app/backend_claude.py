@@ -37,6 +37,11 @@ from claude_agent_sdk.types import (
     ToolResultBlock, ServerToolResultBlock, UserMessage,
 )
 
+try:
+    from claude_agent_sdk import RateLimitEvent
+except ImportError:  # Older SDKs do not expose rate-limit events.
+    RateLimitEvent = None
+
 from app.errtext import err_text
 from app.events import AgentEvent
 from app.runtime_history import (
@@ -477,7 +482,7 @@ def _extract_tool_result(block) -> str:
 # model and an MCP server that is written in JS does exactly that parse. 19-digit ids are
 # normal for Yandex.Direct, Telegram and Discord. A schema typed `string` rejects the rounded
 # value loudly; a schema that accepts `number` takes it silently and the write lands on
-# somebody else's object. See docs/tasks/129/research.md.
+# somebody else's object. See .orchestra/tasks/129/research.md.
 _FLOAT64_SAFE_INT = 2 ** 53
 
 
@@ -1382,6 +1387,14 @@ class ClaudeBackend:
                                                "raw_json": _json.dumps(data, ensure_ascii=False) if data else "",
                                                **u}))
 
+        elif RateLimitEvent is not None and isinstance(msg, RateLimitEvent):
+            info = msg.rate_limit_info
+            raw = getattr(info, "raw", {}) or {}
+            events.append(AgentEvent(
+                "status",
+                f"RATE_LIMIT_RAW {_json.dumps(raw, ensure_ascii=False)}",
+            ))
+
         elif isinstance(msg, ResultMessage):
             sr = getattr(msg, "stop_reason", None) or "unknown"
             nt = getattr(msg, "num_turns", 0) or 0
@@ -1460,9 +1473,11 @@ class ClaudeBackend:
                 and not isinstance(msg, (TaskStartedMessage, TaskProgressMessage, TaskNotificationMessage))
                 and getattr(msg, "subtype", "") == "compact_boundary"):
             data = getattr(msg, "data", {}) or {}
-            meta = data.get("compactMetadata", data)
-            pre = meta.get("preTokens", 0)
-            post = meta.get("postTokens", 0)
+            meta = data.get("compact_metadata")
+            if not isinstance(meta, dict):
+                meta = data.get("compactMetadata", data)
+            pre = meta.get("pre_tokens", meta.get("preTokens", 0))
+            post = meta.get("post_tokens", meta.get("postTokens", 0))
             trigger = meta.get("trigger", "unknown")
             events.append(AgentEvent("status",
                 f"CLI auto-compacted ({trigger}): {pre:,}→{post:,} tokens"))

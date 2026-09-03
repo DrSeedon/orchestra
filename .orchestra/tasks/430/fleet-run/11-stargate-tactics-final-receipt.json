@@ -1,0 +1,16 @@
+{
+  "dirty_files_expanded": 16,
+  "final_outcome": "current",
+  "head": "14d2f64729c7a7db87e86d7f752d979e251b7976",
+  "initial_outcome": "failed",
+  "layout_state": "current",
+  "managed_paths": [
+    "kb"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "stargate-tactics",
+  "repository": "/mnt/data/Projects/Python/stargate-tactics",
+  "status_preserved_after_path_mapping": true
+}

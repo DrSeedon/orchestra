@@ -116,8 +116,8 @@ def test_review_t1_rejects_symlinked_manifest_parent_for_zero_record_project(
     _git(central, "commit", "-qm", "zero records")
     outside = tmp_path / "outside"
     outside.mkdir()
-    (repos["empty"] / "docs").symlink_to(outside, target_is_directory=True)
-    _git(repos["empty"], "add", "docs")
+    (repos["empty"] / ".orchestra").symlink_to(outside, target_is_directory=True)
+    _git(repos["empty"], "add", ".orchestra")
     _git(repos["empty"], "commit", "-qm", "committed symlink")
     with pytest.raises(distribution.DistributionError, match="manifest.*escape|symlink"):
         _run(central, quarantine, registry, _git(central, "rev-parse", "HEAD"))
@@ -140,7 +140,7 @@ def test_review_t1_does_not_overwrite_file_created_after_preflight(
     monkeypatch.setattr(distribution, "_project_plan", race)
     with pytest.raises(distribution.DistributionError, match="conflict|concurrent"):
         _run(central, quarantine, registry, head, apply=True, commit=True)
-    assert next((repos["a"] / "docs/kb/records/evidence").glob("*.json")).read_bytes() == b"concurrent\n"
+    assert next((repos["a"] / ".orchestra/kb/records/evidence").glob("*.json")).read_bytes() == b"concurrent\n"
 
 
 def test_review_t1_refuses_destination_ref_drift(tmp_path: Path, monkeypatch):
@@ -155,7 +155,7 @@ def test_review_t1_refuses_destination_ref_drift(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(distribution, "_project_plan", drift)
     with pytest.raises(distribution.DistributionError, match="ref drift|HEAD drift"):
         _run(central, quarantine, registry, head, apply=True, commit=True)
-    assert not (repos["a"] / "docs/kb").exists()
+    assert not (repos["a"] / ".orchestra/kb").exists()
 
 
 def test_review_t1_reports_partial_commit_if_later_repo_fails(
@@ -195,7 +195,7 @@ def test_review_t1_remote_probe_is_explicit_and_receipt_cannot_dirty_managed_rep
     result = _run(central, quarantine, registry, head)
     assert "ls-remote" not in result["git_subcommands"]
 
-    receipt = repos["a"] / "docs/kb/unsafe-receipt.json"
+    receipt = repos["a"] / ".orchestra/kb/unsafe-receipt.json"
     command = [
         sys.executable,
         "scripts/distribute_project_knowledge.py",
@@ -240,8 +240,8 @@ def test_review_t1_multiple_orphans_share_one_quarantine_commit(tmp_path: Path):
         "orphan-b",
     }
     assert _git(quarantine, "rev-list", "--count", "HEAD") == "2"
-    assert (quarantine / "orphan-a/docs/kb/manifest.json").is_file()
-    assert (quarantine / "orphan-b/docs/kb/manifest.json").is_file()
+    assert (quarantine / "orphan-a/.orchestra/kb/manifest.json").is_file()
+    assert (quarantine / "orphan-b/.orchestra/kb/manifest.json").is_file()
 
 
 def test_review_t1_forces_noninteractive_remote_probe(
@@ -356,7 +356,7 @@ def test_review_t1_commits_raw_bytes_despite_clean_filter(tmp_path: Path):
     central, quarantine, repos, registry, head = _fixture(tmp_path, ("a",))
     repo = repos["a"]
     (repo / ".gitattributes").write_text(
-        "docs/kb/records/evidence/*.json filter=mutate\n", encoding="utf-8"
+        ".orchestra/kb/records/evidence/*.json filter=mutate\n", encoding="utf-8"
     )
     _git(repo, "config", "filter.mutate.clean", "sed s/current/mutated/g")
     _git(repo, "config", "filter.mutate.smudge", "cat")
@@ -428,4 +428,4 @@ def test_t2_registry_drift_before_first_write_is_refused(tmp_path: Path, monkeyp
     monkeypatch.setattr(distribution, "_source_records", drift)
     with pytest.raises(distribution.DistributionError, match="scope registry drift"):
         _run(central, quarantine, registry, head, apply=True, commit=False)
-    assert not (repos["a"] / "docs/kb").exists()
+    assert not (repos["a"] / ".orchestra/kb").exists()

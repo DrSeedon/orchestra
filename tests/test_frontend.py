@@ -396,6 +396,37 @@ def test_chat_input_exists(dashboard_page: Page):
     expect(chat_input).to_be_enabled()
 
 
+def test_internal_telemetry_status_is_not_rendered_in_chat(
+    dashboard_browser: Browser,
+):
+    """SSE status classification reaches the real addChatEntry wiring."""
+    source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
+    page = dashboard_browser.new_page()
+    page.route(
+        "**/static/js/chat.js*",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/javascript",
+            body=source,
+        ),
+    )
+    _goto_dashboard(page)
+    try:
+        rendered = page.evaluate("""() => {
+            const chat = document.querySelector('#chat');
+            chat.replaceChildren();
+            const raw = 'RATE_LIMIT_RAW {"utilization":0.32}';
+            addChatEntry('status', raw, null, null, {
+                type: 'status', status_hidden: true,
+            });
+            return {raw, text: chat.textContent};
+        }""")
+    finally:
+        page.close()
+
+    assert rendered["raw"] not in rendered["text"]
+
+
 def test_send_button_exists(dashboard_page: Page):
     send_btn = dashboard_page.locator("#send-btn")
     expect(send_btn).to_be_visible()

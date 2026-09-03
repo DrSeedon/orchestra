@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app import db
+from app.events import MessageProvenance
 
 
 logger = logging.getLogger("orchestra.portfolio_watchdog")
@@ -185,6 +186,12 @@ def _claim_candidates(now: datetime, *, shadow: bool) -> tuple[list[dict], dict[
 async def _deliver_to_owner(payload: dict[str, Any]) -> str:
     from app.message_deliveries import accept_message_delivery
 
+    provenance = MessageProvenance(
+        origin="platform",
+        senders=("portfolio-watchdog",),
+        subtype="portfolio_watchdog",
+        ref=payload["delivery_id"],
+    )
     resource, status_code = await accept_message_delivery(
         delivery_id=payload["delivery_id"],
         source_principal="portfolio-watchdog",
@@ -199,6 +206,7 @@ async def _deliver_to_owner(payload: dict[str, Any]) -> str:
         rendered_message=payload["message"],
         message_kind="portfolio_watchdog",
         wake=True,
+        provenance=provenance,
     )
     if status_code != 202 or not isinstance(resource, dict):
         raise RuntimeError(f"watchdog delivery was not accepted: {status_code} {resource}")

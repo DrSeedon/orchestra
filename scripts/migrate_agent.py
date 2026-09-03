@@ -4,7 +4,7 @@
 Copies the FULL durable state of an agent so it resumes with intact context on the
 target host: SQLite rows (sessions + logs + inbox + subagents), the CLI transcript
 (~/.claude/projects/<enc-cwd>/<session_id>.jsonl [+ v2.1 <id>/ subdir]), the git
-worktrees, docs/workers/<name>.md and the project CLAUDE.md.
+worktrees, .orchestra/workers/<name>.md and the project CLAUDE.md.
 
 Runs from anywhere; drives both hosts over SSH. Source paths are rewritten to the
 target's orchestra root / scope root.
@@ -463,11 +463,11 @@ def build_children_copy(from_host, from_db, session_row_id: str,
 
 
 def copy_scope_files(from_host, to_host, from_scope, to_scope, worker_names, to_user) -> None:
-    """CLAUDE.md + docs/workers/<name>.md — travel with the scope repo but copy explicitly
+    """CLAUDE.md + .orchestra/workers/<name>.md — travel with the scope repo but copy explicitly
     so migration works even if the target repo is behind."""
-    ssh(to_host, f"mkdir -p {to_scope}/docs/workers")
-    give_to_service_user(to_host, f"{to_scope}/docs/workers", to_user)
-    for rel in ["CLAUDE.md"] + [f"docs/workers/{n}.md" for n in worker_names]:
+    ssh(to_host, f"mkdir -p {to_scope}/.orchestra/workers")
+    give_to_service_user(to_host, f"{to_scope}/.orchestra/workers", to_user)
+    for rel in ["CLAUDE.md"] + [f".orchestra/workers/{n}.md" for n in worker_names]:
         exists = ssh(from_host, f"test -f {from_scope}/{rel} && echo yes || echo no").stdout.strip()
         if exists == "yes":
             _relay_file(from_host, to_host, f"{from_scope}/{rel}", f"{to_scope}/{rel}")

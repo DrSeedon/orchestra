@@ -169,6 +169,9 @@ async def test_drain_landing_during_stale_cli_release_refuses_the_turn(mock_db, 
     )
 
     with pytest.raises(DrainingRefused):
-        await session.send("go")
+        from app.events import MessageProvenance
+        await session.send(
+            "go", provenance=MessageProvenance(origin="user", senders=("user",)),
+        )
 
     assert session.status is AgentStatus.IDLE

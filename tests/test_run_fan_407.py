@@ -28,7 +28,8 @@ async def test_t3_deadline_closes_fan_and_wakes_parent_without_another_tool_call
         async def ensure_loaded(self, name, scope):
             return type("Parent", (), {"id": "sid-parent-407"})()
 
-        async def send(self, session_id, message):
+        async def send(self, session_id, message, *, provenance):
+            assert provenance.origin == "platform"
             wakes.append((session_id, message))
             delivered.set()
 

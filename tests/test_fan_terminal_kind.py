@@ -15,6 +15,11 @@ def db(tmp_path, monkeypatch):
     monkeypatch.setattr("app.db.DB_PATH", tmp_path / "fan-term.db")
     import app.db as _db
     _db.init_db()
+    from tests.test_message_delivery_receipts_380 import _session_record
+    _db.save_session(_session_record(
+        session_id="sid-parent", name="parent", scope="/repo",
+        task_id="fan-terminal", branch="task-fan/parent",
+    ))
     return _db
 
 
@@ -40,7 +45,8 @@ class _SpyManager:
     async def ensure_loaded_any(self, name):
         return _FakeSession(name)
 
-    async def send(self, session_id, msg):
+    async def send(self, session_id, msg, *, provenance):
+        assert provenance.senders
         self.sent.append((session_id, msg))
 
     def _context_warning(self, sender):

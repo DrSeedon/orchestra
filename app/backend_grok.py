@@ -66,7 +66,7 @@ mcps = false
 
 # Measured from the runtime, not from docs: initialize/session/new both report
 # totalContextTokens=500000 for grok-4.5 and grok-4.6. The bundled README's numbers disagree with the
-# runtime elsewhere (see docs/tasks/95/research.md), so the runtime value wins and any
+# runtime elsewhere (see .orchestra/tasks/95/research.md), so the runtime value wins and any
 # per-session value it reports overrides this fallback.
 GROK_CONTEXT_LIMITS = {
     "grok-4.6": 500000,
@@ -75,7 +75,7 @@ GROK_CONTEXT_LIMITS = {
 GROK_DEFAULT_CONTEXT = 500000
 
 # The 4.5 rate card was reconciled against runtime costUsdTicks to zero residual across three
-# turns (docs/tasks/95/research.md F7). The 4.6 card is published by xAI and reconciles with
+# turns (.orchestra/tasks/95/research.md F7). The 4.6 card is published by xAI and reconciles with
 # live #251 turns after the separately billed X-search call is removed.
 GROK_TOKEN_PRICES = {
     "grok-4.6": {"input": 2.0, "cached": 0.50, "output": 6.0},
@@ -165,7 +165,7 @@ def _grok_cost(model: str, input_tokens: int, cached_tokens: int, output_tokens:
     fresh = max(0, input_tokens - cached)
     # Deliberately a short-context fallback. ACP exposes a turn aggregate, while the 200k
     # tier applies per model request; a tool-loop can mix tiers. Runtime costUsdTicks remains
-    # the only exact source until ACP exposes per-request usage (docs/tasks/251/research.md).
+    # the only exact source until ACP exposes per-request usage (.orchestra/tasks/251/research.md).
     return (fresh * prices["input"] + cached * prices["cached"]
             + max(0, output_tokens) * prices["output"]) / 1_000_000
 
@@ -1310,7 +1310,7 @@ class GrokBackend(JsonRpcStdioTransport):
         """Classify structurally; text matching only as a last resort.
 
         The terminal quota-exhaustion shape is NOT known yet (could not exhaust SuperGrok —
-        see docs/tasks/95/research.md F7). Unknown errors stay "error" and fail loud rather
+        see .orchestra/tasks/95/research.md F7). Unknown errors stay "error" and fail loud rather
         than being guessed into a rate_limit that silently retries.
         """
         code = error.get("code")

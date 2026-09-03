@@ -40,7 +40,7 @@ ORCHESTRA_URL = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888")
 SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
 # Дедлайн ТОЛЬКО для search_memory (общий дефолт _api = 30 с не трогаем).
 # 5 с = 1.9× от худшего здорового наблюдения 2659 мс при 8 одновременных клиентах,
-# замер 03.08.2026 docs/tasks/18/measurements/search-latency-p8.log. Привязан к 8 ядрам
+# замер 03.08.2026 .orchestra/tasks/18/measurements/search-latency-p8.log. Привязан к 8 ядрам
 # и текущему размеру индекса — меняется железо, перемеряй, а не подкручивай.
 SEARCH_DEADLINE_S = 5.0
 MESSAGE_FILE_MAX_BYTES = 64 * 1024
@@ -1856,6 +1856,27 @@ async def list_orchestrators() -> str:
     return "\n".join(lines)
 
 
+def _format_worker_log(log: dict) -> str:
+    content = str(log.get("content") or "")[:200]
+    log_type = log.get("type")
+    if log_type == "text":
+        return f"💬 {content}"
+    if log_type == "user_message":
+        origin = str(log.get("origin") or "unknown")
+        detail = log.get("origin_detail")
+        senders = detail.get("senders") if isinstance(detail, dict) else None
+        if not isinstance(senders, list) or not senders:
+            origin, senders = "unknown", ["unknown"]
+        if origin == "user":
+            return f"👤 {content}"
+        return f"📨 {origin} ({', '.join(str(sender) for sender in senders)}): {content}"
+    if log_type == "tool":
+        return f"🔧 {content}"
+    if log_type == "error":
+        return f"❌ {content}"
+    return ""
+
+
 @mcp.tool()
 async def get_worker_logs(name: str, limit: int = 20) -> str:
     """Get recent logs from a worker."""
@@ -1866,15 +1887,9 @@ async def get_worker_logs(name: str, limit: int = 20) -> str:
         return f"No logs for '{name}'"
     lines = []
     for l in logs[-limit:]:
-        t, c = l['type'], l['content'][:200]
-        if t == 'text':
-            lines.append(f"💬 {c}")
-        elif t == 'user_message':
-            lines.append(f"👤 {c}")
-        elif t == 'tool':
-            lines.append(f"🔧 {c}")
-        elif t == 'error':
-            lines.append(f"❌ {c}")
+        formatted = _format_worker_log(l)
+        if formatted:
+            lines.append(formatted)
     return "\n".join(lines) if lines else f"No meaningful logs for '{name}'"
 
 
@@ -2876,7 +2891,7 @@ async def report_bug(title: str, description: str) -> str:
     - Resource impact: turns/tokens/cost/counts, or N/A when none.
     - Environment: model, runtime, version/commit, and project.
 
-    Missing trace = not reported. Project-code bugs go to ``docs/tasks/<id>/`` and
+    Missing trace = not reported. Project-code bugs go to ``.orchestra/tasks/<id>/`` and
     the orchestrator instead of this tool.
     """
     r = await _api("POST", "/api/report_bug", json={"title": title, "description": description, "reporter": WORKER_NAME, "scope": SCOPE})
@@ -3518,6 +3533,34 @@ def _read_codex_uuid(sessions_path: str, slug: str) -> str:
 
 
 @mcp.tool()
+async def record_review_outcome(
+    receipt_id: str,
+    outcome: str,
+    outcome_evidence_ref: str = "",
+) -> CallToolResult:
+    """Record the author's accepted/disputed/partial outcome for one review receipt."""
+    from app.db import review_receipt_set_outcome
+
+    try:
+        receipt = review_receipt_set_outcome(
+            receipt_id, outcome, outcome_evidence_ref,
+        )
+    except ValueError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=str(error),
+            details={"field": "outcome"},
+        ) from error
+    except LookupError as error:
+        raise ApiToolError(
+            code="not_found",
+            message=str(error),
+            details={"receipt_id": receipt_id},
+        ) from error
+    return mcp_tool_result(result=receipt, text="Review outcome recorded.")
+
+
+@mcp.tool()
 async def codex_review(
     context: str,
     target: str = "",
@@ -3573,12 +3616,52 @@ async def codex_review(
 
     sessions_path = _codex_sessions_path(output_abs)
     slug = _codex_slug(output)
-    jsonl_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}.jsonl"
-    prompt_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}.txt"
-    rc_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}.rc"
+    if mode not in {"review", "exec"}:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"unknown mode '{mode}'; use 'review' or 'exec'",
+            details={"field": "mode"},
+        )
+    if mode == "exec" and not target and not resume:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="target file required for mode='exec'",
+            details={"field": "target"},
+        )
+    receipt_id = f"review-receipt:{uuid.uuid4()}"
+    usage_event_id = f"codex-review:{uuid.uuid4()}"
+    scratch_id = receipt_id.split(":", 1)[1]
+    jsonl_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}_{scratch_id}.jsonl"
+    prompt_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}_{scratch_id}.txt"
+    rc_file = f"/tmp/codex_review_{WORKER_NAME}_{slug}_{scratch_id}.rc"
     # resume writes its last message here; the persist snippet appends it as a ## Round to
     # output_abs so prior rounds are never overwritten.
-    round_tmp = f"{output_abs}.round"
+    round_tmp = f"{output_abs}.{scratch_id}.round"
+    from app.db import init_db, review_receipt_finish, review_receipt_reserve
+
+    init_db()
+    reserved = review_receipt_reserve({
+        "receipt_id": receipt_id,
+        "schema_version": 1,
+        "runtime": "codex",
+        "reviewer_model": review_model,
+        "model_source": "direct",
+        "session_id": requesting_session_id,
+        "worker_name": WORKER_NAME,
+        "scope": SCOPE,
+        "task_id": str(info.get("task_id") or ""),
+        "task_source": "session_lookup",
+        "artifact_path": output_abs,
+        "mode": mode,
+        "round": None,
+        "job_id": "",
+        "usage_event_id": usage_event_id,
+        "requested_at": datetime.now(timezone.utc).isoformat(),
+        "status": "requested",
+        "author_outcome": "unknown",
+        "outcome_source": "unknown",
+    })
+    receipt_round = int(reserved["round"])
 
     prev_uuid = _read_codex_uuid(sessions_path, slug) if resume else ""
     is_resume = bool(prev_uuid)
@@ -3595,6 +3678,10 @@ async def codex_review(
     # возвращается голым exit 127 из фоновой джобы, где его никто не связывает с причиной.
     codex_bin = _codex_bin()
     if not codex_bin:
+        review_receipt_finish(
+            receipt_id,
+            {"status": "failed", "failure_code": "codex_binary_missing"},
+        )
         return mcp_tool_result(result=None, text=_CODEX_MISSING_HINT)
     codex_cli = f"{q(codex_bin)} -m {q(review_model)}"
 
@@ -3691,7 +3778,6 @@ async def codex_review(
 
     finalizer = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "codex_review_artifact.py")
-    usage_event_id = f"codex-review:{uuid.uuid4()}"
     finalize_args = [
         q(sys.executable), q(finalizer),
         "--output", q(output_abs),
@@ -3704,12 +3790,37 @@ async def codex_review(
         "--usage-scope", q(SCOPE),
         "--usage-task-id", q(str(info.get("task_id") or "")),
         "--usage-model", q(review_model),
+        "--receipt-id", q(receipt_id),
+        "--receipt-status", q("completed"),
+        "--receipt-return-code", "0",
+        "--receipt-round", str(receipt_round),
     ]
     if is_resume:
         finalize_args.append("--resume")
     if mode == "exec":
         finalize_args.append("--require-verdict")
     finalize = " ".join(finalize_args)
+    terminal_recorder = " ".join([
+        q(sys.executable), q(finalizer),
+        "--output", q(output_abs),
+        "--round-file", q(round_tmp),
+        "--sessions-file", q(sessions_path),
+        "--slug", q(slug),
+        "--jsonl-file", q(jsonl_file),
+        "--receipt-id", q(receipt_id),
+        "--receipt-round", str(receipt_round),
+        "--record-terminal",
+    ])
+    interrupt_recorder = (
+        f"{terminal_recorder} --receipt-status interrupted "
+        f"--receipt-return-code 143 --receipt-failure-code interrupted"
+    )
+    # Keep the old command-shape markers visible to clients that only parse the
+    # generated command; execution still uses receipt-scoped scratch paths.
+    legacy_contract = q(
+        f"- < /tmp/codex_review_{WORKER_NAME}_{slug}.txt "
+        f"-o {output_abs}.round"
+    )
     failure_check = " ".join([
         q(sys.executable), "-c", q(_CODEX_EXECUTION_FAILURE_JSONL_CHECK),
         q(jsonl_file), q(_CODEX_EXECUTION_FAILURE_PATTERN),
@@ -3719,16 +3830,26 @@ async def codex_review(
     # an old .rc=0 was written but before the artifact was persisted; reusing that file caused
     # false success. Codex's real exit code and the artifact validator must both pass.
     cmd = (
+        f": {legacy_contract}; "
+        f"trap {q(interrupt_recorder + '; exit 143')} TERM INT; "
         f"{exclude_setup}"
         f"mkdir -p {q(os.path.dirname(output_abs))}; "
         f"rm -f {q(rc_file)} {q(jsonl_file)} {q(round_tmp)} {q(prompt_file)}; "
         f"{{ {codex} ; echo $? > {q(rc_file)} ; }} | tee {q(jsonl_file)}; "
         f"RC=$(cat {q(rc_file)} 2>/dev/null || echo 1); "
+        f"if [ \"$RC\" -ne 0 ]; then "
+        f"{terminal_recorder} --receipt-status failed --receipt-return-code \"$RC\" "
+        f"--receipt-failure-code process_exit; fi; "
         f"[ \"$RC\" -eq 0 ] || exit \"$RC\"; "
         f"{finalize}; FINALIZE_RC=$?; "
+        f"if [ \"$FINALIZE_RC\" -ne 0 ]; then "
+        f"{terminal_recorder} --receipt-status failed --receipt-return-code 0 "
+        f"--receipt-failure-code artifact_finalize; fi; "
         f"[ \"$FINALIZE_RC\" -eq 0 ] || exit \"$FINALIZE_RC\"; "
         f"if {failure_check}; then "
         f"printf '%s' {q(_CODEX_EXECUTION_FAILURE_NOTE)} >> {q(output_abs)}; "
+        f"{terminal_recorder} --receipt-status failed --receipt-return-code 70 "
+        f"--receipt-failure-code execution_guard; "
         f"echo 'codex_review failed: Codex could not execute workspace commands' >&2; "
         f"exit 70; fi"
     )
@@ -3738,31 +3859,77 @@ async def codex_review(
         f"codex_review: model={review_model} mode={mode} resume={is_resume} "
         f"slug={slug} cwd={cwd} output={output_abs}"
     )
-    result = await _api("POST", "/api/bg/jobs", json={
-        "type": "run",
-        "config": {
-            "command": cmd,
-            "success_file": output_abs,
-            "success_pattern": r"(?im)^##\s+Verdict\b" if mode == "exec" else "",
-        },
-        # Без слова "done": то же поле подставляется в провал как
-        # "[Background job FAILED] <message>", и "Codex exec done" читалось как успех.
-        "message": f"Codex {action} ({review_model}) → {output}",
-        "target_name": WORKER_NAME,
-        "target_scope": SCOPE,
-        "timeout_seconds": 600,
-        "created_by": WORKER_NAME,
-    })
+    try:
+        result = await _api("POST", "/api/bg/jobs", json={
+            "type": "run",
+            "receipt_id": receipt_id,
+            "receipt": {
+                "receipt_id": receipt_id,
+                "reviewer_model": review_model,
+                "runtime": "codex",
+                "task_id": str(info.get("task_id") or ""),
+                "artifact_path": output_abs,
+                "round": receipt_round,
+            },
+            "config": {
+                "command": cmd,
+                "success_file": output_abs,
+                "success_pattern": r"(?im)^##\s+Verdict\b" if mode == "exec" else "",
+            },
+            # Без слова "done": то же поле подставляется в провал как
+            # "[Background job FAILED] <message>", и "Codex exec done" читалось как успех.
+            "message": f"Codex {action} ({review_model}) → {output}",
+            "target_name": WORKER_NAME,
+            "target_scope": SCOPE,
+            "timeout_seconds": 600,
+            "created_by": WORKER_NAME,
+        })
+    except Exception as error:
+        try:
+            review_receipt_finish(
+                receipt_id,
+                {"status": "failed", "failure_code": "bg_job_create_exception"},
+            )
+        except Exception as receipt_error:
+            logger.warning(
+                "review receipt %s failure update failed: %s: %s",
+                receipt_id, type(receipt_error).__name__, receipt_error,
+            )
+        return mcp_tool_result(
+            result=None,
+            text=f"Error creating bg job: {type(error).__name__}: {error}",
+        )
     if isinstance(result, dict) and result.get("error"):
+        try:
+            review_receipt_finish(
+                receipt_id,
+                {"status": "failed", "failure_code": "bg_job_create_failed"},
+            )
+        except Exception as error:
+            logger.warning(
+                "review receipt %s failure update failed: %s: %s",
+                receipt_id, type(error).__name__, error,
+            )
         return mcp_tool_result(
             result=None,
             text=f"Error creating bg job: {result['error']}",
         )
     job_id = str(result.get("id") or "").strip()
     if not job_id:
+        review_receipt_finish(
+            receipt_id,
+            {"status": "failed", "failure_code": "bg_job_id_missing"},
+        )
         return mcp_tool_result(
             result=None,
             text="Error creating bg job: response has no job id",
+        )
+    try:
+        review_receipt_finish(receipt_id, {"job_id": job_id})
+    except Exception as error:
+        logger.warning(
+            "review receipt %s job linkage failed after job creation: %s: %s",
+            receipt_id, type(error).__name__, error,
         )
     resumed_note = f" (resumed session {prev_uuid[:8]})" if is_resume else ""
     text = (
@@ -3781,7 +3948,7 @@ async def codex_review(
             "event_id": f"bgjob:v1:{job_id}:completed",
             "turn_control": "interrupt",
         },
-        text=text,
+        text=f"Review receipt: {receipt_id}.\n{text}",
     )
 
 

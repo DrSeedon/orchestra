@@ -1,6 +1,6 @@
 """#237 — production-shaped oracles for seamless Codex restart.
 
-These tests are intentionally RED until docs/tasks/237/plan.md is implemented.  The
+These tests are intentionally RED until .orchestra/tasks/237/plan.md is implemented.  The
 transport case runs on a real uvloop event loop because the default asyncio probe was the
 false positive that hid the production failure.
 """

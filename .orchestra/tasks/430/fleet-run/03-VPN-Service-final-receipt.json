@@ -1,0 +1,17 @@
+{
+  "dirty_files_expanded": 77,
+  "final_outcome": "current",
+  "head": "e8b3df6d72d79ad6535c998b47cc32303dee7971",
+  "initial_outcome": "migrated",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks",
+    "workers"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "VPN-Service",
+  "repository": "/mnt/data/Projects/Python/VPN-Service",
+  "status_preserved_after_path_mapping": true
+}

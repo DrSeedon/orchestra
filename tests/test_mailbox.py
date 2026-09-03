@@ -15,12 +15,22 @@ import asyncio
 
 import pytest
 
+from app.events import MessageProvenance
+
+
+AGENT_PROVENANCE = MessageProvenance(origin="agent", senders=("peer",))
+
 
 @pytest.fixture
 def db(tmp_path, monkeypatch):
     monkeypatch.setattr("app.db.DB_PATH", tmp_path / "mailbox.db")
     import app.db as _db
     _db.init_db()
+    from tests.test_message_delivery_receipts_380 import _session_record
+    _db.save_session(_session_record(
+        session_id="sid-1", name="recipient", scope="/repo",
+        task_id="mailbox", branch="task-mailbox/recipient",
+    ))
     return _db
 
 
@@ -46,7 +56,8 @@ class _SpyManager:
     async def ensure_loaded_any(self, name):
         return _FakeSession(name)
 
-    async def send(self, session_id, msg):
+    async def send(self, session_id, msg, *, provenance):
+        assert provenance.senders
         self.sent.append((session_id, msg))
 
     def _context_warning(self, sender):
@@ -121,13 +132,28 @@ def test_t2_default_still_wakes(db, spy):
     )
 
 
+def test_t2_agent_sender_without_durable_recipient_is_rejected(db, spy):
+    from app.routes.sessions import SendRequest, send_message
+
+    with db._conn() as connection:
+        connection.execute("DELETE FROM sessions WHERE id='sid-1'")
+    response = asyncio.run(send_message("recipient", SendRequest(
+        message="неподтверждённая цель", scope="/repo", sender="peer",
+    )))
+    assert getattr(response, "status_code", None) == 409
+    assert spy.sent == []
+
+
 # --- T3: разгрузка в конце хода, ровно один раз -----------------------------
 
 def test_t3_pending_does_not_quench_itself(db):
     """Чтение ящика не гасит его. Гасит только явная отметка — иначе на переигранном
     входе (#158) сообщение исчезает молча."""
     mb = _mailbox()
-    mb.enqueue(recipient="w", scope="/repo", sender="peer", body="один")
+    mb.enqueue(
+        recipient="w", scope="/repo", sender="peer", body="один",
+        provenance=AGENT_PROVENANCE,
+    )
     first = mb.pending("w", "/repo")
     second = mb.pending("w", "/repo")
     assert len(first) == 1 and len(second) == 1, (
@@ -183,7 +209,8 @@ class _S:
         # падение было про двойника, а не про поведение.
         self.logged.append((kind, text))
 
-    async def send(self, message: str) -> None:
+    async def send(self, message: str, *, provenance) -> None:
+        assert provenance.origin == "agent"
         if self.send_raises:
             raise RuntimeError("инъекция не удалась")
         self.sent.append(message)
@@ -206,7 +233,10 @@ def test_t3_drains_at_turn_end_instead_of_waking(db, monkeypatch):
     до `session.send` — того самого шва, через который инжектит `_auto_continue`.
     """
     mb = _mailbox()
-    mb.enqueue(recipient="w", scope="/repo", sender="peer", body="накопленное")
+    mb.enqueue(
+        recipient="w", scope="/repo", sender="peer", body="накопленное",
+        provenance=AGENT_PROVENANCE,
+    )
 
     s, reported = _S("w"), []
     _drain(s, monkeypatch, reported)
@@ -237,7 +267,10 @@ def test_t3_undelivered_survives_a_dropped_continuation(db, monkeypatch):
     """Зеркальное направление грабли #158: продолжение не доехало (краш, рестарт) —
     сообщение обязано ОСТАТЬСЯ в ящике, а не считаться выданным."""
     mb = _mailbox()
-    mb.enqueue(recipient="w2", scope="/repo", sender="peer", body="не потеряй")
+    mb.enqueue(
+        recipient="w2", scope="/repo", sender="peer", body="не потеряй",
+        provenance=AGENT_PROVENANCE,
+    )
 
     s = _S("w2")
     _drain(s, monkeypatch, [])
@@ -252,7 +285,10 @@ def test_t3_undelivered_survives_a_dropped_continuation(db, monkeypatch):
 def test_t3_failed_injection_keeps_message(db, monkeypatch):
     """Третье направление: выдача началась и УПАЛА. Сообщение остаётся."""
     mb = _mailbox()
-    mb.enqueue(recipient="w3", scope="/repo", sender="peer", body="упавшее")
+    mb.enqueue(
+        recipient="w3", scope="/repo", sender="peer", body="упавшее",
+        provenance=AGENT_PROVENANCE,
+    )
 
     s = _S("w3")
     s.send_raises = True
@@ -274,7 +310,10 @@ def test_impl1_concurrent_claim_does_not_double_deliver(db):
     """blocking 1: два одновременных конца хода читали одно и то же и слали дважды.
     Аренда берётся одной транзакцией — второй забирающий получает пусто."""
     mb = _mailbox()
-    mb.enqueue(recipient="w", scope="/repo", sender="peer", body="одно")
+    mb.enqueue(
+        recipient="w", scope="/repo", sender="peer", body="одно",
+        provenance=AGENT_PROVENANCE,
+    )
     first = mb.claim("w", "/repo")
     second = mb.claim("w", "/repo")
     assert len(first) == 1, "первый забор не получил сообщение"
@@ -285,7 +324,10 @@ def test_impl1_concurrent_claim_does_not_double_deliver(db):
 def test_impl1_stale_lease_is_reclaimable(db):
     """Обратная сторона аренды: владелец умер — сообщение не заперто навсегда."""
     mb = _mailbox()
-    mb.enqueue(recipient="w", scope="/repo", sender="peer", body="одно")
+    mb.enqueue(
+        recipient="w", scope="/repo", sender="peer", body="одно",
+        provenance=AGENT_PROVENANCE,
+    )
     mb.claim("w", "/repo")
     assert mb.claim("w", "/repo", lease_seconds=0.0), (
         "протухшая аренда не переоткрылась — сообщение заперто навсегда"
@@ -296,7 +338,10 @@ def test_impl3_failed_delivery_returns_rows_and_plays_idle_tail(db, monkeypatch)
     """blocking 3: при сбое выдачи сессия оставалась без авто-отчёта и гибернации,
     а сообщения — без следующего конца хода, который мог бы их выдать."""
     mb = _mailbox()
-    mb.enqueue(recipient="w9", scope="/repo", sender="peer", body="упавшее")
+    mb.enqueue(
+        recipient="w9", scope="/repo", sender="peer", body="упавшее",
+        provenance=AGENT_PROVENANCE,
+    )
 
     s, reported = _S("w9"), []
     _drain(s, monkeypatch, reported)
@@ -320,12 +365,16 @@ def test_impl3_escalates_to_normal_delivery_when_continuation_fails(db, monkeypa
     """Возврат строк в ящик сам по себе не спасает: следующего конца хода может не
     случиться никогда. Поэтому при сбое продолжения идёт обычная доставка."""
     mb = _mailbox()
-    mb.enqueue(recipient="w10", scope="/repo", sender="peer", body="эскалируемое")
+    mb.enqueue(
+        recipient="w10", scope="/repo", sender="peer", body="эскалируемое",
+        provenance=AGENT_PROVENANCE,
+    )
 
     delivered = []
 
     class _Mgr:
-        async def send(self, session_id, msg):
+        async def send(self, session_id, msg, *, provenance):
+            assert provenance.senders
             delivered.append((session_id, msg))
 
     monkeypatch.setattr("app.deps.manager", _Mgr())
@@ -386,11 +435,16 @@ def test_impl_cancelled_delivery_releases_the_claim(db, monkeypatch):
     """`asyncio.CancelledError` не наследует `Exception` — без отдельной ветки отмена
     оставляла бы строки под арендой до её протухания (находка раунда 3)."""
     mb = _mailbox()
-    mb.enqueue(recipient="w11", scope="/repo", sender="peer", body="отменённое")
+    mb.enqueue(
+        recipient="w11", scope="/repo", sender="peer", body="отменённое",
+        provenance=AGENT_PROVENANCE,
+    )
 
     s = _S("w11")
 
-    async def _cancel(_msg):
+    async def _cancel(_msg, *, provenance):
+        assert provenance.origin == "agent"
+        assert provenance.senders == ("peer",)
         raise asyncio.CancelledError()
 
     s.send = _cancel

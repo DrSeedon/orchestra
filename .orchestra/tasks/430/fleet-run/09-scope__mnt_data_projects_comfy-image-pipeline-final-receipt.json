@@ -1,0 +1,19 @@
+{
+  "dirty_files_expanded": 0,
+  "final_outcome": "current",
+  "head": "16b699c8fa511e2661870833126cea82aa913ee2",
+  "initial_outcome": "migrated",
+  "layout_state": "current",
+  "managed_paths": [
+    "archive",
+    "kb",
+    "tasks",
+    "workers"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "scope:/mnt/data/projects/comfy-image-pipeline",
+  "repository": "/mnt/data/Projects/comfy-image-pipeline",
+  "status_preserved_after_path_mapping": true
+}

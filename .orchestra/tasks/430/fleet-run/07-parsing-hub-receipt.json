@@ -1,0 +1,7 @@
+{
+  "error": "ORCHESTRA_LAYOUT_GIT_ERROR: stash did not clean the worktree; preserved stash=8f8b13bbc84716a3094a23b15625006a1a468bd7; repository=/mnt/data/Projects/Python/Parsing; repair: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair /mnt/data/Projects/Python/Parsing",
+  "error_type": "LayoutMigrationError",
+  "outcome": "failed",
+  "project_id": "parsing-hub",
+  "repository": "/mnt/data/Projects/Python/Parsing"
+}

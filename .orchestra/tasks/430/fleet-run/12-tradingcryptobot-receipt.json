@@ -1,0 +1,32 @@
+{
+  "after_dirty_files": 2,
+  "after_head": "29c07b947bbbfe0d16a9801a7ca095d918b21752",
+  "before_dirty_files": 2,
+  "before_head": "8c5c11770e57459144e9545f928722ac5098f538",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks"
+  ],
+  "outcome": "migrated",
+  "project_id": "tradingcryptobot",
+  "repository": "/mnt/data/Projects/Python/TradingCryptoBot",
+  "result": {
+    "commit": "29c07b947bbbfe0d16a9801a7ca095d918b21752",
+    "dirty_preserved": true,
+    "dirty_status_after": [
+      " M \"\\320\\262\\321\\203\\320\\267/\\320\\235\\320\\230\\320\\240_\\320\\276\\320\\277\\320\\270\\321\\201\\320\\260\\320\\275\\320\\270\\320\\265_\\320\\277\\321\\200\\320\\276\\320\\265\\320\\272\\321\\202\\320\\260.md\"",
+      "?? .orchestra/kb/"
+    ],
+    "dirty_status_before": [
+      " M \"\\320\\262\\321\\203\\320\\267/\\320\\235\\320\\230\\320\\240_\\320\\276\\320\\277\\320\\270\\321\\201\\320\\260\\320\\275\\320\\270\\320\\265_\\320\\277\\321\\200\\320\\276\\320\\265\\320\\272\\321\\202\\320\\260.md\"",
+      "?? docs/kb/"
+    ],
+    "managed_paths": [
+      "tasks"
+    ],
+    "repair_command": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair /mnt/data/Projects/Python/TradingCryptoBot",
+    "repository": "/mnt/data/Projects/Python/TradingCryptoBot",
+    "status": "migrated"
+  },
+  "status_equivalent_after_path_mapping": true
+}
