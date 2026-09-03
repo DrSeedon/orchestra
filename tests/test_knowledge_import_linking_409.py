@@ -12,7 +12,7 @@ from app.ia.evidence import EvidenceResolutionError
 from app.ia.task_store import TaskStore, build_migration_manifest
 
 
-FIXTURE = Path("docs/tasks/315/acceptance/fixtures/t2_task_store_records.json")
+FIXTURE = Path(".orchestra/tasks/315/acceptance/fixtures/t2_task_store_records.json")
 EVIDENCE_ID = "3b000000-0000-4000-8000-000000000409"
 
 
