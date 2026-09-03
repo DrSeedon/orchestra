@@ -34,6 +34,10 @@ from app.turn_markers import (
     SILENT_TURN_MARKER as TG_SILENT_TURN_MARKER,
     is_silent_turn_text,
 )
+from app.user_message_display import (
+    add_user_message_time_prefix,
+    user_message_display_content,
+)
 from app.transcription import transcribe_audio as _transcribe_audio
 from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
 
@@ -60,7 +64,7 @@ def _format_user_message_log(log: dict, target_name: str) -> str:
     senders = detail.get("senders")
     if not isinstance(senders, list) or not senders:
         origin, senders = "unknown", ["unknown"]
-    content = str(log.get("content") or "")
+    content = user_message_display_content(log)
     if origin == "user":
         return f"👤\n{content}"
     label = ", ".join(str(sender) for sender in senders)
@@ -385,9 +389,7 @@ async def _flush_batch(sid: str, batch: list):
             f"--- message {i+1}/{len(valid)} ---\n{content}"
             for i, (_, content) in enumerate(valid)
         )
-    local_tz = timezone(timedelta(hours=7))
-    now = datetime.now(local_tz).strftime("%H:%M")
-    combined = f"[{now}] {combined}"
+    combined = add_user_message_time_prefix(combined)
     from app.main import mutating_admission_open
 
     if not mutating_admission_open():
@@ -3314,7 +3316,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                     if t == "user_message":
                         await _update_progress(turn, thread_id, orch_name, force=True)
                         turn.new_block()
-                        c = re.sub(r'^\[\d{2}:\d{2}\] ', '', c)
+                        c = user_message_display_content(log)
                         img_match = re.search(r'(/\S+\.(?:png|jpg|jpeg|gif|webp))', c, re.IGNORECASE)
                         if img_match and Path(img_match.group(1)).is_file():
                             img_path = img_match.group(1)
