@@ -44,15 +44,17 @@ for path in set(re.findall(r"`(app/[\w/]+\.py)`", block)):
         fail.append(f"missing file {path}")
 
 # 5. the review claim in the table must stay true
-out = subprocess.run(["grep", "-c", "review", "app/merge_operations.py"],
+out = subprocess.run(["grep", "-in", "review", "app/merge_operations.py"],
                      cwd=root, capture_output=True, text=True).stdout.strip()
-if out != "0":
-    fail.append(f"README claims `grep -c review app/merge_operations.py` -> 0, actual {out}")
+if out != '1226:                "REVIEW_WARNINGS_OUTSIDE_MERGE",':
+    fail.append(f"README claims the only review mention is REVIEW_WARNINGS_OUTSIDE_MERGE at 1226, actual {out}")
 
-# 6. the CLAUDE.md size claim must match reality
+# 6. the CLAUDE.md size claim must stay true in KIND, not to the byte:
+# the row asserts "the root guide is far too big to be an index", so the check is a floor.
+# An exact byte count drifts on every edit and would make this script cry wolf.
 size = (root / "CLAUDE.md").stat().st_size
-if f"{size:,}".replace(",", " ") not in block:
-    fail.append(f"CLAUDE.md is {size} bytes, README states another number")
+if size < 150_000 or "about **190 KB**" not in block:
+    fail.append(f"README claims CLAUDE.md is about 190 KB and far past an index; actual {size} bytes")
 
 print(f"rows checked: {len(status_rows)}")
 for f_ in fail:

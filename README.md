@@ -105,7 +105,7 @@ not to*:
 | Two workers cannot own the same directory | ✅ | spawn refuses on overlap, `app/manager.py:554` |
 | Insertion budget at merge, with a waiver that is recorded | ✅ | 2 000 lines, `app/diff_budget.py:16` |
 | The platform, not the agent, runs the tests that decide a merge | ✅ | A mapped test subset gates every merge and blocks on failed *or* inconclusive (`app/merge_operations.py:1737`). A frozen acceptance oracle is pinned and run when the task carries one (`app/acceptance.py:349`); without one, a merge touching `app/` or `tests/` on a non-main target is refused outright (`app/merge_operations.py:801`) |
-| Cross-model review as a **code-enforced** merge gate | 🚧 | Required by the agents' role prompts, not by the merge code: `grep -c review app/merge_operations.py` → **0**. Receipts are stored (`app/db.py:145`) and never consulted |
+| Cross-model review as a **code-enforced** merge gate | 🚧 | Required by the agents' role prompts, not by the merge code. The one place the merge path mentions review says so itself: `grep -in review app/merge_operations.py` → one hit, `1226: "REVIEW_WARNINGS_OUTSIDE_MERGE"`. Receipts are stored (`app/db.py:145`) and never consulted |
 | Human approval as machine-checkable state | 🚧 | Lives in chat and in the `<approval-gate>` prompt block. No approval receipt exists in the database and merge doesn't ask for one |
 | Sandbox around commands an agent runs | 🚧 | The worktree isolates *files*, not execution. Our reviewer runs `-s danger-full-access -a never` (`app/mcp_stdio.py:3698`) because unprivileged user namespaces are off on this host. No isolation work is underway |
 | Several vendors' models behind one runtime contract | ✅ | 4 runtimes: the Claude Code, Codex and Grok CLIs, plus our own in-process OpenRouter Harness — `app/runtime_registry.py:330` |
@@ -118,7 +118,7 @@ not to*:
 | Grok kept current with Claude and Codex | 🚫 | Added for one narrow job and left unmaintained. It still runs; it is not a peer |
 | Lexical project memory agents must read before working | ✅ | `.orchestra/kb/`, one fact per line with the command that proves it |
 | Vector / semantic memory | 🚫 | Built, measured, retired: on an 18-question holdout from this repo, vector search scored **0 unique wins against 6 for plain `rg`**. The implementation still ships and still runs if you enable it (`--extra rag`, off by default) — we just don't build on it any more |
-| Root guide small enough to be an index | 🚧 | Our own rule; `wc -c CLAUDE.md` → **189 851** bytes. The Codex mirror is trimmed mid-sentence at `project_doc_max_bytes`, so part of it silently never reaches those workers (#323) |
+| Root guide small enough to be an index | 🚧 | Our own rule; `wc -c CLAUDE.md` → about **190 KB**. The Codex mirror is trimmed mid-sentence at `project_doc_max_bytes`, so part of it silently never reaches those workers (#323) |
 | Dashboard (`app/routes/system.py:77`) and Telegram control (`app/tg_bridge.py`) | ✅ | Voice messages are transcribed with Deepgram Nova-3, `app/transcription.py:72` |
 | Terminal client, desktop or mobile app | 🚫 | Never built: the workplace is the dashboard plus Telegram. Phone access is Telegram, not an app |
 | Browser-side cache of chat history | 🚫 | Built, then removed on purpose: a local mirror cannot prove nothing appeared after its watermark, so it can show a stale frame as current. `no-store` is set on the server (`app/routes/sessions.py:599`) and on the client (`app/static/js/app.js:1225`) |
