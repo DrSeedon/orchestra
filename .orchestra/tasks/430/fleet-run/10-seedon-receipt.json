@@ -1,0 +1,34 @@
+{
+  "after_dirty_files": 2,
+  "after_head": "020495050626a840a1b65ad0a73e889a834cfcc6",
+  "before_dirty_files": 2,
+  "before_head": "28c6ad2eb0eca8721247d939264d24c2ac1d4f9b",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks",
+    "workers"
+  ],
+  "outcome": "migrated",
+  "project_id": "seedon",
+  "repository": "/mnt/data/Projects/Python/seedon",
+  "result": {
+    "commit": "020495050626a840a1b65ad0a73e889a834cfcc6",
+    "dirty_preserved": true,
+    "dirty_status_after": [
+      "?? .env",
+      "?? .orchestra/kb/"
+    ],
+    "dirty_status_before": [
+      "?? .env",
+      "?? docs/kb/"
+    ],
+    "managed_paths": [
+      "tasks",
+      "workers"
+    ],
+    "repair_command": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair /mnt/data/Projects/Python/seedon",
+    "repository": "/mnt/data/Projects/Python/seedon",
+    "status": "migrated"
+  },
+  "status_equivalent_after_path_mapping": true
+}

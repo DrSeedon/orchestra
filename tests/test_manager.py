@@ -8,6 +8,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.events import MessageProvenance
+
+
+USER_PROVENANCE = MessageProvenance(origin="user", senders=("user",))
+
 
 @pytest.fixture
 def db(tmp_path, monkeypatch):
@@ -29,7 +34,7 @@ def mgr(db, tmp_path, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _isolate_pipelines_dir(monkeypatch):
-    """Point PIPELINES_DIR at the REAL pipelines/ so ROLE_SYSTEM_PROMPT resolves.
+    """Point PIPELINES_DIR at the REAL .orchestra/pipelines/ so ROLE_SYSTEM_PROMPT resolves.
 
     Was: isolated to an empty tmp dir, relying on the app/prompts legacy fallback
     to still produce prompts. That fallback is removed (single source = pipelines),
@@ -39,7 +44,7 @@ def _isolate_pipelines_dir(monkeypatch):
     """
     import app.pipeline as pl
     from pathlib import Path
-    real = Path(__file__).parent.parent / "pipelines"
+    real = Path(__file__).parent.parent / ".orchestra" / "pipelines"
     monkeypatch.setattr(pl, "PIPELINES_DIR", real)
     pl.load_pipeline.cache_clear()
     yield
@@ -267,8 +272,9 @@ class TestCreateSession:
         import subprocess
 
         repo = _git_repo(tmp_path)
-        memory_dir = repo / "docs" / "workers"
+        memory_dir = repo / ".orchestra" / "workers"
         memory_dir.mkdir(parents=True)
+        (repo / ".orchestra" / "layout.json").write_text("{}\n")
         marker = "SUBREPO MEMORY: loaded from the worker's repository"
         (memory_dir / "w1.md").write_text(marker)
         subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
@@ -291,8 +297,9 @@ class TestCreateSession:
     @pytest.mark.asyncio
     async def test_scope_root_memory_stays_in_assembled_prompt(self, mgr, tmp_path):
         scope = tmp_path / "root-repository"
-        memory_dir = scope / "docs" / "workers"
+        memory_dir = scope / ".orchestra" / "workers"
         memory_dir.mkdir(parents=True)
+        (scope / ".orchestra" / "layout.json").write_text("{}\n")
         marker = "ROOT MEMORY: existing scope behavior"
         (memory_dir / "root-worker.md").write_text(marker)
 
@@ -1333,13 +1340,13 @@ class TestSendAndControl:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
             session.send = AsyncMock()
-            await mgr.send(session.id, "hello")
-        session.send.assert_awaited_once_with("hello")
+            await mgr.send(session.id, "hello", provenance=USER_PROVENANCE)
+        session.send.assert_awaited_once_with("hello", provenance=USER_PROVENANCE)
 
     @pytest.mark.asyncio
     async def test_send_unknown_raises(self, mgr):
         with pytest.raises(KeyError):
-            await mgr.send("nonexistent", "hello")
+            await mgr.send("nonexistent", "hello", provenance=USER_PROVENANCE)
 
     @pytest.mark.asyncio
     async def test_send_rechecks_needs_switch_after_session_lock(
@@ -1365,7 +1372,9 @@ class TestSendAndControl:
 
         lock = mgr.get_session_lock(session.id)
         await lock.acquire()
-        delivery = asyncio.create_task(mgr.send(session.id, "after merge"))
+        delivery = asyncio.create_task(
+            mgr.send(session.id, "after merge", provenance=USER_PROVENANCE)
+        )
         await asyncio.sleep(0)
         await mgr.persist_lifecycle(
             session,
@@ -1380,7 +1389,9 @@ class TestSendAndControl:
 
         assert len(switches) == 1
         assert session.needs_switch is False
-        session.send.assert_awaited_once_with("after merge")
+        session.send.assert_awaited_once_with(
+            "after merge", provenance=USER_PROVENANCE,
+        )
 
     @pytest.mark.asyncio
     async def test_concurrent_sends_switch_once_and_deliver_serially(
@@ -1405,7 +1416,8 @@ class TestSendAndControl:
             switch_count += 1
             return {"ok": True, "branch": "adhoc-1/w"}
 
-        async def accept(message):
+        async def accept(message, *, provenance):
+            assert provenance is USER_PROVENANCE
             nonlocal active, max_active
             assert not session._lifecycle_lock.locked()
             active += 1
@@ -1419,8 +1431,8 @@ class TestSendAndControl:
         monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
 
         await asyncio.gather(
-            mgr.send(session.id, "first"),
-            mgr.send(session.id, "second"),
+            mgr.send(session.id, "first", provenance=USER_PROVENANCE),
+            mgr.send(session.id, "second", provenance=USER_PROVENANCE),
         )
 
         assert switch_count == 1
@@ -1444,7 +1456,7 @@ class TestSendAndControl:
         monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
 
         with pytest.raises(RuntimeError, match="worker is waiting"):
-            await mgr.send(session.id, "must wait")
+            await mgr.send(session.id, "must wait", provenance=USER_PROVENANCE)
 
         switch.assert_not_called()
         session.send.assert_not_awaited()
@@ -1474,7 +1486,7 @@ class TestSendAndControl:
         )
 
         with pytest.raises(RuntimeError, match="target contains uncommitted.txt"):
-            await mgr.send(session.id, "blocked")
+            await mgr.send(session.id, "blocked", provenance=USER_PROVENANCE)
 
         assert session.needs_switch is True
         session.send.assert_not_awaited()
@@ -1514,7 +1526,7 @@ class TestSendAndControl:
         monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
 
         with pytest.raises(RuntimeError, match="TimeoutError"):
-            await mgr.send(session.id, "blocked")
+            await mgr.send(session.id, "blocked", provenance=USER_PROVENANCE)
 
         assert session.needs_switch is True
         session.send.assert_not_awaited()
@@ -1553,7 +1565,7 @@ class TestSendAndControl:
         monkeypatch.setattr(mgr, "persist_lifecycle", persist)
 
         with pytest.raises(RuntimeError, match="database unavailable"):
-            await mgr.send(session.id, "blocked")
+            await mgr.send(session.id, "blocked", provenance=USER_PROVENANCE)
 
         assert [call["needs_switch"] for call in persist_calls] == [False, True]
         assert session.branch == "adhoc-1/w"
@@ -1578,7 +1590,9 @@ class TestSendAndControl:
         monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
 
         await session._lifecycle_lock.acquire()
-        delivery = asyncio.create_task(mgr.send(session.id, "serialized"))
+        delivery = asyncio.create_task(
+            mgr.send(session.id, "serialized", provenance=USER_PROVENANCE)
+        )
         await asyncio.sleep(0)
         await asyncio.sleep(0)
 
@@ -1590,7 +1604,9 @@ class TestSendAndControl:
         await asyncio.wait_for(delivery, timeout=2)
 
         switch.assert_called_once()
-        session.send.assert_awaited_once_with("serialized")
+        session.send.assert_awaited_once_with(
+            "serialized", provenance=USER_PROVENANCE,
+        )
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("blocked_stage", ["switch", "persist", "backend"])
@@ -1626,7 +1642,8 @@ class TestSendAndControl:
             for key, value in fields.items():
                 setattr(found, key, value)
 
-        async def accept(message):
+        async def accept(message, *, provenance):
+            assert provenance is USER_PROVENANCE
             if blocked_stage == "backend":
                 entered.set()
                 assert await asyncio.to_thread(release.wait, 2)
@@ -1637,7 +1654,9 @@ class TestSendAndControl:
         monkeypatch.setattr("app.workspace.switch_worktree_branch", switch)
         monkeypatch.setattr(mgr, "transition_lifecycle", persist)
 
-        delivery = asyncio.create_task(mgr.send(session.id, "exactly once"))
+        delivery = asyncio.create_task(
+            mgr.send(session.id, "exactly once", provenance=USER_PROVENANCE)
+        )
         assert await asyncio.to_thread(entered.wait, 2)
         delivery.cancel()
         await asyncio.sleep(0)
@@ -1664,9 +1683,9 @@ class TestSendAndControl:
         session.needs_switch = False
         session.send = AsyncMock()
 
-        await mgr.send(session.id, "steer")
+        await mgr.send(session.id, "steer", provenance=USER_PROVENANCE)
 
-        session.send.assert_awaited_once_with("steer")
+        session.send.assert_awaited_once_with("steer", provenance=USER_PROVENANCE)
 
     @pytest.mark.asyncio
     async def test_stop_and_remove(self, mgr):
@@ -2079,8 +2098,9 @@ class TestAutoResume:
             (parent_scope, "STALE: copied into parent scope"),
             (worktree, "FRESH: canonical worktree memory"),
         ):
-            memory_dir = root / "docs" / "workers"
+            memory_dir = root / ".orchestra" / "workers"
             memory_dir.mkdir(parents=True)
+            (root / ".orchestra" / "layout.json").write_text("{}\n")
             (memory_dir / "w1.md").write_text(content)
 
         row = self._reload_row(
@@ -2217,7 +2237,8 @@ class TestEnsureLoadedSingleFlight:
             async def change_model(self, _model):
                 self.changed += 1
 
-            async def send(self, _message):
+            async def send(self, _message, *, provenance):
+                assert provenance is USER_PROVENANCE
                 self.sent += 1
 
         async def load(_row):
@@ -2238,7 +2259,7 @@ class TestEnsureLoadedSingleFlight:
 
         async def send():
             session = await mgr.ensure_loaded(row["name"], row["scope"])
-            await mgr.send(session.id, "hello")
+            await mgr.send(session.id, "hello", provenance=USER_PROVENANCE)
             return session
 
         change_task = asyncio.create_task(change_model())
@@ -2304,7 +2325,7 @@ class TestCanSpawn:
     # REMOVED (#34): six unit tests of role_can_spawn (absent / YAML-null / non-list /
     # [] / whitelist / missing file). The function itself is gone — it had no callers in
     # app/ since 1bff39a, and `can_spawn` was never present in any role frontmatter, before
-    # or after the pipelines/ migration. Spawn rights are decided solely by the manifest
+    # or after the .orchestra/pipelines/ migration. Spawn rights are decided solely by the manifest
     # (validate_spawn), covered by tests/test_pipeline.py + tests/test_default_pipeline.py.
 
     # REMOVED (#278): test_whitelist_allows_listed. Писал роль `boss` во временный
@@ -2465,7 +2486,7 @@ roles:
 
 
 def _write_pipeline(root, name, manifest_text, prompts=None):
-    """Создать pipelines/<name>/ с pipeline.yaml + prompts/* в tmp-корне root."""
+    """Создать .orchestra/pipelines/<name>/ с pipeline.yaml + prompts/* в tmp-корне root."""
     pdir = root / name
     (pdir / "prompts" / "roles").mkdir(parents=True)
     (pdir / "pipeline.yaml").write_text(manifest_text)
@@ -2479,7 +2500,7 @@ def _write_pipeline(root, name, manifest_text, prompts=None):
 
 @pytest.fixture
 def pipeline_dir(tmp_path, monkeypatch):
-    """tmp pipelines/ с манифестом testpipe + базовыми слоями промптов.
+    """tmp .orchestra/pipelines/ с манифестом testpipe + базовыми слоями промптов.
 
     Монкипатчит ``app.pipeline.PIPELINES_DIR`` и чистит lru_cache загрузчика,
     чтобы манифест читался из tmp, а не из реального дерева (которого нет).
@@ -2507,7 +2528,7 @@ class TestRoleSystemPromptFailLoud:
 
     Раньше здесь был TestUpstreamFallbackCharacterization (3 теста) — он проверял
     _UPSTREAM_ROLE_SYSTEM_PROMPT, который РЕАЛЬНО собирал промпт из app/prompts при
-    отсутствии манифеста. Тот код удалён (единый источник = pipelines/), поэтому
+    отсутствии манифеста. Тот код удалён (единый источник = .orchestra/pipelines/), поэтому
     тесты его поведения удалены, а не «сломались». Новое поведение — fail loud."""
 
     def test_no_manifest_raises(self, db):
@@ -2520,7 +2541,7 @@ class TestRoleSystemPromptFailLoud:
 
 class TestRoleSystemPromptManifest:
     def test_static_layers_from_manifest(self, pipeline_dir, db):
-        """ROLE_SYSTEM_PROMPT берёт статику из pipelines/<name>/prompts/ (изоляция)."""
+        """ROLE_SYSTEM_PROMPT берёт статику из .orchestra/pipelines/<name>/prompts/ (изоляция)."""
         from app.manager import ROLE_SYSTEM_PROMPT
         out = ROLE_SYSTEM_PROMPT("testpipe", "coder", "/s")
         assert "BASE-LAYER" in out
@@ -2601,7 +2622,7 @@ class TestPromptIsolation:
         monkeypatch.setattr("app.prompting._PROMPTS_DIR", Path("/nonexistent/app/prompts"))
         from app.manager import ROLE_SYSTEM_PROMPT
         out = ROLE_SYSTEM_PROMPT("testpipe", "coder", "/s")
-        assert "BASE-LAYER" in out  # из pipelines/testpipe/prompts/, не из app/prompts/
+        assert "BASE-LAYER" in out  # из .orchestra/pipelines/testpipe/prompts/, не из app/prompts/
         assert "ROLE coder" in out
 
 
@@ -3330,7 +3351,10 @@ class TestRestartWake:
         )
         mgr2 = SessionManager()
         woken = []
-        mgr2.send = AsyncMock(side_effect=lambda sid, msg: woken.append(sid))
+        def record_restart_wake(sid, msg, *, provenance):
+            assert provenance.origin == "system"
+            woken.append(sid)
+        mgr2.send = AsyncMock(side_effect=record_restart_wake)
         await mgr2.auto_resume_all()
         from app.tasks import _supervised
         for _ in range(50):

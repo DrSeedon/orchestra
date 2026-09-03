@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from app.db import turn_usage_add
-from app.events import AgentEvent
+from app.events import AgentEvent, MessageProvenance
 from app.session_state import AgentStatus
 from app.turn_markers import is_successful_silent_turn
 
@@ -68,9 +68,27 @@ def _rewind_past_safeguard_refusal(s: "AgentSession") -> str:
 
 logger = logging.getLogger("app.session")
 
-# At this point the next ordinary model call can hit the provider's hard context limit.
-# It is a safety threshold, not a tuning knob: every runtime and role compacts immediately.
-CRITICAL_AUTO_COMPACT_PCT = 99
+# Leave room for the CLI's own compaction and any in-flight context growth.
+CRITICAL_AUTO_COMPACT_PCT = 95
+CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT = 1
+
+
+def _auto_compact_threshold_pct(s: "AgentSession") -> int:
+    """Return our threshold, staying ahead of the CLI threshold when known."""
+    threshold = CRITICAL_AUTO_COMPACT_PCT
+    cli_tokens = s._last_context.get("auto_compact_threshold")
+    max_tokens = s._last_context.get("max_tokens")
+    if isinstance(cli_tokens, bool) or isinstance(max_tokens, bool):
+        return threshold
+    try:
+        cli_tokens = int(cli_tokens or 0)
+        max_tokens = int(max_tokens or 0)
+    except (TypeError, ValueError, OverflowError):
+        return threshold
+    if cli_tokens <= 0 or max_tokens <= 0:
+        return threshold
+    cli_pct = math.ceil(cli_tokens * 100 / max_tokens)
+    return max(0, min(threshold, cli_pct - CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT))
 
 
 def _unknown_quota_state() -> dict:
@@ -279,8 +297,13 @@ class TurnManager:
                         from app.deps import manager
                         dest = await manager.ensure_loaded(name, scope)
                         if dest:
+                            provenance = MessageProvenance(
+                                origin="platform", senders=("Orchestra",),
+                                subtype="fan_manifest", ref=str(fid or ""),
+                            )
                             await manager.send(
-                                dest.id, fan_barrier.manifest_text(fid)
+                                dest.id, fan_barrier.manifest_text(fid),
+                                provenance=provenance,
                             )
                     s._auto_report_task = asyncio.create_task(_deliver_manifest())
             return
@@ -522,7 +545,7 @@ class TurnManager:
 
         # #231 T3: накопленное в ящике выдаётся в КОНЦЕ уже оплаченного хода, поэтому
         # активация за него не платится второй раз (пробуждение стоит ~$0.15 плюс весь
-        # развёрнутый ход — docs/tasks/231/research.md §3.1).
+        # развёрнутый ход — .orchestra/tasks/231/research.md §3.1).
         # Идёт СТРОГО ДО `fire_auto_report`: под включённым барьером авто-отчёт фиксирует
         # терминальное состояние ребёнка и может отпустить веер, пока у этого же ребёнка
         # лежит невыданный вход, — родитель получит сводку по недоработавшему ребёнку.
@@ -574,10 +597,25 @@ class TurnManager:
         from app import mailbox
         from app.errtext import err_text
         s = self.s
-        text = "\n\n".join(f"[from:{m['sender']}] {m['body']}" for m in queued)
         ids = [m["id"] for m in queued]
         try:
-            await s.send(text)
+            text = "\n\n".join(
+                f"[from:{m['sender'] or ', '.join(m['provenance'].senders)}] {m['body']}"
+                for m in queued
+            )
+            origins = {m["provenance"].origin for m in queued}
+            senders = tuple(dict.fromkeys(
+                sender
+                for message in queued
+                for sender in message["provenance"].senders
+            ))
+            provenance = MessageProvenance(
+                origin=next(iter(origins)) if len(origins) == 1 else "unknown",
+                senders=senders,
+                subtype="mailbox" if len(origins) == 1 else "mailbox_mixed",
+                ref=f"mailbox:{ids[0]}-{ids[-1]}",
+            )
+            await s.send(text, provenance=provenance)
         except asyncio.CancelledError:
             # `CancelledError` НЕ наследует `Exception` (3.8+): без отдельной ветки
             # отмена задачи оставляла бы строки под арендой до её протухания
@@ -597,7 +635,7 @@ class TurnManager:
             # не случиться никогда, и сообщения залягут (F3 ревью реализации).
             try:
                 from app.deps import manager as _mgr
-                await _mgr.send(s.id, text)
+                await _mgr.send(s.id, text, provenance=provenance)
             except Exception as esc:
                 s._log("error", f"mailbox: эскалация тоже не удалась, {len(queued)} "
                                 f"ждут в ящике: {err_text(esc)}")
@@ -610,14 +648,16 @@ class TurnManager:
     def schedule_context_compaction(self, live_pct: int) -> None:
         """Run both automatic compaction decisions from one validated context."""
         s = self.s
-        if live_pct >= CRITICAL_AUTO_COMPACT_PCT:
+        if live_pct >= _auto_compact_threshold_pct(s):
+            if s._auto_compact_window_blocked(live_pct):
+                return
             if s._compacting:
                 return
             s._cancel_precompact_timer("critical_context")
             s._log(
                 "status",
                 f"critical auto-compact triggered ({live_pct}%): "
-                "running immediately; configured window and AUTO_COMPACT_ENABLED do not apply",
+                "running immediately; configured window does not apply",
             )
             s._spawn_bg(s._auto_compact(delay_seconds=0))
             return

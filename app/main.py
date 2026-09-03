@@ -306,7 +306,7 @@ class RequestCensusMiddleware:
 async def drain_mutating_requests(budget_s: float = MUTATING_DRAIN_BUDGET_S) -> bool:
     """Wait for accepted mutating calls. False = budget expired, so refuse the restart.
 
-    Measured (docs/tasks/230/plan.md, falsifier 2): a gracefully drained request keeps its
+    Measured (.orchestra/tasks/230/plan.md, falsifier 2): a gracefully drained request keeps its
     response, while an instant restart commits the side effect and loses the answer — the agent
     then sees a tool call whose outcome is unknown. Streams are never waited for: they do not
     end. Budget default is above the slowest mutating call ever measured here (90.2s).
@@ -389,6 +389,17 @@ async def lifespan(app: FastAPI):
     from app.session import validate_auto_compact_window_config
     validate_auto_compact_window_config()
     init_db()
+    from app.orchestra_layout import migrate_registered_project_layouts
+    layout_migrations = migrate_registered_project_layouts()
+    app.state.layout_migrations = layout_migrations
+    for project_id, result in layout_migrations.items():
+        if result.get("status") == "failed":
+            logger.error(
+                "project layout migration failed: project=%s code=%s error=%s",
+                project_id,
+                result.get("code", "ORCHESTRA_LAYOUT_GIT_ERROR"),
+                result.get("error", "unknown migration error"),
+            )
     from app.ia.runtime import knowledge_runtime_mode, production_runtime_config
     with knowledge_runtime_mode(production_runtime_config()) as knowledge_owner:
         app.state.knowledge_runtime = knowledge_owner
@@ -426,7 +437,7 @@ async def lifespan(app: FastAPI):
         from app.bg_jobs import bg_manager
         bg_manager.set_session_manager(manager)
         await bg_manager.restore_from_db()
-        # TG-мост поднимаем фоном. Замер (docs/tasks/15/research.md): один только импорт
+        # TG-мост поднимаем фоном. Замер (.orchestra/tasks/15/research.md): один только импорт
         # app.tg_bridge стоит 4.05 с, из них 3.72 с — aiogram, и всё это время uvicorn не
         # принимает запросы, а nginx отдаёт 502. Старт сервиса был 4.3-13.9 с; для приёма
         # HTTP мост не нужен. Плата: polling TG стартует на несколько секунд позже, и команда

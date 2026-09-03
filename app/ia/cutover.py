@@ -28,6 +28,7 @@ _REQUIRED_PROMPT_ANCHORS = (
     "Historical Markdown and session archives are immutable cold evidence and are never regenerated.",
     "Canonical task, fact, evidence-reference, and session events are structured Git JSON.",
 )
+# LEGACY_PATH_FIXTURE: these literals are rejection guards, not live consumers.
 _FORBIDDEN_LEGACY_DIRECTIVES = (
     "Read `docs/kb/README.md`",
     "Write `docs/tasks/<task-id>/research.md`",

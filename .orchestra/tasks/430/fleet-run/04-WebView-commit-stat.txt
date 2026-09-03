@@ -1,0 +1,8 @@
+886b35b Orchestra: migrate project state to .orchestra
+ .gitignore                                                        | 3 +++
+ .orchestra/layout.json                                            | 1 +
+ {docs => .orchestra}/tasks/kiosk-offline/codex-review-research.md | 0
+ {docs => .orchestra}/tasks/kiosk-offline/plan.md                  | 0
+ {docs => .orchestra}/tasks/kiosk-offline/research.md              | 0
+ {docs => .orchestra}/tasks/kiosk-rewrite/plan.md                  | 0
+ 6 files changed, 4 insertions(+)

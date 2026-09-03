@@ -18,6 +18,11 @@ def fanned(tmp_path, monkeypatch):
     monkeypatch.setattr("app.db.DB_PATH", tmp_path / "gates.db")
     import app.db as _db
     _db.init_db()
+    from tests.test_message_delivery_receipts_380 import _session_record
+    _db.save_session(_session_record(
+        session_id="sid-parent", name="parent", scope="/repo",
+        task_id="fan-gates", branch="task-fan/parent",
+    ))
     import app.fan_barrier as fb
     fb.open_fan(fan_id="F", parent_name="parent", scope="/repo",
                 children=["c1", "c2"], deadline_seconds=3600)
@@ -48,7 +53,8 @@ class _SpyManager:
     async def ensure_loaded_any(self, name):
         return _FakeSession(name)
 
-    async def send(self, session_id, msg):
+    async def send(self, session_id, msg, *, provenance):
+        assert provenance.senders
         self.sent.append((session_id, msg))
 
     def _context_warning(self, sender):
@@ -175,10 +181,28 @@ def test_kill_path_produces_killed_token(fanned, monkeypatch):
 # --- AC-9: девять путей, которые барьер трогать НЕ ДОЛЖЕН ------------------
 
 def test_message_without_sender_is_never_buffered(fanned, spy):
-    """Вход без отправителя-ребёнка — это человек из Telegram, `limit_wake`,
-    `notify`, CI. Барьер, повешенный на общий лист `manager.send`, съел бы их."""
-    _send(None)
-    assert len(spy.sent) == 1, "сообщение без ребёнка-отправителя попало под барьер"
+    """Internal caller без sender не получает человеческое происхождение."""
+    response = _send(None)
+    assert getattr(response, "status_code", None) == 403, (
+        "неаутентифицированный internal caller был принят за человека"
+    )
+    assert spy.sent == [], "неподтверждённый user origin доехал до доставки"
+
+
+def test_authenticated_operator_without_sender_still_delivers(fanned, spy, monkeypatch):
+    from types import SimpleNamespace
+    from app.routes.sessions import SendRequest, send_message
+
+    monkeypatch.setattr("app.auth.validate_session", lambda _cookie: True)
+    request = SimpleNamespace(headers={}, cookies={"session": "operator-cookie"})
+    response = asyncio.run(send_message(
+        "parent",
+        SendRequest(message="human input", scope="/repo", sender=""),
+        request=request,
+    ))
+    assert response.get("ok") is True
+    assert len(spy.sent) == 1
+    assert spy.sent[0][1].endswith("human input")
 
 
 def test_background_job_failure_reaches_a_buffered_child(fanned):

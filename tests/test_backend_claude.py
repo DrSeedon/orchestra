@@ -517,7 +517,7 @@ def test_tool_failure_preserves_stable_use_id_and_explicit_error():
 
 # --- #130: big-int tool arguments are flagged before a float64 parse eats them ---
 
-_BIG = 1917704623170653147  # real Yandex.Direct ad id from docs/tasks/129/research.md
+_BIG = 1917704623170653147  # real Yandex.Direct ad id from .orchestra/tasks/129/research.md
 
 
 def _warnings(caplog, tool_input, name="mcp__yandex-direct__update_text_ad"):

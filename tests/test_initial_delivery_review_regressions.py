@@ -3,6 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.events import MessageProvenance
+
 
 @pytest.mark.asyncio
 async def test_masked_initial_delivery_excludes_the_persisted_history_row(monkeypatch):
@@ -13,6 +15,10 @@ async def test_masked_initial_delivery_excludes_the_persisted_history_row(monkey
     delivery_id = "00000000-0000-4000-8000-000000000311"
     original_message = "Deploy with API_TOKEN=abcdefghijklmnop"
     persisted_message = mask_secrets(original_message)
+    provenance = MessageProvenance(
+        origin="agent", senders=("orchestrator-311",),
+        subtype="initial_delivery", ref=delivery_id,
+    )
     assert persisted_message != original_message
 
     monkeypatch.setattr(
@@ -22,6 +28,7 @@ async def test_masked_initial_delivery_excludes_the_persisted_history_row(monkey
             "delivery_state": "PREPARING",
             "user_log_id": 42,
             "history_user_message": persisted_message,
+            "provenance": provenance,
         },
     )
     monkeypatch.setattr(
@@ -35,13 +42,17 @@ async def test_masked_initial_delivery_excludes_the_persisted_history_row(monkey
     captured = {}
 
     class RecordingManager:
-        async def send_initial_delivery(self, session_id, message, *, delivery):
+        async def send_initial_delivery(
+            self, session_id, message, *, delivery, provenance: MessageProvenance,
+        ):
+            assert provenance == captured_provenance
             captured.update(
                 session_id=session_id,
                 message=message,
                 delivery=delivery,
             )
 
+    captured_provenance = provenance
     await deliveries.run_initial_delivery(delivery_id, manager=RecordingManager())
     delivery = captured["delivery"]
     assert delivery.history_user_message == persisted_message
@@ -80,7 +91,9 @@ async def test_masked_initial_delivery_excludes_the_persisted_history_row(monkey
     session._shadow_reserve = AsyncMock(return_value=None)
     session._notify_scope_running = AsyncMock()
 
-    await session.send(original_message, delivery=delivery)
+    await session.send(
+        original_message, delivery=delivery, provenance=provenance,
+    )
 
     assert captured["message"] == original_message
     assert events == [

@@ -122,7 +122,10 @@ def init_db() -> None:
                 event_id TEXT NOT NULL DEFAULT '',
                 tool_use_id TEXT,
                 tool_name TEXT,
-                tool_is_error INTEGER
+                tool_is_error INTEGER,
+                origin TEXT NOT NULL DEFAULT 'unknown'
+                    CHECK(origin IN ('user','agent','background_task','platform','system','unknown')),
+                origin_detail TEXT NOT NULL DEFAULT '{"senders":["unknown"]}'
             );
             CREATE TABLE IF NOT EXISTS dashboard_voice_transcriptions (
                 voice_id TEXT PRIMARY KEY,
@@ -139,6 +142,48 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_dashboard_voice_state
                 ON dashboard_voice_transcriptions(state, created_at);
             CREATE INDEX IF NOT EXISTS idx_logs_session ON logs(session_id, id DESC);
+            CREATE TABLE IF NOT EXISTS review_receipts (
+                receipt_id TEXT PRIMARY KEY,
+                schema_version INTEGER NOT NULL DEFAULT 1,
+                runtime TEXT NOT NULL,
+                reviewer_model TEXT NOT NULL,
+                model_source TEXT NOT NULL CHECK(model_source IN ('direct','derived','unknown')),
+                session_id TEXT NOT NULL,
+                worker_name TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                task_id TEXT NOT NULL,
+                task_source TEXT NOT NULL,
+                artifact_path TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                round INTEGER,
+                job_id TEXT NOT NULL,
+                usage_event_id TEXT NOT NULL,
+                requested_at TEXT NOT NULL,
+                completed_at TEXT,
+                status TEXT NOT NULL CHECK(status IN (
+                    'requested','completed','failed','timed_out','interrupted'
+                )),
+                return_code INTEGER,
+                failure_code TEXT NOT NULL DEFAULT '',
+                artifact_exists INTEGER,
+                artifact_bytes INTEGER,
+                artifact_sha256 TEXT NOT NULL DEFAULT '',
+                verdict_present INTEGER,
+                verdict_value TEXT NOT NULL DEFAULT '',
+                jsonl_response_present INTEGER,
+                recovery_source TEXT NOT NULL DEFAULT '',
+                author_outcome TEXT NOT NULL DEFAULT 'unknown'
+                    CHECK(author_outcome IN ('accepted','disputed','partial','unknown')),
+                outcome_source TEXT NOT NULL DEFAULT 'unknown'
+                    CHECK(outcome_source IN ('direct','derived','unknown')),
+                outcome_evidence_ref TEXT NOT NULL DEFAULT '',
+                notification_event_id TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_review_receipts_artifact
+                ON review_receipts(artifact_path, round);
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_review_receipts_artifact_round
+                ON review_receipts(artifact_path, round)
+                WHERE round IS NOT NULL;
             CREATE TABLE IF NOT EXISTS initial_deliveries (
                 delivery_id TEXT PRIMARY KEY,
                 schema_version INTEGER NOT NULL,
@@ -147,6 +192,8 @@ def init_db() -> None:
                 scope TEXT NOT NULL,
                 sender TEXT NOT NULL,
                 message TEXT NOT NULL,
+                origin TEXT NOT NULL DEFAULT 'unknown',
+                origin_detail TEXT NOT NULL DEFAULT '{"senders":["unknown"]}',
                 payload_hash TEXT NOT NULL,
                 state TEXT NOT NULL,
                 user_log_id INTEGER UNIQUE REFERENCES logs(id),
@@ -175,6 +222,8 @@ def init_db() -> None:
                 rendered_message TEXT NOT NULL,
                 message_kind TEXT,
                 wake INTEGER NOT NULL,
+                origin TEXT NOT NULL DEFAULT 'unknown',
+                origin_detail TEXT NOT NULL DEFAULT '{"senders":["unknown"]}',
                 payload_hash TEXT NOT NULL,
                 state TEXT NOT NULL,
                 user_log_id INTEGER UNIQUE REFERENCES logs(id) ON DELETE SET NULL,
@@ -343,6 +392,9 @@ def init_db() -> None:
                 scope TEXT NOT NULL,
                 sender TEXT NOT NULL,
                 body TEXT NOT NULL,
+                origin TEXT NOT NULL
+                    CHECK(origin IN ('user','agent','background_task','platform','system','unknown')),
+                origin_detail TEXT NOT NULL,
                 created_at REAL NOT NULL,
                 delivered_at REAL,
                 claimed_at REAL
@@ -1098,6 +1150,35 @@ def _migrate(c) -> None:
     mb_cols = {row[1] for row in c.execute("PRAGMA table_info(mailbox)").fetchall()}
     if "claimed_at" not in mb_cols:
         c.execute("ALTER TABLE mailbox ADD COLUMN claimed_at REAL")
+    mailbox_provenance_added = False
+    if "origin" not in mb_cols:
+        c.execute(
+            "ALTER TABLE mailbox ADD COLUMN origin TEXT NOT NULL DEFAULT 'unknown' "
+            "CHECK(origin IN ('user','agent','background_task','platform','system','unknown'))"
+        )
+        mailbox_provenance_added = True
+    if "origin_detail" not in mb_cols:
+        c.execute(
+            "ALTER TABLE mailbox ADD COLUMN origin_detail TEXT NOT NULL "
+            "DEFAULT '{\"senders\":[\"unknown\"]}'"
+        )
+        mailbox_provenance_added = True
+    if mailbox_provenance_added:
+        from app.events import MessageProvenance
+
+        for mailbox_row in c.execute("SELECT id, sender FROM mailbox").fetchall():
+            sender = str(mailbox_row["sender"] or "").strip()
+            provenance = MessageProvenance(
+                origin="agent" if sender else "unknown",
+                senders=(sender or "unknown",),
+                subtype="mailbox",
+                ref=f"mailbox:{mailbox_row['id']}",
+            )
+            origin, origin_detail = provenance.to_storage()
+            c.execute(
+                "UPDATE mailbox SET origin=?, origin_detail=? WHERE id=?",
+                (origin, origin_detail, mailbox_row["id"]),
+            )
     fan_cols = {row[1] for row in c.execute("PRAGMA table_info(fan_barriers)").fetchall()}
     if "reducer" not in fan_cols:
         c.execute("ALTER TABLE fan_barriers ADD COLUMN reducer TEXT NOT NULL DEFAULT ''")
@@ -1420,6 +1501,29 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE logs ADD COLUMN tool_name TEXT")
     if log_cols and "tool_is_error" not in log_cols:
         c.execute("ALTER TABLE logs ADD COLUMN tool_is_error INTEGER")
+    if log_cols and "origin" not in log_cols:
+        c.execute(
+            "ALTER TABLE logs ADD COLUMN origin TEXT NOT NULL DEFAULT 'unknown' "
+            "CHECK(origin IN ('user','agent','background_task','platform','system','unknown'))"
+        )
+    if log_cols and "origin_detail" not in log_cols:
+        c.execute(
+            "ALTER TABLE logs ADD COLUMN origin_detail TEXT NOT NULL "
+            "DEFAULT '{\"senders\":[\"unknown\"]}'"
+        )
+    for table in ("initial_deliveries", "message_deliveries"):
+        delivery_cols = {
+            row[1] for row in c.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        if delivery_cols and "origin" not in delivery_cols:
+            c.execute(
+                f"ALTER TABLE {table} ADD COLUMN origin TEXT NOT NULL DEFAULT 'unknown'"
+            )
+        if delivery_cols and "origin_detail" not in delivery_cols:
+            c.execute(
+                f"ALTER TABLE {table} ADD COLUMN origin_detail TEXT NOT NULL "
+                "DEFAULT '{\"senders\":[\"unknown\"]}'"
+            )
     c.execute(
         """CREATE INDEX IF NOT EXISTS idx_logs_event_id
            ON logs(event_id)
@@ -1895,6 +1999,8 @@ def add_log(
     type: str,
     content: str,
     event_id: str = "",
+    *,
+    provenance=None,
     tool_use_id: str | None = None,
     tool_name: str | None = None,
     tool_is_error: bool | None = None,
@@ -1909,18 +2015,29 @@ def add_log(
     замаскировать значение позже уже нельзя. Второй шов, живой SSE, идёт мимо этой функции
     и закрыт в live_broker.publish.
     """
+    from app.events import MessageProvenance
     from app.secret_mask import mask_secrets
+
+    if type == "user_message" and provenance is None:
+        raise ValueError("user_message provenance is required")
+    if provenance is not None and not isinstance(provenance, MessageProvenance):
+        raise TypeError("provenance must be MessageProvenance")
+    if provenance is None:
+        origin, origin_detail = "unknown", '{"senders":["unknown"]}'
+    else:
+        origin, origin_detail = provenance.to_storage()
     content = mask_secrets(content)
     with _conn() as c:
         cur = c.execute(
             """INSERT INTO logs (
                    session_id, ts, type, content, event_id,
-                   tool_use_id, tool_name, tool_is_error
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   tool_use_id, tool_name, tool_is_error, origin, origin_detail
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 session_id, ts.isoformat(), type, content, event_id,
                 tool_use_id, tool_name,
                 None if tool_is_error is None else int(tool_is_error),
+                origin, origin_detail,
             ),
         )
         return cur.lastrowid
@@ -1996,7 +2113,7 @@ def get_history_logs(session_id: str, conn=None) -> tuple[int, list[dict]]:
                ORDER BY id ASC""",
             {"session_id": session_id, "max_id": max_id},
         ).fetchall()
-        return max_id, [dict(row) for row in rows]
+        return max_id, [_decode_log_provenance(dict(row)) for row in rows]
     finally:
         if conn is None:
             c.close()
@@ -2412,6 +2529,23 @@ def get_subagent(session_id: str, task_id: str) -> dict | None:
         return dict(row) if row else None
 
 
+def _decode_log_provenance(row: dict) -> dict:
+    from app.events import MessageProvenance
+
+    if not isinstance(row.get("origin"), str) or not row["origin"]:
+        raise ValueError("stored log provenance origin is missing")
+    if "origin_detail" not in row:
+        raise ValueError("stored log provenance detail is missing")
+    provenance = MessageProvenance.from_storage(
+        row["origin"], row["origin_detail"],
+    )
+    return {
+        **row,
+        "origin": provenance.origin,
+        "origin_detail": provenance.detail(),
+    }
+
+
 def get_logs(session_id: str, after_id: int = 0, limit: int = 5000, conn=None) -> list[dict]:
     c = conn or _conn()
     try:
@@ -2420,13 +2554,13 @@ def get_logs(session_id: str, after_id: int = 0, limit: int = 5000, conn=None) -
                 "SELECT * FROM logs WHERE session_id = ? AND id > ? ORDER BY id ASC LIMIT ?",
                 (session_id, after_id, limit),
             ).fetchall()
-            return [dict(r) for r in rows]
+            return [_decode_log_provenance(dict(r)) for r in rows]
         else:
             rows = c.execute(
                 "SELECT * FROM logs WHERE session_id = ? ORDER BY id DESC LIMIT ?",
                 (session_id, limit),
             ).fetchall()
-            return [dict(r) for r in reversed(rows)]
+            return [_decode_log_provenance(dict(r)) for r in reversed(rows)]
     finally:
         if conn is None:
             c.close()
@@ -2437,7 +2571,7 @@ def get_log(log_id: int) -> dict | None:
     целиком», когда обрезанного текста не хватило (#74)."""
     with _conn() as c:
         row = c.execute("SELECT * FROM logs WHERE id = ?", (log_id,)).fetchone()
-        return dict(row) if row else None
+        return _decode_log_provenance(dict(row)) if row else None
 
 
 def get_logs_before(session_id: str, before_id: int, limit: int = 500, max_bytes: int = 0,
@@ -2462,7 +2596,8 @@ def get_logs_before(session_id: str, before_id: int, limit: int = 500, max_bytes
         for r in rows:
             # Сперва потолок, потом бюджет: бюджет обязан считать то, что реально поедет,
             # иначе жирная строка съедает его целиком, будучи обрезанной до килобайта.
-            d = _cap_content(dict(r), cap) if cap else dict(r)
+            decoded = _decode_log_provenance(dict(r))
+            d = _cap_content(decoded, cap) if cap else decoded
             size = len((d.get("content") or "").encode())
             if max_bytes and out and used + size > max_bytes:
                 break
@@ -2473,7 +2608,7 @@ def get_logs_before(session_id: str, before_id: int, limit: int = 500, max_bytes
 
 _SYNC_COLS = (
     "id, session_id, ts, type, content, event_id, "
-    "tool_use_id, tool_name, tool_is_error"
+    "tool_use_id, tool_name, tool_is_error, origin, origin_detail"
 )
 
 
@@ -2581,7 +2716,9 @@ def get_logs_sync(after_id: int = 0, tail: int = 20, cap: int = 16384) -> dict:
         return {
             "max_log_id": max_log_id,
             "live_sessions": live,
-            "logs": [_cap_content(dict(r), cap) for r in rows],
+            "logs": [
+                _cap_content(_decode_log_provenance(dict(r)), cap) for r in rows
+            ],
         }
 
 
@@ -2642,6 +2779,190 @@ def cleanup_old_logs(days: int = 7) -> int:
         "cleanup_old_logs is disabled: agent logs must never be deleted. "
         "If disk pressure is real, export to files first and ask the owner."
     )
+
+
+# ── Review receipts ──
+
+_REVIEW_RECEIPT_COLUMNS = (
+    "receipt_id", "schema_version", "runtime", "reviewer_model", "model_source",
+    "session_id", "worker_name", "scope", "task_id", "task_source", "artifact_path",
+    "mode", "round", "job_id", "usage_event_id", "requested_at", "completed_at",
+    "status", "return_code", "failure_code", "artifact_exists", "artifact_bytes",
+    "artifact_sha256", "verdict_present", "verdict_value", "jsonl_response_present",
+    "recovery_source", "author_outcome", "outcome_source", "outcome_evidence_ref",
+    "notification_event_id",
+)
+_REVIEW_OUTCOMES = frozenset({"accepted", "disputed", "partial"})
+_REVIEW_RECEIPT_SOURCES = frozenset({"direct", "derived", "unknown"})
+
+
+def review_receipt_create(receipt: dict) -> bool:
+    """Insert one immutable review start receipt; duplicate ids are replay-safe."""
+    if not isinstance(receipt, dict):
+        raise TypeError("review receipt must be a dict")
+    missing = [
+        key for key in (
+            "receipt_id", "runtime", "reviewer_model", "model_source", "session_id",
+            "worker_name", "scope", "task_id", "task_source", "artifact_path", "mode",
+            "job_id", "usage_event_id", "status",
+        ) if key not in receipt
+    ]
+    if missing:
+        raise ValueError("review receipt missing fields: " + ", ".join(missing))
+    if receipt["model_source"] not in _REVIEW_RECEIPT_SOURCES:
+        raise ValueError("invalid review receipt model_source")
+    if receipt.get("outcome_source", "unknown") not in _REVIEW_RECEIPT_SOURCES:
+        raise ValueError("invalid review receipt outcome_source")
+    values = {key: receipt.get(key) for key in _REVIEW_RECEIPT_COLUMNS}
+    values["schema_version"] = int(values["schema_version"] or 1)
+    values["round"] = None if values["round"] is None else int(values["round"])
+    values["status"] = values["status"] or "requested"
+    values["requested_at"] = values["requested_at"] or datetime.now(timezone.utc).isoformat()
+    values["failure_code"] = values["failure_code"] or ""
+    values["artifact_sha256"] = values["artifact_sha256"] or ""
+    values["verdict_value"] = values["verdict_value"] or ""
+    values["recovery_source"] = values["recovery_source"] or ""
+    values["author_outcome"] = values["author_outcome"] or "unknown"
+    values["outcome_source"] = values["outcome_source"] or "unknown"
+    values["outcome_evidence_ref"] = values["outcome_evidence_ref"] or ""
+    values["notification_event_id"] = values["notification_event_id"] or ""
+    placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
+    columns = ", ".join(_REVIEW_RECEIPT_COLUMNS)
+    with _conn() as c:
+        cursor = c.execute(
+            f"INSERT INTO review_receipts ({columns}) VALUES ({placeholders}) "
+            "ON CONFLICT(receipt_id) DO NOTHING",
+            tuple(values[key] for key in _REVIEW_RECEIPT_COLUMNS),
+        )
+        if cursor.rowcount == 0:
+            existing = c.execute(
+                "SELECT * FROM review_receipts WHERE receipt_id=?",
+                (values["receipt_id"],),
+            ).fetchone()
+            if existing is None or any(
+                existing[key] != values[key] for key in _REVIEW_RECEIPT_COLUMNS
+            ):
+                raise ValueError("review receipt id conflicts with existing provenance")
+        return cursor.rowcount == 1
+
+
+def review_receipt_get(receipt_id: str) -> dict | None:
+    if not receipt_id:
+        return None
+    with _conn() as c:
+        row = c.execute(
+            "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def review_receipt_reserve(receipt: dict) -> dict:
+    """Allocate the next artifact round and insert its start receipt atomically."""
+    if not isinstance(receipt, dict):
+        raise TypeError("review receipt must be a dict")
+    artifact_path = str(receipt.get("artifact_path") or "")
+    if not artifact_path:
+        raise ValueError("review receipt artifact_path is required")
+    values = dict(receipt)
+    values["round"] = None
+    values.setdefault("schema_version", 1)
+    values.setdefault("requested_at", datetime.now(timezone.utc).isoformat())
+    values.setdefault("status", "requested")
+    values.setdefault("failure_code", "")
+    values.setdefault("artifact_sha256", "")
+    values.setdefault("verdict_value", "")
+    values.setdefault("recovery_source", "")
+    values.setdefault("author_outcome", "unknown")
+    values.setdefault("outcome_source", "unknown")
+    values.setdefault("outcome_evidence_ref", "")
+    values.setdefault("notification_event_id", "")
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute(
+            "SELECT COALESCE(MAX(round), 0) FROM review_receipts WHERE artifact_path=?",
+            (artifact_path,),
+        ).fetchone()
+        values["round"] = int(row[0] or 0) + 1
+        placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
+        columns = ", ".join(_REVIEW_RECEIPT_COLUMNS)
+        c.execute(
+            f"INSERT INTO review_receipts ({columns}) VALUES ({placeholders})",
+            tuple(values.get(key) for key in _REVIEW_RECEIPT_COLUMNS),
+        )
+        saved = c.execute(
+            "SELECT * FROM review_receipts WHERE receipt_id=?",
+            (values["receipt_id"],),
+        ).fetchone()
+    return dict(saved)
+
+
+def review_receipt_finish(receipt_id: str, updates: dict) -> bool:
+    """Record terminal execution facts without allowing start provenance to drift."""
+    allowed = {
+        "job_id", "completed_at", "status", "return_code", "failure_code",
+        "artifact_exists", "artifact_bytes", "artifact_sha256", "verdict_present",
+        "verdict_value", "jsonl_response_present", "recovery_source",
+        "notification_event_id",
+    }
+    unknown = set(updates) - allowed
+    if unknown:
+        raise ValueError("review receipt terminal fields not allowed: " + ", ".join(sorted(unknown)))
+    if updates.get("status") not in {None, "requested", "completed", "failed", "timed_out", "interrupted"}:
+        raise ValueError("invalid review receipt status")
+    if not updates:
+        return False
+    assignments = ", ".join(f"{key}=?" for key in updates)
+    with _conn() as c:
+        cursor = c.execute(
+            f"UPDATE review_receipts SET {assignments} WHERE receipt_id=?",
+            tuple(updates[key] for key in updates) + (receipt_id,),
+        )
+        return cursor.rowcount == 1
+
+
+def review_receipt_set_outcome(
+    receipt_id: str, outcome: str, outcome_evidence_ref: str = "",
+) -> dict:
+    """Set an author outcome once; identical replay returns the existing row."""
+    if outcome not in _REVIEW_OUTCOMES:
+        raise ValueError("outcome must be accepted, disputed, or partial")
+    evidence = str(outcome_evidence_ref or "").strip()
+    if outcome == "disputed" and not evidence:
+        raise ValueError("outcome_evidence_ref is required for disputed outcome")
+    with _conn() as c:
+        row = c.execute(
+            "SELECT author_outcome, outcome_evidence_ref FROM review_receipts WHERE receipt_id=?",
+            (receipt_id,),
+        ).fetchone()
+        if not row:
+            raise LookupError("review receipt not found")
+        current = row["author_outcome"] or "unknown"
+        current_ref = row["outcome_evidence_ref"] or ""
+        if current != "unknown":
+            if current == outcome and current_ref == evidence:
+                saved = c.execute(
+                    "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
+                ).fetchone()
+                return dict(saved)
+            raise ValueError("review receipt outcome is already fixed")
+        c.execute(
+            "UPDATE review_receipts SET author_outcome=?, outcome_source='direct', "
+            "outcome_evidence_ref=? WHERE receipt_id=? AND author_outcome='unknown'",
+            (outcome, evidence, receipt_id),
+        )
+        if c.execute("SELECT changes()").fetchone()[0] == 0:
+            current_row = c.execute(
+                "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
+            ).fetchone()
+            current = current_row["author_outcome"] or "unknown"
+            current_ref = current_row["outcome_evidence_ref"] or ""
+            if current == outcome and current_ref == evidence:
+                return dict(current_row)
+            raise ValueError("review receipt outcome is already fixed")
+        saved = c.execute(
+            "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
+        ).fetchone()
+    return dict(saved)
 
 
 # ── Background Jobs ──

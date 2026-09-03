@@ -1,0 +1,39 @@
+{
+  "batch_combined": [
+    "tests/test_orchestra_layout_430.py::test_t4_all_assembled_prompts_use_new_root_and_explain_repair",
+    "tests/test_orchestra_layout_430.py::test_t4_startup_runs_migration_before_knowledge_runtime",
+    "tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves",
+    "tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[claude-claude-opus-5[1m]]",
+    "tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[sol-gpt-5.6-sol]",
+    "tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[luna-gpt-5.6-luna]",
+    "tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[spark-gpt-5.3-codex-spark]",
+    "tests/test_quota_admission_e2e.py::test_unknown_quota_admits_the_spawn_and_the_following_send"
+  ],
+  "batch_failed_nodes": {
+    "batch-5": [
+      "tests/test_orchestra_layout_430.py::test_t4_all_assembled_prompts_use_new_root_and_explain_repair",
+      "tests/test_orchestra_layout_430.py::test_t4_startup_runs_migration_before_knowledge_runtime",
+      "tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves"
+    ],
+    "batch-7": [
+      "tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[claude-claude-opus-5[1m]]",
+      "tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[sol-gpt-5.6-sol]",
+      "tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[luna-gpt-5.6-luna]",
+      "tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[spark-gpt-5.3-codex-spark]",
+      "tests/test_quota_admission_e2e.py::test_unknown_quota_admits_the_spawn_and_the_following_send"
+    ]
+  },
+  "batch_only": [],
+  "equal": true,
+  "per_file_failed_nodes": [
+    "tests/test_orchestra_layout_430.py::test_t4_all_assembled_prompts_use_new_root_and_explain_repair",
+    "tests/test_orchestra_layout_430.py::test_t4_startup_runs_migration_before_knowledge_runtime",
+    "tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves",
+    "tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[claude-claude-opus-5[1m]]",
+    "tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[sol-gpt-5.6-sol]",
+    "tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[luna-gpt-5.6-luna]",
+    "tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[spark-gpt-5.3-codex-spark]",
+    "tests/test_quota_admission_e2e.py::test_unknown_quota_admits_the_spawn_and_the_following_send"
+  ],
+  "per_file_only": []
+}

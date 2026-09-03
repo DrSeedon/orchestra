@@ -15,6 +15,7 @@ from app.db import (
     get_all_sessions,
 )
 from app.errtext import err_text
+from app.events import MessageProvenance
 from app.models import backend_for_model
 from app.session import _subscription_limit_kind
 from app.session_state import AgentStatus
@@ -30,6 +31,15 @@ ANTHROPIC_BASE_WINDOWS = ("five_hour", "seven_day")
 WAKE_AUTO_DEBOUNCE_SECONDS = 60
 _schedule_lock = asyncio.Lock()
 _last_auto_schedule: datetime | None = None
+
+
+def _is_limit_wake_log(row: dict) -> bool:
+    detail = row.get("origin_detail")
+    return (
+        row.get("origin") == "system"
+        and isinstance(detail, dict)
+        and detail.get("subtype") == "limit_wake"
+    )
 
 
 def _provider_for_model(model: str) -> str:
@@ -59,7 +69,7 @@ def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
     if any(
         key(row) > latest_key
         and row["type"] == "user_message"
-        and not row["content"].startswith(WAKE_MESSAGE_PREFIX)
+        and not _is_limit_wake_log(row)
         for row in ordered
     ):
         return None
@@ -570,8 +580,10 @@ def _wake_token_seen(session_id: str, token: str) -> bool:
     with _conn() as connection:
         row = connection.execute(
             "SELECT 1 FROM logs WHERE session_id=? AND type='user_message' "
-            "AND content LIKE ? LIMIT 1",
-            (session_id, f"{WAKE_MESSAGE_PREFIX}{token}]%"),
+            "AND origin='system' "
+            "AND json_extract(origin_detail, '$.subtype')='limit_wake' "
+            "AND json_extract(origin_detail, '$.ref')=? LIMIT 1",
+            (session_id, token),
         ).fetchone()
     return row is not None
 
@@ -696,7 +708,13 @@ async def run_wake_job(
                 "Продолжай с того места, где остановился."
             )
             try:
-                await session_manager.send(session.id, message)
+                provenance = MessageProvenance(
+                    origin="system", senders=("system",),
+                    subtype="limit_wake", ref=token,
+                )
+                await session_manager.send(
+                    session.id, message, provenance=provenance,
+                )
             except Exception as delivery_error:
                 # Непроснувшийся воркер — это остановленная работа, а не косметика (#30).
                 # Запись в состоянии джоба остаётся, но у неё появляется адресат.

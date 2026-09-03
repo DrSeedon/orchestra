@@ -1,7 +1,7 @@
 """GrokBackend — event mapping, cost accounting, MCP translation, turn bookkeeping.
 
 Every constant pinned here was measured against the live grok CLI 0.2.112 during task #95
-(docs/tasks/95/research.md). The measurements exist because both the secondary sources and
+(.orchestra/tasks/95/research.md). The measurements exist because both the secondary sources and
 the vendor's own bundled README turned out to be wrong:
   - articles say cached input is $0.50/M; the runtime bills $0.30/M
   - costUsdTicks is 1e-10 USD, not the 1e-9 a first reading assumed

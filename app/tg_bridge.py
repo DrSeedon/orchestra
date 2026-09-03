@@ -28,6 +28,8 @@ from aiogram.types import LinkPreviewOptions
 from telegramify_markdown import convert as md_convert
 
 from app.errtext import err_text
+from app.events import MessageProvenance
+from app.status_policy import is_internal_telemetry_status
 from app.tasks import spawn_supervised
 from app.turn_markers import (
     SILENT_TURN_MARKER as TG_SILENT_TURN_MARKER,
@@ -49,6 +51,23 @@ MEDIA_CACHE_PATH = UPLOADS_DIR / ".media_cache.json"
 config = {"group_id": 0, "topics": {}, "token": ""}
 bot = None
 dp = Dispatcher()
+
+
+def _format_user_message_log(log: dict, target_name: str) -> str:
+    origin = str(log.get("origin") or "unknown")
+    detail = log.get("origin_detail")
+    if not isinstance(detail, dict):
+        origin, detail = "unknown", {"senders": ["unknown"]}
+    senders = detail.get("senders")
+    if not isinstance(senders, list) or not senders:
+        origin, senders = "unknown", ["unknown"]
+    content = str(log.get("content") or "")
+    if origin == "user":
+        return f"👤\n{content}"
+    label = ", ".join(str(sender) for sender in senders)
+    if origin == "agent":
+        return f"📨 {label} → {target_name}\n{content}"
+    return f"⚙ {origin}: {label}\n{content}"
 _manager = None
 _tasks = []
 _stream_tasks: dict[tuple[str, int], asyncio.Task] = {}
@@ -417,7 +436,12 @@ async def _flush_batch(sid: str, batch: list):
         await _queue_until_restarted(sid, valid, combined)
         return
     try:
-        await _manager.send(sid, combined)
+        provenance = MessageProvenance(
+            origin="user", senders=("user",), subtype="telegram",
+        )
+        await _manager.send(
+            sid, combined, provenance=provenance,
+        )
     except Exception as error:
         # Недоставку обязан увидеть ЮЗЕР, а не журнал сервера: этот путь вызывается из
         # фоновой задачи дебаунса, и раньше исключение умирало в ней молча (#30, замер:
@@ -445,7 +469,12 @@ async def _queue_until_restarted(sid: str, valid: list, combined: str) -> None:
         # deliver the old way rather than drop it, and let the existing path report failure.
         logger.warning("restart inbox unavailable for %s, delivering live: %s", sid, err_text(error))
         try:
-            await _manager.send(sid, combined)
+            provenance = MessageProvenance(
+                origin="user", senders=("user",), subtype="telegram_fallback",
+            )
+            await _manager.send(
+                sid, combined, provenance=provenance,
+            )
         except Exception as send_error:
             await _report_undelivered_to_user(sid, valid, send_error)
         return
@@ -3345,12 +3374,7 @@ async def stream_logs(orch_name: str, thread_id: int):
                             except Exception as e:
                                 logger.warning(f"TG send photo failed: {e}")
                             continue
-                        if c.startswith("[from:"):
-                            prefix = c.split("]")[0] + "]"
-                            body = c[len(prefix):].strip()
-                            text = f"📨 {prefix}\n{body}"
-                        else:
-                            text = f"👤\n{c}" if c.startswith("> ") else f"👤 {c}"
+                        text = _format_user_message_log(log, orch_name)
                     elif t == "text":
                         if is_silent_turn_text(c):
                             continue
@@ -3419,6 +3443,8 @@ async def stream_logs(orch_name: str, thread_id: int):
                     elif t == "error":
                         text = f"❌ {c}"
                     elif t == "status":
+                        if is_internal_telemetry_status(c):
+                            continue
                         if "turn ended" in c:
                             still_running = _any_running_in_scope(scope)
                             if not still_running:

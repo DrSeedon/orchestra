@@ -20,6 +20,7 @@ import pytest
 from fastapi import HTTPException
 
 from app import message_deliveries
+from app.events import MessageProvenance
 
 
 SCOPE = "/audit-0901"
@@ -30,6 +31,7 @@ TARGET_NAME = "audit-0901-worker"
 TARGET_GENERATION = f"session={TARGET_ID}|task=|branch=|needs_switch=0"
 HEAD_ID = "00000000-0000-4000-8000-000000000901"
 TAIL_ID = "00000000-0000-4000-8000-000000000902"
+PROVENANCE = MessageProvenance(origin="agent", senders=(SOURCE_NAME,))
 
 
 def _session_record(*, session_id, name, status="idle", role="worker"):
@@ -84,6 +86,7 @@ async def _accept(*, delivery_id, message):
         message=message,
         rendered_message=f"[from:{SOURCE_NAME}] {message}",
         wake=True,
+        provenance=PROVENANCE,
     )
 
 

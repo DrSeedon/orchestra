@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 
 import pytest
 
+from app.events import MessageProvenance
+
 
 SCOPE = "/fan-407"
 PARENT_ID = "parent-session-407"
@@ -51,8 +53,9 @@ class _WakeRecorder:
         self.records = []
 
     async def send_message_delivery(
-        self, session_id, message, *, delivery, target_generation,
+        self, session_id, message, *, delivery, target_generation, provenance,
     ):
+        assert provenance.origin == "agent"
         self.records.append({"session_id": session_id, "message": message})
         await delivery.before_submit()
         await delivery.mark_submitted(provider_ref=f"wake-{len(self.records)}")
@@ -79,6 +82,7 @@ async def _accepted_report(module, child, body):
         # This is the payload emitted by the live MCP send_message tool today.
         message_kind=None,
         wake=True,
+        provenance=MessageProvenance(origin="agent", senders=(child,)),
     )
     return delivery_id
 

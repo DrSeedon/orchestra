@@ -31,7 +31,8 @@ class _Manager:
         self.sent: list[tuple[str, str]] = []
         self.fail_on = fail_on
 
-    async def send(self, session_id: str, message: str) -> None:
+    async def send(self, session_id: str, message: str, *, provenance) -> None:
+        assert provenance.origin == "user"
         if self.fail_on and self.fail_on in message:
             raise RuntimeError("backend is not up yet")
         self.sent.append((session_id, message))
@@ -166,7 +167,8 @@ async def test_269_message_for_a_session_that_never_came_back_is_given_up_and_re
     import app.tg_bridge as tb
 
     class _Gone:
-        async def send(self, session_id, message):
+        async def send(self, session_id, message, *, provenance):
+            assert provenance.origin == "user"
             raise KeyError(f"session not found: {session_id}")
 
     reported = []
@@ -201,7 +203,8 @@ async def test_269_a_hanging_delivery_does_not_block_the_rest_of_the_queue(inbox
         def __init__(self):
             self.sent = []
 
-        async def send(self, session_id, message):
+        async def send(self, session_id, message, *, provenance):
+            assert provenance.origin == "user"
             if session_id == "sid-hangs":
                 await asyncio.sleep(30)
             self.sent.append(session_id)

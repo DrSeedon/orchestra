@@ -2,7 +2,7 @@
 
 The mechanism is measured, not assumed: with `KillMode=process` plus systemd's file descriptor
 store, a real Codex and a real Claude CLI survive `systemctl restart` and keep streaming their
-turn to the NEXT supervisor generation (docs/tasks/230/research.md, F1).
+turn to the NEXT supervisor generation (.orchestra/tasks/230/research.md, F1).
 """
 
 import array

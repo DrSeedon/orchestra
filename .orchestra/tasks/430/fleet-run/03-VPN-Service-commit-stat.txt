@@ -1,0 +1,27 @@
+e8b3df6 Orchestra: migrate project state to .orchestra
+ .gitignore                                                         | 3 +++
+ .orchestra/layout.json                                             | 1 +
+ {docs => .orchestra}/tasks/716/research.md                         | 0
+ {docs => .orchestra}/tasks/727/research.md                         | 0
+ {docs => .orchestra}/tasks/728/research.md                         | 0
+ {docs => .orchestra}/tasks/736/apply-log.md                        | 0
+ {docs => .orchestra}/tasks/736/config-for-user.md                  | 0
+ {docs => .orchestra}/tasks/736/donor-selection.md                  | 0
+ {docs => .orchestra}/tasks/739/cascade-setup.md                    | 0
+ {docs => .orchestra}/tasks/739/diagnosis.md                        | 0
+ {docs => .orchestra}/tasks/739/firewall-fix.md                     | 0
+ {docs => .orchestra}/tasks/739/how-to-tell-timeout-vs-handshake.md | 0
+ {docs => .orchestra}/tasks/742/codex-review-plan.md                | 0
+ {docs => .orchestra}/tasks/742/codex-review-research.md            | 0
+ {docs => .orchestra}/tasks/742/plan.md                             | 0
+ {docs => .orchestra}/tasks/742/research.md                         | 0
+ {docs => .orchestra}/tasks/743/cascade-migration.md                | 0
+ {docs => .orchestra}/tasks/746/live-blocking-event.md              | 0
+ {docs => .orchestra}/tasks/746/measurements.md                     | 0
+ {docs => .orchestra}/tasks/746/pilot-criteria.md                   | 0
+ {docs => .orchestra}/tasks/746/research.md                         | 0
+ {docs => .orchestra}/tasks/746/transport-comparison.md             | 0
+ {docs => .orchestra}/tasks/750/empty-subscriptions.md              | 0
+ {docs => .orchestra}/workers/feat-contabo-fix.md                   | 0
+ {docs => .orchestra}/workers/feat-probe-lab.md                     | 0
+ 25 files changed, 4 insertions(+)

@@ -1,0 +1,80 @@
+{
+  "collection_nodes": 3689,
+  "coverage_equal": true,
+  "failed_or_error_nodes": 39,
+  "observed_nodes": 3689,
+  "raw_nodeid_symmetric_difference": 4,
+  "schema_version": 1,
+  "shards": [
+    {
+      "observed_nodes": 615,
+      "rc": 1,
+      "shard": 1,
+      "statuses": {
+        "FAILED": 12,
+        "PASSED": 555,
+        "SKIPPED": 48
+      }
+    },
+    {
+      "observed_nodes": 615,
+      "rc": 1,
+      "shard": 2,
+      "statuses": {
+        "FAILED": 6,
+        "PASSED": 602,
+        "SKIPPED": 7
+      }
+    },
+    {
+      "observed_nodes": 615,
+      "rc": 1,
+      "shard": 3,
+      "statuses": {
+        "FAILED": 9,
+        "PASSED": 602,
+        "SKIPPED": 4
+      }
+    },
+    {
+      "observed_nodes": 615,
+      "rc": 1,
+      "shard": 4,
+      "statuses": {
+        "FAILED": 3,
+        "PASSED": 596,
+        "SKIPPED": 16
+      }
+    },
+    {
+      "observed_nodes": 615,
+      "rc": 1,
+      "shard": 5,
+      "statuses": {
+        "FAILED": 2,
+        "PASSED": 597,
+        "SKIPPED": 13,
+        "XFAIL": 3
+      }
+    },
+    {
+      "observed_nodes": 614,
+      "rc": 1,
+      "shard": 6,
+      "statuses": {
+        "FAILED": 7,
+        "PASSED": 607
+      }
+    }
+  ],
+  "statuses": {
+    "FAILED": 39,
+    "PASSED": 3559,
+    "SKIPPED": 88,
+    "XFAIL": 3
+  },
+  "worktree_status_after": [
+    " M docs/tasks/356/usage-bar-provider-grid-1280.png",
+    " M docs/tasks/356/usage-bar-provider-grid-1920.png"
+  ]
+}

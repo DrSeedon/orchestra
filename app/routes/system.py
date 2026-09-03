@@ -1588,6 +1588,13 @@ async def build_quota_map() -> dict:
                 # по прямой, и обе живут в одном пуле Codex/Anthropic соответственно.
                 "curved": decision.lane in CURVED_LANES,
                 "limit_pct": decision.limit_pct,
+                "headroom_pp": (
+                    None
+                    if not decision.gated
+                    or decision.limit_pct is None
+                    or decision.utilization is None
+                    else decision.limit_pct - decision.utilization
+                ),
                 "blocked": False,
                 "release_status": decision.release_status,
                 "release_in_seconds": decision.release_in_seconds,
@@ -2195,7 +2202,7 @@ async def list_orchestrators():
     turn_map = get_last_turn_map()
     for o in result:
         # Системный промпт — 92.8% веса этого ответа по проводу (19.8 КБ из 21.3 КБ на
-        # пяти записях, замер в docs/tasks/71/research.md), и в списке его не читает никто:
+        # пяти записях, замер в .orchestra/tasks/71/research.md), и в списке его не читает никто:
         # ни дашборд, ни MCP. За полным промптом ходят в GET /api/sessions/{name}/prompt.
         # Срезается ЗДЕСЬ, а не в to_dict(): его же отдаёт /api/sessions/{name}, где промпт
         # нужен. И в обоих путях сразу — активные сессии и строки БД лежат в одном списке,
@@ -2867,7 +2874,15 @@ async def github_webhook(request: Request):
         return JSONResponse({"error": f"orchestrator {orch_name} not loadable"}, status_code=404)
 
     try:
-        await manager.send(session.id, message)
+        from app.events import MessageProvenance
+
+        provenance = MessageProvenance(
+            origin="system", senders=("ci",),
+            subtype="ci_failure", ref=str(run_id or ""),
+        )
+        await manager.send(
+            session.id, message, provenance=provenance,
+        )
         logger.info(f"CI failure routed to {orch_name}: {repo_full} run #{run_id}")
         return {"ok": True, "routed_to": orch_name}
     except Exception as e:

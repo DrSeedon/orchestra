@@ -143,8 +143,8 @@ async def test_restart_mid_delivery_sends_run_result_instead_of_interruption(db)
     manager = MagicMock()
     manager.ensure_loaded_by_id = AsyncMock(return_value=session)
 
-    async def deliver(_session_id, message):
-        await session.send(message)
+    async def deliver(_session_id, message, *, provenance):
+        await session.send(message, provenance=provenance)
 
     manager.send = AsyncMock(side_effect=deliver)
     mgr = BgJobManager()
@@ -155,7 +155,8 @@ async def test_restart_mid_delivery_sends_run_result_instead_of_interruption(db)
     delivered = {}
     for call in session.send.await_args_list:
         message = call.args[0]
-        delivered[message.job_id] = message.text
+        assert message.provenance.origin == "background_task"
+        delivered[message.provenance.ref] = message.text
     assert "[Background job completed] codex review" in delivered["run-delivering"]
     assert "codex verdict tail" in delivered["run-delivering"]
     assert "повторный запуск не выполнялся" not in delivered["run-delivering"]

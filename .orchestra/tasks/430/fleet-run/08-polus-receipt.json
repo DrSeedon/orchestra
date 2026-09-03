@@ -1,0 +1,64 @@
+{
+  "after_dirty_files": 17,
+  "after_head": "815a6d0f6d273a83479345f848751db8d2be55d6",
+  "before_dirty_files": 17,
+  "before_head": "f14b94e89cc08ac85af4d3bd8df80253aae1c652",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks",
+    "workers"
+  ],
+  "outcome": "migrated",
+  "project_id": "polus",
+  "repository": "/home/maxim/polus",
+  "result": {
+    "commit": "815a6d0f6d273a83479345f848751db8d2be55d6",
+    "dirty_preserved": true,
+    "dirty_status_after": [
+      " M assets/terrain/vegetation/demo_1.png",
+      " M assets/terrain/vegetation/demo_2.png",
+      " M assets/terrain/vegetation/demo_3.png",
+      " M assets/terrain/vegetation/demo_4.png",
+      " M assets/terrain/vegetation/demo_5.png",
+      " M assets/terrain/vegetation/krasnoyarsk_d.png",
+      " M tools/terrain/hydrology.py",
+      " M tools/terrain/water_mesh.py",
+      "?? .orchestra/kb/",
+      "?? .orchestra/tasks/29/water_profiles_demo_1.png.import",
+      "?? .orchestra/tasks/29/water_profiles_demo_4.png.import",
+      "?? .orchestra/tasks/29/water_profiles_krasnoyarsk_d.png.import",
+      "?? .orchestra/tasks/31/diag_river_width.py",
+      "?? .orchestra/tasks/31/diag_width_vs_osm.py",
+      "?? .orchestra/tasks/31/river_width_diagnosis.txt",
+      "?? .orchestra/tasks/31/stage3_water_width_attempts.txt",
+      "?? .orchestra/tasks/31/width_calibration_attempt.txt"
+    ],
+    "dirty_status_before": [
+      " M assets/terrain/vegetation/demo_1.png",
+      " M assets/terrain/vegetation/demo_2.png",
+      " M assets/terrain/vegetation/demo_3.png",
+      " M assets/terrain/vegetation/demo_4.png",
+      " M assets/terrain/vegetation/demo_5.png",
+      " M assets/terrain/vegetation/krasnoyarsk_d.png",
+      " M tools/terrain/hydrology.py",
+      " M tools/terrain/water_mesh.py",
+      "?? docs/kb/",
+      "?? docs/tasks/29/water_profiles_demo_1.png.import",
+      "?? docs/tasks/29/water_profiles_demo_4.png.import",
+      "?? docs/tasks/29/water_profiles_krasnoyarsk_d.png.import",
+      "?? docs/tasks/31/diag_river_width.py",
+      "?? docs/tasks/31/diag_width_vs_osm.py",
+      "?? docs/tasks/31/river_width_diagnosis.txt",
+      "?? docs/tasks/31/stage3_water_width_attempts.txt",
+      "?? docs/tasks/31/width_calibration_attempt.txt"
+    ],
+    "managed_paths": [
+      "tasks",
+      "workers"
+    ],
+    "repair_command": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair /home/maxim/polus",
+    "repository": "/home/maxim/polus",
+    "status": "migrated"
+  },
+  "status_equivalent_after_path_mapping": true
+}

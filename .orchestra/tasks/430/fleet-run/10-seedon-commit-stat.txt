@@ -1,0 +1,173 @@
+0204950 Orchestra: migrate project state to .orchestra
+ .gitignore                                                  |   3 +++
+ .orchestra/layout.json                                      |   1 +
+ {docs => .orchestra}/tasks/114/proto-desktop.png            | Bin
+ {docs => .orchestra}/tasks/114/proto-mobile.png             | Bin
+ {docs => .orchestra}/tasks/114/prototype.html               |   0
+ {docs => .orchestra}/tasks/114/research.md                  |   0
+ {docs => .orchestra}/tasks/116/plan.md                      |   0
+ {docs => .orchestra}/tasks/116/research.md                  |   0
+ {docs => .orchestra}/tasks/117/codex-review-impl.md         |   0
+ {docs => .orchestra}/tasks/117/codex-review-plan.md         |   0
+ {docs => .orchestra}/tasks/117/plan.md                      |   0
+ {docs => .orchestra}/tasks/117/report.md                    |   0
+ {docs => .orchestra}/tasks/117/research.md                  |   0
+ {docs => .orchestra}/tasks/118/plan.md                      |   0
+ {docs => .orchestra}/tasks/118/report.md                    |   0
+ {docs => .orchestra}/tasks/118/research.md                  |   0
+ {docs => .orchestra}/tasks/131/RESEARCH.md                  |   0
+ {docs => .orchestra}/tasks/131/expA-posedict.png            | Bin
+ {docs => .orchestra}/tasks/131/expB-action.png              | Bin
+ {docs => .orchestra}/tasks/131/expC-minimal.png             | Bin
+ {docs => .orchestra}/tasks/131/final-sales.png              | Bin
+ {docs => .orchestra}/tasks/133/enterprise-audit.md          |   0
+ {docs => .orchestra}/tasks/139/CODEX_REVIEW_plan.md         |   0
+ {docs => .orchestra}/tasks/139/codex-review-impl.md         |   0
+ {docs => .orchestra}/tasks/139/llm-testing-research.md      |   0
+ {docs => .orchestra}/tasks/139/plan.md                      |   0
+ {docs => .orchestra}/tasks/139/report.md                    |   0
+ {docs => .orchestra}/tasks/139/retro.md                     |   0
+ {docs => .orchestra}/tasks/145/codex-review-plan.md         |   0
+ {docs => .orchestra}/tasks/145/codex-review-research.md     |   0
+ {docs => .orchestra}/tasks/145/plan.md                      |   0
+ {docs => .orchestra}/tasks/145/research.md                  |   0
+ {docs => .orchestra}/tasks/147/codex-review-impl.md         |   0
+ {docs => .orchestra}/tasks/147/codex-review-plan.md         |   0
+ {docs => .orchestra}/tasks/147/codex-review-research.md     |   0
+ {docs => .orchestra}/tasks/147/plan.md                      |   0
+ {docs => .orchestra}/tasks/147/report.md                    |   0
+ {docs => .orchestra}/tasks/147/research.md                  |   0
+ {docs => .orchestra}/tasks/147/retro.md                     |   0
+ {docs => .orchestra}/tasks/148/codex-review-impl.md         |   0
+ {docs => .orchestra}/tasks/148/codex-review-plan.md         |   0
+ {docs => .orchestra}/tasks/148/plan.md                      |   0
+ {docs => .orchestra}/tasks/148/report.md                    |   0
+ {docs => .orchestra}/tasks/148/research.md                  |   0
+ {docs => .orchestra}/tasks/148/retro.md                     |   0
+ {docs => .orchestra}/tasks/155/_benchmarks_verified.md      |   0
+ {docs => .orchestra}/tasks/155/codex-review-research.md     |   0
+ {docs => .orchestra}/tasks/155/research.md                  |   0
+ {docs => .orchestra}/tasks/156/report.md                    |   0
+ {docs => .orchestra}/tasks/160/codex-review-impl.md         |   0
+ {docs => .orchestra}/tasks/160/codex-review-plan.md         |   0
+ {docs => .orchestra}/tasks/160/codex-review-research.md     |   0
+ {docs => .orchestra}/tasks/160/codex-review-wave1.md        |   0
+ .../tasks/160/evidence/partner-wave1/README.md              |   0
+ .../160/evidence/partner-wave1/business-upgrade-form.png    | Bin
+ .../tasks/160/evidence/partner-wave1/demetra-form.png       | Bin
+ .../tasks/160/evidence/partner-wave1/mango-after-submit.png | Bin
+ .../160/evidence/partner-wave1/mango-before-submit.png      | Bin
+ .../tasks/160/evidence/partner-wave1/mango-form.png         | Bin
+ .../tasks/160/evidence/partner-wave1/mango-modal.png        | Bin
+ .../tasks/160/evidence/partner-wave1/uis-partner-route.png  | Bin
+ .../tasks/160/evidence/partner-wave1/usedesk-form.png       | Bin
+ .../tasks/160/evidence/partner-wave1/usedesk-modal.png      | Bin
+ {docs => .orchestra}/tasks/160/plan.md                      |   0
+ {docs => .orchestra}/tasks/160/report.md                    |   0
+ {docs => .orchestra}/tasks/160/research.md                  |   0
+ {docs => .orchestra}/tasks/162/codex-review-research.md     |   0
+ {docs => .orchestra}/tasks/162/research.md                  |   0
+ {docs => .orchestra}/tasks/163/codex-review-phase2.md       |   0
+ {docs => .orchestra}/tasks/163/codex-review-research.md     |   0
+ {docs => .orchestra}/tasks/163/research-152fz.md            |   0
+ {docs => .orchestra}/tasks/163/research-cases.md            |   0
+ {docs => .orchestra}/tasks/163/research-koap-phase2.md      |   0
+ {docs => .orchestra}/tasks/163/research.md                  |   0
+ {docs => .orchestra}/tasks/164/research.md                  |   0
+ {docs => .orchestra}/tasks/171/codex-review-impl.md         |   0
+ {docs => .orchestra}/tasks/171/codex-review-p1.md           |   0
+ {docs => .orchestra}/tasks/171/codex-review-plan.md         |   0
+ {docs => .orchestra}/tasks/171/plan.md                      |   0
+ {docs => .orchestra}/tasks/171/report.md                    |   0
+ {docs => .orchestra}/tasks/171/research.md                  |   0
+ {docs => .orchestra}/tasks/172/codex-review.md              |   0
+ {docs => .orchestra}/tasks/172/research.md                  |   0
+ {docs => .orchestra}/tasks/173/codex-review.md              |   0
+ {docs => .orchestra}/tasks/173/ip-rights-package.md         |   0
+ {docs => .orchestra}/tasks/173/research.md                  |   0
+ {docs => .orchestra}/tasks/174/codex-review-impl.md         |   0
+ {docs => .orchestra}/tasks/174/codex-review-plan.md         |   0
+ {docs => .orchestra}/tasks/174/codex-review-quiet.md        |   0
+ {docs => .orchestra}/tasks/174/plan.md                      |   0
+ {docs => .orchestra}/tasks/174/report.md                    |   0
+ {docs => .orchestra}/tasks/174/research.md                  |   0
+ {docs => .orchestra}/tasks/175/codex-review-impl.md         |   0
+ {docs => .orchestra}/tasks/175/codex-review-plan.md         |   0
+ {docs => .orchestra}/tasks/175/codex-review-research.md     |   0
+ {docs => .orchestra}/tasks/175/live-strategy-proof.md       |   0
+ {docs => .orchestra}/tasks/175/plan.md                      |   0
+ {docs => .orchestra}/tasks/175/report.md                    |   0
+ {docs => .orchestra}/tasks/175/research.md                  |   0
+ {docs => .orchestra}/tasks/175/workers/readback/findings.md |   0
+ {docs => .orchestra}/tasks/175/workers/v5/findings.md       |   0
+ {docs => .orchestra}/tasks/175/workers/v501/findings.md     |   0
+ {docs => .orchestra}/tasks/176/cabinet-audit.html           |   0
+ {docs => .orchestra}/tasks/176/codex-review-impl.md         |   0
+ {docs => .orchestra}/tasks/176/config-manifest.json         |   0
+ {docs => .orchestra}/tasks/176/live-readback.json           |   0
+ {docs => .orchestra}/tasks/176/plan.md                      |   0
+ {docs => .orchestra}/tasks/176/report.md                    |   0
+ {docs => .orchestra}/tasks/176/research.md                  |   0
+ {docs => .orchestra}/tasks/178/report.md                    |   0
+ .../tasks/179/accounting-SKILL-changelog.md                 |   0
+ {docs => .orchestra}/tasks/179/accounting-SKILL-patched.md  |   0
+ {docs => .orchestra}/tasks/179/report.md                    |   0
+ {docs => .orchestra}/tasks/181/codex-review-impl.md         |   0
+ {docs => .orchestra}/tasks/182/codex-review-research.md     |   0
+ {docs => .orchestra}/tasks/182/research.md                  |   0
+ {docs => .orchestra}/tasks/182/search-fix.md                |   0
+ {docs => .orchestra}/tasks/185/setup.md                     |   0
+ {docs => .orchestra}/tasks/188/research.md                  |   0
+ {docs => .orchestra}/tasks/190/ad-texts.md                  |   0
+ {docs => .orchestra}/tasks/190/preflight-audit.md           |   0
+ {docs => .orchestra}/tasks/191/plan.md                      |   0
+ {docs => .orchestra}/tasks/191/report.md                    |   0
+ {docs => .orchestra}/tasks/191/research.md                  |   0
+ {docs => .orchestra}/tasks/192/dev-lead-triage.md           |   0
+ {docs => .orchestra}/tasks/193/CODEX_REVIEW.md              |   0
+ {docs => .orchestra}/tasks/193/api-findings.md              |   0
+ {docs => .orchestra}/tasks/194/brief.md                     |   0
+ {docs => .orchestra}/tasks/194/report.md                    |   0
+ {docs => .orchestra}/tasks/196/report.md                    |   0
+ {docs => .orchestra}/tasks/197/offer-analysis.md            |   0
+ {docs => .orchestra}/tasks/198/channel-decision.md          |   0
+ {docs => .orchestra}/tasks/20/research.md                   |   0
+ {docs => .orchestra}/tasks/200/research.md                  |   0
+ {docs => .orchestra}/tasks/201/research.md                  |   0
+ {docs => .orchestra}/tasks/34/codex-review-phase1.md        |   0
+ {docs => .orchestra}/tasks/34/codex-review-plan.md          |   0
+ {docs => .orchestra}/tasks/38/research.md                   |   0
+ {docs => .orchestra}/tasks/39/research.md                   |   0
+ {docs => .orchestra}/tasks/55/codex-review-research.md      |   0
+ {docs => .orchestra}/tasks/55/research.md                   |   0
+ {docs => .orchestra}/tasks/57/codex-review-research.md      |   0
+ {docs => .orchestra}/tasks/57/research.md                   |   0
+ .../tasks/58/IMPL-58-backend-claude-patch.md                |   0
+ {docs => .orchestra}/tasks/6/codex-review-research.md       |   0
+ {docs => .orchestra}/tasks/6/research.md                    |   0
+ {docs => .orchestra}/tasks/60/codex-review.md               |   0
+ {docs => .orchestra}/tasks/65/codex-review-research.md      |   0
+ {docs => .orchestra}/tasks/65/research.md                   |   0
+ {docs => .orchestra}/tasks/73/codex-review-research.md      |   0
+ {docs => .orchestra}/tasks/73/research.md                   |   0
+ {docs => .orchestra}/tasks/76/CODEX_REVIEW_db.md            |   0
+ {docs => .orchestra}/tasks/83/research.md                   |   0
+ {docs => .orchestra}/tasks/95/research.md                   |   0
+ .../tasks/codex-reviews/backend-security-review.md          |   0
+ {docs => .orchestra}/tasks/codex-reviews/offer-review.md    |   0
+ .../tasks/codex-reviews/site-prod-review.md                 |   0
+ {docs => .orchestra}/tasks/customer-finder/README.md        |   0
+ .../tasks/customer-finder/candidates-forums-tg.md           |   0
+ .../tasks/customer-finder/candidates-triggers.md            |   0
+ .../tasks/customer-finder/candidates-vc-habr.md             |   0
+ .../tasks/grant-research/codex-review-research.md           |   0
+ {docs => .orchestra}/tasks/yougile-mcp-release/report.md    |   0
+ {docs => .orchestra}/workers/audit-verification.md          |   0
+ {docs => .orchestra}/workers/designer.md                    |   0
+ {docs => .orchestra}/workers/dev-lead.md                    |   0
+ {docs => .orchestra}/workers/direct-research.md             |   0
+ {docs => .orchestra}/workers/fix-mcp-bidmod.md              |   0
+ {docs => .orchestra}/workers/marketer.md                    |   0
+ {docs => .orchestra}/workers/rsya-analytics.md              |   0
+ {docs => .orchestra}/workers/test-strict-behavior.md        |   0
+ 171 files changed, 4 insertions(+)

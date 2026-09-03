@@ -601,7 +601,7 @@ def _print_failures(failures: list[tuple[str, str]]) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--facts-dir", type=Path, default=Path("docs/tasks/kb-extract"))
+    parser.add_argument("--facts-dir", type=Path, default=Path(".orchestra/tasks/kb-extract"))
     parser.add_argument("--source-root", type=Path, default=Path.cwd())
     parser.add_argument("--canonical-root", type=Path, default=_default_canonical_root())
     parser.add_argument("--project", default="orchestra")

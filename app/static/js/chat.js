@@ -395,7 +395,7 @@ async function _uploadToChat(file, filename, uploadCard = null) {
 // Аплоад с машины юзера идёт на 53-82 КБ/с (замер оттуда же): типичный retina-скриншот
 // 667 КБ ползёт 12 с, и это упирается в канал, а не в сервер — единственный способ
 // ускорить — отправить меньше байтов. WebP q=0.9 даёт 354 КБ (1.9×) при PSNR 38.6 дБ:
-// на кропе 1:1 текст неотличим от оригинала. Цифры — docs/tasks/5/report.md.
+// на кропе 1:1 текст неотличим от оригинала. Цифры — .orchestra/tasks/5/report.md.
 // Только для вставки из буфера: дропнутый файл юзер выбрал сам, его формат не наш.
 const _COMPRESS_MIN_BYTES = 100 * 1024;  // мельче — экономия секунды не стоит работы CPU
 
@@ -1933,8 +1933,9 @@ function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, inser
     return true;
 }
 
-function _renderStatusEntry(type, content, ts, anchor, insertAndFollow) {
+function _renderStatusEntry(type, content, ts, anchor, insertAndFollow, payload) {
     if (type !== 'status') return false;
+    if (payload?.status_hidden === true) return true;
     // A status row may beat the authoritative `text` row through async logging.
     // Never finalize streamBubble here or the later text becomes a duplicate answer.
     if (content?.startsWith('precompact timer')) return true;
@@ -4044,7 +4045,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         return;
     }
 
-    if (_renderStatusEntry(type, content, ts, anchor, _insertAndFollow)) return;
+    if (_renderStatusEntry(type, content, ts, anchor, _insertAndFollow, payload)) return;
 
     if (_renderSubagentLifecycleEntry(type, content, ts, payload, chat, _insertAndFollow)) return;
 
@@ -4057,32 +4058,58 @@ function addChatEntry(type, content, ts, anchor, payload) {
         'chat-bot markdown-body'
     }`;
     if (type === 'user_message') {
-        content = content.replace(/^\[\d{2}:\d{2}\] /, '');
-        // Hide prompt injection (system prompt prepended to first message after resume)
-        if (content.startsWith('[Orchestra platform note:') || content.startsWith('[Orchestra platform')) return;
-        // [from:agent-name] prefix means this was an agent-to-agent message injected by the MCP send_message tool,
-        // not a human message — style it differently (colored border, sender label)
-        const fromMatch = content.match(/^\[from:(.+?)\]\s*([\s\S]*)$/);
-        if (fromMatch) {
-            const sender = fromMatch[1];
-            const msg = fromMatch[2];
-            const senderColor = _senderColor(sender);
-            div.dataset.from = sender;  // якорь для _repaintSenderColors, если список агентов ещё не приехал
+        const allowedOrigins = new Set([
+            'user', 'agent', 'background_task', 'platform', 'system', 'unknown',
+        ]);
+        const suppliedOrigin = payload && payload.origin;
+        const suppliedDetail = payload && payload.origin_detail;
+        const suppliedSenders = suppliedDetail && suppliedDetail.senders;
+        const detailKeys = suppliedDetail && typeof suppliedDetail === 'object'
+            ? Object.keys(suppliedDetail)
+            : [];
+        const validOptionalText = value => value === undefined
+            || (typeof value === 'string' && (value === '' || Boolean(value.trim())));
+        const validDetail = suppliedDetail
+            && typeof suppliedDetail === 'object'
+            && !Array.isArray(suppliedDetail)
+            && detailKeys.every(key => ['senders', 'subtype', 'ref'].includes(key))
+            && Array.isArray(suppliedSenders)
+            && suppliedSenders.length > 0
+            && suppliedSenders.every(sender => typeof sender === 'string' && sender.trim())
+            && validOptionalText(suppliedDetail.subtype)
+            && validOptionalText(suppliedDetail.ref);
+        const validOrigin = allowedOrigins.has(suppliedOrigin);
+        const origin = validOrigin && validDetail ? suppliedOrigin : 'unknown';
+        const senders = validOrigin && validDetail
+            ? suppliedSenders.map(sender => sender.trim())
+            : ['unknown'];
+        if (origin === 'user') {
+            div.className += ' markdown-body';
+            div.innerHTML = DOMPurify.sanitize(marked.parse(content));
+            renderImages(div, content);
+        } else {
+            const originLabels = {
+                agent: 'Agent',
+                background_task: 'Background task',
+                platform: 'Platform',
+                system: 'System',
+                unknown: 'Unknown',
+            };
+            const senderColor = _senderColor(senders[0]);
+            div.dataset.from = senders.join(', ');
+            div.dataset.origin = origin;
             div.style.borderLeft = `3px solid ${senderColor}`;
             div.className = 'px-3 py-2 rounded-lg text-sm break-words chat-bot';
             const label = document.createElement('div');
             label.className = 'text-xs mb-1 chat-from-label';
             label.style.color = senderColor;
-            label.textContent = `${sender} → ${selectedAgent}`;
+            label.textContent = `${originLabels[origin]}: ${senders.join(', ')} → ${selectedAgent}`;
             div.appendChild(label);
             const body = document.createElement('div');
             body.className = 'markdown-body';
-            body.innerHTML = DOMPurify.sanitize(marked.parse(msg));
+            body.innerHTML = DOMPurify.sanitize(marked.parse(content));
             div.appendChild(body);
-        } else {
-            div.className += ' markdown-body';
-            div.innerHTML = DOMPurify.sanitize(marked.parse(content));
-            renderImages(div, content);
+            renderImages(body, content);
         }
     }
     else if (type === 'tool') {

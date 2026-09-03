@@ -11,7 +11,7 @@
 import re
 from pathlib import Path
 
-PREPARED = Path(__file__).resolve().parent.parent / "docs" / "tasks" / "224" / "telegram-bot-api"
+PREPARED = Path(__file__).resolve().parent.parent / ".orchestra" / "tasks" / "224" / "telegram-bot-api"
 UNIT = PREPARED / "telegram-bot-api.service"
 ENVFILE_EXAMPLE = PREPARED / "telegram-bot-api.env.example"
 RUNBOOK = PREPARED / "INSTALL.md"

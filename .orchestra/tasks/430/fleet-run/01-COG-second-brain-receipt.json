@@ -1,0 +1,27 @@
+{
+  "after_dirty_files": 0,
+  "after_head": "b93098583471a37a781a487552be5896c2f72981",
+  "before_dirty_files": 0,
+  "before_head": "b8fa4d55f3dba9a80ee8af22d6ee291c136ed605",
+  "layout_state": "current",
+  "managed_paths": [
+    "kb",
+    "tasks",
+    "workers"
+  ],
+  "outcome": "migrated",
+  "project_id": "COG-second-brain",
+  "repository": "/mnt/data/Рабочий стол/Cursor/COG-second-brain",
+  "result": {
+    "commit": "b93098583471a37a781a487552be5896c2f72981",
+    "managed_paths": [
+      "kb",
+      "tasks",
+      "workers"
+    ],
+    "repair_command": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair '/mnt/data/Рабочий стол/Cursor/COG-second-brain'",
+    "repository": "/mnt/data/Рабочий стол/Cursor/COG-second-brain",
+    "status": "migrated"
+  },
+  "status_equivalent_after_path_mapping": true
+}

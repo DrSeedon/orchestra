@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Сверка манифеста пайплайна с файлами промптов на диске.
 
-``pipelines/<name>/pipeline.yaml`` правится руками — генератора нет
+``.orchestra/pipelines/<name>/pipeline.yaml`` правится руками — генератора нет
 (``app/prompts/`` удалён, ``scripts/extract-manifest.py`` снесён). Этот скрипт
 не пишет YAML. Он только проверяет, что каждая роль и каждый модуль из
 манифеста лежат в ``prompts/``. ``--check`` краснеет на расхождении и
@@ -20,7 +20,7 @@ from pathlib import Path
 import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_MANIFEST = _REPO_ROOT / "pipelines" / "default" / "pipeline.yaml"
+DEFAULT_MANIFEST = _REPO_ROOT / ".orchestra" / "pipelines" / "default" / "pipeline.yaml"
 
 # Numeric examples (task ids, API arguments, CSS values) are not evidence.  This
 # deliberately small vocabulary catches prose that presents money, rates, sample
@@ -38,7 +38,7 @@ _MEASURED_VALUE = re.compile(
     re.IGNORECASE,
 )
 _SOURCE_MARKER = re.compile(
-    r"(?:#\d+|source\s*[:=]|источник\s*[:=]|https?://|docs/tasks/)",
+    r"(?:#\d+|source\s*[:=]|источник\s*[:=]|https?://|\.orchestra/tasks/)",
     re.IGNORECASE,
 )
 _PROCEDURAL_VALUE = re.compile(r"(?i)trivial\s*\(\s*[<>]\s*\d+\s*lines?")
@@ -292,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
         "--manifest",
         type=Path,
         default=DEFAULT_MANIFEST,
-        help="путь к pipeline.yaml (по умолчанию pipelines/default/pipeline.yaml)",
+        help="путь к pipeline.yaml (по умолчанию .orchestra/pipelines/default/pipeline.yaml)",
     )
     args = parser.parse_args(argv)
     if not args.check:

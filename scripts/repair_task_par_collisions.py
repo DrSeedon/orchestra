@@ -72,7 +72,7 @@ def _load_canonical(store: TaskStore, project_id: str):
 
 
 def _numeric_task_dirs(scope: str) -> list[int]:
-    root = Path(scope) / "docs" / "tasks" if scope else None
+    root = Path(scope) / ".orchestra" / "tasks" if scope else None
     if root is None or not root.is_dir():
         return []
     return sorted(

@@ -1,7 +1,7 @@
 """#366 T5 — delivery check: the catalog screen must ship in the dashboard bundle.
 
 Browser behaviour itself is verified manually via a Playwright page.route probe
-(recorded in docs/tasks/366/report.md); this test only proves the static bundle
+(recorded in .orchestra/tasks/366/report.md); this test only proves the static bundle
 carries the new screen and wires it to the T4 endpoints.
 """
 

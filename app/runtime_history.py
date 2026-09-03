@@ -1030,7 +1030,7 @@ def _normalize_history(
             continue
         if row_type == "user_message":
             close_pending(row)
-            if int(row["id"]) in excluded_user_ids or content.startswith("[Orchestra platform note:"):
+            if int(row["id"]) in excluded_user_ids or row.get("origin") == "platform":
                 continue
             cleaned, found = _sanitize(content)
             redactions += found

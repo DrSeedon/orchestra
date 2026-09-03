@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import pytest
 
 from app import db as dbmod
+from app.events import MessageProvenance
 from app.runtime_history import (
     CLAUDE_CLI_HISTORY_VERSION,
     CLAUDE_SDK_HISTORY_VERSION,
@@ -31,6 +32,8 @@ def _row(log_id, row_type, content, **metadata):
         "tool_use_id": metadata.get("tool_use_id"),
         "tool_name": metadata.get("tool_name"),
         "tool_is_error": metadata.get("tool_is_error"),
+        "origin": metadata.get("origin", "unknown"),
+        "origin_detail": metadata.get("origin_detail", {"senders": ["unknown"]}),
     }
 
 
@@ -48,7 +51,10 @@ def _render(rows, *, exclude=()):
 
 def test_render_claude_history_preserves_dialogue_and_completes_tools():
     rows = [
-        _row(1, "user_message", "Question"),
+        _row(
+            1, "user_message", "[Orchestra platform note: quoted by user]",
+            origin="user", origin_detail={"senders": ["user"]},
+        ),
         _row(2, "tool", "Read: {\"path\":\"a\"}", tool_use_id="a", tool_name="Read"),
         _row(3, "tool", "Read: {\"path\":\"b\"}", tool_use_id="b", tool_name="Read"),
         _row(4, "tool_result", "B result", tool_use_id="b", tool_name="Read"),
@@ -56,7 +62,10 @@ def test_render_claude_history_preserves_dialogue_and_completes_tools():
         _row(6, "text", "Answer"),
         _row(7, "thinking", "private reasoning"),
         _row(8, "status", "turn ended"),
-        _row(9, "user_message", "[Orchestra platform note: refreshed]"),
+        _row(
+            9, "user_message", "plain platform payload",
+            origin="platform", origin_detail={"senders": ["Orchestra"]},
+        ),
     ]
 
     history = _render(rows)
@@ -67,10 +76,10 @@ def test_render_claude_history_preserves_dialogue_and_completes_tools():
     assert history.report.tool_results == 2
     assert history.report.reasoning_omitted == 1
     serialized = repr(history.entries)
-    assert "Question" in serialized
+    assert "quoted by user" in serialized
     assert "Answer" in serialized
     assert "private reasoning" not in serialized
-    assert "platform note" not in serialized
+    assert "plain platform payload" not in serialized
 
     calls = {}
     results = []
@@ -407,6 +416,7 @@ async def test_claude_log_store_returns_independent_copy_and_ignores_append():
     assert await store.load({**key, "subpath": "subagents/a"}) is None
 
 
+@pytest.mark.live_probe
 def test_installed_claude_history_versions_match_pins():
     assert importlib.metadata.version("claude-agent-sdk") == CLAUDE_SDK_HISTORY_VERSION
     cli = shutil.which("claude")
@@ -428,7 +438,10 @@ def test_history_log_snapshot_excludes_row_inserted_after_boundary(tmp_path, mon
                VALUES (?, ?, ?, ?, ?, ?)""",
             ("s1", "w", "/s", "/s", "claude-sonnet-5[1m]", datetime.now(timezone.utc).isoformat()),
         )
-    dbmod.add_log("s1", datetime.now(timezone.utc), "user_message", "before")
+    dbmod.add_log(
+        "s1", datetime.now(timezone.utc), "user_message", "before",
+        provenance=MessageProvenance(origin="user", senders=("user",)),
+    )
 
     base = sqlite3.connect(db_path)
     base.row_factory = sqlite3.Row

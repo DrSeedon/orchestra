@@ -1,0 +1,106 @@
+..FFFF...F                                                               [100%]
+=================================== FAILURES ===================================
+_________ test_gated_worker_is_created_below_the_line[sol-gpt-5.6-sol] _________
+tests/test_quota_admission_e2e.py:115: in test_gated_worker_is_created_below_the_line
+    session = await _spawn(mgr, f"{name}-below", model)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_quota_admission_e2e.py:86: in _spawn
+    return await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:802: in _create_session_locked
+    created = await asyncio.to_thread(
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/threads.py:25: in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/concurrent/futures/thread.py:59: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/tm.py:387: in create_task_for_scope
+    raise ValueError(f"scope '{scope}' has no task project")
+E   ValueError: scope '/s' has no task project
+____ test_gated_worker_is_created_below_the_line[claude-claude-opus-5[1m]] _____
+tests/test_quota_admission_e2e.py:115: in test_gated_worker_is_created_below_the_line
+    session = await _spawn(mgr, f"{name}-below", model)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_quota_admission_e2e.py:86: in _spawn
+    return await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:802: in _create_session_locked
+    created = await asyncio.to_thread(
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/threads.py:25: in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/concurrent/futures/thread.py:59: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/tm.py:387: in create_task_for_scope
+    raise ValueError(f"scope '{scope}' has no task project")
+E   ValueError: scope '/s' has no task project
+_ test_luna_and_spark_are_created_at_the_value_that_stops_sol[luna-gpt-5.6-luna] _
+tests/test_quota_admission_e2e.py:130: in test_luna_and_spark_are_created_at_the_value_that_stops_sol
+    session = await _spawn(mgr, f"{name}-ok", model)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_quota_admission_e2e.py:86: in _spawn
+    return await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:802: in _create_session_locked
+    created = await asyncio.to_thread(
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/threads.py:25: in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/concurrent/futures/thread.py:59: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/tm.py:387: in create_task_for_scope
+    raise ValueError(f"scope '{scope}' has no task project")
+E   ValueError: scope '/s' has no task project
+_ test_luna_and_spark_are_created_at_the_value_that_stops_sol[spark-gpt-5.3-codex-spark] _
+tests/test_quota_admission_e2e.py:130: in test_luna_and_spark_are_created_at_the_value_that_stops_sol
+    session = await _spawn(mgr, f"{name}-ok", model)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_quota_admission_e2e.py:86: in _spawn
+    return await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:802: in _create_session_locked
+    created = await asyncio.to_thread(
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/threads.py:25: in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/concurrent/futures/thread.py:59: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/tm.py:387: in create_task_for_scope
+    raise ValueError(f"scope '{scope}' has no task project")
+E   ValueError: scope '/s' has no task project
+__________ test_unknown_quota_admits_the_spawn_and_the_following_send __________
+tests/test_quota_admission_e2e.py:180: in test_unknown_quota_admits_the_spawn_and_the_following_send
+    session = await _spawn(mgr, "blind-worker", "gpt-5.6-sol")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_quota_admission_e2e.py:86: in _spawn
+    return await mgr.create_session(
+app/manager.py:612: in create_session
+    return await self._create_session_locked(
+app/manager.py:802: in _create_session_locked
+    created = await asyncio.to_thread(
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/threads.py:25: in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/concurrent/futures/thread.py:59: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/tm.py:387: in create_task_for_scope
+    raise ValueError(f"scope '{scope}' has no task project")
+E   ValueError: scope '/s' has no task project
+------------------------------ Captured log call -------------------------------
+ERROR    app.manager:manager.py:784 worker quota admission telemetry unavailable; allowing model=gpt-5.6-sol provider=codex reason=observation timestamp is missing or malformed
+=========================== short test summary info ============================
+FAILED tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[sol-gpt-5.6-sol]
+FAILED tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[claude-claude-opus-5[1m]]
+FAILED tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[luna-gpt-5.6-luna]
+FAILED tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[spark-gpt-5.3-codex-spark]
+FAILED tests/test_quota_admission_e2e.py::test_unknown_quota_admits_the_spawn_and_the_following_send
+5 failed, 5 passed in 2.05s

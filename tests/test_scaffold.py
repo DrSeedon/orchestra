@@ -1,6 +1,6 @@
 """Тесты generic-скаффолда doc-папок (app.manager._scaffold_role_docs).
 
-Изолированный модуль: фикстура строит синтетический pipelines/<uniq>/ на tmp_path
+Изолированный модуль: фикстура строит синтетический .orchestra/pipelines/<uniq>/ на tmp_path
 и патчит app.pipeline.PIPELINES_DIR. На приватный tasks-pm НЕ опираемся — тест
 проходит без приватных файлов.
 """
@@ -36,7 +36,7 @@ roles:
 def pipelines_root(tmp_path, monkeypatch):
     """Подменяет корень пайплайнов на tmp + строит синтетический пайплайн.
 
-    Возвращает кортеж (root, cwd): root — pipelines/, cwd — рабочая папка сессии.
+    Возвращает кортеж (root, cwd): root — .orchestra/pipelines/, cwd — рабочая папка сессии.
     """
     root = tmp_path / "pipelines"
     d = root / PIPELINE / "templates"

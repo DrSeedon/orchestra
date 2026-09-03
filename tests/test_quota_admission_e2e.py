@@ -57,6 +57,10 @@ def db(tmp_path, monkeypatch):
     from app.db import init_db
 
     init_db()
+    from app import tm
+
+    with tm._conn() as conn:
+        tm.ensure_project(conn, "test", scope="/s")
 
 
 @pytest.fixture
@@ -76,7 +80,7 @@ def _real_pipelines(monkeypatch):
 
     import app.pipeline as pl
 
-    monkeypatch.setattr(pl, "PIPELINES_DIR", Path(__file__).parent.parent / "pipelines")
+    monkeypatch.setattr(pl, "PIPELINES_DIR", Path(__file__).parent.parent / ".orchestra" / "pipelines")
     pl.load_pipeline.cache_clear()
     yield
     pl.load_pipeline.cache_clear()

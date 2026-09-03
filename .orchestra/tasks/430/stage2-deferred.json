@@ -1,0 +1,12 @@
+{
+  "activation_condition": "layout receipt status=current for all 13 registered tm_projects.scope rows",
+  "candidate_prompt_commit": "cd8f838f4b4f2be19ca868d29c107e6579d78e7d",
+  "candidate_test_contract_commit": "62ba19c8f1e7319323ee24b0d88348f60164e05b",
+  "prompt_revert_commit": "9f4287534c7115005c799ae512ee83975122108d",
+  "receipt_revert_commit": "ab7042f2dde0e635895fbf17916f56f01a497b47",
+  "schema_version": 1,
+  "status": "deferred",
+  "test_contract_revert_commit": "fd20f0ce652770d42ff4c35c4b5fa3ac689999bb",
+  "wrong_activation_oracle": "test_t4_prompt_activation_is_deferred_until_all_fleet_receipts_current fails when docs/kb disappears from any assembled role prompt",
+  "when_activated": "after the 13/13 current receipt gate, replay the prompt/test changes, remove the temporary docs/workers compatibility read from load_worker_memory, require deferred_prompt_occurrences=0, and generate a new prompt-last release receipt against the post-merge commits"
+}

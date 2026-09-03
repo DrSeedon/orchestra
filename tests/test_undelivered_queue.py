@@ -8,6 +8,11 @@ from datetime import datetime, timezone
 import pytest
 import pytest_asyncio
 
+from app.events import MessageProvenance
+
+
+USER_PROVENANCE = MessageProvenance(origin="user", senders=("user",))
+
 
 @pytest.fixture
 def db(tmp_path, monkeypatch):
@@ -126,7 +131,9 @@ async def test_failed_send_keeps_the_facts_in_the_queue(db, session_id, monkeypa
 
     session = await agent(send_impl=boom)
     with pytest.raises(RuntimeError):
-        await session.send("сообщение, которое не уедет")
+        await session.send(
+            "сообщение, которое не уедет", provenance=USER_PROVENANCE,
+        )
 
     left = db.peek_facts(session_id)
     print("\nПОСЛЕ ОТКАЗА в очереди:", [f["text"] for f in left["facts"]])
@@ -143,7 +150,7 @@ async def test_agent_sees_the_fact_in_its_context(db, session_id, monkeypatch, a
         seen.append(msg)
 
     session = await agent(send_impl=capture)
-    await session.send("новая задача")
+    await session.send("новая задача", provenance=USER_PROVENANCE)
 
     payload = seen[0]
     print("\nPAYLOAD В BACKEND.SEND:\n" + payload)
@@ -153,7 +160,7 @@ async def test_agent_sees_the_fact_in_its_context(db, session_id, monkeypatch, a
     assert db.peek_facts(session_id)["facts"] == [], "доставленный факт обязан погаснуть"
 
     seen.clear()
-    await session.send("вторая задача")
+    await session.send("вторая задача", provenance=USER_PROVENANCE)
     assert "автоотчёт" not in seen[0], "второй раз тот же факт приписывать нельзя"
 
 
@@ -167,7 +174,7 @@ async def test_overflow_line_is_visible_to_the_agent(db, session_id, monkeypatch
         seen.append(msg)
 
     session = await agent(send_impl=capture)
-    await session.send("задача")
+    await session.send("задача", provenance=USER_PROVENANCE)
     print("\nСТРОКА О СВЁРНУТЫХ:",
           [ln for ln in seen[0].splitlines() if "свёрнуто" in ln])
     assert "и ещё 3 событий, свёрнуто" in seen[0]
@@ -189,7 +196,9 @@ async def test_broken_queue_does_not_block_the_message(db, session_id, monkeypat
         seen.append(msg)
 
     session = await agent(send_impl=capture)
-    await session.send("задача при сломанной очереди")
+    await session.send(
+        "задача при сломанной очереди", provenance=USER_PROVENANCE,
+    )
     assert seen == ["задача при сломанной очереди"]
 
 
@@ -206,7 +215,9 @@ async def test_mid_turn_inject_also_carries_the_fact(db, session_id, monkeypatch
 
     session = await agent(send_impl=capture)
     session.status = AgentStatus.RUNNING
-    await session.send("сообщение в активный ход")
+    await session.send(
+        "сообщение в активный ход", provenance=USER_PROVENANCE,
+    )
 
     print("\nMID-TURN PAYLOAD:\n" + seen[0])
     assert "пробуждение не доставлено" in seen[0]
@@ -243,7 +254,9 @@ async def test_fact_lands_inside_current_user_message_on_handoff(db, session_id,
 
     session = await agent(send_impl=capture)
     session.runtime_handoff = "прошлый диалог"
-    await session.send("сообщение после смены рантайма")
+    await session.send(
+        "сообщение после смены рантайма", provenance=USER_PROVENANCE,
+    )
 
     payload = seen[0]
     inside = payload.split("<current-user-message>")[1]

@@ -1,0 +1,6 @@
+................................                                         [100%]
+32 passed in 3.25s
+Task was destroyed but it is pending!
+task: <Task pending name='Task-128' coro=<AgentSession._persist_loop() done, defined at /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch-fixed/app/session.py:5099> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/futures.py:384, Task.task_wakeup()]> cb=[AgentSession._on_persist_done()]>
+Task was destroyed but it is pending!
+task: <Task pending name='Task-129' coro=<HibernateManager._idle_hibernate() done, defined at /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch-fixed/app/session_hibernate.py:54> wait_for=<Future pending cb=[Task.task_wakeup()]>>

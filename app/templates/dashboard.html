@@ -19,7 +19,7 @@
          рантайме, то есть последним, и style.css писался под этот порядок. Поставь этот
          <link> выше — при равной специфичности выиграет style.css, и поедет line-height у
          432 узлов, height у 208 и font-size у 40 (замерено сравнением computed styles,
-         docs/tasks/64/measurements/computed_diff.py). -->
+         .orchestra/tasks/64/measurements/computed_diff.py). -->
     <link rel="stylesheet" href="{{ g.asset('css/vendor/tailwind.css') }}">
 </head>
 <body class="h-screen overflow-hidden flex flex-col" data-build="{{ g.build() }}" data-currency="{{ currency_symbol }}" data-hide-thinking="{{ 'true' if hide_thinking else 'false' }}" data-auth-enabled="{{ 'true' if is_auth_enabled else 'false' }}" data-client-name="{{ client_name }}">

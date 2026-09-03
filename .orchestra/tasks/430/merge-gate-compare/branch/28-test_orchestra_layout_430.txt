@@ -1,0 +1,25 @@
+...F...F..F                                                              [100%]
+=================================== FAILURES ===================================
+___________ test_t4_startup_runs_migration_before_knowledge_runtime ____________
+tests/test_orchestra_layout_430.py:241: in test_t4_startup_runs_migration_before_knowledge_runtime
+    assert len(migration_lines) == 1, "T4 lifespan must invoke fleet migration exactly once"
+E   AssertionError: T4 lifespan must invoke fleet migration exactly once
+E   assert 0 == 1
+E    +  where 0 = len([])
+________ test_t4_all_assembled_prompts_use_new_root_and_explain_repair _________
+tests/test_orchestra_layout_430.py:417: in test_t4_all_assembled_prompts_use_new_root_and_explain_repair
+    assert ".orchestra/" in prompt, role
+E   AssertionError: full-cycle
+E   assert '.orchestra/' in '<platform>\nYou are an AI agent running inside Orchestra — a multi-agent orchestration platform.\n\n**Communication.*...les you already touched, what a command\nprinted 40 turns ago, how many times you retried something.\n</memory-search>'
+___ test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves ____
+tests/test_orchestra_layout_430.py:579: in test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+    assert checker.is_file(), "T5 missing classified live/historical/negative path checker"
+E   AssertionError: T5 missing classified live/historical/negative path checker
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/branch/scripts/check_orchestra_paths.py').is_file
+=========================== short test summary info ============================
+FAILED tests/test_orchestra_layout_430.py::test_t4_startup_runs_migration_before_knowledge_runtime
+FAILED tests/test_orchestra_layout_430.py::test_t4_all_assembled_prompts_use_new_root_and_explain_repair
+FAILED tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+3 failed, 8 passed in 2.81s

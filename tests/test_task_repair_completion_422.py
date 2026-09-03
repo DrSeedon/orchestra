@@ -54,7 +54,7 @@ def test_repair_fills_missing_canonical_completion_for_done_task():
 def test_task_store_done_update_fills_missing_completion(tmp_path):
     from app.ia.task_store import TaskStore, build_migration_manifest
 
-    fixture = Path("docs/tasks/315/acceptance/fixtures/t2_task_store_records.json")
+    fixture = Path(".orchestra/tasks/315/acceptance/fixtures/t2_task_store_records.json")
     snapshot = json.loads(fixture.read_text(encoding="utf-8"))["snapshot"]
     store = TaskStore(
         canonical_root=tmp_path / "tasks",
