@@ -1,0 +1,18 @@
+{
+  "sessions": {
+    "evaluation-luna": {
+      "uuid": "01a0669d-5cd4-76d3-a8fe-20419000a200",
+      "started": "2026-09-03T09:37:04Z",
+      "last_used": "2026-09-03T09:37:04Z",
+      "turns": 1,
+      "reviewer_model": "gpt-5.6-luna"
+    },
+    "review-research-luna": {
+      "uuid": "01a066a9-da75-71e2-9f55-f6180d3ee22b",
+      "started": "2026-09-03T09:50:11Z",
+      "last_used": "2026-09-03T09:50:11Z",
+      "turns": 1,
+      "reviewer_model": "gpt-5.6-luna"
+    }
+  }
+}
