@@ -2506,6 +2506,7 @@ function updateInputState() {
 }
 
 let contextCache = {};
+const _agentLiveStatuses = new Map();
 let agentColors = {};
 
 // Единственный владелец соответствия «агент → цвет». Серый = цвет ещё не приехал.
@@ -3045,6 +3046,7 @@ function createAgentItem(s) {
 
 function _applyLiveAgentStatus(name, status) {
     if (!Object.hasOwn(_STATUS_ICON, status)) return;
+    _refreshContextAfterTurn(name, status);
     const item = document.querySelector(
         `.agent-item[data-agent-name="${CSS.escape(name)}"]`
     );
@@ -3060,6 +3062,16 @@ function _applyLiveAgentStatus(name, status) {
     selected.textContent = `● ${status}`;
     selected.className = `text-xs font-mono status-${status}`;
     updateStopButton(status);
+}
+
+function _refreshContextAfterTurn(name, status) {
+    if (!currentScope) return;
+    const key = `${currentScope}:${name}`;
+    const wasRunning = _agentLiveStatuses.get(key) === 'running';
+    _agentLiveStatuses.set(key, status);
+    if (!wasRunning || status === 'running') return;
+    delete contextCache[key];
+    if (name === selectedAgent) fetchAgentContext(name);
 }
 
 let _streamStatusRefreshAt = 0;
