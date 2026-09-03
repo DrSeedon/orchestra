@@ -13,6 +13,9 @@ USER_MESSAGE_TIMEZONE = timezone(timedelta(hours=7))
 USER_MESSAGE_TIME_PREFIX_RE = re.compile(
     r"^\[(?P<hour>[01]\d|2[0-3]):(?P<minute>[0-5]\d)\] "
 )
+TIMESTAMPED_USER_MESSAGE_SUBTYPES = frozenset({
+    "http_send", "telegram", "telegram_fallback", "tg_restart_inbox",
+})
 
 
 def add_user_message_time_prefix(content: str, now: datetime | None = None) -> str:
@@ -55,6 +58,13 @@ def strip_user_message_time_prefix(content: str, ts: Any = None) -> str:
 def user_message_display_content(log: dict) -> str:
     """Return a user-message body for a human-facing channel."""
     content = str(log.get("content") or "")
+    detail = log.get("origin_detail")
+    subtype = detail.get("subtype") if isinstance(detail, dict) else ""
+    if subtype in TIMESTAMPED_USER_MESSAGE_SUBTYPES:
+        match = USER_MESSAGE_TIME_PREFIX_RE.match(content)
+        return content[match.end():] if match else content
+    if subtype:
+        return content
     return strip_user_message_time_prefix(content, log.get("ts"))
 
 
