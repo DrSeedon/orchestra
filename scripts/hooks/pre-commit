@@ -1,0 +1,17 @@
+#!/bin/sh
+# orchestra-secret-gate (#453) — ставится в ОБЩИЙ .git/hooks, поэтому действует и в главном
+# чекауте, и во всех linked worktree (проверено: git 2.53 зовёт хук из common dir).
+# Скрипт берём из ГЛАВНОГО чекаута: ветка воркера может быть старше, чем гейт.
+set -e
+root=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+py="$root/.venv/bin/python"
+[ -x "$py" ] || py=python3
+scan="$root/scripts/secret_scan.py"
+if [ ! -f "$scan" ]; then
+  # Fail-closed с названной причиной: молча пропускать нельзя, а «commit exit 127» увёл бы
+  # в поиск поломки git. Случай реальный — главный чекаут на ветке старше гейта.
+  echo "secret-gate: нет $scan (главный чекаут на ветке без гейта)." >&2
+  echo "secret-gate: верни файл либо сними хук: rm $(git rev-parse --git-common-dir)/hooks/pre-commit" >&2
+  exit 1
+fi
+exec "$py" "$scan" --staged
