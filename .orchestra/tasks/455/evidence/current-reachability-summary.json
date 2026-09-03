@@ -1,0 +1,632 @@
+{
+  "attributed_persistent_keys": [
+    {
+      "definition": {
+        "end": 2846,
+        "key": "app.db:review_receipt_create",
+        "name": "review_receipt_create",
+        "path": "app/db.py",
+        "qualname": "review_receipt_create",
+        "start": 2799
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 2856,
+        "key": "app.db:review_receipt_get",
+        "name": "review_receipt_get",
+        "path": "app/db.py",
+        "qualname": "review_receipt_get",
+        "start": 2849
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 217,
+        "key": "app.ia.cutover:_assert_json_only",
+        "name": "_assert_json_only",
+        "path": "app/ia/cutover.py",
+        "qualname": "_assert_json_only",
+        "start": 208
+      },
+      "incoming": [
+        {
+          "source": "app.ia.cutover:_shadow",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 514,
+        "key": "app.ia.cutover:_canonical",
+        "name": "_canonical",
+        "path": "app/ia/cutover.py",
+        "qualname": "_canonical",
+        "start": 475
+      },
+      "incoming": [
+        {
+          "source": "app.ia.cutover:cutover_api",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 187,
+        "key": "app.ia.cutover:_git_source_bytes",
+        "name": "_git_source_bytes",
+        "path": "app/ia/cutover.py",
+        "qualname": "_git_source_bytes",
+        "start": 117
+      },
+      "incoming": [
+        {
+          "source": "app.ia.cutover:_source_bytes",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 336,
+        "key": "app.ia.cutover:_probe",
+        "name": "_probe",
+        "path": "app/ia/cutover.py",
+        "qualname": "_probe",
+        "start": 325
+      },
+      "incoming": [
+        {
+          "source": "app.ia.cutover:_canonical",
+          "source_reachable": false
+        },
+        {
+          "source": "app.ia.cutover:_rollback",
+          "source_reachable": false
+        },
+        {
+          "source": "app.ia.cutover:_shadow",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 322,
+        "key": "app.ia.cutover:_prompt_receipt",
+        "name": "_prompt_receipt",
+        "path": "app/ia/cutover.py",
+        "qualname": "_prompt_receipt",
+        "start": 297
+      },
+      "incoming": [
+        {
+          "source": "app.ia.cutover:_canonical",
+          "source_reachable": false
+        },
+        {
+          "source": "app.ia.cutover:_shadow",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 544,
+        "key": "app.ia.cutover:_resolve",
+        "name": "_resolve",
+        "path": "app/ia/cutover.py",
+        "qualname": "_resolve",
+        "start": 517
+      },
+      "incoming": [
+        {
+          "source": "app.ia.cutover:cutover_api",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 572,
+        "key": "app.ia.cutover:_rollback",
+        "name": "_rollback",
+        "path": "app/ia/cutover.py",
+        "qualname": "_rollback",
+        "start": 547
+      },
+      "incoming": [
+        {
+          "source": "app.ia.cutover:cutover_api",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 472,
+        "key": "app.ia.cutover:_shadow",
+        "name": "_shadow",
+        "path": "app/ia/cutover.py",
+        "qualname": "_shadow",
+        "start": 409
+      },
+      "incoming": [
+        {
+          "source": "app.ia.cutover:cutover_api",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 205,
+        "key": "app.ia.cutover:_source_bytes",
+        "name": "_source_bytes",
+        "path": "app/ia/cutover.py",
+        "qualname": "_source_bytes",
+        "start": 190
+      },
+      "incoming": [
+        {
+          "source": "app.ia.cutover:_shadow",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 362,
+        "key": "app.ia.cutover:_verified_gates",
+        "name": "_verified_gates",
+        "path": "app/ia/cutover.py",
+        "qualname": "_verified_gates",
+        "start": 339
+      },
+      "incoming": [
+        {
+          "source": "app.ia.cutover:_canonical",
+          "source_reachable": false
+        },
+        {
+          "source": "app.ia.cutover:_rollback",
+          "source_reachable": false
+        },
+        {
+          "source": "app.ia.cutover:_shadow",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 598,
+        "key": "app.ia.cutover:cutover_api",
+        "name": "cutover_api",
+        "path": "app/ia/cutover.py",
+        "qualname": "cutover_api",
+        "start": 575
+      },
+      "incoming": [
+        {
+          "source": "scripts.ia_migrate_documents:migration_api",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 860,
+        "key": "app.ia.knowledge:promote_fact",
+        "name": "promote_fact",
+        "path": "app/ia/knowledge.py",
+        "qualname": "promote_fact",
+        "start": 853
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 881,
+        "key": "app.ia.knowledge:query_facts",
+        "name": "query_facts",
+        "path": "app/ia/knowledge.py",
+        "qualname": "query_facts",
+        "start": 863
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 256,
+        "key": "app.ia.project_knowledge:ProjectKnowledgeRouter._record_path",
+        "name": "_record_path",
+        "path": "app/ia/project_knowledge.py",
+        "qualname": "ProjectKnowledgeRouter._record_path",
+        "start": 237
+      },
+      "incoming": [
+        {
+          "source": "app.ia.project_knowledge:ProjectKnowledgeRouter.write_record",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 205,
+        "key": "app.ia.project_knowledge:ProjectKnowledgeRouter._record_paths",
+        "name": "_record_paths",
+        "path": "app/ia/project_knowledge.py",
+        "qualname": "ProjectKnowledgeRouter._record_paths",
+        "start": 203
+      },
+      "incoming": [
+        {
+          "source": "app.ia.project_knowledge:ProjectKnowledgeRouter.read_record",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 176,
+        "key": "app.ia.recovery:_archive_content_head",
+        "name": "_archive_content_head",
+        "path": "app/ia/recovery.py",
+        "qualname": "_archive_content_head",
+        "start": 159
+      },
+      "incoming": [
+        {
+          "source": "app.ia.recovery:_existing_archive",
+          "source_reachable": false
+        },
+        {
+          "source": "app.ia.recovery:commit_archive",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 238,
+        "key": "app.ia.recovery:_existing_archive",
+        "name": "_existing_archive",
+        "path": "app/ia/recovery.py",
+        "qualname": "_existing_archive",
+        "start": 198
+      },
+      "incoming": [
+        {
+          "source": "app.ia.recovery:commit_archive",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 267,
+        "key": "app.ia.recovery:_run_extraction",
+        "name": "_run_extraction",
+        "path": "app/ia/recovery.py",
+        "qualname": "_run_extraction",
+        "start": 241
+      },
+      "incoming": [
+        {
+          "source": "app.ia.recovery:commit_archive",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 408,
+        "key": "app.ia.recovery:commit_archive",
+        "name": "commit_archive",
+        "path": "app/ia/recovery.py",
+        "qualname": "commit_archive",
+        "start": 291
+      },
+      "incoming": [
+        {
+          "source": "app.manager:SessionManager.commit_session_archive",
+          "source_reachable": false
+        },
+        {
+          "source": "app.session:AgentSession.commit_archive",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 101,
+        "key": "app.ia.recovery:redact_private",
+        "name": "redact_private",
+        "path": "app/ia/recovery.py",
+        "qualname": "redact_private",
+        "start": 84
+      },
+      "incoming": [
+        {
+          "source": "app.ia.recovery:_run_extraction",
+          "source_reachable": false
+        },
+        {
+          "source": "app.ia.recovery:commit_archive",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 419,
+        "key": "app.ia.recovery:wait_extraction",
+        "name": "wait_extraction",
+        "path": "app/ia/recovery.py",
+        "qualname": "wait_extraction",
+        "start": 411
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 1685,
+        "key": "app.ia.runtime:KnowledgeRuntime.receipt_bytes",
+        "name": "receipt_bytes",
+        "path": "app/ia/runtime.py",
+        "qualname": "KnowledgeRuntime.receipt_bytes",
+        "start": 1681
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 507,
+        "key": "app.ia.schema:canonical_bytes",
+        "name": "canonical_bytes",
+        "path": "app/ia/schema.py",
+        "qualname": "canonical_bytes",
+        "start": 494
+      },
+      "incoming": [
+        {
+          "source": "app.ia.schema:canonical_content_head",
+          "source_reachable": false
+        },
+        {
+          "source": "scripts.ia_pack:_safe_object_bytes",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 513,
+        "key": "app.ia.schema:canonical_content_head",
+        "name": "canonical_content_head",
+        "path": "app/ia/schema.py",
+        "qualname": "canonical_content_head",
+        "start": 510
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 210,
+        "key": "app.ia.schema:classify_private_fields",
+        "name": "classify_private_fields",
+        "path": "app/ia/schema.py",
+        "qualname": "classify_private_fields",
+        "start": 204
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 1216,
+        "key": "app.manager:SessionManager.commit_session_archive",
+        "name": "commit_session_archive",
+        "path": "app/manager.py",
+        "qualname": "SessionManager.commit_session_archive",
+        "start": 1195
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 394,
+        "key": "app.models:unregister_model",
+        "name": "unregister_model",
+        "path": "app/models.py",
+        "qualname": "unregister_model",
+        "start": 388
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 524,
+        "key": "app.orchestra_layout:require_project_layout",
+        "name": "require_project_layout",
+        "path": "app/orchestra_layout.py",
+        "qualname": "require_project_layout",
+        "start": 513
+      },
+      "incoming": [],
+      "unreachable_with_test_roots": false
+    },
+    {
+      "definition": {
+        "end": 3219,
+        "key": "app.session:AgentSession.commit_archive",
+        "name": "commit_archive",
+        "path": "app/session.py",
+        "qualname": "AgentSession.commit_archive",
+        "start": 3201
+      },
+      "incoming": [
+        {
+          "source": "app.manager:SessionManager.commit_session_archive",
+          "source_reachable": false
+        }
+      ],
+      "unreachable_with_test_roots": false
+    }
+  ],
+  "attributed_unreachable_with_test_roots": [],
+  "production": {
+    "candidate_count": 91,
+    "definition_count": 3044,
+    "parse_errors": [],
+    "root_count": 492,
+    "unresolved_getattrs": [
+      {
+        "line": 1212,
+        "name_expr": "k",
+        "path": "app/backend_claude.py",
+        "receiver": "usage",
+        "scope": "app.backend_claude:ClaudeBackend._task_usage"
+      },
+      {
+        "line": 915,
+        "name_expr": "method",
+        "path": "app/rag.py",
+        "receiver": "get_rag_ro()",
+        "scope": "app.rag:run._call_ro"
+      },
+      {
+        "line": 919,
+        "name_expr": "method",
+        "path": "app/rag.py",
+        "receiver": "get_rag()",
+        "scope": "app.rag:run._call"
+      },
+      {
+        "line": 626,
+        "name_expr": "name",
+        "path": "app/runtime_history.py",
+        "receiver": "manifest",
+        "scope": "app.runtime_history:_manifest_value"
+      },
+      {
+        "line": 3870,
+        "name_expr": "key",
+        "path": "app/session.py",
+        "receiver": "prepared",
+        "scope": "app.session:AgentSession._stage_runtime_handoff_target"
+      },
+      {
+        "line": 1366,
+        "name_expr": "f'{traffic_class}_max_latency'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_record_latency"
+      },
+      {
+        "line": 1412,
+        "name_expr": "f'{traffic_class}_timeouts'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1427,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1435,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1452,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1472,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1483,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1493,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1501,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      },
+      {
+        "line": 1511,
+        "name_expr": "f'{traffic_class}_lost'",
+        "path": "app/tg_bridge.py",
+        "receiver": "state",
+        "scope": "app.tg_bridge:_tg_run_attempts"
+      }
+    ]
+  },
+  "production_plus_tests": {
+    "candidate_count": 16,
+    "definition_count": 9431,
+    "parse_errors": [],
+    "root_count": 4640
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "rows": [
+    {
+      "app_python_additions": 17,
+      "app_python_deletions": 1735,
+      "clone_added_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "label": "explicit",
+      "persistent_dead_added_lines_candidate": 0,
+      "target": "9f946a60170db7aef8a547a40b7b239cd52ebc8d"
+    },
+    {
+      "app_python_additions": 676,
+      "app_python_deletions": 0,
+      "clone_added_lines_candidate": 0,
+      "dead_added_lines_candidate": 234,
+      "label": "ambient",
+      "persistent_dead_added_lines_candidate": 25,
+      "target": "d19f68cfce031845b005ad696c49f50873bb7cd1"
+    },
+    {
+      "app_python_additions": 1585,
+      "app_python_deletions": 36,
+      "clone_added_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "label": "ambient",
+      "persistent_dead_added_lines_candidate": 0,
+      "target": "2fa6662884ecbb1af73f43b7e392283266923426"
+    }
+  ]
+}

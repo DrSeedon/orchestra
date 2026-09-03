@@ -1,0 +1,7 @@
+controls: PASS (negative, positive, deterministic)
+cohort: PASS rows=42 ambient=39 explicit=3
+persistent production-unreachable: PASS 741/15225=4.866995%
+noise ordering/verdict: PASS contrast=4.866995% < median=4.997294%
+clones: PASS candidate_union=15 added lines
+acceptance inventory: PASS 1 simplify-specific / 16 commanded / 148 successful
+test-root cross-check: PASS 31 persistent production candidates, 0 unreachable from tracked tests/acceptance

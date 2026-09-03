@@ -1,0 +1,114 @@
+{
+  "file_growth": [
+    {
+      "additions": 697,
+      "deletions": 104,
+      "explicit_additions": 24,
+      "explicit_deletions": 25,
+      "first_parent_loc": 2654,
+      "last_target_loc": 3933,
+      "loc_change": 1279,
+      "path": "app/mcp_stdio.py",
+      "touches": 12
+    },
+    {
+      "additions": 95,
+      "deletions": 78,
+      "explicit_additions": 3,
+      "explicit_deletions": 29,
+      "first_parent_loc": 466,
+      "last_target_loc": 572,
+      "loc_change": 106,
+      "path": "app/main.py",
+      "touches": 7
+    },
+    {
+      "additions": 172,
+      "deletions": 79,
+      "explicit_additions": 0,
+      "explicit_deletions": 27,
+      "first_parent_loc": 1818,
+      "last_target_loc": 2683,
+      "loc_change": 865,
+      "path": "app/routes/sessions.py",
+      "touches": 7
+    },
+    {
+      "additions": 714,
+      "deletions": 547,
+      "explicit_additions": 13,
+      "explicit_deletions": 509,
+      "first_parent_loc": 1179,
+      "last_target_loc": 2540,
+      "loc_change": 1361,
+      "path": "app/tm.py",
+      "touches": 6
+    },
+    {
+      "additions": 247,
+      "deletions": 37,
+      "explicit_additions": 0,
+      "explicit_deletions": 0,
+      "first_parent_loc": 2438,
+      "last_target_loc": 2782,
+      "loc_change": 344,
+      "path": "app/manager.py",
+      "touches": 5
+    },
+    {
+      "additions": 160,
+      "deletions": 65,
+      "explicit_additions": 0,
+      "explicit_deletions": 0,
+      "first_parent_loc": 4824,
+      "last_target_loc": 5303,
+      "loc_change": 479,
+      "path": "app/session.py",
+      "touches": 5
+    }
+  ],
+  "groups": {
+    "ambient": {
+      "app_python_additions": 15225,
+      "app_python_deletions": 803,
+      "clone_added_lines_candidate": 13,
+      "clone_removed_lines_candidate": 8,
+      "dead_added_lines_candidate": 1178,
+      "dead_removed_lines_candidate": 3,
+      "merges": 39,
+      "merges_with_clone_candidates": 3,
+      "merges_with_dead_candidates": 9,
+      "merges_with_persistent_dead_candidates": 8,
+      "persistent_dead_added_lines_candidate": 741
+    },
+    "explicit": {
+      "app_python_additions": 475,
+      "app_python_deletions": 1834,
+      "clone_added_lines_candidate": 2,
+      "clone_removed_lines_candidate": 4,
+      "dead_added_lines_candidate": 1,
+      "dead_removed_lines_candidate": 4,
+      "merges": 3,
+      "merges_with_clone_candidates": 1,
+      "merges_with_dead_candidates": 1,
+      "merges_with_persistent_dead_candidates": 0,
+      "persistent_dead_added_lines_candidate": 0
+    }
+  },
+  "metric_comparison": {
+    "clone_added_lines_candidate": {
+      "absolute_contrast": 0.003356667530896206,
+      "ambient_rate": 0.0008538587848932677,
+      "contrast_exceeds_median_noise": true,
+      "explicit_rate": 0.004210526315789474,
+      "median_noise_floor": 0.0008087892450487549
+    },
+    "persistent_dead_added_lines_candidate": {
+      "absolute_contrast": 0.04866995073891626,
+      "ambient_rate": 0.04866995073891626,
+      "contrast_exceeds_median_noise": false,
+      "explicit_rate": 0.0,
+      "median_noise_floor": 0.04997294456617673
+    }
+  }
+}

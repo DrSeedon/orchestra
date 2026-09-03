@@ -1,0 +1,18 @@
+{
+  "frozen_before_structural_metrics": true,
+  "default_label": "ambient",
+  "explicit": {
+    "4b862eb6e193da39aa7d5332fe4f5140a20eedf4": "#167 explicitly required one error-text owner instead of four copies; consolidation was part of the requested outcome.",
+    "9f946a60170db7aef8a547a40b7b239cd52ebc8d": "#309 explicitly required deletion of named unused features and froze deletion oracles.",
+    "7717ef880d7f83096f61dcb7493dd5a6ccb4bc7c": "#349 explicitly required removing generated Markdown projections and exposing one knowledge API."
+  },
+  "keyword_false_positives": {
+    "e2ecc033da7faf482f476037c10acf9fe75c6b79": "Removal/reset of stale owned_dirs is the requested behavior, not a request to simplify code structure.",
+    "db8708aaa274d10048a6b573d12e3845af8c53c0": "The word cleanup names an already prepared patch; the task asks to port a recovery fix to current main.",
+    "34fb2350a8224f2991dbe722afc29070daf02bee": "Cleanup is a lifecycle stage in the new receipt protocol, not code deletion.",
+    "0ce9151a049ccc60d0025e9a791bae6e215ce5be": "The task is live activation of typed knowledge; removal appears only inside a rollback/compatibility discussion.",
+    "f9ab385d1e250edcb8d3ac7e551f562bdef7b5a3": "The task is an acceptance-oracle commit for typed knowledge, not simplification.",
+    "34960a9a19c4bf271c7e00c0703a357adf2d7865": "The task is an acceptance-oracle commit for typed knowledge, not simplification.",
+    "f8e00522e8597fcabb63675976bace4cbd1dee9c": "The task is a repository layout migration; removal refers to the old path, while production migration behavior is added."
+  }
+}
