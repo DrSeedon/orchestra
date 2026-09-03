@@ -1,0 +1,71 @@
+UTC=2026-09-03T16:42:18Z
++zsh:1> git -C .orchestra/tasks/469/scratch/muse-code-sdk rev-parse HEAD
+fbce769ccb75ab971d00e01a00fe076de4c773fc
++zsh:1> git -C .orchestra/tasks/469/scratch/muse-code-sdk remote get-url origin
+https://github.com/meta-models/muse-code-sdk.git
++zsh:1> sed -n 1,28p .orchestra/tasks/469/scratch/muse-code-sdk/README.md
+# Muse Code SDK
+
+TypeScript SDK and developer documentation for building clients that drive
+[Muse Code](https://meta-models.github.io/muse-code-sdk) agent sessions over
+the Muse Session Protocol (MSP).
+
+**Read the docs:** <https://meta-models.github.io/muse-code-sdk>
+
+## Install from npm
+
+```sh
+npm install @muse-code/sdk
+```
+
+Requires Node.js 20 or newer. The package has **zero runtime dependencies**
+and ships its own TypeScript declarations. Start with the
+[quickstart](https://meta-models.github.io/muse-code-sdk/guides/quickstart/).
+
+The SDK is a **Developer Preview**: it is published pre-1.0 and carries no
+stability promise yet — minor releases may change APIs while the surface
+settles.
+
+## What is in this repository
+
+- **`main` — the source of `@muse-code/sdk`**, together with the protocol
+  declarations, examples and fixtures it needs to build and test on its own.
+- **`gh-pages` — the built Muse Code Developer Docs**: the wire-protocol
+  reference, the SDK reference, and the guides and cookbook that go with them.
++zsh:1> sed -n 52,68p .orchestra/tasks/469/scratch/muse-code-sdk/README.md
+binary that is not part of this repository. Those fail by design without one —
+anything else is a genuine failure, so please report it.
+
+To typecheck the committed protocol declarations on their own:
+
+```sh
+scripts/check-msp-ts-typecheck.sh
+```
+
+### License
+
+Released under the **MIT License** — see [`LICENSE`](LICENSE).
+
+### This source is mirrored, not developed here
+
+`publish-anchor.json` names the exact upstream commit each copy came from, and
+its `repo_meta.hand_authored` list is the authoritative record of which files
++zsh:1> jq '{name,version,engines,license}' /tmp/muse_sdk_npm.json
+{
+  "name": "@muse-code/sdk",
+  "version": "0.1.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
++zsh:1> rg -n -F MuseClient.spawn .orchestra/tasks/469/scratch/muse-code-sdk/clients/sdk-ts/README.md
++zsh:1> head -3
+101:**Open sessions and submit through the facade.** `MuseClient.spawn` owns the
+108:const client = await MuseClient.spawn({
+256:`view/gap` — and the facade itself is complete: `MuseClient.spawn`, the two
++zsh:1> rg -n -F view/gap .orchestra/tasks/469/scratch/muse-code-sdk/clients/sdk-ts/README.md
++zsh:1> head -3
+83:overflows, the host sends `view/gap` and the SDK recovers by the SS4.8
+256:`view/gap` — and the facade itself is complete: `MuseClient.spawn`, the two
++zsh:1> set +x

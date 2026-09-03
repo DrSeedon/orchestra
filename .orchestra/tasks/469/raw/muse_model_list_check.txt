@@ -1,0 +1,20 @@
+[
+  {
+    "id": 581064,
+    "session_id": "dea622c9-0a3b-4130-b0b1-73a0957d26f2",
+    "ts": "2026-09-03T16:40:07.955178+00:00",
+    "type": "tool_result",
+    "content": "RC=0 STDOUT_BYTES=586 STDERR_BYTES=0\n{\"id\":1,\"jsonrpc\":\"2.0\",\"result\":{\"experimentalApi\":false,\"grantedCapabilities\":[],\"museHome\":\"/home/maxim/.local/share/muse\",\"platformFamily\":\"unix\",\"platformOs\":\"linux\",\"schema\":{\"fingerprint\":\"sha256:03312c213efd14277a0e0a102f70adeae497a469ca4edf7242f479953ed758b7\",\"version\":1},\"serverInfo\":{\"name\":\"muse\",\"version\":\"1.0.2\"},\"sessionDurability\":\"ephemeral\",\"userAgent\":\"muse-build/1.0.2 (non-interactive; linux-x86_64; build d57a141cdce779ac5408427470e9469ca20d2303)\"}}\n{\"id\":2,\"jsonrpc\":\"2.0\",\"result\":{\"models\":[],\"profileId\":\"tbh\",\"providerId\":\"meta\",\"source\":\"bundledCatalog\"}}\n\nSTDERR\n",
+    "event_id": "",
+    "tool_use_id": "exec-dc8aa831-3231-4a3b-adbb-769f9908aba4",
+    "tool_name": "Bash",
+    "tool_is_error": 0,
+    "origin": "unknown",
+    "origin_detail": {
+      "senders": [
+        "unknown"
+      ]
+    }
+  }
+]
+MATCHES=1

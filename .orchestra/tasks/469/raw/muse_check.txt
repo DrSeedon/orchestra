@@ -1,0 +1,44 @@
+UTC=2026-09-03T16:37:02Z
+GATEWAY=http://127.0.0.1:12339
++zsh:1> curl --proxy http://127.0.0.1:12339 --max-time 20 -sS -D - -o - -w '\nCURL_RESULT http=%{http_code} url=%{url_effective} type=%{content_type} size=%{size_download} remote_ip=%{remote_ip}\n' https://api.meta.ai/muse-code/channels/muse-stable
+HTTP/1.0 200 Connection established
+Proxy-agent: tinyproxy/1.11.1
+
+HTTP/2 200
+vary: Accept-Encoding
+content-security-policy: frame-ancestors 'none'
+x-frame-options: DENY
+x-content-type-options: nosniff
+content-length: 254
+content-type: application/json
+strict-transport-security: max-age=31536000; preload; includeSubDomains
+pragma: no-cache
+cache-control: private, no-cache, no-store, must-revalidate
+expires: Sat, 01 Jan 2000 00:00:00 GMT
+x-fb-request-id: ARMSxsAzPgg0Kgd6XihXEYO
+x-fb-trace-id: DeRWkR2YT7n
+x-fb-rev: 1046739556
+x-fb-debug: W4bhilmF4AKjE9XRIj8Ehrq4PmlkSaL5HYyg0dP1bnYcBhtLL3RgE8SmQ0lBfPIBSJUCmc2ETGNHNkDyvLE4PA==
+date: Thu, 03 Sep 2026 16:37:03 GMT
+
+{"channel":"muse-stable","version":"1.0.2-R2040.1","manifest_url":"https://lookaside.facebook.com/lookaside/muse/download/?channel=muse&version=1.0.2-R2040.1&file=manifest.json","urgency":"none","notification_text":"","state":"public","min_version":null}
+CURL_RESULT http=200 url=https://api.meta.ai/muse-code/channels/muse-stable type=application/json size=254 remote_ip=127.0.0.1
++zsh:1> curl --proxy http://127.0.0.1:12339 --max-time 20 -sS -D - -o - -w '\nCURL_RESULT http=%{http_code} url=%{url_effective} type=%{content_type} size=%{size_download} remote_ip=%{remote_ip}\n' https://api.meta.ai/v1/models
+HTTP/1.0 200 Connection established
+Proxy-agent: tinyproxy/1.11.1
+
+HTTP/2 401
+content-type: application/json
+x-request-id: 2da16816-08df-4a22-b960-e4aa28e54328
+vary: origin, access-control-request-method, access-control-request-headers
+access-control-allow-origin: *
+content-length: 104
+date: Thu, 03 Sep 2026 16:37:04 GMT
+x-route: model-api-rust
+proxy-status: http_request_error; e_proxy="AcTjXFMe83ca9YebxdvL4E8WlhL23AIsjQfnii8QiP0N2Cj-nU2Mme0sIW49VJYJUt1k37yIdtPJDTSvcbaT"; e_fb_twtaskhandle="AcT30rT2uuYF-BnnTu5Tb6qXFdppKE_LbO-49r5VOGjpMmCldT0RJxtBrSUzsprHOAtlG9C--y2CoAAfo95TX3zWh8nnHKA9wZML4I5r"; e_upip="AcRYvR-C2uHmFtXEIETKdZMLEX3Li97NZ9IkdEBbo_YmPeNQ0m0DyUXqQqEdHv4bOqy6wfC-eISUZRnXmtbI-vLHVFQVf3-zDvZr30jYLFM"; e_fb_zone="AcTa60bohLbFVGiaMzGWhQVJa6WK_Clc1EqPAW2YbExFPXS5KtPO9Jg6pP67wGeL"; e_clientaddr="AcTYp9ubnIFHYbNCGUDZRBCurSrEDHUbj-kIG1b4-CVOiYGsa62QpQsFiiwQ5Th59NKNvMRPUHNgsfKpjuxq4seH2_4oyin-SOBRYmmidRQ1y1UI9g"; e_fb_vipaddr="AcTUvplHUf7QlWah-iZzfEdvG_s45oJsvSXqutfhYL0CeMmEvycNKV5AtW1wcGCzw2R3gIBdlImuA3nlxtLOf4Qe2rNVbj5ZxV6jJJNW", http_request_error; e_proxy="AcTZ2FgNNDvd3waEWb_jBPsa6r5cNmCS2BrEmNqNocMk5NJXXEPzEMZlexIxn-1d4vvT2atD4OhqlZ4"; e_fb_twtaskhandle="AcQLB8aEMrZgQzLBeFpiHpLtlVz-C2m17UmPYvexi_vYhjZuSQQ9tqONmhp7yrzx_U6_7Rh6_-V8C9Z4Yec-14TwCSDvhdyP0agN"; e_upip="AcSYIy_W_HrxLHWn5B6kdF310Y_BqGmi4O7pkvPZrN8wRqQZMCP4zTR1_sXoNI6nyq0M5CUy93xtcVSY4H9EKnQpK6YS8ZDrtzclgavf"; e_fb_zone="AcR4p-qo0fRA9SgSwvl44jH-QVHlTZJeHZetTPVzl7QggHq1HHHDJiToD2bZrA"; e_clientaddr="AcRJz0ZGqzyigVN0n2ppXkn27-yXVsY1X1v31rEU3kz0DNgQTg2mCOkpWKFNzgKWvXQcMWryJ55a1Kh31bwSauiYGS7gdeVW"; e_fb_vipaddr="AcRcMViVzvoXmHH8Vqi6zHzN4Ld319mqmHs2R8JRO0dcORz1KMx1v79pq_y9p34dsl93_AwRWdkb1-C8KbX3rzY_0OZt0NuR_2I"
+
+{"error":{"code":"invalid_api_key","message":"Unauthorized","param":null,"type":"authentication_error"}}
+CURL_RESULT http=401 url=https://api.meta.ai/v1/models type=application/json size=104 remote_ip=127.0.0.1
++zsh:1> set +x
+DOWNLOADED_BINARY=263415992
+DOWNLOADED_SHA256=6f24623d6d1a193a8ab8d610c3df11c38cc8bb54aa39b6532fb2a7a29d85d27b  .orchestra/tasks/469/scratch/muse-x86-linux

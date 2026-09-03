@@ -1,0 +1,183 @@
+UTC=2026-09-03T16:41:01Z
++zsh:1> sha256sum /tmp/muse_benchmark.webp /tmp/muse_report_raw
+6d9e135ffcd12edf733c9b779d22fd57fed1f8e561906bee5ccc16ebf9da5d68  /tmp/muse_benchmark.webp
+b9a8eb864c5a55b410056be0a386fb6a86d9ff1576f69daa6dfdd74f9989aa21  /tmp/muse_report_raw
++zsh:1> file /tmp/muse_benchmark.webp /tmp/muse_report_raw
+/tmp/muse_benchmark.webp: RIFF (little-endian) data, Web/P image, lossless
+/tmp/muse_report_raw:     PDF document, version 1.3, 4 page(s)
++zsh:1> tesseract /tmp/muse_benchmark.webp stdout --psm 11
+Estimating resolution as 319
+Benchmark
+
+Muse Spark 1.3 (max)
+
+Muse Spark 1.2 (xhigh)
+
+GPT 5.6 Sol (max)
+
+Opus 5 (max)
+
+Meta
+
+Meta
+
+OpenAl
+
+Anthropic
+
+GDPValI-AA v2
+
+1754
+
+1615
+
+1710
+
+1824
+
+Knowledge work
+
+JobBench
+
+64.9
+
+61.6
+
+45.4
+
+65.7
+
+Professional tool use
+
+66.9
+
+47.6
+
+62.7
+
+68.3
+
+OSWorld 2.0
+
+(partial)
+
+(partial)
+
+(partial)
+
+(partial)
+
+Agentic computer use
+
+32.0
+
+17.9
+
+27.3
+
+31.4
+
+(binary)
+
+(binary)
+
+(binary)
+
+(binary)
+
+DeepSearchQA
+
+89.4
+
+85.9
+
+93.0
+
+90.4
+
+Agentic browsing
+
+Agentic IF Index
+
+(Internal)
+
+57.8
+
+46.2
+
+60.5
+
+59.1
+
+Instruction following
+
+AutomationBench
+
+E2E business workflows
+
+49.4
+
+38.2
+
+46.7
+
+50.3
+
+MRCR 256K-512K
+
+98.5
+
+66.3
+
+91.5
+
+Long context
+
+MRCR 512K-1M
+
+98.1
+
+55.5
+
+73.8
+
+Long context
+
+DeepSWE v1.1
+
+75.4
+
+55.0
+
+73.0
+
+74.0
+
+Long-horizon agentic coding
+
+SWEAtlas
+
+CodeBase QnA
+
+59.4
+
+46.2
+
+53.5
+
+52.7
+
+Codebase understanding
+
+Terminal-Bench 2.1
+
+88.8
+
+82.9
+
+88.8
+
+86.7
+
+Agentic terminal coding
++zsh:1> set +x
