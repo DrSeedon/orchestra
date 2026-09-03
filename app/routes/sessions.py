@@ -905,19 +905,15 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 origin="agent", senders=(req.sender,), subtype="http_send",
             )
         else:
-            from app.auth import validate_session
+            from app.auth import is_auth_enabled, validate_session
 
             operator = bool(
-                request is not None
-                and validate_session(request.cookies.get("session", ""))
+                not is_auth_enabled()
+                or (
+                    request is not None
+                    and validate_session(request.cookies.get("session", ""))
+                )
             )
-            # Оператор НЕДОКАЗУЕМ, когда авторизация дашборда выключена: при пустых
-            # `DASHBOARD_USER`/`DASHBOARD_PASSWORD` `validate_session` возвращает False
-            # всегда (`app/auth.py:58-61`), а фронт шлёт в `/send` только
-            # `{message, scope}`. Отказ здесь означал не «не соврать», а «не доставить»:
-            # чат дашборда переставал работать целиком. Правило #433 на этот случай
-            # уже есть — недоказанное происхождение рисуется как `unknown`, никогда как
-            # `user`, — и оно выполняется без потери сообщения.
             provenance = MessageProvenance(
                 origin="user" if operator else "unknown",
                 senders=("user",) if operator else ("unknown",),
