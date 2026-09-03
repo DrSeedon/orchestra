@@ -1,0 +1,7 @@
+KB contract OK
+provider=9/9 json=9/9 malformed=0/9 Q_append=1.0 Q_state=0.75 Q_append_repeat=0.75 state_saving_pct=1.3090937342190134 append_repeat_noise_pct=0.17301206224546328
+calibration_files=0 main_files=0
+>       assert data["completed_three_arm_cases"] == 1
+RC=1
+production_app_files_changed=0
+worktree_diff_check=OK

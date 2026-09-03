@@ -1,0 +1,4 @@
+{"arm": "record_key", "current_projection_bytes": 887365632, "iteration": 1, "loadavg": [2.87451171875, 2.861328125, 2.9638671875], "rowid_binding": true, "seconds": 61.07007739809342}
+{"arm": "rowid", "current_projection_bytes": 887365632, "iteration": 1, "loadavg": [2.80419921875, 2.8466796875, 2.95849609375], "rowid_binding": true, "seconds": 0.0006452170200645924}
+{"arm": "record_key", "current_projection_bytes": 887365632, "iteration": 2, "loadavg": [2.38671875, 2.72265625, 2.90576171875], "rowid_binding": true, "seconds": 58.43845828413032}
+{"arm": "rowid", "current_projection_bytes": 887365632, "iteration": 2, "loadavg": [2.51611328125, 2.744140625, 2.912109375], "rowid_binding": true, "seconds": 0.0005364939570426941}

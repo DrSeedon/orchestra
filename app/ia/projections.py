@@ -143,7 +143,7 @@ def _insert_current_rows(
     prepared: Sequence[tuple[str, str, str, str, str, str, str, str]],
 ) -> None:
     for row in sorted(prepared):
-        connection.execute(
+        cursor = connection.execute(
             """INSERT INTO current_records(
                 record_key, record_type, stable_id, project_id, canonical_head,
                 payload_sha256, payload_json, search_text
@@ -151,8 +151,8 @@ def _insert_current_rows(
             row,
         )
         connection.execute(
-            "INSERT INTO current_fts(record_key, text) VALUES (?, ?)",
-            (row[0], row[7]),
+            "INSERT INTO current_fts(rowid, record_key, text) VALUES (?, ?, ?)",
+            (cursor.lastrowid, row[0], row[7]),
         )
 
 
@@ -303,6 +303,100 @@ class SQLiteProjectionBackend:
                 ),
             )
         return {"projection_head": canonical_head, "count": len(prepared)}
+
+    def current_receipt(self, expected_head: str) -> Mapping[str, Any]:
+        """Read the singleton projection receipt without inspecting projected rows.
+
+        The receipt is only a commit marker.  Its hashes identify a completed #405
+        resource-receipt transaction; they do not authenticate the payload or FTS
+        contents, which remain the responsibility of selected reads and repair.
+        """
+
+        with self._connection() as connection:
+            row = connection.execute(
+                "SELECT projection_head,resource_manifest_sha256,resource_rows_sha256 "
+                "FROM projection_meta WHERE singleton=1"
+            ).fetchone()
+        if row is None:
+            return {
+                "status": "missing",
+                "projection_head": None,
+                "resource_manifest_sha256": "",
+                "resource_rows_sha256": "",
+                "expected_head": expected_head,
+            }
+        projection_head = str(row["projection_head"])
+        manifest_sha = str(row["resource_manifest_sha256"])
+        rows_sha = str(row["resource_rows_sha256"])
+        status = (
+            "head_mismatch"
+            if projection_head != expected_head
+            else "verified"
+            if manifest_sha and rows_sha
+            else "unsealed"
+        )
+        return {
+            "status": status,
+            "projection_head": projection_head,
+            "resource_manifest_sha256": manifest_sha,
+            "resource_rows_sha256": rows_sha,
+            "expected_head": expected_head,
+        }
+
+    def update_current_records(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        deleted_record_keys: Sequence[str],
+        expected_head: str,
+        canonical_head: str,
+    ) -> Mapping[str, Any]:
+        """Atomically change named current/FTS rows and CAS the global receipt."""
+
+        prepared = _prepare_current_rows(records, canonical_head)
+        keys = [row[0] for row in prepared]
+        deleted = [str(key) for key in deleted_record_keys]
+        if len(set(keys)) != len(keys) or set(keys).intersection(deleted):
+            raise ProjectionDebtError("targeted current projection identities overlap")
+        with self._connection() as connection:
+            meta = connection.execute(
+                "SELECT projection_head FROM projection_meta WHERE singleton=1"
+            ).fetchone()
+            observed = str(meta[0]) if meta is not None else None
+            if observed != expected_head:
+                raise ProjectionDebtError(
+                    f"current projection head mismatch: expected {expected_head}, observed {observed}"
+                )
+            for record_key in sorted({*keys, *deleted}):
+                stored = connection.execute(
+                    "SELECT rowid FROM current_records WHERE record_key=?", (record_key,)
+                ).fetchone()
+                if stored is not None:
+                    rowid = int(stored[0])
+                    fts = connection.execute(
+                        "SELECT record_key FROM current_fts WHERE rowid=?", (rowid,)
+                    ).fetchone()
+                    if fts is None or str(fts[0]) != record_key:
+                        raise ProjectionDebtError(
+                            f"current/FTS rowid binding mismatch: {record_key}"
+                        )
+                    connection.execute("DELETE FROM current_fts WHERE rowid=?", (rowid,))
+                connection.execute(
+                    "DELETE FROM current_records WHERE record_key=?", (record_key,)
+                )
+            _insert_current_rows(connection, prepared)
+            updated = connection.execute(
+                "UPDATE projection_meta SET projection_head=? "
+                "WHERE singleton=1 AND projection_head=?",
+                (canonical_head, expected_head),
+            )
+            if updated.rowcount != 1:
+                raise ProjectionDebtError("current projection receipt CAS failed")
+        return {
+            "projection_head": canonical_head,
+            "updated_record_keys": sorted(keys),
+            "deleted_record_keys": sorted(deleted),
+        }
 
     def seal_current_resources(
         self,
@@ -681,8 +775,12 @@ def _query_projection(request: Mapping[str, Any]) -> dict[str, Any]:
             for key, value in stored.items()
             if key not in {"items", "projection_head"}
         }
-    except (OSError, sqlite3.Error, ValueError, ProjectionDebtError) as exc:
-        projection_head = None
+    except (OSError, sqlite3.Error, ValueError, ProjectionDebtError):
+        try:
+            receipt = context.backend.current_receipt(canonical_head)
+            projection_head = receipt.get("projection_head")
+        except (AttributeError, OSError, sqlite3.Error, ValueError, ProjectionDebtError):
+            projection_head = None
         stored_items = []
         debt.append(_debt("projection", "projection_read_failed", canonical_head, None))
 
@@ -690,45 +788,28 @@ def _query_projection(request: Mapping[str, Any]) -> dict[str, Any]:
     content_mismatch = projection_head == canonical_head and not _items_match(
         stored_items, expected
     )
-    if needs_write or content_mismatch:
-        try:
-            context.backend.replace_current(
-                records=canonical_records,
-                canonical_head=canonical_head,
+    if needs_write:
+        debt.append(
+            _debt(
+                "projection",
+                "projection_stale_no_repair",
+                canonical_head,
+                projection_head,
             )
-            refreshed = dict(context.backend.search_current(
-                project_id=project_id,
-                text=text,
-                record_types=record_types,
-                limit=limit,
-                cross_project=cross_project,
-            ))
-            projection_head = refreshed.get("projection_head")
-            stored_items = list(refreshed.get("items") or [])
-            backend_extra = {
-                key: copy.deepcopy(value)
-                for key, value in refreshed.items()
-                if key not in {"items", "projection_head"}
-            }
-        except (OSError, sqlite3.Error, ValueError, ProjectionDebtError):
-            debt.append(
-                _debt(
-                    "projection",
-                    "projection_write_failed",
-                    canonical_head,
-                    projection_head,
-                )
+        )
+    elif content_mismatch:
+        debt.append(
+            _debt(
+                "projection",
+                "projection_corrupt_no_repair",
+                canonical_head,
+                projection_head,
             )
+        )
 
     projection_valid = (
         projection_head == canonical_head and _items_match(stored_items, expected)
     )
-    if not projection_valid and not any(
-        item["reason"] == "projection_write_failed" for item in debt
-    ):
-        debt.append(
-            _debt("projection", "content_mismatch", canonical_head, projection_head)
-        )
 
     observed_projection_head = projection_head or _ZERO_HEAD
     if projection_valid:

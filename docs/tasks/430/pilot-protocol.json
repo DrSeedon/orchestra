@@ -1,0 +1,26 @@
+{
+  "schema": "skillstate430-pilot-protocol-v1",
+  "frozen_at": "2026-09-01T17:39:49+02:00",
+  "repository_head": "6e4985d7087d66e3914ec89f26f05e15c02f468d",
+  "cases_sha256": "b173b978a650e330113edbe67cb19e00e7aed277c897b026367b160a32d8c628",
+  "runner_sha256": "cc269c69cb85ebc03b322ef11aa3c2aaf2d5903764f51efe576ecb15117fbcd1",
+  "route": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "route_selection": "only route among three transport-live candidates whose frozen format canary returned exact JSON with state_patch and action",
+  "arms": ["append", "state", "append_repeat"],
+  "ordering": "rotating interleave at every case step",
+  "provider_retries": 0,
+  "max_http_attempts": 63,
+  "exclusions": [
+    {
+      "artifact": "docs/tasks/430/pilot-summary.json",
+      "reason": "zero completed three-arm cases; thresholds are null",
+      "status": "excluded_before_second-pilot-responses"
+    }
+  ],
+  "second_pilot_rule": "one full rerun only; if no completed three-arm case remains, publish availability/measurement-path blocker and do not invent thresholds",
+  "threshold_formula": {
+    "minimum_total_token_saving": "maximum completed-case relative absolute append-vs-append_repeat total-token difference",
+    "quality_noninferiority_margin": "maximum completed-case absolute append-vs-append_repeat field-score difference",
+    "critical_reason_losses_allowed": 0
+  }
+}

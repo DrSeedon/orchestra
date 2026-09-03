@@ -73,6 +73,9 @@ _TASK_SOURCE_FIELDS = (
 )
 _PROVENANCE_FIELDS = ("canonical_path", "anchor", "git_commit", "content_sha256")
 _PROJECTION_TABLE = "ia_task_projection"
+_PROJECTION_META_TABLE = "ia_task_projection_meta"
+_CURRENT_HEAD_FILE = "current-head.json"
+_PENDING_GENERATION_FILE = "pending-generation.json"
 
 
 def _now() -> str:
@@ -95,6 +98,33 @@ def _canonical_bytes(value: Any) -> bytes:
 
 def _digest(value: Any) -> str:
     return f"sha256:{hashlib.sha256(_canonical_bytes(value)).hexdigest()}"
+
+
+def task_create_fingerprint(
+    *,
+    project_id: str,
+    title: str,
+    price: int = 0,
+    description: str = "",
+    assignee: str = "",
+    status: str = "new",
+    priority: int = 2,
+    acceptance_command: str = "",
+    acceptance_manifest: Sequence[str] | None = None,
+    acceptance_required: bool = False,
+) -> str:
+    return _digest({
+        "project_id": str(project_id),
+        "title": str(title),
+        "price": int(price),
+        "description": str(description),
+        "assignee": str(assignee),
+        "status": str(status),
+        "priority": int(priority),
+        "acceptance_command": str(acceptance_command).strip(),
+        "acceptance_manifest": sorted(str(path) for path in (acceptance_manifest or [])),
+        "acceptance_required": bool(acceptance_required),
+    })
 
 
 def _detached(value: Any) -> Any:
@@ -322,6 +352,14 @@ class TaskStore:
         if not self.projection_path.exists():
             raise ProjectionDebtError("task projection does not exist")
         with sqlite3.connect(self.projection_path) as connection:
+            try:
+                meta = connection.execute(
+                    f"SELECT projection_head FROM {_PROJECTION_META_TABLE} WHERE singleton=1"
+                ).fetchone()
+            except sqlite3.OperationalError:
+                meta = None
+            if meta is not None:
+                return str(meta[0])
             heads = {
                 row[0]
                 for row in connection.execute(
@@ -331,6 +369,27 @@ class TaskStore:
         if heads and heads != {head}:
             raise ProjectionDebtError("task projection contains mixed canonical heads")
         return head
+
+    def _current_head_path(self) -> Path:
+        return self.canonical_root / _CURRENT_HEAD_FILE
+
+    def _pending_generation_path(self) -> Path:
+        return self.canonical_root / _PENDING_GENERATION_FILE
+
+    def ensure_legacy_receipts(self, canonical_head: str) -> None:
+        """Seal already-verified legacy state/projection without rewriting their rows."""
+
+        if not self._current_head_path().is_file():
+            _write_json(self._current_head_path(), {
+                "schema_version": 1,
+                "canonical_head": canonical_head,
+            })
+        with self._projection_connection() as connection:
+            connection.execute(
+                f"""INSERT INTO {_PROJECTION_META_TABLE}(singleton,projection_head)
+                    VALUES (1,?) ON CONFLICT(singleton) DO NOTHING""",
+                (canonical_head,),
+            )
 
     def _manifest_path(self, manifest_id: str) -> Path:
         return self.canonical_root / "manifests" / f"{manifest_id}.json"
@@ -421,7 +480,59 @@ class TaskStore:
             display.add(identity)
         return states
 
+    def _projection_states(self) -> dict[str, dict[str, Any]]:
+        """Read one healthy task-projection snapshot without canonical state files."""
+
+        if not self.projection_path.is_file():
+            raise ProjectionDebtError("task projection does not exist")
+        canonical_head = self._current_head()
+        uri = f"file:{self.projection_path}?mode=ro"
+        try:
+            with sqlite3.connect(uri, uri=True) as connection:
+                connection.row_factory = sqlite3.Row
+                connection.execute("BEGIN")
+                meta = connection.execute(
+                    f"SELECT projection_head FROM {_PROJECTION_META_TABLE} WHERE singleton=1"
+                ).fetchone()
+                projection_head = str(meta[0]) if meta is not None else None
+                if projection_head != canonical_head:
+                    raise ProjectionDebtError(
+                        f"task projection head mismatch: expected {canonical_head}, "
+                        f"observed {projection_head}"
+                    )
+                rows = connection.execute(
+                    f"SELECT stable_id,payload_sha256,payload_json FROM {_PROJECTION_TABLE} "
+                    "ORDER BY stable_id"
+                ).fetchall()
+        except sqlite3.Error as error:
+            raise ProjectionDebtError("task projection read failed") from error
+        states: dict[str, dict[str, Any]] = {}
+        displays: set[tuple[str, int]] = set()
+        for row in rows:
+            payload = str(row["payload_json"])
+            observed = f"sha256:{hashlib.sha256(payload.encode('utf-8')).hexdigest()}"
+            if observed != str(row["payload_sha256"]):
+                raise ProjectionDebtError("task projection payload digest mismatch")
+            state = json.loads(payload)
+            if not isinstance(state, dict) or state.get("stable_id") != row["stable_id"]:
+                raise ProjectionDebtError("task projection payload identity mismatch")
+            stable_id = str(state["stable_id"])
+            display = (str(state.get("project_id") or ""), int(state.get("display_number") or 0))
+            if stable_id in states or not all(display) or display in displays:
+                raise ProjectionDebtError("task projection contains duplicate identity")
+            state["canonical_head"] = canonical_head
+            state["projection_head"] = projection_head
+            states[stable_id] = state
+            displays.add(display)
+        return states
+
     def _current_head(self) -> str:
+        receipt_path = self._current_head_path()
+        if receipt_path.is_file():
+            head = str(_read_json(receipt_path).get("canonical_head") or "")
+            if not head:
+                raise MigrationManifestError("canonical task head receipt is empty")
+            return head
         states = self._states()
         if not states:
             paths = sorted((self.canonical_root / "manifests").glob("*.json"))
@@ -448,9 +559,20 @@ class TaskStore:
                 UNIQUE(project_id, display_number)
             )"""
         )
+        connection.execute(
+            f"""CREATE TABLE IF NOT EXISTS {_PROJECTION_META_TABLE} (
+                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                projection_head TEXT NOT NULL
+            )"""
+        )
         return connection
 
-    def _rebuild_projection(self, states: Mapping[str, Mapping[str, Any]]) -> None:
+    def _rebuild_projection(
+        self,
+        states: Mapping[str, Mapping[str, Any]],
+        *,
+        projection_head: str | None = None,
+    ) -> None:
         with self._projection_connection() as connection:
             old_metadata = {
                 row[0]: row[1]
@@ -476,6 +598,17 @@ class TaskStore:
                         old_metadata.get(stable_id, "{}"),
                     ),
                 )
+            heads = {str(state.get("canonical_head") or "") for state in states.values()}
+            if projection_head is None:
+                if len(heads) != 1 or not next(iter(heads), ""):
+                    raise ProjectionDebtError("cannot receipt task projection with mixed heads")
+                projection_head = next(iter(heads))
+            connection.execute(
+                f"""INSERT INTO {_PROJECTION_META_TABLE}(singleton,projection_head)
+                    VALUES (1,?) ON CONFLICT(singleton) DO UPDATE SET
+                    projection_head=excluded.projection_head""",
+                (projection_head,),
+            )
 
     def _write_states(self, states: Mapping[str, Mapping[str, Any]], head: str) -> None:
         normalized: dict[str, dict[str, Any]] = {}
@@ -490,7 +623,117 @@ class TaskStore:
                 path.unlink()
         for state in normalized.values():
             _write_json(self._state_path(state), state)
-        self._rebuild_projection(normalized)
+        self._rebuild_projection(normalized, projection_head=head)
+        _write_json(self._current_head_path(), {
+            "schema_version": 1,
+            "canonical_head": head,
+        })
+
+    def _update_projection_rows(
+        self,
+        states: Sequence[Mapping[str, Any]],
+        *,
+        expected_head: str,
+        canonical_head: str,
+    ) -> None:
+        with self._projection_connection() as connection:
+            row = connection.execute(
+                f"SELECT projection_head FROM {_PROJECTION_META_TABLE} WHERE singleton=1"
+            ).fetchone()
+            observed = str(row[0]) if row is not None else None
+            if observed != expected_head:
+                raise ProjectionDebtError(
+                    f"task projection head mismatch: expected {expected_head}, observed {observed}"
+                )
+            for state in states:
+                stable_id = str(state["stable_id"])
+                metadata = connection.execute(
+                    f"SELECT metadata_json FROM {_PROJECTION_TABLE} WHERE stable_id=?",
+                    (stable_id,),
+                ).fetchone()
+                payload = _canonical_bytes(state).decode("utf-8")
+                connection.execute(
+                    f"""INSERT INTO {_PROJECTION_TABLE}(
+                        stable_id,project_id,display_number,canonical_head,
+                        payload_sha256,payload_json,metadata_json
+                    ) VALUES (?,?,?,?,?,?,?)
+                    ON CONFLICT(stable_id) DO UPDATE SET
+                        project_id=excluded.project_id,
+                        display_number=excluded.display_number,
+                        canonical_head=excluded.canonical_head,
+                        payload_sha256=excluded.payload_sha256,
+                        payload_json=excluded.payload_json,
+                        metadata_json=excluded.metadata_json""",
+                    (
+                        stable_id,
+                        state["project_id"],
+                        state["display_number"],
+                        canonical_head,
+                        f"sha256:{hashlib.sha256(payload.encode('utf-8')).hexdigest()}",
+                        payload,
+                        str(metadata[0]) if metadata is not None else "{}",
+                    ),
+                )
+            updated = connection.execute(
+                f"UPDATE {_PROJECTION_META_TABLE} SET projection_head=? "
+                "WHERE singleton=1 AND projection_head=?",
+                (canonical_head, expected_head),
+            )
+            if updated.rowcount != 1:
+                raise ProjectionDebtError("task projection receipt CAS failed")
+
+    def pending_generation(self) -> dict[str, Any]:
+        path = self._pending_generation_path()
+        return _read_json(path) if path.is_file() else {}
+
+    def _write_recovery_head(self, canonical_head: str) -> None:
+        path = self._current_head_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.recovery")
+        temporary.write_bytes(_canonical_bytes({
+            "schema_version": 1,
+            "canonical_head": canonical_head,
+        }) + b"\n")
+        temporary.replace(path)
+
+    def recover_pending_generation(self) -> dict[str, Any]:
+        pending = self.pending_generation()
+        if not pending:
+            return {"outcome": "none"}
+        intended = str(pending.get("intended_head") or "")
+        parent = str(pending.get("parent_head") or "")
+        changed_ids = [str(value) for value in pending.get("changed_stable_ids") or []]
+        event_ids = [str(value) for value in pending.get("event_ids") or []]
+        if not intended or not parent or not changed_ids or not event_ids:
+            raise MigrationManifestError("pending canonical generation is incomplete")
+        states = self._states()
+        if any(
+            stable_id not in states or states[stable_id].get("canonical_head") != intended
+            for stable_id in changed_ids
+        ):
+            raise MigrationManifestError("pending canonical generation state is incomplete")
+        events = {
+            path.stem: _read_json(path)
+            for path in self.canonical_root.rglob("events/*.json")
+            if path.stem in set(event_ids)
+        }
+        if set(events) != set(event_ids) or any(
+            event.get("canonical_head") != intended for event in events.values()
+        ):
+            raise MigrationManifestError("pending canonical generation events are incomplete")
+        self._write_recovery_head(intended)
+        observed = self.projection_head
+        self._pending_generation_path().unlink(missing_ok=True)
+        return {
+            "outcome": "completed",
+            "canonical_head": intended,
+            "projection_head": observed,
+            "projection_debt": {
+                "reason": "task_projection_head_mismatch",
+                "expected_head": intended,
+                "observed_head": observed,
+            },
+        }
 
     def _migration_receipt(self, manifest: Mapping[str, Any]) -> dict[str, Any]:
         return {
@@ -620,7 +863,7 @@ class TaskStore:
         )
 
     def task_list(self, project: str = "", status: str = "", assignee: str = "") -> dict[str, Any]:
-        all_states = list(self._states().values())
+        all_states = list(self._projection_states().values())
         states = [
             state
             for state in all_states
@@ -649,11 +892,20 @@ class TaskStore:
         return result
 
     def task_get(self, ref: str, project: str = "") -> dict[str, Any]:
-        state = self._find_state(ref, project)
+        number = self._parse_ref(ref)
+        matches = [
+            state
+            for state in self._projection_states().values()
+            if state["display_number"] == number
+            and (not project or state["project_id"] == project)
+        ]
+        if len(matches) > 1:
+            projects = ", ".join(sorted(state["project_id"] for state in matches))
+            raise ValueError(f"Ambiguous task #{number} — exists in projects: {projects}")
+        if not matches:
+            raise ValueError(f"{ref} not found")
+        state = matches[0]
         result = self._facade_detail(state)
-        debt = self._projection_debt(state)
-        if debt:
-            result["projection_debt"] = debt
         return result
 
     def _ensure_expected(self, expected_head: str | None) -> str:
@@ -703,9 +955,14 @@ class TaskStore:
         parent_head: str,
     ) -> str:
         head = self._generation_head(parent_head, states, events)
-        for state in states.values():
+        changed_ids = {str(event["stable_id"]) for event in events}
+        for stable_id in changed_ids:
+            state = states.get(stable_id)
+            if state is None:
+                raise MigrationManifestError("task deletion events are not supported in T2")
             state["canonical_head"] = head
             state["projection_head"] = head
+        materialized_events: list[tuple[Path, dict[str, Any]]] = []
         for raw in events:
             event = copy.deepcopy(raw)
             event["parent_head"] = parent_head
@@ -723,9 +980,31 @@ class TaskStore:
                         f"event id {event['event_id']} already contains another claim",
                         event_ids=[str(event["event_id"])],
                     )
-            else:
+            materialized_events.append((event_path, event))
+        _write_json(self._pending_generation_path(), {
+            "schema_version": 1,
+            "parent_head": parent_head,
+            "intended_head": head,
+            "changed_stable_ids": sorted(changed_ids),
+            "event_ids": sorted(
+                str(event["event_id"]) for _path, event in materialized_events
+            ),
+        })
+        for event_path, event in materialized_events:
+            if not event_path.exists():
                 _write_json(event_path, event)
-        self._write_states(states, head)
+        for stable_id in sorted(changed_ids):
+            _write_json(self._state_path(states[stable_id]), states[stable_id])
+        _write_json(self._current_head_path(), {
+            "schema_version": 1,
+            "canonical_head": head,
+        })
+        self._update_projection_rows(
+            [states[stable_id] for stable_id in sorted(changed_ids)],
+            expected_head=parent_head,
+            canonical_head=head,
+        )
+        self._pending_generation_path().unlink(missing_ok=True)
         return head
 
     @staticmethod
@@ -738,6 +1017,52 @@ class TaskStore:
             "projection_head": canonical_head,
             "evidence_refs": copy.deepcopy(state.get("evidence_refs") or []),
         }
+
+    @staticmethod
+    def _task_create_stable_id(project_id: str, request_key: str) -> str:
+        return str(uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"orch://project/{project_id}/task-create/{request_key}",
+        ))
+
+    def _task_create_result(
+        self,
+        state: Mapping[str, Any],
+        *,
+        replayed: bool,
+    ) -> dict[str, Any]:
+        request = dict(state.get("create_request") or {})
+        return {
+            "par": str(state["display_number"]),
+            "task_id": state["stable_id"],
+            "title": state["title"],
+            "project": state["project_id"],
+            "price_rub": state["price_rub"],
+            "status": state["status"],
+            "changed_records": [] if replayed else [copy.deepcopy(dict(state))],
+            "replayed": replayed,
+            "request_key": str(request.get("request_key") or ""),
+            "request_fingerprint": str(request.get("fingerprint") or ""),
+            **self._receipt(state),
+        }
+
+    def task_create_request(
+        self,
+        *,
+        project_id: str,
+        request_key: str,
+    ) -> dict[str, Any] | None:
+        stable_id = self._task_create_stable_id(project_id, request_key)
+        state = self._states().get(stable_id)
+        if state is None:
+            return None
+        request = dict(state.get("create_request") or {})
+        if (
+            request.get("request_key") != request_key
+            or state.get("project_id") != project_id
+        ):
+            raise IdentityConflictError("canonical task-create request identity is inconsistent")
+        return self._task_create_result(state, replayed=True)
 
     def task_create(
         self,
@@ -755,13 +1080,41 @@ class TaskStore:
         display_number: int | None = None,
         expected_head: str | None = None,
         contour_id: str = "central",
+        request_key: str = "",
     ) -> dict[str, Any]:
         if status not in _VALID_STATUSES:
             raise ValueError(f"Invalid status: {status}")
         if price < 0:
             raise ValueError("price must be >= 0")
-        parent = self._ensure_expected(expected_head)
+        request_key = str(request_key or "")
+        request_fingerprint = task_create_fingerprint(
+            project_id=project_id,
+            title=title,
+            price=price,
+            description=description,
+            assignee=assignee,
+            status=status,
+            priority=priority,
+            acceptance_command=acceptance_command,
+            acceptance_manifest=acceptance_manifest,
+            acceptance_required=acceptance_required,
+        )
         states = self._states()
+        stable_id = (
+            self._task_create_stable_id(project_id, request_key)
+            if request_key
+            else str(uuid.uuid4())
+        )
+        existing = states.get(stable_id)
+        if existing is not None:
+            request = dict(existing.get("create_request") or {})
+            if (
+                request.get("request_key") != request_key
+                or request.get("fingerprint") != request_fingerprint
+            ):
+                raise IdentityConflictError("IDEMPOTENCY_FINGERPRINT_MISMATCH")
+            return self._task_create_result(existing, replayed=True)
+        parent = self._ensure_expected(expected_head)
         if display_number is None:
             display_number = self._next_display_number(states.values(), project_id)
         else:
@@ -776,7 +1129,6 @@ class TaskStore:
                 raise IdentityConflictError(
                     f"display #{display_number} is already active in {project_id}"
                 )
-        stable_id = str(uuid.uuid4())
         now = _now()
         state = {
             "record_type": "task.state",
@@ -806,9 +1158,18 @@ class TaskStore:
             "completed_at": None,
             "sync_revision": 0,
         }
+        if request_key:
+            state["create_request"] = {
+                "request_key": request_key,
+                "fingerprint": request_fingerprint,
+            }
         states[stable_id] = state
         event = {
-            "event_id": str(uuid.uuid4()),
+            "event_id": (
+                str(uuid.uuid5(uuid.UUID(stable_id), "task.created"))
+                if request_key
+                else str(uuid.uuid4())
+            ),
             "event_type": "task.created",
             "stable_id": stable_id,
             "project_id": project_id,
@@ -818,15 +1179,9 @@ class TaskStore:
             "record": self._truth_state(state),
         }
         head = self._commit_generation(states, [event], parent_head=parent)
-        return {
-            "par": str(display_number),
-            "task_id": stable_id,
-            "title": title,
-            "project": project_id,
-            "price_rub": price,
-            "status": status,
-            **self._receipt(states[stable_id], head=head),
-        }
+        states[stable_id]["canonical_head"] = head
+        states[stable_id]["projection_head"] = head
+        return self._task_create_result(states[stable_id], replayed=False)
 
     def repair_display_collisions(
         self,
@@ -959,6 +1314,9 @@ class TaskStore:
             "moves": moves,
             "canonical_head": head,
             "projection_head": head,
+            "changed_records": [
+                copy.deepcopy(states[str(event["stable_id"])]) for event in events
+            ],
         }
 
     @staticmethod
@@ -1115,7 +1473,11 @@ class TaskStore:
                 new_status=state["status"],
                 price_rub=state["price_rub"],
             )
-        return {**response, **self._receipt(state, head=head)}
+        return {
+            **response,
+            "changed_records": [copy.deepcopy(state)],
+            **self._receipt(state, head=head),
+        }
 
     def task_update_if_current(
         self,
@@ -1150,6 +1512,7 @@ class TaskStore:
             "updated": updated["updated"],
             "new_status": current["status"],
             "sync_revision": current["sync_revision"],
+            "changed_records": list(updated.get("changed_records") or []),
             **self._receipt(current),
         }
 
@@ -1200,6 +1563,7 @@ class TaskStore:
             "ok": True,
             "added": len(additions),
             "task_id": source.get("row_id", state["stable_id"]),
+            "changed_records": [copy.deepcopy(state)],
             **self._receipt(state, head=head),
         }
 
@@ -1263,7 +1627,12 @@ class TaskStore:
             "changes": {"evidence_ref": uri},
         }
         head = self._commit_generation(states, [event], parent_head=parent)
-        return {"ok": True, "added": 1, **self._receipt(state, head=head)}
+        return {
+            "ok": True,
+            "added": 1,
+            "changed_records": [copy.deepcopy(state)],
+            **self._receipt(state, head=head),
+        }
 
     def apply_events(
         self,
@@ -1383,6 +1752,9 @@ class TaskStore:
             "event_ids": event_ids,
             "canonical_head": head,
             "projection_head": head,
+            "changed_records": [
+                copy.deepcopy(states[str(event["stable_id"])]) for event in incoming
+            ],
         }
 
     def _event_groups(self) -> dict[str, list[dict[str, Any]]]:

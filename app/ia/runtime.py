@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -49,6 +51,9 @@ _DEBT_REASON_POLICIES = {
     "prompt_migration_failed": DebtReasonPolicy(blocking=True),
     "candidate_write_failed": DebtReasonPolicy(blocking=True),
     "candidate_read_failed": DebtReasonPolicy(blocking=True),
+    "projection_receipt_unsealed": DebtReasonPolicy(blocking=False),
+    "projection_head_mismatch": DebtReasonPolicy(blocking=False),
+    "current_projection_update_failed": DebtReasonPolicy(blocking=True),
 }
 
 
@@ -88,6 +93,9 @@ def _ensure_task_projection(store: Any) -> None:
                     "SELECT count(*) FROM ia_task_projection"
                 ).fetchone()[0])
             if projection_head == canonical_head and row_count == len(states):
+                seal = getattr(store, "ensure_legacy_receipts", None)
+                if callable(seal):
+                    seal(canonical_head)
                 return
             raise ProjectionDebtError("task projection is incomplete or stale")
         except (ProjectionDebtError, sqlite3.DatabaseError):
@@ -152,8 +160,14 @@ class _RuntimeTaskStore:
 
     def _changed(self, result: Mapping[str, Any]) -> dict[str, Any]:
         value = self._legacy_result(result)
+        changed_records = list(value.pop("changed_records", []) or [])
         head = str(value.get("canonical_head") or self._store.canonical_head)
-        self._head_writer(head)
+        if changed_records and "changed_records" in inspect.signature(
+            self._head_writer
+        ).parameters:
+            self._head_writer(head, changed_records=changed_records)
+        else:
+            self._head_writer(head)
         return value
 
     def task_create(self, **kwargs):
@@ -177,16 +191,12 @@ class _RuntimeTaskStore:
             return self._changed(self._store.task_update_if_current(value, **kwargs))
 
     def task_get(self, ref, project=""):
-        with self._lock:
-            _ensure_task_projection(self._store)
-            return self._legacy_result(self._store.task_get(ref, project=self._project(project)))
+        return self._legacy_result(self._store.task_get(ref, project=self._project(project)))
 
     def task_list(self, project="", status="", assignee=""):
-        with self._lock:
-            _ensure_task_projection(self._store)
-            return self._legacy_result(self._store.task_list(
-                project=self._project(project), status=status, assignee=assignee,
-            ))
+        return self._legacy_result(self._store.task_list(
+            project=self._project(project), status=status, assignee=assignee,
+        ))
 
     def link_commits_to_task(self, task_ref, commits, project_id, expected_head=None):
         with self._lock:
@@ -421,6 +431,9 @@ class KnowledgeRuntime:
         self._task_projects = self._task_project_ids()
         self._evidence_records_cache: list[dict[str, Any]] | None = None
         self.knowledge_service = None
+        self._projection_writer_lock = threading.Lock()
+        self._projection_repair_task = None
+        self._projection_repair_required = False
         self.task_store = self._task_store()
         if self.state.get("active_owner") == "legacy" and self.state.get("generation") == 2:
             self.task_store.reconcile_legacy_tasks(self._task_snapshot()["tasks"])
@@ -639,7 +652,12 @@ class KnowledgeRuntime:
             head_writer=self._record_task_head,
         )
 
-    def _record_task_head(self, head: str) -> None:
+    def _record_task_head(
+        self,
+        head: str,
+        *,
+        changed_records: Sequence[Mapping[str, Any]] | None = None,
+    ) -> None:
         evidence = [
             {
                 key: value
@@ -654,11 +672,40 @@ class KnowledgeRuntime:
             "knowledge_head": knowledge_head,
             "evidence": sorted(evidence, key=lambda item: (item["project_id"], item["stable_id"])),
         })).hexdigest()
+        prior_projection_head = str(self.state.get("projection_head") or "")
         self.state["canonical_head"] = combined
-        self.state["projection_head"] = combined
         self._save_state()
         self._commit_canonical("update canonical task generation")
-        self._refresh_current_projection()
+        from app.ia.projections import ProjectionDebtError, SQLiteProjectionBackend
+
+        try:
+            if changed_records:
+                lock = getattr(self, "_projection_writer_lock", None)
+                if lock is None:
+                    lock = self._projection_writer_lock = threading.Lock()
+                with lock:
+                    SQLiteProjectionBackend(
+                        path=self.paths["current_projection"]
+                    ).update_current_records(
+                        records=changed_records,
+                        deleted_record_keys=[],
+                        expected_head=prior_projection_head,
+                        canonical_head=combined,
+                    )
+            else:
+                self._refresh_current_projection()
+        except (sqlite3.Error, ProjectionDebtError) as error:
+            self._record_debt({
+                "reason": "current_projection_update_failed",
+                "expected_head": combined,
+                "observed_head": prior_projection_head,
+                "exception_type": type(error).__name__,
+                "message": str(error),
+            })
+            return
+        if changed_records:
+            self.state["projection_head"] = combined
+            self._save_state()
 
     def _record_debt(self, debt: Mapping[str, Any]) -> None:
         identity = copy.deepcopy(dict(debt))
@@ -1068,63 +1115,123 @@ class KnowledgeRuntime:
             records.append(value)
         return records
 
-    def _refresh_current_projection(self) -> None:
+    def _refresh_current_projection(self) -> dict[str, Any]:
+        """Admit startup from the O(1) projection receipt only.
+
+        Full validation and replacement are explicit repair work.  Keeping that
+        work out of this seam ensures the application can become ready while a
+        large or damaged projection is repaired in the background.
+        """
+
+        from app.ia.projections import SQLiteProjectionBackend
+
+        path = self.paths["current_projection"]
+        try:
+            backend = SQLiteProjectionBackend(path=path)
+            receipt = backend.current_receipt(self.state["canonical_head"])
+        except sqlite3.Error:
+            receipt = {
+                "status": "unsealed",
+                "projection_head": None,
+                "expected_head": self.state["canonical_head"],
+            }
+        status = str(receipt.get("status") or "unsealed")
+        if status == "verified":
+            self._projection_repair_required = False
+            return {"repair_required": False, "receipt": receipt}
+        self._projection_repair_required = True
+        reason = (
+            "projection_head_mismatch"
+            if status == "head_mismatch"
+            else "projection_receipt_unsealed"
+        )
+        self._record_debt({
+            "reason": reason,
+            "expected_head": self.state["canonical_head"],
+            "observed_head": receipt.get("projection_head"),
+        })
+        return {"repair_required": True, "receipt": receipt}
+
+    @property
+    def projection_repair_required(self) -> bool:
+        return self._projection_repair_required
+
+    def schedule_projection_repair(self):
+        """Own at most one repair task; the caller decides when readiness is published."""
+
+        task = getattr(self, "_projection_repair_task", None)
+        if not getattr(self, "_projection_repair_required", False) or task is not None:
+            return task
+        self._projection_repair_task = asyncio.create_task(
+            asyncio.to_thread(self._repair_current_projection)
+        )
+        return self._projection_repair_task
+
+    def _repair_current_projection(self) -> dict[str, Any]:
+        """Run the existing #405 validation/rebuild path under one writer lock."""
+
         from app.ia.projections import SQLiteProjectionBackend
 
         path = self.paths["current_projection"]
         trim_after_refresh = False
-        try:
-            backend = SQLiteProjectionBackend(path=path)
-            sealed = backend.seal_current_resources(
-                resource_records=self._retained_evidence_records(),
-                canonical_head=self.state["canonical_head"],
-            )
-            if sealed is not None:
-                return
-            trim_after_refresh = True
-            retained = backend.replace_current_retaining_resources(
-                records=self._mutable_projection_records(),
-                resource_records=self._retained_evidence_records(),
-                canonical_head=self.state["canonical_head"],
-            )
-            if retained is not None:
-                return
-            backend.replace_current(
-                records=self._projection_records(),
-                canonical_head=self.state["canonical_head"],
-            )
-        except sqlite3.Error:
-            trim_after_refresh = True
-            temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.rebuild")
+        lock = getattr(self, "_projection_writer_lock", None)
+        if lock is None:
+            lock = self._projection_writer_lock = threading.Lock()
+        with lock:
             try:
-                SQLiteProjectionBackend(path=temporary).replace_current(
+                backend = SQLiteProjectionBackend(path=path)
+                sealed = backend.seal_current_resources(
+                    resource_records=self._retained_evidence_records(),
+                    canonical_head=self.state["canonical_head"],
+                )
+                if sealed is not None:
+                    return {"repair_required": False, "result": sealed}
+                trim_after_refresh = True
+                retained = backend.replace_current_retaining_resources(
+                    records=self._mutable_projection_records(),
+                    resource_records=self._retained_evidence_records(),
+                    canonical_head=self.state["canonical_head"],
+                )
+                if retained is not None:
+                    return {"repair_required": False, "result": retained}
+                result = backend.replace_current(
                     records=self._projection_records(),
                     canonical_head=self.state["canonical_head"],
                 )
-                with sqlite3.connect(temporary) as connection:
-                    connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-                    mode = str(connection.execute(
-                        "PRAGMA journal_mode=DELETE"
-                    ).fetchone()[0]).lower()
-                    if mode != "delete":
-                        raise sqlite3.DatabaseError(
-                            "temporary current projection did not leave WAL mode"
-                        )
-                    if connection.execute("PRAGMA quick_check").fetchone()[0] != "ok":
-                        raise sqlite3.DatabaseError(
-                            "temporary current projection failed quick_check"
-                        )
-                for suffix in ("-journal", "-wal", "-shm"):
-                    Path(f"{path}{suffix}").unlink(missing_ok=True)
-                os.replace(temporary, path)
+                return {"repair_required": False, "result": result}
+            except sqlite3.Error:
+                trim_after_refresh = True
+                temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.rebuild")
+                try:
+                    result = SQLiteProjectionBackend(path=temporary).replace_current(
+                        records=self._projection_records(),
+                        canonical_head=self.state["canonical_head"],
+                    )
+                    with sqlite3.connect(temporary) as connection:
+                        connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                        mode = str(connection.execute(
+                            "PRAGMA journal_mode=DELETE"
+                        ).fetchone()[0]).lower()
+                        if mode != "delete":
+                            raise sqlite3.DatabaseError(
+                                "temporary current projection did not leave WAL mode"
+                            )
+                        if connection.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                            raise sqlite3.DatabaseError(
+                                "temporary current projection failed quick_check"
+                            )
+                    for suffix in ("-journal", "-wal", "-shm"):
+                        Path(f"{path}{suffix}").unlink(missing_ok=True)
+                    os.replace(temporary, path)
+                    return {"repair_required": False, "result": result}
+                finally:
+                    for suffix in ("", "-journal", "-wal", "-shm"):
+                        Path(f"{temporary}{suffix}").unlink(missing_ok=True)
             finally:
-                for suffix in ("", "-journal", "-wal", "-shm"):
-                    Path(f"{temporary}{suffix}").unlink(missing_ok=True)
-        finally:
-            if trim_after_refresh:
-                from app.native_memory import trim_native_heap
+                if trim_after_refresh:
+                    from app.native_memory import trim_native_heap
 
-                trim_native_heap("knowledge projection refresh")
+                    trim_native_heap("knowledge projection refresh")
 
     def _query_evidence(self, project_id: str, text: str, limit: int) -> tuple[list[dict], list[dict]]:
         project_knowledge = getattr(self, "project_knowledge", None)

@@ -144,3 +144,63 @@ def test_canonical_completion_failure_replays_to_both_stores(tmp_path, monkeypat
     assert legacy["completed_at"]
     assert canonical["status"] == "done"
     assert canonical["completed_at"]
+
+
+def test_sync_revision_debt_does_not_fail_completion(tmp_path, monkeypatch):
+    from app import tm
+
+    task = _task_state()
+    payload = _finalization(task)
+    monkeypatch.setattr(
+        tm,
+        "api_update_task_if_current",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "new_status": "done",
+            "updated": ["status"],
+            "shadow_match": False,
+            "projection_debt": {
+                "mismatches": {
+                    "sync_revision": {"canonical": 2, "legacy": 3},
+                },
+            },
+        },
+    )
+
+    with _shadow_store(tmp_path):
+        result = tm.finalize_merge_outcome(payload)
+
+    assert result["ok"] is True
+    assert payload["task_status"]["ok"] is True
+
+
+def test_finalization_failure_describes_projection_mismatch(tmp_path, monkeypatch):
+    from app import tm
+
+    task = _task_state()
+    payload = _finalization(task)
+    monkeypatch.setattr(
+        tm,
+        "api_update_task_if_current",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "new_status": "done",
+            "updated": ["status"],
+            "shadow_match": False,
+            "projection_debt": {
+                "mismatches": {
+                    "status": {"canonical": "in_progress", "legacy": "done"},
+                },
+            },
+        },
+    )
+
+    with _shadow_store(tmp_path), pytest.raises(RuntimeError) as raised:
+        tm.finalize_merge_outcome(payload)
+
+    detail = str(raised.value)
+    assert "status" in detail
+    assert "canonical" in detail
+    assert "in_progress" in detail
+    assert "legacy" in detail
+    assert "done" in detail

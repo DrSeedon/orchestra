@@ -1,0 +1,22 @@
+```json
+{
+  "state_patch": {
+    "current_facts": {
+      "PC01-E02": {
+        "status": "confirmed",
+        "text": "current.db is the lexical FTS projection without embeddings; data/vec.db is the real unused vector store."
+      }
+    },
+    "decisions": {
+      "DELETE_CURRENT_DB": {
+        "status": "rejected",
+        "because": "It targets the lexical FTS projection rather than the unused vector store."
+      }
+    },
+    "next_action": "continue"
+  },
+  "action": {
+    "kind": "continue"
+  }
+}
+```

@@ -1,0 +1,25 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_t2_luna_positive_control_green_before_calibration ____________
+
+    def test_t2_luna_positive_control_green_before_calibration() -> None:
+        assert RECEIPT.is_file(), "T2 missing live Luna positive-control receipt"
+        assert RAW.is_file(), "T2 missing positive-control raw receipt"
+        data = json.loads(RECEIPT.read_text(encoding="utf-8"))
+        spec = json.loads(SPEC.read_text(encoding="utf-8"))
+        records = [json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines() if line.strip()]
+        assert data["schema"] == "skillstate430-luna-positive-control-v2"
+        assert data["spec_sha256"] == sha256(SPEC)
+        assert data["raw_receipts_sha256"] == sha256(RAW)
+        assert data["model"] == "gpt-5.6-luna"
+        assert data["case_id"] == spec["positive_control"]["case_id"]
+        assert data["step_count"] == len(spec["positive_control"]["steps"]) == 3
+>       assert data["completed_three_arm_cases"] == 1
+E       assert 0 == 1
+
+docs/tasks/430/acceptance/test_t2_luna_positive_control.py:30: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/430/acceptance/test_t2_luna_positive_control.py::test_t2_luna_positive_control_green_before_calibration
+1 failed in 1.01s
+
+RC=1

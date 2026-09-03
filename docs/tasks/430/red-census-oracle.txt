@@ -1,0 +1,16 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_t4_census_oracle_rejects_arbitrary_well_formed_cohort __________
+
+    def test_t4_census_oracle_rejects_arbitrary_well_formed_cohort() -> None:
+        guard = globals().get("_assert_census_selection")
+>       assert guard is not None, "T4 census rebuild guard missing"
+E       AssertionError: T4 census rebuild guard missing
+E       assert None is not None
+
+docs/tasks/430/acceptance/test_t4_luna_main_benchmark.py:29: AssertionError
+=========================== short test summary info ============================
+FAILED docs/tasks/430/acceptance/test_t4_luna_main_benchmark.py::test_t4_census_oracle_rejects_arbitrary_well_formed_cohort
+1 failed in 0.51s
+
+RC=1
