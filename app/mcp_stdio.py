@@ -2779,11 +2779,13 @@ async def switch_worker_branch(
     task_id: str,
     from_ref: str = "",
     force: bool = False,
+    promote_current: bool = False,
     owned_dirs: str = "",
 ) -> str:
     """After merge, switch worker to a new branch for a new task.
     from_ref — optional local base override; empty uses the worker's persisted base.
     force=True explicitly discards committed content not verified in the base.
+    promote_current=True preserves and assigns committed taskless adhoc work.
     owned_dirs — optional JSON array replacing the worker's ownership on a new task;
     omitted or [] clears it.
     Worker must be idle with clean working tree."""
@@ -2792,6 +2794,7 @@ async def switch_worker_branch(
         "task_id": task_id,
         "from_ref": from_ref,
         "force": force,
+        "promote_current": promote_current,
     }
     if owned_dirs:
         try:
@@ -2805,6 +2808,12 @@ async def switch_worker_branch(
                         json=payload)
     if isinstance(result, dict) and result.get("error"):
         return f"Switch failed: {result['error']}"
+    if (
+        isinstance(result, dict)
+        and result.get("ok")
+        and result.get("state") == "promoted_current_work"
+    ):
+        return f"Promoted current work to branch {result.get('branch', '?')}"
     if isinstance(result, dict) and result.get("ok"):
         return f"Switched to branch {result.get('branch', '?')}"
     if isinstance(result, dict) and result.get("conflicts"):

@@ -2050,6 +2050,213 @@ def branch_content_status(worktree_path: str, base_ref: str) -> dict:
         return {"error": f"git content check failed: {type(e).__name__}: {e}"}
 
 
+def promote_worktree_branch(
+    worktree_path: str,
+    new_branch: str,
+    *,
+    from_ref: str,
+    expected_branch: str,
+    expected_head: str,
+) -> dict:
+    """Rename taskless adhoc work without moving its committed HEAD."""
+    wt = Path(worktree_path).resolve()
+    repo = _resolve_repo(str(wt), str(wt))
+    with repo_mutation_lock(repo):
+        from_ref = resolve_base_branch(str(repo), from_ref)
+        worker_name = new_branch.rsplit("/", 1)[-1]
+        if (
+            not expected_branch.startswith("adhoc-")
+            or expected_branch.rsplit("/", 1)[-1] != worker_name
+        ):
+            return {
+                "ok": False,
+                "state": "not_taskless_adhoc",
+                "error": f"branch '{expected_branch}' is not an adhoc branch for {worker_name}",
+            }
+        valid = _git_cmd(
+            ["git", "check-ref-format", "--branch", new_branch],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        if valid.returncode != 0:
+            return {
+                "ok": False,
+                "state": "invalid_target_branch",
+                "error": f"invalid branch '{new_branch}': {valid.stderr.strip()}",
+            }
+        status = _git_cmd(
+            ["git", "status", "--porcelain"], cwd=str(wt),
+            capture_output=True, text=True,
+        )
+        if status.returncode != 0:
+            detail = status.stderr.strip() or status.stdout.strip()
+            return {"ok": False, "state": "git_status_failed", "error": detail}
+        if status.stdout.strip():
+            return {
+                "ok": False,
+                "state": "dirty_worktree",
+                "error": "dirty working tree — commit or discard first",
+            }
+        try:
+            actual_branch, actual_head = inspect_worktree_identity(str(wt))
+        except RuntimeError as error:
+            return {"ok": False, "state": "identity_unavailable", "error": str(error)}
+        if actual_branch != expected_branch or actual_head != expected_head:
+            return {
+                "ok": False,
+                "state": "identity_changed",
+                "error": (
+                    f"worker identity changed: expected {expected_branch}@{expected_head}, "
+                    f"found {actual_branch}@{actual_head}"
+                ),
+                "branch": actual_branch,
+                "head": actual_head,
+            }
+        try:
+            target_head = _inspect_branch_ref(repo, new_branch)
+        except RuntimeError as error:
+            return {"ok": False, "state": "target_inspection_failed", "error": str(error)}
+        if target_head is not None:
+            return {
+                "ok": False,
+                "state": "target_branch_exists",
+                "error": f"branch '{new_branch}' already exists at {target_head}",
+                "branch": expected_branch,
+                "head": expected_head,
+            }
+        content = branch_content_status(str(wt), from_ref)
+        if content.get("error"):
+            return {
+                "ok": False,
+                "state": "content_check_failed",
+                "error": str(content["error"]),
+                "branch": expected_branch,
+                "head": expected_head,
+            }
+        if content.get("commits_ahead", 0) <= 0 or content.get("content_merged"):
+            return {
+                "ok": False,
+                "state": "no_unmerged_work",
+                "error": "current adhoc branch has no unmerged committed work to promote",
+                "branch": expected_branch,
+                "head": expected_head,
+                "commits_ahead": content.get("commits_ahead", 0),
+                "reason": content.get("reason", ""),
+            }
+        renamed = _git_cmd(
+            ["git", "branch", "-m", new_branch], cwd=str(wt),
+            capture_output=True, text=True,
+        )
+        if renamed.returncode != 0:
+            detail = renamed.stderr.strip() or renamed.stdout.strip()
+            return {
+                "ok": False,
+                "state": "promotion_failed",
+                "error": f"branch promotion failed: {detail}",
+                "branch": expected_branch,
+                "head": expected_head,
+            }
+        try:
+            promoted_branch, promoted_head = inspect_worktree_identity(str(wt))
+            old_head = _inspect_branch_ref(repo, expected_branch)
+            new_head = _inspect_branch_ref(repo, new_branch)
+        except RuntimeError as error:
+            return {
+                "ok": False,
+                "state": "rollback_failed",
+                "error": f"branch promoted but verification failed: {error}",
+                "branch": new_branch,
+                "head": expected_head,
+            }
+        if (
+            promoted_branch != new_branch
+            or promoted_head != expected_head
+            or new_head != expected_head
+            or old_head is not None
+        ):
+            return {
+                "ok": False,
+                "state": "rollback_failed",
+                "error": "branch promotion verification failed; promoted ref was preserved",
+                "branch": promoted_branch,
+                "head": promoted_head,
+            }
+        return {
+            "ok": True,
+            "state": "promoted_current_work",
+            "previous_branch": expected_branch,
+            "branch": new_branch,
+            "head": expected_head,
+            "commits_ahead": content["commits_ahead"],
+            "reason": content["reason"],
+        }
+
+
+def rollback_promoted_worktree_branch(
+    worktree_path: str,
+    *,
+    promoted_branch: str,
+    previous_branch: str,
+    expected_head: str,
+) -> dict:
+    """Undo only a promotion whose checked-out ref still owns the pinned HEAD."""
+    wt = Path(worktree_path).resolve()
+    repo = _resolve_repo(str(wt), str(wt))
+    with repo_mutation_lock(repo):
+        try:
+            actual_branch, actual_head = inspect_worktree_identity(str(wt))
+            previous_head = _inspect_branch_ref(repo, previous_branch)
+        except RuntimeError as error:
+            return {"ok": False, "state": "rollback_failed", "error": str(error)}
+        if actual_branch == previous_branch and actual_head == expected_head:
+            return {"ok": True, "state": "already_rolled_back", "branch": previous_branch,
+                    "head": expected_head}
+        if (
+            actual_branch != promoted_branch
+            or actual_head != expected_head
+            or previous_head is not None
+        ):
+            return {
+                "ok": False,
+                "state": "rollback_failed",
+                "error": "promotion ownership changed; preserving all refs",
+                "branch": actual_branch,
+                "head": actual_head,
+            }
+        renamed = _git_cmd(
+            ["git", "branch", "-m", previous_branch], cwd=str(wt),
+            capture_output=True, text=True,
+        )
+        if renamed.returncode != 0:
+            detail = renamed.stderr.strip() or renamed.stdout.strip()
+            return {
+                "ok": False,
+                "state": "rollback_failed",
+                "error": f"promotion rollback failed: {detail}",
+                "branch": promoted_branch,
+                "head": expected_head,
+            }
+        try:
+            actual_branch, actual_head = inspect_worktree_identity(str(wt))
+        except RuntimeError as error:
+            return {
+                "ok": False,
+                "state": "rollback_failed",
+                "error": f"promotion rollback verification failed: {error}",
+                "branch": previous_branch,
+                "head": expected_head,
+            }
+        if actual_branch != previous_branch or actual_head != expected_head:
+            return {
+                "ok": False,
+                "state": "rollback_failed",
+                "error": "promotion rollback verification failed; current ref was preserved",
+                "branch": actual_branch,
+                "head": actual_head,
+            }
+        return {"ok": True, "state": "rolled_back", "branch": previous_branch,
+                "head": expected_head}
+
+
 def switch_worktree_branch(worktree_path: str, new_branch: str,
                            from_ref: str = "",
                            force: bool = False,

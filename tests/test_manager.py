@@ -56,22 +56,16 @@ class TestCreateSession:
     async def test_planned_initial_turn_is_refused_before_session_publish(
         self, mgr, monkeypatch,
     ):
-        from app.quota_gate import QuotaGateError, evaluate_worker_admission
+        from app.quota_gate import QuotaDecision, QuotaGateError
 
         async def blocked(_model, observation_loader=None):
             now = datetime.now(timezone.utc).timestamp()
-            # Середина недельного окна: линия 55.5%, факт 95% — выше неё.
-            reset_at = datetime.fromtimestamp(
-                now + 10080 * 60 / 2, timezone.utc,
-            ).isoformat()
-            return evaluate_worker_admission(
-                "claude-sonnet-5[1m]",
-                {"anthropic": {"label": "Claude", "windows": [{
-                    "id": "seven_day", "window_minutes": 10080,
-                    "utilization": 95, "resets_at": reset_at,
-                }]}},
-                {"anthropic": now},
-                now=now,
+            return QuotaDecision(
+                state="blocked", model="claude-sonnet-5[1m]",
+                provider="anthropic", provider_label="Claude", lane="claude",
+                gated=True, utilization=95, progress=0.5, tolerance_pp=5.5,
+                limit_pct=55.5, observed_at=now, valid_until=now + 60,
+                reset_at=None, window_starts_at=None, reason="test refusal",
             )
 
         monkeypatch.setattr("app.quota_gate.get_worker_admission", blocked)
