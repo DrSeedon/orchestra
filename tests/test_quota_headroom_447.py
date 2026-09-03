@@ -134,7 +134,10 @@ def test_usage_bar_renders_worker_headroom_from_quota_map(browser):
                     "utilization": 30,
                     "resets_at": "2099-01-01T00:00:00+00:00",
                 },
-                "lanes": [{"lane": "claude", "gated": True, "headroom_pp": 25.5}],
+                    "lanes": [{
+                        "lane": "claude", "gated": True, "headroom_pp": 25.5,
+                        "release_status": "opens_in", "release_in_seconds": 3540,
+                    }],
             },
             {
                 "bucket": "codex",
@@ -147,7 +150,10 @@ def test_usage_bar_renders_worker_headroom_from_quota_map(browser):
                     "resets_at": "2099-01-01T00:00:00+00:00",
                 },
                 "lanes": [
-                    {"lane": "sol", "label": "Sol", "gated": True, "headroom_pp": -8.7},
+                    {
+                        "lane": "sol", "label": "Sol", "gated": True, "headroom_pp": -8.7,
+                        "release_status": "opens_in", "release_in_seconds": 3540,
+                    },
                     {"lane": "luna", "label": "Luna", "gated": False, "headroom_pp": None},
                 ],
             },
@@ -170,11 +176,27 @@ def test_usage_bar_renders_worker_headroom_from_quota_map(browser):
         "([usage, quota]) => { _usageData = usage; _quotaMapData = quota; renderUsageBar(); }",
         [usage, quota_map],
     )
-    expect(page.locator("#usage-bar")).to_contain_text(
-        "воркеры Claude: запас 25.5 п.п. до порога",
+    assert page.locator('[data-quota-headroom="true"]').all_text_contents() == [
+        "🎯 +25.5",
+        "🎯 −8.7 · 🕐 59m",
+    ]
+    expect(page.locator("#usage-bar")).not_to_contain_text("воркеры")
+    expect(page.locator("#usage-bar")).not_to_contain_text("запас")
+    expect(page.locator("#usage-bar")).not_to_contain_text("порог пройден")
+    expect(page.locator("#usage-bar")).not_to_contain_text("откроется через")
+
+    page.evaluate("""() => {
+        const lane = _quotaMapData.buckets[0].lanes[0];
+        lane.headroom_pp = null;
+        lane.release_status = 'opens_in';
+        lane.release_in_seconds = 3540;
+        renderUsageBar();
+    }""")
+    expect(page.locator('[data-usage-compact-provider="claude"]')).to_contain_text(
+        "откроется через 59m",
     )
-    expect(page.locator("#usage-bar")).to_contain_text(
-        "воркеры Sol: порог пройден, запас -8.7 п.п.",
-    )
-    expect(page.locator("#usage-bar")).not_to_contain_text("воркеры Luna")
+    assert page.locator('[data-quota-headroom="true"]').all_text_contents() == [
+        "🎯 −8.7 · 🕐 59m",
+    ]
+    expect(page.locator("#usage-bar")).not_to_contain_text("🎯 +0.0")
     page.close()

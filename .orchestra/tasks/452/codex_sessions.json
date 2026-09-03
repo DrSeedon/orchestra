@@ -1,0 +1,11 @@
+{
+  "sessions": {
+    "codex-review-impl": {
+      "uuid": "01a06634-3207-74a3-8334-c7af346f190b",
+      "started": "2026-09-03T07:41:31Z",
+      "last_used": "2026-09-03T07:44:32Z",
+      "turns": 2,
+      "reviewer_model": "gpt-5.6-luna"
+    }
+  }
+}
