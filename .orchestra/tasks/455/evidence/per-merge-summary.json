@@ -1,0 +1,2115 @@
+{
+  "ambient_count": 39,
+  "explicit_count": 3,
+  "frozen_main": "dcfb3538214760fe2ceee43e2cd42611c54cd407",
+  "row_count": 42,
+  "rows": [
+    {
+      "app_python_additions": 79,
+      "app_python_deletions": 15,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-04T04:47:06.664224+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "0a02776e5a074bf3a97af5cf7f76bc7aef1d2fb6",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/tg_bridge.py": {
+          "additions": 79,
+          "deletions": 15
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#141: #141: tool-сообщения в TG доходят все",
+      "target": "e5d74a78f320e1c4a285e073131abf397ff8e9da",
+      "task_id": "",
+      "task_title": "",
+      "worker_name": "frontend"
+    },
+    {
+      "app_python_additions": 94,
+      "app_python_deletions": 15,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-05T11:27:47.617288+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "4eef892c467253216100194953ce6a21ec879066",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/prompting.py": {
+          "additions": 56,
+          "deletions": 12
+        },
+        "app/session.py": {
+          "additions": 29,
+          "deletions": 1
+        },
+        "app/workspace.py": {
+          "additions": 9,
+          "deletions": 2
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#149: #149: research — скиллы не доезжают до живых агентов (22 протухших копии, 16 оркестраторов без доставки)",
+      "target": "cc9e2262a7f7404e70a93b8b7c83555ad37952eb",
+      "task_id": "",
+      "task_title": "",
+      "worker_name": "prompt-engineer"
+    },
+    {
+      "app_python_additions": 60,
+      "app_python_deletions": 26,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-05T12:05:06.978600+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "cc9e2262a7f7404e70a93b8b7c83555ad37952eb",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/prompting.py": {
+          "additions": 32,
+          "deletions": 13
+        },
+        "app/runtime_registry.py": {
+          "additions": 19,
+          "deletions": 7
+        },
+        "app/session.py": {
+          "additions": 8,
+          "deletions": 5
+        },
+        "app/workspace.py": {
+          "additions": 1,
+          "deletions": 1
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#151: #151: research — Codex 0.145.0 читает проектный .codex/skills, gate пройден",
+      "target": "b90ee997e292669819c9bc848acba8c7116eb312",
+      "task_id": "",
+      "task_title": "",
+      "worker_name": "prompt-engineer"
+    },
+    {
+      "app_python_additions": 58,
+      "app_python_deletions": 12,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-05T13:10:11.855864+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "cc0a9dfa6c23534603344b481d05ad6161a81e09",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/tg_bridge.py": {
+          "additions": 26,
+          "deletions": 0
+        },
+        "app/usage_analytics.py": {
+          "additions": 32,
+          "deletions": 12
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#153: #153: split background Bash from real subagents in analytics and TG",
+      "target": "b68e154d8d5d2c525a2a76f625b83ebaa2267b8e",
+      "task_id": "",
+      "task_title": "",
+      "worker_name": "frontend"
+    },
+    {
+      "app_python_additions": 40,
+      "app_python_deletions": 1,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-05T14:55:32.379538+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "e5448cb5d37f95ce8f04edd717e433eb2b2e4d21",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/limit_wake.py": {
+          "additions": 30,
+          "deletions": 0
+        },
+        "app/session_turns.py": {
+          "additions": 10,
+          "deletions": 1
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#156: #156: исследование — механизм пробуждения исправен, отсутствует автотриггер",
+      "target": "69266c5ca1d41f04b62254e59a62335fa0d038ef",
+      "task_id": "",
+      "task_title": "",
+      "worker_name": "prompt-engineer"
+    },
+    {
+      "app_python_additions": 40,
+      "app_python_deletions": 7,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-06T07:39:28.553075+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "69266c5ca1d41f04b62254e59a62335fa0d038ef",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/tg_bridge.py": {
+          "additions": 40,
+          "deletions": 7
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#158: #158: тег юзера на границе хода оркестратора, а не на каждой строке text",
+      "target": "b2080cbf0c693c604a796842f4b868cd96e197eb",
+      "task_id": "158",
+      "task_title": "Тег @DrSeedon в финальном сообщении хода оркестратора (TG)",
+      "worker_name": "fix-tg-mention"
+    },
+    {
+      "app_python_additions": 21,
+      "app_python_deletions": 5,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-06T07:47:50.968143+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "61e95a0ee47294e44aeaa770dd464471175a0e31",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/manager.py": {
+          "additions": 8,
+          "deletions": 3
+        },
+        "app/session.py": {
+          "additions": 8,
+          "deletions": 2
+        },
+        "app/session_state.py": {
+          "additions": 5,
+          "deletions": 0
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#160: #160: исследование — graceful shutdown затирает 'running', пробуждение не срабатывает",
+      "target": "63948b2480732322582c50bd506d1ceb37fb5b31",
+      "task_id": "160",
+      "task_title": "После рестарта Orchestra просыпаются не все воркеры",
+      "worker_name": "fix-wake-after-restart"
+    },
+    {
+      "app_python_additions": 97,
+      "app_python_deletions": 4,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-06T12:26:16.201318+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "59e0cfb0e1001cfba2dd9a06db393ab629a9db94",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/mcp_stdio.py": {
+          "additions": 9,
+          "deletions": 1
+        },
+        "app/merge_operations.py": {
+          "additions": 88,
+          "deletions": 3
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#166: #166: воспроизведение — повтор merge_worker с тем же operation_id отдаёт стухший SUCCEEDED",
+      "target": "24bfa13a21469244f47d3eda73a80bdaa3338ae5",
+      "task_id": "166",
+      "task_title": "merge_worker отдаёт SUCCEEDED двухдневной давности: ветка воркера adhoc-* не та, что в worker_branch",
+      "worker_name": "fix-merge-branch-drift"
+    },
+    {
+      "app_python_additions": 101,
+      "app_python_deletions": 64,
+      "clone_added_groups": [
+        {
+          "after_occurrences": 2,
+          "before_occurrences": 0,
+          "changed_lines_before_union": 2,
+          "changed_occurrences": [
+            {
+              "end": 850,
+              "node_types": [
+                "Assign",
+                "Assign",
+                "Assign",
+                "Assign"
+              ],
+              "path": "app/manager.py",
+              "start": 845
+            },
+            {
+              "end": 872,
+              "node_types": [
+                "Assign",
+                "Assign",
+                "Assign",
+                "Assign"
+              ],
+              "path": "app/manager.py",
+              "start": 869
+            }
+          ],
+          "hash": "829b036a8be7bcb5c5239a44f4b3f6438d0896af5608d99cc0be910e710a62ae"
+        },
+        {
+          "after_occurrences": 2,
+          "before_occurrences": 0,
+          "changed_lines_before_union": 2,
+          "changed_occurrences": [
+            {
+              "end": 847,
+              "node_types": [
+                "Assign",
+                "Assign",
+                "Assign",
+                "Assign"
+              ],
+              "path": "app/manager.py",
+              "start": 844
+            },
+            {
+              "end": 871,
+              "node_types": [
+                "Assign",
+                "Assign",
+                "Assign",
+                "Assign"
+              ],
+              "path": "app/manager.py",
+              "start": 868
+            }
+          ],
+          "hash": "cc247c1e804eac735f607487cd87c0d69bc3048f63b521d2bde576e006730d5c"
+        }
+      ],
+      "clone_added_lines_candidate": 2,
+      "clone_removed_lines_candidate": 4,
+      "dead_added_lines_candidate": 1,
+      "dead_removed_lines_candidate": 1,
+      "finished_at": "2026-08-06T13:31:16.160050+00:00",
+      "label": "explicit",
+      "main_ancestry_at_freeze": false,
+      "parent": "24bfa13a21469244f47d3eda73a80bdaa3338ae5",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/backend_claude.py": {
+          "additions": 3,
+          "deletions": 2
+        },
+        "app/errtext.py": {
+          "additions": 25,
+          "deletions": 0
+        },
+        "app/limit_wake.py": {
+          "additions": 4,
+          "deletions": 7
+        },
+        "app/manager.py": {
+          "additions": 15,
+          "deletions": 17
+        },
+        "app/mcp_stdio.py": {
+          "additions": 8,
+          "deletions": 8
+        },
+        "app/merge_operations.py": {
+          "additions": 6,
+          "deletions": 5
+        },
+        "app/routes/sessions.py": {
+          "additions": 7,
+          "deletions": 6
+        },
+        "app/routes/system.py": {
+          "additions": 3,
+          "deletions": 7
+        },
+        "app/session.py": {
+          "additions": 24,
+          "deletions": 5
+        },
+        "app/session_hibernate.py": {
+          "additions": 4,
+          "deletions": 6
+        },
+        "app/tg_bridge.py": {
+          "additions": 2,
+          "deletions": 1
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#167: #167: ошибка обязана назвать себя — один владелец вместо четырёх копий",
+      "target": "4b862eb6e193da39aa7d5332fe4f5140a20eedf4",
+      "task_id": "167",
+      "task_title": "Три молчащих сбоя вокруг пробуждения из гибернации: пустой TimeoutError, потерянный лог, skill refresh",
+      "worker_name": "fix-silent-errors"
+    },
+    {
+      "app_python_additions": 120,
+      "app_python_deletions": 109,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 1,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-13T15:16:26.095646+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "017ca19c0cbb980979bce5059233add44a010f63",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/models.py": {
+          "additions": 120,
+          "deletions": 109
+        }
+      },
+      "persistent_dead_added_candidates": [
+        {
+          "changed_lines": 1,
+          "end": 347,
+          "key": "app.models:unregister_model",
+          "name": "unregister_model",
+          "path": "app/models.py",
+          "qualname": "unregister_model",
+          "start": 341
+        }
+      ],
+      "persistent_dead_added_lines_candidate": 1,
+      "role": "worker",
+      "subject": "#1: #1: единая точка истины для моделей + Opus 4.6 в список выбора",
+      "target": "80eefd5b4294eb5e7495372113760166b637936c",
+      "task_id": "1",
+      "task_title": "test",
+      "worker_name": "fix-model-registry"
+    },
+    {
+      "app_python_additions": 35,
+      "app_python_deletions": 1,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-20T10:06:11.411444+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "e95b0b8fca8cddd0c2670109b77ac25564674d78",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/main.py": {
+          "additions": 12,
+          "deletions": 0
+        },
+        "app/routes/system.py": {
+          "additions": 23,
+          "deletions": 1
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#197: #197: кеш последнего успешного ответа, джиттер ретраев, негативный кеш провайдера",
+      "target": "24d6308d4fabe61cbbe497d8e9e750e304e500db",
+      "task_id": "197",
+      "task_title": "Дашборд должен переживать обрыв соединений: ретраи, кеш, снижение частоты опроса",
+      "worker_name": "fix-dashboard-resilience"
+    },
+    {
+      "app_python_additions": 80,
+      "app_python_deletions": 4,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-23T15:37:13.575797+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "1e8d1d089bec3bdf26738b09e1ce243371331e43",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/acceptance.py": {
+          "additions": 37,
+          "deletions": 0
+        },
+        "app/mcp_stdio.py": {
+          "additions": 6,
+          "deletions": 1
+        },
+        "app/routes/tm.py": {
+          "additions": 13,
+          "deletions": 1
+        },
+        "app/tm.py": {
+          "additions": 24,
+          "deletions": 2
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#279: #279: fix acceptance command contract",
+      "target": "3e4d87982f66ee513b4db76af8dcc00f4a674a70",
+      "task_id": "279",
+      "task_title": "Исправить контракт acceptance_command и его обновление",
+      "worker_name": "fix-acceptance-contract"
+    },
+    {
+      "app_python_additions": 203,
+      "app_python_deletions": 49,
+      "clone_added_groups": [
+        {
+          "after_occurrences": 2,
+          "before_occurrences": 0,
+          "changed_lines_before_union": 4,
+          "changed_occurrences": [
+            {
+              "end": 1527,
+              "node_types": [
+                "Assign",
+                "Assign",
+                "Assign",
+                "Assign"
+              ],
+              "path": "app/manager.py",
+              "start": 1524
+            }
+          ],
+          "hash": "72e9c12921de148e347e10fcf3dde16fe690fa40dbf7a08a00b2d18ec1e27b43"
+        }
+      ],
+      "clone_added_lines_candidate": 4,
+      "clone_removed_lines_candidate": 8,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-23T16:13:43.888993+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "150e696e0347ec720bf3bd144d6a12fe90671f75",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/manager.py": {
+          "additions": 162,
+          "deletions": 21
+        },
+        "app/mcp_stdio.py": {
+          "additions": 18,
+          "deletions": 6
+        },
+        "app/routes/sessions.py": {
+          "additions": 23,
+          "deletions": 22
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#293: #293: freeze ownership lifecycle red tests",
+      "target": "e2ecc033da7faf482f476037c10acf9fe75c6b79",
+      "task_id": "293",
+      "task_title": "Сбрасывать owned_dirs при смене задачи воркера",
+      "worker_name": "fix-owned-dirs-lifecycle"
+    },
+    {
+      "app_python_additions": 31,
+      "app_python_deletions": 5,
+      "clone_added_groups": [
+        {
+          "after_occurrences": 2,
+          "before_occurrences": 0,
+          "changed_lines_before_union": 4,
+          "changed_occurrences": [
+            {
+              "end": 1593,
+              "node_types": [
+                "Assign",
+                "Assign",
+                "Assign",
+                "Assign"
+              ],
+              "path": "app/backend_codex.py",
+              "start": 1590
+            }
+          ],
+          "hash": "4e5d811394a91b29b95c6d0e38758cc1523d55bc77c5e478b0b3a8b28415f5e6"
+        },
+        {
+          "after_occurrences": 2,
+          "before_occurrences": 0,
+          "changed_lines_before_union": 4,
+          "changed_occurrences": [
+            {
+              "end": 1594,
+              "node_types": [
+                "Assign",
+                "Assign",
+                "Assign",
+                "Assign"
+              ],
+              "path": "app/backend_codex.py",
+              "start": 1591
+            }
+          ],
+          "hash": "804852139516648d365ab0256efaa0ab42861ff01b23897aefd95a9363db6c89"
+        }
+      ],
+      "clone_added_lines_candidate": 5,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T07:19:17.164477+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "30ac8c87fb5b655d05610581250a60dfe272e8e4",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/backend_codex.py": {
+          "additions": 27,
+          "deletions": 5
+        },
+        "app/session.py": {
+          "additions": 4,
+          "deletions": 0
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#319: #319: port bounded Codex cleanup onto current main",
+      "target": "db8708aaa274d10048a6b573d12e3845af8c53c0",
+      "task_id": "319",
+      "task_title": "Перенести дельту #306 на актуальный main без старой истории",
+      "worker_name": "fix-codex-oversize-terminal"
+    },
+    {
+      "app_python_additions": 17,
+      "app_python_deletions": 1735,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 3,
+      "finished_at": "2026-08-24T07:33:26.540950+00:00",
+      "label": "explicit",
+      "main_ancestry_at_freeze": true,
+      "parent": "db8708aaa274d10048a6b573d12e3845af8c53c0",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/main.py": {
+          "additions": 1,
+          "deletions": 29
+        },
+        "app/mcp_stdio.py": {
+          "additions": 0,
+          "deletions": 25
+        },
+        "app/proxy_manager.py": {
+          "additions": 0,
+          "deletions": 148
+        },
+        "app/routes/proxy.py": {
+          "additions": 0,
+          "deletions": 86
+        },
+        "app/routes/sessions.py": {
+          "additions": 0,
+          "deletions": 27
+        },
+        "app/routes/system.py": {
+          "additions": 0,
+          "deletions": 7
+        },
+        "app/routes/tm.py": {
+          "additions": 0,
+          "deletions": 99
+        },
+        "app/runtime_env.py": {
+          "additions": 3,
+          "deletions": 3
+        },
+        "app/ssh_tunnel.py": {
+          "additions": 0,
+          "deletions": 225
+        },
+        "app/tm.py": {
+          "additions": 13,
+          "deletions": 509
+        },
+        "app/tm_import_yougile.py": {
+          "additions": 0,
+          "deletions": 214
+        },
+        "app/tm_yougile.py": {
+          "additions": 0,
+          "deletions": 363
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#309: #309: freeze phase2 deletion oracles",
+      "target": "9f946a60170db7aef8a547a40b7b239cd52ebc8d",
+      "task_id": "",
+      "task_title": "",
+      "worker_name": "research-feature-pruning"
+    },
+    {
+      "app_python_additions": 676,
+      "app_python_deletions": 0,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 234,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T09:13:43.303787+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "e26dcde8527def1d92ab3b2398e12822deeb1c00",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/__init__.py": {
+          "additions": 1,
+          "deletions": 0
+        },
+        "app/ia/namespace.py": {
+          "additions": 162,
+          "deletions": 0
+        },
+        "app/ia/schema.py": {
+          "additions": 513,
+          "deletions": 0
+        }
+      },
+      "persistent_dead_added_candidates": [
+        {
+          "changed_lines": 7,
+          "end": 210,
+          "key": "app.ia.schema:classify_private_fields",
+          "name": "classify_private_fields",
+          "path": "app/ia/schema.py",
+          "qualname": "classify_private_fields",
+          "start": 204
+        },
+        {
+          "changed_lines": 14,
+          "end": 507,
+          "key": "app.ia.schema:canonical_bytes",
+          "name": "canonical_bytes",
+          "path": "app/ia/schema.py",
+          "qualname": "canonical_bytes",
+          "start": 494
+        },
+        {
+          "changed_lines": 4,
+          "end": 513,
+          "key": "app.ia.schema:canonical_content_head",
+          "name": "canonical_content_head",
+          "path": "app/ia/schema.py",
+          "qualname": "canonical_content_head",
+          "start": 510
+        }
+      ],
+      "persistent_dead_added_lines_candidate": 25,
+      "role": "worker",
+      "subject": "#315, #335: #315: add Russian information architecture explainer",
+      "target": "d19f68cfce031845b005ad696c49f50873bb7cd1",
+      "task_id": "335",
+      "task_title": "#315 T1 — typed namespace, record schema и private projection boundary",
+      "worker_name": "impl315-t1-sol"
+    },
+    {
+      "app_python_additions": 1585,
+      "app_python_deletions": 36,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T14:40:43.643593+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "4f633d04bae2c59f9a0806fd28ad4708a3f93898",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/db.py": {
+          "additions": 109,
+          "deletions": 0
+        },
+        "app/main.py": {
+          "additions": 11,
+          "deletions": 2
+        },
+        "app/mcp_stdio.py": {
+          "additions": 145,
+          "deletions": 23
+        },
+        "app/routes/tg.py": {
+          "additions": 106,
+          "deletions": 11
+        },
+        "app/tg_bridge.py": {
+          "additions": 40,
+          "deletions": 0
+        },
+        "app/tg_file_deliveries.py": {
+          "additions": 1174,
+          "deletions": 0
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#337: #337: add durable primary TG file receipts",
+      "target": "2fa6662884ecbb1af73f43b7e392283266923426",
+      "task_id": "337",
+      "task_title": "#333 Phase 3 — durable receipt-backed TG file outbox",
+      "worker_name": "impl333-outbox-sol"
+    },
+    {
+      "app_python_additions": 1746,
+      "app_python_deletions": 1,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 171,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T15:11:38.791842+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "499176cc2b456cecc8a0af4fc25909ce9862027c",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/task_store.py": {
+          "additions": 1249,
+          "deletions": 0
+        },
+        "app/tm.py": {
+          "additions": 497,
+          "deletions": 1
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#341: WIP #341: implement TaskStore pending frozen oracle contradiction",
+      "target": "baf501c7209d9a9c696e6e873e60d7f1f78c4320",
+      "task_id": "341",
+      "task_title": "#315 T2 — Git-canonical TaskStore и production shadow wiring",
+      "worker_name": "impl315-t2-sol"
+    },
+    {
+      "app_python_additions": 980,
+      "app_python_deletions": 0,
+      "clone_added_groups": [
+        {
+          "after_occurrences": 2,
+          "before_occurrences": 0,
+          "changed_lines_before_union": 4,
+          "changed_occurrences": [
+            {
+              "end": 99,
+              "node_types": [
+                "Expr",
+                "Assign",
+                "Expr",
+                "Expr"
+              ],
+              "path": "app/ia/knowledge.py",
+              "start": 96
+            }
+          ],
+          "hash": "5c5bafc1d9403894d380459ad1becfb173ea9690e52f93843318906decbc3ae6"
+        }
+      ],
+      "clone_added_lines_candidate": 4,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 84,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T16:01:01.546885+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "80e4711b14a0e4e713f832cf067307f93bcd9d6f",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/events.py": {
+          "additions": 145,
+          "deletions": 0
+        },
+        "app/ia/evidence.py": {
+          "additions": 113,
+          "deletions": 0
+        },
+        "app/ia/knowledge.py": {
+          "additions": 722,
+          "deletions": 0
+        }
+      },
+      "persistent_dead_added_candidates": [
+        {
+          "changed_lines": 8,
+          "end": 701,
+          "key": "app.ia.knowledge:promote_fact",
+          "name": "promote_fact",
+          "path": "app/ia/knowledge.py",
+          "qualname": "promote_fact",
+          "start": 694
+        },
+        {
+          "changed_lines": 19,
+          "end": 722,
+          "key": "app.ia.knowledge:query_facts",
+          "name": "query_facts",
+          "path": "app/ia/knowledge.py",
+          "qualname": "query_facts",
+          "start": 704
+        }
+      ],
+      "persistent_dead_added_lines_candidate": 27,
+      "role": "worker",
+      "subject": "#342: #342: implement evidence-backed fact promotion",
+      "target": "6e5aa86089cc54ee2a1e4a32f55955f102cb9a5f",
+      "task_id": "342",
+      "task_title": "#315 T3 — evidence resolver, fact event log и typed promotion",
+      "worker_name": "impl315-t3-sol"
+    },
+    {
+      "app_python_additions": 26,
+      "app_python_deletions": 1,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T17:24:07.608099+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "a3eb24ce34be014bb957d3c9ef5267d45d44c83f",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/mcp_stdio.py": {
+          "additions": 26,
+          "deletions": 1
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#348: #348: handle send_file version skew",
+      "target": "e22368b06d698b97261cb6dcf359cbbe62ebaf15",
+      "task_id": "348",
+      "task_title": "Совместить новый send_file MCP с дорестартным HTTP 200 и не терять event_id",
+      "worker_name": "fix-send-file-skew-luna"
+    },
+    {
+      "app_python_additions": 357,
+      "app_python_deletions": 35,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T18:51:57.944489+00:00",
+      "label": "explicit",
+      "main_ancestry_at_freeze": true,
+      "parent": "701d86c0ccfa9a61e7eb9d12d03d0497ff84de17",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/knowledge.py": {
+          "additions": 284,
+          "deletions": 35
+        },
+        "app/main.py": {
+          "additions": 2,
+          "deletions": 0
+        },
+        "app/mcp_stdio.py": {
+          "additions": 24,
+          "deletions": 0
+        },
+        "app/routes/knowledge.py": {
+          "additions": 47,
+          "deletions": 0
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#349: WIP #349: implement agent-only knowledge pending oracle decision",
+      "target": "7717ef880d7f83096f61dcb7493dd5a6ccb4bc7c",
+      "task_id": "349",
+      "task_title": "#315 T3b — убрать generated Markdown и дать агентам единый knowledge API",
+      "worker_name": "impl315-t3b-sol"
+    },
+    {
+      "app_python_additions": 800,
+      "app_python_deletions": 6,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T19:37:28.701656+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "4b8913813eaad787a2f355fd8da350a57a458c76",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/knowledge.py": {
+          "additions": 18,
+          "deletions": 0
+        },
+        "app/ia/projections.py": {
+          "additions": 739,
+          "deletions": 0
+        },
+        "app/routes/memory.py": {
+          "additions": 43,
+          "deletions": 6
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#351: WIP #351: implement projections pending oracle setup correction",
+      "target": "568b61e48c2e441349d42be2572d274030bdc607",
+      "task_id": "351",
+      "task_title": "#315 T4 — canonical/projection/indexed heads и stale-safe knowledge query",
+      "worker_name": "impl315-t4-sol"
+    },
+    {
+      "app_python_additions": 462,
+      "app_python_deletions": 0,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 272,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T20:16:18.095484+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "c16fe6f4682cf82ae2fe1ff45efab15195ec2001",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/recovery.py": {
+          "additions": 419,
+          "deletions": 0
+        },
+        "app/manager.py": {
+          "additions": 23,
+          "deletions": 0
+        },
+        "app/session.py": {
+          "additions": 20,
+          "deletions": 0
+        }
+      },
+      "persistent_dead_added_candidates": [
+        {
+          "changed_lines": 18,
+          "end": 101,
+          "key": "app.ia.recovery:redact_private",
+          "name": "redact_private",
+          "path": "app/ia/recovery.py",
+          "qualname": "redact_private",
+          "start": 84
+        },
+        {
+          "changed_lines": 18,
+          "end": 176,
+          "key": "app.ia.recovery:_archive_content_head",
+          "name": "_archive_content_head",
+          "path": "app/ia/recovery.py",
+          "qualname": "_archive_content_head",
+          "start": 159
+        },
+        {
+          "changed_lines": 41,
+          "end": 238,
+          "key": "app.ia.recovery:_existing_archive",
+          "name": "_existing_archive",
+          "path": "app/ia/recovery.py",
+          "qualname": "_existing_archive",
+          "start": 198
+        },
+        {
+          "changed_lines": 27,
+          "end": 267,
+          "key": "app.ia.recovery:_run_extraction",
+          "name": "_run_extraction",
+          "path": "app/ia/recovery.py",
+          "qualname": "_run_extraction",
+          "start": 241
+        },
+        {
+          "changed_lines": 118,
+          "end": 408,
+          "key": "app.ia.recovery:commit_archive",
+          "name": "commit_archive",
+          "path": "app/ia/recovery.py",
+          "qualname": "commit_archive",
+          "start": 291
+        },
+        {
+          "changed_lines": 9,
+          "end": 419,
+          "key": "app.ia.recovery:wait_extraction",
+          "name": "wait_extraction",
+          "path": "app/ia/recovery.py",
+          "qualname": "wait_extraction",
+          "start": 411
+        },
+        {
+          "changed_lines": 22,
+          "end": 1186,
+          "key": "app.manager:SessionManager.commit_session_archive",
+          "name": "commit_session_archive",
+          "path": "app/manager.py",
+          "qualname": "SessionManager.commit_session_archive",
+          "start": 1165
+        },
+        {
+          "changed_lines": 19,
+          "end": 2931,
+          "key": "app.session:AgentSession.commit_archive",
+          "name": "commit_archive",
+          "path": "app/session.py",
+          "qualname": "AgentSession.commit_archive",
+          "start": 2913
+        }
+      ],
+      "persistent_dead_added_lines_candidate": 272,
+      "role": "worker",
+      "subject": "#352: #352: add recovery and private pack replay",
+      "target": "e493f2082532eade21e2426b778257181f8071e7",
+      "task_id": "352",
+      "task_title": "#315 T5 — immutable session archive, validated pack/restore и privacy replay",
+      "worker_name": "impl315-t5-sol"
+    },
+    {
+      "app_python_additions": 575,
+      "app_python_deletions": 15,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T21:12:31.722731+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "efebc000ba907b9d4f7d312d41e95c68118923b5",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/merge_receipts.py": {
+          "additions": 428,
+          "deletions": 0
+        },
+        "app/merge_operations.py": {
+          "additions": 64,
+          "deletions": 1
+        },
+        "app/routes/sessions.py": {
+          "additions": 57,
+          "deletions": 11
+        },
+        "app/workspace.py": {
+          "additions": 26,
+          "deletions": 3
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#355: #355: add verified merge receipts",
+      "target": "34fb2350a8224f2991dbe722afc29070daf02bee",
+      "task_id": "355",
+      "task_title": "#315 T6 — verified merge receipts и receipt-before-cleanup lifecycle",
+      "worker_name": "impl315-t6-sol"
+    },
+    {
+      "app_python_additions": 600,
+      "app_python_deletions": 6,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 341,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-24T22:03:19.855018+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "3a7dbfbb169c0af02c728ec227b969dde49dd002",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/cutover.py": {
+          "additions": 597,
+          "deletions": 0
+        },
+        "app/mcp_stdio.py": {
+          "additions": 3,
+          "deletions": 6
+        }
+      },
+      "persistent_dead_added_candidates": [
+        {
+          "changed_lines": 71,
+          "end": 186,
+          "key": "app.ia.cutover:_git_source_bytes",
+          "name": "_git_source_bytes",
+          "path": "app/ia/cutover.py",
+          "qualname": "_git_source_bytes",
+          "start": 116
+        },
+        {
+          "changed_lines": 16,
+          "end": 204,
+          "key": "app.ia.cutover:_source_bytes",
+          "name": "_source_bytes",
+          "path": "app/ia/cutover.py",
+          "qualname": "_source_bytes",
+          "start": 189
+        },
+        {
+          "changed_lines": 10,
+          "end": 216,
+          "key": "app.ia.cutover:_assert_json_only",
+          "name": "_assert_json_only",
+          "path": "app/ia/cutover.py",
+          "qualname": "_assert_json_only",
+          "start": 207
+        },
+        {
+          "changed_lines": 26,
+          "end": 321,
+          "key": "app.ia.cutover:_prompt_receipt",
+          "name": "_prompt_receipt",
+          "path": "app/ia/cutover.py",
+          "qualname": "_prompt_receipt",
+          "start": 296
+        },
+        {
+          "changed_lines": 12,
+          "end": 335,
+          "key": "app.ia.cutover:_probe",
+          "name": "_probe",
+          "path": "app/ia/cutover.py",
+          "qualname": "_probe",
+          "start": 324
+        },
+        {
+          "changed_lines": 24,
+          "end": 361,
+          "key": "app.ia.cutover:_verified_gates",
+          "name": "_verified_gates",
+          "path": "app/ia/cutover.py",
+          "qualname": "_verified_gates",
+          "start": 338
+        },
+        {
+          "changed_lines": 64,
+          "end": 471,
+          "key": "app.ia.cutover:_shadow",
+          "name": "_shadow",
+          "path": "app/ia/cutover.py",
+          "qualname": "_shadow",
+          "start": 408
+        },
+        {
+          "changed_lines": 40,
+          "end": 513,
+          "key": "app.ia.cutover:_canonical",
+          "name": "_canonical",
+          "path": "app/ia/cutover.py",
+          "qualname": "_canonical",
+          "start": 474
+        },
+        {
+          "changed_lines": 28,
+          "end": 543,
+          "key": "app.ia.cutover:_resolve",
+          "name": "_resolve",
+          "path": "app/ia/cutover.py",
+          "qualname": "_resolve",
+          "start": 516
+        },
+        {
+          "changed_lines": 26,
+          "end": 571,
+          "key": "app.ia.cutover:_rollback",
+          "name": "_rollback",
+          "path": "app/ia/cutover.py",
+          "qualname": "_rollback",
+          "start": 546
+        },
+        {
+          "changed_lines": 24,
+          "end": 597,
+          "key": "app.ia.cutover:cutover_api",
+          "name": "cutover_api",
+          "path": "app/ia/cutover.py",
+          "qualname": "cutover_api",
+          "start": 574
+        }
+      ],
+      "persistent_dead_added_lines_candidate": 341,
+      "role": "worker",
+      "subject": "#358: #358: complete typed document cutover",
+      "target": "c2ea45fa0c8fce41c942a37f78204ebd1def3699",
+      "task_id": "358",
+      "task_title": "#315 T7: перевести агентов и документы на typed cutover",
+      "worker_name": "impl315-t7-sol"
+    },
+    {
+      "app_python_additions": 1631,
+      "app_python_deletions": 82,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 5,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-25T06:47:20.756136+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "c885f10e53b369d0e9846a23c9801618ef0e6bb9",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/runtime.py": {
+          "additions": 1376,
+          "deletions": 0
+        },
+        "app/ia/task_store.py": {
+          "additions": 22,
+          "deletions": 4
+        },
+        "app/main.py": {
+          "additions": 47,
+          "deletions": 44
+        },
+        "app/manager.py": {
+          "additions": 12,
+          "deletions": 0
+        },
+        "app/routes/knowledge.py": {
+          "additions": 9,
+          "deletions": 0
+        },
+        "app/routes/memory.py": {
+          "additions": 44,
+          "deletions": 2
+        },
+        "app/tm.py": {
+          "additions": 121,
+          "deletions": 32
+        }
+      },
+      "persistent_dead_added_candidates": [
+        {
+          "changed_lines": 5,
+          "end": 1064,
+          "key": "app.ia.runtime:KnowledgeRuntime.receipt_bytes",
+          "name": "receipt_bytes",
+          "path": "app/ia/runtime.py",
+          "qualname": "KnowledgeRuntime.receipt_bytes",
+          "start": 1060
+        }
+      ],
+      "persistent_dead_added_lines_candidate": 5,
+      "role": "full-cycle",
+      "subject": "#361: research live knowledge activation",
+      "target": "0ce9151a049ccc60d0025e9a791bae6e215ce5be",
+      "task_id": "361",
+      "task_title": "Live shadow owner для typed knowledge",
+      "worker_name": "live-knowledge-cutover-sol"
+    },
+    {
+      "app_python_additions": 125,
+      "app_python_deletions": 10,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-25T15:47:41.895710+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "30dbe9acd5b41028a4bc7e476f166cc9d3ac6f3c",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/runtime.py": {
+          "additions": 125,
+          "deletions": 10
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#361: freeze debt classification oracle",
+      "target": "f9ab385d1e250edcb8d3ac7e551f562bdef7b5a3",
+      "task_id": "361",
+      "task_title": "Live shadow owner для typed knowledge",
+      "worker_name": "live-knowledge-cutover-sol"
+    },
+    {
+      "app_python_additions": 99,
+      "app_python_deletions": 9,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 1,
+      "finished_at": "2026-08-25T17:17:32.884768+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "f9ab385d1e250edcb8d3ac7e551f562bdef7b5a3",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/runtime.py": {
+          "additions": 95,
+          "deletions": 7
+        },
+        "app/ia/task_store.py": {
+          "additions": 4,
+          "deletions": 2
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#361: freeze task parity reconciliation oracle",
+      "target": "34960a9a19c4bf271c7e00c0703a357adf2d7865",
+      "task_id": "361",
+      "task_title": "Live shadow owner для typed knowledge",
+      "worker_name": "live-knowledge-cutover-sol"
+    },
+    {
+      "app_python_additions": 12,
+      "app_python_deletions": 0,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-26T06:41:10.661059+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "0349fc14ccc5845692855395f4e54e688d6b11b9",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/ia/projections.py": {
+          "additions": 12,
+          "deletions": 0
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#398: freeze summary detail regression oracle",
+      "target": "915f3526a819a934208b5de94d354a0a970f83ee",
+      "task_id": "398",
+      "task_title": "Починить: knowledge(detail=\"summary\") отдаёт ПОЛНЫЙ текст записи вместо выжимки.\n\nЗАМЕР 26.08 сразу после перехода на gen3: вызов knowledge(operation=\"query\", detail=\"summary\", payload={\"text\":\"рестарт сторож pidfd\",\"limit\":3}) вернул ровно 3 записи (limit соблюдён), но каждая с полем `content` на 68 529 и 72 514 символов — итого 231 КБ. Ответ не влез в контекст агента и был сброшен в файл. Записи record_type=session.history из source=legacy-shadow тянут за собой всю историю сессии.\n\nСУТЬ: три уровня подробности (summary < record < evidence) задуманы так, что первый дешёвый. Сейчас summary равен evidence по объёму.\nТОЧНОЕ МЕСТО: `app/ia/projections.py` — слово \"detail\" встречается РОВНО ОДИН раз, строка 582, где оно просто копируется в ответ и ни на что не влияет. Обрезки нет нигде: `grep -nE \"content\\[:|truncat|excerpt|snippet\" app/ia/projections.py app/ia/knowledge.py` пуст. Точка сборки ответа — `query_current` (строка 568) и `_query_projection`.\n\nЧТО СДЕЛАТЬ: `detail` должен реально управлять объёмом КАЖДОЙ записи в `items`.\n- `summary` — без полного `content`: короткая выжимка (~300 символов) + длина оригинала. Все идентификаторы СОХРАНИТЬ: stable_id, uri, record_type, status, project_id, canonical_head/indexed_head/projection_head.\n- `record` и `evidence` — как сейчас, полный content.\n\nГРАНИЦЫ (не расширять):\n- идентификаторы и heads НЕ резать ни на одном уровне — по ним идёт дозапрос и сверка;\n- `limit` не трогать, он работает верно;\n- canonical-хранилище и записи на диске НЕ трогать: это только формирование ОТВЕТА;\n- gen3 уже активен, live-состояние не мутировать.\n\nПРИЁМКА (без неё DONE не принимается):\n1. Тест: запись с content на 70 000 символов → detail=\"summary\" отдаёт запись, где content-поле ≤1000 символов, а stable_id/uri/record_type/status на месте.\n2. Тест ОБРАТНОГО плеча: detail=\"record\" и detail=\"evidence\" полный content СОХРАНЯЮТ. Без него починка тихо сломает дозапрос.\n3. Мутация: убрать обрезку → тест 1 обязан покраснеть; вернуть + `touch` файла → зелёный. Обе цифры в отчёт.\n4. Живой прогон ТЕМ ЖЕ запросом (text=\"рестарт сторож pidfd\", limit=3): показать размер ответа в символах ДО и ПОСЛЕ.\n\nКоммить `#366: ...` (номер задачи заведу я, используй его в сообщении коммита). git push не делай.",
+      "worker_name": "fix-summary-detail"
+    },
+    {
+      "app_python_additions": 11,
+      "app_python_deletions": 2,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-29T16:05:47.385548+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "152300b56bcc04255db8a6b95bf8e3968ef06660",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/merge_operations.py": {
+          "additions": 9,
+          "deletions": 1
+        },
+        "app/workspace.py": {
+          "additions": 2,
+          "deletions": 1
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#416: research misleading zero-commit merge failure",
+      "target": "8239760c7c4394512de6526c1f4e71fc5e4d9535",
+      "task_id": "416",
+      "task_title": "merge_worker падает «no new commits», когда целевая ветка занята другим worktree",
+      "worker_name": "fix-merge-busy-branch"
+    },
+    {
+      "app_python_additions": 52,
+      "app_python_deletions": 17,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-31T05:28:02.531797+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "dfaf3123a4f5ebad29ba22f2aa62740ade0d9f9d",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/merge_operations.py": {
+          "additions": 7,
+          "deletions": 6
+        },
+        "app/workspace.py": {
+          "additions": 45,
+          "deletions": 11
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#423: report merge conflict paths",
+      "target": "cc15369dec2034f0c46f60a8f643ac161c07e360",
+      "task_id": "423",
+      "task_title": "Мерж: конфликты должны доезжать до вызывающего, а не превращаться в «no new commits»",
+      "worker_name": "fix-merge-conflict-report"
+    },
+    {
+      "app_python_additions": 1689,
+      "app_python_deletions": 21,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-31T09:31:40.939824+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "4ea50792be5a3d5fd047a21a6fa48f48e9a34882",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/db.py": {
+          "additions": 130,
+          "deletions": 0
+        },
+        "app/main.py": {
+          "additions": 9,
+          "deletions": 1
+        },
+        "app/mcp_stdio.py": {
+          "additions": 188,
+          "deletions": 9
+        },
+        "app/portfolio.py": {
+          "additions": 751,
+          "deletions": 0
+        },
+        "app/portfolio_watchdog.py": {
+          "additions": 299,
+          "deletions": 0
+        },
+        "app/routes/portfolio.py": {
+          "additions": 256,
+          "deletions": 0
+        },
+        "app/tg_bridge.py": {
+          "additions": 56,
+          "deletions": 11
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#418: refreeze dashboard portfolio panel RED",
+      "target": "82d2d403e1d57139ea2c9c65cbf525b55beca996",
+      "task_id": "418",
+      "task_title": "Ресёрч: проекты как сущность — доска проектов, привязка задач, сторож застоя вместо notify_user",
+      "worker_name": "research-projects-board"
+    },
+    {
+      "app_python_additions": 709,
+      "app_python_deletions": 20,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-08-31T14:58:33.282631+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": false,
+      "parent": "7464e836d79cbf18b3078a850a280b467e1760d7",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/db.py": {
+          "additions": 114,
+          "deletions": 1
+        },
+        "app/portfolio.py": {
+          "additions": 453,
+          "deletions": 12
+        },
+        "app/routes/portfolio.py": {
+          "additions": 142,
+          "deletions": 7
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#425: document project roadmap research",
+      "target": "7400db03927b479b8ce45608d8acea008be6cf0a",
+      "task_id": "425",
+      "task_title": "Дорожная карта проекта: этапы, подсветка ожиданий, ответ юзера в чат оркестратору",
+      "worker_name": "roadmap-board"
+    },
+    {
+      "app_python_additions": 57,
+      "app_python_deletions": 1,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-09-01T10:25:02.628695+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "3880fe7fbd7fa85fe28d2f50a4b5fd2cdbe86a8b",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/tm.py": {
+          "additions": 57,
+          "deletions": 1
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#426: freeze shadow task creation oracle",
+      "target": "75a1326d7a946edf12a7b3127c63024e8bfbce3e",
+      "task_id": "426",
+      "task_title": "Финализация мержа падает ValueError «N not found» — мерж проходит, задача не закрывается",
+      "worker_name": "fix-merge-finalize"
+    },
+    {
+      "app_python_additions": 88,
+      "app_python_deletions": 1,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-09-01T17:21:41.616823+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "e932952d61dd23f302384145bd5e23d793a5c51e",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/mcp_stdio.py": {
+          "additions": 88,
+          "deletions": 1
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#431: attach UTF-8 text files to messages",
+      "target": "5c0b0880f93d78aa04b3b04b6988fc25d7c2e27e",
+      "task_id": "431",
+      "task_title": "Вложения в send_message: воркер прикладывает файл, получатель видит его текстом",
+      "worker_name": "feat-msg-attach"
+    },
+    {
+      "app_python_additions": 106,
+      "app_python_deletions": 56,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-09-02T02:37:13.699354+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "6065635650a5016aa1ce8e7f8f2fce9a17cb7c99",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/backend_claude.py": {
+          "additions": 5,
+          "deletions": 3
+        },
+        "app/session.py": {
+          "additions": 76,
+          "deletions": 48
+        },
+        "app/session_turns.py": {
+          "additions": 25,
+          "deletions": 5
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#438: compact before Claude CLI threshold",
+      "target": "3dfa39bc0d2f9ee7c2ce38c710926121770e06a6",
+      "task_id": "438",
+      "task_title": "#A-компакт: наш компакт срабатывает на 95% и опережает клишный + починка разбора события",
+      "worker_name": "fix-compact-95"
+    },
+    {
+      "app_python_additions": 581,
+      "app_python_deletions": 67,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 56,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-09-02T03:22:48.137371+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "51e0cb1557622c489dbc4b76c304220455856ab0",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/codex_review_artifact.py": {
+          "additions": 182,
+          "deletions": 46
+        },
+        "app/db.py": {
+          "additions": 226,
+          "deletions": 0
+        },
+        "app/mcp_stdio.py": {
+          "additions": 173,
+          "deletions": 21
+        }
+      },
+      "persistent_dead_added_candidates": [
+        {
+          "changed_lines": 48,
+          "end": 2719,
+          "key": "app.db:review_receipt_create",
+          "name": "review_receipt_create",
+          "path": "app/db.py",
+          "qualname": "review_receipt_create",
+          "start": 2672
+        },
+        {
+          "changed_lines": 8,
+          "end": 2729,
+          "key": "app.db:review_receipt_get",
+          "name": "review_receipt_get",
+          "path": "app/db.py",
+          "qualname": "review_receipt_get",
+          "start": 2722
+        }
+      ],
+      "persistent_dead_added_lines_candidate": 56,
+      "role": "worker",
+      "subject": "#436: research review receipt pipeline",
+      "target": "6461ec9afa65d2d3b50afa1eff3700cce272e736",
+      "task_id": "436",
+      "task_title": "Ревью логируется структурно: кто ревьюил, был ли вердикт, чем кончилось — полями, а не разбором прозы",
+      "worker_name": "feat-review-receipts"
+    },
+    {
+      "app_python_additions": 13,
+      "app_python_deletions": 0,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-09-02T04:29:28.042730+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "3280828239d5f285b0ca30816af9ec8cf45d1eaa",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/backend_claude.py": {
+          "additions": 13,
+          "deletions": 0
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#441: capture Claude rate-limit raw telemetry",
+      "target": "18fa3a834f4734ffd476f8756e6c8f14de89a8dd",
+      "task_id": "441",
+      "task_title": "Перестать выбрасывать rate_limit_event: сохранять неокруглённую утилизацию квоты",
+      "worker_name": "fix-ratelimit-capture"
+    },
+    {
+      "app_python_additions": 645,
+      "app_python_deletions": 111,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-09-02T06:43:00.930397+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "b039b2c5f417c41167c788a6c11ead23ecab9999",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/bg_jobs.py": {
+          "additions": 31,
+          "deletions": 8
+        },
+        "app/db.py": {
+          "additions": 105,
+          "deletions": 10
+        },
+        "app/events.py": {
+          "additions": 85,
+          "deletions": 2
+        },
+        "app/fan_barrier.py": {
+          "additions": 8,
+          "deletions": 1
+        },
+        "app/initial_deliveries.py": {
+          "additions": 31,
+          "deletions": 7
+        },
+        "app/limit_wake.py": {
+          "additions": 22,
+          "deletions": 4
+        },
+        "app/mailbox.py": {
+          "additions": 27,
+          "deletions": 8
+        },
+        "app/manager.py": {
+          "additions": 35,
+          "deletions": 9
+        },
+        "app/mcp_stdio.py": {
+          "additions": 24,
+          "deletions": 9
+        },
+        "app/message_deliveries.py": {
+          "additions": 29,
+          "deletions": 6
+        },
+        "app/notify.py": {
+          "additions": 16,
+          "deletions": 2
+        },
+        "app/portfolio_watchdog.py": {
+          "additions": 8,
+          "deletions": 0
+        },
+        "app/rag.py": {
+          "additions": 16,
+          "deletions": 10
+        },
+        "app/restart_inbox.py": {
+          "additions": 9,
+          "deletions": 1
+        },
+        "app/routes/portfolio.py": {
+          "additions": 8,
+          "deletions": 0
+        },
+        "app/routes/sessions.py": {
+          "additions": 62,
+          "deletions": 4
+        },
+        "app/routes/system.py": {
+          "additions": 9,
+          "deletions": 1
+        },
+        "app/routes/tg.py": {
+          "additions": 8,
+          "deletions": 1
+        },
+        "app/runtime_history.py": {
+          "additions": 1,
+          "deletions": 1
+        },
+        "app/session.py": {
+          "additions": 55,
+          "deletions": 14
+        },
+        "app/session_turns.py": {
+          "additions": 25,
+          "deletions": 5
+        },
+        "app/tg_bridge.py": {
+          "additions": 31,
+          "deletions": 8
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "full-cycle",
+      "subject": "#433: research message provenance",
+      "target": "4e5940ef6a282b1f1c0cf4da1a0998bd131414ed",
+      "task_id": "433",
+      "task_title": "Происхождение сообщения — поле в базе, а не разбор префикса: юзер, агент, фоновая задача, платформа",
+      "worker_name": "feat-msg-origin"
+    },
+    {
+      "app_python_additions": 6,
+      "app_python_deletions": 10,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-09-03T06:38:16.906127+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "498c0d1497d7a1d1d274df9030d53a65afb257e8",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/routes/sessions.py": {
+          "additions": 6,
+          "deletions": 10
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#445: classify senderless dashboard sends by auth state",
+      "target": "12ed3d3d6611826bd47408d4c4c623d314370f5a",
+      "task_id": "445",
+      "task_title": "Подпись сообщений юзера: при выключенной авторизации /send без sender — это оператор, а не unknown",
+      "worker_name": "fix-user-provenance"
+    },
+    {
+      "app_python_additions": 957,
+      "app_python_deletions": 75,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 14,
+      "dead_removed_lines_candidate": 2,
+      "finished_at": "2026-09-03T07:22:18.157596+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "895be6e524bdd18fed4036a17b2a2683eae9456d",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/backend_claude.py": {
+          "additions": 1,
+          "deletions": 1
+        },
+        "app/backend_codex.py": {
+          "additions": 1,
+          "deletions": 1
+        },
+        "app/backend_grok.py": {
+          "additions": 4,
+          "deletions": 4
+        },
+        "app/bootstrap.py": {
+          "additions": 1,
+          "deletions": 6
+        },
+        "app/charts.py": {
+          "additions": 1,
+          "deletions": 1
+        },
+        "app/fdstore.py": {
+          "additions": 1,
+          "deletions": 1
+        },
+        "app/harness/mcp.py": {
+          "additions": 1,
+          "deletions": 1
+        },
+        "app/ia/cutover.py": {
+          "additions": 1,
+          "deletions": 0
+        },
+        "app/ia/knowledge.py": {
+          "additions": 3,
+          "deletions": 3
+        },
+        "app/ia/project_distribution.py": {
+          "additions": 9,
+          "deletions": 9
+        },
+        "app/ia/project_knowledge.py": {
+          "additions": 3,
+          "deletions": 3
+        },
+        "app/main.py": {
+          "additions": 13,
+          "deletions": 2
+        },
+        "app/manager.py": {
+          "additions": 15,
+          "deletions": 7
+        },
+        "app/mcp_stdio.py": {
+          "additions": 2,
+          "deletions": 2
+        },
+        "app/orchestra_layout.py": {
+          "additions": 830,
+          "deletions": 0
+        },
+        "app/pipeline.py": {
+          "additions": 15,
+          "deletions": 15
+        },
+        "app/prompting.py": {
+          "additions": 42,
+          "deletions": 7
+        },
+        "app/rag_service.py": {
+          "additions": 2,
+          "deletions": 2
+        },
+        "app/routes/sessions.py": {
+          "additions": 2,
+          "deletions": 2
+        },
+        "app/routes/system.py": {
+          "additions": 1,
+          "deletions": 1
+        },
+        "app/session.py": {
+          "additions": 5,
+          "deletions": 3
+        },
+        "app/session_turns.py": {
+          "additions": 1,
+          "deletions": 1
+        },
+        "app/tm.py": {
+          "additions": 2,
+          "deletions": 2
+        },
+        "app/workspace.py": {
+          "additions": 1,
+          "deletions": 1
+        }
+      },
+      "persistent_dead_added_candidates": [
+        {
+          "changed_lines": 1,
+          "end": 205,
+          "key": "app.ia.project_knowledge:ProjectKnowledgeRouter._record_paths",
+          "name": "_record_paths",
+          "path": "app/ia/project_knowledge.py",
+          "qualname": "ProjectKnowledgeRouter._record_paths",
+          "start": 203
+        },
+        {
+          "changed_lines": 1,
+          "end": 256,
+          "key": "app.ia.project_knowledge:ProjectKnowledgeRouter._record_path",
+          "name": "_record_path",
+          "path": "app/ia/project_knowledge.py",
+          "qualname": "ProjectKnowledgeRouter._record_path",
+          "start": 237
+        },
+        {
+          "changed_lines": 12,
+          "end": 524,
+          "key": "app.orchestra_layout:require_project_layout",
+          "name": "require_project_layout",
+          "path": "app/orchestra_layout.py",
+          "qualname": "require_project_layout",
+          "start": 513
+        }
+      ],
+      "persistent_dead_added_lines_candidate": 14,
+      "role": "full-cycle",
+      "subject": "#430: research .orchestra path migration",
+      "target": "f8e00522e8597fcabb63675976bace4cbd1dee9c",
+      "task_id": "430",
+      "task_title": "Переезд docs/ → .orchestra/: всё, что принадлежит Orchestra, живёт в одной скрытой папке проекта",
+      "worker_name": "move-dot-orchestra"
+    },
+    {
+      "app_python_additions": 36,
+      "app_python_deletions": 3,
+      "clone_added_groups": [],
+      "clone_added_lines_candidate": 0,
+      "clone_removed_lines_candidate": 0,
+      "dead_added_lines_candidate": 0,
+      "dead_removed_lines_candidate": 0,
+      "finished_at": "2026-09-03T07:26:43.320755+00:00",
+      "label": "ambient",
+      "main_ancestry_at_freeze": true,
+      "parent": "f8e00522e8597fcabb63675976bace4cbd1dee9c",
+      "parse_error_count": 0,
+      "per_file": {
+        "app/routes/sessions.py": {
+          "additions": 22,
+          "deletions": 3
+        },
+        "app/status_policy.py": {
+          "additions": 11,
+          "deletions": 0
+        },
+        "app/tg_bridge.py": {
+          "additions": 3,
+          "deletions": 0
+        }
+      },
+      "persistent_dead_added_candidates": [],
+      "persistent_dead_added_lines_candidate": 0,
+      "role": "worker",
+      "subject": "#446: suppress raw telemetry from user channels",
+      "target": "71240bd4f2d629ad259fbb1949fd3819827c0e1f",
+      "task_id": "446",
+      "task_title": "RATE_LIMIT_RAW спамит в Telegram: телеметрия лимитов должна оставаться в логах, а не в чате",
+      "worker_name": "fix-ratelimit-spam"
+    }
+  ]
+}

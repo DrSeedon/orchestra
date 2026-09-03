@@ -1,0 +1,56 @@
+{
+  "rows": [
+    {
+      "case": "A",
+      "expected": "PASS",
+      "actual": "PASS"
+    },
+    {
+      "case": "B",
+      "expected": "STOP",
+      "actual": "STOP"
+    },
+    {
+      "case": "C",
+      "expected": "PASS",
+      "actual": "PASS"
+    },
+    {
+      "case": "D",
+      "expected": "STOP",
+      "actual": "PASS"
+    },
+    {
+      "case": "E",
+      "expected": "PASS",
+      "actual": "PASS"
+    },
+    {
+      "case": "F",
+      "expected": "PASS",
+      "actual": "PASS"
+    },
+    {
+      "case": "G",
+      "expected": "STOP",
+      "actual": "STOP"
+    },
+    {
+      "case": "H",
+      "expected": "PASS",
+      "actual": "PASS"
+    },
+    {
+      "case": "I",
+      "expected": "PASS",
+      "actual": "PASS"
+    }
+  ],
+  "true_positive": 2,
+  "positive_total": 3,
+  "false_negative": 1,
+  "false_positive": 0,
+  "negative_total": 6,
+  "true_negative": 6,
+  "pre_registered_threshold_met": false
+}

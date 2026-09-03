@@ -1,0 +1,40 @@
+{
+  "discarded_generated_outputs": [
+    {
+      "bytes": 150216,
+      "path": "cohort-pre-metrics.json",
+      "reason": "deterministically reproducible from frozen Git/DB boundary and retained scripts; compact evidence retained",
+      "sha256": "f9c3f57f7614de0a8c98da5c921b9d8a61358282e735441f98f6364dfc1d8ebe"
+    },
+    {
+      "bytes": 630645,
+      "path": "per-merge.json",
+      "reason": "deterministically reproducible from frozen Git/DB boundary and retained scripts; compact evidence retained",
+      "sha256": "8e9c53ef681ba13ee599fc6cdcf235e879ce5a753206df19ef57ae135eb6c971"
+    },
+    {
+      "bytes": 329236,
+      "path": "current-ast.json",
+      "reason": "deterministically reproducible from frozen Git/DB boundary and retained scripts; compact evidence retained",
+      "sha256": "983421e3a86a9aa65283294487656b69ba6ab2ad4c797e8eb7510f2082b38fb6"
+    },
+    {
+      "bytes": 1734621,
+      "path": "current-ast-with-tests.json",
+      "reason": "deterministically reproducible from frozen Git/DB boundary and retained scripts; compact evidence retained",
+      "sha256": "7e237db637cbf6aa5460c3d7477d629ff65cf8df49f5bb3bbb6b461d71aaa1b0"
+    },
+    {
+      "bytes": 3647,
+      "path": "pilot-cohort.json",
+      "reason": "deterministically reproducible from frozen Git/DB boundary and retained scripts; compact evidence retained",
+      "sha256": "5dca547fb5c9da0d0d2685007fe9551176242dce8682a40c3ef6f605325d31d7"
+    },
+    {
+      "bytes": 54117,
+      "path": "pilot-metrics-v3.json",
+      "reason": "deterministically reproducible from frozen Git/DB boundary and retained scripts; compact evidence retained",
+      "sha256": "1d8904de13f28da9e60d060a8b8151ee0100db392c29d4e751a9243a27726986"
+    }
+  ]
+}

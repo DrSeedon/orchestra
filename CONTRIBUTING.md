@@ -16,6 +16,9 @@ cd orchestra
 # Install dependencies
 uv sync
 
+# Install the secret gate (git hooks are not versioned — run this once per clone)
+uv run python scripts/install_git_hooks.py
+
 # Configure environment
 cp .env.example .env
 # Edit .env — set DASHBOARD_USER, DASHBOARD_PASSWORD, INTERNAL_TOKEN at minimum
@@ -26,6 +29,11 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
 ```
 
 Dashboard opens at http://localhost:8888.
+
+The hooks installed above (`pre-commit`, `pre-push`) refuse any commit or push carrying a
+value in a provider's key format. They live in the shared git dir, so one install covers
+every linked worktree. The pattern list has a single owner, `scripts/secret_scan.py`; a
+false positive is fixed by tightening the format there, not by bypassing the hook.
 
 ## Running tests
 

@@ -1,0 +1,638 @@
+[
+  {
+    "candidate_id": "task-416-K1",
+    "task_id": "416",
+    "fact_key": "merge-dirty-target-is-root-cause",
+    "topic": "merge-runtime",
+    "statement": "Третья попытка merge была отклонена из-за dirty target worktree: в target находился untracked `docs/tasks/49/`, а workspace запрещает tracked и untracked WIP перед `git merge --squash`.",
+    "status": "current",
+    "anchors": ["dirty target worktree", "docs/tasks/49/", "git merge --squash"],
+    "durability_reason": "Помогает отличить реальную причину merge-отказа от проблем выбора worktree.",
+    "evidence": [
+      {
+        "source_path": "sources/task-416/research.md",
+        "line_start": 84,
+        "line_end": 84,
+        "quote": "`?? docs/tasks/49/` (log id `532074`, `2026-08-29T14:24:11.683425+00:00`). Третья попытка"
+      },
+      {
+        "source_path": "sources/task-416/research.md",
+        "line_start": 87,
+        "line_end": 87,
+        "quote": "любом tracked или untracked WIP до `git merge --squash` [1]. Scratch-стенд воспроизвёл именно"
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-416-K2",
+    "task_id": "416",
+    "fact_key": "owner-aware-target-worktree-selection",
+    "topic": "merge-runtime",
+    "statement": "Занятая target-ветка не является production-причиной отказа: `_branch_worktree_path()` находит checkout-владельца ветки, и merge успешно выполняется в нём после очистки target WIP.",
+    "status": "rejected",
+    "anchors": ["_branch_worktree_path()", "git worktree list --porcelain", "target worktree"],
+    "durability_reason": "Предотвращает повторное исправление корректного owner-aware выбора target worktree.",
+    "evidence": [
+      {
+        "source_path": "sources/task-416/research.md",
+        "line_start": 73,
+        "line_end": 76,
+        "quote": "`_branch_worktree_path()` читает `git worktree list --porcelain` и возвращает checkout,\nвладеющий `refs/heads/<target>`; merge затем выполняется с `cwd` этого checkout. Поэтому прямой\ncheckout из worker действительно падает с RC 128, но production функция в том же стенде после"
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-416-K3",
+    "task_id": "416",
+    "fact_key": "merge-noop-preserves-raw-error",
+    "topic": "merge-runtime",
+    "statement": "`normalize_merge_result` сохраняет непустую raw error, одновременно оставляя код `NO_COMMITS_MERGED` и статусы FAILED/NOT_REACHED; conflict evidence не теряется из-за no-op ветки.",
+    "status": "current",
+    "anchors": ["normalize_merge_result", "NO_COMMITS_MERGED", "raw.get(\"error\")"],
+    "durability_reason": "Сохраняет причинность pre-merge отказов и не ломает no-op invariant.",
+    "evidence": [
+      {
+        "source_path": "sources/task-416/report.md",
+        "line_start": 14,
+        "line_end": 16,
+        "quote": "- `app/merge_operations.py:1026-1042`: the no-op branch uses\n  `raw.get(\"error\") or \"merge produced no new commits\"` while retaining\n  `NO_COMMITS_MERGED`, FAILED/NOT_REACHED, snapshots and counts."
+      },
+      {
+        "source_path": "sources/task-416/report.md",
+        "line_start": 17,
+        "line_end": 18,
+        "quote": "- `app/merge_operations.py:1053-1061`: no-op Git status is FAILED without taking CONFLICT away\n  from results that contain conflict evidence."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-416-K4",
+    "task_id": "416",
+    "fact_key": "dirty-target-error-names-cleanup",
+    "topic": "merge-runtime",
+    "statement": "Dirty-target result передаёт caller абсолютный путь checkout, Git status entries и действие `CLEAN_TARGET_THEN_NEW_OPERATION`, не отправляя проверять здоровую worker branch.",
+    "status": "current",
+    "anchors": ["CLEAN_TARGET_THEN_NEW_OPERATION", "absolute target checkout", "Git status entries"],
+    "durability_reason": "Делает ошибку merge непосредственно исправимой оператором.",
+    "evidence": [
+      {
+        "source_path": "sources/task-416/report.md",
+        "line_start": 5,
+        "line_end": 8,
+        "quote": "`merge_worker` keeps the existing `NO_COMMITS_MERGED` invariant without replacing a non-empty\nraw failure reason. A dirty target result now reaches the caller with the absolute target checkout,\nthe Git status entries, and `CLEAN_TARGET_THEN_NEW_OPERATION`; the healthy worker branch is\nno longer named as the thing to inspect."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-416-K5",
+    "task_id": "416",
+    "fact_key": "shadow-create-lock-covers-projection",
+    "topic": "merge-runtime",
+    "statement": "Полная сериализация shadow create должна охватывать и legacy allocation, и canonical projection; reviewed fix держит `_TASK_CREATE_LOCK` вокруг обеих записей.",
+    "status": "current",
+    "anchors": ["_TASK_CREATE_LOCK", "shadow create", "canonical projection"],
+    "durability_reason": "Предотвращает рассинхронизацию display number и canonical head при конкурентных create-запросах.",
+    "evidence": [
+      {
+        "source_path": "sources/task-416/codex-review-impl.md",
+        "line_start": 18,
+        "line_end": 18,
+        "quote": "- Prior P1: **FIXED** — `_TASK_CREATE_LOCK` now covers both legacy allocation and canonical projection."
+      },
+      {
+        "source_path": "sources/task-416/codex-review-impl.md",
+        "line_start": 23,
+        "line_end": 24,
+        "quote": "- Changed production line: “Keep the projection in this lock too, so its display number and expected canonical head stay paired with that write.”"
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-417-K1",
+    "task_id": "417",
+    "fact_key": "project-local-git-markdown-memory-owner",
+    "topic": "agent-memory",
+    "statement": "Реализация #417 оставляет canonical project memory в Git Markdown под `docs/kb/` и не создаёт вторую базу или semantic/vector retrieval.",
+    "status": "superseded",
+    "anchors": ["canonical project memory", "docs/kb/", "semantic/vector retrieval"],
+    "durability_reason": "Фиксирует исходное решение о владельце памяти; конкретный путь позже заменён миграцией layout.",
+    "evidence": [
+      {
+        "source_path": "sources/task-417/report.md",
+        "line_start": 5,
+        "line_end": 14,
+        "quote": "Реализована утверждённая ветка без второй базы и без semantic/vector retrieval:\n\n- canonical project memory остаётся в `docs/kb/`;\n- общий prompt для Claude/Codex/Grok выполняет двухпроходный literal `rg` и раскрывает не больше\n  одной approved-связи;\n- generic `knowledge` снят с agent-facing FastMCP registry и access-mode списков, но его внутренняя\n  функция и `app/ia/*` не удалены;\n- `search_memory` остался зарегистрированным, с прежней сигнатурой и disabled-RAG → `rg` fallback;\n- новые/изменённые structured facts и one-hop links проверяет repository CLI\n  `scripts/check_kb_contract.py`; нового MCP tool и нового хранилища нет."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-417-K2",
+    "task_id": "417",
+    "fact_key": "two-pass-literal-memory-retrieval",
+    "topic": "agent-memory",
+    "statement": "Общий memory prompt использует двухпроходный retrieval: выделяет 1–3 literal anchors, сначала делает `rg -l`, затем `rg -n`, открывает task evidence только по ссылке и раскрывает максимум один approved hop.",
+    "status": "current",
+    "anchors": ["1–3 literal anchors", "rg -l", "rg -n", "approved hop"],
+    "durability_reason": "Сохраняет bounded lexical retrieval и ограничивает шум и неконтролируемый graph traversal.",
+    "evidence": [
+      {
+        "source_path": "sources/task-417/report.md",
+        "line_start": 20,
+        "line_end": 23,
+        "quote": "- `pipelines/default/prompts/base.md` (+4/-11): owner memory заменён на project-local `docs/kb`.\n- `pipelines/default/prompts/modules/memory-search.md` (+24/-12): 1–3 literal anchors,\n  `rg -l` → `rg -n`, evidence-only переход в `docs/tasks`, максимум один approved hop; ровно одно\n  compatibility-only упоминание `search_memory`."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-417-K3",
+    "task_id": "417",
+    "fact_key": "knowledge-tool-retired-search-memory-preserved",
+    "topic": "agent-memory",
+    "statement": "Generic `knowledge` удалён с agent-facing FastMCP surface, но его внутренняя функция и `app/ia/*` сохранены; `search_memory` остаётся зарегистрированным с прежней сигнатурой и disabled-RAG → `rg` fallback.",
+    "status": "current",
+    "anchors": ["agent-facing FastMCP registry", "knowledge", "search_memory", "disabled-RAG"],
+    "durability_reason": "Разделяет публичный agent tool surface и внутренние compatibility consumers.",
+    "evidence": [
+      {
+        "source_path": "sources/task-417/report.md",
+        "line_start": 10,
+        "line_end": 14,
+        "quote": "- generic `knowledge` снят с agent-facing FastMCP registry и access-mode списков, но его внутренняя\n  функция и `app/ia/*` не удалены;\n- `search_memory` остался зарегистрированным, с прежней сигнатурой и disabled-RAG → `rg` fallback;\n- новые/изменённые structured facts и one-hop links проверяет repository CLI\n  `scripts/check_kb_contract.py`; нового MCP tool и нового хранилища нет."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-417-K4",
+    "task_id": "417",
+    "fact_key": "structured-facts-require-evidence-and-approved-links",
+    "topic": "agent-memory",
+    "statement": "Validator для новых и изменённых facts требует one-line stable `fact:` key, 1–6 literal anchors и evidence; canonical links допускают только typed non-self targets с exact approval tuple из task-scoped plan.",
+    "status": "current",
+    "anchors": ["fact:", "искать:", "approved:", "candidate-link", "one-hop links"],
+    "durability_reason": "Ограничивает попадание неподтверждённых facts и самовольных связей в canonical KB.",
+    "evidence": [
+      {
+        "source_path": "sources/task-417/report.md",
+        "line_start": 39,
+        "line_end": 46,
+        "quote": "- `pipelines/default/prompts/modules/research-method.md` (+27 вместе с T3): one-line stable\n  `fact:` key, 1–6 quoted `искать:` anchors, непустой evidence, legacy grandfathering.\n- `scripts/check_kb_contract.py` (+378, mode 100755): stdlib CLI разбирает hunk ranges unified\n  diff, проверяет root containment, section, stable key, duplicate, anchors, evidence и same-key\n  replacement удалённого structured fact."
+      },
+      {
+        "source_path": "sources/task-417/report.md",
+        "line_start": 50,
+        "line_end": 54,
+        "quote": "- LLM proposal остаётся в `docs/tasks`; canonical `связи:` допускает только шесть typed relations.\n- Validator требует существующий non-self Markdown target внутри project KB и exact tuple\n  `source fact + relation + target` из `docs/tasks/<numeric-id>/plan.md#anchor`.\n- Контрпримеры: canonical candidate, unknown relation, absent/self/absolute/traversal target,\n  missing anchor, existing wrong tuple, receipt из `research.md` и `docs/tasks/plan.md`."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-417-K5",
+    "task_id": "417",
+    "fact_key": "manual-revocation-is-not-machine-as-of",
+    "topic": "agent-memory",
+    "statement": "Ручной маркер `ОТОЗВАНО` сохраняет историю для человека, но недостаточен для machine `current/as_of`, disputed claims и контроля конфликтов; для этого нужны stable `fact_key`, valid-time, status, provenance и explicit `supersedes`.",
+    "status": "current",
+    "anchors": ["ОТОЗВАНО", "current/as_of", "fact_key", "supersedes"],
+    "durability_reason": "Помогает не выдавать ручную историческую разметку за полноценное машинное версионирование.",
+    "evidence": [
+      {
+        "source_path": "sources/task-417/research.md",
+        "line_start": 20,
+        "line_end": 23,
+        "quote": "3. **Версии:** нынешняя пометка `ОТОЗВАНО` достаточна, чтобы человек не потерял историю, но\n   недостаточна для запросов `current/as_of`, споров и контроля конфликтов. Машинное\n   версионирование — отдельная дорогая развилка: stable `fact_key`, valid-time, status,\n   provenance и explicit `supersedes`; начинать forward-only, без миграции 20 502 записей."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-419-K1",
+    "task_id": "419",
+    "fact_key": "ordinary-rg-beats-vector-on-frozen-holdout",
+    "topic": "retrieval-evaluation",
+    "statement": "На frozen holdout из 18 вопросов плюс N01 один вызов vector query дал 0 source-backed unique wins, а ordinary `rg` дал 6 unique wins (E04, C01, C02, C04, C06, R02); ties было 0, оба arm не нашли N01, а V anchor-only не считается победой.",
+    "status": "current",
+    "anchors": ["V source-backed", "V anchor-only", "ordinary rg", "N01", "unique wins"],
+    "durability_reason": "Даёт воспроизводимую точку сравнения для решений о vector projection и lexical retrieval.",
+    "evidence": [
+      {
+        "source_path": "sources/task-419/report.md",
+        "line_start": 13,
+        "line_end": 15,
+        "quote": "Использован frozen holdout #256: 18 вопросов (E01–E06, C01–C06, R01–R06) и отрицательный контроль N01. Порядок строго чередовался V→G для каждого вопроса. V — один живой вызов `knowledge(operation=\"query\", detail=\"summary\")`, G — один `/usr/bin/rg -n -i -F` по естественным словам вопроса в Markdown-файлах `docs/kb/` и `docs/tasks/`. Поиск идёт по текущей файловой системе без commit-снимков; попадание проверялось по одному `gold_path`, а несколько строк одного файла считаются одним текущим путём (все возвращённые строки входят в счётчик символов).\n\n`V anchor-only` — frozen `must_contain` встретился в выдаче V, но результат не содержит рабочий `source_path` из holdout; это не победа. `V source-backed` — найден frozen anchor в результате с соответствующим рабочим `source_path`. Для G «да» означает frozen anchor в строке из соответствующего `gold_path`. Каждый arm потратил 1 вызов на вопрос; N01 также 1+1."
+      },
+      {
+        "source_path": "sources/task-419/report.md",
+        "line_start": 45,
+        "line_end": 48,
+        "quote": "- Уникальных побед V (только source-backed): **0**.\n- Уникальных побед rg: **6** (E04, C01, C02, C04, C06, R02).\n- Ничьих: **0**.\n- Отрицательный контроль: V = нет, rg = нет."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-425-K1",
+    "task_id": "425",
+    "fact_key": "portfolio-primary-namespace-is-complete-task-source",
+    "topic": "portfolio-roadmap",
+    "statement": "Portfolio road использует primary technical namespace как полный источник задач, а explicit links только добавляют foreign tasks; live-backup показал для `orchestra` 274 namespace tasks и 0 links, после migration payload содержит 274 задачи, links остаются 0.",
+    "status": "current",
+    "anchors": ["primary technical namespace", "portfolio_task_links", "namespace_tasks=274", "payload_tasks=274"],
+    "durability_reason": "Защищает roadmap от исчезновения unlinked tasks и от ошибочного linked-only источника.",
+    "evidence": [
+      {
+        "source_path": "sources/task-425/report.md",
+        "line_start": 7,
+        "line_end": 17,
+        "quote": "- primary technical namespace является полным источником задач; optional links только добавляют\n  explicit foreign tasks;\n- task имеет 0/1 theme label, project — ordered 0–7 labels;\n- одна project row рисует stages слева направо, tasks внутри вертикально, derived marker\n  `мы здесь`, open waits и сворачиваемую unlabelled queue/history;\n- task detail остаётся read-only modal;\n- user answer доставляется exact `opened_by_session_id` через existing `message_deliveries`, без\n  второго канала.\n\nLive-backup acceptance доказал главный production case: `orchestra` имеет 274 namespace tasks и\n0 links, после migration payload содержит все 274, а links остаются 0."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-425-K2",
+    "task_id": "425",
+    "fact_key": "portfolio-roadmap-uses-bounded-owner-labels",
+    "topic": "portfolio-roadmap",
+    "statement": "Roadmap metadata использует owner-only source/order/stage routes, exact normalized-scope authorization, casefold uniqueness и 0–7 упорядоченных project labels.",
+    "status": "current",
+    "anchors": ["stage_order", "casefold uniqueness", "0–7 labels", "normalized-scope authorization"],
+    "durability_reason": "Фиксирует границу human portfolio metadata и технического task namespace.",
+    "evidence": [
+      {
+        "source_path": "sources/task-425/report.md",
+        "line_start": 25,
+        "line_end": 29,
+        "quote": "- additive legacy-safe columns/migration/backfill/index;\n- owner-only source/order/stage routes;\n- full primary-source query + additive explicit links;\n- atomic rename, exact normalized-scope authorization, casefold uniqueness, 0–7 cap;\n- route snapshot updated in the same commit as the routes."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-425-K3",
+    "task_id": "425",
+    "fact_key": "portfolio-queue-disclosure-is-complete-and-stable",
+    "topic": "portfolio-roadmap",
+    "statement": "Project road лениво раскрывает полную queue/history и сохраняет disclosure state при polling; 137-task control поймал ограничение `slice(0,100)`, потеряв IDs 400–436.",
+    "status": "current",
+    "anchors": ["complete lazy queue", "slice(0,100)", "IDs 400–436", "disclosure state"],
+    "durability_reason": "Предотвращает тихую потерю задач из-за UI hard limit или схлопывания при refresh.",
+    "evidence": [
+      {
+        "source_path": "sources/task-425/report.md",
+        "line_start": 45,
+        "line_end": 48,
+        "quote": "- project roads/stages/status signals/marker;\n- no-stage state, complete lazy queue/history, disclosure state preserved across poll refresh;\n- waiting task glow, explicit namespace task detail, answer form in existing modal;\n- 1280/1920 body containment and project-owned horizontal scroll."
+      },
+      {
+        "source_path": "sources/task-425/report.md",
+        "line_start": 141,
+        "line_end": 142,
+        "quote": "3. **Queue renderer changed to `slice(0,100)`** → T3 failed because the 137-row exact ID set lost\n   IDs 400–436; restored command passed."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-425-K4",
+    "task_id": "425",
+    "fact_key": "portfolio-task-detail-stays-read-only",
+    "topic": "portfolio-roadmap",
+    "statement": "Task detail из road остаётся read-only modal, использует explicit namespace и показывает wait answer form в существующем modal без навигации.",
+    "status": "current",
+    "anchors": ["read-only modal", "explicit namespace task detail", "wait answer form"],
+    "durability_reason": "Не допускает случайного task mutation или открытия одноимённой задачи из другого namespace.",
+    "evidence": [
+      {
+        "source_path": "sources/task-425/report.md",
+        "line_start": 12,
+        "line_end": 12,
+        "quote": "- task detail остаётся read-only modal;"
+      },
+      {
+        "source_path": "sources/task-425/report.md",
+        "line_start": 47,
+        "line_end": 48,
+        "quote": "- waiting task glow, explicit namespace task detail, answer form in existing modal;\n- 1280/1920 body containment and project-owned horizontal scroll."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-425-K5",
+    "task_id": "425",
+    "fact_key": "portfolio-wait-resolves-on-submitted-receipt",
+    "topic": "portfolio-roadmap",
+    "statement": "Wait response использует существующий async receipt flow: SQLite trigger resolves wait только для current receipt на `SUBMITTED` и bump-ит goal once; archived/missing opener получает 409, agent resolve/cancel остаются совместимыми.",
+    "status": "current",
+    "anchors": ["portfolio_wait_answer", "SUBMITTED", "current receipt", "opened_by_session_id"],
+    "durability_reason": "Разделяет durable acceptance сообщения и фактическое завершение wait, сохраняя идемпотентность.",
+    "evidence": [
+      {
+        "source_path": "sources/task-425/report.md",
+        "line_start": 35,
+        "line_end": 39,
+        "quote": "- optional-compatible `WaitResolve.response` and CSRF token for dashboard operator;\n- async resolve bypasses sync `_call()` and awaits existing receipt acceptance;\n- deterministic attempts; retry only `FAILED_BEFORE_SUBMIT`; ambiguous state is a barrier;\n- SQLite trigger resolves only the current receipt on `SUBMITTED` and bumps goal once;\n- archived/missing opener returns 409; legacy agent resolve/cancel remains compatible."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-425-K6",
+    "task_id": "425",
+    "fact_key": "portfolio-wait-answer-controls-cover-orphans",
+    "topic": "portfolio-roadmap",
+    "statement": "Wait hardening делает stage-link creation и label write атомарными, повторно проверяет opener перед receipt acceptance, блокирует competing close для pending response и показывает независимые controls для task, project и orphaned waits.",
+    "status": "current",
+    "anchors": ["pending response", "orphaned waits", "receipt acceptance", "competing agent close"],
+    "durability_reason": "Покрывает race и UI-сценарии, при которых ответ мог быть отправлен не тому wait или исчезнуть из панели.",
+    "evidence": [
+      {
+        "source_path": "sources/task-425/report.md",
+        "line_start": 54,
+        "line_end": 57,
+        "quote": "- stage link creation and label write combined into one final transaction;\n- durable wait/opener revalidated immediately before receipt acceptance;\n- pending response prevents competing agent close;\n- multiple waits per task plus project-level/orphaned waits all get independent answer controls."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-426-K1",
+    "task_id": "426",
+    "fact_key": "task-write-latency-near-client-deadline",
+    "topic": "task-storage",
+    "statement": "На live `orchestra` GET занимал 1.36/1.68/2.04 с, POST — 20.84 с, PUT — 19.60 и 18.12 с при MCP deadline 30 с; 8 из 17 task creates (47%) не дождались ответа, хотя все записи были committed.",
+    "status": "current",
+    "anchors": ["POST /api/tm/tasks", "PUT /api/tm/tasks/426", "transport_timeout", "30 с"],
+    "durability_reason": "Показывает, почему committed task write может выглядеть клиенту как timeout или неизвестный исход.",
+    "evidence": [
+      {
+        "source_path": "sources/task-426/finding-task-write-latency.md",
+        "line_start": 10,
+        "line_end": 17,
+        "quote": "| `GET /api/tm/tasks` (три подряд) | 1.36 / 1.68 / 2.04 с | curl `-w %{time_total}` |\n| `POST /api/tm/tasks` | **20.84 с** | curl, задача #426 создана |\n| `PUT /api/tm/tasks/426` | **19.60 с** и **18.12 с** | curl, два прогона |\n\nКлиентский дедлайн MCP — 30 с (`app/mcp_stdio.py:514`, `kwargs.pop(\"timeout\", 30)`).\nТо есть запись задачи идёт **впритык к таймауту**: обычный прогон 18–21 с, любая\nдополнительная нагрузка переваливает за 30 → `transport_timeout: ReadTimeout` при уже\ncommitted записи."
+      },
+      {
+        "source_path": "sources/task-426/finding-task-write-latency.md",
+        "line_start": 66,
+        "line_end": 68,
+        "quote": "**8 из 17 созданий задач (47%) не дождались ответа**, при этом все 17 записались.\nОтсюда же «исход неизвестен» в баг-репортах: запись коммитится за первые ~3 с, а ответ\nуходит через 20."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-426-K2",
+    "task_id": "426",
+    "fact_key": "task-write-path-scans-evidence-and-current-projection",
+    "topic": "task-storage",
+    "statement": "Каждая task write deep-copies cache из 47 834 evidence records, считает sha256 по всему evidence, коммитит 47 834 файла и пересобирает `current.db` размером 2.32 ГБ.",
+    "status": "current",
+    "anchors": ["evidence_records()", "_record_task_head", "current.db", "47 834 evidence"],
+    "durability_reason": "Объясняет corpus-dependent latency и указывает операции, которые нельзя оставлять в HTTP response path.",
+    "evidence": [
+      {
+        "source_path": "sources/task-426/finding-task-write-latency.md",
+        "line_start": 32,
+        "line_end": 41,
+        "quote": "Владелец — `KnowledgeRuntime._record_task_head` (`app/ia/runtime.py:642-661`), который на\n**каждую** запись задачи делает три дорогие вещи:\n\n1. `evidence_records()` (`:893-899`) — `copy.deepcopy` кэша из **47 834** evidence-записей\n   (191 МБ на диске). Вызывается не один раз: `_record_task_head` берёт её сам, и ещё\n   дважды её берёт `_refresh_current_projection` через `_retained_evidence_records()`\n   (`:1079` и `:1087`).\n2. sha256 по всему отсортированному списку evidence.\n3. `_commit_canonical()` + `_refresh_current_projection()` — git-коммит в стор из 47 834\n   файлов и пересборка SQLite-проекции `current.db` размером **2.32 ГБ**."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-426-K3",
+    "task_id": "426",
+    "fact_key": "merge-finalization-links-commits-through-canonical-task-store",
+    "topic": "task-storage",
+    "statement": "Если legacy task #399 существует, а canonical #399 отсутствует, process-global IA finalization падает `ValueError: 399 not found` в `app/ia/task_store.py:583` на commit-link пути.",
+    "status": "current",
+    "anchors": ["ValueError: 399 not found", "task_store.py:583", "link_commits_to_task"],
+    "durability_reason": "Позволяет диагностировать post-commit partial merge как canonical task-store mismatch, а не как обычный task update failure.",
+    "evidence": [
+      {
+        "source_path": "sources/task-426/research-laptop-merge-finalization.md",
+        "line_start": 52,
+        "line_end": 57,
+        "quote": "PRECONDITION_CANONICAL_399_MISSING=True\nPRECONDITION_LEGACY_399=399\nIA_CONTEXT_BEFORE=None\nIA_CONTEXT_DURING=_IATaskStoreContext(mode='canonical', store=<app.ia.runtime._RuntimeTaskStore object at ...>)\nREPRO_EXCEPTION=ValueError: 399 not found\nTHROW_FRAME=.../app/ia/task_store.py:583:_find_state"
+      },
+      {
+        "source_path": "sources/task-426/research-laptop-merge-finalization.md",
+        "line_start": 83,
+        "line_end": 89,
+        "quote": "app/routes/sessions.py:1642  apply_merge_finalization\napp/tm.py:1233              finalize_merge_outcome\napp/tm.py:2399              link_commits_to_task\napp/ia/runtime.py:194       _RuntimeTaskStore.link_commits_to_task\napp/ia/task_store.py:1165   TaskStore.link_commits_to_task\napp/ia/task_store.py:583    raise ValueError(f\"{ref} not found\")\nValueError: 399 not found"
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-426-K4",
+    "task_id": "426",
+    "fact_key": "historical-merge-failures-preceded-canonical-task-events",
+    "topic": "task-storage",
+    "statement": "Для исторических merge failures #399, #400 и #410 первые canonical `task.created` events появились после initial failures: через 12m00.454s, примерно 49h49m и примерно 28h09m; failure-time snapshots имели target_matches 0/0/0, тогда как current HEAD имел 1/1/1.",
+    "status": "current",
+    "anchors": ["operation_time_evidence.py", "POST_COMMIT_PARTIAL", "target_matches", "task.created"],
+    "durability_reason": "Сохраняет временную причинную связь, необходимую для анализа старых post-commit partial операций.",
+    "evidence": [
+      {
+        "source_path": "sources/task-426/research-laptop-merge-finalization.md",
+        "line_start": 110,
+        "line_end": 115,
+        "quote": "| #399 | log 508291, `2026-08-26T08:48:55.872038+00:00` | `2026-08-26T09:00:56.326016+00:00` | canonical event is 12m00.454s later |\n| #400 | log 508303, `2026-08-26T08:49:20.216932+00:00` | `2026-08-28T10:38:24.862640+00:00` | canonical event is about 49h49m later |\n| #410 | log 510918, `2026-08-27T06:29:30.931165+00:00` | `2026-08-28T10:38:51.332702+00:00` | canonical event is about 28h09m later |\n\nAll three operation records contain `POST_COMMIT_PARTIAL` with respectively"
+      },
+      {
+        "source_path": "sources/task-426/research-laptop-merge-finalization.md",
+        "line_start": 123,
+        "line_end": 125,
+        "quote": "#399 snapshot=f69f996c... state_count=246 target_matches=0 current_matches=1\n#400 snapshot=f69f996c... state_count=246 target_matches=0 current_matches=1\n#410 snapshot=44616ff0... state_count=248 target_matches=0 current_matches=1"
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-426-K5",
+    "task_id": "426",
+    "fact_key": "shadow-task-create-fails-loud-and-compensates-safely",
+    "topic": "task-storage",
+    "statement": "При shadow candidate creation failure exact candidate absence удаляет только untouched legacy half с identity guards; ambiguous или изменённый candidate/legacy сохраняется, debt recording вторичен, а каждый candidate failure завершается loud exception вместо assignable DTO.",
+    "status": "current",
+    "anchors": ["shadow candidate creation", "identity-guarded delete", "candidate_write_failed", "assignable legacy task"],
+    "durability_reason": "Предотвращает orphaned legacy allocations и скрытые canonical/legacy split writes.",
+    "evidence": [
+      {
+        "source_path": "sources/task-426/report.md",
+        "line_start": 5,
+        "line_end": 11,
+        "quote": "T1 is implemented at the writer that opens the gap. `app/tm.py` no longer returns an assignable\nlegacy task when shadow candidate creation fails:\n\n- exact candidate absence triggers an identity-guarded delete of only the untouched legacy half;\n- candidate present, unreadable, malformed, bound, revised, committed, or reserved preserves data;\n- debt recording runs after probe/compensation and cannot replace the primary creation error;\n- every candidate failure raises instead of returning `{**legacy, ...}`."
+      },
+      {
+        "source_path": "sources/task-426/report.md",
+        "line_start": 50,
+        "line_end": 56,
+        "quote": "Done. The immutable command transitioned from 11 behavior failures to 11 passes without modifying\nthe oracle.\n\n```text\nuv run python -m pytest -q docs/tasks/426/acceptance/test_t1_shadow_task_creation.py\n...........                                                              [100%]\n11 passed in 0.45s"
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-430-K1",
+    "task_id": "430",
+    "fact_key": "layout-cutover-has-cross-project-blast-radius",
+    "topic": "repository-layout",
+    "statement": "Один repository-local `.orchestra` cutover не может безопасно обслужить fleet: общий `memory-search.md` и worker memory loader читают project-specific roots; supplied fleet включал 21 scope и 18 repositories.",
+    "status": "rejected",
+    "anchors": ["memory-search.md", "load_worker_memory()", "project-specific roots", "fleet rollout"],
+    "durability_reason": "Предотвращает ошибочный вывод, что миграция layout в одном checkout автоматически покрывает все проекты.",
+    "evidence": [
+      {
+        "source_path": "sources/task-430/research.md",
+        "line_start": 31,
+        "line_end": 34,
+        "quote": "**REFUTED.** Постановщик передал замер: 21 scope, 18 репозиториев с `docs/kb`, от 2 до 12 788\nфайлов. `memory-search.md` — обязательный общий модуль [L1], а `load_worker_memory()` читает\nproject/repository path каждого воркера [L2]. Значит, single-repo switch ломает не только поиск,\nно и personal memory чужих проектов."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-430-K2",
+    "task_id": "430",
+    "fact_key": "backend-connect-migration-mutates-worker-worktrees",
+    "topic": "repository-layout",
+    "statement": "Автоматический `git mv` на backend-connect seam непригоден для fleet migration: для worker `project_path = worktree_path`, tracked mutation загрязняет branch и может заблокировать merge, а auto-commit в чужой repository несанкционирован.",
+    "status": "rejected",
+    "anchors": ["project_path = worktree_path", "backend-connect", "git mv", "repo_mutation_lock"],
+    "durability_reason": "Не даёт превратить подключение агента в скрытый destructive writer чужого worktree.",
+    "evidence": [
+      {
+        "source_path": "sources/task-430/research.md",
+        "line_start": 44,
+        "line_end": 49,
+        "quote": "**REFUTED как автоматическая мутация.** Для воркера `project_path = worktree_path`, то есть один\nи тот же project может мигрироваться независимо в нескольких ветках [L3]. Платформа прямо\nзапрещает перезаписывать tracked paths: это навсегда пачкает worktree и блокирует merge [L4].\nАвтоматический `git mv` нарушит этот invariant; автоматический commit дополнительно станет\nнесанкционированной записью в чужой репозиторий. Seam пригоден для read-only preflight/выбора\nуже существующего root, но не для самой миграции."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-430-K3",
+    "task_id": "430",
+    "fact_key": "orchestra-memory-root-needs-gitignore-exception",
+    "topic": "repository-layout",
+    "statement": "В baseline pattern `workers/` игнорировал `.orchestra/workers/new-agent.md`; старое negation `!docs/workers/` защищало только прежний root.",
+    "status": "current",
+    "anchors": [".gitignore", ".orchestra/workers/", "git check-ignore", "personal memory"],
+    "durability_reason": "Защищает новые personal-memory files от тихого выпадения из Git.",
+    "evidence": [
+      {
+        "source_path": "sources/task-430/research.md",
+        "line_start": 201,
+        "line_end": 203,
+        "quote": "**CONFIRMED — direct Git ignore probe.** `.gitignore:9-10` содержит пару `workers/` и\n`!docs/workers/`. `git check-ignore -v --no-index .orchestra/workers/new-agent.md` указывает\nна line 9: новый personal-memory file ignored. Старое negation относится только к прежнему root."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-430-K4",
+    "task_id": "430",
+    "fact_key": "historical-evidence-source-path-is-pinned-address",
+    "topic": "repository-layout",
+    "statement": "Historical `source_path` — это адрес внутри pinned `git_commit`, а не current filesystem path; blanket replacement ломает provenance. До move полный gate подтвердил 12 759 path/blob и 12 759 SHA checks для 1 636 unique blobs за 0.919 с.",
+    "status": "current",
+    "anchors": ["source_path", "git_commit:source_path", "git_blob", "source_sha256"],
+    "durability_reason": "Не даёт переписать исторические evidence paths и разрушить их проверяемую provenance-связь.",
+    "evidence": [
+      {
+        "source_path": "sources/task-430/research.md",
+        "line_start": 222,
+        "line_end": 225,
+        "quote": "12 503 records имеют один из old-path literals. Эти `source_path` — **historical address inside\nthe pinned `git_commit`**, не current filesystem address: runtime проверяет exact\n`git_commit:source_path == git_blob`, затем SHA bytes [L7]. Массовая замена `source_path` на новый\ncurrent path при сохранении old commit немедленно даёт `evidence Git path/blob binding changed`."
+      },
+      {
+        "source_path": "sources/task-430/research.md",
+        "line_start": 236,
+        "line_end": 239,
+        "quote": "Минимум трёх из карточки недостаточен как loss gate. Полный детерминированный проход сгруппировал\n12 759 records по 8 commits, проверил все 12 759 `git_commit:source_path -> git_blob`, затем одним\n`git cat-file --batch` проверил 1 636 unique blobs и все 12 759 SHA. Результат до move:\n`ALL_EVIDENCE_OK ... path_ok=12759 sha_ok=12759 seconds=0.919`. Эту же полную команду нужно"
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-430-K5",
+    "task_id": "430",
+    "fact_key": "legacy-path-checks-require-classified-sets",
+    "topic": "repository-layout",
+    "statement": "Repository-wide `rg` с требованием zero legacy literals некорректен: acceptance должна отдельно проверять live owners, immutable historical evidence и явно маркированные negative fixtures.",
+    "status": "current",
+    "anchors": ["raw rg = zero", "live owner set", "immutable historical set", "LEGACY_PATH_FIXTURE"],
+    "durability_reason": "Предотвращает уничтожение provenance ради формального нулевого grep результата.",
+    "evidence": [
+      {
+        "source_path": "sources/task-430/research.md",
+        "line_start": 260,
+        "line_end": 272,
+        "quote": "**CONFIRMED — contradiction with evidence contract.** Historical evidence records обязаны хранить\nold `source_path`; сама эта research file обязана назвать legacy literals; code may also keep\nnegative guards that detect forbidden legacy directives (`app/ia/cutover.py:31-38`). Поэтому\nrepository-wide `rg` без классификации останется непустым даже при идеальном cutover.\n\nМеханическая приёмка должна разделять:\n\n1. **live owner set** — app, scripts, current prompts, tests, `.gitignore`, `CLAUDE.md`, README,\n   manifest destination paths: old paths forbidden;\n2. **immutable historical set** — evidence `source_path`, task/research/archive/changelog text:\n   old paths разрешены и проверяются path/blob/SHA, а не удаляются;\n3. **negative tests/guards** — legacy literals разрешены только как специально маркированные\n   rejection fixtures."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-430-K6",
+    "task_id": "430",
+    "fact_key": "prompt-cutover-requires-scope-worktree-receipts",
+    "topic": "repository-layout",
+    "statement": "Mandatory global prompt можно переключать только после memory-gate и personal-memory receipt для каждого project scope и каждого live/resumable worktree.",
+    "status": "current",
+    "anchors": ["fleet manifest", "live/resumable worktree", "memory gate", "mandatory global prompt"],
+    "durability_reason": "Снижает риск пустой памяти и broken prompt при частично выполненной fleet migration.",
+    "evidence": [
+      {
+        "source_path": "sources/task-430/research.md",
+        "line_start": 294,
+        "line_end": 304,
+        "quote": "1. Заморозить fleet manifest: каждый scope, repository HEAD, live/resumable session и фактический\n   worktree/base commit; current prompt receipt `(runtime, role)` без scope для этого недостаточен [L16].\n2. Проверить per-project `.gitignore`, tracked state, absence of simultaneous old/new roots;\n3. materialize и commit `.orchestra/` владельцем project, не backend-connect side effect;\n4. существующие worktrees rebase/recreate либо оставить на old resolver до их завершения; main commit\n   сам не добавляет new root в старую worker branch, а hot refresh читает `worktree_path` [L17].\n5. проверить file parity, полный 12 759-record evidence gate и current-import validator;\n6. для **каждого scope** свежим реальным agent contour выполнить memory gate в новом root и загрузить\n   personal memory; receipt называет scope, repo/worktree HEAD, runtime, role и observed path;\n7. только после полного fleet receipt переключить mandatory global prompt;\n8. после migration всех repositories удалить transition resolver и old-path support."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-430-K7",
+    "task_id": "430",
+    "fact_key": "moving-from-stale-base-drops-new-runtime-policy",
+    "topic": "repository-layout",
+    "statement": "Перенос layout со stale base может потерять свежую runtime policy: при drift от `9b202bcb` до `f5dad75d` `<artifact-reading>` имел count 2 в main и 0 в branch.",
+    "status": "current",
+    "anchors": ["artifact-reading", "git merge-base", "moving-owner drift", "before_ref"],
+    "durability_reason": "Требует синхронизации moving owners перед destructive directory move.",
+    "evidence": [
+      {
+        "source_path": "sources/task-430/research.md",
+        "line_start": 311,
+        "line_end": 315,
+        "quote": "**CONFIRMED — direct branch/main comparison.** После начала Phase 1 main продвинулся с\n`9b202bcb` до `f5dad75d`. В territory появились изменения `CLAUDE.md` и\n`pipelines/default/prompts/roles/orchestrator.md`; новый `<artifact-reading>` имеет count 2 на main\nи count 0 в текущей ветке. Если выполнить move от старой базы, Git корректно перенесёт старые bytes,\nа новая policy исчезнет без runtime error."
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-430-K8",
+    "task_id": "430",
+    "fact_key": "merge-gate-truncates-final-batch-output",
+    "topic": "test-infrastructure",
+    "statement": "409-символьное сокращение batch output может ошибочно назвать зелёный последний batch причиной failure: в измеренном запуске финальный batch был passed, а реальные failures находились в batches 4–7.",
+    "status": "current",
+    "anchors": ["final 400 characters", "batch 4/9", "batch 7/9", "status=passed"],
+    "durability_reason": "Помогает диагностировать ложную атрибуцию ошибок merge gate по усечённому сообщению.",
+    "evidence": [
+      {
+        "source_path": "sources/task-430/merge-gate-environment-diagnosis.md",
+        "line_start": 5,
+        "line_end": 8,
+        "quote": "The five files named by the 409 error were green. The apparent attribution came from\n`app/merge_operations.py:1754`, which keeps only the final 400 characters of the combined batch\noutput. The final batch contained those five files and had `status=passed`; actual failing batches\nwere 4–7."
+      },
+      {
+        "source_path": "sources/task-430/merge-gate-environment-diagnosis.md",
+        "line_start": 23,
+        "line_end": 28,
+        "quote": "batch 4/9 status=failed\nbatch 5/9 status=failed\nbatch 6/9 status=failed\nbatch 7/9 status=failed\nbatch 8/9 status=passed\nbatch 9/9 status=passed tests=tests/test_startup_bridge.py,tests/test_task_repair_completion_422.py,tests/test_tg_bot_api_unit.py,tests/test_tm.py,tests/test_workspace.py"
+      }
+    ]
+  },
+  {
+    "candidate_id": "task-430-K9",
+    "task_id": "430",
+    "fact_key": "partial-pytest-run-is-not-baseline",
+    "topic": "test-infrastructure",
+    "statement": "Partial or killed pytest run нельзя использовать как baseline: при 3 593 selected nodes и максимум 3 523 comparable status rows минимум 70 nodes отсутствовали, поэтому union из 50 failures не является Phase-3 oracle; нужен тот же набор шести детерминированных shards, а RC=137/timeout/missing status означает incomplete.",
+    "status": "current",
+    "anchors": ["--collect-only -q", "six deterministic shards", "RC=137", "incomplete", "failed-node sets"],
+    "durability_reason": "Предотвращает ложное утверждение regression parity по неполному или несопоставимому прогону.",
+    "evidence": [
+      {
+        "source_path": "sources/task-430/research.md",
+        "line_start": 395,
+        "line_end": 410,
+        "quote": "До/после сравниваются set difference `after - before` и `before - after`, а не числа. Вход\nпользователя «47 failures, abort at 82%» не воспроизвёлся как полное множество на старом checkout:\nосновной прогон увидел только 46 до kill, tail добавил ещё 4. Это не доказательство изменения базы,\nпотому что branch уже отстал от main. `--collect-only` даёт 3 593 selected nodes, тогда как два\ndiagnostic runs дали максимум 3 523 status rows до учёта overlap — минимум 70 nodes не имеют\nсопоставимого результата. Поэтому union 50 нельзя использовать как Phase-3 before oracle.\n\nПосле синхронизации с main до move нужен новый воспроизводимый protocol:\n\n1. сохранить exact `--collect-only -q` node-id manifest и 199 tracked test-file paths;\n2. по count collected nodes разложить files в шесть детерминированных balanced shards и сохранить\n   exact file list каждого shard;\n3. каждый shard выполнить той же `pytest -vv --tb=short` командой до summary; `RC=137`, timeout или\n   отсутствие status для любого collected node означает `incomplete`, не baseline;\n4. доказать, что union shard statuses равен collection manifest;\n5. после move повторить те же six file manifests и сравнить exact failed-node sets;\n6. запускать в disposable clean worktree и проверять status до/после, потому что diagnostic run уже\n   менял tracked PNG."
+      }
+    ]
+  }
+]

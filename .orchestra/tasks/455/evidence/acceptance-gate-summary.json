@@ -1,0 +1,19 @@
+{
+  "merges_with_acceptance_command": 16,
+  "simplification_matching_merge_commands": [
+    {
+      "command": "python3 -m pytest -q docs/tasks/332/acceptance/test_t1_delete_orchestrator_dead_code.py",
+      "operation_id": "a77cd1cd-3c0e-42cd-ad56-251dbe77e355",
+      "reason": "",
+      "status": "passed"
+    }
+  ],
+  "simplification_matching_task_commands": [
+    {
+      "acceptance_command": "python3 -m pytest -q docs/tasks/332/acceptance/test_t1_delete_orchestrator_dead_code.py",
+      "par_number": 338
+    }
+  ],
+  "successful_merges": 148,
+  "tasks_with_acceptance_command": 23
+}

@@ -1,0 +1,58 @@
+{
+  "task_counter": {
+    "commit": "baf501c7",
+    "hunk_has_canonical_writer": true,
+    "hunk_has_legacy_writer": true,
+    "codex_review_tool_calls": 0,
+    "codex_exec_calls": 0,
+    "done_report_explicitly_says_no_review": true,
+    "later_proof_has_counter_mismatch": true
+  },
+  "fact_key": {
+    "commit": "e3f95f98",
+    "hunk_has_content_derived_identity": true,
+    "review_artifact": ".orchestra/tasks/409/codex-review-impl.md",
+    "review_mentions_same_hunk": true,
+    "review_mentions_rephrase_instability": false,
+    "review_incorrect_verdict_count": 3,
+    "review_approved_verdict_count": 0,
+    "codex_review_tool_calls": 3,
+    "luna_review_usage_rows": [
+      {
+        "input_tokens": 1665140,
+        "cache_read_tokens": 1559040,
+        "output_tokens": 26409,
+        "cost_usd": 0.0840916
+      },
+      {
+        "input_tokens": 1583486,
+        "cache_read_tokens": 1430528,
+        "output_tokens": 20018,
+        "cost_usd": 0.08322376000000001
+      },
+      {
+        "input_tokens": 1050301,
+        "cache_read_tokens": 1021440,
+        "output_tokens": 4422,
+        "cost_usd": 0.031507400000000005
+      }
+    ],
+    "luna_review_usage_total": {
+      "input_tokens": 4298927,
+      "cache_read_tokens": 4011008,
+      "output_tokens": 50849,
+      "cost_usd": 0.19882276000000002
+    },
+    "later_proof_has_rephrase_failure": true
+  },
+  "session_key": {
+    "commit": "01a666ed",
+    "hunk_uses_current_session_id_for_transcript": true,
+    "plan_review_caught_sdk_session_lifecycle": true,
+    "implementation_review_files_in_commit": [
+      "docs/tasks/subagent-telemetry/codex-review-plan.md"
+    ],
+    "implementation_report_says_codex_unavailable": true,
+    "later_fix_has_historical_sdk_test": true
+  }
+}

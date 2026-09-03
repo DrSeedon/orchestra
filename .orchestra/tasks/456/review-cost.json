@@ -1,0 +1,13 @@
+{
+  "tokenizer": "tiktoken 0.13.0 o200k_base",
+  "stop_rule": {
+    "characters": 1135,
+    "words": 177,
+    "o200k_base_tokens": 234
+  },
+  "nine_case_packet": {
+    "characters": 26635,
+    "words": 2803,
+    "o200k_base_tokens": 7080
+  }
+}
