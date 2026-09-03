@@ -1,0 +1,29 @@
+{
+  "classification": "post-run manual counter-evidence; not part of preregistered score",
+  "oracle": {
+    "current_fact": ".orchestra/kb/data-locality.md:12",
+    "withdrawn_fact": ".orchestra/kb/data-locality.md:11",
+    "truth": "User selected forced automatic migration without per-project fallback/receipt gate; the earlier per-scope/worktree receipt requirement is withdrawn."
+  },
+  "findings": [
+    {
+      "trial": 1,
+      "candidate_id": "task-430-K8",
+      "reported_status": "current",
+      "false_claim": "Safe fleet rollout requires per-scope and per-worktree receipts."
+    },
+    {
+      "trial": 2,
+      "candidate_id": "task-430-K6",
+      "reported_status": "current",
+      "false_claim": "Mandatory global prompt can switch only after a receipt for every scope/worktree."
+    },
+    {
+      "trial": 3,
+      "candidate_id": "task-430-K10",
+      "reported_status": "current",
+      "false_claim": "Safe rollout requires per-scope and per-worktree receipts."
+    }
+  ],
+  "minimum_observed_semantic_falsehood_rate": "3/138 candidates; at least one in 3/3 trials"
+}

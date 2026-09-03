@@ -1,0 +1,76 @@
+{
+  "source_tasks": ["416", "417", "419", "425", "426", "430"],
+  "preregistered_pass": {
+    "fresh_runs": 3,
+    "json_schema_valid_each_run": true,
+    "gold_recall_each_run": 1.0,
+    "gold_coverage_jaccard_min": 1.0,
+    "evidence_exact_rate_each_run": 1.0,
+    "evidence_line_range_rate_each_run": 1.0,
+    "numeric_grounding_rate_each_run": 1.0,
+    "source_tree_digest_unchanged_each_run": true
+  },
+  "gold": [
+    {
+      "gold_id": "G416-dirty-normalizer",
+      "task_id": "416",
+      "required_groups": [["dirty"], ["NO_COMMITS_MERGED"], ["normalize_merge_result"]]
+    },
+    {
+      "gold_id": "G416-preserve-error-action",
+      "task_id": "416",
+      "required_groups": [["raw.get(\"error\")", "raw error"], ["CLEAN_TARGET_THEN_NEW_OPERATION"]]
+    },
+    {
+      "gold_id": "G417-file-first-protocol",
+      "task_id": "417",
+      "required_groups": [["file-first"], ["rg -l"], ["rg -n"], ["search_memory"]]
+    },
+    {
+      "gold_id": "G417-fact-contract",
+      "task_id": "417",
+      "required_groups": [["fact:"], ["1–6", "1-6"], ["evidence"], ["same-key", "same key"]]
+    },
+    {
+      "gold_id": "G419-vector-zero-rg-six",
+      "task_id": "419",
+      "required_groups": [["vector", "V"], ["unique"], ["0"], ["rg"], ["6"]]
+    },
+    {
+      "gold_id": "G419-delete-vector",
+      "task_id": "419",
+      "required_groups": [["DELETE"], ["vector"], ["808"]]
+    },
+    {
+      "gold_id": "G425-complete-task-source",
+      "task_id": "425",
+      "required_groups": [["274"], ["payload"], ["0 links", "links=0", "links remain 0"]]
+    },
+    {
+      "gold_id": "G425-wait-submitted",
+      "task_id": "425",
+      "required_groups": [["SUBMITTED"], ["current"], ["stale"], ["wait"]]
+    },
+    {
+      "gold_id": "G426-canonical-gap",
+      "task_id": "426",
+      "required_groups": [["target_matches=0", "target matches 0", "0/0/0"], ["_find_state", "399 not found"]]
+    },
+    {
+      "gold_id": "G426-write-latency",
+      "task_id": "426",
+      "required_groups": [["20.84"], ["19.60"], ["18.12"], ["POST"], ["PUT"]]
+    },
+    {
+      "gold_id": "G430-historical-source-path",
+      "task_id": "430",
+      "required_groups": [["12 503", "12503", "12,503"], ["source_path"], ["git_commit"], ["git_blob"]]
+    },
+    {
+      "gold_id": "G430-layout-repair",
+      "task_id": "430",
+      "required_groups": [["ORCHESTRA_LAYOUT_MISSING"], ["ORCHESTRA_LAYOUT_PARTIAL"], ["--repair"]]
+    }
+  ]
+}
+

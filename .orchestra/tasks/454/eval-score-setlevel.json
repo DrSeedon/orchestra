@@ -1,0 +1,63 @@
+{
+  "classification": "exploratory_after_results_not_preregistered_acceptance",
+  "excluded_gold": [
+    {
+      "gold_id": "G419-delete-vector",
+      "missing_groups": [["808"]],
+      "reason": "required literal absent from source corpus"
+    }
+  ],
+  "noise": {
+    "pairwise_coverage_jaccard": [0.5555555555555556, 0.5555555555555556, 1.0],
+    "pairwise_coverage_jaccard_min": 0.5555555555555556,
+    "recall_max": 0.7272727272727273,
+    "recall_min": 0.5454545454545454,
+    "recall_range": 0.18181818181818188
+  },
+  "runs": [
+    {
+      "matched": [
+        "G416-dirty-normalizer",
+        "G416-preserve-error-action",
+        "G417-fact-contract",
+        "G419-vector-zero-rg-six",
+        "G425-complete-task-source",
+        "G425-wait-submitted",
+        "G426-write-latency",
+        "G430-historical-source-path"
+      ],
+      "matched_count": 8,
+      "set_level_recall": 0.7272727272727273,
+      "trial": 1,
+      "valid_gold_count": 11
+    },
+    {
+      "matched": [
+        "G416-dirty-normalizer",
+        "G416-preserve-error-action",
+        "G419-vector-zero-rg-six",
+        "G425-complete-task-source",
+        "G426-canonical-gap",
+        "G426-write-latency"
+      ],
+      "matched_count": 6,
+      "set_level_recall": 0.5454545454545454,
+      "trial": 2,
+      "valid_gold_count": 11
+    },
+    {
+      "matched": [
+        "G416-dirty-normalizer",
+        "G416-preserve-error-action",
+        "G419-vector-zero-rg-six",
+        "G425-complete-task-source",
+        "G426-canonical-gap",
+        "G426-write-latency"
+      ],
+      "matched_count": 6,
+      "set_level_recall": 0.5454545454545454,
+      "trial": 3,
+      "valid_gold_count": 11
+    }
+  ]
+}

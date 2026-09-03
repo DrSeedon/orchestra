@@ -1,0 +1,194 @@
+{
+  "corpus": {
+    "numeric_task_directories_with_files": 373,
+    "task_directories_with_files": 464,
+    "tasks": {
+      "allocated_bytes": 99393536,
+      "apparent_bytes": 89867548,
+      "files": 4040,
+      "markdown_apparent_bytes": 19834760,
+      "markdown_files": 1486
+    },
+    "workers": {
+      "allocated_bytes": 1024000,
+      "apparent_bytes": 587227,
+      "files": 163,
+      "markdown_apparent_bytes": 587227,
+      "markdown_files": 163
+    }
+  },
+  "dialog_source": {
+    "log_watermark": {
+      "max_id": 575886,
+      "max_ts": "2026-09-03T08:36:21.592560+00:00"
+    },
+    "logs": {
+      "archived_content_bytes": 319811601,
+      "archived_logs": 123655,
+      "content_bytes": 701146387,
+      "logs": 258651
+    },
+    "summaries": {
+      "archived_sessions": 516,
+      "sessions": 612,
+      "summaries": 84,
+      "summary_bytes": 397618
+    }
+  },
+  "evidence": {
+    "candidate_paths_recoverable": 1458,
+    "candidate_paths_with_any_historical_record": 1492,
+    "candidate_paths_with_current_digest_match": 1458,
+    "evidence_records_scanned": 12759,
+    "valid_matching_bindings": 8663
+  },
+  "historical_luna_extraction_cost": {
+    "batches": [
+      {
+        "facts": 86,
+        "model_turns": 3,
+        "source_files": 2,
+        "task_id": "399",
+        "virtual_cost_usd": 0.19716192
+      },
+      {
+        "facts": 177,
+        "model_turns": 1,
+        "source_files": 3,
+        "task_id": "400",
+        "virtual_cost_usd": 0.10397756
+      },
+      {
+        "facts": 85,
+        "model_turns": 1,
+        "source_files": 4,
+        "task_id": "401",
+        "virtual_cost_usd": 0.1029572
+      },
+      {
+        "facts": 161,
+        "model_turns": 5,
+        "source_files": 12,
+        "task_id": "402",
+        "virtual_cost_usd": 0.32295972
+      },
+      {
+        "facts": 255,
+        "model_turns": 2,
+        "source_files": 1,
+        "task_id": "403",
+        "virtual_cost_usd": 0.22998684
+      }
+    ],
+    "max_batch_virtual_cost_usd": 0.32295972,
+    "median_batch_model_turns": 2,
+    "median_batch_virtual_cost_usd": 0.19716192,
+    "min_batch_virtual_cost_usd": 0.1029572,
+    "total_batches": 5,
+    "total_facts": 764,
+    "total_model_turns": 12,
+    "total_source_files": 22,
+    "total_virtual_cost_usd": 0.95704324
+  },
+  "kb_live_facts": {
+    "exact_current_path_reference_examples": [
+      ".orchestra/tasks/111/research.md",
+      ".orchestra/tasks/18/research.md",
+      ".orchestra/tasks/210/contaminated-run-evidence.txt",
+      ".orchestra/tasks/230/research.md",
+      ".orchestra/tasks/234/browser-baseline.json"
+    ],
+    "facts_current_or_rejected": 578,
+    "promoted_task_keys_matching_current_directories": [
+      "110", "111", "114", "119", "123", "127", "129", "133", "134", "135",
+      "138", "140", "145", "150", "151", "154", "155", "158", "159", "162",
+      "165", "167", "174", "175", "176", "177", "178", "179", "18", "184",
+      "186", "187", "188", "189", "190", "197", "198", "199", "2", "203",
+      "208", "209", "210", "214", "215", "216", "219", "220", "223", "224",
+      "227", "228", "229", "230", "231", "232", "234", "236", "237", "238",
+      "240", "241", "248", "249", "250", "251", "255", "256", "264", "269",
+      "270", "283", "290", "298", "299", "304", "309", "311", "312", "313",
+      "314", "315", "318", "323", "324", "325", "328", "329", "332", "333",
+      "334", "336", "340", "345", "346", "347", "35", "350", "361", "364",
+      "367", "368", "379", "380", "385", "395", "398", "402", "404", "405",
+      "406", "408", "409", "412", "416", "417", "418", "419", "42", "421",
+      "422", "425", "426", "430", "433", "49", "503", "506", "57", "58",
+      "65", "77", "8", "9", "fullcycle-audit", "kb-extract", "sol-efficiency"
+    ],
+    "referenced_files_apparent_bytes": 6268998,
+    "structured_fact_key_lines": 75,
+    "task_directories_with_artifacts_and_no_promoted_fact": 327,
+    "task_directories_with_at_least_one_promoted_fact": 137,
+    "task_directories_with_exact_path_from_fact": 48,
+    "task_directories_with_structured_promoted_fact": 13,
+    "task_directories_without_structured_promoted_fact": 451,
+    "task_files_referenced_by_exact_current_path": 122,
+    "task_files_referenced_by_structured_fact_exact_current_path": 31,
+    "worker_files_referenced_by_exact_current_path": 0,
+    "worker_files_referenced_by_structured_fact_exact_current_path": 0
+  },
+  "non_derivable_storage_predicate": {
+    "candidate_files": 4203,
+    "definition": "allow only when owner is terminal (or separately human-approved), no tracked current-HEAD consumer names the file, and exact current bytes match a git_commit:path->blob->sha256 receipt reachable from main",
+    "head_consumer_exact_paths": 707,
+    "important_limit": "this is only the post-semantic storage gate; without candidate manifests and external completeness approval, production deletion remains forbidden",
+    "kept_apparent_bytes": 86911107,
+    "kept_by_predicate": 3835,
+    "owner_active_files": 547,
+    "owner_terminal_files": 1820,
+    "owner_unknown_files": 1836,
+    "passed_apparent_bytes": 3543668,
+    "passed_by_storage_predicate": 368,
+    "passed_examples": [
+      ".orchestra/tasks/1/codex-review-impl.md",
+      ".orchestra/tasks/1/codex-review.md",
+      ".orchestra/tasks/10/codex-review.md",
+      ".orchestra/tasks/100/codex-review-impl.md",
+      ".orchestra/tasks/100/codex-review-plan.md"
+    ],
+    "passed_task_files": 342,
+    "passed_worker_files": 26,
+    "reason_counts_not_mutually_exclusive": {
+      "active_owner": 547,
+      "current_head_consumer": 194,
+      "missing_exact_reachable_blob_receipt": 2745,
+      "unknown_owner_or_no_approval": 1836
+    },
+    "reason_examples": {
+      "active_owner": [
+        ".orchestra/tasks/108/plan.md",
+        ".orchestra/tasks/108/report-impl.md",
+        ".orchestra/tasks/108/report.md",
+        ".orchestra/tasks/109/report.md",
+        ".orchestra/tasks/110/codex-review-input.md"
+      ],
+      "current_head_consumer": [
+        ".orchestra/tasks/106/research.md",
+        ".orchestra/tasks/111/research.md",
+        ".orchestra/tasks/129/research.md",
+        ".orchestra/tasks/13/report.md",
+        ".orchestra/tasks/15/research.md"
+      ],
+      "missing_exact_reachable_blob_receipt": [
+        ".orchestra/tasks/106/analyze_results.py",
+        ".orchestra/tasks/106/fixtures.json",
+        ".orchestra/tasks/106/prompts.py",
+        ".orchestra/tasks/106/q4/analyze_results.py",
+        ".orchestra/tasks/106/q4/audit_provenance.py"
+      ],
+      "unknown_owner_or_no_approval": [
+        ".orchestra/tasks/118/audit.md",
+        ".orchestra/tasks/118/claude-md-slimming-proposal.md",
+        ".orchestra/tasks/169/codex-review-impl.md",
+        ".orchestra/tasks/169/codex-review-plan.md",
+        ".orchestra/tasks/169/codex-review-research.md"
+      ]
+    }
+  },
+  "snapshot": {
+    "db": "/mnt/data/Projects/Python/orchestra/data/orchestra.db",
+    "excluded_task_dirs": ["454"],
+    "git_head": "0f415e840b09a35968c022f55dd37863fa2242a9",
+    "git_main": "0f415e840b09a35968c022f55dd37863fa2242a9"
+  }
+}
