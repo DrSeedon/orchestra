@@ -1,0 +1,39 @@
+{
+  "counting_rule": "retroactive strict state migration: every current DB task with status=done and a matching non-empty .orchestra/tasks/<par>/ directory lacks the new #454 drain receipt and enters knowledge_pending; done without source enters extraction_blocked_source_missing",
+  "prospective_only_initial_knowledge_pending": 0,
+  "retroactive_state": {
+    "at_least_one_structured_fact_but_no_new_drain_receipt": {
+      "apparent_bytes": 8356199,
+      "files": 606,
+      "markdown_apparent_bytes": 767730,
+      "markdown_files": 49,
+      "task_directories": 7
+    },
+    "extraction_blocked_source_missing_tasks": 33,
+    "knowledge_pending": {
+      "apparent_bytes": 28316996,
+      "files": 1525,
+      "markdown_apparent_bytes": 4829619,
+      "markdown_files": 426,
+      "task_directories": 141
+    },
+    "zero_structured_promoted_fact": {
+      "apparent_bytes": 19960797,
+      "files": 919,
+      "markdown_apparent_bytes": 4061889,
+      "markdown_files": 377,
+      "task_directories": 134
+    }
+  },
+  "snapshot": {
+    "db": "/mnt/data/Projects/Python/orchestra/data/orchestra.db",
+    "git_head": "88cb8fc7ee7c95f0d29504fb60c27395c523700e",
+    "task_updated_at_max": "2026-09-03T09:57:29.538867+00:00"
+  },
+  "task_status_counts": {
+    "cancelled": 29,
+    "done": 174,
+    "in_progress": 13,
+    "new": 94
+  }
+}

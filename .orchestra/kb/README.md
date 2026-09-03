@@ -82,3 +82,4 @@
 - [feature-usage-audit](feature-usage-audit.md) — замороженный срез #309: сколько у нас реально тулов, путей OpenAPI и маршрутов, и какие из них никто не зовёт.
 - [competitive-landscape](competitive-landscape.md) — чужие ADE/harness (Orca, omp, Multica, Paseo, cmux) и субагенты Claude Code/Codex против нас: что перестало быть отличием, измеренная разница по времени жизни агента, цена fork/exec и где мы слабее.
 - [antigravity-runtime](antigravity-runtime.md) — официальный `agy` headless/NDJSON и MCP технически совместимы с runtime Orchestra, но consumer login запрещён current Terms для third-party wrappers; quota остаётся динамической weekly/5-hour без RPD/RPM.
+- [knowledge-pipeline](knowledge-pipeline.md) — единый ledger «сырьё → candidates → sink → release»: измеренный корпус, предикат неудаляемого, failed Luna prompt baseline, fan economics и durable-debt gap.

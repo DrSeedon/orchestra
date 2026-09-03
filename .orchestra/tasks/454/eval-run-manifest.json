@@ -1,0 +1,76 @@
+{
+  "model": "gpt-5.6-luna",
+  "prompt_commit": "847d17ac38f0d5b034d9bb90d2e6dbe7fa7cd825",
+  "source_files": 37,
+  "source_tasks": ["416", "417", "419", "425", "426", "430"],
+  "source_digest": "eee996bb23f7558779b6b4091270a8aac02021bb536a76041d4a4bfae751227d",
+  "infrastructure_attempts": [
+    {
+      "outcome": "failed_before_model",
+      "reason": "background job used main-checkout cwd and could not open the worktree-relative runner"
+    },
+    {
+      "outcome": "interrupted_after_trial_1",
+      "reason": "Orchestra service restart interrupted trial 2 before a terminal event",
+      "evidence": "eval-interruption.txt",
+      "partial_trace_disposition": "deleted after exact error receipt; no terminal output, excluded from score"
+    }
+  ],
+  "trials": [
+    {
+      "trial": 1,
+      "returncode": 0,
+      "source_digest_before": "eee996bb23f7558779b6b4091270a8aac02021bb536a76041d4a4bfae751227d",
+      "source_digest_after": "eee996bb23f7558779b6b4091270a8aac02021bb536a76041d4a4bfae751227d",
+      "source_unchanged": true,
+      "source_unchanged_evidence": "post-restart byte comparison: SOURCE_FILES 37, MISMATCHES 0",
+      "output": "eval-run-1.txt",
+      "trace": "eval-run-1.jsonl",
+      "stderr": "eval-run-1.stderr",
+      "usage": {
+        "input_tokens": 1933924,
+        "cached_input_tokens": 1778176,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 40010,
+        "virtual_cost_usd": 0.11472512
+      }
+    },
+    {
+      "trial": 2,
+      "returncode": 0,
+      "elapsed_seconds": 542.395,
+      "source_digest_before": "eee996bb23f7558779b6b4091270a8aac02021bb536a76041d4a4bfae751227d",
+      "source_digest_after": "eee996bb23f7558779b6b4091270a8aac02021bb536a76041d4a4bfae751227d",
+      "source_unchanged": true,
+      "output": "eval-run-2.txt",
+      "trace": "eval-run-2.jsonl",
+      "stderr": null,
+      "usage": {
+        "input_tokens": 4502013,
+        "cached_input_tokens": 4303616,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 32120,
+        "virtual_cost_usd": 0.16429572
+      }
+    },
+    {
+      "trial": 3,
+      "returncode": 0,
+      "elapsed_seconds": 596.245,
+      "source_digest_before": "eee996bb23f7558779b6b4091270a8aac02021bb536a76041d4a4bfae751227d",
+      "source_digest_after": "eee996bb23f7558779b6b4091270a8aac02021bb536a76041d4a4bfae751227d",
+      "source_unchanged": true,
+      "output": "eval-run-3.txt",
+      "trace": "eval-run-3.jsonl",
+      "stderr": null,
+      "usage": {
+        "input_tokens": 2814020,
+        "cached_input_tokens": 2640384,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 37125,
+        "virtual_cost_usd": 0.13208488
+      }
+    }
+  ],
+  "total_virtual_cost_usd": 0.41110572
+}

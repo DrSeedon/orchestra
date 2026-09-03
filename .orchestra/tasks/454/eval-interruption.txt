@@ -1,0 +1,12 @@
+[Background job FAILED] #454 Luna extractor prompt eval: 3 frozen runs completed
+Process exited with exit code 2
+
+/mnt/data/Projects/Python/orchestra/.venv/bin/python: can't open file '/mnt/data/Projects/Python/orchestra/.orchestra/tasks/454/run_extractor_eval.py': [Errno 2] No such file or directory
+
+[Background job INTERRUPTED] #454 Luna extractor prompt eval: 3 frozen runs completed
+Прерван рестартом сервиса, повторный запуск не выполнялся.
+
+Disposition: the first attempt ended before a model run; the interrupted trial 2 had no terminal
+model output and is excluded. Fresh trials 2/3 were then run by continue_extractor_eval.py with the
+same committed prompt/gold and source digest. The partial JSONL was deleted after this exact error
+receipt was retained; it is neither a scored run nor unique semantic evidence.
