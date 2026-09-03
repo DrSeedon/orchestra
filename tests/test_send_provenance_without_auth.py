@@ -1,15 +1,4 @@
-"""Чат дашборда на контуре БЕЗ авторизации не должен отвечать 403.
-
-`#433` завёл гейт происхождения: сообщение без `sender` требует авторизованного
-оператора. Но `validate_session` возвращает False, когда `DASHBOARD_USER`/
-`DASHBOARD_PASSWORD` пусты (`app/auth.py:58-61`) — а это наша штатная конфигурация.
-Фронт шлёт в `/send` только `{message, scope}`, поэтому гейт отвергал КАЖДОЕ
-сообщение из дашборда, а не иногда.
-
-Правило самого #433 говорит, что делать вместо отказа: отсутствующее происхождение
-рисуется как `unknown`, НИКОГДА как `user`. Отказ — это не «не соврать», это
-«не доставить»; `unknown` выполняет требование, не ломая доставку.
-"""
+"""Senderless `/send` provenance follows dashboard authentication state."""
 
 import pytest
 
@@ -30,14 +19,17 @@ def _request(path="/api/sessions/target/send", headers=None):
 
 
 @pytest.fixture
-def wired(tmp_path, monkeypatch):
+def wired(tmp_path, monkeypatch, request):
     from app import db
     from app.routes import sessions as routes
     from tests.test_message_delivery_receipts_380 import _session_record
 
-    # Ровно наш контур: авторизация дашборда выключена, куки нет.
-    monkeypatch.delenv("DASHBOARD_USER", raising=False)
-    monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
+    if getattr(request, "param", False):
+        monkeypatch.setenv("DASHBOARD_USER", "operator-noauth")
+        monkeypatch.setenv("DASHBOARD_PASSWORD", "secret-noauth")
+    else:
+        monkeypatch.delenv("DASHBOARD_USER", raising=False)
+        monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "send-provenance.db")
     db.init_db()
 
@@ -64,8 +56,8 @@ def wired(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_senderless_send_without_auth_is_delivered_as_unknown(wired):
-    """Доставка обязана состояться, а происхождение — быть честным."""
+async def test_senderless_send_without_auth_is_delivered_as_user(wired):
+    """Без включённой авторизации senderless `/send` — операторский."""
     routes, captured = wired
 
     result = await routes.send_message(
@@ -75,13 +67,27 @@ async def test_senderless_send_without_auth_is_delivered_as_unknown(wired):
 
     status = getattr(result, "status_code", 200)
     assert status != 403, (
-        "чат дашборда отвергнут гейтом происхождения: на контуре без "
-        "DASHBOARD_USER оператор недоказуем В ПРИНЦИПЕ, значит 403 постоянный"
+        "чат дашборда отвергнут гейтом происхождения на контуре без "
+        "DASHBOARD_USER/DASHBOARD_PASSWORD"
     )
     assert captured, "сообщение не доставлено получателю"
-    assert captured[0].origin == "unknown", (
-        "происхождение недоказуемо — оно обязано быть unknown, а не user"
+    assert captured[0].origin == "user"
+    assert captured[0].senders == ("user",)
+
+
+@pytest.mark.parametrize("wired", [True], indirect=True)
+@pytest.mark.asyncio
+async def test_senderless_send_with_invalid_auth_is_unknown(wired):
+    """При включённой авторизации мусорная кука не доказывает оператора."""
+    routes, captured = wired
+
+    await routes.send_message(
+        "target",
+        routes.SendRequest(message="из дашборда", scope="/scope"),
+        request=_request(headers=[(b"cookie", b"session=garbage")]),
     )
+
+    assert captured[0].origin == "unknown"
     assert captured[0].senders == ("unknown",)
 
 
@@ -101,7 +107,7 @@ async def test_sender_still_wins_over_the_unknown_fallback(wired):
 
 
 @pytest.mark.asyncio
-async def test_authenticated_operator_is_still_user_not_unknown(tmp_path, monkeypatch):
+async def test_senderless_send_with_valid_auth_is_user(tmp_path, monkeypatch):
     """Там, где оператор ДОКАЗАН кукой, происхождение остаётся `user`."""
     from app import db
     from app.auth import create_session
