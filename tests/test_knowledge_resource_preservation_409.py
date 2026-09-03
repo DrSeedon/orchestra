@@ -12,7 +12,7 @@ from app.ia import knowledge
 from app.ia.task_store import TaskStore, build_migration_manifest
 
 
-FIXTURE = Path("docs/tasks/315/acceptance/fixtures/t2_task_store_records.json")
+FIXTURE = Path(".orchestra/tasks/315/acceptance/fixtures/t2_task_store_records.json")
 
 
 def test_claude_resource_import_links_once_without_rewriting_flat_record(tmp_path):
