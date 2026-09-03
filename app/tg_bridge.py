@@ -16,6 +16,7 @@ from pathlib import Path
 
 import aiohttp
 from aiogram import Bot, Dispatcher, types, F
+from aiogram.enums import ContentType
 from aiogram.exceptions import (
     TelegramBadRequest,
     TelegramNetworkError,
@@ -3876,6 +3877,31 @@ def _serialize_fallback_payload(payload: object) -> str:
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str)
 
 
+_SERVICE_MESSAGE_TYPES = frozenset(
+    content_type.value
+    for content_type in (
+        ContentType.FORUM_TOPIC_CREATED,
+        ContentType.FORUM_TOPIC_EDITED,
+        ContentType.FORUM_TOPIC_CLOSED,
+        ContentType.FORUM_TOPIC_REOPENED,
+        ContentType.GENERAL_FORUM_TOPIC_HIDDEN,
+        ContentType.GENERAL_FORUM_TOPIC_UNHIDDEN,
+        ContentType.NEW_CHAT_MEMBERS,
+        ContentType.LEFT_CHAT_MEMBER,
+        ContentType.NEW_CHAT_TITLE,
+        ContentType.NEW_CHAT_PHOTO,
+        ContentType.DELETE_CHAT_PHOTO,
+        ContentType.PINNED_MESSAGE,
+        ContentType.MESSAGE_AUTO_DELETE_TIMER_CHANGED,
+        ContentType.GROUP_CHAT_CREATED,
+        ContentType.SUPERGROUP_CHAT_CREATED,
+        ContentType.CHANNEL_CHAT_CREATED,
+        ContentType.MIGRATE_TO_CHAT_ID,
+        ContentType.MIGRATE_FROM_CHAT_ID,
+    )
+)
+
+
 @dp.message()
 async def handle_unhandled_message(msg: types.Message):
     content_type, payload = _fallback_payload(msg)
@@ -3886,6 +3912,8 @@ async def handle_unhandled_message(msg: types.Message):
         msg.message_id,
         content_type,
     )
+    if content_type in _SERVICE_MESSAGE_TYPES:
+        return
     orch_name, session = await _resolve_orch(msg)
     if not session:
         return
