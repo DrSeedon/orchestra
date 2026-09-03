@@ -54,6 +54,9 @@ _DEBT_REASON_POLICIES = {
     "projection_receipt_unsealed": DebtReasonPolicy(blocking=False),
     "projection_head_mismatch": DebtReasonPolicy(blocking=False),
     "current_projection_update_failed": DebtReasonPolicy(blocking=True),
+    "projection_outbox_invalid": DebtReasonPolicy(blocking=True),
+    "projection_outbox_blocked": DebtReasonPolicy(blocking=True),
+    "projection_outbox_worktree_diverged": DebtReasonPolicy(blocking=False),
 }
 
 
@@ -430,16 +433,23 @@ class KnowledgeRuntime:
         )
         self._task_projects = self._task_project_ids()
         self._evidence_records_cache: list[dict[str, Any]] | None = None
+        self._evidence_head_prefix = None
         self.knowledge_service = None
+        self._canonical_git_lock = threading.RLock()
         self._projection_writer_lock = threading.Lock()
         self._projection_repair_task = None
         self._projection_repair_required = False
+        self._projection_wakeup = None
+        self._projection_wakeup_loop = None
+        self._reconcile_projection_outbox_worktree()
         self.task_store = self._task_store()
         if self.state.get("active_owner") == "legacy" and self.state.get("generation") == 2:
             self.task_store.reconcile_legacy_tasks(self._task_snapshot()["tasks"])
         self._initialize_canonical_git()
         if self.project_knowledge.active_owner == "central":
             self._import_scope_evidence()
+        else:
+            self._build_evidence_head_prefix()
         self._ensure_vector_projection()
         self._ensure_shadow_receipt()
         self._migrate_platform_prompts()
@@ -652,12 +662,7 @@ class KnowledgeRuntime:
             head_writer=self._record_task_head,
         )
 
-    def _record_task_head(
-        self,
-        head: str,
-        *,
-        changed_records: Sequence[Mapping[str, Any]] | None = None,
-    ) -> None:
+    def _build_evidence_head_prefix(self) -> None:
         evidence = [
             {
                 key: value
@@ -666,46 +671,273 @@ class KnowledgeRuntime:
             }
             for record in self.evidence_records()
         ]
-        knowledge_head = self.knowledge_service.head() if self.knowledge_service is not None else None
-        combined = "sha256:" + hashlib.sha256(_bytes({
-            "task_head": head,
-            "knowledge_head": knowledge_head,
-            "evidence": sorted(evidence, key=lambda item: (item["project_id"], item["stable_id"])),
-        })).hexdigest()
-        prior_projection_head = str(self.state.get("projection_head") or "")
-        self.state["canonical_head"] = combined
-        self._save_state()
-        self._commit_canonical("update canonical task generation")
-        from app.ia.projections import ProjectionDebtError, SQLiteProjectionBackend
+        evidence.sort(key=lambda item: (item["project_id"], item["stable_id"]))
+        prefix = hashlib.sha256()
+        prefix.update(b'{"evidence":')
+        prefix.update(_bytes(evidence))
+        prefix.update(b',"knowledge_head":')
+        self._evidence_head_prefix = prefix
 
+    def _combined_head(self, task_head: str) -> str:
+        prefix = getattr(self, "_evidence_head_prefix", None)
+        if prefix is None:
+            self._build_evidence_head_prefix()
+            prefix = self._evidence_head_prefix
+        digest = prefix.copy()
+        knowledge_head = self.knowledge_service.head() if self.knowledge_service is not None else None
+        digest.update(_bytes(knowledge_head))
+        digest.update(b',"task_head":')
+        digest.update(_bytes(task_head))
+        digest.update(b"}")
+        return "sha256:" + digest.hexdigest()
+
+    def _projection_outbox_root(self) -> Path:
+        return self.paths["canonical_root"] / "projection-outbox"
+
+    def _projection_applied_root(self) -> Path:
+        return self.paths["canonical_root"] / "projection-outbox-applied"
+
+    @staticmethod
+    def _replace_bytes(path: Path, content: bytes) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
         try:
-            if changed_records:
-                lock = getattr(self, "_projection_writer_lock", None)
-                if lock is None:
-                    lock = self._projection_writer_lock = threading.Lock()
-                with lock:
-                    SQLiteProjectionBackend(
-                        path=self.paths["current_projection"]
-                    ).update_current_records(
-                        records=changed_records,
-                        deleted_record_keys=[],
-                        expected_head=prior_projection_head,
-                        canonical_head=combined,
-                    )
-            else:
-                self._refresh_current_projection()
-        except (sqlite3.Error, ProjectionDebtError) as error:
-            self._record_debt({
-                "reason": "current_projection_update_failed",
-                "expected_head": combined,
-                "observed_head": prior_projection_head,
-                "exception_type": type(error).__name__,
-                "message": str(error),
-            })
+            temporary.write_bytes(content)
+            os.replace(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def _reconcile_projection_outbox_worktree(self) -> None:
+        root = self.paths["canonical_root"]
+        if not (root / ".git").is_dir():
             return
-        if changed_records:
-            self.state["projection_head"] = combined
+        head = self._git("rev-parse", "--verify", "HEAD", check=False)
+        if head.returncode != 0:
+            return
+        listing = self._git(
+            "ls-tree",
+            "-r",
+            "--name-only",
+            "HEAD",
+            "--",
+            "tasks",
+            "projection-outbox",
+            "projection-outbox-applied",
+        )
+        tracked = {line for line in listing.stdout.splitlines() if line}
+        working = {
+            path.relative_to(root).as_posix()
+            for directory in (
+                root / "tasks",
+                self._projection_outbox_root(),
+                self._projection_applied_root(),
+            )
+            if directory.is_dir()
+            for path in directory.rglob("*")
+            if path.is_file()
+        }
+        restored = []
+        discarded = []
+        lock = getattr(self, "_canonical_git_lock", None)
+        if lock is None:
+            lock = self._canonical_git_lock = threading.RLock()
+        with lock:
+            self._git(
+                "reset",
+                "-q",
+                "HEAD",
+                "--",
+                "tasks",
+                "projection-outbox",
+                "projection-outbox-applied",
+            )
+            for relative in sorted(tracked):
+                content = self._git("show", f"HEAD:{relative}").stdout.encode()
+                path = root / relative
+                if not path.is_file() or path.read_bytes() != content:
+                    self._replace_bytes(path, content)
+                    restored.append(relative)
+            for relative in sorted(working - tracked):
+                (root / relative).unlink(missing_ok=True)
+                discarded.append(relative)
+        if restored or discarded:
+            try:
+                entries = self._projection_outbox_entries()
+                durable_head = self._projection_outbox_tail(entries) or str(
+                    self.state.get("projection_head") or ""
+                )
+            except KnowledgeRuntimeError:
+                durable_head = str(self.state.get("canonical_head") or "")
+            if durable_head:
+                self.state["canonical_head"] = durable_head
+                self._save_state()
+            self._record_debt({
+                "reason": "projection_outbox_worktree_diverged",
+                "restored_from_head": restored,
+                "discarded_uncommitted": discarded,
+            })
+
+    def _projection_outbox_entries(self) -> list[dict[str, Any]]:
+        entries = []
+        for path in sorted(self._projection_outbox_root().glob("*.json")):
+            entry = _read_json(path)
+            if not isinstance(entry, dict):
+                raise KnowledgeRuntimeError(f"projection outbox entry is not an object: {path.name}")
+            entry["_path"] = path
+            entries.append(entry)
+        required = {
+            "schema_version",
+            "entry_id",
+            "expected_projection_head",
+            "target_canonical_head",
+            "records",
+            "deleted_record_keys",
+        }
+        entry_ids = []
+        targets = []
+        expected = []
+        for entry in entries:
+            if required - set(entry) or entry.get("schema_version") != 1:
+                raise KnowledgeRuntimeError("projection outbox entry has an unsupported shape")
+            entry_id = str(entry.get("entry_id") or "")
+            prior = str(entry.get("expected_projection_head") or "")
+            target = str(entry.get("target_canonical_head") or "")
+            records = entry.get("records")
+            deleted = entry.get("deleted_record_keys")
+            if not entry_id or not prior or not target or prior == target:
+                raise KnowledgeRuntimeError("projection outbox entry has an invalid identity")
+            if not isinstance(records, list) or not isinstance(deleted, list):
+                raise KnowledgeRuntimeError("projection outbox payload is not a list")
+            identities = []
+            for record in records:
+                if not isinstance(record, Mapping):
+                    raise KnowledgeRuntimeError("projection outbox record is not an object")
+                identity = (
+                    str(record.get("record_type") or ""),
+                    str(record.get("stable_id") or ""),
+                )
+                if not all(identity):
+                    raise KnowledgeRuntimeError("projection outbox record identity is absent")
+                identities.append(identity)
+            if len(set(identities)) != len(identities):
+                raise KnowledgeRuntimeError("projection outbox record identity is duplicated")
+            entry_ids.append(entry_id)
+            expected.append(prior)
+            targets.append(target)
+        if len(set(entry_ids)) != len(entry_ids) or len(set(targets)) != len(targets):
+            raise KnowledgeRuntimeError("projection outbox identity is duplicated")
+        if len(set(expected)) != len(expected):
+            raise KnowledgeRuntimeError("projection outbox chain is forked")
+        if entries:
+            roots = [value for value in expected if value not in set(targets)]
+            if len(roots) != 1:
+                raise KnowledgeRuntimeError("projection outbox chain has no unique root")
+            by_expected = {
+                str(entry["expected_projection_head"]): entry for entry in entries
+            }
+            cursor = roots[0]
+            visited = set()
+            while cursor in by_expected:
+                entry = by_expected[cursor]
+                entry_id = str(entry["entry_id"])
+                if entry_id in visited:
+                    raise KnowledgeRuntimeError("projection outbox chain is cyclic")
+                visited.add(entry_id)
+                cursor = str(entry["target_canonical_head"])
+            if len(visited) != len(entries):
+                raise KnowledgeRuntimeError("projection outbox chain is disconnected")
+        return entries
+
+    @staticmethod
+    def _projection_outbox_tail(entries: Sequence[Mapping[str, Any]]) -> str | None:
+        if not entries:
+            return None
+        expected = [str(entry.get("expected_projection_head") or "") for entry in entries]
+        targets = [str(entry.get("target_canonical_head") or "") for entry in entries]
+        tails = [target for target in targets if target not in set(expected)]
+        if len(tails) != 1 or len(set(targets)) != len(targets):
+            raise KnowledgeRuntimeError("projection outbox chain has no unique tail")
+        return tails[0]
+
+    def _enqueue_projection_update(
+        self,
+        *,
+        expected_head: str,
+        canonical_head: str,
+        records: Sequence[Mapping[str, Any]],
+    ) -> Path:
+        body = {
+            "schema_version": 1,
+            "expected_projection_head": expected_head,
+            "target_canonical_head": canonical_head,
+            "records": [copy.deepcopy(dict(record)) for record in records],
+            "deleted_record_keys": [],
+        }
+        entry_id = hashlib.sha256(_bytes(body)).hexdigest()
+        entry = {**body, "entry_id": entry_id}
+        root = self._projection_outbox_root()
+        root.mkdir(parents=True, exist_ok=True)
+        path = root / f"{entry_id}.json"
+        encoded = _bytes(entry) + b"\n"
+        if path.exists():
+            if path.read_bytes() != encoded:
+                raise KnowledgeRuntimeError(f"projection outbox identity conflicts: {entry_id}")
+        else:
+            _write_json(path, entry)
+        return path
+
+    def _record_task_head(
+        self,
+        head: str,
+        *,
+        changed_records: Sequence[Mapping[str, Any]] | None = None,
+    ) -> None:
+        combined = self._combined_head(head)
+        prior_projection_head = str(self.state.get("projection_head") or "")
+        lock = getattr(self, "_canonical_git_lock", None)
+        if lock is None:
+            lock = self._canonical_git_lock = threading.RLock()
+        with lock:
+            if not changed_records and combined == self.state.get("canonical_head"):
+                return
+            paths = ["tasks"]
+            if changed_records:
+                entries = self._projection_outbox_entries()
+                expected_head = self._projection_outbox_tail(entries) or str(
+                    self.state.get("projection_head") or ""
+                )
+                receipt_path = self._enqueue_projection_update(
+                    expected_head=expected_head,
+                    canonical_head=combined,
+                    records=changed_records,
+                )
+                paths.append(str(receipt_path.relative_to(self.paths["canonical_root"])))
+            else:
+                self._projection_repair_required = True
+            self.state["canonical_head"] = combined
             self._save_state()
+            self._commit_canonical_paths("update canonical task generation", paths)
+        if changed_records:
+            self._wake_projection_drainer()
+        else:
+            from app.ia.projections import ProjectionDebtError
+
+            try:
+                self._refresh_current_projection()
+            except (sqlite3.Error, ProjectionDebtError) as error:
+                self._record_debt({
+                    "reason": "current_projection_update_failed",
+                    "expected_head": combined,
+                    "observed_head": prior_projection_head,
+                    "exception_type": type(error).__name__,
+                    "message": str(error),
+                })
+
+    def _commit_canonical_paths(self, message: str, paths: Sequence[str]) -> None:
+        if "paths" in inspect.signature(self._commit_canonical).parameters:
+            self._commit_canonical(message, paths=paths)
+        else:
+            self._commit_canonical(message)
 
     def _record_debt(self, debt: Mapping[str, Any]) -> None:
         identity = copy.deepcopy(dict(debt))
@@ -775,17 +1007,63 @@ class KnowledgeRuntime:
             self._git("config", "user.name", "Orchestra canonical owner")
         self._commit_canonical("bootstrap canonical task state")
 
-    def _commit_canonical(self, message: str) -> None:
+    def _commit_canonical(
+        self,
+        message: str,
+        *,
+        paths: Sequence[str] | None = None,
+    ) -> None:
         root = self.paths["canonical_root"]
         if not (root / ".git").is_dir():
             return
-        self._git("add", "-A")
-        changed = self._git("diff", "--cached", "--quiet", check=False)
-        if changed.returncode == 0:
-            return
-        if changed.returncode != 1:
-            raise KnowledgeRuntimeError("cannot inspect canonical Git index")
-        self._git("commit", "-qm", message)
+        lock = getattr(self, "_canonical_git_lock", None)
+        if lock is None:
+            lock = self._canonical_git_lock = threading.RLock()
+        with lock:
+            if paths:
+                staged_before = [
+                    line
+                    for line in self._git(
+                        "diff", "--cached", "--name-only", "--"
+                    ).stdout.splitlines()
+                    if line
+                ]
+                if staged_before:
+                    raise KnowledgeRuntimeError(
+                        "canonical Git index is not clean before scoped commit: "
+                        + ", ".join(staged_before)
+                    )
+                self._git("add", "-A", "--", *paths)
+                staged_after = [
+                    line
+                    for line in self._git(
+                        "diff", "--cached", "--name-only", "--"
+                    ).stdout.splitlines()
+                    if line
+                ]
+                extras = [
+                    staged
+                    for staged in staged_after
+                    if not any(
+                        staged == allowed.rstrip("/")
+                        or staged.startswith(allowed.rstrip("/") + "/")
+                        for allowed in paths
+                    )
+                ]
+                if extras:
+                    self._git("reset", "-q", "HEAD", "--", *paths)
+                    raise KnowledgeRuntimeError(
+                        "scoped canonical Git commit staged unrelated paths: "
+                        + ", ".join(extras)
+                    )
+            else:
+                self._git("add", "-A")
+            changed = self._git("diff", "--cached", "--quiet", check=False)
+            if changed.returncode == 0:
+                return
+            if changed.returncode != 1:
+                raise KnowledgeRuntimeError("cannot inspect canonical Git index")
+            self._git("commit", "-qm", message)
 
     @staticmethod
     def _source_git(root: Path, *args: str, binary: bool = False):
@@ -862,6 +1140,7 @@ class KnowledgeRuntime:
 
     def _import_scope_evidence(self) -> None:
         self._evidence_records_cache = None
+        self._evidence_head_prefix = None
         imported = False
         evidence_less_scopes = []
         for scope, entry in sorted(self.scope_registry.items()):
@@ -936,6 +1215,7 @@ class KnowledgeRuntime:
         self._save_state()
         if imported:
             self._commit_canonical("import pinned Git evidence")
+        self._build_evidence_head_prefix()
 
     def evidence_records(self):
         cached = getattr(self, "_evidence_records_cache", None)
@@ -1156,15 +1436,216 @@ class KnowledgeRuntime:
     def projection_repair_required(self) -> bool:
         return self._projection_repair_required
 
+    def _wake_projection_drainer(self) -> None:
+        event = getattr(self, "_projection_wakeup", None)
+        loop = getattr(self, "_projection_wakeup_loop", None)
+        if event is not None and loop is not None and not loop.is_closed():
+            loop.call_soon_threadsafe(event.set)
+
+    @staticmethod
+    def _ordered_projection_outbox(entries: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        if not entries:
+            return []
+        targets = {str(entry["target_canonical_head"]) for entry in entries}
+        roots = [
+            str(entry["expected_projection_head"])
+            for entry in entries
+            if str(entry["expected_projection_head"]) not in targets
+        ]
+        if len(roots) != 1:
+            raise KnowledgeRuntimeError("projection outbox chain has no unique root")
+        by_expected = {
+            str(entry["expected_projection_head"]): dict(entry) for entry in entries
+        }
+        ordered = []
+        cursor = roots[0]
+        while cursor in by_expected:
+            entry = by_expected[cursor]
+            ordered.append(entry)
+            cursor = str(entry["target_canonical_head"])
+        if len(ordered) != len(entries):
+            raise KnowledgeRuntimeError("projection outbox chain is disconnected")
+        return ordered
+
+    def _record_projection_outbox_debt(
+        self,
+        reason: str,
+        error: BaseException,
+        *,
+        entry: Mapping[str, Any] | None = None,
+    ) -> None:
+        value = {
+            "reason": reason,
+            "exception_type": type(error).__name__,
+            "message": str(error),
+        }
+        if entry is not None:
+            value["entry_id"] = str(entry.get("entry_id") or "")
+            value["expected_head"] = str(entry.get("expected_projection_head") or "")
+            value["target_head"] = str(entry.get("target_canonical_head") or "")
+        self._record_debt(value)
+
+    def _ack_projection_outbox_entry(self, entry: Mapping[str, Any]) -> None:
+        receipt_path = Path(entry["_path"])
+        entry_id = str(entry["entry_id"])
+        marker_path = self._projection_applied_root() / f"{entry_id}.json"
+        marker = {
+            "schema_version": 1,
+            "entry_id": entry_id,
+            "target_canonical_head": str(entry["target_canonical_head"]),
+        }
+        lock = getattr(self, "_canonical_git_lock", None)
+        if lock is None:
+            lock = self._canonical_git_lock = threading.RLock()
+        with lock:
+            marker_path.parent.mkdir(parents=True, exist_ok=True)
+            encoded_marker = _bytes(marker) + b"\n"
+            if marker_path.exists():
+                if marker_path.read_bytes() != encoded_marker:
+                    raise KnowledgeRuntimeError(
+                        f"projection applied marker conflicts: {entry_id}"
+                    )
+            else:
+                _write_json(marker_path, marker)
+            marker_relative = str(marker_path.relative_to(self.paths["canonical_root"]))
+            self._commit_canonical_paths(
+                "acknowledge joined projection apply",
+                [marker_relative],
+            )
+
+            receipt_bytes = receipt_path.read_bytes()
+            receipt_relative = str(receipt_path.relative_to(self.paths["canonical_root"]))
+            try:
+                receipt_path.unlink()
+                self._commit_canonical_paths(
+                    "retire joined projection receipt",
+                    [receipt_relative],
+                )
+            except BaseException:
+                if not receipt_path.exists():
+                    self._replace_bytes(receipt_path, receipt_bytes)
+                raise
+
+            try:
+                marker_path.unlink()
+                self._commit_canonical_paths(
+                    "retire joined projection applied marker",
+                    [marker_relative],
+                )
+            except BaseException:
+                if not marker_path.exists():
+                    self._replace_bytes(marker_path, encoded_marker)
+                raise
+
+    def _cleanup_projection_applied_marker(self) -> bool:
+        markers = sorted(self._projection_applied_root().glob("*.json"))
+        if not markers:
+            return False
+        marker = markers[0]
+        content = marker.read_bytes()
+        relative = str(marker.relative_to(self.paths["canonical_root"]))
+        lock = getattr(self, "_canonical_git_lock", None)
+        if lock is None:
+            lock = self._canonical_git_lock = threading.RLock()
+        with lock:
+            try:
+                marker.unlink()
+                self._commit_canonical_paths(
+                    "retire joined projection applied marker",
+                    [relative],
+                )
+            except BaseException:
+                if not marker.exists():
+                    self._replace_bytes(marker, content)
+                raise
+        return True
+
+    def _drain_projection_outbox_once(self) -> str:
+        from app.ia.projections import ProjectionDebtError, SQLiteProjectionBackend
+
+        try:
+            entries = self._projection_outbox_entries()
+            ordered = self._ordered_projection_outbox(entries)
+        except (OSError, ValueError, json.JSONDecodeError, KnowledgeRuntimeError) as error:
+            self._record_projection_outbox_debt("projection_outbox_invalid", error)
+            return "blocked"
+        if not ordered:
+            try:
+                if self._cleanup_projection_applied_marker():
+                    return "progress"
+                if self._projection_repair_required:
+                    self._repair_current_projection()
+                    self.state["projection_head"] = self.state["canonical_head"]
+                    self._projection_repair_required = False
+                    self._save_state()
+                    return "progress"
+            except (OSError, sqlite3.Error, ProjectionDebtError, KnowledgeRuntimeError) as error:
+                self._record_projection_outbox_debt("projection_outbox_blocked", error)
+                return "blocked"
+            return "idle"
+
+        entry = ordered[0]
+        try:
+            backend = SQLiteProjectionBackend(path=self.paths["current_projection"])
+            receipt = backend.current_receipt(self.state["canonical_head"])
+            observed = str(receipt.get("projection_head") or "")
+            applied_targets = {
+                str(candidate["target_canonical_head"]) for candidate in ordered
+            }
+            if observed not in applied_targets:
+                expected = str(entry["expected_projection_head"])
+                if observed != expected:
+                    raise ProjectionDebtError(
+                        f"projection outbox head mismatch: expected {expected}, observed {observed}"
+                    )
+                lock = getattr(self, "_projection_writer_lock", None)
+                if lock is None:
+                    lock = self._projection_writer_lock = threading.Lock()
+                with lock:
+                    backend.update_current_records(
+                        records=entry["records"],
+                        deleted_record_keys=entry["deleted_record_keys"],
+                        expected_head=expected,
+                        canonical_head=str(entry["target_canonical_head"]),
+                    )
+                observed = str(entry["target_canonical_head"])
+            self.state["projection_head"] = observed
+            self._save_state()
+            self._ack_projection_outbox_entry(entry)
+            return "progress"
+        except (OSError, sqlite3.Error, ProjectionDebtError, KnowledgeRuntimeError) as error:
+            self._record_projection_outbox_debt(
+                "projection_outbox_blocked",
+                error,
+                entry=entry,
+            )
+            return "blocked"
+
+    async def _projection_drainer_loop(self) -> None:
+        event = self._projection_wakeup
+        assert event is not None
+        try:
+            while True:
+                await event.wait()
+                event.clear()
+                while True:
+                    outcome = await asyncio.to_thread(self._drain_projection_outbox_once)
+                    if outcome != "progress":
+                        break
+        finally:
+            self._projection_wakeup = None
+            self._projection_wakeup_loop = None
+
     def schedule_projection_repair(self):
-        """Own at most one repair task; the caller decides when readiness is published."""
+        """Own one wakeable drainer for durable projection work and recovery."""
 
         task = getattr(self, "_projection_repair_task", None)
-        if not getattr(self, "_projection_repair_required", False) or task is not None:
+        if task is not None and not task.done():
             return task
-        self._projection_repair_task = asyncio.create_task(
-            asyncio.to_thread(self._repair_current_projection)
-        )
+        self._projection_wakeup_loop = asyncio.get_running_loop()
+        self._projection_wakeup = asyncio.Event()
+        self._projection_wakeup.set()
+        self._projection_repair_task = asyncio.create_task(self._projection_drainer_loop())
         return self._projection_repair_task
 
     def _repair_current_projection(self) -> dict[str, Any]:
