@@ -1,0 +1,61 @@
+UTC=2026-09-03T16:42:04Z
++zsh:1> sha256sum /tmp/muse_release.json /tmp/muse_launcher.sh /tmp/muse_install.sh
+03c3ee6baad3a59e8c700a43962d34190284b34aea0d3194d3bb66ea07962148  /tmp/muse_release.json
+21c66e550a71cac2e4af081cc33d10bec81993d0043ec492761fc449e6c440f6  /tmp/muse_launcher.sh
+5196d820127a241211c96cf38f0b2e30cff8506a82e9da9508cd5f826632a0ca  /tmp/muse_install.sh
++zsh:1> jq '{version,checksum_algorithm,platforms:(.artifacts|keys),artifacts:(.artifacts|with_entries(.value={size:.value.size,checksum:.value.checksum}))}' /tmp/muse_release.json
+{
+  "version": "1.0.2-R2040.1",
+  "checksum_algorithm": "sha256",
+  "platforms": [
+    "aarch64_linux",
+    "aarch64_macos",
+    "aarch64_windows",
+    "universal_macos_pkg",
+    "x86_linux",
+    "x86_macos",
+    "x86_windows"
+  ],
+  "artifacts": {
+    "x86_macos": {
+      "size": 263742752,
+      "checksum": "49a2d80e8f99a35f35127be97d2701a46be3a762e639ff272ca86431cbacce1f"
+    },
+    "aarch64_macos": {
+      "size": 241592688,
+      "checksum": "41d37e4960def2fe1176a942908f6ccaa04f602dbb6657c511c794abdea14cc4"
+    },
+    "x86_linux": {
+      "size": 263415992,
+      "checksum": "6f24623d6d1a193a8ab8d610c3df11c38cc8bb54aa39b6532fb2a7a29d85d27b"
+    },
+    "aarch64_linux": {
+      "size": 234866792,
+      "checksum": "b0daabd60a28db30c530b01dbcf4185600f3bab286192c57ab30f6aa282d20f4"
+    },
+    "universal_macos_pkg": {
+      "size": 187580772,
+      "checksum": "985f8ec327c9e0a6865fc8506c545ba29cf447b86f16f9d359f83011735fd274"
+    },
+    "x86_windows": {
+      "size": 310985976,
+      "checksum": "7395c431bb4b5da4998219cfab5b1dce2abe2f44304277cc9325ff76ae9b9e60"
+    },
+    "aarch64_windows": {
+      "size": 282744056,
+      "checksum": "531075b8650c764926d77953e563a2b3ca0667af6c2d8be98eefe4144ac83649"
+    }
+  }
+}
++zsh:1> sed -n 105,114p /tmp/muse_launcher.sh
+detect_platform() {
+  case "$(uname -s):$(uname -m)" in
+    Darwin:arm64|Darwin:aarch64) printf '%s\n' aarch64_macos ;;
+    Darwin:x86_64|Darwin:amd64) printf '%s\n' x86_macos ;;
+    Linux:arm64|Linux:aarch64) printf '%s\n' aarch64_linux ;;
+    Linux:x86_64|Linux:amd64) printf '%s\n' x86_linux ;;
+    *) die "unsupported platform: $(uname -s) $(uname -m)" ;;
+  esac
+}
+
++zsh:1> set +x

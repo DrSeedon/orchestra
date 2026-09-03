@@ -1,0 +1,117 @@
+UTC=2026-09-03T16:55:05Z
++zsh:1> sha256sum /tmp/muse_sdk_schema.json /tmp/muse_sdk_schema_manifest.json
+2c068ec87665b52cfe57111ad5150fbaebf3bbae7fefa67c5150e49f10df5b5e  /tmp/muse_sdk_schema.json
+a93c48ebf2b533a2ee177b983a296feb224b3cdd2ad33e2909654240b584d9fe  /tmp/muse_sdk_schema_manifest.json
++zsh:1> cat /tmp/muse_sdk_schema_manifest.json
+{
+  "experimental": false,
+  "fingerprint": "sha256:cfd31ee77d78fdada9febc4edccd29b0434ff8f6bf157c7c03fd0ecfcbc29f5a",
+  "schemaVersion": 1
+}
++zsh:1> jq '{method_count:(.methods|length),notification_count:(.notifications|length),method_names:(.methods|keys),notification_names:(.notifications|keys),session_config:.["$defs"].SessionConfig,turn_start:.["$defs"].TurnStartParams}' /tmp/muse_sdk_schema.json
+{
+  "method_count": 31,
+  "notification_count": 23,
+  "method_names": [
+    "approval/decide",
+    "approval/listPending",
+    "initialize",
+    "model/list",
+    "session/compact",
+    "session/fork",
+    "session/list",
+    "session/read",
+    "session/resume",
+    "session/setApprovalMode",
+    "session/setModel",
+    "session/start",
+    "session/userShell",
+    "subagent/close",
+    "subagent/followupTask",
+    "subagent/interrupt",
+    "subagent/readResult",
+    "subagent/reopen",
+    "subagent/resume",
+    "subagent/sendMessage",
+    "subagent/stop",
+    "turn/cancel",
+    "turn/interrupt",
+    "turn/start",
+    "turn/steer",
+    "turn/unqueue",
+    "userInput/answer",
+    "userInput/cancel",
+    "userInput/clarify",
+    "view/page",
+    "view/unsubscribe"
+  ],
+  "notification_names": [
+    "approval/requested",
+    "approval/resolved",
+    "approval/updated",
+    "initialized",
+    "item/completed",
+    "item/delta",
+    "item/started",
+    "item/updated",
+    "session/approvalModeChanged",
+    "session/branchChanged",
+    "session/contextUsage",
+    "session/goalChanged",
+    "session/modelChanged",
+    "session/todoListChanged",
+    "session/tokenUsage",
+    "turn/completed",
+    "turn/retracted",
+    "turn/retryScheduled",
+    "turn/started",
+    "turn/unqueued",
+    "userInput/requested",
+    "userInput/settled",
+    "view/gap"
+  ],
+  "session_config": {
+    "description": "`session/start`'s reserved `config` object (tdd SS2.5.1): no members in\nv1.\n\nUnknown keys are ignored on the wire, never rejected (tdd SS1.5.4, spec\n206 INV-015; D-052 resolving\n[#23456](https://github.com/mslsrc/tbh/issues/23456)): the live decoder\nis D-042's tolerant path, and TEST-024 keeps every exported bundle free\nof `additionalProperties: false`. The Rust typed model's\n`deny_unknown_fields` is internal and never exported — the #22785 E6b\nclosedness export applies nowhere, and the `x-msp-closed` opt-in\nmechanism stays inert. Typo detection belongs to the #210 conformance\nharness as a test posture, not the protocol.",
+    "properties": {},
+    "type": "object"
+  },
+  "turn_start": {
+    "description": "`turn/start.providerRequestOptions` is deliberately absent: **RULED\n(#22785 E3, owner, 2026-08-26) to stay off the published schema.** The\nschema is the contract, and a free-form-object node kind is revisited only\nif the experimental field graduates.\n`turn/start` params (tdd SS3.2).",
+    "properties": {
+      "commandId": {
+        "description": "The SS3.1.1 idempotency handle (UUIDv7). The fresh turn's `turnId`\nderives from it (tdd SS3.1.4).",
+        "type": "string"
+      },
+      "displayText": {
+        "description": "Presentation form of the prompt for transcripts. Durable; carried on\nthe resulting user-message view item. Never model-visible (tdd SS3.2).",
+        "type": "string"
+      },
+      "ifBusy": {
+        "$ref": "#/$defs/IfBusy",
+        "description": "Disposition when a turn is already running; default `queue`."
+      },
+      "input": {
+        "description": "Ordered content parts; required and non-empty.",
+        "items": {
+          "$ref": "#/$defs/TurnInputPart"
+        },
+        "type": "array"
+      },
+      "reasoningEffort": {
+        "$ref": "#/$defs/ReasoningEffort",
+        "description": "Reasoning tier sampled at submission for this turn."
+      },
+      "sessionId": {
+        "description": "The target session.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "commandId",
+      "input",
+      "sessionId"
+    ],
+    "type": "object"
+  }
+}
++zsh:1> set +x

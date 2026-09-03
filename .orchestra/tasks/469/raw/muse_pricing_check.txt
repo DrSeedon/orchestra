@@ -1,0 +1,72 @@
+UTC=2026-09-03T16:41:15Z
++zsh:1> sha256sum /tmp/muse_code_dom.html /tmp/muse_api_dom.html /tmp/muse_model_dom.html
+ba78d7673076b6bd458a2f4aa1cb024887fea11eb51a49c16e4e956c5aa0a7b8  /tmp/muse_code_dom.html
+62b16ef2760818af54655993620d12cbcd437f95f2368f8655123b3d9764a85e  /tmp/muse_api_dom.html
+87e3fe6309d59602c288254af485db4e8acaf836a3caa0cf57b3a22118e102dc  /tmp/muse_model_dom.html
++zsh:1> awk '/Muse Code subscription/{p=1} /Accelerate your build/{p=0} p' /tmp/muse_code_text.txt
+Muse Code subscription
+Pricing that's matched to how you build.
+Sign up now
+Everyday Usage
+Best for shipping your first projects
+$5.00/month
+Access to Muse Spark 1.2
+Send 10–50 requests every 5 hours, including image and video uploads
+Use voice mode
+Get access to web search
+High Usage
+Best for bigger, code-heavy projects
+$15.00/month
+Everything from the Everyday Usage plan
+3x more usage than the Everyday Usage plan
+More Muse Spark 1.2 usage
+More user requests
+More multimodal inputs
+Access to the latest models
+Power Usage
+Best for ambitious,  coding workflows
+$50.00/month
+Everything from the High Usage plan
+10x more usage than the Everyday Usage plan
+Expanded Muse Spark 1.2 usage
+Expanded user requests
+Early access to new features
+Higher file uploads
++zsh:1> awk '/Models and pricing/{p=1} /Muse Image/{if(p){exit}} p' /tmp/muse_api_text.txt
+Models and pricing
+Model
+Context window
+Input (Mtok)
+Cached input (Mtok)
+Output (Mtok)
+muse-spark-1.3-contributor
+Used to improve our products.
+1M
+$0.10
+$0.002
+$0.20
+muse-spark-1.3
+Not used to improve our products.
+1M
+$1.25
+$0.15
+$4.25
+muse-spark-1.2-contributor
+Used to improve our products.
+1M
+$0.10
+$0.002
+$0.20
+muse-spark-1.2
+Not used to improve our products.
+1M
+$1.25
+$0.15
+$4.25
+muse-spark-1.1
+Not used to improve our products.
+1M
+$1.25
+$0.15
+$4.25
++zsh:1> set +x

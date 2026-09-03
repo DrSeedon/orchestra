@@ -1,0 +1,201 @@
+UTC=2026-09-03T16:43:31Z
++zsh:1> .orchestra/tasks/469/scratch/muse-x86-linux --version
+Muse Code 1.0.2 (1.0.2-R2040.1)
++zsh:1> .orchestra/tasks/469/scratch/muse-x86-linux exec --help
+muse exec — run one prompt non-interactively (headless)
+
+Usage: muse exec [OPTIONS] [PROMPT]
+
+Options:
+      --json
+          Emit machine-readable JSONL events on stdout
+      --prompt-file <PATH>
+          Read the prompt from a file instead of an argument
+      --api-key-stdin
+          Read the provider API key from stdin
+      --provider <MODE>
+          Startup provider: echo or meta (default: meta)
+      --preset <NAME>
+          Run a built-in preset: native-basic, miniswe
+      --permission-profile <ID>
+          Select a named permission profile for this session.
+      --model <ID>
+          Model id for non-echo providers
+      --reasoning-effort <EFFORT>
+          Meta reasoning effort: none|minimal|low|medium|high|xhigh|ultra
+          (default: high)
+      --parallel-tool-calls
+          Enable Meta API parallel tool calls
+      --no-parallel-tool-calls
+          Disable Meta API parallel tool calls
+      --base-url <URL>
+          Override the provider base URL
+      --image <PATH>
+          Attach a local image file (repeatable)
+      --workspace <PATH>
+          Root policy-gated workspace tools at PATH
+  -w, --worktree [<MODE>]
+          Session git worktree: off|create|existing
+      --worktree-base <REF>
+          Base ref for --worktree create (default: HEAD)
+      --worktree-existing <PATH>
+          Existing worktree path for --worktree existing
+      --context-compaction-strategy <ID>
+          Context compaction strategy: summary-preserved-suffix/v1,
+          prefix-extension-summary/v1, prefix-extension-inventory-summary/v1
+      --context-compaction-soft-threshold <FRAC>
+          Soft compaction threshold
+      --context-compaction-hard-threshold <FRAC>
+          Hard compaction threshold
+      --max-model-steps <N>
+          Cap the number of model steps
+      --max-tool-output-bytes <N>
+          Cap tool output bytes fed back to the model
+      --session-id <UUID>
+          Use a specific session id
+      --allow-workspace-switch
+          Allow switching the workspace mid-run
+      --user-input-auto-resolve
+          Offer request_user_input and auto-cancel prompts (headless)
+      --subagent-worktree-isolation
+          Compatibility flag; capability defaults on. Only an affirmative
+          per-child request asks for isolation; omission stays shared. Requests
+          may reject when capability, provider, or Git prerequisites are
+          unavailable.
+      --disable-web-tools
+          Disable web tools for this run
+      --no-foreign-personal-context
+          Exclude foreign personal rules and skills from this run
+      --no-session-log
+          Do not persist session event logs to disk
+      --approval-mode <MODE>
+          Tool approval mode: untrusted|on-request|never (default: on-request)
+      --approval-judge <off|on>
+          LLM approval judge for Prompt-bound calls (default: on)
+  -h, --help
+          Print this help
+
+Safety (approval and the sandbox are ON by default):
+      --yolo
+          Disable approval and sandbox and trust this workspace (this run)
+      --trust-workspace
+          Load this workspace's skills and rules (this run)
+      --disable-approval
+          Disable tool approval prompts for this run
+      --disable-sandbox
+          Disable shell filesystem/network sandboxing for this run
+      --sandbox-network <MODE>
+          Sandbox network mode (default: proxy-only)
+      --disable-write
+          Disable non-shell workspace filesystem writes
+      --disable-shell
+          Disable workspace shell execution
+      --enable-shell-tool
+          Use the legacy shell tool instead of the managed platform shell
+
++zsh:1> .orchestra/tasks/469/scratch/muse-x86-linux serve --help
+muse serve — serve an MSP session host over stdio
+
+Usage: muse serve [OPTIONS]
+
+The client owns this process's stdin and stdout and is its only
+connection. Sandbox posture and session durability are constructed
+here and apply to every session the host loads; neither is negotiable
+over the wire. Approval mode is the other way round — it is selected
+on the wire, so there is no approval flag here.
+
+Options:
+  -h, --help
+          Print this help
+      --no-session-log
+          Use memory-only sessions
+
+Sandbox posture (fixed for the host's lifetime):
+      --disable-sandbox
+          Disable shell filesystem/network sandboxing for this host
+      --sandbox-network <MODE>
+          Sandbox network mode (default: proxy-only)
+      --disable-write
+          Disable non-shell workspace filesystem writes
+      --disable-shell
+          Disable workspace shell execution
+      --trust-workspace
+          Load each session workspace's skills and rules
+
++zsh:1> .orchestra/tasks/469/scratch/muse-x86-linux schema --help
+muse schema — export the MSP wire schema embedded in this binary
+
+Usage: muse schema generate-json-schema --out DIR [--experimental]
+       muse schema generate-ts --out DIR [--experimental]
+
+Both exports are offline and instant: the bundles are precomputed at build
+time, so the output is exact for this binary. The error table describes every
+error this binary can emit, and the method index describes the served command
+plane (session/*, turn/*, model/list, view/*, approval/*, userInput/*) — with
+one exception: workflow/* (spec 14410) carries no row yet. tdd.md SS3.19/SS3.20
+ratify its params and ack, so what is outstanding is the protocol-crate types
+and bundle rows, not the shapes; tracked at
+https://github.com/mslsrc/tbh/issues/14410.
+
+Options:
+      --out DIR       Directory to write the export into (created if absent)
+      --experimental  Export the experimental surface instead of the stable one
+  -h, --help          Print this help
++zsh:1> sha256sum .orchestra/tasks/469/scratch/muse-x86-linux
+6f24623d6d1a193a8ab8d610c3df11c38cc8bb54aa39b6532fb2a7a29d85d27b  .orchestra/tasks/469/scratch/muse-x86-linux
++zsh:1> wc -c .orchestra/tasks/469/scratch/muse-x86-linux AGENTS.md CLAUDE.md
+263415992 .orchestra/tasks/469/scratch/muse-x86-linux
+   190807 AGENTS.md
+   190807 CLAUDE.md
+263797606 total
++zsh:1> cat .orchestra/tasks/469/scratch/muse-trust-probe.stderr
+muse: local session messaging disabled: session logging is required
+muse: workspace root: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-muse-spark (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: warning: rules file at /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-muse-spark/CLAUDE.md is ignored this session because AGENTS.md takes precedence in that directory; merge still-applicable guidance into AGENTS.md or remove one of the two files
+muse: warning: rules file at /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-muse-spark/AGENTS.md produced 219203 bytes, over the 65536 byte subagent delegation startup context limit; it will be truncated for this session
+muse: Skills: 57 loaded · 1 warning · 17 details hidden
+muse:   computer-use: invalid skill package: skill file at /home/maxim/.claude/skills/computer-use/SKILL.md is malformed: SKILL.md must start with YAML frontmatter
+muse:   Run `muse skills list --source all` for full diagnostics.
++zsh:1> jq -r 'select(.payload_type=="run.terminal.completed") | [.payload.terminal,.payload.text] | @tsv' .orchestra/tasks/469/scratch/muse-trust-probe.jsonl
+completed	echo: MUSE_TRUST_PROBE_469
++zsh:1> wc -l .orchestra/tasks/469/scratch/muse-trust-probe.jsonl
+36 .orchestra/tasks/469/scratch/muse-trust-probe.jsonl
++zsh:1> cat .orchestra/tasks/469/scratch/muse-serve-probe.jsonl
+{"id":1,"jsonrpc":"2.0","result":{"experimentalApi":false,"grantedCapabilities":[],"museHome":"/home/maxim/.local/share/muse","platformFamily":"unix","platformOs":"linux","schema":{"fingerprint":"sha256:03312c213efd14277a0e0a102f70adeae497a469ca4edf7242f479953ed758b7","version":1},"serverInfo":{"name":"muse","version":"1.0.2"},"sessionDurability":"ephemeral","userAgent":"muse-build/1.0.2 (non-interactive; linux-x86_64; build d57a141cdce779ac5408427470e9469ca20d2303)"}}
++zsh:1> jq '(.methods|length), (.notifications|length)' .orchestra/tasks/469/scratch/msp-schema/msp.schema.json
+31
+23
++zsh:1> jq -r '.methods|keys[]' .orchestra/tasks/469/scratch/msp-schema/msp.schema.json
+approval/decide
+approval/listPending
+initialize
+model/list
+session/compact
+session/fork
+session/list
+session/read
+session/resume
+session/setApprovalMode
+session/setModel
+session/start
+session/userShell
+subagent/close
+subagent/followupTask
+subagent/interrupt
+subagent/readResult
+subagent/reopen
+subagent/resume
+subagent/sendMessage
+subagent/stop
+turn/cancel
+turn/interrupt
+turn/start
+turn/steer
+turn/unqueue
+userInput/answer
+userInput/cancel
+userInput/clarify
+view/page
+view/unsubscribe
++zsh:1> set +x
