@@ -152,6 +152,7 @@
   payload поля нет); `usage_snapshots` и `turn_usage` хранят целые проценты. Собрать можно только
   перехватом в браузере · искать: `utilization None`, `SSE claude.ai`, `не воспроизводится` ·
   2026-09-02, #440
+- `fact:archestra-progressive-tool-loading-unmeasured` — Archestra реализует ленивую загрузку тулов ровно нашей формой (режим `search_and_run_only` прячет каталог за пару `search_tools`/`run_tool`, поиск лексический — keyword/regex ранжирование, без эмбеддингов, ответ = имена плюс компактный скелет схемы), но заявленных на лендинге «a 70-tool Jira server costs ~600 context tokens, not ~60,000» в их репозитории и блоге НЕТ: `rg -F '60,000'` по дереву даёт 0, `rg -i '70 tools|70-tool'` даёт 0, `grep -c '60,000'` — landing.html 1, blog.html 0, а их собственная страница замеров меряет латентность, не токены; при этом рантайм-измеритель токенов схем тулов у них есть и не опубликован · искать: `search_and_run_only`, `progressive tool loading`, `filterExposedTools`, `context-window-breakdown`, «600 против 60000 токенов», «ленивая загрузка тулов» · evidence: upstream `archestra-ai/archestra` @ `c0f30875`: `platform/backend/src/types/agent.ts:58`, `platform/backend/src/routes/mcp-gateway/utils.ts:2314`, `platform/backend/src/archestra-mcp-server/search-tools.ts:60,187`, `platform/backend/src/routes/chat/context-window-breakdown.ts:3,57`, `docs/pages/platform-performance-benchmarks.md:13`; наш разбор `.orchestra/tasks/470/research.md` §Разбор 2 · 2026-09-03, #470
 
 ## Отвергнуто
 

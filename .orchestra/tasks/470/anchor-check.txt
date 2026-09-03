@@ -1,0 +1,115 @@
+Mechanical completeness check for .orchestra/tasks/470/research.md
+Upstream snapshot: archestra-ai/archestra @ c0f30875ee0e2b935fb5bb511e9edcc1e45dd412
+Rule: every `path[:line]` cited in research.md must resolve to a real file; when a line is
+given, the line's actual text is printed here so the claim can be re-read against it.
+
+OK  LICENSE.md:1 -> # License Router
+OK  file exists            platform/backend/src/secrets-manager/vault.ee.ts
+OK  file exists            platform/backend/src/auth/idp.ee.ts
+OK  file exists            platform/backend/src/k8s/mcp-server-runtime/hibernation.ee.ts
+OK  platform/backend/src/enterprise-tier.ts:7 -> const SMALL_TEAM_THRESHOLD = 30;
+OK  platform/backend/src/auth/better-auth.ts:275 -> ...(ssoConfig ? [sso(ssoConfig)] : []),
+OK  platform/backend/src/auth/idp.ee.ts:19 -> /** @public — consumed via dynamic import in src/auth/better-auth.ts */
+OK  platform/backend/src/types/enterprise-managed-credentials.ts:6 -> export const CredentialResolutionModeSchema = z.enum([
+OK  platform/backend/src/database/schemas/agent-tool.ts:23 -> credentialResolutionMode: text("credential_resolution_mode")
+OK  docs/pages/platform-mcp-gateway.md:161 -> With **Auto** tool mode also enabled, a signed-in user's `search_tools` and `run_tool` reach every MCP catalog tool and 
+OK  platform/backend/src/auth/idp.ee.ts:1 -> import { MEMBER_ROLE_NAME } from "@archestra/shared";
+OK  platform/backend/src/middleware.ts:44 -> if (!enterpriseTier.isCoreActive()) {
+OK  platform/backend/src/skills/parser.ts:42 -> export const SKILL_MANIFEST_FILENAME = "SKILL.md";
+OK  file exists            platform/backend/src/skills/github-import.ts
+OK  file exists            platform/archestra-rs/app-runtime-core/src/app_html.rs
+OK  file exists            platform/archestra-rs/app-runtime-core/src/envelope.rs
+OK  file exists            platform/archestra-rs/app-runtime-core/src/app_html_lint.rs
+OK  file exists            platform/backend/src/services/apps/app-runtime-native.ts
+OK  migration-kit/README.md:11 -> redacting secrets, building and validating API payloads — lives in zero-dependency Python helpers;
+OK  platform/backend/src/skills-sandbox/project-file-scope.ts:19 -> * The caller's project access is re-checked here on EVERY use, not only at chat
+OK  file exists            platform/backend/src/skills-sandbox/object-store.ts
+OK  file exists            platform/archestra-rs/sandbox-core/src/backends/dagger.rs
+OK  platform/backend/src/k8s/runner-runtime/manifests.ts:248 -> resources: buildResourceRequirements(spec.resources),
+OK  file exists            platform/backend/src/k8s/runner-runtime/network-policy.ts
+OK  file exists            platform/backend/src/routes/incoming-email.ts
+OK  file exists            platform/backend/src/routes/schedule-trigger.ts
+OK  file exists            platform/backend/src/services/scheduled-run-conversation.ts
+OK  file exists            platform/backend/src/models/limit.ts
+OK  file exists            platform/backend/src/models/environment-default-user-limit.ts
+OK  platform/backend/src/config.ts:1941 -> const k8sConfigured =
+OK  platform/Dockerfile:7 -> ARG KIND_VERSION=v0.31.0
+OK  platform/docker/supervisord/postgres.conf:3 -> command=postgres -D /var/lib/postgresql/data
+OK  platform/backend/src/k8s/mcp-server-runtime/hibernation.ee.ts:499 -> if (!enterpriseTier.isCoreActive()) return false;
+OK  platform/backend/src/k8s/mcp-server-runtime/image-prepuller.ee.ts:1308 -> if (!enterpriseTier.isCoreActive()) return false;
+OK  platform/backend/src/k8s/mcp-server-runtime/network-policy.ts:14 -> const name = `mcp-egress-${deploymentName}`
+OK  platform/backend/src/models/environment.ts:14 -> interface EnvironmentWithAssignedCount {
+OK  platform/backend/src/routes/internal-mcp-catalog.ts:1540 -> // === Image approval (trusted-image-registry gate) ===
+OK  platform/backend/src/database/schemas/kb-chunk.ts:21 -> return `vector(${dimensions})`;
+OK  file exists            platform/backend/src/knowledge-base/acl-tokens.ts
+OK  file exists            platform/backend/src/knowledge-base/source-access-control.ts
+OK  platform/backend/src/knowledge-base/acl-tokens.ts:1 -> // SPDX-License-Identifier: LicenseRef-Archestra-Enterprise
+OK  platform/backend/src/knowledge-base/source-access-control.ts:133 -> // SPDX-SnippetBegin
+OK  file exists            platform/backend/src/routes/proxy/llm-proxy-handler.ts
+OK  file exists            platform/backend/src/models/virtual-api-key.ts
+OK  file exists            platform/backend/src/routes/proxy/utils/headers/virtual-key.ts
+OK  file exists            platform/backend/src/secrets-manager/vault.ee.ts
+OK  file exists            platform/backend/src/secrets-manager/vault-client.ee.ts
+OK  file exists            platform/backend/src/secrets-manager/readonly-vault.ee.ts
+OK  file exists            platform/backend/src/secrets-manager/db.ts
+OK  file exists            platform/backend/src/routes/oauth-server.ts
+OK  file exists            platform/backend/src/routes/oauth.ts
+OK  file exists            platform/dev/docker-compose.vault.ee.yml
+OK  platform/backend/package.json:100 -> "@opentelemetry/api": "^1.9.0",
+OK  platform/backend/src/observability/tracing/mcp.ts:89 -> [ATTR_GENAI_AGENT_ID]: params.agent.id,
+OK  file exists            platform/dev/docker-compose.observability.yml
+OK  file exists            platform/backend/src/observability/rum/exporter.ee.ts
+OK  file exists            docs/pages/platform-deployment.md
+OK  file exists            platform/backend/src/guardrails/trusted-data.ts
+OK  file exists            platform/backend/src/models/tool-invocation-policy.ts
+OK  platform/backend/src/guardrails/trusted-data.ts:95 -> export async function evaluateIfContextIsTrusted(params: {
+OK  platform/backend/src/types/interaction-guardrails.ts:25 -> export const UnsafeContextBoundarySchema = z.discriminatedUnion("kind", [
+OK  platform/backend/src/models/tool.ts:537 -> static async createDefaultPolicies(
+OK  platform/backend/src/models/tool.ts:570 -> static async getDefaultToolPolicies(): Promise<{
+OK  platform/backend/src/agents/subagents/policy-configuration.ts:48 -> export class PolicyConfigurationService {
+OK  platform/backend/src/models/tool.ts:4164 -> !config.autoConfigureOnToolDiscovery
+OK  platform/backend/src/routes/agent-tool.ts:544 -> const result = await policyConfigurationService.configurePoliciesForTools(
+OK  platform/backend/src/database/seed.ts:1221 -> const LEGACY_POLICY_CONFIG_SYSTEM_PROMPT = `Analyze this MCP tool and determine security policies:
+OK  platform/backend/src/routes/proxy/llm-proxy-handler.ts:1733 -> toolInvocationRefusal = await utils.toolInvocation.evaluatePolicies(
+OK  platform/backend/src/routes/proxy/llm-proxy-handler.ts:2198 -> const toolInvocationRefusal = await utils.toolInvocation.evaluatePolicies(
+OK  platform/backend/src/routes/mcp-gateway/utils.ts:799 -> const policyBlock = await evaluateSingleMcpToolInvocationPolicy({
+OK  platform/backend/src/archestra-mcp-server/run-tool.ts:457 -> const policyBlock = await evaluateSingleMcpToolInvocationPolicy({
+OK  platform/backend/src/agents/context-trust.ts:13 -> export async function evaluateToolExecutionContextTrust(params: {
+OK  platform/backend/src/models/tool-invocation-policy.ts:536 -> for (const { toolCallName, toolInput } of externalToolCalls) {
+OK  platform/backend/src/models/tool-invocation-policy.ts:375 -> private static evaluateInputCondition(
+OK  docs/pages/platform-mcp-gateway.md:163 -> Tool call policies still apply to the target tool. `run_tool` does not bypass input conditions, team conditions, untrust
+OK  platform/backend/src/routes/proxy/llm-proxy-handler.ts:966 -> });
+OK  platform/backend/src/routes/proxy/llm-proxy-handler.ts:333 -> "api";
+OK  platform/backend/src/guardrails/tool-invocation.ts:352 -> /**
+OK  file exists            platform/backend/src/guardrails/trusted-data.test.ts
+OK  file exists            platform/backend/src/models/tool-invocation-policy.test.ts
+OK  file exists            platform/backend/src/guardrails/tool-invocation.test.ts
+OK  file exists            platform/backend/src/routes/proxy/llm-proxy-handler.gateway-guardrails.test.ts
+OK  file exists            platform/e2e-tests/tests/tool-guardrails.spec.ts
+OK  platform/backend/src/types/agent.ts:58 -> export const ToolExposureModeSchema = z.enum(["full", "search_and_run_only"]);
+OK  platform/backend/src/routes/mcp-gateway/utils.ts:2314 -> function filterExposedTools(params: {
+OK  platform/backend/src/archestra-mcp-server/search-tools.ts:187 -> description: `Search the tools available to this agent and to you on demand. Returns exact tool names plus compact input
+OK  file exists            platform/backend/src/archestra-mcp-server/tool-args-skeleton.ts
+OK  file exists            platform/backend/src/archestra-mcp-server/run-tool.ts
+OK  platform/backend/src/guardrails/trusted-data.ts:191 -> const dispatch = resolveRunToolDispatch(
+OK  docs/pages/platform-mcp-gateway.md:152 -> For larger toolsets, turn on **Progressive tool loading** on the gateway's **Tools & Knowledge** step. This keeps the in
+OK  file exists            platform/backend/src/config.ts
+OK  file exists            docs/pages/platform-performance-benchmarks.md
+OK  file exists            platform/benchmarks/test-payloads/chat-with-tools.json
+OK  platform/backend/src/routes/chat/context-window-breakdown.ts:3 -> * tokens the system prompt, tool schemas, conversation messages, tool results,
+OK  file exists            platform/backend/src/tokenizers/tiktoken.ts
+OK  file exists            platform/backend/src/tokenizers/anthropic.ts
+OK  platform/backend/src/archestra-mcp-server/search-tools.ts:45 -> "Keywords for the capability you need — combine the action (verb + object) with the server/product name when you know it
+OK  file exists            LICENSE.md
+OK  platform/backend/src/middleware.ts:44 -> if (!enterpriseTier.isCoreActive()) {
+OK  platform/backend/src/enterprise-tier.ts:57 -> isCoreActive(): boolean {
+OK  file exists            platform/backend/src/agents/subagents/policy-configuration.ts
+OK  platform/backend/src/database/seed.ts:1221 -> const LEGACY_POLICY_CONFIG_SYSTEM_PROMPT = `Analyze this MCP tool and determine security policies:
+OK  platform/backend/src/config.ts:1941 -> const k8sConfigured =
+OK  platform/backend/src/agents/context-trust.ts:13 -> export async function evaluateToolExecutionContextTrust(params: {
+OK  platform/backend/src/guardrails/tool-invocation.ts:389 -> * Only the gateway surface keeps the refusal: there the enabled set is the
+SKIP (our repo, not upstream)  app/mcp_stdio.py
+SKIP (our repo, not upstream)  .orchestra/kb/agent-guardrails.md
+SKIP (our repo, not upstream)  .orchestra/kb/token-efficiency.md
+
+TOTAL upstream anchors checked=105  ok=105  failed=0  (our-repo paths skipped: 3)
