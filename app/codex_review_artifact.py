@@ -80,7 +80,20 @@ def _record_terminal_receipt(
     try:
         if __package__ in (None, ""):
             sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-        from app.db import review_receipt_finish
+        from app.db import review_receipt_finish, review_receipt_get
+
+        receipt = review_receipt_get(receipt_id) or {}
+        coverage_outcome = (
+            "reviewed"
+            if (
+                receipt.get("subject_kind") == "implementation"
+                and status == "completed"
+                and return_code == 0
+                and artifact_exists
+                and jsonl_response_present
+            )
+            else "unknown"
+        )
 
         review_receipt_finish(
             receipt_id,
@@ -96,6 +109,7 @@ def _record_terminal_receipt(
                 "verdict_value": verdict_value,
                 "jsonl_response_present": int(jsonl_response_present),
                 "recovery_source": recovery_source,
+                "coverage_outcome": coverage_outcome,
             },
         )
     except Exception as error:

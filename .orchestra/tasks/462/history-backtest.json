@@ -1,0 +1,248 @@
+{
+  "predicate": {
+    "mapped_file_threshold": 1,
+    "production_path_threshold": 1,
+    "production_diff": "changed_paths contains at least 1 app/** path",
+    "completed_review_receipt": "same session_id+task_id; requested_at and completed_at before merge; status=completed; return_code=0; artifact_exists=1; artifact_bytes>0; jsonl_response_present=1",
+    "structured_skip": "none representable by the current #436 receipt schema"
+  },
+  "cutoff": {
+    "rule": "strictly after the successful merge that deployed #436 receipts",
+    "task": "436",
+    "operation_id": "babd8668-66d0-4fa5-9812-fb0bed8d6bce",
+    "timestamp": "2026-09-02T03:22:48.137371+00:00",
+    "target_after": "6461ec9afa65d2d3b50afa1eff3700cce272e736"
+  },
+  "summary": {
+    "successful_merges_after_cutoff": 12,
+    "mapped_merges": 10,
+    "mapped_but_no_app_paths": 3,
+    "production_but_no_mapped_files": 0,
+    "production_merges": 7,
+    "predicate_rejections": 4,
+    "predicate_acceptances": 3
+  },
+  "rejected": [
+    {
+      "task": "441",
+      "worker": "fix-ratelimit-capture",
+      "operation_id": "1ba86d08-bca7-42a1-9d22-ba2b2d6ac34f",
+      "created_at": "2026-09-02T04:29:14.677906+00:00",
+      "target_before": "3280828239d5f285b0ca30816af9ec8cf45d1eaa",
+      "target_after": "18fa3a834f4734ffd476f8756e6c8f14de89a8dd",
+      "mapped_files_count": 2,
+      "production_diff": true,
+      "diffstat": {
+        "files": 3,
+        "insertions": 142,
+        "deletions": 0,
+        "production_files": 1
+      },
+      "completed_review_receipts": [],
+      "noncompleted_review_receipts": [],
+      "structured_skip": false,
+      "predicate_rejects": true
+    },
+    {
+      "task": "445",
+      "worker": "fix-user-provenance",
+      "operation_id": "010b88a5-e6a2-4ef7-b2f9-8045b26342a9",
+      "created_at": "2026-09-03T06:37:40.493517+00:00",
+      "target_before": "498c0d1497d7a1d1d274df9030d53a65afb257e8",
+      "target_after": "12ed3d3d6611826bd47408d4c4c623d314370f5a",
+      "mapped_files_count": 2,
+      "production_diff": true,
+      "diffstat": {
+        "files": 2,
+        "insertions": 35,
+        "deletions": 33,
+        "production_files": 1
+      },
+      "completed_review_receipts": [],
+      "noncompleted_review_receipts": [],
+      "structured_skip": false,
+      "predicate_rejects": true
+    },
+    {
+      "task": "447",
+      "worker": "quota-headroom-bar",
+      "operation_id": "c1aa097c-6474-4c1e-9241-5b0c54bdf1e1",
+      "created_at": "2026-09-03T06:57:37.492826+00:00",
+      "target_before": "ae0d83c69813f7fd1acad7016ac9f0c43a80190a",
+      "target_after": "e2f7920400f7ab7d401f186204d5c4dd11f3a9b0",
+      "mapped_files_count": 2,
+      "production_diff": true,
+      "diffstat": {
+        "files": 4,
+        "insertions": 219,
+        "deletions": 5,
+        "production_files": 2
+      },
+      "completed_review_receipts": [],
+      "noncompleted_review_receipts": [],
+      "structured_skip": false,
+      "predicate_rejects": true
+    },
+    {
+      "task": "430",
+      "worker": "move-dot-orchestra",
+      "operation_id": "318207ae-523e-4d83-b707-a29a6f4bd6a1",
+      "created_at": "2026-09-03T07:20:29.571790+00:00",
+      "target_before": "895be6e524bdd18fed4036a17b2a2683eae9456d",
+      "target_after": "f8e00522e8597fcabb63675976bace4cbd1dee9c",
+      "mapped_files_count": 50,
+      "production_diff": true,
+      "diffstat": {
+        "files": 662,
+        "insertions": 67404,
+        "deletions": 818,
+        "production_files": 27
+      },
+      "completed_review_receipts": [],
+      "noncompleted_review_receipts": [
+        "review-receipt:6c59473b-c3d6-41cd-986f-4d4e807be3e6"
+      ],
+      "structured_skip": false,
+      "predicate_rejects": true
+    }
+  ],
+  "accepted": [
+    {
+      "task": "433",
+      "worker": "feat-msg-origin",
+      "operation_id": "fb93c878-2e8d-4375-ade1-d5024403f5c9",
+      "created_at": "2026-09-02T06:41:47.831326+00:00",
+      "target_before": "b039b2c5f417c41167c788a6c11ead23ecab9999",
+      "target_after": "4e5940ef6a282b1f1c0cf4da1a0998bd131414ed",
+      "mapped_files_count": 36,
+      "production_diff": true,
+      "diffstat": {
+        "files": 76,
+        "insertions": 5210,
+        "deletions": 294,
+        "production_files": 23
+      },
+      "completed_review_receipts": [
+        "review-receipt:db2b64b2-0727-469a-a446-25ddd57603be",
+        "review-receipt:fe98d976-5bca-497a-9b37-2590c8132264",
+        "review-receipt:0a80ab2e-8da6-43d1-b104-cd558ef8ea05"
+      ],
+      "noncompleted_review_receipts": [],
+      "structured_skip": false,
+      "predicate_rejects": false
+    },
+    {
+      "task": "446",
+      "worker": "fix-ratelimit-spam",
+      "operation_id": "64b0f9ce-18ad-4f66-b005-93c0c34df45d",
+      "created_at": "2026-09-03T07:25:03.513845+00:00",
+      "target_before": "f8e00522e8597fcabb63675976bace4cbd1dee9c",
+      "target_after": "71240bd4f2d629ad259fbb1949fd3819827c0e1f",
+      "mapped_files_count": 3,
+      "production_diff": true,
+      "diffstat": {
+        "files": 9,
+        "insertions": 154,
+        "deletions": 5,
+        "production_files": 4
+      },
+      "completed_review_receipts": [
+        "review-receipt:87cabe7f-74bc-436c-a0a2-1168c6101a06"
+      ],
+      "noncompleted_review_receipts": [],
+      "structured_skip": false,
+      "predicate_rejects": false
+    },
+    {
+      "task": "452",
+      "worker": "quota-headroom-compact",
+      "operation_id": "eedf7dae-9c57-40e7-a3a8-05f628b07fed",
+      "created_at": "2026-09-03T07:48:07.549651+00:00",
+      "target_before": "90e5a5265c4f9e17db93762660d21064462b7529",
+      "target_after": "0f415e840b09a35968c022f55dd37863fa2242a9",
+      "mapped_files_count": 1,
+      "production_diff": true,
+      "diffstat": {
+        "files": 4,
+        "insertions": 90,
+        "deletions": 17,
+        "production_files": 1
+      },
+      "completed_review_receipts": [
+        "review-receipt:e11589b5-aa24-4eaf-be83-7f9b64083ac3",
+        "review-receipt:2a1f19bd-b50a-4861-9f5c-2db628339bfa"
+      ],
+      "noncompleted_review_receipts": [],
+      "structured_skip": false,
+      "predicate_rejects": false
+    }
+  ],
+  "mapped_nonproduction_controls": [
+    {
+      "task": "442",
+      "worker": "fix-quota-e2e-red",
+      "operation_id": "69b59589-b6e4-4120-8593-1d2548fda6ad",
+      "created_at": "2026-09-02T08:46:17.813985+00:00",
+      "target_before": "4e5940ef6a282b1f1c0cf4da1a0998bd131414ed",
+      "target_after": "7f8e156825a0fb0422614d3af626a63637379e13",
+      "mapped_files_count": 1,
+      "production_diff": false,
+      "diffstat": {
+        "files": 1,
+        "insertions": 4,
+        "deletions": 0,
+        "production_files": 0
+      },
+      "completed_review_receipts": [],
+      "noncompleted_review_receipts": [],
+      "structured_skip": false,
+      "predicate_rejects": false
+    },
+    {
+      "task": "448",
+      "worker": "fix-artifact-paths",
+      "operation_id": "7efd6bd2-55d7-436e-b83a-9323e3806711",
+      "created_at": "2026-09-03T07:06:43.723324+00:00",
+      "target_before": "bbefdbe47a174c329502526a61934befb50a70ae",
+      "target_after": "895be6e524bdd18fed4036a17b2a2683eae9456d",
+      "mapped_files_count": 4,
+      "production_diff": false,
+      "diffstat": {
+        "files": 4,
+        "insertions": 4,
+        "deletions": 4,
+        "production_files": 0
+      },
+      "completed_review_receipts": [],
+      "noncompleted_review_receipts": [],
+      "structured_skip": false,
+      "predicate_rejects": false
+    },
+    {
+      "task": "453",
+      "worker": "secret-commit-gate",
+      "operation_id": "4562d36d-2765-474b-8ef4-2f3ba9e761d8",
+      "created_at": "2026-09-03T08:44:39.647053+00:00",
+      "target_before": "0f415e840b09a35968c022f55dd37863fa2242a9",
+      "target_after": "18fdb7b83f1edeb969ede8f702c8c686db4ab7b9",
+      "mapped_files_count": 1,
+      "production_diff": false,
+      "diffstat": {
+        "files": 12,
+        "insertions": 826,
+        "deletions": 0,
+        "production_files": 0
+      },
+      "completed_review_receipts": [
+        "review-receipt:05a1173b-c4cf-4b86-b9a9-b4103ce61a1b"
+      ],
+      "noncompleted_review_receipts": [
+        "review-receipt:b51542de-8fb6-445a-b03b-7d4ffa3c9753",
+        "review-receipt:71459d15-4e2b-409e-abb4-cad008cc62e1"
+      ],
+      "structured_skip": false,
+      "predicate_rejects": false
+    }
+  ],
+  "production_unmapped_controls": []
+}

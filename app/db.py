@@ -177,7 +177,15 @@ def init_db() -> None:
                 outcome_source TEXT NOT NULL DEFAULT 'unknown'
                     CHECK(outcome_source IN ('direct','derived','unknown')),
                 outcome_evidence_ref TEXT NOT NULL DEFAULT '',
-                notification_event_id TEXT NOT NULL DEFAULT ''
+                notification_event_id TEXT NOT NULL DEFAULT '',
+                subject_kind TEXT NOT NULL DEFAULT 'unknown',
+                target_sha TEXT NOT NULL DEFAULT '',
+                worker_head TEXT NOT NULL DEFAULT '',
+                production_snapshot_sha256 TEXT NOT NULL DEFAULT '',
+                production_paths_json TEXT NOT NULL DEFAULT '[]',
+                coverage_outcome TEXT NOT NULL DEFAULT 'unknown',
+                policy_ref TEXT NOT NULL DEFAULT '',
+                decision_actor TEXT NOT NULL DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS idx_review_receipts_artifact
                 ON review_receipts(artifact_path, round);
@@ -1147,6 +1155,29 @@ def _migrate(c) -> None:
     _migrate_message_deliveries(c)
     _migrate_tg_file_deliveries(c)
     _migrate_portfolio_roadmap(c)
+    receipt_cols = {
+        row[1] for row in c.execute("PRAGMA table_info(review_receipts)").fetchall()
+    }
+    receipt_additions = {
+        "subject_kind": "TEXT NOT NULL DEFAULT 'unknown'",
+        "target_sha": "TEXT NOT NULL DEFAULT ''",
+        "worker_head": "TEXT NOT NULL DEFAULT ''",
+        "production_snapshot_sha256": "TEXT NOT NULL DEFAULT ''",
+        "production_paths_json": "TEXT NOT NULL DEFAULT '[]'",
+        "coverage_outcome": "TEXT NOT NULL DEFAULT 'unknown'",
+        "policy_ref": "TEXT NOT NULL DEFAULT ''",
+        "decision_actor": "TEXT NOT NULL DEFAULT ''",
+    }
+    for column, declaration in receipt_additions.items():
+        if column not in receipt_cols:
+            c.execute(
+                f"ALTER TABLE review_receipts ADD COLUMN {column} {declaration}"
+            )
+    c.execute(
+        "CREATE INDEX IF NOT EXISTS idx_review_receipts_coverage ON review_receipts("
+        "scope, session_id, task_id, target_sha, production_snapshot_sha256, "
+        "coverage_outcome, completed_at)"
+    )
     mb_cols = {row[1] for row in c.execute("PRAGMA table_info(mailbox)").fetchall()}
     if "claimed_at" not in mb_cols:
         c.execute("ALTER TABLE mailbox ADD COLUMN claimed_at REAL")
@@ -2790,10 +2821,13 @@ _REVIEW_RECEIPT_COLUMNS = (
     "status", "return_code", "failure_code", "artifact_exists", "artifact_bytes",
     "artifact_sha256", "verdict_present", "verdict_value", "jsonl_response_present",
     "recovery_source", "author_outcome", "outcome_source", "outcome_evidence_ref",
-    "notification_event_id",
+    "notification_event_id", "subject_kind", "target_sha", "worker_head",
+    "production_snapshot_sha256", "production_paths_json", "coverage_outcome",
+    "policy_ref", "decision_actor",
 )
 _REVIEW_OUTCOMES = frozenset({"accepted", "disputed", "partial"})
 _REVIEW_RECEIPT_SOURCES = frozenset({"direct", "derived", "unknown"})
+_REVIEW_COVERAGE_OUTCOMES = frozenset({"unknown", "reviewed", "skipped", "unavailable"})
 
 
 def review_receipt_create(receipt: dict) -> bool:
@@ -2813,6 +2847,8 @@ def review_receipt_create(receipt: dict) -> bool:
         raise ValueError("invalid review receipt model_source")
     if receipt.get("outcome_source", "unknown") not in _REVIEW_RECEIPT_SOURCES:
         raise ValueError("invalid review receipt outcome_source")
+    if receipt.get("coverage_outcome", "unknown") not in _REVIEW_COVERAGE_OUTCOMES:
+        raise ValueError("invalid review receipt coverage_outcome")
     values = {key: receipt.get(key) for key in _REVIEW_RECEIPT_COLUMNS}
     values["schema_version"] = int(values["schema_version"] or 1)
     values["round"] = None if values["round"] is None else int(values["round"])
@@ -2826,6 +2862,14 @@ def review_receipt_create(receipt: dict) -> bool:
     values["outcome_source"] = values["outcome_source"] or "unknown"
     values["outcome_evidence_ref"] = values["outcome_evidence_ref"] or ""
     values["notification_event_id"] = values["notification_event_id"] or ""
+    values["subject_kind"] = values["subject_kind"] or "unknown"
+    values["target_sha"] = values["target_sha"] or ""
+    values["worker_head"] = values["worker_head"] or ""
+    values["production_snapshot_sha256"] = values["production_snapshot_sha256"] or ""
+    values["production_paths_json"] = values["production_paths_json"] or "[]"
+    values["coverage_outcome"] = values["coverage_outcome"] or "unknown"
+    values["policy_ref"] = values["policy_ref"] or ""
+    values["decision_actor"] = values["decision_actor"] or ""
     placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
     columns = ", ".join(_REVIEW_RECEIPT_COLUMNS)
     with _conn() as c:
@@ -2856,6 +2900,42 @@ def review_receipt_get(receipt_id: str) -> dict | None:
     return dict(row) if row else None
 
 
+def review_receipt_record_skip(receipt: dict) -> dict:
+    """Create one idempotent authorized skip; decision identity owns retries."""
+    stable = (
+        "runtime", "reviewer_model", "model_source", "session_id", "worker_name",
+        "scope", "task_id", "task_source", "artifact_path", "mode",
+        "status", "failure_code", "subject_kind", "target_sha", "worker_head",
+        "production_snapshot_sha256", "production_paths_json", "coverage_outcome",
+        "policy_ref", "decision_actor", "outcome_evidence_ref",
+    )
+    receipt_id = str(receipt.get("receipt_id") or "")
+    if not receipt_id:
+        raise ValueError("skip receipt_id is required")
+    if receipt.get("coverage_outcome") != "skipped":
+        raise ValueError("skip receipt must have coverage_outcome=skipped")
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        existing = c.execute(
+            "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,),
+        ).fetchone()
+        if existing:
+            if any(existing[key] != receipt.get(key) for key in stable):
+                raise ValueError("skip decision id conflicts with existing provenance")
+            return dict(existing)
+        values = {key: receipt.get(key) for key in _REVIEW_RECEIPT_COLUMNS}
+        placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
+        columns = ", ".join(_REVIEW_RECEIPT_COLUMNS)
+        c.execute(
+            f"INSERT INTO review_receipts ({columns}) VALUES ({placeholders})",
+            tuple(values[key] for key in _REVIEW_RECEIPT_COLUMNS),
+        )
+        saved = c.execute(
+            "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,),
+        ).fetchone()
+    return dict(saved)
+
+
 def review_receipt_reserve(receipt: dict) -> dict:
     """Allocate the next artifact round and insert its start receipt atomically."""
     if not isinstance(receipt, dict):
@@ -2876,6 +2956,14 @@ def review_receipt_reserve(receipt: dict) -> dict:
     values.setdefault("outcome_source", "unknown")
     values.setdefault("outcome_evidence_ref", "")
     values.setdefault("notification_event_id", "")
+    values.setdefault("subject_kind", "unknown")
+    values.setdefault("target_sha", "")
+    values.setdefault("worker_head", "")
+    values.setdefault("production_snapshot_sha256", "")
+    values.setdefault("production_paths_json", "[]")
+    values.setdefault("coverage_outcome", "unknown")
+    values.setdefault("policy_ref", "")
+    values.setdefault("decision_actor", "")
     with _conn() as c:
         c.execute("BEGIN IMMEDIATE")
         row = c.execute(
@@ -2902,13 +2990,15 @@ def review_receipt_finish(receipt_id: str, updates: dict) -> bool:
         "job_id", "completed_at", "status", "return_code", "failure_code",
         "artifact_exists", "artifact_bytes", "artifact_sha256", "verdict_present",
         "verdict_value", "jsonl_response_present", "recovery_source",
-        "notification_event_id",
+        "notification_event_id", "coverage_outcome",
     }
     unknown = set(updates) - allowed
     if unknown:
         raise ValueError("review receipt terminal fields not allowed: " + ", ".join(sorted(unknown)))
     if updates.get("status") not in {None, "requested", "completed", "failed", "timed_out", "interrupted"}:
         raise ValueError("invalid review receipt status")
+    if updates.get("coverage_outcome") not in {None, *_REVIEW_COVERAGE_OUTCOMES}:
+        raise ValueError("invalid review receipt coverage_outcome")
     if not updates:
         return False
     assignments = ", ".join(f"{key}=?" for key in updates)

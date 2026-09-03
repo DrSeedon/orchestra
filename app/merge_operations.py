@@ -443,7 +443,8 @@ def _admission_evidence(
 ) -> dict[str, Any]:
     target = dict(admission.get("target") or {})
     oracle = dict(admission.get("oracle") or {})
-    return {
+    review = dict(admission.get("review_coverage") or {})
+    evidence = {
         "target": {
             "branch": str(target.get("branch") or ""),
             "sha": str(target.get("sha") or ""),
@@ -463,6 +464,21 @@ def _admission_evidence(
             "matched": None,
         },
     }
+    if review:
+        evidence["review_coverage"] = {
+            "required": bool(review.get("required")),
+            "status": str(review.get("status") or "unknown"),
+            "reason": str(review.get("reason") or ""),
+            "production_paths": list(review.get("production_paths") or []),
+            "target_sha": str(review.get("target_sha") or ""),
+            "worker_head": str(review.get("worker_head") or ""),
+            "production_snapshot_sha256": str(
+                review.get("production_snapshot_sha256") or ""
+            ),
+            "receipt_id": str(review.get("receipt_id") or ""),
+            "coverage_outcome": str(review.get("coverage_outcome") or "unknown"),
+        }
+    return evidence
 
 
 def accept_operation_snapshot(
@@ -766,6 +782,52 @@ def _target_head(worktree_path: str, target_branch: str) -> str:
     return proc.stdout.strip()
 
 
+def _worker_head(worktree_path: str) -> str:
+    proc = subprocess.run(
+        ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+        cwd=worktree_path, capture_output=True, text=True, timeout=15, check=False,
+    )
+    if proc.returncode != 0:
+        detail = proc.stderr.strip() or proc.stdout.strip() or f"exit {proc.returncode}"
+        raise ValueError(f"cannot resolve worker HEAD: {detail}")
+    return proc.stdout.strip()
+
+
+def review_coverage_policy_active() -> bool:
+    from app.review_coverage import policy_active
+
+    return policy_active()
+
+
+def _review_coverage_for_snapshot(
+    *, accepted: dict[str, Any], request: dict[str, Any], target_sha: str,
+    changed: list[str], active: bool,
+) -> dict[str, Any]:
+    from app.review_coverage import (
+        coverage_decision,
+        production_paths,
+        production_snapshot,
+    )
+
+    worker_head = str(accepted.get("worker_head") or "") or _worker_head(
+        accepted["worktree_path"]
+    )
+    paths = production_paths(changed)
+    snapshot = production_snapshot(
+        accepted["worktree_path"], target_sha=target_sha, worker_head=worker_head,
+    )
+    return coverage_decision(
+        scope=str(request.get("scope") or accepted.get("scope") or "").rstrip("/"),
+        session_id=str(accepted["session_id"]),
+        task_id=str(accepted.get("task_id") or ""),
+        target_sha=target_sha,
+        worker_head=worker_head,
+        production_paths=paths,
+        production_snapshot_sha256=str(snapshot["production_snapshot_sha256"]),
+        active=active,
+    )
+
+
 def _prepare_admission_snapshot(
     accepted: dict[str, Any], request: dict[str, Any],
 ) -> dict[str, Any]:
@@ -792,6 +854,13 @@ def _prepare_admission_snapshot(
     )
     if changed is None:
         raise ValueError("cannot derive target-relative merge paths")
+    review_coverage = _review_coverage_for_snapshot(
+        accepted=accepted,
+        request=request,
+        target_sha=target_sha,
+        changed=changed,
+        active=review_coverage_policy_active(),
+    )
     nested_behavioral = target_branch not in {"main", "master"} and any(
         path.startswith("app/") or path.startswith("tests/")
         for path in changed
@@ -845,7 +914,50 @@ def _prepare_admission_snapshot(
     return {
         "target": {"branch": target_branch, "sha": target_sha},
         "oracle": oracle,
+        "review_coverage": review_coverage,
     }
+
+
+def _revalidate_review_coverage(
+    record: dict[str, Any], current: dict[str, Any],
+) -> dict[str, Any]:
+    from app.merge_test_gate import changed_paths
+
+    admission = dict(record.get("accepted_admission") or {})
+    target = dict(admission.get("target") or {})
+    target_branch = str(
+        target.get("branch")
+        or record.get("request", {}).get("target")
+        or record.get("accepted_base_branch")
+        or "main"
+    )
+    target_sha = str(target.get("sha") or "") or _target_head(
+        current["worktree_path"], target_branch,
+    )
+    changed = changed_paths(
+        current["worktree_path"],
+        target_ref=target_branch,
+        target_sha=target_sha,
+    )
+    if changed is None:
+        return {
+            "required": True,
+            "status": "blocked",
+            "reason": "review_snapshot_unavailable",
+            "production_paths": [],
+            "target_sha": target_sha,
+            "worker_head": str(current.get("worker_head") or ""),
+            "production_snapshot_sha256": "",
+            "receipt_id": "",
+            "coverage_outcome": "unknown",
+        }
+    return _review_coverage_for_snapshot(
+        accepted=current,
+        request=record["request"],
+        target_sha=target_sha,
+        changed=changed,
+        active=True,
+    )
 
 
 def _verify_accepted_snapshot(record: dict[str, Any]) -> tuple[dict[str, Any] | None, str]:
@@ -1611,6 +1723,18 @@ async def _run_operation(operation_id: str) -> None:
         return
     try:
         current, mismatch = await asyncio.to_thread(_verify_accepted_snapshot, record)
+        coverage_block = None
+        if not mismatch and review_coverage_policy_active():
+            pinned_admission = dict(record.get("accepted_admission") or {})
+            pinned_review = dict(pinned_admission.get("review_coverage") or {})
+            if not pinned_review or pinned_review.get("status") == "not_active":
+                refreshed_review = await asyncio.to_thread(
+                    _revalidate_review_coverage, record, current,
+                )
+                pinned_admission["review_coverage"] = refreshed_review
+                record = {**record, "accepted_admission": pinned_admission}
+                if refreshed_review.get("status") == "blocked":
+                    coverage_block = refreshed_review
         if mismatch:
             error = _error(
                 "SESSION_IDENTITY_CHANGED", mismatch, operation_id=operation_id,
@@ -1627,6 +1751,35 @@ async def _run_operation(operation_id: str) -> None:
                     "REFRESH_WORKER_THEN_NEW_OPERATION",
                     "Refresh the worker identity, then start a new operation.",
                 ),
+            )
+        elif coverage_block is not None:
+            error = _error(
+                "REVIEW_COVERAGE_MISSING",
+                "review coverage became active before execution and this production snapshot has no qualifying receipt",
+                operation_id=operation_id,
+                status=409,
+                details={
+                    "reason": coverage_block.get("reason"),
+                    "production_paths": coverage_block.get("production_paths") or [],
+                    "production_snapshot_sha256": coverage_block.get(
+                        "production_snapshot_sha256", ""
+                    ),
+                },
+            )
+            result = _base_result(
+                operation_id,
+                "FAILED",
+                target_branch=record["request"].get("target", ""),
+                worker_branch=record["accepted_worker_branch"],
+                worker_head=record["accepted_worker_head"],
+                error=error,
+                next_action=_action(
+                    "RECORD_REVIEW_THEN_NEW_OPERATION",
+                    "Record review coverage for this exact snapshot, then start a new operation.",
+                ),
+            )
+            result["admission"] = _admission_evidence(
+                record["accepted_admission"], oracle_status="not_run",
             )
         else:
             from app import acceptance as acceptance_module
@@ -2028,6 +2181,35 @@ async def accept_merge_operation(
             next_action=_action(
                 "FIX_ORACLE_THEN_NEW_OPERATION",
                 "Repair the authoritative task oracle or target, then start a new operation.",
+            ),
+        ), 409
+    review_coverage = dict(
+        accepted.get("admission", {}).get("review_coverage") or {}
+    )
+    if review_coverage.get("status") == "blocked":
+        error = _error(
+            "REVIEW_COVERAGE_MISSING",
+            "production diff has no snapshot-bound review, authorized skip, or machine-unavailable receipt",
+            operation_id=canonical_id,
+            status=409,
+            details={
+                "reason": review_coverage.get("reason"),
+                "production_paths": review_coverage.get("production_paths") or [],
+                "production_snapshot_sha256": review_coverage.get(
+                    "production_snapshot_sha256", ""
+                ),
+            },
+        )
+        return _base_result(
+            canonical_id,
+            "FAILED",
+            target_branch=request["target"] or accepted.get("base_branch", ""),
+            worker_branch=accepted["worker_branch"],
+            worker_head=accepted["worker_head"],
+            error=error,
+            next_action=_action(
+                "RECORD_REVIEW_THEN_NEW_OPERATION",
+                "Record review coverage for this exact snapshot, then start a new operation.",
             ),
         ), 409
     result, _created, status = await asyncio.to_thread(

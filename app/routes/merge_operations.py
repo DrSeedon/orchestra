@@ -1,6 +1,8 @@
 """HTTP adapter for durable merge operations."""
 
 import asyncio
+import hashlib
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -75,6 +77,102 @@ async def create_merge_operation(req: dict, request: Request = None):
         ),
     )
     return _response(result, status_code)
+
+
+@router.post("/review-skip")
+async def record_review_skip(req: dict, request: Request = None):
+    from app.db import (
+        get_session,
+        get_session_by_name,
+        review_receipt_record_skip,
+    )
+    from app.mcp_proof import caller_may_use_orchestrator_privilege
+    from app.review_coverage import current_policy_ref, resolve_implementation_subject
+
+    if request is None or not caller_may_use_orchestrator_privilege(request):
+        return JSONResponse(
+            {"error": {"code": "review_skip_forbidden", "message": "review skip is orchestrator-only"}},
+            status_code=403,
+        )
+    decision_id = str(req.get("decision_id") or "").strip()
+    target_worker = str(req.get("target_worker") or "").strip()
+    scope = str(req.get("scope") or "").rstrip("/")
+    evidence = str(req.get("outcome_evidence_ref") or "").strip()
+    if not decision_id or len(decision_id) > 128 or not target_worker or not scope or not evidence:
+        return JSONResponse(
+            {"error": {"code": "invalid_argument", "message": (
+                "decision_id, target_worker, scope, and outcome_evidence_ref are required"
+            )}},
+            status_code=400,
+        )
+    target = get_session_by_name(target_worker, scope)
+    if not target:
+        return JSONResponse(
+            {"error": {"code": "target_worker_not_found", "message": "target worker not found"}},
+            status_code=404,
+        )
+    try:
+        subject = resolve_implementation_subject(
+            str(target.get("worktree_path") or ""),
+            str(target.get("base_branch") or "main"),
+        )
+    except ValueError as error:
+        return JSONResponse(
+            {"error": {"code": "review_subject_invalid", "message": str(error)}},
+            status_code=409,
+        )
+    actor_session_id = request.headers.get("x-orchestra-session-id", "").strip()
+    actor = get_session(actor_session_id) or {}
+    now = datetime.now(timezone.utc).isoformat()
+    receipt_id = "review-skip:" + hashlib.sha256(
+        f"{scope}\0{decision_id}".encode()
+    ).hexdigest()
+    receipt = {
+        "receipt_id": receipt_id,
+        "schema_version": 1,
+        "runtime": "none",
+        "reviewer_model": "",
+        "model_source": "direct",
+        "session_id": str(target["id"]),
+        "worker_name": str(target["name"]),
+        "scope": scope,
+        "task_id": str(target.get("task_id") or ""),
+        "task_source": "session_lookup",
+        "artifact_path": "",
+        "mode": "skip",
+        "round": None,
+        "job_id": "",
+        "usage_event_id": "",
+        "requested_at": now,
+        "completed_at": now,
+        "status": "completed",
+        "return_code": None,
+        "failure_code": "",
+        "artifact_exists": 0,
+        "artifact_bytes": 0,
+        "artifact_sha256": "",
+        "verdict_present": 0,
+        "verdict_value": "",
+        "jsonl_response_present": 0,
+        "recovery_source": "",
+        "author_outcome": "unknown",
+        "outcome_source": "direct",
+        "outcome_evidence_ref": evidence,
+        "notification_event_id": "",
+        "subject_kind": "implementation",
+        **subject,
+        "coverage_outcome": "skipped",
+        "policy_ref": current_policy_ref(),
+        "decision_actor": str(actor.get("name") or actor_session_id),
+    }
+    try:
+        saved = review_receipt_record_skip(receipt)
+    except ValueError as error:
+        return JSONResponse(
+            {"error": {"code": "review_skip_conflict", "message": str(error)}},
+            status_code=409,
+        )
+    return JSONResponse({"result": saved, "error": None})
 
 
 @router.post("/{operation_id}/resolve")

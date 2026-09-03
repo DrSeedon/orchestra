@@ -133,6 +133,12 @@
   ]
  ],
  [
+  "/api/merge-operations/review-skip",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/merge-operations/{operation_id}",
   [
    "GET"
