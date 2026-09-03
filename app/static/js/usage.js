@@ -163,13 +163,21 @@ function _quotaMapLaneHeadroomText(windowData, bucketId = null) {
         && _quotaWindowMatch(item.window, windowData)
     );
     const lane = bucket?.lanes?.find(item => item?.gated);
-    const headroom = Number(lane?.headroom_pp);
-    if (!lane || !Number.isFinite(headroom)) return '';
-    const value = headroom.toFixed(1);
-    const laneName = lane.lane === 'claude' ? 'Claude' : String(lane.label || lane.lane);
-    return headroom < 0
-        ? `воркеры ${laneName}: порог пройден, запас ${value} п.п.`
-        : `воркеры ${laneName}: запас ${value} п.п. до порога`;
+    if (!lane || lane.headroom_pp == null) return '';
+    const headroom = Number(lane.headroom_pp);
+    if (!Number.isFinite(headroom)) return '';
+    const value = Math.abs(headroom).toFixed(1);
+    const signed = headroom < 0 ? `−${value}` : `+${value}`;
+    let text = `🎯 ${signed}`;
+    if (headroom < 0) {
+        const release = _quotaMapLaneRelease(windowData, bucketId);
+        const seconds = Number(release.release_in_seconds);
+        if ((release.status === 'opens_in' || release.status === 'at_reset')
+            && Number.isFinite(seconds)) {
+            text += ` · 🕐 ${_releaseDurationFromSeconds(seconds)}`;
+        }
+    }
+    return text;
 }
 
 function _etaToLimit(currentPct, isoStr, windowMs) {
@@ -288,7 +296,7 @@ function renderUsageBar() {
         const cd = _resetCountdown(sd.resets_at);
         const release = _quotaMapLaneStatusText(sd, 'anthropic');
         const headroom = _quotaMapLaneHeadroomText(sd, 'anthropic');
-        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span title="Запас до порога, ограничивающего воркеров">${headroom}</span>` : ''}</span>`);
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     if (claudeParts.length) {
         groups.push(
@@ -360,7 +368,7 @@ function renderUsageBar() {
                 const release = _quotaMapLaneStatusText(window, provider.bucketId);
                 const headroom = _quotaMapLaneHeadroomText(window, provider.bucketId);
                 const label = _codexWindowLabel(window.window_minutes);
-                providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span title="Запас до порога, ограничивающего воркеров">${headroom}</span>` : ''}</span>`);
+                providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
             }
             groups.push(
                 `<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">`
