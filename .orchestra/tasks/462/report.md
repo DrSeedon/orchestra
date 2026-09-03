@@ -1,8 +1,8 @@
-# #462 — T1–T3 checkpoint report
+# #462 — final report
 
 ## Result
 
-T1–T3 are implemented and committed. T4 is untouched. The new review-coverage code is physically present but inactive because the canonical `codex-debate` skill does not contain the `review-coverage-v1` marker.
+T1–T3 were checkpoint-merged as `1a86f403` and live-verified before prompt activation. T4 now adds the `review-coverage-v1` marker and the operational route to the canonical `codex-debate` skill; after this final merge, review coverage is active without any new `app/**` or `scripts/**` diff.
 
 Production scope is `app/** OR scripts/**`. A qualifying implementation review is bound to the exact target SHA and versioned raw Git production diff; task/session identity alone cannot authorize it. The same #436 receipt table now represents three coverage outcomes:
 
@@ -33,9 +33,13 @@ Production scope is `app/** OR scripts/**`. A qualifying implementation review i
 - Missing coverage under an active policy returns `REVIEW_COVERAGE_MISSING` before operation insertion/runner/Git.
 - A pending admission saved as `not_active` is re-evaluated at execution when the marker appears; a missing receipt stops before `execute_merge_session`.
 
-### T4 — pending, not touched
+### T4 — done after live verification
 
-Both skill files are byte-identical to `main` and the delivery check remains RED. Activation requires checkpoint merge, restart, and the two requested live calls first.
+- The canonical skill names `codex_review(mode="implementation")` for exact implementation-snapshot review and the orchestrator-only `record_review_outcome(..., outcome="skipped", ...)` route without copying the gate's skip conditions.
+- The skill explicitly says that without the marker the calls remain optional and `status=not_active, required=false` means continue without a receipt.
+- Machine-unavailable remains non-blocking; `interrupted`, generic `failed`, and `timed_out` remain non-qualifying.
+- The reconnect-time `.codex/skills/codex-debate/SKILL.md` projection is byte-identical locally. It remains untracked by the current one-owner contract (`test_policy_has_one_tracked_source`).
+- PROJECT CONTEXT, design-calibration prose, routing, and round ceilings are unchanged.
 
 ## Files
 
@@ -50,6 +54,8 @@ Checkpoint production/test diff from `95c5b8d6`: **8 files, +690/-16**.
 - `scripts/migrate_review_receipts.py`
 - `tests/route_surface_snapshot.json`
 
+T4 is separated from that checkpoint: production (`app/**`, `scripts/**`) **0 files, +0/-0**; canonical policy **1 file, +20/-0**; task evidence consists only of this report and `review-t4-luna.md`.
+
 Frozen tests and T4 delivery check remain byte-identical to oracle commit `41456f2afbab`.
 
 ## Verification
@@ -63,7 +69,10 @@ Frozen tests and T4 delivery check remain byte-identical to oracle commit `41456
 - The byte-identical command on clean pre-task main `f3c2eaaa`: `306 passed, 2 failed in 16.75s`; failing node IDs are identical parameterizations of `test_t386_t1_public_operation_pins_target_and_task_oracle_before_runner`, caused by the pre-existing live `progress` overlay mismatch. New failures: **0**.
 - `py_compile` on all changed Python modules: exit 0.
 - Inactive-policy probe: `policy_active() is False`; a production decision returns `status=not_active, required=False`.
-- T4 check remains RED on the three absent anchors, proving the skill/prompt was not activated early.
+- T4 check was RED before the edit on exactly `['review-coverage-v1', 'mode="implementation"', 'outcome="skipped"']`; after the edit it prints `review-coverage-v1 reaches canonical and native Codex skill`.
+- Foreign-project inactive-policy scenario: `policy_active=false status=not_active required=false receipt_id='' action=continue_merge_without_receipt`.
+- Canonical/native byte comparison: `skill_mirror=identical`; `skill-creator` validation: `Skill is valid!`.
+- Sharded final tests: `tests/test_review_coverage_gate_462.py` — **22 passed**; `tests/test_default_pipeline.py` — **131 passed**; `tests/test_check_pipeline_manifest.py` — **15 passed**; focused legacy/manager/workspace skill delivery — **26 passed, 267 deselected**.
 - Route-surface pre-update delta: added exactly `POST /api/merge-operations/review-skip`; removed routes: none. The same snapshot test on clean `main` `ccab874e` was green (`1 passed in 1.96s`); after the one-entry snapshot update the branch file is green (`2 passed in 2.19s`).
 
 ## Pre-mortem
@@ -73,11 +82,18 @@ Frozen tests and T4 delivery check remain byte-identical to oracle commit `41456
 3. **Worker self-issues skip.** Check: server route validates live MCP proof + orchestrator session; worker proof returns 403; target session/head/snapshot are asserted.
 4. **Timeout or generic provider failure becomes unavailable.** Check: only two exact failure codes qualify; wrong code, interrupted, failed-reviewed, and timed-out-reviewed controls are green.
 5. **Policy activates after operation admission.** Check: pending `not_active` operation revalidates and the executor mock is never awaited.
-6. **Prompt starts requiring unavailable code.** Check: canonical/native skill files unchanged and activation check remains RED; live calls are mandatory before T4.
+6. **A project sees inactive policy and treats the optional mechanism as mandatory.** Check: the production decision for a foreign scope with `active=False` returns `not_active`, `required=False`; the skill maps that exact result to `continue merge without receipt`.
+7. **The operational block duplicates or weakens canonical routing.** Check: manifest/default-pipeline tests enforce one occurrence of route anchors; an initial duplicate `NO MODEL REVIEW` anchor failed both suites and was replaced by a reference to gate item 1.
 
 ## Review
 
+### T1–T3 implementation
+
 Luna implementation review timed out after 600 seconds with three intermediate messages and no final finding/verdict. The preserved evidence is `review-implementation-luna.md`. No unchanged-artifact retry was opened: **вердикта нет**.
+
+### T4 policy delivery
+
+Route: one fresh Luna pass; auxiliary Sol was not authorized. `review-t4-luna.md` contains no findings and verdict `Overall Correctness: Correct | Confidence: 0.96`. Reviewer evidence is the exact added line `Маркер активации политики: review-coverage-v1` (shown with Markdown code formatting in the artifact), verified once in the canonical skill. Receipt `review-receipt:0df49406-b23d-4a65-8a13-0e5bd161992e` is `completed`, has `verdict_present=1`, and the author outcome was recorded as `accepted` with this report as evidence.
 
 ## Live checkpoint proofs after merge/restart
 
@@ -155,7 +171,7 @@ Command: a fresh `/mnt/data/Projects/Python/orchestra/.venv/bin/python` process 
 
 Assertions `status == 'not_active'` and `required is False` passed. The absent marker therefore does not block the production diff.
 
-## Checkpoint / remaining work
+## Final rollout state
 
 Required next steps are external to this branch checkpoint:
 
@@ -163,6 +179,6 @@ Required next steps are external to this branch checkpoint:
 2. Real implementation review receipt: done.
 3. Real structured skip receipt: done, including worker-forbidden negative control.
 4. Live no-marker `not_active` admission: done.
-5. T4 remains pending separate orchestrator approval.
+5. T4 approval: done; canonical marker and operational syntax delivered.
 
-Breaking behavior at this checkpoint: **none while marker absent**.
+Breaking behavior: active policy now rejects `app/**` or `scripts/**` merges that lack an exact implementation-snapshot review, authorized skip, or typed machine-unavailable receipt. Non-production merges remain outside this gate; inactive-policy response remains non-blocking.
