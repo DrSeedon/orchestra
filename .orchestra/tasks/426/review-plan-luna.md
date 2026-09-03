@@ -1,110 +1,69 @@
 <!-- codex-review-metadata: {"reviewer_model": "gpt-5.6-luna"} -->
 
-Ну да, три красных теста уже почти доказали безопасное удаление строк — только пока строка в базе одна. 😏
-
 ## Summary
 
-Changes requested. The plan correctly locates the shadow-creation seam and correctly classifies the duplicate `api_update_task_if_current` definitions as intentional aliases. However, the writer inventory and acceptance criteria do not yet close several production-reachable or data-loss cases.
-
-The named test exits `1` with exactly the three expected `DID NOT RAISE` failures.
+The RED commands fail for the intended assertion reasons, not collection/setup failures. However, the oracle does not fully enforce several mandatory durability and concurrency guarantees.
 
 ## Findings
 
-- **blocking:** [plan.md:32](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/docs/tasks/426/plan.md:32>) — the inventory excludes the public no-context path: [`routes/tm.py:169`](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/app/routes/tm.py:169>) calls `tm.api_create_task` unconditionally, while [`tm.py:2050`](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/app/tm.py:2050>) explicitly falls back to legacy creation when no IA context exists. This is not an unsupported direct library call; either prove that this configuration cannot reach canonical finalization or include it in the supported-path verdict and fix at its opening.
+1. blocking: `tests/test_task_write_outbox_426.py:157-173` — does not prove receipts are committed before the HTTP response; it inspects the outbox only after both requests complete → add a response-ordering barrier or observable commit assertion.
 
-- **blocking:** [plan.md:52](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/docs/tasks/426/plan.md:52>) — compensation treats only `ValueError: <par> not found` as definite absence, but [`resolve_scoped_task_identity`](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/app/tm.py:2033>) handles both `KeyError` and `ValueError` from `store.task_get` as unavailable identity. A missing candidate reported as `KeyError` would be preserved as “ambiguous,” leaving the legacy-only row. Define the actual not-found contract and cover it in the oracle or a supplemental test.
+2. blocking: `tests/test_task_write_outbox_426.py:103-112` — verifies both owners only after POST followed by PUT, so POST could fail to update one owner while PUT repairs it → assert legacy and canonical state immediately after POST, before issuing PUT.
 
-- **blocking:** [plan.md:53](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/docs/tasks/426/plan.md:53>) — the frozen oracle does not prove the identity and safety guards. It creates only one legacy row, so a broad `DELETE FROM tm_tasks WHERE project_id=?` or an unguarded delete passes the first two tests. Add a decoy row and cases where the created row is bound, revised, committed, or reserved; otherwise the acceptance can pass an implementation that causes data loss.
+3. blocking: `tests/test_task_write_outbox_426.py:324-371` — the acknowledgment-crash test does not require an applied marker or verify its Git-commit ordering; an implementation that merely retains receipts and later deletes them could pass → assert pending receipt + committed applied marker after SQLite commit, then test marker reconciliation.
 
-- **blocking:** [plan.md:57](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/docs/tasks/426/plan.md:57>) — the plan promises preservation when the candidate probe is unreadable, but the frozen oracle tests only “candidate absent” and “candidate present.” A store whose `task_get` raises an unexpected read error is needed to prove that the implementation does not treat every probe exception as permission to delete the legacy row.
+4. blocking: `docs/tasks/426/plan.md:129-141` — dirty working-tree versus Git HEAD behavior is unspecified. “Reconcile these paths from Git HEAD” does not define what happens when a marker/receipt is present only as an uncommitted working-tree file → specify fail-closed behavior and add the corresponding test.
 
-- **question:** [plan.md:51](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/docs/tasks/426/plan.md:51>) — existing [`_shadow_failure`](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/app/tm.py:1942>) records debt before returning, and `record_debt` delegates without an exception boundary at [`runtime.py:211`](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/app/ia/runtime.py:211>). If the new branch invokes this before probing and compensating, a debt-writer failure skips cleanup. Specify the ordering or failure policy and test it.
+5. blocking: `tests/test_task_write_outbox_426.py:376-411` — malformed-receipt handling checks only the projection head, not that `current_records` and `current_fts` remain unchanged → snapshot selected rows/FTS before draining and compare them afterward.
 
-- **suggestion:** [plan.md:33](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/docs/tasks/426/plan.md:33>) — the manager and route spawn paths are not equivalent: [`manager.py:806`](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/app/manager.py:806>) resolves canonical identity before assigning `allocated_task_id`, so it fails before manager compensation can discard the row, whereas [`routes/sessions.py:945`](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/app/routes/sessions.py:945>) can proceed to binding at line 978. Correct the inventory wording and explicitly state which path the regression proves.
+6. blocking: `docs/tasks/426/plan.md:97-141` — concurrent enqueue versus acknowledgment has no explicit lock-order contract or oracle. “The same Git lock” does not prove absence of deadlock, stale-tail attachment, or overtaking → state the SQLite/Git lock order and add an interleaved concurrent enqueue/ack test.
+
+7. suggestion: `docs/tasks/426/plan.md:114-117`, `app/main.py:446-454` — lifecycle ownership is described, but cancellation of the new long-lived drainer while waiting or during a drain pass is not an acceptance criterion → add a cancellation test proving shutdown awaits the task and leaves no live drainer/wakeup task.
+
+8. suggestion: `docs/tasks/426/plan.md:87-89`, `tests/test_task_write_outbox_426.py:376-411` — the plan requires rejection of duplicate identities, duplicate targets, forks, cycles, and disconnected chains, but the frozen oracle exercises only one incomplete JSON receipt → add independent malformed-chain cases, or narrow the stated AC.
 
 ## Verdict
 
-**CHANGES REQUESTED.** The minimal fix belongs in shadow creation, and the duplicate `api_update_task_if_current` definitions are intentional and safe. Resolve the no-context path and strengthen the compensation oracle before implementation.
+Needs work. The plan’s architecture is directionally consistent with the requested bounded scope, but the immutable oracle does not yet prove pre-response durability, two-phase acknowledgment, dirty-tree crash safety, concurrent lock ordering, or SQLite non-mutation on malformed input.
 
-Otherwise this is just deleting the suitcase because its tag looked unique—excellent until it was the suitcase that mattered. 🧳
+Review route: self-review; Codex reviewer unavailable.
 
-## Round 1 disposition
-
-- No-context path — ACK. Live FastAPI requests begin only after lifespan yields inside
-  `knowledge_runtime_mode` and process IA mode; offline legacy calls cannot reach canonical worker
-  binding/finalization through the supported path.
-- KeyError — ACK as ambiguous, never as proof of absence.
-- Delete safety — ACK. The old RED `d032fe1f` is excluded; new RED `8346b4dc` adds a decoy and
-  bound/revised/committed/reserved mutations.
-- Unreadable probe — ACK. RuntimeError and KeyError cases preserve the row and require loud failure.
-- Debt writer — ACK. Plan orders probe/compensation first, debt recording second and best-effort.
-- Spawn-path wording — corrected: manager stops at canonical identity resolution; taskless-worker
-  assignment can bind directly; both are closed by making shared creation fail loud.
-- Attempt 2 (2026-09-01): pending after plan and oracle changes.
-
-## Round (2026-09-01T09:56:01Z)
+## Round (2026-09-03T03:10:01Z)
 
 <!-- codex-review-metadata: {"reviewer_model": "gpt-5.6-luna"} -->
 
-Три красных теста выросли до десяти — прогресс, если считать количество способов не доказать безопасность. 😏
+## Summary
 
-## Re-review status
+The expanded RED remains valid: T1 has assertion-only failures for missing receipt behavior, and T2 has assertion-only failures for missing drainer/lifecycle behavior. No collection, setup, import, or `AttributeError` failures are reported.
 
-Reviewed the current untracked plan via `git diff --no-index` and oracle `8346b4dc`; `d032fe1f` не использовал. Named command воспроизводит 10 ожидаемых behavior failures без collection/setup errors.
+Most prior blockers are fixed. Two load-bearing oracle gaps remain.
 
-- R1 no-context route — **FIXED**.
-- R1 candidate classification — **FIXED** in the plan: `KeyError` and other read errors are ambiguous.
-- R1 unsafe broad delete / missing guards — **FIXED**; decoy and four mutation cases added.
-- R1 unreadable probe — **FIXED** for `RuntimeError` and `KeyError`.
-- R1 debt-writer ordering — **FIXED**; compensation precedes debt recording and primary error wins.
-- R1 spawn-path description — **FIXED**.
-- Duplicate `api_update_task_if_current` definitions — **no finding**; alias capture at line 1723 before the public dispatcher at line 2316 remains intentional.
+## Findings
 
-## New findings
+Prior findings:
 
-- **blocking:** [plan.md:55](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/docs/tasks/426/plan.md:55>) / [oracle:160](</mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-merge-finalize/docs/tasks/426/acceptance/test_t1_shadow_task_creation.py:160>) — the plan requires another `ValueError` to be treated as ambiguous, but the oracle parameterizes only `RuntimeError` and `KeyError`. An implementation that deletes on every `ValueError` would pass the current oracle while violating the data-loss rule. Add a probe case such as `ValueError("candidate read malformed")` and assert the legacy row survives.
+1. FIXED — `tests/test_task_write_outbox_426.py:175-288` now verifies POST ownership and commit/response ordering.
 
-## Verdict
+2. FIXED — `tests/test_task_write_outbox_426.py:175-200` checks legacy and canonical state before PUT.
 
-**CHANGES REQUESTED.** All prior findings are addressed, but the new oracle still leaves one unsafe `ValueError` branch untested. After adding that case, the plan is eligible for approval—assuming no other changes.
+3. FIXED — `tests/test_task_write_outbox_426.py:451-481` requires a committed applied marker and replay behavior.
 
-## Round 2 disposition
+4. FIXED — `tests/test_task_write_outbox_426.py:587-627` covers Git-HEAD authority, dirty paths, and constructor ordering.
 
-- New blocker — ACK. Added `ValueError("candidate read malformed")` to the ambiguous probe case;
-  it preserves the legacy row and still requires the primary loud creation failure.
-- RED `8346b4dc` is excluded; new immutable RED is `05f5f8c0`, 11 behavior failures, RC=1.
-- Attempt 3 (2026-09-01): pending; executable oracle changed, within the three-round code ceiling.
+5. FIXED — `tests/test_task_write_outbox_426.py:569-584` compares complete rows, FTS, and metadata snapshots.
 
-## Round (2026-09-01T09:58:27Z)
+6. FIXED — `docs/tasks/426/plan.md:159-164` and `tests/test_task_write_outbox_426.py:631-680` specify and exercise non-nested lock ordering.
 
-<!-- codex-review-metadata: {"reviewer_model": "gpt-5.6-luna"} -->
+7. STILL BROKEN (suggestion): `tests/test_task_write_outbox_426.py:683-693` cancels the drainer directly, but does not exercise `app.main._shutdown_runtime()` passing, canceling, and awaiting the long-lived task → add lifecycle integration coverage or explicitly limit the AC to direct task cancellation.
 
-One extra `ValueError`, and the oracle finally stopped pretending the matrix was complete. 😏
+8. FIXED — independent missing-field, fork, cycle, and duplicate-target cases are present.
 
-## Re-review status
+New findings:
 
-`git diff` has no tracked changes; the plan is untracked, so it was checked via `git diff --no-index`. Only oracle `05f5f8c0` was used. The named command reproduces 11 expected behavior failures with no setup/collection errors.
+1. blocking: `docs/tasks/426/plan.md:62-70,225-227` — the size-dependence oracle varies only the in-memory evidence corpus; `current.db` remains empty in both arms, and the test instruments only `update_current_records()` → a request path that scans a large `current.db` through another projection method can pass. Add a populated large-current.db arm or census all projection reads on the request path.
 
-All prior findings are **FIXED**:
-
-- no-context route
-- candidate absence classification
-- compensation guards and decoy protection
-- unreadable probe handling
-- debt-writer ordering
-- spawn-path distinction
-- Round 2 non-not-found `ValueError` case
-
-The duplicate `api_update_task_if_current` definitions remain correctly classified as an intentional alias and dispatcher pair.
-
-## New findings
-
-None.
+2. blocking: `tests/test_task_write_outbox_426.py:392-420` — valid-chain coverage asserts the final `current_records` payload but never verifies the corresponding `current_fts` row/text. The implementation could update the row and head while leaving FTS stale → assert the final FTS binding and searchable text.
 
 ## Verdict
 
-**APPROVED.** The final plan and immutable oracle now cover the identified production paths and compensation safety cases. The RED state is expected because implementation has not started.
-
-> “A debt-writer failure is secondary: log it, but do not skip compensation and do not replace the primary creation failure.”
-
-At last, the oracle checks the spare suitcase too—because apparently one row was never enough. 🧳
+Needs work. The remaining gaps affect the requested volume-independence and joined-projection correctness guarantees.
