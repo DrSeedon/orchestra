@@ -2,6 +2,7 @@
 
 ## Установлено
 
+- `fact:taskless-adhoc-merge-deadlock` — После штатного `task_outcome="complete"` сессия намеренно получает `task_id=''`/`needs_switch=1`, но последующая пользовательская работа переводит её на `adhoc-*` без новой binding: schema-v2 `merge_worker` отказывает на `app/routes/sessions.py:1957-1964`, а обычный `switch_worker_branch` отказывает на `app/workspace.py:2089-2105`; live snapshot+Git дал 104 SQL-prefix rows, 11 non-archived существующих adhoc worktree с commits, из них 10 всё ещё `content_merged=False`; безопасный Phase-1 seam — promotion текущего HEAD в новую task-ветку только для `needs_switch=0`, `new`/unowned/unreserved task, без входа в detach/reset · искать: `session has no bound task`, `switch_worker_branch`, `adhoc`, `NULL + done`, `content-change`, `promotion` · evidence: `.orchestra/tasks/465/research.md` F1–F5; `.orchestra/tasks/465/review-research.md` round 2 APPROVED · 2026-09-03 #465
 - `fact:merge-finalization-canonical-gap` — Первичные финализации #399/#400/#410 падали до смены статуса, потому что failure-time canonical snapshots не содержали целевую задачу: `finalize_merge_outcome` связывает коммиты первым, `TaskStore._find_state` бросает `ValueError: <N> not found` на `app/ia/task_store.py:583`; изолированный process-global IA stand воспроизвёл `399 not found`, healthy dual-owner control прошёл, боевой `sessions` остался 583→583, canonical tree digest не изменился, а immutable Git snapshots непосредственно перед failing tool-result logs 508291/508303/510918 дали target matches 0/0/0 для #399/#400/#410 · искать: `merge_worker`, `POST_COMMIT_PARTIAL`, `ValueError not found`, `finalize_merge_outcome`, `_find_state` · evidence: `uv run python .orchestra/tasks/426/repro_stand.py`; `uv run python .orchestra/tasks/426/operation_time_evidence.py`; `.orchestra/tasks/426/research-laptop-merge-finalization.md` F1–F3 · 2026-09-01 #426
 - Generation 3 inherited two independent task-number allocators: a 2026-08-26 full join of 693 legacy and 684 canonical tasks found 684 paired identities, zero unresolved mappings, and two semantic collisions in `orchestra` (#398 and #399); both newer canonical records had different older legacy tasks under the same number · `.orchestra/tasks/406/report.md` § Pre-fix inventory; sqlite backup + 684 `state.json` records · 2026-08-26 #406
 - Under canonical ownership, task creation must read `next_display_number` from canonical, compare it with legacy `_next_par` before either write, and pass that exact number to legacy; a mismatch is an `IdentityConflictError`, not projection debt returned after two successful but different writes · `app/ia/task_store.py:task_list`; `app/tm.py:api_create_task`; `tests/test_task_par_collision_406.py` · 2026-08-26 #406
@@ -26,6 +27,7 @@
 
 ## Отвергнуто
 
+- `fact:taskless-adhoc-force-switch-refuted` — Снятие проверки `content_merged` либо `force=True` не решает taskless adhoc deadlock: после проверки `switch_worktree_branch` выполняет detach текущего HEAD и `git reset --hard <from_ref>` на `app/workspace.py:2381-2395`, поэтому обход превращает видимый отказ в потерю проверяемой работы · искать: `force=True`, `reset --hard`, `merge_worker first`, `could not be verified`, `потеря коммитов` · evidence: `.orchestra/tasks/465/research.md` F2; origin rationale `.orchestra/tasks/103/research.md:49-57`; preserved oracle `tests/test_workspace.py:1040-1080` · 2026-09-03 #465
 - Pinning repair replacements from an earlier maximum (#409/#410) · live #409 was allocated to `kb-promote-facts` between inventory and implementation; replacements must be chosen from the apply-time occupied set and guarded by the dry-run snapshot token · `.orchestra/tasks/406/report.md` § Pre-fix inventory · 2026-08-26 #406
 - Global sequential #N as the sole cross-contour identity · two offline contours can both choose MAX+1 and current code is project-scoped; stable ID + lease is required · 2026-08-23 #299
 - Four-hex content-hash prefix as canonical ID · birthday collision probability is 93.6146% at n=601 and ≈99.9510% at n=1000 · 2026-08-23 #299
@@ -39,6 +41,7 @@
 
 ## Пробелы
 
+- Git-ref promotion + session/task binding rollback/quarantine and the frozen deadlock oracle are not implemented: Phase 2 must prove original HEAD reachability after every partial failure and keep the pre-existing `NULL + done` control green before implementation · искать: `promotion rollback`, `original HEAD`, `NULL + done`, `test_t465`, `PLAN READY` · evidence: `.orchestra/tasks/465/research.md` Counter-evidence; `.orchestra/tasks/465/review-research.md` final verdict · 2026-09-03 #465
 - Архитектура восстановления post-commit finalization при отсутствующей canonical-задаче не выбрана: legacy-only fallback нарушает canonical ownership, а автоматическое создание обязано различать свободный номер и номер, занятый другой stable identity · `.orchestra/tasks/426/research-laptop-merge-finalization.md` Counter-evidence / risks; решение отложено до обсуждения Phase 2 · 2026-09-01 #426
 - Падает ли свежий `merge_worker` при наличии задачи в обоих owners, не установлено: isolated healthy control проходит, а наблюдения 31.08 повторяют те же operation UUID, чьи первичные ошибки возникли 26–27.08; нужен real-worker acceptance probe до выбора правки · `.orchestra/tasks/426/research-laptop-merge-finalization.md` F3 / Counter-evidence · 2026-09-01 #426
 - Legal policy for storing payment/client notes in private Git and the required history-rewrite/remote-retention procedure is not supplied · technical tombstone is not GDPR erasure · 2026-08-23, task #299
@@ -51,6 +54,7 @@
 
 ## Источники
 
+- .orchestra/tasks/465/research.md — exact merge/switch refusals, 104→11→10 live-state measurement, normal `NULL + done`, and reviewed promotion seam.
 - .orchestra/tasks/426/research-laptop-merge-finalization.md — failure-time canonical gap, exact `_find_state` throw and isolated process-global reproduction.
 - .orchestra/tasks/299/research.md — current model, safe aggregates, external comparison, identity, sync state machine and migration gates.
 - .orchestra/tasks/395/research.md — hot-path call graph, old/current-main warm+cold baselines, real timeout outcomes, startup, reader/idempotency/integrity design boundary.

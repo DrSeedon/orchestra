@@ -311,6 +311,44 @@ def _commit_file(worktree_path: str, filename: str, message: str) -> str:
     ).stdout.strip()
 
 
+def _make_taskless_adhoc_worker(
+    monkeypatch, tmp_path: Path, *, name: str, target_status: str = "new",
+):
+    import app.workspace as workspace
+    from app import tm
+
+    _init_db()
+    repo = _make_git_scope(monkeypatch, tmp_path)
+    scope = str(repo)
+    with tm._conn() as connection:
+        tm.ensure_project(connection, "project", scope=scope)
+        tm.create_task(
+            connection, "project", "Already completed", par_number=42, status="done",
+        )
+        target = tm.create_task(
+            connection, "project", "Adopt current work", par_number=43,
+            status=target_status,
+        )
+    worktree = workspace.create_worktree(scope, name)
+    adhoc_branch = f"adhoc-1800000000-1/{name}"
+    subprocess.run(
+        ["git", "branch", "-m", adhoc_branch],
+        cwd=worktree.path, check=True, capture_output=True,
+    )
+    worker_head = _commit_file(
+        worktree.path, "adhoc.txt", "#43: preserve current adhoc work",
+    )
+    _save_worker(
+        session_id=name,
+        task_id="",
+        scope=scope,
+        worktree_path=worktree.path,
+        branch=adhoc_branch,
+    )
+    found = _prepare_merge(monkeypatch, session_id=name, scope=scope)
+    return repo, worktree, found, target, adhoc_branch, worker_head
+
+
 @pytest.mark.asyncio
 async def test_t2_bound_task_and_outcome_are_validated_before_git(monkeypatch):
     """Neither a made-up current task nor a missing disposition may reach Git."""
@@ -713,6 +751,462 @@ async def test_t3_complete_merge_atomically_links_and_closes_current_task(monkey
     assert closed["worker_session_id"] is None
     assert closed["completed_at"]
     assert "abc123" in closed["git_commits"]
+
+
+@pytest.mark.asyncio
+async def test_t1_normal_complete_persists_null_done_control(monkeypatch):
+    """A normal completed task stays done while its worker becomes deliberately taskless."""
+    import app.routes.sessions as sessions_route
+    from app import tm
+    from app.db import get_session
+
+    _init_db()
+    _seed_project()
+    with tm._conn() as connection:
+        task = tm.create_task(
+            connection, "project", "Normal completion", par_number=42,
+            status="in_progress",
+        )
+        connection.execute(
+            "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
+            ("normal-complete-worker", task["id"]),
+        )
+    _save_worker(session_id="normal-complete-worker", task_id="42")
+    found = _prepare_merge(monkeypatch, session_id="normal-complete-worker")
+    monkeypatch.setattr(
+        "app.workspace.merge_worktree_to_main",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "commits_merged": 1,
+            "branch": found.branch,
+            "merged_commits": {
+                "42": [{"hash": "done42", "message": "#42: complete normally"}],
+            },
+        },
+    )
+
+    result = await sessions_route.execute_merge_session(
+        session_id=found.id,
+        expected_name=found.name,
+        expected_scope=found.scope,
+        expected_branch=found.branch,
+        expected_head="d" * 40,
+        req={"scope": "/scope", "task_outcome": "complete", "merge_schema_version": 2},
+    )
+
+    assert result["ok"] is True
+    with tm._conn() as connection:
+        closed = tm.get_task_by_id(connection, task["id"])
+    durable = get_session(found.id)
+    assert (closed["status"], closed["worker_session_id"]) == ("done", None)
+    assert (durable["task_id"], durable["needs_switch"]) == ("", 1)
+
+
+@pytest.mark.asyncio
+async def test_t2_taskless_adhoc_deadlock_promotes_head_then_merge_succeeds(
+    monkeypatch, tmp_path,
+):
+    import app.routes.sessions as sessions_route
+    from app import tm
+    from app.db import get_session
+
+    repo, worktree, found, target, adhoc_branch, worker_head = (
+        _make_taskless_adhoc_worker(
+            monkeypatch, tmp_path, name="promote-worker",
+        )
+    )
+
+    refused_merge = await sessions_route.execute_merge_session(
+        session_id=found.id,
+        expected_name=found.name,
+        expected_scope=found.scope,
+        expected_branch=adhoc_branch,
+        expected_head=worker_head,
+        req={"scope": found.scope, "task_outcome": "complete", "merge_schema_version": 2},
+    )
+    assert refused_merge["error"] == "session has no bound task"
+
+    ordinary_switch = await sessions_route.switch_branch(
+        found.name, {"scope": found.scope, "task_id": "43"},
+    )
+    assert ordinary_switch["ok"] is False
+    assert "merge_worker first" in ordinary_switch["error"]
+
+    promoted = await sessions_route.switch_branch(
+        found.name,
+        {
+            "scope": found.scope,
+            "task_id": "43",
+            "promote_current": True,
+        },
+    )
+    assert promoted["ok"] is True, promoted
+    assert promoted["state"] == "promoted_current_work"
+    task_branch = f"task-43/{found.name}"
+    assert promoted["branch"] == task_branch
+    assert promoted["head"] == worker_head
+    assert promoted["previous_branch"] == adhoc_branch
+    assert promoted["commits_ahead"] == 1
+    assert promoted["reason"] == "content-change"
+    assert subprocess.run(
+        ["git", "branch", "--show-current"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == task_branch
+    assert subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == worker_head
+    assert subprocess.run(
+        ["git", "show-ref", "--verify", f"refs/heads/{adhoc_branch}"],
+        cwd=repo, capture_output=True,
+    ).returncode != 0
+    durable = get_session(found.id)
+    with tm._conn() as connection:
+        assigned = tm.get_task_by_id(connection, target["id"])
+    assert (durable["branch"], durable["task_id"], durable["needs_switch"]) == (
+        task_branch, "43", 0,
+    )
+    assert (assigned["status"], assigned["worker_session_id"]) == (
+        "in_progress", found.id,
+    )
+
+    merged = await sessions_route.execute_merge_session(
+        session_id=found.id,
+        expected_name=found.name,
+        expected_scope=found.scope,
+        expected_branch=task_branch,
+        expected_head=worker_head,
+        req={"scope": found.scope, "task_outcome": "complete", "merge_schema_version": 2},
+    )
+    assert merged["ok"] is True, merged
+    assert (repo / "adhoc.txt").read_text() == "#43: preserve current adhoc work"
+    with tm._conn() as connection:
+        completed = tm.get_task_by_id(connection, target["id"])
+    durable = get_session(found.id)
+    assert (completed["status"], completed["worker_session_id"]) == ("done", None)
+    assert (durable["task_id"], durable["needs_switch"]) == ("", 1)
+
+
+@pytest.mark.asyncio
+async def test_t2_promotion_binding_failure_restores_branch_and_preserves_head(
+    monkeypatch, tmp_path,
+):
+    import app.routes.sessions as sessions_route
+    from app import tm
+    from app.db import get_session
+
+    repo, worktree, found, target, adhoc_branch, worker_head = (
+        _make_taskless_adhoc_worker(
+            monkeypatch, tmp_path, name="binding-failure-worker",
+        )
+    )
+
+    def fail_binding(*_args, **_kwargs):
+        return {"ok": False, "error": "binding rejected", "projection_debt": {}}
+
+    monkeypatch.setattr(tm, "api_update_task_if_current", fail_binding)
+    result = await sessions_route.switch_branch(
+        found.name,
+        {
+            "scope": found.scope,
+            "task_id": "43",
+            "promote_current": True,
+        },
+    )
+
+    assert result["ok"] is False
+    assert result["state"] == "promotion_binding_failed"
+    assert "binding rejected" in result["error"]
+    assert subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == worker_head
+    assert subprocess.run(
+        ["git", "show-ref", "--verify", f"refs/heads/{adhoc_branch}"],
+        cwd=repo, capture_output=True,
+    ).returncode == 0
+    durable = get_session(found.id)
+    with tm._conn() as connection:
+        unchanged = tm.get_task_by_id(connection, target["id"])
+    assert (durable["branch"], durable["task_id"], durable["needs_switch"]) == (
+        adhoc_branch, "", 0,
+    )
+    assert (unchanged["status"], unchanged["worker_session_id"]) == ("new", None)
+
+
+@pytest.mark.asyncio
+async def test_t2_promotion_reservation_race_fails_claim_and_preserves_head(
+    monkeypatch, tmp_path,
+):
+    import app.routes.sessions as sessions_route
+    from app import tm
+    from app.db import get_session
+
+    repo, worktree, found, target, adhoc_branch, worker_head = (
+        _make_taskless_adhoc_worker(
+            monkeypatch, tmp_path, name="reservation-race-worker",
+        )
+    )
+    real_update = tm.api_update_task_if_current
+
+    def reserve_then_claim(identity, **kwargs):
+        with tm._conn() as connection:
+            connection.execute(
+                "INSERT INTO tm_task_reservations "
+                "(task_id, operation_id, kind, session_id, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    target["id"], "other-operation", "complete", "other-worker",
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+        return real_update(identity, **kwargs)
+
+    monkeypatch.setattr(tm, "api_update_task_if_current", reserve_then_claim)
+    result = await sessions_route.switch_branch(
+        found.name,
+        {
+            "scope": found.scope,
+            "task_id": "43",
+            "promote_current": True,
+        },
+    )
+
+    assert result["ok"] is False
+    assert result["state"] == "promotion_binding_failed"
+    assert "reserved" in result["error"]
+    assert subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == worker_head
+    assert subprocess.run(
+        ["git", "show-ref", "--verify", f"refs/heads/{adhoc_branch}"],
+        cwd=repo, capture_output=True,
+    ).returncode == 0
+    durable = get_session(found.id)
+    with tm._conn() as connection:
+        unchanged = tm.get_task_by_id(connection, target["id"])
+        reservation = connection.execute(
+            "SELECT operation_id FROM tm_task_reservations WHERE task_id=?",
+            (target["id"],),
+        ).fetchone()
+    assert (durable["branch"], durable["task_id"], durable["needs_switch"]) == (
+        adhoc_branch, "", 0,
+    )
+    assert (unchanged["status"], unchanged["worker_session_id"]) == ("new", None)
+    assert reservation["operation_id"] == "other-operation"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure_kind",
+    ["exception", "canonical_partial", "shadow_failure", "shadow_rejection"],
+)
+async def test_t2_promotion_unknown_binding_keeps_promoted_head_quarantined(
+    monkeypatch, tmp_path, failure_kind,
+):
+    import app.routes.sessions as sessions_route
+    from app import tm
+    from app.db import get_session
+
+    repo, worktree, found, target, adhoc_branch, worker_head = (
+        _make_taskless_adhoc_worker(
+            monkeypatch, tmp_path, name=f"unknown-binding-{failure_kind}",
+        )
+    )
+    task_branch = f"task-43/{found.name}"
+
+    def ambiguous_binding(*_args, **_kwargs):
+        if failure_kind == "exception":
+            raise RuntimeError("binding outcome unknown")
+        if failure_kind == "canonical_partial":
+            return {
+                "ok": False,
+                "error": "legacy binding rejected after canonical commit",
+                "projection_debt": {"canonical_applied": True},
+            }
+        if failure_kind == "shadow_failure":
+            return {
+                "ok": True,
+                "error": "shadow candidate write failed",
+                "projection_debt": {"reason": "candidate_write_failed"},
+            }
+        return {
+            "ok": True,
+            "shadow_match": False,
+            "error": "shadow candidate rejected",
+            "projection_debt": {"reason": "candidate_rejected"},
+        }
+
+    monkeypatch.setattr(tm, "api_update_task_if_current", ambiguous_binding)
+    result = await sessions_route.switch_branch(
+        found.name,
+        {
+            "scope": found.scope,
+            "task_id": "43",
+            "promote_current": True,
+        },
+    )
+
+    assert result["ok"] is False
+    assert result["state"] in {"promotion_binding_unknown", "promotion_binding_partial"}
+    assert result["head"] == worker_head
+    assert subprocess.run(
+        ["git", "branch", "--show-current"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == task_branch
+    assert subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == worker_head
+    assert subprocess.run(
+        ["git", "show-ref", "--verify", f"refs/heads/{task_branch}"],
+        cwd=repo, capture_output=True,
+    ).returncode == 0
+    assert subprocess.run(
+        ["git", "show-ref", "--verify", f"refs/heads/{adhoc_branch}"],
+        cwd=repo, capture_output=True,
+    ).returncode != 0
+    durable = get_session(found.id)
+    with tm._conn() as connection:
+        legacy = tm.get_task_by_id(connection, target["id"])
+    assert (durable["branch"], durable["task_id"], durable["needs_switch"]) == (
+        task_branch, "43", 1,
+    )
+    assert (legacy["status"], legacy["worker_session_id"]) == ("new", None)
+    with pytest.raises(RuntimeError, match="quarantin"):
+        await sessions_route.manager._auto_switch_before_delivery(found)
+    assert subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == worker_head
+
+
+@pytest.mark.asyncio
+async def test_t2_promotion_git_failure_never_binds_and_preserves_head(
+    monkeypatch, tmp_path,
+):
+    import app.routes.sessions as sessions_route
+    from app import tm
+    from app.db import get_session
+
+    repo, worktree, found, target, adhoc_branch, worker_head = (
+        _make_taskless_adhoc_worker(
+            monkeypatch, tmp_path, name="git-failure-worker",
+        )
+    )
+    task_branch = f"task-43/{found.name}"
+    subprocess.run(
+        ["git", "branch", task_branch, "main"], cwd=repo,
+        check=True, capture_output=True,
+    )
+
+    def binding_must_not_run(*_args, **_kwargs):
+        raise AssertionError("task binding ran after Git promotion was rejected")
+
+    monkeypatch.setattr(tm, "api_update_task_if_current", binding_must_not_run)
+    result = await sessions_route.switch_branch(
+        found.name,
+        {
+            "scope": found.scope,
+            "task_id": "43",
+            "promote_current": True,
+        },
+    )
+
+    assert result["ok"] is False
+    assert result["state"] == "target_branch_exists"
+    assert subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == worker_head
+    assert subprocess.run(
+        ["git", "show-ref", "--verify", f"refs/heads/{adhoc_branch}"],
+        cwd=repo, capture_output=True,
+    ).returncode == 0
+    durable = get_session(found.id)
+    with tm._conn() as connection:
+        unchanged = tm.get_task_by_id(connection, target["id"])
+    assert (durable["branch"], durable["task_id"]) == (adhoc_branch, "")
+    assert (unchanged["status"], unchanged["worker_session_id"]) == ("new", None)
+
+
+@pytest.mark.asyncio
+async def test_t2_promotion_rejects_done_target_without_moving_head(
+    monkeypatch, tmp_path,
+):
+    import app.routes.sessions as sessions_route
+    from app import tm
+    from app.db import get_session
+
+    repo, worktree, found, target, adhoc_branch, worker_head = (
+        _make_taskless_adhoc_worker(
+            monkeypatch, tmp_path, name="done-target-worker", target_status="done",
+        )
+    )
+    response = await sessions_route.switch_branch(
+        found.name,
+        {
+            "scope": found.scope,
+            "task_id": "43",
+            "promote_current": True,
+        },
+    )
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 409
+    assert "promotion target must be new" in response.body.decode()
+    assert subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == worker_head
+    assert subprocess.run(
+        ["git", "show-ref", "--verify", f"refs/heads/{adhoc_branch}"],
+        cwd=repo, capture_output=True,
+    ).returncode == 0
+    durable = get_session(found.id)
+    with tm._conn() as connection:
+        unchanged = tm.get_task_by_id(connection, target["id"])
+    assert (durable["branch"], durable["task_id"]) == (adhoc_branch, "")
+    assert (unchanged["status"], unchanged["worker_session_id"]) == ("done", None)
+
+
+@pytest.mark.asyncio
+async def test_t2_promotion_rejects_force_combination_before_git(
+    monkeypatch, tmp_path,
+):
+    import app.routes.sessions as sessions_route
+
+    _repo, worktree, found, _target, adhoc_branch, worker_head = (
+        _make_taskless_adhoc_worker(
+            monkeypatch, tmp_path, name="force-promotion-worker",
+        )
+    )
+    def git_must_not_run(*_args, **_kwargs):
+        raise AssertionError("Git accessed before promote_current/force rejection")
+
+    monkeypatch.setattr("app.workspace._git_cmd", git_must_not_run)
+    response = await sessions_route.switch_branch(
+        found.name,
+        {
+            "scope": found.scope,
+            "task_id": "43",
+            "force": True,
+            "promote_current": True,
+        },
+    )
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 400
+    assert "promote_current cannot be combined with force" in response.body.decode()
+    assert subprocess.run(
+        ["git", "branch", "--show-current"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == adhoc_branch
+    assert subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=worktree.path,
+        capture_output=True, text=True, check=True,
+    ).stdout.strip() == worker_head
 
 
 @pytest.mark.asyncio

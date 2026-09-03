@@ -2382,6 +2382,264 @@ async def execute_merge_session(
             return result
 
 
+async def _promote_current_work_for_task(
+    *,
+    found,
+    task_identity: dict,
+    par: str,
+    scope: str,
+    worktree_path: str,
+    new_branch: str,
+    from_ref: str,
+    requested_owned_dirs: list[str] | None,
+    previous_branch: str,
+    previous_base_branch: str,
+    previous_owned_dirs: list[str],
+    waited_seconds: float,
+):
+    from app import tm as _tm
+    from app.workspace import (
+        inspect_worktree_identity,
+        promote_worktree_branch,
+        rollback_promoted_worktree_branch,
+    )
+
+    durable = await asyncio.to_thread(get_session_row, found.id)
+    if not durable or durable.get("status") == "archived":
+        return JSONResponse({"error": "session is not available for promotion"}, status_code=409)
+    if durable.get("status") != "idle":
+        return JSONResponse({"error": "worker must be idle for promotion"}, status_code=409)
+    durable_branch = str(durable.get("branch") or "")
+    if str(durable.get("task_id") or ""):
+        return JSONResponse({"error": "session is already bound to a task"}, status_code=409)
+    if bool(durable.get("needs_switch")):
+        return JSONResponse(
+            {"error": "normal completed session cannot promote its previous branch"},
+            status_code=409,
+        )
+    if durable_branch != previous_branch or str(getattr(found, "branch", "") or "") != previous_branch:
+        return JSONResponse({"error": "session branch changed before promotion"}, status_code=409)
+    try:
+        actual_branch, worker_head = await asyncio.to_thread(
+            inspect_worktree_identity, worktree_path,
+        )
+    except RuntimeError as error:
+        return JSONResponse({"error": str(error)}, status_code=409)
+    if actual_branch != durable_branch:
+        return JSONResponse(
+            {"error": f"durable branch {durable_branch} disagrees with Git branch {actual_branch}"},
+            status_code=409,
+        )
+    try:
+        await asyncio.to_thread(
+            _tm.validate_task_promotion_target,
+            task_identity,
+            scope=scope,
+            session_id=found.id,
+            expected_branch=durable_branch,
+        )
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=409)
+
+    latest = await asyncio.to_thread(get_session_row, found.id)
+    if (
+        not latest
+        or latest.get("status") != "idle"
+        or str(latest.get("task_id") or "")
+        or bool(latest.get("needs_switch"))
+        or str(latest.get("branch") or "") != durable_branch
+        or str(latest.get("scope") or "").rstrip("/") != scope.rstrip("/")
+    ):
+        return JSONResponse(
+            {"error": "session lifecycle changed before promotion"}, status_code=409,
+        )
+
+    promotion = await asyncio.to_thread(
+        promote_worktree_branch,
+        worktree_path,
+        new_branch,
+        from_ref=from_ref,
+        expected_branch=durable_branch,
+        expected_head=worker_head,
+    )
+    promotion["waited_seconds"] = round(waited_seconds, 2)
+    if not promotion.get("ok"):
+        if promotion.get("state") == "rollback_failed":
+            promotion["lifecycle_status"] = await _persist_lifecycle_quarantine(
+                found,
+                branch=str(promotion.get("branch") or durable_branch),
+                base_branch=from_ref,
+                task_id=par,
+                needs_switch=True,
+            )
+        return promotion
+
+    try:
+        await manager.transition_lifecycle(
+            found,
+            branch=new_branch,
+            base_branch=from_ref,
+            task_id=par,
+            needs_switch=True,
+            owned_dirs=requested_owned_dirs,
+        )
+    except Exception as error:
+        rollback = await asyncio.to_thread(
+            rollback_promoted_worktree_branch,
+            worktree_path,
+            promoted_branch=new_branch,
+            previous_branch=durable_branch,
+            expected_head=worker_head,
+        )
+        if not rollback.get("ok"):
+            quarantine = await _persist_lifecycle_quarantine(
+                found, branch=rollback.get("branch") or new_branch,
+                base_branch=from_ref, task_id=par, needs_switch=True,
+            )
+            return {
+                **promotion,
+                "ok": False,
+                "state": "rollback_failed",
+                "error": f"promotion persistence failed: {err_text(error)}; {rollback.get('error', '')}",
+                "rollback": rollback,
+                "lifecycle_status": quarantine,
+            }
+        return {
+            **promotion,
+            "ok": False,
+            "state": "promotion_persistence_failed",
+            "branch": rollback["branch"],
+            "head": rollback["head"],
+            "error": f"promotion persistence failed: {err_text(error)}",
+            "rollback": rollback,
+        }
+
+    task_status = None
+    task_error = None
+    try:
+        task_status = await asyncio.to_thread(
+            _tm.api_update_task_if_current,
+            task_identity,
+            status="in_progress",
+            expected_status="new",
+            require_unreserved=True,
+        )
+    except Exception as error:
+        task_error = error
+
+    debt = (task_status or {}).get("projection_debt") or {}
+    partial = bool(
+        task_error is not None
+        or debt
+        or (task_status or {}).get("shadow_match") is False
+    )
+    complete = bool(
+        task_error is None
+        and task_status
+        and task_status.get("ok")
+        and not partial
+    )
+    if not complete and partial:
+        message = err_text(task_error) if task_error is not None else str(
+            (task_status or {}).get("error") or debt.get("message") or "task binding is partial"
+        )
+        return {
+            **promotion,
+            "ok": False,
+            "state": (
+                "promotion_binding_unknown" if task_error is not None
+                else "promotion_binding_partial"
+            ),
+            "error": message,
+            "task_status": task_status or {"ok": False, "error": message},
+            "lifecycle_status": {"ok": True, "quarantined": True},
+        }
+    if not complete:
+        rollback = await asyncio.to_thread(
+            rollback_promoted_worktree_branch,
+            worktree_path,
+            promoted_branch=new_branch,
+            previous_branch=durable_branch,
+            expected_head=worker_head,
+        )
+        message = str((task_status or {}).get("error") or "task binding was rejected")
+        if rollback.get("ok"):
+            try:
+                await manager.transition_lifecycle(
+                    found,
+                    branch=durable_branch,
+                    base_branch=previous_base_branch,
+                    task_id="",
+                    needs_switch=False,
+                    owned_dirs=previous_owned_dirs,
+                )
+            except Exception as restore_error:
+                quarantine = await _persist_lifecycle_quarantine(
+                    found, branch=durable_branch, base_branch=previous_base_branch,
+                    task_id=par, needs_switch=True,
+                )
+                return {
+                    **promotion,
+                    "ok": False,
+                    "state": "rollback_failed",
+                    "branch": durable_branch,
+                    "head": worker_head,
+                    "error": f"{message}; lifecycle restore failed: {err_text(restore_error)}",
+                    "rollback": rollback,
+                    "lifecycle_status": quarantine,
+                }
+            return {
+                **promotion,
+                "ok": False,
+                "state": "promotion_binding_failed",
+                "branch": durable_branch,
+                "head": worker_head,
+                "error": message,
+                "rollback": rollback,
+                "task_status": task_status,
+            }
+        quarantine = await _persist_lifecycle_quarantine(
+            found,
+            branch=str(rollback.get("branch") or new_branch),
+            base_branch=from_ref,
+            task_id=par,
+            needs_switch=True,
+        )
+        return {
+            **promotion,
+            "ok": False,
+            "state": "rollback_failed",
+            "error": f"{message}; {rollback.get('error', '')}",
+            "rollback": rollback,
+            "task_status": task_status,
+            "lifecycle_status": quarantine,
+        }
+
+    try:
+        await manager.transition_lifecycle(
+            found,
+            branch=new_branch,
+            base_branch=from_ref,
+            task_id=par,
+            needs_switch=False,
+            owned_dirs=requested_owned_dirs,
+        )
+    except Exception as error:
+        quarantine = await _persist_lifecycle_quarantine(
+            found, branch=new_branch, base_branch=from_ref,
+            task_id=par, needs_switch=True,
+        )
+        return {
+            **promotion,
+            "ok": False,
+            "state": "promotion_binding_partial",
+            "error": f"task bound but lifecycle finalization failed: {err_text(error)}",
+            "task_status": task_status,
+            "lifecycle_status": quarantine,
+        }
+    return {**promotion, "task_status": task_status}
+
+
 @router.post("/api/sessions/{name}/switch-branch")
 async def switch_branch(name: str, req: dict):
     from app.workspace import switch_worktree_branch
@@ -2389,10 +2647,17 @@ async def switch_branch(name: str, req: dict):
     scope = req.get("scope", "")
     task_id = req.get("task_id", "")
     force = req.get("force", False)
+    promote_current = req.get("promote_current", False)
     if not task_id:
         return JSONResponse({"error": "task_id required"}, status_code=400)
     if not isinstance(force, bool):
         return JSONResponse({"error": "force must be a boolean"}, status_code=400)
+    if not isinstance(promote_current, bool):
+        return JSONResponse({"error": "promote_current must be a boolean"}, status_code=400)
+    if promote_current and force:
+        return JSONResponse(
+            {"error": "promote_current cannot be combined with force"}, status_code=400,
+        )
     found = manager.get_by_name(name, scope)
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -2459,6 +2724,21 @@ async def switch_branch(name: str, req: dict):
                             },
                             status_code=400,
                         )
+                if promote_current:
+                    return await _promote_current_work_for_task(
+                        found=found,
+                        task_identity=task_identity,
+                        par=par,
+                        scope=scope,
+                        worktree_path=worktree_path,
+                        new_branch=new_branch,
+                        from_ref=from_ref,
+                        requested_owned_dirs=requested_owned_dirs,
+                        previous_branch=previous_branch,
+                        previous_base_branch=previous_base_branch,
+                        previous_owned_dirs=previous_owned_dirs,
+                        waited_seconds=waited_seconds,
+                    )
                 try:
                     verdict = await asyncio.to_thread(
                         _existing_branch_verdict, worktree_path, new_branch,

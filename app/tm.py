@@ -1686,11 +1686,111 @@ def _validate_inferred_task_worker(
         )
 
 
+def _task_claim_precondition_error(
+    conn: sqlite3.Connection,
+    task: dict,
+    *,
+    expected_status: str,
+    require_unreserved: bool,
+) -> str:
+    if expected_status and task["status"] != expected_status:
+        return (
+            f"promotion target must be {expected_status} "
+            f"(found {task['status']})"
+        )
+    if expected_status and task.get("worker_session_id"):
+        return (
+            f"promotion target task #{task['par_number']} is already owned by "
+            f"session '{task['worker_session_id']}'"
+        )
+    if require_unreserved:
+        reservation = conn.execute(
+            "SELECT operation_id FROM tm_task_reservations WHERE task_id=?",
+            (task["id"],),
+        ).fetchone()
+        if reservation:
+            return (
+                f"promotion target task #{task['par_number']} is reserved by "
+                f"operation {reservation['operation_id']}"
+            )
+    return ""
+
+
+def validate_task_promotion_target(
+    identity: TaskIdentity,
+    *,
+    scope: str,
+    session_id: str,
+    expected_branch: str,
+) -> None:
+    """Fail early for UX; the mutation owner repeats these checks transactionally."""
+    with _TASK_BINDING_LOCK, _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            session = conn.execute(
+                "SELECT id, scope, status, task_id, needs_switch, branch FROM sessions "
+                "WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            if not session or session["status"] == "archived":
+                raise ValueError("session is not available for promotion")
+            if session["scope"].rstrip("/") != scope.rstrip("/"):
+                raise ValueError("session promotion scope changed")
+            if str(session["task_id"] or ""):
+                raise ValueError("session is already bound to a task")
+            if bool(session["needs_switch"]):
+                raise ValueError("normal completed session cannot promote its previous branch")
+            if str(session["branch"] or "") != expected_branch:
+                raise ValueError("session branch changed before promotion")
+            project = get_project_by_scope(conn, scope.rstrip("/"))
+            if not project or project["id"] != identity["project_id"]:
+                raise ValueError("promotion target is outside the session project")
+            task = get_task_by_id(conn, identity["id"])
+            if not task:
+                raise ValueError("promotion target disappeared")
+            if (
+                task["project_id"] != identity["project_id"]
+                or task["par_number"] != identity["par_number"]
+                or task["sync_revision"] != identity["sync_revision"]
+            ):
+                raise ValueError("promotion target identity changed")
+            error = _task_claim_precondition_error(
+                conn, task, expected_status="new", require_unreserved=True,
+            )
+            if error:
+                raise ValueError(error)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+
+def task_binding_requires_quarantine(
+    scope: str, session_id: str, task_ref: str,
+) -> bool:
+    """Distinguish incomplete live ownership from a stale completed-task binding."""
+    with _conn() as conn:
+        project = get_project_by_scope(conn, scope.rstrip("/"))
+        if not project:
+            # Pre-task-tracker sessions legitimately carry stale task ids; their established
+            # auto-switch path is the only recovery and has no task row to protect.
+            return False
+        task = resolve_task_ref(conn, task_ref, project["id"])
+        if not task:
+            return True
+        return not (
+            task["status"] == "done"
+            and not task.get("worker_session_id")
+        )
+
+
 def api_update_task_if_current(
     identity: TaskIdentity,
     *,
     status: str,
     worker_session_id: str | None = None,
+    expected_status: str = "",
+    require_unreserved: bool = False,
 ) -> dict:
     """Update a prevalidated task only while its immutable identity/version matches."""
     if status not in VALID_STATUSES:
@@ -1732,6 +1832,15 @@ def api_update_task_if_current(
                         f"found {task['sync_revision']}"
                     ),
                 }
+            claim_error = _task_claim_precondition_error(
+                conn,
+                task,
+                expected_status=expected_status,
+                require_unreserved=require_unreserved,
+            )
+            if claim_error:
+                conn.rollback()
+                return {"ok": False, "task_id": task_id, "error": claim_error}
             if binding_inferred and worker_session_id:
                 _validate_inferred_task_worker(conn, task, worker_session_id)
             result = update_task(
@@ -2948,6 +3057,8 @@ def _api_update_task_if_current_unlocked(
     status: str,
     worker_session_id: str | None = None,
     _canonical_first: bool = False,
+    expected_status: str = "",
+    require_unreserved: bool = False,
 ) -> dict:
     binding_inferred = worker_session_id is None and status == "in_progress"
     worker_session_id = _infer_task_worker_session(
@@ -2964,6 +3075,15 @@ def _api_update_task_if_current_unlocked(
                     "task_id": identity["id"],
                     "error": "prevalidated task no longer exists",
                 }
+            claim_error = _task_claim_precondition_error(
+                conn,
+                task,
+                expected_status=expected_status,
+                require_unreserved=require_unreserved,
+            )
+            if claim_error:
+                conn.rollback()
+                return {"ok": False, "task_id": identity["id"], "error": claim_error}
             _validate_inferred_task_worker(conn, task, worker_session_id)
             conn.commit()
     context = _ia_context()
@@ -2972,6 +3092,8 @@ def _api_update_task_if_current_unlocked(
             identity,
             status=status,
             worker_session_id=worker_session_id,
+            expected_status=expected_status,
+            require_unreserved=require_unreserved,
         )
     store = context.store
     assert store is not None
@@ -2993,6 +3115,23 @@ def _api_update_task_if_current_unlocked(
     candidate_identity["sync_revision"] = int(
         detail.get("sync_revision", candidate_identity["sync_revision"])
     )
+    if expected_status and detail.get("status") != expected_status:
+        return {
+            "ok": False,
+            "error": (
+                f"promotion target must be {expected_status} "
+                f"(canonical found {detail.get('status')})"
+            ),
+            "ia_mode": context.mode,
+            "projection_debt": {},
+        }
+    if expected_status and detail.get("worker_session_id"):
+        return {
+            "ok": False,
+            "error": "canonical promotion target is already owned",
+            "ia_mode": context.mode,
+            "projection_debt": {},
+        }
     if context.mode == "shadow":
         if _canonical_first:
             try:
@@ -3014,6 +3153,8 @@ def _api_update_task_if_current_unlocked(
                 identity,
                 status=status,
                 worker_session_id=worker_session_id,
+                expected_status=expected_status,
+                require_unreserved=require_unreserved,
             )
             return _shadow_result(
                 legacy,
@@ -3025,6 +3166,8 @@ def _api_update_task_if_current_unlocked(
             identity,
             status=status,
             worker_session_id=worker_session_id,
+            expected_status=expected_status,
+            require_unreserved=require_unreserved,
         )
         if not legacy.get("ok"):
             return legacy
@@ -3066,6 +3209,8 @@ def _api_update_task_if_current_unlocked(
         identity,
         status=status,
         worker_session_id=worker_session_id,
+        expected_status=expected_status,
+        require_unreserved=require_unreserved,
     )
     # Legacy-CAS — единственный оставшийся детектор устаревшей ревизии, и его отказ обязан
     # дойти до вызывающего отказом: иначе canonical переведён в in_progress с привязкой, а
@@ -3095,6 +3240,8 @@ def api_update_task_if_current(
     status: str,
     worker_session_id: str | None = None,
     _canonical_first: bool = False,
+    expected_status: str = "",
+    require_unreserved: bool = False,
 ) -> dict:
     with _TASK_BINDING_LOCK:
         return _api_update_task_if_current_unlocked(
@@ -3102,6 +3249,8 @@ def api_update_task_if_current(
             status=status,
             worker_session_id=worker_session_id,
             _canonical_first=_canonical_first,
+            expected_status=expected_status,
+            require_unreserved=require_unreserved,
         )
 
 

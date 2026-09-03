@@ -1941,6 +1941,31 @@ async def test_switch_worker_branch_forwards_explicit_force(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_t2_switch_worker_branch_forwards_explicit_promotion(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    captured = {}
+
+    async def fake_api(_method, _path, **kwargs):
+        captured.update(kwargs["json"])
+        return {
+            "ok": True,
+            "state": "promoted_current_work",
+            "branch": "task-91/coder",
+        }
+
+    assert "promote_current" in inspect.signature(m.switch_worker_branch).parameters
+    with patch.object(m, "_api", side_effect=fake_api):
+        output = await m.switch_worker_branch(
+            name="coder", task_id="91", promote_current=True,
+        )
+
+    assert captured["promote_current"] is True
+    assert output == "Promoted current work to branch task-91/coder"
+
+
+@pytest.mark.asyncio
 async def test_switch_worker_branch_forwards_owned_dirs_json(monkeypatch):
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")

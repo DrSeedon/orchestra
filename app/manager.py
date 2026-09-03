@@ -970,8 +970,29 @@ class SessionManager:
         return finalize_task.result()
 
     async def _auto_switch_before_delivery(self, session: AgentSession) -> None:
+        if not getattr(session, "loaded", True):
+            durable = await asyncio.to_thread(get_session, session.id)
+            if durable:
+                session.branch = durable.get("branch") or session.branch
+                session.base_branch = durable.get("base_branch") or session.base_branch
+                session.task_id = durable.get("task_id") or ""
+                session.needs_switch = bool(durable.get("needs_switch") or 0)
         if not session.needs_switch:
             return
+        if str(session.task_id or ""):
+            from app.tm import task_binding_requires_quarantine
+
+            blocked = await asyncio.to_thread(
+                task_binding_requires_quarantine,
+                session.scope,
+                session.id,
+                str(session.task_id),
+            )
+            if blocked:
+                raise RuntimeError(
+                    f"worker lifecycle is quarantined for task #{session.task_id}; "
+                    "repair the task/branch binding before delivery"
+                )
         if session.status != AgentStatus.IDLE:
             raise RuntimeError(
                 f"worker is {session.status.value} — cannot auto-switch before delivery"

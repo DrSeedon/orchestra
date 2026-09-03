@@ -1,0 +1,32 @@
+{
+  "sessions": {
+    "review-research": {
+      "uuid": "01a0670d-8b25-7972-abff-4d18d3f1dc89",
+      "started": "2026-09-03T11:40:25Z",
+      "last_used": "2026-09-03T11:46:15Z",
+      "turns": 2,
+      "reviewer_model": "gpt-5.6-luna"
+    },
+    "review-plan": {
+      "uuid": "01a06724-cbe5-7992-8dfe-4365c04c23b8",
+      "started": "2026-09-03T12:10:07Z",
+      "last_used": "2026-09-03T12:16:24Z",
+      "turns": 2,
+      "reviewer_model": "gpt-5.6-luna"
+    },
+    "review-implementation": {
+      "uuid": "01a06764-93c8-7341-9949-44d62e09d57d",
+      "started": "2026-09-03T13:16:31Z",
+      "last_used": "2026-09-03T13:23:22Z",
+      "turns": 3,
+      "reviewer_model": "gpt-5.6-luna"
+    },
+    "review-snapshot": {
+      "uuid": "01a0681e-dfb8-7000-8f4f-8e4915a2e2fa",
+      "started": "2026-09-03T16:34:32Z",
+      "last_used": "2026-09-03T16:40:37Z",
+      "turns": 3,
+      "reviewer_model": "gpt-5.6-luna"
+    }
+  }
+}
