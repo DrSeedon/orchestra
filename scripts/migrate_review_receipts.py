@@ -103,6 +103,14 @@ def _receipt(item: dict) -> dict:
         "outcome_source": item.get("outcome_source", "unknown"),
         "outcome_evidence_ref": item.get("outcome_evidence_ref", ""),
         "notification_event_id": item.get("notification_event_id", ""),
+        "subject_kind": "unknown",
+        "target_sha": "",
+        "worker_head": "",
+        "production_snapshot_sha256": "",
+        "production_paths_json": "[]",
+        "coverage_outcome": "unknown",
+        "policy_ref": "",
+        "decision_actor": "",
     }
 
 

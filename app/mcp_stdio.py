@@ -3537,8 +3537,28 @@ async def record_review_outcome(
     receipt_id: str,
     outcome: str,
     outcome_evidence_ref: str = "",
+    target_worker: str = "",
+    decision_id: str = "",
 ) -> CallToolResult:
     """Record the author's accepted/disputed/partial outcome for one review receipt."""
+    if outcome == "skipped":
+        result = await _api(
+            "POST",
+            "/api/merge-operations/review-skip",
+            json={
+                "decision_id": decision_id,
+                "target_worker": target_worker,
+                "scope": SCOPE,
+                "outcome_evidence_ref": outcome_evidence_ref,
+            },
+        )
+        receipt = result.get("result") if isinstance(result, dict) else None
+        if not isinstance(receipt, dict):
+            error = result.get("error") if isinstance(result, dict) else None
+            code = str(error.get("code") or "review_skip_failed") if isinstance(error, dict) else "review_skip_failed"
+            message = str(error.get("message") or code) if isinstance(error, dict) else code
+            raise ApiToolError(code=code, message=message)
+        return mcp_tool_result(result=receipt, text="Review skip recorded.")
     from app.db import review_receipt_set_outcome
 
     try:
@@ -3575,7 +3595,8 @@ async def codex_review(
     output: where to write results (relative to your cwd). Also the session key — reuse the SAME
         output filename to continue a debate.
     context: task instructions plus a caller-supplied PROJECT CONTEXT block from the current repo.
-    mode: 'review' (git diff, default) or 'exec' (review specific file).
+    mode: 'review' (uncommitted diff), 'implementation' (pinned committed diff),
+        or 'exec' (review specific file).
     resume: continue the previous Codex session for this output (debate round). Falls back to a
         fresh session if none stored. On a resumed round put your counter-arguments / changelog
         in context (e.g. 'I fixed X and Y, re-review').
@@ -3595,10 +3616,6 @@ async def codex_review(
         f"{context}\n\n{_REVIEW_RUBRIC}"
     )
 
-    # Первым делом после валидации: не создавать фоновую джобу, которая гарантированно упадёт по квоте.
-    refusal = await _quota_refusal(review_model)
-    if refusal:
-        raise refusal
     info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
     if isinstance(info, dict) and info.get("error"):
         return mcp_tool_result(
@@ -3616,10 +3633,10 @@ async def codex_review(
 
     sessions_path = _codex_sessions_path(output_abs)
     slug = _codex_slug(output)
-    if mode not in {"review", "exec"}:
+    if mode not in {"review", "implementation", "exec"}:
         raise ApiToolError(
             code="invalid_argument",
-            message=f"unknown mode '{mode}'; use 'review' or 'exec'",
+            message=f"unknown mode '{mode}'; use 'review', 'implementation', or 'exec'",
             details={"field": "mode"},
         )
     if mode == "exec" and not target and not resume:
@@ -3628,6 +3645,41 @@ async def codex_review(
             message="target file required for mode='exec'",
             details={"field": "target"},
         )
+    subject = {
+        "subject_kind": "unknown",
+        "target_sha": "",
+        "worker_head": "",
+        "production_snapshot_sha256": "",
+        "production_paths_json": "[]",
+        "coverage_outcome": "unknown",
+        "policy_ref": "",
+        "decision_actor": "",
+    }
+    if mode == "implementation":
+        if target:
+            raise ApiToolError(
+                code="invalid_argument",
+                message="implementation review target is resolved by the server; omit target",
+                details={"field": "target"},
+            )
+        from app.review_coverage import current_policy_ref, resolve_implementation_subject
+
+        try:
+            subject = {
+                "subject_kind": "implementation",
+                **resolve_implementation_subject(
+                    cwd, str(info.get("base_branch") or "main"),
+                ),
+                "coverage_outcome": "unknown",
+                "policy_ref": current_policy_ref(),
+                "decision_actor": "",
+            }
+        except ValueError as error:
+            raise ApiToolError(
+                code="invalid_argument",
+                message=str(error),
+                details={"field": "mode"},
+            ) from error
     receipt_id = f"review-receipt:{uuid.uuid4()}"
     usage_event_id = f"codex-review:{uuid.uuid4()}"
     scratch_id = receipt_id.split(":", 1)[1]
@@ -3660,8 +3712,23 @@ async def codex_review(
         "status": "requested",
         "author_outcome": "unknown",
         "outcome_source": "unknown",
+        **subject,
     })
     receipt_round = int(reserved["round"])
+
+    refusal = await _quota_refusal(review_model)
+    if refusal:
+        review_receipt_finish(
+            receipt_id,
+            {
+                "status": "failed",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "return_code": None,
+                "failure_code": refusal.code,
+                "coverage_outcome": "unavailable",
+            },
+        )
+        raise refusal
 
     prev_uuid = _read_codex_uuid(sessions_path, slug) if resume else ""
     is_resume = bool(prev_uuid)
@@ -3680,7 +3747,13 @@ async def codex_review(
     if not codex_bin:
         review_receipt_finish(
             receipt_id,
-            {"status": "failed", "failure_code": "codex_binary_missing"},
+            {
+                "status": "failed",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "return_code": None,
+                "failure_code": "codex_binary_missing",
+                "coverage_outcome": "unavailable",
+            },
         )
         return mcp_tool_result(result=None, text=_CODEX_MISSING_HINT)
     codex_cli = f"{q(codex_bin)} -m {q(review_model)}"
@@ -3718,6 +3791,41 @@ async def codex_review(
             )
         else:
             codex = f"printf '%s' {q(review_prompt)} > {q(prompt_file)}; {fresh_review}"
+    elif mode == "implementation":
+        target_sha = str(subject["target_sha"])
+        worker_head = str(subject["worker_head"])
+        diff_command = (
+            f"git diff --binary --full-index {target_sha}...{worker_head}"
+        )
+        prompt_parts = [
+            review_context,
+            "Review the exact committed implementation snapshot pinned by the server.",
+            f"Run `{diff_command}` and review that complete diff; do not substitute HEAD or a task file.",
+            "Return the complete review in your final response. Do not edit files.",
+            "Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict",
+        ]
+        if is_resume:
+            prompt_parts.insert(
+                3,
+                "Re-review this pinned snapshot after the author's changes and classify prior findings.",
+            )
+        implementation_prompt = "\n".join(prompt_parts)
+        subcmd = f"exec resume {q(prev_uuid)}" if is_resume else "exec"
+        codex = (
+            f"printf '%s' {q(implementation_prompt)} > {q(prompt_file)}; "
+            f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
+            f" -s danger-full-access -a never {subcmd}"
+            f" --skip-git-repo-check --json"
+            f" -o {q(codex_out)} - < {q(prompt_file)}"
+        )
+        if is_resume:
+            fresh_exec = (
+                f"cd {q(cwd)} && UV_CACHE_DIR=/tmp/uv-cache {codex_cli}"
+                f" -s danger-full-access -a never exec"
+                f" --skip-git-repo-check --json"
+                f" -o {q(codex_out)} - < {q(prompt_file)}"
+            )
+            codex += f" || {{ echo '[resume failed — stale session, starting fresh]'; {fresh_exec}; }}"
     elif mode == "exec":
         if not target and not is_resume:
             raise ApiToolError(
@@ -3760,7 +3868,7 @@ async def codex_review(
     else:
         raise ApiToolError(
             code="invalid_argument",
-            message=f"unknown mode '{mode}'; use 'review' or 'exec'",
+            message=f"unknown mode '{mode}'; use 'review', 'implementation', or 'exec'",
             details={"field": "mode"},
         )
 
@@ -3797,7 +3905,7 @@ async def codex_review(
     ]
     if is_resume:
         finalize_args.append("--resume")
-    if mode == "exec":
+    if mode in {"implementation", "exec"}:
         finalize_args.append("--require-verdict")
     finalize = " ".join(finalize_args)
     terminal_recorder = " ".join([
@@ -3874,7 +3982,10 @@ async def codex_review(
             "config": {
                 "command": cmd,
                 "success_file": output_abs,
-                "success_pattern": r"(?im)^##\s+Verdict\b" if mode == "exec" else "",
+                "success_pattern": (
+                    r"(?im)^##\s+Verdict\b"
+                    if mode in {"implementation", "exec"} else ""
+                ),
             },
             # Без слова "done": то же поле подставляется в провал как
             # "[Background job FAILED] <message>", и "Codex exec done" читалось как успех.
