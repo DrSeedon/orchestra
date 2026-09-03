@@ -84,26 +84,85 @@ Each worker is a full agent session in its own git worktree — Claude Code, Cod
 Workers can talk to each other via `send_message`. The backend worker finishes an API endpoint and messages the frontend worker: "endpoint ready at /api/users, here's the schema." No human relay needed.
 
 <a id="comparison"></a>
-## Orchestra vs. the field
+## What Orchestra does, doesn't, and refuses to do
 
-| | LangGraph | CrewAI | AutoGen | Claude Code | **Orchestra** |
-|---|---|---|---|---|---|
-| **Mental model** | Wire a graph | Assemble a crew | Chat between agents | Talk to one agent | **Manage a team** |
-| **Who it's for** | Engineers | Developers | Researchers | Developers | **Teams with AI-native devs** |
-| **Agents** | Nodes in a graph | Agents with roles | Conversable agents | One agent | **Persistent fleet** |
-| **Isolation** | Shared state | Shared state | Shared state | Single context | **Git worktree per worker** |
-| **Duration** | One pipeline run | One task run | One conversation | One session | **Hours to days** |
-| **Cross-model review** | Manual | No | No | No | **Built-in (Claude→GPT)** |
-| **Telegram control** | No | No | No | No | **Voice, text, media** |
-| **Task management** | No | No | No | No | **Built-in (priorities, payments)** |
-| **Self-building** | No | No | No | No | **Yes** |
+Feature tables where the author wins every row aren't worth reading. This one uses three statuses
+and no dashes, because a dash hides the only interesting distinction — *couldn't* versus *decided
+not to*:
 
-The analogy:
-- **LangGraph** = build a car from parts (for mechanics)
-- **CrewAI** = LEGO kit (for hobbyists)
-- **AutoGen** = group chat between bots (for researchers)
-- **Claude Code** = hire one contractor (for developers)
-- **Orchestra** = **hire a team (for builders)**
+**✅ works today** — with an anchor you can check: `file:line`, a command, or a number we measured ·
+**🚧 partial or not enforced in code** — the row says exactly what is missing ·
+**🚫 deliberately not on the table** — never built, or built and then retired; the reason is in the row, and it isn't "no time".
+
+| Capability | | Anchor |
+|---|---|---|
+| An agent, not a human, splits the goal, spawns workers, assigns and merges | ✅ | orchestrator role prompt + `spawn_worker`/`merge_worker`; you approve, you don't dispatch |
+| Workers outlive one request | ✅ | 431 finished worker sessions: median 0.8 h, p90 **130.6 h**, max 531.8 h, 81 lived past a day |
+| Survive a platform restart; idle workers hibernate and release the process tree | ✅ | SQLite sessions + auto-resume, `app/session_hibernate.py` |
+| Workers message each other directly, with durable delivery receipts | ✅ | `app/message_deliveries.py` |
+| Workers spawning their own workers | 🚧 | Forbidden by the worker's role prompt, not by the code: `spawn_worker` carries no role gate, so a worker that ignores its instructions can still call it. The rule exists because the child edits the same files on a second branch, so the two diffs compete at merge and one of them loses — plus a task nobody ordered |
+| Git worktree per worker, squash merge to main | ✅ | `app/workspace.py` |
+| Two workers cannot own the same directory | ✅ | spawn refuses on overlap, `app/manager.py:554` |
+| Insertion budget at merge, with a waiver that is recorded | ✅ | 2 000 lines, `app/diff_budget.py:16` |
+| The platform, not the agent, runs the tests that decide a merge | ✅ | A mapped test subset gates every merge and blocks on failed *or* inconclusive (`app/merge_operations.py:1737`). A frozen acceptance oracle is pinned and run when the task carries one (`app/acceptance.py:349`); without one, a merge touching `app/` or `tests/` on a non-main target is refused outright (`app/merge_operations.py:801`) |
+| Cross-model review as a **code-enforced** merge gate | 🚧 | Required by the agents' role prompts, not by the merge code: `grep -c review app/merge_operations.py` → **0**. Receipts are stored (`app/db.py:145`) and never consulted |
+| Human approval as machine-checkable state | 🚧 | Lives in chat and in the `<approval-gate>` prompt block. No approval receipt exists in the database and merge doesn't ask for one |
+| Sandbox around commands an agent runs | 🚧 | The worktree isolates *files*, not execution. Our reviewer runs `-s danger-full-access -a never` (`app/mcp_stdio.py:3698`) because unprivileged user namespaces are off on this host. No isolation work is underway |
+| Several vendors' models behind one runtime contract | ✅ | 4 runtimes: the Claude Code, Codex and Grok CLIs, plus our own in-process OpenRouter Harness — `app/runtime_registry.py:330` |
+| Adding a new CLI agent by config | 🚫 | Every runtime is a hand-written backend; there is no config path. Orca, by contrast, advertises "any CLI agent" |
+| Write with one vendor's model, review with another's | ✅ | `codex_review`, `app/mcp_stdio.py:3564` — the review starts a different vendor's CLI |
+| Quota gate that blocks workers near a subscription wall | ✅ | `app/quota_gate.py:115` |
+| The same gate applied to orchestrators | 🚫 | Exempt on purpose (owner, 2026-09-03): an orchestrator that stops talking is worse than one that overspends |
+| Paid model routes in the built-in harness | 🚫 | Exact `:free` routes only, `app/harness/llm.py:167` |
+| Free models as the default workhorse | 🚫 | Measured: 2 of 30 closed tickets solved (6.67 %), and 53 of 60 runs failed on availability rather than quality (#422) |
+| Grok kept current with Claude and Codex | 🚫 | Added for one narrow job and left unmaintained. It still runs; it is not a peer |
+| Lexical project memory agents must read before working | ✅ | `.orchestra/kb/`, one fact per line with the command that proves it |
+| Vector / semantic memory | 🚫 | Built, measured, retired: on an 18-question holdout from this repo, vector search scored **0 unique wins against 6 for plain `rg`**. The implementation still ships and still runs if you enable it (`--extra rag`, off by default) — we just don't build on it any more |
+| Root guide small enough to be an index | 🚧 | Our own rule; `wc -c CLAUDE.md` → **189 851** bytes. The Codex mirror is trimmed mid-sentence at `project_doc_max_bytes`, so part of it silently never reaches those workers (#323) |
+| Dashboard (`app/routes/system.py:77`) and Telegram control (`app/tg_bridge.py`) | ✅ | Voice messages are transcribed with Deepgram Nova-3, `app/transcription.py:72` |
+| Terminal client, desktop or mobile app | 🚫 | Never built: the workplace is the dashboard plus Telegram. Phone access is Telegram, not an app |
+| Browser-side cache of chat history | 🚫 | Built, then removed on purpose: a local mirror cannot prove nothing appeared after its watermark, so it can show a stale frame as current. `no-store` is set on the server (`app/routes/sessions.py:599`) and on the client (`app/static/js/app.js:1225`) |
+| One-command install, prebuilt binaries, Docker image | 🚧 | `git clone` + `uv sync` + your own vendor CLIs and subscriptions. Nothing is published as a release artifact |
+| Standing approval or an auto-queue of tasks | 🚫 | Every task is approved by hand (owner, 2026-08-27) so that nothing gets built that wasn't asked for |
+
+### And how is this different from sub-agents?
+
+The honest answer is that it got less different during 2026: sub-agents gained their own context,
+messaging between agents, nesting, and opt-in worktrees. What did not change is who owns the
+lifecycle and where the vendor boundary runs. Quotes below are from the vendors' own docs,
+checked **2026-09-03**.
+
+| | **Orchestra** | **Claude Code sub-agents** | **Codex sub-agents** |
+|---|---|---|---|
+| Lifecycle belongs to | a row in our database — the worker survives restarts and hibernation | the parent conversation: "Each subagent invocation creates a new instance rather than continuing an earlier one" | the parent run: "Codex waits until all requested results are available, then returns a consolidated response" |
+| Repo isolation | a worktree per worker, always | opt-in `isolation: worktree`; by default "A subagent starts in the main conversation's current working directory" | "Subagents inherit your current sandbox policy" |
+| Model vendor | four runtimes: Anthropic, OpenAI, xAI, OpenRouter | `model`: "`sonnet`, `opus`, `haiku`, `fable`, a full model ID such as `claude-opus-5`, or `inherit`" | `gpt-5.6`, `gpt-5.6-terra`, `gpt-5.6-luna` |
+| Review | a different vendor's model, required by role prompt (see the 🚧 row above) | "Spawn a teammate using the security-reviewer agent type" | "Review this branch with parallel subagents" |
+
+Measured on our own database, 2026-09-02: sub-agents of both kinds recorded here lived a median of
+**12.5 s** (p90 75.1 s), and **0.0 %** of them lasted longer than ten minutes; worker sessions had a
+p90 of **130.6 h**. That is a difference in kind, not in duration — and it cuts both ways. A
+sub-agent is one tool call inside a running process; a worker here costs a session row, a branch and
+a worktree, so for "go read twenty files and come back" that machinery buys nothing. Sub-agents also
+nest "up to three layers below the main conversation" out of the box, which we forbid by rule.
+
+### Where we are behind
+
+- **Breadth.** 4 runtimes against Orca's "any CLI agent" — "if it runs in a terminal, it runs in Orca". Ours is a code contract; theirs is a terminal.
+- **Tool latency.** Every tool call here is an external process: measured on this host, 3 667.6 µs against 20.2 µs in-process, of which 2 170.0 µs is `fork+exec` alone. oh-my-pi compiles its tooling in and states "No fork/exec on the hot path".
+- **No LSP or debugger in the agent's hands** — ours reads files and shells out to `rg`.
+- **Interfaces and packaging.** Orca ships desktop and mobile apps; when an agent spawns helpers, cmux "turns them into native panes and splits instead of hidden background processes". We ship a web dashboard and a Telegram bot, installed from a `git clone`.
+- **Maturity.** One maintainer and 5 stars against 60 526 (Orca) and 26 737 (cmux), read 2026-09-03. What is being compared above is architecture, not a mature product.
+
+<sub>Sources, all re-checked 2026-09-03: [Claude Code sub-agents](https://code.claude.com/docs/en/sub-agents) ·
+[agent teams](https://code.claude.com/docs/en/agent-teams) ·
+[Codex sub-agents](https://learn.chatgpt.com/docs/agent-configuration/subagents) ·
+[Orca](https://github.com/stablyai/orca) · [cmux](https://github.com/manaflow-ai/cmux) ·
+[oh-my-pi](https://github.com/can1357/oh-my-pi) READMEs, pulled raw via `gh api`, and star counts via
+`gh api repos/<owner>/<repo>`. Orchestra's numbers come from the primary installation's own database,
+read 2026-09-02, and from the commands shown in the table. Where a competitor's primary source did not
+answer a question — isolation and inter-agent messaging in cmux, review in Orca — there is no row, rather
+than a guess.</sub>
 
 ## Features
 
@@ -117,7 +176,7 @@ Every worker gets its own git worktree — a full copy of the repo on its own br
 Manage your AI team from your phone. Voice messages, photos, documents — the orchestrator transcribes voice (Deepgram Nova-3), understands images, processes files. Real-time status updates in topic threads.
 
 ### 🔀 Cross-Model Review
-Code written by one model (Claude) is reviewed by another (GPT). Different models have different blind spots. Two perspectives catch bugs that one model misses.
+Code written by one model (Claude) is reviewed by another (GPT). Different models have different blind spots. Two perspectives catch bugs that one model misses. The step is required by the agents' role prompts and is not yet enforced by the merge code — see the status table above.
 
 ### 🏰 Hierarchy: Orchestrator → Sub-Orchestrators → Workers
 One orchestrator per project. Sub-orchestrators manage sub-teams. Workers do the work. Cross-project messaging lets orchestrators coordinate across repos.
