@@ -143,13 +143,19 @@ def _is_terminal_compact_error(error: str) -> bool:
     return any(marker in lowered for marker in _TERMINAL_COMPACT_ERRORS)
 
 
-def _preserved_tail(session_id: str, budget: int) -> str:
+def _preserved_tail(
+    session_id: str,
+    budget: int,
+    *,
+    exclude_user_messages: tuple[str, ...] = (),
+) -> str:
     """Дословный хвост диалога, который едет в новую сессию рядом со сводкой.
 
     Сводка — пересказ, и свежий обмен теряет в ней формулировки; Claude Code держит
     последние сообщения сырыми (`preservedSegment`), у нас их не было вовсе. Берём
     только речь — `tool_result` и есть основной вес контекста, ради которого компакт
-    и затевался.
+    и затевался. Отложенные сообщения сюда не входят: они уедут отдельным ходом после
+    ack, а в преамбуле превратили бы короткий ack в выполнение реальной работы.
     """
     if budget <= 0 or not session_id:
         return ""
@@ -158,12 +164,18 @@ def _preserved_tail(session_id: str, budget: int) -> str:
     except Exception as error:  # журнал недоступен — компакт из-за этого не падает
         logger.warning(f"preserved tail unavailable for {session_id}: {error}")
         return ""
+    excluded = Counter(
+        message.strip() for message in exclude_user_messages if message.strip()
+    )
     parts, used = [], 0
     for row in reversed(rows):
         if row.get("type") not in _COMPACT_TAIL_TYPES:
             continue
         content = (row.get("content") or "").strip()
         if not content:
+            continue
+        if row.get("type") == "user_message" and excluded[content] > 0:
+            excluded[content] -= 1
             continue
         speaker = "USER" if row.get("type") == "user_message" else "ASSISTANT"
         block = f"{speaker}: {content}"
@@ -3055,7 +3067,11 @@ class AgentSession:
                 self._log("status", f"compact succeeded on attempt {attempt}")
             break
 
-        tail = _preserved_tail(self.id, COMPACT_TAIL_CHARS)
+        tail = _preserved_tail(
+            self.id,
+            COMPACT_TAIL_CHARS,
+            exclude_user_messages=tuple(self._pending_messages),
+        )
         preamble = PREAMBLE.format(
             summary=summary,
             tail=(
