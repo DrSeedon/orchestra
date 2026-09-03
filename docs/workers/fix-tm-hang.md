@@ -13,3 +13,7 @@
 - When merging contours that reused task numbers, inspect both task directories by filename even
   if the handoff says artifacts do not conflict; preserve one side under descriptive names and
   repair every KB evidence link so a fact cannot silently point at the other task's document.
+- For a durable outbox, distinguish a safe replay window from data loss: an applied marker must be
+  committed before deleting pending, but need not coincide with the storage method's return. Test
+  the restart result/transition; a method-return assertion can force cross-layer callbacks that buy
+  no correctness.

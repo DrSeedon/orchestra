@@ -111,7 +111,7 @@ def test_t2_joined_current_mutation_updates_named_task_and_fts_only(tmp_path, mo
         before = {
             row[0]: tuple(row[1:])
             for row in connection.execute(
-                "SELECT record_key,payload_sha256,payload_json,search_text "
+                "SELECT record_key,canonical_head,payload_sha256,payload_json,search_text "
                 "FROM current_records WHERE record_key IN ('resource:resource-1','task.state:task-2')"
             )
         }
@@ -155,6 +155,7 @@ def test_t2_joined_current_mutation_updates_named_task_and_fts_only(tmp_path, mo
     )
 
     facade.task_create(project_id="legacy", title="new")
+    assert owner._drain_projection_outbox_once() == "progress"
 
     backend = SQLiteProjectionBackend(path=path)
     task = backend.search_current(
@@ -168,7 +169,7 @@ def test_t2_joined_current_mutation_updates_named_task_and_fts_only(tmp_path, mo
         after = {
             row[0]: tuple(row[1:])
             for row in connection.execute(
-                "SELECT record_key,payload_sha256,payload_json,search_text "
+                "SELECT record_key,canonical_head,payload_sha256,payload_json,search_text "
                 "FROM current_records WHERE record_key IN ('resource:resource-1','task.state:task-2')"
             )
         }
@@ -178,6 +179,49 @@ def test_t2_joined_current_mutation_updates_named_task_and_fts_only(tmp_path, mo
         ))
     assert after == before
     assert fts_counts == {"task.state:task-1": 1, "task.state:task-2": 1}
+    assert not list((owner.paths["canonical_root"] / "projection-outbox").glob("*.json"))
+
+
+def test_t2_joined_current_remains_old_before_durable_drain(tmp_path):
+    owner, _resource_record, old, unchanged = _projection_owner(tmp_path)
+    changed = {**old, "title": "new"}
+
+    class MutationStore:
+        canonical_head = "task-head-old"
+
+        def task_create(self, **_kwargs):
+            self.canonical_head = "task-head-new"
+            return {
+                "par": "1",
+                "task_id": "task-1",
+                "canonical_head": self.canonical_head,
+                "changed_records": [changed],
+            }
+
+        def states(self):
+            return {"task-1": changed, "task-2": unchanged}
+
+        def _states(self):
+            return self.states()
+
+    facade = _RuntimeTaskStore(
+        store=MutationStore(),
+        legacy_to_canonical={"legacy": "project"},
+        debt_writer=owner._record_debt,
+        head_writer=owner._record_task_head,
+    )
+    owner.task_store = facade
+
+    facade.task_create(project_id="legacy", title="new")
+
+    task = SQLiteProjectionBackend(path=owner.paths["current_projection"]).search_current(
+        project_id="project", text="", record_types=["task.state"], limit=10,
+    )
+    assert {item["stable_id"]: item["title"] for item in task["items"]} == {
+        "task-1": "old",
+        "task-2": "unchanged",
+    }
+    assert list((owner.paths["canonical_root"] / "projection-outbox").glob("*.json"))
 
 
 def test_t2_projection_failure_keeps_old_receipt_and_records_debt(tmp_path, monkeypatch):
