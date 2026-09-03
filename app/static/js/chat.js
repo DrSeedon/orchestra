@@ -4083,10 +4083,13 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const senders = validOrigin && validDetail
             ? suppliedSenders.map(sender => sender.trim())
             : ['unknown'];
+        const displayContent = payload && typeof payload.display_content === 'string'
+            ? payload.display_content
+            : content;
         if (origin === 'user') {
             div.className += ' markdown-body';
-            div.innerHTML = DOMPurify.sanitize(marked.parse(content));
-            renderImages(div, content);
+            div.innerHTML = DOMPurify.sanitize(marked.parse(displayContent));
+            renderImages(div, displayContent);
         } else {
             const originLabels = {
                 agent: 'Agent',
@@ -4107,9 +4110,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
             div.appendChild(label);
             const body = document.createElement('div');
             body.className = 'markdown-body';
-            body.innerHTML = DOMPurify.sanitize(marked.parse(content));
+            body.innerHTML = DOMPurify.sanitize(marked.parse(displayContent));
             div.appendChild(body);
-            renderImages(body, content);
+            renderImages(body, displayContent);
         }
     }
     else if (type === 'tool') {

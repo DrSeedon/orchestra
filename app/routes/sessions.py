@@ -34,6 +34,7 @@ from app.models import ensure_dashboard_visible, ensure_spawn_allowed, resolve_m
 from app.quota_gate import QuotaGateError
 from app.session import AgentStatus
 from app.status_policy import is_internal_telemetry_status
+from app.user_message_display import add_user_message_time_prefix, annotate_user_message
 
 logger = logging.getLogger("orchestra.sessions")
 
@@ -536,7 +537,7 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
             if live_session is not None
             else str((stored or {}).get("status") or "idle")
         )
-        result = {**payload, "agent_status": status}
+        result = annotate_user_message({**payload, "agent_status": status})
         if payload.get("type") == "status":
             result["status_hidden"] = is_internal_telemetry_status(
                 str(payload.get("content") or "")
@@ -603,10 +604,11 @@ async def get_session_logs(name: str, response: Response, scope: str,
         return JSONResponse({"error": "not found"}, status_code=404)
 
     def annotate(log: dict) -> dict:
-        if log.get("type") != "status":
-            return log
+        result = annotate_user_message(log)
+        if result.get("type") != "status":
+            return result
         return {
-            **log,
+            **result,
             "status_hidden": is_internal_telemetry_status(
                 str(log.get("content") or "")
             ),
@@ -645,7 +647,7 @@ async def get_single_log(log_id: int):
     row = get_log(log_id)
     if not row:
         return JSONResponse({"error": "not found"}, status_code=404)
-    return row
+    return annotate_user_message(row)
 
 
 @router.post("/api/fan/open")
@@ -1136,10 +1138,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
         # Время ставится КАЖДОМУ входящему, включая агентские: юзер требует видеть,
         # когда сообщение написано, а не только от кого (28.08). Раньше метку получал
         # только он сам, и в ленте нельзя было отличить свежий отчёт от вчерашнего.
-        from datetime import datetime, timezone, timedelta
-        local_tz = timezone(timedelta(hours=7))
-        now = datetime.now(local_tz).strftime("%H:%M")
-        msg = f"[{now}] {msg}"
+        msg = add_user_message_time_prefix(msg)
         await manager.send(
             session.id, msg, provenance=provenance,
         )

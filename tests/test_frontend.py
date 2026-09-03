@@ -1203,6 +1203,42 @@ def _route_frontend_sources(page: Page, source_path: Path | None = None) -> None
     )
 
 
+def test_user_message_renders_display_only_payload_without_durable_timestamp(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    chat_source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
+    page.route(
+        "**/static/js/chat.js*",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/javascript",
+            body=chat_source,
+        ),
+    )
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof addChatEntry === 'function'")
+    page.wait_for_timeout(2000)
+    page.evaluate("""() => {
+        selectedAgent = null;
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        document.querySelector('#chat').innerHTML = '';
+        addChatEntry(
+            'user_message', '[17:38] raw durable text', null, null,
+            {origin: 'user', origin_detail: {senders: ['user']},
+             display_content: 'raw durable text'},
+        );
+    }""")
+    rendered = page.locator("#chat").inner_text()
+    assert "raw durable text" in rendered
+    assert "[17:38]" not in rendered
+    page.close()
+
+
 def _open_send_files_fixture_page(browser: Browser) -> Page:
     page = browser.new_page()
     _route_frontend_sources(page)
