@@ -9,7 +9,7 @@ UTILS_JS = ROOT / "app/static/js/utils.js"
 CONNECTION_JS = ROOT / "app/static/js/connection.js"
 USAGE_JS = ROOT / "app/static/js/usage.js"
 STYLE_CSS = ROOT / "app/static/css/style.css"
-USAGE_SHOT_DIR = ROOT / "docs/tasks/356"
+USAGE_SHOT_DIR = ROOT / ".orchestra/tasks/356"
 
 
 @pytest.fixture(scope="module")

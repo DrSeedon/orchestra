@@ -13,7 +13,7 @@ from PIL import Image
 from app import charts
 from app.charts import ChartError, render_chart
 
-# C1 — docs/tasks/13/report.md, вес ответа /api/usage/history
+# C1 — .orchestra/tasks/13/report.md, вес ответа /api/usage/history
 C1 = {
     "unit": "МБ",
     "categories": ["1 сут", "7 сут", "30 сут", "год"],
@@ -190,7 +190,7 @@ def _gaps_of(points):
 
 def test_fact_line_on_live_db_slice_matches_measured(chart_dir):
     """Живые данные: 7 суток из data/orchestra.db, сверено с БД в фазе 1."""
-    raw = Path("docs/tasks/20/bench/usage_7d.json")
+    raw = Path(".orchestra/tasks/20/bench/usage_7d.json")
     if not raw.exists():
         pytest.skip("нет выгрузки живой БД")
     rows = json.loads(raw.read_text())

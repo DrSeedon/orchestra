@@ -3307,8 +3307,9 @@ class TestCompactReArmsPromptInjection:
         from app.events import AgentEvent
         from app.session import AgentStatus
 
-        mem_dir = tmp_path / "docs" / "workers"
+        mem_dir = tmp_path / ".orchestra" / "workers"
         mem_dir.mkdir(parents=True)
+        (tmp_path / ".orchestra" / "layout.json").write_text("{}\n")
         session.scope = str(tmp_path)
         session.role = "worker"
         session._log = MagicMock()
@@ -3362,8 +3363,9 @@ class TestCompactReArmsPromptInjection:
             (parent_scope, "STALE: copied into parent scope"),
             (worktree, "FRESH: canonical worktree memory"),
         ):
-            memory_dir = root / "docs" / "workers"
+            memory_dir = root / ".orchestra" / "workers"
             memory_dir.mkdir(parents=True)
+            (root / ".orchestra" / "layout.json").write_text("{}\n")
             (memory_dir / f"{session.name}.md").write_text(content)
 
         session.scope = str(parent_scope)
@@ -5040,7 +5042,7 @@ class TestSafeguardRefusal:
 
         assert ".local/state/orchestra/safeguard-refusals" in path
         assert Path(path).read_text(encoding="utf-8") == self.VERBATIM
-        assert "docs/tasks" not in path
+        assert ".orchestra/tasks" not in path
 
 
 class TestWeeklyQuotaAdmission:

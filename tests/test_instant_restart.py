@@ -1,7 +1,7 @@
 """#230 путь A: рестарт мгновенный, дескрипторы не зависят от вежливости сервера.
 
 Замороженные оракулы фазы 2. Пороги времени взяты из замера
-(`docs/tasks/230/research-ownership.md` F1: 1014 мс с ожиданием против 0.1 мс без него),
+(`.orchestra/tasks/230/research-ownership.md` F1: 1014 мс с ожиданием против 0.1 мс без него),
 а не с потолка: они различают ДВА СОСТОЯНИЯ, а не измеряют производительность.
 """
 import asyncio
@@ -410,7 +410,7 @@ async def test_guard_adoption_republishes_the_descriptors(monkeypatch):
 async def test_t6_grok_spawns_with_parent_owned_pipes(monkeypatch):
     """T6: Grok обязан создавать СВОИ пайпы, а не просить их у asyncio.
 
-    Проба #230 T3 (`docs/tasks/230/kill9-probe.md`): CLI пережил `kill -9`, но усыновление
+    Проба #230 T3 (`.orchestra/tasks/230/kill9-probe.md`): CLI пережил `kill -9`, но усыновление
     провалилось с `Pipe transport is only for pipes, sockets and character devices` — в store
     лежал дескриптор, который принять нельзя. Причина: Grok спавнится с
     `stdin=PIPE, stdout=PIPE`, и `fd_in`/`fd_out` берутся у asyncio-транспорта.

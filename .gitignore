@@ -6,8 +6,7 @@ __pycache__/
 *.db-shm
 *.db-wal
 *.db.bak
-workers/
-!docs/workers/
+/workers/
 worktrees/
 data/
 .claude/

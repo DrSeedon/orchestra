@@ -15,7 +15,7 @@
 - Снимок: `git archive <sha> | tar -x -C /tmp/<dir>/snap` (ветку не чекаутить), прогон —
   `cd /tmp/<dir>/snap && PYTHONPATH=/tmp/<dir>/snap /home/kesha/orchestra/.venv/bin/python -m pytest ... -p no:cacheprovider`.
   Venv основного репозитория подходит, свой не нужен.
-- Свои пробы класть в `docs/tasks/<id>/`, не в `tests/`: `norecursedirs` в `pyproject.toml`
+- Свои пробы класть в `.orchestra/tasks/<id>/`, не в `tests/`: `norecursedirs` в `pyproject.toml`
   включает `docs`, поэтому сьют их не подберёт, а описывают они дефекты, а не контракт.
 - `git merge-base main <branch>` у долгоживущих `adhoc-*` веток уводит на сотни файлов назад —
   для предметного диффа брать `git diff <первый_коммит>~1 <последний_коммит>`.

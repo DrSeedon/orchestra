@@ -40,7 +40,7 @@ ORCHESTRA_URL = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888")
 SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
 # Дедлайн ТОЛЬКО для search_memory (общий дефолт _api = 30 с не трогаем).
 # 5 с = 1.9× от худшего здорового наблюдения 2659 мс при 8 одновременных клиентах,
-# замер 03.08.2026 docs/tasks/18/measurements/search-latency-p8.log. Привязан к 8 ядрам
+# замер 03.08.2026 .orchestra/tasks/18/measurements/search-latency-p8.log. Привязан к 8 ядрам
 # и текущему размеру индекса — меняется железо, перемеряй, а не подкручивай.
 SEARCH_DEADLINE_S = 5.0
 MESSAGE_FILE_MAX_BYTES = 64 * 1024
@@ -2888,7 +2888,7 @@ async def report_bug(title: str, description: str) -> str:
     - Resource impact: turns/tokens/cost/counts, or N/A when none.
     - Environment: model, runtime, version/commit, and project.
 
-    Missing trace = not reported. Project-code bugs go to ``docs/tasks/<id>/`` and
+    Missing trace = not reported. Project-code bugs go to ``.orchestra/tasks/<id>/`` and
     the orchestrator instead of this tool.
     """
     r = await _api("POST", "/api/report_bug", json={"title": title, "description": description, "reporter": WORKER_NAME, "scope": SCOPE})

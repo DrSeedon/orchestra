@@ -1,0 +1,320 @@
+{
+  "command_template": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python -m pytest -q --tb=short <test-file>",
+  "commit": "4e5940ef6a282b1f1c0cf4da1a0998bd131414ed",
+  "failed_node_count": 19,
+  "failed_nodes": [
+    "app.manager:manager.py:784 worker quota admission telemetry unavailable; allowing model=gpt-5.6-sol provider=codex reason=observation timestamp is missing or malformed",
+    "tests/test_orchestra_layout_430.py::test_t1_dirty_check_occurs_inside_repository_mutation_lock",
+    "tests/test_orchestra_layout_430.py::test_t1_forced_project_migration_is_committed_and_idempotent",
+    "tests/test_orchestra_layout_430.py::test_t1_partial_missing_and_dirty_states_are_loud_and_repairable",
+    "tests/test_orchestra_layout_430.py::test_t2_dead_docker_and_stale_frontend_links_are_gone",
+    "tests/test_orchestra_layout_430.py::test_t3_docs_contains_only_external_reader_artifacts",
+    "tests/test_orchestra_layout_430.py::test_t3_pipeline_and_worker_memory_use_only_dot_orchestra",
+    "tests/test_orchestra_layout_430.py::test_t3_repository_move_has_content_receipt_and_no_old_roots",
+    "tests/test_orchestra_layout_430.py::test_t3_task_guard_knowledge_owner_and_evidence_validator_use_new_root",
+    "tests/test_orchestra_layout_430.py::test_t4_all_assembled_prompts_use_new_root_and_explain_repair",
+    "tests/test_orchestra_layout_430.py::test_t4_startup_runs_migration_before_knowledge_runtime",
+    "tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves",
+    "tests/test_orchestra_layout_fleet_430.py",
+    "tests/test_orchestra_layout_recovery_430.py",
+    "tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[claude-claude-opus-5[1m]]",
+    "tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[sol-gpt-5.6-sol]",
+    "tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[luna-gpt-5.6-luna]",
+    "tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[spark-gpt-5.3-codex-spark]",
+    "tests/test_quota_admission_e2e.py::test_unknown_quota_admits_the_spawn_and_the_following_send"
+  ],
+  "schema_version": 1,
+  "shards": [
+    {
+      "failed_nodes": [],
+      "file": "tests/test_backend_claude.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_backend_codex.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_backend_grok.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_bg_jobs.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_charts.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_cross_repo_warning.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_default_pipeline.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_fan_barrier.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_fan_enable.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_fd_adopt.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_fdstore.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_grok_usage_frontend.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_hot_apply.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_instant_restart.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_kb_markdown_contract.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_kb_promote_facts_script_409.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_knowledge_import_linking_409.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_knowledge_resource_preservation_409.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_knowledge_runtime_evidence_link_409.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_manager.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_mcp_codex_review.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_mcp_config_isolation.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_mcp_stdio.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_merge_reason_preservation_416.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_model_catalog_frontend.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_native_history_import.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_openrouter_retry.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [
+        "tests/test_orchestra_layout_430.py::test_t1_dirty_check_occurs_inside_repository_mutation_lock",
+        "tests/test_orchestra_layout_430.py::test_t1_forced_project_migration_is_committed_and_idempotent",
+        "tests/test_orchestra_layout_430.py::test_t1_partial_missing_and_dirty_states_are_loud_and_repairable",
+        "tests/test_orchestra_layout_430.py::test_t2_dead_docker_and_stale_frontend_links_are_gone",
+        "tests/test_orchestra_layout_430.py::test_t3_docs_contains_only_external_reader_artifacts",
+        "tests/test_orchestra_layout_430.py::test_t3_pipeline_and_worker_memory_use_only_dot_orchestra",
+        "tests/test_orchestra_layout_430.py::test_t3_repository_move_has_content_receipt_and_no_old_roots",
+        "tests/test_orchestra_layout_430.py::test_t3_task_guard_knowledge_owner_and_evidence_validator_use_new_root",
+        "tests/test_orchestra_layout_430.py::test_t4_all_assembled_prompts_use_new_root_and_explain_repair",
+        "tests/test_orchestra_layout_430.py::test_t4_startup_runs_migration_before_knowledge_runtime",
+        "tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves"
+      ],
+      "file": "tests/test_orchestra_layout_430.py",
+      "returncode": 1
+    },
+    {
+      "failed_nodes": [
+        "tests/test_orchestra_layout_fleet_430.py"
+      ],
+      "file": "tests/test_orchestra_layout_fleet_430.py",
+      "returncode": 2
+    },
+    {
+      "failed_nodes": [
+        "tests/test_orchestra_layout_recovery_430.py"
+      ],
+      "file": "tests/test_orchestra_layout_recovery_430.py",
+      "returncode": 2
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_pipeline.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_project_distribution_dirty_412.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_project_distribution_review_412.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_project_knowledge_distribution_412.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_project_knowledge_t3_review_412.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_prompting.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [
+        "app.manager:manager.py:784 worker quota admission telemetry unavailable; allowing model=gpt-5.6-sol provider=codex reason=observation timestamp is missing or malformed",
+        "tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[claude-claude-opus-5[1m]]",
+        "tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[sol-gpt-5.6-sol]",
+        "tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[luna-gpt-5.6-luna]",
+        "tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[spark-gpt-5.3-codex-spark]",
+        "tests/test_quota_admission_e2e.py::test_unknown_quota_admits_the_spawn_and_the_following_send"
+      ],
+      "file": "tests/test_quota_admission_e2e.py",
+      "returncode": 1
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_rag_service.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_review_receipt_migration_436.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_review_receipt_outcome_tool_436.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_review_receipt_start_436.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_routes_surface.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_scaffold.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_seamless_restart.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_search_deadline.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_session.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_startup_bridge.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_task_repair_completion_422.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_tg_bot_api_unit.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_tm.py",
+      "returncode": 0
+    },
+    {
+      "failed_nodes": [],
+      "file": "tests/test_workspace.py",
+      "returncode": 0
+    }
+  ],
+  "status_after": [
+    " M docs/tasks/356/usage-bar-provider-grid-1280.png",
+    " M docs/tasks/356/usage-bar-provider-grid-1920.png",
+    "?? tests/test_orchestra_layout_430.py",
+    "?? tests/test_orchestra_layout_fleet_430.py",
+    "?? tests/test_orchestra_layout_recovery_430.py"
+  ],
+  "status_before": [
+    "?? tests/test_orchestra_layout_430.py",
+    "?? tests/test_orchestra_layout_fleet_430.py",
+    "?? tests/test_orchestra_layout_recovery_430.py"
+  ],
+  "test_files": 51
+}

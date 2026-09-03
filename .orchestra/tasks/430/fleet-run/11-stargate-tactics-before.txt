@@ -1,0 +1,3 @@
+ M .serena/project.yml
+?? docs/artifacts/
+?? docs/kb/

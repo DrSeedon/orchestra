@@ -1,0 +1,52 @@
+{
+  "batch-5": {
+    "command": [
+      "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "-vv",
+      "-m",
+      "not live_probe",
+      "tests/test_model_catalog_frontend.py",
+      "tests/test_native_history_import.py",
+      "tests/test_openrouter_retry.py",
+      "tests/test_orchestra_layout_430.py",
+      "tests/test_orchestra_layout_fleet_430.py",
+      "tests/test_orchestra_layout_recovery_430.py"
+    ],
+    "files": [
+      "tests/test_model_catalog_frontend.py",
+      "tests/test_native_history_import.py",
+      "tests/test_openrouter_retry.py",
+      "tests/test_orchestra_layout_430.py",
+      "tests/test_orchestra_layout_fleet_430.py",
+      "tests/test_orchestra_layout_recovery_430.py"
+    ],
+    "returncode": 1
+  },
+  "batch-7": {
+    "command": [
+      "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "-vv",
+      "-m",
+      "not live_probe",
+      "tests/test_quota_admission_e2e.py",
+      "tests/test_rag_service.py",
+      "tests/test_review_receipt_migration_436.py",
+      "tests/test_review_receipt_outcome_tool_436.py",
+      "tests/test_review_receipt_start_436.py"
+    ],
+    "files": [
+      "tests/test_quota_admission_e2e.py",
+      "tests/test_rag_service.py",
+      "tests/test_review_receipt_migration_436.py",
+      "tests/test_review_receipt_outcome_tool_436.py",
+      "tests/test_review_receipt_start_436.py"
+    ],
+    "returncode": 1
+  }
+}

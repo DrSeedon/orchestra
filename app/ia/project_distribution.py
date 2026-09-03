@@ -427,7 +427,7 @@ def _owner(
         return {
             "project_root": git_root,
             "git_root": git_root,
-            "manifest_relative_path": "docs/kb/manifest.json",
+            "manifest_relative_path": ".orchestra/kb/manifest.json",
             "quarantined": False,
         }
     git_root = _exact_repo(quarantine_root, commands=commands)
@@ -441,7 +441,7 @@ def _owner(
     return {
         "project_root": project_root,
         "git_root": git_root,
-        "manifest_relative_path": f"{project_id}/docs/kb/manifest.json",
+        "manifest_relative_path": f"{project_id}/.orchestra/kb/manifest.json",
         "quarantined": True,
         "quarantine_reason": "project_unmapped",
     }
@@ -462,7 +462,7 @@ def _safe_path(root: Path, relative: str, *, label: str) -> Path:
 
 
 def _destination_row(owner: Mapping[str, Any], record: Mapping[str, Any]) -> dict[str, Any]:
-    relative = f"docs/kb/records/evidence/{record['stable_id']}.json"
+    relative = f".orchestra/kb/records/evidence/{record['stable_id']}.json"
     project_root = Path(owner["project_root"])
     _safe_path(project_root, relative, label="record destination")
     return {
@@ -495,7 +495,7 @@ def _project_plan(
         "records_sha256": _records_sha(records),
         "records": rows,
     }
-    existing = Path(owner["project_root"]) / "docs/kb/records/evidence"
+    existing = Path(owner["project_root"]) / ".orchestra/kb/records/evidence"
     if existing.exists():
         present = {path.stem for path in existing.glob("*.json")}
         wanted = {str(row["stable_id"]) for row in rows}
@@ -535,7 +535,7 @@ def _project_plan(
         if not allow_materialized_target or unexpected:
             suffix = f": {', '.join(unexpected[:3])}" if unexpected else ""
             raise DistributionError(
-                f"destination docs/kb has non-materialized dirty paths: {git_root}{suffix}"
+                f"destination .orchestra/kb has non-materialized dirty paths: {git_root}{suffix}"
             )
     foreign_snapshot = _foreign_snapshot(
         git_root, [allowed_prefix], commands=commands
@@ -602,7 +602,7 @@ def _materialize_group(
             "target_status_sha256_before"
         ]:
             raise DistributionError(
-                f"concurrent destination docs/kb change after planning: {git_root}"
+                f"concurrent destination .orchestra/kb change after planning: {git_root}"
             )
         if _foreign_snapshot(
             git_root, allowed_prefixes, commands=commands
@@ -705,7 +705,7 @@ def _materialize_group(
                     not any(path.startswith(prefix) for prefix in allowed_prefixes)
                     for path in changed
                 ):
-                    raise DistributionError(f"staged path escapes docs/kb: {git_root}")
+                    raise DistributionError(f"staged path escapes .orchestra/kb: {git_root}")
                 _git(
                     git_root,
                     "-c",
@@ -763,7 +763,7 @@ def _materialize_group(
             _status_bytes(git_root, [prefix], commands=commands)
             for prefix in allowed_prefixes
         ):
-            raise DistributionError(f"destination docs/kb is dirty after commit: {git_root}")
+            raise DistributionError(f"destination .orchestra/kb is dirty after commit: {git_root}")
         if _foreign_snapshot(
             git_root, allowed_prefixes, commands=commands
         ) != plans[0]["foreign_snapshot_before"]:
@@ -1053,7 +1053,7 @@ def verify_project_knowledge_distribution(
             raise DistributionError(f"destination record parity failed: {destination}")
     for project in result["projects"]:
         manifest_path = (
-            Path(str(project["repository_root"])) / "docs/kb/manifest.json"
+            Path(str(project["repository_root"])) / ".orchestra/kb/manifest.json"
         )
         if not manifest_path.is_file():
             raise DistributionError(f"destination manifest is missing: {manifest_path}")

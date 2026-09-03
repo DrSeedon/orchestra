@@ -1,0 +1,242 @@
+815a6d0 Orchestra: migrate project state to .orchestra
+ .gitignore                                             |   3 +++
+ .orchestra/layout.json                                 |   1 +
+ {docs => .orchestra}/tasks/10/research-procgen.md      |   0
+ {docs => .orchestra}/tasks/10/research.md              |   0
+ .orchestra/tasks/11/comparison/01_opensimplex_fbm.png  | Bin 0 -> 153932 bytes
+ .../tasks/11/comparison/01_opensimplex_fbm.png.import  |   0
+ .../tasks/11/comparison/02_ridged_opensimplex.png      | Bin 0 -> 185556 bytes
+ .../11/comparison/02_ridged_opensimplex.png.import     |   0
+ .orchestra/tasks/11/comparison/03_diamond_square.png   | Bin 0 -> 229348 bytes
+ .../tasks/11/comparison/03_diamond_square.png.import   |   0
+ .../tasks/11/comparison/04_fbm_droplet_erosion.png     | Bin 0 -> 170739 bytes
+ .../11/comparison/04_fbm_droplet_erosion.png.import    |   0
+ .orchestra/tasks/11/comparison/05_ridged_flowcarve.png | Bin 0 -> 183493 bytes
+ .../tasks/11/comparison/05_ridged_flowcarve.png.import |   0
+ .orchestra/tasks/11/comparison/06_river_first.png      | Bin 0 -> 153205 bytes
+ .../tasks/11/comparison/06_river_first.png.import      |   0
+ .../tasks/11/comparison/07_warped_ridged_flow.png      | Bin 0 -> 178101 bytes
+ .../11/comparison/07_warped_ridged_flow.png.import     |   0
+ .../tasks/11/comparison/08_fbm_flowcarve_thermal.png   | Bin 0 -> 147756 bytes
+ .../11/comparison/08_fbm_flowcarve_thermal.png.import  |   0
+ .../tasks/11/comparison/09_ridged_droplet_flow.png     | Bin 0 -> 188491 bytes
+ .../11/comparison/09_ridged_droplet_flow.png.import    |   0
+ .../tasks/11/comparison/10_river_first_mountains.png   | Bin 0 -> 159765 bytes
+ .../11/comparison/10_river_first_mountains.png.import  |   0
+ .../tasks/11/comparison/11_warped_fbm_wide_river.png   | Bin 0 -> 131820 bytes
+ .../11/comparison/11_warped_fbm_wide_river.png.import  |   0
+ .../tasks/11/comparison/12_river_first_seed2.png       | Bin 0 -> 155244 bytes
+ .../11/comparison/12_river_first_seed2.png.import      |   0
+ {docs => .orchestra}/tasks/11/comparison/methods.md    |   0
+ {docs => .orchestra}/tasks/11/report-v2.md             |   0
+ {docs => .orchestra}/tasks/11/report.md                |   0
+ {docs => .orchestra}/tasks/12/reference/.gdignore      |   0
+ .../tasks/12/reference/erosion_original.glsl           |   0
+ .../tasks/12/reference/optolab_scene_full.glsl         |   0
+ {docs => .orchestra}/tasks/12/research.md              |   0
+ {docs => .orchestra}/tasks/13/research.md              |   0
+ {docs => .orchestra}/tasks/14/research.md              |   0
+ {docs => .orchestra}/tasks/15/performance_test.gd      |   0
+ {docs => .orchestra}/tasks/15/performance_test.gd.uid  |   0
+ {docs => .orchestra}/tasks/15/research.md              |   0
+ {docs => .orchestra}/tasks/15/runtime_test.gd          |   0
+ {docs => .orchestra}/tasks/15/runtime_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/16/capture_water.gd         |   0
+ {docs => .orchestra}/tasks/16/capture_water.gd.uid     |   0
+ {docs => .orchestra}/tasks/16/performance_test.gd      |   0
+ {docs => .orchestra}/tasks/16/performance_test.gd.uid  |   0
+ {docs => .orchestra}/tasks/16/report.md                |   0
+ {docs => .orchestra}/tasks/16/runtime_test.gd          |   0
+ {docs => .orchestra}/tasks/16/runtime_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/16/validate_outputs.py      |   0
+ {docs => .orchestra}/tasks/17/benchmark.gd             |   0
+ {docs => .orchestra}/tasks/17/benchmark.gd.uid         |   0
+ {docs => .orchestra}/tasks/17/capture.gd               |   0
+ {docs => .orchestra}/tasks/17/capture.gd.uid           |   0
+ {docs => .orchestra}/tasks/17/report.md                |   0
+ {docs => .orchestra}/tasks/17/research.md              |   0
+ {docs => .orchestra}/tasks/17/runtime_test.gd          |   0
+ {docs => .orchestra}/tasks/17/runtime_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/18/benchmark.gd             |   0
+ {docs => .orchestra}/tasks/18/benchmark.gd.uid         |   0
+ {docs => .orchestra}/tasks/18/capture.gd               |   0
+ {docs => .orchestra}/tasks/18/capture.gd.uid           |   0
+ .../tasks/18/prototype-forest-water.md                 |   0
+ {docs => .orchestra}/tasks/18/prototype-gate.md        |   0
+ {docs => .orchestra}/tasks/18/research.md              |   0
+ {docs => .orchestra}/tasks/18/runtime_test.gd          |   0
+ {docs => .orchestra}/tasks/18/runtime_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/19/benchmark.gd             |   0
+ {docs => .orchestra}/tasks/19/benchmark.gd.uid         |   0
+ {docs => .orchestra}/tasks/19/capture.gd               |   0
+ {docs => .orchestra}/tasks/19/capture.gd.uid           |   0
+ {docs => .orchestra}/tasks/19/hide_capture_window.js   |   0
+ {docs => .orchestra}/tasks/19/report.md                |   0
+ {docs => .orchestra}/tasks/19/research.md              |   0
+ {docs => .orchestra}/tasks/19/runtime_test.gd          |   0
+ {docs => .orchestra}/tasks/19/runtime_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/2/codex-review-impl.md      |   0
+ {docs => .orchestra}/tasks/2/codex-review-plan.md      |   0
+ {docs => .orchestra}/tasks/2/plan.md                   |   0
+ {docs => .orchestra}/tasks/2/report.md                 |   0
+ {docs => .orchestra}/tasks/2/research.md               |   0
+ {docs => .orchestra}/tasks/20/benchmark.gd             |   0
+ {docs => .orchestra}/tasks/20/benchmark.gd.uid         |   0
+ {docs => .orchestra}/tasks/20/capture.gd               |   0
+ {docs => .orchestra}/tasks/20/capture.gd.uid           |   0
+ {docs => .orchestra}/tasks/20/report.md                |   0
+ {docs => .orchestra}/tasks/20/runtime_test.gd          |   0
+ {docs => .orchestra}/tasks/20/runtime_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/21/report.md                |   0
+ {docs => .orchestra}/tasks/21/runtime_test.gd          |   0
+ {docs => .orchestra}/tasks/21/runtime_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/22/capture.gd               |   0
+ {docs => .orchestra}/tasks/22/capture.gd.uid           |   0
+ {docs => .orchestra}/tasks/22/measure_heights.gd       |   0
+ {docs => .orchestra}/tasks/22/measure_heights.gd.uid   |   0
+ {docs => .orchestra}/tasks/22/regions_test.gd          |   0
+ {docs => .orchestra}/tasks/22/regions_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/22/report.md                |   0
+ {docs => .orchestra}/tasks/22/runtime_test.gd          |   0
+ {docs => .orchestra}/tasks/22/runtime_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/23/capture.gd               |   0
+ {docs => .orchestra}/tasks/23/capture.gd.uid           |   0
+ {docs => .orchestra}/tasks/23/region_test.gd           |   0
+ {docs => .orchestra}/tasks/23/region_test.gd.uid       |   0
+ {docs => .orchestra}/tasks/23/report.md                |   0
+ {docs => .orchestra}/tasks/23/runtime_test.gd          |   0
+ {docs => .orchestra}/tasks/23/runtime_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/24/capture.gd               |   0
+ {docs => .orchestra}/tasks/24/capture.gd.uid           |   0
+ {docs => .orchestra}/tasks/24/carve_before_after.png   | Bin
+ .../tasks/24/carve_before_after.png.import             |   0
+ {docs => .orchestra}/tasks/24/carve_metric.py          |   0
+ {docs => .orchestra}/tasks/24/diagnose_flat.py         |   0
+ {docs => .orchestra}/tasks/24/log_alignment_test.gd    |   0
+ .../tasks/24/log_alignment_test.gd.uid                 |   0
+ {docs => .orchestra}/tasks/24/mesh_normals_test.gd     |   0
+ {docs => .orchestra}/tasks/24/mesh_normals_test.gd.uid |   0
+ {docs => .orchestra}/tasks/24/report.md                |   0
+ {docs => .orchestra}/tasks/24/straightness.py          |   0
+ {docs => .orchestra}/tasks/24/walk_slope_test.gd       |   0
+ {docs => .orchestra}/tasks/24/walk_slope_test.gd.uid   |   0
+ {docs => .orchestra}/tasks/25/BRIEF.md                 |   0
+ {docs => .orchestra}/tasks/26/carve_three_way.png      | Bin
+ .../tasks/26/carve_three_way.png.import                |   0
+ {docs => .orchestra}/tasks/26/report.md                |   0
+ {docs => .orchestra}/tasks/26/suite_after.json         |   0
+ {docs => .orchestra}/tasks/27/report.md                |   0
+ {docs => .orchestra}/tasks/28/lakes_before_after.png   | Bin
+ .../tasks/28/lakes_before_after.png.import             |   0
+ {docs => .orchestra}/tasks/28/report.md                |   0
+ {docs => .orchestra}/tasks/28/suite_after.txt          |   0
+ {docs => .orchestra}/tasks/28/suite_before.txt         |   0
+ {docs => .orchestra}/tasks/29/check_water_edges.py     |   0
+ {docs => .orchestra}/tasks/29/log_test.gd              |   0
+ {docs => .orchestra}/tasks/29/log_test.gd.uid          |   0
+ {docs => .orchestra}/tasks/29/logs_after.txt           |   0
+ {docs => .orchestra}/tasks/29/logs_mutation_prefix.txt |   0
+ {docs => .orchestra}/tasks/29/render_profiles.py       |   0
+ {docs => .orchestra}/tasks/29/report.md                |   0
+ {docs => .orchestra}/tasks/29/water_edges_after.txt    |   0
+ {docs => .orchestra}/tasks/29/water_edges_before.txt   |   0
+ .../tasks/29/water_profiles_demo_1.png                 | Bin
+ .../tasks/29/water_profiles_demo_4.png                 | Bin
+ .../tasks/29/water_profiles_krasnoyarsk_d.png          | Bin
+ {docs => .orchestra}/tasks/3/codex-review-impl.md      |   0
+ {docs => .orchestra}/tasks/3/codex-review-plan.md      |   0
+ {docs => .orchestra}/tasks/3/plan.md                   |   0
+ {docs => .orchestra}/tasks/3/report.md                 |   0
+ {docs => .orchestra}/tasks/3/research.md               |   0
+ {docs => .orchestra}/tasks/3/retro.md                  |   0
+ {docs => .orchestra}/tasks/30/mutations.md             |   0
+ {docs => .orchestra}/tasks/30/overlay_after.txt        |   0
+ {docs => .orchestra}/tasks/30/overlay_test.gd          |   0
+ {docs => .orchestra}/tasks/30/overlay_test.gd.uid      |   0
+ {docs => .orchestra}/tasks/30/props_after.txt          |   0
+ {docs => .orchestra}/tasks/30/props_test.gd            |   0
+ {docs => .orchestra}/tasks/30/props_test.gd.uid        |   0
+ {docs => .orchestra}/tasks/30/report.md                |   0
+ {docs => .orchestra}/tasks/31/channel_vs_lake.txt      |   0
+ {docs => .orchestra}/tasks/31/diag_channel_vs_lake.py  |   0
+ {docs => .orchestra}/tasks/31/diag_counterfactual.py   |   0
+ {docs => .orchestra}/tasks/31/diag_depth_vs_size.py    |   0
+ {docs => .orchestra}/tasks/31/diag_free_flowing.py     |   0
+ {docs => .orchestra}/tasks/31/diag_lake_metrics.py     |   0
+ {docs => .orchestra}/tasks/31/diag_lakes_fast.py       |   0
+ {docs => .orchestra}/tasks/31/diag_profile_effect.py   |   0
+ {docs => .orchestra}/tasks/31/diag_profile_target.py   |   0
+ {docs => .orchestra}/tasks/31/diag_slope_by_area.py    |   0
+ {docs => .orchestra}/tasks/31/diag_slopes.py           |   0
+ .../tasks/31/diag_stage2_before_after.py               |   0
+ {docs => .orchestra}/tasks/31/diag_strength_sweep.py   |   0
+ {docs => .orchestra}/tasks/31/diag_thalweg_tradeoff.py |   0
+ {docs => .orchestra}/tasks/31/diag_water_above.py      |   0
+ {docs => .orchestra}/tasks/31/free_flowing.txt         |   0
+ {docs => .orchestra}/tasks/31/lake_metrics_vs_real.txt |   0
+ {docs => .orchestra}/tasks/31/lakes_counterfactual.txt |   0
+ .../tasks/31/lakes_rejection_before.txt                |   0
+ {docs => .orchestra}/tasks/31/profile_target.txt       |   0
+ {docs => .orchestra}/tasks/31/research.md              |   0
+ {docs => .orchestra}/tasks/31/slope_by_area.txt        |   0
+ {docs => .orchestra}/tasks/31/slopes_before.txt        |   0
+ {docs => .orchestra}/tasks/31/stage2_check.txt         |   0
+ {docs => .orchestra}/tasks/31/stage2_mutation.txt      |   0
+ .../tasks/31/stage2_p90_before_after.txt               |   0
+ .../tasks/31/stage2_strength_sweep.txt                 |   0
+ .../tasks/31/stage2_thalweg_tradeoff.txt               |   0
+ .../tasks/31/suite_demo1_mutation_fail.txt             |   0
+ {docs => .orchestra}/tasks/31/suite_demo1_stage1.txt   |   0
+ .../tasks/31/suite_demo1_stage1_ok.txt                 |   0
+ {docs => .orchestra}/tasks/31/suite_stage1_all6.txt    |   0
+ {docs => .orchestra}/tasks/31/suite_stage2_all6.txt    |   0
+ .../tasks/31/suite_stage2_mutation.txt                 |   0
+ {docs => .orchestra}/tasks/31/water_above_before.txt   |   0
+ {docs => .orchestra}/tasks/32/lod_lean_after.txt       |   0
+ {docs => .orchestra}/tasks/32/lod_lean_before.txt      |   0
+ {docs => .orchestra}/tasks/32/lod_lean_test.py         |   0
+ {docs => .orchestra}/tasks/32/mutations.md             |   0
+ {docs => .orchestra}/tasks/32/overlay_after.txt        |   0
+ {docs => .orchestra}/tasks/32/props_after.txt          |   0
+ {docs => .orchestra}/tasks/32/report.md                |   0
+ {docs => .orchestra}/tasks/32/spawn_density.txt        |   0
+ {docs => .orchestra}/tasks/32/spawn_density_test.gd    |   0
+ .../tasks/4/codex-review-impl-possess.md               |   0
+ {docs => .orchestra}/tasks/4/codex-review-impl.md      |   0
+ {docs => .orchestra}/tasks/4/codex-review-plan.md      |   0
+ .../tasks/4/codex-review-possess-bug.md                |   0
+ {docs => .orchestra}/tasks/4/plan.md                   |   0
+ {docs => .orchestra}/tasks/4/report-possess-bug.md     |   0
+ {docs => .orchestra}/tasks/4/report.md                 |   0
+ {docs => .orchestra}/tasks/4/research.md               |   0
+ {docs => .orchestra}/tasks/4/retro.md                  |   0
+ {docs => .orchestra}/tasks/4/test/boot.tscn            |   0
+ {docs => .orchestra}/tasks/4/test/driver.gd            |   0
+ {docs => .orchestra}/tasks/4/test/driver.gd.uid        |   0
+ {docs => .orchestra}/tasks/4/test/raytest.gd           |   0
+ {docs => .orchestra}/tasks/4/test/raytest.gd.uid       |   0
+ {docs => .orchestra}/tasks/4/test/run.sh               |   0
+ {docs => .orchestra}/tasks/4/test/run_raytest.sh       |   0
+ {docs => .orchestra}/tasks/5/codex-review-impl.md      |   0
+ {docs => .orchestra}/tasks/5/codex-review-plan.md      |   0
+ {docs => .orchestra}/tasks/5/codex-review-research.md  |   0
+ {docs => .orchestra}/tasks/5/plan.md                   |   0
+ {docs => .orchestra}/tasks/5/report.md                 |   0
+ {docs => .orchestra}/tasks/5/research.md               |   0
+ {docs => .orchestra}/tasks/5/retro.md                  |   0
+ {docs => .orchestra}/tasks/6/codex-review-research.md  |   0
+ {docs => .orchestra}/tasks/6/research.md               |   0
+ {docs => .orchestra}/tasks/7/codex-review-impl.md      |   0
+ {docs => .orchestra}/tasks/7/plan.md                   |   0
+ {docs => .orchestra}/tasks/7/report.md                 |   0
+ {docs => .orchestra}/tasks/8/codex-review-research.md  |   0
+ {docs => .orchestra}/tasks/8/research.md               |   0
+ {docs => .orchestra}/tasks/9/codex-review-impl.md      |   0
+ {docs => .orchestra}/tasks/9/plan.md                   |   0
+ {docs => .orchestra}/tasks/9/report.md                 |   0
+ {docs => .orchestra}/tasks/9/retro.md                  |   0
+ {docs => .orchestra}/workers/architect-v2.md           |   0
+ {docs => .orchestra}/workers/netcode-auditor.md        |   0
+ {docs => .orchestra}/workers/props-dev.md              |   0
+ {docs => .orchestra}/workers/terrain-dev.md            |   0
+ 240 files changed, 4 insertions(+)

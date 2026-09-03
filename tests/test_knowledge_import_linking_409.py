@@ -27,14 +27,14 @@ def _setup(tmp_path: Path):
     other_task = store.task_get("316", project="orchestra")["stable_id"]
 
     source_root = tmp_path / "source"
-    source_path = source_root / "docs/kb/repo-ops.md"
+    source_path = source_root / ".orchestra/kb/repo-ops.md"
     source_path.parent.mkdir(parents=True)
     source_path.write_text("Evidence imported for #409.\n", encoding="utf-8")
     evidence_uri = (
         f"orch://project/orchestra/tasks/{owner_task}/evidence/{EVIDENCE_ID}"
     )
     source = {
-        "path": "docs/kb/repo-ops.md",
+        "path": ".orchestra/kb/repo-ops.md",
         "class": "immutable-evidence",
         "project_id": "orchestra",
         "stable_id": EVIDENCE_ID,
@@ -76,7 +76,7 @@ def _promotion(task_id: str, evidence_uri: str) -> dict:
             "provenance": [{
                 "task_id": task_id,
                 "evidence_uri": evidence_uri,
-                "path": "docs/kb/repo-ops.md",
+                "path": ".orchestra/kb/repo-ops.md",
                 "anchor": "1-1",
                 "git_commit": "1" * 40,
                 "measurement": "Evidence imported for #409.",

@@ -274,7 +274,7 @@ async def test_cross_runtime_packet_to_claude_recalls_tool_result_uuid(
         pytest.skip("claude binary is not installed")
 
     # Живая проба провайдера, а не регрессия нашего кода: она и есть релизный гейт, который
-    # переводит claude.validated_handoff в True (docs/tasks/290/canary.md). Пока флаг False,
+    # переводит claude.validated_handoff в True (.orchestra/tasks/290/canary.md). Пока флаг False,
     # приём кросс-рантаймного handoff'а fail-closed ПО ЗАМЫСЛУ, и проба недостижима по
     # политике, а не сломана. Скип привязан ровно к предикату, который делает её осмысленной:
     # объявили способность включённой — тело исполняется и краснеет на живом несоответствии.
@@ -285,7 +285,7 @@ async def test_cross_runtime_packet_to_claude_recalls_tool_result_uuid(
             "cross-runtime handoff to claude is fail-closed by policy: "
             "runtime_registry claude.validated_handoff=False. This canary IS the gate that "
             "flips it — run it explicitly before enabling the release, do not merge-gate on it "
-            "(docs/tasks/290/canary.md)"
+            "(.orchestra/tasks/290/canary.md)"
         )
 
     from app import db as dbmod

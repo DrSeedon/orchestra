@@ -2506,7 +2506,7 @@ def cleanup_stale_worktrees() -> list[str]:
     Two safety catches, both required. This function deletes other agents' work, and it
     reads the roster from whatever database the process happens to point at — on 2026-08-03
     a pytest run in the main checkout combined an empty temporary DB with the real
-    WORKTREE_ROOT and wiped every clean worktree of every project (docs/tasks/62).
+    WORKTREE_ROOT and wiped every clean worktree of every project (.orchestra/tasks/62).
 
     1. An EMPTY roster means the roster is wrong, not that every working copy is dead.
     2. A directory named after a live session is never deleted, even when the recorded path

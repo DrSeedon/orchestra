@@ -10,9 +10,9 @@ import pytest
     ("raw_error", "expected_message"),
     [
         pytest.param(
-            "target working tree is dirty (1 file(s): docs/tasks/49/) "
+            "target working tree is dirty (1 file(s): .orchestra/tasks/49/) "
             "— commit or discard first",
-            "target working tree is dirty (1 file(s): docs/tasks/49/) "
+            "target working tree is dirty (1 file(s): .orchestra/tasks/49/) "
             "— commit or discard first",
             id="existing-raw-error",
         ),
@@ -67,10 +67,10 @@ def _make_repo(tmp_path: Path) -> Path:
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test")
     (repo / "README.md").write_text("base\n")
-    tracked_tasks = repo / "docs" / "tasks" / "README.md"
+    tracked_tasks = repo / ".orchestra" / "tasks" / "README.md"
     tracked_tasks.parent.mkdir(parents=True)
     tracked_tasks.write_text("tracked tasks root\n")
-    _git(repo, "add", "README.md", "docs/tasks/README.md")
+    _git(repo, "add", "README.md", ".orchestra/tasks/README.md")
     _git(repo, "commit", "-m", "initial")
     _git(repo, "branch", "-M", "main")
     return repo
@@ -94,7 +94,7 @@ def test_t2_dirty_target_path_files_and_action_reach_merge_caller(
     (worker_path / "worker.txt").write_text("worker payload\n")
     _git(worker_path, "add", "worker.txt")
     _git(worker_path, "commit", "-m", "#416: worker payload")
-    dirty_file = repo / "docs" / "tasks" / "49" / "research.md"
+    dirty_file = repo / ".orchestra" / "tasks" / "49" / "research.md"
     dirty_file.parent.mkdir(parents=True)
     dirty_file.write_text("untracked target WIP\n")
     target_before = _git(repo, "rev-parse", "main").stdout.strip()
@@ -105,7 +105,7 @@ def test_t2_dirty_target_path_files_and_action_reach_merge_caller(
 
     # The first assertion isolates the workspace message from normalization.
     assert str(repo.resolve()) in raw["error"]
-    assert "docs/tasks/49/" in raw["error"]
+    assert ".orchestra/tasks/49/" in raw["error"]
     normalized = operations.normalize_merge_result(
         "t2-operation",
         raw,
@@ -124,7 +124,7 @@ def test_t2_dirty_target_path_files_and_action_reach_merge_caller(
     assert normalized["next_action"]["code"] == "CLEAN_TARGET_THEN_NEW_OPERATION"
     assert delivered.isError is True
     assert str(repo.resolve()) in text
-    assert "docs/tasks/49/" in text
+    assert ".orchestra/tasks/49/" in text
     assert "Clean the target worktree, then start a new merge operation." in text
     assert "verify the worker branch" not in text
     assert "merge produced no new commits" not in text

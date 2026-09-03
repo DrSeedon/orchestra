@@ -201,7 +201,7 @@ class ProjectKnowledgeRouter:
         return stable_id
 
     def _record_paths(self, project_id: str, stable_id: str) -> list[Path]:
-        root = self.project_roots[project_id] / "docs/kb/records"
+        root = self.project_roots[project_id] / ".orchestra/kb/records"
         return sorted(path for path in root.glob(f"*/{stable_id}.json") if path.is_file())
 
     def _checked_record(self, project_id: str, path: Path) -> dict[str, Any]:
@@ -242,7 +242,7 @@ class ProjectKnowledgeRouter:
             else "evidence"
         )
         root = self.project_roots[project_id]
-        relative = Path("docs/kb/records") / namespace / f"{record['stable_id']}.json"
+        relative = Path(".orchestra/kb/records") / namespace / f"{record['stable_id']}.json"
         current = root
         for part in relative.parts[:-1]:
             current /= part
@@ -302,7 +302,7 @@ class ProjectKnowledgeRouter:
         words = re.findall(r"\w+", str(text or "").casefold(), flags=re.UNICODE)
         root = self.project_roots[project_id]
         matches: list[dict[str, Any]] = []
-        for path in sorted((root / "docs/kb/records").glob("*/*.json")):
+        for path in sorted((root / ".orchestra/kb/records").glob("*/*.json")):
             record = self._checked_record(project_id, path)
             source_path = str(record.get("source_path") or "")
             source = root / source_path

@@ -13,9 +13,9 @@
 
 ## Проба MCP-механизма — дешёвый универсальный приём
 Мини stdio-MCP на 30 строк, который при старте дампит свой env в файл
-(`docs/tasks/224/probe/probe_mcp.py`), отвечает разом на два вопроса: «CLI принял такую форму
+(`.orchestra/tasks/224/probe/probe_mcp.py`), отвечает разом на два вопроса: «CLI принял такую форму
 конфига?» и «что доехало до ребёнка?». Драйвер `app-server` без модели —
-`docs/tasks/224/probe/drive_appserver.py` (`initialize` → `initialized` → `thread/start`,
+`.orchestra/tasks/224/probe/drive_appserver.py` (`initialize` → `initialized` → `thread/start`,
 0 токенов). Переиспользовать, а не писать заново.
 
 Замерено попутно: MCP-ребёнок **Claude наследует** env процесса CLI, **Codex — нет**.

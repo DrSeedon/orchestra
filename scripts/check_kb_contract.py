@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate only new or changed structured facts in project-local docs/kb."""
+"""Validate only new or changed structured facts in project-local .orchestra/kb."""
 
 from __future__ import annotations
 
@@ -103,9 +103,9 @@ def resolve_changed_path(root: Path, relative: str) -> Path:
         raise ValueError("changed path is absolute")
     if ".." in candidate.parts:
         raise ValueError("changed path contains '..' traversal")
-    if candidate.parts[:1] == ("docs",):
-        if candidate.parts[:2] != ("docs", "kb"):
-            raise ValueError("changed path is outside docs/kb")
+    if candidate.parts[:1] == (".orchestra",):
+        if candidate.parts[:2] != (".orchestra", "kb"):
+            raise ValueError("changed path is outside .orchestra/kb")
         candidate = Path(*candidate.parts[2:])
     resolved_root = root.resolve()
     resolved = (resolved_root / candidate).resolve()
@@ -137,8 +137,8 @@ def _fact_key(line: str) -> str | None:
 
 def _repo_root(root: Path) -> Path:
     resolved = root.resolve()
-    if resolved.name != "kb" or resolved.parent.name != "docs":
-        raise ValueError("KB root must be the project-local docs/kb directory")
+    if resolved.name != "kb" or resolved.parent.name != ".orchestra":
+        raise ValueError("KB root must be the project-local .orchestra/kb directory")
     return resolved.parent.parent
 
 
@@ -146,7 +146,7 @@ def validate_link(root: Path, source: Path, line_number: int, line: str, key: st
     prefix = f"{source}:{line_number}"
     errors: list[str] = []
     if "candidate-link" in line:
-        errors.append(f"{prefix}: candidate-link belongs in docs/tasks, not canonical KB")
+        errors.append(f"{prefix}: candidate-link belongs in .orchestra/tasks, not canonical KB")
 
     has_link = " · связи:" in line
     has_approval = " · approved:" in line
@@ -197,12 +197,12 @@ def validate_link(root: Path, source: Path, line_number: int, line: str, key: st
         receipt_part.is_absolute()
         or ".." in receipt_part.parts
         or len(receipt_parts) != 4
-        or receipt_parts[:2] != ("docs", "tasks")
+        or receipt_parts[:2] != (".orchestra", "tasks")
         or re.fullmatch(r"[1-9][0-9]*", receipt_parts[2]) is None
         or receipt_parts[3] != "plan.md"
     ):
         errors.append(
-            f"{prefix}: approval receipt must be a docs/tasks/<numeric-id>/plan.md anchor"
+            f"{prefix}: approval receipt must be a .orchestra/tasks/<numeric-id>/plan.md anchor"
         )
         return errors
     try:
@@ -211,11 +211,11 @@ def validate_link(root: Path, source: Path, line_number: int, line: str, key: st
         errors.append(f"{prefix}: {exc}")
         return errors
     receipt = (repo_root / receipt_part).resolve()
-    tasks_root = (repo_root / "docs/tasks").resolve()
+    tasks_root = (repo_root / ".orchestra/tasks").resolve()
     try:
         receipt.relative_to(tasks_root)
     except ValueError:
-        errors.append(f"{prefix}: approval receipt resolves outside docs/tasks")
+        errors.append(f"{prefix}: approval receipt resolves outside .orchestra/tasks")
         return errors
     if not receipt.is_file():
         errors.append(f"{prefix}: approval receipt does not exist: {raw_receipt}")
@@ -340,7 +340,7 @@ def validate(root: Path, diff_path: Path) -> list[str]:
             continue
         if "candidate-link" in added.text and not added.text.startswith(FACT_PREFIX):
             errors.append(
-                f"{path}:{added.line_number}: candidate-link belongs in docs/tasks, not canonical KB"
+                f"{path}:{added.line_number}: candidate-link belongs in .orchestra/tasks, not canonical KB"
             )
         if added.text.startswith(FACT_PREFIX):
             errors.extend(

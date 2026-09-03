@@ -2,7 +2,7 @@
 
 ## `light-dark()` в скилле html-artifacts описан НАОБОРОТ
 
-Скилл (`.claude/skills/html-artifacts/SKILL.md`, `pipelines/default/prompts/skills/html-artifacts.md`)
+Скилл (`.claude/skills/html-artifacts/SKILL.md`, `.orchestra/pipelines/default/prompts/skills/html-artifacts.md`)
 пишет `light-dark(тёмное, светлое)`. По спецификации CSS порядок обратный:
 **`light-dark(<значение для СВЕТЛОЙ темы>, <значение для ТЁМНОЙ>)`**.
 

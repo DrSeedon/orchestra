@@ -14,7 +14,7 @@
   `sessions.py` вместе с хардкодом `"done"`.
 - Снял `_did_report` внутри открытого веера → гвард ПОСЛЕ веерной ветки обязателен,
   иначе тул+idle даёт второй on_idle. Счётчик пробуждений, не «веер закрылся».
-  Отвергнутые варианты 2/3 #276 — в `docs/tasks/276/rejected-variants.md`, не писать
+  Отвергнутые варианты 2/3 #276 — в `.orchestra/tasks/276/rejected-variants.md`, не писать
   «жду ответа» заново.
 - Приёмку тикета гоняет `merge_operations` до `execute_merge_session`, команду берёт из
   `tm_tasks.acceptance_command`, не из текста DONE и не из `description`. inconclusive ≠ failed.

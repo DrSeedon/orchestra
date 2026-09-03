@@ -1,0 +1,16 @@
+{
+  "dirty_files_expanded": 180,
+  "final_outcome": "current",
+  "head": "29c07b947bbbfe0d16a9801a7ca095d918b21752",
+  "initial_outcome": "migrated",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "tradingcryptobot",
+  "repository": "/mnt/data/Projects/Python/TradingCryptoBot",
+  "status_preserved_after_path_mapping": true
+}

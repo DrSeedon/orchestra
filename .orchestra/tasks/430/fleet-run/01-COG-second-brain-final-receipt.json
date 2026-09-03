@@ -1,0 +1,18 @@
+{
+  "dirty_files_expanded": 0,
+  "final_outcome": "current",
+  "head": "b93098583471a37a781a487552be5896c2f72981",
+  "initial_outcome": "migrated",
+  "layout_state": "current",
+  "managed_paths": [
+    "kb",
+    "tasks",
+    "workers"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "COG-second-brain",
+  "repository": "/mnt/data/Рабочий стол/Cursor/COG-second-brain",
+  "status_preserved_after_path_mapping": true
+}

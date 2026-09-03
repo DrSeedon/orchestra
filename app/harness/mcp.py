@@ -4,7 +4,7 @@ Pure asyncio JSON-RPC 2.0 over stdio. NO `mcp` SDK, NO anyio — on purpose: the
 `stdio_client` is an anyio task group, and holding it across connect()/disconnect() that
 run in DIFFERENT asyncio tasks raises "Attempted to exit cancel scope in a different task",
 which during cancellation escapes and kills the uvicorn event loop (clean exit 0). See
-docs/tasks/106/research.md. Without anyio there are no cancel scopes: cross-task close is a
+.orchestra/tasks/106/research.md. Without anyio there are no cancel scopes: cross-task close is a
 non-event, and a dead subprocess just fails in-flight requests → tool-error strings.
 
 MCP stdio transport = newline-delimited JSON-RPC 2.0 on stdin/stdout; server logs on stderr

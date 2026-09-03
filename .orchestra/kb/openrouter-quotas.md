@@ -6,11 +6,11 @@
   только exact `:free`, text output и tools; на 24.08 это 14 прямых маршрутов. Unsuffixed
   Ox, обе Lyria, content-safety и случайный `openrouter/free` исключены · live Models API
   + страницы Lyria + production guard `app/model_catalog.py`/`app/harness/llm.py` · 24.08.2026
-- На 23.08 аккаунт точно в тире 1000/сутки: `/credits` вернул `total_credits=97` при пороге 10; текущий source docs задаёт 20/мин и 1000/сутки · `docs/tasks/236/evidence/matrix/account-sanitized.json` + `openrouter-limits-source-2026-08-23.txt` · 23.08.2026, #236
-- Бесплатная платформенная квота глобальна для ключей аккаунта, а помодельная/provider capacity действует ДОПОЛНИТЕЛЬНО: GLM дал 22 upstream-429 из 24 попыток, Ultra 0/21, Super 0/37 · OpenRouter limits source lines 224–226 + `docs/tasks/236/evidence/matrix/summary.json` · 23.08.2026, #236
-- Живой text-каталог содержал 422 модели, 20 точных бесплатных маршрутов и 19 из них с `tools`; `inclusionai/ling-3.0-flash:free` в каталоге отсутствовал и exact lookup дал 404 · `docs/tasks/236/evidence/free-model-metadata-2026-08-23.json` + 6 guard failures · 23.08.2026, #236
+- На 23.08 аккаунт точно в тире 1000/сутки: `/credits` вернул `total_credits=97` при пороге 10; текущий source docs задаёт 20/мин и 1000/сутки · `.orchestra/tasks/236/evidence/matrix/account-sanitized.json` + `openrouter-limits-source-2026-08-23.txt` · 23.08.2026, #236
+- Бесплатная платформенная квота глобальна для ключей аккаунта, а помодельная/provider capacity действует ДОПОЛНИТЕЛЬНО: GLM дал 22 upstream-429 из 24 попыток, Ultra 0/21, Super 0/37 · OpenRouter limits source lines 224–226 + `.orchestra/tasks/236/evidence/matrix/summary.json` · 23.08.2026, #236
+- Живой text-каталог содержал 422 модели, 20 точных бесплатных маршрутов и 19 из них с `tools`; `inclusionai/ling-3.0-flash:free` в каталоге отсутствовал и exact lookup дал 404 · `.orchestra/tasks/236/evidence/free-model-metadata-2026-08-23.json` + 6 guard failures · 23.08.2026, #236
 - `1000-local_count` — только ВЕРХНЯЯ граница остатка, не безопасное точное число: frozen-стенд #236 потратил 88 запросов через изолированную БД, которых production local counter не видел; сегодняшний provider request count API не отдаёт · `guard.json` 88 rows vs isolated counter + #368 F9 · 23.08.2026, #236
-- Frozen-сравнение на двух повторах: Ultra закрыл 3/6 полезных задач при 7.0 запроса/закрытие и 0/21 429; Super 3/6 при 12.333 и 0/37; GLM 0/6 при 22/24 upstream-429; Ox 0/6 с шестью пустыми ответами · `docs/tasks/236/evidence/matrix/*.json` · 23.08.2026, #236
+- Frozen-сравнение на двух повторах: Ultra закрыл 3/6 полезных задач при 7.0 запроса/закрытие и 0/21 429; Super 3/6 при 12.333 и 0/37; GLM 0/6 при 22/24 upstream-429; Ox 0/6 с шестью пустыми ответами · `.orchestra/tasks/236/evidence/matrix/*.json` · 23.08.2026, #236
 - Бесплатные модели `:free`: 20 зап/мин всегда; в сутки 50 (<$10 lifetime) или 1000 (≥$10). Наш аккаунт в тире 1000 ($77 куплено, `is_free_tier:false`) · https://openrouter.ai/docs/api_reference/limits.md + GET /api/v1/key 22.08 #368
 - Успешные ответы OpenRouter НЕ содержат X-RateLimit-* · доки дословно + пробы 200-ответов 22.08 #368
 - GET /api/v1/key не даёт числа запросов: только деньги (usage_daily=0 у бесплатных), `rate_limit` в ответе deprecated («safe to ignore») · живой вызов 22.08 #368
@@ -38,5 +38,5 @@
 - Считает ли провайдер отклонённые 429/5xx в суточный лимит — неизвестно; первая сверка локального счёта с /activity за 22.08 даст эмпирическую границу · #368
 
 ## Источники
-- docs/tasks/368/research.md — полный разбор обоих путей (локальный счёт vs management key) с живыми пробами
-- docs/tasks/236/research.md — текущий каталог, account-tier, frozen free-only matrix и границы безопасного routing/remaining
+- .orchestra/tasks/368/research.md — полный разбор обоих путей (локальный счёт vs management key) с живыми пробами
+- .orchestra/tasks/236/research.md — текущий каталог, account-tier, frozen free-only matrix и границы безопасного routing/remaining

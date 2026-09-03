@@ -1,0 +1,29 @@
+{
+  "after_dirty_files": 0,
+  "after_head": "498c0d1497d7a1d1d274df9030d53a65afb257e8",
+  "before_dirty_files": 0,
+  "before_head": "c70e8a14cd52283367a134994d81794eafaad9f6",
+  "layout_state": "current",
+  "managed_paths": [
+    "archive",
+    "kb",
+    "tasks",
+    "workers"
+  ],
+  "outcome": "migrated",
+  "project_id": "orchestra",
+  "repository": "/mnt/data/Projects/Python/orchestra",
+  "result": {
+    "commit": "498c0d1497d7a1d1d274df9030d53a65afb257e8",
+    "managed_paths": [
+      "archive",
+      "kb",
+      "tasks",
+      "workers"
+    ],
+    "repair_command": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair /mnt/data/Projects/Python/orchestra",
+    "repository": "/mnt/data/Projects/Python/orchestra",
+    "status": "migrated"
+  },
+  "status_equivalent_after_path_mapping": true
+}

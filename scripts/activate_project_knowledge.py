@@ -107,7 +107,7 @@ def _records_digest(root: Path, manifest: dict[str, Any]) -> str:
         except ValueError as exc:
             raise KnowledgeOwnerError(f"project manifest stable_id is invalid: {root}") from exc
         relative = str(row.get("destination_relative_path") or "")
-        expected_relative = f"docs/kb/records/evidence/{stable_id}.json"
+        expected_relative = f".orchestra/kb/records/evidence/{stable_id}.json"
         if relative != expected_relative:
             raise KnowledgeOwnerError(f"project record path identity mismatch: {relative}")
         path = root / relative
@@ -137,7 +137,7 @@ def _records_digest(root: Path, manifest: dict[str, Any]) -> str:
         digest.update(b"\0")
     actual_paths = {
         path.resolve()
-        for path in (root / "docs/kb/records/evidence").glob("*.json")
+        for path in (root / ".orchestra/kb/records/evidence").glob("*.json")
         if path.is_file()
     }
     if actual_paths != expected_paths:
@@ -147,7 +147,7 @@ def _records_digest(root: Path, manifest: dict[str, Any]) -> str:
 
 def _verify_project(root: Path, project: dict[str, Any]) -> int:
     project_id = str(project.get("project_id") or "")
-    local_manifest = _object(root / "docs/kb/manifest.json")
+    local_manifest = _object(root / ".orchestra/kb/manifest.json")
     if (
         local_manifest.get("project_id") != project_id
         or local_manifest.get("record_count") != project.get("record_count")

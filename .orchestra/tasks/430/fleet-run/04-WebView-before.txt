@@ -1,0 +1,2 @@
+?? docs/kb/
+?? kiosk.log

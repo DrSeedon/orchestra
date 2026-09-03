@@ -25,4 +25,4 @@
 - [anthropics/claude-code#54394](https://github.com/anthropics/claude-code/issues/54394) — механизм, репродукция, предложенные лечения (rlimit на матчер, замена движка на RE2/Rust regex)
 - [anthropics/claude-code#59517](https://github.com/anthropics/claude-code/issues/59517) — тот же wrapper, безусловный `-G`
 - [Genivia/ugrep wiki](https://github.com/Genivia/ugrep/wiki) — позиция авторов ugrep про DFA и память
-- Наши замеры: `docs/tasks/350/`, лог автоубийств `orchestra-backups/ugrep-autokill.log`
+- Наши замеры: `.orchestra/tasks/350/`, лог автоубийств `orchestra-backups/ugrep-autokill.log`

@@ -711,7 +711,7 @@ class TestRunExecOutcome:
 
         await mgr._run_exec(
             "run-blind", "true",
-            "Codex review → docs/tasks/174/codex-review-plan.md",
+            "Codex review → .orchestra/tasks/174/codex-review-plan.md",
             "w1", "/s", 10,
             success_file=str(artifact),
         )
@@ -762,7 +762,7 @@ class TestRunExecOutcome:
         bg_save_job(self._job("run-bwrap", datetime.now(timezone.utc)))
 
         await mgr._run_exec(
-            "run-bwrap", "true", "Codex review → docs/tasks/179/codex-review-impl.md",
+            "run-bwrap", "true", "Codex review → .orchestra/tasks/179/codex-review-impl.md",
             "w1", "/s", 10,
             success_file=str(artifact),
         )

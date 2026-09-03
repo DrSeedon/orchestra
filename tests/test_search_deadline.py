@@ -154,7 +154,7 @@ def test_empty_result_says_when_index_state_unknown(mcp, monkeypatch):
 
 def test_successful_search_keeps_old_format(mcp, monkeypatch):
     out = _call(mcp, monkeypatch, returns={
-        "results": [{"source": "file", "path": "docs/tasks/3/research.md", "content": "текст"}],
+        "results": [{"source": "file", "path": ".orchestra/tasks/3/research.md", "content": "текст"}],
         "index": {"pending_files": 0}})
-    assert out.startswith("[file: docs/tasks/3/research.md]")
+    assert out.startswith("[file: .orchestra/tasks/3/research.md]")
     assert "rg " not in out, "в успешный ответ подсказку про grep пихать не надо"

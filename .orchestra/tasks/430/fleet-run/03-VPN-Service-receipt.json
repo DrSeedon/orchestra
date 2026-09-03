@@ -1,0 +1,32 @@
+{
+  "after_dirty_files": 1,
+  "after_head": "e8b3df6d72d79ad6535c998b47cc32303dee7971",
+  "before_dirty_files": 1,
+  "before_head": "85182e59192d4105f43130011927d5e314759f64",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks",
+    "workers"
+  ],
+  "outcome": "migrated",
+  "project_id": "VPN-Service",
+  "repository": "/mnt/data/Projects/Python/VPN-Service",
+  "result": {
+    "commit": "e8b3df6d72d79ad6535c998b47cc32303dee7971",
+    "dirty_preserved": true,
+    "dirty_status_after": [
+      "?? .orchestra/kb/"
+    ],
+    "dirty_status_before": [
+      "?? docs/kb/"
+    ],
+    "managed_paths": [
+      "tasks",
+      "workers"
+    ],
+    "repair_command": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair /mnt/data/Projects/Python/VPN-Service",
+    "repository": "/mnt/data/Projects/Python/VPN-Service",
+    "status": "migrated"
+  },
+  "status_equivalent_after_path_mapping": true
+}

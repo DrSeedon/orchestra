@@ -1,0 +1,95 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.11, pytest-9.0.3, pluggy-1.6.0 -- /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra
+configfile: pyproject.toml
+plugins: asyncio-1.4.0, timeout-2.4.0, anyio-4.13.0, base-url-2.1.0, playwright-0.8.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 30 items / 3 deselected / 27 selected
+
+tests/test_model_catalog_frontend.py::test_t5_catalog_screen_shipped PASSED [  3%]
+tests/test_model_catalog_frontend.py::test_t5_catalog_screen_has_search_filters_and_toggles PASSED [  7%]
+tests/test_model_catalog_frontend.py::test_t5_picker_reads_filtered_models_not_catalog PASSED [ 11%]
+tests/test_model_catalog_frontend.py::test_catalog_free_filter_and_admission_work_with_new_and_old_api_payloads PASSED [ 14%]
+tests/test_native_history_import.py::test_long_fixture_matches_measured_shape_and_both_renderers PASSED [ 18%]
+tests/test_native_history_import.py::test_canary_collector_stops_at_persistent_claude_turn_end PASSED [ 22%]
+tests/test_openrouter_retry.py::test_t5_delays_grow_within_run_and_differ_between_runs PASSED [ 25%]
+tests/test_openrouter_retry.py::test_t5_retry_after_honored_verbatim PASSED [ 29%]
+tests/test_openrouter_retry.py::test_t5_platform_429_waits_out_longer_retry_after PASSED [ 33%]
+tests/test_openrouter_retry.py::test_t5_upstream_retry_after_over_ceiling_raises_clear_error PASSED [ 37%]
+tests/test_openrouter_retry.py::test_t5_counter_counts_every_retry PASSED [ 40%]
+tests/test_openrouter_retry.py::test_t5_does_not_sleep_after_the_last_failed_attempt PASSED [ 44%]
+tests/test_orchestra_layout_430.py::test_t1_forced_project_migration_is_committed_and_idempotent PASSED [ 48%]
+tests/test_orchestra_layout_430.py::test_t1_partial_missing_and_dirty_states_are_loud_and_repairable PASSED [ 51%]
+tests/test_orchestra_layout_430.py::test_t1_dirty_check_occurs_inside_repository_mutation_lock PASSED [ 55%]
+tests/test_orchestra_layout_430.py::test_t4_startup_runs_migration_before_knowledge_runtime FAILED [ 59%]
+tests/test_orchestra_layout_430.py::test_t3_pipeline_and_worker_memory_use_only_dot_orchestra PASSED [ 62%]
+tests/test_orchestra_layout_430.py::test_t3_task_guard_knowledge_owner_and_evidence_validator_use_new_root PASSED [ 66%]
+tests/test_orchestra_layout_430.py::test_t3_repository_move_has_content_receipt_and_no_old_roots PASSED [ 70%]
+tests/test_orchestra_layout_430.py::test_t4_all_assembled_prompts_use_new_root_and_explain_repair FAILED [ 74%]
+tests/test_orchestra_layout_430.py::test_t2_dead_docker_and_stale_frontend_links_are_gone PASSED [ 77%]
+tests/test_orchestra_layout_430.py::test_t3_docs_contains_only_external_reader_artifacts PASSED [ 81%]
+tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves FAILED [ 85%]
+tests/test_orchestra_layout_fleet_430.py::test_vps_startup_wrapper_reads_every_registered_canonical_scope PASSED [ 88%]
+tests/test_orchestra_layout_fleet_430.py::test_fleet_failure_does_not_stop_later_project PASSED [ 92%]
+tests/test_orchestra_layout_recovery_430.py::test_t4_journal_survives_kill_before_commit_and_repair_finishes PASSED [ 96%]
+tests/test_orchestra_layout_recovery_430.py::test_t4_repair_recovers_staged_current_layout_without_journal PASSED [100%]
+
+=================================== FAILURES ===================================
+___________ test_t4_startup_runs_migration_before_knowledge_runtime ____________
+
+    def test_t4_startup_runs_migration_before_knowledge_runtime():
+        tree = ast.parse((ROOT / "app" / "main.py").read_text(encoding="utf-8"))
+        lifespan = next(
+            node for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "lifespan"
+        )
+        calls = []
+        for node in ast.walk(lifespan):
+            if not isinstance(node, ast.Call):
+                continue
+            if isinstance(node.func, ast.Name):
+                calls.append((node.func.id, node.lineno))
+            elif isinstance(node.func, ast.Attribute):
+                calls.append((node.func.attr, node.lineno))
+        migration_lines = [line for name, line in calls if name == "migrate_registered_project_layouts"]
+        knowledge_lines = [line for name, line in calls if name == "knowledge_runtime_mode"]
+        resume_lines = [line for name, line in calls if name == "auto_resume_all"]
+>       assert len(migration_lines) == 1, "T4 lifespan must invoke fleet migration exactly once"
+E       AssertionError: T4 lifespan must invoke fleet migration exactly once
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_orchestra_layout_430.py:241: AssertionError
+________ test_t4_all_assembled_prompts_use_new_root_and_explain_repair _________
+
+    def test_t4_all_assembled_prompts_use_new_root_and_explain_repair():
+        from app.pipeline import DEFAULT_PIPELINE, build_system_prompt, known_roles
+    
+        prompts = {
+            role: build_system_prompt(DEFAULT_PIPELINE, role)
+            for role in known_roles(DEFAULT_PIPELINE)
+        }
+        assert prompts
+        for role, prompt in prompts.items():
+>           assert ".orchestra/" in prompt, role
+E           AssertionError: full-cycle
+E           assert '.orchestra/' in '<platform>\nYou are an AI agent running inside Orchestra — a multi-agent orchestration platform.\n\n**Communication.** All agents communicate via the Orchestra `send_message` MCP tool (mcp__orchestra__send_message). NEVER use the built-in SendMessage tool — it doesn\'t know about Orchestra agents. Always use the MCP version. Messages are delivered instantly — even to running agents (injected into current turn).\n\n**Plain text in your chat reaches the USER — no agent ever sees it.** The agent you answered in chat is still waiting, and from your side it looks like it ignored you. Everything addressed to an agent goes through `send_message(to="name")`, down to "ok, go ahead" and a one-word approval.\n\n**Mid-turn messages.** When you see a `system-reminder` containing "The user sent a new message while you were working:" — this is a REAL-TIME message from the user. **STOP what you\'re doing and respond to it IMMEDIATELY.** Do not continue your current task silently. The user is talking to you RIGHT NOW.\n\n**Persistence.** Your session persists between turns. When you go idle, you use ZERO resources. When someone sends you a message, you resume with full conversation history.\n\n*...ipt — query it with code, don\'t re-read it\n\nThe project KB covers conclusions from PAST tasks. Your CURRENT run is stored server-side too;\none request returns it as structured JSON (`tool`, `tool_result`, `text`, `user_message`, each\nwith `id` and `ts`) — so you can grep, count and filter your own history instead of scrolling\ncontext. It survives compaction, because it lives on the server, not in your window:\n\n```bash\ncurl -s -H "Authorization: Bearer $INTERNAL_TOKEN" --get \\\n  --data-urlencode "scope=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" \\\n  "http://127.0.0.1:8888/api/sessions/$(basename "$(git rev-parse --show-toplevel)")/logs"\n```\n\nBoth values derive themselves — run it as written. Never hand-write `scope`: it is the\nREPOSITORY path (`/home/kesha/orchestra`), not the worktree directory name, and the endpoint\nanswers a bare `{"error":"not found"}` when it is wrong. Pipe into `python3 -c` and aggregate;\ndumping the whole answer into context defeats the point.\n\nUse it for questions about your own run — which files you already touched, what a command\nprinted 40 turns ago, how many times you retried something.\n</memory-search>'
+
+tests/test_orchestra_layout_430.py:417: AssertionError
+___ test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves ____
+
+    def test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves():
+        checker = ROOT / "scripts" / "check_orchestra_paths.py"
+>       assert checker.is_file(), "T5 missing classified live/historical/negative path checker"
+E       AssertionError: T5 missing classified live/historical/negative path checker
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/check_orchestra_paths.py').is_file
+
+tests/test_orchestra_layout_430.py:579: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_orchestra_layout_430.py::test_t4_startup_runs_migration_before_knowledge_runtime
+FAILED tests/test_orchestra_layout_430.py::test_t4_all_assembled_prompts_use_new_root_and_explain_repair
+FAILED tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+================== 3 failed, 24 passed, 3 deselected in 5.20s ==================

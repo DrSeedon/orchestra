@@ -326,7 +326,7 @@ def _roles_catalog_from_manifest(pipeline: str, parent_role: str) -> str:
 def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
     """Системный промпт роли: статика слоёв пайплайна + динамика (каталог/блоки).
 
-    Единственный источник — ``pipelines/<pipeline>/prompts/`` через
+    Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
     :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
     (фильтр ``can_spawn``) + блоки других оркестраторов/воркеров из БД.
 
@@ -338,7 +338,7 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
     except (FileNotFoundError, KeyError) as e:
         raise ValueError(
             f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
-            f"Define it in pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
+            f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
         ) from e
     rr = get_role(pipeline, role)
     is_orch = rr.is_orchestrator if rr is not None else is_orchestrator_role(role)
@@ -504,7 +504,7 @@ class SessionManager:
         # every transcript past a week while `sessions` rows survived since May. Never restore
         # Never under pytest: every TestClient(app) enters lifespan, and a test that points
         # app.db at a temporary database while WORKTREE_ROOT still points at the real
-        # checkout deletes every clean working copy of every project (docs/tasks/62 —
+        # checkout deletes every clean working copy of every project (.orchestra/tasks/62 —
         # reproduced: one green `pytest tests/test_build_signal.py` erased both decoys).
         if "pytest" in sys.modules:
             logger.warning("worktree cleanup task not started: running under pytest")
@@ -586,6 +586,7 @@ class SessionManager:
         prompt = refresh_worker_memory(
             prompt, session.name, session.role, session.scope,
             session.worktree_path or "",
+            allow_absent_project=True,
         )
         return prompt, new_overlay
 
@@ -747,10 +748,16 @@ class SessionManager:
             prompt_overlay += self._ownership_prompt(owned_dirs)
         prompt = base_prompt + prompt_overlay
 
-        # Worker persistent memory: docs/workers/{name}.md or docs/workers/{role}.md
+        # Worker persistent memory: .orchestra/workers/{name}.md or {role}.md
         # Survives kill/respawn/compact — worker writes rules here, they auto-inject next time
         memory_repository = repo_path if use_worktree and repo_path else ""
-        worker_memory = load_worker_memory(name, role, scope, memory_repository)
+        worker_memory = load_worker_memory(
+            name,
+            role,
+            scope,
+            memory_repository,
+            allow_absent_project=True,
+        )
         if worker_memory:
             prompt += f"\n\n<worker-memory>\n{worker_memory}\n</worker-memory>"
 
@@ -762,7 +769,7 @@ class SessionManager:
         # R2: валидация спавна ДО любых side-effects (worktree/start). Единственный
         # источник прав — манифест пайплайна: другого пути принятия решения о спавне
         # в коде нет. Нет манифеста → FileNotFoundError пробрасывается
-        # (fail loud, единый источник = pipelines/).
+        # (fail loud, единый источник = .orchestra/pipelines/).
         parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
         validate_spawn(pipeline, parent_role, role if explicit_role else "")
 
@@ -1774,7 +1781,7 @@ class SessionManager:
         """Собрать системный промпт из файлов ролей — один владелец на двух вызывающих.
 
         Зовётся из `_load_from_db` (восстановление сессии при старте) и из переинжекта
-        в `session.py`: без второго вызывающего правка `pipelines/**` доезжала до живого
+        в `session.py`: без второго вызывающего правка `.orchestra/pipelines/**` доезжала до живого
         агента только рестартом (#220 T1, медиана задержки выката 3.3 ч).
 
         Возвращает (собранный промпт, восстановленный overlay). `overlay is None` на
@@ -1821,6 +1828,7 @@ class SessionManager:
             prompt_without_memory = current_base + prompt_overlay
         return refresh_worker_memory(
             prompt_without_memory, name, role, scope, repository_path,
+            allow_absent_project=True,
         ), prompt_overlay
 
     async def _load_from_db(

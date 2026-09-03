@@ -44,7 +44,7 @@ grep -E "pgscan_direct|pgscan_kswapd" $CG/memory.stat
 
 ## Грабли, стоившие времени
 
-- **`.gitignore` строкой `artifacts/` глотает `docs/tasks/<id>/artifacts/`.** Коммит
+- **`.gitignore` строкой `artifacts/` глотает `.orchestra/tasks/<id>/artifacts/`.** Коммит
   «проходит», дерево «чистое», в индексе — ноль файлов. Класть замеры в `measurements/`
   и проверять `git ls-files <dir>`, а не `git status`.
 - **Любой замер поверх чужой фоновой джобы — мусор.** Парные плечи снимать подряд в одном

@@ -1,0 +1,17 @@
+ M assets/terrain/vegetation/demo_1.png
+ M assets/terrain/vegetation/demo_2.png
+ M assets/terrain/vegetation/demo_3.png
+ M assets/terrain/vegetation/demo_4.png
+ M assets/terrain/vegetation/demo_5.png
+ M assets/terrain/vegetation/krasnoyarsk_d.png
+ M tools/terrain/hydrology.py
+ M tools/terrain/water_mesh.py
+?? docs/kb/
+?? docs/tasks/29/water_profiles_demo_1.png.import
+?? docs/tasks/29/water_profiles_demo_4.png.import
+?? docs/tasks/29/water_profiles_krasnoyarsk_d.png.import
+?? docs/tasks/31/diag_river_width.py
+?? docs/tasks/31/diag_width_vs_osm.py
+?? docs/tasks/31/river_width_diagnosis.txt
+?? docs/tasks/31/stage3_water_width_attempts.txt
+?? docs/tasks/31/width_calibration_attempt.txt

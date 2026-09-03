@@ -1,0 +1,17 @@
+{
+  "dirty_files_expanded": 0,
+  "final_outcome": "current",
+  "head": "70080697820348a11b3c94938b9a5e14b32e937c",
+  "initial_outcome": "migrated",
+  "layout_state": "current",
+  "managed_paths": [
+    "kb",
+    "tasks"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "Sensar",
+  "repository": "/mnt/data/Рабочий стол/Cursor/Sensar",
+  "status_preserved_after_path_mapping": true
+}

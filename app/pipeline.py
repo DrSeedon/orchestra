@@ -1,7 +1,7 @@
 """Loader пайплайнов: схема манифеста (pydantic) + резолв ролей/промптов/спавна.
 
-Источник истины о ролях — единый манифест ``pipelines/<name>/pipeline.yaml``
-(вместо frontmatter+glob апстрима). ВСЁ берётся только из ``pipelines/<name>/``.
+Источник истины о ролях — единый манифест ``.orchestra/pipelines/<name>/pipeline.yaml``
+(вместо frontmatter+glob апстрима). ВСЁ берётся только из ``.orchestra/pipelines/<name>/``.
 ``app/prompts/`` удалён — единственный источник промптов = pipelines.
 
 Наследование defaults→roles выполняется на РЕЗОЛВЕ (:func:`resolve_role`), не на
@@ -22,8 +22,8 @@ from app.models import ALIASES, MODELS
 
 logger = logging.getLogger(__name__)
 
-# Корень с пайплайнами: <repo>/pipelines/. В гите только default.
-PIPELINES_DIR = Path(__file__).parent.parent / "pipelines"
+# Корень с пайплайнами: <repo>/.orchestra/pipelines/. В гите только default.
+PIPELINES_DIR = Path(__file__).parent.parent / ".orchestra" / "pipelines"
 DEFAULT_PIPELINE = "default"
 
 # Спецзначение "all" для skills/mcp_servers (строка) vs явный список.
@@ -64,7 +64,7 @@ def _is_runtime(name: str) -> bool:
 def _is_safe_rel(p: str) -> bool:
     """True если ``p`` — безопасный относительный путь (без абсолютного и '..').
 
-    Защита изоляции: слои промпта/шаблоны не должны выходить за pipelines/<name>/.
+    Защита изоляции: слои промпта/шаблоны не должны выходить за .orchestra/pipelines/<name>/.
     """
     from pathlib import PurePosixPath
     if not p or p.startswith("/"):
@@ -142,7 +142,7 @@ class DocsDir(BaseModel):
     @field_validator("path", "template")
     @classmethod
     def _safe_rel(cls, v: str | None) -> str | None:
-        # B2: путь/шаблон не должны выходить за pipelines/<name>/ (abs или '..').
+        # B2: путь/шаблон не должны выходить за .orchestra/pipelines/<name>/ (abs или '..').
         # {feature} подставляется в рантайме — containment проверяет B3.
         if v is not None and not _is_safe_rel(v):
             raise ValueError(f"unsafe docs_dir path '{v}' (abs или '..')")
@@ -159,7 +159,7 @@ class Tg(BaseModel):
 class PromptLayers(BaseModel):
     """Порядок слоёв промпта по kind. ``{role}`` подставляется на резолве.
 
-    Пути относительны ``pipelines/<name>/prompts/``.
+    Пути относительны ``.orchestra/pipelines/<name>/prompts/``.
     """
     model_config = ConfigDict(extra="forbid")
     orchestrator: list[str] = Field(
@@ -170,7 +170,7 @@ class PromptLayers(BaseModel):
     @field_validator("orchestrator", "worker")
     @classmethod
     def _safe_layers(cls, v: list[str]) -> list[str]:
-        # B2: слои не должны выходить за pipelines/<name>/prompts/. Плейсхолдер
+        # B2: слои не должны выходить за .orchestra/pipelines/<name>/prompts/. Плейсхолдер
         # {role} безопасен (_is_safe_rel("roles/{role}.md") True).
         for layer in v:
             if not _is_safe_rel(layer):
@@ -399,7 +399,7 @@ def _load_pipeline_cached(name: str, path: Path, stamp: tuple[int, int]) -> Pipe
 
 
 def load_pipeline(name: str) -> PipelineConfig:
-    """Прочитать ``pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
 
     Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
     сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
@@ -453,7 +453,7 @@ def get_worktree_config(pipeline_name: str) -> Worktree:
 
 
 def list_pipelines() -> list[dict]:
-    """Скан ``pipelines/`` (включая gitignored). Для UI-дропдауна.
+    """Скан ``.orchestra/pipelines/`` (включая gitignored). Для UI-дропдауна.
 
     Возвращает ``[{name, description, roles:[...], valid:bool, error:str|None}]``.
     Битый манифест НЕ роняет список — помечается ``valid=False`` с текстом ошибки.
@@ -549,26 +549,26 @@ def known_roles(pipeline_name: str) -> list[str]:
     return sorted(load_pipeline(pipeline_name).roles)
 
 
-# ── Резолв путей промпта (полная изоляция: только pipelines/<name>/prompts/) ─
+# ── Резолв путей промпта (полная изоляция: только .orchestra/pipelines/<name>/prompts/) ─
 
 def prompt_path(pipeline_name: str, rel: str) -> Path:
-    """Путь к слою промпта. ВСЕГДА внутри ``pipelines/<name>/prompts/``.
+    """Путь к слою промпта. ВСЕГДА внутри ``.orchestra/pipelines/<name>/prompts/``.
 
     ``rel`` — элемент prompt_layers (``base.md``, ``roles/coder.md``, ``_pipeline.md``).
-    Единственный источник — ``pipelines/<name>/prompts/`` (app/prompts/ удалён).
+    Единственный источник — ``.orchestra/pipelines/<name>/prompts/`` (app/prompts/ удалён).
     """
     return PIPELINES_DIR / pipeline_name / "prompts" / rel
 
 
 def template_path(pipeline_name: str, template: str) -> Path:
-    """Путь к шаблону doc-папки внутри ``pipelines/<name>/templates/``."""
+    """Путь к шаблону doc-папки внутри ``.orchestra/pipelines/<name>/templates/``."""
     return PIPELINES_DIR / pipeline_name / "templates" / template
 
 
 def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
     """Собрать system_prompt из prompt_layers резолвнутой роли.
 
-    Каждый слой читается из ``pipelines/<name>/prompts/<layer>`` через
+    Каждый слой читается из ``.orchestra/pipelines/<name>/prompts/<layer>`` через
     :func:`prompt_path` (единственный источник — app/prompts/ удалён). Отсутствующий
     слой-файл пропускается. Конкатенация через ``\\n\\n``. Динамика (каталог ролей,
     блоки других оркестраторов/воркеров) добавляется вызывающим в manager — здесь

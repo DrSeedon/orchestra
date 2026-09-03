@@ -11,7 +11,7 @@
 - Логин берётся из `/home/kesha/orchestra/.env` (`DASHBOARD_USER`/`DASHBOARD_PASSWORD`).
 - `/mnt/data` здесь НЕТ (это путь ноутбука). Профили браузера — в `/tmp`, он на диске (`/dev/sda1`),
   не tmpfs, в отличие от ноутбука.
-- Готовый инструмент — `docs/tasks/57/measurements/`: `cpu_profile.py` (CDP Profiler по окнам),
+- Готовый инструмент — `.orchestra/tasks/57/measurements/`: `cpu_profile.py` (CDP Profiler по окнам),
   `analyze.py` (self/inclusive по файлам и функциям), `pair_run.py` (парные плечи),
   `interact.py` (цена клика), `script_cost.py` (компиляция каждого скрипта). Переиспользовать,
   а не писать заново.

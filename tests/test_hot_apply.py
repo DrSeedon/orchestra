@@ -1,6 +1,6 @@
 """#220 — применение правок без разрушительного рестарта.
 
-Тесты названы по тикетам плана (docs/tasks/220/plan.md). Написаны ДО реализации и
+Тесты названы по тикетам плана (.orchestra/tasks/220/plan.md). Написаны ДО реализации и
 коммитятся красными: падают на отсутствующем поведении, а не на импорте.
 
 Бэкенд берётся из `tests.test_session._MockBackend`, а НЕ из `make_backend_mock`:
@@ -97,10 +97,10 @@ class _FakeSession:
 
 @pytest.mark.asyncio
 async def test_t1_reinjected_prompt_rebuilds_role_text_from_disk(mock_db, monkeypatch):
-    """Правка роли в pipelines/ обязана доехать до ЖИВОГО агента без рестарта.
+    """Правка роли в .orchestra/pipelines/ обязана доехать до ЖИВОГО агента без рестарта.
 
     Сегодня ROLE_SYSTEM_PROMPT зовётся только на spawn/_load_from_db
-    (docs/tasks/220/research.md, F1), поэтому переинжект отдаёт строку, собранную
+    (.orchestra/tasks/220/research.md, F1), поэтому переинжект отдаёт строку, собранную
     при старте сервера.
     """
     import app.manager as manager
@@ -140,7 +140,7 @@ async def test_t1_guard_custom_full_prompt_is_not_overwritten_by_rebuild(mock_db
 
 @pytest.mark.asyncio
 async def test_t1_broken_role_file_falls_back_to_the_startup_prompt(mock_db, monkeypatch):
-    """Битый `pipelines/**` не имеет права убить следующий ход У ВСЕХ агентов.
+    """Битый `.orchestra/pipelines/**` не имеет права убить следующий ход У ВСЕХ агентов.
 
     Pre-mortem: до T1 живая сессия НЕ звала `ROLE_SYSTEM_PROMPT` после старта, а он
     падает громко (`ValueError` на нерезолвящейся роли, `manager.py:314`). T1 ставит

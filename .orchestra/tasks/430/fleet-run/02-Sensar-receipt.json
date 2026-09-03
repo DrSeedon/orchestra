@@ -1,0 +1,25 @@
+{
+  "after_dirty_files": 0,
+  "after_head": "70080697820348a11b3c94938b9a5e14b32e937c",
+  "before_dirty_files": 0,
+  "before_head": "fba29220585b01684c9f87ac94fb164e92bddda8",
+  "layout_state": "current",
+  "managed_paths": [
+    "kb",
+    "tasks"
+  ],
+  "outcome": "migrated",
+  "project_id": "Sensar",
+  "repository": "/mnt/data/Рабочий стол/Cursor/Sensar",
+  "result": {
+    "commit": "70080697820348a11b3c94938b9a5e14b32e937c",
+    "managed_paths": [
+      "kb",
+      "tasks"
+    ],
+    "repair_command": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair '/mnt/data/Рабочий стол/Cursor/Sensar'",
+    "repository": "/mnt/data/Рабочий стол/Cursor/Sensar",
+    "status": "migrated"
+  },
+  "status_equivalent_after_path_mapping": true
+}

@@ -264,7 +264,7 @@ def safeguard_guidance(request_id: str, dump_path: str) -> str:
 def store_safeguard_refusal(session_name: str, text: str) -> str:
     """Сложить сырой отказ ВНЕ рабочего дерева и вернуть путь.
 
-    Не в `docs/tasks/`: хранилище, которое пишется само, не должно делить рабочее дерево с
+    Не в `.orchestra/tasks/`: auto-written storage must not share the Git working tree with
     Git-lifecycle — так `report_bug` пачкал чекаут и блокировал все мержи (#114). Адрес тот же,
     что у инбокса баг-репортов.
     """
@@ -1387,7 +1387,7 @@ class AgentSession:
                 # the prompt is built at spawn / _load_from_db, so anything the agent
                 # wrote to its own memory since then would otherwise wait for a restart.
                 # The same argument applies to the ROLE text itself (#220 T1): rebuild it
-                # from pipelines/** instead of replaying the string assembled at startup,
+                # from .orchestra/pipelines/** instead of replaying the string assembled at startup,
                 # otherwise a rule edit waits for a restart (median 3.3h, p75 22.9h).
                 if self.prompt_overlay is None:
                     # A full prompt set by the operator has no component boundary —
@@ -1395,6 +1395,7 @@ class AgentSession:
                     self._current_prompt = refresh_worker_memory(
                         self._current_prompt, self.name, self.role, self.scope,
                         self.worktree_path or "",
+                        allow_absent_project=True,
                     )
                 else:
                     from app.deps import manager
@@ -1409,7 +1410,7 @@ class AgentSession:
                             repository_path=self.worktree_path or "",
                         )
                     except Exception as error:
-                        # Пересборка читает pipelines/** на ГОРЯЧЕМ пути, а
+                        # Пересборка читает .orchestra/pipelines/** на ГОРЯЧЕМ пути, а
                         # ROLE_SYSTEM_PROMPT падает громко (ValueError) на битом
                         # манифесте. До T1 этого вызова здесь не было вовсе, поэтому
                         # опечатка в роли теперь убивала бы следующий ход У ВСЕХ
@@ -1423,6 +1424,7 @@ class AgentSession:
                         self._current_prompt = refresh_worker_memory(
                             self._current_prompt, self.name, self.role, self.scope,
                             self.worktree_path or "",
+                            allow_absent_project=True,
                         )
                 message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
                 did_inject = True

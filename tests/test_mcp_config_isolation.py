@@ -497,7 +497,7 @@ def test_t5_pipeline_default_denies_user_mcp_servers():
     """`Defaults.mcp_servers = "all"` — fail-open: пайплайн, забывший строку
     `mcp_servers:`, раздаёт КАЖДОЙ роли все пользовательские MCP-серверы.
 
-    Сегодня прикрыто лишь тем, что единственный `pipelines/default/pipeline.yaml`
+    Сегодня прикрыто лишь тем, что единственный `.orchestra/pipelines/default/pipeline.yaml`
     задаёт `[]` явно. Дефолт обязан быть закрытым.
     """
     from app.pipeline import Defaults, _merge_list

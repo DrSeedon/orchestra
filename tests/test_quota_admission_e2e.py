@@ -80,7 +80,7 @@ def _real_pipelines(monkeypatch):
 
     import app.pipeline as pl
 
-    monkeypatch.setattr(pl, "PIPELINES_DIR", Path(__file__).parent.parent / "pipelines")
+    monkeypatch.setattr(pl, "PIPELINES_DIR", Path(__file__).parent.parent / ".orchestra" / "pipelines")
     pl.load_pipeline.cache_clear()
     yield
     pl.load_pipeline.cache_clear()

@@ -375,8 +375,8 @@ async def test_t1_385_codex_review_success_returns_exact_deferred_control_proven
 
     result = await mcp.codex_review(
         context=PROJECT_CONTEXT,
-        target="docs/tasks/385/plan.md",
-        output="docs/tasks/385/codex-review-plan.md",
+        target=".orchestra/tasks/385/plan.md",
+        output=".orchestra/tasks/385/codex-review-plan.md",
         mode="exec",
     )
 
@@ -422,8 +422,8 @@ async def test_t1_385_codex_review_creation_failure_has_no_deferred_control(
 
     result = await mcp.codex_review(
         context=PROJECT_CONTEXT,
-        target="docs/tasks/385/plan.md",
-        output="docs/tasks/385/codex-review-plan.md",
+        target=".orchestra/tasks/385/plan.md",
+        output=".orchestra/tasks/385/codex-review-plan.md",
         mode="exec",
     )
 
