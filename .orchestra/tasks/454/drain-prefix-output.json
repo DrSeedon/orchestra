@@ -1,0 +1,14 @@
+{
+  "failed_attempt_raw_retained": true,
+  "prefixes_ok": 8,
+  "rows": [
+    {"crash_after":"none","deletion_reachable":false,"fact_reachable":false,"raw_current":true,"replay_to_done":true,"status":"in_progress","worker_bound":true},
+    {"crash_after":"pending_unbind","deletion_reachable":false,"fact_reachable":false,"raw_current":true,"replay_to_done":true,"status":"knowledge_pending","worker_bound":false},
+    {"crash_after":"candidates","deletion_reachable":false,"fact_reachable":false,"raw_current":true,"replay_to_done":true,"status":"knowledge_pending","worker_bound":false},
+    {"crash_after":"approval","deletion_reachable":false,"fact_reachable":false,"raw_current":true,"replay_to_done":true,"status":"knowledge_pending","worker_bound":false},
+    {"crash_after":"fact_commit","deletion_reachable":false,"fact_reachable":true,"raw_current":true,"replay_to_done":true,"status":"knowledge_pending","worker_bound":false},
+    {"crash_after":"release_validation","deletion_reachable":false,"fact_reachable":true,"raw_current":true,"replay_to_done":true,"status":"knowledge_pending","worker_bound":false},
+    {"crash_after":"deletion_commit","deletion_reachable":true,"fact_reachable":true,"raw_current":false,"replay_to_done":true,"status":"knowledge_pending","worker_bound":false},
+    {"crash_after":"done_event","deletion_reachable":true,"fact_reachable":true,"raw_current":false,"replay_to_done":true,"status":"done","worker_bound":false}
+  ]
+}

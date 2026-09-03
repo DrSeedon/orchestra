@@ -130,6 +130,54 @@ def _compact_prompt(session_name: str, scope: str = "") -> str:
     )
 
 
+COMPACT_TAIL_CHARS = int(os.getenv("COMPACT_TAIL_CHARS", "12000"))
+_COMPACT_TAIL_TYPES = ("user_message", "text")
+
+
+_TERMINAL_COMPACT_ERRORS = ("working directory does not exist",)
+
+
+def _is_terminal_compact_error(error: str) -> bool:
+    """Отказы, которые повтор не лечит: ретрай тратит 90 секунд на тот же ответ."""
+    lowered = error.lower()
+    return any(marker in lowered for marker in _TERMINAL_COMPACT_ERRORS)
+
+
+def _preserved_tail(session_id: str, budget: int) -> str:
+    """Дословный хвост диалога, который едет в новую сессию рядом со сводкой.
+
+    Сводка — пересказ, и свежий обмен теряет в ней формулировки; Claude Code держит
+    последние сообщения сырыми (`preservedSegment`), у нас их не было вовсе. Берём
+    только речь — `tool_result` и есть основной вес контекста, ради которого компакт
+    и затевался.
+    """
+    if budget <= 0 or not session_id:
+        return ""
+    try:
+        rows = get_logs(session_id, limit=200)
+    except Exception as error:  # журнал недоступен — компакт из-за этого не падает
+        logger.warning(f"preserved tail unavailable for {session_id}: {error}")
+        return ""
+    parts, used = [], 0
+    for row in reversed(rows):
+        if row.get("type") not in _COMPACT_TAIL_TYPES:
+            continue
+        content = (row.get("content") or "").strip()
+        if not content:
+            continue
+        speaker = "USER" if row.get("type") == "user_message" else "ASSISTANT"
+        block = f"{speaker}: {content}"
+        if used + len(block) > budget:
+            # Первая строка отдаётся всегда: одна жирная реплика иначе даёт пустой
+            # хвост, и правка выглядит невыполненной.
+            if parts:
+                break
+            block = block[:budget] + " […обрезано]"
+        parts.append(block)
+        used += len(block)
+    return "\n\n".join(reversed(parts))
+
+
 def _is_locked_database_error(error: BaseException) -> bool:
     return (
         isinstance(error, sqlite3.OperationalError)
@@ -578,6 +626,18 @@ class AgentSession:
     AUTO_COMPACT_WINDOW_START = _AUTO_COMPACT_WINDOW_START_DEFAULT
     AUTO_COMPACT_WINDOW_END = _AUTO_COMPACT_WINDOW_END_DEFAULT
     AUTO_COMPACT_TIMEZONE = _AUTO_COMPACT_TIMEZONE_DEFAULT
+
+    def _context_token_total(self) -> int:
+        """Кумулятивный вес контекста, накопленный ходами этой сессии.
+
+        Разница двух снимков даёт токены ОДНОГО хода — так компакт узнаёт размер
+        свежей сессии, не дожидаясь фонового обновления `_last_context`.
+        """
+        return (
+            self.total_input_tokens
+            + self.total_cache_read_tokens
+            + self.total_cache_create_tokens
+        )
 
     def _precompact_payload(self, payload: dict) -> str:
         return json.dumps(payload, ensure_ascii=False)
@@ -2836,7 +2896,10 @@ class AgentSession:
         # unconditional CLAUDE.md/TODO.md/BUGS.md presave, which drove 218
         # unrelated writes across 63 measured outputs (candidate: 0).
         COMPACT_PROMPT = _compact_prompt(self.name, self.scope)
-        PREAMBLE = "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n[END OF SUMMARY — continue naturally]\n\n"
+        PREAMBLE = (
+            "[PREVIOUS CONTEXT SUMMARY — context was compacted]\n\n{summary}\n\n"
+            "[END OF SUMMARY]\n{tail}[CONTINUE NATURALLY]\n\n"
+        )
         COMPACT_MAX_RETRIES = 3
         COMPACT_RETRY_DELAY = 30
         COMPACT_MIN_SUMMARY_LEN = 200
@@ -2859,6 +2922,8 @@ class AgentSession:
         compact_stop_gen = permit[2]
         self._session_limit_hit = False
         before_pct = self._last_context.get("percentage", 0)
+        pre_tokens = self._last_context.get("total_tokens", 0) or 0
+        max_tokens = self._last_context.get("max_tokens", 0) or 0
         pre_compact_session_id = self.session_id
         self._log("status", f"compact started (context {before_pct}%, pre_session={pre_compact_session_id})")
 
@@ -2934,6 +2999,11 @@ class AgentSession:
                 except Exception:
                     pass
                 self._backend = None
+                if _is_terminal_compact_error(last_error):
+                    # Пропавший каталог не заводится от ожидания: 27 из 38 ошибок
+                    # компакта в базе — это 9 воркеров, каждый отретраенный трижды
+                    # с бэкоффом 30 и 60 секунд.
+                    return abort_compact(last_error)
                 if attempt < COMPACT_MAX_RETRIES:
                     self._log("status", f"compact retry in {COMPACT_RETRY_DELAY * attempt}s...")
                     await asyncio.sleep(COMPACT_RETRY_DELAY * attempt)
@@ -2985,7 +3055,15 @@ class AgentSession:
                 self._log("status", f"compact succeeded on attempt {attempt}")
             break
 
-        preamble = PREAMBLE.format(summary=summary)
+        tail = _preserved_tail(self.id, COMPACT_TAIL_CHARS)
+        preamble = PREAMBLE.format(
+            summary=summary,
+            tail=(
+                f"\n[VERBATIM TAIL — last messages before compaction, unabridged]\n\n"
+                f"{tail}\n\n[END OF TAIL]\n"
+                if tail else ""
+            ),
+        )
         if self._turn_start_cancel_gen != compact_stop_gen:
             return abort_compact("compaction cancelled by stop", flush_pending=False)
         try:
@@ -3004,6 +3082,12 @@ class AgentSession:
             }
         if permit[2] != compact_stop_gen:
             return abort_compact("compaction cancelled by stop", flush_pending=False)
+        # `_last_context` после ack-хода СТАРОЕ: свежая сессия отдаёт DeferredContext,
+        # чья ветка процент не трогает, а точное число прилетает фоновым
+        # `_refresh_context_from_api` уже после возврата. Поэтому размер новой сессии
+        # берём из расхода самого ack-хода — он доступен синхронно (медиана ошибки 2 п.п.
+        # на 57 замеренных компактах).
+        tokens_before_ack = self._context_token_total()
         self._compact_ack_event = asyncio.Event()
         ack_event = self._compact_ack_event
         ack_deferred = False
@@ -3095,9 +3179,24 @@ class AgentSession:
         await self._drain_persist()
         if LOG_COMPACT_SUMMARY:
             self._log("text", f"📋 **Compact summary:**\n\n{summary}")
-        after_pct = self._last_context.get("percentage", 0)
-        self._log("status", f"compact done: {before_pct}% → {after_pct}% (summary {len(summary)} chars)")
-        return {"ok": True, "before_pct": before_pct, "after_pct": after_pct, "summary_chars": len(summary), "summary": summary}
+        post_tokens = max(0, self._context_token_total() - tokens_before_ack)
+        if post_tokens and max_tokens:
+            after_pct = round(post_tokens * 100 / max_tokens)
+        else:
+            after_pct = self._last_context.get("percentage", 0)
+        dropped = max(0, pre_tokens - post_tokens)
+        self._log(
+            "status",
+            f"compact done: {before_pct}% → {after_pct}% "
+            f"(pre {pre_tokens} → post {post_tokens} tokens, dropped {dropped}, "
+            f"summary {len(summary)} chars)",
+        )
+        return {
+            "ok": True, "before_pct": before_pct, "after_pct": after_pct,
+            "pre_tokens": pre_tokens, "post_tokens": post_tokens,
+            "dropped_tokens": dropped,
+            "summary_chars": len(summary), "summary": summary,
+        }
 
     async def commit_archive(
         self,

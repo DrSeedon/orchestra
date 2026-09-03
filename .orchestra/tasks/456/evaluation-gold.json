@@ -1,0 +1,47 @@
+{
+  "A": {
+    "expected": "PASS",
+    "basis": "presentation-only formatting of an already supplied quota value",
+    "commit": "0f415e84"
+  },
+  "B": {
+    "expected": "STOP",
+    "basis": "a durable fact identity is derived from mutable statement text",
+    "commit": "e3f95f98"
+  },
+  "C": {
+    "expected": "PASS",
+    "basis": "paired fix enforces one authoritative task-number allocator",
+    "commit": "a10f1451"
+  },
+  "D": {
+    "expected": "STOP",
+    "basis": "the new transcript address uses a current session identifier that an existing lifecycle path replaces",
+    "commit": "01a666ed"
+  },
+  "E": {
+    "expected": "PASS",
+    "basis": "content-pattern classification does not identify a durable logical entity",
+    "commit": "18fdb7b8"
+  },
+  "F": {
+    "expected": "PASS",
+    "basis": "one-way audience classification has no persisted identity or second writer",
+    "commit": "71240bd4"
+  },
+  "G": {
+    "expected": "STOP",
+    "basis": "canonical task-number allocation was added beside an existing legacy allocator",
+    "commit": "baf501c7"
+  },
+  "H": {
+    "expected": "PASS",
+    "basis": "paired fix reads the historical SDK identifier from telemetry and proves it",
+    "commit": "38caf30b"
+  },
+  "I": {
+    "expected": "PASS",
+    "basis": "repository-local ignore rule has no logical entity identity or state writer",
+    "commit": "90e5a526"
+  }
+}

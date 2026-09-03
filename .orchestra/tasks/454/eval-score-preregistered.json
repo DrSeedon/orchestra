@@ -1,0 +1,77 @@
+{
+  "noise": {
+    "candidate_count_max": 57,
+    "candidate_count_min": 31,
+    "gold_recall_max": 0.4166666666666667,
+    "gold_recall_min": 0.25,
+    "gold_recall_range": 0.16666666666666669,
+    "pairwise_gold_coverage_jaccard": [0.6, 0.5, 0.75],
+    "pairwise_gold_coverage_jaccard_min": 0.5
+  },
+  "pass": false,
+  "preregistered_pass": {
+    "evidence_exact_rate_each_run": 1.0,
+    "evidence_line_range_rate_each_run": 1.0,
+    "fresh_runs": 3,
+    "gold_coverage_jaccard_min": 1.0,
+    "gold_recall_each_run": 1.0,
+    "json_schema_valid_each_run": true,
+    "numeric_grounding_rate_each_run": 1.0,
+    "source_tree_digest_unchanged_each_run": true
+  },
+  "source_unchanged_all": true,
+  "trials": [
+    {
+      "candidates": 50,
+      "evidence_exact_rate": 0.847457627118644,
+      "evidence_line_range_rate": 0.8305084745762712,
+      "evidence_total": 59,
+      "gold_matched": [
+        "G419-vector-zero-rg-six",
+        "G425-complete-task-source",
+        "G425-wait-submitted",
+        "G426-write-latency",
+        "G430-historical-source-path"
+      ],
+      "gold_recall": 0.4166666666666667,
+      "numeric_candidates": 26,
+      "numeric_grounding_rate": 0.6153846153846154,
+      "path": "eval-run-1.txt",
+      "schema_errors": []
+    },
+    {
+      "candidates": 31,
+      "evidence_exact_rate": 0.9772727272727273,
+      "evidence_line_range_rate": 0.9545454545454546,
+      "evidence_total": 44,
+      "gold_matched": [
+        "G419-vector-zero-rg-six",
+        "G425-complete-task-source",
+        "G426-write-latency"
+      ],
+      "gold_recall": 0.25,
+      "numeric_candidates": 18,
+      "numeric_grounding_rate": 0.9444444444444444,
+      "path": "eval-run-2.txt",
+      "schema_errors": []
+    },
+    {
+      "candidates": 57,
+      "evidence_exact_rate": 0.6507936507936508,
+      "evidence_line_range_rate": 0.6349206349206349,
+      "evidence_total": 63,
+      "gold_matched": [
+        "G419-vector-zero-rg-six",
+        "G425-complete-task-source",
+        "G426-canonical-gap",
+        "G426-write-latency"
+      ],
+      "gold_recall": 0.3333333333333333,
+      "numeric_candidates": 24,
+      "numeric_grounding_rate": 0.9166666666666666,
+      "path": "eval-run-3.txt",
+      "schema_errors": []
+    }
+  ]
+}
+

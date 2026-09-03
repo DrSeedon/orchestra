@@ -1,0 +1,17 @@
+{
+  "ambient_rows": 39,
+  "iterations": 1000,
+  "metrics": {
+    "clone_added_lines_candidate": {
+      "max_absolute_split_half_rate_difference": 0.004009870450339297,
+      "median_absolute_split_half_rate_difference": 0.0008087892450487549,
+      "p95_absolute_split_half_rate_difference": 0.002122570401158175
+    },
+    "persistent_dead_added_lines_candidate": {
+      "max_absolute_split_half_rate_difference": 0.2089651334077428,
+      "median_absolute_split_half_rate_difference": 0.04997294456617673,
+      "p95_absolute_split_half_rate_difference": 0.11550174159947135
+    }
+  },
+  "seed": 455
+}
