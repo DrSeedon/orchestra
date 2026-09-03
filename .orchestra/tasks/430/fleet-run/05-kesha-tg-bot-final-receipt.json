@@ -1,0 +1,17 @@
+{
+  "dirty_files_expanded": 99,
+  "final_outcome": "current",
+  "head": "c3c5166ba0eff89e8ce67540b35f13c4a196e595",
+  "initial_outcome": "migrated",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks",
+    "workers"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "kesha-tg-bot",
+  "repository": "/mnt/data/Projects/Python/kesha-tg-bot",
+  "status_preserved_after_path_mapping": true
+}

@@ -21,7 +21,7 @@
 
 ## Этот репозиторий
 
-- **Оракулы в `docs/tasks/*/oracles/` НЕ покрыты `tests/conftest.py`** (`testpaths = ["tests"]`).
+- **Оракулы в `.orchestra/tasks/*/oracles/` НЕ покрыты `tests/conftest.py`** (`testpaths = ["tests"]`).
   Значит нет autouse-изоляции боевой БД. Пишешь оракул, который лезет в БД, — заводи локальный
   `conftest.py` рядом. Проверено: без него строки копились в `data/orchestra.db` worktree.
 - **Перечень колонок `quota_controller_policy` живёт в ТРЁХ местах**: `_QUOTA_POLICY_TABLE_SQL`,

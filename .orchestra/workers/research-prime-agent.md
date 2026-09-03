@@ -23,7 +23,7 @@ curl -s -H "Authorization: Bearer $INTERNAL_TOKEN" --get \
 Заголовок — именно `Authorization: Bearer`, не `X-Internal-Token` (`app/auth.py:54-60`).
 
 ## Правил файл в ОСНОВНОМ чекауте вместо своего worktree (#137, мой факап)
-Дал `Read`/`Edit` абсолютный путь `/home/kesha/orchestra/pipelines/...` — это основной
+Дал `Read`/`Edit` абсолютный путь `/home/kesha/orchestra/.orchestra/pipelines/...` — это основной
 чекаут, откуда живой сервер читает промпты, а не мой worktree. Правка ушла бы всем агентам
 мимо ветки и мержа. Откатил `git checkout -- <файл>` в основном чекауте, проверил
 `git status`, переделал у себя.

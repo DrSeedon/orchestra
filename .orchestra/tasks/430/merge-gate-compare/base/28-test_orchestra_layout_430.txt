@@ -1,0 +1,99 @@
+FFFFFFFFFFF                                                              [100%]
+=================================== FAILURES ===================================
+_________ test_t1_forced_project_migration_is_committed_and_idempotent _________
+tests/test_orchestra_layout_430.py:113: in test_t1_forced_project_migration_is_committed_and_idempotent
+    layout = _layout_module()
+             ^^^^^^^^^^^^^^^^
+tests/test_orchestra_layout_430.py:91: in _layout_module
+    assert module_path.is_file(), "T1 missing forced migration engine app/orchestra_layout.py"
+E   AssertionError: T1 missing forced migration engine app/orchestra_layout.py
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base/app/orchestra_layout.py').is_file
+_______ test_t1_partial_missing_and_dirty_states_are_loud_and_repairable _______
+tests/test_orchestra_layout_430.py:138: in test_t1_partial_missing_and_dirty_states_are_loud_and_repairable
+    layout = _layout_module()
+             ^^^^^^^^^^^^^^^^
+tests/test_orchestra_layout_430.py:91: in _layout_module
+    assert module_path.is_file(), "T1 missing forced migration engine app/orchestra_layout.py"
+E   AssertionError: T1 missing forced migration engine app/orchestra_layout.py
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base/app/orchestra_layout.py').is_file
+__________ test_t1_dirty_check_occurs_inside_repository_mutation_lock __________
+tests/test_orchestra_layout_430.py:208: in test_t1_dirty_check_occurs_inside_repository_mutation_lock
+    layout = _layout_module()
+             ^^^^^^^^^^^^^^^^
+tests/test_orchestra_layout_430.py:91: in _layout_module
+    assert module_path.is_file(), "T1 missing forced migration engine app/orchestra_layout.py"
+E   AssertionError: T1 missing forced migration engine app/orchestra_layout.py
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base/app/orchestra_layout.py').is_file
+___________ test_t4_startup_runs_migration_before_knowledge_runtime ____________
+tests/test_orchestra_layout_430.py:241: in test_t4_startup_runs_migration_before_knowledge_runtime
+    assert len(migration_lines) == 1, "T4 lifespan must invoke fleet migration exactly once"
+E   AssertionError: T4 lifespan must invoke fleet migration exactly once
+E   assert 0 == 1
+E    +  where 0 = len([])
+__________ test_t3_pipeline_and_worker_memory_use_only_dot_orchestra ___________
+tests/test_orchestra_layout_430.py:250: in test_t3_pipeline_and_worker_memory_use_only_dot_orchestra
+    assert pipeline.PIPELINES_DIR == ROOT / ".orchestra" / "pipelines"
+E   AssertionError: assert PosixPath('/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base/pipelines') == ((PosixPath('/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base') / '.orchestra') / 'pipelines')
+E    +  where PosixPath('/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base/pipelines') = <module 'app.pipeline' from '/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base/app/pipeline.py'>.PIPELINES_DIR
+____ test_t3_task_guard_knowledge_owner_and_evidence_validator_use_new_root ____
+tests/test_orchestra_layout_430.py:275: in test_t3_task_guard_knowledge_owner_and_evidence_validator_use_new_root
+    assert _next_par(connection, "p") == 3
+E   AssertionError: assert 2 == 3
+E    +  where 2 = <function _next_par at 0x77001527bf60>(<sqlite3.Connection object at 0x77001531a4d0>, 'p')
+_________ test_t3_repository_move_has_content_receipt_and_no_old_roots _________
+tests/test_orchestra_layout_430.py:365: in test_t3_repository_move_has_content_receipt_and_no_old_roots
+    assert (ROOT / path).exists(), f"T3 missing moved path: {path}"
+E   AssertionError: T3 missing moved path: .orchestra/kb/README.md
+E   assert False
+E    +  where False = exists()
+E    +    where exists = (PosixPath('/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base') / '.orchestra/kb/README.md').exists
+________ test_t4_all_assembled_prompts_use_new_root_and_explain_repair _________
+tests/test_orchestra_layout_430.py:417: in test_t4_all_assembled_prompts_use_new_root_and_explain_repair
+    assert ".orchestra/" in prompt, role
+E   AssertionError: full-cycle
+E   assert '.orchestra/' in '<platform>\nYou are an AI agent running inside Orchestra — a multi-agent orchestration platform.\n\n**Communication.*...les you already touched, what a command\nprinted 40 turns ago, how many times you retried something.\n</memory-search>'
+____________ test_t2_dead_docker_and_stale_frontend_links_are_gone _____________
+tests/test_orchestra_layout_430.py:479: in test_t2_dead_docker_and_stale_frontend_links_are_gone
+    assert not (ROOT / "Dockerfile").exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = (PosixPath('/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base') / 'Dockerfile').exists
+_____________ test_t3_docs_contains_only_external_reader_artifacts _____________
+tests/test_orchestra_layout_430.py:501: in test_t3_docs_contains_only_external_reader_artifacts
+    assert observed == FINAL_DOC_FILES
+E   AssertionError: assert {'HANDOFF-fro...TEP3.md', ...} == {'banner.png'...api-setup.md'}
+E     
+E     Extra items in the left set:
+E     'kb/records/evidence/35f7998d-6c66-5fe7-a4e5-cb7c48ed9e79.json'
+E     'tasks/309/research.md'
+E     'kb/records/evidence/c64241fc-0ca2-5ad1-937c-2302f70eaf50.json'
+E     'kb/records/evidence/810aa1c6-9566-5f42-be43-d6a06b4c3a05.json'
+E     'kb/records/evidence/4bbc85a2-bc7d-5008-8ced-2884eea6b1e9.json'...
+E     
+E     ...Full output truncated (16430 lines hidden), use '-vv' to show
+___ test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves ____
+tests/test_orchestra_layout_430.py:579: in test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+    assert checker.is_file(), "T5 missing classified live/historical/negative path checker"
+E   AssertionError: T5 missing classified live/historical/negative path checker
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base/scripts/check_orchestra_paths.py').is_file
+=========================== short test summary info ============================
+FAILED tests/test_orchestra_layout_430.py::test_t1_forced_project_migration_is_committed_and_idempotent
+FAILED tests/test_orchestra_layout_430.py::test_t1_partial_missing_and_dirty_states_are_loud_and_repairable
+FAILED tests/test_orchestra_layout_430.py::test_t1_dirty_check_occurs_inside_repository_mutation_lock
+FAILED tests/test_orchestra_layout_430.py::test_t4_startup_runs_migration_before_knowledge_runtime
+FAILED tests/test_orchestra_layout_430.py::test_t3_pipeline_and_worker_memory_use_only_dot_orchestra
+FAILED tests/test_orchestra_layout_430.py::test_t3_task_guard_knowledge_owner_and_evidence_validator_use_new_root
+FAILED tests/test_orchestra_layout_430.py::test_t3_repository_move_has_content_receipt_and_no_old_roots
+FAILED tests/test_orchestra_layout_430.py::test_t4_all_assembled_prompts_use_new_root_and_explain_repair
+FAILED tests/test_orchestra_layout_430.py::test_t2_dead_docker_and_stale_frontend_links_are_gone
+FAILED tests/test_orchestra_layout_430.py::test_t3_docs_contains_only_external_reader_artifacts
+FAILED tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+11 failed in 1.85s

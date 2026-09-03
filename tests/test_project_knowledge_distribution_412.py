@@ -16,7 +16,7 @@ import pytest
 
 
 PROJECT_OWNER_ANCHOR = (
-    "Project knowledge is canonical only inside the current repository's `docs/kb/`."
+    "Project knowledge is canonical only inside the current repository's `.orchestra/kb/`."
 )
 PART_SHA256 = {
     "part-1.json": "f60b6d536134834c68c9ef43cdeeaab70c67d5d0759a3f97d8645107bfee465c",
@@ -175,13 +175,13 @@ def test_t1_byte_preserving_distribution_is_scoped_and_manifested(tmp_path: Path
 
     inputs = {
         ("project-a", "00000000-0000-4000-8000-000000000001"): _record(
-            "project-a", "00000000-0000-4000-8000-000000000001", "docs/kb/a.md"
+            "project-a", "00000000-0000-4000-8000-000000000001", ".orchestra/kb/a.md"
         ),
         ("project-b", "00000000-0000-4000-8000-000000000002"): _record(
-            "project-b", "00000000-0000-4000-8000-000000000002", "docs/kb/b.md"
+            "project-b", "00000000-0000-4000-8000-000000000002", ".orchestra/kb/b.md"
         ),
         ("orphan", "00000000-0000-4000-8000-000000000003"): _record(
-            "orphan", "00000000-0000-4000-8000-000000000003", "docs/kb/o.md"
+            "orphan", "00000000-0000-4000-8000-000000000003", ".orchestra/kb/o.md"
         ),
     }
     for (project_id, stable_id), payload in inputs.items():
@@ -245,8 +245,8 @@ def test_t1_byte_preserving_distribution_is_scoped_and_manifested(tmp_path: Path
     )
     dry = json.loads(dry_run.stdout)
     assert dry["mode"] == "dry-run"
-    assert not (repo_a / "docs/kb").exists()
-    assert not (repo_b / "docs/kb").exists()
+    assert not (repo_a / ".orchestra/kb").exists()
+    assert not (repo_b / ".orchestra/kb").exists()
     assert _git(central, "rev-parse", "HEAD") == before["source_head"]
     assert _git_refs(repo_a) == before["a_refs"]
     assert _git_refs(repo_b) == before["b_refs"]
@@ -278,9 +278,9 @@ def test_t1_byte_preserving_distribution_is_scoped_and_manifested(tmp_path: Path
             {"project-a": repo_a, "project-b": repo_b}.get(project_id)
             or quarantine / project_id
         )
-        destination = owner / "docs/kb/records/evidence" / f"{stable_id}.json"
+        destination = owner / ".orchestra/kb/records/evidence" / f"{stable_id}.json"
         assert destination.read_bytes() == payload
-        local_manifest = json.loads((owner / "docs/kb/manifest.json").read_text())
+        local_manifest = json.loads((owner / ".orchestra/kb/manifest.json").read_text())
         assert local_manifest["project_id"] == project_id
         assert any(item["stable_id"] == stable_id for item in local_manifest["records"])
         row = next(item for item in result["records"] if item["stable_id"] == stable_id)
@@ -290,7 +290,7 @@ def test_t1_byte_preserving_distribution_is_scoped_and_manifested(tmp_path: Path
         assert _git(repo, "status", "--porcelain") == ""
         changed = _git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
         assert changed
-        assert all(path.startswith("docs/kb/") for path in changed.splitlines())
+        assert all(path.startswith(".orchestra/kb/") for path in changed.splitlines())
         assert _git(repo, "rev-parse", "HEAD") != base
 
     assert _git(central, "status", "--porcelain") == ""
@@ -315,20 +315,20 @@ def test_t3_owner_switch_is_global_and_project_isolated(tmp_path: Path):
     repo_a, repo_b = tmp_path / "a", tmp_path / "b"
     _init_repo(repo_a)
     _init_repo(repo_b)
-    (repo_a / ".gitignore").write_text("docs/kb/\n", encoding="utf-8")
+    (repo_a / ".gitignore").write_text(".orchestra/kb/\n", encoding="utf-8")
     _git(repo_a, "add", ".gitignore")
     _git(repo_a, "commit", "-qm", "ignore local knowledge")
     id_a = "00000000-0000-4000-8000-00000000000a"
     id_b = "00000000-0000-4000-8000-00000000000b"
-    record_a = repo_a / f"docs/kb/records/evidence/{id_a}.json"
-    record_b = repo_b / f"docs/kb/records/evidence/{id_b}.json"
+    record_a = repo_a / f".orchestra/kb/records/evidence/{id_a}.json"
+    record_b = repo_b / f".orchestra/kb/records/evidence/{id_b}.json"
     record_a.parent.mkdir(parents=True)
     record_b.parent.mkdir(parents=True)
-    record_a.write_bytes(_record("a", id_a, "docs/kb/a.md"))
-    record_b.write_bytes(_record("b", id_b, "docs/kb/b.md"))
-    assert _git(repo_a, "check-ignore", "docs/kb/records/evidence/" + id_a + ".json")
-    assert _git(repo_a, "ls-files", "docs/kb") == ""
-    assert _git(repo_b, "ls-files", "docs/kb") == ""
+    record_a.write_bytes(_record("a", id_a, ".orchestra/kb/a.md"))
+    record_b.write_bytes(_record("b", id_b, ".orchestra/kb/b.md"))
+    assert _git(repo_a, "check-ignore", ".orchestra/kb/records/evidence/" + id_a + ".json")
+    assert _git(repo_a, "ls-files", ".orchestra/kb") == ""
+    assert _git(repo_b, "ls-files", ".orchestra/kb") == ""
 
     engine_state = tmp_path / "owner.json"
     central_records = {("a", "central"): {"project_id": "a", "stable_id": "central"}}
@@ -376,8 +376,8 @@ def test_t3_owner_switch_is_global_and_project_isolated(tmp_path: Path):
             "status": "current",
         },
     )
-    assert (repo_a / f"docs/kb/records/evidence/{new_id}.json").is_file()
-    assert not (repo_b / f"docs/kb/records/evidence/{new_id}.json").exists()
+    assert (repo_a / f".orchestra/kb/records/evidence/{new_id}.json").is_file()
+    assert not (repo_b / f".orchestra/kb/records/evidence/{new_id}.json").exists()
     fresh = module.ProjectKnowledgeRouter(
         project_roots={"a": repo_a, "b": repo_b},
         engine_state_path=engine_state,
@@ -418,7 +418,7 @@ def test_t4_extracted_facts_convert_one_to_one_and_idempotently(tmp_path: Path):
     assert hasattr(script, "write_project_fact_records"), (
         "T4 missing write_project_fact_records"
     )
-    facts_dir = Path("docs/tasks/kb-extract")
+    facts_dir = Path(".orchestra/tasks/kb-extract")
     source_hashes = {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()
         for path in facts_dir.glob("part-*.json")
@@ -442,18 +442,18 @@ def test_t4_extracted_facts_convert_one_to_one_and_idempotently(tmp_path: Path):
     first = script.write_project_fact_records(
         facts_dir=facts_dir,
         source_root=Path.cwd(),
-        destination_root=tmp_path / "docs/kb",
+        destination_root=tmp_path / ".orchestra/kb",
         project_id="orchestra",
         provenance_resolver=provenance_resolver,
     )
     second = script.write_project_fact_records(
         facts_dir=facts_dir,
         source_root=Path.cwd(),
-        destination_root=tmp_path / "docs/kb",
+        destination_root=tmp_path / ".orchestra/kb",
         project_id="orchestra",
         provenance_resolver=provenance_resolver,
     )
-    records = [json.loads(path.read_text()) for path in (tmp_path / "docs/kb/records/facts").rglob("*.json")]
+    records = [json.loads(path.read_text()) for path in (tmp_path / ".orchestra/kb/records/facts").rglob("*.json")]
     assert len(records) == 764
     actual = {item["stable_id"]: item for item in records}
     assert set(actual) == set(expected)
@@ -505,7 +505,7 @@ def test_t5_cleanup_refuses_without_parity_and_preserves_engine_state(
     central = state_root / "canonical"
     _init_repo(central)
     stable_id = "00000000-0000-4000-8000-000000000005"
-    payload = _record("foreign", stable_id, "docs/kb/foreign.md")
+    payload = _record("foreign", stable_id, ".orchestra/kb/foreign.md")
     record = central / f"evidence/foreign/{stable_id}.json"
     record.parent.mkdir(parents=True)
     record.write_bytes(payload)
@@ -518,7 +518,7 @@ def test_t5_cleanup_refuses_without_parity_and_preserves_engine_state(
 
     project_repo = tmp_path / "project"
     before_head = _init_repo(project_repo)
-    destination = project_repo / f"docs/kb/records/evidence/{stable_id}.json"
+    destination = project_repo / f".orchestra/kb/records/evidence/{stable_id}.json"
     destination.parent.mkdir(parents=True)
     destination.write_bytes(payload)
     records_digest = hashlib.sha256(
@@ -531,16 +531,16 @@ def test_t5_cleanup_refuses_without_parity_and_preserves_engine_state(
         "records": [
             {
                 "stable_id": stable_id,
-                "destination_relative_path": f"docs/kb/records/evidence/{stable_id}.json",
+                "destination_relative_path": f".orchestra/kb/records/evidence/{stable_id}.json",
                 "size": len(payload),
                 "sha256": hashlib.sha256(payload).hexdigest(),
             }
         ],
     }
-    (project_repo / "docs/kb/manifest.json").write_text(
+    (project_repo / ".orchestra/kb/manifest.json").write_text(
         json.dumps(local_manifest, sort_keys=True), encoding="utf-8"
     )
-    _git(project_repo, "add", "docs/kb")
+    _git(project_repo, "add", ".orchestra/kb")
     _git(project_repo, "commit", "-qm", "local knowledge")
     target_commit = _git(project_repo, "rev-parse", "HEAD")
 
@@ -597,7 +597,7 @@ def test_t5_cleanup_refuses_without_parity_and_preserves_engine_state(
                 "repository_root": str(project_repo),
                 "before_head": before_head,
                 "target_commit": target_commit,
-                "manifest_relative_path": "docs/kb/manifest.json",
+                "manifest_relative_path": ".orchestra/kb/manifest.json",
                 "record_count": 1,
                 "records_sha256": local_manifest["records_sha256"],
             }
@@ -748,15 +748,15 @@ def test_t6_prompt_and_cutover_deliver_project_local_owner():
 
     forbidden = tuple(getattr(cutover, "_FORBIDDEN_LEGACY_DIRECTIVES", ()))
     required = tuple(getattr(cutover, "_REQUIRED_PROMPT_ANCHORS", ()))
-    assert not any("docs/kb" in item for item in forbidden), (
-        "T6 cutover still forbids docs/kb directives"
+    assert not any(".orchestra/kb" in item for item in forbidden), (
+        "T6 cutover still forbids .orchestra/kb directives"
     )
     assert PROJECT_OWNER_ANCHOR in required, "T6 cutover missing project-local owner anchor"
     prompts = {}
     for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
         prompts[role] = build_system_prompt(DEFAULT_PIPELINE, role)
         assert PROJECT_OWNER_ANCHOR in prompts[role], role
-        assert "docs/kb/README.md" in prompts[role], role
-    append_anchor = "Append the conclusion to its topic file in `docs/kb/`"
+        assert ".orchestra/kb/README.md" in prompts[role], role
+    append_anchor = "Append the conclusion to its topic file in `.orchestra/kb/`"
     assert append_anchor in prompts["full-cycle"]
     assert append_anchor not in prompts["worker"]

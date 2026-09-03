@@ -521,7 +521,7 @@ class TestHtmlArtifactsSkillInvariants:
 
     SKILL = (
         Path(__file__).parent.parent
-        / "pipelines" / "default" / "prompts" / "skills" / "html-artifacts.md"
+        / ".orchestra" / "pipelines" / "default" / "prompts" / "skills" / "html-artifacts.md"
     )
 
     def test_accent_is_never_given_a_value(self):
@@ -586,8 +586,9 @@ class TestRefreshWorkerMemory:
     PROMPT = "ROLE: worker.\n\n<worker-memory>\nOLD\n</worker-memory>"
 
     def _mem(self, tmp_path, filename, text):
-        d = tmp_path / "docs" / "workers"
+        d = tmp_path / ".orchestra" / "workers"
         d.mkdir(parents=True, exist_ok=True)
+        (tmp_path / ".orchestra" / "layout.json").write_text("{}\n")
         (d / filename).write_text(text)
 
     def test_replaces_block_and_keeps_the_blank_line_separator(self, tmp_path):
@@ -621,27 +622,25 @@ class TestRefreshWorkerMemory:
         assert out.count("<worker-memory>") == 1
         assert refresh_worker_memory(out, "w1", "worker", str(tmp_path)) == out
 
-    def test_missing_unreadable_or_bad_scope_empties_the_block_without_raising(
+    def test_missing_layout_is_loud_but_unreadable_memory_empties_the_block(
         self, tmp_path
     ):
+        from app.orchestra_layout import LayoutMigrationError
         from app.prompting import refresh_worker_memory
 
-        # A raise here would land on the turn boundary, killing the agent's turn.
-        assert refresh_worker_memory(
-            self.PROMPT, "w1", "worker", str(tmp_path)
-        ) == "ROLE: worker."
-        assert refresh_worker_memory(
-            self.PROMPT, "w1", "worker", "/nope/nowhere"
-        ) == "ROLE: worker."
+        with pytest.raises(LayoutMigrationError, match="ORCHESTRA_LAYOUT_MISSING.*--repair"):
+            refresh_worker_memory(self.PROMPT, "w1", "worker", str(tmp_path))
+        with pytest.raises(LayoutMigrationError, match="ORCHESTRA_LAYOUT_MISSING.*--repair"):
+            refresh_worker_memory(self.PROMPT, "w1", "worker", "/nope/nowhere")
 
         self._mem(tmp_path, "w1.md", "SECRET")
-        (tmp_path / "docs" / "workers" / "w1.md").chmod(0o000)
+        (tmp_path / ".orchestra" / "workers" / "w1.md").chmod(0o000)
         try:
             assert refresh_worker_memory(
                 self.PROMPT, "w1", "worker", str(tmp_path)
             ) == "ROLE: worker."
         finally:
-            (tmp_path / "docs" / "workers" / "w1.md").chmod(0o644)
+            (tmp_path / ".orchestra" / "workers" / "w1.md").chmod(0o644)
 
     def test_memory_containing_regex_escapes_is_inserted_literally(self, tmp_path):
         from app.prompting import refresh_worker_memory

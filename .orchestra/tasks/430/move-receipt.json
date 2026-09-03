@@ -1,0 +1,15 @@
+{
+  "artifact_reading_count": 2,
+  "before_ref": "848c8d5146909bd7d70aca9271effad5cc3a3a37",
+  "checked_files": 16482,
+  "evidence_path_blob_sha_checked": 12759,
+  "fields": [
+    "mode",
+    "lines",
+    "bytes",
+    "sha256"
+  ],
+  "location_runtime_commit": "1f80bb50b81db380fb5f51a0894209538553087f",
+  "merged_main_ref": "4e5940ef6a282b1f1c0cf4da1a0998bd131414ed",
+  "mismatches": []
+}

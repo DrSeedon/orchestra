@@ -154,7 +154,7 @@ DONE WHEN: наблюдаемое условие завершения.
 ## Переезд между рантаймами (пережито 2026-08-02, Sol → Opus 5)
 
 - Смена рантайма ОБНУЛЯЕТ нативную сессию: остаётся `runtime_handoff`-сводка, полного диалога нет.
-  Восстанавливаться по артефактам: `docs/tasks/<id>/audit.md` + этот файл (он авто-инжектится).
+  Восстанавливаться по артефактам: `.orchestra/tasks/<id>/audit.md` + этот файл (он авто-инжектится).
   Практический вывод: пиши в `audit.md` номера находок с `файл:строка` — по ним аудит поднимается
   за 3 чтения; по пересказу «что мы решили» не поднимается вообще.
 - **Аудит протухает между пакетами.** На пакете 3 два пункта из 12 оказались уже закрыты чужими
@@ -164,14 +164,14 @@ DONE WHEN: наблюдаемое условие завершения.
   блок — на длинном аудите это заметно дешевле по ходам. Sol был точнее в дословном исполнении
   длинных механических протоколов. Для правки промптов разницы в качестве не заметил.
 - С 13.08.2026 успешный compact взводит re-injection, который перечитывает
-  `docs/workers/<name>.md`; старое ограничение «только spawn/restart» снято (#220). До самого
+  `.orchestra/workers/<name>.md`; старое ограничение «только spawn/restart» снято (#220). До самого
   re-injection живая нативная сессия всё ещё работает со старой копией.
 
 ## Правки правил: два надёжных хода (2026-08-03, чистка CLAUDE.md)
 
 - **Правило живёт в ДВУХ местах, и агент слушается промпта, а не доки.** `CLAUDE.md` требовал
   беречь память ноута, а `research-method.md` велел «Run in /tmp» (= tmpfs = RAM) — воркер
-  выполнил промпт. Правишь правило о поведении агентов → грепни `pipelines/*/prompts/` на ту
+  выполнил промпт. Правишь правило о поведении агентов → грепни `.orchestra/pipelines/*/prompts/` на ту
   же тему, иначе чинишь симптом. Так же нашёл `UV_CACHE_DIR=/tmp/uv-cache` в `full-cycle.md`:
   замер `du -sh /tmp/uv-cache` = 797 МБ в RAM по нашей же инструкции.
 - **Конфликт «моя реструктуризация vs чужая плоская версия» — не выбор стороны.** Взять свою
@@ -184,7 +184,7 @@ DONE WHEN: наблюдаемое условие завершения.
 
 ## Правишь модуль — сперва проверь, КТО его грузит (2026-08-04, #148)
 
-- **`pipelines/default/pipeline.yaml`, поле `modules:` — карта адресатов. Читать ДО правки текста.**
+- **`.orchestra/pipelines/default/pipeline.yaml`, поле `modules:` — карта адресатов. Читать ДО правки текста.**
   `research-method` грузит ТОЛЬКО `full-cycle`. Роль `worker` (207 сессий против 161 у full-cycle)
   не видит ни Step 0-5, ни строк про prior art. Задача звучала «поправь research-method», и
   правка там на целевом кейсе не изменила бы НИЧЕГО — тот воркер этот модуль не читает.
@@ -216,7 +216,7 @@ DONE WHEN: наблюдаемое условие завершения.
   прибит к спискам `modules` дословно — меняешь манифест, правь и его в том же коммите.
 - **Локальный `.codex/skills/<name>/SKILL.md` может быть игнорируемой runtime-проекцией, а не
   владельцем текста.** Перед тем как объявлять его вторым source of truth или строить checker,
-  проверь `git ls-files --error-unmatch <path>`; canonical source контролируй в `pipelines/`, а
+  проверь `git ls-files --error-unmatch <path>`; canonical source контролируй в `.orchestra/pipelines/`, а
   доставку — сборкой промпта/реконнектом. Иначе тест зависит от файла, которого нет в clean checkout
   (#296).
 - **Тест «текст НЕ протёк в чужой промпт»: якоря брать ИЗ файла-источника, а не выписывать руками.**
@@ -324,7 +324,7 @@ DONE WHEN: наблюдаемое условие завершения.
 - **Правило, конфликтующее с вчерашним, сливать в него, а не класть рядом.** «Пересказывай research
   содержательно» против моего же `<user-answer-format>`, который запрещает лить методологию в чат.
   Разрешение внутри одного блока: в чат — вопрос, размер и ГРАНИЦА выборки, числа, counter-evidence,
-  вердикт; устройство метода (контроли, R², знаменатели) — в `docs/tasks/<id>/`.
+  вердикт; устройство метода (контроли, R², знаменатели) — в `.orchestra/tasks/<id>/`.
 - **Форма теста для пачки переносов — таблица `(якорь, файл-владелец, роли-аудитория, снятая строка
   CLAUDE.md)` и четыре параметризованных проверки:** якорь в файле-владельце И `rglob('*.md')` по
   промптам даёт РОВНО одного держателя; `assembled.count(anchor) == 1` у каждого адресата;
@@ -379,7 +379,7 @@ DONE WHEN: наблюдаемое условие завершения.
   в `<repo>/<dot-dir>/` проверять `exists() and not is_dir()`. Правило шире имени: платформа
   не пишет поверх принадлежащего репозиторию, и «принадлежит» бывает выражено ТИПОМ файла,
   а не только индексом git.
-- **Аудит «где мы костылим» начинать с `ls docs/tasks/`, а не с кода (#152).** Из шести
+- **Аудит «где мы костылим» начинать с `ls .orchestra/tasks/`, а не с кода (#152).** Из шести
   кандидатов оркестратора четыре были УЖЕ разобраны нами: `no-subagents` (бан отменён юзером
   01.07), `126` («не переходить на нативный компакт»), `cc-config-audit` (хуки), `151`.
   Двадцать секунд на список каталогов сэкономили бы половину аудита. `search_memory` находит
@@ -518,14 +518,14 @@ DONE WHEN: наблюдаемое условие завершения.
 
 ## Источники
 
-- **[L1]** `docs/tasks/fullcycle-audit/research.md` — traces 28k calls, working/dead rules, phases.
-- **[L2]** `docs/tasks/sol-efficiency/research.md` — OLS n=103 и raw TSV/scripts.
-- **[L3]** `docs/tasks/context-engineering/research.md` — 32 KiB experiment, duplicate drift.
+- **[L1]** `.orchestra/tasks/fullcycle-audit/research.md` — traces 28k calls, working/dead rules, phases.
+- **[L2]** `.orchestra/tasks/sol-efficiency/research.md` — OLS n=103 и raw TSV/scripts.
+- **[L3]** `.orchestra/tasks/context-engineering/research.md` — 32 KiB experiment, duplicate drift.
 - **[L4]** read-only `orchestra.db` snapshots + prompt incidents `memory-search` and
   active-worker task queue / kill lifecycle (2026-08-01).
 - **[L5]** `app/backend_claude.py`, `app/backend_codex.py`, `app/runtime_registry.py`,
   `app/manager.py`, `app/workspace.py` — фактическая сборка prompt stack.
-- **[L6]** `docs/tasks/247/research.md` — model registry/readiness split и live prompt delivery.
+- **[L6]** `.orchestra/tasks/247/research.md` — model registry/readiness split и live prompt delivery.
 - **[O1]** [OpenAI: Prompting guidance for GPT-5.6 Sol](https://developers.openai.com/api/docs/guides/prompt-guidance-gpt-5p6) (checked 2026-08-01).
 - **[O2]** [OpenAI: Prompting Codex](https://learn.chatgpt.com/docs/prompting).
 - **[O3]** [OpenAI: AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md).

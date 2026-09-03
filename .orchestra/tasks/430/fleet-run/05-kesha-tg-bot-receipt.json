@@ -1,0 +1,34 @@
+{
+  "after_dirty_files": 2,
+  "after_head": "c3c5166ba0eff89e8ce67540b35f13c4a196e595",
+  "before_dirty_files": 2,
+  "before_head": "35b85d50a46162b5ae82dff142564668dbcfdf2b",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks",
+    "workers"
+  ],
+  "outcome": "migrated",
+  "project_id": "kesha-tg-bot",
+  "repository": "/mnt/data/Projects/Python/kesha-tg-bot",
+  "result": {
+    "commit": "c3c5166ba0eff89e8ce67540b35f13c4a196e595",
+    "dirty_preserved": true,
+    "dirty_status_after": [
+      " M .serena/project.yml",
+      "?? .orchestra/kb/"
+    ],
+    "dirty_status_before": [
+      " M .serena/project.yml",
+      "?? docs/kb/"
+    ],
+    "managed_paths": [
+      "tasks",
+      "workers"
+    ],
+    "repair_command": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair /mnt/data/Projects/Python/kesha-tg-bot",
+    "repository": "/mnt/data/Projects/Python/kesha-tg-bot",
+    "status": "migrated"
+  },
+  "status_equivalent_after_path_mapping": true
+}

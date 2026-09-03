@@ -1,0 +1,32 @@
+{
+  "after_dirty_files": 2,
+  "after_head": "886b35b5781a28e5ad1b883107046c3ed1236ebc",
+  "before_dirty_files": 2,
+  "before_head": "b66a6f1161eaf937afcfa53cdc47b79a83cffa81",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks"
+  ],
+  "outcome": "migrated",
+  "project_id": "WebView",
+  "repository": "/mnt/data/Projects/Python/WebView",
+  "result": {
+    "commit": "886b35b5781a28e5ad1b883107046c3ed1236ebc",
+    "dirty_preserved": true,
+    "dirty_status_after": [
+      "?? .orchestra/kb/",
+      "?? kiosk.log"
+    ],
+    "dirty_status_before": [
+      "?? docs/kb/",
+      "?? kiosk.log"
+    ],
+    "managed_paths": [
+      "tasks"
+    ],
+    "repair_command": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair /mnt/data/Projects/Python/WebView",
+    "repository": "/mnt/data/Projects/Python/WebView",
+    "status": "migrated"
+  },
+  "status_equivalent_after_path_mapping": true
+}

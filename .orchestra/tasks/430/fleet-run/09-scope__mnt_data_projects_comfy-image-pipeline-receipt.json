@@ -1,0 +1,29 @@
+{
+  "after_dirty_files": 0,
+  "after_head": "16b699c8fa511e2661870833126cea82aa913ee2",
+  "before_dirty_files": 0,
+  "before_head": "0610c01c68d440a2a5645128b1e4a7e00b44132e",
+  "layout_state": "current",
+  "managed_paths": [
+    "archive",
+    "kb",
+    "tasks",
+    "workers"
+  ],
+  "outcome": "migrated",
+  "project_id": "scope:/mnt/data/projects/comfy-image-pipeline",
+  "repository": "/mnt/data/Projects/comfy-image-pipeline",
+  "result": {
+    "commit": "16b699c8fa511e2661870833126cea82aa913ee2",
+    "managed_paths": [
+      "archive",
+      "kb",
+      "tasks",
+      "workers"
+    ],
+    "repair_command": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/.venv/bin/python /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/move-dot-orchestra/scripts/migrate_orchestra_layout.py --repair /mnt/data/Projects/comfy-image-pipeline",
+    "repository": "/mnt/data/Projects/comfy-image-pipeline",
+    "status": "migrated"
+  },
+  "status_equivalent_after_path_mapping": true
+}

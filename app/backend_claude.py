@@ -482,7 +482,7 @@ def _extract_tool_result(block) -> str:
 # model and an MCP server that is written in JS does exactly that parse. 19-digit ids are
 # normal for Yandex.Direct, Telegram and Discord. A schema typed `string` rejects the rounded
 # value loudly; a schema that accepts `number` takes it silently and the write lands on
-# somebody else's object. See docs/tasks/129/research.md.
+# somebody else's object. See .orchestra/tasks/129/research.md.
 _FLOAT64_SAFE_INT = 2 ** 53
 
 

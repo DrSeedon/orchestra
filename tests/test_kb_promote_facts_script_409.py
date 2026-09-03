@@ -10,9 +10,9 @@ from scripts import kb_promote_facts as script
 
 def _fixture(tmp_path: Path) -> tuple[Path, Path, Path, list[dict]]:
     repo = tmp_path / "repo"
-    facts_dir = repo / "docs/tasks/kb-extract"
+    facts_dir = repo / ".orchestra/tasks/kb-extract"
     facts_dir.mkdir(parents=True)
-    source = repo / "docs/kb/source.md"
+    source = repo / ".orchestra/kb/source.md"
     source.parent.mkdir(parents=True)
     source.write_text("Measured source evidence.\n", encoding="utf-8")
     facts = [
@@ -21,7 +21,7 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, Path, list[dict]]:
             "reason": f"Measured reason {index}.",
             "decided_at": None if index == 1 else "2026-08-26",
             "evidence": "Measured source evidence.",
-            "source_file": "docs/kb/source.md",
+            "source_file": ".orchestra/kb/source.md",
             "source_lines": str(index),
             "status": "rejected" if index == 10 else "current",
             "topic": "проверка идемпотентности",
@@ -42,7 +42,7 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, Path, list[dict]]:
         "uri": f"orch://project/orchestra/tasks/{task_id}/state",
         "project_id": "orchestra",
         "display_number": 399,
-        "title": "Extract docs/tasks/kb-extract/part-1.json",
+        "title": "Extract .orchestra/tasks/kb-extract/part-1.json",
         "evidence_refs": [],
     }))
     resource = canonical / "evidence/orchestra/resource.json"
@@ -52,7 +52,7 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, Path, list[dict]]:
         "stable_id": "9c3e54c0-3a53-5824-95b1-db920d4c6812",
         "uri": "orch://project/orchestra/resources/9c3e54c0-3a53-5824-95b1-db920d4c6812",
         "project_id": "orchestra",
-        "source_path": "docs/kb/source.md",
+        "source_path": ".orchestra/kb/source.md",
         "source_sha256": f"sha256:{hashlib.sha256(source.read_bytes()).hexdigest()}",
         "git_commit": "1" * 40,
     }))
@@ -168,16 +168,16 @@ def test_dry_run_is_deterministic_and_second_inventory_has_zero_new(capsys, tmp_
     second = capsys.readouterr().out
     assert "ready_to_write=0 already_exists=10 preflight_rejected=0" in second
     assert [script.stable_fact_id(fact) for fact in facts] == [
-        "f2b99462-315c-5c45-8679-a28b860538a9",
-        "1631dcca-3097-58db-ae03-cbd82de12d20",
-        "f4c9a22f-26a4-50a3-91cc-05b25b622415",
-        "fcb9ccd1-51fc-5209-8613-768f74086ee5",
-        "929a5ea8-c233-5210-aefa-a551b955d5a7",
-        "d107a513-d066-5c8b-bd65-aaf752bc6313",
-        "f8e2bb1c-bf28-57e1-ab08-d060218c0f96",
-        "13b2a17e-fe7a-5c2a-ab40-30831b392838",
-        "c6d9fd51-89b3-52ce-823b-70551b4cdcc5",
-        "b8031726-286b-5b0b-8d3a-758874daab7d",
+            "e83fbeaf-7b53-547a-9b75-7dbc520de988",
+            "2aa9ef2e-c0be-55a9-ab72-9a625345244c",
+            "fda1691c-00b8-537d-bc8d-560408415c0e",
+            "99f9e5c5-784f-504b-a3e3-ce9beb5aea4b",
+            "69dc9c31-742b-5291-a1a9-fa5396d63b4a",
+            "c13151eb-4f98-5096-b4d4-042c312fa5b3",
+            "a8ac5d2a-24a1-5a68-96dd-7071f010e1c6",
+            "247e7c4b-d8f4-581e-a6d0-8c29d720f407",
+            "959f702d-dbe6-5d47-aebe-af164467214f",
+            "8fe6a395-68e6-5efa-8c6e-35378d93b61c",
     ]
     archive_payload = json.loads(archive.read_text())
     archive_payload["index_version"] = 2
@@ -199,8 +199,8 @@ def test_preflight_rejects_invalid_import_path_duplicate_id_and_corrupt_task(tmp
     bad_resource.write_text(json.dumps({
         "record_type": "resource",
         "project_id": "orchestra",
-        "source_path": "docs/kb/source.md",
-        "source_sha256": f"sha256:{hashlib.sha256((repo / 'docs/kb/source.md').read_bytes()).hexdigest()}",
+        "source_path": ".orchestra/kb/source.md",
+        "source_sha256": f"sha256:{hashlib.sha256((repo / '.orchestra/kb/source.md').read_bytes()).hexdigest()}",
         "git_commit": "1" * 40,
     }))
     ready, rejected = script.preflight(

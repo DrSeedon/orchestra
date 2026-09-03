@@ -1,0 +1,25 @@
+{
+  "current": 13,
+  "failed": 0,
+  "old_managed_roots": 0,
+  "outcomes": {
+    "COG-second-brain": "current",
+    "Sensar": "current",
+    "VPN-Service": "current",
+    "WebView": "current",
+    "kesha-tg-bot": "current",
+    "orchestra": "current",
+    "parsing-hub": "current",
+    "polus": "current",
+    "scope:/mnt/data/projects/comfy-image-pipeline": "current",
+    "seedon": "current",
+    "stargate-tactics": "current",
+    "tradingcryptobot": "current",
+    "university": "current"
+  },
+  "preserve_journals": 0,
+  "preserve_stashes": 0,
+  "projects": 13,
+  "schema_version": 2,
+  "status_preserved": 13
+}

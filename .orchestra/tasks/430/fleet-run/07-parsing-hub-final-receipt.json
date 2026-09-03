@@ -1,0 +1,17 @@
+{
+  "dirty_files_expanded": 55,
+  "final_outcome": "current",
+  "head": "f87462fac907b7bda2376265c864edda451d3517",
+  "initial_outcome": "failed",
+  "layout_state": "current",
+  "managed_paths": [
+    "archive",
+    "kb"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "parsing-hub",
+  "repository": "/mnt/data/Projects/Python/Parsing",
+  "status_preserved_after_path_mapping": true
+}

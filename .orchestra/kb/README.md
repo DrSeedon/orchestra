@@ -1,7 +1,7 @@
 # База знаний — по темам, не по номерам задач
 
 Это то, что агент обязан прочитать ДО работы (гейт в модуле `memory-search`). Одна тема =
-один файл = один владелец. `docs/tasks/<id>/research.md` остаётся сырым артефактом задачи;
+один файл = один владелец. `.orchestra/tasks/<id>/research.md` остаётся сырым артефактом задачи;
 сюда попадает вывод и доказательство, по которому его можно перепроверить.
 
 **Формат темы — четыре раздела, строка = один факт:**
@@ -19,7 +19,7 @@
 - <вопрос без ответа> · <что помешало> · <дата, кто спрашивал>
 
 ## Источники
-- docs/tasks/<id>/research.md — <одна фраза, о чём он>
+- .orchestra/tasks/<id>/research.md — <одна фраза, о чём он>
 ```
 
 **Правила:**
@@ -67,14 +67,14 @@
 - [knowledge-base-architecture](knowledge-base-architecture.md) — canonical evidence, typed fact promotion/supersession, freshness generations, hot/warm/cold delivery and #256 baseline.
 - [task-storage-architecture](task-storage-architecture.md) — Git-canonical задачи с SQLite-проекцией, стабильным ID и сохраняемым проектным `#N`; двухконтурная синхронизация и baseline #299.
 - [information-architecture-synthesis](information-architecture-synthesis.md) — joined typed namespace/data plane, separate task/evidence/fact/session/resource contracts, OpenViking transfer verdicts and #315 plan.
-- [data-locality](data-locality.md) — fixed project-local `docs/kb/` owner, exact distribution
+- [data-locality](data-locality.md) — fixed project-local `.orchestra/kb/` owner, exact distribution
   ledger, one-record JSON format, cutover consumers and rollback proof.
 - [chat-freshness](chat-freshness.md) — чат в дашборде берётся ТОЛЬКО из сети: один свежий
   snapshot, `AbortController` на переключении, `no-store` с обеих сторон; зеркало логов в
   IndexedDB удалено и обратно не заводится.
 - [message-provenance](message-provenance.md) — явное происхождение `user_message`: frozen
   live-срез 940/2738, все writer seams, runtime prefix consumers и граница explicit `unknown`.
-- [agent-memory-architecture](agent-memory-architecture.md) — общая память поверх project-local `docs/kb`: agentic keyword control, связи тем, версии фактов, tool-utility gate и судьба vector projection.
+- [agent-memory-architecture](agent-memory-architecture.md) — общая память поверх project-local `.orchestra/kb`: agentic keyword control, связи тем, версии фактов, tool-utility gate и судьба vector projection.
 - [prime-agent](prime-agent.md) — Prime Agent и Hermes против нашего контура: кто и когда имеет право записать навык в память, две модели доверия у Hermes (LLM не трогает bundled, детерминированная уборка трогает), реальная дельта возможностей.
 - [auto-work](auto-work.md) — что у нас может запускаться автоматически: `bg_jobs` уже даёт периодический триггер и пробуждение, чего нет для автоспавна, состояние самоулучшения (51 предложение → 34 правила) и почему бесплатная полоса харнеса не отработала ни одного хода.
 - [project-portfolio](project-portfolio.md) — `scope` как технический ключ против человеческого проекта: `tm_projects` уже владеет задачами, один владелец на проект, правдивая доска и доказательства по сторожу застоя.

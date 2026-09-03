@@ -8,7 +8,7 @@ through a real restart and reports the evidence that decides it.
 The target unit is a hard-coded constant with no CLI surface, and both `--dry-run` and
 `--execute` go through the SAME builder — a runner whose safe dry-run and destructive run
 construct their commands separately would be a lie in exactly the place it matters.
-Everything here refuses to touch the production supervisor: see `docs/tasks/237/stand.md`.
+Everything here refuses to touch the production supervisor: see `.orchestra/tasks/237/stand.md`.
 
 Usage:
     rehearse-seamless-restart.py --dry-run                 # print the restart argv, do nothing

@@ -5,7 +5,7 @@
   лямбда с одним параметром `route` и default-args после него молча съест Request
   в `body=` → `TypeError: Object of type Request is not JSON serializable`.
   Пиши `def serve(route, _request, ...)`. Готовый рабочий шаблон:
-  `docs/tasks/369/verify_bubbles.py` (логин из .env, подмена app.js/tool-renderers.js/
+  `.orchestra/tasks/369/verify_bubbles.py` (логин из .env, подмена app.js/tool-renderers.js/
   style.css, гейт на символ, которого нет в main).
 - Живой дашборд имеет РЕАЛЬНЫЙ SSE-трафик: инжекть и ассерть DOM одним
   `page.evaluate`, иначе ассерты между Python-вызовами гоняют с чужими вставками.
@@ -29,4 +29,4 @@
 - Живой дашборд вычищает #chat между вызовами evaluate (reconnect/history-sync).
   Рабочий приём: инжект → позитивная проверка видимости конкретного баббла →
   `cloneNode(true)` чата с заменой узла (заморозка) → пост-проверка клона →
-  `locator.screenshot()` самого чата. Готовый скрипт: docs/tasks/369/screenshot_bubbles.py.
+  `locator.screenshot()` самого чата. Готовый скрипт: .orchestra/tasks/369/screenshot_bubbles.py.

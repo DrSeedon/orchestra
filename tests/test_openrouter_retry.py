@@ -1,6 +1,6 @@
 """#368 T5 — ретрай минутной стены OpenRouter: потолок ожидания и два вида 429.
 
-Оракул из docs/tasks/368/plan.md (тикет T5), AC 1-5.
+Оракул из .orchestra/tasks/368/plan.md (тикет T5), AC 1-5.
 """
 
 import asyncio

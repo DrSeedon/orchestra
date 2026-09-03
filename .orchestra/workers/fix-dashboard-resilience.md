@@ -46,6 +46,6 @@ Census → Auth → GZip стек читается
 
 ## `git diff main HEAD` в отставшей ветке показывает ЧУЖИЕ удаления
 
-Мой дифф «удалял» `docs/tasks/192/` и `docs/workers/cdn-vendors-*`, которых я не
+Мой дифф «удалял» `.orchestra/tasks/192/` и `.orchestra/workers/cdn-vendors-*`, которых я не
 трогал: ветка отстала от main. Для ревью и для оценки объёма брать
 `git diff $(git merge-base main HEAD) HEAD -- <свои пути>`.

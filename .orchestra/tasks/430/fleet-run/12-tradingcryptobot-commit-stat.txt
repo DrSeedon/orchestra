@@ -1,0 +1,25 @@
+29c07b9 Orchestra: migrate project state to .orchestra
+ .gitignore                                                             | 3 +++
+ .orchestra/layout.json                                                 | 1 +
+ .../tasks/research-audit-2026-08-16/build_methodology_audit.py         | 0
+ .../tasks/research-audit-2026-08-16/build_research_map.py              | 0
+ .../tasks/research-audit-2026-08-16/codex-review-impl.md               | 0
+ .../tasks/research-audit-2026-08-16/codex-review-plan.md               | 0
+ .../tasks/research-audit-2026-08-16/evidence/commands.jsonl            | 0
+ .../tasks/research-audit-2026-08-16/evidence/manifest.jsonl            | 0
+ .../tasks/research-audit-2026-08-16/evidence/r337-freeze.json          | 0
+ .../tasks/research-audit-2026-08-16/evidence/r337-replay.json          | 0
+ .../tasks/research-audit-2026-08-16/evidence/registry-freeze.json      | 0
+ .../tasks/research-audit-2026-08-16/evidence/static-measurements.json  | 0
+ .../tasks/research-audit-2026-08-16/executive-summary.md               | 0
+ .../tasks/research-audit-2026-08-16/freeze_r337_inputs.py              | 0
+ .../tasks/research-audit-2026-08-16/literature-review.md               | 0
+ .../tasks/research-audit-2026-08-16/measure_static_audit.py            | 0
+ .../tasks/research-audit-2026-08-16/methodology-audit.md               | 0
+ {docs => .orchestra}/tasks/research-audit-2026-08-16/plan.md           | 0
+ {docs => .orchestra}/tasks/research-audit-2026-08-16/report.md         | 0
+ {docs => .orchestra}/tasks/research-audit-2026-08-16/research-map.md   | 0
+ {docs => .orchestra}/tasks/research-audit-2026-08-16/run_evidence.py   | 0
+ .../tasks/research-audit-2026-08-16/validate_deliverables.py           | 0
+ .../tasks/research-audit-2026-08-16/verdict-and-roadmap.md             | 0
+ 23 files changed, 4 insertions(+)

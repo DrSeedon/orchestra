@@ -72,12 +72,12 @@ async def test_outcome_tool_is_idempotent_and_rejects_missing_dispute_evidence(
     first = await mcp.mcp.call_tool("record_review_outcome", {
         "receipt_id": "receipt-436",
         "outcome": "accepted",
-        "outcome_evidence_ref": "docs/tasks/436/report.md:1",
+        "outcome_evidence_ref": ".orchestra/tasks/436/report.md:1",
     })
     second = await mcp.mcp.call_tool("record_review_outcome", {
         "receipt_id": "receipt-436",
         "outcome": "accepted",
-        "outcome_evidence_ref": "docs/tasks/436/report.md:1",
+        "outcome_evidence_ref": ".orchestra/tasks/436/report.md:1",
     })
     disputed = await mcp.mcp.call_tool("record_review_outcome", {
         "receipt_id": "receipt-436",

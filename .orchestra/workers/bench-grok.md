@@ -54,9 +54,9 @@ ssh -p 2222 -i ~/.ssh/tunnel_laptop -o BatchMode=yes maxim@127.0.0.1 '<кома�
 `cache_read` уже входит в `input` (604/604 строк). Правило из `CLAUDE.md` про одноимённые
 счётчики срабатывает и на своих же данных, а не только при сравнении провайдеров.
 
-## Скрипт из `docs/tasks/` может импортировать `app` не из своего worktree
+## Скрипт из `.orchestra/tasks/` может импортировать `app` не из своего worktree
 
-При запуске `python docs/tasks/N/probe.py` первым в `sys.path` становится каталог скрипта, а
+При запуске `python .orchestra/tasks/N/probe.py` первым в `sys.path` становится каталог скрипта, а
 не корень worktree. На этой машине editable-install подхватил `app` из main: production-arm
 telemetry probe внезапно увидел старый `_build_env` и честно покраснел на чужом коде.
 

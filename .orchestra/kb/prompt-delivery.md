@@ -48,6 +48,6 @@
 
 ## Источники
 
-- docs/tasks/prompt-cleanup/audit.md — аудит противоречий в правилах и промптах, 19.08.2026
-- docs/tasks/203/ — доставка модулей по ролям, утечки в чужие роли
-- docs/tasks/220/, docs/tasks/137/ — перечитывание личной памяти на resume/compact
+- .orchestra/tasks/prompt-cleanup/audit.md — аудит противоречий в правилах и промптах, 19.08.2026
+- .orchestra/tasks/203/ — доставка модулей по ролям, утечки в чужие роли
+- .orchestra/tasks/220/, .orchestra/tasks/137/ — перечитывание личной памяти на resume/compact

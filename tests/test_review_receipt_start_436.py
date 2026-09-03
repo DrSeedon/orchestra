@@ -52,8 +52,8 @@ async def test_start_receipt_uses_resolved_model_task_artifact_and_reserved_roun
 
     await mcp.codex_review(
         context=PROJECT_CONTEXT,
-        target="docs/tasks/436/plan.md",
-        output="docs/tasks/436/review.md",
+        target=".orchestra/tasks/436/plan.md",
+        output=".orchestra/tasks/436/review.md",
         mode="exec",
         model="gpt5.6luna",
     )
@@ -62,5 +62,5 @@ async def test_start_receipt_uses_resolved_model_task_artifact_and_reserved_roun
     assert captured["receipt"]["reviewer_model"] == "gpt-5.6-luna"
     assert captured["receipt"]["runtime"] == "codex"
     assert captured["receipt"]["task_id"] == "436"
-    assert captured["receipt"]["artifact_path"].endswith("docs/tasks/436/review.md")
+    assert captured["receipt"]["artifact_path"].endswith(".orchestra/tasks/436/review.md")
     assert captured["receipt"]["round"] == 1

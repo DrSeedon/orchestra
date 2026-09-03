@@ -1,10 +1,10 @@
 """#230 T2–T9: adopt a surviving agent process instead of respawning it.
 
-RED on purpose until docs/tasks/230/plan.md is implemented. Every oracle here is written so a
+RED on purpose until .orchestra/tasks/230/plan.md is implemented. Every oracle here is written so a
 fake implementation fails it: adoption is proved by an event that crosses the pipe AFTER the
 handover, not by a flag someone set.
 
-The behaviour was measured first, on throwaway systemd units (docs/tasks/230/research.md F1,
+The behaviour was measured first, on throwaway systemd units (.orchestra/tasks/230/research.md F1,
 plan.md falsifiers): a real Codex and a real Claude CLI keep streaming their turn to the next
 supervisor generation, and a Claude turn waits 120 s for a permission answer that only the new
 generation can give.

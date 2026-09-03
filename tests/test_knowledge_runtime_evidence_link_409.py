@@ -26,7 +26,7 @@ def test_runtime_task_store_wires_imported_evidence_link_to_live_owner():
     evidence = {
         "stable_id": "3b000000-0000-4000-8000-000000000409",
         "task_id": "8b01850f-d6f2-504e-9c1d-390d9e55b5c5",
-        "canonical_path": "docs/kb/repo-ops.md",
+        "canonical_path": ".orchestra/kb/repo-ops.md",
         "anchor": "1-1",
         "git_commit": "1" * 40,
         "content_sha256": "sha256:" + "1" * 64,

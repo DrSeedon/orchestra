@@ -1,7 +1,7 @@
 """Тесты loader'а пайплайнов (app/pipeline.py).
 
-Изолированный модуль: фикстуры строят временные pipelines/<name>/pipeline.yaml
-на tmp_path и патчат app.pipeline.PIPELINES_DIR. На реальные pipelines/ НЕ опираемся.
+Изолированный модуль: фикстуры строят временные .orchestra/pipelines/<name>/pipeline.yaml
+на tmp_path и патчат app.pipeline.PIPELINES_DIR. На реальные .orchestra/pipelines/ НЕ опираемся.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ import app.pipeline as P
 def pipelines_root(tmp_path, monkeypatch):
     """Подменяет корень пайплайнов на tmp + чистит lru_cache load_pipeline.
 
-    Возвращает Path к временной директории pipelines/.
+    Возвращает Path к временной директории .orchestra/pipelines/.
     """
     root = tmp_path / "pipelines"
     root.mkdir()
@@ -29,7 +29,7 @@ def pipelines_root(tmp_path, monkeypatch):
 
 
 def _write_pipeline(root, name: str, yaml_text: str, prompts: dict | None = None):
-    """Создаёт pipelines/<name>/pipeline.yaml (+ опц. prompts/<rel>=content)."""
+    """Создаёт .orchestra/pipelines/<name>/pipeline.yaml (+ опц. prompts/<rel>=content)."""
     d = root / name
     (d / "prompts").mkdir(parents=True, exist_ok=True)
     (d / "pipeline.yaml").write_text(textwrap.dedent(yaml_text))
@@ -723,7 +723,7 @@ class TestBuildSystemPrompt:
 
     def test_isolation_does_not_read_app_prompts(self, pipelines_root, monkeypatch, tmp_path):
         """ИЗОЛЯЦИЯ: даже если app/prompts/ переименован/недоступен — сборка работает,
-        и наоборот: слой из app/prompts/ в итог НЕ попадает (читаем только pipelines/)."""
+        и наоборот: слой из app/prompts/ в итог НЕ попадает (читаем только .orchestra/pipelines/)."""
         # 1) Делаем app/prompts/ недоступным через подмену _PROMPTS_DIR в manager —
         #    но build_system_prompt вообще не должен туда смотреть.
         #    Проверяем структурно: prompt_path всегда внутри PIPELINES_DIR.

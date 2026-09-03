@@ -1,0 +1,4 @@
+................................                                         [100%]
+32 passed in 3.24s
+Task was destroyed but it is pending!
+task: <Task pending name='Task-128' coro=<HibernateManager._idle_hibernate() done, defined at /mnt/data/Projects/Python/orchestra-compare-430.mX6Ck6/base/app/session_hibernate.py:54> wait_for=<Future pending cb=[Task.task_wakeup()]>>

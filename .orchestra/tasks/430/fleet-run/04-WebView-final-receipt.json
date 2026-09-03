@@ -1,0 +1,16 @@
+{
+  "dirty_files_expanded": 8,
+  "final_outcome": "current",
+  "head": "886b35b5781a28e5ad1b883107046c3ed1236ebc",
+  "initial_outcome": "migrated",
+  "layout_state": "current",
+  "managed_paths": [
+    "tasks"
+  ],
+  "old_managed_roots": [],
+  "orchestra_preserve_stashes": [],
+  "preserve_journal_exists": false,
+  "project_id": "WebView",
+  "repository": "/mnt/data/Projects/Python/WebView",
+  "status_preserved_after_path_mapping": true
+}

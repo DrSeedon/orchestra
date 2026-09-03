@@ -1,6 +1,6 @@
 """Собрать один HTML-обзор извлечённых фактов базы знаний.
 
-Читает docs/tasks/kb-extract/part-*.json и пишет самодостаточный HTML: без сети,
+Читает .orchestra/tasks/kb-extract/part-*.json и пишет самодостаточный HTML: без сети,
 без внешних шрифтов, весь поиск и фильтры работают офлайн. Нужен, чтобы юзер
 глазами увидел, что именно легло в базу знаний, до заливки в canonical.
 """
@@ -10,8 +10,8 @@ from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "docs/tasks/kb-extract"
-OUT = ROOT / "docs/tasks/kb-extract/report.html"
+SRC = ROOT / ".orchestra/tasks/kb-extract"
+OUT = ROOT / ".orchestra/tasks/kb-extract/report.html"
 
 
 def load_facts() -> list[dict]:
@@ -115,7 +115,7 @@ q {{ display:block; margin-top:6px; color:var(--dim); font-size:13px;
 </style>
 <header>
   <h1>База знаний — {len(facts)} фактов</h1>
-  <div class="sub">Извлечено из 20 тем <code>docs/kb/</code> и <code>CLAUDE.md</code>.
+  <div class="sub">Извлечено из 20 тем <code>.orchestra/kb/</code> и <code>CLAUDE.md</code>.
   Каждый факт самодостаточен: читается без исходного файла.</div>
 </header>
 <div class="tiles">

@@ -9,7 +9,7 @@ def test_migration_keeps_derived_model_and_unknown_outcome_distinct(tmp_path):
         "schema_version": 1,
         "artifacts": [
             {
-                "path": "docs/tasks/436/old-review.md",
+                "path": ".orchestra/tasks/436/old-review.md",
                 "sha256": "0" * 64,
                 "size_bytes": 11,
                 "model": "gpt-5.6-sol",

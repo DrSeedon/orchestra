@@ -1,0 +1,20 @@
+command=.venv/bin/python .orchestra/tasks/430/probe_dirty_migration.py
+exit=0
+SHA256_BEFORE={"deleted": "MISSING", "modified": "dd217c299bba18f8e91e0fae7d2d4dfe5efd0042627f5899e39e2e8ac8ab94bc", "untracked": "1f0490b336e812f6b3429fa2fb6b1bd5e58d4eecbcb135328e0f88adf328abce"}
+SHA256_AFTER={"deleted": "MISSING", "modified": "dd217c299bba18f8e91e0fae7d2d4dfe5efd0042627f5899e39e2e8ac8ab94bc", "untracked": "1f0490b336e812f6b3429fa2fb6b1bd5e58d4eecbcb135328e0f88adf328abce"}
+STATUS_BEFORE
+ D docs/kb/deleted.md
+ M docs/kb/modified.md
+?? docs/kb/new.md
+STATUS_AFTER
+ D .orchestra/kb/deleted.md
+ M .orchestra/kb/modified.md
+?? .orchestra/kb/new.md
+MIGRATION_COMMIT_STAT
+56852cd Orchestra: migrate project state to .orchestra
+ .gitignore                          | 3 +++
+ {docs => .orchestra}/kb/clean.md    | 0
+ {docs => .orchestra}/kb/deleted.md  | 0
+ {docs => .orchestra}/kb/modified.md | 0
+ .orchestra/layout.json              | 1 +
+ 5 files changed, 4 insertions(+)
