@@ -5318,3 +5318,227 @@ def test_project_road_425_uses_real_dashboard_dom_and_load_path(dashboard_page: 
                 switchLeftTab('files');
             }"""
         )
+
+
+def _review_outcome_result_text() -> str:
+    """Ровно та форма, что доезжает до чата: `str(dict)` из backend_claude.py:475.
+
+    Не JSON: одинарные кавычки и `None`, поэтому общий путь с `JSON.parse` её не берёт.
+    """
+    return str(
+        {
+            "receipt_id": "review-receipt:01435214-5df0-4073-8eaa-6d074fb12240",
+            "schema_version": 1,
+            "runtime": "codex",
+            "reviewer_model": "gpt-5.6-luna",
+            "session_id": "80c6c2dd-55d5-4039-a7e2-c92ab2ff95d1",
+            "worker_name": "fix-projects-scope",
+            "task_id": "472",
+            "artifact_path": "",
+            "mode": "implementation",
+            "round": None,
+            "job_id": "",
+            "usage_event_id": "",
+            "status": "completed",
+            "failure_code": "",
+            "recovery_source": "",
+            "author_outcome": "disputed",
+            "outcome_evidence_ref": (
+                "REVIEW-EVIDENCE-MARKER verdict ACK, 0 blocking, 2 P2 disputed with "
+                "evidence: the partial unique index makes the duplicate state "
+                "unreachable, and the switch wiring is pre-existing and untouched by "
+                "this diff, so neither finding changes the artifact."
+            ),
+            "coverage_outcome": "reviewed",
+            "decision_actor": "",
+            "production_paths_json": (
+                '["app/portfolio.py", "app/routes/portfolio.py", "app/static/js/app.js"]'
+            ),
+            "production_snapshot_sha256": (
+                "67cf8c11459b2d4fd678a7452d9604a6aa5c4775b735ba7311043b2223823784"
+            ),
+            "target_sha": "2268e0fed51e4b438f8eeed8b3425469ba499ed7",
+            "worker_head": "2735fcf1c5b9c649c4c4c796e0099604c9cc588d",
+        }
+    )
+
+
+def test_review_outcome_result_renders_receipt_card_without_echoing_arguments(
+    dashboard_browser: Browser,
+):
+    """#478: результат record_review_outcome — карточка, а не сырой python-repr."""
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    def _serve(body: str):
+        # Playwright передаёт в обработчик ВТОРЫМ аргументом Request, поэтому захват
+        # тела через дефолтный параметр lambda затирается им же.
+        return lambda route: route.fulfill(
+            status=200, content_type="application/javascript", body=body
+        )
+
+    for name in ("chat.js", "tool-renderers.js"):
+        source = (Path(__file__).parent.parent / f"app/static/js/{name}").read_text()
+        page.route(f"**/static/js/{name}*", _serve(source))
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof addChatEntry === 'function'")
+    page.wait_for_timeout(2000)
+
+    result_text = _review_outcome_result_text()
+    args = {
+        "receipt_id": "review-receipt:01435214-5df0-4073-8eaa-6d074fb12240",
+        "outcome": "disputed",
+        "outcome_evidence_ref": (
+            "REVIEW-EVIDENCE-MARKER verdict ACK, 0 blocking, 2 P2 disputed with evidence"
+        ),
+    }
+    page.evaluate(
+        """([resultText, args]) => {
+            selectedAgent = null;
+            if (eventSource) { eventSource.close(); eventSource = null; }
+            document.querySelector('#chat').innerHTML = '';
+            addChatEntry(
+                'tool',
+                'mcp__orchestra__record_review_outcome: ' + JSON.stringify(args),
+                null, null, {tool_use_id: 'receipt-478'},
+            );
+            addChatEntry(
+                'tool_result', resultText, null, null, {tool_use_id: 'receipt-478'},
+            );
+        }""",
+        [result_text, args],
+    )
+
+    card = page.locator('[data-role="review-outcome"]')
+    expect(card).to_have_count(1)
+    card_text = card.inner_text()
+
+    # Полезная нагрузка на месте.
+    assert "01435214-5df0-4073-8eaa-6d074fb12240" in card_text
+    assert "reviewed" in card_text
+    assert "completed" in card_text
+    assert "app/portfolio.py" in card_text
+
+    # Пустые поля не рисуются вовсе.
+    for empty_field in (
+        "artifact_path",
+        "job_id",
+        "usage_event_id",
+        "failure_code",
+        "recovery_source",
+        "round",
+        "decision_actor",
+    ):
+        assert empty_field not in card_text, f"пустое поле {empty_field} отрисовано"
+
+    # Сырой python-repr не протёк в карточку.
+    assert "'schema_version'" not in card_text
+    assert "None" not in card_text
+
+    # Длинный ref показан РОВНО один раз — в аргументах, и не продублирован в результате.
+    assert page.locator("#chat").inner_text().count("REVIEW-EVIDENCE-MARKER") == 1
+
+    page.close()
+
+
+def test_review_outcome_error_result_falls_back_to_plain_rendering(
+    dashboard_browser: Browser,
+):
+    """#478: не-квитанция (ошибка тула) не должна давать пустую карточку."""
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+
+    def _serve(body: str):
+        return lambda route: route.fulfill(
+            status=200, content_type="application/javascript", body=body
+        )
+
+    for name in ("chat.js", "tool-renderers.js"):
+        source = (Path(__file__).parent.parent / f"app/static/js/{name}").read_text()
+        page.route(f"**/static/js/{name}*", _serve(source))
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof addChatEntry === 'function'")
+    page.wait_for_timeout(2000)
+
+    page.evaluate(
+        """() => {
+            selectedAgent = null;
+            if (eventSource) { eventSource.close(); eventSource = null; }
+            document.querySelector('#chat').innerHTML = '';
+            addChatEntry(
+                'tool',
+                'mcp__orchestra__record_review_outcome: ' + JSON.stringify({receipt_id: 'x'}),
+                null, null, {tool_use_id: 'receipt-478-error'},
+            );
+            addChatEntry(
+                'tool_result',
+                'Error: receipt not found: RECEIPT-ERROR-MARKER',
+                null, null, {tool_use_id: 'receipt-478-error'},
+            );
+        }"""
+    )
+
+    expect(page.locator('[data-role="review-outcome"]')).to_have_count(0)
+    assert "RECEIPT-ERROR-MARKER" in page.locator("#chat").inner_text()
+    page.close()
+
+
+def test_review_outcome_card_handles_escapes_arrays_and_broken_payloads(
+    dashboard_browser: Browser,
+):
+    """#478 round 1 ревью: разбор repr не портит текст и не рисует обрывки."""
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+
+    def _serve(body: str):
+        return lambda route: route.fulfill(
+            status=200, content_type="application/javascript", body=body
+        )
+
+    for name in ("chat.js", "tool-renderers.js"):
+        source = (Path(__file__).parent.parent / f"app/static/js/{name}").read_text()
+        page.route(f"**/static/js/{name}*", _serve(source))
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof addChatEntry === 'function'")
+    page.wait_for_timeout(2000)
+
+    # Аргументы БЕЗ outcome_evidence_ref → ref рисуется, и переносы строк обязаны выжить.
+    escaped = str(
+        {
+            "receipt_id": "review-receipt:esc",
+            "status": "completed",
+            "outcome_evidence_ref": "ESCLINE-one\nESCLINE-two",
+        }
+    )
+    broken = "{'receipt_id': 'x', 'status': }"
+
+    page.evaluate(
+        """([escaped, broken]) => {
+            selectedAgent = null;
+            if (eventSource) { eventSource.close(); eventSource = null; }
+            document.querySelector('#chat').innerHTML = '';
+            const emit = (id, args, result) => {
+                addChatEntry('tool',
+                    'mcp__orchestra__record_review_outcome: ' + args,
+                    null, null, {tool_use_id: id});
+                addChatEntry('tool_result', result, null, null, {tool_use_id: id});
+            };
+            emit('esc-478', JSON.stringify({receipt_id: 'review-receipt:esc'}), escaped);
+            emit('arr-478', '[]', escaped);
+            emit('broken-478', JSON.stringify({receipt_id: 'x'}), broken);
+        }""",
+        [escaped, broken],
+    )
+
+    cards = page.locator('[data-role="review-outcome"]')
+    # Битый payload карточку не даёт: две вместо трёх.
+    expect(cards).to_have_count(2)
+
+    # Экранированный \n расшифрован, а не превращён в букву n.
+    escaped_card = cards.nth(0).inner_text()
+    assert "ESCLINE-one" in escaped_card and "ESCLINE-two" in escaped_card
+    assert "ESCLINE-onenESCLINE-two" not in escaped_card
+
+    # Аргументы-массив читать нельзя → ref не рисуем вовсе (безопасный дефолт).
+    assert "ESCLINE-one" not in cards.nth(1).inner_text()
+
+    page.close()

@@ -15,7 +15,17 @@
   (настоящий шаблон, ассеты, вкладки). Синтетический Playwright-харнесс
   (`tests/test_project_roadmap_frontend_425.py`) грузит скрипты вручную и реального DOM
   не даёт — там нет `#orch-picker` и подобных узлов, поэтому код, читающий страницу,
-  на нём зеленеет вакуумно.
+  на нём зеленеет вакуумно. **`_route_frontend_sources` подменяет ТОЛЬКО `app.js` и
+  `style.css`** — правил `chat.js` или `tool-renderers.js`, добавляй `page.route` на них сам,
+  иначе тест молча гоняет версию из главного чекаута и зеленеет на чужом коде.
+- **В обработчик `page.route` Playwright передаёт ВТОРЫМ аргументом `Request`.** Поэтому захват
+  тела дефолтным параметром (`lambda route, body=src: ...`) затирается, и падает
+  `TypeError: Route.fulfill: Object of type Request is not JSON serializable`. Захватывать
+  замыканием: `def _serve(body): return lambda route: route.fulfill(..., body=body)`.
+- **`tests/test_frontend.py` целиком (~110 узлов, ~100 с) под нагрузкой ловит `RC=137`.**
+  Не повторять вслепую: `--collect-only` → разрезать список узлов пополам → два процесса,
+  и весь прогон через `bg_create(type="run", command="bash -lc /tmp/<script>.sh")`. Сверять
+  `collected` с суммой отчётов шардов. Проверять нагрузку заранее: `MemAvailable` + `uptime`.
 - **`record_review_outcome` требует `receipt_id`, которого НЕТ ни в артефакте ревью, ни в
   ответе `codex_review`.** Брать из боевой БД (read-only, чтение безопасно):
   `sqlite3 -readonly data/orchestra.db "SELECT receipt_id,status,job_id FROM review_receipts
