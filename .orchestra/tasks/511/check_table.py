@@ -43,11 +43,11 @@ for path in set(re.findall(r"`(app/[\w/]+\.py)`", block)):
     if not (root / path).exists():
         fail.append(f"missing file {path}")
 
-# 5. the review claim in the table must stay true
-out = subprocess.run(["grep", "-in", "review", "app/merge_operations.py"],
+# 5. the review claim must stay true: the merge path refuses without coverage.
+out = subprocess.run(["grep", "-c", "RECORD_REVIEW_THEN_NEW_OPERATION", "app/merge_operations.py"],
                      cwd=root, capture_output=True, text=True).stdout.strip()
-if out != '1226:                "REVIEW_WARNINGS_OUTSIDE_MERGE",':
-    fail.append(f"README claims the only review mention is REVIEW_WARNINGS_OUTSIDE_MERGE at 1226, actual {out}")
+if out == "0":
+    fail.append("README claims merge refuses without a review receipt; the marker is gone")
 
 # 6. the CLAUDE.md size claim must stay true in KIND, not to the byte:
 # the row asserts "the root guide is far too big to be an index", so the check is a floor.
