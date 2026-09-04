@@ -5,6 +5,7 @@
 Текст DONE не читаем — это вторая копия правды.
 """
 import asyncio
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,28 @@ import pytest
 REPORTED_LITERAL_SHELL_COMMAND = (
     'test "$(find . -type f | wc -l)" -eq 7 && python3 check.py'
 )
+
+
+def git_worktree(path: Path, *, files: dict[str, str] | None = None) -> Path:
+    """Репозиторий с веткой воркера: `main` — база, `task-42/worker` — правки."""
+    path.mkdir(parents=True, exist_ok=True)
+    def run(*args):
+        subprocess.run(["git", *args], cwd=path, check=True, capture_output=True)
+    run("init", "-b", "main")
+    run("config", "user.email", "t@t")
+    run("config", "user.name", "t")
+    (path / "README").write_text("base\n", encoding="utf-8")
+    run("add", "README")
+    run("commit", "-m", "base")
+    run("checkout", "-b", "task-42/worker")
+    for rel, text in (files or {}).items():
+        target = path / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+    if files:
+        run("add", "-A")
+        run("commit", "-m", "change")
+    return path
 
 
 def _session_row(worktree: str, task_id: str = "42") -> dict:
@@ -40,6 +63,25 @@ def _session_row(worktree: str, task_id: str = "42") -> dict:
     }
 
 
+def worker_head(worktree: str) -> str:
+    """HEAD воркерского worktree — ровно то, что в проде возвращает `inspect_worktree_identity`.
+
+    Раньше здесь стоял литерал `"b" * 40` — коммит, которого нет в репозитории, создаваемом
+    этой же фикстурой. До #462 его никто не разрешал, и подделка была невидима; с приходом
+    review-coverage путь мержа стал звать им git и получать
+    `fatal: Invalid symmetric difference expression <sha>...bbbb…`. В проде такого значения не
+    бывает: `inspect_worktree_identity` отдаёт `git rev-parse HEAD` живого worktree. Настоящий
+    случай неразрешимого ref (снесённая ветка, переехавший worktree) проверяется отдельным
+    тестом `test_unresolvable_worker_head_is_a_structured_refusal_not_a_crash`, где отказ и
+    является ожидаемым исходом, а не побочно ломает шесть чужих тестов (#474).
+    """
+    proc = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=worktree, capture_output=True, text=True, check=True,
+    )
+    return proc.stdout.strip()
+
+
 def _accepted(worktree: str, task_id: str = "42") -> dict:
     return {
         "session_id": "merge-session",
@@ -47,7 +89,7 @@ def _accepted(worktree: str, task_id: str = "42") -> dict:
         "scope": "/scope",
         "base_branch": "main",
         "worker_branch": "task-42/worker",
-        "worker_head": "b" * 40,
+        "worker_head": worker_head(worktree),
         "task_id": task_id,
         "needs_switch": False,
         "worktree_path": worktree,
@@ -64,8 +106,11 @@ def acc_db(tmp_path, monkeypatch):
     monkeypatch.setattr(dbmod, "DB_PATH", db_path)
     dbmod.init_db()
     operations._runner_tasks.clear()
-    worktree = tmp_path / "wt"
-    worktree.mkdir()
+    # Настоящий git-worktree, а не пустой каталог: фикстура и раньше объявляла `branch`,
+    # `base_branch` и git-идентичность, но каталогом репозиторий не был, поэтому
+    # `_target_head` отвечал `fatal: not a git repository`. Продовых файлов здесь нет
+    # намеренно — предмет этих тестов приёмочная команда, а не покрытие ревью.
+    worktree = git_worktree(tmp_path / "wt")
     dbmod.save_session(_session_row(str(worktree)))
     with tm._conn() as conn:
         tm.ensure_project(conn, "proj", scope="/scope")
@@ -76,7 +121,7 @@ def acc_db(tmp_path, monkeypatch):
         )
     monkeypatch.setattr(
         "app.workspace.inspect_worktree_identity",
-        lambda _path: ("task-42/worker", "b" * 40),
+        lambda _path: ("task-42/worker", worker_head(str(worktree))),
     )
     return worktree
 

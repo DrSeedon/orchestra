@@ -183,6 +183,7 @@ def init_db() -> None:
                 target_sha TEXT NOT NULL DEFAULT '',
                 worker_head TEXT NOT NULL DEFAULT '',
                 production_snapshot_sha256 TEXT NOT NULL DEFAULT '',
+                production_diff_sha256 TEXT NOT NULL DEFAULT '',
                 production_paths_json TEXT NOT NULL DEFAULT '[]',
                 coverage_outcome TEXT NOT NULL DEFAULT 'unknown',
                 policy_ref TEXT NOT NULL DEFAULT '',
@@ -1169,6 +1170,7 @@ def _migrate(c) -> None:
         "target_sha": "TEXT NOT NULL DEFAULT ''",
         "worker_head": "TEXT NOT NULL DEFAULT ''",
         "production_snapshot_sha256": "TEXT NOT NULL DEFAULT ''",
+        "production_diff_sha256": "TEXT NOT NULL DEFAULT ''",
         "production_paths_json": "TEXT NOT NULL DEFAULT '[]'",
         "coverage_outcome": "TEXT NOT NULL DEFAULT 'unknown'",
         "policy_ref": "TEXT NOT NULL DEFAULT ''",
@@ -1188,6 +1190,10 @@ def _migrate(c) -> None:
         "CREATE INDEX IF NOT EXISTS idx_review_receipts_coverage ON review_receipts("
         "scope, session_id, task_id, target_sha, production_snapshot_sha256, "
         "coverage_outcome, completed_at)"
+    )
+    c.execute(
+        "CREATE INDEX IF NOT EXISTS idx_review_receipts_coverage_diff ON review_receipts("
+        "scope, session_id, task_id, production_diff_sha256, completed_at)"
     )
     c.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_review_receipts_open_task_run_session "
@@ -2857,7 +2863,8 @@ _REVIEW_RECEIPT_COLUMNS = (
     "artifact_sha256", "verdict_present", "verdict_value", "jsonl_response_present",
     "recovery_source", "author_outcome", "outcome_source", "outcome_evidence_ref",
     "notification_event_id", "subject_kind", "target_sha", "worker_head",
-    "production_snapshot_sha256", "production_paths_json", "coverage_outcome",
+    "production_snapshot_sha256", "production_diff_sha256", "production_paths_json",
+    "coverage_outcome",
     "policy_ref", "decision_actor", "task_stable_id", "task_snapshot_ref",
     "prompt_template_start", "prompt_template_end", "terminal_operation_id",
 )
@@ -2965,6 +2972,7 @@ def task_run_receipt_open(
             "target_sha": "",
             "worker_head": "",
             "production_snapshot_sha256": "",
+            "production_diff_sha256": "",
             "production_paths_json": "[]",
             "coverage_outcome": "unknown",
             "policy_ref": "",
@@ -3174,6 +3182,7 @@ def review_receipt_create(receipt: dict) -> bool:
     values["target_sha"] = values["target_sha"] or ""
     values["worker_head"] = values["worker_head"] or ""
     values["production_snapshot_sha256"] = values["production_snapshot_sha256"] or ""
+    values["production_diff_sha256"] = values["production_diff_sha256"] or ""
     values["production_paths_json"] = values["production_paths_json"] or "[]"
     values["coverage_outcome"] = values["coverage_outcome"] or "unknown"
     values["policy_ref"] = values["policy_ref"] or ""
@@ -3222,6 +3231,11 @@ def review_receipt_record_skip(receipt: dict) -> dict:
         "production_snapshot_sha256", "production_paths_json", "coverage_outcome",
         "policy_ref", "decision_actor", "outcome_evidence_ref",
     )
+    # `production_diff_sha256` в identity НЕ входит намеренно: он выводится из того же `raw`,
+    # что и `production_snapshot_sha256`, который здесь уже есть вместе с `target_sha`, —
+    # то есть ничего не добавляет к пиннингу предмета. Зато у квитанций, выписанных до #474,
+    # колонка пуста, и включение её сюда превращало повтор ТОГО ЖЕ решения в
+    # `skip decision id conflicts with existing provenance` (#474, раунд 2).
     receipt_id = str(receipt.get("receipt_id") or "")
     if not receipt_id:
         raise ValueError("skip receipt_id is required")
@@ -3240,7 +3254,7 @@ def review_receipt_record_skip(receipt: dict) -> dict:
         values = {key: receipt.get(key) for key in _REVIEW_RECEIPT_COLUMNS}
         for key in (
             "task_stable_id", "task_snapshot_ref", "prompt_template_start",
-            "prompt_template_end", "terminal_operation_id",
+            "prompt_template_end", "terminal_operation_id", "production_diff_sha256",
         ):
             values[key] = values[key] or ""
         placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
@@ -3279,6 +3293,7 @@ def review_receipt_reserve(receipt: dict) -> dict:
     values.setdefault("target_sha", "")
     values.setdefault("worker_head", "")
     values.setdefault("production_snapshot_sha256", "")
+    values.setdefault("production_diff_sha256", "")
     values.setdefault("production_paths_json", "[]")
     values.setdefault("coverage_outcome", "unknown")
     values.setdefault("policy_ref", "")

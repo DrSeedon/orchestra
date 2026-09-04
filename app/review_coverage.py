@@ -10,6 +10,13 @@ from pathlib import Path
 
 
 SNAPSHOT_VERSION = b"review-coverage-v1\0"
+# Дайджест ПРЕДМЕТА ревью: только сырой продовый дифф, без хеша цели. `--raw --full-index`
+# несёт статус, режим, путь и blob-SHA обеих сторон, поэтому байт-в-байт равные `raw`
+# означают тождественный продовый дифф — а хеш цели в `SNAPSHOT_VERSION`-дайджесте делал
+# состоявшееся ревью недействительным от ЛЮБОГО постороннего коммита в main (04.09, #474:
+# `2268e0fe...2735fcf1` и `525684a4...598a5848` дали одинаковые 167 байт и разные дайджесты).
+# Своя версия-префикс: два дайджеста считаются от одного `raw` и не должны совпадать.
+DIFF_VERSION = b"review-coverage-diff-v1\0"
 ACTIVATION_MARKER = "review-coverage-v1"
 PRODUCTION_PREFIXES = ("app/", "scripts/")
 MACHINE_UNAVAILABLE_CODES = frozenset({"weekly_quota_blocked", "codex_binary_missing"})
@@ -55,9 +62,13 @@ def production_snapshot(
         "diff", "--name-only", "-z",
         f"{target_sha}...{worker_head}", "--", "app", "scripts",
     )
-    paths = sorted({
-        path for path in named.decode("utf-8", "surrogateescape").split("\0") if path
-    })
+    # Нормализация путей — ОДИН владелец, `production_paths`. Раньше она была только на стороне
+    # допуска (`\\`→`/`, срезание `./`), а снимок писал имя от git как есть; после привязки к
+    # `production_paths_json` расхождение стало бы ложным БЛОКОМ мержа на пути с обратным слэшем
+    # в имени (#474, раунд 2). Фильтр по префиксу здесь холостой: git уже ограничен `app scripts`.
+    paths = production_paths(
+        [path for path in named.decode("utf-8", "surrogateescape").split("\0") if path]
+    )
     digest = hashlib.sha256(
         SNAPSHOT_VERSION + target_sha.encode() + b"\0" + raw
     ).hexdigest()
@@ -65,6 +76,12 @@ def production_snapshot(
         "target_sha": target_sha,
         "worker_head": worker_head,
         "production_snapshot_sha256": digest,
+        # Пустой `raw` — это «продового диффа нет вовсе», и привязывать к нему нечего:
+        # дайджест был бы одной и той же константой для любой пары ссылок. Такое состояние
+        # получает пустую строку и уходит на привязку к цели, а не на общий дайджест.
+        "production_diff_sha256": (
+            hashlib.sha256(DIFF_VERSION + raw).hexdigest() if raw else ""
+        ),
         "production_paths": paths,
         "production_paths_json": json.dumps(paths, ensure_ascii=False, separators=(",", ":")),
     }
@@ -96,6 +113,7 @@ def coverage_decision(
     *, scope: str, session_id: str, task_id: str, target_sha: str,
     worker_head: str, production_paths: list[str],
     production_snapshot_sha256: str, active: bool,
+    production_diff_sha256: str = "",
     before: str | None = None,
 ) -> dict[str, object]:
     base = {
@@ -106,6 +124,7 @@ def coverage_decision(
         "target_sha": target_sha,
         "worker_head": worker_head,
         "production_snapshot_sha256": production_snapshot_sha256,
+        "production_diff_sha256": production_diff_sha256,
         "receipt_id": "",
         "coverage_outcome": "unknown",
     }
@@ -116,16 +135,35 @@ def coverage_decision(
     boundary = before or datetime.now(timezone.utc).isoformat()
     from app.db import _conn
 
+    # Список продовых путей — ОТДЕЛЬНОЕ условие поверх обеих дайджест-веток, а не деталь одной
+    # из них. Оба дайджеста считаются от `git diff`, который untracked-файлов не видит вовсе, а
+    # `changed_paths` их считает, — значит добавленный после ревью untracked `app/new.py`
+    # оставляет ОБА дайджеста прежними и проходил бы по target-привязанной ветке (нашла Luna,
+    # раунд 1, #474). Сравнение путей закрывает это и на старых квитанциях, ничего в них не
+    # переписывая: `production_paths_json` там уже лежит с #462.
+    paths_json = json.dumps(
+        list(production_paths), ensure_ascii=False, separators=(",", ":"),
+    )
+    # Две дайджест-ветки предъявляют ОДНУ И ТУ ЖЕ гарантию — «продовый дифф не менялся» — но
+    # берут её из разных полей. Вторая (по `production_diff_sha256`) снимает зависимость от хеша
+    # цели, первая остаётся ради квитанций, выписанных до этой колонки: их не переписывают
+    # задним числом, и без неё они разом перестали бы засчитываться. Пустой
+    # `production_diff_sha256` в старой квитанции НИЧЕГО не покрывает и отсекается явным `<>''`.
     with _conn() as connection:
         rows = connection.execute(
             """SELECT * FROM review_receipts
-                 WHERE scope=? AND session_id=? AND task_id=? AND target_sha=?
-                   AND production_snapshot_sha256=?
+                 WHERE scope=? AND session_id=? AND task_id=?
+                   AND production_paths_json=?
+                   AND (
+                     (target_sha=? AND production_snapshot_sha256=?)
+                     OR (production_diff_sha256<>'' AND production_diff_sha256=?)
+                   )
                    AND requested_at<=? AND completed_at IS NOT NULL AND completed_at<=?
                  ORDER BY completed_at DESC, requested_at DESC""",
             (
-                scope, session_id, task_id, target_sha,
-                production_snapshot_sha256, boundary, boundary,
+                scope, session_id, task_id, paths_json, target_sha,
+                production_snapshot_sha256, production_diff_sha256,
+                boundary, boundary,
             ),
         ).fetchall()
     policy_ref = current_policy_ref()
