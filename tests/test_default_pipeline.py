@@ -129,25 +129,16 @@ class TestDefaultRolesResolve:
         assert rr.can_spawn == ["*"]
         assert rr.allow_unrouted_workers is True
 
-    @pytest.mark.parametrize(
-        "role", ["worker", "full-cycle", "orchestrator", "sub-orchestrator"])
-    @pytest.mark.parametrize("model,runtime,expected", [
-        ("claude-opus-5[1m]", "claude", "high"),    # #208: перегиб отдачи на high
-        ("gpt-5.6-sol", "codex", "high"),           # #373: high/xhigh одинаковы; high дешевле
-        ("gpt-5.6-luna", "codex", "high"),          # #204: колено на high
-        ("gpt-6-astra", "codex", "medium"),         # Astra: собственное колено на medium
-        ("gpt-5.3-codex-spark", "codex", "high"),   # не мерился → default
-    ])
-    def test_every_role_resolves_effort_by_model(self, role, model, runtime, expected):
-        """Все четыре роли — одна карта. Оркестраторы подняты medium→high (#214)."""
-        rr = P.get_role(PIPELINE, role)
-        assert P.resolve_effort(rr.effort, model, runtime) == expected
-
-    def test_no_role_is_left_on_a_scalar_effort(self):
-        """Скаляр остаётся ВАЛИДНЫМ (тесты в test_pipeline.py), но в дефолтном
-        манифесте его больше нет — иначе роль снова обслуживала бы одну модель."""
-        for role in P.known_roles(PIPELINE):
-            assert isinstance(P.get_role(PIPELINE, role).effort, dict), role
+    def test_effort_policy_is_consistent_across_roles(self):
+        expected = {
+            "claude-opus-5[1m]": "high",
+            "gpt-5.6-sol": "high",
+            "gpt-5.6-luna": "high",
+            "gpt-6-astra": "medium",
+            "default": "high",
+        }
+        cfg = P.load_pipeline(PIPELINE)
+        assert all(spec.effort == expected for spec in cfg.roles.values())
 
     def test_modules_resolve_from_manifest(self):
         """modules пробрасываются из манифеста в ResolvedRole без слияния с defaults."""
