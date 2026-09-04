@@ -292,6 +292,65 @@ def test_t1_init_db_upgrades_a_preexisting_436_receipt_schema(tmp_path, monkeypa
     )
 
 
+def test_t3_invalid_legacy_author_outcome_fails_closed(tmp_path, monkeypatch):
+    import app.db as db
+    from app.review_coverage import coverage_decision
+
+    db_path = tmp_path / "legacy-invalid-outcome.db"
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("""
+            CREATE TABLE review_receipts (
+                receipt_id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL DEFAULT 1,
+                runtime TEXT NOT NULL, reviewer_model TEXT NOT NULL,
+                model_source TEXT NOT NULL, session_id TEXT NOT NULL,
+                worker_name TEXT NOT NULL, scope TEXT NOT NULL, task_id TEXT NOT NULL,
+                task_source TEXT NOT NULL, artifact_path TEXT NOT NULL, mode TEXT NOT NULL,
+                round INTEGER, job_id TEXT NOT NULL, usage_event_id TEXT NOT NULL,
+                requested_at TEXT NOT NULL, completed_at TEXT, status TEXT NOT NULL,
+                return_code INTEGER, failure_code TEXT NOT NULL DEFAULT '',
+                artifact_exists INTEGER, artifact_bytes INTEGER,
+                artifact_sha256 TEXT NOT NULL DEFAULT '', verdict_present INTEGER,
+                verdict_value TEXT NOT NULL DEFAULT '', jsonl_response_present INTEGER,
+                recovery_source TEXT NOT NULL DEFAULT '',
+                author_outcome TEXT NOT NULL DEFAULT 'unknown',
+                outcome_source TEXT NOT NULL DEFAULT 'unknown',
+                outcome_evidence_ref TEXT NOT NULL DEFAULT '',
+                notification_event_id TEXT NOT NULL DEFAULT ''
+            )
+        """)
+    monkeypatch.setattr(db, "DB_PATH", db_path)
+    monkeypatch.setenv("ORCHESTRA_DB_PATH", str(db_path))
+    db.init_db()
+    receipt = _receipt_payload(
+        scope="/scope",
+        target_sha="1" * 40,
+        worker_head="2" * 40,
+        production_snapshot_sha256="3" * 64,
+        production_paths_json='["app/example.py"]',
+        author_outcome="legacy_typo",
+        outcome_source="unknown",
+    )
+    db.review_receipt_create(receipt)
+
+    decision = coverage_decision(
+        scope="/scope",
+        session_id="session-462",
+        task_id="462",
+        target_sha="1" * 40,
+        worker_head="2" * 40,
+        production_paths=["app/example.py"],
+        production_snapshot_sha256="3" * 64,
+        active=True,
+        before="2026-09-03T01:00:00+00:00",
+    )
+
+    assert decision["status"] == "blocked", (
+        "T1 reviewer finding: invalid legacy author_outcome authorized a merge"
+    )
+    assert decision["reason"] == "author_outcome_invalid"
+    assert decision["receipt_id"] == receipt["receipt_id"]
+
+
 def test_t1_successful_finalizer_publishes_reviewed_coverage_outcome(
     tmp_path, monkeypatch,
 ):
@@ -594,24 +653,53 @@ def test_t3_app_and_scripts_are_reviewed_but_tests_only_are_not(
 @pytest.mark.parametrize(
     (
         "status", "coverage_outcome", "failure_code",
-        "foreign_session", "stale_snapshot", "allowed",
+        "foreign_session", "stale_snapshot", "author_outcome",
+        "allowed", "expected_reason",
     ),
     [
-        ("completed", "reviewed", "", False, False, True),
-        ("completed", "skipped", "", False, False, True),
-        ("failed", "unavailable", "weekly_quota_blocked", False, False, True),
-        ("failed", "unavailable", "codex_binary_missing", False, False, True),
-        ("failed", "unavailable", "provider_error", False, False, False),
-        ("interrupted", "reviewed", "interrupted", False, False, False),
-        ("failed", "reviewed", "process_exit", False, False, False),
-        ("timed_out", "reviewed", "timeout", False, False, False),
-        ("completed", "reviewed", "", True, False, False),
-        ("completed", "reviewed", "", False, True, False),
+        ("completed", "reviewed", "", False, False, "accepted", True, ""),
+        (
+            "completed", "reviewed", "", False, False, "unknown", False,
+            "author_outcome_missing",
+        ),
+        ("completed", "skipped", "", False, False, "unknown", True, ""),
+        (
+            "failed", "unavailable", "weekly_quota_blocked", False, False,
+            "unknown", True, "",
+        ),
+        (
+            "failed", "unavailable", "codex_binary_missing", False, False,
+            "unknown", True, "",
+        ),
+        (
+            "failed", "unavailable", "provider_error", False, False,
+            "unknown", False, "review_receipt_missing",
+        ),
+        (
+            "interrupted", "reviewed", "interrupted", False, False,
+            "accepted", False, "review_receipt_missing",
+        ),
+        (
+            "failed", "reviewed", "process_exit", False, False,
+            "accepted", False, "review_receipt_missing",
+        ),
+        (
+            "timed_out", "reviewed", "timeout", False, False,
+            "accepted", False, "review_receipt_missing",
+        ),
+        (
+            "completed", "reviewed", "", True, False,
+            "accepted", False, "review_receipt_missing",
+        ),
+        (
+            "completed", "reviewed", "", False, True,
+            "accepted", False, "review_receipt_missing",
+        ),
     ],
 )
 def test_t3_only_exact_review_skip_or_unavailable_receipt_authorizes(
     tmp_path, monkeypatch, status, coverage_outcome, failure_code,
-    foreign_session, stale_snapshot, allowed,
+    foreign_session, stale_snapshot, author_outcome, allowed, expected_reason,
 ):
     import app.acceptance as acceptance
     import app.db as db
@@ -644,6 +732,16 @@ def test_t3_only_exact_review_skip_or_unavailable_receipt_authorizes(
         artifact_exists=1 if coverage_outcome == "reviewed" else 0,
         artifact_bytes=10 if coverage_outcome == "reviewed" else 0,
         jsonl_response_present=1 if coverage_outcome == "reviewed" else 0,
+        author_outcome=author_outcome,
+        outcome_source=(
+            "direct"
+            if author_outcome in {"accepted", "disputed", "partial"}
+            else "unknown"
+        ),
+        outcome_evidence_ref=(
+            ".orchestra/tasks/462/report.md#author-outcome-contract"
+            if author_outcome in {"accepted", "disputed", "partial"} else ""
+        ),
     )
     db.review_receipt_create(receipt)
     accepted = {
@@ -663,6 +761,7 @@ def test_t3_only_exact_review_skip_or_unavailable_receipt_authorizes(
     assert (decision.get("status") == "satisfied") is allowed, (
         "T3 missing behavior: receipt outcome/snapshot is not enforced exactly"
     )
+    assert decision.get("reason") == expected_reason
 
 
 @pytest.mark.asyncio

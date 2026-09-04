@@ -9,6 +9,7 @@ import sqlite3
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
 logger = logging.getLogger("db")
 
@@ -185,7 +186,12 @@ def init_db() -> None:
                 production_paths_json TEXT NOT NULL DEFAULT '[]',
                 coverage_outcome TEXT NOT NULL DEFAULT 'unknown',
                 policy_ref TEXT NOT NULL DEFAULT '',
-                decision_actor TEXT NOT NULL DEFAULT ''
+                decision_actor TEXT NOT NULL DEFAULT '',
+                task_stable_id TEXT NOT NULL DEFAULT '',
+                task_snapshot_ref TEXT NOT NULL DEFAULT '',
+                prompt_template_start TEXT NOT NULL DEFAULT '',
+                prompt_template_end TEXT NOT NULL DEFAULT '',
+                terminal_operation_id TEXT NOT NULL DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS idx_review_receipts_artifact
                 ON review_receipts(artifact_path, round);
@@ -1167,6 +1173,11 @@ def _migrate(c) -> None:
         "coverage_outcome": "TEXT NOT NULL DEFAULT 'unknown'",
         "policy_ref": "TEXT NOT NULL DEFAULT ''",
         "decision_actor": "TEXT NOT NULL DEFAULT ''",
+        "task_stable_id": "TEXT NOT NULL DEFAULT ''",
+        "task_snapshot_ref": "TEXT NOT NULL DEFAULT ''",
+        "prompt_template_start": "TEXT NOT NULL DEFAULT ''",
+        "prompt_template_end": "TEXT NOT NULL DEFAULT ''",
+        "terminal_operation_id": "TEXT NOT NULL DEFAULT ''",
     }
     for column, declaration in receipt_additions.items():
         if column not in receipt_cols:
@@ -1177,6 +1188,16 @@ def _migrate(c) -> None:
         "CREATE INDEX IF NOT EXISTS idx_review_receipts_coverage ON review_receipts("
         "scope, session_id, task_id, target_sha, production_snapshot_sha256, "
         "coverage_outcome, completed_at)"
+    )
+    c.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_review_receipts_open_task_run_session "
+        "ON review_receipts(session_id) "
+        "WHERE subject_kind='task_run' AND status='requested'"
+    )
+    c.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_review_receipts_open_task_run_task "
+        "ON review_receipts(scope, task_stable_id) "
+        "WHERE subject_kind='task_run' AND status='requested' AND task_stable_id<>''"
     )
     mb_cols = {row[1] for row in c.execute("PRAGMA table_info(mailbox)").fetchall()}
     if "claimed_at" not in mb_cols:
@@ -1275,6 +1296,7 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN total_tool_calls INTEGER DEFAULT 0")
     if "template_hash" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN template_hash TEXT DEFAULT ''")
+    _adopt_legacy_inflight_task_runs(c)
     if "mcp_servers_custom" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN mcp_servers_custom TEXT DEFAULT ''")
     bg_ddl = c.execute(
@@ -1814,6 +1836,19 @@ def publish_ready_session(s: dict, task_identity: dict | None = None) -> None:
                 raise ValueError(
                     f"task #{task_identity['par_number']} binding compare-and-swap failed"
                 )
+            stable_id = str(task_identity.get("stable_id") or "")
+            snapshot_ref = _task_snapshot_ref(task_identity)
+            task_run_receipt_open(
+                session_id=s["id"],
+                worker_name=s["name"],
+                scope=s["scope"],
+                task_id=str(task_identity["par_number"]),
+                task_stable_id=stable_id,
+                task_snapshot_ref=snapshot_ref,
+                prompt_template_start=str(s.get("template_hash") or ""),
+                task_source=("canonical" if stable_id and snapshot_ref else "legacy"),
+                connection=c,
+            )
 
 
 def update_session_lifecycle(
@@ -2823,11 +2858,284 @@ _REVIEW_RECEIPT_COLUMNS = (
     "recovery_source", "author_outcome", "outcome_source", "outcome_evidence_ref",
     "notification_event_id", "subject_kind", "target_sha", "worker_head",
     "production_snapshot_sha256", "production_paths_json", "coverage_outcome",
-    "policy_ref", "decision_actor",
+    "policy_ref", "decision_actor", "task_stable_id", "task_snapshot_ref",
+    "prompt_template_start", "prompt_template_end", "terminal_operation_id",
 )
 _REVIEW_OUTCOMES = frozenset({"accepted", "disputed", "partial"})
 _REVIEW_RECEIPT_SOURCES = frozenset({"direct", "derived", "unknown"})
 _REVIEW_COVERAGE_OUTCOMES = frozenset({"unknown", "reviewed", "skipped", "unavailable"})
+
+
+def _task_snapshot_ref(task_identity: dict) -> str:
+    explicit = str(task_identity.get("task_snapshot_ref") or "")
+    if explicit:
+        return explicit
+    stable_id = str(task_identity.get("stable_id") or "")
+    canonical_head = str(task_identity.get("canonical_head") or "")
+    if not stable_id or not canonical_head:
+        return ""
+    return (
+        f"orch://project/{task_identity['project_id']}/tasks/{stable_id}/state@"
+        f"{canonical_head}"
+    )
+
+
+def task_run_receipt_open(
+    *,
+    session_id: str,
+    worker_name: str,
+    scope: str,
+    task_id: str,
+    task_stable_id: str = "",
+    task_snapshot_ref: str = "",
+    prompt_template_start: str = "",
+    task_source: str = "",
+    requested_at: str = "",
+    connection: sqlite3.Connection | None = None,
+) -> dict:
+    """Open one task assignment receipt; identical live replay returns the row."""
+    session_id = str(session_id or "").strip()
+    worker_name = str(worker_name or "").strip()
+    scope = str(scope or "").rstrip("/")
+    task_id = str(task_id or "").strip()
+    task_stable_id = str(task_stable_id or "").strip()
+    task_snapshot_ref = str(task_snapshot_ref or "").strip()
+    prompt_template_start = str(prompt_template_start or "").strip()
+    task_source = str(task_source or "").strip() or (
+        "canonical" if task_stable_id and task_snapshot_ref else "legacy"
+    )
+    if not session_id or not worker_name or not scope or not task_id:
+        raise ValueError("task run requires session, worker, scope, and task id")
+    expected = {
+        "session_id": session_id,
+        "worker_name": worker_name,
+        "scope": scope,
+        "task_id": task_id,
+        "task_source": task_source,
+        "task_stable_id": task_stable_id,
+        "task_snapshot_ref": task_snapshot_ref,
+        "prompt_template_start": prompt_template_start,
+    }
+    owner = nullcontext(connection) if connection is not None else _conn()
+    with owner as c:
+        if connection is None:
+            c.execute("BEGIN IMMEDIATE")
+        existing = c.execute(
+            "SELECT * FROM review_receipts WHERE subject_kind='task_run' "
+            "AND session_id=? AND status='requested' ORDER BY requested_at DESC",
+            (session_id,),
+        ).fetchall()
+        if len(existing) > 1:
+            raise ValueError(f"session '{session_id}' has multiple open task runs")
+        if existing:
+            saved = dict(existing[0])
+            if any(str(saved[key] or "") != value for key, value in expected.items()):
+                raise ValueError("open task run conflicts with current assignment provenance")
+            return saved
+        values = {key: None for key in _REVIEW_RECEIPT_COLUMNS}
+        values.update({
+            "receipt_id": f"task-run:{uuid4()}",
+            "schema_version": 2,
+            "runtime": "",
+            "reviewer_model": "",
+            "model_source": "unknown",
+            **expected,
+            "artifact_path": "",
+            "mode": "task_run",
+            "round": None,
+            "job_id": "",
+            "usage_event_id": "",
+            "requested_at": requested_at or datetime.now(timezone.utc).isoformat(),
+            "completed_at": None,
+            "status": "requested",
+            "return_code": None,
+            "failure_code": "",
+            "artifact_exists": None,
+            "artifact_bytes": None,
+            "artifact_sha256": "",
+            "verdict_present": None,
+            "verdict_value": "",
+            "jsonl_response_present": None,
+            "recovery_source": "",
+            "author_outcome": "unknown",
+            "outcome_source": "unknown",
+            "outcome_evidence_ref": "",
+            "notification_event_id": "",
+            "subject_kind": "task_run",
+            "target_sha": "",
+            "worker_head": "",
+            "production_snapshot_sha256": "",
+            "production_paths_json": "[]",
+            "coverage_outcome": "unknown",
+            "policy_ref": "",
+            "decision_actor": "",
+            "prompt_template_end": "",
+            "terminal_operation_id": "",
+        })
+        columns = ", ".join(_REVIEW_RECEIPT_COLUMNS)
+        placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
+        try:
+            c.execute(
+                f"INSERT INTO review_receipts ({columns}) VALUES ({placeholders})",
+                tuple(values[key] for key in _REVIEW_RECEIPT_COLUMNS),
+            )
+        except sqlite3.IntegrityError as error:
+            replay = c.execute(
+                "SELECT * FROM review_receipts WHERE subject_kind='task_run' "
+                "AND session_id=? AND status='requested'",
+                (session_id,),
+            ).fetchone()
+            if replay is None:
+                raise ValueError("task run conflicts with another open assignment") from error
+            saved = dict(replay)
+            if any(str(saved[key] or "") != value for key, value in expected.items()):
+                raise ValueError("open task run conflicts with current assignment provenance") from error
+            return saved
+        return dict(c.execute(
+            "SELECT * FROM review_receipts WHERE receipt_id=?",
+            (values["receipt_id"],),
+        ).fetchone())
+
+
+def task_run_receipt_finish(
+    *,
+    session_id: str,
+    task_id: str,
+    status: str,
+    prompt_template_end: str,
+    terminal_operation_id: str = "",
+    failure_code: str = "",
+    connection: sqlite3.Connection | None = None,
+) -> dict:
+    """Finish the single open task run; identical terminal replay is safe."""
+    if status not in {"completed", "interrupted"}:
+        raise ValueError("task run terminal status must be completed or interrupted")
+    terminal_operation_id = str(terminal_operation_id or "")
+    prompt_template_end = str(prompt_template_end or "")
+    failure_code = str(failure_code or "")
+    owner = nullcontext(connection) if connection is not None else _conn()
+    with owner as c:
+        if connection is None:
+            c.execute("BEGIN IMMEDIATE")
+        if terminal_operation_id:
+            replay = c.execute(
+                "SELECT * FROM review_receipts WHERE subject_kind='task_run' "
+                "AND session_id=? AND task_id=? AND terminal_operation_id=?",
+                (session_id, str(task_id), terminal_operation_id),
+            ).fetchone()
+            if replay is not None:
+                saved = dict(replay)
+                if (
+                    saved["status"] == status
+                    and str(saved["prompt_template_end"] or "") == prompt_template_end
+                    and str(saved["failure_code"] or "") == failure_code
+                ):
+                    return saved
+                raise ValueError("task run operation already has a different outcome")
+        rows = c.execute(
+            "SELECT * FROM review_receipts WHERE subject_kind='task_run' "
+            "AND session_id=? AND task_id=? AND status='requested'",
+            (session_id, str(task_id)),
+        ).fetchall()
+        if len(rows) > 1:
+            raise ValueError("multiple open task runs match one assignment")
+        if not rows:
+            prior = c.execute(
+                "SELECT * FROM review_receipts WHERE subject_kind='task_run' "
+                "AND session_id=? AND task_id=? ORDER BY requested_at DESC LIMIT 1",
+                (session_id, str(task_id)),
+            ).fetchone()
+            if prior is None:
+                raise LookupError("open task run not found")
+            saved = dict(prior)
+            if (
+                saved["status"] == status
+                and str(saved["prompt_template_end"] or "") == prompt_template_end
+                and str(saved["terminal_operation_id"] or "") == terminal_operation_id
+                and str(saved["failure_code"] or "") == failure_code
+            ):
+                return saved
+            raise ValueError("task run already has a different terminal outcome")
+        receipt_id = rows[0]["receipt_id"]
+        c.execute(
+            "UPDATE review_receipts SET status=?,completed_at=?,failure_code=?,"
+            "prompt_template_end=?,terminal_operation_id=? "
+            "WHERE receipt_id=? AND status='requested'",
+            (
+                status,
+                datetime.now(timezone.utc).isoformat(),
+                failure_code,
+                prompt_template_end,
+                terminal_operation_id,
+                receipt_id,
+            ),
+        )
+        return dict(c.execute(
+            "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,),
+        ).fetchone())
+
+
+def _adopt_legacy_inflight_task_runs(connection: sqlite3.Connection) -> None:
+    """Start observation now for bound tasks that predate task-run receipts."""
+    required_tables = {"sessions", "tm_tasks", "tm_projects", "review_receipts"}
+    tables = {
+        row[0] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    if not required_tables <= tables:
+        return
+    rows = connection.execute(
+        "SELECT s.id AS session_id,s.name AS worker_name,s.scope,t.par_number "
+        "FROM sessions s JOIN tm_projects p "
+        "ON RTRIM(p.scope,'/')=RTRIM(s.scope,'/') "
+        "JOIN tm_tasks t ON t.project_id=p.id "
+        "AND CAST(t.par_number AS TEXT)=s.task_id "
+        "WHERE s.status!='archived' AND t.status='in_progress' "
+        "AND t.worker_session_id=s.id "
+        "AND NOT EXISTS (SELECT 1 FROM review_receipts r "
+        "WHERE r.subject_kind='task_run' AND r.session_id=s.id "
+        "AND r.status='requested')"
+    ).fetchall()
+    adopted_at = datetime.now(timezone.utc).isoformat()
+    for row in rows:
+        task_run_receipt_open(
+            session_id=row["session_id"],
+            worker_name=row["worker_name"],
+            scope=row["scope"],
+            task_id=str(row["par_number"]),
+            task_source="legacy_inflight",
+            requested_at=adopted_at,
+            connection=connection,
+        )
+
+
+def _require_bound_task_run_for_review(
+    connection: sqlite3.Connection,
+    receipt: dict,
+) -> None:
+    if receipt.get("subject_kind") != "implementation" or not receipt.get("task_id"):
+        return
+    bound = connection.execute(
+        "SELECT 1 FROM sessions s JOIN tm_projects p "
+        "ON RTRIM(p.scope,'/')=RTRIM(s.scope,'/') "
+        "JOIN tm_tasks t ON t.project_id=p.id "
+        "AND CAST(t.par_number AS TEXT)=s.task_id "
+        "WHERE s.id=? AND s.status!='archived' AND s.task_id=? "
+        "AND t.status='in_progress' AND t.worker_session_id=s.id",
+        (receipt["session_id"], str(receipt["task_id"])),
+    ).fetchone()
+    if bound is None:
+        return
+    runs = connection.execute(
+        "SELECT receipt_id FROM review_receipts WHERE subject_kind='task_run' "
+        "AND session_id=? AND task_id=? AND status='requested'",
+        (receipt["session_id"], str(receipt["task_id"])),
+    ).fetchall()
+    if len(runs) != 1:
+        raise ValueError(
+            "implementation review requires exactly one open task-run receipt"
+        )
 
 
 def review_receipt_create(receipt: dict) -> bool:
@@ -2870,6 +3178,11 @@ def review_receipt_create(receipt: dict) -> bool:
     values["coverage_outcome"] = values["coverage_outcome"] or "unknown"
     values["policy_ref"] = values["policy_ref"] or ""
     values["decision_actor"] = values["decision_actor"] or ""
+    values["task_stable_id"] = values["task_stable_id"] or ""
+    values["task_snapshot_ref"] = values["task_snapshot_ref"] or ""
+    values["prompt_template_start"] = values["prompt_template_start"] or ""
+    values["prompt_template_end"] = values["prompt_template_end"] or ""
+    values["terminal_operation_id"] = values["terminal_operation_id"] or ""
     placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
     columns = ", ".join(_REVIEW_RECEIPT_COLUMNS)
     with _conn() as c:
@@ -2923,7 +3236,13 @@ def review_receipt_record_skip(receipt: dict) -> dict:
             if any(existing[key] != receipt.get(key) for key in stable):
                 raise ValueError("skip decision id conflicts with existing provenance")
             return dict(existing)
+        _require_bound_task_run_for_review(c, receipt)
         values = {key: receipt.get(key) for key in _REVIEW_RECEIPT_COLUMNS}
+        for key in (
+            "task_stable_id", "task_snapshot_ref", "prompt_template_start",
+            "prompt_template_end", "terminal_operation_id",
+        ):
+            values[key] = values[key] or ""
         placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
         columns = ", ".join(_REVIEW_RECEIPT_COLUMNS)
         c.execute(
@@ -2964,8 +3283,14 @@ def review_receipt_reserve(receipt: dict) -> dict:
     values.setdefault("coverage_outcome", "unknown")
     values.setdefault("policy_ref", "")
     values.setdefault("decision_actor", "")
+    values.setdefault("task_stable_id", "")
+    values.setdefault("task_snapshot_ref", "")
+    values.setdefault("prompt_template_start", "")
+    values.setdefault("prompt_template_end", "")
+    values.setdefault("terminal_operation_id", "")
     with _conn() as c:
         c.execute("BEGIN IMMEDIATE")
+        _require_bound_task_run_for_review(c, values)
         row = c.execute(
             "SELECT COALESCE(MAX(round), 0) FROM review_receipts WHERE artifact_path=?",
             (artifact_path,),

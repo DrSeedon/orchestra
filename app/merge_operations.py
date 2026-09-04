@@ -477,8 +477,76 @@ def _admission_evidence(
             ),
             "receipt_id": str(review.get("receipt_id") or ""),
             "coverage_outcome": str(review.get("coverage_outcome") or "unknown"),
+            "author_outcome": str(review.get("author_outcome") or "unknown"),
+            "outcome_evidence_ref": str(review.get("outcome_evidence_ref") or ""),
         }
     return evidence
+
+
+def _review_coverage_refusal(
+    operation_id: str,
+    review: dict[str, Any],
+    *,
+    execution: bool,
+) -> tuple[dict[str, Any], dict[str, str]]:
+    receipt_id = str(review.get("receipt_id") or "")
+    details = {
+        "reason": review.get("reason"),
+        "receipt_id": receipt_id,
+        "coverage_outcome": str(review.get("coverage_outcome") or "unknown"),
+        "author_outcome": str(review.get("author_outcome") or "unknown"),
+        "production_paths": review.get("production_paths") or [],
+        "production_snapshot_sha256": review.get(
+            "production_snapshot_sha256", ""
+        ),
+    }
+    if review.get("reason") == "author_outcome_missing":
+        error = _error(
+            "REVIEW_AUTHOR_OUTCOME_MISSING",
+            "review completed, but the author has not recorded accepted, disputed, or partial",
+            operation_id=operation_id,
+            status=409,
+            details=details,
+        )
+        action = _action(
+            "RECORD_AUTHOR_OUTCOME_THEN_NEW_OPERATION",
+            f"Call record_review_outcome for receipt {receipt_id}, then start a new operation.",
+        )
+        return error, action
+    if review.get("reason") == "author_outcome_invalid":
+        return (
+            _error(
+                "REVIEW_AUTHOR_OUTCOME_INVALID",
+                "review receipt has an invalid author outcome and cannot authorize a merge",
+                operation_id=operation_id,
+                status=409,
+                details=details,
+            ),
+            _action(
+                "RECONCILE_REVIEW_RECEIPT_THEN_NEW_OPERATION",
+                f"Reconcile invalid author outcome for receipt {receipt_id}, then start a new operation.",
+            ),
+        )
+    message = (
+        "review coverage became active before execution and this production snapshot "
+        "has no qualifying receipt"
+        if execution
+        else "production diff has no snapshot-bound review, authorized skip, or "
+        "machine-unavailable receipt"
+    )
+    return (
+        _error(
+            "REVIEW_COVERAGE_MISSING",
+            message,
+            operation_id=operation_id,
+            status=409,
+            details=details,
+        ),
+        _action(
+            "RECORD_REVIEW_THEN_NEW_OPERATION",
+            "Record review coverage for this exact snapshot, then start a new operation.",
+        ),
+    )
 
 
 def accept_operation_snapshot(
@@ -1726,15 +1794,13 @@ async def _run_operation(operation_id: str) -> None:
         coverage_block = None
         if not mismatch and review_coverage_policy_active():
             pinned_admission = dict(record.get("accepted_admission") or {})
-            pinned_review = dict(pinned_admission.get("review_coverage") or {})
-            if not pinned_review or pinned_review.get("status") == "not_active":
-                refreshed_review = await asyncio.to_thread(
-                    _revalidate_review_coverage, record, current,
-                )
-                pinned_admission["review_coverage"] = refreshed_review
-                record = {**record, "accepted_admission": pinned_admission}
-                if refreshed_review.get("status") == "blocked":
-                    coverage_block = refreshed_review
+            refreshed_review = await asyncio.to_thread(
+                _revalidate_review_coverage, record, current,
+            )
+            pinned_admission["review_coverage"] = refreshed_review
+            record = {**record, "accepted_admission": pinned_admission}
+            if refreshed_review.get("status") == "blocked":
+                coverage_block = refreshed_review
         if mismatch:
             error = _error(
                 "SESSION_IDENTITY_CHANGED", mismatch, operation_id=operation_id,
@@ -1753,18 +1819,8 @@ async def _run_operation(operation_id: str) -> None:
                 ),
             )
         elif coverage_block is not None:
-            error = _error(
-                "REVIEW_COVERAGE_MISSING",
-                "review coverage became active before execution and this production snapshot has no qualifying receipt",
-                operation_id=operation_id,
-                status=409,
-                details={
-                    "reason": coverage_block.get("reason"),
-                    "production_paths": coverage_block.get("production_paths") or [],
-                    "production_snapshot_sha256": coverage_block.get(
-                        "production_snapshot_sha256", ""
-                    ),
-                },
+            error, next_action = _review_coverage_refusal(
+                operation_id, coverage_block, execution=True,
             )
             result = _base_result(
                 operation_id,
@@ -1773,10 +1829,7 @@ async def _run_operation(operation_id: str) -> None:
                 worker_branch=record["accepted_worker_branch"],
                 worker_head=record["accepted_worker_head"],
                 error=error,
-                next_action=_action(
-                    "RECORD_REVIEW_THEN_NEW_OPERATION",
-                    "Record review coverage for this exact snapshot, then start a new operation.",
-                ),
+                next_action=next_action,
             )
             result["admission"] = _admission_evidence(
                 record["accepted_admission"], oracle_status="not_run",
@@ -2187,18 +2240,8 @@ async def accept_merge_operation(
         accepted.get("admission", {}).get("review_coverage") or {}
     )
     if review_coverage.get("status") == "blocked":
-        error = _error(
-            "REVIEW_COVERAGE_MISSING",
-            "production diff has no snapshot-bound review, authorized skip, or machine-unavailable receipt",
-            operation_id=canonical_id,
-            status=409,
-            details={
-                "reason": review_coverage.get("reason"),
-                "production_paths": review_coverage.get("production_paths") or [],
-                "production_snapshot_sha256": review_coverage.get(
-                    "production_snapshot_sha256", ""
-                ),
-            },
+        error, next_action = _review_coverage_refusal(
+            canonical_id, review_coverage, execution=False,
         )
         return _base_result(
             canonical_id,
@@ -2207,10 +2250,7 @@ async def accept_merge_operation(
             worker_branch=accepted["worker_branch"],
             worker_head=accepted["worker_head"],
             error=error,
-            next_action=_action(
-                "RECORD_REVIEW_THEN_NEW_OPERATION",
-                "Record review coverage for this exact snapshot, then start a new operation.",
-            ),
+            next_action=next_action,
         ), 409
     result, _created, status = await asyncio.to_thread(
         accept_operation_snapshot,
