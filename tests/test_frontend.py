@@ -3945,6 +3945,138 @@ def test_chat_timeline_navigates_events_and_cycles_user_messages(
     page.close()
 
 
+def test_chat_timeline_marker_height_tracks_message_height(
+    dashboard_browser: Browser,
+):
+    """Полоса справа — миникарта: высота метки = доля высоты её сообщения.
+
+    Жалоба юзера 04.09: «из-за длины сообщений не совпадает справа эта штука».
+    Огромный отчёт с таблицей и короткая строка давали одинаковые прямоугольники —
+    `flex: 1 1 1px` не зависел от сообщения вовсе, а `max-height: 7px` рубил рост.
+    Меряем ОТРИСОВАННУЮ высоту через getBoundingClientRect, а не класс и не длину текста.
+    """
+    root = Path(__file__).parent.parent
+    source = (root / "app/static/js/app.js").read_text()
+    timeline_code = (
+        "let _chatTimelineObserver"
+        + source.split("let _chatTimelineObserver", 1)[1].split(
+            "function _prepareChatAnchorRestore", 1,
+        )[0]
+    )
+    page = dashboard_browser.new_page(viewport={"width": 900, "height": 700})
+    page.set_content(
+        """
+        <div style="position:relative;width:520px;height:600px">
+          <div id="chat" style="height:100%;overflow-y:auto"></div>
+          <aside id="chat-timeline" class="chat-timeline">
+            <div class="chat-timeline-user-nav">
+              <button id="chat-user-prev">↑</button><span id="chat-user-count"></span>
+              <button id="chat-user-next">↓</button>
+            </div>
+            <div id="chat-timeline-track" class="chat-timeline-track"></div>
+          </aside>
+          <button id="chat-jump-latest"></button>
+        </div>
+        """
+    )
+    page.add_style_tag(path=str(root / "app/static/css/style.css"))
+    page.add_script_tag(
+        content="""
+        const $ = selector => document.querySelector(selector);
+        let _chatFollow = true;
+        let scrollAfterLoad = true;
+        let _pendingChatRestore = null;
+        const _syncChatJumpButton = () => {};
+        """
+        + timeline_code
+        + """
+        window.addSized = (label, px) => {
+            const node = document.createElement('div');
+            node.style.cssText = `height:${px}px;flex:0 0 ${px}px`;
+            node.dataset.testLabel = label;
+            node.textContent = label;
+            _tagChatTimelineNode(node, 'assistant', '2026-08-11T10:00:00Z');
+            $('#chat').appendChild(node);
+            return node;
+        };
+        window.setSized = (label, px) => {
+            const node = [...$('#chat').children]
+                .find(child => child.dataset.testLabel === label);
+            node.style.cssText = `height:${px}px;flex:0 0 ${px}px`;
+        };
+        // Ждём КАДРАМИ, а не временем. Четырёх хватает по порядку шагов кадра, и меньше
+        // нельзя: ResizeObserver доставляется ПОСЛЕ фазы rAF, поэтому запланированный им
+        // пересчёт приземляется на кадр позже обычной цепочки rAF. На двух кадрах проба
+        // читала прошлые высоты и врала «рост не доехал» при живом пересчёте.
+        window.settled = (frames = 4) => new Promise(resolve => {
+            const tick = left => left
+                ? requestAnimationFrame(() => tick(left - 1))
+                : resolve(measure());
+            tick(frames);
+        });
+        window.measure = () => {
+            const track = $('#chat-timeline-track');
+            const rows = [...$('#chat').children].map(node => ({
+                label: node.dataset.testLabel,
+                node: node.getBoundingClientRect().height,
+                marker: node._chatTimelineMarker.getBoundingClientRect().height,
+            }));
+            return {rows, track: track.getBoundingClientRect().height};
+        };
+        addSized('short', 50);
+        addSized('tall', 250);
+        addSized('mid', 100);
+        initChatTimeline();
+        """,
+    )
+
+    def shares(state):
+        total = sum(row["marker"] for row in state["rows"])
+        return {row["label"]: row["marker"] / total for row in state["rows"]}
+
+    def expected(state):
+        total = sum(row["node"] for row in state["rows"])
+        return {row["label"]: row["node"] / total for row in state["rows"]}
+
+    first = page.evaluate("() => settled()")
+    got, want = shares(first), expected(first)
+    assert got["tall"] > got["mid"] > got["short"], (
+        f"метки не отражают высоту сообщений: {first['rows']}"
+    )
+    for label in want:
+        assert abs(got[label] - want[label]) < 0.05, (
+            f"{label}: доля метки {got[label]:.3f} против доли сообщения "
+            f"{want[label]:.3f}; все метки — {first['rows']}"
+        )
+
+    # Сообщение выросло (раскрыли / догрузилась картинка) — полоса обязана пересчитаться.
+    page.evaluate("() => setSized('short', 600)")
+    grown = page.evaluate("() => settled()")
+    got, want = shares(grown), expected(grown)
+    assert got["short"] > got["tall"], (
+        f"рост сообщения не доехал до полосы: {grown['rows']}"
+    )
+    for label in want:
+        assert abs(got[label] - want[label]) < 0.05, (
+            f"после роста {label}: {got[label]:.3f} против {want[label]:.3f}; "
+            f"все метки — {grown['rows']}"
+        )
+
+    # Гигант не съедает полосу, а мелкие остаются кликабельными.
+    page.evaluate("() => setSized('short', 12000)")
+    huge = page.evaluate("() => settled()")
+    by_label = {row["label"]: row["marker"] for row in huge["rows"]}
+    assert by_label["short"] < huge["track"] * 0.85, (
+        f"гигантское сообщение съело полосу: {huge}"
+    )
+    for label, height in by_label.items():
+        assert height >= 2, f"метка {label} выродилась в невидимую полоску: {huge}"
+    assert sum(by_label.values()) <= huge["track"] + 1, (
+        f"метки не поместились в дорожку и обрезаны: {huge}"
+    )
+    page.close()
+
+
 def test_chat_timeline_navigates_final_agent_answers_only(
     dashboard_browser: Browser,
 ):
