@@ -2031,21 +2031,30 @@ class TestRemoveScope:
 
 class TestAutoResume:
     @pytest.mark.asyncio
-    async def test_resumes_orchestrators(self, mgr):
+    async def test_resumes_orchestrators_before_workers(self, mgr):
         from app.db import save_session
+        created_at = datetime.now(timezone.utc).isoformat()
         save_session({
-            "id": "orch-1", "name": "orchestrator", "scope": "/tmp",
+            "id": "worker-order", "name": "worker-order", "scope": "/tmp",
             "cwd": "/tmp", "model": "claude-opus-5[1m]", "system_prompt": "",
-            "status": "idle", "session_id": "sdk-123",
+            "status": "idle", "session_id": "sdk-worker", "cost_usd": 0.0,
+            "worktree_path": None, "branch": None, "is_orchestrator": False,
+            "role": "worker", "pipeline": "default", "color": "#818cf8",
+            "created_at": created_at, "finished_at": None,
+        })
+        save_session({
+            "id": "orch-order", "name": "orch-order", "scope": "/tmp",
+            "cwd": "/tmp", "model": "claude-opus-5[1m]", "system_prompt": "",
+            "status": "idle", "session_id": "sdk-orch",
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "role": "orchestrator", "pipeline": "default",
-            "color": "#818cf8", "created_at": datetime.now(timezone.utc).isoformat(),
+            "color": "#818cf8", "created_at": created_at,
             "finished_at": None,
         })
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             await mgr.auto_resume_all()
-        assert mgr.get("orch-1") is not None
+        assert list(mgr.sessions) == ["orch-order", "worker-order"]
 
 
     @pytest.mark.asyncio

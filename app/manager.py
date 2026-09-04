@@ -2457,73 +2457,42 @@ class SessionManager:
             row["session_id"]: row for row in list_latest_runtime_handoffs()
         }
 
-        for row in orchs:
-            if row["id"] in self.sessions:
-                continue
-            if not Path(row.get("cwd") or row["scope"]).is_dir():
-                continue
-            try:
-                session = await self._load_from_db(
-                    row, recovery_handoff=pending_handoffs.get(row["id"]),
-                )
-                logger.info(f"Resumed orchestrator: {row['name']}")
-                if row["id"] in adoptable:
-                    fd_in, fd_out = adoptable[row["id"]]
-                    await session.adopt_backend(
-                        fd_in, fd_out, active_turn_id=row.get("active_turn_id") or None,
-                        leftover=row.get("leftover") or "",
-                        cli_pid=int(row.get("cli_pid") or 0),
-                        cli_started_at=int(row.get("cli_started_at") or 0),
+        for kind, rows in (("orchestrator", orchs), ("worker", workers)):
+            for row in rows:
+                if row["id"] in self.sessions:
+                    continue
+                if not Path(row.get("cwd") or row["scope"]).is_dir():
+                    continue
+                try:
+                    session = await self._load_from_db(
+                        row, recovery_handoff=pending_handoffs.get(row["id"]),
                     )
-                    logger.info(
-                        "[%s] adopted a live CLI; %s", session.name,
-                        "its turn keeps running" if row.get("active_turn_id")
-                        else "no turn was in flight")
-                    continue  # no restart notice: nothing was interrupted
-                if row["id"] in was_waiting:
-                    from app.bg_jobs import bg_manager
-                    if bg_manager and bg_manager.has_active_jobs(row["id"]):
-                        session.status = AgentStatus.WAITING
-                        session._persist()
-                elif row["id"] in was_running:
-                    spawn_supervised(self._inject_restart_notice(session),
-                                     f"уведомление о рестарте для {session.name}")
-            except Exception as e:
-                logger.error(f"Failed to resume {row['name']}: {e}")
-
-        for row in workers:
-            if row["id"] in self.sessions:
-                continue
-            if not Path(row.get("cwd") or row["scope"]).is_dir():
-                continue
-            try:
-                session = await self._load_from_db(
-                    row, recovery_handoff=pending_handoffs.get(row["id"]),
-                )
-                logger.info(f"Resumed worker: {row['name']}")
-                if row["id"] in adoptable:
-                    fd_in, fd_out = adoptable[row["id"]]
-                    await session.adopt_backend(
-                        fd_in, fd_out, active_turn_id=row.get("active_turn_id") or None,
-                        leftover=row.get("leftover") or "",
-                        cli_pid=int(row.get("cli_pid") or 0),
-                        cli_started_at=int(row.get("cli_started_at") or 0),
-                    )
-                    logger.info(
-                        "[%s] adopted a live CLI; %s", session.name,
-                        "its turn keeps running" if row.get("active_turn_id")
-                        else "no turn was in flight")
-                    continue  # no restart notice: nothing was interrupted
-                if row["id"] in was_waiting:
-                    from app.bg_jobs import bg_manager
-                    if bg_manager and bg_manager.has_active_jobs(row["id"]):
-                        session.status = AgentStatus.WAITING
-                        session._persist()
-                elif row["id"] in was_running:
-                    spawn_supervised(self._inject_restart_notice(session),
-                                     f"уведомление о рестарте для {session.name}")
-            except Exception as e:
-                logger.error(f"Failed to resume worker {row['name']}: {e}")
+                    logger.info("Resumed %s: %s", kind, row["name"])
+                    if row["id"] in adoptable:
+                        fd_in, fd_out = adoptable[row["id"]]
+                        await session.adopt_backend(
+                            fd_in, fd_out, active_turn_id=row.get("active_turn_id") or None,
+                            leftover=row.get("leftover") or "",
+                            cli_pid=int(row.get("cli_pid") or 0),
+                            cli_started_at=int(row.get("cli_started_at") or 0),
+                        )
+                        logger.info(
+                            "[%s] adopted a live CLI; %s", session.name,
+                            "its turn keeps running" if row.get("active_turn_id")
+                            else "no turn was in flight")
+                        continue  # no restart notice: nothing was interrupted
+                    if row["id"] in was_waiting:
+                        from app.bg_jobs import bg_manager
+                        if bg_manager and bg_manager.has_active_jobs(row["id"]):
+                            session.status = AgentStatus.WAITING
+                            session._persist()
+                    elif row["id"] in was_running:
+                        spawn_supervised(
+                            self._inject_restart_notice(session),
+                            f"уведомление о рестарте для {session.name}",
+                        )
+                except Exception as e:
+                    logger.error("Failed to resume %s %s: %s", kind, row["name"], e)
 
     async def _inject_restart_notice(self, session: AgentSession) -> None:
         import random

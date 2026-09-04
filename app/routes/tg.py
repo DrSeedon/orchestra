@@ -141,6 +141,27 @@ async def resume_dashboard_voice_transcriptions() -> None:
         _schedule_dashboard_voice(row)
 
 
+async def _read_voice_upload(
+    audio: UploadFile, *, reject_before_read: JSONResponse | None = None,
+) -> tuple[bytes, str, str] | JSONResponse:
+    content_type = (audio.content_type or "").split(";", 1)[0].lower()
+    suffix = _VOICE_TYPES.get(content_type)
+    if not suffix:
+        return JSONResponse(
+            {"error": f"unsupported audio type: {content_type or 'unknown'}"},
+            status_code=415,
+        )
+    if reject_before_read is not None:
+        return reject_before_read
+    content = await audio.read(VOICE_MAX_BYTES + 1)
+    await audio.close()
+    if not content:
+        return JSONResponse({"error": "audio is empty"}, status_code=400)
+    if len(content) > VOICE_MAX_BYTES:
+        return JSONResponse({"error": "audio is too large (max 10 MB)"}, status_code=413)
+    return content, content_type, suffix
+
+
 async def _submit_voice_for_sending(
     audio: UploadFile,
     session_name: str = Form(""),
@@ -149,22 +170,18 @@ async def _submit_voice_for_sending(
     from app.db import dashboard_voice_enqueue
     from app.deps import manager
 
-    content_type = (audio.content_type or "").split(";", 1)[0].lower()
-    suffix = _VOICE_TYPES.get(content_type)
-    if not suffix:
-        return JSONResponse(
-            {"error": f"unsupported audio type: {content_type or 'unknown'}"},
-            status_code=415,
-        )
     target = manager.get_by_name(session_name, scope)
-    if not target:
-        return JSONResponse({"error": f"agent '{session_name}' not found"}, status_code=404)
-    content = await audio.read(VOICE_MAX_BYTES + 1)
-    await audio.close()
-    if not content:
-        return JSONResponse({"error": "audio is empty"}, status_code=400)
-    if len(content) > VOICE_MAX_BYTES:
-        return JSONResponse({"error": "audio is too large (max 10 MB)"}, status_code=413)
+    upload = await _read_voice_upload(
+        audio,
+        reject_before_read=(
+            None if target else JSONResponse(
+                {"error": f"agent '{session_name}' not found"}, status_code=404,
+            )
+        ),
+    )
+    if isinstance(upload, JSONResponse):
+        return upload
+    content, content_type, suffix = upload
 
     voice_id = uuid.uuid4().hex
     path = UPLOADS_DIR / f"dashboard-voice-{voice_id}{suffix}"
@@ -194,19 +211,10 @@ async def transcribe_upload(
 ):
     if send:
         return await _submit_voice_for_sending(audio, session_name, scope)
-    content_type = (audio.content_type or "").split(";", 1)[0].lower()
-    suffix = _VOICE_TYPES.get(content_type)
-    if not suffix:
-        return JSONResponse(
-            {"error": f"unsupported audio type: {content_type or 'unknown'}"},
-            status_code=415,
-        )
-    content = await audio.read(VOICE_MAX_BYTES + 1)
-    await audio.close()
-    if not content:
-        return JSONResponse({"error": "audio is empty"}, status_code=400)
-    if len(content) > VOICE_MAX_BYTES:
-        return JSONResponse({"error": "audio is too large (max 10 MB)"}, status_code=413)
+    upload = await _read_voice_upload(audio)
+    if isinstance(upload, JSONResponse):
+        return upload
+    content, content_type, suffix = upload
 
     temp_path = ""
     try:

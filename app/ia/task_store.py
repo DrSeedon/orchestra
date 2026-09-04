@@ -786,23 +786,6 @@ class TaskStore:
         self._write_states(states, value["canonical_head"])
         return self._migration_receipt(value)
 
-    def _projection_debt(self, state: Mapping[str, Any]) -> dict[str, Any] | None:
-        if not self.projection_path.exists():
-            return {"reason": "missing_projection", "stable_id": state["stable_id"]}
-        with self._projection_connection() as connection:
-            row = connection.execute(
-                f"SELECT payload_json, payload_sha256, canonical_head "
-                f"FROM {_PROJECTION_TABLE} WHERE stable_id=?",
-                (state["stable_id"],),
-            ).fetchone()
-        canonical_payload = _canonical_bytes(state).decode("utf-8")
-        canonical_sha = f"sha256:{hashlib.sha256(canonical_payload.encode('utf-8')).hexdigest()}"
-        if row is None:
-            return {"reason": "missing_projection_row", "stable_id": state["stable_id"]}
-        if row != (canonical_payload, canonical_sha, state["canonical_head"]):
-            return {"reason": "projection_content_mismatch", "stable_id": state["stable_id"]}
-        return None
-
     @staticmethod
     def _parse_ref(ref: str) -> int:
         value = str(ref).strip().lstrip("#").upper()

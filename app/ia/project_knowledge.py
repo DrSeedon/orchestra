@@ -324,10 +324,6 @@ class ProjectKnowledgeRouter:
         return matches
 
 
-def project_knowledge_configured() -> bool:
-    return _ACTIVE_ROUTER is not None
-
-
 def active_project_knowledge() -> ProjectKnowledgeRouter:
     if _ACTIVE_ROUTER is None:
         raise KnowledgeOwnerError("project knowledge router is not configured")
