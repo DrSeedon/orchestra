@@ -17,21 +17,17 @@ Index Astra использует примерно треть токенов Sol.
 округлённом индексе 61. Следовательно, «Astra вместо Sol» оправдано по классу задачи, а не по имени
 модели.
 
-Рекомендуемый старт после появления доступа:
+Рекомендуемая политика после появления доступа:
 
 | Класс Orchestra | Модель | Effort | Почему |
 |---|---|---:|---|
 | Закрытая правка с file+line+oracle | Luna | `high` | Наши #199/#222: дешёвая, проходит закрытые задачи и безопаснее останавливается на недостающем решении |
-| Обычный сложный coding worker | Astra | `medium` | Лучшее экономическое стартовое плечо; внешний coding index ≈65 при $2.19/task |
-| Неоднозначный research / orchestrator | Astra | `high` | Чуть больше judgement без скачка к верхней ступени; обязательна очная ставка с текущим Sol/Opus |
-| Длинный full-cycle, computer use, defensive security/SRE | Astra | `xhigh` | Здесь подтверждены самые крупные внешние преимущества; `xhigh` почти равен `max` дешевле |
-| Уникальная quality-first задача | Astra | `max` вручную | Не default: на двух AA-кривых прирост относительно `xhigh` округляется до нуля |
+| Любая задача, которую маршрутизация отдала Astra | Astra | **`medium`** | Один уровень без эскалаций: внешний coding index ≈65 при $2.19/task; high почти не добавляет качества |
 | Визуал, тонкая проза, независимый review Astra/Sol | Opus 5 | `high` | Другой runtime и другой quota pool; Astra не даёт независимости от Codex-семейства |
 
-Если требуется **одно** значение Astra до появления своей статистики, выбирать `medium`, а не
-`xhigh`/`max`. Нынешний Orchestra resolver умеет задавать effort отдельно по ролям, поэтому после
-канарейки лучше оставить `medium` у `worker`, `high` у `orchestrator/sub-orchestrator` и `xhigh` у
-`full-cycle`, вместо одной глобальной ступени.
+Для Astra выбирается **одно значение `medium` во всех ролях**. Никакого автоматического или
+task-specific повышения до high/xhigh/max. Модель берётся только для тех задач, которым уже нужна
+её capability; effort не становится второй скрытой маршрутизацией.
 
 ## Доступ прямо сейчас
 
@@ -70,7 +66,7 @@ API-эквивалент Astra: `$10/M` input, `$1/M` cached input, `$12.5/M` ca
 опубликовано, поэтому утверждать его нельзя. Но внутренний виртуальный cost Orchestra обязан будет
 учитывать этот порог, если реальный ChatGPT-auth context Astra превысит 272K.
 
-## Effort: что реально покупает каждая ступень
+## Effort: почему одно значение — medium
 
 ### Общий Intelligence Index
 
@@ -82,7 +78,9 @@ API-эквивалент Astra: `$10/M` input, `$1/M` cached input, `$12.5/M` ca
 | `xhigh` | 61 | 1.20 | +1, +25% |
 | `max` | 61 | 1.67 | +0 округлённо, +39% |
 
-На общей работе экономическое колено — `medium/high`. `max` не оправдан как default.
+На общей работе экономическое колено — `medium`: переход `low → medium` ещё даёт два пункта, а
+`medium → high` оставляет только один пункт за +28% цены. `xhigh` и `max` для единой настройки уже
+покупают верхний хвост кривой.
 
 ### Coding Agent Index
 
@@ -92,15 +90,60 @@ API-эквивалент Astra: `$10/M` input, `$1/M` cached input, `$12.5/M` ca
 | Effort | Coding index | $/task | Tokens/task | Практический смысл |
 |---|---:|---:|---:|---|
 | `low` | ≈63 | 1.41 | ≈0.67M | почти уровень Sol xhigh, но ещё не причина отбирать работу у Luna |
-| `medium` | ≈65 | 2.19 | ≈1.1M | лучший default для обычного сложного coding worker |
-| `high` | ≈65.5 | 2.89 | ≈1.4M | для неоднозначности и дополнительной проверки |
-| `xhigh` | ≈67 | 3.27 | ≈1.5M | лучший quality/cost для длинного full-cycle |
-| `max` | 67 | 4.72 | ≈2.1M | тот же округлённый score, +44% к xhigh |
+| `medium` | ≈65 | 2.19 | ≈1.1M | **выбранный единый уровень** |
+| `high` | ≈65.5 | 2.89 | ≈1.4M | около +0.5 пункта за +32% цены — слабая сделка |
+| `xhigh` | ≈67 | 3.27 | ≈1.5M | выше качество, но +49% к medium; не единый optimum |
+| `max` | 67 | 4.72 | ≈2.1M | тот же округлённый score, +116% к medium |
 
 Для сравнения, в том же Codex harness Sol: `medium 62/$2.19/5.8M`,
 `high 64/$3.00/8.0M`, `xhigh 63/$3.74/9.9M`, `max 65/$5.00/13.2M`.
 Внешне Astra medium уже выглядит лучше нынешнего Orchestra Sol xhigh. Но это один чужой harness,
 поэтому production policy меняется только после нашей парной канарейки.
+
+### Почему Sol, Luna и Opus получили другие уровни
+
+| Модель | Наш уровень | Как выбирали | Что это означает для Astra |
+|---|---:|---|---|
+| Luna | `high` | `medium → high` был крупнейшим полезным шагом: общий индекс `38.9 → 47.0`; на tool-heavy задачах рост был ещё заметнее. Выше кривая резко замедлялась | У Astra такого скачка на high нет |
+| Opus 5 | `high` | `medium → high` давал около +2.9 индекса; `high → xhigh` только +1.0 при +47% цены, а независимый OckBench показывал насыщение coding на high | Та же логика колена у Astra останавливает нас раньше — на medium |
+| Sol | сейчас `xhigh`; рекомендован `high` | На старом внешнем composite после medium каждый шаг давал примерно +1.7/+1.7/+1.9, явного перегиба не было. Позднее локальный #373 не нашёл разницы high/xhigh, а свежий coding-agent срез поставил high выше при меньших ресурсах | Это решение нельзя наследовать: Astra имеет другую кривую |
+| Astra | **`medium`** | Coding: high даёт лишь ≈+0.5 за +32%; общий index: +1 за +28%. Medium уже ≈65 — уровень Sol max и выше Sol xhigh в том же harness | Один фиксированный effort без повышения |
+
+OpenAI при миграции советует сохранять текущий effective effort. Механически это перенесло бы наш
+Sol `xhigh` в Astra, но наш `xhigh` был выбран по кривой Sol и позднее не подтвердился локальным A/B.
+Переносить его в модель с другим effort sweep означало бы повторить ровно ту ошибку, которую мы уже
+разбирали для Opus: унаследовать настройку предыдущей модели вместо выбора её собственного колена.
+
+### Перепроверка Sol: xhigh стал устаревшей глобальной настройкой
+
+Sol `xhigh` появился 12.08.2026 в #214. Основанием был #208: на тогдашнем общем AA composite
+`medium 55.6 → high 57.3 → xhigh 59.0 → max 60.9`, поэтому после medium не наблюдалось явного
+перегиба. Это было рациональное решение по доступным на тот день внешним данным, а не случайный
+default.
+
+После него накопились данные против глобального xhigh:
+
+- #199: два закрытых Sol-кейса дали одинаковый PASS на medium и xhigh; xhigh стоил `1.13–2.04×`,
+  один кейс шёл `1.74×` дольше.
+- #373: Sol high/xhigh на замороженном механическом research-кейсе дали одинаковые `14/14` и
+  идентичный SHA во всех confirmatory runs; различие времени было меньше A/A-шума.
+- Свежий AA Coding Agent Index: high `64 / $3.00 / 6.2 min / 8M tokens`, xhigh
+  `63 / $3.74 / 7.3 min / 9.9M`. На этом workload high строго лучше aggregate; xhigh выше только
+  на DeepSWE (`67% vs 65%`), а high лучше на Terminal-Bench (`82% vs 80%`) и SWE-Atlas-QnA
+  (`45% vs 43%`).
+- Общий Intelligence Index сохраняет контрсигнал в пользу xhigh: `57/$0.43` против `59/$0.63`.
+  Это +2 индекса примерно за +47% цены, поэтому xhigh не «сломанный», а узкая quality-first ставка.
+
+Официальная документация называет medium сбалансированным default для большинства агентов, high —
+уровнем для сложной логики, проверки предположений и edge cases, а xhigh/max — для особенно тяжёлого
+reasoning. Orchestra уже отсекает рутину в Luna и отправляет Sol только сложные задачи, поэтому
+**одна фиксированная ступень Sol должна быть `high`**. Официальный Codex Security использует Sol
+xhigh по умолчанию для bulk scan, но это специальный security workload и не основание распространять
+xhigh на каждый research, worker и orchestrator.
+
+Итог перепроверки: текущий глобальный `gpt-5.6-sol: xhigh` — **устаревшее policy-решение и вероятная
+ошибка эффективности**. Рекомендуемое значение — `high` во всех role maps. Production pipeline в
+рамках этого research не менялся.
 
 ## Что говорят наши исследования Orchestra
 
@@ -129,9 +172,8 @@ API-эквивалент Astra: `$10/M` input, `$1/M` cached input, `$12.5/M` ca
 - #374: текущий resolver model-aware, но не task-aware; все роли сейчас дают Sol `xhigh`, Luna
   `high`, Opus `high`. Глобальный Sol xhigh остаётся risk policy, а не доказанным optimum.
 
-**Следствие для Astra:** нельзя копировать Sol `xhigh` во все роли. Внешний Astra sweep прямо
-показывает бесполезность `max` как общего default и отдельные экономические точки для `medium` и
-`xhigh`.
+**Следствие для Astra:** нельзя копировать Sol `xhigh`. Единая ступень — `medium`: high слишком мало
+прибавляет, а xhigh/max превращают fixed effort в постоянный налог за редкие крайние случаи.
 
 ### Opus/Fable и независимость пулов
 
@@ -205,8 +247,8 @@ Production менять только после появления Astra в на
 2. Добавить API-equivalent prices и реальный measured ChatGPT-auth context, а не автоматически
    копировать API `1,050,000`.
 3. Astra должна попадать в общий `codex` quota bucket, не в Spark и не в новый выдуманный пул.
-4. Задать role-specific effort: worker `medium`, orchestrator/sub-orchestrator `high`, full-cycle
-   `xhigh`. Reducer Astra не использует.
+4. Во всех role maps задать один exact-model ключ `gpt-6-astra: medium`. Не добавлять override и
+   автоматическую эскалацию effort.
 5. Обновить model-routing: Luna остаётся default; Astra становится верхней веткой Sol-класса только
    после прохождения канарейки; Sol сохраняется как rollback/fallback.
 6. Отдельно проверить >272K virtual pricing и экспериментальное context management. Не смешивать
@@ -216,14 +258,13 @@ Production менять только после появления Astra в на
 
 | Пара | Задачи | Outcome |
 |---|---|---|
-| Astra medium vs Sol xhigh | 3 закрытых сложных coding tickets | pass rate, steps-to-green, tool rounds, credits, wall |
-| Astra high vs Sol xhigh | 2 research/architecture tickets | полнота evidence, число переделок, независимая оценка |
-| Astra xhigh vs Astra max | 1 длинный full-cycle | final acceptance; max проходит только если реально повышает качество |
+| Astra medium vs Sol xhigh | 3 сложных coding tickets | pass rate, steps-to-green, tool rounds, credits, wall |
+| Astra medium vs Sol xhigh | 2 research/architecture tickets | полнота evidence, число переделок, независимая оценка |
+| Astra medium vs Sol xhigh | 1 длинный full-cycle | final acceptance, compact/resume, потерянные требования |
 
 Порядок A/B/A/B, fresh thread на ячейку, одинаковый frozen prompt/commit/oracle. Если Astra medium
-не хуже Sol xhigh и использует не больше credits/task, она становится default для Sol-класса. Если
-выигрыш есть только на coding/computer/security — маршрутизация остаётся предметной. `max` допускается
-только при наблюдаемом улучшении над `xhigh`; иначе закрывается.
+не хуже Sol xhigh и использует не больше credits/task, она становится единственной настройкой Astra
+для Sol-класса. Если выигрыша нет, остаётся Sol; effort Astra под задачу не двигается.
 
 ## Источники
 

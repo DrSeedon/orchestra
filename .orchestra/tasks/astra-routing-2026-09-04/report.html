@@ -23,7 +23,7 @@
     <p class="lead">GPT-6 Astra стоит в 2.5 раза дороже Sol за токен, но на agentic coding использует примерно втрое меньше токенов. Поэтому она может быть дешевле за готовую работу — и всё равно остаётся бессмысленной для закрытых Luna-задач.</p>
     <div class="stamp">Живой срез: Codex CLI 0.153.2 · cache 12:09:37Z · Astra на аккаунте ещё отсутствует</div>
     <section class="verdict">
-      <div><h2>Решение: canary → частичная замена Sol</h2><p><b>Medium</b> для обычного сложного coding worker, <b>high</b> для неоднозначного research/оркестратора, <b>xhigh</b> для длинного full-cycle и security. <b>Max вручную</b>. Luna и Opus остаются.</p></div>
+      <div><h2>Решение: Astra всегда на medium</h2><p>Один фиксированный effort для worker, research, orchestrator и full-cycle. Модель выбирает класс задачи; effort больше не создаёт вторую скрытую маршрутизацию. Luna и Opus остаются на своих уровнях.</p></div>
       <div class="kpi"><div class="metric"><b class="warn">2.5×</b><span>credits Astra / Sol на токен</span></div><div class="metric"><b class="ok">≈⅓</b><span>coding tokens Astra / Sol</span></div><div class="metric"><b class="ok">67</b><span>AA Coding Agent Index</span></div><div class="metric"><b class="bad">нет</b><span>доступа в нашем catalog сейчас</span></div></div>
     </section>
   </div></header>
@@ -35,10 +35,7 @@
       <div class="route">
         <div class="head">Класс</div><div class="head">Модель</div><div class="head">Effort</div><div class="head">Зачем</div>
         <div>Закрытая file+line+oracle</div><div class="model">Luna</div><div class="effort">high</div><div>Самая дешёвая безопасная lane</div>
-        <div>Сложный coding worker</div><div class="model">Astra</div><div class="effort">medium</div><div>Основная экономическая точка</div>
-        <div>Research / orchestrator</div><div class="model">Astra</div><div class="effort">high</div><div>Больше judgement, без верхнего налога</div>
-        <div>Full-cycle / computer / SRE</div><div class="model">Astra</div><div class="effort">xhigh</div><div>Самая сильная подтверждённая ниша</div>
-        <div>Quality-first исключение</div><div class="model">Astra</div><div class="effort">max</div><div>Только если xhigh реально проиграл</div>
+        <div>Любой Astra-класс</div><div class="model">Astra</div><div class="effort">medium</div><div>Один optimum; без task-specific повышения</div>
         <div>Визуал / тонкая проза / независимый review</div><div class="model">Opus 5</div><div class="effort">high</div><div>Другой runtime и отдельный пул</div>
       </div>
     </div></section>
@@ -55,22 +52,23 @@
     </div></section>
 
     <section class="section" id="effort"><div class="wrap">
-      <h2>Effort: medium — default, xhigh — длинная работа</h2><p class="sub">Высота столбца — AA Coding Agent Index (округлённо). Цена — API cost/task с опубликованного графика.</p>
+      <h2>Effort: выбираем medium и больше не двигаем</h2><p class="sub">Высота столбца — AA Coding Agent Index (округлённо). Цена — API cost/task с опубликованного графика.</p>
       <div class="chart"><div class="bars">
         <div class="barcol"><div class="bar" style="height:61%" data-v="≈63"></div><b>low</b><small>$1.41</small></div>
         <div class="barcol"><div class="bar best" style="height:77%" data-v="≈65"></div><b>medium</b><small>$2.19</small></div>
         <div class="barcol"><div class="bar" style="height:80%" data-v="≈65.5"></div><b>high</b><small>$2.89</small></div>
-        <div class="barcol"><div class="bar best" style="height:96%" data-v="≈67"></div><b>xhigh</b><small>$3.27</small></div>
+        <div class="barcol"><div class="bar" style="height:96%" data-v="≈67"></div><b>xhigh</b><small>$3.27</small></div>
         <div class="barcol"><div class="bar stop" style="height:97%" data-v="67"></div><b>max</b><small>$4.72</small></div>
       </div><p class="source">`xhigh → max`: тот же округлённый coding score, примерно +44% цены и +40% токенов. На общем Intelligence Index: 61 → 61 при +39% цены.</p></div>
-      <div class="split" style="margin-top:16px"><div class="callout"><b>Одно значение на старте:</b> `medium`. Оно уже выглядит сильнее Sol xhigh на coding harness, но не сжигает верхний budget без своей канарейки.</div><div class="callout" style="border-color:var(--a)"><b>Role-aware после канарейки:</b> worker `medium`; orchestrator `high`; full-cycle `xhigh`; max только вручную.</div></div>
+      <div class="split" style="margin-top:16px"><div class="callout"><b>Выбранное значение:</b> `medium`. Оно уже выглядит сильнее Sol xhigh на coding harness.</div><div class="callout" style="border-color:var(--a)"><b>Почему не high:</b> около +0.5 coding-пункта за +32% цены; на общем index +1 за +28%.</div></div>
+      <table style="margin-top:16px"><tr><th>Модель</th><th>Наш effort</th><th>Почему остановились здесь</th></tr><tr><td>Luna</td><td class="effort">high</td><td>Medium→high: крупнейший скачок, 38.9→47.0; выше отдача резко падает</td></tr><tr><td>Opus 5</td><td class="effort">high</td><td>Medium→high ≈+2.9; high→xhigh лишь +1.0 при +47% цены</td></tr><tr><td>Sol</td><td class="effort">xhigh → high</td><td>Xhigh выбрали по старой кривой; поздний локальный A/B и свежий coding index поддерживают high</td></tr><tr><td><b>Astra</b></td><td class="effort"><b>medium</b></td><td>High даёт ≈+0.5 coding-пункта за +32%; medium уже около уровня Sol max</td></tr></table>
     </div></section>
 
     <section class="section" id="evidence"><div class="wrap">
       <h2>Что уже доказала Orchestra</h2><p class="sub">Не маркетинговый пересказ, а выводы наших замороженных A/B, quota-разборов и runtime-аудитов.</p>
       <div class="grid">
         <article class="card"><span class="tag green">#199 · #203</span><h3>Luna остаётся default</h3><p>3/3 закрытых задач прошли у Luna, Terra и Sol. Terra не дала пользы, Sol нужен открытому классу. Astra не окупает 42–50× Luna credits.</p></article>
-        <article class="card"><span class="tag orange">#373 · #374</span><h3>Sol xhigh не доказан глобально</h3><p>High/xhigh дали одинаковые 14/14 и один SHA; latency difference утонула в A/A noise. Нельзя наследовать xhigh в Astra автоматически.</p></article>
+        <article class="card"><span class="tag orange">#373 · #374</span><h3>Sol xhigh → high</h3><p>High/xhigh дали одинаковые 14/14 и один SHA; свежий coding index: high 64/$3.00 против xhigh 63/$3.74. Глобальный xhigh устарел.</p></article>
         <article class="card"><span class="tag">#176</span><h3>Сильная модель ≠ независимый review</h3><p>Sol→Sol постановка/review/impl усилила ошибку. Astra/Sol работа требует cross-runtime judge для high-stakes.</p></article>
         <article class="card"><span class="tag">#222</span><h3>Spark — отдельная узкая lane</h3><p>Быстрый на закрытом, но 2/2 придумал отсутствующую константу. Его отдельный quota bucket полезен и после Astra.</p></article>
         <article class="card"><span class="tag">#232 · #251</span><h3>Grok — ёмкость и X/search</h3><p>Третий пул, не доказанный quality default. Astra не добавляет пул, поэтому не вытесняет Grok как capacity route.</p></article>
@@ -89,7 +87,7 @@
     <section class="section" id="integration"><div class="wrap">
       <h2>Впихнуть без костылей</h2><p class="sub">Сейчас Astra отсутствует в entitlement, поэтому это точная последовательность после появления в catalog, а не правка production сегодня.</p>
       <div class="grid">
-        <article class="card full"><ol class="list"><li>`ModelSpec` + alias `astra`; существующий runtime `codex`.</li><li>Price/context maps по живому ChatGPT-auth измерению; отдельная обработка &gt;272K для виртуальной цены.</li><li>Общий quota bucket `codex`; новый пул не выдумывать.</li><li>Role-specific efforts: medium / high / xhigh; reducer остаётся Luna.</li><li>Три A/B: coding, research, full-cycle. Frozen commit/prompt/oracle; A/B/A/B; fresh thread.</li><li>Context management тестировать отдельно, иначе модель и память смешаются в один неразличимый эффект.</li><li>Sol держать rollback до фактической победы Astra на credits/task и acceptance.</li></ol></article>
+        <article class="card full"><ol class="list"><li>`ModelSpec` + alias `astra`; существующий runtime `codex`.</li><li>Price/context maps по живому ChatGPT-auth измерению; отдельная обработка &gt;272K для виртуальной цены.</li><li>Общий quota bucket `codex`; новый пул не выдумывать.</li><li>Во всех role maps один exact-model ключ: `gpt-6-astra: medium`; никаких effort-эскалаций.</li><li>Три A/B: coding, research, full-cycle. Frozen commit/prompt/oracle; A/B/A/B; fresh thread.</li><li>Context management тестировать отдельно, иначе модель и память смешаются в один неразличимый эффект.</li><li>Sol держать rollback до фактической победы Astra на credits/task и acceptance.</li></ol></article>
       </div>
     </div></section>
 

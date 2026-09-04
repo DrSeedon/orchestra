@@ -64,10 +64,19 @@
   ],
   "recommended_orchestra_policy": {
     "closed_repeatable": {"model": "gpt-5.6-luna", "effort": "high"},
-    "complex_coding_worker": {"model": "gpt-6-astra", "effort": "medium", "status": "canary first"},
-    "ambiguous_research_or_orchestrator": {"model": "gpt-6-astra", "effort": "high", "status": "canary first"},
-    "long_horizon_full_cycle_or_security": {"model": "gpt-6-astra", "effort": "xhigh", "status": "canary first"},
-    "quality_first_manual_exception": {"model": "gpt-6-astra", "effort": "max", "status": "manual only"},
+    "sol_single_effort_reassessment": {
+      "model": "gpt-5.6-sol",
+      "current_effort": "xhigh",
+      "recommended_effort": "high",
+      "status": "research conclusion; production pipeline not changed"
+    },
+    "astra_single_effort": {
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "scope": "every Orchestra role and task routed to Astra",
+      "status": "activate only after entitlement and a production-equivalent canary",
+      "automatic_or_task_specific_escalation": false
+    },
     "creative_visual_or_cross_runtime_review": {"model": "claude-opus-5[1m]", "effort": "high"},
     "fast_mode": {"enabled_by_default": false}
   }
