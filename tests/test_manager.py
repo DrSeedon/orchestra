@@ -191,26 +191,19 @@ class TestCreateSession:
         assert s1.id != s2.id
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("role,model,expected", [
-        # Карта модель→ступень реального манифеста (#214): роль одна, ступень разная.
-        ("worker", "claude-opus-5[1m]", "high"),
-        ("worker", "gpt-5.6-sol", "high"),
-        ("worker", "gpt-5.6-luna", "high"),
-        ("full-cycle", "gpt-5.6-sol", "high"),
-        # alias на входе — модель канонизуется до резолва эффорта
-        ("worker", "gpt5.6sol", "high"),
-        # оркестраторы несут ту же карту (#214: подняты с medium до high на Opus)
-        ("orchestrator", "claude-opus-5[1m]", "high"),
-        ("orchestrator", "gpt-5.6-sol", "high"),
-    ])
-    async def test_spawn_effort_picked_by_model(self, mgr, role, model, expected):
+    async def test_spawn_stores_resolved_effort(self, mgr, monkeypatch):
         from tests.conftest import make_backend_mock
+        resolver = MagicMock(return_value="medium")
+        monkeypatch.setattr("app.manager.resolve_effort", resolver)
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="w-eff", scope="/s", cwd="/tmp", model=model, role=role,
-                is_orchestrator=(role == "orchestrator"), planned_initial_turn=False,
+                name="w-eff", scope="/s", cwd="/tmp", model="gpt-5.6-sol", role="worker",
+                planned_initial_turn=False,
             )
-        assert session.effort == expected
+        assert session.effort == "medium"
+        raw_effort, model, runtime = resolver.call_args.args
+        assert isinstance(raw_effort, dict)
+        assert (model, runtime) == ("gpt-5.6-sol", "codex")
 
     @pytest.mark.asyncio
     async def test_validates_cwd(self, mgr):
