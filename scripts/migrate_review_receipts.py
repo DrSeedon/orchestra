@@ -111,6 +111,11 @@ def _receipt(item: dict) -> dict:
         "coverage_outcome": "unknown",
         "policy_ref": "",
         "decision_actor": "",
+        "task_stable_id": "",
+        "task_snapshot_ref": "",
+        "prompt_template_start": "",
+        "prompt_template_end": "",
+        "terminal_operation_id": "",
     }
 
 

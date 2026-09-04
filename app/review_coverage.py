@@ -13,6 +13,7 @@ SNAPSHOT_VERSION = b"review-coverage-v1\0"
 ACTIVATION_MARKER = "review-coverage-v1"
 PRODUCTION_PREFIXES = ("app/", "scripts/")
 MACHINE_UNAVAILABLE_CODES = frozenset({"weekly_quota_blocked", "codex_binary_missing"})
+REVIEW_AUTHOR_OUTCOMES = frozenset({"accepted", "disputed", "partial"})
 POLICY_PATH = (
     Path(__file__).resolve().parent.parent
     / ".orchestra/pipelines/default/prompts/skills/codex-debate.md"
@@ -154,6 +155,22 @@ def coverage_decision(
             and receipt.get("failure_code") in MACHINE_UNAVAILABLE_CODES
             and receipt.get("policy_ref") == policy_ref
         )
+        author_outcome = str(receipt.get("author_outcome") or "unknown")
+        outcome_evidence_ref = str(receipt.get("outcome_evidence_ref") or "")
+        if reviewed and author_outcome not in REVIEW_AUTHOR_OUTCOMES:
+            return {
+                **base,
+                "status": "blocked",
+                "reason": (
+                    "author_outcome_missing"
+                    if author_outcome == "unknown"
+                    else "author_outcome_invalid"
+                ),
+                "receipt_id": str(receipt["receipt_id"]),
+                "coverage_outcome": outcome,
+                "author_outcome": author_outcome,
+                "outcome_evidence_ref": outcome_evidence_ref,
+            }
         if reviewed or skipped or unavailable:
             return {
                 **base,
@@ -161,5 +178,7 @@ def coverage_decision(
                 "reason": "",
                 "receipt_id": str(receipt["receipt_id"]),
                 "coverage_outcome": outcome,
+                "author_outcome": author_outcome,
+                "outcome_evidence_ref": outcome_evidence_ref,
             }
     return base
