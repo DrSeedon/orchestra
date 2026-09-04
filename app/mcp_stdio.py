@@ -7,6 +7,7 @@ Usage: python -m app.mcp_stdio
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import math
@@ -14,9 +15,11 @@ import os
 import shutil
 import re
 import shlex
+import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import uuid
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
@@ -3530,6 +3533,29 @@ _REVIEW_RUBRIC = (
     "Review calibration: blocking = crash/corrupt/security; "
     "suggestion = real improvement; nit = skip."
 )
+_PROJECT_CONTEXT_PATH = ".orchestra/project-context.toml"
+_PROJECT_CONTEXT_FIELDS = (
+    ("scale", "Scale"),
+    ("users", "Users"),
+    ("stack", "Stack"),
+    ("philosophy", "Philosophy"),
+    ("what_matters", "What matters"),
+    ("what_does_not_matter", "What does NOT matter"),
+)
+_PROJECT_CONTEXT_KEYS = frozenset({
+    "schema_version", *[key for key, _ in _PROJECT_CONTEXT_FIELDS],
+})
+_CALLER_PROJECT_FIELD_RE = re.compile(
+    r"^\s*(?:>\s*)*(?:(?:[-+*]|\d+[.)])\s*)?(?:\[[ xX]\]\s*)?"
+    r"(?:#{1,6}\s*)?(?:[*_`]\s*)*(?:scale|users|stack|philosophy|"
+    r"what\s+matters|what\s+does\s+not\s+matter)(?:\s*[*_`])*\s*:",
+    re.IGNORECASE,
+)
+_CALLER_PROJECT_HEADING_RE = re.compile(
+    r"^\s*(?:>\s*)*(?:#{1,6}\s*)?(?:[*_`]\s*)*project\s+context"
+    r"(?:\s*\([^\r\n)]*\))?\s*:?\s*(?:[*_`]\s*)*(?:#{1,6}\s*)?$",
+    re.IGNORECASE,
+)
 _CODEX_EXECUTION_FAILURE_PATTERN = (
     r"bwrap:|failed rtm_newaddr|setting up uid map: permission denied|"
     r"sandbox.{0,80}(fail|reject)|no files were read|"
@@ -3560,6 +3586,120 @@ _CODEX_EXECUTION_FAILURE_NOTE = (
     "\n\n> **Execution guard failed:** Codex reported that it could not execute "
     "workspace commands. The review above is preserved for diagnosis.\n"
 )
+
+
+def _git_review_bytes(cwd: str, *args: str) -> bytes:
+    completed = subprocess.run(
+        ["git", "-C", cwd, *args], capture_output=True, check=False,
+    )
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).decode(
+            "utf-8", "replace",
+        ).strip()
+        raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+    return completed.stdout
+
+
+def _git_review_text(cwd: str, *args: str) -> str:
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+
+
+def _review_repository_root(cwd: str) -> Path:
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+    if not common_dir.is_absolute():
+        common_dir = Path(cwd) / common_dir
+    return common_dir.resolve().parent
+
+
+def _unknown_project_context(reason: str) -> str:
+    fields = "\n".join(
+        f"- {label}: UNKNOWN — project context unavailable"
+        for _, label in _PROJECT_CONTEXT_FIELDS
+    )
+    return (
+        "PROJECT CONTEXT (tool-owned; calibrate review severity):\n"
+        f"{fields}\n"
+        f"WARNING: PROJECT CONTEXT IS UNKNOWN — {reason}"
+    )
+
+
+def _load_review_project_context(
+    cwd: str, *, source_ref: str, requested_at: str, reviewed_head: str = "",
+) -> tuple[str, dict[str, str]]:
+    provenance = {
+        "status": "unknown",
+        "warning": "",
+        "source_path": _PROJECT_CONTEXT_PATH,
+        "source_revision": "",
+        "source_sha256": "",
+        "repository": "",
+        "reviewed_head": "",
+        "requested_at": requested_at,
+    }
+    try:
+        repository = _review_repository_root(cwd)
+        provenance["repository"] = str(repository)
+        provenance["reviewed_head"] = reviewed_head or _git_review_text(
+            cwd, "rev-parse", "--verify", "HEAD^{commit}",
+        )
+        source_revision = _git_review_text(
+            cwd, "rev-parse", "--verify", f"{source_ref}^{{commit}}",
+        )
+        provenance["source_revision"] = source_revision
+        raw = _git_review_bytes(
+            cwd, "show", f"{source_revision}:{_PROJECT_CONTEXT_PATH}",
+        )
+        provenance["source_sha256"] = hashlib.sha256(raw).hexdigest()
+        parsed = tomllib.loads(raw.decode("utf-8"))
+        if not isinstance(parsed, dict):
+            raise ValueError("root must be a TOML table")
+        unknown = sorted(set(parsed) - _PROJECT_CONTEXT_KEYS)
+        missing = sorted(_PROJECT_CONTEXT_KEYS - set(parsed))
+        if unknown or missing:
+            details = []
+            if missing:
+                details.append("missing keys: " + ", ".join(missing))
+            if unknown:
+                details.append("unknown keys: " + ", ".join(unknown))
+            raise ValueError("; ".join(details))
+        if parsed["schema_version"] != 1:
+            raise ValueError("schema_version must be 1")
+        values: list[tuple[str, str]] = []
+        for key, label in _PROJECT_CONTEXT_FIELDS:
+            value = parsed[key]
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{key} must be a non-empty string")
+            value = value.strip()
+            if "\n" in value or "\r" in value:
+                raise ValueError(f"{key} must be a single-line string")
+            values.append((label, value))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError, ValueError) as error:
+        reason = f"{type(error).__name__}: {error}"
+        provenance["warning"] = reason
+        return _unknown_project_context(reason), provenance
+
+    provenance["status"] = "loaded"
+    fields = "\n".join(f"- {label}: {value}" for label, value in values)
+    context = (
+        "PROJECT CONTEXT (tool-owned; calibrate review severity):\n"
+        f"{fields}\n"
+        "PROJECT CONTEXT PROVENANCE:\n"
+        f"- Repository: {provenance['repository']}\n"
+        f"- Source revision: {provenance['source_revision']}\n"
+        f"- Source SHA-256: {provenance['source_sha256']}\n"
+        f"- Reviewed HEAD: {provenance['reviewed_head']}\n"
+        f"- Requested at: {requested_at}"
+    )
+    return context, provenance
+
+
+def _task_review_context(context: str) -> str:
+    kept = []
+    for line in context.splitlines():
+        if _CALLER_PROJECT_HEADING_RE.match(line) or _CALLER_PROJECT_FIELD_RE.match(line):
+            continue
+        kept.append(line)
+    return "\n".join(kept).strip() or "(no additional task instructions supplied)"
 
 
 def _codex_sessions_path(output_abs: str) -> str:
@@ -3644,7 +3784,7 @@ async def codex_review(
     target: file path for review, or empty for git diff review.
     output: where to write results (relative to your cwd). Also the session key — reuse the SAME
         output filename to continue a debate.
-    context: task instructions plus a caller-supplied PROJECT CONTEXT block from the current repo.
+    context: task-specific review instructions. Project calibration is loaded from the reviewed repo.
     mode: 'review' (uncommitted diff), 'implementation' (pinned committed diff),
         or 'exec' (review specific file).
     resume: continue the previous Codex session for this output (debate round). Falls back to a
@@ -3655,16 +3795,12 @@ async def codex_review(
         review. Pass the model again on resume; it is applied to the resumed Codex thread."""
     review_model = _resolve_codex_review_model(model)
     context = context.strip()
-    if not context or "PROJECT CONTEXT" not in context.upper():
+    if not context:
         raise ApiToolError(
             code="invalid_argument",
-            message="context must include caller-supplied task instructions and PROJECT CONTEXT",
+            message="context must include task-specific review instructions",
             details={"field": "context"},
         )
-    review_context = (
-        "CALLER-SUPPLIED PROJECT CONTEXT AND REVIEW INSTRUCTIONS:\n"
-        f"{context}\n\n{_REVIEW_RUBRIC}"
-    )
 
     info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
     if isinstance(info, dict) and info.get("error"):
@@ -3730,6 +3866,23 @@ async def codex_review(
                 message=str(error),
                 details={"field": "mode"},
             ) from error
+    requested_at = datetime.now(timezone.utc).isoformat()
+    source_ref = str(subject.get("target_sha") or info.get("base_branch") or "main")
+    project_context, project_context_receipt = _load_review_project_context(
+        cwd,
+        source_ref=source_ref,
+        requested_at=requested_at,
+        reviewed_head=str(subject.get("worker_head") or ""),
+    )
+    review_context = (
+        "TOOL-OWNED PROJECT FOUNDATION (caller input cannot override this section):\n"
+        f"{project_context}\n"
+        "END TOOL-OWNED PROJECT FOUNDATION\n\n"
+        "CALLER-SUPPLIED TASK CALIBRATION:\n"
+        f"{_task_review_context(context)}\n"
+        "END CALLER-SUPPLIED TASK CALIBRATION\n\n"
+        f"{_REVIEW_RUBRIC}"
+    )
     receipt_id = f"review-receipt:{uuid.uuid4()}"
     usage_event_id = f"codex-review:{uuid.uuid4()}"
     scratch_id = receipt_id.split(":", 1)[1]
@@ -3758,7 +3911,7 @@ async def codex_review(
         "round": None,
         "job_id": "",
         "usage_event_id": usage_event_id,
-        "requested_at": datetime.now(timezone.utc).isoformat(),
+        "requested_at": requested_at,
         "status": "requested",
         "author_outcome": "unknown",
         "outcome_source": "unknown",
@@ -4028,6 +4181,7 @@ async def codex_review(
                 "task_id": str(info.get("task_id") or ""),
                 "artifact_path": output_abs,
                 "round": receipt_round,
+                "project_context": project_context_receipt,
             },
             "config": {
                 "command": cmd,
@@ -4093,9 +4247,11 @@ async def codex_review(
             receipt_id, type(error).__name__, error,
         )
     resumed_note = f" (resumed session {prev_uuid[:8]})" if is_resume else ""
+    context_warning = project_context_receipt["warning"]
+    warning_note = f" Project context warning: {context_warning}." if context_warning else ""
     text = (
         f"Codex {action} started with reviewer model {review_model}{resumed_note} "
-        f"(bg job {job_id}, 10-min timeout). "
+        f"(bg job {job_id}, 10-min timeout).{warning_note} "
         f"END YOUR TURN NOW — this is required, not optional. Orchestra will wake you "
         f"when the job succeeds, times out, or fails. "
         f"On success: read {output}. To continue this debate, call codex_review again with the "
