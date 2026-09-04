@@ -79,8 +79,7 @@ async def _accepted_report(module, child, body):
         ),
         message=body,
         rendered_message=f"[from:{child}] {body}",
-        # This is the payload emitted by the live MCP send_message tool today.
-        message_kind=None,
+        message_kind="done",
         wake=True,
         provenance=MessageProvenance(origin="agent", senders=(child,)),
     )

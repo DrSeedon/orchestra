@@ -2917,6 +2917,47 @@ async def update_worker_description(name: str, description: str) -> str:
 
 
 @mcp.tool()
+async def set_worker_owned_dirs(name: str, owned_dirs: str) -> str:
+    """Change which directories a worker owns, WITHOUT moving it to a new branch.
+
+    Use when the worker keeps its current task and branch but the boundary was wrong,
+    too narrow, or points at paths that no longer exist. To hand a worker a NEW task,
+    use `switch_worker_branch` instead — it changes branch, task and ownership in one
+    step; this tool touches ownership only.
+
+    owned_dirs — JSON array, e.g. `["app/api/", "tests/"]`. An empty array (`[]`)
+    REMOVES ownership, after which the worker is bounded by its task, not by dirs.
+    Overlap with another live worker in the same scope is a blocking error, same as
+    at spawn: pick different dirs or kill the other worker first.
+
+    Applies to `idle` workers only. A `running` or `waiting` worker is REFUSED with
+    its status — nothing is changed and the call is safe to repeat once it goes idle.
+    That is deliberate: its current turn is already editing files under the present
+    boundary, and rewriting the contract underneath it would be a silent change.
+
+    Both owners are updated together — the stored ownership list and the "Directory
+    ownership" block of the worker's system prompt. The worker sees the new block on
+    its next turn.
+    """
+    try:
+        parsed = json.loads(owned_dirs) if owned_dirs.strip() else []
+    except (TypeError, ValueError) as error:
+        return f"Ownership change failed: owned_dirs is not valid JSON: {error}"
+    if not isinstance(parsed, list):
+        return "Ownership change failed: owned_dirs must be a JSON array"
+    result = await _api("POST", f"/api/sessions/{name}/owned-dirs",
+                        json={"scope": SCOPE, "owned_dirs": parsed})
+    if isinstance(result, dict) and result.get("error"):
+        return f"Ownership change failed: {result['error']}"
+    if isinstance(result, dict) and result.get("ok"):
+        applied = result.get("owned_dirs") or []
+        if not applied:
+            return f"Ownership removed from '{name}' — it now owns no directories"
+        return f"'{name}' now owns: {', '.join(applied)}"
+    return f"Ownership result: {result}"
+
+
+@mcp.tool()
 async def update_worker_prompt(name: str, system_prompt: str) -> str:
     """Update a worker's custom system prompt."""
     result = await _api("POST", f"/api/sessions/{name}/prompt", json={"system_prompt": system_prompt, "scope": SCOPE})

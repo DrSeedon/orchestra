@@ -447,6 +447,8 @@ async def lifespan(app: FastAPI):
         snapshot_task = asyncio.create_task(_usage_snapshot_loop())
         from app.portfolio_watchdog import ensure_task as ensure_portfolio_watchdog
         portfolio_watchdog_task = ensure_portfolio_watchdog(app)
+        from app.runaway_guard import ensure_task as ensure_runaway_guard
+        ensure_runaway_guard(app)
         from app import rag_service
         if rag_service.is_enabled():
             rag_service.initialize()

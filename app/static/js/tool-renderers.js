@@ -719,3 +719,141 @@ function renderWebSearchResults(raw) {
 
     return null;
 }
+
+// Результат record_review_outcome: полезны эти поля, остальное в ответе либо пустое,
+// либо дословный повтор аргументов вызова, показанных выше в том же сообщении.
+const _RECEIPT_FIELDS = [
+    'receipt_id', 'coverage_outcome', 'status', 'decision_actor',
+    'production_paths_json', 'production_snapshot_sha256', 'target_sha', 'worker_head',
+];
+const _RECEIPT_HASH_FIELDS = new Set([
+    'production_snapshot_sha256', 'target_sha', 'worker_head',
+]);
+
+// Ответ доезжает до чата питоновским repr (`str(dict)` в backend_claude.py:475), а не JSON:
+// одинарные кавычки и None, поэтому JSON.parse на нём падает. Разбираем только нужные ключи
+// вместо общего парсера python-литералов — значения в квитанции все скалярные.
+const _PY_ESCAPES = {n: '\n', t: '\t', r: '\r', '\\': '\\', "'": "'", '"': '"'};
+
+function _pyLiteralField(text, key) {
+    const marker = `'${key}':`;
+    const at = text.indexOf(marker);
+    if (at < 0) return undefined;
+    let i = at + marker.length;
+    while (i < text.length && text[i] === ' ') i++;
+    const quote = text[i];
+    if (quote === "'" || quote === '"') {
+        let out = '';
+        i++;
+        while (i < text.length) {
+            if (text[i] === '\\' && i + 1 < text.length) {
+                const escaped = _PY_ESCAPES[text[i + 1]];
+                out += escaped === undefined ? text[i + 1] : escaped;
+                i += 2;
+                continue;
+            }
+            if (text[i] === quote) return out;
+            out += text[i++];
+        }
+        return undefined;
+    }
+    const literal = text.slice(i).match(/^(None|True|False|-?\d+(?:\.\d+)?)/);
+    if (!literal) return undefined;
+    if (literal[1] === 'None') return null;
+    if (literal[1] === 'True') return true;
+    if (literal[1] === 'False') return false;
+    return Number(literal[1]);
+}
+
+function _receiptPayload(raw) {
+    const text = String(raw || '').trim();
+    if (!text.startsWith('{')) return null;
+    try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            return (parsed.result && typeof parsed.result === 'object') ? parsed.result : parsed;
+        }
+    } catch {}
+    const out = {};
+    for (const key of [..._RECEIPT_FIELDS, 'outcome_evidence_ref']) {
+        const val = _pyLiteralField(text, key);
+        if (val === undefined) {
+            // Ключ есть, а литерал не разобрался → payload битый. Отдаём его общему пути
+            // целиком, а не рисуем карточку из уцелевших обрывков.
+            if (text.includes(`'${key}':`)) return null;
+            continue;
+        }
+        out[key] = val;
+    }
+    return Object.keys(out).length ? out : null;
+}
+
+// Аргументы вызова лежат структурно на самом узле (`dataset.toolContent`, chat.js:2149)
+// в виде `<имя тула>: {json}`. Не смогли прочитать — считаем, что ref уже показан выше:
+// потерять его нельзя, он в том же сообщении, а дубль длинного текста и есть жалоба.
+function _callArgsHaveEvidence(callContent) {
+    const text = String(callContent || '');
+    const colon = text.indexOf(':');
+    if (colon < 0) return true;
+    try {
+        const args = JSON.parse(text.slice(colon + 1).trim());
+        // Массив — не `{json args}`: считаем аргументы нечитаемыми и ref не рисуем.
+        if (!args || typeof args !== 'object' || Array.isArray(args)) return true;
+        return 'outcome_evidence_ref' in args;
+    } catch { return true; }
+}
+
+function _receiptRow(grid, key, text, full) {
+    const keyEl = document.createElement('span');
+    keyEl.style.cssText = 'color:#64748b;white-space:nowrap;font-family:monospace';
+    keyEl.textContent = key;
+    grid.appendChild(keyEl);
+    const valEl = document.createElement('span');
+    valEl.style.cssText = 'color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;overflow-wrap:anywhere;min-width:0';
+    valEl.textContent = text;
+    if (full && full !== text) valEl.title = full;
+    grid.appendChild(valEl);
+}
+
+function renderReviewOutcomeResult(raw, callContent) {
+    const data = _receiptPayload(raw);
+    if (!data || !data.receipt_id) return null;
+
+    const container = document.createElement('div');
+    container.className = 'diff-view';
+    container.dataset.role = 'review-outcome';
+
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:1px 10px;font-size:10px;align-items:baseline;padding:6px 8px';
+
+    for (const key of _RECEIPT_FIELDS) {
+        const value = data[key];
+        if (value === null || value === undefined || value === '') continue;
+        const full = String(value);
+        let shown = full;
+        if (key === 'production_paths_json') {
+            try {
+                const paths = JSON.parse(full);
+                if (Array.isArray(paths)) {
+                    if (!paths.length) continue;
+                    shown = paths.join(', ');
+                }
+            } catch {}
+        } else if (_RECEIPT_HASH_FIELDS.has(key)) {
+            shown = full.slice(0, 12) + (full.length > 12 ? '…' : '');
+        } else if (full.length > 60) {
+            shown = full.slice(0, 60) + '…';
+        }
+        _receiptRow(grid, key, shown, full);
+    }
+
+    const evidence = data.outcome_evidence_ref;
+    if (evidence && !_callArgsHaveEvidence(callContent)) {
+        const full = String(evidence);
+        _receiptRow(grid, 'outcome_evidence_ref', full.length > 150 ? full.slice(0, 150) + '…' : full, full);
+    }
+
+    if (!grid.childElementCount) return null;
+    container.appendChild(grid);
+    return container;
+}

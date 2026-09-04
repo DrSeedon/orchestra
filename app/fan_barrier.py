@@ -8,12 +8,27 @@ from pathlib import Path
 
 from . import db
 from app.events import MessageProvenance
+from app.turn_markers import is_silent_turn_text
 
 
 _TERMINAL_STATES = {"done", "failed", "timeout", "killed"}
 _BYPASS_KINDS = {"out_of_scope", "false_premise", "blocked"}
 _deadline_tasks: dict[str, asyncio.Task] = {}
 logger = logging.getLogger("orchestra.fan_barrier")
+
+
+def _report_body(body: str | None, state: str) -> str:
+    if is_silent_turn_text(body):
+        return (
+            "ОТЧЁТА НЕТ: ход завершён служебным маркером тишины, "
+            "а содержательный send_message родителю не сохранён."
+        )
+    if isinstance(body, str) and body.strip():
+        return body
+    return (
+        f"ОТЧЁТА НЕТ: ребёнок завершился со статусом {state}, но не оставил "
+        "содержательного send_message родителю или финального текста хода."
+    )
 
 
 def is_terminal_report(message_kind: str | None) -> bool:
@@ -140,7 +155,9 @@ def record_terminal(
             return False
         fan_id = row[0]
         if not report_path:
-            report_path = row[3] or _persist_child_report(fan_id, child, summary or "")
+            report_path = row[3] or _persist_child_report(
+                fan_id, child, _report_body(summary, state),
+            )
         conn.execute(
             """UPDATE fan_members SET state = ?, report_path = ?
                WHERE fan_id = ? AND child = ? AND state IS NULL""",
@@ -174,9 +191,9 @@ def intercept_delivery_report(
     """Capture a durable ``send_message`` report before it wakes the fan parent.
 
     Live MCP clients predating #407 do not send ``message_kind``.  Inside an active
-    fan, their message to that fan's parent is the explicit final report promised by
-    the worker role.  New clients may name a terminal state; known non-terminal kinds
-    keep their normal direct-delivery behaviour.
+    fan, their message to that fan's parent is a report candidate; turn completion is
+    the terminal signal and the last candidate wins.  New clients may name a terminal
+    state; known non-terminal kinds keep their normal direct-delivery behaviour.
     """
     if message_kind is not None and not is_terminal_report(message_kind):
         return None
@@ -200,6 +217,33 @@ def intercept_delivery_report(
             recipients.add(reducer)
         if target_scope.rstrip("/") != scope.rstrip("/") or target_name not in recipients:
             return None
+        substantive = (
+            isinstance(message, str)
+            and bool(message.strip())
+            and not is_silent_turn_text(message)
+        )
+        if message_kind is None:
+            if (
+                member_state is None
+                and not complete
+                and (substantive or not report_path)
+            ):
+                report_path = _persist_child_report(
+                    fan_id,
+                    child,
+                    message if substantive else _report_body(message, state),
+                )
+                conn.execute(
+                    """UPDATE fan_members SET report_path = ?
+                       WHERE fan_id = ? AND child = ?""",
+                    (report_path, fan_id, child),
+                )
+            return {
+                "fan_id": fan_id,
+                "released": False,
+                "recipient": reducer or parent_name,
+                "manifest": None,
+            }
         if member_state is not None:
             pending = conn.execute(
                 "SELECT 1 FROM fan_members WHERE fan_id = ? AND state IS NULL LIMIT 1",
@@ -232,7 +276,9 @@ def intercept_delivery_report(
                 "manifest": None,
             }
         if not report_path:
-            report_path = _persist_child_report(fan_id, child, message)
+            report_path = _persist_child_report(
+                fan_id, child, _report_body(message, state),
+            )
             conn.execute(
                 """UPDATE fan_members SET report_path = ?
                    WHERE fan_id = ? AND child = ? AND state IS NULL""",

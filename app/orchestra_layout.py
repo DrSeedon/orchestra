@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shlex
 import shutil
@@ -15,6 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from app.workspace import repo_mutation_lock
+
+logger = logging.getLogger("orchestra_layout")
 
 
 # LEGACY_PATH_FIXTURE: old roots are one-way migration sources, never read fallbacks.
@@ -175,6 +178,309 @@ def _map_legacy_path(path: str) -> str:
         if path == old or path.startswith(old + "/"):
             return target.as_posix() + path[len(old):]
     return path
+
+
+def _sessions_table_exists(connection: Any) -> bool:
+    row = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sessions'"
+    ).fetchone()
+    return row is not None
+
+
+def _ownership_scopes(repository: Path) -> tuple[str, ...]:
+    """Scope spellings a session row may carry for this checkout."""
+    raw = str(repository).rstrip("/")
+    resolved = str(Path(repository).resolve()).rstrip("/")
+    return (raw,) if raw == resolved else (raw, resolved)
+
+
+def _worktree_probe(worktree: str | None) -> tuple[Path | None, str]:
+    """(searchable worktree, why it is not searchable). Never guesses."""
+    raw = (worktree or "").strip()
+    if not raw:
+        return None, "worker has no worktree"
+    path = Path(raw)
+    if not path.is_absolute():
+        # A relative value would resolve against the service's CWD, i.e. some unrelated
+        # directory, and a stray hit there would SUPPRESS a real alarm. Unchecked is the
+        # honest answer; every live worktree_path observed is absolute.
+        return None, f"worker worktree path is not absolute ({raw})"
+    if not path.is_dir():
+        return None, f"worker worktree is missing ({raw})"
+    return path, ""
+
+
+def _ownership_attention(
+    name: str, before: list[str], after: list[str], repository: Path,
+    worktree: str | None = None,
+) -> list[dict[str, Any]]:
+    """Owned paths a human still has to decide about after the mapping ran.
+
+    Silence is indistinguishable from "checked and fine", so every entry the migration
+    could not repair is named with its worker.
+
+    Existence is asked of BOTH the worker's worktree and the checkout, and the path
+    counts as real if either has it. Each tree alone produces a false alarm biased
+    against normal behaviour, in opposite directions (#482):
+      - checkout only — a worker creates its task directory in its OWN tree, and it
+        reaches `main` only after a merge. The more disciplined the worker (nothing
+        merged half-done), the more reliably it is accused; measured on `painter-canvas`,
+        which was writing into `.orchestra/tasks/88` while we reported it missing.
+      - worktree only — a worker branched before a directory appeared still owns it
+        legitimately and will create it on write. Measured: 8 live paths exist in the
+        checkout and not in the worker's branch (`mobile-os-strategy` → `.orchestra/tasks/2`).
+    Filesystem, not `git ls-tree`: the worktree also holds work that is not committed
+    yet, which is exactly the state the false alarm fired on.
+    """
+    searchable, unsearchable_reason = _worktree_probe(worktree)
+    entries: list[dict[str, Any]] = []
+    for original, mapped in zip(before, after):
+        in_checkout = (repository / mapped).exists()
+        in_worktree = bool(searchable and (searchable / mapped).exists())
+        legacy_unmapped = mapped == original and original.startswith("docs/")
+        if in_checkout or in_worktree:
+            if not legacy_unmapped:
+                continue
+            exists: bool | None = True
+        elif unsearchable_reason:
+            # Not "missing": one of the two trees was never searched, and saying which
+            # is the difference between a fact and a guess.
+            exists = None
+        else:
+            exists = False
+        if legacy_unmapped and exists is None:
+            # Both facts matter and neither may swallow the other: it is a legacy leftover
+            # AND we never searched the tree where it would live.
+            reason = (
+                "legacy path outside the migrated roots; left verbatim — "
+                f"{unsearchable_reason}, worktree unchecked"
+            )
+        elif legacy_unmapped:
+            reason = "legacy path outside the migrated roots; left verbatim"
+        elif exists is None:
+            reason = f"{unsearchable_reason}; absent from the checkout, worktree unchecked"
+        else:
+            reason = (
+                "path was rewritten but exists in neither the worker's worktree nor the checkout"
+                if mapped != original
+                else "path exists in neither the worker's worktree nor the checkout"
+            )
+        entries.append(
+            {"session": name, "path": mapped, "exists": exists, "reason": reason}
+        )
+    return entries
+
+
+CERTAINLY_RESIDENT_STATUSES = ("running", "waiting")
+
+
+def _is_resident(row: Any, live_session_ids: frozenset[str] | None) -> bool:
+    """Is a live session object holding this row in the server's memory?
+
+    A resident session republishes its FULL in-memory snapshot later
+    (`_persist_loop` → `save_session`, an upsert over every column), so a repair
+    written straight to SQLite is silently reverted by the worker's next save.
+    Reporting such a row as repaired is a report of work that was not done.
+
+    Only the server process knows what it holds, so the caller states it:
+    `migrate_registered_project_layouts` passes an empty set because the layout hook
+    provably runs before `auto_resume_all()`. `None` means the caller could not know —
+    the CLI is a separate process — and then residency is inferred from status, which
+    is a conservative approximation, not proof: `running`/`waiting` is certainly
+    resident, while an `idle` row may still be held (named as a gap in the report).
+    """
+    if live_session_ids is not None:
+        return row["id"] in live_session_ids
+    return (row["status"] or "") in CERTAINLY_RESIDENT_STATUSES
+
+
+def migrate_session_ownership(
+    repository: Path, *, apply: bool = True,
+    live_session_ids: frozenset[str] | None = None,
+) -> dict[str, Any]:
+    """Repoint live `sessions` ownership at the migrated `.orchestra/` paths.
+
+    Ownership has two owners — the `sessions.owned_dirs` column and the
+    "## Directory ownership" block inside the stored prompt — and repairing only
+    the column leaves the worker reading the old paths. Both move here, through
+    the same `_map_legacy_path` that moved the files, so a root the migration did
+    not touch is never invented (see `_ownership_attention`).
+    """
+    from app.db import _conn
+    from app.manager import replace_ownership_block
+    from app.workspace import dirs_overlap, parse_owned_dirs
+
+    repository = Path(repository)
+    scopes = _ownership_scopes(repository)
+    plan: list[dict[str, Any]] = []
+    attention: list[dict[str, Any]] = []
+    deferred: list[dict[str, Any]] = []
+    with _conn() as connection:
+        if not _sessions_table_exists(connection):
+            return {
+                "status": "skipped",
+                "reason": "sessions table is absent",
+                "changed": 0,
+                "plan": [],
+                "attention": [],
+                "attention_count": 0,
+                "deferred": [],
+                "deferred_count": 0,
+                "applied": False,
+            }
+        placeholders = ",".join("?" for _ in scopes)
+        rows = connection.execute(
+            "SELECT id,name,status,owned_dirs,system_prompt,prompt_overlay,worktree_path "
+            "FROM sessions "
+            f"WHERE scope IN ({placeholders}) AND status IN ('idle','running','waiting') "
+            "AND owned_dirs IS NOT NULL AND trim(owned_dirs)!='' ORDER BY name",
+            scopes,
+        ).fetchall()
+        # Every live row is mapped first, because a rewrite is only safe against the
+        # POST-migration picture: if one worker owns `docs/tasks/1` while another already
+        # owns `.orchestra/tasks/1`, rewriting the first hands the same directory to both
+        # and silently widens a write boundary. Mapping row-by-row cannot see that.
+        mapped_rows = [
+            (row, parse_owned_dirs(row["owned_dirs"]),
+             [_map_legacy_path(item) for item in parse_owned_dirs(row["owned_dirs"])])
+            for row in rows
+        ]
+        for row, before, after in mapped_rows:
+            if not before:
+                continue
+            attention.extend(
+                _ownership_attention(
+                    row["name"], before, after, repository, row["worktree_path"]
+                )
+            )
+            if after == before:
+                continue
+            if _is_resident(row, live_session_ids):
+                # Writing here would be reverted by the worker's next save, so the row is
+                # NOT counted as changed. Option chosen over repairing through the live
+                # session: the restart path is already correct and costs nothing extra.
+                deferred.append({
+                    "session": row["name"],
+                    "id": row["id"],
+                    "status": row["status"],
+                    "before": before,
+                    "after": after,
+                    "reason": "session is live in the server's memory; a direct write is "
+                              "reverted by its next save. Repaired at the next restart — "
+                              "the layout hook runs before auto_resume_all",
+                })
+                continue
+            collisions = sorted({
+                hit
+                for other, _other_before, other_after in mapped_rows
+                if other["id"] != row["id"]
+                for hit in dirs_overlap(after, other_after)
+            })
+            if collisions:
+                attention.append({
+                    "session": row["name"],
+                    "path": ", ".join(collisions),
+                    "exists": True,
+                    "reason": "rewrite would overlap another live worker; left verbatim",
+                })
+                continue
+            system_prompt, prompt_found = replace_ownership_block(
+                row["system_prompt"] or "", before, after
+            )
+            overlay = row["prompt_overlay"]
+            if overlay is None:
+                # A NULL overlay is not an owner that was successfully rewritten — it is
+                # one that does not exist. Only `system_prompt` can carry the block here.
+                new_overlay, overlay_found = None, False
+            else:
+                new_overlay, overlay_found = replace_ownership_block(
+                    overlay, before, after
+                )
+            # Only ONE of the two carries authority, and it is the one `assemble_prompt`
+            # reads: a non-NULL overlay wins there and `owned_dirs` is not consulted at
+            # all, so repairing `system_prompt` while the overlay keeps the old block
+            # leaves the worker with the stale boundary — or with none.
+            if not (overlay_found if overlay is not None else prompt_found):
+                # The authoritative owner does not carry the generated block, so there is
+                # nothing to rewrite there. Migrating the column alone would look fixed
+                # and leave the agent reading the old path — name it instead.
+                attention.append({
+                    "session": row["name"],
+                    "path": ", ".join(before),
+                    "exists": True,
+                    "reason": "stored prompt has no generated ownership block; "
+                              "column left verbatim for manual repair",
+                })
+                continue
+            plan.append(
+                {
+                    "session": row["name"],
+                    "id": row["id"],
+                    "status": row["status"],
+                    "before": before,
+                    "after": after,
+                    "prompt_changed": system_prompt != (row["system_prompt"] or ""),
+                    "overlay_changed": new_overlay != overlay,
+                }
+            )
+            if apply:
+                connection.execute(
+                    "UPDATE sessions SET owned_dirs=?, system_prompt=?, prompt_overlay=? "
+                    "WHERE id=?",
+                    (
+                        json.dumps(after) if after else "",
+                        system_prompt,
+                        new_overlay,
+                        row["id"],
+                    ),
+                )
+    return {
+        "status": "ok",
+        "repository": str(repository),
+        "changed": len(plan),
+        "plan": plan,
+        "attention": attention,
+        "attention_count": len(attention),
+        "deferred": deferred,
+        "deferred_count": len(deferred),
+        "applied": bool(apply),
+    }
+
+
+def _isolated_session_ownership(
+    repository: Path, live_session_ids: frozenset[str] | None = None,
+) -> dict[str, Any]:
+    """Ownership repair that cannot stop the fleet migration — or the server.
+
+    `migrate_registered_project_layouts` runs from `app/main.py` lifespan for every
+    registered project, and `migrate_registered_projects` only isolates
+    `LayoutMigrationError`. A raw `sqlite3.OperationalError` ("database is locked" is
+    reachable: the live server holds the same file) raised from an ownership repair
+    would escape into lifespan and stop the whole platform booting, for every project,
+    over a repair that is retried for free on the next start. So the failure is
+    recorded and logged instead of thrown; the files have already moved correctly.
+    """
+    try:
+        return migrate_session_ownership(
+            repository, live_session_ids=live_session_ids
+        )
+    except Exception as exc:  # noqa: BLE001 — deliberately broad, see docstring
+        logger.error(
+            "session ownership repair failed for %s: %s: %s",
+            repository, type(exc).__name__, exc,
+        )
+        return {
+            "status": "failed",
+            "repository": str(repository),
+            "error": f"{type(exc).__name__}: {exc}",
+            "changed": 0,
+            "plan": [],
+            "attention": [],
+            "attention_count": 0,
+            "deferred": [],
+            "deferred_count": 0,
+            "applied": False,
+        }
 
 
 def _mapped_status_records(records: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -528,6 +834,7 @@ def migrate_project_layout(
     repository: Path,
     *,
     repair: bool = False,
+    live_session_ids: frozenset[str] | None = None,
     _lock: bool = True,
     _allow_dirty: bool = False,
 ) -> dict[str, Any]:
@@ -542,6 +849,7 @@ def migrate_project_layout(
                     "status": "already_current",
                     "repository": str(repository),
                     "managed_paths": managed,
+                    "ownership": _isolated_session_ownership(repository, live_session_ids),
                     "repair_command": _repair_command(repository),
                 }
             if not _layout_file_is_staged_new(repository):
@@ -581,6 +889,7 @@ def migrate_project_layout(
                 "repository": str(repository),
                 "managed_paths": managed_without_journal,
                 "commit": _run(repository, "rev-parse", "HEAD").stdout.strip(),
+                "ownership": _isolated_session_ownership(repository, live_session_ids),
                 "repair_command": _repair_command(repository),
             }
         if raw_status and not _allow_dirty and (
@@ -686,6 +995,8 @@ def migrate_project_layout(
                 "repository": str(repository),
                 "managed_paths": managed,
                 "commit": commit,
+                # The paths just moved; ownership pointing at the old ones is now wrong.
+                "ownership": _isolated_session_ownership(repository, live_session_ids),
                 "repair_command": _repair_command(repository),
             }
         except LayoutMigrationError:
@@ -694,7 +1005,9 @@ def migrate_project_layout(
             _raise("ORCHESTRA_LAYOUT_GIT_ERROR", repository, str(exc))
 
 
-def migrate_project_layout_preserving_dirty(repository: Path) -> dict[str, Any]:
+def migrate_project_layout_preserving_dirty(
+    repository: Path, live_session_ids: frozenset[str] | None = None,
+) -> dict[str, Any]:
     """Migrate one checkout while restoring its staged, unstaged and untracked work."""
     repository = _git_root(Path(repository))
     with repo_mutation_lock(repository):
@@ -707,7 +1020,10 @@ def migrate_project_layout_preserving_dirty(repository: Path) -> dict[str, Any]:
 
         before_records = _status_records(repository)
         if not before_records:
-            return migrate_project_layout(repository, repair=False, _lock=False)
+            return migrate_project_layout(
+                repository, repair=False, _lock=False,
+                live_session_ids=live_session_ids,
+            )
         _, managed_before = _layout_state(repository)
         unmerged = _run(
             repository, "diff", "--name-only", "--diff-filter=U", check=False
@@ -755,6 +1071,7 @@ def migrate_project_layout_preserving_dirty(repository: Path) -> dict[str, Any]:
             repair=state == "partial",
             _lock=False,
             _allow_dirty=True,
+            live_session_ids=live_session_ids,
         )
         journal.update({"phase": "migrated", "migration_commit": result.get("commit", "")})
         _write_preserve_journal(preserve_journal, journal)
@@ -797,14 +1114,19 @@ def migrate_registered_projects(
     project_roots: Mapping[str, Path],
     *,
     preserve_dirty: bool = False,
+    live_session_ids: frozenset[str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     results: dict[str, dict[str, Any]] = {}
     for project_id, repository in sorted(project_roots.items()):
         try:
             if preserve_dirty:
-                result = migrate_project_layout_preserving_dirty(Path(repository))
+                result = migrate_project_layout_preserving_dirty(
+                    Path(repository), live_session_ids
+                )
             else:
-                result = migrate_project_layout(Path(repository), repair=False)
+                result = migrate_project_layout(
+                    Path(repository), repair=False, live_session_ids=live_session_ids,
+                )
             results[str(project_id)] = result
         except LayoutMigrationError as exc:
             results[str(project_id)] = {
@@ -817,8 +1139,7 @@ def migrate_registered_projects(
     return results
 
 
-def migrate_registered_project_layouts() -> dict[str, dict[str, Any]]:
-    """Force-migrate every canonical tm_projects.scope; failures stay per-project."""
+def _registered_project_roots() -> dict[str, Path]:
     from app.db import _conn
 
     with _conn() as connection:
@@ -826,5 +1147,41 @@ def migrate_registered_project_layouts() -> dict[str, dict[str, Any]]:
             "SELECT id,scope FROM tm_projects WHERE scope IS NOT NULL AND trim(scope)!='' "
             "ORDER BY id"
         ).fetchall()
-    roots = {str(row["id"]): Path(str(row["scope"])) for row in rows}
-    return migrate_registered_projects(roots, preserve_dirty=True)
+    return {str(row["id"]): Path(str(row["scope"])) for row in rows}
+
+
+def migrate_registered_project_layouts() -> dict[str, dict[str, Any]]:
+    """Force-migrate every canonical tm_projects.scope; failures stay per-project.
+
+    The only caller is `app/main.py` lifespan, which runs BEFORE `auto_resume_all()`:
+    no session object exists yet, so every ownership repair here is durable.
+    """
+    return migrate_registered_projects(
+        _registered_project_roots(), preserve_dirty=True,
+        live_session_ids=frozenset(),
+    )
+
+
+def repair_registered_ownership(
+    project_roots: Mapping[str, Path] | None = None, *, apply: bool = True,
+    live_session_ids: frozenset[str] | None = None,
+) -> dict[str, Any]:
+    """One-shot ownership repair across projects; a second run changes nothing.
+
+    Layout migration runs per checkout, but the 13 rows it left behind span five
+    projects, so the repair defaults to every registered `tm_projects.scope`.
+    """
+    roots = _registered_project_roots() if project_roots is None else dict(project_roots)
+    projects: dict[str, dict[str, Any]] = {}
+    for project_id, repository in sorted(roots.items()):
+        projects[str(project_id)] = migrate_session_ownership(
+            Path(repository), apply=apply, live_session_ids=live_session_ids,
+        )
+    return {
+        "status": "ok",
+        "applied": bool(apply),
+        "changed": sum(result["changed"] for result in projects.values()),
+        "attention_count": sum(result["attention_count"] for result in projects.values()),
+        "deferred_count": sum(result["deferred_count"] for result in projects.values()),
+        "projects": projects,
+    }

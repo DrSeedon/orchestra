@@ -8,11 +8,14 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
-from tests.test_acceptance import _run_with_spy, _session_row
+from tests.test_acceptance import _run_with_spy, _session_row, worker_head
 
 
 def _git(cwd: Path, *args: str) -> None:
@@ -36,6 +39,67 @@ def _repo(tmp_path: Path, *, files: dict[str, str]) -> Path:
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", "change")
     return repo
+
+
+def _record_reviewed_receipt(dbmod, worktree: Path) -> None:
+    """Квитанция ревью на текущий продовый снимок — предусловие, а не предмет этих тестов.
+
+    Предмет здесь тест-гейт (#255). С приходом review-coverage (#462) мерж, меняющий
+    `app/**`, требует ещё и квитанции; без неё эти тесты меряли бы чужой гейт и краснели бы
+    на нём, так и не дойдя до своего. Покрытие ревью проверяется отдельно —
+    `tests/test_review_coverage_gate_462.py` и `tests/test_review_coverage_target_drift_474.py`.
+    """
+    from app.review_coverage import production_paths, production_snapshot
+
+    head = worker_head(str(worktree))
+    target_sha = subprocess.run(
+        ["git", "rev-parse", "main"],
+        cwd=worktree, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    snapshot = production_snapshot(
+        str(worktree), target_sha=target_sha, worker_head=head,
+    )
+    if not production_paths(list(snapshot["production_paths"])):
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    dbmod.review_receipt_create({
+        "receipt_id": f"review-receipt:{uuid.uuid4()}",
+        "schema_version": 1,
+        "runtime": "codex",
+        "reviewer_model": "gpt-5.6-luna",
+        "model_source": "direct",
+        "session_id": "merge-session",
+        "worker_name": "worker",
+        "scope": "/scope",
+        "task_id": "42",
+        "task_source": "session_lookup",
+        "artifact_path": f"/tmp/gate-review-{uuid.uuid4()}.md",
+        "mode": "implementation",
+        "round": 1,
+        "job_id": "bg-255",
+        "usage_event_id": "usage-255",
+        "requested_at": now,
+        "completed_at": now,
+        "status": "completed",
+        "return_code": 0,
+        "failure_code": "",
+        "artifact_exists": 1,
+        "artifact_bytes": 10,
+        "artifact_sha256": "a" * 64,
+        "verdict_present": 1,
+        "verdict_value": "ACK",
+        "jsonl_response_present": 1,
+        "recovery_source": "",
+        "author_outcome": "accepted",
+        "outcome_source": "direct",
+        "outcome_evidence_ref": ".orchestra/tasks/474/report.md#gate-fixture",
+        "notification_event_id": "",
+        "subject_kind": "implementation",
+        "coverage_outcome": "reviewed",
+        "policy_ref": "",
+        "decision_actor": "",
+        **snapshot,
+    })
 
 
 @pytest.fixture
@@ -62,8 +126,9 @@ def gate_db(tmp_path, monkeypatch, request):
         tm.create_task(conn, "proj", "ticket", par_number=42, acceptance_command="")
     monkeypatch.setattr(
         "app.workspace.inspect_worktree_identity",
-        lambda _path: ("task-42/worker", "b" * 40),
+        lambda _path: ("task-42/worker", worker_head(str(worktree))),
     )
+    _record_reviewed_receipt(dbmod, worktree)
     return worktree
 
 
@@ -486,10 +551,13 @@ def test_run_pytest_reports_project_pytest_missing_without_fallback(tmp_path, mo
     assert result["status"] == INCONCLUSIVE
     assert result["reason"] == "pytest_unavailable"
     assert result["exit_code"] == 1
-    assert calls == [[
-        str(interpreter), "-m", "pytest", "-q", "-vv", "-m", "not live_probe",
-        "tests/test_widget.py",
-    ]]
+    # Предмет теста — ИНТЕРПРЕТАТОР, а не набор флагов: за флаги отвечают `test_pytest_argv_*`,
+    # и дословный список здесь был вторым их владельцем — #474 добавил потолок узла, и копия
+    # покраснела на форме, а не на поведении.
+    assert len(calls) == 1
+    assert calls[0][0] == str(interpreter)
+    assert str(sys.executable) not in calls[0]
+    assert calls[0][-1] == "tests/test_widget.py"
     assert f"interpreter={interpreter}" in result["output"]
     assert str(sys.executable) not in result["output"]
 
@@ -786,3 +854,138 @@ async def test_docs_only_change_skips_gate_and_merges(gate_db, monkeypatch):
     assert len(calls) == 1
     assert result["test_gate"]["status"] == "skipped"
     assert result["test_gate"]["reason"] == "no_mapped_tests"
+
+
+def test_per_test_ceiling_is_far_below_the_smallest_batch_budget():
+    """Потолок узла бесполезен, если он сравним с бюджетом партии.
+
+    Пол бюджета — партия из одного файла: `budget_for(1)`. Ниже трети от него один висяк
+    физически не может выесть партию, а второй и третий приносят FAILED с именами раньше,
+    чем истечёт общий бюджет.
+    """
+    from app import merge_test_gate as gate
+
+    assert gate.PER_TEST_TIMEOUT_SECONDS * 2 < gate.budget_for(1), (
+        "per-test ceiling must stay far under the smallest batch budget"
+    )
+
+
+@pytest.mark.parametrize("per_test_timeout", [2.0])
+def test_hung_node_becomes_a_named_red_not_inconclusive(
+    tmp_path, monkeypatch, per_test_timeout,
+):
+    """#474 — один зависший узел обязан краснеть ИМЕНЕМ, а не съедать бюджет партии.
+
+    Замер 04.09: мерж #466 простоял 9+ минут на
+    `test_concurrent_keys_start_exactly_one_executor_and_survive_request_return`
+    (процесс жив, CPU 1%, состояние `S` — ждал события, переставшего наступать), после чего
+    гейт вернул `inconclusive` без единого имени, а мержи всего проекта стояли всё это время.
+
+    Здесь настоящий pytest, а не мок: проверяемое поведение целиком принадлежит плагину и
+    флагам, и на заглушках оно зелено при любой реализации. Потолок параметризован, чтобы
+    прогон стоил секунды, а не заявленные 120.
+    """
+    from app import merge_test_gate as gate
+    from app.acceptance import FAILED
+
+    monkeypatch.setattr(gate, "PER_TEST_TIMEOUT_SECONDS", per_test_timeout)
+    (tmp_path / "test_hang.py").write_text(
+        "import threading\n"
+        "\n"
+        "\n"
+        "def test_waits_for_an_event_that_never_comes():\n"
+        "    threading.Event().wait()\n"
+        "\n"
+        "\n"
+        "def test_after_the_hang():\n"
+        "    assert True\n",
+        encoding="utf-8",
+    )
+    batch_budget = 20.0
+
+    started = time.monotonic()
+    result = gate.run_pytest(str(tmp_path), ["test_hang.py"], timeout=batch_budget)
+    elapsed = time.monotonic() - started
+
+    assert result["status"] == FAILED, result["output"]
+    assert result["reason"] == "exit_nonzero", (
+        "pytest must finish on its own; the batch budget must not be what stops it"
+    )
+    assert "test_waits_for_an_event_that_never_comes" in result["output"]
+    # `signal`, а не `thread`: `thread` убил бы весь процесс через `os._exit` и унёс бы
+    # построчные вердикты, по которым гейт вообще отличает красноту от «не успели».
+    assert "test_after_the_hang PASSED" in result["output"], (
+        "the rest of the batch must keep running after one node hits the ceiling"
+    )
+    assert elapsed < batch_budget / 2, (
+        f"the ceiling must land long before the batch budget, took {elapsed:.1f}s"
+    )
+
+
+def test_pytest_argv_carries_the_per_test_ceiling_and_its_method():
+    from app import merge_test_gate as gate
+
+    argv = gate.pytest_argv(["tests/test_widget.py"])
+
+    assert f"--timeout={gate.PER_TEST_TIMEOUT_SECONDS:g}" in argv
+    assert f"--timeout-method={gate.PER_TEST_TIMEOUT_METHOD}" in argv
+    assert gate.PER_TEST_TIMEOUT_METHOD == "signal"
+
+
+def test_missing_timeout_plugin_is_inconclusive_not_red(tmp_path, monkeypatch):
+    """Интерпретатор без `pytest-timeout` не должен читаться как «тесты красные».
+
+    pytest отвергает незнакомый флаг usage-ошибкой ДО сбора: тесты не запускались вовсе.
+    Ветка `exit_nonzero` объявила бы это провалом и заблокировала мержи всех проектов.
+    """
+    from app import merge_test_gate as gate
+    from app.acceptance import INCONCLUSIVE
+
+    monkeypatch.setattr(
+        gate.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=["pytest"],
+            returncode=4,
+            stdout="",
+            stderr=(
+                "ERROR: usage: pytest [options] [file_or_dir]\n"
+                "pytest: error: unrecognized arguments: --timeout=120\n"
+            ),
+        ),
+    )
+
+    result = gate.run_pytest(str(tmp_path), ["tests/test_widget.py"])
+
+    assert result["status"] == INCONCLUSIVE
+    assert result["reason"] == "pytest_timeout_unavailable"
+
+
+def test_real_failure_mentioning_the_timeout_flag_stays_red(tmp_path, monkeypatch):
+    """Находка Luna (#474, раунд 1): распознавать плагин по тексту вывода — мало.
+
+    Красный тест, чей вывод содержит `unrecognized arguments … --timeout`, ушёл бы в
+    INCONCLUSIVE («повтори»), то есть настоящая краснота читалась бы как «мы не успели».
+    Отличает их код возврата: usage-ошибка pytest — это 4, обычный провал — 1.
+    """
+    from app import merge_test_gate as gate
+    from app.acceptance import FAILED
+
+    monkeypatch.setattr(
+        gate.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=["pytest"],
+            returncode=1,
+            stdout=(
+                "tests/test_widget.py::test_cli FAILED [100%]\n"
+                "E  error: unrecognized arguments: --timeout=5\n"
+            ),
+            stderr="",
+        ),
+    )
+
+    result = gate.run_pytest(str(tmp_path), ["tests/test_widget.py"])
+
+    assert result["status"] == FAILED
+    assert result["reason"] == "exit_nonzero"

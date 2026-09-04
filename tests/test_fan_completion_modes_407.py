@@ -86,7 +86,7 @@ async def _explicit_report(module, child, delivery_id=None):
         ),
         message=f"explicit report from {child}",
         rendered_message=f"[from:{child}] explicit report from {child}",
-        message_kind=None,
+        message_kind="done",
         wake=True,
         provenance=MessageProvenance(origin="agent", senders=(child,)),
     )

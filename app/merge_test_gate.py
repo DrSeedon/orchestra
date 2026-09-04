@@ -17,6 +17,9 @@ on quota and provider outages instead of on the diff. They stay runnable by hand
 Mapped files are run in sequential batches of MAX_TEST_FILES. The batches share one
 wall-clock budget and never turn into a full-suite invocation.
 
+Every node also carries its own PER_TEST_TIMEOUT_SECONDS ceiling, so one hung test turns into a
+named red instead of eating the whole batch budget and answering `inconclusive`.
+
 Killed by the budget → the partial pytest output decides, because "the tests are red" and
 "we did not finish" arrive as the same TimeoutExpired and must not be answered the same way:
 a verdict pytest already printed (`FAILED`/`ERROR`) makes it FAILED — a red test is red whether
@@ -60,6 +63,32 @@ BASE_TIMEOUT_SECONDS = 180.0
 PER_FILE_TIMEOUT_SECONDS = 150.0
 MAX_TIMEOUT_SECONDS = 1200.0
 _BATCH_DIAGNOSTIC_LIMIT = 4000
+
+# ПОТОЛОК НА ОДИН УЗЕЛ = 120 с, тоже из замера (#474), а не с потолка. Общий бюджет выше не
+# ограничивает ОДИН тест: 04.09 мерж #466 простоял 9+ минут в
+# `test_concurrent_keys_start_exactly_one_executor_and_survive_request_return` (процесс жив,
+# CPU 1%, состояние `S` — ждал события, переставшего наступать), съел бюджет всей партии и
+# вернул `inconclusive` без имени, а мержи ВСЕГО проекта стояли всё это время.
+# ЧИСЛО: `--durations=0` по восьми самым тяжёлым файлам (1118 тестов из 3214, 3353 фазы)
+#   даёт самый долгий одиночный узел 14.90 с (`test_frontend.py::
+#   test_dashboard_polling_equivalent_twelve_minutes_before_after`), дольше 5 с всего три
+#   узла, дольше 10 с — один. 120 с это восьмикратный запас к измеренному максимуму, то есть
+#   ложная краснота под нагрузкой требует восьмикратного замедления ОДНОГО теста; ошибаться
+#   безопаснее в эту сторону, потому что ложный красный блокирует мержи всех проектов, а
+#   проспавший потолок стоит одной партии.
+# ПОЛЕЗНОСТЬ: пол бюджета партии = BASE + PER_FILE = 330 с, то есть потолок втрое меньше
+#   самого маленького бюджета — один висяк физически не может выесть партию, а второй и
+#   третий уже приносят FAILED С ИМЕНАМИ раньше, чем истечёт общий бюджет.
+# МЕТОД = signal (SIGALRM), а не thread, и это не умолчание ради умолчания: `thread` печатает
+#   стеки и убивает ВЕСЬ процесс через `os._exit`, то есть уносит ровно те построчные вердикты
+#   `-vv`, по которым `_partial_progress` отличает «набор красный» от «мы не успели». `signal`
+#   поднимает исключение в главном потоке: висящий узел получает свой `FAILED` с именем, а
+#   остаток партии продолжает считаться. Главный поток здесь и нужный: `pytest-asyncio` крутит
+#   корутину через `run_until_complete` на нём же, а синхронный Playwright ждёт драйвер на
+#   прерываемом чтении. Узел, которому законно нужно больше, ставит свой
+#   `@pytest.mark.timeout(N)` — маркер сильнее флага (`tests/test_native_history_import.py:199`).
+PER_TEST_TIMEOUT_SECONDS = 120.0
+PER_TEST_TIMEOUT_METHOD = "signal"
 
 
 def budget_for(file_count: int) -> float:
@@ -189,9 +218,15 @@ def select_tests(changed: list[str], *, worktree: str) -> list[str]:
 
 LIVE_PROBE_MARKER = "live_probe"
 NO_TESTS_EXIT_CODE = 5  # pytest EXIT_NOTESTSCOLLECTED
+USAGE_ERROR_EXIT_CODE = 4  # pytest EXIT_USAGEERROR
 
 
-def pytest_argv(tests: list[str], *, interpreter: str | None = None) -> list[str]:
+def pytest_argv(
+    tests: list[str],
+    *,
+    interpreter: str | None = None,
+    per_test_timeout: float | None = None,
+) -> list[str]:
     # No -x / --exitfirst / --maxfail=1: one red must not hide the rest.
     # `-m "not live_probe"` снимает с гейта пробы, тратящие настоящий ход провайдера: они
     # краснеют от квоты и недоступности, а не от диффа, и блокируют чужие мержи (18.08:
@@ -206,9 +241,16 @@ def pytest_argv(tests: list[str], *, interpreter: str | None = None) -> list[str
     # `-q` на том же прогоне — 0 символов.
     # Арифметика флагов проверена прогоном и неочевидна: `-q` это −1, `-vv` это +2, сумма
     # +1 — тот же режим, что голый `-v`. Писать `-q -v` НЕЛЬЗЯ: сумма 0, снова точки.
+    #
+    # `--timeout` / `--timeout-method` — потолок на ОДИН узел (см. PER_TEST_TIMEOUT_SECONDS).
+    # Флаг стоит только здесь, а не в `[tool.pytest.ini_options]`: ручной прогон и живые пробы
+    # ограничивать нечем и незачем, потолок нужен ровно гейту, который держит чужие мержи.
     python = interpreter or sys.executable
+    ceiling = PER_TEST_TIMEOUT_SECONDS if per_test_timeout is None else per_test_timeout
     return [
         python, "-m", "pytest", "-q", "-vv",
+        f"--timeout={ceiling:g}",
+        f"--timeout-method={PER_TEST_TIMEOUT_METHOD}",
         "-m", f"not {LIVE_PROBE_MARKER}",
         *tests,
     ]
@@ -347,6 +389,19 @@ def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None)
     if re.search(r"No module named ['\"]?pytest['\"]?", output):
         return {
             "status": INCONCLUSIVE, "reason": "pytest_unavailable",
+            "exit_code": proc.returncode, "output": diagnostic, "tests": tests,
+        }
+    if (
+        proc.returncode == USAGE_ERROR_EXIT_CODE
+        and "unrecognized arguments" in output
+        and "--timeout" in output
+    ):
+        # Интерпретатор без `pytest-timeout` отвергает НАШ флаг ещё до сбора: pytest выходит
+        # с usage error, тесты не запускались вовсе. Общая ветка ниже объявила бы это
+        # `exit_nonzero`, то есть «набор красный», и заблокировала мержи всех проектов на
+        # отсутствующем плагине.
+        return {
+            "status": INCONCLUSIVE, "reason": "pytest_timeout_unavailable",
             "exit_code": proc.returncode, "output": diagnostic, "tests": tests,
         }
     return {

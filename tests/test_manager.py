@@ -194,14 +194,14 @@ class TestCreateSession:
     @pytest.mark.parametrize("role,model,expected", [
         # Карта модель→ступень реального манифеста (#214): роль одна, ступень разная.
         ("worker", "claude-opus-5[1m]", "high"),
-        ("worker", "gpt-5.6-sol", "xhigh"),
+        ("worker", "gpt-5.6-sol", "high"),
         ("worker", "gpt-5.6-luna", "high"),
-        ("full-cycle", "gpt-5.6-sol", "xhigh"),
+        ("full-cycle", "gpt-5.6-sol", "high"),
         # alias на входе — модель канонизуется до резолва эффорта
-        ("worker", "gpt5.6sol", "xhigh"),
+        ("worker", "gpt5.6sol", "high"),
         # оркестраторы несут ту же карту (#214: подняты с medium до high на Opus)
         ("orchestrator", "claude-opus-5[1m]", "high"),
-        ("orchestrator", "gpt-5.6-sol", "xhigh"),
+        ("orchestrator", "gpt-5.6-sol", "high"),
     ])
     async def test_spawn_effort_picked_by_model(self, mgr, role, model, expected):
         from tests.conftest import make_backend_mock

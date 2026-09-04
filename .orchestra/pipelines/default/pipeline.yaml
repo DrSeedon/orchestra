@@ -26,8 +26,11 @@ defaults:
 # Основания значений:
 #   claude-opus-5[1m] → high  — #208: перегиб отдачи на `high` (medium→high +2.9, дальше high→xhigh
 #                               всего +1.0 пункта при +47% цены)
-#   gpt-5.6-sol       → xhigh — #208: перегиба в пределах лестницы НЕТ, +1.7/+1.7/+1.9 на каждый шаг;
-#                               дешёвого оптимума у Sol не существует, ступень честно окупается
+#   gpt-5.6-sol       → high  — #208 сначала выбрал xhigh по общей лестнице без перегиба; поздний
+#                               замороженный #373 дал одинаковые 14/14 и SHA на high/xhigh, а
+#                               свежий coding-agent срез: high 64/$3.00 против xhigh 63/$3.74
+#   gpt-6-astra       → medium — собственное колено Astra: coding ≈65/$2.19; high добавляет около
+#                               0.5 пункта за +32%. Ключ активируется, когда модель появится в реестре
 #   gpt-5.6-luna      → high  — #204, AA-LCR low 0.653 / medium 0.720 / high 0.740 / xhigh 0.733 /
 #                               max 0.783: `high` и `xhigh` неразличимы, `max` даёт +2 пункта за
 #                               +45% цены. Колено на `high`
@@ -38,7 +41,7 @@ roles:
     label: Orchestrator
     order: 0
     model: claude-opus-5[1m]
-    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
+    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-astra: medium, default: high}
     skills: [html-artifacts, vps-deploy, codex-debate, grill-me, orchestra-agents, eli5]
     modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
     can_spawn: ["*"]
@@ -54,7 +57,7 @@ roles:
     label: Sub-Orchestrator
     order: 1
     model: claude-opus-5[1m]
-    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
+    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-astra: medium, default: high}
     skills: [codex-debate, orchestra-agents, eli5]
     modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, memory-search]
     can_spawn: ["*"]
@@ -70,7 +73,7 @@ roles:
     label: Worker
     order: 2
     model: claude-opus-5[1m]
-    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
+    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-astra: medium, default: high}
     skills: [html-artifacts, codex-debate]
     modules: [code-quality, git-workflow, report-format, self-improvement, memory-search]
     can_spawn: []
@@ -91,9 +94,9 @@ roles:
     # high→xhigh даёт +47% цены без значимого прироста, наш #199 на Sol — ×2.04 при том же вердикте.
     # НЕ ЗАКРЫТО: вендор оправдывает xhigh длиной горизонта задачи, а все опубликованные замеры
     # короче наших сессий. Правка обратимая и наблюдаемая: пошли разваливающиеся длинные ходы →
-    # вернуть xhigh, и это будет данными, а не спором. Относится к ключу Opus; у Sol ступень
-    # своя (#214, основания — в комментарии над `roles:`).
-    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
+    # вернуть xhigh, и это будет данными, а не спором. Относится к ключу Opus; у Sol и Astra
+    # ступени свои (#214, #373 и основания в комментарии над `roles:`).
+    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-astra: medium, default: high}
     skills: [html-artifacts, codex-debate]
     modules: [model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, self-improvement, memory-search]
     can_spawn: ["*"]
@@ -112,7 +115,7 @@ roles:
     label: Reducer
     order: 4
     model: gpt-5.6-luna
-    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: high, default: high}
+    effort: {"claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-astra: medium, default: high}
     modules: []
     can_spawn: []
     tg: {emoji: "🧾"}

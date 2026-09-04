@@ -286,7 +286,12 @@ def create_project(session_id: str, project_id: str, name: str) -> dict:
         return _project_payload(conn, project_id)
 
 
-def list_projects(session_id: str = "") -> dict:
+def list_projects(session_id: str = "", *, agent_filter: str = "") -> dict:
+    """`session_id` — права актора, `agent_filter` — срез дашборда по выбранному агенту.
+
+    Фильтр действует ТОЛЬКО у оператора без агентской сессии: у агента права уже
+    сужены до его членства, и расширять их параметром запроса нельзя (#472).
+    """
     with db._conn() as conn:
         if session_id:
             _session(conn, session_id)
@@ -296,6 +301,18 @@ def list_projects(session_id: str = "") -> dict:
                     """SELECT project_id FROM portfolio_members
                        WHERE session_id=? AND revoked_at IS NULL""",
                     (session_id,),
+                ).fetchall()
+            ]
+        elif agent_filter:
+            ids = [
+                row["id"]
+                for row in conn.execute(
+                    """SELECT p.id FROM portfolio_projects p
+                       JOIN portfolio_members m ON m.project_id=p.id
+                       WHERE m.session_id=? AND m.revoked_at IS NULL
+                         AND p.archived_at IS NULL
+                       ORDER BY p.created_at""",
+                    (agent_filter,),
                 ).fetchall()
             ]
         else:

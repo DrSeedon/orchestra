@@ -20,7 +20,7 @@ from typing import Iterator, TypedDict
 
 logger = logging.getLogger("tm")
 
-from app.db import _conn
+from app.db import _conn, task_run_receipt_finish, task_run_receipt_open
 from app.ia.task_store import (
     IdentityConflictError,
     ProjectionDebtError,
@@ -780,7 +780,8 @@ def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -
         conn.execute("BEGIN IMMEDIATE")
         try:
             session = conn.execute(
-                "SELECT id, scope, task_id FROM sessions WHERE id = ? AND status != 'archived'",
+                "SELECT id, name, scope, task_id, template_hash FROM sessions "
+                "WHERE id = ? AND status != 'archived'",
                 (session_id,),
             ).fetchone()
             if not session or session["scope"] != scope.rstrip("/"):
@@ -834,6 +835,7 @@ def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -
                 )
                 if updated.rowcount != 1:
                     raise ValueError("session binding compare-and-swap failed")
+            _open_task_run_for_task(conn, task, session_id)
             bound = get_task_by_id(conn, task["id"])
             conn.commit()
             return task_dto(bound)
@@ -856,6 +858,87 @@ def _live_bindings(
         (str(par_number), scope, exclude_session_id),
     ).fetchall()
     return [row["id"] for row in rows]
+
+
+def _task_run_refs(task: dict) -> tuple[str, str]:
+    context = _ia_context()
+    if context is None or context.store is None:
+        return "", ""
+    try:
+        detail = context.store.task_get(
+            str(task["par_number"]), project=task["project_id"],
+        )
+    except (KeyError, ValueError):
+        return "", ""
+    stable_id = str(detail.get("stable_id") or "")
+    canonical_head = str(detail.get("canonical_head") or "")
+    if not stable_id or not canonical_head:
+        return stable_id, ""
+    return stable_id, (
+        f"orch://project/{task['project_id']}/tasks/{stable_id}/state@{canonical_head}"
+    )
+
+
+def _open_task_run_for_task(
+    conn: sqlite3.Connection,
+    task: dict,
+    session_id: str,
+) -> dict:
+    existing = conn.execute(
+        "SELECT * FROM review_receipts WHERE subject_kind='task_run' "
+        "AND session_id=? AND task_id=? AND status='requested'",
+        (session_id, str(task["par_number"])),
+    ).fetchone()
+    if existing is not None:
+        return dict(existing)
+    session = conn.execute(
+        "SELECT id,name,scope,template_hash FROM sessions WHERE id=?",
+        (session_id,),
+    ).fetchone()
+    if session is None:
+        raise ValueError(f"session '{session_id}' disappeared before task-run receipt")
+    stable_id, snapshot_ref = _task_run_refs(task)
+    return task_run_receipt_open(
+        session_id=session_id,
+        worker_name=session["name"],
+        scope=session["scope"],
+        task_id=str(task["par_number"]),
+        task_stable_id=stable_id,
+        task_snapshot_ref=snapshot_ref,
+        prompt_template_start=str(session["template_hash"] or ""),
+        task_source=("canonical" if stable_id and snapshot_ref else "legacy"),
+        connection=conn,
+    )
+
+
+def _finish_task_run_for_task(
+    conn: sqlite3.Connection,
+    task: dict,
+    session_id: str,
+    *,
+    status: str,
+    failure_code: str = "",
+    terminal_operation_id: str = "",
+) -> dict | None:
+    exists = conn.execute(
+        "SELECT 1 FROM review_receipts WHERE subject_kind='task_run' "
+        "AND session_id=? AND task_id=? AND status='requested'",
+        (session_id, str(task["par_number"])),
+    ).fetchone()
+    if exists is None:
+        return None
+    session = conn.execute(
+        "SELECT template_hash FROM sessions WHERE id=?", (session_id,),
+    ).fetchone()
+    return task_run_receipt_finish(
+        session_id=session_id,
+        task_id=str(task["par_number"]),
+        status=status,
+        prompt_template_end=str(session["template_hash"] or "") if session else "",
+        terminal_operation_id=terminal_operation_id,
+        failure_code=failure_code,
+        connection=conn,
+    )
 
 
 def prepare_merge_finalization(
@@ -1340,6 +1423,16 @@ def finalize_merge_outcome(payload: dict) -> dict:
     reservation_id = payload["reservation_id"]
     if outcome == "complete":
         _apply_finalization_task_update(payload, task_db_id, status="done")
+        with _conn() as conn:
+            task = get_task_by_id(conn, task_db_id)
+            if task:
+                _finish_task_run_for_task(
+                    conn,
+                    task,
+                    payload["session_id"],
+                    status="completed",
+                    terminal_operation_id=payload.get("operation_id", ""),
+                )
     if next_task:
         _apply_finalization_task_update(
             payload,
@@ -1385,6 +1478,14 @@ def release_session_task_binding(conn: sqlite3.Connection, session_id: str) -> N
         (session_id,),
     ).fetchall()
     now = _now()
+    session = conn.execute(
+        "SELECT status FROM sessions WHERE id=?", (session_id,),
+    ).fetchone()
+    release_code = (
+        "session_archived"
+        if session and session["status"] == "archived"
+        else "binding_released"
+    )
     for row in rows:
         heir = conn.execute(
             "SELECT id FROM sessions WHERE task_id = ? AND RTRIM(scope, '/') = RTRIM(?, '/') "
@@ -1392,13 +1493,31 @@ def release_session_task_binding(conn: sqlite3.Connection, session_id: str) -> N
             (str(row["par_number"]), row["scope"], session_id),
         ).fetchone()
         if heir:
+            _finish_task_run_for_task(
+                conn,
+                dict(row),
+                session_id,
+                status="interrupted",
+                failure_code="binding_released",
+            )
             conn.execute(
                 "UPDATE tm_tasks SET worker_session_id=?, sync_revision=sync_revision+1, "
                 "updated_at=? WHERE id=?",
                 (heir["id"], now, row["id"]),
             )
+            inherited = get_task_by_id(conn, row["id"])
+            if inherited:
+                _open_task_run_for_task(conn, inherited, heir["id"])
             continue
         status = "new" if row["status"] == "in_progress" else row["status"]
+        if row["status"] == "in_progress":
+            _finish_task_run_for_task(
+                conn,
+                dict(row),
+                session_id,
+                status="interrupted",
+                failure_code=release_code,
+            )
         conn.execute(
             "UPDATE tm_tasks SET worker_session_id=NULL, status=?, "
             "sync_revision=sync_revision+1, updated_at=? WHERE id=?",
@@ -1589,6 +1708,14 @@ def api_update_task(par: str, title: str | None = None,
                 acceptance_required=acceptance_required,
                 acceptance_actor=acceptance_actor,
             )
+            if status == "cancelled" and task.get("worker_session_id"):
+                _finish_task_run_for_task(
+                    conn,
+                    task,
+                    str(task["worker_session_id"]),
+                    status="interrupted",
+                    failure_code="task_cancelled",
+                )
 
             updated = get_task_by_id(conn, task_id)
             task_ref = format_task_ref(conn, updated)
@@ -1850,6 +1977,16 @@ def api_update_task_if_current(
                 worker_session_id=worker_session_id,
             )
             updated = get_task_by_id(conn, task_id)
+            if status == "in_progress" and worker_session_id:
+                _open_task_run_for_task(conn, updated, worker_session_id)
+            elif status == "cancelled" and task.get("worker_session_id"):
+                _finish_task_run_for_task(
+                    conn,
+                    task,
+                    str(task["worker_session_id"]),
+                    status="interrupted",
+                    failure_code="task_cancelled",
+                )
             conn.commit()
         except Exception:
             conn.rollback()
@@ -2234,6 +2371,7 @@ def _merge_canonical_task_identity(
         )
     merged = dict(legacy)
     merged.pop("canonical_head", None)
+    merged.pop("task_snapshot_ref", None)
     merged["stable_id"] = stable_id
     return merged
 
@@ -2252,7 +2390,13 @@ def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
             "canonical task identity unavailable for "
             f"project '{legacy['project_id']}' task #{legacy['par_number']}: {error}"
         ) from error
-    return _merge_canonical_task_identity(legacy, candidate)
+    merged = _merge_canonical_task_identity(legacy, candidate)
+    canonical_head = str(candidate.get("canonical_head") or store.canonical_head)
+    merged["task_snapshot_ref"] = (
+        f"orch://project/{merged['project_id']}/tasks/{merged['stable_id']}/state@"
+        f"{canonical_head}"
+    )
+    return merged
 
 
 def normalize_task_create_request_key(value: str = "") -> str:

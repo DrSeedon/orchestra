@@ -481,6 +481,12 @@
   ]
  ],
  [
+  "/api/sessions/{name}/owned-dirs",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/sessions/{name}/progress",
   [
    "POST"

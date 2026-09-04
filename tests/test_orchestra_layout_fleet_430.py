@@ -37,7 +37,7 @@ def test_vps_startup_wrapper_reads_every_registered_canonical_scope(monkeypatch,
     observed = {}
     options = {}
 
-    def fake_migrate(project_roots, *, preserve_dirty=False):
+    def fake_migrate(project_roots, *, preserve_dirty=False, live_session_ids=None):
         observed.update(project_roots)
         options["preserve_dirty"] = preserve_dirty
         return {name: {"status": "migrated"} for name in project_roots}
@@ -61,7 +61,7 @@ def test_vps_startup_wrapper_reads_every_registered_canonical_scope(monkeypatch,
 def test_fleet_failure_does_not_stop_later_project(monkeypatch, tmp_path: Path):
     calls = []
 
-    def fake_one(repository, *, repair=False):
+    def fake_one(repository, *, repair=False, live_session_ids=None):
         calls.append(repository.name)
         if repository.name == "broken":
             raise layout.LayoutMigrationError("ORCHESTRA_LAYOUT_DIRTY", repository, "dirty")
