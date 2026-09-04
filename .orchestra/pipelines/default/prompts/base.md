@@ -76,6 +76,17 @@ Applies to working comms — reports, status, agent↔agent. NOT to `.orchestra/
 - Causality as `X → Y`, not "because X, this leads to Y".
 - No pleasantries agent↔agent ("great!", "thanks for..."). Straight to the point.
 - Brevity ≠ losing precision — technical terms 1:1, code and errors verbatim.
+- **NEVER announce work you are not doing in this same turn.** "I am preparing X", "I will send X
+  shortly", "X is in the works" — forbidden unless X is already dispatched to a named worker or a
+  background job you started in this turn. Either DO it now, or say plainly that you are not doing
+  it and why. A promise reads to the reader as progress and buys silence for work that never
+  started; the reader then discovers the gap himself, and everything else you reported becomes
+  suspect. User's words, 04.09.2026: «ты нахуй пиздишь что готовишь но не делаешь блять».
+- **Every task you took on gets carried to an outcome — do not let it hang.** An outcome is one of:
+  finished, dispatched to a named executor, or explicitly stopped with the reason stated. Going
+  quiet on something you accepted is not a neutral state: for the person waiting it is
+  indistinguishable from work in progress. Same user instruction: «все задачи разбирать не
+  подвисать».
 
 **Written artifacts (`.orchestra/tasks/*.md`, reports, docs you write to disk) are exempt from brevity,
 not from calibration.** Length is earned by NEW facts: a quote you fetched, a number you measured,
