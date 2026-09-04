@@ -133,8 +133,9 @@ class TestDefaultRolesResolve:
         "role", ["worker", "full-cycle", "orchestrator", "sub-orchestrator"])
     @pytest.mark.parametrize("model,runtime,expected", [
         ("claude-opus-5[1m]", "claude", "high"),    # #208: перегиб отдачи на high
-        ("gpt-5.6-sol", "codex", "xhigh"),          # #208: перегиба в лестнице нет
+        ("gpt-5.6-sol", "codex", "high"),           # #373: high/xhigh одинаковы; high дешевле
         ("gpt-5.6-luna", "codex", "high"),          # #204: колено на high
+        ("gpt-6-astra", "codex", "medium"),         # Astra: собственное колено на medium
         ("gpt-5.3-codex-spark", "codex", "high"),   # не мерился → default
     ])
     def test_every_role_resolves_effort_by_model(self, role, model, runtime, expected):
