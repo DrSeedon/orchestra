@@ -91,10 +91,5 @@ def request_may_waive_diff_budget(request) -> bool:
     return caller_may_use_orchestrator_privilege(request)
 
 
-def check_diff_budget(worktree: str, base_ref: str, limit: int = MAX_DIFF_INSERTIONS) -> str:
-    """Empty string if under the ceiling; otherwise a loud refusal."""
-    return budget_error(measure_insertions(worktree, base_ref), limit)
-
-
 def _run(argv: list[str], cwd: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(argv, cwd=cwd, capture_output=True, text=True)

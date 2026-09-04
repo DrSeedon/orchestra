@@ -70,6 +70,20 @@ _SSH_OPTS = [
 ]
 
 
+def _validate_regex(
+    config: dict, field: str = "pattern", *, required: bool = True,
+) -> str | None:
+    value = config.get(field, "")
+    if not value:
+        return f"{field} is required" if required else None
+    try:
+        re.compile(value)
+    except re.error as error:
+        label = "regex pattern" if field == "pattern" else field
+        return f"invalid {label}: {error}"
+    return None
+
+
 def _validate_config(job_type: str, config: dict) -> str | None:
     if job_type == "timer":
         delay = config.get("delay_seconds")
@@ -78,23 +92,13 @@ def _validate_config(job_type: str, config: dict) -> str | None:
     elif job_type == "file":
         if not config.get("path"):
             return "path is required"
-        pattern = config.get("pattern", "")
-        if not pattern:
-            return "pattern is required"
-        try:
-            re.compile(pattern)
-        except re.error as e:
-            return f"invalid regex pattern: {e}"
+        return _validate_regex(config)
     elif job_type == "command":
         if not config.get("command"):
             return "command is required"
-        pattern = config.get("pattern", "")
-        if not pattern:
-            return "pattern is required"
-        try:
-            re.compile(pattern)
-        except re.error as e:
-            return f"invalid regex pattern: {e}"
+        error = _validate_regex(config)
+        if error:
+            return error
         interval = config.get("interval_seconds", 60)
         if not isinstance(interval, (int, float)) or interval < 5:
             return "interval_seconds must be >= 5"
@@ -103,22 +107,11 @@ def _validate_config(job_type: str, config: dict) -> str | None:
             return "command is required"
         if not config.get("host"):
             return "host is required"
-        pattern = config.get("pattern", "")
-        if not pattern:
-            return "pattern is required"
-        try:
-            re.compile(pattern)
-        except re.error as e:
-            return f"invalid regex pattern: {e}"
+        return _validate_regex(config)
     elif job_type == "run":
         if not config.get("command"):
             return "command is required"
-        success_pattern = config.get("success_pattern", "")
-        if success_pattern:
-            try:
-                re.compile(success_pattern)
-            except re.error as e:
-                return f"invalid success_pattern: {e}"
+        return _validate_regex(config, "success_pattern", required=False)
     elif job_type in ("cron", "cron_command"):
         expr = config.get("cron_expr", "")
         if not expr:
@@ -128,13 +121,7 @@ def _validate_config(job_type: str, config: dict) -> str | None:
         if job_type == "cron_command":
             if not config.get("command"):
                 return "command is required"
-            pattern = config.get("pattern", "")
-            if not pattern:
-                return "pattern is required"
-            try:
-                re.compile(pattern)
-            except re.error as e:
-                return f"invalid regex pattern: {e}"
+            return _validate_regex(config)
     else:
         return f"unknown job type: {job_type}"
     return None

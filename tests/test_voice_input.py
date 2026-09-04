@@ -4,6 +4,7 @@ import asyncio
 import io
 import wave
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -58,6 +59,34 @@ def test_transcribe_route_passes_browser_mime_and_cleans_temp_file(monkeypatch):
     assert seen["scope"] == "/repo"
     assert seen["unique_id"].startswith("dashboard-")
     assert not Path(seen["path"]).exists()
+
+
+def test_send_voice_enqueues_the_shared_validated_upload(tmp_path, monkeypatch):
+    queued = {}
+    target = SimpleNamespace(id="s1", name="worker", scope="/repo")
+    monkeypatch.setattr(
+        "app.deps.manager", SimpleNamespace(get_by_name=lambda *_args: target),
+    )
+    monkeypatch.setattr(
+        "app.db.dashboard_voice_enqueue",
+        lambda *args: queued.setdefault("args", args),
+    )
+    monkeypatch.setattr(
+        tg, "_schedule_dashboard_voice", lambda row: queued.setdefault("row", row),
+    )
+    monkeypatch.setattr(tg, "UPLOADS_DIR", tmp_path)
+
+    with _client() as client:
+        response = client.post(
+            "/api/transcribe",
+            files={"audio": ("voice.ogg", b"recorded-audio", "audio/ogg")},
+            data={"session_name": "worker", "scope": "/repo", "send": "true"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["accepted"] is True
+    assert queued["args"][1:4] == ("s1", "worker", "/repo")
+    assert Path(queued["row"]["path"]).read_bytes() == b"recorded-audio"
 
 
 def test_transcribe_route_rejects_size_and_duration_before_deepgram(monkeypatch):

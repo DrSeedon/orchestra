@@ -583,16 +583,3 @@ def mark_summarised(fan_id: str) -> None:
         conn.execute(
             "UPDATE fan_barriers SET summarised = 1 WHERE fan_id = ?", (fan_id,)
         )
-
-
-def fan_id_for_reducer(name: str, scope: str) -> str | None:
-    """Веер, чью сводку собирает этот агент. Нужен, чтобы приклеить манифест к его
-    собственному сообщению родителю: полнота обязана держаться на коде, а не на том,
-    что редьюсер ничего не забыл (#231, blocking 8 ревью плана)."""
-    with db._conn() as conn:
-        row = conn.execute(
-            """SELECT fan_id FROM fan_barriers
-               WHERE reducer = ? AND scope = ? ORDER BY created_at DESC LIMIT 1""",
-            (name, scope),
-        ).fetchone()
-    return row[0] if row else None

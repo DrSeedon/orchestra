@@ -383,9 +383,6 @@ async def test_t2_total_context_preflight_refuses_codex_before_source_disconnect
     source = AsyncMock()
     session._backend = source
     session._log = MagicMock()
-    session._build_codex_history_import = AsyncMock(
-        side_effect=lambda thread_id: _codex_history(thread_id)
-    )
     session._ensure_backend = AsyncMock(
         return_value=SimpleNamespace(session_id="target-codex-thread")
     )
@@ -1009,9 +1006,6 @@ async def test_t5_second_incompatibility_exhausts_fallback_without_empty_target(
         {"ok": False, "failure": {"kind": "schema_rejected", "structured": True}},
         {"ok": False, "failure": {"kind": "ingress_rejected", "structured": True}},
     ])
-    session._build_codex_history_import = AsyncMock(
-        side_effect=lambda thread_id: _codex_history(thread_id)
-    )
     session._ensure_backend = AsyncMock(
         return_value=SimpleNamespace(session_id="fresh-codex-thread")
     )

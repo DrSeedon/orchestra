@@ -51,7 +51,6 @@ from app.runtime_history import (
     describe_handoff_effects,
     preflight_runtime_handoff,
     runtime_packet_sha256,
-    render_codex_history,
     render_claude_history,
 )
 from app.session_cost import CostTracker
@@ -1269,6 +1268,20 @@ class AgentSession:
                 self._lifecycle_lock.release()
             return
 
+    def _start_turn_state(self, *, compact_ack: bool = False) -> None:
+        """Publish the single in-memory/DB transition into a running turn."""
+        self._manually_interrupted = False
+        self._did_report = False
+        self._turns.bump_turn_gen()
+        if compact_ack:
+            self._compact_ack_gen = self._turn_gen
+        self._turn_logs = []
+        self._last_text_output = None
+        self._turn_start = asyncio.get_event_loop().time()
+        self._last_msg_time = self._turn_start
+        self.status = AgentStatus.RUNNING
+        self._persist()
+
     async def send(
         self, message: str | InjectedMessage, *, provenance: MessageProvenance,
         delivery=None,
@@ -1520,15 +1533,7 @@ class AgentSession:
             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
                 await self._refresh_stale_backend()  # new turn -> fresh tools (#230 T9)
                 _refuse_if_draining(self)  # no await between here and RUNNING below
-                self._manually_interrupted = False
-                self._did_report = False
-                self._turns.bump_turn_gen()
-                self._turn_logs = []
-                self._last_text_output = None
-                self._turn_start = asyncio.get_event_loop().time()
-                self._last_msg_time = self._turn_start
-                self.status = AgentStatus.RUNNING
-                self._persist()
+                self._start_turn_state()
                 asyncio.create_task(self._notify_scope_running())
 
             try:
@@ -2042,28 +2047,6 @@ class AgentSession:
             project_docs=frozen_project_docs,
             operation_status=str(record["status"]),
             operation_failure_code=record.get("failure_code"),
-        )
-
-    async def _build_codex_history_import(
-        self,
-        target_thread_id: str,
-        exclude_user_messages: tuple[str, ...] = (),
-    ):
-        if self._log_futures:
-            await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
-        loop = asyncio.get_running_loop()
-        snapshot_id, rows = await loop.run_in_executor(
-            _db_executor(), partial(get_history_logs, self.id)
-        )
-        return await loop.run_in_executor(
-            _db_executor(),
-            partial(
-                render_codex_history,
-                rows,
-                snapshot_id=snapshot_id,
-                thread_id=target_thread_id,
-                exclude_user_messages=exclude_user_messages,
-            ),
         )
 
     async def _ensure_backend(
@@ -2659,15 +2642,7 @@ class AgentSession:
             try:
                 await self._refresh_stale_backend()  # new turn -> fresh tools (#230 T9)
                 _refuse_if_draining(self)  # no await between here and RUNNING below
-                self._manually_interrupted = False
-                self._did_report = False
-                self._turns.bump_turn_gen()
-                self._turn_logs = []
-                self._last_text_output = None
-                self._turn_start = asyncio.get_event_loop().time()
-                self._last_msg_time = self._turn_start
-                self.status = AgentStatus.RUNNING
-                self._persist()
+                self._start_turn_state()
                 self._hibernated = False
                 try:
                     backend = await self._ensure_backend(
@@ -3110,16 +3085,7 @@ class AgentSession:
         try:
             async def start_ack_turn():
                 _refuse_if_draining(self)  # no await between here and RUNNING below
-                self._manually_interrupted = False
-                self._did_report = False
-                self._turns.bump_turn_gen()
-                self._compact_ack_gen = self._turn_gen
-                self._turn_logs = []
-                self._last_text_output = None
-                self._turn_start = asyncio.get_event_loop().time()
-                self._last_msg_time = self._turn_start
-                self.status = AgentStatus.RUNNING
-                self._persist()
+                self._start_turn_state(compact_ack=True)
                 backend = await self._ensure_backend(force_fresh=True)
                 self._log(
                     "user_message", preamble + "Acknowledge briefly.",
