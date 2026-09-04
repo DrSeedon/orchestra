@@ -1,0 +1,74 @@
+{
+  "as_of": "2026-09-04T19:09:37+07:00",
+  "availability": {
+    "codex_cli": "0.153.2",
+    "models_cache_fetched_at_utc": "2026-09-04T12:09:37.370326854Z",
+    "astra_in_codex_models_cache": false,
+    "astra_in_orchestra_api_models": false,
+    "provider_status": "staged rollout; not entitled on this account at measurement time"
+  },
+  "official": {
+    "model_id": "gpt-6-astra",
+    "context_window_api": 1050000,
+    "max_output_tokens": 128000,
+    "knowledge_cutoff": "2026-04-30",
+    "efforts": ["low", "medium", "high", "xhigh", "max"],
+    "api_usd_per_million": {
+      "input": 10.0,
+      "cached_input": 1.0,
+      "cache_write": 12.5,
+      "output": 50.0
+    },
+    "chatgpt_credits_per_million": {
+      "input": 250.0,
+      "cached_input": 25.0,
+      "output": 1250.0
+    },
+    "fast_credit_multiplier": 2.5,
+    "api_long_context_threshold_input_tokens": 272000,
+    "api_long_context_multipliers": {
+      "input_and_cache": 2.0,
+      "output": 1.5
+    }
+  },
+  "current_credit_rates_per_million": {
+    "gpt-6-astra": {"input": 250.0, "cached_input": 25.0, "output": 1250.0},
+    "gpt-5.6-sol": {"input": 100.0, "cached_input": 10.0, "output": 500.0},
+    "gpt-5.6-terra": {"input": 50.0, "cached_input": 5.0, "output": 300.0},
+    "gpt-5.6-luna": {"input": 5.0, "cached_input": 0.5, "output": 30.0}
+  },
+  "astra_credit_ratio": {
+    "vs_sol": {"input": 2.5, "cached_input": 2.5, "output": 2.5},
+    "vs_terra": {"input": 5.0, "cached_input": 5.0, "output": 4.1667},
+    "vs_luna": {"input": 50.0, "cached_input": 50.0, "output": 41.6667}
+  },
+  "artificial_analysis_intelligence": [
+    {"effort": "low", "index_rounded": 57, "cost_per_task_usd": 0.46},
+    {"effort": "medium", "index_rounded": 59, "cost_per_task_usd": 0.75},
+    {"effort": "high", "index_rounded": 60, "cost_per_task_usd": 0.96},
+    {"effort": "xhigh", "index_rounded": 61, "cost_per_task_usd": 1.20},
+    {"effort": "max", "index_rounded": 61, "cost_per_task_usd": 1.67}
+  ],
+  "artificial_analysis_coding_agent_chart": [
+    {"effort": "low", "index_approx": 63, "cost_per_task_usd": 1.41, "tokens_per_task_millions_approx": 0.6689},
+    {"effort": "medium", "index_approx": 65, "cost_per_task_usd": 2.19, "tokens_per_task_millions_approx": 1.1},
+    {"effort": "high", "index_approx": 65.5, "cost_per_task_usd": 2.89, "tokens_per_task_millions_approx": 1.4},
+    {"effort": "xhigh", "index_approx": 67, "cost_per_task_usd": 3.27, "tokens_per_task_millions_approx": 1.5},
+    {"effort": "max", "index_approx": 67, "cost_per_task_usd": 4.72, "tokens_per_task_millions_approx": 2.1}
+  ],
+  "artificial_analysis_sol_coding_agent": [
+    {"effort": "medium", "index": 62, "cost_per_task_usd": 2.19, "tokens_per_task_millions": 5.8},
+    {"effort": "high", "index": 64, "cost_per_task_usd": 3.00, "tokens_per_task_millions": 8.0},
+    {"effort": "xhigh", "index": 63, "cost_per_task_usd": 3.74, "tokens_per_task_millions": 9.9},
+    {"effort": "max", "index": 65, "cost_per_task_usd": 5.00, "tokens_per_task_millions": 13.2}
+  ],
+  "recommended_orchestra_policy": {
+    "closed_repeatable": {"model": "gpt-5.6-luna", "effort": "high"},
+    "complex_coding_worker": {"model": "gpt-6-astra", "effort": "medium", "status": "canary first"},
+    "ambiguous_research_or_orchestrator": {"model": "gpt-6-astra", "effort": "high", "status": "canary first"},
+    "long_horizon_full_cycle_or_security": {"model": "gpt-6-astra", "effort": "xhigh", "status": "canary first"},
+    "quality_first_manual_exception": {"model": "gpt-6-astra", "effort": "max", "status": "manual only"},
+    "creative_visual_or_cross_runtime_review": {"model": "claude-opus-5[1m]", "effort": "high"},
+    "fast_mode": {"enabled_by_default": false}
+  }
+}
