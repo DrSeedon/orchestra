@@ -141,7 +141,14 @@ def test_migration_leaves_unmigrated_legacy_roots_alone_but_names_them(db, tmp_p
     from app import orchestra_layout as layout
 
     repo = _old_layout_repo(tmp_path, "orchestra")
-    _save_worker(name="portfolio-orchestra", scope=str(repo), owned=["docs/portfolio"])
+    # Give the worker a real, empty worktree: with both trees searchable, "absent" is a
+    # fact rather than "unchecked" (#482). The test used to leave this implicit.
+    worktree = tmp_path / "wt-portfolio"
+    worktree.mkdir()
+    _save_worker_with_worktree(
+        name="portfolio-orchestra", scope=str(repo), owned=["docs/portfolio"],
+        worktree=str(worktree),
+    )
 
     result = layout.migrate_project_layout(repo, repair=False)
 
@@ -289,6 +296,7 @@ def test_repair_ownership_cli_prints_the_plan_and_repeats_to_zero(db, tmp_path):
 
     dry = run("--dry-run", str(repo))
     assert dry["applied"] is False and dry["changed"] == 1
+    assert dry["deferred_count"] == 0, "an idle fixture worker is not treated as resident"
     assert dry["plan"][0]["after"] == [".orchestra/tasks/88", "oil-paint"]
     with sqlite3.connect(str(db)) as connection:
         still_legacy = connection.execute(
@@ -457,6 +465,254 @@ def test_dry_run_alone_cannot_commit_a_layout_migration(db, tmp_path):
     assert _git(repo, "rev-parse", "HEAD").stdout.strip() == head_before
     assert (repo / "docs" / "tasks" / "88" / "plan.md").is_file()
     assert not (repo / ".orchestra" / "tasks").exists()
+
+
+# ── #482: existence is asked of the tree where ownership actually acts ──
+
+def _save_worker_with_worktree(*, name: str, scope: str, owned: list[str], worktree: str):
+    from app.db import _conn
+
+    _save_worker(name=name, scope=scope, owned=owned)
+    with _conn() as connection:
+        connection.execute(
+            "UPDATE sessions SET worktree_path=? WHERE id=?", (worktree, f"sid-{name}")
+        )
+
+
+def _attention_for(result, session: str) -> list[dict]:
+    return [item for item in result["attention"] if item["session"] == session]
+
+
+def test_path_present_only_in_the_worker_worktree_is_not_flagged(db, tmp_path):
+    """The reported bug: a worker writes into its OWN tree; main sees it only after merge."""
+    from app import orchestra_layout as layout
+
+    repo = _old_layout_repo(tmp_path, "comfy")
+    layout.migrate_project_layout(repo, repair=False)
+    worktree = tmp_path / "wt-painter"
+    # Task 999 is the worker's own, still unmerged, work: present in ITS tree only.
+    (worktree / ".orchestra" / "tasks" / "999").mkdir(parents=True)
+    (worktree / "oil-paint").mkdir()
+    assert not (repo / ".orchestra" / "tasks" / "999").exists(), "precondition: absent from checkout"
+
+    _save_worker_with_worktree(
+        name="painter-canvas", scope=str(repo),
+        owned=["docs/tasks/999", "oil-paint"], worktree=str(worktree),
+    )
+    result = layout.migrate_session_ownership(repo)
+
+    assert result["changed"] == 1
+    assert _attention_for(result, "painter-canvas") == []
+
+
+def test_path_present_only_in_the_checkout_is_not_flagged_either(db, tmp_path):
+    """The mirrored false alarm: a worker branched before the directory existed."""
+    from app import orchestra_layout as layout
+
+    repo = _old_layout_repo(tmp_path, "sensar")
+    layout.migrate_project_layout(repo, repair=False)
+    worktree = tmp_path / "wt-strategy"
+    worktree.mkdir()
+    assert (repo / ".orchestra" / "tasks" / "88").exists(), "precondition: present in checkout"
+
+    _save_worker_with_worktree(
+        name="mobile-os-strategy", scope=str(repo),
+        owned=["docs/tasks/88"], worktree=str(worktree),
+    )
+    result = layout.migrate_session_ownership(repo)
+
+    assert result["changed"] == 1
+    assert _attention_for(result, "mobile-os-strategy") == []
+
+
+def test_path_absent_from_both_trees_is_still_flagged(db, tmp_path):
+    """The true signal must survive the fix, or it degenerates into always staying quiet."""
+    from app import orchestra_layout as layout
+
+    repo = _old_layout_repo(tmp_path, "comfy")
+    layout.migrate_project_layout(repo, repair=False)
+    worktree = tmp_path / "wt-ghost"
+    worktree.mkdir()
+
+    _save_worker_with_worktree(
+        name="ghost", scope=str(repo), owned=["docs/tasks/404"], worktree=str(worktree),
+    )
+    result = layout.migrate_session_ownership(repo)
+
+    flagged = _attention_for(result, "ghost")
+    assert len(flagged) == 1
+    assert flagged[0]["path"] == ".orchestra/tasks/404"
+    assert flagged[0]["exists"] is False
+    assert flagged[0]["reason"] == (
+        "path was rewritten but exists in neither the worker's worktree nor the checkout"
+    )
+
+
+@pytest.mark.parametrize(
+    "worktree_value, expected_note",
+    [("", "worker has no worktree"), ("__missing__", "worker worktree is missing")],
+)
+def test_unsearchable_worktree_is_named_not_reported_as_absent(
+    db, tmp_path, worktree_value, expected_note,
+):
+    """'I could not look' and 'it is not there' are different claims."""
+    from app import orchestra_layout as layout
+
+    repo = _old_layout_repo(tmp_path, "comfy")
+    layout.migrate_project_layout(repo, repair=False)
+    worktree = worktree_value
+    if worktree_value == "__missing__":
+        worktree = str(tmp_path / "wt-deleted")
+        assert not Path(worktree).exists()
+
+    _save_worker_with_worktree(
+        name="stranded", scope=str(repo), owned=["docs/tasks/404"], worktree=worktree,
+    )
+    result = layout.migrate_session_ownership(repo)
+
+    flagged = _attention_for(result, "stranded")
+    assert len(flagged) == 1
+    assert flagged[0]["exists"] is None, "unchecked must not be reported as False"
+    assert expected_note in flagged[0]["reason"]
+    assert "worktree unchecked" in flagged[0]["reason"]
+
+
+def test_legacy_path_with_unchecked_worktree_states_both_facts(db, tmp_path):
+    """Neither fact may swallow the other: legacy leftover AND worktree never searched."""
+    from app import orchestra_layout as layout
+
+    repo = _old_layout_repo(tmp_path, "orchestra")
+    layout.migrate_project_layout(repo, repair=False)
+    _save_worker_with_worktree(
+        name="portfolio-orchestra", scope=str(repo), owned=["docs/portfolio"], worktree="",
+    )
+
+    result = layout.migrate_session_ownership(repo)
+
+    flagged = _attention_for(result, "portfolio-orchestra")
+    assert len(flagged) == 1
+    assert flagged[0]["exists"] is None
+    assert "left verbatim" in flagged[0]["reason"]
+    assert "worktree unchecked" in flagged[0]["reason"]
+
+
+def test_relative_worktree_path_is_unchecked_not_searched_from_cwd(db, tmp_path):
+    """A relative value would resolve against the service CWD and suppress a real alarm."""
+    from app import orchestra_layout as layout
+
+    repo = _old_layout_repo(tmp_path, "comfy")
+    layout.migrate_project_layout(repo, repair=False)
+    _save_worker_with_worktree(
+        name="relative", scope=str(repo), owned=["docs/tasks/404"], worktree="some/relative/dir",
+    )
+
+    result = layout.migrate_session_ownership(repo)
+
+    flagged = _attention_for(result, "relative")
+    assert len(flagged) == 1
+    assert flagged[0]["exists"] is None
+    assert "not absolute" in flagged[0]["reason"]
+
+
+def test_unsearchable_worktree_still_trusts_the_checkout(db, tmp_path):
+    """A path the checkout does have is not an alarm just because the worktree is gone."""
+    from app import orchestra_layout as layout
+
+    repo = _old_layout_repo(tmp_path, "comfy")
+    layout.migrate_project_layout(repo, repair=False)
+
+    _save_worker_with_worktree(
+        name="stranded-but-real", scope=str(repo), owned=["docs/tasks/88"], worktree="",
+    )
+    result = layout.migrate_session_ownership(repo)
+
+    assert result["changed"] == 1
+    assert _attention_for(result, "stranded-but-real") == []
+
+
+# ── #482: a repair a live session will revert is not a repair ──
+
+def test_live_session_is_not_reported_as_changed(db, tmp_path):
+    """The report must not claim work that the worker's next save undoes."""
+    from app.db import get_session_by_name
+    from app import orchestra_layout as layout
+
+    repo = _old_layout_repo(tmp_path, "comfy")
+    layout.migrate_project_layout(repo, repair=False)
+    _save_worker(name="painter-canvas", scope=str(repo), owned=["docs/tasks/88"])
+
+    result = layout.migrate_session_ownership(
+        repo, live_session_ids=frozenset({"sid-painter-canvas"}),
+    )
+
+    assert result["changed"] == 0, "a reverted write must never be counted as changed"
+    assert result["plan"] == []
+    assert result["deferred_count"] == 1
+    deferred = result["deferred"][0]
+    assert deferred["session"] == "painter-canvas"
+    assert deferred["after"] == [".orchestra/tasks/88"]
+    assert "reverted by its next save" in deferred["reason"]
+    assert "next restart" in deferred["reason"]
+    # And nothing was written, so the report and the database agree.
+    assert json.loads(
+        get_session_by_name("painter-canvas", str(repo))["owned_dirs"]
+    ) == ["docs/tasks/88"]
+
+
+def test_dormant_session_is_still_repaired(db, tmp_path):
+    """Deferral must not degenerate into repairing nothing."""
+    from app.db import get_session_by_name
+    from app import orchestra_layout as layout
+
+    repo = _old_layout_repo(tmp_path, "comfy")
+    layout.migrate_project_layout(repo, repair=False)
+    _save_worker(name="dormant", scope=str(repo), owned=["docs/tasks/88"])
+
+    result = layout.migrate_session_ownership(repo, live_session_ids=frozenset())
+
+    assert result["changed"] == 1
+    assert result["deferred_count"] == 0
+    assert json.loads(
+        get_session_by_name("dormant", str(repo))["owned_dirs"]
+    ) == [".orchestra/tasks/88"]
+
+
+@pytest.mark.parametrize("status, expected_changed", [("waiting", 0), ("running", 0), ("idle", 1)])
+def test_unknown_residency_defers_the_statuses_that_are_certainly_live(
+    db, tmp_path, status, expected_changed,
+):
+    """The CLI is a separate process and cannot see memory → infer from status."""
+    from app import orchestra_layout as layout
+
+    repo = _old_layout_repo(tmp_path, "comfy")
+    layout.migrate_project_layout(repo, repair=False)
+    _save_worker(name="worker", scope=str(repo), owned=["docs/tasks/88"], status=status)
+
+    result = layout.migrate_session_ownership(repo)  # live_session_ids omitted = unknown
+
+    assert result["changed"] == expected_changed
+    assert result["deferred_count"] == 1 - expected_changed
+
+
+def test_startup_migration_declares_that_nothing_is_loaded_yet(db, tmp_path, monkeypatch):
+    """The layout hook runs before auto_resume_all, so its repairs are durable."""
+    from app import orchestra_layout as layout
+
+    seen = {}
+
+    def capture(project_roots, *, preserve_dirty=False, live_session_ids=None):
+        seen["live_session_ids"] = live_session_ids
+        return {}
+
+    monkeypatch.setattr(layout, "migrate_registered_projects", capture)
+    monkeypatch.setattr(layout, "_registered_project_roots", lambda: {})
+
+    layout.migrate_registered_project_layouts()
+
+    assert seen["live_session_ids"] == frozenset(), (
+        "startup must state that no session is resident, otherwise the one reliable "
+        "repair path defers every row"
+    )
 
 
 # ── Ч3: ownership changes without a branch switch ──
