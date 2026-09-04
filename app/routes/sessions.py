@@ -1383,6 +1383,57 @@ async def update_prompt(name: str, req: dict):
     return {"ok": True}
 
 
+@router.post("/api/sessions/{name}/owned-dirs")
+async def update_owned_dirs(name: str, req: dict):
+    scope = req.get("scope", "")
+    raw = req.get("owned_dirs", [])
+    if raw is None:
+        raw = []
+    if not isinstance(raw, list):
+        return JSONResponse({"error": "owned_dirs must be a JSON array"}, status_code=400)
+    found = manager.get_by_name(name, scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    from app.manager import LockBusy, wait_for_session_lock
+
+    def _busy(status: str) -> JSONResponse:
+        return JSONResponse(
+            {
+                "error": f"worker is {status} — ownership changes only on idle. Its turn "
+                "is already editing under the current ownership; wait for idle or "
+                "stop_worker first",
+            },
+            status_code=409,
+        )
+
+    if found.status.value != "idle":
+        return _busy(found.status.value)
+    try:
+        # The status is re-checked under the lock: without it the prompt of a turn
+        # that started meanwhile would be rewritten mid-flight.
+        async with wait_for_session_lock(
+            manager.get_session_lock(found.id),
+            what="set_worker_owned_dirs", worker=name,
+        ):
+            # Re-resolve INSIDE the lock. `found` was hydrated before it, and a
+            # concurrent loader (`_get_or_load` takes this same lock) may have registered
+            # the authoritative live session since. Writing through the stale detached
+            # copy would leave the DB updated while the running session — and its prompt —
+            # kept the old boundary.
+            found = manager.get_by_name(name, scope) or found
+            async with AsyncExitStack() as stack:
+                if found.loaded:
+                    await stack.enter_async_context(found._lifecycle_lock)
+                if found.status.value != "idle":
+                    return _busy(found.status.value)
+                applied = await manager.apply_owned_dirs(found, raw)
+    except LockBusy as e:
+        return JSONResponse({"error": str(e)}, status_code=409)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=409)
+    return {"ok": True, "owned_dirs": applied}
+
+
 @router.post("/api/sessions/{name}/change-model")
 async def change_model(name: str, req: dict):
     scope = req.get("scope", "")

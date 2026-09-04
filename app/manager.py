@@ -459,11 +459,59 @@ def _crosses_repo_boundary(parent_dir: str, child_repo: str) -> bool:
         return False
 
 
+OWNERSHIP_MARKER = "\n\n## Directory ownership\n"
+# Opening tag only: the number of newlines before it varies between the spawn path and
+# refresh_worker_memory (app/prompting.py:27 matches it as `\n*<worker-memory>`).
+WORKER_MEMORY_MARKER = "<worker-memory>"
+
+
+def ownership_block(owned_dirs: list[str]) -> str:
+    """The generated directory-ownership suffix. Single owner of its wording."""
+    if not owned_dirs:
+        return ""
+    lines = "\n".join(f"- {d}/" for d in owned_dirs)
+    return (OWNERSHIP_MARKER +
+            "You OWN these directories — edit ONLY files under them:\n"
+            f"{lines}\n"
+            "Do NOT touch files outside your owned directories. "
+            "If the task requires it — STOP and ask the orchestrator.")
+
+
+def replace_ownership_block(
+    prompt: str, before: list[str], after: list[str],
+) -> tuple[str, bool]:
+    """Swap the generated ownership block for the one ``after`` produces.
+
+    Ownership lives in two places — the ``sessions.owned_dirs`` column and this block
+    inside the stored prompt — so a migration that fixes only the column leaves the
+    worker reading the old paths.
+
+    The block is matched WHOLE, reconstructed from ``before``, not located by its
+    heading: operator task text may quote "## Directory ownership" followed by a
+    bullet, and a heading search would rewrite that quotation while leaving the real
+    generated suffix untouched. Returns ``(prompt, False)`` when the exact block is
+    absent, so the caller can report a drifted prompt instead of guessing at it.
+    """
+    old_block = ownership_block(before)
+    if not old_block:
+        return prompt, False
+    # Worker memory is appended AFTER the ownership suffix and is written by the worker
+    # itself, so it can quote a whole ownership block. Searching the full prompt would let
+    # `rpartition` rewrite that quotation and leave the real block — the one assemble_prompt
+    # keeps — untouched. Only the region before the memory can hold the generated block.
+    body, memory_separator, memory = prompt.partition(WORKER_MEMORY_MARKER)
+    if old_block not in body:
+        return prompt, False
+    head, _, tail = body.rpartition(old_block)
+    return head + ownership_block(after) + tail + memory_separator + memory, True
+
+
 class SessionManager:
     def __init__(self):
         self.sessions: dict[str, AgentSession] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
         self._spawn_locks: dict[tuple[str, str], asyncio.Lock] = {}
+        self._scope_ownership_locks: dict[str, asyncio.Lock] = {}
         # wired callback (set by tg_bridge.start_bridge) — manager does not import tg_bridge
         self.tg_topics_remover: Optional[Callable[[list[str]], Awaitable[dict]]] = None
         # #220 T2: рестарт закрывает приём новых ходов, пока дренажит уже идущие
@@ -514,14 +562,7 @@ class SessionManager:
 
     @staticmethod
     def _ownership_prompt(owned_dirs: list[str]) -> str:
-        if not owned_dirs:
-            return ""
-        lines = "\n".join(f"- {d}/" for d in owned_dirs)
-        return ("\n\n## Directory ownership\n"
-                "You OWN these directories — edit ONLY files under them:\n"
-                f"{lines}\n"
-                "Do NOT touch files outside your owned directories. "
-                "If the task requires it — STOP and ask the orchestrator.")
+        return ownership_block(owned_dirs)
 
     @classmethod
     def _without_ownership_prompt(cls, prompt: str) -> str:
@@ -1667,6 +1708,106 @@ class SessionManager:
                     prompt_overlay=new_overlay,
                 )
 
+    def _scope_ownership_lock(self, scope: str) -> asyncio.Lock:
+        """One ownership critical section per scope — overlap is a scope-wide invariant."""
+        key = (scope or "").rstrip("/")
+        if key not in self._scope_ownership_locks:
+            self._scope_ownership_locks[key] = asyncio.Lock()
+        return self._scope_ownership_locks[key]
+
+    @staticmethod
+    def _persist_owned_dirs_only(
+        session_id: str, stored_dirs: str, system_prompt: str, prompt_overlay: str | None,
+    ) -> None:
+        from app.db import _conn
+
+        with _conn() as connection:
+            cursor = connection.execute(
+                "UPDATE sessions SET owned_dirs=?, system_prompt=?, prompt_overlay=? "
+                "WHERE id=?",
+                (stored_dirs, system_prompt, prompt_overlay, session_id),
+            )
+            if cursor.rowcount == 0:
+                # Silence here would mean "ownership changed" while the DB still holds the
+                # old boundary — the exact failure this task exists to remove (#54).
+                raise ValueError(
+                    f"ownership update changed 0 rows for session id={session_id!r}"
+                )
+
+    async def apply_owned_dirs(
+        self, session: AgentSession, owned_dirs: list[str],
+    ) -> list[str]:
+        """Replace ownership without touching the branch or the task.
+
+        Both owners move together — the ``owned_dirs`` column and the ownership
+        block inside the stored prompt — because a column-only write leaves the
+        worker reading its previous directories. An empty list clears ownership.
+        The caller checks the status: rewriting the prompt of a running turn would
+        change the contract under a worker that is already editing files.
+        """
+        # Validation reads every live worker of this scope, so validate+write must be one
+        # critical section: two concurrent calls for DIFFERENT workers each lock only their
+        # own session, both pass against the pre-write state, and both commit the same
+        # directory. (The same race still exists on the older spawn/switch paths — those
+        # take only a per-name lock — and closing it there is a separate change.)
+        async with self._scope_ownership_lock(session.scope):
+            normalized = self.validate_owned_dirs_transition(session, owned_dirs)
+            if session.loaded:
+                await session._drain_persist()
+            new_prompt, new_overlay = self._transition_prompt(session, normalized)
+            stored_dirs = json.dumps(normalized) if normalized else ""
+
+            async def _commit() -> None:
+                """Persist and publish as one step that a cancelled request cannot split.
+
+                A client disconnect between the DB write and the in-memory publication
+                would leave SQLite holding the new boundary while the live worker keeps
+                the old one — and release the locks that were supposed to protect exactly
+                that gap.
+                """
+                if session.loaded:
+                    snapshot = session._to_db_dict()
+                    snapshot.update(
+                        owned_dirs=stored_dirs,
+                        system_prompt=new_prompt,
+                        prompt_overlay=new_overlay,
+                    )
+                    await asyncio.to_thread(save_session, snapshot)
+                else:
+                    # A detached session is hydrated from a partial row: `_hydrate_row`
+                    # never fills `color` or `template_hash`, so persisting its full
+                    # `_to_db_dict()` snapshot blanks those columns for a worker nobody
+                    # asked to change.
+                    await asyncio.to_thread(
+                        self._persist_owned_dirs_only,
+                        session.id, stored_dirs, new_prompt, new_overlay,
+                    )
+                session.owned_dirs = normalized
+                session.system_prompt = new_prompt
+                session.prompt_overlay = new_overlay
+                session._current_prompt = new_prompt
+                # The next turn must deliver the new ownership prompt at the idle boundary.
+                session._prompt_injected = False
+                if session.db_row is not None:
+                    session.db_row.update(
+                        owned_dirs=stored_dirs,
+                        system_prompt=new_prompt,
+                        prompt_overlay=new_overlay,
+                    )
+
+            # A single `shield` is not enough on two counts: the caller would leave this
+            # block and release the scope, lifecycle and session locks while the write is
+            # still in flight, and a SECOND cancellation penetrates a plain `await commit`
+            # — cancelling the `to_thread` future while the SQLite thread keeps going and
+            # commits, leaving the DB ahead of the live session. `_wait_owned_task`
+            # absorbs repeated cancellation and returns it to re-raise afterwards.
+            commit = asyncio.create_task(_commit())
+            cancellation = await _wait_owned_task(commit)
+            commit.result()
+            if cancellation is not None:
+                raise cancellation
+        return normalized
+
     def _resolve_role(self, name: str, scope: str) -> str | None:
         for s in self.sessions.values():
             if s.name == name and s.scope == scope:
@@ -1792,7 +1933,12 @@ class SessionManager:
             session = self.sessions.get(session_id)
             if session is not None:
                 return session
-            return await self._load_from_db(db_row)
+            # Re-read under the lock: `db_row` was fetched by the caller BEFORE the lock,
+            # and a writer holding it meanwhile (ownership, prompt, model) has already
+            # committed. Hydrating the captured row would publish a live session that
+            # silently disagrees with SQLite — for ownership that means a worker running
+            # under a boundary the database says it no longer has.
+            return await self._load_from_db(get_session(session_id) or db_row)
 
     def assemble_prompt(
         self, *, pipeline: str, role: str, scope: str, is_orch: bool, name: str,
