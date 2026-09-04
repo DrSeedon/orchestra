@@ -40,7 +40,7 @@ from app.user_message_display import (
     user_message_display_content,
 )
 from app.transcription import transcribe_audio as _transcribe_audio
-from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
+from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, PHOTO_EXTENSIONS
 
 logger = logging.getLogger("tg-bridge")
 logger.setLevel(logging.DEBUG)
@@ -2788,9 +2788,6 @@ async def rename_orch_topic(old_name: str, new_name: str) -> dict:
     return {"ok": True, "old_name": old_name, "new_name": new_name, "display": new_display, "thread_id": thread_id}
 
 
-_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
-
-
 # Prefer the top-level orchestrator (no parent) so send_file routes to the scope owner's topic,
 # not a sub-orchestrator. Falls back to any orchestrator if no top-level found.
 def _find_orch_for_scope(scope: str) -> str | None:
@@ -2889,7 +2886,7 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
         return {"error": f"no TG topic for scope: {scope}"}
     label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
     label = label[:1024]
-    is_photo = not as_document and fp.suffix.lower() in _IMAGE_EXTS
+    is_photo = not as_document and fp.suffix.lower() in PHOTO_EXTENSIONS
     msg = await _tg_send_file_safe(
         config["group_id"], path, label, thread_id,
         is_photo=is_photo, important=True,

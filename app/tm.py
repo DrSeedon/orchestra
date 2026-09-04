@@ -20,16 +20,16 @@ from typing import Iterator, TypedDict
 
 logger = logging.getLogger("tm")
 
+from app.acceptance import PYTEST_CONFIG_NAMES
 from app.db import _conn, task_run_receipt_finish, task_run_receipt_open
 from app.ia.task_store import (
     IdentityConflictError,
     ProjectionDebtError,
     TaskStore,
+    VALID_TASK_STATUSES as VALID_STATUSES,
     build_migration_manifest,
     task_create_fingerprint,
 )
-
-VALID_STATUSES = {"backlog", "new", "in_progress", "done", "cancelled"}
 _TASK_CREATE_LOCK = threading.RLock()
 _TASK_CREATE_REQUEST_KEY = re.compile(r"[A-Za-z0-9._:-]{16,128}")
 _TASK_BINDING_LOCK = threading.RLock()
@@ -72,12 +72,6 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-
-
-_PYTEST_CONFIG_NAMES = {
-    "pytest.toml", ".pytest.toml", "pytest.ini", ".pytest.ini",
-    "pyproject.toml", "tox.ini", "setup.cfg",
-}
 
 
 def _normalize_acceptance_manifest(paths: list[str] | None) -> list[str]:
@@ -136,7 +130,7 @@ def _acceptance_oracle_json(
     if required:
         if "tests" not in manifest:
             raise ValueError("acceptance manifest must include the complete tests tree")
-        if not any(path in _PYTEST_CONFIG_NAMES for path in manifest):
+        if not any(path in PYTEST_CONFIG_NAMES for path in manifest):
             raise ValueError("acceptance manifest must include pytest config")
     payload = {
         "version": 1,

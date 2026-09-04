@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
 from app.session import AgentSession, AgentStatus
+from app.session_state import ACTIVE_SESSION_STATUSES
 from app.events import InjectedMessage, MessageProvenance
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
@@ -588,7 +589,7 @@ class SessionManager:
                 continue
             if (
                 candidate.scope == session.scope
-                and candidate.status.value in ("idle", "running", "waiting")
+                and candidate.status.value in ACTIVE_SESSION_STATUSES
                 and candidate.owned_dirs
             ):
                 seen_ids.add(candidate.id)
@@ -601,7 +602,7 @@ class SessionManager:
         for row in get_all_sessions(session.scope):
             if row["id"] in seen_ids or row["id"] == session.id:
                 continue
-            if (row.get("status") or "") not in ("idle", "running", "waiting"):
+            if (row.get("status") or "") not in ACTIVE_SESSION_STATUSES:
                 continue
             row_dirs = parse_owned_dirs(row.get("owned_dirs"))
             overlap = dirs_overlap(normalized, row_dirs)
@@ -746,7 +747,11 @@ class SessionManager:
         if owned_dirs:
             seen_ids: set[str] = set()
             for s in self.sessions.values():
-                if s.scope == scope and s.status.value in ("idle", "running", "waiting") and s.owned_dirs:
+                if (
+                    s.scope == scope
+                    and s.status.value in ACTIVE_SESSION_STATUSES
+                    and s.owned_dirs
+                ):
                     seen_ids.add(s.id)
                     ov = dirs_overlap(owned_dirs, s.owned_dirs)
                     if ov:
@@ -757,7 +762,7 @@ class SessionManager:
             for row in get_all_sessions(scope):
                 if row["id"] in seen_ids:
                     continue
-                if (row.get("status") or "") not in ("idle", "running", "waiting"):
+                if (row.get("status") or "") not in ACTIVE_SESSION_STATUSES:
                     continue
                 row_dirs = parse_owned_dirs(row.get("owned_dirs"))
                 if row_dirs:
@@ -1419,13 +1424,16 @@ class SessionManager:
         """Names of active (idle/running/waiting) workers in scope, from both the
         in-memory registry and the DB (catches unloaded-but-active worker rows).
         Deduplicated by session id."""
-        active = ("idle", "running", "waiting")
         seen_ids: set[str] = set()
         names: set[str] = set()
         # list() gives the worker thread a stable registry snapshot while the event loop may
         # add/remove sessions. Individual session fields are ordinary immutable/scalar reads.
         for s in list(self.sessions.values()):
-            if s.scope == scope and not s.is_orchestrator and s.status.value in active:
+            if (
+                s.scope == scope
+                and not s.is_orchestrator
+                and s.status.value in ACTIVE_SESSION_STATUSES
+            ):
                 seen_ids.add(s.id)
                 names.add(s.name)
         for row in get_all_sessions(scope):
@@ -1433,7 +1441,7 @@ class SessionManager:
                 continue
             if is_orchestrator_role(row.get("role", "worker")):
                 continue
-            if (row.get("status") or "") in active:
+            if (row.get("status") or "") in ACTIVE_SESSION_STATUSES:
                 names.add(row["name"])
         return sorted(names)
 
@@ -1444,11 +1452,14 @@ class SessionManager:
         killing a parent that still has live sub-workers (would orphan them)."""
         if not parent_name:
             return []
-        active = ("idle", "running", "waiting")
         seen_ids: set[str] = set()
         names: set[str] = set()
         for s in self.sessions.values():
-            if s.scope == scope and s.parent_name == parent_name and s.status.value in active:
+            if (
+                s.scope == scope
+                and s.parent_name == parent_name
+                and s.status.value in ACTIVE_SESSION_STATUSES
+            ):
                 seen_ids.add(s.id)
                 names.add(s.name)
         for row in get_all_sessions(scope):
@@ -1456,7 +1467,7 @@ class SessionManager:
                 continue
             if (row.get("parent_name") or "") != parent_name:
                 continue
-            if (row.get("status") or "") in active:
+            if (row.get("status") or "") in ACTIVE_SESSION_STATUSES:
                 names.add(row["name"])
         return sorted(names)
 

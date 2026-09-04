@@ -23,7 +23,7 @@ from app.tg_bridge import (
     _submit_file_group_once,
     _submit_file_snapshot_once,
 )
-from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
+from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, PHOTO_EXTENSIONS
 
 logger = logging.getLogger("orchestra.tg_file_deliveries")
 
@@ -42,7 +42,6 @@ MAINTENANCE_INTERVAL_SECONDS = 21600
 
 _MAX_FILE_BYTES = MAX_UPLOAD_BYTES
 _ACTIVE_STATES = ("QUEUED", "SUBMITTING")
-_PHOTO_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 _MEDIA_GROUP_LIMIT = 10
 _chat_runner_tasks: dict[int, asyncio.Task[None]] = {}
 _maintenance_task: asyncio.Task[None] | None = None
@@ -323,7 +322,7 @@ def _payload_hash(
 def _batch_kind(path: str, as_document: bool) -> str:
     if as_document:
         return "document"
-    return "photo" if Path(path).suffix.lower() in _PHOTO_EXTS else "document"
+    return "photo" if Path(path).suffix.lower() in PHOTO_EXTENSIONS else "document"
 
 
 def _plan_batch(prepared: list[dict[str, Any]], as_document: bool) -> None:
@@ -1489,7 +1488,7 @@ async def run_chat_deliveries(chat_id: int) -> None:
                             else (
                                 not bool(candidate["as_document"])
                                 and Path(candidate["original_name"]).suffix.lower()
-                                in _PHOTO_EXTS
+                                in PHOTO_EXTENSIONS
                             )
                         ),
                     )

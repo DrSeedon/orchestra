@@ -18,6 +18,17 @@ class AgentStatus(str, Enum):
     INTERRUPTED = "interrupted"
 
 
+ACTIVE_SESSION_STATUSES = frozenset({
+    AgentStatus.IDLE.value,
+    AgentStatus.RUNNING.value,
+    AgentStatus.WAITING.value,
+})
+
+
+def empty_context() -> dict[str, int]:
+    return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
+
+
 # Orchestrators get 2x idle time: they manage long-running workflows and get TG
 # messages from users, so premature hibernate kills useful context.
 IDLE_TIMEOUT_WORKER = 300

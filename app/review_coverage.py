@@ -8,6 +8,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.db import REVIEW_AUTHOR_OUTCOMES
+
 
 SNAPSHOT_VERSION = b"review-coverage-v1\0"
 # Дайджест ПРЕДМЕТА ревью: только сырой продовый дифф, без хеша цели. `--raw --full-index`
@@ -20,7 +22,6 @@ DIFF_VERSION = b"review-coverage-diff-v1\0"
 ACTIVATION_MARKER = "review-coverage-v1"
 PRODUCTION_PREFIXES = ("app/", "scripts/")
 MACHINE_UNAVAILABLE_CODES = frozenset({"weekly_quota_blocked", "codex_binary_missing"})
-REVIEW_AUTHOR_OUTCOMES = frozenset({"accepted", "disputed", "partial"})
 POLICY_PATH = (
     Path(__file__).resolve().parent.parent
     / ".orchestra/pipelines/default/prompts/skills/codex-debate.md"

@@ -21,6 +21,7 @@ from typing import Any
 from uuid import UUID, uuid5
 
 from app.ia.namespace import build_uri
+from app.ia.privacy import SECRET_VALUE_PATTERN, key_looks_secret
 from app.ia.schema import validate_record
 
 
@@ -29,24 +30,6 @@ class ArchiveConflictError(RuntimeError):
 
 
 _REDACTION_MARKER = "[REDACTED:T5]"
-_SECRET_KEY_PARTS = {"password", "passwd", "secret", "token", "credential"}
-_SECRET_KEY_NAMES = {
-    "api_key",
-    "apikey",
-    "access_key",
-    "secret_key",
-    "private_key",
-    "authorization",
-    "client_secret",
-    "credential_material",
-}
-_SECRET_VALUE = re.compile(
-    r"(?:Bearer\s+\S{20,}|sk-(?:or-v1-)?[A-Za-z0-9_-]{8,}|"
-    r"gh[pousr]_[A-Za-z0-9]{8,}|ya29\.[A-Za-z0-9_-]{8,}|"
-    r"AIza[A-Za-z0-9_-]{12,}|(?:^|_)(?:SECRET|PASSWORD|CREDENTIAL)(?:_|$)|"
-    r"(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|client[_-]?secret)="
-    r"[^\s&]{4,})"
-)
 _PROJECT_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
@@ -74,13 +57,6 @@ def _canonical_bytes(value: Any) -> bytes:
     ).encode("utf-8")
 
 
-def _key_looks_secret(key: str) -> bool:
-    normalized = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
-    return normalized in _SECRET_KEY_NAMES or bool(
-        set(normalized.split("_")) & _SECRET_KEY_PARTS
-    )
-
-
 def redact_private(value: Any) -> Any:
     """Return a detached value with nested credential material removed."""
 
@@ -88,15 +64,19 @@ def redact_private(value: Any) -> Any:
         result: dict[str, Any] = {}
         for raw_key, child in value.items():
             key = str(raw_key)
-            if _SECRET_VALUE.search(key):
+            if SECRET_VALUE_PATTERN.search(key):
                 key = "redacted_field"
             result[key] = (
-                _REDACTION_MARKER if _key_looks_secret(key) else redact_private(child)
+                _REDACTION_MARKER if key_looks_secret(key) else redact_private(child)
             )
         return result
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         return [redact_private(item) for item in value]
-    if isinstance(value, str) and value != _REDACTION_MARKER and _SECRET_VALUE.search(value):
+    if (
+        isinstance(value, str)
+        and value != _REDACTION_MARKER
+        and SECRET_VALUE_PATTERN.search(value)
+    ):
         return _REDACTION_MARKER
     return copy.deepcopy(value)
 
@@ -107,9 +87,9 @@ def contains_private(value: Any) -> bool:
     if isinstance(value, Mapping):
         for raw_key, child in value.items():
             key = str(raw_key)
-            if _SECRET_VALUE.search(key):
+            if SECRET_VALUE_PATTERN.search(key):
                 return True
-            if _key_looks_secret(key) and child != _REDACTION_MARKER:
+            if key_looks_secret(key) and child != _REDACTION_MARKER:
                 return True
             if contains_private(child):
                 return True
@@ -119,7 +99,7 @@ def contains_private(value: Any) -> bool:
     return (
         isinstance(value, str)
         and value != _REDACTION_MARKER
-        and _SECRET_VALUE.search(value) is not None
+        and SECRET_VALUE_PATTERN.search(value) is not None
     )
 
 

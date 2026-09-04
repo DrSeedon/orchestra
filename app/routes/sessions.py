@@ -32,7 +32,9 @@ from app.errtext import err_text
 from app.events import MessageProvenance
 from app.models import ensure_dashboard_visible, ensure_spawn_allowed, resolve_model, MODELS
 from app.quota_gate import QuotaGateError
+from app.routes.errors import keyed_auth_required
 from app.session import AgentStatus
+from app.session_state import empty_context
 from app.status_policy import is_internal_telemetry_status
 from app.user_message_display import add_user_message_time_prefix, annotate_user_message
 
@@ -509,7 +511,7 @@ async def get_prompt_blocks(name: str, scope: str):
 async def get_session_context(name: str, scope: str):
     found = manager.get_by_name(name, scope)
     if not found:
-        return {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
+        return empty_context()
     if not found.loaded:
         return {"percentage": found._last_context.get("percentage", 0),
                 "total_tokens": found._last_context.get("total_tokens", 0),
@@ -736,27 +738,13 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 source_id = ""
                 source = None
             elif not source or not check_mcp_proof(source_id, proof):
-                return JSONResponse(
-                    {
-                        "ok": False,
-                        "error": {
-                            "code": "KEYED_AUTH_REQUIRED",
-                            "message": "keyed delivery requires a valid MCP proof",
-                            "outcome_unknown": False,
-                        },
-                    },
-                    status_code=403,
+                return keyed_auth_required(
+                    "keyed delivery requires a valid MCP proof", include_ok=True,
                 )
             if not operator and req.sender is not None and req.sender != source["name"]:
-                return JSONResponse(
-                    {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
-                    status_code=403,
-                )
+                return keyed_auth_required()
             if not operator and req.scope != source["scope"]:
-                return JSONResponse(
-                    {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
-                    status_code=403,
-                )
+                return keyed_auth_required()
             source_is_orchestrator = bool(
                 source and (
                     source.get("is_orchestrator")
@@ -795,15 +783,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
             existing = message_deliveries._row(delivery_id)
             if existing is not None:
                 if not operator and existing["source_session_id"] != source_id:
-                    return JSONResponse(
-                        {
-                            "error": {
-                                "code": "KEYED_AUTH_REQUIRED",
-                                "outcome_unknown": False,
-                            }
-                        },
-                        status_code=403,
-                    )
+                    return keyed_auth_required()
                 if name != existing["target_name"]:
                     conflict, conflict_status = message_deliveries._conflict(delivery_id)
                     return JSONResponse(conflict, status_code=conflict_status)
@@ -862,15 +842,8 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                         status_code=404,
                     )
                 if not source_is_orchestrator and not operator:
-                    return JSONResponse(
-                        {
-                            "error": {
-                                "code": "KEYED_AUTH_REQUIRED",
-                                "message": "cross-project target requires an orchestrator proof",
-                                "outcome_unknown": False,
-                            }
-                        },
-                        status_code=403,
+                    return keyed_auth_required(
+                        "cross-project target requires an orchestrator proof",
                     )
                 if len(candidates) != 1:
                     return JSONResponse(
@@ -1202,10 +1175,7 @@ async def get_message_delivery_status(delivery_id: str, request: Request = None)
     from app.mcp_proof import check_mcp_proof
 
     if request is None:
-        return JSONResponse(
-            {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
-            status_code=403,
-        )
+        return keyed_auth_required()
     if validate_session(request.cookies.get("session", "")):
         try:
             row = message_deliveries._row(message_deliveries._validate_id(delivery_id))
@@ -1219,20 +1189,14 @@ async def get_message_delivery_status(delivery_id: str, request: Request = None)
     proof = request.headers.get("x-orchestra-mcp-proof", "")
     source = get_session_row(source_id) if source_id else None
     if not source or not check_mcp_proof(source_id, proof):
-        return JSONResponse(
-            {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
-            status_code=403,
-        )
+        return keyed_auth_required()
     try:
         validated_id = message_deliveries._validate_id(delivery_id)
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     row = message_deliveries._row(validated_id)
     if row is not None and row["source_session_id"] != source_id:
-        return JSONResponse(
-            {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
-            status_code=403,
-        )
+        return keyed_auth_required()
     resource = message_deliveries.get_message_delivery(validated_id, source_id)
     if resource is None:
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -1327,11 +1291,7 @@ async def clear_session(name: str, req: ScopeRequest):
     session.runtime_handoff = ""
     session.history_import_source = None
     session.last_summary = ""
-    session._last_context = {
-        "percentage": 0,
-        "total_tokens": 0,
-        "max_tokens": 0,
-    }
+    session._last_context = empty_context()
     session._prompt_injected = False
     session.status = AgentStatus.IDLE
     session._persist()
