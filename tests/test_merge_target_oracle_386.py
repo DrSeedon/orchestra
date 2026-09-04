@@ -871,6 +871,7 @@ async def test_t386_t1_public_operation_pins_target_and_task_oracle_before_runne
     dbmod.init_db()
     operations._runner_tasks.clear()
     dbmod.save_session(_session_row(git_graph))
+    _record_reviewed_receipt(dbmod, git_graph)
     with tm._conn() as conn:
         project = tm.ensure_project(conn, "proj", scope="/scope")
         task = tm.create_task(
@@ -925,7 +926,22 @@ async def test_t386_t1_public_operation_pins_target_and_task_oracle_before_runne
         target=requested_target,
     )
     assert replay_status == 202
-    assert replay == result
+    # Идемпотентность приёма означает «вернулась ТА ЖЕ операция», а не «совпал живой счётчик».
+    # `progress` пришёл с #424 (`0aa2d595`) и несёт `elapsed_seconds` — настенное время
+    # (`app/merge_operations.py:254`), поэтому две выдачи одной операции обязаны им отличаться,
+    # и дословное `replay == result` здесь было бы строгостью по отношению к часам, а не к
+    # контракту. Раздел сверяется отдельно и на присутствие: исчезнет — покраснеет.
+    # Волатильны ЧАСЫ, а не раздел: исключать `progress` целиком значило бы перестать замечать
+    # пропажу или порчу самой схемы прогресса (находка Luna, раунд 1 #483). Поэтому схема
+    # пиннится поимённо, а из равенства выпадает ровно одно поле.
+    assert set(replay["progress"]) == {"stage", "elapsed_seconds"}, replay["progress"]
+    assert replay["progress"]["stage"], "живой прогресс операции пропал из ответа"
+    assert isinstance(replay["progress"]["elapsed_seconds"], float)
+    assert replay["progress"]["elapsed_seconds"] >= 0.0
+    # Асимметрия намеренная и тоже сверяется: у ПЕРВОГО приёма раздела ещё нет — бегунок
+    # заводится вместе с раннером. Появится там — покраснеет здесь, а не молча разъедется.
+    assert "progress" not in result, "первый приём не должен нести живой прогресс"
+    assert {k: v for k, v in replay.items() if k != "progress"} == result
     replay_record = operations.get_operation_record(operation_id)
     assert replay_record["accepted_admission"] == admission
 
@@ -1151,6 +1167,108 @@ def _accepted_snapshot(graph: dict, admission: dict) -> dict:
     }
 
 
+def _record_reviewed_receipt(
+    dbmod,
+    graph: dict,
+    *,
+    worktree_key: str = "candidate",
+    target_sha_key: str = "integration_sha",
+    worker_head_key: str = "candidate_sha",
+    task_id: str = "386",
+) -> str:
+    """Квитанция ревью на снимок фикстуры — ПРЕДУСЛОВИЕ этих тестов, а не их предмет.
+
+    Предмет здесь — пиннинг цели и задачного оракула (#386). Гейт покрытия ревью пришёл ПОЗЖЕ,
+    с #462 (`1a86f403` от 03.09 против `f8295d11` от 24.08), и требует квитанции от любого
+    мержа, трогающего `app/**`. Фикстура коммитит `app/widget.py`, квитанции у неё не было —
+    поэтому операция отбивалась `409 REVIEW_COVERAGE_MISSING` ДО оракула, тест-гейта и
+    executor'а, и все 13 узлов мерили чужой гейт вместо своего предмета (`not_run` во всех
+    наблюдателях). Само покрытие проверяется там, где оно и есть предмет:
+    `tests/test_review_coverage_gate_462.py`, `tests/test_review_coverage_target_drift_474.py`.
+
+    Гасить `review_coverage_policy_active` вместо этого нельзя: файл перестал бы замечать
+    изменения шва «покрытие ↔ пиннинг цели», а именно там #462 и #474 уже дважды ломали соседей.
+    """
+    from app.review_coverage import coverage_decision, production_snapshot
+
+    worktree = str(graph[worktree_key])
+    target_sha = graph[target_sha_key]
+    worker_head = graph[worker_head_key]
+    receipt_snapshot = production_snapshot(
+        worktree, target_sha=target_sha, worker_head=worker_head,
+    )
+    now = datetime.now(timezone.utc).isoformat()
+    receipt_id = f"review-receipt:{uuid.uuid4()}"
+    dbmod.review_receipt_create({
+        "receipt_id": receipt_id,
+        "schema_version": 1,
+        "runtime": "codex",
+        "reviewer_model": "gpt-5.6-luna",
+        "model_source": "direct",
+        "session_id": "merge-session-386",
+        "worker_name": "worker-386",
+        "scope": "/scope",
+        "task_id": task_id,
+        "task_source": "session_lookup",
+        "artifact_path": f"/tmp/review-386-{uuid.uuid4()}.md",
+        "mode": "implementation",
+        "round": 1,
+        "job_id": "bg-386",
+        "usage_event_id": "usage-386",
+        "requested_at": now,
+        "completed_at": now,
+        "status": "completed",
+        "return_code": 0,
+        "failure_code": "",
+        "artifact_exists": 1,
+        "artifact_bytes": 10,
+        "artifact_sha256": "a" * 64,
+        "verdict_present": 1,
+        "verdict_value": "ACK",
+        "jsonl_response_present": 1,
+        "recovery_source": "",
+        "author_outcome": "accepted",
+        "outcome_source": "direct",
+        "outcome_evidence_ref": ".orchestra/tasks/483/report.md#coverage-precondition",
+        "notification_event_id": "",
+        "subject_kind": "implementation",
+        "coverage_outcome": "reviewed",
+        "policy_ref": "",
+        "decision_actor": "",
+        **receipt_snapshot,
+    })
+
+    # Предусловие проверяется ПОЛОЖИТЕЛЬНО и ДО вызова проверяемого кода: сломается запись
+    # квитанции — покраснеет эта строка, а не ассерт про пиннинг цели. `active=True` намеренно:
+    # утверждение здесь про КВИТАНЦИЮ, а не про то, включена ли политика прямо сейчас.
+    #
+    # Снимок для сверки считается ЗАНОВО из git и НЕ переиспользует то, что записано в
+    # квитанцию. Первая версия подставляла сюда сохранённые значения — проверка совпадала сама
+    # с собой и молчала: мутация «квитанция на чужой снимок» оставляла её зелёной и роняла
+    # тринадцать ассертов про пиннинг вместо одного про предусловие.
+    expected = production_snapshot(
+        worktree, target_sha=target_sha, worker_head=worker_head,
+    )
+    decision = coverage_decision(
+        scope="/scope",
+        session_id="merge-session-386",
+        task_id=task_id,
+        target_sha=target_sha,
+        worker_head=worker_head,
+        production_paths=list(expected["production_paths"]),
+        production_snapshot_sha256=str(expected["production_snapshot_sha256"]),
+        production_diff_sha256=str(expected["production_diff_sha256"]),
+        active=True,
+    )
+    assert decision["status"] == "satisfied", (
+        "предусловие покрытия не установлено, тест мерил бы чужой гейт: " + repr(decision)
+    )
+    assert decision["receipt_id"] == receipt_id, (
+        "покрытие удовлетворено ЧУЖОЙ квитанцией, а не той, что записал этот тест"
+    )
+    return receipt_id
+
+
 def _gate_result(status: str) -> dict:
     return {
         "status": status,
@@ -1191,6 +1309,7 @@ async def test_t386_t1_every_non_authorizing_operation_result_blocks_executor_an
     dbmod.init_db()
     operations._runner_tasks.clear()
     dbmod.save_session(_session_row(git_graph))
+    _record_reviewed_receipt(dbmod, git_graph)
     admission = _admission_snapshot(git_graph)
     operation_id = str(uuid.uuid4())
     operations.accept_operation_snapshot(
@@ -1251,6 +1370,7 @@ async def test_t386_t1_runner_uses_stored_target_sha_after_branch_moves(
     dbmod.init_db()
     operations._runner_tasks.clear()
     dbmod.save_session(_session_row(git_graph))
+    _record_reviewed_receipt(dbmod, git_graph)
     admission = _admission_snapshot(git_graph)
     operation_id = str(uuid.uuid4())
     operations.accept_operation_snapshot(
@@ -1354,6 +1474,11 @@ async def test_t386_t1_final_only_main_merge_does_not_require_ticket_oracle(
         "task_id": "",
     })
     dbmod.save_session(row)
+    _record_reviewed_receipt(
+        dbmod, git_graph,
+        worktree_key="final", target_sha_key="main_sha",
+        worker_head_key="final_sha", task_id="",
+    )
     admission = {
         "target": {"branch": "main", "sha": git_graph["main_sha"]},
         "oracle": {
@@ -1456,6 +1581,7 @@ async def test_t386_t1_terminal_result_records_complete_admission_evidence(
     dbmod.init_db()
     operations._runner_tasks.clear()
     dbmod.save_session(_session_row(git_graph))
+    receipt_id = _record_reviewed_receipt(dbmod, git_graph)
 
     admission = _admission_snapshot(git_graph)
     accepted = _accepted_snapshot(git_graph, admission)
@@ -1526,6 +1652,16 @@ async def test_t386_t1_terminal_result_records_complete_admission_evidence(
     result = operations.get_operation_result(operation_id)
 
     assert result["operation_state"] == "SUCCEEDED"
+    # `review_coverage` в свидетельстве появился с #462 — раздел собирается из ТОГО ЖЕ снимка,
+    # что и квитанция-предусловие, а не из литеральных дайджестов: иначе строка ломается при
+    # любом изменении фикстуры и приглашает подогнать её вручную.
+    from app.review_coverage import production_snapshot
+
+    coverage_snapshot = production_snapshot(
+        str(git_graph["candidate"]),
+        target_sha=git_graph["integration_sha"],
+        worker_head=git_graph["candidate_sha"],
+    )
     assert result["admission"] == {
         "target": admission["target"],
         "oracle": {
@@ -1535,6 +1671,20 @@ async def test_t386_t1_terminal_result_records_complete_admission_evidence(
             "ref": git_graph["integration_sha"],
             "hash": "a" * 64,
             "status": "passed",
+        },
+        "review_coverage": {
+            "required": True,
+            "status": "satisfied",
+            "reason": "",
+            "production_paths": list(coverage_snapshot["production_paths"]),
+            "target_sha": git_graph["integration_sha"],
+            "worker_head": git_graph["candidate_sha"],
+            "production_snapshot_sha256": coverage_snapshot["production_snapshot_sha256"],
+            "production_diff_sha256": coverage_snapshot["production_diff_sha256"],
+            "receipt_id": receipt_id,
+            "coverage_outcome": "reviewed",
+            "author_outcome": "accepted",
+            "outcome_evidence_ref": ".orchestra/tasks/483/report.md#coverage-precondition",
         },
         "mapped_files": ["tests/test_widget.py"],
         "target_recheck": {

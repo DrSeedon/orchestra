@@ -426,6 +426,11 @@ function _scrollChatToBottom(behavior = 'auto') {
 }
 
 let _chatTimelineObserver = null;
+let _chatTimelineSizeObserver = null;
+let _chatTimelineHeightRaf = 0;
+// Ниже метка перестаёт быть кликабельной мишенью; на длинной ленте пол ужимается
+// пропорционально, потому что сумма полов не может превысить дорожку.
+const CHAT_MARKER_MIN_PX = 3;
 
 const NOTIFY_USER_TOOL = 'mcp__orchestra__notify_user';
 const SILENT_TURN_MARKER = '[[ORCHESTRA:SILENT_TURN]]';
@@ -616,13 +621,52 @@ function _addChatTimelineMarker(node) {
         track.prepend(marker);
     }
     node._chatTimelineMarker = marker;
+    _chatTimelineSizeObserver?.observe(node);
 }
 
 function _removeChatTimelineMarker(node) {
     const marker = node?._chatTimelineMarker;
     if (!marker) return;
+    _chatTimelineSizeObserver?.unobserve(node);
     marker.remove();
     node._chatTimelineMarker = null;
+}
+
+// Полоса — миникарта ленты: доля метки равна доле высоты её сообщения. Вес берём с
+// ОТРИСОВАННОГО узла, а не с длины текста — таблица и картинка занимают экран, а
+// символов в них мало. Раздаёт доли сам флексбокс, нам довольно выставить grow.
+function _syncChatTimelineHeights() {
+    const chat = $('#chat');
+    const track = $('#chat-timeline-track');
+    if (!chat || !track) return;
+    const sized = [];
+    let total = 0;
+    for (const node of chat.children) {          // сперва читаем все высоты,
+        const marker = node._chatTimelineMarker; // потом пишем — иначе layout thrashing
+        if (!marker) continue;
+        const height = node.offsetHeight;
+        sized.push([marker, height]);
+        total += height;
+    }
+    if (!sized.length) return;
+    const trackHeight = track.clientHeight;
+    if (trackHeight > 0) {
+        track.style.setProperty('--chat-marker-min',
+            `${Math.min(CHAT_MARKER_MIN_PX, trackHeight / sized.length).toFixed(2)}px`);
+    }
+    for (const [marker, height] of sized) {
+        // Лента скрыта (все высоты нули) — раздаём поровну, иначе полоса схлопнется в полы.
+        // Доли не нормируем: при сумме grow < 1 флексбокс раздал бы лишь её часть дорожки.
+        marker.style.flexGrow = total > 0 ? height : 1;
+    }
+}
+
+function _scheduleChatTimelineHeights() {
+    if (_chatTimelineHeightRaf) return;
+    _chatTimelineHeightRaf = requestAnimationFrame(() => {
+        _chatTimelineHeightRaf = 0;
+        _syncChatTimelineHeights();
+    });
 }
 
 // Счёт берём из самой дорожки, а не из отдельных счётчиков: пара «инкремент при вставке /
@@ -707,9 +751,13 @@ function initChatTimeline() {
     _addNotifyPermissionBtn();
     _addNotifyNav();
     _addFinalNav();
+    // Заводим ДО первого прохода по детям, иначе уже существующие узлы останутся без наблюдения.
+    // Ловит и раскрытие/сворачивание, и догрузку картинки, и перенос текста при смене ширины.
+    _chatTimelineSizeObserver = new ResizeObserver(_scheduleChatTimelineHeights);
     for (const node of chat.children) _addChatTimelineMarker(node);
     _recomputeChatTimelineFinals();
     _syncChatTimelineControls();
+    _scheduleChatTimelineHeights();
     _chatTimelineObserver = new MutationObserver(records => {
         for (const record of records) {
             for (const node of record.removedNodes) if (node.nodeType === Node.ELEMENT_NODE) _removeChatTimelineMarker(node);
@@ -717,6 +765,7 @@ function initChatTimeline() {
         }
         _recomputeChatTimelineFinals();
         _syncChatTimelineControls();
+        _scheduleChatTimelineHeights();
     });
     _chatTimelineObserver.observe(chat, {childList: true});
     $('#chat-user-prev')?.addEventListener('click', () => _jumpChatTimelineKind('is-user', -1));
@@ -3839,13 +3888,22 @@ const PortfolioPanel = (() => {
         bindInteractions(panel);
     }
 
+    // Доска показывает проекты ВЫБРАННОГО оркестратора, а не все подряд (#472).
+    // Адресуем сессией по id: именно его хранит portfolio_members, а имена сессий
+    // между scope не уникальны. Id лежит в опции пикера, отдельный запрос не нужен.
+    function selectedOrchestratorSessionId() {
+        return document.getElementById('orch-picker')?.selectedOptions?.[0]?.dataset?.id || '';
+    }
+
     async function load() {
         const panel = document.getElementById('tasks-panel');
         if (!panel || !_portfolioTabActive) return;
         const generation = ++requestGeneration;
         panel.innerHTML = '<div class="portfolio-loading"><span></span>Собираю точное состояние проектов…</div>';
         try {
-            const payload = await api('/api/portfolio/projects');
+            const sessionId = selectedOrchestratorSessionId();
+            const query = sessionId ? `?agent_session_id=${encodeURIComponent(sessionId)}` : '';
+            const payload = await api(`/api/portfolio/projects${query}`);
             if (generation !== requestGeneration || !_portfolioTabActive) return;
             render(payload);
         } catch (error) {

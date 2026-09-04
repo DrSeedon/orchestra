@@ -3297,6 +3297,17 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 && ['mcp__orchestra__task_create','mcp__orchestra__task_update'].includes(tn)) loadTasks();
             return;
         }
+        if (lastTool.dataset.toolRawName === 'mcp__orchestra__record_review_outcome') {
+            const receiptEl = renderReviewOutcomeResult(clean, lastTool.dataset.toolContent);
+            if (receiptEl) {
+                const sep = document.createElement('div');
+                sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
+                sep.appendChild(receiptEl);
+                lastTool.appendChild(sep);
+                addTimestamp(lastTool, ts);
+                return;
+            }
+        }
         const _orchSimpleResults = {
             'mcp__orchestra__kill_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped/); return m ? { text: `💀 ${m[1]} killed`, color: '#22c55e' } : null; },
             'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} stopped`, color: '#22c55e' } : null; },

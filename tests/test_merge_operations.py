@@ -157,6 +157,9 @@ async def test_concurrent_keys_start_exactly_one_executor_and_survive_request_re
         }
 
     monkeypatch.setattr("app.routes.sessions.execute_merge_session", fake_execute)
+    # This test owns operation arbitration, not review coverage: with the policy
+    # marker live the admission refuses before the executor and started never fires.
+    monkeypatch.setattr(operations, "review_coverage_policy_active", lambda: False)
     primary = str(uuid.uuid4())
     ids = [primary] * 20 + [str(uuid.uuid4()), str(uuid.uuid4())]
     responses = await asyncio.gather(*[
@@ -168,7 +171,8 @@ async def test_concurrent_keys_start_exactly_one_executor_and_survive_request_re
         )
         for operation_id in ids
     ])
-    await started.wait()
+    # Bounded on purpose: a regression here must fail loudly, never hang the gate.
+    await asyncio.wait_for(started.wait(), timeout=30)
 
     assert calls == 1
     assert len({response[0]["operation_id"] for response in responses}) == 1
@@ -453,6 +457,7 @@ async def test_runner_rejects_removed_and_respawned_same_name(merge_db, monkeypa
 async def test_restore_runs_pending_once_after_fingerprint_recheck(merge_db, monkeypatch):
     import app.merge_operations as operations
 
+    monkeypatch.setattr(operations, "review_coverage_policy_active", lambda: False)
     monkeypatch.setattr(
         "app.workspace.inspect_worktree_identity",
         lambda _path: ("task-42/worker", "b" * 40),
@@ -522,6 +527,7 @@ async def test_runner_pins_persisted_base_branch_before_execution(merge_db, monk
 async def test_committed_merge_without_terminal_snapshot_is_quarantined(merge_db, monkeypatch):
     import app.merge_operations as operations
 
+    monkeypatch.setattr(operations, "review_coverage_policy_active", lambda: False)
     identity_calls = 0
 
     def inspect_identity(_path):

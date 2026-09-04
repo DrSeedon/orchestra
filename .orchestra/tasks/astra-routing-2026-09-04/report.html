@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GPT-6 Astra × Orchestra — routing brief</title>
+  <style>
+    :root{--bg:#0a0d12;--panel:#121821;--panel2:#171f2b;--text:#edf3fb;--muted:#95a3b6;--line:#2a3545;--a:#7c5cff;--b:#28d7a1;--c:#ffb454;--bad:#ff6b7a;--blue:#4da3ff;--shadow:0 22px 70px #0007}
+    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:radial-gradient(900px 500px at 84% -5%,#39236988,transparent 60%),radial-gradient(700px 500px at -10% 25%,#123b5088,transparent 60%),var(--bg);color:var(--text);font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    a{color:#b9acff;text-decoration:none}a:hover{text-decoration:underline}.wrap{width:min(1180px,calc(100% - 32px));margin:auto}.hero{padding:68px 0 34px}.eyebrow{display:inline-flex;gap:9px;align-items:center;color:#c6bcff;background:#7c5cff18;border:1px solid #7c5cff55;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:750;letter-spacing:.1em;text-transform:uppercase}.dot{width:7px;height:7px;border-radius:50%;background:var(--b);box-shadow:0 0 18px var(--b)}h1{font-size:clamp(42px,7vw,82px);line-height:.96;letter-spacing:-.055em;margin:22px 0 18px;max-width:980px}.lead{font-size:clamp(18px,2.2vw,25px);line-height:1.35;color:#c3cedc;max-width:920px}.stamp{color:var(--muted);margin-top:18px;font-size:13px}.verdict{margin:28px 0 40px;background:linear-gradient(135deg,#1a2230,#10151d);border:1px solid #38465a;border-radius:24px;padding:26px;box-shadow:var(--shadow);display:grid;grid-template-columns:1.4fr .8fr;gap:24px}.verdict h2{font-size:28px;margin:0 0 8px}.verdict p{margin:0;color:#cbd5e3;font-size:17px}.kpi{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.metric{background:#090d13aa;border:1px solid var(--line);border-radius:16px;padding:15px}.metric b{display:block;font-size:26px;letter-spacing:-.04em}.metric span{color:var(--muted);font-size:12px}.ok{color:var(--b)}.warn{color:var(--c)}.bad{color:var(--bad)}
+    nav{position:sticky;top:0;z-index:4;background:#0a0d12dd;backdrop-filter:blur(16px);border-block:1px solid #202938}nav .wrap{display:flex;gap:18px;overflow:auto;padding-block:12px}nav a{white-space:nowrap;color:#aeb9c8;font-size:13px;font-weight:700}.section{padding:42px 0}.section h2{font-size:34px;letter-spacing:-.035em;margin:0 0 10px}.sub{color:var(--muted);max-width:820px;margin:0 0 24px}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}.card{grid-column:span 4;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 10px 34px #0003}.card.wide{grid-column:span 6}.card.full{grid-column:1/-1}.card h3{margin:0 0 8px;font-size:18px}.card p{margin:0;color:#aeb9c8}.tag{display:inline-block;font-size:11px;font-weight:800;padding:5px 8px;border-radius:7px;background:#263247;color:#dbe7f6;margin-bottom:12px}.tag.green{background:#123d32;color:#6ce8bd}.tag.orange{background:#4b3419;color:#ffc878}.tag.red{background:#4a2028;color:#ff9cab}
+    .route{display:grid;grid-template-columns:1.1fr .75fr .55fr 1.6fr;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}.route>div{padding:15px 16px;border-bottom:1px solid var(--line)}.route>div:nth-last-child(-n+4){border-bottom:0}.route .head{background:#1d2634;color:#9faec2;font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.model{font-weight:800}.effort{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#d8d0ff;font-weight:800}
+    .chart{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:22px}.bars{display:flex;align-items:flex-end;gap:12px;height:270px;padding:22px 6px 0;border-bottom:1px solid #344155}.barcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end}.bar{width:100%;max-width:76px;border-radius:10px 10px 3px 3px;background:linear-gradient(180deg,var(--a),#4934a9);position:relative;min-height:20px}.bar:after{content:attr(data-v);position:absolute;top:-24px;left:50%;transform:translateX(-50%);font-weight:800}.barcol small{color:var(--muted)}.barcol b{font-size:12px}.bar.best{background:linear-gradient(180deg,var(--b),#138265)}.bar.stop{background:linear-gradient(180deg,var(--c),#a75d14)}
+    table{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}th,td{padding:13px 15px;text-align:left;border-bottom:1px solid var(--line)}th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9ba9bc;background:#1b2431}tr:last-child td{border-bottom:0}td.num{text-align:right;font-variant-numeric:tabular-nums}.callout{border-left:4px solid var(--c);background:#ffb45412;padding:16px 18px;border-radius:0 14px 14px 0;color:#d7dfeb}.split{display:grid;grid-template-columns:1fr 1fr;gap:16px}.list{margin:0;padding-left:20px;color:#b9c4d3}.list li{margin:8px 0}.source{font-size:13px;color:#97a5b8}.footer{padding:36px 0 70px;color:#7f8ca0;border-top:1px solid #202938}.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:6px 10px;margin:4px 5px 4px 0;color:#b7c2d1;background:#101620}
+    @media(max-width:850px){.verdict,.split{grid-template-columns:1fr}.card,.card.wide{grid-column:1/-1}.route{grid-template-columns:1fr 1fr}.route .head{display:none}.route>div{border-bottom:1px solid var(--line)!important}.route>div:nth-last-child(-n+2){border-bottom:0!important}h1{font-size:48px}}
+    @media(max-width:520px){.wrap{width:min(100% - 20px,1180px)}.hero{padding-top:42px}.route{grid-template-columns:1fr}.route>div:nth-last-child(-n+2){border-bottom:1px solid var(--line)!important}.route>div:last-child{border-bottom:0!important}.bars{gap:5px}.bar:after{font-size:11px}}
+  </style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <span class="eyebrow"><span class="dot"></span> Orchestra model routing · 04.09.2026</span>
+    <h1>Astra не новый default.<br>Это новый верх Sol-lane.</h1>
+    <p class="lead">GPT-6 Astra стоит в 2.5 раза дороже Sol за токен, но на agentic coding использует примерно втрое меньше токенов. Поэтому она может быть дешевле за готовую работу — и всё равно остаётся бессмысленной для закрытых Luna-задач.</p>
+    <div class="stamp">Живой срез: Codex CLI 0.153.2 · cache 12:09:37Z · Astra на аккаунте ещё отсутствует</div>
+    <section class="verdict">
+      <div><h2>Решение: Astra всегда на medium</h2><p>Один фиксированный effort для worker, research, orchestrator и full-cycle. Модель выбирает класс задачи; effort больше не создаёт вторую скрытую маршрутизацию. Luna и Opus остаются на своих уровнях.</p></div>
+      <div class="kpi"><div class="metric"><b class="warn">2.5×</b><span>credits Astra / Sol на токен</span></div><div class="metric"><b class="ok">≈⅓</b><span>coding tokens Astra / Sol</span></div><div class="metric"><b class="ok">67</b><span>AA Coding Agent Index</span></div><div class="metric"><b class="bad">нет</b><span>доступа в нашем catalog сейчас</span></div></div>
+    </section>
+  </div></header>
+  <nav><div class="wrap"><a href="#route">Маршрутизация</a><a href="#economics">Экономика</a><a href="#effort">Effort</a><a href="#evidence">Наши исследования</a><a href="#fit">Где заменяет Sol</a><a href="#integration">Интеграция</a><a href="#sources">Источники</a></div></nav>
+
+  <main>
+    <section class="section" id="route"><div class="wrap">
+      <h2>Маршрут после rollout</h2><p class="sub">Это целевая канарейка, не уже применённая конфигурация. Production не менялся.</p>
+      <div class="route">
+        <div class="head">Класс</div><div class="head">Модель</div><div class="head">Effort</div><div class="head">Зачем</div>
+        <div>Закрытая file+line+oracle</div><div class="model">Luna</div><div class="effort">high</div><div>Самая дешёвая безопасная lane</div>
+        <div>Любой Astra-класс</div><div class="model">Astra</div><div class="effort">medium</div><div>Один optimum; без task-specific повышения</div>
+        <div>Визуал / тонкая проза / независимый review</div><div class="model">Opus 5</div><div class="effort">high</div><div>Другой runtime и отдельный пул</div>
+      </div>
+    </div></section>
+
+    <section class="section" id="economics"><div class="wrap">
+      <h2>Экономика: токен дорогой, работа может быть дешевле</h2><p class="sub">Credits — официальный текущий rate card. Доллары ниже — API-equivalent, не фактическая оплата подписки.</p>
+      <div class="grid">
+        <article class="card"><span class="tag orange">per-token</span><h3>Astra → Sol</h3><p><b>2.5×</b> input, cache и output credits. Никакой магии: если токенов столько же, Astra проиграла.</p></article>
+        <article class="card"><span class="tag green">per-task coding</span><h3>Astra → Sol</h3><p>AA измерила около <b>трёхкратного</b> сокращения токенов. На max задача `$4.72` против Sol max `$5.00`.</p></article>
+        <article class="card"><span class="tag red">general work</span><h3>Astra → Sol</h3><p>Только ≈10% меньше output tokens; max-task <b>на 75% дороже</b> при том же округлённом Intelligence 61.</p></article>
+        <article class="card wide"><h3>ChatGPT credits / 1M</h3><table><tr><th>Model</th><th>Input</th><th>Cache</th><th>Output</th></tr><tr><td>Astra</td><td class="num">250</td><td class="num">25</td><td class="num">1,250</td></tr><tr><td>Sol</td><td class="num">100</td><td class="num">10</td><td class="num">500</td></tr><tr><td>Terra</td><td class="num">50</td><td class="num">5</td><td class="num">300</td></tr><tr><td>Luna</td><td class="num">5</td><td class="num">0.5</td><td class="num">30</td></tr></table></article>
+        <article class="card wide"><h3>Две ловушки</h3><ul class="list"><li><b>Fast:</b> 2.5× credits ради скорости до 2× — default выключен.</li><li><b>&gt;272K input:</b> API применяет 2× input/cache и 1.5× output ко всему запросу; перенос на included allowance не опубликован.</li><li><b>1.05M:</b> это API window, не доказанный ChatGPT-auth budget Orchestra.</li></ul></article>
+      </div>
+    </div></section>
+
+    <section class="section" id="effort"><div class="wrap">
+      <h2>Effort: выбираем medium и больше не двигаем</h2><p class="sub">Высота столбца — AA Coding Agent Index (округлённо). Цена — API cost/task с опубликованного графика.</p>
+      <div class="chart"><div class="bars">
+        <div class="barcol"><div class="bar" style="height:61%" data-v="≈63"></div><b>low</b><small>$1.41</small></div>
+        <div class="barcol"><div class="bar best" style="height:77%" data-v="≈65"></div><b>medium</b><small>$2.19</small></div>
+        <div class="barcol"><div class="bar" style="height:80%" data-v="≈65.5"></div><b>high</b><small>$2.89</small></div>
+        <div class="barcol"><div class="bar" style="height:96%" data-v="≈67"></div><b>xhigh</b><small>$3.27</small></div>
+        <div class="barcol"><div class="bar stop" style="height:97%" data-v="67"></div><b>max</b><small>$4.72</small></div>
+      </div><p class="source">`xhigh → max`: тот же округлённый coding score, примерно +44% цены и +40% токенов. На общем Intelligence Index: 61 → 61 при +39% цены.</p></div>
+      <div class="split" style="margin-top:16px"><div class="callout"><b>Выбранное значение:</b> `medium`. Оно уже выглядит сильнее Sol xhigh на coding harness.</div><div class="callout" style="border-color:var(--a)"><b>Почему не high:</b> около +0.5 coding-пункта за +32% цены; на общем index +1 за +28%.</div></div>
+      <table style="margin-top:16px"><tr><th>Модель</th><th>Наш effort</th><th>Почему остановились здесь</th></tr><tr><td>Luna</td><td class="effort">high</td><td>Medium→high: крупнейший скачок, 38.9→47.0; выше отдача резко падает</td></tr><tr><td>Opus 5</td><td class="effort">high</td><td>Medium→high ≈+2.9; high→xhigh лишь +1.0 при +47% цены</td></tr><tr><td>Sol</td><td class="effort">xhigh → high</td><td>Xhigh выбрали по старой кривой; поздний локальный A/B и свежий coding index поддерживают high</td></tr><tr><td><b>Astra</b></td><td class="effort"><b>medium</b></td><td>High даёт ≈+0.5 coding-пункта за +32%; medium уже около уровня Sol max</td></tr></table>
+    </div></section>
+
+    <section class="section" id="evidence"><div class="wrap">
+      <h2>Что уже доказала Orchestra</h2><p class="sub">Не маркетинговый пересказ, а выводы наших замороженных A/B, quota-разборов и runtime-аудитов.</p>
+      <div class="grid">
+        <article class="card"><span class="tag green">#199 · #203</span><h3>Luna остаётся default</h3><p>3/3 закрытых задач прошли у Luna, Terra и Sol. Terra не дала пользы, Sol нужен открытому классу. Astra не окупает 42–50× Luna credits.</p></article>
+        <article class="card"><span class="tag orange">#373 · #374</span><h3>Sol xhigh → high</h3><p>High/xhigh дали одинаковые 14/14 и один SHA; свежий coding index: high 64/$3.00 против xhigh 63/$3.74. Глобальный xhigh устарел.</p></article>
+        <article class="card"><span class="tag">#176</span><h3>Сильная модель ≠ независимый review</h3><p>Sol→Sol постановка/review/impl усилила ошибку. Astra/Sol работа требует cross-runtime judge для high-stakes.</p></article>
+        <article class="card"><span class="tag">#222</span><h3>Spark — отдельная узкая lane</h3><p>Быстрый на закрытом, но 2/2 придумал отсутствующую константу. Его отдельный quota bucket полезен и после Astra.</p></article>
+        <article class="card"><span class="tag">#232 · #251</span><h3>Grok — ёмкость и X/search</h3><p>Третий пул, не доказанный quality default. Astra не добавляет пул, поэтому не вытесняет Grok как capacity route.</p></article>
+        <article class="card"><span class="tag">#312 · #375 · #376</span><h3>Контекст проверяется живьём</h3><p>Номинальный window не равен эффективному. Persistent app-server уже нормален; Astra требует canary context/compaction, не нового backend.</p></article>
+      </div>
+    </div></section>
+
+    <section class="section" id="fit"><div class="wrap">
+      <h2>Где Astra заменяет Sol — и где нет</h2>
+      <div class="split">
+        <article class="card full"><span class="tag green">сильный кандидат</span><ul class="list"><li><b>Agentic coding:</b> Terminal-Bench 4.0 57.9 vs 37.3; migration 63.9 vs 42.7.</li><li><b>Computer use:</b> OSWorld 72.6 vs 65.7, около 40 против 75 минут.</li><li><b>SRE/security:</b> SRE-Bench 88.0 vs 55.9; свежий ExploitBench 39.0 vs 11.5.</li><li><b>Long-horizon:</b> AA-Briefcase примерно +80 Elo; экспериментальные notes/search across windows.</li><li><b>Надёжность знания:</b> hallucination rate 92% → 51%, accuracy при этом выросла.</li></ul></article>
+        <article class="card full"><span class="tag red">не blanket replacement</span><ul class="list"><li><b>General intelligence:</b> 61.2 vs 60.9, но Astra max-task +75%.</li><li><b>Long-context reasoning:</b> AA-LCR регресс 2–3 пункта.</li><li><b>SciCode / banking:</b> регресс 2–3 пункта.</li><li><b>Presentation:</b> качество подачи снизилось, Sol остаётся лидером AA.</li><li><b>Luna tasks:</b> экономически бессмысленно; <b>Opus tasks:</b> теряется отдельный пул и независимость runtime.</li></ul></article>
+      </div>
+    </div></section>
+
+    <section class="section" id="integration"><div class="wrap">
+      <h2>Впихнуть без костылей</h2><p class="sub">Сейчас Astra отсутствует в entitlement, поэтому это точная последовательность после появления в catalog, а не правка production сегодня.</p>
+      <div class="grid">
+        <article class="card full"><ol class="list"><li>`ModelSpec` + alias `astra`; существующий runtime `codex`.</li><li>Price/context maps по живому ChatGPT-auth измерению; отдельная обработка &gt;272K для виртуальной цены.</li><li>Общий quota bucket `codex`; новый пул не выдумывать.</li><li>Во всех role maps один exact-model ключ: `gpt-6-astra: medium`; никаких effort-эскалаций.</li><li>Три A/B: coding, research, full-cycle. Frozen commit/prompt/oracle; A/B/A/B; fresh thread.</li><li>Context management тестировать отдельно, иначе модель и память смешаются в один неразличимый эффект.</li><li>Sol держать rollback до фактической победы Astra на credits/task и acceptance.</li></ol></article>
+      </div>
+    </div></section>
+
+    <section class="section" id="sources"><div class="wrap">
+      <h2>Источники</h2>
+      <p><a class="pill" href="https://openai.com/index/gpt-6-astra/">OpenAI launch</a><a class="pill" href="https://developers.openai.com/api/docs/models/gpt-6-astra">Model card</a><a class="pill" href="https://developers.openai.com/codex/models">Codex models</a><a class="pill" href="https://developers.openai.com/codex/pricing">Codex credits</a><a class="pill" href="https://artificialanalysis.ai/articles/benchmarking-gpt-6-astra">Artificial Analysis</a><a class="pill" href="https://arcprize.org/blog/astra">ARC Prize</a></p>
+      <p class="source">Локальная evidence base: tasks #176, #199, #203, #204, #208, #222, #232, #236, #251, #262, #285, #289, #298, #310, #312, #334, #354, #373–376, #434, #437, #469, #506; opus5-routing, sol-model-comparison, subscription-strategy.</p>
+    </div></section>
+  </main>
+  <footer class="footer"><div class="wrap">Production/config не менялись · Astra entitlement отсутствует · следующий шаг только после появления модели в live catalog.</div></footer>
+</body>
+</html>

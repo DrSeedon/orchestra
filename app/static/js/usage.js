@@ -39,6 +39,17 @@ function _resetCountdown(isoStr) {
     return `${h}h ${m}m`;
 }
 
+function _krskReset(isoStr) {
+    if (!isoStr) return '';
+    const at = new Date(isoStr);
+    if (Number.isNaN(at.getTime())) return '';
+    return new Intl.DateTimeFormat('ru-RU', {
+        timeZone: 'Asia/Krasnoyarsk',
+        weekday: 'short', day: 'numeric', month: 'short',
+        hour: '2-digit', minute: '2-digit',
+    }).format(at);
+}
+
 function _resetPctNum(isoStr, windowMs) {
     if (!isoStr) return null;
     const remaining = new Date(isoStr) - Date.now();
@@ -414,6 +425,11 @@ function renderUsageBar() {
                     let html = `<div style="margin-bottom:9px"><div style="color:${accent};font-weight:600;margin-bottom:2px">${label} окно</div>`;
                     html += _row('Использовано', `${window.utilization}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
                     if (cd) html += _row('Сброс через', cd, '#64748b');
+                    // Недельное окно живёт днями — «через 3d 21h» не читается как момент времени.
+                    if (window.window_minutes >= 1440) {
+                        const krsk = _krskReset(window.resets_at);
+                        if (krsk) html += _row('Сброс (Крск)', krsk, '#64748b');
+                    }
                     if (rpNum != null) html += _row('Прогресс окна', `${_resetPctText(rpNum)}%`, '#64748b');
                     html += _row('Отклонение', pace, null);
                     if (eta) html += _row('Лимит через', eta, null);

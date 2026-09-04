@@ -3945,6 +3945,138 @@ def test_chat_timeline_navigates_events_and_cycles_user_messages(
     page.close()
 
 
+def test_chat_timeline_marker_height_tracks_message_height(
+    dashboard_browser: Browser,
+):
+    """Полоса справа — миникарта: высота метки = доля высоты её сообщения.
+
+    Жалоба юзера 04.09: «из-за длины сообщений не совпадает справа эта штука».
+    Огромный отчёт с таблицей и короткая строка давали одинаковые прямоугольники —
+    `flex: 1 1 1px` не зависел от сообщения вовсе, а `max-height: 7px` рубил рост.
+    Меряем ОТРИСОВАННУЮ высоту через getBoundingClientRect, а не класс и не длину текста.
+    """
+    root = Path(__file__).parent.parent
+    source = (root / "app/static/js/app.js").read_text()
+    timeline_code = (
+        "let _chatTimelineObserver"
+        + source.split("let _chatTimelineObserver", 1)[1].split(
+            "function _prepareChatAnchorRestore", 1,
+        )[0]
+    )
+    page = dashboard_browser.new_page(viewport={"width": 900, "height": 700})
+    page.set_content(
+        """
+        <div style="position:relative;width:520px;height:600px">
+          <div id="chat" style="height:100%;overflow-y:auto"></div>
+          <aside id="chat-timeline" class="chat-timeline">
+            <div class="chat-timeline-user-nav">
+              <button id="chat-user-prev">↑</button><span id="chat-user-count"></span>
+              <button id="chat-user-next">↓</button>
+            </div>
+            <div id="chat-timeline-track" class="chat-timeline-track"></div>
+          </aside>
+          <button id="chat-jump-latest"></button>
+        </div>
+        """
+    )
+    page.add_style_tag(path=str(root / "app/static/css/style.css"))
+    page.add_script_tag(
+        content="""
+        const $ = selector => document.querySelector(selector);
+        let _chatFollow = true;
+        let scrollAfterLoad = true;
+        let _pendingChatRestore = null;
+        const _syncChatJumpButton = () => {};
+        """
+        + timeline_code
+        + """
+        window.addSized = (label, px) => {
+            const node = document.createElement('div');
+            node.style.cssText = `height:${px}px;flex:0 0 ${px}px`;
+            node.dataset.testLabel = label;
+            node.textContent = label;
+            _tagChatTimelineNode(node, 'assistant', '2026-08-11T10:00:00Z');
+            $('#chat').appendChild(node);
+            return node;
+        };
+        window.setSized = (label, px) => {
+            const node = [...$('#chat').children]
+                .find(child => child.dataset.testLabel === label);
+            node.style.cssText = `height:${px}px;flex:0 0 ${px}px`;
+        };
+        // Ждём КАДРАМИ, а не временем. Четырёх хватает по порядку шагов кадра, и меньше
+        // нельзя: ResizeObserver доставляется ПОСЛЕ фазы rAF, поэтому запланированный им
+        // пересчёт приземляется на кадр позже обычной цепочки rAF. На двух кадрах проба
+        // читала прошлые высоты и врала «рост не доехал» при живом пересчёте.
+        window.settled = (frames = 4) => new Promise(resolve => {
+            const tick = left => left
+                ? requestAnimationFrame(() => tick(left - 1))
+                : resolve(measure());
+            tick(frames);
+        });
+        window.measure = () => {
+            const track = $('#chat-timeline-track');
+            const rows = [...$('#chat').children].map(node => ({
+                label: node.dataset.testLabel,
+                node: node.getBoundingClientRect().height,
+                marker: node._chatTimelineMarker.getBoundingClientRect().height,
+            }));
+            return {rows, track: track.getBoundingClientRect().height};
+        };
+        addSized('short', 50);
+        addSized('tall', 250);
+        addSized('mid', 100);
+        initChatTimeline();
+        """,
+    )
+
+    def shares(state):
+        total = sum(row["marker"] for row in state["rows"])
+        return {row["label"]: row["marker"] / total for row in state["rows"]}
+
+    def expected(state):
+        total = sum(row["node"] for row in state["rows"])
+        return {row["label"]: row["node"] / total for row in state["rows"]}
+
+    first = page.evaluate("() => settled()")
+    got, want = shares(first), expected(first)
+    assert got["tall"] > got["mid"] > got["short"], (
+        f"метки не отражают высоту сообщений: {first['rows']}"
+    )
+    for label in want:
+        assert abs(got[label] - want[label]) < 0.05, (
+            f"{label}: доля метки {got[label]:.3f} против доли сообщения "
+            f"{want[label]:.3f}; все метки — {first['rows']}"
+        )
+
+    # Сообщение выросло (раскрыли / догрузилась картинка) — полоса обязана пересчитаться.
+    page.evaluate("() => setSized('short', 600)")
+    grown = page.evaluate("() => settled()")
+    got, want = shares(grown), expected(grown)
+    assert got["short"] > got["tall"], (
+        f"рост сообщения не доехал до полосы: {grown['rows']}"
+    )
+    for label in want:
+        assert abs(got[label] - want[label]) < 0.05, (
+            f"после роста {label}: {got[label]:.3f} против {want[label]:.3f}; "
+            f"все метки — {grown['rows']}"
+        )
+
+    # Гигант не съедает полосу, а мелкие остаются кликабельными.
+    page.evaluate("() => setSized('short', 12000)")
+    huge = page.evaluate("() => settled()")
+    by_label = {row["label"]: row["marker"] for row in huge["rows"]}
+    assert by_label["short"] < huge["track"] * 0.85, (
+        f"гигантское сообщение съело полосу: {huge}"
+    )
+    for label, height in by_label.items():
+        assert height >= 2, f"метка {label} выродилась в невидимую полоску: {huge}"
+    assert sum(by_label.values()) <= huge["track"] + 1, (
+        f"метки не поместились в дорожку и обрезаны: {huge}"
+    )
+    page.close()
+
+
 def test_chat_timeline_navigates_final_agent_answers_only(
     dashboard_browser: Browser,
 ):
@@ -5291,7 +5423,10 @@ def test_project_road_425_uses_real_dashboard_dom_and_load_path(dashboard_page: 
         """payload => {
             window.__apiBeforeRoad425 = api;
             api = async path => {
-                if (path === '/api/portfolio/projects') return payload;
+                // Срез по выбранному оркестратору приходит query-параметром (#472),
+                // поэтому заглушка ловит эндпоинт, а не дословную строку.
+                if (path === '/api/portfolio/projects'
+                    || path.startsWith('/api/portfolio/projects?')) return payload;
                 return window.__apiBeforeRoad425(path);
             };
         }""",
@@ -5315,3 +5450,227 @@ def test_project_road_425_uses_real_dashboard_dom_and_load_path(dashboard_page: 
                 switchLeftTab('files');
             }"""
         )
+
+
+def _review_outcome_result_text() -> str:
+    """Ровно та форма, что доезжает до чата: `str(dict)` из backend_claude.py:475.
+
+    Не JSON: одинарные кавычки и `None`, поэтому общий путь с `JSON.parse` её не берёт.
+    """
+    return str(
+        {
+            "receipt_id": "review-receipt:01435214-5df0-4073-8eaa-6d074fb12240",
+            "schema_version": 1,
+            "runtime": "codex",
+            "reviewer_model": "gpt-5.6-luna",
+            "session_id": "80c6c2dd-55d5-4039-a7e2-c92ab2ff95d1",
+            "worker_name": "fix-projects-scope",
+            "task_id": "472",
+            "artifact_path": "",
+            "mode": "implementation",
+            "round": None,
+            "job_id": "",
+            "usage_event_id": "",
+            "status": "completed",
+            "failure_code": "",
+            "recovery_source": "",
+            "author_outcome": "disputed",
+            "outcome_evidence_ref": (
+                "REVIEW-EVIDENCE-MARKER verdict ACK, 0 blocking, 2 P2 disputed with "
+                "evidence: the partial unique index makes the duplicate state "
+                "unreachable, and the switch wiring is pre-existing and untouched by "
+                "this diff, so neither finding changes the artifact."
+            ),
+            "coverage_outcome": "reviewed",
+            "decision_actor": "",
+            "production_paths_json": (
+                '["app/portfolio.py", "app/routes/portfolio.py", "app/static/js/app.js"]'
+            ),
+            "production_snapshot_sha256": (
+                "67cf8c11459b2d4fd678a7452d9604a6aa5c4775b735ba7311043b2223823784"
+            ),
+            "target_sha": "2268e0fed51e4b438f8eeed8b3425469ba499ed7",
+            "worker_head": "2735fcf1c5b9c649c4c4c796e0099604c9cc588d",
+        }
+    )
+
+
+def test_review_outcome_result_renders_receipt_card_without_echoing_arguments(
+    dashboard_browser: Browser,
+):
+    """#478: результат record_review_outcome — карточка, а не сырой python-repr."""
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    def _serve(body: str):
+        # Playwright передаёт в обработчик ВТОРЫМ аргументом Request, поэтому захват
+        # тела через дефолтный параметр lambda затирается им же.
+        return lambda route: route.fulfill(
+            status=200, content_type="application/javascript", body=body
+        )
+
+    for name in ("chat.js", "tool-renderers.js"):
+        source = (Path(__file__).parent.parent / f"app/static/js/{name}").read_text()
+        page.route(f"**/static/js/{name}*", _serve(source))
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof addChatEntry === 'function'")
+    page.wait_for_timeout(2000)
+
+    result_text = _review_outcome_result_text()
+    args = {
+        "receipt_id": "review-receipt:01435214-5df0-4073-8eaa-6d074fb12240",
+        "outcome": "disputed",
+        "outcome_evidence_ref": (
+            "REVIEW-EVIDENCE-MARKER verdict ACK, 0 blocking, 2 P2 disputed with evidence"
+        ),
+    }
+    page.evaluate(
+        """([resultText, args]) => {
+            selectedAgent = null;
+            if (eventSource) { eventSource.close(); eventSource = null; }
+            document.querySelector('#chat').innerHTML = '';
+            addChatEntry(
+                'tool',
+                'mcp__orchestra__record_review_outcome: ' + JSON.stringify(args),
+                null, null, {tool_use_id: 'receipt-478'},
+            );
+            addChatEntry(
+                'tool_result', resultText, null, null, {tool_use_id: 'receipt-478'},
+            );
+        }""",
+        [result_text, args],
+    )
+
+    card = page.locator('[data-role="review-outcome"]')
+    expect(card).to_have_count(1)
+    card_text = card.inner_text()
+
+    # Полезная нагрузка на месте.
+    assert "01435214-5df0-4073-8eaa-6d074fb12240" in card_text
+    assert "reviewed" in card_text
+    assert "completed" in card_text
+    assert "app/portfolio.py" in card_text
+
+    # Пустые поля не рисуются вовсе.
+    for empty_field in (
+        "artifact_path",
+        "job_id",
+        "usage_event_id",
+        "failure_code",
+        "recovery_source",
+        "round",
+        "decision_actor",
+    ):
+        assert empty_field not in card_text, f"пустое поле {empty_field} отрисовано"
+
+    # Сырой python-repr не протёк в карточку.
+    assert "'schema_version'" not in card_text
+    assert "None" not in card_text
+
+    # Длинный ref показан РОВНО один раз — в аргументах, и не продублирован в результате.
+    assert page.locator("#chat").inner_text().count("REVIEW-EVIDENCE-MARKER") == 1
+
+    page.close()
+
+
+def test_review_outcome_error_result_falls_back_to_plain_rendering(
+    dashboard_browser: Browser,
+):
+    """#478: не-квитанция (ошибка тула) не должна давать пустую карточку."""
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+
+    def _serve(body: str):
+        return lambda route: route.fulfill(
+            status=200, content_type="application/javascript", body=body
+        )
+
+    for name in ("chat.js", "tool-renderers.js"):
+        source = (Path(__file__).parent.parent / f"app/static/js/{name}").read_text()
+        page.route(f"**/static/js/{name}*", _serve(source))
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof addChatEntry === 'function'")
+    page.wait_for_timeout(2000)
+
+    page.evaluate(
+        """() => {
+            selectedAgent = null;
+            if (eventSource) { eventSource.close(); eventSource = null; }
+            document.querySelector('#chat').innerHTML = '';
+            addChatEntry(
+                'tool',
+                'mcp__orchestra__record_review_outcome: ' + JSON.stringify({receipt_id: 'x'}),
+                null, null, {tool_use_id: 'receipt-478-error'},
+            );
+            addChatEntry(
+                'tool_result',
+                'Error: receipt not found: RECEIPT-ERROR-MARKER',
+                null, null, {tool_use_id: 'receipt-478-error'},
+            );
+        }"""
+    )
+
+    expect(page.locator('[data-role="review-outcome"]')).to_have_count(0)
+    assert "RECEIPT-ERROR-MARKER" in page.locator("#chat").inner_text()
+    page.close()
+
+
+def test_review_outcome_card_handles_escapes_arrays_and_broken_payloads(
+    dashboard_browser: Browser,
+):
+    """#478 round 1 ревью: разбор repr не портит текст и не рисует обрывки."""
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+
+    def _serve(body: str):
+        return lambda route: route.fulfill(
+            status=200, content_type="application/javascript", body=body
+        )
+
+    for name in ("chat.js", "tool-renderers.js"):
+        source = (Path(__file__).parent.parent / f"app/static/js/{name}").read_text()
+        page.route(f"**/static/js/{name}*", _serve(source))
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof addChatEntry === 'function'")
+    page.wait_for_timeout(2000)
+
+    # Аргументы БЕЗ outcome_evidence_ref → ref рисуется, и переносы строк обязаны выжить.
+    escaped = str(
+        {
+            "receipt_id": "review-receipt:esc",
+            "status": "completed",
+            "outcome_evidence_ref": "ESCLINE-one\nESCLINE-two",
+        }
+    )
+    broken = "{'receipt_id': 'x', 'status': }"
+
+    page.evaluate(
+        """([escaped, broken]) => {
+            selectedAgent = null;
+            if (eventSource) { eventSource.close(); eventSource = null; }
+            document.querySelector('#chat').innerHTML = '';
+            const emit = (id, args, result) => {
+                addChatEntry('tool',
+                    'mcp__orchestra__record_review_outcome: ' + args,
+                    null, null, {tool_use_id: id});
+                addChatEntry('tool_result', result, null, null, {tool_use_id: id});
+            };
+            emit('esc-478', JSON.stringify({receipt_id: 'review-receipt:esc'}), escaped);
+            emit('arr-478', '[]', escaped);
+            emit('broken-478', JSON.stringify({receipt_id: 'x'}), broken);
+        }""",
+        [escaped, broken],
+    )
+
+    cards = page.locator('[data-role="review-outcome"]')
+    # Битый payload карточку не даёт: две вместо трёх.
+    expect(cards).to_have_count(2)
+
+    # Экранированный \n расшифрован, а не превращён в букву n.
+    escaped_card = cards.nth(0).inner_text()
+    assert "ESCLINE-one" in escaped_card and "ESCLINE-two" in escaped_card
+    assert "ESCLINE-onenESCLINE-two" not in escaped_card
+
+    # Аргументы-массив читать нельзя → ref не рисуем вовсе (безопасный дефолт).
+    assert "ESCLINE-one" not in cards.nth(1).inner_text()
+
+    page.close()
