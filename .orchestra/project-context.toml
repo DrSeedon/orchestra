@@ -1,0 +1,7 @@
+schema_version = 1
+scale = "distributed platform team, production"
+users = "high-load multi-project orchestration"
+stack = "Python 3.12+, FastAPI, Jinja2, SSE, SQLite, Codex and Claude runtimes"
+philosophy = "simple shared runtime with explicit contracts and deterministic agent workflows"
+what_matters = "correctness, isolation, data integrity, durable delivery, and truthful operator state"
+what_does_not_matter = "enterprise ceremony, speculative abstractions, or maximizing test coverage as an end in itself"

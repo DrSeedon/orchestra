@@ -101,7 +101,8 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
     assert '[ "$FINALIZE_RC" -eq 0 ] || exit "$FINALIZE_RC"' in command
     assert ("--require-verdict" in command) is (mode == "exec")
     assert command.index("rm -f") < command.index(" | tee ")
-    assert "high-load multi-project orchestration" in command
+    assert "PROJECT CONTEXT IS UNKNOWN" in command
+    assert "high-load multi-project orchestration" not in command
     assert "small team" not in command and "MVP stage" not in command
     if mode == "review":
         assert "exec review" in command
@@ -242,7 +243,7 @@ async def test_codex_review_rejects_unusable_model_before_any_api_call(monkeypat
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("context", ["", "review this diff without authority"])
+@pytest.mark.parametrize("context", ["", "  "])
 async def test_codex_review_rejects_missing_project_context_before_any_api_call(
     monkeypatch, context,
 ):
@@ -278,7 +279,7 @@ def test_codex_review_tool_schema_requires_project_context():
 
     tool = next(t for t in mcp.mcp._tool_manager.list_tools() if t.name == "codex_review")
     assert tool.parameters["required"] == ["context"]
-    assert "PROJECT CONTEXT" in tool.description
+    assert "Project calibration is loaded from the reviewed repo" in tool.description
 
 
 @pytest.mark.asyncio
