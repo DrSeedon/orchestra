@@ -16,6 +16,14 @@ PROJECT_CONTEXT = """PROJECT CONTEXT:
 - Stack: Python, FastAPI, SQLite, Git worktrees
 - What matters: review coverage is bound to the exact production snapshot
 """
+PROJECT_CONTEXT_FILE = """schema_version = 1
+scale = "production test platform"
+users = "review coverage tests"
+stack = "Python and SQLite"
+philosophy = "snapshot-bound review"
+what_matters = "review provenance and data integrity"
+what_does_not_matter = "deployment ceremony"
+"""
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -33,8 +41,12 @@ def _repo(tmp_path: Path, changed_path: str = "app/widget.py") -> tuple[Path, st
     _git(repo, "config", "user.email", "review-coverage@test")
     _git(repo, "config", "user.name", "review coverage")
     (repo / "README.md").write_text("base\n")
-    _git(repo, "add", "README.md")
+    owner = repo / ".orchestra/project-context.toml"
+    owner.parent.mkdir()
+    owner.write_text(PROJECT_CONTEXT_FILE, encoding="utf-8")
+    _git(repo, "add", "README.md", ".orchestra/project-context.toml")
     _git(repo, "commit", "-m", "base")
+    assert _git(repo, "show", "HEAD:.orchestra/project-context.toml") == PROJECT_CONTEXT_FILE.strip()
     target_sha = _git(repo, "rev-parse", "HEAD")
     _git(repo, "switch", "-c", "task-462/worker")
     path = repo / changed_path

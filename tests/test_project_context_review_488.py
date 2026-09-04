@@ -33,6 +33,10 @@ def _repo_with_worktree(tmp_path: Path, *, context: str | None) -> tuple[Path, P
     _git(repo, "config", "user.email", "test@example.invalid")
     _git(repo, "config", "user.name", "Test")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "reviewed-project"\nversion = "1.0"\n',
+        encoding="utf-8",
+    )
     if context is not None:
         owner = repo / ".orchestra/project-context.toml"
         owner.parent.mkdir()
@@ -178,43 +182,124 @@ async def test_review_uses_foreign_worktree_pinned_base_and_quarantines_caller_f
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("owner_present", [True, False])
-async def test_review_receipt_and_prompt_report_loaded_or_explicit_unknown(
-    tmp_path, monkeypatch, owner_present,
-):
-    context = _context("base scale", "base users") if owner_present else None
-    _repo, worktree, _base_sha = _repo_with_worktree(tmp_path, context=context)
+async def test_valid_project_context_still_starts_review(tmp_path, monkeypatch):
+    _repo, worktree, _base_sha = _repo_with_worktree(
+        tmp_path, context=_context("base scale", "base users"),
+    )
     result, captured = await _review(monkeypatch, worktree=worktree, scope=tmp_path)
 
     command = captured["config"]["command"]
     receipt = captured["receipt"]["project_context"]
     text = "\n".join(block.text for block in result.content if block.type == "text")
-    if owner_present:
-        assert "Scale: base scale" in command
-        assert "PROJECT CONTEXT IS UNKNOWN" not in command
-        assert receipt["status"] == "loaded"
-        assert receipt["warning"] == ""
-        assert "Project context warning" not in text
-    else:
-        assert "PROJECT CONTEXT IS UNKNOWN" in command
-        assert "Scale: UNKNOWN" in command
-        assert receipt["status"] == "unknown"
-        assert receipt["warning"]
-        assert "Project context warning" in text
+    assert "Scale: base scale" in command
+    assert "PROJECT CONTEXT IS UNKNOWN" not in command
+    assert receipt["status"] == "loaded"
+    assert receipt["warning"] == ""
+    assert "Project context warning" not in text
 
 
 @pytest.mark.asyncio
-async def test_invalid_project_context_is_explicit_unknown_without_blocking_review(
+async def test_invalid_project_context_refuses_before_job_and_names_field(
     tmp_path, monkeypatch,
 ):
-    invalid = _context("base scale", "base users") + 'unexpected = "drift"\n'
+    import app.db as db
+    import app.mcp_stdio as mcp
+
+    invalid = _context("", "base users")
     _repo, worktree, _base_sha = _repo_with_worktree(tmp_path, context=invalid)
+    api_calls = []
 
-    _result, captured = await _review(monkeypatch, worktree=worktree, scope=tmp_path)
+    async def fake_api(method, path, **_kwargs):
+        api_calls.append((method, path))
+        if method == "GET":
+            return {
+                "id": "requester-491",
+                "scope": str(tmp_path),
+                "cwd": str(tmp_path),
+                "worktree_path": str(worktree),
+                "base_branch": "main",
+                "task_id": "491",
+            }
+        raise AssertionError("invalid context must refuse before readiness/job creation")
 
-    command = captured["config"]["command"]
-    receipt = captured["receipt"]["project_context"]
-    assert "PROJECT CONTEXT IS UNKNOWN" in command
-    assert receipt["status"] == "unknown"
-    assert "unknown keys: unexpected" in receipt["warning"]
-    assert len(receipt["source_sha256"]) == 64
+    monkeypatch.setattr(mcp, "_api", fake_api)
+    monkeypatch.setattr(db, "init_db", lambda: (_ for _ in ()).throw(
+        AssertionError("invalid context must refuse before receipt/usage reservation")
+    ))
+
+    with pytest.raises(mcp.ApiToolError) as caught:
+        await mcp.codex_review(context="Review it", target="tracked.txt", mode="exec")
+
+    owner = _repo / ".orchestra/project-context.toml"
+    assert caught.value.code == "project_context_invalid"
+    assert f"Project context file is invalid: {owner}" in caught.value.message
+    assert "Invalid field 'scale'" in caught.value.message
+    assert api_calls == [("GET", f"/api/sessions/{mcp.WORKER_NAME}")]
+
+
+@pytest.mark.asyncio
+async def test_missing_project_context_refuses_with_self_service_template(
+    tmp_path, monkeypatch,
+):
+    import app.db as db
+    import app.mcp_stdio as mcp
+
+    repo, worktree, _base_sha = _repo_with_worktree(tmp_path, context=None)
+    api_calls = []
+
+    async def fake_api(method, path, **_kwargs):
+        api_calls.append((method, path))
+        if method == "GET":
+            return {
+                "id": "requester-491",
+                "scope": str(tmp_path / "different-parent-scope"),
+                "cwd": str(tmp_path / "different-parent-scope"),
+                "worktree_path": str(worktree),
+                "base_branch": "main",
+                "task_id": "491",
+            }
+        raise AssertionError("missing context must refuse before readiness/job creation")
+
+    monkeypatch.setattr(mcp, "_api", fake_api)
+    monkeypatch.setattr(db, "init_db", lambda: (_ for _ in ()).throw(
+        AssertionError("missing context must refuse before receipt/usage reservation")
+    ))
+
+    with pytest.raises(mcp.ApiToolError) as missing:
+        await mcp.codex_review(context="Review it", target="tracked.txt", mode="exec")
+
+    owner = repo / ".orchestra/project-context.toml"
+    message = missing.value.message
+    assert missing.value.code == "project_context_missing"
+    assert f"Project context file is missing: {owner}" in message
+    assert "Project inferred from repository: reviewed-project" in message
+    assert 'stack = "Python"' in message
+    hints = {
+        "scale": "team size and delivery stage",
+        "users": "actual user count and peak load",
+        "stack": "languages, frameworks, and storage",
+        "philosophy": "what the project optimizes for",
+        "what_matters": "review-critical qualities",
+        "what_does_not_matter": "deliberate non-goals",
+    }
+    for field, hint in hints.items():
+        assert f"{field} = " in message
+        assert f"# {hint}" in message
+    template = message.split("--- BEGIN PROJECT CONTEXT TEMPLATE ---\n", 1)[1].split(
+        "\n--- END PROJECT CONTEXT TEMPLATE ---", 1,
+    )[0]
+
+    owner.parent.mkdir(exist_ok=True)
+    owner.write_text(template, encoding="utf-8")
+    _git(repo, "add", ".orchestra/project-context.toml")
+    _git(repo, "commit", "-m", "copy generated template verbatim")
+    with pytest.raises(mcp.ApiToolError) as placeholder:
+        await mcp.codex_review(context="Review it", target="tracked.txt", mode="exec")
+
+    assert placeholder.value.code == "project_context_invalid"
+    assert "Invalid field 'scale'" in placeholder.value.message
+    assert "placeholder must be replaced" in placeholder.value.message
+    assert api_calls == [
+        ("GET", f"/api/sessions/{mcp.WORKER_NAME}"),
+        ("GET", f"/api/sessions/{mcp.WORKER_NAME}"),
+    ]

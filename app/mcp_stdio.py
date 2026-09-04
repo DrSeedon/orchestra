@@ -3545,6 +3545,15 @@ _PROJECT_CONTEXT_FIELDS = (
 _PROJECT_CONTEXT_KEYS = frozenset({
     "schema_version", *[key for key, _ in _PROJECT_CONTEXT_FIELDS],
 })
+_PROJECT_CONTEXT_HINTS = {
+    "scale": "team size and delivery stage",
+    "users": "actual user count and peak load",
+    "stack": "languages, frameworks, and storage",
+    "philosophy": "what the project optimizes for",
+    "what_matters": "review-critical qualities",
+    "what_does_not_matter": "deliberate non-goals",
+}
+_PROJECT_CONTEXT_PLACEHOLDER_PREFIX = "<REQUIRED:"
 _CALLER_PROJECT_FIELD_RE = re.compile(
     r"^\s*(?:>\s*)*(?:(?:[-+*]|\d+[.)])\s*)?(?:\[[ xX]\]\s*)?"
     r"(?:#{1,6}\s*)?(?:[*_`]\s*)*(?:scale|users|stack|philosophy|"
@@ -3611,23 +3620,106 @@ def _review_repository_root(cwd: str) -> Path:
     return common_dir.resolve().parent
 
 
-def _unknown_project_context(reason: str) -> str:
-    fields = "\n".join(
-        f"- {label}: UNKNOWN — project context unavailable"
-        for _, label in _PROJECT_CONTEXT_FIELDS
+@dataclass
+class _ProjectContextError(ValueError):
+    kind: str
+    path: Path
+    field: str
+    detail: str
+    template: str
+
+
+def _git_review_has_path(cwd: str, revision: str, path: str) -> bool:
+    completed = subprocess.run(
+        ["git", "-C", cwd, "cat-file", "-e", f"{revision}:{path}"],
+        capture_output=True,
+        check=False,
     )
+    return completed.returncode == 0
+
+
+def _infer_project_stack(cwd: str, revision: str) -> str:
+    paths = set(_git_review_text(cwd, "ls-tree", "-r", "--name-only", revision).splitlines())
+    stacks = []
+    signals = (
+        ("Python", lambda: "pyproject.toml" in paths or any(p.endswith(".py") for p in paths)),
+        ("JavaScript/TypeScript", lambda: "package.json" in paths),
+        ("Rust", lambda: "Cargo.toml" in paths),
+        ("Go", lambda: "go.mod" in paths),
+        ("Java", lambda: "pom.xml" in paths or "build.gradle" in paths),
+        ("Ruby", lambda: "Gemfile" in paths),
+    )
+    for name, present in signals:
+        if present():
+            stacks.append(name)
+    return ", ".join(stacks)
+
+
+def _project_context_template(repository: Path, stack: str) -> str:
+    lines = [
+        f"# Project: {repository.name} (inferred from repository)",
+        "schema_version = 1",
+    ]
+    for key, _label in _PROJECT_CONTEXT_FIELDS:
+        value = stack if key == "stack" and stack else (
+            f"{_PROJECT_CONTEXT_PLACEHOLDER_PREFIX} {_PROJECT_CONTEXT_HINTS[key]}>"
+        )
+        lines.append(
+            f"{key} = {json.dumps(value, ensure_ascii=False)}"
+            f"  # {_PROJECT_CONTEXT_HINTS[key]}"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _project_context_error_message(error: _ProjectContextError) -> str:
+    if error.kind == "missing":
+        reason = f"Project context file is missing: {error.path}"
+        action = "Create this file, replace every <REQUIRED: ...> value, and retry codex_review."
+    else:
+        reason = f"Project context file is invalid: {error.path}"
+        action = "Fix the named field, replace every <REQUIRED: ...> value, and retry codex_review."
+    field = f"\nInvalid field '{error.field}': {error.detail}" if error.field else ""
     return (
-        "PROJECT CONTEXT (tool-owned; calibrate review severity):\n"
-        f"{fields}\n"
-        f"WARNING: PROJECT CONTEXT IS UNKNOWN — {reason}"
+        f"{reason}{field}\n"
+        f"{action}\n"
+        f"Project inferred from repository: {error.path.parent.parent.name}\n"
+        "--- BEGIN PROJECT CONTEXT TEMPLATE ---\n"
+        f"{error.template}"
+        "--- END PROJECT CONTEXT TEMPLATE ---"
     )
+
+
+def _validate_project_context(parsed: dict[str, Any]) -> list[tuple[str, str]]:
+    unknown = sorted(set(parsed) - _PROJECT_CONTEXT_KEYS)
+    if unknown:
+        raise ValueError(f"{unknown[0]}|unknown field")
+    if "schema_version" not in parsed:
+        raise ValueError("schema_version|required field is missing")
+    if parsed["schema_version"] != 1:
+        raise ValueError("schema_version|must be 1")
+    values = []
+    for key, label in _PROJECT_CONTEXT_FIELDS:
+        if key not in parsed:
+            raise ValueError(f"{key}|required field is missing")
+        value = parsed[key]
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{key}|must be a non-empty string")
+        value = value.strip()
+        if value.startswith(_PROJECT_CONTEXT_PLACEHOLDER_PREFIX):
+            raise ValueError(f"{key}|placeholder must be replaced")
+        if "\n" in value or "\r" in value:
+            raise ValueError(f"{key}|must be a single-line string")
+        values.append((label, value))
+    return values
 
 
 def _load_review_project_context(
     cwd: str, *, source_ref: str, requested_at: str, reviewed_head: str = "",
 ) -> tuple[str, dict[str, str]]:
+    repository = _review_repository_root(cwd)
+    owner_path = repository / _PROJECT_CONTEXT_PATH
     provenance = {
-        "status": "unknown",
+        "status": "loaded",
         "warning": "",
         "source_path": _PROJECT_CONTEXT_PATH,
         "source_revision": "",
@@ -3636,49 +3728,49 @@ def _load_review_project_context(
         "reviewed_head": "",
         "requested_at": requested_at,
     }
+    provenance["repository"] = str(repository)
+    provenance["reviewed_head"] = reviewed_head or _git_review_text(
+        cwd, "rev-parse", "--verify", "HEAD^{commit}",
+    )
+    source_revision = _git_review_text(
+        cwd, "rev-parse", "--verify", f"{source_ref}^{{commit}}",
+    )
+    provenance["source_revision"] = source_revision
+    stack = _infer_project_stack(cwd, source_revision)
+    template = _project_context_template(repository, stack)
+    if not _git_review_has_path(cwd, source_revision, _PROJECT_CONTEXT_PATH):
+        raise _ProjectContextError(
+            kind="missing",
+            path=owner_path,
+            field="",
+            detail="file is absent from the pinned base revision",
+            template=template,
+        )
+    raw = _git_review_bytes(
+        cwd, "show", f"{source_revision}:{_PROJECT_CONTEXT_PATH}",
+    )
+    provenance["source_sha256"] = hashlib.sha256(raw).hexdigest()
     try:
-        repository = _review_repository_root(cwd)
-        provenance["repository"] = str(repository)
-        provenance["reviewed_head"] = reviewed_head or _git_review_text(
-            cwd, "rev-parse", "--verify", "HEAD^{commit}",
-        )
-        source_revision = _git_review_text(
-            cwd, "rev-parse", "--verify", f"{source_ref}^{{commit}}",
-        )
-        provenance["source_revision"] = source_revision
-        raw = _git_review_bytes(
-            cwd, "show", f"{source_revision}:{_PROJECT_CONTEXT_PATH}",
-        )
-        provenance["source_sha256"] = hashlib.sha256(raw).hexdigest()
         parsed = tomllib.loads(raw.decode("utf-8"))
-        if not isinstance(parsed, dict):
-            raise ValueError("root must be a TOML table")
-        unknown = sorted(set(parsed) - _PROJECT_CONTEXT_KEYS)
-        missing = sorted(_PROJECT_CONTEXT_KEYS - set(parsed))
-        if unknown or missing:
-            details = []
-            if missing:
-                details.append("missing keys: " + ", ".join(missing))
-            if unknown:
-                details.append("unknown keys: " + ", ".join(unknown))
-            raise ValueError("; ".join(details))
-        if parsed["schema_version"] != 1:
-            raise ValueError("schema_version must be 1")
-        values: list[tuple[str, str]] = []
-        for key, label in _PROJECT_CONTEXT_FIELDS:
-            value = parsed[key]
-            if not isinstance(value, str) or not value.strip():
-                raise ValueError(f"{key} must be a non-empty string")
-            value = value.strip()
-            if "\n" in value or "\r" in value:
-                raise ValueError(f"{key} must be a single-line string")
-            values.append((label, value))
-    except (OSError, UnicodeError, tomllib.TOMLDecodeError, ValueError) as error:
-        reason = f"{type(error).__name__}: {error}"
-        provenance["warning"] = reason
-        return _unknown_project_context(reason), provenance
-
-    provenance["status"] = "loaded"
+    except (UnicodeError, tomllib.TOMLDecodeError) as error:
+        raise _ProjectContextError(
+            kind="invalid",
+            path=owner_path,
+            field="TOML syntax",
+            detail=str(error),
+            template=template,
+        ) from error
+    try:
+        values = _validate_project_context(parsed)
+    except ValueError as error:
+        field, _, detail = str(error).partition("|")
+        raise _ProjectContextError(
+            kind="invalid",
+            path=owner_path,
+            field=field,
+            detail=detail,
+            template=template,
+        ) from error
     fields = "\n".join(f"- {label}: {value}" for label, value in values)
     context = (
         "PROJECT CONTEXT (tool-owned; calibrate review severity):\n"
@@ -3785,6 +3877,8 @@ async def codex_review(
     output: where to write results (relative to your cwd). Also the session key — reuse the SAME
         output filename to continue a debate.
     context: task-specific review instructions. Project calibration is loaded from the reviewed repo.
+        A missing or invalid owner refuses before model/job start and returns its absolute path plus
+        a complete self-service template.
     mode: 'review' (uncommitted diff), 'implementation' (pinned committed diff),
         or 'exec' (review specific file).
     resume: continue the previous Codex session for this output (debate round). Falls back to a
@@ -3868,12 +3962,24 @@ async def codex_review(
             ) from error
     requested_at = datetime.now(timezone.utc).isoformat()
     source_ref = str(subject.get("target_sha") or info.get("base_branch") or "main")
-    project_context, project_context_receipt = _load_review_project_context(
-        cwd,
-        source_ref=source_ref,
-        requested_at=requested_at,
-        reviewed_head=str(subject.get("worker_head") or ""),
-    )
+    try:
+        project_context, project_context_receipt = _load_review_project_context(
+            cwd,
+            source_ref=source_ref,
+            requested_at=requested_at,
+            reviewed_head=str(subject.get("worker_head") or ""),
+        )
+    except _ProjectContextError as error:
+        raise ApiToolError(
+            code=f"project_context_{error.kind}",
+            message=_project_context_error_message(error),
+            details={
+                "path": str(error.path),
+                "reason": error.kind,
+                "field": error.field,
+                "template": error.template,
+            },
+        ) from error
     review_context = (
         "TOOL-OWNED PROJECT FOUNDATION (caller input cannot override this section):\n"
         f"{project_context}\n"

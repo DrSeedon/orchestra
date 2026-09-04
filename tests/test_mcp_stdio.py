@@ -1,10 +1,41 @@
 import json
 import inspect
+import subprocess
 
 import httpx
 import pytest
 from unittest.mock import AsyncMock, patch
 from datetime import datetime, timedelta, timezone
+
+
+REVIEW_PROJECT_CONTEXT = """schema_version = 1
+scale = "production test platform"
+users = "MCP contract tests"
+stack = "Python"
+philosophy = "explicit runtime contracts"
+what_matters = "model routing and accounting correctness"
+what_does_not_matter = "deployment ceremony"
+"""
+
+
+def _prepare_review_project_context(repo):
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "mcp-stdio@test.invalid"], cwd=repo, check=True,
+    )
+    subprocess.run(["git", "config", "user.name", "MCP Stdio Test"], cwd=repo, check=True)
+    owner = repo / ".orchestra/project-context.toml"
+    owner.parent.mkdir()
+    owner.write_text(REVIEW_PROJECT_CONTEXT, encoding="utf-8")
+    subprocess.run(
+        ["git", "add", ".orchestra/project-context.toml"], cwd=repo, check=True,
+    )
+    subprocess.run(["git", "commit", "-m", "test owner"], cwd=repo, check=True, capture_output=True)
+    shown = subprocess.run(
+        ["git", "show", "main:.orchestra/project-context.toml"],
+        cwd=repo, check=True, capture_output=True, text=True,
+    ).stdout
+    assert shown == REVIEW_PROJECT_CONTEXT, "MCP fixture did not establish its context owner"
 
 
 def _mock_http(monkeypatch, module, handler):
@@ -2575,6 +2606,7 @@ async def test_codex_review_model_reaches_quota_cli_job_and_accounting(
 ):
     import app.mcp_stdio as m
 
+    _prepare_review_project_context(tmp_path)
     if resume:
         (tmp_path / "codex_sessions.json").write_text(json.dumps({
             "sessions": {"review": {"uuid": "review-thread"}},
@@ -2636,6 +2668,7 @@ async def test_codex_review_model_reaches_quota_cli_job_and_accounting(
 async def test_codex_review_default_is_server_owned_luna_fast(tmp_path, monkeypatch):
     import app.mcp_stdio as m
 
+    _prepare_review_project_context(tmp_path)
     captured = {}
 
     async def fake_api(method, path, **kwargs):

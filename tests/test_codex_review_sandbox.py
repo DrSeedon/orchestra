@@ -10,6 +10,14 @@ PROJECT_CONTEXT = """PROJECT CONTEXT:
 - production Python service
 - review must inspect the requested file
 """
+PROJECT_CONTEXT_FILE = """schema_version = 1
+scale = "production test service"
+users = "test harness only"
+stack = "Python"
+philosophy = "explicit contracts"
+what_matters = "sandbox and command correctness"
+what_does_not_matter = "deployment scale"
+"""
 
 # The model asked for is neither the server-owned default (gpt-5.6-luna) nor the model the
 # readiness fixture reports: an assert naming either would stay green whether or not the
@@ -18,7 +26,29 @@ REVIEW_MODEL = "gpt-5.6-terra"
 READINESS_MODEL = "gpt-5.6-sol"
 
 
+def _prepare_project_context(repo):
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "sandbox@test.invalid"], cwd=repo, check=True,
+    )
+    subprocess.run(["git", "config", "user.name", "Sandbox Test"], cwd=repo, check=True)
+    owner = repo / ".orchestra/project-context.toml"
+    owner.parent.mkdir()
+    owner.write_text(PROJECT_CONTEXT_FILE, encoding="utf-8")
+    subprocess.run(
+        ["git", "add", ".orchestra/project-context.toml"], cwd=repo, check=True,
+    )
+    subprocess.run(["git", "commit", "-m", "test owner"], cwd=repo, check=True, capture_output=True)
+    shown = subprocess.run(
+        ["git", "show", "main:.orchestra/project-context.toml"],
+        cwd=repo, check=True, capture_output=True, text=True,
+    ).stdout
+    assert shown == PROJECT_CONTEXT_FILE, "sandbox fixture did not establish its context owner"
+
+
 def _fake_api(tmp_path, captured):
+    _prepare_project_context(tmp_path)
+
     async def fake_api(method, path, **kwargs):
         if path == "/api/usage/readiness":
             return {
