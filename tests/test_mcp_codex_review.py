@@ -24,6 +24,20 @@ EXPLICIT_MODEL = "gpt-5.6-terra"
 READINESS_MODEL = "gpt-5.6-sol"
 
 
+@pytest.fixture(autouse=True)
+def valid_project_context_owner(monkeypatch):
+    import app.mcp_stdio as mcp
+
+    monkeypatch.setattr(
+        mcp,
+        "_load_review_project_context",
+        lambda *_args, **_kwargs: (
+            "PROJECT CONTEXT (tool-owned):\n- Scale: test-owned production",
+            {"status": "loaded", "warning": ""},
+        ),
+    )
+
+
 def _review_text(result):
     if isinstance(result, str):
         return result
@@ -101,7 +115,8 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
     assert '[ "$FINALIZE_RC" -eq 0 ] || exit "$FINALIZE_RC"' in command
     assert ("--require-verdict" in command) is (mode == "exec")
     assert command.index("rm -f") < command.index(" | tee ")
-    assert "PROJECT CONTEXT IS UNKNOWN" in command
+    assert "Scale: test-owned production" in command
+    assert "PROJECT CONTEXT IS UNKNOWN" not in command
     assert "high-load multi-project orchestration" not in command
     assert "small team" not in command and "MVP stage" not in command
     if mode == "review":
