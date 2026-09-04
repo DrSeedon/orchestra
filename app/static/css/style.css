@@ -80,8 +80,13 @@ code, pre, kbd, samp, .font-mono,
   align-items: center; justify-content: space-around; overflow: hidden;
   padding: 2px 0; border-radius: 5px; background: rgba(15,23,42,0.38);
 }
+/* Миникарта: flex-grow метки = высота её сообщения, поэтому доли раздаёт сам флексбокс.
+   Grow здесь ставит JS; 1 в сокращении — деградация до равных меток, если он не отработал.
+   Пол (--chat-marker-min) держит мелкие сообщения кликабельными и сужается на длинных
+   лентах, иначе сумма полов перерастает дорожку и хвост уезжает под overflow: hidden.
+   Потолок 70% — чтобы один гигантский отчёт не вытеснил остальные метки. */
 .chat-timeline-marker {
-  flex: 1 1 1px; min-height: 1px; max-height: 7px; width: 8px;
+  flex: 1 1 0; min-height: var(--chat-marker-min, 3px); max-height: 70%; width: 8px;
   border: 0; border-radius: 2px; padding: 0; cursor: pointer;
   background: #64748b; opacity: 0.72; transition: width 0.1s, opacity 0.1s;
 }
@@ -94,11 +99,11 @@ code, pre, kbd, samp, .font-mono,
 .chat-timeline-marker.is-error { width: 13px; background: #f87171; opacity: 1; }
 /* Зов оркестратора (#241) — самая заметная метка дорожки: их единицы, и юзер ищет их. */
 .chat-timeline-marker.is-notify {
-  width: 20px; max-height: 9px; background: #ef4444; opacity: 1;
+  width: 20px; background: #ef4444; opacity: 1;
   box-shadow: 0 0 0 1px rgba(248,113,113,0.55);
 }
 .chat-timeline-marker.is-final {
-  width: 17px; max-height: 8px; background: #34d399; opacity: 1;
+  width: 17px; background: #34d399; opacity: 1;
   box-shadow: 0 0 0 1px rgba(52,211,153,0.5);
 }
 .chat-timeline-user-nav.is-notify-nav {
