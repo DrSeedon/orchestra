@@ -107,6 +107,7 @@ def _receipt(item: dict) -> dict:
         "target_sha": "",
         "worker_head": "",
         "production_snapshot_sha256": "",
+        "production_diff_sha256": "",
         "production_paths_json": "[]",
         "coverage_outcome": "unknown",
         "policy_ref": "",
