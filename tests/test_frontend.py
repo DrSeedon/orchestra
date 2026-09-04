@@ -5291,7 +5291,10 @@ def test_project_road_425_uses_real_dashboard_dom_and_load_path(dashboard_page: 
         """payload => {
             window.__apiBeforeRoad425 = api;
             api = async path => {
-                if (path === '/api/portfolio/projects') return payload;
+                // Срез по выбранному оркестратору приходит query-параметром (#472),
+                // поэтому заглушка ловит эндпоинт, а не дословную строку.
+                if (path === '/api/portfolio/projects'
+                    || path.startsWith('/api/portfolio/projects?')) return payload;
                 return window.__apiBeforeRoad425(path);
             };
         }""",
