@@ -12,6 +12,7 @@ from fastapi import APIRouter, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from app.events import MessageProvenance
+from app.routes.errors import keyed_auth_required
 from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
 
 router = APIRouter()
@@ -322,10 +323,7 @@ async def tg_send_file(req: dict, request: Request):
         proof = request.headers.get("x-orchestra-mcp-proof", "")
         source = get_session(source_session_id) if source_session_id else None
         if source is None or not check_mcp_proof(source_session_id, proof):
-            return JSONResponse(
-                {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
-                status_code=403,
-            )
+            return keyed_auth_required()
         scope = str(source.get("scope") or "")
         sender = str(source.get("name") or "")
 
@@ -417,20 +415,14 @@ async def tg_file_delivery_status(event_id: str, request: Request):
     source_id = request.headers.get("x-orchestra-session-id", "").strip()
     proof = request.headers.get("x-orchestra-mcp-proof", "")
     if not source_id or get_session(source_id) is None or not check_mcp_proof(source_id, proof):
-        return JSONResponse(
-            {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
-            status_code=403,
-        )
+        return keyed_auth_required()
     try:
         validated_id = tg_file_deliveries._validate_event_id(event_id)
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     row = tg_file_deliveries._row(validated_id)
     if row is not None and row["source_session_id"] != source_id:
-        return JSONResponse(
-            {"error": {"code": "KEYED_AUTH_REQUIRED", "outcome_unknown": False}},
-            status_code=403,
-        )
+        return keyed_auth_required()
     resource = tg_file_deliveries.get_file_delivery(validated_id, source_id)
     if resource is None:
         return JSONResponse({"error": "not found"}, status_code=404)

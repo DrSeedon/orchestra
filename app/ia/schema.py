@@ -8,6 +8,8 @@ import json
 import re
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
+
+from app.ia.privacy import SECRET_VALUE_PATTERN, key_looks_secret
 from uuid import UUID
 
 from app.ia.namespace import NamespaceError, build_uri, parse_uri
@@ -101,24 +103,6 @@ _EXTENSION_FIELDS = {"metadata"}
 _DOTTED_PATH = re.compile(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*")
 _SHA256 = re.compile(r"sha256:[0-9a-f]{64}")
 _GIT_COMMIT = re.compile(r"[0-9a-f]{40}")
-_SECRET_KEY_PARTS = {"password", "passwd", "secret", "token", "credential"}
-_SECRET_KEY_NAMES = {
-    "api_key",
-    "apikey",
-    "access_key",
-    "secret_key",
-    "private_key",
-    "authorization",
-    "client_secret",
-    "credential_material",
-}
-_SECRET_VALUE = re.compile(
-    r"(?:Bearer\s+\S{20,}|sk-(?:or-v1-)?[A-Za-z0-9_-]{8,}|"
-    r"gh[pousr]_[A-Za-z0-9]{8,}|ya29\.[A-Za-z0-9_-]{8,}|"
-    r"AIza[A-Za-z0-9_-]{12,}|(?:^|_)(?:SECRET|PASSWORD|CREDENTIAL)(?:_|$)|"
-    r"(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|client[_-]?secret)="
-    r"[^\s&]{4,})"
-)
 _PRIVACY_SINKS = frozenset({"hot", "fts", "vector"})
 
 
@@ -160,13 +144,6 @@ def _declared_private_fields(record: Mapping) -> tuple[str, ...]:
     return tuple(fields)
 
 
-def _key_looks_secret(key: str) -> bool:
-    normalized = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
-    if normalized in _SECRET_KEY_NAMES:
-        return True
-    return bool(set(normalized.split("_")) & _SECRET_KEY_PARTS)
-
-
 def _detected_private_fields(value: Any) -> set[str]:
     found: set[str] = set()
 
@@ -179,9 +156,9 @@ def _detected_private_fields(value: Any) -> set[str]:
                     continue
                 child_path = (*path, raw_key)
                 dotted = ".".join(child_path)
-                if _key_looks_secret(raw_key):
+                if key_looks_secret(raw_key):
                     found.add(dotted)
-                if isinstance(child, str) and _SECRET_VALUE.search(child):
+                if isinstance(child, str) and SECRET_VALUE_PATTERN.search(child):
                     found.add(dotted)
                 visit(child, child_path)
         elif isinstance(current, Sequence) and not isinstance(current, (str, bytes)):

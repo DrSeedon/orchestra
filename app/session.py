@@ -56,7 +56,7 @@ from app.runtime_history import (
 from app.session_cost import CostTracker
 from app.session_hibernate import HibernateManager
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
-    AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER,
+    AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER, empty_context,
 )
 from app.session_turns import (
     CRITICAL_AUTO_COMPACT_PCT,
@@ -563,7 +563,7 @@ class AgentSession:
     _failed_log_writes: dict[int, tuple[Callable | None, str]] = field(
         default_factory=dict, repr=False,
     )
-    _last_context: dict = field(default_factory=lambda: {"percentage": 0, "total_tokens": 0, "max_tokens": 0}, repr=False)
+    _last_context: dict = field(default_factory=empty_context, repr=False)
     _did_report: bool = field(default=False, repr=False)
     _turn_logs: list = field(default_factory=list, repr=False)
     _last_text_output: Optional[str] = field(default=None, repr=False)
@@ -1571,11 +1571,7 @@ class AgentSession:
                     })
                     self.session_id_history = self.session_id_history[-10:]
                 self.session_id = None
-                self._last_context = {
-                    "percentage": 0,
-                    "total_tokens": 0,
-                    "max_tokens": 0,
-                }
+                self._last_context = empty_context()
                 backend.resume_failed = False
                 self._log("status", "native Claude transcript missing — restored from Orchestra logs")
                 self._persist()
@@ -2182,7 +2178,7 @@ class AgentSession:
         self.session_id = None
         self.history_import_source = None
         self.runtime_handoff = handoff
-        self._last_context = {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
+        self._last_context = empty_context()
         self._log(
             "warning",
             f"native history import unavailable: {err_text(error)}; summary fallback active",
@@ -2238,11 +2234,7 @@ class AgentSession:
         self.session_id = None
         self.runtime_handoff = handoff
         self.history_import_source = None
-        self._last_context = {
-            "percentage": 0,
-            "total_tokens": 0,
-            "max_tokens": 0,
-        }
+        self._last_context = empty_context()
         self._log(
             "warning",
             "Codex native thread retired after an oversized JSONL record; "
@@ -3510,9 +3502,7 @@ class AgentSession:
         self.runtime_handoff = ""
         self.history_import_source = None
         self.last_summary = ""
-        self._last_context = {
-            "percentage": 0, "total_tokens": 0, "max_tokens": 0,
-        }
+        self._last_context = empty_context()
         self._prompt_injected = False
         self._hibernated = False
         self._handoff_config_dir = ""
@@ -3615,9 +3605,7 @@ class AgentSession:
         self.runtime_handoff = tail
         self.history_import_source = None
         self.last_summary = ""
-        self._last_context = {
-            "percentage": 0, "total_tokens": 0, "max_tokens": 0,
-        }
+        self._last_context = empty_context()
         self._prompt_injected = False
         self._hibernated = False
         self._handoff_config_dir = ""
@@ -4701,7 +4689,7 @@ class AgentSession:
         self._backend = normal_backend
         self.runtime_handoff = ""
         self.history_import_source = None
-        self._last_context = {"percentage": 0, "total_tokens": 0, "max_tokens": 0}
+        self._last_context = empty_context()
         self._prompt_injected = False
         self._hibernated = False
         self._handoff_recovery_required = False

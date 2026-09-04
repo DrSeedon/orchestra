@@ -21,10 +21,10 @@ FIX_ACCEPTANCE_THEN_RETRY = "FIX_ACCEPTANCE_THEN_RETRY"
 _SHELL_EXECUTABLES = {
     "bash", "sh", "/bin/bash", "/bin/sh", "/usr/bin/bash", "/usr/bin/sh",
 }
-_PYTEST_CONFIG_NAMES = {
+PYTEST_CONFIG_NAMES = frozenset({
     "pytest.toml", ".pytest.toml", "pytest.ini", ".pytest.ini",
     "pyproject.toml", "tox.ini", "setup.cfg",
-}
+})
 
 
 class AcceptanceCommandError(ValueError):
@@ -254,7 +254,7 @@ def pin_task_oracle(
     manifest_roots = tm._normalize_acceptance_manifest(manifest_paths)
     if "tests" not in manifest_roots:
         raise ValueError("acceptance manifest must include tests")
-    if not any(path in _PYTEST_CONFIG_NAMES for path in manifest_roots):
+    if not any(path in PYTEST_CONFIG_NAMES for path in manifest_roots):
         raise ValueError("acceptance manifest must include pytest config")
     resolved = _git(worktree_path, "rev-parse", "--verify", f"{target_sha}^{{commit}}")
     resolved_sha = resolved.strip()
@@ -341,7 +341,7 @@ def _verify_pinned_inputs(oracle: dict, worktree: str) -> list[str]:
 
     for path in _candidate_changed_paths(worktree, str(oracle.get("ref") or "")):
         name = Path(path).name
-        if (name == "conftest.py" or name in _PYTEST_CONFIG_NAMES) and path not in expected:
+        if (name == "conftest.py" or name in PYTEST_CONFIG_NAMES) and path not in expected:
             mutated.add(path)
     return sorted(mutated)
 

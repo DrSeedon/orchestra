@@ -1365,7 +1365,7 @@ class KnowledgeRuntime:
         ]
 
     def _projection_records(self) -> list[dict[str, Any]]:
-        from app.ia.schema import _SECRET_VALUE
+        from app.ia.privacy import SECRET_VALUE_PATTERN
 
         records = self._mutable_projection_records()
         evidence = self.evidence_records()
@@ -1382,7 +1382,7 @@ class KnowledgeRuntime:
                     "source_sha256": record["source_sha256"],
                 })
                 continue
-            if _SECRET_VALUE.search(text):
+            if SECRET_VALUE_PATTERN.search(text):
                 self._record_debt({
                     "reason": "secret_candidate_in_evidence",
                     "project_id": record["project_id"],

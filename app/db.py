@@ -13,6 +13,8 @@ from uuid import uuid4
 
 logger = logging.getLogger("db")
 
+REVIEW_AUTHOR_OUTCOMES = frozenset({"accepted", "disputed", "partial"})
+
 _DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
 
 def _resolve_db_path() -> Path:
@@ -2868,7 +2870,6 @@ _REVIEW_RECEIPT_COLUMNS = (
     "policy_ref", "decision_actor", "task_stable_id", "task_snapshot_ref",
     "prompt_template_start", "prompt_template_end", "terminal_operation_id",
 )
-_REVIEW_OUTCOMES = frozenset({"accepted", "disputed", "partial"})
 _REVIEW_RECEIPT_SOURCES = frozenset({"direct", "derived", "unknown"})
 _REVIEW_COVERAGE_OUTCOMES = frozenset({"unknown", "reviewed", "skipped", "unavailable"})
 
@@ -3354,7 +3355,7 @@ def review_receipt_set_outcome(
     receipt_id: str, outcome: str, outcome_evidence_ref: str = "",
 ) -> dict:
     """Set an author outcome once; identical replay returns the existing row."""
-    if outcome not in _REVIEW_OUTCOMES:
+    if outcome not in REVIEW_AUTHOR_OUTCOMES:
         raise ValueError("outcome must be accepted, disputed, or partial")
     evidence = str(outcome_evidence_ref or "").strip()
     if outcome == "disputed" and not evidence:

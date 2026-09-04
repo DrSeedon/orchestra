@@ -51,7 +51,7 @@ _EXCLUDED_SOURCES = [
     "tm_projects.yougile_*",
     "tm_tasks.yougile_task_id",
 ]
-_VALID_STATUSES = {"backlog", "new", "in_progress", "done", "cancelled"}
+VALID_TASK_STATUSES = frozenset({"backlog", "new", "in_progress", "done", "cancelled"})
 _TASK_SOURCE_FIELDS = (
     "id",
     "par_number",
@@ -1065,7 +1065,7 @@ class TaskStore:
         contour_id: str = "central",
         request_key: str = "",
     ) -> dict[str, Any]:
-        if status not in _VALID_STATUSES:
+        if status not in VALID_TASK_STATUSES:
             raise ValueError(f"Invalid status: {status}")
         if price < 0:
             raise ValueError("price must be >= 0")
@@ -1364,7 +1364,7 @@ class TaskStore:
             changed.append("price")
             event_changes.append(("price_rub", price))
         if status is not None and status != state["status"]:
-            if status not in _VALID_STATUSES:
+            if status not in VALID_TASK_STATUSES:
                 raise ValueError(f"Invalid status: {status}")
             state["status"] = status
             changed.append("status")
