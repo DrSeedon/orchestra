@@ -133,8 +133,14 @@ def create_project(req: ProjectCreate, request: Request):
 
 
 @router.get("/projects")
-def list_projects(request: Request):
-    result = _call(lambda: portfolio.list_projects(_project_list_actor(request)))
+def list_projects(request: Request, agent_session_id: str = ""):
+    # Приоритет «актор главнее среза» принадлежит `portfolio.list_projects` и живёт
+    # там в одном месте — здесь оба значения просто передаются как есть (#472).
+    result = _call(
+        lambda: portfolio.list_projects(
+            _project_list_actor(request), agent_filter=agent_session_id.strip()
+        )
+    )
     if isinstance(result, dict) and _dashboard_operator(request):
         from app.auth import create_csrf_token
 

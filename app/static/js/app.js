@@ -3839,13 +3839,22 @@ const PortfolioPanel = (() => {
         bindInteractions(panel);
     }
 
+    // Доска показывает проекты ВЫБРАННОГО оркестратора, а не все подряд (#472).
+    // Адресуем сессией по id: именно его хранит portfolio_members, а имена сессий
+    // между scope не уникальны. Id лежит в опции пикера, отдельный запрос не нужен.
+    function selectedOrchestratorSessionId() {
+        return document.getElementById('orch-picker')?.selectedOptions?.[0]?.dataset?.id || '';
+    }
+
     async function load() {
         const panel = document.getElementById('tasks-panel');
         if (!panel || !_portfolioTabActive) return;
         const generation = ++requestGeneration;
         panel.innerHTML = '<div class="portfolio-loading"><span></span>Собираю точное состояние проектов…</div>';
         try {
-            const payload = await api('/api/portfolio/projects');
+            const sessionId = selectedOrchestratorSessionId();
+            const query = sessionId ? `?agent_session_id=${encodeURIComponent(sessionId)}` : '';
+            const payload = await api(`/api/portfolio/projects${query}`);
             if (generation !== requestGeneration || !_portfolioTabActive) return;
             render(payload);
         } catch (error) {
