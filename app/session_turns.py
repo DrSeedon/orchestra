@@ -274,13 +274,11 @@ class TurnManager:
             # #231: осушение проверяется В ТОЙ ЖЕ транзакции, что и фиксация терминала.
             # Раздельные «посмотреть» и «записать» пропускают `wake=False`, легший
             # между ними, — и веер отпустится по ребёнку, не видевшему своего входа.
-            silent_text = "" if silent_turn else "\n".join(
-                str(item) for item in (s._turn_logs or [])
-            )
+            final_text = getattr(s, "_last_text_output", None)
             if fan_barrier.record_terminal(
                 s.name,
                 "done" if s._last_turn_ok else "failed",
-                summary=silent_text,
+                summary=final_text if isinstance(final_text, str) else None,
                 require_drained_scope=s.scope,
             ):
                 fan_id = fan_barrier.fan_id_for_child(s.name, include_released=True)
