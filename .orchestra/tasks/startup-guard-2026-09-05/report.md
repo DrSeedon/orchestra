@@ -40,8 +40,8 @@ development blocker in Orchestra has been eliminated.
 
 ## Validation and deployment boundary
 
-132 tests passed in test_codex_managed_state.py + test_backend_codex.py before the prompt
-wording change. The new cases cover the installed history version with migration 52,
+132 tests passed in test_codex_managed_state.py + test_backend_codex.py; the expanded
+run with pipeline delivery after the prompt change passed 342 tests. The new cases cover the installed history version with migration 52,
 an unknown future CLI, version-probe failure, and unsupported read-only seed inspection;
 each reaches native connect without modifying the target database.
 Existing tests retain WAL backup, corruption refusal, rollback and concurrent-home locks.
