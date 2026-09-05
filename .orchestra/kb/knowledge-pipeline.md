@@ -2,6 +2,12 @@
 
 ## Established
 
+Текущее состояние проверяется у [владельцев](current-operations.md), не по старым
+числам ниже. Принятые на свою дату выводы сохранены как исторические наблюдения;
+их применение сегодня требует проверки области и актуального источника.
+
+## Historical observations
+
 - `fact:knowledge-pipeline-raw-inventory-20260903` — В snapshot #454 `.orchestra/tasks` содержит 4 040 файлов / 89 867 548 apparent bytes / 464 непустых task dirs, `.orchestra/workers` — 163 Markdown-файла / 587 227 bytes; living KB facts exact-path ссылаются на 122 task files и 0 worker files, а 327/464 task dirs не имеют даже legacy-upper-bound promoted fact · search: `.orchestra/tasks`, `.orchestra/workers`, `4 040`, `327/464`, «сколько сырья» · evidence: `/mnt/data/Projects/Python/orchestra/.venv/bin/python .orchestra/tasks/454/measure_inventory.py`; `.orchestra/tasks/454/inventory-output.json` · 2026-09-03, #454
 - `fact:luna-extractor-prompt-baseline-failed` — Frozen prompt `847d17ac` на 37 Markdown files / 6 closed tasks в трёх fresh Luna runs дал exploratory source-valid set-level recall 72.7%/54.5%/54.5% после исключения только source-invalid G419; неизменённый preregistered scorer отдельно дал exact-evidence 84.75%/97.73%/65.08% и candidate count 50/31/57; одно отозванное rollout-правило было ошибочно promoted как `current` в 3/3 runs · search: `847d17ac`, `54.5%`, `exact evidence`, `3/3`, «промпт Luna теряет факты» · evidence: recall `.orchestra/tasks/454/eval-score-setlevel.json`; exact-evidence/count `.orchestra/tasks/454/eval-score-preregistered.json`; falsehood `.orchestra/tasks/454/eval-semantic-audit.json` · 2026-09-03, #454
 - `fact:durable-extraction-queue-absent` — Orchestra имеет persistent `bg_jobs` scheduler, но active `run` после service restart не перезапускается и становится explicit interrupted; `app.ia.recovery` держит extraction outcome в process-local `_EXTRACTIONS`, поэтому durable work-item queue с mandatory drain/source receipt для background knowledge extraction сейчас отсутствует · search: `bg_jobs`, `_EXTRACTIONS`, `interrupted`, `mandatory drain`, «очередь извлечения переживает рестарт» · evidence: `app/bg_jobs.py:488-539,694-714`; `app/ia/recovery.py:398-418`; restart interruption `.orchestra/tasks/454/eval-run-manifest.json` · 2026-09-03, #454

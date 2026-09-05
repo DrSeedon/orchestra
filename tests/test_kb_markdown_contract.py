@@ -71,6 +71,13 @@ def test_forward_only_contract_accepts_valid_addition_beside_legacy(tmp_path):
     assert _validate_fixture(tmp_path, current, old=old) == []
 
 
+def test_historical_observation_retains_fact_contract(tmp_path):
+    historical = _topic(VALID_FACT).replace("## Established", "## Historical observations")
+    assert _validate_fixture(tmp_path, historical) == []
+    invalid = historical.replace(" · evidence:", " · absent-evidence:")
+    assert any("missing inline evidence" in error for error in _validate_fixture(tmp_path, invalid))
+
+
 @pytest.mark.parametrize(
     "invalid",
     [
