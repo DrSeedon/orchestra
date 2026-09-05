@@ -1,6 +1,6 @@
 # knowledge-base-architecture
 
-## Установлено
+## Established
 
 - Простого входа `ia_task_store_mode`/`document_cutover_mode` из FastAPI lifespan недостаточно: Uvicorn запускает HTTP в sibling task, поэтому lifespan `ContextVar=lifespan-value` дал HTTP handler/to_thread значение `default`; HTTP-доступный owner должен быть process-global или устанавливаться на request seam · минимальный Uvicorn probe + `app/main.py:340-395`, `app/tm.py:1244-1355` · 2026-08-25, #361
 - Live typed-активация обязана иметь отдельный canonical project registry: в WAL-safe снимке 18 resumable scopes, только 13 mapped, а 8 из 19 `tm_projects.id` не являются canonical slug; два абсолютных id направляют 3 task paths за пределы заданного canonical root · `.orchestra/tasks/361/research.md` §§live boundary, multi-scope; live backup manifest/path probe · 2026-08-25, #361
@@ -13,7 +13,7 @@
 - Shared read-after-write определяется merge generation: canonical Git merge establishes `target_head`; changed typed facts synchronously project into SQLite current/FTS; vector/log backfill remains async; head mismatch triggers direct canonical fallback plus visible debt, never “not found” · [`.orchestra/tasks/256/research.md`](../tasks/256/research.md) §6.4; current absence of generation proven by `app/rag_service.py:190-201`, `app/routes/memory.py:48-52` · 2026-08-23, #256
 - Cold delivery should be three-tier: compact generated topic registry hot, typed fact summaries warm in one search, full topic/task/log evidence cold on demand; one line/topic bounds prompt footprint and removes a discovery tool call without injecting a biography · [Letta MemFS](https://github.com/letta-ai/letta-docs-md/blob/main/concepts/memfs/index.md), local footprint 2 909 + 4 963 = 7 872 bytes in [`structure.raw.json`](../tasks/256/eval/structure.raw.json) · 2026-08-23, #256
 
-## Отвергнуто
+## Rejected
 
 - «Достаточно сконфигурировать уже смерженные context managers в lifespan и перезапустить» · ContextVar не доезжает в HTTP, TaskStore повторная миграция падает после shadow write, cutover generation 2 после re-entry становится generation 1, а включённый projection global немедленно переключает legacy memory reader · прямые scratch probes + `.orchestra/tasks/361/research.md` · 2026-08-25, #361
 - «T7 frozen inventory уже подключён к настоящему Git evidence importer» · production importer сохранил заведомо ложный `git_commit=000…000`, а frozen cold alias отверг как `evidence canonical_uri is invalid`; положительный T7 использует fake callback и не пишет receipt на диск · scratch import probe; `app/ia/knowledge.py:691-798`, `.orchestra/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py:321-360` · 2026-08-25, #361
@@ -23,7 +23,7 @@
 - «GigaEmbeddings 480M улучшит текущий hybrid retrieval на русском техкорпусе» · pinned #134: MRR 0.4726 против bge-m3 0.4893, Δ −0.0167, paired t −0.334; |Δ| в 6.3 раза меньше split-half noise 0.1048 → разницы стенд не видит, модель не менять · `.orchestra/tasks/364/bench/results.json`; `.orchestra/tasks/364/report.md` · 2026-08-26, #364
 - «TTL означает удалить/считать ложным» · время последней проверки не является valid-time; истёкший `refresh_after` только помечает validation debt, а history/rejected сохраняются · [Wikibase historical vs deprecated semantics](https://www.wikidata.org/wiki/Help%3ARanking), 2026-08-23, #256
 
-## Пробелы
+## Gaps
 
 - Generation 3 остаётся непроверенным до появления persistent scope/state/receipt owner, real Git commit owner и live shadow parity/privacy/prompt/rollback/projection receipts; текущие IA модули пишут plain JSON и не загружают cutover generation после рестарта · `.orchestra/tasks/361/research.md` §§Minimum staged activation, Validation debt · 2026-08-25, #361
 - Full all-scope rebuild cost неизвестен: live boundary = 180,729 log rows / 488,108,606 content bytes, но canonical scope identity для 5 resumable scopes ещё отсутствует; экстраполяция не считается oracle · WAL-safe backup measurement in `.orchestra/tasks/361/research.md` · 2026-08-25, #361

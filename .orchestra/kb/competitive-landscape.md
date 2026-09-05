@@ -1,6 +1,6 @@
 # competitive-landscape — чем Orchestra отличается от чужих ADE/harness и от субагентов
 
-## Установлено
+## Established
 - **Worktree-изоляция агентов больше НЕ является нашим отличием: она есть у Orca, omp и Paseo,
   и её же предлагает Claude Code (`isolation: worktree`).** Отличие сместилось в то, кому
   принадлежит жизненный цикл агента и ходит ли он через границу вендора. · README трёх репозиториев
@@ -36,10 +36,10 @@
 - **Метаданные чужих репозиториев брать `gh api repos/<owner>/<repo>`, а не из поисковой выдачи:**
   выдача давала Orca «53k» при фактических 59 427 звёздах. · 02.09.2026, #503
 
-- `fact:archestra-scale-and-dual-license` — Archestra.AI (`archestra-ai/archestra`, 4 243★) — не витрина, а работающая платформа: 5 960 коммитов с 15.07.2025, 495 коммитов за последние 30 дней, 80 контрибьюторов, 320 релизов при темпе ~1 в день, 24 открытых issue (в API видно 44, потому что `open_issues_count` считает вместе с PR); лицензия дуальная — AGPL-3.0-only по умолчанию плюс `LicenseRef-Archestra-Enterprise`, причём enterprise-код НЕ закрыт, а лежит в репозитории (212 файлов помечены, 136 целиком, 381 SPDX-врезка в 76 AGPL-файлах, 94 файла `*.ee.*`), ограничено только право прод-использования свыше 30 пользователей · искать: `archestra-ai/archestra`, `LicenseRef-Archestra-Enterprise`, `Small Team Clause`, `open_issues_count`, «дуальная лицензия AGPL enterprise» · evidence: upstream @ `c0f30875`: `LICENSE.md:1-24`, `LICENSE_ENTERPRISE:26-32`, `platform/backend/src/enterprise-tier.ts:7,57`; `gh api repos/archestra-ai/archestra`, `search/issues`, `git rev-list --count HEAD` · 2026-09-03, #470
-- `fact:archestra-requires-kubernetes-for-agent-runtime` — У Archestra серверный рантайм агентов и MCP-серверов требует Kubernetes, а не «просто Docker»: гейт включения кода-рантайма пропускает только при явном runner host либо настроенном kubeconfig/in-cluster, а квикстарт `docker run` это не отменяет, а прячет — в образ вкомпилированы KinD и Dagger Engine, поэтому команда с лендинга монтирует `/var/run/docker.sock` · искать: `isCodeRuntimeEnabled`, `KIND_VERSION`, `dagger-engine.quickstart.yaml`, `docker.sock`, «нужен ли кубернетес Archestra» · evidence: upstream @ `c0f30875`: `platform/backend/src/config.ts:1941-1944`, `platform/Dockerfile:7,34,160,577`, `platform/docker/supervisord/postgres.conf:3`, `platform/helm/archestra/Chart.yaml:27` · 2026-09-03, #470
+- `fact:archestra-scale-and-dual-license` — Archestra.AI (`archestra-ai/archestra`, 4 243★) — не витрина, а работающая платформа: 5 960 коммитов с 15.07.2025, 495 коммитов за последние 30 дней, 80 контрибьюторов, 320 релизов при темпе ~1 в день, 24 открытых issue (в API видно 44, потому что `open_issues_count` считает вместе с PR); лицензия дуальная — AGPL-3.0-only по умолчанию плюс `LicenseRef-Archestra-Enterprise`, причём enterprise-код НЕ закрыт, а лежит в репозитории (212 файлов помечены, 136 целиком, 381 SPDX-врезка в 76 AGPL-файлах, 94 файла `*.ee.*`), ограничено только право прод-использования свыше 30 пользователей · search: `archestra-ai/archestra`, `LicenseRef-Archestra-Enterprise`, `Small Team Clause`, `open_issues_count`, «дуальная лицензия AGPL enterprise» · evidence: upstream @ `c0f30875`: `LICENSE.md:1-24`, `LICENSE_ENTERPRISE:26-32`, `platform/backend/src/enterprise-tier.ts:7,57`; `gh api repos/archestra-ai/archestra`, `search/issues`, `git rev-list --count HEAD` · 2026-09-03, #470
+- `fact:archestra-requires-kubernetes-for-agent-runtime` — У Archestra серверный рантайм агентов и MCP-серверов требует Kubernetes, а не «просто Docker»: гейт включения кода-рантайма пропускает только при явном runner host либо настроенном kubeconfig/in-cluster, а квикстарт `docker run` это не отменяет, а прячет — в образ вкомпилированы KinD и Dagger Engine, поэтому команда с лендинга монтирует `/var/run/docker.sock` · search: `isCodeRuntimeEnabled`, `KIND_VERSION`, `dagger-engine.quickstart.yaml`, `docker.sock`, «нужен ли кубернетес Archestra» · evidence: upstream @ `c0f30875`: `platform/backend/src/config.ts:1941-1944`, `platform/Dockerfile:7,34,160,577`, `platform/docker/supervisord/postgres.conf:3`, `platform/helm/archestra/Chart.yaml:27` · 2026-09-03, #470
 
-## Отвергнуто
+## Rejected
 - **«Orca — это агент-оркестратор, который сам режет задачу»** · опровергнуто их же README:
   распределяет человек («Fan one prompt across five agents … compare the results and merge the
   winner»), а «The AI Orchestrator for 100x builders» — заголовок шапки без механизма за ним ·
@@ -51,7 +51,7 @@
   чтением обоих их первоисточников: цифры там только про качество редактирования (6.7% → 68.3%,
   −61% токенов, 2.1×), задержек нет · 02.09.2026, #503
 
-## Пробелы
+## Gaps
 - Изоляция и межагентный обмен у Multica и cmux, ревью у cmux — в README не описаны, ответ живёт на
   их сайтах документации · один заход на сайт для честной ячейки мал · 02.09.2026, #503
 - `herdrdev/herdr` (34 498★) не разобран: README 4,4 КБ, весь предмет на `herdr.dev/docs` ·

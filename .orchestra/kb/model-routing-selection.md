@@ -1,6 +1,6 @@
 # model-routing-selection
 
-## Установлено
+## Established
 
 - #298 сформулировал тотальное дерево как server-side first-match router перед созданием worker: metadata/sensitivity/special-complex/capability/oracle → Ox только для публичной closed/oracle-backed text+tools ветки с zero-spend/canary gate → Luna для закрытого deterministic fallback → Sol для open/complex; prompt остаётся зеркалом, runtime/backend — downstream constructor · `.orchestra/tasks/298/research.md`, current owners `app/mcp_stdio.py:893-926`, `app/manager.py:643-714` · 2026-08-23, #298
 - Для каждого Sol-листа #298 требует отдельный trusted `sol_authorized` receipt, scope/expiry-проверку и first-match `REFUSE_SOL_AUTH`; parent-task approval, prompt, alias или старую Sol-сессию нельзя считать авторизацией нового Sol spawn/review/eval · `.orchestra/tasks/298/research.md` §Fallback and escalation invariants, current auxiliary-authorization boundary из `codex-debate` · 2026-08-23, #298
@@ -14,7 +14,7 @@
 - Pipeline skill source is tracked under `.orchestra/pipelines/default/prompts/skills/`; `.codex/skills/` is an ignored runtime projection guarded by `app/prompting.py:195-217,262-267` · 2026-08-23, #229
 - The current Codex Sol orchestrator prompt contains the DIY/research/delegation markers, yet its live session made 21 Bash scans (264 unique marked Markdown paths, 2,257 result lines) before its first `spawn_worker`; prompt delivery was present, but no code guard enforces spawn-before-read · `sessions.system_prompt` marker probe + `logs` metadata, 2026-08-23, #229
 
-## Отвергнуто
+## Rejected
 
 - Универсальный Ox default и единая цепочка Ox→Luna→Sol отвергнуты: #236 зафиксировал unsuffixed zero-price TOCTOU и шесть no-effort пустых Ox turns, а #283 даёт только узкое 6/6 production-shaped evidence; routing обязан учитывать sensitivity, oracle, openness и complexity до spawn · `.orchestra/tasks/298/research.md`, `.orchestra/tasks/236/research.md`, `.orchestra/tasks/283/research.md` · 2026-08-23, #298
 
@@ -23,7 +23,7 @@
 - A live quota router chooses Luna/Sol/Opus at spawn — the former router/model policy was removed by `0707d925`; current code only admits the chosen model · 2026-08-23, #229
 - The parent read hundreds of Markdown files because the delegation rule was absent from its prompt — the stored prompt contains the relevant markers; the missing piece is an executable ordering guard, while prompt wording still leaves timing to model judgment · `sessions.system_prompt` marker probe, `app/backend_claude.py:61-69,447-455`, `app/backend_codex.py:2235-2238` · 2026-08-23, #229
 
-## Пробелы
+## Gaps
 
 - Не определены кодом trusted task metadata (sensitivity/openness/oracle/capability), атомарный OpenRouter broker/lease, vision capability Ox и точная class→effort карта; до закрытия этих seam-ов соответствующие листья должны fail-closed · `.orchestra/tasks/298/research.md` §Current-state/seam inventory · 2026-08-23, #298
 

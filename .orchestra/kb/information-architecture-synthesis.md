@@ -1,6 +1,6 @@
 # information-architecture-synthesis
 
-## Установлено
+## Established
 
 - Один логический typed namespace/data plane с разными record contracts лучше отражает Orchestra: Git/task/evidence остаются canonical, SQLite current/FTS и vector являются content-bound projections с разными head receipts · .orchestra/tasks/315/research.md §§1,4; .orchestra/tasks/256/research.md §§3,6; 2026-08-24, #315
 - Current task owner is app/db.py tm_* schema + app/tm.py business writers; current KB/evidence owner is Git Markdown; typed fact promotion has no production owner yet · .orchestra/tasks/315/research.md §1; app/db.py:309-383; app/tm.py:295-525; 2026-08-24, #315
@@ -11,7 +11,7 @@
 - The six files in .orchestra/tasks/315/acceptance/test_smoke_t*.py are existence-only missing-seam probes; they are not behavioral RED oracles and cannot satisfy ticket acceptance · .orchestra/tasks/315/acceptance/README.md; 2026-08-24, #315
 - OpenViking mechanisms transferable selectively are typed URI, content/index separation, progressive loading, explicit session archive, manifest/checksum pack validation, scoped privacy and metrics; official docs do not measure Orchestra benefit · .orchestra/tasks/315/openviking-comparison.md; https://docs.openviking.ai/en/concepts/01-architecture; 2026-08-24, #315
 
-## Отвергнуто
+## Rejected
 
 - Markdown-only prompt contract as complete current-state system · #256 measured 7/12 source-link coverage, one unlisted topic, 545 missing/stale files and stale contradiction 1/6 · 2026-08-24, #315
 - One shapeless JSONL/Markdown or DB-only canonical store · #299/#295 require Git review/recovery plus separate task/fact lifecycles and identify append-only merge hotspot · 2026-08-24, #315
@@ -19,7 +19,7 @@
 - OpenViking wholesale adoption or atomic backup assumption · official docs describe standalone service and live/non-atomic backup; official issue #3875 reports restore-overwrite failure · https://github.com/volcengine/OpenViking/issues/3875; 2026-08-24, #315
 - YouGile/payments migration into the namespace · user-approved #299/#309 cleanup decision is DELETE, not migrate · .orchestra/tasks/309/research.md; 2026-08-24, #315
 
-## Пробелы
+## Gaps
 
 - Stable fact-key vocabulary, legal private-field/purge policy and contiguous global #N decision remain open · schema/retention/lease approval not supplied; 2026-08-24, user + orchestrator
 - Candidate architecture answer utility, promotion recall and A/B/A/B prompt/tool/time effect remain unmeasured · implementation and model/eval calls were explicitly prohibited · 2026-08-24, #315

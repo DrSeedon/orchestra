@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 VALID_FACT = (
     "- `fact:search-memory-disabled-fallback` — `search_memory` при `RAG_ENABLED=false` "
-    "направляет агента в literal `rg` · искать: `search_memory`, `RAG_ENABLED=false`, "
+    "направляет агента в literal `rg` · search: `search_memory`, `RAG_ENABLED=false`, "
     "«семантический поиск выключен», `rg` · evidence: `app/mcp_stdio.py:3020-3034` · "
     "2026-08-30, #417"
 )
@@ -25,14 +25,14 @@ LEGACY_FACT = (
 )
 
 
-def _topic(body: str, *, section: str = "Установлено") -> str:
-    established = body if section == "Установлено" else "- (пусто)"
-    gaps = body if section == "Пробелы" else "- (пусто)"
+def _topic(body: str, *, section: str = "Established") -> str:
+    established = body if section == "Established" else "- (пусто)"
+    gaps = body if section == "Gaps" else "- (пусто)"
     return (
         "# memory-test\n\n"
-        f"## Установлено\n\n{established}\n\n"
-        "## Отвергнуто\n\n- (пусто)\n\n"
-        f"## Пробелы\n\n{gaps}\n\n"
+        f"## Established\n\n{established}\n\n"
+        "## Rejected\n\n- (пусто)\n\n"
+        f"## Gaps\n\n{gaps}\n\n"
         "## Источники\n\n- .orchestra/tasks/417/plan.md — fixture.\n"
     )
 
@@ -74,7 +74,7 @@ def test_forward_only_contract_accepts_valid_addition_beside_legacy(tmp_path):
 @pytest.mark.parametrize(
     "invalid",
     [
-        VALID_FACT.replace(" · искать:", " · no-search:"),
+        VALID_FACT.replace(" · search:", " · no-search:"),
         VALID_FACT.replace(" · evidence:", " · no-evidence:"),
         VALID_FACT.replace(
             "evidence: `app/mcp_stdio.py:3020-3034`",
@@ -83,14 +83,14 @@ def test_forward_only_contract_accepts_valid_addition_beside_legacy(tmp_path):
         VALID_FACT + "\n" + VALID_FACT,
         VALID_FACT.replace("fact:search-memory-disabled-fallback", "fact:Bad_Key"),
         VALID_FACT.replace(
-            "искать: `search_memory`, `RAG_ENABLED=false`, «семантический поиск выключен», `rg`",
-            "искать:",
+            "search: `search_memory`, `RAG_ENABLED=false`, «семантический поиск выключен», `rg`",
+            "search:",
         ),
         VALID_FACT.replace(
-            "искать: `search_memory`, `RAG_ENABLED=false`, «семантический поиск выключен», `rg`",
-            "искать: `one`, `two`, `three`, `four`, `five`, `six`, `seven`",
+            "search: `search_memory`, `RAG_ENABLED=false`, «семантический поиск выключен», `rg`",
+            "search: `one`, `two`, `three`, `four`, `five`, `six`, `seven`",
         ),
-        VALID_FACT.replace(" · искать:", " ·\n  искать:"),
+        VALID_FACT.replace(" · search:", " ·\n  search:"),
     ],
     ids=[
         "missing-search",
@@ -108,7 +108,7 @@ def test_forward_only_contract_rejects_malformed_added_fact(tmp_path, invalid):
 
 
 def test_forward_only_contract_rejects_fact_in_wrong_section(tmp_path):
-    assert _validate_fixture(tmp_path, _topic(VALID_FACT, section="Пробелы"))
+    assert _validate_fixture(tmp_path, _topic(VALID_FACT, section="Gaps"))
 
 
 @pytest.mark.parametrize("relative", ["../outside.md", "/outside.md"])
@@ -157,15 +157,15 @@ def test_structured_fact_cannot_be_deleted_or_replaced_by_legacy(tmp_path, repla
 
 
 def test_added_content_cannot_masquerade_as_unified_diff_header(tmp_path):
-    invalid = VALID_FACT.replace(" · искать:", " · no-search:")
+    invalid = VALID_FACT.replace(" · search:", " · no-search:")
     errors = _validate_fixture(tmp_path, _topic("++ /dev/null\n" + invalid))
 
-    assert any("missing 'искать:'" in error for error in errors)
+    assert any("missing 'search:'" in error for error in errors)
 
 
 LINK_BASE = (
     "- `fact:prompt-delivery-owner` — Memory rules reach agents through the shared prompt module · "
-    "искать: `memory-search.md`, `build_system_prompt`, «доставка памяти» · "
+    "search: `memory-search.md`, `build_system_prompt`, «доставка памяти» · "
     "evidence: `app/pipeline.py:568` · 2026-08-30, #417"
 )
 APPROVAL_ID = "kb-link-prompt-delivery-owner-depends-on-prompt-delivery"
@@ -204,7 +204,7 @@ def _validate_link_fixture(
 def test_approved_one_hop_link_matches_exact_receipt_tuple(tmp_path):
     linked = (
         LINK_BASE
-        + " · связи: `depends_on` → [prompt delivery](prompt-delivery.md)"
+        + " · links: `depends_on` → [prompt delivery](prompt-delivery.md)"
         + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`"
     )
 
@@ -216,20 +216,20 @@ def test_approved_one_hop_link_matches_exact_receipt_tuple(tmp_path):
     [
         LINK_BASE + " · candidate-link: [x](prompt-delivery.md)",
         LINK_BASE
-        + " · связи: `causes_magic` → [x](prompt-delivery.md)"
+        + " · links: `causes_magic` → [x](prompt-delivery.md)"
         + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`",
         LINK_BASE
-        + " · связи: `related` → [x](absent-topic.md)"
+        + " · links: `related` → [x](absent-topic.md)"
         + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`",
-        LINK_BASE + " · связи: `related` → [x](prompt-delivery.md)",
+        LINK_BASE + " · links: `related` → [x](prompt-delivery.md)",
         LINK_BASE
-        + " · связи: `depends_on` → [x](prompt-delivery.md)"
+        + " · links: `depends_on` → [x](prompt-delivery.md)"
         + " · approved: `.orchestra/tasks/417/plan.md#missing-approval-id`",
         LINK_BASE
-        + " · связи: `depends_on` → [x](prompt-delivery.md)"
+        + " · links: `depends_on` → [x](prompt-delivery.md)"
         + f" · approved: `.orchestra/tasks/417/plan.md#{WRONG_TUPLE_ID}`",
         LINK_BASE
-        + " · связи: `related` → [x](../foreign.md)"
+        + " · links: `related` → [x](../foreign.md)"
         + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`",
     ],
     ids=[
@@ -249,7 +249,7 @@ def test_unapproved_or_unsafe_one_hop_link_is_rejected(tmp_path, invalid):
 def test_self_link_is_rejected(tmp_path):
     fact = (
         LINK_BASE
-        + " · связи: `related` → [self](self-link.md)"
+        + " · links: `related` → [self](self-link.md)"
         + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`"
     )
 
@@ -261,7 +261,7 @@ def test_absolute_link_target_is_rejected(tmp_path):
     outside.write_text(_topic(LINK_BASE), encoding="utf-8")
     fact = (
         LINK_BASE
-        + f" · связи: `related` → [foreign]({outside.resolve()})"
+        + f" · links: `related` → [foreign]({outside.resolve()})"
         + f" · approved: `.orchestra/tasks/417/plan.md#{APPROVAL_ID}`"
     )
 
@@ -271,7 +271,7 @@ def test_absolute_link_target_is_rejected(tmp_path):
 def test_approval_receipt_from_research_artifact_is_rejected(tmp_path):
     linked = (
         LINK_BASE
-        + " · связи: `depends_on` → [prompt delivery](prompt-delivery.md)"
+        + " · links: `depends_on` → [prompt delivery](prompt-delivery.md)"
         + f" · approved: `.orchestra/tasks/417/research.md#{APPROVAL_ID}`"
     )
 
@@ -281,7 +281,7 @@ def test_approval_receipt_from_research_artifact_is_rejected(tmp_path):
 def test_approval_receipt_without_task_id_is_rejected(tmp_path):
     linked = (
         LINK_BASE
-        + " · связи: `depends_on` → [prompt delivery](prompt-delivery.md)"
+        + " · links: `depends_on` → [prompt delivery](prompt-delivery.md)"
         + f" · approved: `.orchestra/tasks/plan.md#{APPROVAL_ID}`"
     )
 
