@@ -237,11 +237,25 @@ async def test_prepare_refuses_a_call_that_may_still_be_running_and_names_it(
 
 @pytest.mark.asyncio
 async def test_change_model_refusal_names_the_blocking_call_not_only_its_code(session):
+    """Отказ по незавершённым эффектам называет ЗАБЛОКИРОВАВШИЙ вызов, а не только код.
+
+    Смена модели тут КРОССРАНТАЙМОВАЯ (claude → codex) — и это не деталь оформления.
+    Гейт незавершённых эффектов живёт на пути переноса истории
+    (`_change_runtime_with_packet_locked`), а смена модели ВНУТРИ рантайма идёт мимо него
+    через `_change_model_in_place_locked` (`app/session.py:4754-4760`), потому что
+    переносить нечего: тред тот же. Прежняя версия теста меняла `gpt-5.6-sol` на
+    `gpt-5.6-luna`, то есть внутри Codex, и с появлением in-place-пути (`e26dcde8`,
+    24.08.2026) проверяла путь, к которому её утверждение не относится.
+    Различающая проба 05.09: при заблокированном гейте смена ВНУТРИ рантайма проходит
+    (`ok=True`, `_prepare_runtime_handoff` не вызван ни разу), а МЕЖДУ рантаймами
+    отказывает (`ok=False`, `error_code='handoff_pending_effect'`, гейт вызван 1 раз) —
+    значит защита цела, сужать надо утверждение теста.
+    """
     from app.runtime_history import PreparationResult
     from app.session import AgentStatus
 
-    session.model = "gpt-5.6-sol"
-    session.backend_type = "codex"
+    session.model = "claude-opus-5[1m]"
+    session.backend_type = "claude"
     session.session_id = "source-thread"
     session.status = AgentStatus.IDLE
     # ЯВНАЯ заглушка, а не `AsyncMock()`: `_change_model_locked` ветвится по атрибутам
@@ -272,7 +286,7 @@ async def test_change_model_refusal_names_the_blocking_call_not_only_its_code(se
         },),
     ))
 
-    result = await session.change_model("gpt-5.6-luna")
+    result = await session.change_model("gpt-5.6-sol")
 
     assert result["ok"] is False
     assert result["error_code"] == "handoff_pending_effect"
