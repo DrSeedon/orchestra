@@ -1,0 +1,82 @@
+.............F.......................................................... [ 27%]
+........................................................................ [ 54%]
+........................................................................ [ 82%]
+..............................................                           [100%]
+=================================== FAILURES ===================================
+____ test_t2_total_context_preflight_refuses_codex_before_source_disconnect ____
+
+session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prom...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a3b8a958590>
+
+    @pytest.mark.asyncio
+    async def test_t2_total_context_preflight_refuses_codex_before_source_disconnect(
+        session, monkeypatch,
+    ):
+        from app.session import AgentStatus
+
+        session.model = "claude-sonnet-5[1m]"
+        session.backend_type = "claude"
+        session.session_id = "source-claude-session"
+        session.system_prompt = "x" * 300_000
+        session.last_summary = "must not become a silent fallback"
+        session.status = AgentStatus.IDLE
+        source = AsyncMock()
+        session._backend = source
+        session._log = MagicMock()
+        session._ensure_backend = AsyncMock(
+            return_value=SimpleNamespace(session_id="target-codex-thread")
+        )
+
+>       result = await session.change_model("gpt-5.6-sol")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_runtime_handoff_v2.py:421:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:3449: in change_model
+    return await self._change_model_locked(new_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:4787: in _change_model_locked
+    return await self._change_runtime_with_packet_locked(
+app/session.py:4344: in _change_runtime_with_packet_locked
+    prepared = await self._prepare_runtime_handoff(
+app/session.py:2001: in _prepare_runtime_handoff
+    record, result = await asyncio.get_running_loop().run_in_executor(
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/concurrent/futures/thread.py:59: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+session_id = 'test-290'
+idempotency_key = '85744fa88b2ffc3e396be8a718c93d807cdd7dceb73931070256d54697a7e59e'
+builder = <function AgentSession._prepare_runtime_handoff.<locals>.build_record at 0x7a3b8bacc180>
+
+    def prepare_runtime_handoff_snapshot(
+        session_id: str,
+        idempotency_key: str,
+        builder,
+    ) -> tuple[dict | None, object | None]:
+        """Freeze logs and create the prepared row under one SQLite write lock.
+
+        ``builder`` receives the current session row, snapshot id, and rows. It returns
+        ``(record, side_result)``; ``record=None`` is an ineligible preparation and does
+        not create a live operation.
+        """
+        with _conn() as c:
+            c.execute("BEGIN IMMEDIATE")
+>           existing = c.execute(
+                "SELECT * FROM runtime_handoffs WHERE session_id=? AND idempotency_key=?",
+                (session_id, idempotency_key),
+            ).fetchone()
+E           sqlite3.OperationalError: no such table: runtime_handoffs
+
+app/db.py:2245: OperationalError
+=============================== warnings summary ===============================
+tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+  /mnt/data/Projects/Python/orchestra-bash-latency-20260905/.venv/lib/python3.13/site-packages/starlette/testclient.py:445: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_refuses_codex_before_source_disconnect
+1 failed, 261 passed, 1 deselected, 2 warnings in 28.14s
