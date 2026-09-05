@@ -14,7 +14,9 @@ Do not call this a measured subscription debit or a statistically reliable speed
 The evaluator and source revisions are frozen before model execution. Evaluator code is outside
 the child's filesystem. Each run has only its own fixture, no shared git object database,
 no other run's result, no host home or project mounts. Native Codex runs within outer bwrap;
-the host filesystem is read-only except the explicit work/runtime mounts.
+the host project/home filesystems are absent; only read-only OS directories and explicit
+work/runtime mounts are exposed. An initial shell-only preflight failed creating /work on
+a read-only root; the mount layout was corrected before any model call or result.
 Authentication stays in a private scratch runtime; no raw log or credentials go to Git.
 CLI executable and standard OS tools are available; no live Orchestra MCP or review service.
 The same adaptation text explains this in both arms.
