@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/home/kesha/katya-work/artifacts/task-4/tests/validate_t4_lesson9.py", line 231, in <module>
+    main()
+  File "/home/kesha/katya-work/artifacts/task-4/tests/validate_t4_lesson9.py", line 131, in main
+    assert validated.returncode == 0 and validated.stdout.strip() == "VALID schema_version=iskra-deck-1 slides=10", f"T4 lesson JSON is not contract-valid: {validated.stderr}"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: T4 lesson JSON is not contract-valid: E_REGISTRY_DIGEST cannot read source master
+
+RC=1

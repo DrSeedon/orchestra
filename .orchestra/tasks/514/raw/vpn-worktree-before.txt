@@ -1,0 +1,3 @@
+=== status BEFORE ===
+=== venv ===
+ls: cannot access '/home/kesha/orchestra/worktrees/home-kesha-projects-vpn-service/fix-onboarding-clients/.venv/bin/python': No such file or directory

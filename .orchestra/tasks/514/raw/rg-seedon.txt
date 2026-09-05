@@ -1,0 +1,33 @@
+/home/kesha/projects/seedon/.orchestra/tasks/238/run_oracle_canaries.py:54:        'TASK = ROOT / "docs/tasks/238"',
+/home/kesha/projects/seedon/.orchestra/tasks/238/tests/test_t2_local_demo_stack.py:16:TASK = ROOT / "docs/tasks/238"
+/home/kesha/projects/seedon/.orchestra/tasks/216/build.py:6:Запуск: python3 docs/tasks/216/build.py
+/home/kesha/projects/seedon/.orchestra/tasks/216/build.py:226:    negatives = json.load(open("docs/tasks/216/negatives-172.json", encoding="utf-8"))
+/home/kesha/projects/seedon/.orchestra/tasks/132/verify-two-forms.py:4:Запуск:  /home/kesha/orchestra/.venv/bin/python docs/tasks/132/verify-two-forms.py
+/home/kesha/projects/seedon/.orchestra/tasks/125/verify-fab-overlap.py:4:Запуск:  /home/kesha/orchestra/.venv/bin/python docs/tasks/125/verify-fab-overlap.py
+/home/kesha/projects/seedon/.orchestra/tasks/141/test_delivery.py:6:Запуск из корня репозитория: python3 docs/tasks/141/test_delivery.py. RC=1 при провале.
+/home/kesha/projects/seedon/.orchestra/tasks/180/calc.py:4:Запуск: python3 docs/tasks/180/calc.py
+/home/kesha/projects/seedon/.orchestra/tasks/203/data/validate_artifacts.py:180:    matrix_path = REPO / "docs/tasks/202/landing-matrix.csv"
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/measure_acceptance.py:37:raw = Path("docs/tasks/263/out/http_dev_lead_logs.json").read_text(encoding="utf-8")
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/validate_research.py:4:text = Path("docs/tasks/263/research.md").read_text(encoding="utf-8")
+/home/kesha/projects/seedon/.orchestra/tasks/243/deploy-prepare.sh:8:requirements="$root/docs/tasks/243/requirements.txt"
+/home/kesha/projects/seedon/.orchestra/tasks/243/deploy-prepare.sh:9:unit="$root/docs/tasks/243/seedon-service-demo.service"
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/extract_messages.py:11:for line in open("docs/tasks/263/out/messages_relevant.jsonl", encoding="utf-8"):
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/scan_candidates.py:6:for line in open("docs/tasks/263/out/tracked_candidate_files.txt", encoding="utf-8"):
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/index_devlead_user_messages.py:7:raw = Path("docs/tasks/263/out/http_dev_lead_logs.json").read_text(encoding="utf-8")
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/extract_seq.py:6:for line in open("docs/tasks/263/out/messages_relevant.jsonl", encoding="utf-8"):
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/measure_direct.py:14:    for line in open("docs/tasks/263/out/messages_relevant.jsonl", encoding="utf-8")
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/find_message_literal.py:6:for line in open("docs/tasks/263/out/messages_relevant.jsonl", encoding="utf-8"):
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/summarize_http.py:8:raw = Path("docs/tasks/263/out/http_dev_lead_logs.json").read_text(encoding="utf-8")
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/index_messages.py:4:for line in open("docs/tasks/263/out/messages_relevant.jsonl", encoding="utf-8"):
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/measure_lag_same_turn.py:45:raw = Path("docs/tasks/263/out/http_dev_lead_logs.json").read_text(encoding="utf-8")
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/measure_lag_same_turn.py:53:    for line in open("docs/tasks/263/out/messages_relevant.jsonl", encoding="utf-8")
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/export_direct.py:10:for line in open("docs/tasks/263/out/messages_relevant.jsonl", encoding="utf-8"):
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/literal_checks.py:8:        for line in open("docs/tasks/263/out/messages_relevant.jsonl", encoding="utf-8")
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/status_samples.py:7:raw = Path("docs/tasks/263/out/http_dev_lead_logs.json").read_text(encoding="utf-8")
+/home/kesha/projects/seedon/.orchestra/tasks/263/out/summarize_devlead_tools.py:8:raw = Path("docs/tasks/263/out/http_dev_lead_logs.json").read_text(encoding="utf-8")
+/home/kesha/projects/seedon/.orchestra/tasks/123/verify-hero-form.py:5:    /home/kesha/orchestra/.venv/bin/python docs/tasks/123/verify-hero-form.py pre
+/home/kesha/projects/seedon/.orchestra/tasks/123/verify-hero-form.py:6:    /home/kesha/orchestra/.venv/bin/python docs/tasks/123/verify-hero-form.py post
+/home/kesha/projects/seedon/.orchestra/tasks/245/bench3.py:4:Корпус, промпт, температура, число прогонов и модели — те же, что в `docs/tasks/222/bench2.py`,
+/home/kesha/projects/seedon/.orchestra/tasks/105/measure_latency.py:12:    python docs/tasks/105/measure_latency.py \
+/home/kesha/projects/seedon/.orchestra/tasks/241/check_texts.py:6:docs/tasks/241/sources/rubrics.json).
+/home/kesha/projects/seedon/.orchestra/tasks/241/audit_quotes.py:22:    for p in ("docs/tasks/236/lesson-3-notes.md", "docs/product/PRODUCT-BIBLE.md",

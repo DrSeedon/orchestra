@@ -1,0 +1,13 @@
+/opt/cog-second-brain/.orchestra/tasks/33/verify-citations.py:8:Запуск:  python3 docs/tasks/33/verify-citations.py
+/opt/cog-second-brain/.orchestra/tasks/27-golden-labels/build_labels.py:8:Запуск: python3 docs/tasks/27-golden-labels/build_labels.py
+/opt/cog-second-brain/.orchestra/tasks/27-golden-labels/build_labels.py:18:SRC = ROOT / "docs/tasks/26-golden-set/golden-set.json"
+/opt/cog-second-brain/.orchestra/tasks/27-golden-labels/build_labels.py:721:    L.append("**Задача #27** · 07.08.2026 · Рубрика: `docs/tasks/26-golden-set/rubric.md` · "
+/opt/cog-second-brain/.orchestra/tasks/27-golden-labels/build_labels.py:722:             "Вход: `docs/tasks/26-golden-set/golden-set.json`")
+/opt/cog-second-brain/.orchestra/tasks/73/verify_spritesheet.py:10:SCRIPT = ROOT / "docs/tasks/73/make_spritesheet.py"
+/opt/cog-second-brain/.orchestra/tasks/76/verify_listings.py:10:LISTINGS = ROOT / "docs/tasks/76/listings.md"
+/opt/cog-second-brain/.orchestra/tasks/76/verify_listings.py:47:    generator = (ROOT / "docs/tasks/76/make_imagegen_covers.py").read_text(encoding="utf-8")
+/opt/cog-second-brain/.orchestra/tasks/29-llm-stability/raw/metrics.py:1:"""Метрики из ЗАМОРОЖЕННОЙ docs/tasks/26-golden-set/metrics.md. Не изобретаю свои."""
+/opt/cog-second-brain/.orchestra/tasks/dota-stats/analyze.py:1046:python3 docs/tasks/dota-stats/analyze.py
+/opt/cog-second-brain/.orchestra/tasks/dota-stats/analyze.py:1047:python3 docs/tasks/dota-stats/analyze.py --check
+/opt/cog-second-brain/.orchestra/tasks/29-llm-stability/raw/rate.py:11:              'docs/tasks/26-golden-set/rubric.md').read()
+/opt/cog-second-brain/.orchestra/tasks/31/check-install.sh:71:    local tracked="$REPO_ROOT/docs/tasks/31/arduino-setup.sh"

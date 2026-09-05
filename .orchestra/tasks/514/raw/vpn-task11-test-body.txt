@@ -1,0 +1,39 @@
+=== worktree branch/head ===
+task-5/fix-onboarding-clients
+371b833 #5: fix onboarding client instructions
+=== test body around 545-575 ===
+        "backup_authorized_keys",
+        "authorize_key",
+        RELAY_TAG,
+        "relay_seedon_known_hosts",
+        "task11_verify_relay.py",
+        "rollback_authorized_keys",
+        "Rollback T5",
+    )
+    assert "systemctl restart" not in runbook
+    assert "ufw " not in runbook.lower()
+
+
+def test_t6_final_acceptance_and_report_contract():
+    _require(RUNBOOK, "T6")
+    text = RUNBOOK.read_text()
+
+    _assert_ordered(
+        text,
+        "## T6 — Final operational acceptance and report",
+        "git rev-list --count HEAD..origin/master",
+        "task11_harden_env.py check",
+        "sys.version_info[:2] == (3, 12)",
+        ".venv/bin/python -m pytest -x -q",
+        "task11_verify_relay.py",
+        ".duckdns_token",
+        "docs/tasks/11/report.md",
+        "NEEDS WORK/no consensus",
+        "Rollback T6",
+    )
+    assert "secrets" in text.lower()
+    assert "PII" in text
+    assert "fingerprint" in text.lower()
+    assert "hash" in text.lower()
+    assert "no deploy" in text.lower()
+    assert "no restart" in text.lower()
