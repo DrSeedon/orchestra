@@ -169,6 +169,7 @@ def verify_historical_bindings(root: Path) -> dict[str, object]:
         for stable_id, expected_hash in expected.items()
         if current_hashes[stable_id] != expected_hash
     }
+    missing_commit_ids: set[str] = set()
 
     selected = [records[stable_id] for stable_id in expected if stable_id in records]
     by_commit: dict[str, list[dict[str, str]]] = defaultdict(list)
@@ -197,6 +198,7 @@ def verify_historical_bindings(root: Path) -> dict[str, object]:
 
     blobs = sorted({record["git_blob"] for record in selected})
     contents: dict[str, bytes] = {}
+    missing_blobs: set[str] = set()
     if blobs:
         batch = subprocess.run(
             ["git", "cat-file", "--batch"],
@@ -208,7 +210,19 @@ def verify_historical_bindings(root: Path) -> dict[str, object]:
         offset = 0
         for expected_blob in blobs:
             header_end = batch.index(b"\n", offset)
-            blob, object_type, raw_size = batch[offset:header_end].decode().split()
+            header = batch[offset:header_end].decode().split()
+            # На отсутствующий объект `git cat-file --batch` отвечает ДВУМЯ полями —
+            # `<sha> missing` — и без тела. Прежний код распаковывал строку в три
+            # переменные и падал `ValueError: not enough values to unpack`, унося с собой
+            # ВЕСЬ сторож путей: скрипт не печатал ничего, то есть переставал проверять и
+            # живые пути тоже. Отсутствие объекта — законное состояние после слияния двух
+            # контуров (squash-мерж не переносит объекты чужой ветки), поэтому это
+            # отдельный ИСХОД, а не авария.
+            if len(header) == 2 and header[1] == "missing":
+                missing_blobs.add(header[0])
+                offset = header_end + 1
+                continue
+            blob, object_type, raw_size = header
             size = int(raw_size)
             start = header_end + 1
             end = start + size
@@ -218,7 +232,14 @@ def verify_historical_bindings(root: Path) -> dict[str, object]:
             offset = end + 1
         if offset != len(batch):
             raise ValueError("trailing bytes in git cat-file response")
+    missing_ids = set(missing_commit_ids)
     for record in selected:
+        if record["git_blob"] in missing_blobs:
+            # Объекта нет в репозитории — сверять нечего. Это НЕ mismatch: mismatch
+            # означает «содержимое разошлось», а здесь содержимого нет вовсе, и
+            # смешивать два исхода значит врать в обе стороны.
+            missing_ids.add(record["stable_id"])
+            continue
         content = contents.get(record["git_blob"])
         digest = "sha256:" + hashlib.sha256(content or b"").hexdigest()
         if content is None or digest != record["source_sha256"]:
@@ -229,6 +250,8 @@ def verify_historical_bindings(root: Path) -> dict[str, object]:
         "historical_path_blob_sha_checked": len(expected),
         "historical_binding_set_sha256": binding_set_sha256,
         "historical_path_blob_sha_mismatches": len(mismatches),
+        "historical_path_blob_sha_missing": len(missing_ids),
+        "historical_missing_ids": sorted(missing_ids)[:20],
         "historical_mismatch_ids": sorted(mismatches)[:20],
     }
 
