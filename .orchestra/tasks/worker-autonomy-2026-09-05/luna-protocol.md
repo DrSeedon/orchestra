@@ -24,6 +24,13 @@ The same adaptation text explains this in both arms.
 This is a small prompt-level pilot on synthetic tasks, not a production app-server/MCP test.
 The lack of orchestration tools may particularly disadvantage a mandatory-delegation workflow.
 One result per arm per task cannot separate random model variation from the prompt effect.
+Before the usable batch, the old implementation trial could not launch the code-mode host:
+the native executable was mounted without its required sibling binary. Excluded result and
+known usage are in luna-excluded.json; the next trial was interrupted and has no final usage.
+The mount now exposes the complete vendor runtime. A separate functional preflight executed
+python3 through the actual Luna shell tool (633947, exit 0); its usage was 19,896 input,
+10,752 cached, 112 output. These setup attempts are not treatment results. This correction
+changes neither task, prompt nor evaluator; the usable batch starts fresh in a new scratch.
 Research judgment is not blind: the evaluator authored the prompt change; expose the actual
 answers and limitations rather than turning subjective interpretation into a numeric score.
 

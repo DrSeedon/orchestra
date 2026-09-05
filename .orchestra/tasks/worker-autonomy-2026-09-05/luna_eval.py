@@ -96,7 +96,8 @@ def sandbox(work, home):
            "--ro-bind", "/lib", "/lib", "--ro-bind", "/lib64", "/lib64",
            "--ro-bind", "/etc", "/etc", "--tmpfs", "/tmp",
            "--dev", "/dev", "--proc", "/proc", "--bind", str(work), "/work",
-           "--bind", str(home), "/codex-home", "--ro-bind", str(BINARY), "/eval-codex",
+           "--bind", str(home), "/codex-home",
+           "--ro-bind", str(BINARY.parent.parent), "/runtime",
            "--clearenv", "--setenv", "HOME", "/codex-home", "--setenv", "CODEX_HOME", "/codex-home",
            "--setenv", "PATH", "/usr/local/bin:/usr/bin:/bin", "--setenv", "LANG", "C.UTF-8",
            "--setenv", "SHELL", "/bin/bash", "--chdir", "/work"]
@@ -183,13 +184,13 @@ def main():
             "test ! -e /mnt/data/Projects/Python/orchestra/AGENTS.md && "
             "test ! -e /home/maxim/.codex/config.toml && "
             "test -w /work && test -f /codex-home/auth.json && echo ISOLATION_OK"])
-        probe = run(prefix + ["/eval-codex", "-c",
+        probe = run(prefix + ["/runtime/bin/codex", "-c",
                     "developer_instructions=" + json.dumps(prompts[arm], ensure_ascii=False),
                     "debug", "prompt-input", "probe"], timeout=30)
         rendered = json.dumps(json.loads(probe.stdout), ensure_ascii=False)
         if "Role: Full-Cycle Worker" not in rendered:
             raise RuntimeError("Full-cycle developer instructions did not reach prompt input")
-        cmd = prefix + ["/eval-codex", "exec", "--ignore-user-config", "--ignore-rules",
+        cmd = prefix + ["/runtime/bin/codex", "exec", "--ignore-user-config", "--ignore-rules",
                         "--ephemeral", "--skip-git-repo-check",
                         "--dangerously-bypass-approvals-and-sandbox", "--json",
                         "-m", MODEL, "-c", 'model_reasoning_effort="high"',
@@ -230,7 +231,8 @@ def main():
                                     ensure_ascii=False, indent=2))
         print(json.dumps({k:v for k,v in row.items() if k not in ("final", "scratch")},
                          ensure_ascii=False), flush=True)
-        if rc != 0:
+        runtime_error = "failed to spawn code-mode host" in (trial / "stderr.txt").read_text()
+        if rc != 0 or runtime_error:
             print("Transport/runtime failure: stopping pilot, no automatic retry.", flush=True)
             break
 
