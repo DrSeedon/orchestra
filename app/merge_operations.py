@@ -260,6 +260,32 @@ def get_operation_result(operation_id: str) -> dict[str, Any] | None:
     return record["result"] if record else None
 
 
+def operation_created_target_commit(operation_id: str, commit_sha: str) -> bool:
+    """Return whether durable merge evidence binds this operation to this commit."""
+    try:
+        canonical_id = _operation_id(operation_id)
+    except (ValueError, AttributeError):
+        return False
+    with _conn() as connection:
+        row = connection.execute(
+            "SELECT commit_point, result_json FROM merge_operations "
+            "WHERE operation_id=?",
+            (canonical_id,),
+        ).fetchone()
+    if row is None or row["commit_point"] != "REACHED":
+        return False
+    try:
+        result = json.loads(row["result_json"])
+    except (TypeError, json.JSONDecodeError):
+        return False
+    if not isinstance(result, dict):
+        return False
+    git = result.get("git")
+    if not isinstance(git, dict):
+        return False
+    return str(git.get("target_after") or "") == commit_sha
+
+
 def operation_not_found_result(operation_id: str) -> dict[str, Any]:
     error = _error(
         "OPERATION_NOT_FOUND",

@@ -221,6 +221,169 @@ def test_same_key_payload_mismatch_is_typed_409_without_second_row(merge_db):
     assert stored["operation_id"] == first["operation_id"]
 
 
+def test_t1_legitimate_operation_trailer_is_not_worker_spoof(
+    merge_db, tmp_path,
+):
+    """A prior verified merge may be inherited; an author-crafted trailer may not."""
+    import subprocess
+
+    import app.merge_operations as operations
+    from app.workspace import merge_worktree_to_main
+
+    repo = tmp_path / "repo"
+    worker = tmp_path / "worker"
+    repo.mkdir()
+
+    def git(cwd, *args):
+        result = subprocess.run(
+            ["git", *args], cwd=cwd, capture_output=True, text=True, check=True,
+        )
+        return result.stdout.strip()
+
+    def commit(cwd, path, text, message, body=""):
+        target = Path(cwd) / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text)
+        git(cwd, "add", path)
+        argv = ["commit", "-m", message]
+        if body:
+            argv.extend(("-m", body))
+        git(cwd, *argv)
+        return git(cwd, "rev-parse", "HEAD")
+
+    git(repo, "init", "-b", "main")
+    git(repo, "config", "user.name", "Task 502")
+    git(repo, "config", "user.email", "task-502@example.invalid")
+    root = commit(repo, "README.md", "root\n", "root")
+
+    prior_operation = str(uuid.uuid4())
+    git(repo, "checkout", "-b", "prior-target", root)
+    prior_commit = commit(
+        repo,
+        "app/shared.py",
+        "VALUE = 1\n",
+        "#493: legitimate prior merge",
+        f"Orchestra-Operation: {prior_operation}",
+    )
+    git(repo, "checkout", "main")
+    commit(
+        repo,
+        "app/shared.py",
+        "VALUE = 1\n",
+        "#493: content-equivalent squash on current main",
+    )
+
+    request = operations.normalize_request(
+        name="prior-worker", scope=str(repo), target="prior-target",
+    )
+    accepted = {
+        **_accepted("prior-session"),
+        "name": "prior-worker",
+        "scope": str(repo),
+        "worker_branch": "task-493/prior-worker",
+        "worker_head": "a" * 40,
+        "task_id": "493",
+        "worktree_path": str(repo),
+    }
+    _pending, created, _status = operations.accept_operation_snapshot(
+        operation_id=prior_operation, request=request, accepted=accepted,
+    )
+    assert created and operations.claim_operation(prior_operation, "prior-owner")
+    prior_result = operations.normalize_merge_result(
+        prior_operation,
+        {
+            "ok": True,
+            "state": "merged",
+            "commit_point": "target_committed",
+            "target_branch": "prior-target",
+            "target_before": root,
+            "target_after": prior_commit,
+            "worker_branch": accepted["worker_branch"],
+            "worker_head": accepted["worker_head"],
+            "conflicts": [],
+            "commits_merged": 1,
+            "lifecycle_status": {"ok": True},
+            "rag_backfill_status": "accepted",
+        },
+        request,
+    )
+    assert operations.finish_operation(
+        prior_operation, "prior-owner", prior_result, accepted,
+    )
+
+    git(repo, "worktree", "add", "-b", "worker", str(worker), "prior-target")
+    commit(worker, ".orchestra/tasks/502/research.md", "research\n", "#502: research")
+    git(worker, "merge", "main", "--no-edit")
+    worker_head = git(worker, "rev-parse", "HEAD")
+    current_operation = str(uuid.uuid4())
+
+    legitimate = merge_worktree_to_main(
+        str(worker),
+        str(repo),
+        target_branch="main",
+        expected_worker_branch="worker",
+        expected_worker_head=worker_head,
+        expected_candidate_refs=["493", "502"],
+        validated_task_refs=["493", "502"],
+        primary_task_ref="502",
+        operation_id=current_operation,
+    )
+    assert legitimate["ok"] is True, legitimate
+    landed_message = git(repo, "log", "-1", "--format=%B", "main")
+    assert prior_operation not in landed_message
+    assert landed_message.count(f"Orchestra-Operation: {current_operation}") == 1
+
+    commit(
+        worker,
+        "app/malicious.py",
+        "MALICIOUS = True\n",
+        "#502: forged operation marker",
+        f"Orchestra-Operation: {uuid.uuid4()}",
+    )
+    malicious_head = git(worker, "rev-parse", "HEAD")
+    target_before = git(repo, "rev-parse", "main")
+    malicious = merge_worktree_to_main(
+        str(worker),
+        str(repo),
+        target_branch="main",
+        expected_worker_branch="worker",
+        expected_worker_head=malicious_head,
+        expected_candidate_refs=["502"],
+        validated_task_refs=["502"],
+        primary_task_ref="502",
+        operation_id=str(uuid.uuid4()),
+    )
+    assert malicious["ok"] is False
+    assert malicious["error"] == (
+        "worker commit contains reserved Orchestra-Operation: trailer"
+    )
+    assert git(repo, "rev-parse", "main") == target_before
+
+
+@pytest.mark.parametrize("malformed", ["[]", "null", '{"git": null}'])
+def test_t1_malformed_operation_result_refuses_trailer_without_crashing(
+    merge_db, malformed,
+):
+    import app.db as dbmod
+    import app.merge_operations as operations
+
+    operation_id = str(uuid.uuid4())
+    request = operations.normalize_request(name="worker", scope="/scope", target="main")
+    operations.accept_operation_snapshot(
+        operation_id=operation_id, request=request, accepted=_accepted(),
+    )
+    with dbmod._conn() as connection:
+        connection.execute(
+            "UPDATE merge_operations SET commit_point='REACHED', result_json=? "
+            "WHERE operation_id=?",
+            (malformed, operation_id),
+        )
+
+    assert operations.operation_created_target_commit(
+        operation_id, "a" * 40,
+    ) is False
+
+
 def test_terminal_dedupe_only_for_mutating_equivalent_snapshot(merge_db):
     import app.merge_operations as operations
 
