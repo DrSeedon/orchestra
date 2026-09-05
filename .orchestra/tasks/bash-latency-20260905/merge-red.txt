@@ -1,0 +1,266 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+_______ test_merge_mcp_returns_immediately_only_with_durable_completion ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e01ba602b10>
+
+    @pytest.mark.asyncio
+    async def test_merge_mcp_returns_immediately_only_with_durable_completion(monkeypatch):
+        from app import mcp_stdio as m
+        from app.routes import merge_operations as route
+        from app.bg_jobs import bg_manager
+        from app.deps import manager
+    
+        monkeypatch.setattr(m, "SCOPE", "/s")
+        monkeypatch.setattr(m, "WORKER_NAME", "caller")
+        monkeypatch.setattr(manager, "get_by_name", lambda name, scope: type("Session", (), {"id": "caller-id"})())
+        create = AsyncMock(return_value={"id": "bg-test", "type": "merge", "status": "active"})
+        monkeypatch.setattr(bg_manager, "create", create)
+        async def accept(**kwargs):
+            return {"operation_id": kwargs["operation_id"], "operation_state": "RUNNING"}, 202
+        monkeypatch.setattr(route, "accept_merge_operation", accept)
+        async def api(method, path, **kwargs):
+            assert method == "POST" and path == "/api/merge-operations"
+            response = await route.create_merge_operation(kwargs["json"])
+            return json.loads(response.body)
+        monkeypatch.setattr(m, "_api", api)
+        wait = AsyncMock(side_effect=AssertionError("durable completion must not poll"))
+        monkeypatch.setattr(m, "_await_merge_terminal", wait)
+        result = await m.merge_worker("worker")
+>       assert result.isError is False
+E       AssertionError: assert True is False
+E        +  where True = CallToolResult(meta=None, content=[TextContent(type='text', text='Merge operation 78ca66cc-2b9f-4900-98f9-34e9b3dd7cbd... 'retry_after_seconds': None, 'outcome_unknown': True, 'details': {'exception_type': 'AssertionError'}}}, isError=True).isError
+
+tests/test_merge_completion_watch.py:38: AssertionError
+_______ test_watch_delivers_terminal_state_to_pinned_session[SUCCEEDED] ________
+
+watch_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e01ba475040>
+state = 'SUCCEEDED'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("state", ["SUCCEEDED", "FAILED", "PARTIAL", "UNKNOWN"])
+    async def test_watch_delivers_terminal_state_to_pinned_session(watch_db, monkeypatch, state):
+        from app.bg_jobs import BgJobManager
+        from app import merge_operations, db
+        record = {"scope": "/s", "result": {"operation_id": "op1", "operation_state": "RUNNING"}}
+        monkeypatch.setattr(merge_operations, "get_operation_record", lambda _: record)
+        manager = MagicMock()
+        manager.ensure_loaded_by_id = AsyncMock(return_value=MagicMock())
+        manager.send = AsyncMock()
+        bg = BgJobManager()
+        bg.set_session_manager(manager)
+        try:
+            job = await bg.create("merge", {"operation_id": "op1"}, "Merge completion",
+                                  "pinned-id", "old-name", "/s", "caller")
+>           assert "error" not in job
+E           AssertionError: assert 'error' not in {'error': 'unknown job type: merge'}
+
+tests/test_merge_completion_watch.py:59: AssertionError
+_________ test_watch_delivers_terminal_state_to_pinned_session[FAILED] _________
+
+watch_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e01b7036850>
+state = 'FAILED'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("state", ["SUCCEEDED", "FAILED", "PARTIAL", "UNKNOWN"])
+    async def test_watch_delivers_terminal_state_to_pinned_session(watch_db, monkeypatch, state):
+        from app.bg_jobs import BgJobManager
+        from app import merge_operations, db
+        record = {"scope": "/s", "result": {"operation_id": "op1", "operation_state": "RUNNING"}}
+        monkeypatch.setattr(merge_operations, "get_operation_record", lambda _: record)
+        manager = MagicMock()
+        manager.ensure_loaded_by_id = AsyncMock(return_value=MagicMock())
+        manager.send = AsyncMock()
+        bg = BgJobManager()
+        bg.set_session_manager(manager)
+        try:
+            job = await bg.create("merge", {"operation_id": "op1"}, "Merge completion",
+                                  "pinned-id", "old-name", "/s", "caller")
+>           assert "error" not in job
+E           AssertionError: assert 'error' not in {'error': 'unknown job type: merge'}
+
+tests/test_merge_completion_watch.py:59: AssertionError
+________ test_watch_delivers_terminal_state_to_pinned_session[PARTIAL] _________
+
+watch_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e01b72657f0>
+state = 'PARTIAL'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("state", ["SUCCEEDED", "FAILED", "PARTIAL", "UNKNOWN"])
+    async def test_watch_delivers_terminal_state_to_pinned_session(watch_db, monkeypatch, state):
+        from app.bg_jobs import BgJobManager
+        from app import merge_operations, db
+        record = {"scope": "/s", "result": {"operation_id": "op1", "operation_state": "RUNNING"}}
+        monkeypatch.setattr(merge_operations, "get_operation_record", lambda _: record)
+        manager = MagicMock()
+        manager.ensure_loaded_by_id = AsyncMock(return_value=MagicMock())
+        manager.send = AsyncMock()
+        bg = BgJobManager()
+        bg.set_session_manager(manager)
+        try:
+            job = await bg.create("merge", {"operation_id": "op1"}, "Merge completion",
+                                  "pinned-id", "old-name", "/s", "caller")
+>           assert "error" not in job
+E           AssertionError: assert 'error' not in {'error': 'unknown job type: merge'}
+
+tests/test_merge_completion_watch.py:59: AssertionError
+________ test_watch_delivers_terminal_state_to_pinned_session[UNKNOWN] _________
+
+watch_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e01b720a5d0>
+state = 'UNKNOWN'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("state", ["SUCCEEDED", "FAILED", "PARTIAL", "UNKNOWN"])
+    async def test_watch_delivers_terminal_state_to_pinned_session(watch_db, monkeypatch, state):
+        from app.bg_jobs import BgJobManager
+        from app import merge_operations, db
+        record = {"scope": "/s", "result": {"operation_id": "op1", "operation_state": "RUNNING"}}
+        monkeypatch.setattr(merge_operations, "get_operation_record", lambda _: record)
+        manager = MagicMock()
+        manager.ensure_loaded_by_id = AsyncMock(return_value=MagicMock())
+        manager.send = AsyncMock()
+        bg = BgJobManager()
+        bg.set_session_manager(manager)
+        try:
+            job = await bg.create("merge", {"operation_id": "op1"}, "Merge completion",
+                                  "pinned-id", "old-name", "/s", "caller")
+>           assert "error" not in job
+E           AssertionError: assert 'error' not in {'error': 'unknown job type: merge'}
+
+tests/test_merge_completion_watch.py:59: AssertionError
+________________________ test_watch_rejects_other_scope ________________________
+
+watch_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e01b7217ac0>
+
+    @pytest.mark.asyncio
+    async def test_watch_rejects_other_scope(watch_db, monkeypatch):
+        from app.bg_jobs import BgJobManager
+        from app import merge_operations
+        monkeypatch.setattr(merge_operations, "get_operation_record", lambda _: {"scope": "/other"})
+        bg = BgJobManager()
+        result = await bg.create("merge", {"operation_id": "op1"}, "completion", "s1", "w", "/s", "w")
+>       assert "scope" in result["error"]
+E       AssertionError: assert 'scope' in 'unknown job type: merge'
+
+tests/test_merge_completion_watch.py:81: AssertionError
+______________________ test_watch_restores_after_restart _______________________
+
+watch_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e01b71df0b0>
+
+    @pytest.mark.asyncio
+    async def test_watch_restores_after_restart(watch_db, monkeypatch):
+        from app.bg_jobs import BgJobManager
+        from app import merge_operations
+        record = {"scope": "/s", "result": {"operation_id": "op1", "operation_state": "RUNNING"}}
+        monkeypatch.setattr(merge_operations, "get_operation_record", lambda _: record)
+        bg = BgJobManager()
+        job = await bg.create("merge", {"operation_id": "op1"}, "completion", "s1", "w", "/s", "w")
+        await bg.shutdown()
+        restored = BgJobManager()
+        manager = MagicMock()
+        manager.ensure_loaded_by_id = AsyncMock(return_value=MagicMock())
+        manager.send = AsyncMock()
+        restored.set_session_manager(manager)
+        record["result"]["operation_state"] = "SUCCEEDED"
+        try:
+            await restored.restore_from_db()
+            async with asyncio.timeout(5):
+                while not manager.send.called:
+>                   await asyncio.sleep(.01)
+
+tests/test_merge_completion_watch.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+delay = 0.01, result = None
+
+    async def sleep(delay, result=None):
+        """Coroutine that completes after a given time (in seconds)."""
+        if delay <= 0:
+            await __sleep0()
+            return result
+    
+        if math.isnan(delay):
+            raise ValueError("Invalid delay: NaN (not a number)")
+    
+        loop = events.get_running_loop()
+        future = loop.create_future()
+        h = loop.call_later(delay,
+                            futures._set_result_unless_cancelled,
+                            future, result)
+        try:
+>           return await future
+                   ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/tasks.py:718: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+watch_db = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e01b71df0b0>
+
+    @pytest.mark.asyncio
+    async def test_watch_restores_after_restart(watch_db, monkeypatch):
+        from app.bg_jobs import BgJobManager
+        from app import merge_operations
+        record = {"scope": "/s", "result": {"operation_id": "op1", "operation_state": "RUNNING"}}
+        monkeypatch.setattr(merge_operations, "get_operation_record", lambda _: record)
+        bg = BgJobManager()
+        job = await bg.create("merge", {"operation_id": "op1"}, "completion", "s1", "w", "/s", "w")
+        await bg.shutdown()
+        restored = BgJobManager()
+        manager = MagicMock()
+        manager.ensure_loaded_by_id = AsyncMock(return_value=MagicMock())
+        manager.send = AsyncMock()
+        restored.set_session_manager(manager)
+        record["result"]["operation_state"] = "SUCCEEDED"
+        try:
+            await restored.restore_from_db()
+>           async with asyncio.timeout(5):
+                       ^^^^^^^^^^^^^^^^^^
+
+tests/test_merge_completion_watch.py:102: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x7e01b7873cc0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is not None:
+                # Since there are no new cancel requests, we're
+                # handling this.
+                if issubclass(exc_type, exceptions.CancelledError):
+>                   raise TimeoutError from exc_val
+E                   TimeoutError
+
+/home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/timeouts.py:116: TimeoutError
+=========================== short test summary info ============================
+FAILED tests/test_merge_completion_watch.py::test_merge_mcp_returns_immediately_only_with_durable_completion
+FAILED tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[SUCCEEDED]
+FAILED tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[FAILED]
+FAILED tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[PARTIAL]
+FAILED tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[UNKNOWN]
+FAILED tests/test_merge_completion_watch.py::test_watch_rejects_other_scope
+FAILED tests/test_merge_completion_watch.py::test_watch_restores_after_restart
+7 failed in 9.78s
