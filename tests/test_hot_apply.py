@@ -300,7 +300,7 @@ async def test_t2_internal_starter_queues_a_fact_instead_of_starting(
             # не подрабатывал измерением времени
             args = {
                 "_flush_pending": (),
-                "_auto_continue": (),
+                "_auto_continue": (s._turn_gen,),
                 "_rate_limit_retry": (0, s._turn_gen),
                 "_retry_after_server_error": (0, s._turn_gen),
             }[starter]
@@ -324,6 +324,9 @@ async def test_t3_restart_signals_without_waiting_for_live_turns(monkeypatch):
 
     running = _FakeSession("running", AgentStatus.RUNNING)
     idle = _FakeSession("idle", AgentStatus.IDLE)
+    # This test forbids waiting for turns, not slow filesystem telemetry.
+    # Persistence-before-signal has its own test below.
+    monkeypatch.setattr(system, "_record_restart_outcome", MagicMock())
     monkeypatch.setattr(system, "_drain_sessions", lambda: [running, idle], raising=False)
     kill = MagicMock()
     monkeypatch.setattr(system.os, "kill", kill)

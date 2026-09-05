@@ -84,7 +84,8 @@ def _queue_block(row: sqlite3.Row | dict) -> dict:
             f"since {head['updated_at']} by delivery {head['delivery_id']}, whose "
             "provider outcome is still unknown. Nothing queued after it moves while "
             "that outcome could still change. Do not resend this message: the next "
-            "restart settles the head and the queue drains on its own."
+                "operator can restart only the target CLI to release the queue; "
+                "the ambiguous message will NOT be resent."
         ),
     }
 
@@ -498,6 +499,14 @@ _TERMINAL_DELIVERY_STATES = (
 )
 
 
+def targets_with_uncertain_delivery() -> set[str]:
+    """One batch projection for the session list, not one DB query per worker."""
+    with db._conn() as connection:
+        return {row[0] for row in connection.execute(
+            "SELECT DISTINCT target_session_id FROM message_deliveries WHERE state='DELIVERY_UNKNOWN'"
+        )}
+
+
 def _next_target_delivery(target_session_id: str) -> sqlite3.Row | None:
     placeholders = ",".join("?" * len(_TERMINAL_DELIVERY_STATES))
     with db._conn() as connection:
@@ -625,7 +634,9 @@ def _observe_target_runner(task: asyncio.Task[bool]) -> None:
         ensure_target_runner(target)
 
 
-async def recover_message_deliveries() -> None:
+def _recover_message_deliveries(target_session_id: str | None) -> tuple[set[str], int]:
+    if target_session_id == "":
+        raise ValueError("target session id must not be empty")
     with db._conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
         orphan_error = RuntimeError("orphaned provider dispatch")
@@ -633,7 +644,7 @@ async def recover_message_deliveries() -> None:
             {
                 "code": "DELIVERY_OUTCOME_UNKNOWN",
                 "message": (
-                    "Server restarted while provider acceptance was in flight; delivery may "
+                    "Dispatch runtime was stopped while provider acceptance was uncertain; delivery may "
                     "already have been accepted."
                 ),
                 "retryable": False,
@@ -647,16 +658,30 @@ async def recover_message_deliveries() -> None:
             sort_keys=True,
             separators=(",", ":"),
         )
-        connection.execute(
+        scope_sql = " AND target_session_id=?" if target_session_id is not None else ""
+        scope_args = (target_session_id,) if target_session_id is not None else ()
+        settled = connection.execute(
             """UPDATE message_deliveries
                SET state='DELIVERY_UNKNOWN_ORPHANED', error_json=?, updated_at=?
-               WHERE state IN ('DISPATCHING','DELIVERY_UNKNOWN')""",
-            (orphan_error_json, _now()),
-        )
+               WHERE state IN ('DISPATCHING','DELIVERY_UNKNOWN')""" + scope_sql,
+            (orphan_error_json, _now(), *scope_args),
+        ).rowcount
         rows = connection.execute(
             """SELECT target_session_id FROM message_deliveries
-               WHERE state IN ('QUEUED','PREPARING') ORDER BY accept_seq"""
+               WHERE state IN ('QUEUED','PREPARING')""" + scope_sql + " ORDER BY accept_seq",
+            scope_args,
         ).fetchall()
         targets = {row["target_session_id"] for row in rows}
+    return targets, settled
+
+
+async def recover_message_deliveries(*, target_session_id: str | None = None) -> int:
+    """After runtime teardown, release ambiguous barriers without retrying their payloads.
+
+    Targeted callers must exclude dispatch and new sends until teardown and this
+    transaction finish. The unscoped caller is startup, before dispatch starts.
+    """
+    targets, settled = await asyncio.to_thread(_recover_message_deliveries, target_session_id)
     for target in targets:
         ensure_target_runner(target)
+    return settled

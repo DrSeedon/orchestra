@@ -1289,15 +1289,38 @@ async def rollback_session(name: str, req: ScopeRequest, index: int = -1):
 
 @router.post("/api/sessions/{name}/restart-cli")
 async def restart_cli(name: str, req: ScopeRequest):
+    from app import message_deliveries
+    from app.manager import _wait_owned_task
+
     session = await manager.ensure_loaded(name, req.scope)
     if not session:
         return JSONResponse({"error": "not found"}, status_code=404)
-    await session._disconnect_backend()
-    session.status = AgentStatus.IDLE
-    session._persist()
-    if session._pending_messages:
-        session._spawn_bg(session._flush_pending())
-    return {"ok": True}
+    delivery_lock = message_deliveries._target_delivery_locks.setdefault(session.id, asyncio.Lock())
+    manager_lock = manager.get_session_lock(session.id)
+    # Fail before mutation, rather than queue a restart behind a send and then
+    # unexpectedly interrupt the newly started turn. Uncontended asyncio locks
+    # acquire without yielding; this order matches the delivery runner.
+    async def restart_locked():
+        locks = (delivery_lock, manager_lock, session._lifecycle_lock)
+        if any(lock.locked() for lock in locks):
+            return JSONResponse({"error": "target is busy; CLI restart made no changes"}, status_code=409)
+        async with delivery_lock, manager_lock, session._lifecycle_lock:
+            session._turn_start_cancel_gen += 1
+            session._manually_interrupted = True
+            session._cancel_precompact_timer("restart_cli")
+            await session._disconnect_backend()
+            settled = await message_deliveries.recover_message_deliveries(target_session_id=session.id)
+            session.status = AgentStatus.IDLE
+            session._persist()
+        if session._pending_messages:
+            session._spawn_bg(session._flush_pending())
+        return {"ok": True, "unreconciled_deliveries": settled}
+
+    # A disconnected HTTP client must not release the locks while a SQLite
+    # recovery thread or runtime teardown is still operating on this session.
+    task = asyncio.create_task(restart_locked())
+    await _wait_owned_task(task)
+    return task.result()
 
 
 @router.post("/api/sessions/{name}/clear-session")

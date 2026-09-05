@@ -3135,7 +3135,7 @@ class TestRateLimitClassification:
         session.send.assert_not_awaited()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("kind", ["server_error", "rate_limit"])
+    @pytest.mark.parametrize("kind", ["server_error", "rate_limit", "auto_continue"])
     async def test_manual_stop_cancels_waiting_retry(self, session, monkeypatch, kind):
         from app.session import AgentStatus
 
@@ -3152,6 +3152,9 @@ class TestRateLimitClassification:
         session.send = AsyncMock()
         coroutine = (session._retry_after_server_error(5, session._turn_gen)
                      if kind == "server_error" else session._rate_limit_retry(5, session._turn_gen))
+        if kind == "auto_continue":
+            coroutine.close()
+            coroutine = session._auto_continue(session._turn_gen)
         retry = asyncio.create_task(coroutine)
         try:
             await sleeping.wait()
@@ -3167,6 +3170,102 @@ class TestRateLimitClassification:
 
 
 class TestRetryAdmissionRaces:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("change", ["none", "stop", "new_turn"])
+    async def test_delayed_compact_only_runs_for_its_original_turn(self, session, monkeypatch, change):
+        from app.session import AgentStatus
+
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def sleep(_delay):
+            entered.set()
+            await release.wait()
+
+        monkeypatch.setattr("app.session.asyncio.sleep", sleep)
+        session.status = AgentStatus.IDLE
+        session.compact = AsyncMock()
+        task = asyncio.create_task(session._auto_compact())
+        try:
+            await entered.wait()
+            if change == "stop":
+                await session.interrupt()
+            elif change == "new_turn":
+                session._start_turn_state()
+                session.status = AgentStatus.IDLE
+            release.set()
+            await task
+            assert session.compact.await_count == (1 if change == "none" else 0)
+        finally:
+            release.set()
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_listener_can_disconnect_itself_without_cancelling_cleanup(self, session):
+        disconnected = AsyncMock()
+        session._backend = SimpleNamespace(disconnect=disconnected)
+        session._listen_task = asyncio.current_task()
+        await session._disconnect_backend()
+        await asyncio.sleep(0)
+        disconnected.assert_awaited_once()
+        assert session._backend is None
+        assert asyncio.current_task().cancelling() == 0
+        session._listen_task = None
+
+    @pytest.mark.asyncio
+    async def test_reconnect_does_not_inject_into_newer_turn(self, session):
+        from app.session import AgentStatus
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        calls = 0
+
+        async def events():
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("stream lost")
+            raise asyncio.CancelledError()
+            yield
+
+        async def reconnect():
+            entered.set()
+            await release.wait()
+
+        backend = SimpleNamespace(events=events, send=AsyncMock(), interrupt=AsyncMock())
+        session._backend = backend
+        session._reconnect_backend = reconnect
+        session.status = AgentStatus.RUNNING
+        task = asyncio.create_task(session._persistent_event_loop())
+        try:
+            await entered.wait()
+            await session.interrupt()
+            session._start_turn_state()
+            session._manually_interrupted = False
+            release.set()
+            await task
+            backend.send.assert_not_awaited()
+            assert session.status == AgentStatus.RUNNING
+        finally:
+            release.set()
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    @pytest.mark.parametrize("attached,listening,expected", [
+        (False, False, "detached"), (True, False, "attached"),
+        (True, True, "listening"),
+    ])
+    def test_runtime_observation_does_not_rewrite_running_state(self, session, attached, listening, expected):
+        from app.session import AgentStatus
+
+        session.status = AgentStatus.RUNNING
+        session._backend = object() if attached else None
+        session._listen_task = SimpleNamespace(done=lambda: not listening)
+        snapshot = session.to_dict()
+        assert snapshot["status"] == "running"
+        assert snapshot["runtime_connection"] == expected
+        assert session.status == AgentStatus.RUNNING
+
     @pytest.mark.asyncio
     async def test_alternating_retry_types_preserve_both_budgets(self, session):
         from app.session import AgentStatus
@@ -3189,7 +3288,7 @@ class TestRetryAdmissionRaces:
         assert backend.sent[-1] == "new user request"
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("kind", ["server_error", "rate_limit"])
+    @pytest.mark.parametrize("kind", ["server_error", "rate_limit", "auto_continue"])
     @pytest.mark.parametrize("new_turn", [False, True])
     async def test_stop_during_retry_admission_prevents_submission(
         self, session, kind, new_turn,
@@ -3208,11 +3307,13 @@ class TestRetryAdmissionRaces:
         session._worker_admission = admission
         session._disconnect_backend = AsyncMock()
         session._ensure_backend = AsyncMock()
-        retry = asyncio.create_task(
-            session._retry_after_server_error(0, session._turn_gen)
-            if kind == "server_error"
-            else session._rate_limit_retry(0, session._turn_gen)
-        )
+        if kind == "server_error":
+            coroutine = session._retry_after_server_error(0, session._turn_gen)
+        elif kind == "rate_limit":
+            coroutine = session._rate_limit_retry(0, session._turn_gen)
+        else:
+            coroutine = session._auto_continue(session._turn_gen)
+        retry = asyncio.create_task(coroutine)
         try:
             await entered.wait()
             await session.interrupt()
@@ -5296,7 +5397,7 @@ class TestWeeklyQuotaAdmission:
         monkeypatch.setattr("app.session.asyncio.sleep", AsyncMock())
 
         await session._rate_limit_retry(0, session._turn_gen)
-        await session._auto_continue()
+        await session._auto_continue(session._turn_gen)
 
         assert session._admission_service.await_count == 2
         session._ensure_backend.assert_not_awaited()
