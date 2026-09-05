@@ -1,0 +1,11 @@
+=== rg in vpn-service worktrees ===
+/home/kesha/orchestra/worktrees/home-kesha-projects-vpn-service/fix-onboarding-clients/tests/test_task11_ops.py:565:        "docs/tasks/11/report.md",
+=== git log --all for the two files ===
+107957b #2, #3: research current ingress failure hypotheses
+d1a3ddf #11: #11: research Contabo operational readiness
+=== git grep docs/tasks across all refs (py/sh/js) ===
+feat/home-kesha-projects-vpn-service/complete-vps-ops:tests/test_task11_ops.py:565:        "docs/tasks/11/report.md",
+feat/home-kesha-projects-vpn-service/diag-exit-evidence:tests/test_task11_ops.py:565:        "docs/tasks/11/report.md",
+feat/home-kesha-projects-vpn-service/diag-external-e2e:tests/test_task11_ops.py:565:        "docs/tasks/11/report.md",
+task-1/diag-current-cascade:tests/test_task11_ops.py:565:        "docs/tasks/11/report.md",
+task-5/fix-onboarding-clients:tests/test_task11_ops.py:565:        "docs/tasks/11/report.md",

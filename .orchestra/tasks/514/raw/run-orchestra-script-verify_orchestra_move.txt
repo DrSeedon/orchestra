@@ -1,0 +1,4 @@
+usage: verify_orchestra_move.py [-h] --root ROOT --before-ref BEFORE_REF
+                                --after-ref AFTER_REF [--json]
+verify_orchestra_move.py: error: the following arguments are required: --root, --before-ref, --after-ref
+RC=2

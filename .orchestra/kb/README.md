@@ -46,3 +46,4 @@
 - [founder-intent](founder-intent.md) — Намерения владельца
 - [agent-guardrails](agent-guardrails.md) — Агенты: кодовые предохранители
 - [code-simplification](code-simplification.md) — Код: упрощение без потери смысла
+- [tool-latency](tool-latency.md) — Время инструментов: измерения и ожидания

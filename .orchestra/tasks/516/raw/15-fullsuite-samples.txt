@@ -1,0 +1,25 @@
+full-suite: 988, из них <5c: 559, >=60c: 108 (4.26ч)
+
+=== 12 БЫСТРЫХ (<5c) full-suite — что это на самом деле ===
+  0.00  /bin/bash -lc "wc -c /tmp/test225-workspace-bg.log 2>/dev/null || true; tail -10 /tmp/test225-workspace-bg.log 2>/dev/null || true
+  0.49  /bin/bash -lc "ps -eo pid,etime,cmd | rg 'pytest.*test_t[14578]|[u]v run.*test_t[14578]'"
+  0.57  /bin/bash -lc "ps -eo pid,stat,%cpu,%mem,etime,cmd | rg '[p]ytest|[u]v run python -m pytest' | head -30"
+  0.09  /bin/bash -lc 'git status --short git log --oneline -8 git show --stat --oneline --summary 4a9be96 git diff --name-status 4d95766.
+  0.00  /bin/bash -lc 'ls -d .venv venv 2>/dev/null || true; command -v uv || true; rg -n "pytest" pyproject.toml uv.lock requirements*.tx
+  0.05  /bin/bash -lc 'python3 -m unittest -v backend.test_attribution.AttributionTest.test_production_assets_match_sources_and_are_loaded
+  0.01  /bin/bash -lc "rg -n 'Tests|pytest|service_landings.py --check|backend/test_attribution|RC=0|passed' docs/tasks/209/report.md | he
+  0.30  timeout 600 .venv/bin/python -m pytest -q 2>&1 | grep -E "^(FAILED|ERROR)" | sed 's/FAILED //;s/ERROR //' | sort -u
+  0.16  timeout 600 .venv/bin/python -m pytest -q 2>&1 | grep -E "FAILED|ERROR " | head -12
+  0.33  timeout 600 .venv/bin/python -m pytest -q 2>&1 | tail -14
+  0.00  /bin/bash -lc "nl -ba app/mcp_stdio.py | sed -n '2500,2695p' rg -n -F 'merge_worktree_to_main' app | head -20 rg -n -F 'test comma
+  0.00  /bin/bash -lc "rg -n 'pytest|ruff|check_kb|test' .github/workflows/ci.yml | head -100 nl -ba .github/workflows/ci.yml | sed -n '1,
+
+=== 8 медленных full-suite ===
+ 590.3  LOG=/home/kesha/orchestra-scratch/230/fullsuite-$(date +%s).log; echo "log: $LOG"; timeout 590 uv run python -m pytest -q > "$LOG"
+ 580.2  timeout 580 uv run pytest -q > /tmp/lander-base-main.log 2>&1; echo "exit=$?"; tail -25 /tmp/lander-base-main.log
+ 557.8  for i in $(seq 1 55); do if ! pgrep -f "pytest -q --timeout=180" >/dev/null; then break; fi; sleep 10; done; tail -40 /tmp/pytest-
+ 396.3  uv run python -m pytest -q > /tmp/216-t1-full.log 2>&1; echo "exit=$?"; tail -20 /tmp/216-t1-full.log
+ 385.2  UV_CACHE_DIR=/home/kesha/.cache/uv timeout 3000 uv run python -m pytest -q --timeout=300 > /tmp/pytest-80-full.log 2>&1; echo "exi
+ 350.2  /bin/bash -lc 'VIRTUAL_ENV=/home/kesha/orchestra/.venv uv run --active python -m pytest -x -q > /tmp/pytest-385.log 2>&1'
+ 347.7  PY=/home/kesha/orchestra/.venv/bin/python; for f in test_db test_manager test_pipeline; do s=$(date +%s.%N); PYTHONPATH=$PWD timeo
+ 317.7  UV_CACHE_DIR=/home/kesha/.cache/uv timeout 900 uv run python -m pytest -q --timeout=300 > /tmp/pytest-82-full.log 2>&1; echo "exit

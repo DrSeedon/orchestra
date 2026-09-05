@@ -124,6 +124,7 @@ CLAUDE.md — побайтно одинаковое зеркало для Claude
 - [Намерения владельца](.orchestra/kb/founder-intent.md)
 - [Агенты: кодовые предохранители](.orchestra/kb/agent-guardrails.md)
 - [Код: упрощение без потери смысла](.orchestra/kb/code-simplification.md)
+- [Время инструментов: измерения и ожидания](.orchestra/kb/tool-latency.md)
 <!-- kb-topics:end -->
 
 ## Реализация и проверка

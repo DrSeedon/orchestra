@@ -1,0 +1,38 @@
+[
+  {
+    "id": "07233e67-502d-4c62-9f34-b37fbbdf8606",
+    "name": "Orchestra-orchestrator",
+    "status": "running",
+    "restart_notice": 1
+  },
+  {
+    "id": "e6118c26-c52f-405e-8047-85bd839ba0f7",
+    "name": "comfy-image-orchestrator",
+    "status": "running",
+    "restart_notice": 1
+  },
+  {
+    "id": "ad0bebcc-2e98-4711-804b-dd93fa152cea",
+    "name": "globe-keyboard-digits",
+    "status": "running",
+    "restart_notice": 1
+  },
+  {
+    "id": "5282e922-83d5-435d-9acb-622e8c5c18d2",
+    "name": "painter-geometry",
+    "status": "waiting",
+    "restart_notice": 1
+  },
+  {
+    "id": "c8929d97-5c85-4710-9bc9-621de452f70c",
+    "name": "photobooth-kiosk",
+    "status": "waiting",
+    "restart_notice": 1
+  },
+  {
+    "id": "4a7b7e28-147f-4279-ba6b-5ed2af6bc59f",
+    "name": "voice-world",
+    "status": "idle",
+    "restart_notice": 0
+  }
+]

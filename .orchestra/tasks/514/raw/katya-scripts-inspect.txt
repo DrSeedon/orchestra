@@ -1,0 +1,51 @@
+=== docs/ tree in katya-work ===
+total 8
+drwxrwxr-x  2 kesha kesha 4096 Sep  3 09:56 .
+drwxrwxr-x 12 kesha kesha 4096 Sep  3 09:56 ..
+=== generate-master-registry.py head 40 ===
+#!/usr/bin/env python3
+"""Regenerate the digest-bound Keynote base manifest and selected assets."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+
+ROOT = Path(__file__).resolve().parents[2]
+EVIDENCE = ROOT / "docs/tasks/4/evidence/master-manifest.json"
+INSPECTOR = ROOT / "docs/tasks/4/evidence/inspect_master.py"
+COMPACTOR = ROOT / "docs/tasks/4/evidence/compact_master_manifest.py"
+ASSET_IDS = ("120", "201", "2188", "2213")
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def checked(command: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[bytes]:
+    result = subprocess.run(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if result.returncode:
+        raise RuntimeError(f"command failed ({result.returncode}): {' '.join(command)}\n{result.stderr.decode(errors='replace')}")
+    return result
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source-key", required=True, type=Path)
+    parser.add_argument("--out", required=True, type=Path)
+    args = parser.parse_args()
+
+=== writes? ===
+11:import shutil
+74:            staging.mkdir(parents=True)
+75:            (staging / "assets").mkdir()
+82:                shutil.copyfile(source_asset, staging / "assets" / asset["file"])
+85:            shutil.rmtree(staging, ignore_errors=True)

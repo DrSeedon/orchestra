@@ -1,0 +1,5 @@
+project_id|id|status|acceptance_command
+/home/kesha/orchestra|383|done|test -s docs/tasks/288/research.md
+/home/kesha/orchestra|384|done|test -s docs/tasks/289/research.md
+/home/kesha/orchestra|463|done|python3 -c "from pathlib import Path; p=Path('docs/artifacts/quota-runway-controller.html'); assert p.exists() and p.stat().st_size>20000"
+22

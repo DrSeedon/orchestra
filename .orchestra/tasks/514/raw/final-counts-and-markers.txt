@@ -1,0 +1,22 @@
+=== per repo: total hits / hits outside .orchestra/tasks ===
+orchestra total=353 outside_task_artifacts=98
+katya-work total=19 outside_task_artifacts=10
+kesha-tg-bot total=22 outside_task_artifacts=14
+seedon total=33 outside_task_artifacts=0
+cog-second-brain total=13 outside_task_artifacts=0
+kesha-bot total=22 outside_task_artifacts=14
+VPN-Service total=0 outside_task_artifacts=0
+dnd-game-master total=0 outside_task_artifacts=0
+University total=0 outside_task_artifacts=0
+
+=== LEGACY markers in orchestra live files ===
+/home/kesha/orchestra/app/ia/cutover.py:31:# LEGACY_PATH_FIXTURE: these literals are rejection guards, not live consumers.
+/home/kesha/orchestra/app/orchestra_layout.py:23:# LEGACY_PATH_FIXTURE: old roots are one-way migration sources, never read fallbacks.
+/home/kesha/orchestra/scripts/verify_orchestra_move.py:13:# LEGACY_PATH_FIXTURE: source paths identify the immutable pre-move tree.
+/home/kesha/orchestra/scripts/check_orchestra_paths.py:4:# LEGACY_PATH_FIXTURE: literals below are rejection targets, never runtime fallbacks.
+/home/kesha/orchestra/scripts/check_orchestra_paths.py:21:NEGATIVE_MARKER = "LEGACY_PATH_FIXTURE"
+/home/kesha/orchestra/scripts/check_orchestra_paths.py:22:HISTORICAL_MARKER = "LEGACY_PATH_HISTORY"
+/home/kesha/orchestra/scripts/wf_pilot.py:23:    ("448", "Девять тестов читают docs/tasks/ по живому пути и красные после переезда"),  # LEGACY_PATH_HISTORY
+/home/kesha/orchestra/scripts/secret_scan.py:18:единственная реальная утечка проекта, `docs/tasks/sol-efficiency/calls_strict.tsv`  (LEGACY_PATH_HISTORY)
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:8:# LEGACY_PATH_FIXTURE: docs/ paths below are the pre-migration state under repair.
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:3:# LEGACY_PATH_FIXTURE: old roots in this file are intentional negative controls.
