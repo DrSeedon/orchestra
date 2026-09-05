@@ -68,3 +68,26 @@ async def test_completed_shell_preserves_deliberately_detached_child(tmp_path):
     async with asyncio.timeout(3):
         while not (tmp_path / "completed").exists():
             await asyncio.sleep(.01)
+
+
+@pytest.mark.asyncio
+async def test_timeout_does_not_wait_forever_for_inherited_pipe(tmp_path, monkeypatch):
+    from app import bg_jobs
+    from unittest.mock import AsyncMock
+
+    real_spawn, real_cleanup = bg_jobs._spawn_bg_process, bg_jobs._kill_proc
+    processes = []
+    async def spawn(*args, **kwargs):
+        proc = await real_spawn(*args, **kwargs)
+        processes.append(proc)
+        return proc
+    monkeypatch.setattr(bg_jobs, "_spawn_bg_process", spawn)
+    # Model an old-kernel cleanup that cannot reach a remaining descendant.
+    monkeypatch.setattr(bg_jobs, "_kill_proc", AsyncMock())
+    try:
+        async with asyncio.timeout(3):
+            result = await tools.bash("printf checkpoint; sleep 10", str(tmp_path), timeout=1)
+        assert "harness timeout" in result and "checkpoint" in result
+    finally:
+        for proc in processes:
+            await real_cleanup(proc)

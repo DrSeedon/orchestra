@@ -145,25 +145,40 @@ async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> s
         raise
     except OSError as e:
         return f"[bash error] failed to start: {e}"
-    # Shield the reader so a timeout doesn't discard bytes already read from the pipe.
-    reader = asyncio.create_task(proc.communicate())
+    # Keep captured bytes outside the reader task: an inherited pipe can stay open
+    # even after cleanup (notably on kernels without pidfd group signalling).
+    captured = bytearray()
+    output_bytes = 0
+
+    async def collect_output():
+        nonlocal output_bytes
+        while chunk := await proc.stdout.read(65536):
+            output_bytes += len(chunk)
+            captured.extend(chunk[:max(0, OUTPUT_CAP * 4 - len(captured))])
+        await proc.wait()
+
+    def output_text():
+        text = captured.decode(errors="replace")
+        if output_bytes > len(captured):
+            text += "\n... (additional output truncated)"
+        return text
+
+    reader = asyncio.create_task(collect_output())
     completed = False
     try:
-        out, _ = await asyncio.wait_for(asyncio.shield(reader), timeout=timeout)
+        await asyncio.wait_for(asyncio.shield(reader), timeout=timeout)
         completed = True
         rc = proc.returncode
-        body = out.decode(errors="replace") if out else ""
-        return _cap(f"exit_code={rc}\n{body}".rstrip())
+        return _cap(f"exit_code={rc}\n{output_text()}".rstrip())
     except asyncio.TimeoutError:
         await _kill_proc(proc)
-        out, _ = await reader
-        body = out.decode(errors="replace") if out else ""
         return _cap(
             f"[bash error] harness timeout after {timeout}s "
-            f"(requested={requested_timeout}s, maximum={BASH_MAX_TIMEOUT}s; killed). "
+            f"(requested={requested_timeout}s, maximum={BASH_MAX_TIMEOUT}s; "
+            "process-group cleanup attempted). "
             "A shell 'timeout' does not extend this tool budget. "
             "Use bg_create(type='run') for long commands.\n"
-            f"Partial output:\n{body}"
+            f"Partial output:\n{output_text()}"
         )
     finally:
         if completed:
