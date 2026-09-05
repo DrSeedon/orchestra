@@ -271,6 +271,7 @@ class AgentLoop:
         name = fn.get("name", "")
         raw_args = fn.get("arguments", "") or "{}"
         call_id = tc.get("id", "")
+        metadata = {"tool_name": name, "short_name": _short(name), "tool_use_id": call_id}
 
         # Parse arguments here (plan B4) — invalid JSON → tool error, never a crash.
         try:
@@ -280,8 +281,8 @@ class AgentLoop:
         except (ValueError, TypeError) as e:
             result = f"[error] invalid tool arguments for {name}: {e}"
             yield AgentEvent("tool_use", f"{name}: {raw_args[:200]}",
-                             metadata={"tool_name": name, "short_name": _short(name)})
-            yield AgentEvent("tool_result", result)
+                             metadata=metadata)
+            yield AgentEvent("tool_result", result, metadata={**metadata, "is_error": True})
             self._append_tool_result(call_id, result)
             return
 
@@ -290,13 +291,13 @@ class AgentLoop:
         except (TypeError, ValueError):
             arg_summary = str(args)
         yield AgentEvent("tool_use", f"{name}: {arg_summary}",
-                         metadata={"tool_name": name, "short_name": _short(name)})
+                         metadata=metadata)
 
         # Reviewer sub-loop is READ-ONLY (#126): reject any non-read tool (incl. a hallucinated
         # `review` → enforces depth-1) BEFORE builtin/mcp/review dispatch. Structural guarantee.
         if self.readonly_mode and name not in builtin.READONLY_NAMES:
             result = f"[read-only] reviewer cannot use '{name}' — only read/glob/grep are allowed"
-            yield AgentEvent("tool_result", result)
+            yield AgentEvent("tool_result", result, metadata={**metadata, "is_error": True})
             self._append_tool_result(call_id, result)
             return
 
@@ -326,7 +327,11 @@ class AgentLoop:
         else:
             result = f"[error] unknown tool: {name}"
 
-        yield AgentEvent("tool_result", result)
+        # Bash owns its status header; text printed by the command follows that header.
+        failed = result.startswith((f"[{name} error]", "[error]"))
+        if name == "bash" and result.startswith("exit_code="):
+            failed = result.splitlines()[0] != "exit_code=0"
+        yield AgentEvent("tool_result", result, metadata={**metadata, "is_error": failed})
         self._append_tool_result(call_id, result)
 
     def _append_tool_result(self, call_id: str, content: str) -> None:

@@ -112,6 +112,9 @@ def _validate_config(job_type: str, config: dict) -> str | None:
         if not config.get("command"):
             return "command is required"
         return _validate_regex(config, "success_pattern", required=False)
+    elif job_type == "merge":
+        if not isinstance(config.get("operation_id"), str) or not config["operation_id"].strip():
+            return "operation_id is required"
     elif job_type in ("cron", "cron_command"):
         expr = config.get("cron_expr", "")
         if not expr:
@@ -347,6 +350,18 @@ class BgJobManager:
         err = _validate_config(job_type, config)
         if err:
             return {"error": err}
+        if job_type == "merge":
+            from app.merge_operations import get_operation_record
+
+            record = await asyncio.to_thread(get_operation_record, config["operation_id"])
+            if not record or record["scope"] != target_scope:
+                return {"error": "merge operation not found in target scope"}
+            # No await between this lookup and saving the job: concurrent requests on
+            # this manager cannot install two active watches for the same recipient.
+            for existing in bg_get_jobs(session_id=target_session_id, active_only=True):
+                if (existing["type"] == "merge"
+                        and json.loads(existing["config"]).get("operation_id") == config["operation_id"]):
+                    return {"id": existing["id"], "type": "merge", "status": existing["status"]}
         count = bg_count_active(target_scope)
         if not replace_key and count >= MAX_JOBS_PER_SCOPE:
             return {"error": f"too many active jobs ({count}/{MAX_JOBS_PER_SCOPE})"}
@@ -425,6 +440,9 @@ class BgJobManager:
                                   target_scope, timeout, host=host,
                                   success_file=config.get("success_file"),
                                   success_pattern=config.get("success_pattern", ""))
+        elif job_type == "merge":
+            coro = self._run_merge_watch(job_id, config["operation_id"], message,
+                                         target_name, target_scope, timeout)
         elif job_type == "cron":
             coro = self._run_cron(job_id, config["cron_expr"], message,
                                   target_name, target_scope, watch_timeout)
@@ -704,6 +722,47 @@ class BgJobManager:
         bg_fail_job_if_active(job_id, error)
 
     # ── Runners ──
+
+    async def _run_merge_watch(self, job_id, operation_id, message,
+                               target_name, target_scope, timeout):
+        """Observe a durable operation without occupying an agent/tool call.
+
+        The existing job row pins the recipient and resumes observation after restart.
+        This watcher never starts or retries a merge.
+        """
+        from app.merge_operations import get_operation_record
+
+        try:
+            async with asyncio.timeout(timeout):
+                while True:
+                    record = await asyncio.to_thread(get_operation_record, operation_id)
+                    if not record or record["scope"] != target_scope:
+                        raise ValueError("merge operation disappeared from target scope")
+                    result = record["result"]
+                    state = result["operation_state"]
+                    if state not in {"PENDING", "RUNNING"} or result.get("error"):
+                        # A nonterminal blocker also needs attention: sleeping until a
+                        # terminal state would deadlock an operation needing caller action.
+                        # Keep recovery last, since _trigger delivers the last 3000 chars.
+                        output = json.dumps({
+                            "operation_id": operation_id, "operation_state": state,
+                            "git": result.get("git"),
+                            "error": result.get("error"), "next_action": result.get("next_action"),
+                        }, ensure_ascii=False)
+                        bg_update_output(job_id, output)
+                        await self._trigger(
+                            job_id, f"Merge operation {operation_id}: {state}. {message}\n"
+                            "Inspect the state and any blocker before further work; "
+                            "do not start a duplicate merge.",
+                            target_name, target_scope, output,
+                        )
+                        return
+                    await asyncio.sleep(2)
+        except asyncio.TimeoutError:
+            await self._expire_notify(job_id, message, target_name, target_scope, timeout,
+                                      f"Merge {operation_id} may still be running; check the same operation.")
+        except Exception as exc:
+            await self._fail_notify(job_id, message, target_name, target_scope, str(exc))
 
     async def _run_timer(self, job_id, delay, message, target_name, target_scope):
         try:

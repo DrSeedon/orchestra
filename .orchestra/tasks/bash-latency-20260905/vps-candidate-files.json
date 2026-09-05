@@ -1,0 +1,15 @@
+{
+  ".orchestra/pipelines/default/prompts/modules/code-quality.md": "2cc975e8858d4e1151be6689c947203ee27c0b03ca242a4bd5298581926583de",
+  ".orchestra/pipelines/default/prompts/roles/full-cycle.md": "52101f50119224fad5ef4a9ed0e8bd49e9ffdfc90503e64429d51a22a5dbc793",
+  "app/bg_jobs.py": "6c43f14793f38fd3f42b51a63b26d61b572cac29402cf62db57bcf7f3a5270d6",
+  "app/harness/loop.py": "cda67086d4e989299bb3c5ecd7703eba6f8cc023c7cfd3384a41fe9760dc84d9",
+  "app/harness/tools.py": "b0dacb0a4d387f6506da43e81d1cb85338958b6cd5c4cb620c7efb4e7dc25cbd",
+  "app/mcp_stdio.py": "32ab703a8b0de84b16cfbbcc18ec8c7102012b319f7f9028d34d45aa18f2da22",
+  "app/routes/merge_operations.py": "3efa0dd2a0c0a7e34b7d984ef1e77df3a8871e468d6837244d139e27735681c8",
+  "pyproject.toml": "35541e82926c4ce655b8dcb8104bc5164793de1405072f22acf47d17a03efcb6",
+  "tests/test_bash_completion.py": "a628cc20f3319f6b4b1b750ee02ba70d9d58a241768aef219bfea2987d2db8d0",
+  "tests/test_mcp_stdio.py": "60f1158e28525a597d18faadfc6a5415352d2059f3ff67988537fa5baa8be621",
+  "tests/test_merge_completion_watch.py": "2dc5cbc7264280b4ead7169d9aea2c477f49a87fe0103f23e61af756a2ae4697",
+  "uv.lock": "328a1201ebc5b88f1c789464ec64a29d1d459b49d03fde46a13dcaa0c7eb95cc",
+  ".orchestra/tasks/bash-latency-20260905/bench_tests.py": "8526f395a581b3f9a86279f47468e8b54fcb5e2c1785b00e67e830d8c74413f4"
+}

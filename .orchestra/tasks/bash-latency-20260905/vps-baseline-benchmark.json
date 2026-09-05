@@ -1,0 +1,78 @@
+[
+  {
+    "workers": 0,
+    "seconds": 47.871,
+    "peak_tree_rss_mb": 212.1,
+    "returncode": 0,
+    "files": [
+      "tests/test_merge_test_gate.py",
+      "tests/test_mcp_stdio.py",
+      "tests/test_harness_tools.py",
+      "tests/test_quota_gate.py"
+    ],
+    "outcomes": {
+      "passed": 241,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "outcome_hash": "7076d54260b0257ac5979f09b0eb7edfb1354499a0a82bfd9e2c5e5dc761b344"
+  },
+  {
+    "workers": 2,
+    "seconds": 34.592,
+    "peak_tree_rss_mb": 475.0,
+    "returncode": 0,
+    "files": [
+      "tests/test_merge_test_gate.py",
+      "tests/test_mcp_stdio.py",
+      "tests/test_harness_tools.py",
+      "tests/test_quota_gate.py"
+    ],
+    "outcomes": {
+      "passed": 241,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "outcome_hash": "7076d54260b0257ac5979f09b0eb7edfb1354499a0a82bfd9e2c5e5dc761b344"
+  },
+  {
+    "workers": 4,
+    "seconds": 26.65,
+    "peak_tree_rss_mb": 831.4,
+    "returncode": 0,
+    "files": [
+      "tests/test_merge_test_gate.py",
+      "tests/test_mcp_stdio.py",
+      "tests/test_harness_tools.py",
+      "tests/test_quota_gate.py"
+    ],
+    "outcomes": {
+      "passed": 241,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "outcome_hash": "7076d54260b0257ac5979f09b0eb7edfb1354499a0a82bfd9e2c5e5dc761b344"
+  },
+  {
+    "workers": 4,
+    "seconds": 63.879,
+    "peak_tree_rss_mb": 831.7,
+    "returncode": 1,
+    "files": [
+      "tests/test_merge_test_gate.py",
+      "tests/test_mcp_stdio.py",
+      "tests/test_harness_tools.py",
+      "tests/test_quota_gate.py"
+    ],
+    "outcomes": {
+      "passed": 240,
+      "failure": 1,
+      "error": 0,
+      "skipped": 0
+    },
+    "outcome_hash": "0c1b045196fe97c337dbb15929a8230ed488e9fdd0a3992fc8e7446086d50b68"
+  }
+]
