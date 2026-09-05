@@ -106,13 +106,13 @@ out = subprocess.run(["grep", "-c", "RECORD_REVIEW_THEN_NEW_OPERATION", "app/mer
 if out == "0":
     fail.append("README claims merge refuses without a review receipt; the marker is gone")
 
-# 6. The bounded-startup claim counts both the owner and its native Claude adapter.
-# The pilot was about 10 KiB; 16 KiB allows edits while catching re-injection of the archive.
-size = sum((root / name).stat().st_size for name in ("AGENTS.md", "CLAUDE.md"))
-if size >= 16 * 1024:
-    fail.append(f"shared startup instructions exceed documented 16 KiB: {size} bytes")
-if "@AGENTS.md" not in (root / "CLAUDE.md").read_text().splitlines():
-    fail.append("CLAUDE.md no longer imports the shared instruction owner")
+# 6. The root-file contract has one implementation shared with CI.
+instructions = subprocess.run(
+    [sys.executable, str(root / "scripts/check_instruction_contract.py")],
+    capture_output=True, text=True,
+)
+if instructions.returncode:
+    fail.append(instructions.stderr.strip() or instructions.stdout.strip())
 
 # 7. the two versions must cite the SAME anchors — one showcase, not two.
 anchor_sets = {n: set(ANCHOR_RE.findall(comparison_block(n))) for n in VERSIONS}
