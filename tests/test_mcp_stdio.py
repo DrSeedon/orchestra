@@ -334,6 +334,9 @@ async def test_api_empty_read_timeout_keeps_type_and_unknown_post_outcome(monkey
     assert caught.value.outcome_unknown is True
     assert caught.value.request_id
 
+    assert caught.value.details["elapsed_seconds"] >= 0
+    assert caught.value.details["timeout_seconds"]["read"] == 30
+
 
 @pytest.mark.asyncio
 async def test_api_connect_error_is_safe_to_retry_before_request(monkeypatch):

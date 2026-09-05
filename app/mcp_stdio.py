@@ -520,6 +520,7 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
     headers["X-Request-ID"] = request_id
     if idempotency_key:
         headers["Idempotency-Key"] = idempotency_key
+    started = time.monotonic()
     try:
         async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=t, headers=headers) as client:
             if method == "GET":
@@ -531,7 +532,12 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
             else:
                 response = await client.delete(path, params=kwargs.get("params"))
     except httpx.RequestError as exc:
-        raise _transport_error(method, path, exc, request_id) from exc
+        error = _transport_error(method, path, exc, request_id)
+        error.details.update({
+            "elapsed_seconds": round(time.monotonic() - started, 3),
+            "timeout_seconds": httpx.Timeout(t).as_dict(),
+        })
+        raise error from exc
 
     try:
         payload = response.json()
@@ -2408,6 +2414,15 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
     action = result.get("next_action") if isinstance(result.get("next_action"), dict) else {}
     action_message = _safe_response_text(str(action.get("message") or ""))
     if state in {"PENDING", "RUNNING"}:
+        completion = result.get("completion") or {}
+        if completion.get("mode") == "background" and completion.get("job_id"):
+            return mcp_tool_result(result, text=(
+                f"STILL {state} — NOT a failure. Merge operation {operation_id} continues "
+                f"on the server. Background job {completion['job_id']} will deliver its outcome. "
+                "Do not poll or call merge_worker again. Continue independent work or end "
+                "the turn; Orchestra will resume you when the outcome arrives. "
+                "Do not start a duplicate merge or merge manually."
+            ))
         # a blocking reason (dirty tree, conflict) already sits in `error` — surfacing it
         # here saves the caller two blind retries before the cause finally shows up
         reason = ""
@@ -2522,7 +2537,14 @@ async def _await_merge_terminal(operation_id: str, result: dict[str, Any]) -> di
     deadline = loop.time() + _MERGE_WAIT_SECONDS
     delay = 0.2
     while True:
-        recovered = await _recover_merge_status(operation_id)
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            return result
+        try:
+            async with asyncio.timeout(remaining):
+                recovered = await _recover_merge_status(operation_id)
+        except asyncio.TimeoutError:
+            return result
         if recovered is not None:
             result = recovered
             if result.get("operation_state") not in {"PENDING", "RUNNING"}:
@@ -2553,11 +2575,12 @@ async def merge_worker(
     waive_diff_budget: bool = False,
     task_outcome: str = "",
 ) -> CallToolResult:
-    """Durably squash a worker branch. Waits for the merge to finish and returns the outcome.
+    """Durably squash a worker branch. Long merges deliver their outcome via a background job.
 
     A reply starting with "STILL RUNNING" is NOT a failure: the merge is still going on the
-    server and nothing was lost. Call this tool again with the SAME operation_id to pick it
-    up. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.
+    server and nothing was lost. If a completion job is registered, end the turn or do
+    independent work; the outcome wakes you automatically. Otherwise follow the response's
+    same-operation recovery instructions. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.
 
     Reusing operation_id picks up THAT operation, not the worker's current state: if the
     worker moved to another branch meanwhile, the call is refused and names the actual
@@ -2637,6 +2660,7 @@ async def merge_worker(
         "next_task_id": next_task_id,
         "waive_diff_budget": bool(waive_diff_budget),
         "waived_by": WORKER_NAME if waive_diff_budget else "",
+        "completion_session_id": SESSION_ID,
     }
     if merge_schema_version is not None:
         body["merge_schema_version"] = merge_schema_version
@@ -2690,7 +2714,10 @@ async def merge_worker(
                         target=target,
                         details={"exception_type": type(api_error).__name__, **api_error.details},
                     )
-        if result.get("operation_state") in {"PENDING", "RUNNING"}:
+        completion = result.get("completion") or {}
+        if result.get("operation_state") in {"PENDING", "RUNNING"} and not (
+            completion.get("mode") == "background" and completion.get("job_id")
+        ):
             result = await _await_merge_terminal(
                 str(result.get("operation_id") or operation_id), result,
             )
@@ -3400,6 +3427,7 @@ async def bg_list() -> str:
     icons = {
         "timer": "⏰", "file": "📄", "command": "🖥️", "ssh": "🔗",
         "run": "🚀", "cron": "🔁", "cron_command": "🔎",
+        "merge": "🔀",
     }
 
     def _when(job: dict) -> str:

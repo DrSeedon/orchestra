@@ -20,7 +20,6 @@ import contextlib
 import logging
 import os
 import re
-import signal
 import stat
 import tempfile
 import time
@@ -120,36 +119,56 @@ def _cap(text: str) -> str:
 async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> str:
     """Run a shell command in cwd. When ORCHESTRA_AGENT_UID is set, wraps command
     in `su -s /bin/sh <user> -c` so bash runs as unprivileged user who cannot read
-    Orchestra source code. Own process group (setsid) for killpg on timeout."""
-    timeout = max(1, min(int(timeout or BASH_DEFAULT_TIMEOUT), BASH_MAX_TIMEOUT))
+    Orchestra source code. The shared pidfd lifecycle cleans up the owned group
+    on timeout and cancellation without relying on a reusable process ID."""
+    from app.bg_jobs import _spawn_bg_process, _kill_proc
+
+    requested_timeout = int(timeout or BASH_DEFAULT_TIMEOUT)
+    timeout = max(1, min(requested_timeout, BASH_MAX_TIMEOUT))
     agent_user = os.environ.get("ORCHESTRA_AGENT_UID", "")
     if agent_user:
         escaped = command.replace("'", "'\\''")
         command = f"su -s /bin/sh {agent_user} -c '{escaped}'"
-    try:
-        proc = await asyncio.create_subprocess_shell(
-            command,
+    spawn = asyncio.create_task(
+        _spawn_bg_process(
+            command, shell=True,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
             cwd=cwd,
-            start_new_session=True,
         )
+    )
+    try:
+        proc = await asyncio.shield(spawn)
+    except asyncio.CancelledError:
+        proc = await asyncio.shield(spawn)
+        await _kill_proc(proc)
+        raise
     except OSError as e:
         return f"[bash error] failed to start: {e}"
+    # Shield the reader so a timeout doesn't discard bytes already read from the pipe.
+    reader = asyncio.create_task(proc.communicate())
     try:
-        out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        out, _ = await asyncio.wait_for(asyncio.shield(reader), timeout=timeout)
         rc = proc.returncode
         body = out.decode(errors="replace") if out else ""
         return _cap(f"exit_code={rc}\n{body}".rstrip())
     except asyncio.TimeoutError:
-        # kill the whole process group, not just the shell
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            pass
-        with contextlib.suppress(Exception):
-            await proc.wait()
-        return f"[bash error] command timed out after {timeout}s (killed)"
+        await _kill_proc(proc)
+        out, _ = await reader
+        body = out.decode(errors="replace") if out else ""
+        return _cap(
+            f"[bash error] harness timeout after {timeout}s "
+            f"(requested={requested_timeout}s, maximum={BASH_MAX_TIMEOUT}s; killed). "
+            "A shell 'timeout' does not extend this tool budget. "
+            "Use bg_create(type='run') for long commands.\n"
+            f"Partial output:\n{body}"
+        )
+    finally:
+        await _kill_proc(proc)
+        if not reader.done():
+            reader.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await reader
 
 
 def read(path: str, cwd: str, offset: int = 0, limit: int = 0) -> str:
@@ -390,7 +409,10 @@ def tool_schemas() -> list[dict]:
     i = {"type": "integer"}
     b = {"type": "boolean"}
     return [
-        fn("bash", "Run a shell command in the workspace directory.",
+        fn("bash", "Run a shell command in the workspace directory. "
+           f"Tool timeout defaults to {BASH_DEFAULT_TIMEOUT}s, maximum {BASH_MAX_TIMEOUT}s; "
+           "a shell timeout does not override it. Use bg_create(type='run') for commands "
+           "expected to exceed 60 seconds.",
            {"command": s, "timeout": i}, ["command"]),
         fn("read", "Read a file with line numbers.",
            {"path": s, "offset": i, "limit": i}, ["path"]),
