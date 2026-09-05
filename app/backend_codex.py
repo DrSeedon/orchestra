@@ -865,13 +865,42 @@ class CodexBackend(JsonRpcStdioTransport):
         return build_model_visible_manifest(
             runtime="codex",
             model=self.model,
-            effective_window=self._model_context_window,
+            effective_window=self._handoff_context_window(),
             system_prompt=self.system_prompt,
             prepared=prepared,
             validation_profile=validation_profile,
             project_docs=getattr(prepared, "project_docs", ()),
             mcp_servers=self._mcp_servers,
         )
+
+    def _handoff_context_window(self) -> int:
+        """Use the target's configured window before its first telemetry event.
+
+        The same scalar is carried into its managed home. A requested larger window
+        is admitted only within this model's CLI catalog maximum, with the catalog's
+        effective percentage. Missing metadata keeps the existing conservative fallback.
+        Runtime telemetry, once available, takes precedence.
+        """
+        fallback = self._model_context_window
+        if self.is_alive or fallback != CODEX_CONTEXT_LIMITS.get(self.model, 258400):
+            return fallback
+        try:
+            configured = tomllib.loads(_carried_base_scalars()).get("model_context_window")
+            if type(configured) is not int or configured <= 0:
+                return fallback
+            catalog = json.loads((_base_codex_home() / "models_cache.json").read_text())
+            entry = next((m for m in catalog["models"] if m.get("slug") == self.model), None)
+            if entry is None:
+                return fallback
+            maximum = entry.get("max_context_window", entry.get("context_window"))
+            percent = entry.get("effective_context_window_percent")
+            if (type(maximum) is not int or maximum <= 0
+                    or type(percent) is not int or not 0 < percent <= 100):
+                return fallback
+            return min(configured, maximum) * percent // 100
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+            logger.warning("Codex handoff context metadata unavailable: %s", type(error).__name__)
+            return fallback
 
     @property
     def active_turn_id(self) -> Optional[str]:
