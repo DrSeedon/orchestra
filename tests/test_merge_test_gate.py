@@ -611,6 +611,10 @@ def test_live_probe_inventory_is_explicit():
     expected = {
         "tests/test_native_history_import.py": 2,
         "tests/test_runtime_history.py": 1,
+        # Требует настоящий `~/.codex/auth.json` владельца: предмет проверки — живая
+        # подписка, герметичным он не бывает. На публичном раннике таких кред нет и быть
+        # не должно (#515).
+        "tests/test_mcp_config_isolation.py": 1,
     }
 
     # Считаем ДЕКОРАТОРЫ, а не вхождения строки: первая версия этой проверки насчитала 3

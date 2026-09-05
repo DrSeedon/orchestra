@@ -361,11 +361,18 @@ def test_t4_every_server_and_field_survives_into_config_toml():
     assert data["orchestra"].get("enabled_tools"), "orchestra потеряла список тулов"
 
 
+@pytest.mark.live_probe
 def test_t4_subscription_auth_is_reachable_from_isolated_home():
     """Изолированный home обязан сохранить доступ к подписочной авторизации.
 
     Замерено живым прогоном: `CODEX_HOME=<изолированный>` + symlink на auth.json →
     реальный ход модели проходит. Без этого воркеры не авторизуются вовсе.
+
+    `live_probe`, потому что предмет проверки — ЖИВАЯ подписка владельца: тест требует
+    настоящий `~/.codex/auth.json`, и герметичным он не бывает по смыслу. На GitHub-раннере
+    таких кред нет и быть не должно, поэтому там он падал `в изолированном CODEX_HOME нет
+    auth.json`, то есть краснел от окружения, а не от диффа. Запускать вручную:
+    `uv run pytest -m live_probe tests/`.
     """
     b = _codex_backend()
     prepare = getattr(b, "_prepare_codex_home", None)

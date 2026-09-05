@@ -279,3 +279,25 @@ def browser(launch_browser):
     instance = launch_browser()
     yield instance
     instance.close()
+
+
+@pytest.fixture
+def codex_bin_stub(tmp_path, monkeypatch):
+    """Исполняемый файл-заглушка вместо настоящего Codex CLI.
+
+    Тесты, которым нужен ПУТЬ к codex (сборка shell-команды, опознание чужого процесса
+    по argv), на машине без Codex падали не по своему предмету: `codex не найден: ни
+    CODEX_BIN в окружении, ни codex в PATH` и `FileNotFoundError: configured executable
+    was not found`. На GitHub-раннере это 13 падений из 57 — там проприетарного бинаря
+    нет и быть не может. Заглушка — настоящий исполняемый файл, поэтому проверяется
+    ВЕСЬ путь разрешения (`shutil.which`, `_normalise_executable`, `Path.resolve`), а не
+    обходится монкипатчем самой функции разрешения.
+    """
+    stub = tmp_path / "codex"
+    stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    stub.chmod(0o755)
+    monkeypatch.setenv("CODEX_BIN", str(stub))
+    import app.backend_codex as backend_codex
+
+    monkeypatch.setattr(backend_codex, "CODEX_BIN", str(stub))
+    return stub
