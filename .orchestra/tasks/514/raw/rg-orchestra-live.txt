@@ -1,0 +1,98 @@
+/home/kesha/orchestra/scripts/wf_pilot.py:23:    ("448", "Девять тестов читают docs/tasks/ по живому пути и красные после переезда"),  # LEGACY_PATH_HISTORY
+/home/kesha/orchestra/scripts/verify_orchestra_move.py:15:    "docs/kb/": ".orchestra/kb/",
+/home/kesha/orchestra/scripts/verify_orchestra_move.py:16:    "docs/tasks/": ".orchestra/tasks/",
+/home/kesha/orchestra/scripts/verify_orchestra_move.py:17:    "docs/workers/": ".orchestra/workers/",
+/home/kesha/orchestra/scripts/check_orchestra_paths.py:19:DOC_LITERALS = ("docs/kb", "docs/tasks", "docs/workers", "docs/archive")
+/home/kesha/orchestra/app/orchestra_layout.py:25:    "kb": (Path("docs/kb"), Path(".orchestra/kb")),
+/home/kesha/orchestra/app/orchestra_layout.py:26:    "tasks": (Path("docs/tasks"), Path(".orchestra/tasks")),
+/home/kesha/orchestra/app/orchestra_layout.py:27:    "workers": (Path("docs/workers"), Path(".orchestra/workers")),
+/home/kesha/orchestra/app/orchestra_layout.py:340:        # POST-migration picture: if one worker owns `docs/tasks/1` while another already
+/home/kesha/orchestra/app/orchestra_layout.py:769:    allowed = ("docs/kb", "docs/tasks", "docs/workers", "docs/archive", ".orchestra")
+/home/kesha/orchestra/scripts/secret_scan.py:18:единственная реальная утечка проекта, `docs/tasks/sol-efficiency/calls_strict.tsv`  (LEGACY_PATH_HISTORY)
+/home/kesha/orchestra/app/ia/cutover.py:33:    "Read `docs/kb/README.md`",
+/home/kesha/orchestra/app/ia/cutover.py:34:    "Write `docs/tasks/<task-id>/research.md`",
+/home/kesha/orchestra/app/ia/cutover.py:35:    "Append the conclusion to its topic file in `docs/kb/`",
+/home/kesha/orchestra/app/ia/cutover.py:38:    "Report in docs/tasks/<id>/report.md",
+/home/kesha/orchestra/tests/test_orchestra_layout_recovery_430.py:26:    (repo / "docs/kb").mkdir(parents=True)
+/home/kesha/orchestra/tests/test_orchestra_layout_recovery_430.py:27:    (repo / "docs/kb/fact.md").write_text("remember me\n", encoding="utf-8")
+/home/kesha/orchestra/tests/test_orchestra_layout_recovery_430.py:83:    _git(repo, "mv", "docs/kb", ".orchestra/kb")
+/home/kesha/orchestra/tests/test_orchestra_layout_recovery_430.py:107:    assert not (repo / "docs/kb").exists()
+/home/kesha/orchestra/tests/test_orchestra_layout_compat_430.py:27:        (repository / "docs/kb").mkdir(parents=True)
+/home/kesha/orchestra/tests/test_orchestra_layout_compat_430.py:28:        (repository / "docs/workers").mkdir(parents=True)
+/home/kesha/orchestra/tests/test_orchestra_layout_compat_430.py:29:        (repository / "docs/kb/README.md").write_text("# old\n", encoding="utf-8")
+/home/kesha/orchestra/tests/test_orchestra_layout_compat_430.py:30:        (repository / f"docs/workers/{name}.md").write_text(
+/home/kesha/orchestra/tests/test_orchestra_layout_compat_430.py:35:        (repository / "docs/workers").mkdir(parents=True)
+/home/kesha/orchestra/tests/test_orchestra_layout_compat_430.py:39:        (repository / f"docs/workers/{name}.md").write_text(
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:111:    _save_worker(name="painter-canvas", scope=str(repo), owned=["docs/tasks/88", "oil-paint"])
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:114:    _save_worker(name="outsider", scope=str(other), owned=["docs/tasks/88"])
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:125:        assert "docs/tasks/88" not in stored
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:134:    assert json.loads(untouched["owned_dirs"]) == ["docs/tasks/88"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:135:    assert "- docs/tasks/88/" in untouched["system_prompt"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:236:    _save_worker(name="painter-canvas", scope=str(repo), owned=["docs/tasks/88", "oil-paint"])
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:238:    _save_worker(name="dead-one", scope=str(repo), owned=["docs/tasks/88"], status="archived")
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:244:    assert first["projects"]["comfy"]["plan"][0]["before"] == ["docs/tasks/88", "oil-paint"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:268:    assert json.loads(dead) == ["docs/tasks/88"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:275:    _save_worker(name="painter-canvas", scope=str(repo), owned=["docs/tasks/88", "oil-paint"])
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:305:    assert json.loads(still_legacy) == ["docs/tasks/88", "oil-paint"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:324:    _save_worker(name="legacy-owner", scope=str(repo), owned=["docs/tasks/88"])
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:332:    ) == ["docs/tasks/88"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:347:    owned = ["docs/tasks/88"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:350:              "\n\n## Directory ownership\n- docs/tasks/999/\nEnd of quotation.")
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:370:        assert "- docs/tasks/999/\nEnd of quotation." in stored
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:386:        "owned_dirs": json.dumps(["docs/tasks/88"]), "role": "worker", "pipeline": "default",
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:394:    ) == ["docs/tasks/88"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:407:    owned = ["docs/tasks/88"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:425:    assert json.loads(row["owned_dirs"]) == ["docs/tasks/88"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:435:    before, after = ["docs/tasks/88"], [".orchestra/tasks/88"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:447:    assert "- docs/tasks/88/" in memory
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:500:        owned=["docs/tasks/999", "oil-paint"], worktree=str(worktree),
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:520:        owned=["docs/tasks/88"], worktree=str(worktree),
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:538:        name="ghost", scope=str(repo), owned=["docs/tasks/404"], worktree=str(worktree),
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:569:        name="stranded", scope=str(repo), owned=["docs/tasks/404"], worktree=worktree,
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:606:        name="relative", scope=str(repo), owned=["docs/tasks/404"], worktree="some/relative/dir",
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:625:        name="stranded-but-real", scope=str(repo), owned=["docs/tasks/88"], worktree="",
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:642:    _save_worker(name="painter-canvas", scope=str(repo), owned=["docs/tasks/88"])
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:659:    ) == ["docs/tasks/88"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:669:    _save_worker(name="dormant", scope=str(repo), owned=["docs/tasks/88"])
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:689:    _save_worker(name="worker", scope=str(repo), owned=["docs/tasks/88"], status=status)
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:740:    session = await worker("painter-canvas", ["docs/tasks/88"])
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:748:        assert "docs/tasks/88" not in live
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:752:    assert "docs/tasks/88" not in row["system_prompt"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:754:    assert "docs/tasks/88" not in row["prompt_overlay"]
+/home/kesha/orchestra/tests/test_owned_dirs_migration_473.py:764:    session = await worker("painter-canvas", ["docs/tasks/88"])
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:34:    (repository / "docs/kb").mkdir(parents=True)
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:35:    (repository / "docs/kb/modified.md").write_text("BASE MODIFIED\n", encoding="utf-8")
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:36:    (repository / "docs/kb/deleted.md").write_text("BASE DELETED\n", encoding="utf-8")
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:37:    (repository / "docs/kb/clean.md").write_text("CLEAN\n", encoding="utf-8")
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:44:    (repository / "docs/kb/modified.md").write_text(
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:47:    (repository / "docs/kb/new.md").write_text(
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:50:    (repository / "docs/kb/deleted.md").unlink()
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:53:        "modified": _sha(repository / "docs/kb/modified.md"),
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:54:        "untracked": _sha(repository / "docs/kb/new.md"),
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:55:        "deleted": _sha(repository / "docs/kb/deleted.md"),
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:69:        " D docs/kb/deleted.md",
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:70:        " M docs/kb/modified.md",
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:71:        "?? docs/kb/new.md",
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:102:    (repository / "docs/kb").mkdir(parents=True)
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:103:    (repository / "docs/kb/fact.md").write_text("BASE\n", encoding="utf-8")
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:109:    (repository / "docs/kb/fact.md").write_text("USER BYTES\n", encoding="utf-8")
+/home/kesha/orchestra/tests/test_orchestra_layout_dirty_430.py:110:    before_hash = _sha(repository / "docs/kb/fact.md")
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:32:    "docs/kb/": ".orchestra/kb/",
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:33:    "docs/tasks/": ".orchestra/tasks/",
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:34:    "docs/workers/": ".orchestra/workers/",
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:141:    _git(partial, "mv", "docs/kb", ".orchestra/kb")
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:174:    (dirty_tracked / "docs/kb/kb.md").write_text("changed knowledge\n", encoding="utf-8")
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:176:    (dirty_untracked / "docs/kb/untracked.md").write_text("new knowledge\n", encoding="utf-8")
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:189:        "dirty-tracked": dirty_tracked / "docs/kb/kb.md",
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:190:        "dirty-untracked": dirty_untracked / "docs/kb/untracked.md",
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:201:        assert (repo / "docs/kb").is_dir()
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:213:        (repo / "docs/kb/kb.md").write_text("raced after lock wait\n", encoding="utf-8")
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:220:    assert (repo / "docs/kb/kb.md").read_text() == "raced after lock wait\n"
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:297:        KnowledgeService._cold_source_path("docs/tasks/1/research.md")
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:341:        "docs/kb/README.md",
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:342:        "docs/tasks/430/plan.md",
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:366:    for path in ("docs/kb", "docs/tasks", "docs/workers", "docs/archive", "pipelines"):
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:420:        assert "docs/kb" not in prompt, role
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:421:        assert "docs/tasks" not in prompt, role
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:422:        assert "docs/workers" not in prompt, role
+/home/kesha/orchestra/tests/test_orchestra_layout_430.py:470:        assert "docs/tasks/" not in (ROOT / relative).read_text(encoding="utf-8")

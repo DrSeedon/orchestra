@@ -1,0 +1,19 @@
+=== when literal removed from tests/ ===
+=== log master for that file ===
+107957b #2, #3: research current ingress failure hypotheses
+=== log master for task11 file ===
+107957b #2, #3: research current ingress failure hypotheses
+d1a3ddf #11: #11: research Contabo operational readiness
+=== branches still holding old literal (grep across refs) ===
+feat/home-kesha-projects-vpn-service/audit-analytics-anomaly files_with_hits=0
+feat/home-kesha-projects-vpn-service/complete-vps-ops files_with_hits=1
+feat/home-kesha-projects-vpn-service/diag-cascade-youtube files_with_hits=0
+feat/home-kesha-projects-vpn-service/diag-exit-evidence files_with_hits=1
+feat/home-kesha-projects-vpn-service/diag-external-e2e files_with_hits=1
+feat/home-kesha-projects-vpn-service/verify-migration-claims files_with_hits=0
+master files_with_hits=0
+task-1/diag-current-cascade files_with_hits=1
+task-2/fix-tspu-ingress files_with_hits=0
+task-5/fix-onboarding-clients files_with_hits=1
+task-7/feat-ingress-watchdog files_with_hits=0
+task-8/fix-crypto-payment files_with_hits=0

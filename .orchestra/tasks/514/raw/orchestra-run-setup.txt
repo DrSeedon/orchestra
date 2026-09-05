@@ -1,0 +1,17 @@
+=== diff of the 5 files main vs my worktree ===
+SAME tests/test_owned_dirs_migration_473.py
+SAME tests/test_orchestra_layout_430.py
+SAME tests/test_orchestra_layout_dirty_430.py
+SAME tests/test_orchestra_layout_compat_430.py
+SAME tests/test_orchestra_layout_recovery_430.py
+SAME app/orchestra_layout.py
+SAME app/ia/cutover.py
+SAME scripts/verify_orchestra_move.py
+SAME scripts/check_orchestra_paths.py
+SAME scripts/wf_pilot.py
+SAME scripts/secret_scan.py
+=== venv ===
+ls: cannot access '/home/kesha/orchestra/worktrees/home-kesha-orchestra/audit-layout-fallout/.venv/bin/python': No such file or directory
+/home/kesha/orchestra/.venv/bin/python
+=== data dir in worktree ===
+ls: cannot access '/home/kesha/orchestra/worktrees/home-kesha-orchestra/audit-layout-fallout/data/orchestra.db': No such file or directory

@@ -1,0 +1,5 @@
+=== venv ===
+/home/kesha/projects/VPN-Service/.venv/bin/python
+=== pytest-timeout? ===
+pytest 9.1.1
+pytest_timeout OK
