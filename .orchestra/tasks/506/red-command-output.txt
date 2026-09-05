@@ -1,0 +1,198 @@
+FFFFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+______________ test_t1_complete_diff_threshold_and_fail_safe_risk ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-478/test_t1_complete_diff_threshol0')
+
+    def test_t1_complete_diff_threshold_and_fail_safe_risk(tmp_path):
+        import app.mcp_stdio as mcp
+    
+        ordinary, target, head = _repo_with_diff(
+            tmp_path / "ordinary", {"app/ordinary.py": _lines(20)},
+        )
+>       skipped = _decision(mcp, ordinary, target, head, required=False)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.orchestra/tasks/506/test_t1_review_size_gate.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+module = <module 'app.mcp_stdio' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/review-policy/app/mcp_stdio.py'>
+repo = PosixPath('/tmp/pytest-of-maxim/pytest-478/test_t1_complete_diff_threshol0/ordinary/repo')
+target = '065a0bb70373dd3011085c6b92bc24766822100c'
+head = '0a8f1e0baa1112cbe9a1d2260a894a37099406c5', required = False
+
+    def _decision(module, repo, target, head, required):
+        gate = getattr(module, "_implementation_review_size_decision", None)
+>       assert callable(gate), "T1 missing complete-diff review size gate"
+E       AssertionError: T1 missing complete-diff review size gate
+E       assert False
+E        +  where False = callable(None)
+
+.orchestra/tasks/506/test_t1_review_size_gate.py:43: AssertionError
+___________ test_t1_explicit_low_risk_skip_writes_auditable_receipt ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-478/test_t1_explicit_low_risk_skip0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7671b489f490>
+
+    @pytest.mark.asyncio
+    async def test_t1_explicit_low_risk_skip_writes_auditable_receipt(tmp_path, monkeypatch):
+        import app.db as db
+        import app.mcp_stdio as mcp
+    
+>       assert "required" in inspect.signature(mcp.codex_review).parameters, (
+            "T1 codex_review has no fail-safe risk input"
+        )
+E       AssertionError: T1 codex_review has no fail-safe risk input
+E       assert 'required' in mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">}))
+E        +  where mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">})) = <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult>.parameters
+E        +    where <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult> = <function signature at 0x7671b5b7f100>(<function codex_review at 0x7671b2ec5260>)
+E        +      where <function signature at 0x7671b5b7f100> = inspect.signature
+E        +      and   <function codex_review at 0x7671b2ec5260> = <module 'app.mcp_stdio' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/review-policy/app/mcp_stdio.py'>.codex_review
+
+.orchestra/tasks/506/test_t1_review_size_gate.py:102: AssertionError
+___________ test_t1_required_absent_or_malformed_starts_review[True] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-478/test_t1_required_absent_or_mal0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7671b2e003b0>
+required = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("required", [True, None, "false", 0])
+    async def test_t1_required_absent_or_malformed_starts_review(
+        tmp_path, monkeypatch, required,
+    ):
+        import app.db as db
+        import app.mcp_stdio as mcp
+    
+>       assert "required" in inspect.signature(mcp.codex_review).parameters, (
+            "T1 codex_review has no fail-safe risk input"
+        )
+E       AssertionError: T1 codex_review has no fail-safe risk input
+E       assert 'required' in mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">}))
+E        +  where mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">})) = <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult>.parameters
+E        +    where <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult> = <function signature at 0x7671b5b7f100>(<function codex_review at 0x7671b2ec5260>)
+E        +      where <function signature at 0x7671b5b7f100> = inspect.signature
+E        +      and   <function codex_review at 0x7671b2ec5260> = <module 'app.mcp_stdio' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/review-policy/app/mcp_stdio.py'>.codex_review
+
+.orchestra/tasks/506/test_t1_review_size_gate.py:171: AssertionError
+___________ test_t1_required_absent_or_malformed_starts_review[None] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-478/test_t1_required_absent_or_mal1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7671b2db3790>
+required = None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("required", [True, None, "false", 0])
+    async def test_t1_required_absent_or_malformed_starts_review(
+        tmp_path, monkeypatch, required,
+    ):
+        import app.db as db
+        import app.mcp_stdio as mcp
+    
+>       assert "required" in inspect.signature(mcp.codex_review).parameters, (
+            "T1 codex_review has no fail-safe risk input"
+        )
+E       AssertionError: T1 codex_review has no fail-safe risk input
+E       assert 'required' in mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">}))
+E        +  where mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">})) = <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult>.parameters
+E        +    where <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult> = <function signature at 0x7671b5b7f100>(<function codex_review at 0x7671b2ec5260>)
+E        +      where <function signature at 0x7671b5b7f100> = inspect.signature
+E        +      and   <function codex_review at 0x7671b2ec5260> = <module 'app.mcp_stdio' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/review-policy/app/mcp_stdio.py'>.codex_review
+
+.orchestra/tasks/506/test_t1_review_size_gate.py:171: AssertionError
+__________ test_t1_required_absent_or_malformed_starts_review[false] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-478/test_t1_required_absent_or_mal2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7671b2e2fb50>
+required = 'false'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("required", [True, None, "false", 0])
+    async def test_t1_required_absent_or_malformed_starts_review(
+        tmp_path, monkeypatch, required,
+    ):
+        import app.db as db
+        import app.mcp_stdio as mcp
+    
+>       assert "required" in inspect.signature(mcp.codex_review).parameters, (
+            "T1 codex_review has no fail-safe risk input"
+        )
+E       AssertionError: T1 codex_review has no fail-safe risk input
+E       assert 'required' in mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">}))
+E        +  where mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">})) = <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult>.parameters
+E        +    where <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult> = <function signature at 0x7671b5b7f100>(<function codex_review at 0x7671b2ec5260>)
+E        +      where <function signature at 0x7671b5b7f100> = inspect.signature
+E        +      and   <function codex_review at 0x7671b2ec5260> = <module 'app.mcp_stdio' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/review-policy/app/mcp_stdio.py'>.codex_review
+
+.orchestra/tasks/506/test_t1_review_size_gate.py:171: AssertionError
+____________ test_t1_required_absent_or_malformed_starts_review[0] _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-478/test_t1_required_absent_or_mal3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7671b2dff200>
+required = 0
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("required", [True, None, "false", 0])
+    async def test_t1_required_absent_or_malformed_starts_review(
+        tmp_path, monkeypatch, required,
+    ):
+        import app.db as db
+        import app.mcp_stdio as mcp
+    
+>       assert "required" in inspect.signature(mcp.codex_review).parameters, (
+            "T1 codex_review has no fail-safe risk input"
+        )
+E       AssertionError: T1 codex_review has no fail-safe risk input
+E       assert 'required' in mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">}))
+E        +  where mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">})) = <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult>.parameters
+E        +    where <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult> = <function signature at 0x7671b5b7f100>(<function codex_review at 0x7671b2ec5260>)
+E        +      where <function signature at 0x7671b5b7f100> = inspect.signature
+E        +      and   <function codex_review at 0x7671b2ec5260> = <module 'app.mcp_stdio' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/review-policy/app/mcp_stdio.py'>.codex_review
+
+.orchestra/tasks/506/test_t1_review_size_gate.py:171: AssertionError
+________ test_t1_binary_malformed_numstat_and_unresolved_ref_fail_safe _________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-478/test_t1_binary_malformed_numst0')
+
+    def test_t1_binary_malformed_numstat_and_unresolved_ref_fail_safe(tmp_path):
+        import app.mcp_stdio as mcp
+    
+        parser = getattr(mcp, "_parse_review_numstat", None)
+        gate = getattr(mcp, "_implementation_review_size_decision", None)
+>       assert callable(parser), "T1 missing fail-safe numstat parser"
+E       AssertionError: T1 missing fail-safe numstat parser
+E       assert False
+E        +  where False = callable(None)
+
+.orchestra/tasks/506/test_t1_review_size_gate_edges.py:45: AssertionError
+__________________ test_t1_size_skip_retry_reuses_one_receipt __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-478/test_t1_size_skip_retry_reuses0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7671b2c475b0>
+
+    @pytest.mark.asyncio
+    async def test_t1_size_skip_retry_reuses_one_receipt(tmp_path, monkeypatch):
+        import app.db as db
+        import app.mcp_stdio as mcp
+    
+>       assert "required" in inspect.signature(mcp.codex_review).parameters, (
+            "T1 codex_review has no fail-safe risk input"
+        )
+E       AssertionError: T1 codex_review has no fail-safe risk input
+E       assert 'required' in mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">}))
+E        +  where mappingproxy(OrderedDict({'context': <Parameter "context: str">, 'target': <Parameter "target: str = ''">, 'output': <...: str = 'review'">, 'resume': <Parameter "resume: bool = False">, 'model': <Parameter "model: str = 'gpt-5.6-luna'">})) = <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult>.parameters
+E        +    where <Signature (context: str, target: str = '', output: str = 'CODEX_REVIEW.md', mode: str = 'review', resume: bool = False, model: str = 'gpt-5.6-luna') -> mcp.types.CallToolResult> = <function signature at 0x7671b5b7f100>(<function codex_review at 0x7671b2ec5260>)
+E        +      where <function signature at 0x7671b5b7f100> = inspect.signature
+E        +      and   <function codex_review at 0x7671b2ec5260> = <module 'app.mcp_stdio' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/review-policy/app/mcp_stdio.py'>.codex_review
+
+.orchestra/tasks/506/test_t1_review_size_gate_edges.py:76: AssertionError
+=========================== short test summary info ============================
+FAILED .orchestra/tasks/506/test_t1_review_size_gate.py::test_t1_complete_diff_threshold_and_fail_safe_risk
+FAILED .orchestra/tasks/506/test_t1_review_size_gate.py::test_t1_explicit_low_risk_skip_writes_auditable_receipt
+FAILED .orchestra/tasks/506/test_t1_review_size_gate.py::test_t1_required_absent_or_malformed_starts_review[True]
+FAILED .orchestra/tasks/506/test_t1_review_size_gate.py::test_t1_required_absent_or_malformed_starts_review[None]
+FAILED .orchestra/tasks/506/test_t1_review_size_gate.py::test_t1_required_absent_or_malformed_starts_review[false]
+FAILED .orchestra/tasks/506/test_t1_review_size_gate.py::test_t1_required_absent_or_malformed_starts_review[0]
+FAILED .orchestra/tasks/506/test_t1_review_size_gate_edges.py::test_t1_binary_malformed_numstat_and_unresolved_ref_fail_safe
+FAILED .orchestra/tasks/506/test_t1_review_size_gate_edges.py::test_t1_size_skip_retry_reuses_one_receipt
+8 failed in 0.63s
