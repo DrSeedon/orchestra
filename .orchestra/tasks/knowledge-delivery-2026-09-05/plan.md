@@ -18,4 +18,4 @@ less mandatory context without weaker answers in the bounded evaluation.
 
 Progress: all four stages implemented and checked in this branch. Findings, measured
 packet sizes, native loader checks and limitations are recorded in evaluation.md.
-No main merge or rollout is included.
+Main merge was authorized separately by the user after completion. No restart or VPS rollout.
