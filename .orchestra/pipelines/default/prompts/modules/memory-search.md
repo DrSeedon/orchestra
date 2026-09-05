@@ -7,7 +7,8 @@ the whole library; source evidence is opened only when it affects the task.
 
 `ORCHESTRA_LAYOUT_MISSING` or `ORCHESTRA_LAYOUT_PARTIAL` → stop and run the command from the error: `scripts/migrate_orchestra_layout.py --repair <absolute-repository>`. Never fall back to the old path.
 
-**Step 1 — navigation.** Read `.orchestra/kb/README.md` and pick candidate topics.
+**Step 1 — navigation.** Use the topic directory already included in the project rules.
+If the project has no such directory, read `.orchestra/kb/README.md`. Pick candidate topics;
 Do not read their full sections before searching. For current operational questions,
 follow the owner pointers in `current-operations.md` when that topic is present.
 
