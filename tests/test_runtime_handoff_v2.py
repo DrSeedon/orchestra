@@ -401,9 +401,16 @@ def test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools(
 
 @pytest.mark.asyncio
 async def test_t2_total_context_preflight_refuses_codex_before_source_disconnect(
-    session, monkeypatch,
+    session, monkeypatch, tmp_path,
 ):
     from app.session import AgentStatus
+
+    # The oracle is "a prompt that does not fit is refused before the source is
+    # disconnected", so the window it does not fit into has to be pinned. Since
+    # `_model_context_window` started reading the installed Codex config, an empty
+    # CODEX_HOME is what keeps the target on the catalog value (258 400) instead of
+    # whatever this machine has in ~/.codex.
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-home"))
 
     session.model = "claude-sonnet-5[1m]"
     session.backend_type = "claude"
@@ -579,6 +586,11 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
     tmp_path, monkeypatch,
 ):
     from app import db as dbmod
+    from app.runtime_history import (
+        build_runtime_delivery_packet,
+        build_runtime_state_packet,
+        runtime_packet_sha256,
+    )
 
     db_path = tmp_path / "confirm.db"
     monkeypatch.setattr(dbmod, "DB_PATH", db_path)
@@ -586,6 +598,27 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
     confirm = getattr(dbmod, "confirm_runtime_handoff", None)
     assert callable(confirm), "atomic handoff confirmation is absent"
     created_at = datetime.now(timezone.utc).isoformat()
+    # A ledger row production can actually produce: `build_runtime_state_packet` always
+    # writes `integrity`, and the attempt records the hash of the projected candidate
+    # that reached the target, not the ledger hash.
+    ledger_packet = build_runtime_state_packet(
+        [{
+            "id": 1, "ts": created_at, "type": "user_message",
+            "content": "continue", "event_id": "", "tool_use_id": None,
+            "tool_name": None, "tool_is_error": None,
+        }],
+        session_meta={"id": "s1"}, snapshot_id=1,
+        current_system_prompt="current system policy",
+        project_docs=[{"path": "AGENTS.md", "content": "tracked repo policy"}],
+    )
+    packet_json = json.dumps(
+        ledger_packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    packet_sha256 = ledger_packet["integrity"]["canonical_sha256"]
+    candidate_sha256 = runtime_packet_sha256(
+        build_runtime_delivery_packet(ledger_packet)
+    )
+    assert candidate_sha256 != packet_sha256
     with sqlite3.connect(db_path) as conn:
         conn.execute(
             """INSERT INTO sessions
@@ -603,8 +636,11 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
                 created_at, updated_at)
                VALUES ('h1', 's1', 'request-1', 'source_released', 'codex',
                        'gpt-5.6-sol', 'old-thread', 'claude',
-                       'claude-sonnet-5[1m]', 0, ?, '{}', ?, 'packet_delta', ?, ?)""",
-            ("a" * 64, "b" * 64, created_at, created_at),
+                       'claude-sonnet-5[1m]', 1, ?, ?, ?, 'packet_delta', ?, ?)""",
+            (
+                ledger_packet["integrity"]["snapshot_sha256"], packet_json,
+                packet_sha256, created_at, created_at,
+            ),
         )
         conn.execute(
             """INSERT INTO runtime_handoff_attempts
@@ -612,7 +648,7 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
                 target_session_id, candidate_sha256, created_at, updated_at)
                VALUES ('h1', 1, 'packet_delta', 'capability_validated',
                        'staging/h1/1', 'target-session', ?, ?, ?)""",
-            ("b" * 64, created_at, created_at),
+            (candidate_sha256, created_at, created_at),
         )
         conn.execute(
             """CREATE TRIGGER abort_confirm BEFORE UPDATE ON runtime_handoffs
