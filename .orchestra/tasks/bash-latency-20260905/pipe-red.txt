@@ -6,18 +6,18 @@ fut = <Future cancelled>, timeout = 1
 
     async def wait_for(fut, timeout):
         """Wait for the single Future or coroutine to complete, with timeout.
-    
+
         Coroutine will be wrapped in Task.
-    
+
         Returns result of the Future or coroutine.  When a timeout occurs,
         it cancels the task and raises TimeoutError.  To avoid the task
         cancellation, wrap it in shield().
-    
+
         If the wait is cancelled, the task is also cancelled.
-    
+
         If the task suppresses the cancellation and returns a value instead,
         that value is returned.
-    
+
         This function is a coroutine.
         """
         # The special case for timeout <= 0 is for the following case:
@@ -37,20 +37,20 @@ fut = <Future cancelled>, timeout = 1
         #         assert False
         #
         # asyncio.run(test_waitfor())
-    
-    
+
+
         if timeout is not None and timeout <= 0:
             fut = ensure_future(fut)
-    
+
             if fut.done():
                 return fut.result()
-    
+
             await _cancel_and_wait(fut)
             try:
                 return fut.result()
             except exceptions.CancelledError as exc:
                 raise TimeoutError from exc
-    
+
         async with timeouts.timeout(timeout):
 >           return await fut
                    ^^^^^^^^^
@@ -66,12 +66,12 @@ timeout = 1
 
 >   ???
 
-baseline_tools.py:152: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+baseline_tools.py:152:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 /home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/tasks.py:506: in wait_for
     async with timeouts.timeout(timeout):
                ^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <Timeout [expired]>
 exc_type = <class 'asyncio.exceptions.CancelledError'>
@@ -84,14 +84,14 @@ exc_val = CancelledError(), exc_tb = <traceback object at 0x7a289d45f780>
         exc_tb: Optional[TracebackType],
     ) -> Optional[bool]:
         assert self._state in (_State.ENTERED, _State.EXPIRING)
-    
+
         if self._timeout_handler is not None:
             self._timeout_handler.cancel()
             self._timeout_handler = None
-    
+
         if self._state is _State.EXPIRING:
             self._state = _State.EXPIRED
-    
+
             if self._task.uncancel() <= self._cancelling and exc_type is not None:
                 # Since there are no new cancel requests, we're
                 # handling this.
@@ -110,7 +110,7 @@ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a289f098fc0>
     async def test_timeout_does_not_wait_forever_for_inherited_pipe(tmp_path, monkeypatch):
         from app import bg_jobs
         from unittest.mock import AsyncMock
-    
+
         real_spawn, real_cleanup = bg_jobs._spawn_bg_process, bg_jobs._kill_proc
         processes = []
         async def spawn(*args, **kwargs):
@@ -125,8 +125,8 @@ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a289f098fc0>
 >               result = await tools.bash("printf checkpoint; sleep 10", str(tmp_path), timeout=1)
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-tests/test_bash_completion.py:89: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_bash_completion.py:89:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 baseline_tools.py:159: in bash
     ???
 /home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/subprocess.py:201: in communicate
@@ -140,14 +140,14 @@ baseline_tools.py:159: in bash
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 /home/maxim/.local/share/uv/python/cpython-3.13.11-linux-x86_64-gnu/lib/python3.13/asyncio/streams.py:730: in read
     await self._wait_for_data('read')
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <StreamReader eof transport=<_UnixReadPipeTransport closed fd=17 closed>>
 func_name = 'read'
 
     async def _wait_for_data(self, func_name):
         """Wait until feed_data() or feed_eof() is called.
-    
+
         If stream was paused, automatically resume it.
         """
         # StreamReader uses a future to link the protocol feed_data() method
@@ -158,15 +158,15 @@ func_name = 'read'
             raise RuntimeError(
                 f'{func_name}() called while another coroutine is '
                 f'already waiting for incoming data')
-    
+
         assert not self._eof, '_wait_for_data after EOF'
-    
+
         # Waiting for data while paused will make deadlock, so prevent it.
         # This is essential for readexactly(n) for case when n > self._limit.
         if self._paused:
             self._paused = False
             self._transport.resume_reading()
-    
+
         self._waiter = self._loop.create_future()
         try:
 >           await self._waiter
@@ -183,7 +183,7 @@ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a289f098fc0>
     async def test_timeout_does_not_wait_forever_for_inherited_pipe(tmp_path, monkeypatch):
         from app import bg_jobs
         from unittest.mock import AsyncMock
-    
+
         real_spawn, real_cleanup = bg_jobs._spawn_bg_process, bg_jobs._kill_proc
         processes = []
         async def spawn(*args, **kwargs):
@@ -197,8 +197,8 @@ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a289f098fc0>
 >           async with asyncio.timeout(3):
                        ^^^^^^^^^^^^^^^^^^
 
-tests/test_bash_completion.py:88: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_bash_completion.py:88:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <Timeout [expired]>
 exc_type = <class 'asyncio.exceptions.CancelledError'>
@@ -211,14 +211,14 @@ exc_val = CancelledError(), exc_tb = <traceback object at 0x7a289d0af500>
         exc_tb: Optional[TracebackType],
     ) -> Optional[bool]:
         assert self._state in (_State.ENTERED, _State.EXPIRING)
-    
+
         if self._timeout_handler is not None:
             self._timeout_handler.cancel()
             self._timeout_handler = None
-    
+
         if self._state is _State.EXPIRING:
             self._state = _State.EXPIRED
-    
+
             if self._task.uncancel() <= self._cancelling and exc_type is not None:
                 # Since there are no new cancel requests, we're
                 # handling this.
