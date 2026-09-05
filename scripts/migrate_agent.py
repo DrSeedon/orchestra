@@ -463,7 +463,7 @@ def build_children_copy(from_host, from_db, session_row_id: str,
 
 
 def copy_scope_files(from_host, to_host, from_scope, to_scope, worker_names, to_user) -> None:
-    """CLAUDE.md + .orchestra/workers/<name>.md — travel with the scope repo but copy explicitly
+    """Project instructions and worker memory travel with the repo but copy explicitly
     so migration works even if the target repo is behind."""
     ssh(to_host, f"mkdir -p {to_scope}/.orchestra/workers")
     give_to_service_user(to_host, f"{to_scope}/.orchestra/workers", to_user)
