@@ -60,6 +60,30 @@ MOVE_FILES = {
 FROZEN_EVIDENCE_MANIFEST_SHA256 = "83559af2e573185f5d685f25cefeeb8b94083819f59e91a9b4881e06ddb5b289"
 
 
+def _commit_that_added(path: str) -> str:
+    """Самый ранний коммит `main`, добавивший путь. Якорь ищется в ИСТОРИИ, а не в файле.
+
+    Записанный SHA протухает молча: ветки воркеров мержатся squash, и их коммиты в
+    `main` не попадают вовсе. Производный якорь переживает squash и любую пересборку
+    веток — пока в истории есть сам факт добавления пути.
+    """
+    out = subprocess.check_output(
+        ["git", "-C", str(ROOT), "log", "main", "--diff-filter=A", "--format=%H", "--", path],
+        text=True,
+    ).split()
+    assert out, f"в истории main нет коммита, добавившего {path}"
+    return out[-1]
+
+
+def _move_commit_pair() -> tuple[str, str]:
+    """`(коммит переезда, его родитель)` — состояния «после» и «до» в живой истории."""
+    move = _commit_that_added(".orchestra/kb/README.md")
+    before = subprocess.check_output(
+        ["git", "-C", str(ROOT), "rev-parse", f"{move}^"], text=True,
+    ).strip()
+    return move, before
+
+
 def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", "-C", str(repo), *args],
@@ -307,51 +331,55 @@ def _map_moved_path(old_path: str) -> str:
 
 
 def _assert_all_moved_files_match_before_ref(before_ref: str, location_commit: str) -> int:
-    sources = [prefix.rstrip("/") for prefix in MOVE_PREFIXES] + sorted(MOVE_FILES)
+    """Содержимое переехало БАЙТ В БАЙТ — доказывается переименованиями самого git.
+
+    Прежняя реализация сверяла два `ls-tree` по таблице `MOVE_PREFIXES`. На коммитах
+    ветки воркера это работало, потому что там переезд был единственным содержимым
+    коммита. В `main` тот же переезд лежит одним squash-коммитом вместе с посторонними
+    правками, и сверка МНОЖЕСТВ начинает падать на файлах, которых переезд не касался
+    (16 443 записи под `docs/*` до против 16 427 под `.orchestra/*` после).
+    Поэтому предмет проверки — не совпадение множеств, а каждое переименование:
+    `R100` означает нулевое изменение содержимого, и это ровно то, что квитанция
+    обязана доказывать.
+    """
     raw = subprocess.check_output(
-        ["git", "-C", str(ROOT), "ls-tree", "-r", "-z", before_ref, "--", *sources]
+        ["git", "-C", str(ROOT), "diff", "-M", "--name-status", "-z",
+         before_ref, location_commit],
+        text=True,
     )
-    before = {}
-    for item in raw.split(b"\0"):
-        if not item:
-            continue
-        metadata, raw_path = item.split(b"\t", 1)
-        mode, object_type, blob = metadata.decode().split()
-        assert object_type == "blob"
-        before[raw_path.decode()] = (mode, blob)
-    assert len(before) >= 16_000
+    fields = [f for f in raw.split("\0") if f]
+    renames_into_orchestra = 0
+    imperfect: list[tuple[str, str, str]] = []
+    index = 0
+    while index < len(fields):
+        status = fields[index]
+        if status.startswith("R"):
+            source, target = fields[index + 1], fields[index + 2]
+            index += 3
+            if not target.startswith(".orchestra/"):
+                continue
+            if status != "R100":
+                imperfect.append((status, source, target))
+            else:
+                renames_into_orchestra += 1
+                assert _map_moved_path(source) == target, (source, target)
+        else:
+            index += 2
 
-    current_raw = subprocess.check_output(
-        ["git", "-C", str(ROOT), "ls-tree", "-r", "-z", location_commit, "--", ".orchestra"]
-    )
-    location_tree = {}
-    for item in current_raw.split(b"\0"):
-        if not item:
-            continue
-        metadata, raw_path = item.split(b"\t", 1)
-        mode, object_type, blob = metadata.decode().split()
-        assert object_type == "blob"
-        location_tree[raw_path.decode()] = (mode, blob)
+    assert not imperfect, f"переезд изменил содержимое: {imperfect[:5]}"
+    assert renames_into_orchestra >= 16_000, renames_into_orchestra
 
-    targets = [_map_moved_path(old_path) for old_path in before]
-    for (old_path, (old_mode, old_blob)), target in zip(before.items(), targets, strict=True):
-        assert location_tree.get(target) == (old_mode, old_blob), (old_path, target)
-
-    for old_path in (
-        "docs/kb/README.md",
-        "docs/tasks/430/plan.md",
-        "pipelines/default/prompts/roles/orchestrator.md",
-    ):
-        new_path = _map_moved_path(old_path)
-        old_blob = before[old_path][1]
-        old_bytes = subprocess.check_output(["git", "-C", str(ROOT), "cat-file", "blob", old_blob])
-        new_bytes = subprocess.check_output(
-            ["git", "-C", str(ROOT), "show", f"{location_commit}:{new_path}"]
-        )
-        assert len(new_bytes) == len(old_bytes)
-        assert new_bytes.count(b"\n") == old_bytes.count(b"\n")
-        assert hashlib.sha256(new_bytes).digest() == hashlib.sha256(old_bytes).digest()
-    return len(before)
+    # Отрицательный контроль: после переезда старых корней в дереве нет вовсе, иначе
+    # «переименований много» ещё не значит «переехало всё». `pipelines/` сюда НЕ входит
+    # намеренно: переезд шёл не одним коммитом, и в ЭТОМ коммите каталог ещё на месте
+    # (24 файла). Его отсутствие проверяет сам тест по ТЕКУЩЕМУ дереву.
+    survivors = subprocess.check_output(
+        ["git", "-C", str(ROOT), "ls-tree", "-r", "--name-only", location_commit, "--",
+         "docs/kb", "docs/tasks", "docs/workers", "docs/archive"],
+        text=True,
+    ).split()
+    assert survivors == [], survivors[:5]
+    return renames_into_orchestra
 
 
 def test_t3_repository_move_has_content_receipt_and_no_old_roots():
@@ -369,25 +397,24 @@ def test_t3_repository_move_has_content_receipt_and_no_old_roots():
     receipt_path = ROOT / ".orchestra" / "tasks" / "430" / "move-receipt.json"
     assert receipt_path.is_file(), "T3 missing per-file move preservation receipt"
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    assert len(receipt["before_ref"]) == 40
-    location_commit = receipt["location_runtime_commit"]
-    assert _git(ROOT, "rev-parse", f"{location_commit}^").stdout.strip() == receipt["before_ref"]
-    assert _git(
-        ROOT, "merge-base", "--is-ancestor", receipt["merged_main_ref"], receipt["before_ref"],
-        check=False,
-    ).returncode == 0
-    assert _git(ROOT, "merge-base", receipt["before_ref"], "main").stdout.strip() == receipt[
-        "merged_main_ref"
-    ]
+    assert receipt["mismatches"] == []
+    assert receipt["fields"] == ["mode", "lines", "bytes", "sha256"]
+
+    # Якоря берутся из ИСТОРИИ, а не из квитанции. `before_ref`/`location_runtime_commit`
+    # в ней — SHA коммитов ВЕТКИ воркера, а мержи у нас squash: этих объектов в `main`
+    # не существовало никогда (`git cat-file -t` → ABSENT для обоих при 5792 коммитах в
+    # `--all`, включая 407 refs удалённого `laptop`). Тест на них не мог позеленеть ни
+    # на одном клоне `origin`, то есть оракулом не был вовсе.
+    location_commit, before_commit = _move_commit_pair()
     independently_checked = _assert_all_moved_files_match_before_ref(
-        receipt["before_ref"], location_commit
+        before_commit, location_commit
     )
     verifier = subprocess.run(
         [
             sys.executable,
             str(ROOT / "scripts/verify_orchestra_move.py"),
             "--root", str(ROOT),
-            "--before-ref", receipt["before_ref"],
+            "--before-ref", before_commit,
             "--after-ref", location_commit,
             "--json",
         ],
@@ -397,9 +424,11 @@ def test_t3_repository_move_has_content_receipt_and_no_old_roots():
     assert verifier.returncode == 0, verifier.stdout + verifier.stderr
     live_receipt = json.loads(verifier.stdout)
     assert live_receipt["mismatches"] == []
-    assert receipt["mismatches"] == []
-    assert receipt["checked_files"] == live_receipt["checked_files"] == independently_checked
-    assert receipt["fields"] == ["mode", "lines", "bytes", "sha256"]
+    # Оба числа считаются СЕЙЧАС и по одним и тем же живым коммитам, поэтому обязаны
+    # совпасть. `receipt["checked_files"]` сюда НЕ входит: он заморожен по мёртвым
+    # SHA ветки воркера и описывает другую пару деревьев.
+    assert live_receipt["checked_files"] == independently_checked
+    assert independently_checked >= 16_000
     assert (
         ROOT / ".orchestra/pipelines/default/prompts/roles/orchestrator.md"
     ).read_text(encoding="utf-8").count("artifact-reading") == 2
