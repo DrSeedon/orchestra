@@ -565,6 +565,21 @@ def template_path(pipeline_name: str, template: str) -> Path:
     return PIPELINES_DIR / pipeline_name / "templates" / template
 
 
+def build_prompt_modules(pipeline_name: str, modules: list[str] | tuple[str, ...]) -> str:
+    """Assemble named modules from the canonical pipeline prompt library."""
+    parts: list[str] = []
+    for module in modules:
+        if not _is_safe_rel(module):
+            raise ValueError(f"unsafe module name '{module}' (abs или '..')")
+        path = prompt_path(pipeline_name, f"modules/{module}.md")
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"pipeline '{pipeline_name}' module '{module}' not found at {path}"
+            )
+        parts.append(path.read_text().strip())
+    return "\n\n".join(parts)
+
+
 def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
     """Собрать system_prompt из prompt_layers резолвнутой роли.
 
@@ -587,17 +602,9 @@ def build_system_prompt(pipeline_name: str, role: str, scope: str = "") -> str:
         p = prompt_path(pipeline_name, layer)
         if p.is_file():
             parts.append(p.read_text())
-    for m in rr.modules:
-        mp = prompt_path(pipeline_name, f"modules/{m}.md")
-        if mp.is_file():
-            # ``.strip()`` — точное соответствие upstream ``_load_modules`` (manager.py):
-            # модули инлайнятся обрезанными, разделитель между ними ровно ``\n\n``.
-            # Без strip хвостовые ``\n`` в файле дают ``\n\n\n`` и расхождение с upstream.
-            parts.append(mp.read_text().strip())
-        else:
-            logger.warning(
-                "pipeline '%s' role '%s': module '%s' not found at %s — skipped",
-                pipeline_name, role, m, mp)
+    module_text = build_prompt_modules(pipeline_name, rr.modules)
+    if module_text:
+        parts.append(module_text)
     return "\n\n".join(parts)
 
 
