@@ -326,7 +326,7 @@ async def test_t3_restart_signals_without_waiting_for_live_turns(monkeypatch):
     idle = _FakeSession("idle", AgentStatus.IDLE)
     # This test forbids waiting for turns, not slow filesystem telemetry.
     # Persistence-before-signal has its own test below.
-    monkeypatch.setattr(system, "_record_restart_outcome", MagicMock())
+    monkeypatch.setattr(system, "_record_restart_outcome_bounded", AsyncMock(return_value=None))
     monkeypatch.setattr(system, "_drain_sessions", lambda: [running, idle], raising=False)
     kill = MagicMock()
     monkeypatch.setattr(system.os, "kill", kill)
