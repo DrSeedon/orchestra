@@ -147,8 +147,10 @@ async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> s
         return f"[bash error] failed to start: {e}"
     # Shield the reader so a timeout doesn't discard bytes already read from the pipe.
     reader = asyncio.create_task(proc.communicate())
+    completed = False
     try:
         out, _ = await asyncio.wait_for(asyncio.shield(reader), timeout=timeout)
+        completed = True
         rc = proc.returncode
         body = out.decode(errors="replace") if out else ""
         return _cap(f"exit_code={rc}\n{body}".rstrip())
@@ -164,7 +166,13 @@ async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> s
             f"Partial output:\n{body}"
         )
     finally:
-        await _kill_proc(proc)
+        if completed:
+            # A completed shell may intentionally leave a detached child. Preserve that
+            # behavior; only cancellation/timeout authorizes terminating its group.
+            os.close(proc._orchestra_pidfd)
+            proc._orchestra_pidfd = None
+        else:
+            await _kill_proc(proc)
         if not reader.done():
             reader.cancel()
         with contextlib.suppress(asyncio.CancelledError):
