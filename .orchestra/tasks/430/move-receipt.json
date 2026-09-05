@@ -1,4 +1,10 @@
 {
+  "anchor_warning": "SHA ветки воркера непригоден как якорь НИ В ОДНОЙ квитанции: мержи у нас squash, поэтому коммитов ветки в main не существует никогда. Поля before_ref, location_runtime_commit и merged_main_ref этой квитанции проверены 05.09.2026 командой `git cat-file -t`: первые два отвечают ABSENT при 5792 коммитах в --all (включая 407 refs удалённого laptop), merged_main_ref существует. Годный якорь выводится из истории самого main: коммит, впервые создавший корень назначения, и есть коммит переезда этого корня — см. `_commit_that_added` в tests/test_orchestra_layout_430.py.",
+  "anchor_warning_measured": {
+    "checked_files_is_frozen_over_dead_refs": "Поле checked_files=16482 посчитано по НЕСУЩЕСТВУЮЩЕЙ паре ссылок и живой проверке не соответствует: по производным якорям сверяется 16443 файла, missing=0 на всех корнях, content=16 только в pipelines.",
+    "move_was_composite": "Переезд шёл ТРЕМЯ коммитами, а не одним: docs/kb и docs/archive — 498c0d14, docs/tasks и docs/workers — там же, pipelines и остальные корни — f8e00522, на 9 коммитов позже; отдельная сверка артефактов после слияния — 4f97f176.",
+    "pipelines_moved_with_edits": "pipelines/ переехал НЕ байт-в-байт: 16 файлов из 24 правились тем же коммитом (похожесть 83-99% по `git diff -M`), потому что внутри промптов менялись ссылки docs/ на .orchestra/. Требовать там байт-в-байт значит требовать неверного."
+  },
   "artifact_reading_count": 2,
   "before_ref": "848c8d5146909bd7d70aca9271effad5cc3a3a37",
   "checked_files": 16482,
