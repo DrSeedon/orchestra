@@ -31,7 +31,7 @@ from app.prompting import (
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import (
     create_worktree, discard_prepared_worktree, remove_worktree,
-    parse_owned_dirs, dirs_overlap,
+    parse_owned_dirs,
     validate_repo_root, resolve_base_branch as resolve_git_base_branch,
     repo_root,
 )
@@ -492,10 +492,10 @@ def ownership_block(owned_dirs: list[str]) -> str:
         return ""
     lines = "\n".join(f"- {d}/" for d in owned_dirs)
     return (OWNERSHIP_MARKER +
-            "You OWN these directories — edit ONLY files under them:\n"
+            "Expected work areas (advisory, not an edit allowlist):\n"
             f"{lines}\n"
-            "Do NOT touch files outside your owned directories. "
-            "If the task requires it — STOP and ask the orchestrator.")
+            "Edit other files needed for the approved task within your worktree. "
+            "Respect explicit task exclusions and coordinate overlapping changes.")
 
 
 def replace_ownership_block(
@@ -522,7 +522,15 @@ def replace_ownership_block(
     # keeps — untouched. Only the region before the memory can hold the generated block.
     body, memory_separator, memory = prompt.partition(WORKER_MEMORY_MARKER)
     if old_block not in body:
-        return prompt, False
+        # Upgrade only the exact historical generated suffix, never free-form exclusions.
+        lines = "\n".join(f"- {d}/" for d in before)
+        old_block = (OWNERSHIP_MARKER +
+                     "You OWN these directories — edit ONLY files under them:\n"
+                     f"{lines}\n"
+                     "Do NOT touch files outside your owned directories. "
+                     "If the task requires it — STOP and ask the orchestrator.")
+        if old_block not in body:
+            return prompt, False
     head, _, tail = body.rpartition(old_block)
     return head + ownership_block(after) + tail + memory_separator + memory, True
 
@@ -595,43 +603,8 @@ class SessionManager:
     def validate_owned_dirs_transition(
         self, session: AgentSession, owned_dirs: list[str],
     ) -> list[str]:
-        """Normalize and collision-check ownership for a new task.
-
-        The current session is excluded so a worker may keep or replace its own
-        directories without colliding with its previous DB row.
-        """
-        normalized = parse_owned_dirs(owned_dirs)
-        if not normalized:
-            return normalized
-        seen_ids: set[str] = set()
-        for candidate in self.sessions.values():
-            if candidate.id == session.id:
-                continue
-            if (
-                candidate.scope == session.scope
-                and candidate.status.value in ACTIVE_SESSION_STATUSES
-                and candidate.owned_dirs
-            ):
-                seen_ids.add(candidate.id)
-                overlap = dirs_overlap(normalized, candidate.owned_dirs)
-                if overlap:
-                    raise ValueError(
-                        f"owned_dirs overlap with '{candidate.name}': {', '.join(overlap)}. "
-                        f"Use different dirs or kill '{candidate.name}' first"
-                    )
-        for row in get_all_sessions(session.scope):
-            if row["id"] in seen_ids or row["id"] == session.id:
-                continue
-            if (row.get("status") or "") not in ACTIVE_SESSION_STATUSES:
-                continue
-            row_dirs = parse_owned_dirs(row.get("owned_dirs"))
-            overlap = dirs_overlap(normalized, row_dirs)
-            if overlap:
-                raise ValueError(
-                    f"owned_dirs overlap with '{row['name']}': {', '.join(overlap)}. "
-                    f"Use different dirs or kill '{row['name']}' first"
-                )
-        return normalized
+        """Normalize advisory work areas; overlap is not an authorization failure."""
+        return parse_owned_dirs(owned_dirs)
 
     def _transition_prompt(
         self, session: AgentSession, owned_dirs: list[str],
@@ -761,37 +734,8 @@ class SessionManager:
         # R1: is_orchestrator из манифеста (kind), fallback на frozenset апстрима.
         is_orch = self._role_is_orchestrator(pipeline, role)
 
-        # Ownership (upstream): нормализуем owned_dirs и предупреждаем о пересечении
-        # с другими живыми воркерами в этом scope (warning, НЕ блок).
+        # Work areas describe expected edits; separate worktrees may overlap.
         owned_dirs = parse_owned_dirs(owned_dirs)
-        if owned_dirs:
-            seen_ids: set[str] = set()
-            for s in self.sessions.values():
-                if (
-                    s.scope == scope
-                    and s.status.value in ACTIVE_SESSION_STATUSES
-                    and s.owned_dirs
-                ):
-                    seen_ids.add(s.id)
-                    ov = dirs_overlap(owned_dirs, s.owned_dirs)
-                    if ov:
-                        raise ValueError(
-                            f"owned_dirs overlap with '{s.name}': {', '.join(ov)}. "
-                            f"Use different dirs or kill '{s.name}' first"
-                        )
-            for row in get_all_sessions(scope):
-                if row["id"] in seen_ids:
-                    continue
-                if (row.get("status") or "") not in ACTIVE_SESSION_STATUSES:
-                    continue
-                row_dirs = parse_owned_dirs(row.get("owned_dirs"))
-                if row_dirs:
-                    ov = dirs_overlap(owned_dirs, row_dirs)
-                    if ov:
-                        raise ValueError(
-                            f"owned_dirs overlap with '{row['name']}': {', '.join(ov)}. "
-                            f"Use different dirs or kill '{row['name']}' first"
-                        )
 
         if not parent_name and not is_orch:
             parent_name = self._find_orchestrator_name(scope) or ""
@@ -2052,6 +1996,10 @@ class SessionManager:
                 prompt_without_memory = old_without_memory
         else:
             prompt_overlay = strip_worker_memory(stored_overlay)
+            prompt_without_memory = current_base + prompt_overlay
+        if prompt_overlay is not None:
+            areas = parse_owned_dirs(owned_dirs)
+            prompt_overlay, _ = replace_ownership_block(prompt_overlay, areas, areas)
             prompt_without_memory = current_base + prompt_overlay
         return refresh_worker_memory(
             prompt_without_memory, name, role, scope, repository_path,
