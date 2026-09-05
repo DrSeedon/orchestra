@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
@@ -16,6 +17,7 @@ from app.merge_operations import (
 )
 
 router = APIRouter(prefix="/api/merge-operations", tags=["merge-operations"])
+logger = logging.getLogger(__name__)
 
 
 def _response(result: dict, status_code: int = 200) -> JSONResponse:
@@ -76,6 +78,31 @@ async def create_merge_operation(req: dict, request: Request = None):
             if req.get("merge_schema_version") is not None else None
         ),
     )
+    completion_session_id = str(req.get("completion_session_id") or "")
+    if (completion_session_id and result.get("operation_state") in {"PENDING", "RUNNING"}
+            and not result.get("error")):
+        from app.bg_jobs import bg_manager
+        from app.db import get_session
+
+        scope = str(req.get("scope") or "").rstrip("/")
+        caller = await asyncio.to_thread(get_session, completion_session_id)
+        if caller and caller["scope"].rstrip("/") == scope:
+            try:
+                job = await bg_manager.create(
+                    job_type="merge", config={"operation_id": result["operation_id"]},
+                    message=f"Merge requested for {req.get('name', '')} has an outcome.",
+                    target_session_id=completion_session_id, target_name=caller["name"],
+                    target_scope=scope, created_by=caller["name"],
+                    timeout_seconds=86400,
+                )
+                if job.get("id"):
+                    result = {**result, "completion": {"job_id": job["id"], "mode": "background"}}
+                else:
+                    logger.warning("merge completion watch not registered: %s", job.get("error"))
+            except Exception:
+                # The accepted merge remains valid; clients retain synchronous waiting
+                # unless this response confirms a persisted completion job.
+                logger.exception("merge completion watch registration failed")
     return _response(result, status_code)
 
 

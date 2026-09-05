@@ -14,6 +14,10 @@
 - Don't refactor what isn't broken. Follow existing style
 - Noticed dead code → mention, don't delete unless your changes orphaned it
 
+**Diagnostic rounds.** Batch independent read-only checks into one tool round with bounded
+output and visible results for each check. Keep commands sequential when the next action
+depends on the previous result; do not batch mutations or retries merely to save a round.
+
 **Route code intelligence by question.**
 - Literal text, paths, and current occurrences → `rg` first
 - Python reachability, decorators, registries, or dead clusters → task-local AST plus `rg`; a zero from either alone proves nothing

@@ -143,8 +143,14 @@ frame the question with research-method Steps 0–1 → targeted code/source ret
    use the nearest observable proxy. Only when the diff has no consumer-visible behavior, record
    the caller or diff proving that. Record the scenarios and checks in `report.md` (step 9); no
    reviewer round.
-6. Test: `uv run python -m pytest -x -q > /tmp/pytest-<task-id>.log 2>&1`,
-   then read the log ONCE. Never poll a long command with repeated empty `write_stdin`/`wait`.
+6. Test the exact acceptance command and the focused regressions identified in step 5.
+   For Python, name the relevant test paths: `uv run --frozen python -m pytest <test-paths> -q`.
+   Run the full suite only when the changed shared contract or task requires it; do not
+   repeat an unchanged successful run without a new failure, edit, or named uncertainty.
+   Parallel tests are opt-in: use `-n 2 --dist load` only for a set verified to retain the
+   same outcomes in parallel, with the project's memory limit. Do not add global `-n auto`.
+   Save output under `.orchestra/tasks/<task-id>/`; use the base module's background-job
+   rule for long commands, then read the completed log. Do not poll with empty waits.
    If `git status` ever shows a modified `uv.lock` after a test run — STOP, don't commit it. It means
    the `[options] exclude-newer` barrier (`pyproject.toml` + `uv.lock`) got lost and deps re-resolved
    themselves; restore it instead of committing ~800 lines of silent upgrades.
