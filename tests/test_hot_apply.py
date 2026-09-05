@@ -301,7 +301,7 @@ async def test_t2_internal_starter_queues_a_fact_instead_of_starting(
             args = {
                 "_flush_pending": (),
                 "_auto_continue": (),
-                "_rate_limit_retry": (0,),
+                "_rate_limit_retry": (0, s._turn_gen),
                 "_retry_after_server_error": (0, s._turn_gen),
             }[starter]
             await asyncio.wait_for(getattr(s, starter)(*args), timeout=10)
