@@ -16,4 +16,6 @@ Acceptance: no critical safety regression; identical shared rules at direct Code
 Claude and Orchestra entry points; unknowns stay unknown; historical sources preserved;
 less mandatory context without weaker answers in the bounded evaluation.
 
-Progress: initial read-only audit complete; no instruction edits yet.
+Progress: all four stages implemented and checked in this branch. Findings, measured
+packet sizes, native loader checks and limitations are recorded in evaluation.md.
+No main merge or rollout is included.

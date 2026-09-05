@@ -15,7 +15,10 @@ from app.ia.task_store import TaskStore, build_migration_manifest
 FIXTURE = Path(".orchestra/tasks/315/acceptance/fixtures/t2_task_store_records.json")
 
 
-def test_claude_resource_import_links_once_without_rewriting_flat_record(tmp_path):
+@pytest.mark.parametrize("filename", [
+    "CLAUDE.md", "AGENTS.md", ".orchestra/archive/instructions/previous.md",
+])
+def test_instruction_resource_import_links_once_without_rewriting_flat_record(tmp_path, filename):
     canonical = tmp_path / "canonical"
     snapshot = copy.deepcopy(json.loads(FIXTURE.read_text(encoding="utf-8"))["snapshot"])
     store = TaskStore(
@@ -27,7 +30,8 @@ def test_claude_resource_import_links_once_without_rewriting_flat_record(tmp_pat
 
     source_root = tmp_path / "source"
     source_root.mkdir()
-    source_path = source_root / "CLAUDE.md"
+    source_path = source_root / filename
+    source_path.parent.mkdir(parents=True, exist_ok=True)
     source_path.write_text("Canonical agent rule.\n", encoding="utf-8")
     source_sha = f"sha256:{hashlib.sha256(source_path.read_bytes()).hexdigest()}"
     evidence_id = "3b000000-0000-4000-8000-000000000410"
@@ -41,7 +45,7 @@ def test_claude_resource_import_links_once_without_rewriting_flat_record(tmp_pat
         "record_type": "resource",
         "stable_id": "flat-resource",
         "uri": "orch://project/orchestra/resources/flat-resource",
-        "source_path": "CLAUDE.md",
+        "source_path": filename,
         "source_sha256": source_sha,
     }), encoding="utf-8")
     flat_before = flat_path.read_bytes()
@@ -52,7 +56,7 @@ def test_claude_resource_import_links_once_without_rewriting_flat_record(tmp_pat
         "operation": "import_evidence",
         "detail": "record",
         "payload": {"source": {
-            "path": "CLAUDE.md",
+            "path": filename,
             "class": "immutable-evidence",
             "project_id": "orchestra",
             "stable_id": evidence_id,
@@ -78,7 +82,7 @@ def test_claude_resource_import_links_once_without_rewriting_flat_record(tmp_pat
     assert len(list((canonical / "tasks").rglob("evidence/*.json"))) == 3
 
 
-@pytest.mark.parametrize("filename", ["README.md", "scratch.md", "AGENTS.md"])
+@pytest.mark.parametrize("filename", ["README.md", "scratch.md"])
 def test_other_root_markdown_remains_outside_cold_archive(tmp_path, filename):
     source = tmp_path / filename
     source.write_text("Not an approved canonical source.\n", encoding="utf-8")
