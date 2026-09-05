@@ -850,10 +850,15 @@ async def test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete
 
     done_task = asyncio.create_task(asyncio.sleep(0))
     await done_task
+    # Пять задач, а не три: `projection_repair_task` пришёл с #395 (`748e81e3`), а
+    # `portfolio_watchdog_task` — вместе со сторожем портфеля. Предмет теста — ПОРЯДОК
+    # фаз выключения, поэтому новые задачи передаются в том же виде, что и остальные.
     await shutdown_runtime(
         restart_inbox_drain=None,
         snapshot_task=done_task,
         bridge_task=done_task,
+        projection_repair_task=None,
+        portfolio_watchdog_task=None,
     )
 
     assert order.index("bg_done") < order.index("handoff_done")
