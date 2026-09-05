@@ -1,0 +1,11 @@
+DATABASE /mnt/data/Projects/Python/orchestra/data/orchestra.db mode=ro; query_only=ON; single read transaction
+WINDOW 2026-08-29T11:51:37.617350+00:00 2026-09-05T11:51:37.617350+00:00 requested_at (receipts), created_at (operations), [start,end)
+APP /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/fix-review-receipt/app/__init__.py
+SQL SELECT r.*, s.is_orchestrator AS session_is_orchestrator FROM review_receipts r LEFT JOIN sessions s ON s.id=r.session_id WHERE julianday(r.requested_at)>=julianday(?) AND julianday(r.requested_at)<julianday(?) ORDER BY r.requested_at
+COUNTS_ALL {"n": 227, "empty_task": 17, "empty_paths": 147, "orchestrator": 2, "unresolved_session": 0, "all_three": 2}
+COUNTS_KIND implementation {"n": 91, "empty_task": 9, "empty_paths": 11, "orchestrator": 0, "unresolved_session": 0, "all_three": 0}
+COUNTS_KIND task_run {"n": 54, "empty_task": 0, "empty_paths": 54, "orchestrator": 0, "unresolved_session": 0, "all_three": 0}
+COUNTS_KIND unknown {"n": 82, "empty_task": 8, "empty_paths": 82, "orchestrator": 2, "unresolved_session": 0, "all_three": 2}
+STATUS {"completed": 166, "failed": 1, "interrupted": 36, "requested": 24}
+SQL SELECT * FROM merge_operations WHERE julianday(created_at)>=julianday(?) AND julianday(created_at)<julianday(?) ORDER BY created_at
+OPERATIONS 196 RECORD_REVIEW_THEN_NEW_OPERATION 0

@@ -1,0 +1,4 @@
+RESOLVE main ValueError fatal: Needed a single revision
+RESOLVE master OK ['app/x.py']
+UNREVIEWED_TEST_CHANGE {"production_identity_equal": true, "complete_raw_diff_equal": false}
+UNREVIEWED_PRODUCTION_CHANGE_IDENTITY_EQUAL False
