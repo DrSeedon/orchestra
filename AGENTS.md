@@ -126,6 +126,9 @@ CLAUDE.md — побайтно одинаковое зеркало для Claude
 - [Агенты: кодовые предохранители](.orchestra/kb/agent-guardrails.md)
 - [Код: упрощение без потери смысла](.orchestra/kb/code-simplification.md)
 - [Время инструментов: измерения и ожидания](.orchestra/kb/tool-latency.md)
+- [Текст модели как управляющий сигнал](.orchestra/kb/model-text-control-flow.md)
+- [Самоулучшение: событийный контур](.orchestra/kb/self-improvement-loop.md)
+- [Ревью: калибровка от проекта](.orchestra/kb/review-context.md)
 <!-- kb-topics:end -->
 
 ## Реализация и проверка
