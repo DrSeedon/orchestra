@@ -2552,102 +2552,90 @@ def test_dashboard_polling_resume_refreshes_status_after_hidden(
         page.close()
 
 
-def test_dashboard_polling_equivalent_twelve_minutes_before_after(
+def test_hidden_dashboard_stops_polling_and_resumes_when_visible(
     dashboard_browser: Browser,
-    tmp_path: Path,
 ):
-    """Use a 100x clock to compare a quiescent hidden window on main and this branch."""
-    branch_source = Path(__file__).parent.parent / "app/static/js/app.js"
-    main_source = tmp_path / "main-app.js"
-    main_source.write_text(
-        subprocess.check_output(
-            ["git", "show", "main:app/static/js/app.js"], text=True,
-        )
-    )
-    main_chat_source = subprocess.check_output(
-        ["git", "show", "main:app/static/js/chat.js"], text=True,
-    )
+    """Скрытая вкладка не опрашивает сервер, видимая опрашивает.
 
-    def measure(source_path: Path) -> dict[str, int]:
-        page = dashboard_browser.new_page()
+    Прежняя версия (`test_dashboard_polling_equivalent_twelve_minutes_before_after`)
+    сравнивала ветку с `main` по числу запросов за 12 симулированных минут на 100-кратных
+    часах. Как замер она негодна (#197: `before_total` гулял 1456–2242 на НЕИЗМЕННОМ коде,
+    регрессия объявлялась 2 раза из 3), а как тест — неисполнима в CI: локально 29.50 с
+    при `--timeout=30`, на раннере выходила за бюджет, и pytest-timeout срабатывал посреди
+    живого Playwright, оставляя `chrome-headless-shell` и вешая шард целиком на 27+ минут.
+    Здесь от неё осталось ЗАЩИЩАЕМОЕ свойство без временнóго утверждения: механизм опроса
+    выключается при скрытой вкладке и включается обратно. Ожидания событийные
+    (`wait_for_function`), фиксированных пауз нет вовсе.
+    """
+    page = dashboard_browser.new_page()
+    counts: dict[str, int] = {}
+    polling_paths = {"/api/models", "/api/sessions", "/api/stats", "/api/orchestrators"}
+
+    def api_route(route):
+        path = route.request.url.split("?", 1)[0].split("/api", 1)[-1]
+        path = "/api" + path
+        if path in polling_paths:
+            counts[path] = counts.get(path, 0) + 1
+        if path.endswith("/stream"):
+            route.fulfill(status=200, content_type="text/event-stream", body="")
+            return
+        if path == "/api/orchestrators":
+            payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"}]
+        elif path == "/api/sessions":
+            payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope",
+                        "status": "idle", "model": "claude-opus-5[1m]"}]
+        elif path == "/api/stats":
+            payload = {"active": 0, "total_sessions": 1, "total_cost_usd": 0}
+        elif path == "/api/models":
+            payload = {"models": [], "proxy_connected": False}
+        elif path.endswith("/logs"):
+            payload = []
+        else:
+            payload = []
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
+
+    try:
         page.add_init_script("""
-            const realTimeout = window.setTimeout.bind(window);
-            const realInterval = window.setInterval.bind(window);
-            const scale = 0.01;
-            window.setTimeout = (fn, ms, ...args) => realTimeout(fn, Math.max(1, ms * scale), ...args);
-            window.setInterval = (fn, ms, ...args) => realInterval(fn, Math.max(1, ms * scale), ...args);
             window.EventSource = class StableEventSource {
                 constructor(url) { this.url = url; this.readyState = 1; }
                 close() { this.readyState = 2; }
             };
         """)
-        _route_frontend_sources(page, source_path)
-        if source_path == main_source:
-            page.route(
-                "**/static/js/chat.js*",
-                lambda route: route.fulfill(
-                    status=200,
-                    content_type="application/javascript",
-                    body=main_chat_source,
-                ),
-            )
-        counts: dict[str, int] = {}
-        polling_paths = {
-            "/api/models",
-            "/api/logs/sync",
-            "/api/sessions",
-            "/api/stats",
-            "/api/orchestrators",
-        }
-
-        def api_route(route):
-            path = route.request.url.split("?", 1)[0].split("/api", 1)[-1]
-            path = "/api" + path
-            if path in polling_paths or path.endswith("/context"):
-                counts[path] = counts.get(path, 0) + 1
-            if path.endswith("/stream"):
-                route.fulfill(status=200, content_type="text/event-stream", body="")
-                return
-            if path.endswith("/logs"):
-                payload = []
-            elif path == "/api/orchestrators":
-                payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"}]
-            elif path == "/api/sessions":
-                payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope", "status": "idle", "model": "claude-opus-5[1m]"}]
-            elif path == "/api/stats":
-                payload = {"active": 0, "total_sessions": 1, "total_cost_usd": 0}
-            elif path == "/api/models":
-                payload = {"models": [], "proxy_connected": False}
-            elif path == "/api/logs/sync":
-                payload = {"logs": [], "max_log_id": 0, "live_sessions": []}
-            elif path.endswith("/context"):
-                payload = {"percentage": 0, "total_tokens": 0, "max_tokens": 1}
-            elif path == "/api/usage":
-                payload = {}
-            else:
-                payload = []
-            route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
-
+        _route_frontend_sources(page)
         page.route(re.compile(r"/api/"), api_route)
         _goto_dashboard(page)
         page.wait_for_function("() => selectedAgent === 'fe-orch'", timeout=8000)
-        page.evaluate("() => { Object.defineProperty(document, 'hidden', {configurable: true, value: true}); document.dispatchEvent(new Event('visibilitychange')); }")
-        page.wait_for_function("""() => document.hidden && !_pollCanRun()
-            && !refreshInProgress && _pollTimers.size === 0 && _pollInFlight.size === 0
-        """, timeout=8000)
-        counts.clear()
-        page.wait_for_timeout(7200)
-        result = dict(counts)
-        page.close()
-        return result
 
-    before = measure(main_source)
-    after = measure(branch_source)
-    before_total = sum(before.values())
-    after_total = sum(after.values())
-    print(f"#301 equivalent 12m before_total={before_total} after_total={after_total} before={before} after={after}")
-    assert before_total == 0, before
-    assert after_total == 0, after
+        # Положительный контроль ДО скрытия: счётчик считает, опрос идёт. Без него
+        # «ноль запросов у скрытой вкладки» проходил бы и на мёртвой странице.
+        page.wait_for_function(
+            "() => _pollCanRun() && _pollTimers.size > 0", timeout=8000,
+        )
+        assert sum(counts.values()) > 0, counts
+
+        page.evaluate("""() => {
+            Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+            document.dispatchEvent(new Event('visibilitychange'));
+        }""")
+        page.wait_for_function("""() => !_pollCanRun() && !refreshInProgress
+            && _pollTimers.size === 0 && _pollInFlight.size === 0
+        """, timeout=8000)
+        assert page.evaluate("() => _pollCanRun()") is False
+        assert page.evaluate("() => _pollTimers.size") == 0
+        assert page.evaluate("() => _pollInFlight.size") == 0
+
+        counts.clear()
+        page.evaluate("""() => {
+            Object.defineProperty(document, 'hidden', {configurable: true, value: false});
+            document.dispatchEvent(new Event('visibilitychange'));
+        }""")
+        # Опрос обязан ВЕРНУТЬСЯ — иначе проверка выше зелена на сломанной странице,
+        # где опрос не работает вообще. Ожидание событийное, а не по часам.
+        page.wait_for_function(
+            "() => _pollCanRun() && _pollTimers.size > 0", timeout=8000,
+        )
+    finally:
+        page.close()
 
 
 def _open_notify_stream_page(
