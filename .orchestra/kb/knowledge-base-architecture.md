@@ -2,6 +2,12 @@
 
 ## Established
 
+Текущее состояние проверяется у [владельцев](current-operations.md), не по старым
+числам ниже. Принятые на свою дату выводы сохранены как исторические наблюдения;
+их применение сегодня требует проверки области и актуального источника.
+
+## Historical observations
+
 - Простого входа `ia_task_store_mode`/`document_cutover_mode` из FastAPI lifespan недостаточно: Uvicorn запускает HTTP в sibling task, поэтому lifespan `ContextVar=lifespan-value` дал HTTP handler/to_thread значение `default`; HTTP-доступный owner должен быть process-global или устанавливаться на request seam · минимальный Uvicorn probe + `app/main.py:340-395`, `app/tm.py:1244-1355` · 2026-08-25, #361
 - Live typed-активация обязана иметь отдельный canonical project registry: в WAL-safe снимке 18 resumable scopes, только 13 mapped, а 8 из 19 `tm_projects.id` не являются canonical slug; два абсолютных id направляют 3 task paths за пределы заданного canonical root · `.orchestra/tasks/361/research.md` §§live boundary, multi-scope; live backup manifest/path probe · 2026-08-25, #361
 - Current/FTS projection — материальная часть рестарта, не бесплатный cache: 65,031 Orchestra task/file/log records перестроились за 13.027 и 36.041 с, SQLite вырос 757,227,520→835,424,256 Б, peak RSS ≈1.36 GiB; rows/FTS/head совпали, первый `quick_check=ok` · `.orchestra/tasks/361/research.md` §Projection rebuild cost · 2026-08-25, #361

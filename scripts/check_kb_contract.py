@@ -17,7 +17,7 @@ HUNK_RE = re.compile(
     r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@"
 )
 ANCHOR_RE = re.compile(r"`[^`]+`|«[^»]+»")
-VALID_SECTIONS = {"Established", "Rejected"}
+VALID_SECTIONS = {"Established", "Rejected", "Historical observations"}
 VALID_RELATIONS = {
     "depends_on",
     "explains",
@@ -286,7 +286,7 @@ def validate_fact_line(
         errors.append(f"{prefix}: duplicate fact key fact:{key}")
     if section not in VALID_SECTIONS:
         errors.append(
-            f"{prefix}: structured facts belong only in Established or Rejected"
+            f"{prefix}: structured facts belong only in Established, Rejected or Historical observations"
         )
     search_field = re.search(r"(?:^|[ ·;])search:", line)
     if search_field is None:
