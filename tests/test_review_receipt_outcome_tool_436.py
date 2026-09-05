@@ -69,6 +69,15 @@ async def test_outcome_tool_is_idempotent_and_rejects_missing_dispute_evidence(
     db.init_db()
     _seed_receipt(db_path)
 
+    # #493: исход подписывает АВТОР ревью. Тул спрашивает у сервера собственную сессию и
+    # сверяет её с квитанцией, поэтому здесь нужна сессия автора — предмет самого теста
+    # (идемпотентность и обязательное доказательство спора) от этого не меняется.
+    async def _author_session(method, path, **kwargs):
+        return {"id": "session-436", "worktree_path": str(tmp_path), "task_id": "436"}
+
+    monkeypatch.setattr(mcp, "_api", _author_session)
+    monkeypatch.setattr(mcp, "WORKER_NAME", "worker-436")
+
     first = await mcp.mcp.call_tool("record_review_outcome", {
         "receipt_id": "receipt-436",
         "outcome": "accepted",

@@ -3814,6 +3814,110 @@ def _read_codex_uuid(sessions_path: str, slug: str) -> str:
         return ""
 
 
+async def _receipt_author_session(receipt_id: str) -> tuple[dict, dict]:
+    """Квитанция + сессия ВЫЗЫВАЮЩЕГО, уже сверенные между собой.
+
+    Исход ревью подписывает автор — та сессия, которая ревью и заказывала. Оркестратор видит
+    не фактуру, а отчёт воркера о ней, поэтому его подпись доказывает только то, что ему
+    рассказали (требование юзера 04.09, #493).
+    """
+    from app.db import review_receipt_get
+
+    receipt = review_receipt_get(receipt_id)
+    if not receipt:
+        raise ApiToolError(
+            code="not_found",
+            message="review receipt not found",
+            details={"receipt_id": receipt_id},
+        )
+    info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
+    caller_session_id = str(info.get("id") or "").strip() if isinstance(info, dict) else ""
+    if not caller_session_id:
+        raise ApiToolError(
+            code="caller_session_unresolved",
+            message="cannot resolve your own session; respawn the worker",
+            details={"worker": WORKER_NAME},
+        )
+    if caller_session_id != str(receipt.get("session_id") or ""):
+        raise ApiToolError(
+            code="review_outcome_forbidden",
+            message=(
+                "only the author of the review records its outcome: receipt "
+                f"{receipt_id} belongs to worker '{receipt.get('worker_name')}'"
+            ),
+            details={
+                "receipt_id": receipt_id,
+                "receipt_worker": str(receipt.get("worker_name") or ""),
+                "caller": WORKER_NAME,
+            },
+        )
+    return receipt, info
+
+
+async def _write_delta_attestation(
+    receipt_id: str, closed_findings: list[str], statement: str,
+) -> CallToolResult:
+    from app.review_coverage import (
+        attestation_path,
+        resolve_implementation_subject,
+        verify_delta_attestation,
+    )
+
+    receipt, info = await _receipt_author_session(receipt_id)
+    cwd = str(info.get("worktree_path") or info.get("cwd") or SCOPE)
+    task_id = str(info.get("task_id") or "")
+    if not task_id:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="attestation needs a bound task; the session has none",
+            details={"field": "task_id"},
+        )
+    try:
+        subject = resolve_implementation_subject(
+            cwd, str(info.get("base_branch") or "main"),
+        )
+    except ValueError as error:
+        raise ApiToolError(
+            code="invalid_argument", message=str(error), details={"field": "worktree"},
+        ) from error
+    path = attestation_path(cwd, task_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    attestation = {
+        "receipt_id": receipt_id,
+        "reviewed_worker_head": str(receipt.get("worker_head") or ""),
+        "artifact_sha256": str(receipt.get("artifact_sha256") or ""),
+        "production_diff_sha256": str(subject["production_diff_sha256"]),
+        "closed_findings": list(closed_findings),
+        "statement": statement,
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }
+    previous = path.read_bytes() if path.exists() else None
+    path.write_text(
+        json.dumps(attestation, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
+    )
+    checked = verify_delta_attestation(
+        worktree=cwd, task_id=task_id, receipt=receipt,
+        target_sha=str(subject["target_sha"]), worker_head=str(subject["worker_head"]),
+        production_diff_sha256=str(subject["production_diff_sha256"]),
+    )
+    if not checked["ok"]:
+        # Непрошедшая аттестация не остаётся на диске: иначе следующий вызов сверял бы
+        # мусор, а автор читал бы «файл есть» как «подпись принята».
+        if previous is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_bytes(previous)
+        raise ApiToolError(
+            code="attestation_rejected",
+            message=f"{checked['reason']}: {checked['detail']}",
+            details={"receipt_id": receipt_id, **checked},
+        )
+    return mcp_tool_result(
+        result={"attestation_path": str(path), **attestation, **checked},
+        text=f"Delta attestation recorded. COMMIT {path} before merging.",
+    )
+
+
 @mcp.tool()
 async def record_review_outcome(
     receipt_id: str,
@@ -3821,8 +3925,24 @@ async def record_review_outcome(
     outcome_evidence_ref: str = "",
     target_worker: str = "",
     decision_id: str = "",
+    closed_findings: list[str] | None = None,
+    statement: str = "",
 ) -> CallToolResult:
-    """Record the author's accepted/disputed/partial outcome for one review receipt."""
+    """Record the author's outcome for one review receipt. Only the review's author may call it.
+
+    outcome:
+      accepted | disputed | partial — the author's verdict on the reviewer's findings.
+        `disputed` requires outcome_evidence_ref.
+      attested — sign the production delta committed AFTER the last review round. Needs
+        closed_findings: the `file:line` anchors from the artifact this delta closes, matched
+        literally against the artifact. Writes .orchestra/tasks/<id>/review-attestation.json;
+        COMMIT it, or the merge gate will not see it.
+      skipped — orchestrator-only decision not to review at all.
+    """
+    if outcome == "attested":
+        return await _write_delta_attestation(
+            receipt_id, list(closed_findings or []), statement,
+        )
     if outcome == "skipped":
         result = await _api(
             "POST",
@@ -3843,6 +3963,7 @@ async def record_review_outcome(
         return mcp_tool_result(result=receipt, text="Review skip recorded.")
     from app.db import review_receipt_set_outcome
 
+    await _receipt_author_session(receipt_id)
     try:
         receipt = review_receipt_set_outcome(
             receipt_id, outcome, outcome_evidence_ref,

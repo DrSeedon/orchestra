@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +23,22 @@ DIFF_VERSION = b"review-coverage-diff-v1\0"
 ACTIVATION_MARKER = "review-coverage-v1"
 PRODUCTION_PREFIXES = ("app/", "scripts/")
 MACHINE_UNAVAILABLE_CODES = frozenset({"weekly_quota_blocked", "codex_binary_missing"})
+# Аттестация продолжает ревью, которое автор ПРИНЯЛ. `disputed` означает «я с находками не
+# согласен» — дельта после такого исхода не может быть «починкой принятых находок» и уходит
+# на новый раунд, а не на подпись автора.
+ATTESTABLE_AUTHOR_OUTCOMES = frozenset({"accepted", "partial"})
+ATTESTATION_FILENAME = "review-attestation.json"
+# Conventional Comments из `codex-debate.md`: `<prefix>: file:line — проблема`. Ревьюер часто
+# обрамляет якорь бэктиками и ставит диапазон строк, поэтому и то и другое разрешено явно.
+FINDING_RE = re.compile(
+    r"^\s*(?:[-*+]\s*)?[`*_]*\s*"
+    r"(?:blocking|suggestion|question|thought|nit)\s*:\s*"
+    r"([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+):(\d+(?:-\d+)?)",
+    re.IGNORECASE | re.MULTILINE,
+)
+# Путь находки принимается только в точном репозиторном написании: без обратных слэшей, без
+# ведущей точки, без `.`/`..` в сегментах. Всё остальное — не путь, а способ его подделать.
+FINDING_PATH_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_./-]*$")
 POLICY_PATH = (
     Path(__file__).resolve().parent.parent
     / ".orchestra/pipelines/default/prompts/skills/codex-debate.md"
@@ -55,7 +72,10 @@ def production_snapshot(
 ) -> dict[str, object]:
     raw = _git_bytes(
         worktree,
-        "diff", "--raw", "--full-index", "-z",
+        # `--no-abbrev` обязателен: `--full-index` разворачивает object id только в ПАТЧЕ, а в
+        # `--raw` оставляет 7 символов (проверено `git 2.53.0`). На укороченном id личность
+        # предмета держится на 28 битах, то есть подбирается перебором (Sol, раунд 2).
+        "diff", "--raw", "--full-index", "--no-abbrev", "-z",
         f"{target_sha}...{worker_head}", "--", "app", "scripts",
     )
     named = _git_bytes(
@@ -99,6 +119,180 @@ def resolve_implementation_subject(worktree: str, target_ref: str) -> dict[str, 
     )
 
 
+def attestation_path(worktree: str, task_id: str) -> Path:
+    """Аттестация живёт в каталоге задачи автора и уезжает в main вместе с его работой."""
+    return Path(worktree) / ".orchestra" / "tasks" / str(task_id) / ATTESTATION_FILENAME
+
+
+def review_findings(artifact_text: str) -> list[str]:
+    """Якоря `file:line` из ПОСЛЕДНЕГО раунда — ровно то, на что ревьюер смотрел последним."""
+    last_round = re.split(r"(?im)^##\s+Round\b", artifact_text)[-1]
+    return sorted({
+        f"{match.group(1)}:{match.group(2)}"
+        for match in FINDING_RE.finditer(last_round)
+    })
+
+
+def _finding_paths(anchors) -> set[str]:
+    """Продовые пути из якорей находок — БЕЗ нормализации, только точное написание.
+
+    `production_paths()` нормализует (`\\`→`/`, срезание ведущих `./`), и на путях ИЗ GIT это
+    правильно. Здесь источник другой — текст ревьюера, а его содержимое автор выбирает
+    формулировкой запроса; нормализация превращала бы `../app/admin.py` и `.app/admin.py` в
+    настоящий продовый путь, которого ревьюер не называл (Sol, раунд 1). Поэтому нечистое
+    написание отбрасывается, а не чинится.
+    """
+    paths = set()
+    for anchor in anchors:
+        path = str(anchor).rsplit(":", 1)[0]
+        segments = path.split("/")
+        if not FINDING_PATH_RE.match(path) or {".", ".."} & set(segments):
+            continue
+        if path.startswith(PRODUCTION_PREFIXES):
+            paths.add(path)
+    return paths
+
+
+def _production_diff_entries(worktree: str, target_sha: str, head: str) -> dict[str, str]:
+    """Продовый дифф снимка как `путь → запись --raw` (статус, режимы, blob-SHA обеих сторон)."""
+    raw = _git_bytes(
+        worktree, "diff", "--raw", "--full-index", "--no-abbrev", "-z",
+        f"{target_sha}...{head}", "--", "app", "scripts",
+    ).decode("utf-8", "surrogateescape")
+    fields = raw.split("\0")
+    entries: dict[str, str] = {}
+    index = 0
+    while index < len(fields):
+        meta = fields[index]
+        if not meta.startswith(":"):
+            index += 1
+            continue
+        status = meta.rsplit(" ", 1)[-1]
+        # Переименование и копирование несут ДВА пути: изменились оба конца.
+        count = 2 if status[:1] in {"R", "C"} else 1
+        paths = [item for item in fields[index + 1:index + 1 + count] if item]
+        record = "\0".join([meta, *paths])
+        for path in paths:
+            entries[path] = record
+        index += 1 + count
+    return entries
+
+
+def _reviewed_receipt(receipt: dict) -> bool:
+    return (
+        str(receipt.get("coverage_outcome") or "") == "reviewed"
+        and receipt.get("subject_kind") == "implementation"
+        and receipt.get("status") == "completed"
+        and receipt.get("return_code") == 0
+        and receipt.get("artifact_exists") == 1
+        and int(receipt.get("artifact_bytes") or 0) > 0
+        and receipt.get("jsonl_response_present") == 1
+        # Вердикт вычитан из артефакта сервером при закрытии квитанции. Гейт проверяет его сам
+        # и не опирается на то, что финализатор всегда требовал секцию `## Verdict`: пересказ
+        # автора вердиктом не является, а «ревью прошло без вердикта» — не ревью.
+        and receipt.get("verdict_present") == 1
+    )
+
+
+def _attestation_failure(reason: str, detail: str = "") -> dict[str, object]:
+    return {
+        "ok": False, "reason": reason, "detail": detail,
+        "closed_findings": [], "delta_paths": [],
+    }
+
+
+def verify_delta_attestation(
+    *, worktree: str, task_id: str, receipt: dict, target_sha: str, worker_head: str,
+    production_diff_sha256: str,
+) -> dict[str, object]:
+    """Машинно сверить авторскую аттестацию постревьюной дельты. Fail-closed на всём.
+
+    Потолок раундов заставляет остановиться, поэтому починку находок ПОСЛЕДНЕГО раунда
+    ревьюер не видит по построению. Подписывает её автор — но подпись ничего не стоит, пока
+    её содержимое не сверено с артефактом и с git: дельта обязана лежать внутри файлов,
+    названных находками того раунда, а сам артефакт — совпадать по хешу с квитанцией.
+    """
+    fail = _attestation_failure
+    path = attestation_path(worktree, task_id)
+    # «Файла нет» и «файл есть, но испорчен» чинятся РАЗНЫМ, поэтому и называются по-разному:
+    # первое означает, что автор подписи не заявлял (причина остаётся прежней, «ревью на этот
+    # снимок нет»), второе — что заявленную подпись нельзя прочитать, и чинить надо её, а не
+    # запускать ревью заново (Sol, раунд 2).
+    try:
+        attestation = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return fail("attestation_missing", str(path))
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        return fail("attestation_invalid", f"{path}: {type(error).__name__}")
+    if not isinstance(attestation, dict):
+        return fail("attestation_invalid", f"{path}: not a JSON object")
+    if str(attestation.get("receipt_id") or "") != str(receipt.get("receipt_id") or ""):
+        return fail("attestation_receipt_mismatch", str(attestation.get("receipt_id") or ""))
+    reviewed_head = str(attestation.get("reviewed_worker_head") or "")
+    if reviewed_head != str(receipt.get("worker_head") or ""):
+        return fail("attestation_head_mismatch", reviewed_head)
+    if str(receipt.get("author_outcome") or "unknown") not in ATTESTABLE_AUTHOR_OUTCOMES:
+        return fail(
+            "attestation_outcome_not_attestable",
+            str(receipt.get("author_outcome") or "unknown"),
+        )
+    # Аттестация подписывает ОДНУ дельту. Без привязки к её диффу подпись, выданная на первую
+    # правку, молча покрывала бы каждую следующую.
+    if str(attestation.get("production_diff_sha256") or "") != production_diff_sha256:
+        return fail(
+            "attestation_diff_mismatch",
+            str(attestation.get("production_diff_sha256") or ""),
+        )
+    artifact = Path(str(receipt.get("artifact_path") or ""))
+    try:
+        artifact_bytes = artifact.read_bytes()
+    except OSError as error:
+        return fail("attestation_artifact_unreadable", f"{artifact}: {type(error).__name__}")
+    artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()
+    # Байты артефакта здесь ВХОДЯТ в решение (из них берутся находки), поэтому именно здесь
+    # они и пиннятся хешем. На обычном пути ревью артефакт в решение не входит, и пиннить его
+    # там значило бы ломать мерж за законную дописку журнала в тот же файл.
+    if artifact_sha256 != str(receipt.get("artifact_sha256") or ""):
+        return fail("attestation_artifact_modified", artifact_sha256)
+    if artifact_sha256 != str(attestation.get("artifact_sha256") or ""):
+        return fail("attestation_artifact_unread", str(attestation.get("artifact_sha256") or ""))
+    findings = review_findings(artifact_bytes.decode("utf-8", "replace"))
+    closed = attestation.get("closed_findings")
+    if not isinstance(closed, list) or not closed:
+        return fail("attestation_findings_empty")
+    unknown = sorted({str(item) for item in closed} - set(findings))
+    if unknown:
+        return fail("attestation_findings_unknown", ", ".join(unknown))
+    # Дельта считается сравнением ДВУХ снимков ревью, а не диффом двух рабочих деревьев.
+    # `reviewed_head..worker_head` видит только то, что автор переписал у себя, и слеп к
+    # изменению ПРЕДМЕТА через движение цели: смерджив свежий main и разрешив чужой продовый
+    # файл обратно в старое содержимое, автор возвращал в продовый дифф правку, которой
+    # ревьюер не видел, а двухточечный дифф этого не показывал вовсе (Sol, раунд 1).
+    try:
+        reviewed_entries = _production_diff_entries(
+            worktree, str(receipt.get("target_sha") or ""), reviewed_head,
+        )
+        current_entries = _production_diff_entries(worktree, target_sha, worker_head)
+    except (ValueError, OSError) as error:
+        return fail("attestation_delta_unresolved", str(error))
+    delta_paths = sorted(
+        path
+        for path in set(reviewed_entries) | set(current_entries)
+        if reviewed_entries.get(path) != current_entries.get(path)
+    )
+    # Разрешают только ЗАКРЫТЫЕ находки: иначе одна настоящая закрытая находка открывала бы
+    # правку в каждом файле, упомянутом за раунд.
+    allowed = _finding_paths(str(item) for item in closed)
+    outside = sorted(set(delta_paths) - allowed)
+    if outside:
+        return fail("attestation_delta_outside_findings", ", ".join(outside))
+    return {
+        "ok": True, "reason": "", "detail": "",
+        "closed_findings": [str(item) for item in closed],
+        "delta_paths": delta_paths,
+    }
+
+
 def current_policy_ref() -> str:
     return "codex-debate@sha256:" + hashlib.sha256(POLICY_PATH.read_bytes()).hexdigest()
 
@@ -116,6 +310,7 @@ def coverage_decision(
     production_snapshot_sha256: str, active: bool,
     production_diff_sha256: str = "",
     before: str | None = None,
+    worktree: str = "",
 ) -> dict[str, object]:
     base = {
         "required": bool(production_paths),
@@ -128,6 +323,7 @@ def coverage_decision(
         "production_diff_sha256": production_diff_sha256,
         "receipt_id": "",
         "coverage_outcome": "unknown",
+        "verdict_value": "",
     }
     if not production_paths:
         return base
@@ -171,15 +367,7 @@ def coverage_decision(
     for raw in rows:
         receipt = dict(raw)
         outcome = str(receipt.get("coverage_outcome") or "unknown")
-        reviewed = (
-            outcome == "reviewed"
-            and receipt.get("subject_kind") == "implementation"
-            and receipt.get("status") == "completed"
-            and receipt.get("return_code") == 0
-            and receipt.get("artifact_exists") == 1
-            and int(receipt.get("artifact_bytes") or 0) > 0
-            and receipt.get("jsonl_response_present") == 1
-        )
+        reviewed = _reviewed_receipt(receipt)
         skipped = (
             outcome == "skipped"
             and receipt.get("subject_kind") == "implementation"
@@ -196,6 +384,20 @@ def coverage_decision(
         )
         author_outcome = str(receipt.get("author_outcome") or "unknown")
         outcome_evidence_ref = str(receipt.get("outcome_evidence_ref") or "")
+        verdict_value = str(receipt.get("verdict_value") or "")
+        # Ревью без вердикта в артефакте отбивается ИМЕНЕМ, а не молча проваливается в общее
+        # «квитанции нет»: причина разная и чинится разным — там ревью не запускали, здесь оно
+        # прошло и не сказало ничего.
+        if outcome == "reviewed" and not reviewed and receipt.get("verdict_present") != 1:
+            return {
+                **base,
+                "status": "blocked",
+                "reason": "review_verdict_missing",
+                "receipt_id": str(receipt["receipt_id"]),
+                "coverage_outcome": outcome,
+                "author_outcome": author_outcome,
+                "outcome_evidence_ref": outcome_evidence_ref,
+            }
         if reviewed and author_outcome not in REVIEW_AUTHOR_OUTCOMES:
             return {
                 **base,
@@ -209,6 +411,7 @@ def coverage_decision(
                 "coverage_outcome": outcome,
                 "author_outcome": author_outcome,
                 "outcome_evidence_ref": outcome_evidence_ref,
+                "verdict_value": verdict_value,
             }
         if reviewed or skipped or unavailable:
             return {
@@ -219,5 +422,86 @@ def coverage_decision(
                 "coverage_outcome": outcome,
                 "author_outcome": author_outcome,
                 "outcome_evidence_ref": outcome_evidence_ref,
+                "verdict_value": verdict_value,
             }
-    return base
+    return _attested_decision(
+        base=base, scope=scope, session_id=session_id, task_id=task_id,
+        target_sha=target_sha, worker_head=worker_head,
+        production_diff_sha256=production_diff_sha256,
+        worktree=worktree, boundary=boundary,
+    )
+
+
+def _attested_decision(
+    *, base: dict[str, object], scope: str, session_id: str, task_id: str,
+    target_sha: str, worker_head: str, production_diff_sha256: str,
+    worktree: str, boundary: str,
+) -> dict[str, object]:
+    """Постревьюная дельта: подпись автора, сверенная с артефактом ревью и с git.
+
+    Отвергнутая альтернатива — «ещё один fix-only раунд, не тратящий потолок»: раунд по
+    починке сам порождает находки, их починка даёт новую неподписанную дельту, и вопрос
+    просто съезжает на раунд вперёд; а «не тратит потолок» решает тот же автор, чьё слово мы
+    и перестали принимать на веру (#493, .orchestra/tasks/493/report.md).
+    """
+    if not worktree or not task_id:
+        return base
+    from app.db import _conn
+
+    with _conn() as connection:
+        rows = connection.execute(
+            """SELECT * FROM review_receipts
+                 WHERE scope=? AND session_id=? AND task_id=?
+                   AND subject_kind='implementation' AND coverage_outcome='reviewed'
+                   AND completed_at IS NOT NULL AND completed_at<=?
+                 ORDER BY requested_at DESC, completed_at DESC, receipt_id DESC
+                 LIMIT 20""",
+            (scope, session_id, task_id, boundary),
+        ).fetchall()
+    # Подписать дельту может только ПОСЛЕДНЕЕ состоявшееся ревью. Перебор кандидатов позволял
+    # автору держать две квитанции и, получив спорный или неразрешённый второй раунд,
+    # аттестоваться против первого: второй отвечал `attestation_receipt_mismatch`, а перебор
+    # шёл дальше и находил разрешающий (Sol, раунд 2).
+    #
+    # «Последнее» считается по `requested_at`, а НЕ по `completed_at`: предмет ревью пиннится
+    # в момент ЗАКАЗА (`resolve_implementation_subject`), поэтому позже заказанное ревью
+    # видело состояние не старше. По времени завершения порядок инвертируется — медленный
+    # первый раунд финиширует после быстрого второго и снова становится «последним»
+    # (Sol, раунд 3). Номер раунда для этого не годится: он уникален в пределах одного
+    # `artifact_path`, а здесь кандидаты могут быть из разных веток ревью.
+    latest = next((dict(raw) for raw in rows if _reviewed_receipt(dict(raw))), None)
+    if latest is None:
+        return base
+    checked = verify_delta_attestation(
+        worktree=worktree, task_id=task_id, receipt=latest,
+        target_sha=target_sha, worker_head=worker_head,
+        production_diff_sha256=production_diff_sha256,
+    )
+    if checked["ok"]:
+        return {
+            **base,
+            "status": "satisfied",
+            "reason": "",
+            "receipt_id": str(latest["receipt_id"]),
+            "coverage_outcome": "attested",
+            "author_outcome": str(latest.get("author_outcome") or "unknown"),
+            "outcome_evidence_ref": str(latest.get("outcome_evidence_ref") or ""),
+            "verdict_value": str(latest.get("verdict_value") or ""),
+            "attestation": {
+                "receipt_id": str(latest["receipt_id"]),
+                "reviewed_worker_head": str(latest.get("worker_head") or ""),
+                "closed_findings": checked["closed_findings"],
+                "delta_paths": checked["delta_paths"],
+            },
+        }
+    # Отсутствие файла аттестации — НЕ отказ по аттестации, а прежнее состояние «на этот снимок
+    # ревью нет»: автор её и не заявлял. Именем отбивается только заявленная и не прошедшая
+    # проверку подпись, иначе отказ называл бы причиной механизм, которым никто не пользовался.
+    if checked["reason"] == "attestation_missing":
+        return base
+    return {
+        **base,
+        "reason": str(checked["reason"]),
+        "reason_detail": str(checked["detail"]),
+        "receipt_id": str(latest["receipt_id"]),
+    }

@@ -482,6 +482,10 @@ def _admission_evidence(
             "coverage_outcome": str(review.get("coverage_outcome") or "unknown"),
             "author_outcome": str(review.get("author_outcome") or "unknown"),
             "outcome_evidence_ref": str(review.get("outcome_evidence_ref") or ""),
+            # Вердикт в доказательстве мержа — тот, что сервер вычитал из артефакта при
+            # закрытии квитанции. Пересказ автора сюда не попадает ни на одном пути.
+            "verdict_value": str(review.get("verdict_value") or ""),
+            "attestation": dict(review.get("attestation") or {}),
         }
     return evidence
 
@@ -549,6 +553,41 @@ def _review_coverage_refusal(
             _action(
                 "FIX_WORKER_REFS_THEN_NEW_OPERATION",
                 "Restore the worker branch/worktree refs, then start a new operation.",
+            ),
+        )
+    if review.get("reason") == "review_verdict_missing":
+        return (
+            _error(
+                "REVIEW_VERDICT_MISSING",
+                "the review artifact carries no '## Verdict' section, so this receipt "
+                "authorizes nothing",
+                operation_id=operation_id,
+                status=409,
+                details=details,
+            ),
+            _action(
+                "RERUN_REVIEW_THEN_NEW_OPERATION",
+                f"Re-run the review for receipt {receipt_id} until it produces a verdict, "
+                "then start a new operation.",
+            ),
+        )
+    if str(review.get("reason") or "").startswith("attestation_"):
+        # Дельта после последнего раунда СУЩЕСТВУЕТ и не подписана — это отдельное состояние,
+        # и лечится оно автором, а не «запишите ревью на этот снимок»: ревью на снимок ДО
+        # дельты уже есть.
+        return (
+            _error(
+                "REVIEW_DELTA_UNATTESTED",
+                "the production diff moved after the last review round and the author "
+                "attestation does not cover it: " + str(review.get("reason") or ""),
+                operation_id=operation_id,
+                status=409,
+                details=details,
+            ),
+            _action(
+                "ATTEST_DELTA_THEN_NEW_OPERATION",
+                "Call record_review_outcome(outcome='attested') for receipt "
+                f"{receipt_id}, commit the attestation, then start a new operation.",
             ),
         )
     message = (
@@ -948,6 +987,7 @@ def _review_coverage_for_snapshot(
         production_snapshot_sha256=str(snapshot["production_snapshot_sha256"]),
         production_diff_sha256=str(snapshot["production_diff_sha256"]),
         active=active,
+        worktree=str(accepted["worktree_path"]),
     )
 
 
