@@ -36,6 +36,18 @@ FINDING_RE = re.compile(
     r"([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+):(\d+(?:-\d+)?)",
     re.IGNORECASE | re.MULTILINE,
 )
+FINDING_HEADING_RE = re.compile(
+    r"^\s*###\s*(?:blocking|suggestion|question|thought|nit)\s*:",
+    re.IGNORECASE,
+)
+FINDING_LOCATION_RE = re.compile(
+    r"(?P<path>(?:/[A-Za-z0-9_.-]+)+/[A-Za-z0-9_.-]+|[A-Za-z0-9_./-]+\.[A-Za-z0-9_]+)"
+    r":(?P<line>\d+(?:-\d+)?)"
+)
+FINDING_LINK_RE = re.compile(r"\]\((?P<target>[^)\s]+)\)")
+FINDING_CONTINUATION_RE = re.compile(
+    r"\band\s+`?:(?P<line>\d+(?:-\d+)?)`?(?=\s*(?:\||$))"
+)
 # Путь находки принимается только в точном репозиторном написании: без обратных слэшей, без
 # ведущей точки, без `.`/`..` в сегментах. Всё остальное — не путь, а способ его подделать.
 FINDING_PATH_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_./-]*$")
@@ -124,13 +136,83 @@ def attestation_path(worktree: str, task_id: str) -> Path:
     return Path(worktree) / ".orchestra" / "tasks" / str(task_id) / ATTESTATION_FILENAME
 
 
-def review_findings(artifact_text: str) -> list[str]:
+def review_findings(artifact_text: str, *, worktree: str | None = None) -> list[str]:
     """Якоря `file:line` из ПОСЛЕДНЕГО раунда — ровно то, на что ревьюер смотрел последним."""
     last_round = re.split(r"(?im)^##\s+Round\b", artifact_text)[-1]
-    return sorted({
-        f"{match.group(1)}:{match.group(2)}"
-        for match in FINDING_RE.finditer(last_round)
-    })
+    anchors = set()
+
+    def add(path: str, line: str) -> None:
+        relative = _review_finding_path(path, worktree=worktree)
+        if relative is not None:
+            anchors.add(f"{relative}:{line}")
+
+    for match in FINDING_RE.finditer(last_round):
+        # Keep the legacy raw anchor here: `_finding_paths` rejects malformed spellings
+        # literally, and the attestation then reports the delta as outside the finding.
+        anchors.add(f"{match.group(1)}:{match.group(2)}")
+
+    finding_heading = False
+    for line in last_round.splitlines():
+        if FINDING_HEADING_RE.match(line):
+            finding_heading = True
+            continue
+        if re.match(r"^\s*#{2,3}\s+", line):
+            finding_heading = False
+            continue
+        if not finding_heading or not re.match(r"^\s*\*\*File:\*\*", line):
+            continue
+        links = list(FINDING_LINK_RE.finditer(line))
+        locations = []
+        if links:
+            for link in links:
+                location = FINDING_LOCATION_RE.fullmatch(link.group("target"))
+                if location is not None:
+                    locations.append(location)
+        else:
+            locations = list(FINDING_LOCATION_RE.finditer(line))
+        for location in locations:
+            add(location.group("path"), location.group("line"))
+        if locations:
+            path = locations[-1].group("path")
+            tail_start = links[-1].end() if links else locations[-1].end()
+            for continuation in FINDING_CONTINUATION_RE.finditer(line[tail_start:]):
+                add(path, continuation.group("line"))
+    return sorted(anchors)
+
+
+def _review_finding_path(path: str, *, worktree: str | None = None) -> str | None:
+    """Reduce a review link to a strict repo-relative production path."""
+    if "\\" in path:
+        return None
+    segments = path.split("/")
+    if {".", ".."} & set(segments):
+        return None
+    if path.startswith("/"):
+        if worktree is not None:
+            try:
+                relative = Path(path).relative_to(Path(worktree).resolve()).as_posix()
+            except ValueError:
+                return None
+        else:
+            path_segments = path.split("/")
+            try:
+                worktrees_index = path_segments.index("worktrees")
+            except ValueError:
+                return None
+            relative = next(
+                (
+                    "/".join(path_segments[index:])
+                    for index, segment in enumerate(path_segments)
+                    if index > worktrees_index + 1
+                    and f"{segment}/" in PRODUCTION_PREFIXES
+                ),
+                "",
+            )
+    else:
+        relative = path
+    if not FINDING_PATH_RE.fullmatch(relative) or not relative.startswith(PRODUCTION_PREFIXES):
+        return None
+    return relative
 
 
 def _finding_paths(anchors) -> set[str]:
@@ -256,7 +338,7 @@ def verify_delta_attestation(
         return fail("attestation_artifact_modified", artifact_sha256)
     if artifact_sha256 != str(attestation.get("artifact_sha256") or ""):
         return fail("attestation_artifact_unread", str(attestation.get("artifact_sha256") or ""))
-    findings = review_findings(artifact_bytes.decode("utf-8", "replace"))
+    findings = review_findings(artifact_bytes.decode("utf-8", "replace"), worktree=worktree)
     closed = attestation.get("closed_findings")
     if not isinstance(closed, list) or not closed:
         return fail("attestation_findings_empty")

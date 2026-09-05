@@ -1,0 +1,1 @@
+Memory: For parser changes gated by stored artifacts, first run the existing suite, then freeze a RED test against committed artifacts; synthetic fixtures can stay green while the real format is unsupported. Census extractor inputs before designing regexes and use the live consumer's repository/worktree root when reducing absolute paths.
