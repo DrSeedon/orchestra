@@ -680,10 +680,11 @@ class KnowledgeService:
         if path.is_absolute() or ".." in path.parts or path.suffix.lower() != ".md":
             raise PromotionValidationError("evidence source path is not approved cold Markdown")
         approved = (
-            value in {"CLAUDE.md", "TODO.md"}
+            value in {"AGENTS.md", "CLAUDE.md", "TODO.md"}
             or path.parts[:2] == (".orchestra", "tasks")
             or path.parts[:2] == (".orchestra", "kb")
             or path.parts[:3] == (".orchestra", "archive", "sessions")
+            or path.parts[:3] == (".orchestra", "archive", "instructions")
         )
         if not approved:
             raise PromotionValidationError("evidence source path is outside the cold archive")

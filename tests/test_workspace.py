@@ -2114,6 +2114,20 @@ class TestSyncAgentsMd:
         assert sync_agents_md(wt.path) is False
         assert (Path(wt.path) / "AGENTS.md").read_text() == "# the repo's own rules"
 
+    def test_claude_import_does_not_replace_its_own_canonical_target(self, git_repo):
+        from app.workspace import sync_agents_md
+        (git_repo / "CLAUDE.md").write_text("@AGENTS.md\n")
+        (git_repo / "AGENTS.md").write_text("Do not restart production.\n")
+        assert sync_agents_md(str(git_repo)) is False
+        assert (git_repo / "AGENTS.md").read_text() == "Do not restart production.\n"
+
+    def test_missing_claude_import_target_fails_instead_of_creating_a_cycle(self, git_repo):
+        from app.workspace import sync_agents_md
+        (git_repo / "CLAUDE.md").write_text("@AGENTS.md\n")
+        with pytest.raises(RuntimeError, match="imports missing AGENTS.md"):
+            sync_agents_md(str(git_repo))
+        assert not (git_repo / "AGENTS.md").exists()
+
     def test_no_claude_md_no_mirror(self, git_repo, wt_root):
         from app.workspace import create_worktree, sync_agents_md
         wt = create_worktree(str(git_repo), "w1")
