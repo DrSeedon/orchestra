@@ -1,0 +1,794 @@
+{
+  "design": {
+    "base_commit": "bf59a7d38739af3c7652b9466b2590490d83b0b7",
+    "fixed_reference_commit": "cb052ede731d0a0846a340b02b1992da549cf095",
+    "models": [
+      "gpt-6-astra",
+      "gpt-5.6-sol"
+    ],
+    "runs_per_model": 3,
+    "order": "A/B/A/B/A/B",
+    "effort": "medium",
+    "project_doc_max_bytes": 262144,
+    "source_fixture_sha256": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+    "oracle_bundle_sha256": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+    "assignment_sha256": "de11c6f430de30e5d718dbeddf321e2dbe085ac25a15f84da0bf13c10161d93d",
+    "codex_binary": {
+      "path": "/home/maxim/.local/bin/codex",
+      "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+      "version": "codex-cli 0.153.4",
+      "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+    },
+    "prices_usd_per_million": {
+      "gpt-6-astra": {
+        "input": 10.0,
+        "cached": 1.0,
+        "write": 12.5,
+        "output": 50.0
+      },
+      "gpt-5.6-sol": {
+        "input": 4.0,
+        "cached": 0.4,
+        "write": 5.0,
+        "output": 20.0
+      }
+    },
+    "fast_mode_disabled": true,
+    "pool_percentage_measured": false,
+    "assignment_variant": "open_red_oracle_only"
+  },
+  "preflight": {
+    "checked_at": 1788591106.9848697,
+    "loadavg": [
+      1.41259765625,
+      2.82373046875,
+      6.28759765625
+    ],
+    "binary": {
+      "path": "/home/maxim/.local/bin/codex",
+      "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+      "version": "codex-cli 0.153.4",
+      "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+    },
+    "shell_rc": 0,
+    "shell_stdout": "SHELL_OK\nPRODUCTION_WRITABLE=5/5\nEEEEEFEFF...............................FFFF.FF.......F..........        [100%]\n==================================== ERRORS ====================================\n_ ERROR at setup of test_foreign_main_commit_does_not_invalidate_the_reviewed_production_diff _\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_foreign_main_commit_does_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba222573b0>\n\n    @pytest.fixture\n    def reviewed(tmp_path, monkeypatch):\n        \"\"\"Репозиторий с состоявшимся ревью, привязанным к снимку на момент ревью.\"\"\"\n        import app.acceptance as acceptance\n        import app.db as db\n        import app.merge_operations as operations\n        from app.review_coverage import production_snapshot\n    \n        repo, target_sha, worker_head = _repo(tmp_path)\n        db_path = tmp_path / \"drift-474.db\"\n        monkeypatch.setattr(db, \"DB_PATH\", db_path)\n        monkeypatch.setenv(\"ORCHESTRA_DB_PATH\", str(db_path))\n        db.init_db()\n        monkeypatch.setattr(acceptance, \"task_oracle_for_session\", lambda _sid: {})\n        monkeypatch.setattr(\n            operations, \"review_coverage_policy_active\", lambda: True, raising=False,\n        )\n        snapshot = production_snapshot(\n            str(repo), target_sha=target_sha, worker_head=worker_head,\n        )\n        db.review_receipt_create(_receipt(\n            scope=str(repo),\n            target_sha=target_sha,\n            worker_head=worker_head,\n            production_snapshot_sha256=str(snapshot[\"production_snapshot_sha256\"]),\n>           production_diff_sha256=str(snapshot[\"production_diff_sha256\"]),\n                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        ))\nE       KeyError: 'production_diff_sha256'\n\ntests/test_review_coverage_target_drift_474.py:145: KeyError\n_ ERROR at setup of test_one_changed_production_byte_still_revokes_the_receipt _\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_one_changed_production_by0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba200914f0>\n\n    @pytest.fixture\n    def reviewed(tmp_path, monkeypatch):\n        \"\"\"Репозиторий с состоявшимся ревью, привязанным к снимку на момент ревью.\"\"\"\n        import app.acceptance as acceptance\n        import app.db as db\n        import app.merge_operations as operations\n        from app.review_coverage import production_snapshot\n    \n        repo, target_sha, worker_head = _repo(tmp_path)\n        db_path = tmp_path / \"drift-474.db\"\n        monkeypatch.setattr(db, \"DB_PATH\", db_path)\n        monkeypatch.setenv(\"ORCHESTRA_DB_PATH\", str(db_path))\n        db.init_db()\n        monkeypatch.setattr(acceptance, \"task_oracle_for_session\", lambda _sid: {})\n        monkeypatch.setattr(\n            operations, \"review_coverage_policy_active\", lambda: True, raising=False,\n        )\n        snapshot = production_snapshot(\n            str(repo), target_sha=target_sha, worker_head=worker_head,\n        )\n        db.review_receipt_create(_receipt(\n            scope=str(repo),\n            target_sha=target_sha,\n            worker_head=worker_head,\n            production_snapshot_sha256=str(snapshot[\"production_snapshot_sha256\"]),\n>           production_diff_sha256=str(snapshot[\"production_diff_sha256\"]),\n                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        ))\nE       KeyError: 'production_diff_sha256'\n\ntests/test_review_coverage_target_drift_474.py:145: KeyError\n_ ERROR at setup of test_receipt_without_a_diff_digest_stays_bound_to_its_target _\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_receipt_without_a_diff_di0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba200a2b70>\n\n    @pytest.fixture\n    def reviewed(tmp_path, monkeypatch):\n        \"\"\"Репозиторий с состоявшимся ревью, привязанным к снимку на момент ревью.\"\"\"\n        import app.acceptance as acceptance\n        import app.db as db\n        import app.merge_operations as operations\n        from app.review_coverage import production_snapshot\n    \n        repo, target_sha, worker_head = _repo(tmp_path)\n        db_path = tmp_path / \"drift-474.db\"\n        monkeypatch.setattr(db, \"DB_PATH\", db_path)\n        monkeypatch.setenv(\"ORCHESTRA_DB_PATH\", str(db_path))\n        db.init_db()\n        monkeypatch.setattr(acceptance, \"task_oracle_for_session\", lambda _sid: {})\n        monkeypatch.setattr(\n            operations, \"review_coverage_policy_active\", lambda: True, raising=False,\n        )\n        snapshot = production_snapshot(\n            str(repo), target_sha=target_sha, worker_head=worker_head,\n        )\n        db.review_receipt_create(_receipt(\n            scope=str(repo),\n            target_sha=target_sha,\n            worker_head=worker_head,\n            production_snapshot_sha256=str(snapshot[\"production_snapshot_sha256\"]),\n>           production_diff_sha256=str(snapshot[\"production_diff_sha256\"]),\n                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        ))\nE       KeyError: 'production_diff_sha256'\n\ntests/test_review_coverage_target_drift_474.py:145: KeyError\n_ ERROR at setup of test_empty_production_diff_never_matches_a_legacy_empty_digest _\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_empty_production_diff_nev0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba200a3350>\n\n    @pytest.fixture\n    def reviewed(tmp_path, monkeypatch):\n        \"\"\"Репозиторий с состоявшимся ревью, привязанным к снимку на момент ревью.\"\"\"\n        import app.acceptance as acceptance\n        import app.db as db\n        import app.merge_operations as operations\n        from app.review_coverage import production_snapshot\n    \n        repo, target_sha, worker_head = _repo(tmp_path)\n        db_path = tmp_path / \"drift-474.db\"\n        monkeypatch.setattr(db, \"DB_PATH\", db_path)\n        monkeypatch.setenv(\"ORCHESTRA_DB_PATH\", str(db_path))\n        db.init_db()\n        monkeypatch.setattr(acceptance, \"task_oracle_for_session\", lambda _sid: {})\n        monkeypatch.setattr(\n            operations, \"review_coverage_policy_active\", lambda: True, raising=False,\n        )\n        snapshot = production_snapshot(\n            str(repo), target_sha=target_sha, worker_head=worker_head,\n        )\n        db.review_receipt_create(_receipt(\n            scope=str(repo),\n            target_sha=target_sha,\n            worker_head=worker_head,\n            production_snapshot_sha256=str(snapshot[\"production_snapshot_sha256\"]),\n>           production_diff_sha256=str(snapshot[\"production_diff_sha256\"]),\n                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        ))\nE       KeyError: 'production_diff_sha256'\n\ntests/test_review_coverage_target_drift_474.py:145: KeyError\n_ ERROR at setup of test_unresolvable_worker_head_is_a_structured_refusal_not_a_crash _\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_unresolvable_worker_head_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba200bb350>\n\n    @pytest.fixture\n    def reviewed(tmp_path, monkeypatch):\n        \"\"\"Репозиторий с состоявшимся ревью, привязанным к снимку на момент ревью.\"\"\"\n        import app.acceptance as acceptance\n        import app.db as db\n        import app.merge_operations as operations\n        from app.review_coverage import production_snapshot\n    \n        repo, target_sha, worker_head = _repo(tmp_path)\n        db_path = tmp_path / \"drift-474.db\"\n        monkeypatch.setattr(db, \"DB_PATH\", db_path)\n        monkeypatch.setenv(\"ORCHESTRA_DB_PATH\", str(db_path))\n        db.init_db()\n        monkeypatch.setattr(acceptance, \"task_oracle_for_session\", lambda _sid: {})\n        monkeypatch.setattr(\n            operations, \"review_coverage_policy_active\", lambda: True, raising=False,\n        )\n        snapshot = production_snapshot(\n            str(repo), target_sha=target_sha, worker_head=worker_head,\n        )\n        db.review_receipt_create(_receipt(\n            scope=str(repo),\n            target_sha=target_sha,\n            worker_head=worker_head,\n            production_snapshot_sha256=str(snapshot[\"production_snapshot_sha256\"]),\n>           production_diff_sha256=str(snapshot[\"production_diff_sha256\"]),\n                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        ))\nE       KeyError: 'production_diff_sha256'\n\ntests/test_review_coverage_target_drift_474.py:145: KeyError\n_ ERROR at setup of test_untracked_production_file_is_not_covered_by_the_old_receipt _\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_untracked_production_file0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba200dc410>\n\n    @pytest.fixture\n    def reviewed(tmp_path, monkeypatch):\n        \"\"\"Репозиторий с состоявшимся ревью, привязанным к снимку на момент ревью.\"\"\"\n        import app.acceptance as acceptance\n        import app.db as db\n        import app.merge_operations as operations\n        from app.review_coverage import production_snapshot\n    \n        repo, target_sha, worker_head = _repo(tmp_path)\n        db_path = tmp_path / \"drift-474.db\"\n        monkeypatch.setattr(db, \"DB_PATH\", db_path)\n        monkeypatch.setenv(\"ORCHESTRA_DB_PATH\", str(db_path))\n        db.init_db()\n        monkeypatch.setattr(acceptance, \"task_oracle_for_session\", lambda _sid: {})\n        monkeypatch.setattr(\n            operations, \"review_coverage_policy_active\", lambda: True, raising=False,\n        )\n        snapshot = production_snapshot(\n            str(repo), target_sha=target_sha, worker_head=worker_head,\n        )\n        db.review_receipt_create(_receipt(\n            scope=str(repo),\n            target_sha=target_sha,\n            worker_head=worker_head,\n            production_snapshot_sha256=str(snapshot[\"production_snapshot_sha256\"]),\n>           production_diff_sha256=str(snapshot[\"production_diff_sha256\"]),\n                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        ))\nE       KeyError: 'production_diff_sha256'\n\ntests/test_review_coverage_target_drift_474.py:145: KeyError\n=================================== FAILURES ===================================\n___ test_unresolvable_target_branch_in_revalidation_is_a_structured_refusal ____\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_unresolvable_target_branc0')\n\n    def test_unresolvable_target_branch_in_revalidation_is_a_structured_refusal(tmp_path):\n        \"\"\"Второй шов того же класса: цель не разрешается на этапе перепроверки.\n    \n        Предусловие устанавливается ЗДЕСЬ, а не наследуется от окружения. Прежняя версия брала\n        просто пустой каталог и рассчитывала, что он лежит вне любого git-репозитория; это\n        свойство принадлежит машине, а не тесту. Замер 04.09 (#474): под `TMPDIR` внутри чекаута\n        (именно так шёл прогон merge-гейта) `main` РАЗРЕШАЛСЯ обходом вверх, `_target_head`\n        отрабатывал, и до `_review_snapshot_unavailable` дело доходило уже из другого шва —\n        `production_snapshot` с `Invalid symmetric difference expression`. Тест при этом краснел\n        на третьей строке, а два первых утверждения проходили: он мерил НЕ ТОТ шов и молчал об этом.\n    \n        Отсюда две правки. Свой репозиторий ограничивает обход вверх детерминированно, а\n        утверждение опирается на текст, которым владеет НАШ код (`cannot resolve merge target`),\n        а не на формулировку git, зависящую от версии и от точки запуска. Заодно это и различитель\n        швов: сработай вместо цели снимок, в `reason_detail` стояло бы `Invalid symmetric\n        difference`, и тест обязан покраснеть.\n        \"\"\"\n        import app.merge_operations as operations\n    \n        repo, _target_sha, _worker_head = _repo(tmp_path)\n        _git(repo, \"branch\", \"-D\", \"main\")\n    \n        # Предусловие, а не надежда: репозиторий наш, и `main` в нём действительно не разрешается.\n        assert (repo / \".git\").exists()\n        probe = subprocess.run(\n            [\"git\", \"rev-parse\", \"--verify\", \"main^{commit}\"],\n            cwd=repo, capture_output=True, text=True, check=False,\n        )\n        assert probe.returncode != 0, \"предусловие сломано: цель разрешается, шов не тот\"\n    \n>       decision = operations._revalidate_review_coverage(\n            {\"request\": {\"target\": \"main\"}, \"accepted_admission\": {}},\n            {\"worktree_path\": str(repo), \"worker_head\": \"b\" * 40,\n             \"session_id\": \"session-474\", \"task_id\": \"474\", \"scope\": str(repo)},\n        )\n\ntests/test_review_coverage_target_drift_474.py:330: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \napp/merge_operations.py:1002: in _revalidate_review_coverage\n    target_sha = str(target.get(\"sha\") or \"\") or _target_head(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nworktree_path = '/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_unresolvable_target_branc0/repo'\ntarget_branch = 'main'\n\n    def _target_head(worktree_path: str, target_branch: str) -> str:\n        try:\n            proc = subprocess.run(\n                [\"git\", \"rev-parse\", \"--verify\", f\"{target_branch}^{{commit}}\"],\n                cwd=worktree_path, capture_output=True, text=True,\n                timeout=15, check=False,\n            )\n        except (OSError, subprocess.TimeoutExpired) as exc:\n            raise ValueError(f\"cannot resolve merge target {target_branch}: {exc}\") from exc\n        if proc.returncode != 0:\n            detail = proc.stderr.strip() or proc.stdout.strip() or f\"exit {proc.returncode}\"\n>           raise ValueError(f\"cannot resolve merge target {target_branch}: {detail}\")\nE           ValueError: cannot resolve merge target main: fatal: Needed a single revision\n\napp/merge_operations.py:849: ValueError\n____ test_unresolvable_target_in_initial_admission_is_a_structured_refusal _____\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_unresolvable_target_in_in0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba200bb200>\n\n    def test_unresolvable_target_in_initial_admission_is_a_structured_refusal(tmp_path, monkeypatch):\n        \"\"\"#474 раунд 2: второй вход в admission тоже обязан отказывать, а не падать.\n    \n        `_prepare_admission_snapshot` звал `_target_head` напрямую. Исключение оттуда ловил общий\n        `except` вызывающего и называло причиной ОРАКУЛ (`ORACLE_METADATA_INVALID`), которого\n        проблема не касается. Отказ обязан называть настоящую причину.\n        \"\"\"\n        import app.acceptance as acceptance\n        import app.db as db\n        import app.merge_operations as operations\n    \n        repo, _target_sha, _worker_head = _repo(tmp_path)\n        db_path = tmp_path / \"no-target.db\"\n        monkeypatch.setattr(db, \"DB_PATH\", db_path)\n        monkeypatch.setenv(\"ORCHESTRA_DB_PATH\", str(db_path))\n        db.init_db()\n        monkeypatch.setattr(acceptance, \"task_oracle_for_session\", lambda _sid: {})\n        monkeypatch.setattr(\n            operations, \"review_coverage_policy_active\", lambda: True, raising=False,\n        )\n        _git(repo, \"branch\", \"-D\", \"main\")\n    \n>       admission = operations._prepare_admission_snapshot(\n            {\n                \"session_id\": \"session-474\",\n                \"task_id\": \"474\",\n                \"base_branch\": \"main\",\n                \"worker_head\": _git(repo, \"rev-parse\", \"HEAD\"),\n                \"worktree_path\": str(repo),\n            },\n            operations.normalize_request(\n                name=\"worker-474\", scope=str(repo), target=\"main\",\n            ),\n        )\n\ntests/test_review_coverage_target_drift_474.py:391: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \napp/merge_operations.py:917: in _prepare_admission_snapshot\n    target_sha = _target_head(accepted[\"worktree_path\"], target_branch)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nworktree_path = '/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_unresolvable_target_in_in0/repo'\ntarget_branch = 'main'\n\n    def _target_head(worktree_path: str, target_branch: str) -> str:\n        try:\n            proc = subprocess.run(\n                [\"git\", \"rev-parse\", \"--verify\", f\"{target_branch}^{{commit}}\"],\n                cwd=worktree_path, capture_output=True, text=True,\n                timeout=15, check=False,\n            )\n        except (OSError, subprocess.TimeoutExpired) as exc:\n            raise ValueError(f\"cannot resolve merge target {target_branch}: {exc}\") from exc\n        if proc.returncode != 0:\n            detail = proc.stderr.strip() or proc.stdout.strip() or f\"exit {proc.returncode}\"\n>           raise ValueError(f\"cannot resolve merge target {target_branch}: {detail}\")\nE           ValueError: cannot resolve merge target main: fatal: Needed a single revision\n\napp/merge_operations.py:849: ValueError\n___ test_replayed_skip_receipt_from_before_the_new_column_is_not_a_conflict ____\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_replayed_skip_receipt_fro0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba200a2f00>\n\n    def test_replayed_skip_receipt_from_before_the_new_column_is_not_a_conflict(tmp_path, monkeypatch):\n        \"\"\"#474 раунд 2: skip-полоса не должна ни писать NULL, ни ломаться на повторе.\n    \n        `review_receipt_record_skip` строит значения через `receipt.get(key)` и нормализует лишь\n        часть колонок: payload без нового ключа дал бы `NOT NULL constraint failed`. А включение\n        нового дайджеста в identity повтора превращало бы вторую попытку ТОГО ЖЕ решения в\n        `skip decision id conflicts with existing provenance`, потому что у старой строки колонка\n        пуста.\n        \"\"\"\n        import app.db as db\n    \n        db_path = tmp_path / \"skip-474.db\"\n        monkeypatch.setattr(db, \"DB_PATH\", db_path)\n        monkeypatch.setenv(\"ORCHESTRA_DB_PATH\", str(db_path))\n        db.init_db()\n        payload = _receipt(\n            receipt_id=\"review-skip:474\",\n            scope=str(tmp_path),\n            target_sha=\"1\" * 40,\n            worker_head=\"2\" * 40,\n            production_snapshot_sha256=\"3\" * 64,\n            coverage_outcome=\"skipped\",\n            status=\"completed\",\n            return_code=None,\n            artifact_path=\"\",\n            round=None,\n            artifact_exists=0,\n            artifact_bytes=0,\n            verdict_present=0,\n            jsonl_response_present=0,\n            policy_ref=\"codex-debate@sha256:\" + \"4\" * 64,\n            decision_actor=\"orchestrator\",\n        )\n        # Payload БЕЗ нового ключа — ровно то, что пришлёт вызывающий, не знающий про #474.\n        payload.pop(\"production_diff_sha256\")\n    \n        saved = db.review_receipt_record_skip(dict(payload))\n>       assert saved[\"production_diff_sha256\"] == \"\", \"NOT NULL column must default, not crash\"\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       KeyError: 'production_diff_sha256'\n\ntests/test_review_coverage_target_drift_474.py:459: KeyError\n_________ test_per_test_ceiling_is_far_below_the_smallest_batch_budget _________\n\n    def test_per_test_ceiling_is_far_below_the_smallest_batch_budget():\n        \"\"\"Потолок узла бесполезен, если он сравним с бюджетом партии.\n    \n        Пол бюджета — партия из одного файла: `budget_for(1)`. Ниже трети от него один висяк\n        физически не может выесть партию, а второй и третий приносят FAILED с именами раньше,\n        чем истечёт общий бюджет.\n        \"\"\"\n        from app import merge_test_gate as gate\n    \n>       assert gate.PER_TEST_TIMEOUT_SECONDS * 2 < gate.budget_for(1), (\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n            \"per-test ceiling must stay far under the smallest batch budget\"\n        )\nE       AttributeError: module 'app.merge_test_gate' has no attribute 'PER_TEST_TIMEOUT_SECONDS'. Did you mean: 'PER_FILE_TIMEOUT_SECONDS'?\n\ntests/test_merge_test_gate.py:868: AttributeError\n___________ test_hung_node_becomes_a_named_red_not_inconclusive[2.0] ___________\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_hung_node_becomes_a_named0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba1fb50e30>\nper_test_timeout = 2.0\n\n    @pytest.mark.parametrize(\"per_test_timeout\", [2.0])\n    def test_hung_node_becomes_a_named_red_not_inconclusive(\n        tmp_path, monkeypatch, per_test_timeout,\n    ):\n        \"\"\"#474 — один зависший узел обязан краснеть ИМЕНЕМ, а не съедать бюджет партии.\n    \n        Замер 04.09: мерж #466 простоял 9+ минут на\n        `test_concurrent_keys_start_exactly_one_executor_and_survive_request_return`\n        (процесс жив, CPU 1%, состояние `S` — ждал события, переставшего наступать), после чего\n        гейт вернул `inconclusive` без единого имени, а мержи всего проекта стояли всё это время.\n    \n        Здесь настоящий pytest, а не мок: проверяемое поведение целиком принадлежит плагину и\n        флагам, и на заглушках оно зелено при любой реализации. Потолок параметризован, чтобы\n        прогон стоил секунды, а не заявленные 120.\n        \"\"\"\n        from app import merge_test_gate as gate\n        from app.acceptance import FAILED\n    \n>       monkeypatch.setattr(gate, \"PER_TEST_TIMEOUT_SECONDS\", per_test_timeout)\nE       AttributeError: <module 'app.merge_test_gate' from '/tmp/astra505/preflight/app/merge_test_gate.py'> has no attribute 'PER_TEST_TIMEOUT_SECONDS'\n\ntests/test_merge_test_gate.py:891: AttributeError\n_________ test_pytest_argv_carries_the_per_test_ceiling_and_its_method _________\n\n    def test_pytest_argv_carries_the_per_test_ceiling_and_its_method():\n        from app import merge_test_gate as gate\n    \n        argv = gate.pytest_argv([\"tests/test_widget.py\"])\n    \n>       assert f\"--timeout={gate.PER_TEST_TIMEOUT_SECONDS:g}\" in argv\n                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       AttributeError: module 'app.merge_test_gate' has no attribute 'PER_TEST_TIMEOUT_SECONDS'. Did you mean: 'PER_FILE_TIMEOUT_SECONDS'?\n\ntests/test_merge_test_gate.py:930: AttributeError\n_____________ test_missing_timeout_plugin_is_inconclusive_not_red ______________\n\ntmp_path = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_missing_timeout_plugin_is0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba1f93a000>\n\n    def test_missing_timeout_plugin_is_inconclusive_not_red(tmp_path, monkeypatch):\n        \"\"\"Интерпретатор без `pytest-timeout` не должен читаться как «тесты красные».\n    \n        pytest отвергает незнакомый флаг usage-ошибкой ДО сбора: тесты не запускались вовсе.\n        Ветка `exit_nonzero` объявила бы это провалом и заблокировала мержи всех проектов.\n        \"\"\"\n        from app import merge_test_gate as gate\n        from app.acceptance import INCONCLUSIVE\n    \n        monkeypatch.setattr(\n            gate.subprocess,\n            \"run\",\n            lambda *_args, **_kwargs: subprocess.CompletedProcess(\n                args=[\"pytest\"],\n                returncode=4,\n                stdout=\"\",\n                stderr=(\n                    \"ERROR: usage: pytest [options] [file_or_dir]\\n\"\n                    \"pytest: error: unrecognized arguments: --timeout=120\\n\"\n                ),\n            ),\n        )\n    \n        result = gate.run_pytest(str(tmp_path), [\"tests/test_widget.py\"])\n    \n>       assert result[\"status\"] == INCONCLUSIVE\nE       AssertionError: assert 'failed' == 'inconclusive'\nE         \nE         - inconclusive\nE         + failed\n\ntests/test_merge_test_gate.py:960: AssertionError\n____________ test_failing_registered_command_blocks_merge_executor _____________\n\nacc_db = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_failing_registered_comman0/wt')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba1f9384d0>\n\n    @pytest.mark.asyncio\n    async def test_failing_registered_command_blocks_merge_executor(acc_db, monkeypatch):\n        \"\"\"Сегодня executor зовут всё равно — рассказ исполнителя подменяет приёмку.\"\"\"\n        result, calls = await _run_with_spy(monkeypatch, worktree=str(acc_db))\n>       assert calls == [], (\n            \"execute_merge_session вызван при красной приёмке — платформа не исполняет команду\"\n        )\nE       AssertionError: execute_merge_session вызван при красной приёмке — платформа не исполняет команду\nE       assert [{'expected_b.../scope', ...}] == []\nE         \nE         Left contains one more item: {'expected_branch': 'task-42/worker', 'expected_head': '75054a04403c7352c4093503bb696f12e1df6adb', 'expected_name': 'worker', 'expected_scope': '/scope', ...}\nE         Use -v to get more diff\n\ntests/test_acceptance.py:168: AssertionError\n__________________ test_inconclusive_is_not_passed_or_failed ___________________\n\nacc_db = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_inconclusive_is_not_passe0/wt')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba1f94ef00>\n\n    @pytest.mark.asyncio\n    async def test_inconclusive_is_not_passed_or_failed(acc_db, monkeypatch):\n        import app.tm as tm\n    \n        with tm._conn() as conn:\n            conn.execute(\n                \"UPDATE tm_tasks SET acceptance_command=? WHERE par_number=42\",\n                (\"definitely-not-a-binary-240\",),\n            )\n        result, calls = await _run_with_spy(monkeypatch, worktree=str(acc_db))\n>       assert calls == []\nE       AssertionError: assert [{'expected_b.../scope', ...}] == []\nE         \nE         Left contains one more item: {'expected_branch': 'task-42/worker', 'expected_head': '75054a04403c7352c4093503bb696f12e1df6adb', 'expected_name': 'worker', 'expected_scope': '/scope', ...}\nE         Use -v to get more diff\n\ntests/test_acceptance.py:190: AssertionError\n_______ test_existing_invalid_command_blocks_merge_with_repair_guidance ________\n\nacc_db = PosixPath('/tmp/astra505/preflight-tmp/pytest-of-maxim/pytest-0/test_existing_invalid_command_0/wt')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ba1fb0e900>\n\n    @pytest.mark.asyncio\n    async def test_existing_invalid_command_blocks_merge_with_repair_guidance(\n        acc_db, monkeypatch,\n    ):\n        import app.tm as tm\n    \n        with tm._conn() as conn:\n            conn.execute(\n                \"UPDATE tm_tasks SET acceptance_command=? WHERE par_number=42\",\n                (REPORTED_LITERAL_SHELL_COMMAND,),\n            )\n    \n        result, calls = await _run_with_spy(monkeypatch, worktree=str(acc_db))\n    \n>       assert calls == []\nE       AssertionError: assert [{'expected_b.../scope', ...}] == []\nE         \nE         Left contains one more item: {'expected_branch': 'task-42/worker', 'expected_head': 'bff5a88ab019a3e94fc4bd10760b781c1b18ec29', 'expected_name': 'worker', 'expected_scope': '/scope', ...}\nE         Use -v to get more diff\n\ntests/test_acceptance.py:389: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_review_coverage_target_drift_474.py::test_unresolvable_target_branch_in_revalidation_is_a_structured_refusal\nFAILED tests/test_review_coverage_target_drift_474.py::test_unresolvable_target_in_initial_admission_is_a_structured_refusal\nFAILED tests/test_review_coverage_target_drift_474.py::test_replayed_skip_receipt_from_before_the_new_column_is_not_a_conflict\nFAILED tests/test_merge_test_gate.py::test_per_test_ceiling_is_far_below_the_smallest_batch_budget\nFAILED tests/test_merge_test_gate.py::test_hung_node_becomes_a_named_red_not_inconclusive[2.0]\nFAILED tests/test_merge_test_gate.py::test_pytest_argv_carries_the_per_test_ceiling_and_its_method\nFAILED tests/test_merge_test_gate.py::test_missing_timeout_plugin_is_inconclusive_not_red\nFAILED tests/test_acceptance.py::test_failing_registered_command_blocks_merge_executor\nFAILED tests/test_acceptance.py::test_inconclusive_is_not_passed_or_failed - ...\nFAILED tests/test_acceptance.py::test_existing_invalid_command_blocks_merge_with_repair_guidance\nERROR tests/test_review_coverage_target_drift_474.py::test_foreign_main_commit_does_not_invalidate_the_reviewed_production_diff\nERROR tests/test_review_coverage_target_drift_474.py::test_one_changed_production_byte_still_revokes_the_receipt\nERROR tests/test_review_coverage_target_drift_474.py::test_receipt_without_a_diff_digest_stays_bound_to_its_target\nERROR tests/test_review_coverage_target_drift_474.py::test_empty_production_diff_never_matches_a_legacy_empty_digest\nERROR tests/test_review_coverage_target_drift_474.py::test_unresolvable_worker_head_is_a_structured_refusal_not_a_crash\nERROR tests/test_review_coverage_target_drift_474.py::test_untracked_production_file_is_not_covered_by_the_old_receipt\n10 failed, 49 passed, 6 errors in 6.56s\n10 failed, 49 passed, 6 errors in 6.56s\nBLINDNESS_OK\ncodex-cli 0.153.4\n9.0.3",
+    "shell_stderr": "Logged in using ChatGPT",
+    "prompt_rc": 0,
+    "prompt_items": 5,
+    "prompt_chars": 142177,
+    "agents_bytes": 195089,
+    "agents_full_substring": true,
+    "agents_tail_1000_present": true,
+    "base_contains_474": false,
+    "source_fixture_hash_expected": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+    "source_fixture_hash_observed": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+    "oracle_bundle_hash_expected": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+    "oracle_bundle_hash_observed": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+    "scratch_oracle_hashes": {
+      "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+      "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+      "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+      "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+    },
+    "ok": true
+  },
+  "experiment_overhead_attempts": [
+    {
+      "model": "gpt-6-astra",
+      "run": 0,
+      "rc": 0,
+      "timed_out": false,
+      "wall_s": 33.656,
+      "loadavg_before": [
+        9.64794921875,
+        10.3466796875,
+        8.974609375
+      ],
+      "loadavg_after": [
+        10.08544921875,
+        10.4228515625,
+        9.0537109375
+      ],
+      "usage": {
+        "input_tokens": 237223,
+        "cache_read_tokens": 185856,
+        "cache_create_tokens": 0,
+        "output_tokens": 339,
+        "reasoning_tokens": 31
+      },
+      "cost_source": "computed_vendor_card",
+      "fresh_input_tokens": 51367,
+      "fresh_input_usd": 0.51367,
+      "cache_read_usd": 0.185856,
+      "cache_create_usd": 0.0,
+      "output_usd": 0.01695,
+      "cost_usd": 0.716476,
+      "arithmetic": "(51367*10.0 + 185856*1.0 + 0*12.5 + 339*50.0) / 1000000 = 0.716476000",
+      "item_types": {
+        "agent_message": 2,
+        "command_execution": 2
+      },
+      "tool_items": 2,
+      "oracle_rc": 1,
+      "oracle_output": "eturn`\n        (процесс жив, CPU 1%, состояние `S` — ждал события, переставшего наступать), после чего\n        гейт вернул `inconclusive` без единого имени, а мержи всего проекта стояли всё это время.\n    \n        Здесь настоящий pytest, а не мок: проверяемое поведение целиком принадлежит плагину и\n        флагам, и на заглушках оно зелено при любой реализации. Потолок параметризован, чтобы\n        прогон стоил секунды, а не заявленные 120.\n        \"\"\"\n        from app import merge_test_gate as gate\n        from app.acceptance import FAILED\n    \n>       monkeypatch.setattr(gate, \"PER_TEST_TIMEOUT_SECONDS\", per_test_timeout)\nE       AttributeError: <module 'app.merge_test_gate' from '/tmp/astra505/run-0-astra/app/merge_test_gate.py'> has no attribute 'PER_TEST_TIMEOUT_SECONDS'\n\ntests/test_merge_test_gate.py:891: AttributeError\n_________ test_pytest_argv_carries_the_per_test_ceiling_and_its_method _________\n\n    def test_pytest_argv_carries_the_per_test_ceiling_and_its_method():\n        from app import merge_test_gate as gate\n    \n        argv = gate.pytest_argv([\"tests/test_widget.py\"])\n    \n>       assert f\"--timeout={gate.PER_TEST_TIMEOUT_SECONDS:g}\" in argv\n                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       AttributeError: module 'app.merge_test_gate' has no attribute 'PER_TEST_TIMEOUT_SECONDS'. Did you mean: 'PER_FILE_TIMEOUT_SECONDS'?\n\ntests/test_merge_test_gate.py:930: AttributeError\n_____________ test_missing_timeout_plugin_is_inconclusive_not_red ______________\n\ntmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-354/test_missing_timeout_plugin_is0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e54e3861b0>\n\n    def test_missing_timeout_plugin_is_inconclusive_not_red(tmp_path, monkeypatch):\n        \"\"\"Интерпретатор без `pytest-timeout` не должен читаться как «тесты красные».\n    \n        pytest отвергает незнакомый флаг usage-ошибкой ДО сбора: тесты не запускались вовсе.\n        Ветка `exit_nonzero` объявила бы это провалом и заблокировала мержи всех проектов.\n        \"\"\"\n        from app import merge_test_gate as gate\n        from app.acceptance import INCONCLUSIVE\n    \n        monkeypatch.setattr(\n            gate.subprocess,\n            \"run\",\n            lambda *_args, **_kwargs: subprocess.CompletedProcess(\n                args=[\"pytest\"],\n                returncode=4,\n                stdout=\"\",\n                stderr=(\n                    \"ERROR: usage: pytest [options] [file_or_dir]\\n\"\n                    \"pytest: error: unrecognized arguments: --timeout=120\\n\"\n                ),\n            ),\n        )\n    \n        result = gate.run_pytest(str(tmp_path), [\"tests/test_widget.py\"])\n    \n>       assert result[\"status\"] == INCONCLUSIVE\nE       AssertionError: assert 'failed' == 'inconclusive'\nE         \nE         - inconclusive\nE         + failed\n\ntests/test_merge_test_gate.py:960: AssertionError\n____________ test_failing_registered_command_blocks_merge_executor _____________\n\nacc_db = PosixPath('/tmp/pytest-of-maxim/pytest-354/test_failing_registered_comman0/wt')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e54e384da0>\n\n    @pytest.mark.asyncio\n    async def test_failing_registered_command_blocks_merge_executor(acc_db, monkeypatch):\n        \"\"\"Сегодня executor зовут всё равно — рассказ исполнителя подменяет приёмку.\"\"\"\n        result, calls = await _run_with_spy(monkeypatch, worktree=str(acc_db))\n>       assert calls == [], (\n            \"execute_merge_session вызван при красной приёмке — платформа не исполняет команду\"\n        )\nE       AssertionError: execute_merge_session вызван при красной приёмке — платформа не исполняет команду\nE       assert [{'expected_b.../scope', ...}] == []\nE         \nE         Left contains one more item: {'expected_branch': 'task-42/worker', 'expected_head': '84d9d967b6183a2521635fcafe1d4c14563696fa', 'expected_name': 'worker', 'expected_scope': '/scope', ...}\nE         Use -v to get more diff\n\ntests/test_acceptance.py:168: AssertionError\n__________________ test_inconclusive_is_not_passed_or_failed ___________________\n\nacc_db = PosixPath('/tmp/pytest-of-maxim/pytest-354/test_inconclusive_is_not_passe0/wt')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e54adf2540>\n\n    @pytest.mark.asyncio\n    async def test_inconclusive_is_not_passed_or_failed(acc_db, monkeypatch):\n        import app.tm as tm\n    \n        with tm._conn() as conn:\n            conn.execute(\n                \"UPDATE tm_tasks SET acceptance_command=? WHERE par_number=42\",\n                (\"definitely-not-a-binary-240\",),\n            )\n        result, calls = await _run_with_spy(monkeypatch, worktree=str(acc_db))\n>       assert calls == []\nE       AssertionError: assert [{'expected_b.../scope', ...}] == []\nE         \nE         Left contains one more item: {'expected_branch': 'task-42/worker', 'expected_head': '84d9d967b6183a2521635fcafe1d4c14563696fa', 'expected_name': 'worker', 'expected_scope': '/scope', ...}\nE         Use -v to get more diff\n\ntests/test_acceptance.py:190: AssertionError\n_______ test_existing_invalid_command_blocks_merge_with_repair_guidance ________\n\nacc_db = PosixPath('/tmp/pytest-of-maxim/pytest-354/test_existing_invalid_command_0/wt')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e54af94ad0>\n\n    @pytest.mark.asyncio\n    async def test_existing_invalid_command_blocks_merge_with_repair_guidance(\n        acc_db, monkeypatch,\n    ):\n        import app.tm as tm\n    \n        with tm._conn() as conn:\n            conn.execute(\n                \"UPDATE tm_tasks SET acceptance_command=? WHERE par_number=42\",\n                (REPORTED_LITERAL_SHELL_COMMAND,),\n            )\n    \n        result, calls = await _run_with_spy(monkeypatch, worktree=str(acc_db))\n    \n>       assert calls == []\nE       AssertionError: assert [{'expected_b.../scope', ...}] == []\nE         \nE         Left contains one more item: {'expected_branch': 'task-42/worker', 'expected_head': '84d9d967b6183a2521635fcafe1d4c14563696fa', 'expected_name': 'worker', 'expected_scope': '/scope', ...}\nE         Use -v to get more diff\n\ntests/test_acceptance.py:389: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_review_coverage_target_drift_474.py::test_unresolvable_target_branch_in_revalidation_is_a_structured_refusal\nFAILED tests/test_review_coverage_target_drift_474.py::test_unresolvable_target_in_initial_admission_is_a_structured_refusal\nFAILED tests/test_review_coverage_target_drift_474.py::test_replayed_skip_receipt_from_before_the_new_column_is_not_a_conflict\nFAILED tests/test_merge_test_gate.py::test_per_test_ceiling_is_far_below_the_smallest_batch_budget\nFAILED tests/test_merge_test_gate.py::test_hung_node_becomes_a_named_red_not_inconclusive[2.0]\nFAILED tests/test_merge_test_gate.py::test_pytest_argv_carries_the_per_test_ceiling_and_its_method\nFAILED tests/test_merge_test_gate.py::test_missing_timeout_plugin_is_inconclusive_not_red\nFAILED tests/test_acceptance.py::test_failing_registered_command_blocks_merge_executor\nFAILED tests/test_acceptance.py::test_inconclusive_is_not_passed_or_failed - ...\nFAILED tests/test_acceptance.py::test_existing_invalid_command_blocks_merge_with_repair_guidance\nERROR tests/test_review_coverage_target_drift_474.py::test_foreign_main_commit_does_not_invalidate_the_reviewed_production_diff\nERROR tests/test_review_coverage_target_drift_474.py::test_one_changed_production_byte_still_revokes_the_receipt\nERROR tests/test_review_coverage_target_drift_474.py::test_receipt_without_a_diff_digest_stays_bound_to_its_target\nERROR tests/test_review_coverage_target_drift_474.py::test_empty_production_diff_never_matches_a_legacy_empty_digest\nERROR tests/test_review_coverage_target_drift_474.py::test_unresolvable_worker_head_is_a_structured_refusal_not_a_crash\nERROR tests/test_review_coverage_target_drift_474.py::test_untracked_production_file_is_not_covered_by_the_old_receipt\n10 failed, 49 passed, 6 errors in 9.24s\n",
+      "changed_paths": [],
+      "scope_ok": true,
+      "scratch_oracle_hashes_before": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_hashes_after": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_untouched": true,
+      "source_fixture_hash_before": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_hash_after": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_untouched": true,
+      "oracle_bundle_hash_before": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_hash_after": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_untouched": true,
+      "binary_identity_before_batch": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_identity_after_run": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_unchanged": true,
+      "accepted": false,
+      "stderr_tail": "Reading additional input from stdin...\n",
+      "events_path": "raw/events-0-astra.jsonl",
+      "attempt_kind": "harness_failure",
+      "failure_classification": "nested Codex bwrap could not create a namespace inside the outer bwrap",
+      "included_in_open_ab": false,
+      "exclusion_reason": "harness_defect"
+    },
+    {
+      "model": "gpt-6-astra",
+      "run": 0,
+      "rc": 0,
+      "timed_out": false,
+      "wall_s": 154.955,
+      "loadavg_before": [
+        14.09912109375,
+        11.8017578125,
+        10.515625
+      ],
+      "loadavg_after": [
+        5.6845703125,
+        10.04443359375,
+        10.1337890625
+      ],
+      "usage": {
+        "input_tokens": 774417,
+        "cache_read_tokens": 697088,
+        "cache_create_tokens": 0,
+        "output_tokens": 3785,
+        "reasoning_tokens": 55
+      },
+      "cost_source": "computed_vendor_card",
+      "fresh_input_tokens": 77329,
+      "fresh_input_usd": 0.77329,
+      "cache_read_usd": 0.697088,
+      "cache_create_usd": 0.0,
+      "output_usd": 0.18925,
+      "cost_usd": 1.659628,
+      "arithmetic": "(77329*10.0 + 697088*1.0 + 0*12.5 + 3785*50.0) / 1000000 = 1.659628000",
+      "item_types": {
+        "agent_message": 3,
+        "command_execution": 9,
+        "file_change": 1
+      },
+      "tool_items": 10,
+      "oracle_rc": 0,
+      "oracle_output": ".................................................................        [100%]\n65 passed in 8.52s\n",
+      "changed_paths": [
+        "app/db.py",
+        "app/merge_operations.py",
+        "app/merge_test_gate.py",
+        "app/review_coverage.py",
+        "scripts/migrate_review_receipts.py"
+      ],
+      "scope_ok": true,
+      "scratch_oracle_hashes_before": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_hashes_after": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_untouched": true,
+      "source_fixture_hash_before": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_hash_after": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_untouched": true,
+      "oracle_bundle_hash_before": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_hash_after": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_untouched": true,
+      "binary_identity_before_batch": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_identity_after_run": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_unchanged": true,
+      "accepted": true,
+      "stderr_tail": "Reading additional input from stdin...\n",
+      "events_path": "raw/events-0-astra-retry1.jsonl",
+      "attempt_kind": "task_attempt",
+      "included_in_open_ab": false,
+      "exclusion_reason": "closed_assignment_variant"
+    }
+  ],
+  "experiment_overhead_cost_usd": 2.376104,
+  "results": [
+    {
+      "model": "gpt-6-astra",
+      "run": 0,
+      "rc": 0,
+      "timed_out": false,
+      "wall_s": 235.016,
+      "loadavg_before": [
+        1.4599609375,
+        2.8095703125,
+        6.26416015625
+      ],
+      "loadavg_after": [
+        2.56982421875,
+        2.88232421875,
+        5.53076171875
+      ],
+      "usage": {
+        "input_tokens": 1646676,
+        "cache_read_tokens": 1550592,
+        "cache_create_tokens": 0,
+        "output_tokens": 5387,
+        "reasoning_tokens": 138
+      },
+      "cost_source": "computed_vendor_card",
+      "fresh_input_tokens": 96084,
+      "fresh_input_usd": 0.96084,
+      "cache_read_usd": 1.550592,
+      "cache_create_usd": 0.0,
+      "output_usd": 0.26935,
+      "cost_usd": 2.7807820000000003,
+      "arithmetic": "(96084*10.0 + 1550592*1.0 + 0*12.5 + 5387*50.0) / 1000000 = 2.780782000",
+      "item_types": {
+        "agent_message": 5,
+        "command_execution": 16,
+        "file_change": 3
+      },
+      "tool_items": 19,
+      "oracle_rc": 0,
+      "oracle_output": ".................................................................        [100%]\n65 passed in 8.20s\n",
+      "changed_paths": [
+        "app/db.py",
+        "app/merge_operations.py",
+        "app/merge_test_gate.py",
+        "app/review_coverage.py",
+        "scripts/migrate_review_receipts.py"
+      ],
+      "scope_ok": true,
+      "scratch_oracle_hashes_before": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_hashes_after": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_untouched": true,
+      "source_fixture_hash_before": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_hash_after": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_untouched": true,
+      "oracle_bundle_hash_before": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_hash_after": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_untouched": true,
+      "binary_identity_before_batch": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_identity_after_run": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_unchanged": true,
+      "accepted": true,
+      "stderr_tail": "Reading additional input from stdin...\n",
+      "events_path": "raw/events-open-0-astra.jsonl",
+      "attempt_kind": "open_task_attempt"
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "run": 0,
+      "rc": 0,
+      "timed_out": false,
+      "wall_s": 191.951,
+      "loadavg_before": [
+        4.28759765625,
+        3.296875,
+        5.50634765625
+      ],
+      "loadavg_after": [
+        6.05712890625,
+        4.43701171875,
+        5.525390625
+      ],
+      "usage": {
+        "input_tokens": 1628365,
+        "cache_read_tokens": 1521536,
+        "cache_create_tokens": 0,
+        "output_tokens": 6221,
+        "reasoning_tokens": 1392
+      },
+      "cost_source": "computed_vendor_card",
+      "fresh_input_tokens": 106829,
+      "fresh_input_usd": 0.427316,
+      "cache_read_usd": 0.6086144,
+      "cache_create_usd": 0.0,
+      "output_usd": 0.12442,
+      "cost_usd": 1.1603504,
+      "arithmetic": "(106829*4.0 + 1521536*0.4 + 0*5.0 + 6221*20.0) / 1000000 = 1.160350400",
+      "item_types": {
+        "agent_message": 6,
+        "command_execution": 13,
+        "file_change": 3
+      },
+      "tool_items": 16,
+      "oracle_rc": 0,
+      "oracle_output": ".................................................................        [100%]\n65 passed in 7.57s\n",
+      "changed_paths": [
+        "app/db.py",
+        "app/mcp_stdio.py",
+        "app/merge_operations.py",
+        "app/merge_test_gate.py",
+        "app/review_coverage.py",
+        "scripts/migrate_review_receipts.py"
+      ],
+      "scope_ok": false,
+      "scratch_oracle_hashes_before": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_hashes_after": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_untouched": true,
+      "source_fixture_hash_before": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_hash_after": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_untouched": true,
+      "oracle_bundle_hash_before": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_hash_after": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_untouched": true,
+      "binary_identity_before_batch": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_identity_after_run": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_unchanged": true,
+      "accepted": false,
+      "stderr_tail": "Reading additional input from stdin...\n",
+      "events_path": "raw/events-0-sol.jsonl",
+      "attempt_kind": "task_attempt"
+    },
+    {
+      "model": "gpt-6-astra",
+      "run": 1,
+      "rc": 0,
+      "timed_out": false,
+      "wall_s": 573.834,
+      "loadavg_before": [
+        4.9365234375,
+        4.26806640625,
+        5.4521484375
+      ],
+      "loadavg_after": [
+        6.2294921875,
+        3.626953125,
+        4.38818359375
+      ],
+      "usage": {
+        "input_tokens": 2000908,
+        "cache_read_tokens": 1899648,
+        "cache_create_tokens": 0,
+        "output_tokens": 5267,
+        "reasoning_tokens": 131
+      },
+      "cost_source": "computed_vendor_card",
+      "fresh_input_tokens": 101260,
+      "fresh_input_usd": 1.0126,
+      "cache_read_usd": 1.899648,
+      "cache_create_usd": 0.0,
+      "output_usd": 0.26335,
+      "cost_usd": 3.175598,
+      "arithmetic": "(101260*10.0 + 1899648*1.0 + 0*12.5 + 5267*50.0) / 1000000 = 3.175598000",
+      "item_types": {
+        "agent_message": 4,
+        "command_execution": 20,
+        "file_change": 3
+      },
+      "tool_items": 23,
+      "oracle_rc": 0,
+      "oracle_output": ".................................................................        [100%]\n65 passed in 9.74s\n",
+      "changed_paths": [
+        "app/db.py",
+        "app/mcp_stdio.py",
+        "app/merge_operations.py",
+        "app/merge_test_gate.py",
+        "app/review_coverage.py",
+        "scripts/migrate_review_receipts.py"
+      ],
+      "scope_ok": false,
+      "scratch_oracle_hashes_before": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_hashes_after": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_untouched": true,
+      "source_fixture_hash_before": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_hash_after": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_untouched": true,
+      "oracle_bundle_hash_before": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_hash_after": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_untouched": true,
+      "binary_identity_before_batch": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_identity_after_run": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_unchanged": true,
+      "accepted": false,
+      "stderr_tail": "Reading additional input from stdin...\n",
+      "events_path": "raw/events-1-astra.jsonl",
+      "attempt_kind": "task_attempt"
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "run": 1,
+      "rc": 0,
+      "timed_out": false,
+      "wall_s": 181.965,
+      "loadavg_before": [
+        7.59912109375,
+        4.04150390625,
+        4.5107421875
+      ],
+      "loadavg_after": [
+        4.80517578125,
+        4.6640625,
+        4.68603515625
+      ],
+      "usage": {
+        "input_tokens": 1584666,
+        "cache_read_tokens": 1480704,
+        "cache_create_tokens": 0,
+        "output_tokens": 5915,
+        "reasoning_tokens": 1118
+      },
+      "cost_source": "computed_vendor_card",
+      "fresh_input_tokens": 103962,
+      "fresh_input_usd": 0.415848,
+      "cache_read_usd": 0.5922816,
+      "cache_create_usd": 0.0,
+      "output_usd": 0.1183,
+      "cost_usd": 1.1264296,
+      "arithmetic": "(103962*4.0 + 1480704*0.4 + 0*5.0 + 5915*20.0) / 1000000 = 1.126429600",
+      "item_types": {
+        "agent_message": 5,
+        "command_execution": 11,
+        "file_change": 4
+      },
+      "tool_items": 15,
+      "oracle_rc": 0,
+      "oracle_output": ".................................................................        [100%]\n65 passed in 8.85s\n",
+      "changed_paths": [
+        "app/db.py",
+        "app/merge_operations.py",
+        "app/merge_test_gate.py",
+        "app/review_coverage.py",
+        "scripts/migrate_review_receipts.py"
+      ],
+      "scope_ok": true,
+      "scratch_oracle_hashes_before": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_hashes_after": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_untouched": true,
+      "source_fixture_hash_before": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_hash_after": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_untouched": true,
+      "oracle_bundle_hash_before": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_hash_after": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_untouched": true,
+      "binary_identity_before_batch": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_identity_after_run": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_unchanged": true,
+      "accepted": true,
+      "stderr_tail": "Reading additional input from stdin...\n2026-09-05T07:12:10.812880Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /tmp/astra505/run-1-sol/app/merge_operations.py:\n    details = {\n",
+      "events_path": "raw/events-1-sol.jsonl",
+      "attempt_kind": "task_attempt"
+    },
+    {
+      "model": "gpt-6-astra",
+      "run": 2,
+      "rc": 0,
+      "timed_out": false,
+      "wall_s": 207.582,
+      "loadavg_before": [
+        5.6796875,
+        4.86181640625,
+        4.7509765625
+      ],
+      "loadavg_after": [
+        6.9541015625,
+        5.11083984375,
+        4.822265625
+      ],
+      "usage": {
+        "input_tokens": 1367685,
+        "cache_read_tokens": 1275008,
+        "cache_create_tokens": 0,
+        "output_tokens": 4459,
+        "reasoning_tokens": 112
+      },
+      "cost_source": "computed_vendor_card",
+      "fresh_input_tokens": 92677,
+      "fresh_input_usd": 0.92677,
+      "cache_read_usd": 1.275008,
+      "cache_create_usd": 0.0,
+      "output_usd": 0.22295,
+      "cost_usd": 2.424728,
+      "arithmetic": "(92677*10.0 + 1275008*1.0 + 0*12.5 + 4459*50.0) / 1000000 = 2.424728000",
+      "item_types": {
+        "agent_message": 4,
+        "command_execution": 15
+      },
+      "tool_items": 15,
+      "oracle_rc": 0,
+      "oracle_output": ".................................................................        [100%]\n65 passed in 12.37s\n",
+      "changed_paths": [
+        "app/db.py",
+        "app/merge_operations.py",
+        "app/merge_test_gate.py",
+        "app/review_coverage.py",
+        "scripts/migrate_review_receipts.py"
+      ],
+      "scope_ok": true,
+      "scratch_oracle_hashes_before": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_hashes_after": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_untouched": true,
+      "source_fixture_hash_before": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_hash_after": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_untouched": true,
+      "oracle_bundle_hash_before": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_hash_after": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_untouched": true,
+      "binary_identity_before_batch": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_identity_after_run": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_unchanged": true,
+      "accepted": true,
+      "stderr_tail": "Reading additional input from stdin...\n",
+      "events_path": "raw/events-2-astra.jsonl",
+      "attempt_kind": "task_attempt"
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "run": 2,
+      "rc": 0,
+      "timed_out": false,
+      "wall_s": 500.695,
+      "loadavg_before": [
+        12.63330078125,
+        6.56787109375,
+        5.310546875
+      ],
+      "loadavg_after": [
+        11.1904296875,
+        6.6875,
+        5.40185546875
+      ],
+      "usage": {
+        "input_tokens": 1674801,
+        "cache_read_tokens": 1600512,
+        "cache_create_tokens": 0,
+        "output_tokens": 6955,
+        "reasoning_tokens": 1662
+      },
+      "cost_source": "computed_vendor_card",
+      "fresh_input_tokens": 74289,
+      "fresh_input_usd": 0.297156,
+      "cache_read_usd": 0.6402048,
+      "cache_create_usd": 0.0,
+      "output_usd": 0.1391,
+      "cost_usd": 1.0764608,
+      "arithmetic": "(74289*4.0 + 1600512*0.4 + 0*5.0 + 6955*20.0) / 1000000 = 1.076460800",
+      "item_types": {
+        "agent_message": 5,
+        "command_execution": 15,
+        "file_change": 1
+      },
+      "tool_items": 16,
+      "oracle_rc": 0,
+      "oracle_output": ".................................................................        [100%]\n65 passed in 9.26s\n",
+      "changed_paths": [
+        "app/db.py",
+        "app/merge_operations.py",
+        "app/merge_test_gate.py",
+        "app/review_coverage.py",
+        "scripts/migrate_review_receipts.py"
+      ],
+      "scope_ok": true,
+      "scratch_oracle_hashes_before": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_hashes_after": {
+        "tests/test_review_coverage_target_drift_474.py": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc",
+        "tests/test_merge_test_gate.py": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd",
+        "tests/test_acceptance.py": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416",
+        "tests/test_review_receipt_migration_436.py": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+      },
+      "scratch_oracle_untouched": true,
+      "source_fixture_hash_before": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_hash_after": "ba17525a5475c46719e041e302e2a7f8fc58238088727d0a729adad7c022368c",
+      "source_fixture_untouched": true,
+      "oracle_bundle_hash_before": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_hash_after": "1c62094929224831801cf42bb314844159f8cd807e670a1457cdd348d3252002",
+      "oracle_bundle_untouched": true,
+      "binary_identity_before_batch": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_identity_after_run": {
+        "path": "/home/maxim/.local/bin/codex",
+        "resolved_path": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/bin/codex.js",
+        "version": "codex-cli 0.153.4",
+        "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70"
+      },
+      "binary_unchanged": true,
+      "accepted": true,
+      "stderr_tail": "Reading additional input from stdin...\n",
+      "events_path": "raw/events-2-sol.jsonl",
+      "attempt_kind": "task_attempt"
+    }
+  ],
+  "reasoning_controls": [],
+  "summary": {
+    "metric": "sum(cost_usd for all attempts) / accepted results",
+    "cost_source": "computed_vendor_card; standalone codex exec bypasses turn_usage",
+    "models": {
+      "gpt-6-astra": {
+        "attempts": 3,
+        "task_attempts": 3,
+        "setup_failures": 0,
+        "accepted": 2,
+        "setup_failure_cost_usd": 0,
+        "total_cost_usd_all_attempts": 8.381108000000001,
+        "dollars_per_accepted_result": 4.190554000000001,
+        "accepted_run_cost_range_usd": null,
+        "median_output_cost_share": 0.09194845772391791,
+        "long_qualification": {
+          "median_wall_at_least_180s": true,
+          "median_tool_items_at_least_8": true,
+          "median_output_tokens_at_least_5000": true
+        }
+      },
+      "gpt-5.6-sol": {
+        "attempts": 3,
+        "task_attempts": 3,
+        "setup_failures": 0,
+        "accepted": 2,
+        "setup_failure_cost_usd": 0,
+        "total_cost_usd_all_attempts": 3.3632408,
+        "dollars_per_accepted_result": 1.6816204,
+        "accepted_run_cost_range_usd": null,
+        "median_output_cost_share": 0.10722623097298885,
+        "long_qualification": {
+          "median_wall_at_least_180s": true,
+          "median_tool_items_at_least_8": true,
+          "median_output_tokens_at_least_5000": true
+        }
+      }
+    },
+    "long_work_qualified": true,
+    "all_runs_accepted": false,
+    "verdict": "question_open",
+    "reason": "long-work qualification or 3/3 acceptance failed"
+  }
+}

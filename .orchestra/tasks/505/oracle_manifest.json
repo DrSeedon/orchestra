@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "fix_commit": "cb052ede731d0a0846a340b02b1992da549cf095",
+  "files": {
+    "tests/test_review_coverage_target_drift_474.py": {
+      "bytes": 22002,
+      "sha256": "f695776391570622324d096d4dc172ec4b19182db77f2edf393a8f24fe61d0fc"
+    },
+    "tests/test_merge_test_gate.py": {
+      "bytes": 42122,
+      "sha256": "34898df33f0fcdc956d12932610be6d2739ea1809ce2e59bfeb6e63fe6efedcd"
+    },
+    "tests/test_acceptance.py": {
+      "bytes": 25070,
+      "sha256": "40401ec8d20e40648e0d5f267ae426aa65b9db4a8bb6be1ac8b5734530a61416"
+    },
+    "tests/test_review_receipt_migration_436.py": {
+      "bytes": 4160,
+      "sha256": "442e87f027aadb38633361265d27c421765508f3a9dcdeb5a8be8a0cb372e0b9"
+    }
+  }
+}
