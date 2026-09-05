@@ -27,7 +27,9 @@ def topic_index(root: Path) -> str:
             raise ValueError(f"KB index points outside its topic inventory: {path}")
         if path in entries:
             raise ValueError(f"KB topic indexed more than once: {path}")
-        entries[path] = description
+        if not description.strip():
+            raise ValueError(f"KB topic needs a description: {path}")
+        entries[path] = description.strip()
     missing = topics - entries.keys()
     if not entries or missing:
         raise ValueError(f"KB topics missing from README: {', '.join(sorted(missing)) or 'empty index'}")
