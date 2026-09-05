@@ -106,6 +106,70 @@ async def create_merge_operation(req: dict, request: Request = None):
     return _response(result, status_code)
 
 
+@router.post("/review-subject")
+async def resolve_review_subject(req: dict, request: Request = None):
+    """Pin the review subject of ANOTHER worker. Orchestrator-only, read-only.
+
+    A worker pinning its own worktree needs no privilege and never reaches this route;
+    reading someone else's tree does, which is why the resolution lives here next to
+    `/review-skip` rather than inside the MCP process.
+    """
+    from app.db import get_session_by_name
+    from app.mcp_proof import caller_may_use_orchestrator_privilege
+    from app.review_coverage import resolve_implementation_subject
+    from app.workspace import resolve_base_branch
+
+    if request is None or not caller_may_use_orchestrator_privilege(request):
+        return JSONResponse(
+            {"error": {"code": "review_subject_forbidden", "message": (
+                "pinning another worker's review subject is orchestrator-only"
+            )}},
+            status_code=403,
+        )
+    target_worker = str(req.get("target_worker") or "").strip()
+    scope = str(req.get("scope") or "").rstrip("/")
+    if not target_worker or not scope:
+        return JSONResponse(
+            {"error": {"code": "invalid_argument", "message": (
+                "target_worker and scope are required"
+            )}},
+            status_code=400,
+        )
+    target = get_session_by_name(target_worker, scope)
+    if not target:
+        return JSONResponse(
+            {"error": {"code": "target_worker_not_found", "message": "target worker not found"}},
+            status_code=404,
+        )
+    worktree = str(target.get("worktree_path") or "")
+    try:
+        base_branch = resolve_base_branch(
+            worktree, str(req.get("base_branch") or target.get("base_branch") or ""),
+        )
+        subject = resolve_implementation_subject(worktree, base_branch)
+    except (ValueError, OSError) as error:
+        return JSONResponse(
+            {"error": {"code": "review_subject_invalid", "message": str(error)}},
+            status_code=409,
+        )
+    return JSONResponse({
+        "result": {
+            "owner": {
+                "session_id": str(target["id"]),
+                "worker_name": str(target["name"]),
+                "task_id": str(target.get("task_id") or ""),
+                "worktree_path": worktree,
+                "base_branch": base_branch,
+            },
+            "subject": {
+                key: value for key, value in subject.items()
+                if key != "production_path_heads"
+            },
+        },
+        "error": None,
+    })
+
+
 @router.post("/review-skip")
 async def record_review_skip(req: dict, request: Request = None):
     from app.db import (
@@ -191,6 +255,8 @@ async def record_review_skip(req: dict, request: Request = None):
         "coverage_outcome": "skipped",
         "policy_ref": current_policy_ref(),
         "decision_actor": str(actor.get("name") or actor_session_id),
+        "requested_by_session_id": actor_session_id,
+        "requested_by_worker": str(actor.get("name") or ""),
     }
     try:
         saved = review_receipt_record_skip(receipt)

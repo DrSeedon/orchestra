@@ -9,6 +9,15 @@
   /tmp/<name> HEAD` gives a pristine copy of the branch tip with zero risk to the shared
   stash; run the same suite there, then `git worktree remove --force`. In #507 one of
   four failures was already red at HEAD.
+- **Never undo a mutation with `git checkout -- <file>` while the file has uncommitted
+  work.** It reverts to HEAD and takes the new code with it. In #509 that silently
+  deleted a whole new route mid-mutation-run, and the "restored" pass stayed red until I
+  re-typed it. Copy the file to `/tmp` first and restore with `cp`, as for every other
+  mutated file.
+- **Adding a `NOT NULL DEFAULT ''` column to `review_receipts` means FOUR writers.**
+  `review_receipt_create`, `review_receipt_reserve`, `review_receipt_record_skip` and the
+  task-run writer each build values from `_REVIEW_RECEIPT_COLUMNS` with `.get()`, so a
+  missing key inserts NULL and the constraint fires. The table default does not save you.
 - **`record_review_outcome` order: `accepted` first, `attested` second.** Calling
   `attested` on a receipt whose `author_outcome` is still `unknown` is refused with
   `attestation_outcome_not_attestable: unknown`; the tool description does not say so.

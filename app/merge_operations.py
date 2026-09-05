@@ -1012,6 +1012,7 @@ def _review_coverage_for_snapshot(
         production_paths=paths,
         production_snapshot_sha256=str(snapshot["production_snapshot_sha256"]),
         production_diff_sha256=str(snapshot["production_diff_sha256"]),
+        production_path_heads=dict(snapshot["production_path_heads"] or {}),
         active=active,
         worktree=str(accepted["worktree_path"]),
     )
