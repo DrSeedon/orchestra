@@ -80,7 +80,7 @@ def test_equal_utf8_bloat_is_rejected_and_sync_does_not_touch_other_copy(root):
         check(root)
 
 
-@pytest.mark.parametrize("mutation", ["empty", "import", "broken_link", "duplicate", "markers"])
+@pytest.mark.parametrize("mutation", ["empty", "import", "broken_link", "duplicate", "description", "markers"])
 def test_invalid_sources_fail_before_writes(root, mutation):
     source = root / "AGENTS.md"
     index = root / ".orchestra/kb/README.md"
@@ -92,6 +92,8 @@ def test_invalid_sources_fail_before_writes(root, mutation):
         index.write_text(index.read_text().replace("(runtime.md)", "(missing.md)"))
     elif mutation == "duplicate":
         index.write_text(index.read_text() * 2)
+    elif mutation == "description":
+        index.write_text("- [runtime](runtime.md) —    \n")
     else:
         source.write_text(source.read_text() + INDEX_START)
     before = (source.read_bytes(), (root / "CLAUDE.md").read_bytes())
