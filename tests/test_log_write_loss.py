@@ -36,6 +36,15 @@ async def test_lost_log_write_is_reported(db, caplog):
     session.id = "ghost"  # строки в sessions нет — FK упадёт
     session.name = "Orchestra-orchestrator"
     session._log_futures = set()
+    # `__new__` минует `__init__`, поэтому дефолты dataclass-полей НЕ создаются, и
+    # обработчик потери падал `AttributeError: 'AgentSession' object has no attribute
+    # '_failed_log_writes'` ещё до своего сообщения. В проде поля есть
+    # (`app/session.py:560-564`), их создаёт `__init__` — то есть тест ломал сам себя,
+    # а не ловил дефект. Ставим ровно те поля, которые читает проверяемый путь.
+    session._failed_log_writes = {}
+    session._log_write_generation = 0
+    session._log_write_failure_generation = 0
+    session._log_write_failure = ""
 
     with caplog.at_level("ERROR", logger="app.session"):
         session._log("error", "connect failed: TimeoutError")

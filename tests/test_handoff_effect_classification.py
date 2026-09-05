@@ -244,7 +244,20 @@ async def test_change_model_refusal_names_the_blocking_call_not_only_its_code(se
     session.backend_type = "codex"
     session.session_id = "source-thread"
     session.status = AgentStatus.IDLE
-    session._backend = AsyncMock()
+    # ЯВНАЯ заглушка, а не `AsyncMock()`: `_change_model_locked` ветвится по атрибутам
+    # бэкенда (`active_turn_id`, `_events_active`, `_turn_active`), а `AsyncMock` создаёт
+    # любой запрошенный атрибут и делает его ИСТИННЫМ. Из-за этого тест не доходил до
+    # проверяемой ветки вовсе и получал отказ «cannot change codex model while its turn is
+    # settling» (`app/session.py:5035`) вместо отказа по незавершённым эффектам.
+    class _IdleBackend:
+        active_turn_id = None
+        _events_active = False
+        _turn_active = False
+
+        async def retarget_model(self, *_args, **_kwargs):
+            return True
+
+    session._backend = _IdleBackend()
     session._log = MagicMock()
     session._ensure_backend = AsyncMock()
     session._prepare_runtime_handoff = AsyncMock(return_value=PreparationResult(
