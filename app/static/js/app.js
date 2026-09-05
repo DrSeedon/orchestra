@@ -1439,19 +1439,25 @@ async function compactAgent() {
 
 async function restartCli() {
     if (!selectedAgent || !currentScope) return;
+    const targetName = selectedAgent;
+    const targetScope = currentScope;
     const btn = $('#restart-cli-btn');
     btn.disabled = true;
     btn.textContent = '⏳';
     try {
-        await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/restart-cli`, {
+        const result = await api(`/api/sessions/${encodeURIComponent(targetName)}/restart-cli`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({scope: currentScope}),
+            body: JSON.stringify({scope: targetScope}),
         });
+        if (result.unreconciled_deliveries) {
+            alert(`${targetName}: очередь освобождена. Доставок с неизвестным исходом: ${result.unreconciled_deliveries}. Они НЕ отправлены повторно; проверь историю перед повторной отправкой.`);
+        }
         btn.textContent = '✅';
         setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 1500);
     } catch (e) {
         btn.textContent = '❌';
+        alert(`${targetName}: CLI не перезапущен — ${e.message || String(e)}`);
         setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 2000);
     }
 }
@@ -2738,7 +2744,9 @@ function updateAgentInfo(session) {
     $('#compact-btn').title = isRunning ? 'Wait for idle' : 'Compact context';
     $('#ai-name').textContent = session.name;
     const st = $('#ai-status');
-    st.textContent = `● ${session.status}`;
+    const runtimeDetail = _runtimeStatusDetail(session);
+    st.textContent = `● ${session.status}${runtimeDetail ? ' · ' + runtimeDetail : ''}`;
+    st.title = runtimeDetail;
     st.className = `text-xs font-mono status-${session.status}`;
     const modelEl = $('#ai-model');
     modelEl.textContent = session.model || '-';
@@ -3046,7 +3054,7 @@ function createAgentItem(s) {
     statusEl.style.padding = '1px 6px';
     statusEl.style.borderRadius = '4px';
     statusEl.textContent = `${_STATUS_ICON[s.status] || '●'} ${s.status}`;
-    if (_STATUS_TITLE[s.status]) statusEl.title = _STATUS_TITLE[s.status];
+    statusEl.title = [_STATUS_TITLE[s.status], _runtimeStatusDetail(s)].filter(Boolean).join(' · ');
     nameRow.append(nameEl, statusEl);
 
     const meta = document.createElement('div');
@@ -3095,6 +3103,7 @@ function createAgentItem(s) {
 
 function _applyLiveAgentStatus(name, status) {
     if (!Object.hasOwn(_STATUS_ICON, status)) return;
+    const runtimeDetail = _runtimeStatusDetail(currentSessions.find(s => s.name === name) || {});
     _refreshContextAfterTurn(name, status);
     const item = document.querySelector(
         `.agent-item[data-agent-name="${CSS.escape(name)}"]`
@@ -3104,11 +3113,12 @@ function _applyLiveAgentStatus(name, status) {
         badge.style.color = _STATUS_COLOR[status] || '#6b7280';
         badge.style.backgroundColor = _STATUS_BG[status] || 'rgba(107,114,128,0.1)';
         badge.textContent = `${_STATUS_ICON[status]} ${status}`;
-        badge.title = _STATUS_TITLE[status] || '';
+        badge.title = [_STATUS_TITLE[status], runtimeDetail].filter(Boolean).join(' · ');
     }
     if (name !== selectedAgent) return;
     const selected = $('#ai-status');
-    selected.textContent = `● ${status}`;
+    selected.textContent = `● ${status}${runtimeDetail ? ' · ' + runtimeDetail : ''}`;
+    selected.title = runtimeDetail;
     selected.className = `text-xs font-mono status-${status}`;
     updateStopButton(status);
 }

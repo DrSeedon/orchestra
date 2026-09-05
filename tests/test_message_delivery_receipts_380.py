@@ -975,6 +975,138 @@ async def test_t380_r5_recovery_quarantines_orphan_dispatching_without_schedule(
     assert external_attempts == [RENDERED]
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["none", "busy", "disconnect", "cancel"])
+async def test_target_cli_restart_releases_only_its_ambiguous_queue(message_db, monkeypatch, failure):
+    from app import message_deliveries as module
+    from app.routes import sessions as routes
+    from app.session import AgentSession, AgentStatus
+
+    monkeypatch.setattr(module, "ensure_target_runner", lambda _target: None)
+    await _accept(module)
+    module.prepare_message_delivery(DELIVERY_ID)
+    module.mark_message_delivery_dispatching(DELIVERY_ID)
+    module.mark_message_delivery_unknown(DELIVERY_ID, RuntimeError("lost reply"))
+    await _accept(module, delivery_id=DELIVERY_ID_2)
+    other_id = "00000000-0000-4000-8000-000000000399"
+    await _accept(module, delivery_id=other_id, target_id=SOURCE_ID)
+    module.prepare_message_delivery(other_id)
+    module.mark_message_delivery_dispatching(other_id)
+    module.mark_message_delivery_unknown(other_id, RuntimeError("other lost reply"))
+    session = AgentSession(id=TARGET_ID, name=TARGET_NAME, scope=SCOPE, cwd="/tmp",
+                           model="gpt-5.6-sol", system_prompt="test",
+                           created_at=datetime.now(timezone.utc))
+    session.status = AgentStatus.IDLE
+    session._persist = MagicMock()
+    disconnected = False
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def disconnect():
+        nonlocal disconnected
+        assert module._row(DELIVERY_ID)["state"] == "DELIVERY_UNKNOWN"
+        if failure == "disconnect":
+            raise RuntimeError("runtime still alive")
+        if failure == "cancel":
+            entered.set()
+            await release.wait()
+        disconnected = True
+
+    session._disconnect_backend = disconnect
+    manager_lock = asyncio.Lock()
+    monkeypatch.setattr(routes, "manager", SimpleNamespace(
+        ensure_loaded=AsyncMock(return_value=session),
+        get_session_lock=lambda _id: manager_lock,
+    ))
+    monkeypatch.setattr(module, "_target_delivery_locks", {})
+    scheduled = []
+
+    def schedule(target):
+        assert disconnected
+        scheduled.append(target)
+
+    monkeypatch.setattr(module, "ensure_target_runner", schedule)
+    if failure == "busy":
+        await manager_lock.acquire()
+    try:
+        if failure == "disconnect":
+            with pytest.raises(RuntimeError, match="runtime still alive"):
+                await routes.restart_cli(TARGET_NAME, routes.ScopeRequest(scope=SCOPE))
+        elif failure == "cancel":
+            caller = asyncio.create_task(routes.restart_cli(TARGET_NAME, routes.ScopeRequest(scope=SCOPE)))
+            try:
+                await entered.wait()
+                caller.cancel()
+                await asyncio.sleep(0)
+                assert manager_lock.locked()
+                refused = await routes.restart_cli(TARGET_NAME, routes.ScopeRequest(scope=SCOPE))
+                assert refused.status_code == 409
+                release.set()
+                assert (await caller)["unreconciled_deliveries"] == 1
+            finally:
+                release.set()
+                await asyncio.gather(caller, return_exceptions=True)
+        else:
+            response = await routes.restart_cli(TARGET_NAME, routes.ScopeRequest(scope=SCOPE))
+            if failure == "busy":
+                assert response.status_code == 409
+                assert disconnected is False
+            else:
+                assert response == {"ok": True, "unreconciled_deliveries": 1}
+        assert module._row(DELIVERY_ID)["state"] == (
+            "DELIVERY_UNKNOWN_ORPHANED" if failure in {"none", "cancel"} else "DELIVERY_UNKNOWN"
+        )
+        assert module._row(DELIVERY_ID_2)["state"] == "QUEUED"
+        assert module._row(other_id)["state"] == "DELIVERY_UNKNOWN"
+        assert scheduled == ([TARGET_ID] if failure in {"none", "cancel"} else [])
+        if failure in {"none", "cancel"}:
+            sent = []
+
+            async def submit(_target, message, *, delivery, **_kwargs):
+                await delivery.before_submit()
+                sent.append(delivery.delivery_id)
+                await delivery.mark_submitted(provider_ref="fresh-turn")
+
+            sender = SimpleNamespace(send_message_delivery=submit)
+            assert await module.run_target_message_deliveries(TARGET_ID, manager=sender)
+            assert await module.run_target_message_deliveries(TARGET_ID, manager=sender)
+            assert sent == [DELIVERY_ID_2]
+            assert module._row(DELIVERY_ID)["state"] == "DELIVERY_UNKNOWN_ORPHANED"
+    finally:
+        if manager_lock.locked():
+            manager_lock.release()
+
+
+@pytest.mark.asyncio
+async def test_busy_sqlite_recovery_keeps_event_loop_available(message_db, monkeypatch):
+    from app import message_deliveries as module
+
+    entered = threading.Event()
+    original = module._recover_message_deliveries
+
+    def recover(target):
+        entered.set()
+        return original(target)
+
+    monkeypatch.setattr(module, "_recover_message_deliveries", recover)
+    writer = sqlite3.connect(message_db.DB_PATH)
+    writer.execute("BEGIN IMMEDIATE")
+    task = asyncio.create_task(module.recover_message_deliveries(target_session_id=TARGET_ID))
+    try:
+        assert await asyncio.to_thread(entered.wait, 5)
+        # The DB write is still blocked, yet unrelated event-loop work executes.
+        heartbeat = asyncio.Event()
+        asyncio.get_running_loop().call_soon(heartbeat.set)
+        await heartbeat.wait()
+        assert not task.done()
+        writer.rollback()
+        assert await task == 0
+    finally:
+        writer.rollback()
+        writer.close()
+        await asyncio.gather(task, return_exceptions=True)
+
+
 def _response_payload(response):
     if isinstance(response, dict):
         return response

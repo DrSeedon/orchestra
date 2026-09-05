@@ -1,5 +1,19 @@
 /* utils.js — pure helpers, marked setup, autolink. Loaded before app.js. */
 
+function _runtimeStatusDetail(session) {
+    const labels = {
+        not_loaded: 'runtime не загружен',
+        hibernated: 'runtime в гибернации',
+        detached: 'runtime отключён',
+        attached: 'runtime подключён; читатель событий не активен',
+        listening: 'читатель событий активен',
+    };
+    return [labels[session.runtime_connection], session.lifecycle_status?.message,
+        session.delivery_uncertain
+            ? 'доставка не подтверждена; для освобождения очереди перезапусти CLI этого агента (без повторной отправки)' : '']
+        .filter(Boolean).join(' · ');
+}
+
 // Client task/payment amounts use the configured billing currency; model costs are stored in USD.
 const CUR = document.body.dataset.currency || '₽';
 const MODEL_COST_CURRENCY = '$';
