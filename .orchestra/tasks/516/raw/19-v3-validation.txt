@@ -1,0 +1,65 @@
+=== tests -> other (v2->v3), 8 самых дорогих: правильно ли ушли? ===
+   285.0  /bin/bash -lc "set -e grep -c 'preview = "'`создаёт задачу'"' app/static/js/app.js cp app/static/js/app.js app/static/js/app.js.mutbak 
+   269.5  /bin/bash -lc "set -e grep -c 'preview = "'`создаёт задачу'"' app/static/js/app.js cp app/static/js/app.js app/static/js/app.js.mutbak 
+   264.4  /bin/bash -lc "set -e grep -c 'label: "'`создаёт задачу'"' app/static/js/app.js cp app/static/js/app.js app/static/js/app.js.mutbak tra
+   254.3  /bin/bash -lc "set -e grep -c 'label: "'`создаёт задачу'"' app/static/js/app.js cp app/static/js/app.js app/static/js/app.js.mutbak tra
+    72.9  /bin/bash -lc 'set -euo pipefail DEPLOY_TMP=$(mktemp -d -t groom-demo-1d0f5166.XXXXXXXX) printf '"'deploy_tmp=%s\\n' \""'$DEPLOY_TMP" g
+    71.5  /bin/bash -lc 'touch app/ia/runtime.py test "$(grep -c '"'MUTANT_395_T1_DISABLE_REPAIR' app/ia/runtime.py || true)\" = \"0\" /opt/orche
+    66.9  /bin/bash -lc 'set -euo pipefail DEPLOY_TMP=$(mktemp -d -t groom-demo-b964eb45.XXXXXXXX) printf '"'deploy_tmp=%s\\n' \""'$DEPLOY_TMP" g
+    60.6  /bin/bash -lc "set +e cd service-demo-bot uv run --locked python -m pytest -q tests/test_t7_isolation_release.py -k 'process_scanner' s
+
+### v3 other (n=4009) — 5 долгих + 4 случайных
+    285.0  /bin/bash -lc "set -e grep -c 'preview = "'`создаёт задачу'"' app/static/js/app.js cp app/static/js/app.js app/static/js/app.
+    281.9  source /tmp/i35m2.sh mutate server/ai_table/adapters/http.py ' import pathlib p=pathlib.Path("server/ai_table/adapters/http.p
+    269.5  /bin/bash -lc "set -e grep -c 'preview = "'`создаёт задачу'"' app/static/js/app.js cp app/static/js/app.js app/static/js/app.
+    264.4  /bin/bash -lc "set -e grep -c 'label: "'`создаёт задачу'"' app/static/js/app.js cp app/static/js/app.js app/static/js/app.js.
+    254.3  /bin/bash -lc "set -e grep -c 'label: "'`создаёт задачу'"' app/static/js/app.js cp app/static/js/app.js app/static/js/app.js.
+  ~  7.72  /bin/bash -lc "uv run pytest -q tests/test_task_binding_418.py -k 'two_readers'; echo RC="'$?'
+  ~  0.01  /bin/bash -lc 'sqlite3 -readonly -separator $'"'\\t' /home/kesha/orchestra/data/task248-live-IpricQ.db \"SELECT par_number,st
+  ~  0.00  /bin/bash -lc pwd
+  ~  0.00  /bin/bash -lc 'systemctl show orchestra.service -p ControlGroup -p MainPID -p KillMode --no-pager; pid=$(systemctl show orche
+
+### v3 llm-cli (n=378) — 5 долгих + 4 случайных
+    541.3  /bin/bash -lc "claude -p --model 'claude-opus-5[1m]' --output-format json --strict-mcp-config --mcp-config '{\"mcpServers\":{
+    503.5  /bin/bash -lc "awk 'BEGIN {print \"I accepted all nine remaining findings and revised the full artifact pasted below: authori
+    402.0  /bin/bash -lc "awk 'BEGIN {print \"Round 5. I accepted all seven remaining findings. Below is the revised target-contract exc
+    399.6  /bin/bash -lc "claude -p --model 'claude-opus-5[1m]' --output-format json --strict-mcp-config --mcp-config '{\"mcpServers\":{
+    355.6  /bin/bash -c 'started_at=$SECONDS claude -p --model '"'claude-opus-5[1m]' --output-format json --safe-mode --no-session-persi
+  ~ 24.87  /bin/bash -lc 'codex exec -s read-only --ephemeral --color never -C . -o /tmp/seedon-108-codex-output.txt - < docs/tasks/108/
+  ~  1.42  which claude; claude --help 2>&1 | grep -i -A3 "mcp-config"
+  ~  9.06  /bin/bash -lc "claude -p --no-session-persistence --model 'claude-opus-5[1m]' --permission-mode dontAsk --setting-sources '' 
+  ~  0.16  DB=/home/kesha/orchestra/data/snapshots/t334.db python3 - "$DB" <<'PY' import sqlite3, sys c=sqlite3.connect('file:'+sys.argv
+
+### v3 media (n=462) — 5 долгих + 4 случайных
+    562.2  /bin/bash -lc 'tmp=$(mktemp -d); pdftoppm -f 145 -l 180 -r 160 -png '"'/home/kesha/orchestra/data/uploads/Отличный результат
+    495.0  /bin/bash -lc 'tmp=$(mktemp -d); pdftoppm -f 120 -l 145 -r 180 -png '"'/home/kesha/orchestra/data/uploads/Отличный результат
+    334.2  cd /tmp/vid && ffmpeg -v error -ss 319.3 -t 14.5 -i md1.mp4 -vf "crop=1150:900:145:0,scale=720:563,pad=720:1280:0:300:0x14100
+    311.0  cd /home/kesha/katya-work/artifacts/task-9-avito && python3 - <<'PY' import pathlib p = pathlib.Path("avito_ads.py"); s = p.r
+    300.1  /bin/bash -lc 'tmp=$(mktemp -d); pdftoppm -f 120 -l 125 -r 180 -png '"'/home/kesha/orchestra/data/uploads/Отличный результат
+  ~  0.07  /bin/bash -lc "convert docs/tasks/28/assets/facepalm.png -trim -format '%wx%h+%X+%Y\\n' info:; convert docs/tasks/28/assets/f
+  ~  1.27  /bin/bash -lc "montage docs/tasks/28/lesson-*-pink-contact.png -tile 2x3 -geometry 960x540+8+8 -background '#333333' /tmp/all
+  ~  1.11  cd /home/kesha/orchestra/data/uploads && f=$(ls *2026*.pdf | grep -i "2026 Д") && echo "$f" && timeout 400 pdftotext -layout 
+  ~  0.32  cp "/home/kesha/orchestra/data/uploads/1741869262_jazyk_1011_e_klassy_rybchenkova_l_m_i_dr_2024.pdf" /home/kesha/katya-work/a
+
+### v3 search-read (n=22773) — 5 долгих + 4 случайных
+    446.1  /bin/bash -lc "ls -l docs/tasks/110/codex-review-research.md 2>/dev/null || true if [ -f docs/tasks/110/codex-review-research
+    295.0  cd /tmp/b208 && grep -o -i ".\{0,120\}cache writes\?.\{0,120\}" card_gpt-5.6-terra.md; echo "---luna---"; grep -o -i ".\{0,12
+    260.9  /bin/bash -lc "find .claude/skills -maxdepth 3 -type f -name 'SKILL.md' -printf '%p\\n' | sort | rg -i 'docx|document|word' |
+    238.0  /bin/bash -lc "find /home/kesha/.cache /root/.cache -type f \\( -name chrome -o -name chromium -o -name chrome-headless-shell
+    192.4  /bin/bash -lc "find /home/kesha /opt/cog-second-brain -type f \\( -name '*premium*' -o -name '*ege*russian*' \\) 2>/dev/null 
+  ~  0.00  /bin/bash -lc "sed -n '4200,4245p' tests/test_frontend.py"
+  ~  0.13  cd /home/kesha/orchestra/worktrees/home-kesha-projects-kesha-tg-bot/feat-auto-compact-95 && rg -n "len\(cases\)|CASES|10" tes
+  ~  0.28  sed -n 30,66p /opt/kesha-bot/quota_gate.py
+  ~  0.00  /bin/bash -lc "find /root -xdev -type f -name '.env*' -print 2>&1 | head -30; find /root -xdev -type f -iname '*config*' -pri
+
+### v3 wait-loop (n=544) — 5 долгих + 4 случайных
+    557.8  for i in $(seq 1 55); do if ! pgrep -f "pytest -q --timeout=180" >/dev/null; then break; fi; sleep 10; done; tail -40 /tmp/py
+    421.6  sleep 420; grep -E "^FAILED|^ERROR|passed|failed|^EXIT" /tmp/343-final.txt | tail -20
+    260.5  cd /home/kesha/orchestra; sleep 260; git log --oneline -1 main; pgrep -af "\-m pytest" | grep -v claude | wc -l
+    247.2  rm -rf /tmp/perf32-profile-mir && (timeout 300 ssh -p 2222 -i ~/.ssh/tunnel_laptop maxim@localhost 'cd /mnt/data/perf60 && fo
+    230.4  cd /home/kesha/orchestra; sleep 230; pgrep -af "\-m pytest" | grep -v claude | wc -l; git log --oneline -1 main
+  ~120.78  cd /home/kesha/orchestra-scratch/230b TOK=$(sed -n 's/^INTERNAL_TOKEN=//p' /home/kesha/orchestra-scratch/237/stand.env) S=/ho
+  ~  7.03  T="[РЕДАКТИРОВАНО: токен подписки]" echo "=== порядок узлов в подписке ===" timeout 25 curl -sk -m 20 "https:/
+  ~  5.11  timeout 120 ssh -o BatchMode=yes -o StrictHostKeyChecking=no kesha@localhost 'sudo bash -s' <<'EOF' 2>&1 | tail -20 install -
+  ~260.53  cd /home/kesha/orchestra; sleep 260; git log --oneline -1 main; pgrep -af "\-m pytest" | grep -v claude | wc -l
+

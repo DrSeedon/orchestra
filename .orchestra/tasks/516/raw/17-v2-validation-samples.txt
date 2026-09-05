@@ -1,0 +1,96 @@
+### tests  (n=6533)  — 6 самых долгих + 4 случайных
+    590.3  LOG=/home/kesha/orchestra-scratch/230/fullsuite-$(date +%s).log; echo "log: $LOG"; timeout 590 uv run python -m pytest -
+    580.2  timeout 580 uv run pytest -q > /tmp/lander-base-main.log 2>&1; echo "exit=$?"; tail -25 /tmp/lander-base-main.log
+    571.8  /bin/bash -lc 'EXCLUDED_IPS=127.0.0.1 uv run --no-project --with-requirements tests/landings/requirements.txt python -m 
+    561.0  git switch -c scratch/290b main >/dev/null 2>&1 && git -c core.commentChar=';' cherry-pick 8e274ca9^..b83f753a > /tmp/la
+    500.6  cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-harness-bubbles && timeout 500 uv run pytest -q tests/test_
+    500.4  cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-harness-bubbles && timeout 500 uv run pytest -q tests/test_
+  ~  3.68  /bin/bash -lc 'CLAUDE_BASH_HOOK_ENABLED=1 /home/kesha/orchestra/.venv/bin/python -m pytest -q docs/tasks/228/acceptance/
+  ~ 21.60  uv run python -m pytest tests/test_model_catalog.py tests/test_catalog_api.py tests/test_model_flags.py tests/test_model
+  ~  9.52  /bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -x tests/test_250_safety_intent.py'
+  ~  0.00  /bin/bash -c '.venv/bin/pytest -q tests/test_codex_session.py::test_compact_releases_precompact_high_water_before_next_m
+
+### inline-code  (n=12416)  — 6 самых долгих + 4 случайных
+    540.1  timeout 540 python3 /tmp/pdscan/hist.py 2>&1 | tail -30
+    497.7  cd /tmp && nice -n 15 timeout 120 python3 /tmp/perf_canary.py 90 2>&1 | tail -20
+    446.4  cd /home/kesha/katya-work/artifacts/task-10-video && python3 - <<'PY' import pathlib p=pathlib.Path("build.py"); s=p.rea
+    414.1  timeout 570 /tmp/t212-venv/bin/python docs/tasks/212/probe-t7.py 16 2>&1 | tee -a docs/tasks/212/evidence-probe-t7-batch
+    401.2  /bin/bash -lc 'test -f /tmp/task253-russian-root.crt && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/service-demo-bot:$PWD
+    400.0  cat > /tmp/search_during_reindex.py << 'PY' """Латентность поиска, ПОКА идёт индексация. Дедлайн должен переживать этот 
+  ~  0.15  /bin/bash -lc 'python3 artifacts/task-2/tests/validate_t2_pptx.py'
+  ~  0.03  /bin/bash -lc 'python3 tools/service_landings.py --check GEN_RC=$? git diff --check DIFF_RC=$? printf '"'generator_rc=%s
+  ~  0.18  /bin/bash -lc 'git stash pop stash@{0} && git status --short && python3 artifacts/task-11-ege-avito/check.py'
+  ~ 72.31  for i in 1 2 3; do echo "===== verify-switch прогон $i ====="; UV_CACHE_DIR=/tmp/uv-cache timeout 170 uv run python docs
+
+### wait-loop  (n=701)  — 6 самых долгих + 4 случайных
+    557.8  for i in $(seq 1 55); do if ! pgrep -f "pytest -q --timeout=180" >/dev/null; then break; fi; sleep 10; done; tail -40 /t
+    421.6  sleep 420; grep -E "^FAILED|^ERROR|passed|failed|^EXIT" /tmp/343-final.txt | tail -20
+    260.5  cd /home/kesha/orchestra; sleep 260; git log --oneline -1 main; pgrep -af "\-m pytest" | grep -v claude | wc -l
+    247.2  rm -rf /tmp/perf32-profile-mir && (timeout 300 ssh -p 2222 -i ~/.ssh/tunnel_laptop maxim@localhost 'cd /mnt/data/perf60 
+    230.4  cd /home/kesha/orchestra; sleep 230; pgrep -af "\-m pytest" | grep -v claude | wc -l; git log --oneline -1 main
+    220.3  cd /home/kesha/orchestra; sleep 220; git log --oneline -2 main; pgrep -af "\-m pytest" | grep -v claude | wc -l
+  ~ 45.89  sleep 45; tail -4 /tmp/ci_dirty.log; echo "=== FAILED: $(grep -c '^FAILED' /tmp/ci_dirty.log) ==="
+  ~ 12.70  /bin/bash -lc 'set -uo pipefail task_tmp_dir=$(mktemp -d /tmp/ai-table-i1-final-17.XXXXXX) task_test_log=/tmp/pytest-17-
+  ~116.25  sleep 115; tail -3 /tmp/343-full-run.txt
+  ~ 21.51  set -e; STAGE=/home/kesha/ai-table-i1-deploy; FINAL=$(git rev-parse HEAD); trash "$STAGE/app.new" 2>/dev/null || true; m
+
+### net  (n=4504)  — 6 самых долгих + 4 случайных
+    500.7  curl -s -m 500 -o /tmp/repair_resp.json -w "http=%{http_code} time=%{time_total}s\n" -X POST -H "Authorization: Bearer [
+    465.1  timeout 500 ssh -p 2222 -i ~/.ssh/tunnel_laptop maxim@localhost 'bash -s' <<'EOF' 2>&1 | tail -14 cd /mnt/data/perf60 B=
+    429.9  timeout 500 ssh -p 2222 -i ~/.ssh/tunnel_laptop maxim@localhost 'cd /mnt/data/perf60 && B=https://orchestra.seedon.ru; f
+    300.4  cd /tmp && curl -sL --max-time 300 --compressed -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari
+    300.2  timeout 300 ssh -p 2222 -i ~/.ssh/tunnel_laptop maxim@localhost 'bash -s' <<'EOF' 2>&1 | tail -14 echo "--- порт 8888, Б
+    280.2  set -e for t in t1 t3; do   d=/tmp/t210/repo-$t   rm -rf "$d"   git clone -q --no-local --single-branch -b bench210-base
+  ~ 20.17  timeout 90 ssh -o BatchMode=yes kesha@localhost 'echo "=== ВСЕ успешные входы за 7 дней: кто откуда ==="; sudo -n journa
+  ~  2.54  cat > /tmp/setkey.sh <<'EOF' set -u f=/opt/seedon-bot/.env key=$(cat) [ -n "$key" ] || { echo "ПУСТОЙ ключ на входе — ни
+  ~  0.18  cd /home/kesha/orchestra && curl -s -H "Authorization: Bearer $(grep -m1 '^INTERNAL_TOKEN' .env | cut -d= -f2-)" http://
+  ~  0.12  /bin/bash -lc 'echo ELAPSED_S=$(( $(date +%s) - 1786606254 )); if [ -e /home/kesha/orchestra-scratch/237/workspace/grok/
+
+### other  (n=1830)  — 6 самых долгих + 4 случайных
+    347.7  PY=/home/kesha/orchestra/.venv/bin/python; for f in test_db test_manager test_pipeline; do s=$(date +%s.%N); PYTHONPATH=
+    281.9  source /tmp/i35m2.sh mutate server/ai_table/adapters/http.py ' import pathlib p=pathlib.Path("server/ai_table/adapters/h
+    235.4  /bin/bash -lc 'uv run playwright install chromium'
+    231.1  /bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/service-demo-bot:$PWD/service-demo-bot/tests" /home/kesha/proj
+    217.9  source /tmp/i35m2.sh mutate server/ai_table/adapters/http.py ' import pathlib p=pathlib.Path("server/ai_table/adapters/h
+    187.4  /bin/bash -lc 'OPENROUTER_API_KEY="$(ssh -o BatchMode=yes root@72.56.235.40 "sed -n '"'s/"'^OPENROUTER_API_KEY=//p'"' /e
+  ~  0.08  /bin/bash -lc 'set -eu cmp_one(){ src=$1; dst=$2; if cmp -s "$src" "$dst"; then echo "OK $(basename "$(dirname "$src")")
+  ~  0.77  /bin/bash -lc 'bash docs/tasks/243/verify-deploy.sh'
+  ~  0.00  /bin/bash -lc pwd
+  ~  0.00  /bin/bash -lc 'find /var/lib/orchestra/bug-inbox/records "$HOME/.local/state/orchestra/bug-inbox/records" -maxdepth 1 -t
+
+### llm-cli  (n=557)  — 6 самых долгих + 4 случайных
+    541.3  /bin/bash -lc "claude -p --model 'claude-opus-5[1m]' --output-format json --strict-mcp-config --mcp-config '{\"mcpServer
+    503.5  /bin/bash -lc "awk 'BEGIN {print \"I accepted all nine remaining findings and revised the full artifact pasted below: au
+    402.0  /bin/bash -lc "awk 'BEGIN {print \"Round 5. I accepted all seven remaining findings. Below is the revised target-contrac
+    399.6  /bin/bash -lc "claude -p --model 'claude-opus-5[1m]' --output-format json --strict-mcp-config --mcp-config '{\"mcpServer
+    355.6  /bin/bash -c 'started_at=$SECONDS claude -p --model '"'claude-opus-5[1m]' --output-format json --safe-mode --no-session-
+    352.3  /bin/bash -lc "codex exec --ephemeral --sandbox read-only -m gpt-5.6-sol -C /home/kesha/orchestra/worktrees/home-kesha-p
+  ~  0.23  /bin/bash -lc "cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/quota-panel-merge && ./.venv/bin/python - <<'PY' 
+  ~  0.00  /bin/bash -lc "rg -n '"'^## |''^### |F1|FDSTORE|LISTEN_PID|uvloop|Codex|restart|systemd'"' docs/tasks/230/research.md do
+  ~  1.66  /bin/bash -lc "claude --version; command -v claude; rg -n -i 'grep|ugrep|find|bfs|shell.?snapshot|shell' /home/kesha/.cl
+  ~  0.00  /bin/bash -lc 'rg -n "format_limits_message|Claude 7d|Claude extra usage|/limits" tests/test_tg_bridge.py tests | head -
+
+### deps  (n=72)  — 6 самых долгих + 4 случайных
+     67.8  /bin/bash -lc 'python3 -m pip install --no-cache-dir --target /home/kesha/orchestra/worktrees/home-kesha-katya-work/feat
+     63.3  /bin/bash -lc 'python3 -m pip install --target artifacts/task-2/pydeps keynote-parser'
+     39.1  cd /tmp && python3 -m venv /tmp/wenv 2>&1|tail -2 && /tmp/wenv/bin/pip install --quiet faster-whisper 2>&1 | tail -3; /t
+     36.7  cd /tmp && rm -rf /tmp/bot72run && mkdir -p /tmp/bot72run && scp -q -r root@72.56.235.40:/opt/seedon-bot/bot /tmp/bot72r
+     33.0  curl -sL -m 30 "https://rkn.gov.ru/docs/Perechen6_inostrannykh_gosudarstv.pdf" -o /tmp/perechen.pdf -w "HTTP %{http_code
+     27.5  uv pip install --python .venv/bin/python --exclude-newer 2030-01-01 -q aiogram_media_group python-dateutil sqlite_vec 2>
+  ~ 13.76  (uv venv .venv --python 3.12 2>&1 | tail -1) && uv pip install --python .venv/bin/python --exclude-newer 2030-01-01 -q p
+  ~ 20.58  /bin/bash -lc 'npm init -y npm install docx@9.5.1'
+  ~  1.01  /bin/bash -lc "uv pip install --target /tmp/i0-colorama-metadata --no-cache colorama==0.4.6 && find .venv/lib/python3.12
+  ~ 17.06  /bin/bash -lc 'python3 -m pip install --target artifacts/2gis-2026-08/.deps playwright'
+
+### media  (n=549)  — 6 самых долгих + 4 случайных
+    562.2  /bin/bash -lc 'tmp=$(mktemp -d); pdftoppm -f 145 -l 180 -r 160 -png '"'/home/kesha/orchestra/data/uploads/Отличный резу
+    495.0  /bin/bash -lc 'tmp=$(mktemp -d); pdftoppm -f 120 -l 145 -r 180 -png '"'/home/kesha/orchestra/data/uploads/Отличный резу
+    334.2  cd /tmp/vid && ffmpeg -v error -ss 319.3 -t 14.5 -i md1.mp4 -vf "crop=1150:900:145:0,scale=720:563,pad=720:1280:0:300:0x
+    311.0  cd /home/kesha/katya-work/artifacts/task-9-avito && python3 - <<'PY' import pathlib p = pathlib.Path("avito_ads.py"); s 
+    300.1  /bin/bash -lc 'tmp=$(mktemp -d); pdftoppm -f 120 -l 125 -r 180 -png '"'/home/kesha/orchestra/data/uploads/Отличный резу
+    259.1  cd /home/kesha/katya-work/artifacts/task-10-video && python3 - <<'PY' import pathlib p = pathlib.Path("build.py"); s = p
+  ~  0.01  /bin/bash -lc 'rg -n "def render|subprocess|CARD_BUILDERS|write_text|screenshot|convert" artifacts/task-11-ege-avito/bui
+  ~  0.68  cd /home/kesha/katya-work/artifacts/task-7/portfolio/assets && for u in \  "https://upload.wikimedia.org/wikipedia/commo
+  ~ 11.00  python3 -c " import json,glob,re m={} for f in sorted(glob.glob('u*.json')):     d=json.load(open(f,encoding='utf-8'))  
+  ~  1.42  cd /home/kesha/orchestra; echo "=== PDF заказа OVH:"; git ls-files | grep -i "ovh\|order\|invoice"; ls -la .orchestra/ar
+

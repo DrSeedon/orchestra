@@ -1,0 +1,31 @@
+=== per month: tool / tool_result / with tuid ===
+('2026-08', 92522, 90586, 67373, 65837)
+('2026-09', 9762, 9628, 9762, 9628)
+
+=== first day tuid appears ===
+('2026-08-11', 938)
+('2026-08-12', 7016)
+('2026-08-13', 7433)
+('2026-08-14', 2593)
+('2026-08-15', 18)
+('2026-08-16', 9826)
+
+=== tool rows WITHOUT tuid, after 2026-08-13 (по имени) ===
+('bash', 464)
+('<empty>', 155)
+('edit', 132)
+('write', 31)
+('send_message', 27)
+('read', 18)
+('review', 7)
+('codex_review', 6)
+('task_get', 4)
+('search_memory', 4)
+('send_file', 3)
+('bg_create', 2)
+('todo_write', 1)
+('release_test_lock', 1)
+('list_agents', 1)
+
+=== FileChange: есть ли у него tool_result вообще ===
+(1, 6899)

@@ -1,0 +1,17 @@
+=== totals per rule (no cutoff) ===
+('ts', 100202, 150590.14, 0.0, 1934523.9)
+('tuid', 75365, 96.87, 0.0, 2373.0)
+
+=== totals per rule, cutoff 0<=dur<=600 ===
+('ts', 78335, 1689.96)
+('tuid', 75347, 91.91)
+
+=== negatives / >600 per rule ===
+('ts', 0, 21867, 148900.18)
+('tuid', 0, 18, 4.96)
+
+=== AGREEMENT: same tool_id in both rules -> same res_id? ===
+tool_ids in both: [(0,)]
+same res_id     : [(0,)]
+diff res_id     : [(0,)]
+dur delta sum h : [(None,)]
