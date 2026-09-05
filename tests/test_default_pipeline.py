@@ -331,16 +331,13 @@ class TestDefaultBuildSystemPrompt:
         assert "{worker_name}" in out
         assert "{orchestrator_name}" in out
 
-    def test_full_cycle_prompt_has_three_phase_pipeline(self):
-        """full-cycle: 3 фазы (research+experiment / plan+tickets / implement),
-        codex review, .orchestra/tasks/<id>/."""
+    def test_full_cycle_prompt_delivers_autonomous_workflow(self):
+        """The role's workflow reaches its assembled prompt."""
         out = P.build_system_prompt(PIPELINE, "full-cycle")
         assert out.startswith("<platform>")
         assert "## Role: Full-Cycle Worker" in out
-        assert "<pipeline>" in out
-        assert "Phase 1: RESEARCH + EXPERIMENT" in out
-        assert "Phase 2: PLAN" in out
-        assert "Phase 3: IMPLEMENT" in out
+        assert "<workflow>" in out
+        assert "Autonomous delivery within the approved task" in out
         assert ".orchestra/tasks/" in out
 
     def test_orchestrator_prompt_excludes_other_roles_bodies(self):
@@ -407,7 +404,7 @@ class TestBehaviourRulesLandedAtOwners:
          "modules/worker-lifecycle.md", SPAWNERS, "пересекающиеся задания ради взаимной проверки"),
         ("Plain text in your chat reaches the USER",
          "base.md", ALL_ROLES, "plain text в чате = сообщение ЮЗЕРУ"),
-        ("A candidate you rule out on paper is not ruled out.",
+        ("Run alternatives when the decision depends on empirical behavior.",
          "modules/research-method.md", ("full-cycle",), "Ресёрч ОТВЕРГАЕТ вариант"),
     )
 
@@ -510,11 +507,9 @@ class TestDefaultModulesInline:
 
     def test_orchestrator_does_bounded_local_rule_edits_without_a_worker(self):
         out = P.build_system_prompt(PIPELINE, "orchestrator")
-        assert "Updating existing project-local instructions" in out
-        assert "is DIY even when it takes several lines" in out
-        assert "without spawning a" in out
-        assert "worker merely to transcribe those facts" in out
-        assert "leaves no research/content artifact" not in out
+        assert "Do a bounded approved task yourself" in out
+        assert "not because an edit" in out
+        assert "touches multiple files" in out
 
     def test_modules_appended_after_role_layers(self):
         """Модули идут ПОСЛЕ тела роли: маркер роли встречается раньше git-блока."""
@@ -786,300 +781,34 @@ class TestPremortemReachesWorkingRolesOnly:
             )
 
 
-class TestOracleGate:
-    """#210: фаза плана заканчивается КРАСНЫМ тестом, а исполнитель не пишет себе оракул сам.
+class TestWorkerAutonomy:
+    """Delivery checks, not a claim that keyword presence measures model quality."""
 
-    Форма проверки скопирована с `TestPremortemReachesWorkingRolesOnly` (#198) намеренно:
-    один способ решения одной задачи. Тройка «источник / доставка / не-утечка» и ловит
-    составную мутацию «шаг удалён из роли + слова посажены в base.md» — доставка её
-    переживает, источник и не-утечка нет.
-    """
+    @pytest.mark.parametrize("role", ["worker", "full-cycle"])
+    def test_testing_permission_and_independent_acceptance_reach_workers(self, role):
+        text = " ".join(P.build_system_prompt(PIPELINE, role).split())
+        assert "explicitly frozen acceptance tests must not be weakened" in text
+        assert "tests, fixtures and test configuration" in text
+        for obsolete in ("Never author the acceptance test", "Do not modify any test, fixture",
+                         "A clarification request, a `WIP/STOP` report"):
+            assert obsolete not in text
 
-    # Шаг нарезки тикетов есть только у full-cycle: worker планов не режет.
-    PLAN_ANCHOR = "commit it FAILING"
-    PLAN_ROLES = ("full-cycle",)
-    # Контрправило нужно ОБЕИМ рабочим ролям: дешёвый исполнитель — это роль worker.
-    EXEC_ANCHOR = "Never author the acceptance test"
-    EXEC_ROLES = ("worker", "full-cycle")
-    ORCHESTRATOR_ROLES = ("orchestrator", "sub-orchestrator")
+    def test_end_to_end_authority_without_deployment_authority(self):
+        text = " ".join(P.build_system_prompt(PIPELINE, "full-cycle").split())
+        assert "Continue without phase approvals" in text
+        assert "Implement yourself by default" in text
+        assert "clarification is not a failed attempt" in text
+        assert "research-only" in text
+        assert "Do not merge into main, restart services, deploy" in text
+        assert "required authorization" in text
+        assert "Do NOT freestyle" not in text
+        assert "NEVER skip a phase" not in text
 
-    def _src(self, role: str) -> str:
-        return P.prompt_path(PIPELINE, f"roles/{role}.md").read_text(encoding="utf-8")
-
-    # ── источник ───────────────────────────────────────────────────────────
-    def test_plan_step_is_owned_by_the_full_cycle_file(self):
-        for role in self.PLAN_ROLES:
-            assert self.PLAN_ANCHOR in self._src(role), (
-                f"roles/{role}.md: шаг «план заканчивается красным тестом» должен жить в "
-                "файле САМОЙ роли, иначе он потеряется при перекомпоновке слоёв"
-            )
-
-    def test_executor_rule_is_owned_by_both_working_role_files(self):
-        for role in self.EXEC_ROLES:
-            assert self.EXEC_ANCHOR in self._src(role), (
-                f"roles/{role}.md: без этой строки исполнитель напишет оракул себе сам "
-                "(замер #210: 2 прогона из 2)"
-            )
-
-    # ── полнота шага: якоря берутся ИЗ ИСТОЧНИКА, а не выписаны руками (#203) ──
-    def test_every_clause_of_the_plan_step_survives_assembly(self):
-        src = self._src("full-cycle")
-        start = src.find(self.PLAN_ANCHOR)
-        assert start != -1, "шага нет в roles/full-cycle.md — проверять нечего"
-        block_start = src.rfind("\n3. ", 0, start)
-        block_end = src.find("\n4. ", start)
-        assert block_start != -1 and block_end != -1, (
-            "блок шага не ограничен соседними пунктами 3 и 4 — нумерация фазы 2 разъехалась"
-        )
-        clauses = [ln.strip() for ln in src[block_start:block_end].splitlines() if ln.strip()]
-        assert len(clauses) >= 8, f"блок подозрительно короткий: {len(clauses)} строк"
-        out = P.build_system_prompt(PIPELINE, "full-cycle")
-        for clause in clauses:
-            assert clause in out, f"пункт шага не доехал до собранного промпта: {clause[:70]!r}"
-
-    def test_ticket_template_carries_the_test_field_and_a_REASONED_none_marker(self):
-        out = P.build_system_prompt(PIPELINE, "full-cycle")
-        assert "- Test: <path>::<test name> — committed RED in <commit>" in out, (
-            "шаблон тикета обязан называть поле Test целиком, вместе с требованием RED"
-        )
-        # Метка проверяется В САМОМ ШАБЛОНЕ, а не «где-то в промпте»: ассерт на голую строку
-        # проходил бы, пока причина упомянута в соседнем абзаце, а шаблон показывал бы
-        # безпричинную форму — её агент и скопирует (blocking раунда 2 Codex-ревью плана).
-        assert "| oracle: none — <why" in out, (
-            "шаблон обязан показывать метку ТОЛЬКО с причиной; голая `oracle: none` — "
-            "невалидный тикет и в шаблоне встречаться не должна"
-        )
-
-    def test_phase_3_selects_the_ticket_before_it_implements(self):
-        """Шаг 1 фазы 3 обязан ВЫБИРАТЬ тикет, а не начинать реализацию: иначе буквальный
-        исполнитель начнёт править код на шаге 1 и дойдёт до гейта уже после
-        (blocking Codex-ревью реализации). Порядок шагов и есть здесь предохранитель."""
-        out = P.build_system_prompt(PIPELINE, "full-cycle")
-        assert "implementation starts only after step 2 passes" in out, (
-            "шаг 1 фазы 3 обязан явно откладывать реализацию до прохождения гейта"
-        )
-
-    def test_own_phase_2_test_may_not_be_weakened(self):
-        """Клауза без якоря удаляется молча: до этого теста её можно было вырезать, и все
-        девять оставались зелёными (blocking Codex-ревью реализации). Опаснее прочего именно
-        она — это единственный запрет подгонять СВОЙ красный тест под написанный код."""
-        out = P.build_system_prompt(PIPELINE, "full-cycle")
-        assert "never weaken it to fit the code you wrote" in out, (
-            "запрет ослаблять собственный тест фазы 2 обязан быть в промпте full-cycle"
-        )
-        assert "never weaken it to fit the code you wrote" not in P.build_system_prompt(
-            PIPELINE, "worker"
-        ), "клауза про СВОЙ тест фазы 2 относится только к full-cycle: worker планов не пишет"
-
-    def test_phase_3_names_the_only_exception_for_oracle_none(self):
-        """Без исключения шаг «увидеть красным ДО правки» делает тикеты `oracle: none`
-        невыполнимыми: команды у них нет, значит «missing» → вечный STOP
-        (blocking раунда 2 Codex-ревью плана)."""
-        out = P.build_system_prompt(PIPELINE, "full-cycle")
-        assert "The only exception:" in out and "verify it against its AC by hand" in out, (
-            "фаза 3 обязана назвать единственное исключение для `oracle: none`"
-        )
-
-    def test_the_step_has_teeth_in_phase_3_and_in_the_codex_gate(self):
-        """Потребители шага обязаны быть В ТЕКСТЕ РОЛИ, а не в прозе плана.
-
-        Без этих двух строк исполнителю достаточно один раз запустить финальную зелёную
-        команду, и он формально соблюдёт правило — красный артефакт станет церемонией
-        (blocking раунда 1 Codex-ревью плана)."""
-        out = P.build_system_prompt(PIPELINE, "full-cycle")
-        assert "see it red before you change" in out, (
-            "фаза 3 обязана требовать увидеть тест красным ДО правки"
-        )
-        assert "already green at review time is a blocking finding" in out, (
-            "Codex-ревью плана обязано ревьюить сам тест, иначе у шага нет проверяющего"
-        )
-
-    def test_plan_ready_report_quotes_the_failing_run(self):
-        out = P.build_system_prompt(PIPELINE, "full-cycle")
-        assert "→ exit 1:" in out, (
-            "отчёт PLAN READY обязан цитировать ненулевой exit и падающую строку — "
-            "это потребитель шага, без него он станет ритуалом"
-        )
-
-    # ── доставка ───────────────────────────────────────────────────────────
-    def test_working_roles_receive_their_anchors(self):
-        for role in self.PLAN_ROLES:
-            assert self.PLAN_ANCHOR in P.build_system_prompt(PIPELINE, role), (
-                f"{role}: наличия строки в roles/*.md недостаточно, шаг обязан доехать "
-                "до СОБРАННОГО промпта"
-            )
-        for role in self.EXEC_ROLES:
-            assert self.EXEC_ANCHOR in P.build_system_prompt(PIPELINE, role), (
-                f"{role}: контрправило не доехало до собранного промпта"
-            )
-
-    # ── не-утечка (она же ловушка на составную мутацию) ────────────────────
-    def test_orchestrator_roles_receive_neither(self):
-        for role in self.ORCHESTRATOR_ROLES:
-            out = P.build_system_prompt(PIPELINE, role)
-            assert self.PLAN_ANCHOR not in out, (
-                f"{role}: шаг исполнителя протёк в промпт оркестратора — либо утечка, "
-                "либо слова посажены в общий слой вместо роли"
-            )
-            assert self.EXEC_ANCHOR not in out, (
-                f"{role}: контрправило исполнителя протекло в промпт оркестратора"
-            )
-
-class TestTicketDelegationGate:
-    """#223: закрытый тикет уходит исполнителю, а оракул остаётся у full-cycle."""
-
-    IMMUTABLE_ANCHOR = (
-        "The received acceptance test is immutable: NEVER edit, delete, rename, skip, "
-        "xfail, or weaken it."
-    )
-    WORKER_FAILURE_ANCHOR = (
-        "If the command cannot be made green without changing that test, report `WIP/STOP`; "
-        "do not replace it or create a different check."
-    )
-    TEST_INFRA_ANCHOR = (
-        "Do not modify any test, fixture, test helper, `conftest.py`, test configuration, "
-        "marker, or test-selection setting; if the implementation requires one, report "
-        "`WIP/STOP`."
-    )
-    TEST_LAYER_EXCEPTION_ANCHORS = (
-        "Sole exception: test-layer edits are permitted only when a direct orchestrator "
-        "assignment explicitly authorizes those specific edits.",
-        "The permission must be stated in the assignment; never infer it from what the "
-        "implementation requires.",
-        "This exception never applies to the received acceptance test, which remains "
-        "immutable.",
-        "Without that explicit authorization, report `WIP/STOP`.",
-    )
-    FULL_CYCLE_ANCHORS = (
-        "Only a ticket with a reviewed, committed RED command that just failed for the "
-        "missing behavior is delegable.",
-        "A ticket marked `oracle: none` is NEVER delegated; implement it yourself on the "
-        "expensive side.",
-        "Send `Files`, `Test`, `AC`, `blocked-by`, the RED commit, the exact command, its "
-        "non-zero exit and failing assertion, plus these sentences verbatim:",
-        "The worker sends exactly one message: its terminal `DONE` report, or one terminal "
-        "exception report instead.",
-        "The terminal report contains the executor commit, the exact test command and output, "
-        "and evidence for every remaining AC.",
-        "Before merge, compare every oracle path byte-for-byte with the RED commit.",
-        "Reject any executor diff that changes a test, fixture, test helper, `conftest.py`, "
-        "test configuration, marker, or test-selection setting relative to the RED commit.",
-        "A clarification request, a `WIP/STOP` report, or any oracle mutation is a failed "
-        "executor attempt.",
-        "Luna gets exactly one attempt.",
-        "On failure, send the same unchanged ticket once to a Sol `worker`; do not answer "
-        "Luna's question, rewrite its oracle, or return the ticket to Luna.",
-        "A Sol `worker` gets exactly one attempt.",
-        "If the premise, scope, Test, or AC must change, take it back immediately and re-close "
-        "it before any future delegation.",
-        "A child's green report is evidence, not acceptance. Merge only a clean committed "
-        "result, then rerun the exact command and the ticket's focused regression check "
-        "yourself.",
-        "Independent tickets whose files and lines do not overlap may run concurrently; "
-        "serialize only dependency chains and overlapping changes.",
-        "Never split one implementation ticket across agents.",
-    )
-    ORCHESTRATOR_ROLES = ("orchestrator", "sub-orchestrator")
-
-    def _src(self, role: str) -> str:
-        return P.prompt_path(PIPELINE, f"roles/{role}.md").read_text(encoding="utf-8")
-
-    def test_t1_delegation_full_cycle_source_owns_the_complete_contract(self):
-        src = self._src("full-cycle")
-        missing = [anchor for anchor in self.FULL_CYCLE_ANCHORS if anchor not in src]
-        assert not missing, f"roles/full-cycle.md is missing delegation clauses: {missing}"
-
-    def test_t1_delegation_immutable_rule_is_owned_by_both_sources(self):
-        for role in ("full-cycle", "worker"):
-            assert self.IMMUTABLE_ANCHOR in self._src(role), (
-                f"roles/{role}.md must own the immutable-oracle rule"
-            )
-        assert self.TEST_INFRA_ANCHOR in self._src("full-cycle"), (
-            "roles/full-cycle.md must keep the absolute delegated-oracle infrastructure rule"
-        )
-        worker_src = self._src("worker")
-        missing = [
-            anchor for anchor in self.TEST_LAYER_EXCEPTION_ANCHORS if anchor not in worker_src
-        ]
-        assert not missing, f"roles/worker.md is missing direct-assignment exception: {missing}"
-        assert self.WORKER_FAILURE_ANCHOR in self._src("worker"), (
-            "roles/worker.md must turn an oracle-dependent implementation into WIP/STOP"
-        )
-
-    def test_t1_delegation_contract_reaches_working_roles(self):
-        full_cycle = P.build_system_prompt(PIPELINE, "full-cycle")
-        for anchor in (
-            *self.FULL_CYCLE_ANCHORS,
-            self.IMMUTABLE_ANCHOR,
-            self.TEST_INFRA_ANCHOR,
-        ):
-            assert anchor in full_cycle, f"full-cycle prompt lost clause: {anchor!r}"
-        assert self.IMMUTABLE_ANCHOR in P.build_system_prompt(PIPELINE, "worker"), (
-            "worker prompt lost the immutable-oracle rule"
-        )
-        assert self.WORKER_FAILURE_ANCHOR in P.build_system_prompt(PIPELINE, "worker"), (
-            "worker prompt lost the WIP/STOP consequence of oracle immutability"
-        )
-        worker_out = P.build_system_prompt(PIPELINE, "worker")
-        missing = [
-            anchor for anchor in self.TEST_LAYER_EXCEPTION_ANCHORS if anchor not in worker_out
-        ]
-        assert not missing, f"worker prompt lost direct-assignment exception: {missing}"
-
-    def test_t1_delegation_does_not_leak_into_orchestrators(self):
-        anchors = (
-            *self.FULL_CYCLE_ANCHORS,
-            self.IMMUTABLE_ANCHOR,
-            self.WORKER_FAILURE_ANCHOR,
-            self.TEST_INFRA_ANCHOR,
-            *self.TEST_LAYER_EXCEPTION_ANCHORS,
-        )
-        for role in self.ORCHESTRATOR_ROLES:
-            out = P.build_system_prompt(PIPELINE, role)
-            leaked = [anchor for anchor in anchors if anchor in out]
-            assert not leaked, f"{role} received executor-only delegation clauses: {leaked}"
-
-    def test_t1_delegation_worker_does_not_receive_parent_policy(self):
-        out = P.build_system_prompt(PIPELINE, "worker")
-        leaked = [anchor for anchor in self.FULL_CYCLE_ANCHORS if anchor in out]
-        assert not leaked, f"worker received parent-only routing policy: {leaked}"
-        assert self.WORKER_FAILURE_ANCHOR not in P.build_system_prompt(
-            PIPELINE, "full-cycle"
-        ), "full-cycle received the worker-only WIP/STOP instruction"
-
-    def test_t3_worker_test_layer_authorization_is_worker_owned_and_delivered(self):
-        source = self._src("worker")
-        assembled = P.build_system_prompt(PIPELINE, "worker")
-        for anchor in self.TEST_LAYER_EXCEPTION_ANCHORS:
-            assert anchor in source, f"roles/worker.md must own the exception: {anchor!r}"
-            assert anchor in assembled, f"worker prompt lost the exception: {anchor!r}"
-
-    def test_t3_worker_test_layer_authorization_does_not_leak(self):
-        for role in ("full-cycle", *self.ORCHESTRATOR_ROLES):
-            assembled = P.build_system_prompt(PIPELINE, role)
-            leaked = [
-                anchor for anchor in self.TEST_LAYER_EXCEPTION_ANCHORS if anchor in assembled
-            ]
-            assert not leaked, f"{role} received the worker-only test-layer exception: {leaked}"
-
-    def test_t3_worker_test_layer_authorization_keeps_oracle_unconditionally_immutable(self):
-        source = self._src("worker")
-        assembled = P.build_system_prompt(PIPELINE, "worker")
-        assert self.IMMUTABLE_ANCHOR in source, (
-            "roles/worker.md lost the unconditional received-oracle prohibition"
-        )
-        assert self.IMMUTABLE_ANCHOR in assembled, (
-            "worker prompt lost the unconditional received-oracle prohibition"
-        )
-
-    def test_t1_delegation_gate_precedes_implementation_work(self):
-        out = P.build_system_prompt(PIPELINE, "full-cycle")
-        phase_3 = out.find("### Phase 3: IMPLEMENT")
-        gate = out.find(self.FULL_CYCLE_ANCHORS[0], phase_3)
-        premortem = out.find("**Pre-mortem — what breaks for the next consumer.**", phase_3)
-        assert -1 not in (phase_3, gate, premortem) and phase_3 < gate < premortem, (
-            "the delegation gate must run after Phase 3 starts and before implementation work"
-        )
+    @pytest.mark.parametrize("role", ["worker", "full-cycle", "orchestrator"])
+    def test_work_areas_do_not_become_hidden_acceptance_boundaries(self, role):
+        text = P.build_system_prompt(PIPELINE, role)
+        assert "not an edit allowlist" in text
+        assert "guaranteed merge conflict" not in text
 
 
 POOL_PRIORITY_ANCHORS = (

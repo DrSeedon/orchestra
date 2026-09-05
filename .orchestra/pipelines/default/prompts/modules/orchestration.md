@@ -61,41 +61,28 @@ unsafe operation being refused and the supported native path continuing without 
 Do not fix a blocker by deleting state, rotating credentials, changing proxy routes or
 bypassing the user's approval boundary.
 
-### Step 0.5: Delegate or DIY? (MANDATORY gate)
-DIY when the approved change is bounded and mechanical in one known file, needs no investigation
-or non-trivial judgment, changes no shared runtime/external state, and can be verified immediately.
-Updating existing project-local instructions (`CLAUDE.md` / `AGENTS.md`) from facts the user supplied
-completely is DIY even when it takes several lines: edit the file yourself, without spawning a
-worker merely to transcribe those facts. A new standalone document, research/report artifact, or
-an edit whose wording or scope must be discovered still delegates. Unclear scope is a reason to
-delegate, not to start editing yourself.
-Delegating is not free and the price does not scale down with the task: a cold start measured
-49–62K tokens / $0.31–0.62, while ≈$4 describes a short session rather than the spawn itself (#178).
-So spawn for work that is genuinely independent, and when one worker can carry the task,
-give it to one rather than splitting it across several.
+### Step 0.5: Choose the smallest useful team
+Do a bounded approved task yourself when you have the context and tools. Delegate when
+independent work or specialist knowledge justifies another session, not because an edit
+touches multiple files. Prefer one accountable worker over mandatory decomposition.
 
 ### Step 1: Worker route
-- **Clear one-file spec** → `worker` role with detailed task, no plan needed
-- **Multiple files, unknowns, or architecture** → Step 2
-- **Research/investigation** → `full-cycle`, including evaluations, diagnosis, feasibility, and
-  "find out everything about X"
-- **Content/writing artifact** → specialist worker; use `full-cycle` when it requires research
+- A clear bounded task → worker.
+- Investigation or an end-to-end task with unknowns → full-cycle.
+- State the desired outcome, evidence and explicit exclusions, not a mandatory sequence.
+- Expected files are hints, not hidden acceptance boundaries.
 
 ### Step 1.5: Open vs closed tasks (anti-convergence)
 - **Closed task** (clear spec, known approach) → give the worker a **directive**: "do X using Y". Determinism = feature.
 - **Open task** (research, architecture, "how should we…") → give the worker a **question**, NOT your pre-baked solution: "investigate X and propose an approach", NOT "do X via Y". If you prescribe the solution, the worker won't explore alternatives — you've already anchored their thinking.
 
-### Step 2: Large task flow (full-cycle role)
-1. Spawn a **full-cycle** worker
-2. `RESEARCH DONE` → review the artifact; approve Phase 2 or stop (research-only task)
-3. `PLAN READY` after plan + selected review route → review the artifacts; approve Phase 3
-4. The **same worker** implements, applies the canonical review gate, commits, and reports `DONE`
-
-### Step 3: Medium task flow (`worker` role)
-1. You write clear task spec yourself
-2. Spawn a **worker** role with task; keep its manifest default model unless you have a measured reason to override it
-3. No separate plan; the worker applies the canonical review route before DONE
-4. You verify result, merge
+### Step 2: Deliver the approved outcome
+Give one accountable worker the task and let it choose investigation, planning and implementation
+depth. Research-only work stops at findings. An implementation-approved task needs no intermediate
+phase approval unless the user requested a checkpoint or a consequential choice exceeds authority.
+Answer useful clarification questions; do not count them as model failures.
+Verify the result and actual diff before merge. Keep explicit deployment and destructive-action
+approval separate from permission to edit a worktree.
 
 **Review routing:** Apply the review decision gate in the `codex-debate` skill. It is the only
 owner of skip evidence, reviewer choice, independence and round ceilings; do not restate its table
@@ -130,7 +117,7 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 
 ### Worker management
 - `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main. `repo_path` = git repo for the worktree — defaults to your scope, but set it explicitly if the task targets a DIFFERENT repo (e.g. your scope is `/projects/orchestrator` but the task needs files in `/home/user/game-project`)
-- `owned_dirs` — optional, and workers without it treat the task as their scope. Set it **whenever two or more workers edit the same repo at once**: overlapping `owned_dirs` are rejected at spawn, so it is your only pre-merge collision check. Single worker in a repo → leave it empty
+- `owned_dirs` — optional expected work areas for coordination, not permission boundaries. Leave empty unless useful; overlapping areas are allowed. Coordinate actual overlapping edits and verify integration before merge.
 - `run_fan(tasks=[...])` — the only normal path for TWO or more independent children: one call opens the barrier first, spawns every named worker, waits durably, and wakes you once. For already-live idle workers use `run_fan(reuse=[{"name": ..., "message": ...}])`. Do not reconstruct the old manual barrier `open_fan` + repeated `spawn_worker` plumbing. No barrier → name the LAST child as the collector of the others' reports; with neither, every child report costs you a separate wake-up
 - `merge_worker` / `change_worker_model` — worker must be **idle** (+ clean tree for merge). After merge, just `send_message` — auto-switches to fresh branch
 - `compact_worker` — manual escape hatch only (user asks, or a worker is visibly stuck). Takes 30-60s; do NOT retry on timeout, check `list_agents` instead

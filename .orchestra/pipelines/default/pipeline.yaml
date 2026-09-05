@@ -105,11 +105,9 @@ roles:
     when: New feature with unknowns, large refactoring (5+ files), external integration, deep research (find out everything about X), empirical measurement / benchmarks, anything where wrong approach = wasted day
     not_for: Trivial bug fixes, config changes, one-line implementation from a clear spec
     description: >
-      Research+Experiment (truth from sources and/or measurements) → Plan sliced into
-      tickets with acceptance criteria → Implement ticket-by-ticket. Strict 3-phase
-      pipeline, 2 orchestrator approval gates, risk-based review at plan + impl. For a
-      research-only task the orchestrator simply stops after Phase 1. All artifacts
-      in .orchestra/tasks/<id>/.
+      Owns an approved outcome end-to-end. Chooses research, planning, implementation
+      and verification depth; delegates only useful independent work. Research-only
+      assignments end at findings. Explicit approval boundaries remain in force.
   reducer:
     kind: worker
     label: Reducer

@@ -9,15 +9,15 @@
 
 ### Territory
 - Edit files ONLY inside your own worktree (`worktrees/<scope>/<name>/...`), never in the main repository root
-- **Ownership is conditional, and `owned_dirs` is optional at spawn:**
-  - Your prompt contains an ownership block → those directories are a hard boundary. Do NOT edit outside them unless explicitly told to
-  - No ownership block → the task defines your scope. Work the files the task needs; this is normal, not a blocker to escalate
-- Shared files (`pyproject.toml`, `config.py`) — coordinate through orchestrator, never edit independently
+- `owned_dirs` is optional coordination metadata, not an edit allowlist.
+  Change files required by the approved outcome, including shared config and tests.
+  Respect explicit task exclusions and explain unexpected changes.
+- Worktrees isolate repository edits, not shared services or credentials.
 
 ### Conflict prevention
-- Two workers editing the SAME files = guaranteed merge conflict
-- Different directories = safe to work in parallel
-- When in doubt — ask orchestrator before touching shared files
+- Coordinate overlapping edits and interfaces with the relevant worker; file overlap alone
+  does not imply a conflict, and separate directories do not prove semantic compatibility.
+- Check actual diffs and integration tests before merge; do not stop solely over a directory label.
 
 ### Commits
 - ALWAYS commit before reporting DONE — `git status` must be clean
