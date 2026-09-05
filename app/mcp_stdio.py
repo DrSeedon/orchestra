@@ -4033,12 +4033,19 @@ async def _receipt_author_session(receipt_id: str) -> tuple[dict, dict]:
             message="cannot resolve your own session; respawn the worker",
             details={"worker": WORKER_NAME},
         )
-    if caller_session_id != str(receipt.get("session_id") or ""):
+    # Подписывает ЗАКАЗЧИК. Обычно это владелец предмета и он же; при `target_worker` ревью
+    # заказал оркестратор — фактуру он запинил сам и артефакт читает сам, поэтому подпись его,
+    # а не воркера, чей код проверяли. Пустое поле — квитанция до #509, там роли совпадали.
+    signer_session_id = str(
+        receipt.get("requested_by_session_id") or receipt.get("session_id") or ""
+    )
+    if caller_session_id != signer_session_id:
         raise ApiToolError(
             code="review_outcome_forbidden",
             message=(
-                "only the author of the review records its outcome: receipt "
-                f"{receipt_id} belongs to worker '{receipt.get('worker_name')}'"
+                "only the requester of the review records its outcome: receipt "
+                f"{receipt_id} was requested by "
+                f"'{receipt.get('requested_by_worker') or receipt.get('worker_name')}'"
             ),
             details={
                 "receipt_id": receipt_id,
@@ -4059,6 +4066,26 @@ async def _write_delta_attestation(
     )
 
     receipt, info = await _receipt_author_session(receipt_id)
+    # Аттестация подписывает дельту в дереве ВЛАДЕЛЬЦА предмета и коммитится вместе с его
+    # работой, а подписант с #509 может быть другой сессией. Писать в чужой worktree мы
+    # решили не давать, поэтому такой случай отказывает ИМЕНЕМ, а не общим «нет задачи»:
+    # у оркестратора `task_id` пуст, и прежний отказ назвал бы неверную причину.
+    if str(receipt.get("requested_by_session_id") or "") not in {
+        "", str(receipt.get("session_id") or ""),
+    }:
+        raise ApiToolError(
+            code="attestation_cross_worker_unsupported",
+            message=(
+                "this review was requested for another worker's code: the delta must be "
+                f"attested in the worktree of '{receipt.get('worker_name')}', or reviewed "
+                "again"
+            ),
+            details={
+                "receipt_id": receipt_id,
+                "subject_worker": str(receipt.get("worker_name") or ""),
+                "requested_by": str(receipt.get("requested_by_worker") or ""),
+            },
+        )
     cwd = str(info.get("worktree_path") or info.get("cwd") or SCOPE)
     task_id = str(info.get("task_id") or "")
     if not task_id:
@@ -4187,6 +4214,8 @@ async def codex_review(
     resume: bool = False,
     model: str = _CODEX_REVIEW_DEFAULT_MODEL,
     required: Any = True,
+    target_worker: str = "",
+    base_branch: str = "",
 ) -> CallToolResult:
     """Run a registered Codex model review in background. Returns immediately.
     After calling, END YOUR TURN NOW; Orchestra wakes you when the job completes.
@@ -4205,7 +4234,15 @@ async def codex_review(
         Registered Codex-runtime models are accepted except Codex Spark, which policy forbids for
         review. Pass the model again on resume; it is applied to the resumed Codex thread.
     required: fail-safe implementation-review decision. Only literal JSON false asserts low risk
-        and permits a <=40-line/<=3-file size skip; omitted, null, malformed, or true reviews."""
+        and permits a <=40-line/<=3-file size skip; omitted, null, malformed, or true reviews.
+    target_worker: review ANOTHER worker's committed work instead of your own. Orchestrator-only
+        and mode='implementation' only. The receipt then names both sides: the reviewed code
+        belongs to the target, the request and its outcome signature belong to you. The artifact
+        is written in YOUR worktree, so it does not travel with the target's merge — quote its
+        path when you report.
+    base_branch: pin the subject against this base instead of the session's own. Empty keeps the
+        session value, and an empty session value is resolved from the repository rather than
+        assumed to be 'main'."""
     review_model = _resolve_codex_review_model(model)
     context = context.strip()
     if not context:
@@ -4244,12 +4281,29 @@ async def codex_review(
             message="target file required for mode='exec'",
             details={"field": "target"},
         )
+    target_worker = target_worker.strip()
+    if target_worker and mode != "implementation":
+        raise ApiToolError(
+            code="invalid_argument",
+            message="target_worker reviews committed work; use mode='implementation'",
+            details={"field": "target_worker"},
+        )
+    # Владелец предмета и заказчик — разные роли, и обе обязаны быть видны в квитанции.
+    # По умолчанию это одна сессия; `target_worker` их разводит (#509).
+    owner = {
+        "session_id": requesting_session_id,
+        "worker_name": WORKER_NAME,
+        "task_id": str(info.get("task_id") or ""),
+        "worktree_path": str(cwd),
+        "base_branch": str(info.get("base_branch") or ""),
+    }
     subject = {
         "subject_kind": "unknown",
         "target_sha": "",
         "worker_head": "",
         "production_snapshot_sha256": "",
         "production_paths_json": "[]",
+        "production_path_heads_json": "",
         "coverage_outcome": "unknown",
         "policy_ref": "",
         "decision_actor": "",
@@ -4263,22 +4317,55 @@ async def codex_review(
             )
         from app.review_coverage import current_policy_ref, resolve_implementation_subject
 
-        try:
+        if target_worker:
+            resolved = await _api(
+                "POST",
+                "/api/merge-operations/review-subject",
+                json={
+                    "target_worker": target_worker,
+                    "scope": SCOPE,
+                    "base_branch": base_branch,
+                },
+            )
+            pinned = resolved.get("result") if isinstance(resolved, dict) else None
+            if not isinstance(pinned, dict):
+                error = resolved.get("error") if isinstance(resolved, dict) else None
+                code = str(error.get("code") or "review_subject_failed") if isinstance(error, dict) else "review_subject_failed"
+                raise ApiToolError(
+                    code=code,
+                    message=str(error.get("message") or code) if isinstance(error, dict) else code,
+                    details={"target_worker": target_worker},
+                )
+            owner = dict(pinned["owner"])
             subject = {
                 "subject_kind": "implementation",
-                **resolve_implementation_subject(
-                    cwd, str(info.get("base_branch") or "main"),
-                ),
+                **dict(pinned["subject"]),
                 "coverage_outcome": "unknown",
                 "policy_ref": current_policy_ref(),
-                "decision_actor": "",
+                "decision_actor": WORKER_NAME,
             }
-        except ValueError as error:
-            raise ApiToolError(
-                code="invalid_argument",
-                message=str(error),
-                details={"field": "mode"},
-            ) from error
+        else:
+            from app.workspace import resolve_base_branch
+
+            try:
+                owner["base_branch"] = resolve_base_branch(
+                    cwd, base_branch or owner["base_branch"],
+                )
+                subject = {
+                    "subject_kind": "implementation",
+                    **resolve_implementation_subject(cwd, owner["base_branch"]),
+                    "coverage_outcome": "unknown",
+                    "policy_ref": current_policy_ref(),
+                    "decision_actor": "",
+                }
+            except ValueError as error:
+                raise ApiToolError(
+                    code="invalid_argument",
+                    message=str(error),
+                    details={"field": "mode"},
+                ) from error
+        subject.pop("production_paths", None)
+        subject.pop("production_path_heads", None)
     requested_at = datetime.now(timezone.utc).isoformat()
     if mode == "implementation":
         size_decision = _implementation_review_size_decision(
@@ -4297,9 +4384,9 @@ async def codex_review(
             )
             identity = json.dumps(
                 {
-                    "session_id": requesting_session_id,
+                    "session_id": owner["session_id"],
                     "scope": SCOPE,
-                    "task_id": str(info.get("task_id") or ""),
+                    "task_id": owner["task_id"],
                     "target_sha": subject["target_sha"],
                     "worker_head": subject["worker_head"],
                     "policy_ref": subject["policy_ref"],
@@ -4316,11 +4403,13 @@ async def codex_review(
                 "runtime": "none",
                 "reviewer_model": "",
                 "model_source": "direct",
-                "session_id": requesting_session_id,
-                "worker_name": WORKER_NAME,
+                "session_id": owner["session_id"],
+                "worker_name": owner["worker_name"],
                 "scope": SCOPE,
-                "task_id": str(info.get("task_id") or ""),
+                "task_id": owner["task_id"],
                 "task_source": "session_lookup",
+                "requested_by_session_id": requesting_session_id,
+                "requested_by_worker": WORKER_NAME,
                 "artifact_path": "",
                 "mode": "skip",
                 "round": None,
@@ -4358,7 +4447,7 @@ async def codex_review(
                 result=payload,
                 text=f"{evidence} Receipt: {receipt['receipt_id']}",
             )
-    source_ref = str(subject.get("target_sha") or info.get("base_branch") or "main")
+    source_ref = str(subject.get("target_sha") or owner["base_branch"] or "main")
     try:
         project_context, project_context_receipt = _load_review_project_context(
             cwd,
@@ -4404,11 +4493,13 @@ async def codex_review(
         "runtime": "codex",
         "reviewer_model": review_model,
         "model_source": "direct",
-        "session_id": requesting_session_id,
-        "worker_name": WORKER_NAME,
+        "session_id": owner["session_id"],
+        "worker_name": owner["worker_name"],
         "scope": SCOPE,
-        "task_id": str(info.get("task_id") or ""),
+        "task_id": owner["task_id"],
         "task_source": "session_lookup",
+        "requested_by_session_id": requesting_session_id,
+        "requested_by_worker": WORKER_NAME,
         "artifact_path": output_abs,
         "mode": mode,
         "round": None,

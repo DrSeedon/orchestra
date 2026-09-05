@@ -187,6 +187,9 @@ def init_db() -> None:
                 production_snapshot_sha256 TEXT NOT NULL DEFAULT '',
                 production_diff_sha256 TEXT NOT NULL DEFAULT '',
                 production_paths_json TEXT NOT NULL DEFAULT '[]',
+                production_path_heads_json TEXT NOT NULL DEFAULT '',
+                requested_by_session_id TEXT NOT NULL DEFAULT '',
+                requested_by_worker TEXT NOT NULL DEFAULT '',
                 coverage_outcome TEXT NOT NULL DEFAULT 'unknown',
                 policy_ref TEXT NOT NULL DEFAULT '',
                 decision_actor TEXT NOT NULL DEFAULT '',
@@ -1174,6 +1177,9 @@ def _migrate(c) -> None:
         "production_snapshot_sha256": "TEXT NOT NULL DEFAULT ''",
         "production_diff_sha256": "TEXT NOT NULL DEFAULT ''",
         "production_paths_json": "TEXT NOT NULL DEFAULT '[]'",
+        "production_path_heads_json": "TEXT NOT NULL DEFAULT ''",
+        "requested_by_session_id": "TEXT NOT NULL DEFAULT ''",
+        "requested_by_worker": "TEXT NOT NULL DEFAULT ''",
         "coverage_outcome": "TEXT NOT NULL DEFAULT 'unknown'",
         "policy_ref": "TEXT NOT NULL DEFAULT ''",
         "decision_actor": "TEXT NOT NULL DEFAULT ''",
@@ -2874,6 +2880,7 @@ _REVIEW_RECEIPT_COLUMNS = (
     "recovery_source", "author_outcome", "outcome_source", "outcome_evidence_ref",
     "notification_event_id", "subject_kind", "target_sha", "worker_head",
     "production_snapshot_sha256", "production_diff_sha256", "production_paths_json",
+    "production_path_heads_json", "requested_by_session_id", "requested_by_worker",
     "coverage_outcome",
     "policy_ref", "decision_actor", "task_stable_id", "task_snapshot_ref",
     "prompt_template_start", "prompt_template_end", "terminal_operation_id",
@@ -2983,6 +2990,9 @@ def task_run_receipt_open(
             "production_snapshot_sha256": "",
             "production_diff_sha256": "",
             "production_paths_json": "[]",
+            "production_path_heads_json": "",
+            "requested_by_session_id": "",
+            "requested_by_worker": "",
             "coverage_outcome": "unknown",
             "policy_ref": "",
             "decision_actor": "",
@@ -3193,6 +3203,9 @@ def review_receipt_create(receipt: dict) -> bool:
     values["production_snapshot_sha256"] = values["production_snapshot_sha256"] or ""
     values["production_diff_sha256"] = values["production_diff_sha256"] or ""
     values["production_paths_json"] = values["production_paths_json"] or "[]"
+    values["production_path_heads_json"] = values["production_path_heads_json"] or ""
+    values["requested_by_session_id"] = values["requested_by_session_id"] or ""
+    values["requested_by_worker"] = values["requested_by_worker"] or ""
     values["coverage_outcome"] = values["coverage_outcome"] or "unknown"
     values["policy_ref"] = values["policy_ref"] or ""
     values["decision_actor"] = values["decision_actor"] or ""
@@ -3264,6 +3277,8 @@ def review_receipt_record_skip(receipt: dict) -> dict:
         for key in (
             "task_stable_id", "task_snapshot_ref", "prompt_template_start",
             "prompt_template_end", "terminal_operation_id", "production_diff_sha256",
+            "production_path_heads_json", "requested_by_session_id",
+            "requested_by_worker",
         ):
             values[key] = values[key] or ""
         placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
@@ -3304,6 +3319,9 @@ def review_receipt_reserve(receipt: dict) -> dict:
     values.setdefault("production_snapshot_sha256", "")
     values.setdefault("production_diff_sha256", "")
     values.setdefault("production_paths_json", "[]")
+    values.setdefault("production_path_heads_json", "")
+    values.setdefault("requested_by_session_id", "")
+    values.setdefault("requested_by_worker", "")
     values.setdefault("coverage_outcome", "unknown")
     values.setdefault("policy_ref", "")
     values.setdefault("decision_actor", "")

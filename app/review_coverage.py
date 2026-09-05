@@ -79,6 +79,65 @@ def production_paths(changed_paths: list[str]) -> list[str]:
     })
 
 
+def _raw_path_heads(raw: bytes) -> dict[str, str]:
+    """Post-image `mode:object-id` per production path, from the same `--raw -z` bytes.
+
+    The mode is part of the identity, not decoration: `chmod +x` over a reviewed file gives
+    `:100644 100755 4e5de3a4… 4e5de3a4… M`, and replacing a file with a symlink to the same
+    bytes gives `:100644 120000 <sha> <sha> T` — both keep the blob and change what the file
+    IS. A map of bare object ids admitted them (Luna, раунд 1 #509).
+
+    The whole-diff digests answer «дельта не менялась»; they cannot answer «этот файл
+    кончился тем же», which is what survives a target that absorbed part of the work.
+    Anything this parser does not understand is simply absent from the map, and an absent
+    path refuses the subset branch — the unparsed case fails closed (#509).
+    """
+    fields = raw.decode("utf-8", "surrogateescape").split("\0")
+    heads: dict[str, str] = {}
+    index = 0
+    while index < len(fields):
+        record = fields[index]
+        index += 1
+        if not record.startswith(":"):
+            continue
+        parts = record[1:].split(" ")
+        if len(parts) < 5:
+            continue
+        # A rename/copy record carries two names and the destination is the second one.
+        names = 2 if parts[4][:1] in {"R", "C"} else 1
+        if index + names > len(fields):
+            break
+        normalized = production_paths([fields[index + names - 1]])
+        index += names
+        if normalized:
+            heads[normalized[0]] = f"{parts[1]}:{parts[3]}"
+    return heads
+
+
+def reviewed_delta_covers(
+    paths: list[str], current_heads: dict[str, str], reviewed_heads: dict[str, str],
+) -> bool:
+    """Is every currently changed production file byte-identical to the reviewed one?
+
+    True means the delta shrank into what the reviewer already read: no path he never saw,
+    and every surviving path ends at the same blob. It deliberately does NOT claim the
+    previous state matched — the target may have absorbed part of the work, which is the
+    whole point.
+
+    `paths` is the authoritative current list and comes from `changed_paths`, which counts
+    untracked files; `current_heads` comes from `git diff`, which does not see them at all.
+    Iterating over `paths` is what makes an untracked `app/new.py` refuse: it has no head on
+    either side, and a missing head is never equal to a reviewed one (#474 via #509).
+    """
+    if not paths or not reviewed_heads:
+        return False
+    return all(
+        current_heads.get(path) is not None
+        and reviewed_heads.get(path) == current_heads.get(path)
+        for path in paths
+    )
+
+
 def production_snapshot(
     worktree: str, *, target_sha: str, worker_head: str,
 ) -> dict[str, object]:
@@ -102,6 +161,7 @@ def production_snapshot(
     paths = production_paths(
         [path for path in named.decode("utf-8", "surrogateescape").split("\0") if path]
     )
+    path_heads = _raw_path_heads(raw)
     digest = hashlib.sha256(
         SNAPSHOT_VERSION + target_sha.encode() + b"\0" + raw
     ).hexdigest()
@@ -117,6 +177,10 @@ def production_snapshot(
         ),
         "production_paths": paths,
         "production_paths_json": json.dumps(paths, ensure_ascii=False, separators=(",", ":")),
+        "production_path_heads": path_heads,
+        "production_path_heads_json": json.dumps(
+            path_heads, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ) if path_heads else "",
     }
 
 
@@ -391,6 +455,7 @@ def coverage_decision(
     worker_head: str, production_paths: list[str],
     production_snapshot_sha256: str, active: bool,
     production_diff_sha256: str = "",
+    production_path_heads: dict[str, str] | None = None,
     before: str | None = None,
     worktree: str = "",
 ) -> dict[str, object]:
@@ -445,9 +510,45 @@ def coverage_decision(
                 boundary, boundary,
             ),
         ).fetchall()
+    # Третья ветка. Обе дайджест-ветки выше отвечают на «дельта не менялась», и обе честно
+    # отказывают, когда цель ПОГЛОТИЛА часть работы: дельта после этого другая, хотя ревьюер
+    # читал ровно то же конечное содержимое (#507, сквош `b71e6310` схлопнул три пути в один
+    # при пустом `git diff` между проверенным и текущим). Здесь сравниваются не дельты, а
+    # конечные блобы по путям, поэтому равенство `production_paths_json` заменено на
+    # подмножество и живёт только тут — старые две ветки не ослаблены.
+    candidates = [(dict(row), "") for row in rows]
+    if production_path_heads:
+        seen = {str(receipt["receipt_id"]) for receipt, _ in candidates}
+        with _conn() as connection:
+            subset_rows = connection.execute(
+                """SELECT * FROM review_receipts
+                     WHERE scope=? AND session_id=? AND task_id=?
+                       AND production_path_heads_json<>''
+                       AND requested_at<=? AND completed_at IS NOT NULL AND completed_at<=?
+                     ORDER BY completed_at DESC, requested_at DESC""",
+                (scope, session_id, task_id, boundary, boundary),
+            ).fetchall()
+        for row in subset_rows:
+            receipt = dict(row)
+            if str(receipt["receipt_id"]) in seen:
+                continue
+            try:
+                reviewed_heads = json.loads(receipt["production_path_heads_json"])
+            except (TypeError, ValueError):
+                continue
+            if not isinstance(reviewed_heads, dict):
+                continue
+            if not reviewed_delta_covers(
+                list(production_paths), production_path_heads, reviewed_heads,
+            ):
+                continue
+            dropped = len(reviewed_heads) - len(production_paths)
+            candidates.append((
+                receipt,
+                f"subset_of_reviewed_delta: {dropped} reviewed path(s) already in target",
+            ))
     policy_ref = current_policy_ref()
-    for raw in rows:
-        receipt = dict(raw)
+    for receipt, subset_note in candidates:
         outcome = str(receipt.get("coverage_outcome") or "unknown")
         reviewed = _reviewed_receipt(receipt)
         skipped = (
@@ -499,7 +600,10 @@ def coverage_decision(
             return {
                 **base,
                 "status": "satisfied",
-                "reason": "",
+                # Допуск подмножеством виден в журнале операции, а не только в чьей-то памяти:
+                # ревьюер мог одобрить правку вместе с её страховкой, страховку потом откатили,
+                # и приедет половина пакета. Риск принят владельцем осознанно (#509).
+                "reason": subset_note,
                 "receipt_id": str(receipt["receipt_id"]),
                 "coverage_outcome": outcome,
                 "author_outcome": author_outcome,
