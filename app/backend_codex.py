@@ -311,15 +311,9 @@ _SAFE_HOME_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$")
 _CODEX_HOME_ROOT = Path.home() / ".orchestra" / "codex-home"
 _MANAGED_HOME_LOCKS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 _CODEX_STATE_MIGRATIONS_BY_CLI = {
-    # Migrations 1-51 captured from a fresh Codex 0.150.1 app-server state DB; migration 52
-    # ('projects recency') captured 05.09.2026 from a live 0.153.4 state DB after the CLI
-    # applied it. The first 51 checksums were verified byte-identical between the two, so
-    # this is a superset, not a re-capture. Checksums are SQLx's provider-owned migration
-    # identity; a mutable base DB is not schema authority.
-    # WHY this broke once: the dict KEY is CODEX_CLI_HISTORY_VERSION, so bumping that pin
-    # for an unrelated reason silently relabels an older CLI's signature as the new CLI's.
-    # One constant, two owners. Bump the pin and this table together or not at all.
-    CODEX_CLI_HISTORY_VERSION: (
+    # Captured from a fresh Codex 0.150.1 app-server state DB. Checksums are SQLx's
+    # provider-owned migration identity; a mutable base DB is not schema authority.
+    "0.150.1": (
         (1, bytes.fromhex("627ef19164c9bb298a0cd99945981c9b7bda3d9e6cf12eb35145e3b1d3bf7cf8740f0dbaa0b475185fc2993397078049")),
         (2, bytes.fromhex("521b72cbc04c7d03b1e4aef8dc0fdee672f1f7f5881385a55a0e937e4ebe87a3f67bca4d3f6b59afbc9a7ca723c82856")),
         (3, bytes.fromhex("e58a2862bdb66d3274e60144a26dc9d68bbefff834cd29b82b740f38fcf95862934f412665d985715167839e8f0eb377")),
@@ -371,9 +365,13 @@ _CODEX_STATE_MIGRATIONS_BY_CLI = {
         (49, bytes.fromhex("faf45c392bb8572062bbd52f9702966cf62e3d195a1633f54cfe1b7dcb5865a3f951dc75c975179dc9a0ee639f7426a7")),
         (50, bytes.fromhex("d2802e96f5fc1900fc6d3d595f040ebca8d25310ae9d1499a12b91f1635617adf5d2b4a93d0807203a22f4a6d4edb77e")),
         (51, bytes.fromhex("23360a03a7fc307c3fd5bb8b432b66034dd8f8695cdba698b45278c20dd712c1af476b884e192237d80baa08a5f29505")),
-        (52, bytes.fromhex("071e96313d402e4c3d156f620f3f62b4a468da00ce30a47574d2594623e5e954f3ec2f1e54f043a8e4b602643e868b7d")),
     ),
 }
+# Captured from 0.153.4 on 05.09; its first 51 checksums match the older release.
+# Evidence keys are immutable release identities, never the mutable history-import pin.
+_CODEX_STATE_MIGRATIONS_BY_CLI["0.153.4"] = _CODEX_STATE_MIGRATIONS_BY_CLI["0.150.1"] + (
+    (52, bytes.fromhex("071e96313d402e4c3d156f620f3f62b4a468da00ce30a47574d2594623e5e954f3ec2f1e54f043a8e4b602643e868b7d")),
+)
 # Из базового конфига переносим ТОЛЬКО это. Расширять список осознанно: каждая строка
 # здесь — копия, которая начинает расходиться с оригиналом.
 _CARRIED_BASE_KEYS = (
@@ -637,10 +635,9 @@ def _prepare_managed_codex_state(
     cli_version: str,
 ) -> str:
     """Seed only absent or never-successful state from a validated WAL-safe backup."""
-    if cli_version != CODEX_CLI_HISTORY_VERSION:
+    if cli_version not in _CODEX_STATE_MIGRATIONS_BY_CLI:
         raise RuntimeError(
-            "managed Codex state seed is validated only for CLI "
-            f"{CODEX_CLI_HISTORY_VERSION}, got {cli_version or 'unknown'}"
+            f"managed Codex state seed has no verified schema for CLI {cli_version or 'unknown'}"
         )
     target = home / "state_5.sqlite"
     if target.exists():
@@ -1000,8 +997,12 @@ class CodexBackend(JsonRpcStdioTransport):
             config_sha256 = await _run_home_io(
                 self._refresh_managed_config_sha256
             )
-            cli_version = await self._managed_state_cli_version()
-            if cli_version != CODEX_CLI_HISTORY_VERSION:
+            try:
+                cli_version = await self._managed_state_cli_version()
+            except RuntimeError as error:
+                logger.warning("cannot inspect optional Codex state seed version: %s", error)
+                cli_version = ""
+            if cli_version not in _CODEX_STATE_MIGRATIONS_BY_CLI:
                 # The provider owns forward migrations.  Blocking before the app-server
                 # starts strands every fresh worker after a CLI upgrade; let that binary
                 # migrate its own managed state under the per-home lock.
@@ -1013,17 +1014,16 @@ class CodexBackend(JsonRpcStdioTransport):
                 await self._connect_unlocked()
                 self._loaded_config_sha256 = config_sha256
                 return
-            if await _run_home_io(
-                _managed_codex_state_needs_seed,
-                home,
-                cli_version,
-            ):
+            source = None
+            try:
+                if await _run_home_io(_managed_codex_state_needs_seed, home, cli_version):
+                    source = await _run_home_io(_select_managed_codex_state_source, home, cli_version)
+            except RuntimeError as error:
+                # No state has been changed: an optional clone optimization cannot
+                # veto the provider's own startup/migration/recovery path.
+                logger.warning("skipping optional Codex state seed: %s", error)
+            if source is not None:
                 logger.info("Codex managed state preparation started: home=%s", home)
-                source = await _run_home_io(
-                    _select_managed_codex_state_source,
-                    home,
-                    cli_version,
-                )
                 await _run_home_io(
                     _prepare_managed_codex_state,
                     home,

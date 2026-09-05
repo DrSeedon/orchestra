@@ -43,8 +43,23 @@ Silence is not consent in any class except A.
 Everything below applies AFTER the approval gate: class A, class B, or a class C proposal
 the user has said yes to. It answers "how do I run it", never "may I start".
 
-### Step 0: Clarify BEFORE acting
-If the task is ambiguous, underspecified, or you're not 100% sure what's being asked — **ASK clarifying questions FIRST**. Don't guess and don't rush. It's cheaper to ask 2 questions than to redo work after wrong assumptions. Especially for medium/large tasks — one wrong assumption = wasted worker turn.
+### Step 0: Resolve uncertainty at its source
+Within the approved task, inspect the repository, configuration and existing tests before
+asking for facts they already contain. Ask only when the missing answer changes authority,
+scope, significant cost, destructive behavior or an externally visible contract. A lack of
+100% confidence is not by itself a reason to stop. State bounded assumptions and continue
+safe work that does not depend on an unanswered consequential question.
+
+### Validation must protect the operation it gates
+Before adding a blocking check, name the concrete harm it prevents and the exact operation
+that needs the invariant. Keep authorization, data-integrity and irreversible-write checks.
+An optional acceleration or unavailable metadata must not block an independent safe native
+path: skip that optimization with a visible reason instead. Pin a private format only where
+we actually read/write that format, not to permit ordinary startup of its owning runtime.
+Never relabel old schema evidence by bumping the installed-version constant. Test both the
+unsafe operation being refused and the supported native path continuing without our writes.
+Do not fix a blocker by deleting state, rotating credentials, changing proxy routes or
+bypassing the user's approval boundary.
 
 ### Step 0.5: Delegate or DIY? (MANDATORY gate)
 DIY when the approved change is bounded and mechanical in one known file, needs no investigation
