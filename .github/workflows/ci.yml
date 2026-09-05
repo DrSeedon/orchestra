@@ -14,9 +14,19 @@ jobs:
       matrix:
         shard: [0, 1, 2, 3, 4, 5]
     steps:
+      # Часть тестов сравнивает рабочее дерево с `main` и ходит к родительским
+      # коммитам. По умолчанию checkout берёт ОДИН коммит ОДНОЙ ветки, и такой
+      # тест падает не по существу: `git show main:app/static/js/app.js` отвечает
+      # `exit 128`. `fetch-depth: 0` даёт полную историю и все ветки.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v4
       - run: uv sync --dev
+      # На образе ubuntu-latest ffmpeg не предустановлен, а тест длительности
+      # аудио обязан звать НАСТОЯЩИЙ ffprobe — подменять бинарь значило бы
+      # проверять заглушку вместо разбора контейнера.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       # `uv sync` ставит пакет playwright, но не бинарники браузеров. Без этого
       # шага все браузерные тесты молча скипались бы, и CI был бы зелёным, ничего
       # про фронт не проверив.
