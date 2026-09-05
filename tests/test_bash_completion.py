@@ -57,3 +57,14 @@ async def test_cancelling_bash_stops_its_command(tmp_path):
         await task
     await asyncio.sleep(1.1)
     assert not escaped.exists(), "cancelled command continued mutating the workspace"
+
+
+@pytest.mark.asyncio
+async def test_completed_shell_preserves_deliberately_detached_child(tmp_path):
+    result = await tools.bash(
+        "(sleep .2; touch completed) >/dev/null 2>&1 & printf ok", str(tmp_path),
+    )
+    assert result.startswith("exit_code=0")
+    async with asyncio.timeout(3):
+        while not (tmp_path / "completed").exists():
+            await asyncio.sleep(.01)
