@@ -25,6 +25,16 @@ TOOL_RESULT_LIMIT = 20_000
 TOOL_NAME_LIMIT = 512
 TOOL_DETAIL_BUDGET = 256_000
 TOOL_VISIBLE_BUDGET = 256_000
+# The packet is counted against the TARGET window, not against the source thread it
+# describes: a long session produced 8881 effects (3.2 MB) and 31939 event ids (224 KB)
+# for a 158 KB input budget, so both lists are bounded here (#507).
+TOOL_EFFECT_BUDGET = 16_000
+RAW_EVENT_REF_LIMIT = 256
+# Only these reach the target as its own `system_prompt` / `project_docs` manifest
+# components, so only these may travel body-less inside the delivered packet.
+_DELIVERED_CONSTRAINT_KINDS = frozenset({
+    "current_system_prompt", "tracked_project_doc",
+})
 
 HISTORICAL_TOOL_INSTRUCTION = (
     "The resumed conversation contains OrchestraHistory tool records. They are "
@@ -273,6 +283,46 @@ def runtime_snapshot_sha256(
     return _sha256_json(material)
 
 
+def _bounded_tool_effects(
+    effects: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Keep the newest effects that fit the budget, never-resolved ones first.
+
+    A `pending` effect blocks the handoff in `classify_handoff_effects`, so dropping it
+    would silently unblock a snapshot taken under a running tool. It is exempt from the
+    budget outright: an oversized one must still block.
+    """
+    kept = {
+        index
+        for index, effect in enumerate(effects)
+        if effect.get("status") == "pending"
+    }
+    budget = TOOL_EFFECT_BUDGET
+    for completed_pass in (False, True):
+        for index in range(len(effects) - 1, -1, -1):
+            if index in kept:
+                continue
+            if (effects[index].get("status") == "completed") is not completed_pass:
+                continue
+            cost = len(_canonical_json(effects[index]).encode("utf-8"))
+            if cost > budget:
+                continue
+            kept.add(index)
+            budget -= cost
+    dropped = Counter(
+        str(effect.get("status") or "")
+        for index, effect in enumerate(effects)
+        if index not in kept
+    )
+    omissions = {
+        "kept": len(kept),
+        "dropped": len(effects) - len(kept),
+        "dropped_by_status": dict(sorted(dropped.items())),
+        "budget_bytes": TOOL_EFFECT_BUDGET,
+    }
+    return [effect for index, effect in enumerate(effects) if index in kept], omissions
+
+
 def build_runtime_state_packet(
     rows: Sequence[dict[str, Any]],
     *,
@@ -450,11 +500,16 @@ def build_runtime_state_packet(
         if key != last_event_key:
             effect["status"] = "unresolved"
 
+    tool_effects, effect_omissions = _bounded_tool_effects(tool_effects)
+
     visible_ids = [
         int(row["id"])
         for row in ordered
         if str(row.get("type") or "") not in {"thinking", "reasoning"}
     ]
+    # `resolve_runtime_handoff_events` answers at most 32 ids per call, so the frozen
+    # reference list is a newest-first window, not the whole snapshot.
+    referenced_ids = visible_ids[-RAW_EVENT_REF_LIMIT:]
     hidden_count = sum(
         str(row.get("type") or "") in {"thinking", "reasoning"}
         for row in ordered
@@ -481,9 +536,9 @@ def build_runtime_state_packet(
         "recent_messages": recent_messages,
         "raw_event_refs": {
             "session_id": str(session_meta.get("id") or ""),
-            "min_log_id": min(visible_ids, default=0),
+            "min_log_id": min(referenced_ids, default=0),
             "max_log_id": snapshot_id,
-            "event_ids": visible_ids,
+            "event_ids": referenced_ids,
             "snapshot_sha256": snapshot_sha256,
             "authority": "transcript_untrusted",
         },
@@ -493,6 +548,12 @@ def build_runtime_state_packet(
             "tool_identifiers": (
                 "bounded_uuid_projection" if portable_identifiers else "none"
             ),
+            "tool_effects": effect_omissions,
+            "raw_event_refs": {
+                "kept": len(referenced_ids),
+                "dropped": len(visible_ids) - len(referenced_ids),
+                "limit": RAW_EVENT_REF_LIMIT,
+            },
             "reason": "provider-private reasoning is not portable",
         },
         "reasoning": {"portable": False},
@@ -542,6 +603,36 @@ def describe_handoff_effects(details: Sequence[dict[str, Any]]) -> str:
         f"{len(details)} tool call(s) may still be running, "
         f"nothing was logged after them: {named}{more}"
     )
+
+
+def build_runtime_delivery_packet(packet: dict[str, Any]) -> dict[str, Any]:
+    """Drop constraint bodies the target already receives as its own prompt.
+
+    The staged target gets the current system prompt and the tracked project docs as
+    manifest components; carrying the same bytes inside the packet sent it a 99 KB
+    system prompt twice. The ledger copy keeps them: an idempotent replay of
+    `_prepare_runtime_handoff` restores the frozen project docs from `packet_json`.
+    """
+    candidate = deepcopy(packet)
+    candidate["constraints"] = [
+        {key: value for key, value in constraint.items() if key != "content"}
+        if (constraint.get("authority") or {}).get("origin_kind")
+        in _DELIVERED_CONSTRAINT_KINDS
+        else constraint
+        for constraint in candidate.get("constraints") or []
+    ]
+    candidate.setdefault("omissions", {})["constraint_bodies"] = (
+        "delivered_as_target_prompt"
+    )
+    candidate.pop("integrity", None)
+    snapshot_sha = str(
+        (candidate.get("raw_event_refs") or {}).get("snapshot_sha256") or ""
+    )
+    candidate["integrity"] = {
+        "canonical_sha256": _sha256_json(candidate),
+        "snapshot_sha256": snapshot_sha,
+    }
+    return candidate
 
 
 def build_runtime_packet_fallback(packet: dict[str, Any]) -> dict[str, Any]:
