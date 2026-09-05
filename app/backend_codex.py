@@ -313,7 +313,7 @@ _MANAGED_HOME_LOCKS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 _CODEX_STATE_MIGRATIONS_BY_CLI = {
     # Captured from a fresh Codex 0.150.1 app-server state DB. Checksums are SQLx's
     # provider-owned migration identity; a mutable base DB is not schema authority.
-    CODEX_CLI_HISTORY_VERSION: (
+    "0.150.1": (
         (1, bytes.fromhex("627ef19164c9bb298a0cd99945981c9b7bda3d9e6cf12eb35145e3b1d3bf7cf8740f0dbaa0b475185fc2993397078049")),
         (2, bytes.fromhex("521b72cbc04c7d03b1e4aef8dc0fdee672f1f7f5881385a55a0e937e4ebe87a3f67bca4d3f6b59afbc9a7ca723c82856")),
         (3, bytes.fromhex("e58a2862bdb66d3274e60144a26dc9d68bbefff834cd29b82b740f38fcf95862934f412665d985715167839e8f0eb377")),
@@ -630,10 +630,9 @@ def _prepare_managed_codex_state(
     cli_version: str,
 ) -> str:
     """Seed only absent or never-successful state from a validated WAL-safe backup."""
-    if cli_version != CODEX_CLI_HISTORY_VERSION:
+    if cli_version not in _CODEX_STATE_MIGRATIONS_BY_CLI:
         raise RuntimeError(
-            "managed Codex state seed is validated only for CLI "
-            f"{CODEX_CLI_HISTORY_VERSION}, got {cli_version or 'unknown'}"
+            f"managed Codex state seed has no verified schema for CLI {cli_version or 'unknown'}"
         )
     target = home / "state_5.sqlite"
     if target.exists():
@@ -993,8 +992,12 @@ class CodexBackend(JsonRpcStdioTransport):
             config_sha256 = await _run_home_io(
                 self._refresh_managed_config_sha256
             )
-            cli_version = await self._managed_state_cli_version()
-            if cli_version != CODEX_CLI_HISTORY_VERSION:
+            try:
+                cli_version = await self._managed_state_cli_version()
+            except RuntimeError as error:
+                logger.warning("cannot inspect optional Codex state seed version: %s", error)
+                cli_version = ""
+            if cli_version not in _CODEX_STATE_MIGRATIONS_BY_CLI:
                 # The provider owns forward migrations.  Blocking before the app-server
                 # starts strands every fresh worker after a CLI upgrade; let that binary
                 # migrate its own managed state under the per-home lock.
@@ -1006,17 +1009,16 @@ class CodexBackend(JsonRpcStdioTransport):
                 await self._connect_unlocked()
                 self._loaded_config_sha256 = config_sha256
                 return
-            if await _run_home_io(
-                _managed_codex_state_needs_seed,
-                home,
-                cli_version,
-            ):
+            source = None
+            try:
+                if await _run_home_io(_managed_codex_state_needs_seed, home, cli_version):
+                    source = await _run_home_io(_select_managed_codex_state_source, home, cli_version)
+            except RuntimeError as error:
+                # No state has been changed: an optional clone optimization cannot
+                # veto the provider's own startup/migration/recovery path.
+                logger.warning("skipping optional Codex state seed: %s", error)
+            if source is not None:
                 logger.info("Codex managed state preparation started: home=%s", home)
-                source = await _run_home_io(
-                    _select_managed_codex_state_source,
-                    home,
-                    cli_version,
-                )
                 await _run_home_io(
                     _prepare_managed_codex_state,
                     home,
