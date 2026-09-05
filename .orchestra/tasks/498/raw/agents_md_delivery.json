@@ -1,0 +1,46 @@
+{
+ "what": "Does our AGENTS.md reach gpt-6-astra uncut? Command: codex debug prompt-input -c model=gpt-6-astra \"probe\", run in a scratch dir holding only a copy of AGENTS.md",
+ "project_doc_max_bytes": 262144,
+ "source": "~/.codex/config.toml:7",
+ "agents_md_bytes": 203311,
+ "agents_md_chars": 125701,
+ "agents_md_sha256": "64af71da59efe2e858fce824a34d13ff617178866169f76c7c424c902fe679bc",
+ "headroom_bytes": 58833,
+ "prompt_items": [
+  {
+   "index": 0,
+   "type": "message",
+   "role": "developer",
+   "bytes": 18626
+  },
+  {
+   "index": 1,
+   "type": "message",
+   "role": "developer",
+   "bytes": 2772
+  },
+  {
+   "index": 2,
+   "type": "message",
+   "role": "developer",
+   "bytes": 579
+  },
+  {
+   "index": 3,
+   "type": "message",
+   "role": "user",
+   "bytes": 225256
+  },
+  {
+   "index": 4,
+   "type": "message",
+   "role": "user",
+   "bytes": 288
+  }
+ ],
+ "project_doc_item_index": 3,
+ "project_doc_item_text_bytes": 224147,
+ "whole_file_is_substring_of_prompt": true,
+ "last_200_bytes_present": true,
+ "first_120_chars_present": true
+}
