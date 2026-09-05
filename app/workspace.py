@@ -435,6 +435,12 @@ def sync_agents_md(worktree_path: str) -> bool:
     agents_md = wt / "AGENTS.md"
     if not claude_md.is_file():
         return False
+    # Native Claude imports the canonical AGENTS.md. Mirroring this adapter back
+    # into its own target would replace the rules with a circular import.
+    if re.search(r"(?m)^@(?:\./)?AGENTS\.md\s*$", claude_md.read_text()):
+        if not agents_md.is_file():
+            raise RuntimeError(f"CLAUDE.md imports missing AGENTS.md in {wt}")
+        return False
     try:
         tracked = tracked_paths(wt, ["AGENTS.md"])
     except RuntimeError as exc:
