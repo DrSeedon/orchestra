@@ -36,6 +36,12 @@ A research-only assignment ends with findings and a recommendation, not implemen
 - Before completion, consider concrete failures for callers, old data and recovery
   (Pre-mortem). Run focused checks first; expand according to changed contracts and risk.
   A green command alone does not prove every requirement.
+  For Python, name the relevant test paths: `uv run --frozen python -m pytest <test-paths> -q`.
+  Do not repeat an unchanged successful run without a new failure, edit or named uncertainty.
+  Parallel tests are opt-in: `-n 2 --dist load` only for a set verified to retain the same
+  outcomes, within the project's memory limit. Do not add global `-n auto`.
+  Save logs under `.orchestra/tasks/<task-id>/`; long commands follow the base module's
+  background-job rule instead of polling with empty waits.
 - Apply the review decision gate in the `codex-debate` skill to the result, not every intermediate note.
   Resolve verified blockers; do not seek repeated approval of unchanged work.
 - Commit, inspect the diff, and report the outcome, actual checks, limitations and findings.
