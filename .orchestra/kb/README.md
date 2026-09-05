@@ -47,3 +47,6 @@
 - [agent-guardrails](agent-guardrails.md) — Агенты: кодовые предохранители
 - [code-simplification](code-simplification.md) — Код: упрощение без потери смысла
 - [tool-latency](tool-latency.md) — Время инструментов: измерения и ожидания
+- [model-text-control-flow](model-text-control-flow.md) — Текст модели как управляющий сигнал
+- [self-improvement-loop](self-improvement-loop.md) — Самоулучшение: событийный контур
+- [review-context](review-context.md) — Ревью: калибровка от проекта
