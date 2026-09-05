@@ -1561,6 +1561,16 @@ def _open_tool_correlation_page(
     _route_frontend_sources(page, source_path)
     _goto_dashboard(page)
     page.wait_for_function("() => typeof addChatEntry === 'function'")
+    # Дождаться ТИШИНЫ страницы, а не только появления функции. Начальная загрузка
+    # дашборда продолжается асинхронно и сама переписывает `#chat`: если вкинуть записи
+    # раньше, её `refreshAll` затирает их уже после вставки, и тест видит пустой чат
+    # (`счётчик='🔔 0'`, карточек нет). Замер 05.09: без этого ожидания
+    # `test_notify_user_call_is_highlighted_and_navigable_from_the_timeline` падал
+    # 3 прогона из 6 подряд, в одиночку проходя за 15 с.
+    page.wait_for_function(
+        "() => !refreshInProgress && _pollInFlight.size === 0",
+        timeout=10000,
+    )
     page.evaluate("""compactMode => {
         selectedAgent = null;
         if (eventSource) {
@@ -1738,17 +1748,32 @@ def test_notify_user_call_is_highlighted_and_navigable_from_the_timeline(
     # Свой потолок с диагнозом: без него пропажа зова из списка падает молчаливым
     # 30-секундным таймаутом и не говорит, ЧТО именно сломалось.
     try:
+        # Ждать надо ОБА признака. Счётчик в списке зовов и карточка в чате рисуются
+        # разными путями, поэтому «счётчик уже 🔔 1» НЕ означает «карточка в DOM».
+        # Под нагрузкой карточка отстаёт, `chat.querySelector(...)` отдаёт null, и
+        # следующий `getComputedStyle(card)` падает
+        # `TypeError: Failed to execute 'getComputedStyle' on 'Window': parameter 1 is
+        # not of type 'Element'` — то есть тест ронял сам себя гонкой, а не ловил дефект.
+        # В одиночку он проходил за 15.5 с и потому выглядел исправным.
         page.wait_for_function(
-            "() => document.querySelector('#chat-notify-count')?.textContent === '🔔 1'",
+            """() => document.querySelector('#chat-notify-count')?.textContent === '🔔 1'
+                && document.querySelector('#chat [data-tool-use-id="toolu_notify241"]')
+                && document.querySelector('#chat [data-tool-use-id="toolu_neighbour"]')
+                && document.querySelector('#chat-timeline-track .is-notify')""",
             timeout=5000,
         )
     except PlaywrightTimeout:
         actual = page.evaluate(
-            "() => [document.querySelector('#chat-notify-count')?.textContent,"
-            " document.querySelectorAll('#chat-timeline-track .is-notify').length]"
+            """() => [document.querySelector('#chat-notify-count')?.textContent,
+                document.querySelectorAll('#chat-timeline-track .is-notify').length,
+                !!document.querySelector('#chat [data-tool-use-id="toolu_notify241"]'),
+                !!document.querySelector('#chat [data-tool-use-id="toolu_neighbour"]')]"""
         )
         page.close()
-        pytest.fail(f"зов не попал в список: счётчик={actual[0]!r}, меток={actual[1]}")
+        pytest.fail(
+            f"зов не попал в список: счётчик={actual[0]!r}, меток={actual[1]}, "
+            f"карточка зова={actual[2]}, карточка соседа={actual[3]}"
+        )
 
     state = page.evaluate("""() => {
         const chat = document.querySelector('#chat');
