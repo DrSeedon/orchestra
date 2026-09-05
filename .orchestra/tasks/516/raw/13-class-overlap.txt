@@ -1,0 +1,36 @@
+=== ТОП-25 пересечений классов (класс <- также подходит под) ===
+git          <- git,search-read                               n=  6907 часы=   1.64
+inline-code  <- inline-code,search-read                       n=  2623 часы=   4.75
+tests        <- tests,search-read                             n=  2312 часы=  18.64
+net          <- net,search-read                               n=  1838 часы=   3.14
+net          <- net,inline-code,search-read                   n=  1248 часы=   3.60
+net          <- net,inline-code                               n=  1224 часы=   1.64
+tests        <- tests,inline-code,search-read                 n=   889 часы=   5.74
+git          <- git,inline-code,search-read                   n=   780 часы=   0.42
+net          <- net,git,search-read                           n=   596 часы=   0.75
+tests        <- tests,git,search-read                         n=   593 часы=   3.86
+git          <- git,inline-code                               n=   490 часы=   0.31
+tests        <- tests,git                                     n=   348 часы=   1.46
+media        <- media,search-read                             n=   265 часы=   1.07
+llm-cli      <- llm-cli,search-read                           n=   263 часы=   0.53
+net          <- net,git,inline-code                           n=   183 часы=   0.05
+net          <- net,git,inline-code,search-read               n=   180 часы=   0.13
+wait-loop    <- wait-loop,search-read                         n=   175 часы=   2.52
+net          <- net,git                                       n=   163 часы=   0.12
+tests        <- tests,inline-code                             n=   154 часы=   0.31
+wait-loop    <- wait-loop,net,search-read                     n=   129 часы=   0.86
+tests        <- tests,git,inline-code,search-read             n=   129 часы=   0.79
+wait-loop    <- wait-loop,net,inline-code,search-read         n=    95 часы=   0.55
+llm-cli      <- llm-cli,tests                                 n=    77 часы=   0.46
+llm-cli      <- llm-cli,git,search-read                       n=    76 часы=   0.39
+llm-cli      <- llm-cli,inline-code                           n=    70 часы=   0.04
+
+=== сколько времени класса приходится на команды с пересечением ===
+tests        пересечений   4697/  7718 =  60.9% вызовов,  33.46/ 51.61 ч =  64.8% времени
+net          пересечений   5432/  5974 =  90.9% вызовов,   9.43/ 10.35 ч =  91.1% времени
+wait-loop    пересечений    612/   650 =  94.2% вызовов,   5.63/  5.84 ч =  96.4% времени
+inline-code  пересечений   2623/  6865 =  38.2% вызовов,   4.75/  8.37 ч =  56.8% времени
+git          пересечений   8177/ 12561 =  65.1% вызовов,   2.37/  2.81 ч =  84.5% времени
+llm-cli      пересечений    721/   752 =  95.9% вызовов,   2.33/  2.52 ч =  92.4% времени
+media        пересечений    462/   500 =  92.4% вызовов,   2.06/  2.08 ч =  99.0% времени
+deps         пересечений    200/   223 =  89.7% вызовов,   0.95/  1.17 ч =  81.4% времени

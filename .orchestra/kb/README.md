@@ -13,6 +13,7 @@
 
 - [prompt-delivery](prompt-delivery.md) — что агент РЕАЛЬНО получает в промпте
 - [token-efficiency](token-efficiency.md) — из чего состоит цена хода
+- [tool-latency](tool-latency.md) — из чего состоит ВРЕМЯ вызовов инструментов
 - [evidence-methods](evidence-methods.md) — доказательства, шум измерений, ложные проверки
 - [test-oracles](test-oracles.md) — почему зелёный прогон ничего не доказывает
 - [test-suite-pruning](test-suite-pruning.md) — измеренный аудит pytest-набора
