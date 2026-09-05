@@ -308,7 +308,7 @@ def migrate_session_ownership(
     """
     from app.db import _conn
     from app.manager import replace_ownership_block
-    from app.workspace import dirs_overlap, parse_owned_dirs
+    from app.workspace import parse_owned_dirs
 
     repository = Path(repository)
     scopes = _ownership_scopes(repository)
@@ -368,20 +368,6 @@ def migrate_session_ownership(
                     "reason": "session is live in the server's memory; a direct write is "
                               "reverted by its next save. Repaired at the next restart — "
                               "the layout hook runs before auto_resume_all",
-                })
-                continue
-            collisions = sorted({
-                hit
-                for other, _other_before, other_after in mapped_rows
-                if other["id"] != row["id"]
-                for hit in dirs_overlap(after, other_after)
-            })
-            if collisions:
-                attention.append({
-                    "session": row["name"],
-                    "path": ", ".join(collisions),
-                    "exists": True,
-                    "reason": "rewrite would overlap another live worker; left verbatim",
                 })
                 continue
             system_prompt, prompt_found = replace_ownership_block(
