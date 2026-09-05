@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import importlib.metadata
 import json
 import shutil
@@ -6,6 +7,7 @@ import sqlite3
 import subprocess
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -15,7 +17,11 @@ from app.runtime_history import (
     CLAUDE_CLI_HISTORY_VERSION,
     CLAUDE_SDK_HISTORY_VERSION,
     ClaudeLogSessionStore,
+    build_model_visible_manifest,
+    build_runtime_delivery_packet,
     build_runtime_state_packet,
+    classify_handoff_effects,
+    preflight_runtime_handoff,
     runtime_packet_sha256,
     render_codex_history,
     render_claude_history,
@@ -589,3 +595,142 @@ def test_state_packet_integrity_is_recomputed_from_content():
 
     packet["recent_messages"][0]["content"] = "tampered"
     assert runtime_packet_sha256(packet) != expected
+
+
+def _tool_row(log_id, row_type, content, **metadata):
+    # `_row` stamps seconds only, so a 12k-row session would order by a string that
+    # wraps; the event ordering these effects depend on needs a monotonic timestamp.
+    row = _row(log_id, row_type, content, **metadata)
+    row["ts"] = f"2026-08-11T10:00:00.{log_id:06d}+00:00"
+    return row
+
+
+def _tool_traffic(pairs: int, *, trailing_call: bool = False):
+    rows = []
+    for index in range(pairs):
+        call_id = f"call-{index}"
+        log_id = 2 * index + 1
+        rows.append(_tool_row(
+            log_id, "tool", json.dumps({"command": f"ls /srv/{index}"}),
+            tool_use_id=call_id, tool_name="Bash",
+        ))
+        rows.append(_tool_row(
+            log_id + 1, "tool_result", f"result body {index}" * 20,
+            tool_use_id=call_id, tool_name="Bash", tool_is_error=False,
+        ))
+    if trailing_call:
+        rows.append(_tool_row(
+            2 * pairs + 1, "tool", json.dumps({"command": "sleep 600"}),
+            tool_use_id="call-still-running", tool_name="Bash",
+        ))
+    return rows
+
+
+def _handoff_preflight(packet, *, system_prompt, project_docs):
+    manifest = build_model_visible_manifest(
+        runtime="codex",
+        model="gpt-6-astra",
+        effective_window=258_400,
+        system_prompt=system_prompt,
+        prepared=SimpleNamespace(
+            packet=packet, packet_sha256=packet["integrity"]["canonical_sha256"],
+        ),
+        validation_profile=False,
+        project_docs=project_docs,
+        mcp_servers={},
+    )
+    return preflight_runtime_handoff(manifest, native_context_tokens=0)
+
+
+def test_long_session_packet_fits_the_target_window_next_to_its_own_prompt():
+    """#507: 8881 effects and 31939 event ids overflowed a 158 KB input budget."""
+    system_prompt = "current operating policy line.\n" * 3_200
+    project_docs = [{"path": "AGENTS.md", "content": "tracked project rule.\n" * 1_465}]
+    assert 98_000 < len(system_prompt.encode("utf-8")) < 100_000
+    assert 31_000 < len(project_docs[0]["content"].encode("utf-8")) < 33_000
+    rows = _tool_traffic(6_000)
+    assert len(rows) >= 10_000
+
+    packet = build_runtime_state_packet(
+        rows,
+        session_meta={"id": "s1", "source_runtime": "claude", "target_runtime": "codex"},
+        snapshot_id=rows[-1]["id"],
+        current_system_prompt=system_prompt,
+        project_docs=project_docs,
+    )
+    receipt = _handoff_preflight(
+        build_runtime_delivery_packet(packet),
+        system_prompt=system_prompt,
+        project_docs=project_docs,
+    )
+
+    assert receipt.fits, receipt.components
+    assert receipt.components["packet"] < 32_000
+
+
+def test_delivered_candidate_drops_the_bodies_the_ledger_packet_keeps():
+    system_prompt = "SYSTEM-BODY-MARKER: never deliver me twice"
+    doc = "PROJECT-DOC-BODY-MARKER: tracked repo policy"
+    packet = build_runtime_state_packet(
+        [_row(1, "user_message", "continue")],
+        session_meta={"id": "s1"}, snapshot_id=1,
+        current_system_prompt=system_prompt,
+        project_docs=[{"path": "AGENTS.md", "content": doc}],
+    )
+    delivered = build_runtime_delivery_packet(packet)
+
+    ledger_text = json.dumps(packet, ensure_ascii=False)
+    delivered_text = json.dumps(delivered, ensure_ascii=False)
+    assert "SYSTEM-BODY-MARKER" in ledger_text
+    assert "PROJECT-DOC-BODY-MARKER" in ledger_text
+    assert "SYSTEM-BODY-MARKER" not in delivered_text
+    assert "PROJECT-DOC-BODY-MARKER" not in delivered_text
+
+    assert [item.get("path") for item in delivered["constraints"]] == [None, "AGENTS.md"]
+    assert [item["authority"] for item in delivered["constraints"]] == [
+        item["authority"] for item in packet["constraints"]
+    ]
+    assert delivered["constraints"][0]["authority"]["sha256"] == hashlib.sha256(
+        system_prompt.encode("utf-8")
+    ).hexdigest()
+    assert runtime_packet_sha256(delivered) == delivered["integrity"]["canonical_sha256"]
+    assert delivered["integrity"]["snapshot_sha256"] == (
+        packet["integrity"]["snapshot_sha256"]
+    )
+
+
+def test_effect_budget_keeps_the_call_that_blocks_and_names_what_it_dropped():
+    rows = _tool_traffic(400, trailing_call=True)
+    packet = build_runtime_state_packet(
+        rows, session_meta={"id": "s1"}, snapshot_id=rows[-1]["id"],
+        current_system_prompt="system", project_docs=[],
+    )
+
+    blocking, _unresolved = classify_handoff_effects(packet)
+    assert [item["call_id"] for item in blocking] == ["call-still-running"]
+
+    omissions = packet["omissions"]["tool_effects"]
+    assert omissions["dropped"] > 0
+    assert omissions["dropped_by_status"]["completed"] == omissions["dropped"]
+    assert omissions["kept"] == len(packet["tool_effects"])
+    assert omissions["kept"] + omissions["dropped"] == 401
+    # Newest first: the oldest completed effects are the ones that stay behind.
+    assert packet["tool_effects"][0]["call_id"] != "call-0"
+
+
+def test_event_refs_are_bounded_and_min_log_id_describes_what_survived():
+    rows = _tool_traffic(400)
+    packet = build_runtime_state_packet(
+        rows, session_meta={"id": "s1"}, snapshot_id=rows[-1]["id"],
+        current_system_prompt="system", project_docs=[],
+    )
+
+    refs = packet["raw_event_refs"]
+    assert len(refs["event_ids"]) == 256
+    assert refs["event_ids"] == sorted(refs["event_ids"])
+    assert refs["event_ids"][-1] == rows[-1]["id"]
+    assert refs["min_log_id"] == refs["event_ids"][0] > rows[0]["id"]
+    assert refs["max_log_id"] == rows[-1]["id"]
+    assert packet["omissions"]["raw_event_refs"] == {
+        "kept": 256, "dropped": 800 - 256, "limit": 256,
+    }

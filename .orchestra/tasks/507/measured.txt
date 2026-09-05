@@ -1,0 +1,40 @@
+source rows=32006  system_prompt=99_289 B
+packet key                        BEFORE       AFTER  AFTER(deliv)
+constraints                      133_475     133_475           524
+expected_target_capability            88          88            88
+identity                             307         307           307
+integrity                            172         172           172
+omissions                            159         351           400
+raw_event_refs                   223_800       2_019         2_019
+reasoning                             18          18            18
+recent_messages                   93_785      93_785        93_785
+schema_version                         1           1             1
+tool_effects                   3_196_895      15_975        15_975
+typed_state                           81          81            81
+TOTAL                          3_648_964     246_455       113_553
+
+tool_effects kept/dropped: {'kept': 55, 'dropped': 8826, 'dropped_by_status': {'ambiguous': 44, 'completed': 8649, 'unresolved': 133}, 'budget_bytes': 16000}
+raw_event_refs: {'kept': 256, 'dropped': 31683, 'limit': 256}
+min_log_id: 316963 -> 602315
+
+--- mode=packet  budget=158_304 B
+    canary                           112
+    packet                        19_749
+    project_docs                  32_285
+    recent_delta                  93_785
+    system_prompt                 99_289
+    tool_schemas                      51
+    validation_profile                70
+    candidate total              245_341
+    fits=False  headroom=-87_037 B
+
+--- mode=fallback_packet  budget=158_304 B
+    canary                           112
+    packet                        19_786
+    project_docs                  32_285
+    recent_delta                       2
+    system_prompt                 99_289
+    tool_schemas                      51
+    validation_profile                70
+    candidate total              151_595
+    fits=True  headroom=6_709 B
