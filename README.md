@@ -6,6 +6,10 @@
 <h3 align="center">AI agent teams that think like managers, not state machines</h3>
 
 <p align="center">
+  <sub><b>English</b> · <a href="README.ru.md">Русский</a></sub>
+</p>
+
+<p align="center">
   <a href="#quick-start">Quick Start</a> ·
   <a href="#how-it-works">How It Works</a> ·
   <a href="#comparison">Comparison</a> ·
@@ -15,8 +19,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/stars/DrSeedon/orchestra?style=social" alt="Stars">
-  <img src="https://img.shields.io/github/license/DrSeedon/orchestra" alt="License">
+  <a href="https://github.com/DrSeedon/orchestra/commits/main"><img src="https://img.shields.io/github/last-commit/DrSeedon/orchestra" alt="Last commit"></a>
+  <a href="https://github.com/DrSeedon/orchestra/graphs/commit-activity"><img src="https://img.shields.io/github/commit-activity/m/DrSeedon/orchestra" alt="Commits per month"></a>
+  <a href="https://github.com/DrSeedon/orchestra/stargazers"><img src="https://img.shields.io/github/stars/DrSeedon/orchestra?style=social" alt="Stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License: AGPL-3.0"></a>
   <img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python">
   <img src="https://img.shields.io/badge/built_by-itself-brightgreen" alt="Built by itself">
 </p>
@@ -102,27 +108,28 @@ not to*:
 | Workers message each other directly, with durable delivery receipts | ✅ | `app/message_deliveries.py` |
 | Workers spawning their own workers | 🚧 | Forbidden by the worker's role prompt, not by the code: `spawn_worker` carries no role gate, so a worker that ignores its instructions can still call it. The rule exists because the child edits the same files on a second branch, so the two diffs compete at merge and one of them loses — plus a task nobody ordered |
 | Git worktree per worker, squash merge to main | ✅ | `app/workspace.py` |
-| Two workers cannot own the same directory | ✅ | spawn refuses on overlap, `app/manager.py:554` |
-| Insertion budget at merge, with a waiver that is recorded | ✅ | 2 000 lines, `app/diff_budget.py:16` |
-| The platform, not the agent, runs the tests that decide a merge | ✅ | A mapped test subset gates every merge and blocks on failed *or* inconclusive (`app/merge_operations.py:1890`). A frozen acceptance oracle is pinned and run when the task carries one (`app/acceptance.py:349`); without one, a merge touching `app/` or `tests/` on a non-main target is refused outright (`app/merge_operations.py:870`) |
-| Cross-model review as a **code-enforced** merge gate | ✅ | Enforced at merge since #462: the operation computes review coverage for the exact snapshot and refuses with `RECORD_REVIEW_THEN_NEW_OPERATION` when no receipt matches (`app/merge_operations.py:2211`). The policy is switched on by a marker inside the review skill and read at runtime (`app/review_coverage.py:89`) — on as of 2026-09-04. Known limit: the receipt is matched by the worker's own session id, so an orchestrator cannot certify a review on the worker's behalf |
+| Two workers cannot own the same directory | ✅ | spawn refuses on overlap, `dirs_overlap` at `app/manager.py:596` |
+| Insertion budget at merge, with a waiver that is recorded | ✅ | 2 000 lines, `MAX_DIFF_INSERTIONS` at `app/diff_budget.py:16` |
+| The platform, not the agent, runs the tests that decide a merge | ✅ | A mapped test subset gates every merge and blocks on failed *or* inconclusive (`gate_blocks`, `app/merge_operations.py:2063`). A frozen acceptance oracle is pinned and run when the task carries one (`evaluate_pinned_oracle`, `app/acceptance.py:349`); without one, a merge touching `app/` or `tests/` on a non-main target is refused outright (`nested_behavioral`, `app/merge_operations.py:1051`) |
+| Cross-model review as a **code-enforced** merge gate | ✅ | Enforced at merge since #462: the merge runner blocks on a review-coverage verdict (`review_coverage_policy_active`, `app/merge_operations.py:1908`) and refuses with `RECORD_REVIEW_THEN_NEW_OPERATION` when no receipt matches the exact snapshot (`app/merge_operations.py:609`). The policy is switched on by a marker inside the review skill and read at runtime (`policy_active`, `app/review_coverage.py:382`) — on as of 2026-09-05. Known limit: the receipt is matched by the worker's own session id, so an orchestrator cannot certify a review on the worker's behalf |
 | Human approval as machine-checkable state | 🚧 | Lives in chat and in the `<approval-gate>` prompt block. No approval receipt exists in the database and merge doesn't ask for one |
-| Sandbox around commands an agent runs | 🚧 | The worktree isolates *files*, not execution. Our reviewer runs `-s danger-full-access -a never` (`app/mcp_stdio.py:4080`) because unprivileged user namespaces are off on this host. No isolation work is underway |
-| Several vendors' models behind one runtime contract | ✅ | 4 runtimes: the Claude Code, Codex and Grok CLIs, plus our own in-process OpenRouter Harness — `app/runtime_registry.py:330` |
+| Sandbox around commands an agent runs | 🚧 | The worktree isolates *files*, not execution. Our reviewer runs `-s danger-full-access -a never` (`app/mcp_stdio.py:4201`). That is a decision we have lived with, not a limit of the machine: `cat /proc/sys/kernel/unprivileged_userns_clone` answers `1` here, and no sandbox binary is installed to use it. No isolation work is underway |
+| Several vendors' models behind one runtime contract | ✅ | 4 runtimes: the Claude Code, Codex and Grok CLIs, plus our own in-process OpenRouter Harness — `BUILTIN_RUNTIMES` at `app/runtime_registry.py:330` |
 | Adding a new CLI agent by config | 🚫 | Every runtime is a hand-written backend; there is no config path. Orca, by contrast, advertises "any CLI agent" |
-| Write with one vendor's model, review with another's | ✅ | `codex_review`, `app/mcp_stdio.py:3866` — the review starts a different vendor's CLI |
-| Quota gate that blocks workers near a subscription wall | ✅ | `app/quota_gate.py:115` |
+| Write with one vendor's model, review with another's | ✅ | `codex_review`, `app/mcp_stdio.py:3987` — the review starts a different vendor's CLI |
+| Quota gate that blocks workers near a subscription wall | ✅ | `line_limit` at `app/quota_gate.py:115` |
 | The same gate applied to orchestrators | 🚫 | Exempt on purpose (owner, 2026-09-03): an orchestrator that stops talking is worse than one that overspends |
 | Paid model routes in the built-in harness | 🚫 | Exact `:free` routes only, `app/harness/llm.py:167` |
 | Free models as the default workhorse | 🚫 | Measured: 2 of 30 closed tickets solved (6.67 %), and 53 of 60 runs failed on availability rather than quality (#422) |
 | Grok kept current with Claude and Codex | 🚫 | Added for one narrow job and left unmaintained. It still runs; it is not a peer |
 | Lexical project memory agents must read before working | ✅ | `.orchestra/kb/`, one fact per line with the command that proves it |
 | Vector / semantic memory | 🚫 | Built, measured, retired: on an 18-question holdout from this repo, vector search scored **0 unique wins against 6 for plain `rg`**. The implementation still ships and still runs if you enable it (`--extra rag`, off by default) — we just don't build on it any more |
-| Root guide small enough to be an index | 🚧 | Our own rule; `wc -c CLAUDE.md` → about **190 KB**. The Codex mirror is trimmed mid-sentence at `project_doc_max_bytes`, so part of it silently never reaches those workers (#323) |
-| Dashboard (`app/routes/system.py:77`) and Telegram control (`app/tg_bridge.py`) | ✅ | Voice messages are transcribed with Deepgram Nova-3, `app/transcription.py:72` |
+| Root guide small enough to be an index | 🚧 | Our own rule, and it lost: run `wc -c CLAUDE.md` and you get a file that stopped being an index long ago — it is measured in hundreds of kilobytes and still growing. The Codex mirror is trimmed mid-sentence at `project_doc_max_bytes`, so part of it silently never reaches those workers (#323) |
+| Dashboard (`dashboard.html` via `app/routes/system.py:77`) and Telegram control (`app/tg_bridge.py`) | ✅ | Voice messages are transcribed with Deepgram `nova-3`, `app/transcription.py:72` |
 | Terminal client, desktop or mobile app | 🚫 | Never built: the workplace is the dashboard plus Telegram. Phone access is Telegram, not an app |
-| Browser-side cache of chat history | 🚫 | Built, then removed on purpose: a local mirror cannot prove nothing appeared after its watermark, so it can show a stale frame as current. `no-store` is set on the server (`app/routes/sessions.py:599`) and on the client (`app/static/js/app.js:1225`) |
+| Browser-side cache of chat history | 🚫 | Built, then removed on purpose: a local mirror cannot prove nothing appeared after its watermark, so it can show a stale frame as current. `no-store` is set on the server (`app/routes/sessions.py:602`) and on the client (`app/static/js/app.js:1274`) |
 | One-command install, prebuilt binaries, Docker image | 🚧 | `git clone` + `uv sync` + your own vendor CLIs and subscriptions. Nothing is published as a release artifact |
+| CI that runs on every push and passes | 🚧 | The workflow is real and runs on every push and PR to `main` (`.github/workflows/ci.yml`), and it is red: as of 2026-09-05 fewer than one completed run in a hundred has ended green. Two causes, both visible in the log of the last failure — it printed dozens of failed tests, and then the process was killed outright with exit code 137, out of memory, about four fifths of the way through. The full suite does not survive a single process on our own host either, which is why a merge is gated by the mapped subset the platform runs itself (row above) and not by this workflow. There is deliberately no CI badge in the header: a red badge tells a stranger "the project is broken", and the true statement is narrower than that |
 | Standing approval or an auto-queue of tasks | 🚫 | Every task is approved by hand (owner, 2026-08-27) so that nothing gets built that wasn't asked for |
 
 ### And how is this different from sub-agents?
@@ -146,13 +153,32 @@ sub-agent is one tool call inside a running process; a worker here costs a sessi
 a worktree, so for "go read twenty files and come back" that machinery buys nothing. Sub-agents also
 nest "up to three layers below the main conversation" out of the box, which we forbid by rule.
 
+### Head to head with Orca
+
+Orca is the nearest thing to us with a real audience, so it is worth doing by rows instead of by
+adjectives. Every cell in their column is a quote from their own README, pulled raw on 2026-09-05
+(`gh api repos/stablyai/orca/readme`); every cell in ours has an anchor earlier on this page. Three
+of the six rows are theirs.
+
+| | **Orchestra** | **Orca** |
+|---|---|---|
+| Who splits the work and picks what ships | an agent: the orchestrator decomposes the goal, spawns the workers and merges what passes (`spawn_worker`/`merge_worker`) | you do: "Fan one prompt across five agents … compare the results and merge the winner". Their header calls the product "The AI Orchestrator for 100x builders" |
+| How many agents you can plug in | four, and only by writing a backend for each — `BUILTIN_RUNTIMES` at `app/runtime_registry.py:330`. **This row is theirs.** | "Works with **any CLI agent** — if it runs in a terminal, it runs in Orca", 29 of them named by logo |
+| How you install it and where you use it | `git clone` + `uv sync`, then a web dashboard and a Telegram bot; nothing is published as a release artifact. **This row is theirs.** | `brew install --cask`, `yay -S`, a Windows `.exe`, a Linux AppImage, plus an iOS app on the App Store and an Android APK |
+| Audience | one maintainer, a star count in double digits. **This row is theirs.** | tens of thousands of stars and thousands of forks, MIT, pushed the same day we read it |
+| Who reviews the result | a model from a different vendor, and the merge refuses without a receipt for that exact snapshot (see the table above) | their README describes review by a human — "Drop comments on any diff line and ship them back to the agent". Whether a model reviews anything in Orca we did not check |
+| What happens to an agent between runs | a row in SQLite: it survives restarts, hibernates while idle, p90 130.6 h | not checked — their README does not speak about agent lifetime, and silence in a README is not evidence that a mechanism is missing |
+
+We read their README, not their documentation site, so the two "not checked" cells stay open instead
+of being filled with a guess. The same goes for merge gates and for who decides the split inside
+Orca beyond the sentence quoted above.
+
 ### Where we are behind
 
-- **Breadth.** 4 runtimes against Orca's "any CLI agent" — "if it runs in a terminal, it runs in Orca". Ours is a code contract; theirs is a terminal.
 - **Tool latency.** Every tool call here is an external process: measured on this host, 3 667.6 µs against 20.2 µs in-process, of which 2 170.0 µs is `fork+exec` alone. oh-my-pi compiles its tooling in and states "No fork/exec on the hot path".
 - **No LSP or debugger in the agent's hands** — ours reads files and shells out to `rg`.
-- **Interfaces and packaging.** Orca ships desktop and mobile apps; when an agent spawns helpers, cmux "turns them into native panes and splits instead of hidden background processes". We ship a web dashboard and a Telegram bot, installed from a `git clone`.
-- **Maturity.** One maintainer and 5 stars against 60 526 (Orca) and 26 737 (cmux), read 2026-09-03. What is being compared above is architecture, not a mature product.
+- **Interfaces.** When an agent spawns helpers, cmux "turns them into native panes and splits instead of hidden background processes". We show them as rows in a web dashboard.
+- **Maturity.** One maintainer against projects with tens of thousands of stars — cmux had 26 737 when we read it on 2026-09-03. What is being compared on this page is architecture, not a mature product.
 
 <sub>Sources, all re-checked 2026-09-03: [Claude Code sub-agents](https://code.claude.com/docs/en/sub-agents) ·
 [agent teams](https://code.claude.com/docs/en/agent-teams) ·
@@ -161,8 +187,8 @@ nest "up to three layers below the main conversation" out of the box, which we f
 [oh-my-pi](https://github.com/can1357/oh-my-pi) READMEs, pulled raw via `gh api`, and star counts via
 `gh api repos/<owner>/<repo>`. Orchestra's numbers come from the primary installation's own database,
 read 2026-09-02, and from the commands shown in the table. Where a competitor's primary source did not
-answer a question — isolation and inter-agent messaging in cmux, review in Orca — there is no row, rather
-than a guess.</sub>
+answer a question there is no row rather than a guess — isolation and inter-agent messaging in cmux; and
+where the question was worth asking anyway, the cell says "not checked", as it does twice for Orca.</sub>
 
 ## Features
 
@@ -302,7 +328,9 @@ Good first issues are labeled `good-first-issue`.
 
 **AGPL-3.0** for open source use. Commercial license available for businesses that need it.
 
-See [LICENSE](LICENSE) for details. Contact [@DrSeedon](https://t.me/DrSeedon) for commercial licensing.
+[LICENSE](LICENSE) is the verbatim AGPL-3.0 text and nothing else. Everything specific to this
+project — copyright holder, author, and the commercial option that waives the AGPL obligations —
+is in [NOTICE](NOTICE). Contact [@DrSeedon](https://t.me/DrSeedon) for commercial licensing.
 
 ---
 
