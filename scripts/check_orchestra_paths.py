@@ -19,6 +19,7 @@ FIELDS = ("stable_id", "git_commit", "source_path", "git_blob", "source_sha256")
 DOC_LITERALS = ("docs/kb", "docs/tasks", "docs/workers", "docs/archive")
 PIPELINE_LITERAL = "pipelines/"
 NEGATIVE_MARKER = "LEGACY_PATH_FIXTURE"
+HISTORICAL_MARKER = "LEGACY_PATH_HISTORY"
 HISTORICAL_FILES = {"CHANGELOG.md"}
 HISTORICAL_PREFIXES = ("deploy/",)
 
@@ -96,6 +97,10 @@ def occurrence_class(relative: str, text: str) -> str:
     if relative.startswith(".orchestra/"):
         return "historical"
     if relative in HISTORICAL_FILES or relative.startswith(HISTORICAL_PREFIXES):
+        return "historical"
+    # Прозаическое упоминание СТАРОГО пути в описании прошлого (заголовок тикета, разбор утечки)
+    # историей и остаётся: переписать его — соврать про то, что тогда произошло.
+    if HISTORICAL_MARKER in text:
         return "historical"
     if relative.startswith("tests/") or NEGATIVE_MARKER in text:
         return "negative"
