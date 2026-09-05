@@ -1,0 +1,66 @@
+{
+  "model": "gpt-5.6-luna",
+  "effort": "high",
+  "old": "7fb6dc66",
+  "new": "e5db9749",
+  "sequence": [
+    [
+      "implementation",
+      "old"
+    ],
+    [
+      "implementation",
+      "new"
+    ],
+    [
+      "frozen",
+      "new"
+    ],
+    [
+      "frozen",
+      "old"
+    ],
+    [
+      "research",
+      "old"
+    ],
+    [
+      "research",
+      "new"
+    ]
+  ],
+  "results": [
+    {
+      "case": "implementation",
+      "arm": "old",
+      "returncode": 0,
+      "timeout": false,
+      "seconds": 33.336,
+      "loadavg": [
+        7.23876953125,
+        11.4921875,
+        19.95947265625
+      ],
+      "usage": {
+        "input_tokens": 120276,
+        "cached_input_tokens": 94976,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 711,
+        "reasoning_output_tokens": 353
+      },
+      "api_equivalent_usd": 0.00781272,
+      "tool_items": 0,
+      "result": {
+        "behavior_pass": false,
+        "protected_preserved": true,
+        "check_error": "Traceback (most recent call last):\n  File \"<string>\", line 7, in <module>\n    assert normalize(rows) == want\n           ~~~~~~~~~^^^^^^\n  File \"/work/receipts.py\", line 2, in normalize\n    return [dict(row, id=row['id'].strip()) for row in rows]\n                         ~~~^^^^^^\nTypeError: 'NoneType' object is not subscriptable\n",
+        "changed": [
+          "final.txt"
+        ],
+        "regression_test_added": false
+      },
+      "final": "Blocked: the shell/file tool host failed to start, so I could not inspect or modify `/work` without guessing. No files were changed.",
+      "scratch": "/mnt/data/luna-autonomy-21gnqtqj/implementation-old"
+    }
+  ]
+}
