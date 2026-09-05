@@ -4,7 +4,7 @@
 # tests/test_frontend.py завис на 2 часа и утащил с собой осиротевший uvicorn.
 set -u
 cd "$(dirname "$0")/../../.." || exit 1
-out=".orchestra/tasks/515/raw/local-shards"
+out="${1:-.orchestra/tasks/515/raw/local-shards}"
 mkdir -p "$out"
 for s in 0 1 2 3 4 5; do
   mapfile -t files < <(git ls-files 'tests/test_*.py' | sort | awk -v s="$s" -v n=6 '(NR - 1) % n == s')
