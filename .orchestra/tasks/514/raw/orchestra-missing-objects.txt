@@ -1,0 +1,9 @@
+=== objects referenced by the failing asserts, checked in MAIN checkout ===
+1f80bb50b81db380fb5f51a0894209538553087f -> fatal: git cat-file: could not get object info
+e748168c6eea8924999e575d9c09a88a33168d2e -> fatal: git cat-file: could not get object info
+f157420676d327553c74e8998a7bea27f2d1ad1d -> fatal: git cat-file: could not get object info
+=== same from my worktree ===
+1f80bb50b81db380fb5f51a0894209538553087f -> fatal: git cat-file: could not get object info
+e748168c6eea8924999e575d9c09a88a33168d2e -> fatal: git cat-file: could not get object info
+=== git common dir shared? ===
+/home/kesha/orchestra/.git

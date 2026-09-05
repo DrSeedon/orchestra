@@ -1,0 +1,30 @@
+=== repos seen in worktrees but not in layout scan ===
+--- /home/kesha/projects/ai-table-mvp
+/home/kesha/projects/ai-table-mvp
+ls: cannot access '/home/kesha/projects/ai-table-mvp/.orchestra': No such file or directory
+/home/kesha/projects/ai-table-mvp/docs
+--- /home/kesha/projects/seedon-site
+ls: cannot access '/home/kesha/projects/seedon-site': No such file or directory
+ls: cannot access '/home/kesha/projects/seedon-site/.orchestra': No such file or directory
+ls: cannot access '/home/kesha/projects/seedon-site/docs': No such file or directory
+--- /home/kesha/projects/University
+/home/kesha/projects/University
+ls: cannot access '/home/kesha/projects/University/.orchestra': No such file or directory
+/home/kesha/projects/University/docs
+=== check_orchestra_paths.py elsewhere? ===
+/home/kesha/katya-work: absent
+/home/kesha/projects/kesha-tg-bot: absent
+/home/kesha/projects/seedon: absent
+/opt/cog-second-brain: absent
+/opt/kesha-bot: absent
+/home/kesha/projects/VPN-Service: absent
+/home/kesha/projects/dnd-game-master: absent
+=== leftover empty docs/ dirs after migration ===
+/home/kesha/orchestra docs/: exists, entries=5
+/home/kesha/katya-work docs/: exists, entries=0
+/home/kesha/projects/kesha-tg-bot docs/: exists, entries=5
+/home/kesha/projects/seedon docs/: exists, entries=20
+/opt/cog-second-brain docs/: exists, entries=4
+/opt/kesha-bot docs/: exists, entries=5
+/home/kesha/projects/VPN-Service docs/: exists, entries=3
+/home/kesha/projects/dnd-game-master docs/: exists, entries=11

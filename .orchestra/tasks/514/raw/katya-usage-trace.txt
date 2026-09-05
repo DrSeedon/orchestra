@@ -1,0 +1,37 @@
+=== EVIDENCE_MANIFEST usage ===
+23:EVIDENCE_MANIFEST = ROOT / "docs/tasks/4/evidence/master-manifest.json"
+277:    evidence = load_json(EVIDENCE_MANIFEST)
+281:    evidence_bytes = EVIDENCE_MANIFEST.read_bytes()
+=== PPTX_OVERFLOW usage t3 ===
+21:PPTX_OVERFLOW = ROOT / "docs/tasks/4/evidence/analyze_pptx_overflow.py"
+88:    require_file(PPTX_OVERFLOW, "T3 missing independent PPTX overflow probe")
+255:        overflow = run(["python3", str(PPTX_OVERFLOW), str(capacity_out / "deck.pptx"), str(bbox)])
+=== PPTX_OVERFLOW usage t4 ===
+38:PPTX_OVERFLOW = ROOT / "docs/tasks/4/evidence/analyze_pptx_overflow.py"
+210:        overflow = run(["python3", str(PPTX_OVERFLOW), str(regenerated / "deck.pptx"), str(bbox)])
+=== main block t1 ===
+        with (asset_tamper / "assets" / chosen_asset).open("ab") as stream:
+            stream.write(b"tamper")
+        font_tamper = tamper_copy("tamper-font")
+        font_registry = json.loads((font_tamper / "slot-registry.json").read_text(encoding="utf-8"))
+        font_registry["fonts"]["heading"]["sha256"] = "0" * 64
+        (font_tamper / "slot-registry.json").write_text(json.dumps(font_registry, ensure_ascii=False), encoding="utf-8")
+        source_tamper = temp_path / "tampered-master.key"
+        shutil.copy2(MASTER, source_tamper)
+        with source_tamper.open("ab") as stream:
+            stream.write(b"tamper")
+        tamper_cases = [
+            ("manifest", manifest_tamper, MASTER, "E_REGISTRY_DIGEST"),
+            ("asset", asset_tamper, MASTER, "E_ASSET_DIGEST"),
+            ("font", font_tamper, MASTER, "E_FONT_DIGEST"),
+            ("source", clean_registry, source_tamper, "E_REGISTRY_DIGEST"),
+        ]
+        for name, registry_dir, master_path, expected_code in tamper_cases:
+            rejected = run(["node", str(REGISTRY_PROBE), str(registry_dir), str(master_path)])
+            assert rejected.returncode == 2 and rejected.stdout == "" and rejected.stderr.split(maxsplit=1)[0] == expected_code, f"T1 registry tamper class drift for {name}: {rejected.stderr}"
+
+    print(f"T1 PASS: layouts=13 objects=53 adversarial={len(cases)} false_accepts=0 duplicate_keys=reject fonts=2")
+
+
+if __name__ == "__main__":
+    main()

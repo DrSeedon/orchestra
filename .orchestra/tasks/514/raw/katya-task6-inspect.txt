@@ -1,0 +1,30 @@
+      });
+      return res;
+    });
+    await page.close();
+  }
+  await browser.close();
+  console.log(JSON.stringify(out));
+})().catch(e => { console.error(String(e)); process.exit(1); });
+"""
+
+script = ROOT / ".validate_node.js"
+script.write_text(NODE, encoding="utf-8")
+try:
+    res = subprocess.run(["node", str(script), str(PW), str(HTML), str(CHROME[-1])],
+                         capture_output=True, text=True)
+finally:
+    script.unlink(missing_ok=True)
+if res.returncode != 0:
+    print(res.stdout); print(res.stderr, file=sys.stderr)
+    raise SystemExit("FAIL: браузерная часть приёмки не запустилась")
+
+=== module-level paths ===
+19:ROOT = Path(__file__).resolve().parent
+20:HTML = ROOT / "lesson1.html"
+21:PW = Path("/home/kesha/katya-work/pipeline/tooling/node_modules")
+22:CHROME = sorted(Path.home().glob(".cache/ms-playwright/chromium-*/chrome-linux*/chrome"),
+45:EXPECTED_LAYOUTS = ["M1", "M3", "M5", "M8", "M2", "M7", "M6", "M10", "M7", "M12", "M12", "M13", "M14", "M15"]
+50:APPROVED = {
+93:TABLE_C = {
+113:NODE = r"""

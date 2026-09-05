@@ -1,0 +1,22 @@
+=== -S new literal (client-matrix) ===
+107957b #2, #3: research current ingress failure hypotheses
+=== -S old literal (client-matrix) ===
+107957b #2, #3: research current ingress failure hypotheses
+=== reflog grep ===
+107957b refs/heads/master@{6}: commit: #2, #3: research current ingress failure hypotheses
+107957b refs/heads/task-2/fix-tspu-ingress@{0}: reset: moving to 107957b9f3f53dd525e389b802bc58fbd9b22fef
+107957b HEAD@{6}: commit: #2, #3: research current ingress failure hypotheses
+107957b worktrees/fix-tspu-ingress/HEAD@{0}: reset: moving to 107957b9f3f53dd525e389b802bc58fbd9b22fef
+9fbf4cf refs/heads/task-2/fix-tspu-ingress@{4}: commit: #2: align test gate with orchestra layout
+9fbf4cf worktrees/fix-tspu-ingress/HEAD@{4}: commit: #2: align test gate with orchestra layout
+092413d refs/heads/task-2/fix-tspu-ingress@{9}: commit: #2: harden artifact authorization and privacy checks
+092413d worktrees/fix-tspu-ingress/HEAD@{9}: commit: #2: harden artifact authorization and privacy checks
+fc24dba refs/heads/task-2/fix-tspu-ingress@{10}: commit: #2: resolve implementation review blockers
+fc24dba worktrees/fix-tspu-ingress/HEAD@{10}: commit: #2: resolve implementation review blockers
+=== master line 115 verbatim ===
+    assert SCRIPT.exists(), "T1: missing delivery artifact scripts/task2_pilot.py"
+    assert CLIENT.exists(), "T1: missing delivery artifact .orchestra/tasks/2/client-matrix.html"
+
+    source = tmp_path / "manifest.json"
+=== who introduced .orchestra in test_task11 on master ===
+107957b #2, #3: research current ingress failure hypotheses

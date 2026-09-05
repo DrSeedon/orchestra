@@ -1,0 +1,20 @@
+=== task-6 validate.py side effects ===
+16:import subprocess
+161:script.write_text(NODE, encoding="utf-8")
+163:    res = subprocess.run(["node", str(script), str(PW), str(HTML), str(CHROME[-1])],
+=== avito_ads.py 170-180 ===
+
+def mom_chat(kick, title, bubbles, shots, strip_left):
+    """Живая переписка с мамой ученика — рядом с фото с тех же занятий.
+
+    Отзыв на площадке пишут один раз и в жанре благодарности. Переписка показывает
+    другое: как менялся ребёнок по ходу, а это ровно то, что ищет родитель, который
+    уже отчаялся. Разрешение на публикацию — docs/tasks/9/consent.md.
+    """
+    style = BASE_LIGHT + FRAME_CSS + f"""
+    .head {{ height: 186px; }}
+    .mid {{ flex: 1; min-height: 0; display: flex; gap: 26px; padding: 0 66px 26px; }}
+=== avito_ads side effects ===
+32:    with Image.open(os.path.join(ASSETS, tag + ".jpg")) as src:
+881:    with open(src, "w", encoding="utf-8") as f:
+888:    shot = Image.open(dst)

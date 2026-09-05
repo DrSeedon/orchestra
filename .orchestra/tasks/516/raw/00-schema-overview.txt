@@ -1,0 +1,33 @@
+tool_use_id populated: [(152539,)]
+tool rows w/ tuid: [(77106,)]
+tool_result rows w/ tuid: [(75435,)]
+tool rows total: [(102255,)]
+tool_name empty in tool rows: [(24446,)]
+date range: [('2026-07-27T16:20:40.227730+00:00', '2026-09-05T10:13:48.069261+00:00')]
+tool date range: [('2026-08-03T06:33:30.912020+00:00', '2026-09-05T10:13:47.942424+00:00')]
+--- tool_name top ---
+('Bash', 49032)
+('<NULL>', 24446)
+('FileChange', 6899)
+('mcp__orchestra__send_message', 3514)
+('Edit', 2371)
+('Read', 1855)
+('WebSearch', 1327)
+('mcp__orchestra__worker_wip', 950)
+('mcp__orchestra__merge_worker', 948)
+('mcp__orchestra__list_agents', 944)
+('ViewImage', 868)
+('mcp__orchestra__search_memory', 799)
+('mcp__orchestra__codex_review', 776)
+('Write', 661)
+('mcp__orchestra__spawn_worker', 516)
+('bash', 464)
+('mcp__orchestra__task_create', 443)
+('mcp__orchestra__send_file', 436)
+('mcp__orchestra__task_update', 409)
+('mcp__orchestra__bg_create', 409)
+('read_file', 401)
+('mcp__orchestra__kill_worker', 396)
+('run_terminal_command', 299)
+('grep', 291)
+('mcp__orchestra__task_get', 250)

@@ -1,0 +1,8 @@
+=== findmnt /tmp ===
+=== sizes ===
+5.2G	/home/kesha/katya-work
+1.7G	/home/kesha/katya-work/.git
+=== disk ===
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       290G  237G   54G  82% /
+/dev/sda1       290G  237G   54G  82% /

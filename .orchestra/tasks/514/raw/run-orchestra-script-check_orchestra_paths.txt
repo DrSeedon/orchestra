@@ -1,0 +1,14 @@
+fatal: not a tree object
+fatal: not a tree object
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/scripts/check_orchestra_paths.py", line 262, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/kesha/orchestra/scripts/check_orchestra_paths.py", line 245, in main
+    **verify_historical_bindings(root),
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/scripts/check_orchestra_paths.py", line 211, in verify_historical_bindings
+    blob, object_type, raw_size = batch[offset:header_end].decode().split()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: not enough values to unpack (expected 3, got 2)
+RC=1

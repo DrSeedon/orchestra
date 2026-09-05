@@ -1,0 +1,21 @@
+tests: вызовов 7718 часов 51.61
+targeted     n=  6730 часы=  45.13 мед=  12.17 p95=   87.7 ср=  24.14
+full-suite   n=   988 часы=   6.48 мед=   1.59 p95=  110.6 ср=  23.62
+
+=== повторные ОДИНАКОВЫЕ прогоны в одной сессии (нормализованная команда) ===
+групп с повтором: 665  лишних вызовов: 1373
+время в повторах сверх первого прогона, ч: 8.3
+
+=== 12 самых дорогих повторяющихся групп ===
+  x15   0.66ч  /bin/bash -lc 'uv run pytest -q tests/test_frontend.py'
+  x16   0.46ч  /bin/bash -lc "uv run pytest -q tests/test_frontend.py -k 'task and tool'"
+  x3    0.27ч  /bin/bash -lc "/opt/orchestra/runtimes/X-b0b72d65-py312-rag-v2/bin/python -m pytest -q -vv -m 'not live_probe'
+  x3    0.25ч  /bin/bash -lc 'set +e uv run pytest -q tests/test_frontend.py > X 2>&1 r1=$? uv run pytest -q tests/test_front
+  x3    0.18ч  /bin/bash -lc 'uv run pytest -q tests/test_manager.py tests/test_quota_gate.py tests/test_message_delivery_rec
+  x15   0.17ч  /bin/bash -lc "uv run pytest -q tests/test_frontend.py -k 'send_files_batch or send_file_single'"
+  x3    0.17ч  cd /home/kesha/orchestra; sleep 200; pgrep -af "\-m pytest" | grep -v claude | wc -l; git log --oneline -1 mai
+  x2    0.15ч  /bin/bash -lc "set -e grep -c 'preview = "'`создаёт задачу'"' app/static/js/app.js cp app/static/js/app.js app
+  x3    0.14ч  /bin/bash -lc 'uv run --offline --no-project --with-requirements tests/landings/requirements.txt python -m pyt
+  x9    0.14ч  /bin/bash -lc "uv run --frozen python -m pytest -q tests/test_merge_target_oracle_386.py -k 'test_t386_t1_'"
+  x4    0.12ч  /bin/bash -lc 'excluded_ips=127.0.0.1 uv run --no-project --with-requirements tests/landings/requirements.txt 
+  x2    0.12ч  cd /home/kesha/orchestra; sleep 210; git log --oneline -1 main; pgrep -af "\-m pytest" | grep -v claude | wc -

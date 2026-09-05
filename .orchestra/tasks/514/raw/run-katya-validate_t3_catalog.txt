@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/home/kesha/katya-work/artifacts/task-4/tests/validate_t3_catalog.py", line 262, in <module>
+    main()
+  File "/home/kesha/katya-work/artifacts/task-4/tests/validate_t3_catalog.py", line 88, in main
+    require_file(PPTX_OVERFLOW, "T3 missing independent PPTX overflow probe")
+  File "/home/kesha/katya-work/artifacts/task-4/tests/test_support.py", line 37, in require_file
+    raise AssertionError(f"{message}: {path}")
+AssertionError: T3 missing independent PPTX overflow probe: /home/kesha/katya-work/docs/tasks/4/evidence/analyze_pptx_overflow.py
+RC=1
