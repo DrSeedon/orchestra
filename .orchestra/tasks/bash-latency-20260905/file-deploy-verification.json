@@ -1,0 +1,20 @@
+{
+  "laptop": {
+    "head": "e06068f8b15e8d19cc7a961d83b9805cd5739dda",
+    "service": {
+      "ActiveState": "active",
+      "MainPID": "3573833",
+      "ExecMainStartTimestamp": "Sat 2026-09-05 18:38:23 +07"
+    },
+    "http_status": 200
+  },
+  "vps": {
+    "head": "e06068f8b15e8d19cc7a961d83b9805cd5739dda",
+    "service": {
+      "MainPID": "3808209",
+      "ExecMainStartTimestamp": "Sat 2026-09-05 12:09:07 CEST",
+      "ActiveState": "active"
+    },
+    "http_status": 200
+  }
+}
