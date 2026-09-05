@@ -3644,6 +3644,142 @@ def _git_review_text(cwd: str, *args: str) -> str:
     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
 
 
+_REVIEW_SKIP_MAX_LINES = 40
+_REVIEW_SKIP_MAX_FILES = 3
+# Evidence weakness, verbatim: `n=2`, and the first observed blocker sits three lines above it
+# (#502 round 1, 43 lines / 2 files). The threshold is a small measured saving, not a law.
+_REVIEW_SKIP_EVIDENCE_WEAKNESS = (
+    "`n=2`, and the first observed blocker sits three lines above it "
+    "(#502 round 1, 43 lines / 2 files)."
+)
+
+
+def _parse_review_numstat(raw: bytes) -> tuple[int, int, int]:
+    """Return changed lines, files, and binary files from ``git --numstat -z``."""
+    if not raw:
+        return 0, 0, 0
+    if not raw.endswith(b"\0"):
+        raise ValueError("numstat output is not NUL-terminated")
+    fields = raw.split(b"\0")
+    index = 0
+    lines = 0
+    files = 0
+    binaries = 0
+    while index < len(fields) - 1:
+        header = fields[index]
+        index += 1
+        parts = header.split(b"\t", 2)
+        if len(parts) != 3:
+            raise ValueError("numstat record has no add/delete/path fields")
+        added, deleted, path = parts
+        if not path:
+            if index + 1 >= len(fields) or not fields[index] or not fields[index + 1]:
+                raise ValueError("numstat rename record has no source/destination path")
+            index += 2
+        if added == b"-" or deleted == b"-":
+            if added != b"-" or deleted != b"-":
+                raise ValueError("numstat binary marker is incomplete")
+            binaries += 1
+        else:
+            if not added.isdigit() or not deleted.isdigit():
+                raise ValueError("numstat line counts are not decimal integers")
+            lines += int(added) + int(deleted)
+        files += 1
+    return lines, files, binaries
+
+
+def _implementation_review_size_decision(
+    worktree: str,
+    target_sha: str,
+    worker_head: str,
+    *,
+    required: Any = True,
+) -> dict[str, object]:
+    """Fail-safe size decision for the complete pinned diff, never its production projection."""
+    completed = subprocess.run(
+        [
+            "git", "-C", worktree, "diff", "--numstat", "-z",
+            f"{target_sha}...{worker_head}",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return {
+            "status": "review",
+            "reason": "measurement_failed",
+            "changed_lines": None,
+            "changed_files": None,
+            "binary_files": None,
+            "threshold_lines": _REVIEW_SKIP_MAX_LINES,
+            "threshold_files": _REVIEW_SKIP_MAX_FILES,
+            "required": required,
+            "evidence": "Review required: complete pinned diff measurement failed.",
+        }
+    try:
+        changed_lines, changed_files, binary_files = _parse_review_numstat(completed.stdout)
+    except ValueError:
+        return {
+            "status": "review",
+            "reason": "measurement_failed",
+            "changed_lines": None,
+            "changed_files": None,
+            "binary_files": None,
+            "threshold_lines": _REVIEW_SKIP_MAX_LINES,
+            "threshold_files": _REVIEW_SKIP_MAX_FILES,
+            "required": required,
+            "evidence": "Review required: complete pinned diff measurement failed.",
+        }
+
+    common = {
+        "changed_lines": changed_lines,
+        "changed_files": changed_files,
+        "binary_files": binary_files,
+        "threshold_lines": _REVIEW_SKIP_MAX_LINES,
+        "threshold_files": _REVIEW_SKIP_MAX_FILES,
+        "required": required,
+    }
+    noun = "file" if changed_files == 1 else "files"
+    if binary_files:
+        return {
+            "status": "review",
+            "reason": "binary_diff",
+            **common,
+            "evidence": (
+                f"Review required: complete pinned diff contains {binary_files} binary {noun}."
+            ),
+        }
+    if required is not False:
+        return {
+            "status": "review",
+            "reason": "required",
+            **common,
+            "evidence": "Review required by the risk/primary-work decision.",
+        }
+    if (
+        changed_lines > _REVIEW_SKIP_MAX_LINES
+        or changed_files > _REVIEW_SKIP_MAX_FILES
+    ):
+        return {
+            "status": "review",
+            "reason": "size_exceeded",
+            **common,
+            "evidence": (
+                f"Review required: complete pinned diff is {changed_lines} changed lines "
+                f"across {changed_files} {noun}; threshold is <=40 lines AND <=3 files."
+            ),
+        }
+    return {
+        "status": "skip",
+        "reason": "size_threshold",
+        **common,
+        "evidence": (
+            f"Review skipped by size: complete pinned diff is {changed_lines} changed lines "
+            f"across {changed_files} {noun}; threshold is <=40 lines AND <=3 files."
+        ),
+    }
+
+
 def _review_repository_root(cwd: str) -> Path:
     common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
     if not common_dir.is_absolute():
@@ -4022,6 +4158,7 @@ async def codex_review(
     mode: str = "review",
     resume: bool = False,
     model: str = _CODEX_REVIEW_DEFAULT_MODEL,
+    required: Any = True,
 ) -> CallToolResult:
     """Run a registered Codex model review in background. Returns immediately.
     After calling, END YOUR TURN NOW; Orchestra wakes you when the job completes.
@@ -4038,7 +4175,9 @@ async def codex_review(
         in context (e.g. 'I fixed X and Y, re-review').
     model: reviewer model or registry alias. Omitted means the server-owned gpt-5.6-luna Fast tier.
         Registered Codex-runtime models are accepted except Codex Spark, which policy forbids for
-        review. Pass the model again on resume; it is applied to the resumed Codex thread."""
+        review. Pass the model again on resume; it is applied to the resumed Codex thread.
+    required: fail-safe implementation-review decision. Only literal JSON false asserts low risk
+        and permits a <=40-line/<=3-file size skip; omitted, null, malformed, or true reviews."""
     review_model = _resolve_codex_review_model(model)
     context = context.strip()
     if not context:
@@ -4113,6 +4252,84 @@ async def codex_review(
                 details={"field": "mode"},
             ) from error
     requested_at = datetime.now(timezone.utc).isoformat()
+    if mode == "implementation":
+        size_decision = _implementation_review_size_decision(
+            str(cwd),
+            str(subject["target_sha"]),
+            str(subject["worker_head"]),
+            required=required,
+        )
+        if size_decision["status"] == "skip":
+            from app.db import init_db, review_receipt_record_skip
+
+            init_db()
+            evidence = (
+                f"{size_decision['evidence']} Evidence weakness: "
+                f"{_REVIEW_SKIP_EVIDENCE_WEAKNESS}"
+            )
+            identity = json.dumps(
+                {
+                    "session_id": requesting_session_id,
+                    "scope": SCOPE,
+                    "task_id": str(info.get("task_id") or ""),
+                    "target_sha": subject["target_sha"],
+                    "worker_head": subject["worker_head"],
+                    "policy_ref": subject["policy_ref"],
+                    "threshold_lines": _REVIEW_SKIP_MAX_LINES,
+                    "threshold_files": _REVIEW_SKIP_MAX_FILES,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            receipt_id = "review-size-skip:" + hashlib.sha256(identity.encode()).hexdigest()
+            receipt = review_receipt_record_skip({
+                "receipt_id": receipt_id,
+                "schema_version": 1,
+                "runtime": "none",
+                "reviewer_model": "",
+                "model_source": "direct",
+                "session_id": requesting_session_id,
+                "worker_name": WORKER_NAME,
+                "scope": SCOPE,
+                "task_id": str(info.get("task_id") or ""),
+                "task_source": "session_lookup",
+                "artifact_path": "",
+                "mode": "skip",
+                "round": None,
+                "job_id": "",
+                "usage_event_id": "",
+                "requested_at": requested_at,
+                "completed_at": requested_at,
+                "status": "completed",
+                "return_code": None,
+                "failure_code": "",
+                "artifact_exists": 0,
+                "artifact_bytes": 0,
+                "artifact_sha256": "",
+                "verdict_present": 0,
+                "verdict_value": "",
+                "jsonl_response_present": 0,
+                "recovery_source": "",
+                "author_outcome": "unknown",
+                "outcome_source": "direct",
+                "outcome_evidence_ref": evidence,
+                "notification_event_id": "",
+                **subject,
+                "coverage_outcome": "skipped",
+                "decision_actor": WORKER_NAME,
+            })
+            payload = {
+                "kind": "review_skipped_by_size",
+                **size_decision,
+                "evidence": evidence,
+                "receipt_id": str(receipt["receipt_id"]),
+                "target_sha": str(subject["target_sha"]),
+                "worker_head": str(subject["worker_head"]),
+            }
+            return mcp_tool_result(
+                result=payload,
+                text=f"{evidence} Receipt: {receipt['receipt_id']}",
+            )
     source_ref = str(subject.get("target_sha") or info.get("base_branch") or "main")
     try:
         project_context, project_context_receipt = _load_review_project_context(
