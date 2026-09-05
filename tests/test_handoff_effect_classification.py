@@ -286,3 +286,38 @@ async def test_change_model_refusal_names_the_blocking_call_not_only_its_code(se
         "call_ts": "2026-08-11T10:00:02+00:00",
     }]
     session._ensure_backend.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_refusal_on_settling_turn_carries_a_machine_readable_code(session):
+    """Отказ «ход ещё оседает» обязан нести КОД, а не только текст.
+
+    Вызывающий ветвится по `error_code`, а не по фразе: соседний отказ того же блока
+    (`app/session.py:5039-5044`, `<runtime>_in_place_switch_unsupported`) код несёт, а
+    этот его терял — обёртка вправе добавить код, но не вправе потерять причину (#416).
+    Утверждается НАЛИЧИЕ и ЗНАЧЕНИЕ кода, а не формулировка текста.
+    """
+    from app.session import AgentStatus
+
+    session.model = "gpt-5.6-sol"
+    session.backend_type = "codex"
+    session.session_id = "source-thread"
+    session.status = AgentStatus.IDLE
+
+    class _SettlingBackend:
+        active_turn_id = "turn-1"
+        _events_active = False
+        _turn_active = False
+
+        async def retarget_model(self, *_args, **_kwargs):
+            raise AssertionError("смена модели не должна дойти до бэкенда")
+
+    session._backend = _SettlingBackend()
+    session._log = MagicMock()
+    session._ensure_backend = AsyncMock()
+
+    result = await session.change_model("gpt-5.6-luna")
+
+    assert result["ok"] is False
+    assert result["error_code"] == "codex_turn_settling", result
+    assert "settling" in result["error"]
