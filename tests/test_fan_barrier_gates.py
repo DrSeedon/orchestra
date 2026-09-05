@@ -46,6 +46,7 @@ class _SpyManager:
     $0.900241/$0.756113 (#223, независимая репликация)."""
     def __init__(self):
         self.sent = []
+        self.provenances = []
 
     async def ensure_loaded(self, name, scope=None):
         return _FakeSession(name)
@@ -56,6 +57,7 @@ class _SpyManager:
     async def send(self, session_id, msg, *, provenance):
         assert provenance.senders
         self.sent.append((session_id, msg))
+        self.provenances.append(provenance)
 
     def _context_warning(self, sender):
         return ""
