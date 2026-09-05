@@ -1,0 +1,1117 @@
+{
+  "snapshot": {
+    "extracted_at_utc": "2026-09-05T08:06:20.634244+00:00",
+    "database_max_review_requested_at": "2026-09-05T07:53:43.342612+00:00",
+    "database_max_review_usage_ts": "2026-09-05T07:54:44.654398+00:00",
+    "completed_review_receipts": 109,
+    "completed_receipts_with_prefix_usage": 103
+  },
+  "threshold_population": {
+    "completed_implementation_receipts": 49,
+    "production_paths_measurable": 43,
+    "outcomes": {
+      "nothing": 9,
+      "unclassified": 1,
+      "blocking": 25,
+      "suggestion-only": 8
+    },
+    "candidate_thresholds": [
+      {
+        "max_lines": 20,
+        "max_files": 1,
+        "classified": 1,
+        "outcomes": {
+          "nothing": 1
+        }
+      },
+      {
+        "max_lines": 40,
+        "max_files": 3,
+        "classified": 2,
+        "outcomes": {
+          "nothing": 1,
+          "suggestion-only": 1
+        }
+      },
+      {
+        "max_lines": 50,
+        "max_files": 3,
+        "classified": 4,
+        "outcomes": {
+          "nothing": 2,
+          "suggestion-only": 1,
+          "blocking": 1
+        }
+      },
+      {
+        "max_lines": 75,
+        "max_files": 3,
+        "classified": 9,
+        "outcomes": {
+          "nothing": 3,
+          "suggestion-only": 2,
+          "blocking": 4
+        }
+      },
+      {
+        "max_lines": 100,
+        "max_files": 3,
+        "classified": 10,
+        "outcomes": {
+          "nothing": 4,
+          "suggestion-only": 2,
+          "blocking": 4
+        }
+      },
+      {
+        "max_lines": 150,
+        "max_files": 3,
+        "classified": 13,
+        "outcomes": {
+          "nothing": 5,
+          "blocking": 5,
+          "suggestion-only": 3
+        }
+      },
+      {
+        "max_lines": 250,
+        "max_files": 5,
+        "classified": 18,
+        "outcomes": {
+          "nothing": 6,
+          "blocking": 8,
+          "suggestion-only": 4
+        }
+      },
+      {
+        "max_lines": 500,
+        "max_files": 5,
+        "classified": 24,
+        "outcomes": {
+          "nothing": 6,
+          "blocking": 13,
+          "suggestion-only": 5
+        }
+      }
+    ],
+    "rows": [
+      {
+        "task": "462",
+        "round": 1,
+        "lines": 1,
+        "files": 1,
+        "outcome": "nothing",
+        "receipt_id": "review-receipt:a2d8cc6f-484b-4d0f-9fe0-b9a8e05d9d3b"
+      },
+      {
+        "task": "465",
+        "round": 2,
+        "lines": 666,
+        "files": 5,
+        "outcome": "unclassified",
+        "receipt_id": "review-receipt:b436eae6-d661-436e-b423-8794cc32c954"
+      },
+      {
+        "task": "465",
+        "round": 3,
+        "lines": 666,
+        "files": 5,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:bf6b8590-7cc2-4900-af45-d04e983aa25e"
+      },
+      {
+        "task": "465",
+        "round": 4,
+        "lines": 666,
+        "files": 5,
+        "outcome": "nothing",
+        "receipt_id": "review-receipt:d14a638d-5778-49b0-a31c-ae844a4d1560"
+      },
+      {
+        "task": "466",
+        "round": 1,
+        "lines": 122,
+        "files": 2,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:7840f9c4-83e9-4c37-88ba-05d4ab27911a"
+      },
+      {
+        "task": "466",
+        "round": 2,
+        "lines": 141,
+        "files": 2,
+        "outcome": "nothing",
+        "receipt_id": "review-receipt:a40dec81-e873-4033-b828-ff8e9640b3e8"
+      },
+      {
+        "task": "472",
+        "round": 1,
+        "lines": 40,
+        "files": 3,
+        "outcome": "suggestion-only",
+        "receipt_id": "review-receipt:01435214-5df0-4073-8eaa-6d074fb12240"
+      },
+      {
+        "task": "474",
+        "round": 1,
+        "lines": 103,
+        "files": 4,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:0b736f75-7990-4991-b71c-2f8489b8ba1e"
+      },
+      {
+        "task": "473",
+        "round": 2,
+        "lines": 401,
+        "files": 5,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:3ea49c73-8f25-43bf-8360-e8bbeb355aac"
+      },
+      {
+        "task": "474",
+        "round": 2,
+        "lines": 204,
+        "files": 5,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:da4af35a-4f4c-4d67-9115-09efba37f939"
+      },
+      {
+        "task": "473",
+        "round": 3,
+        "lines": 508,
+        "files": 5,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:eca3210d-4afe-4739-a17a-e73d82037fdb"
+      },
+      {
+        "task": "474",
+        "round": 3,
+        "lines": 255,
+        "files": 5,
+        "outcome": "suggestion-only",
+        "receipt_id": "review-receipt:d14b80b3-a318-4f63-ae2c-205d21618c7f"
+      },
+      {
+        "task": "473",
+        "round": 4,
+        "lines": 549,
+        "files": 5,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:b80e4298-18ca-469f-8061-90c6811a4b92"
+      },
+      {
+        "task": "478",
+        "round": 1,
+        "lines": 134,
+        "files": 2,
+        "outcome": "suggestion-only",
+        "receipt_id": "review-receipt:3f9dfdbd-86e4-4357-9370-cb221566dbc1"
+      },
+      {
+        "task": "480",
+        "round": 2,
+        "lines": 52,
+        "files": 2,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:98c74df6-931a-46e8-98ea-48453b6d92a4"
+      },
+      {
+        "task": "482",
+        "round": 1,
+        "lines": 65,
+        "files": 1,
+        "outcome": "suggestion-only",
+        "receipt_id": "review-receipt:1ea7a710-382a-47c7-a826-f8210a866de9"
+      },
+      {
+        "task": "480",
+        "round": 3,
+        "lines": 58,
+        "files": 2,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:e0383f51-79be-4e21-a6f5-5a7a5a67f637"
+      },
+      {
+        "task": "480",
+        "round": 4,
+        "lines": 62,
+        "files": 2,
+        "outcome": "nothing",
+        "receipt_id": "review-receipt:f17a07e8-7b65-44da-9fa4-7f032f13fefc"
+      },
+      {
+        "task": "487",
+        "round": 1,
+        "lines": 1204,
+        "files": 4,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:10080db3-a3b6-4d7f-907b-977b57d568bb"
+      },
+      {
+        "task": "488",
+        "round": 1,
+        "lines": 165,
+        "files": 1,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:691a173f-df62-45a1-bea9-b47b0e4fbbcf"
+      },
+      {
+        "task": "487",
+        "round": 2,
+        "lines": 1239,
+        "files": 4,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:f7330a29-77be-4259-bc01-879dc2ca658f"
+      },
+      {
+        "task": "488",
+        "round": 2,
+        "lines": 174,
+        "files": 1,
+        "outcome": "suggestion-only",
+        "receipt_id": "review-receipt:5820a47f-4793-4176-aa8f-1cfbaf2fdf7f"
+      },
+      {
+        "task": "487",
+        "round": 3,
+        "lines": 1272,
+        "files": 4,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:53ab894b-ee9e-4c1f-84f3-5074e91c0fea"
+      },
+      {
+        "task": "491",
+        "round": 1,
+        "lines": 216,
+        "files": 1,
+        "outcome": "nothing",
+        "receipt_id": "review-receipt:7a01861f-7529-4cc0-8184-12810af2d2cd"
+      },
+      {
+        "task": "493",
+        "round": 1,
+        "lines": 393,
+        "files": 3,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:a558cb2d-bc88-456c-bd6e-4fbf2c4e9e7c"
+      },
+      {
+        "task": "493",
+        "round": 2,
+        "lines": 453,
+        "files": 3,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:4ece3a04-4fde-41c0-9dd9-f44da66e9a27"
+      },
+      {
+        "task": "493",
+        "round": 3,
+        "lines": 462,
+        "files": 3,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:3e282344-aa96-4afe-bb77-03a82da684c0"
+      },
+      {
+        "task": "494",
+        "round": 1,
+        "lines": 452,
+        "files": 4,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:5ba62c30-d4e0-41ca-b31e-1bcd3d137a58"
+      },
+      {
+        "task": "494",
+        "round": 2,
+        "lines": 574,
+        "files": 4,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:ed6859e9-4d09-4ae1-82f9-070a038622b5"
+      },
+      {
+        "task": "494",
+        "round": 3,
+        "lines": 610,
+        "files": 4,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:d7734490-3e65-49ee-9f3f-ca1d8c051d8b"
+      },
+      {
+        "task": "497",
+        "round": 1,
+        "lines": 67,
+        "files": 1,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:0b6333ea-6cc1-4605-81c7-0323b01425c9"
+      },
+      {
+        "task": "497",
+        "round": 2,
+        "lines": 94,
+        "files": 1,
+        "outcome": "nothing",
+        "receipt_id": "review-receipt:bf0e850a-cc28-4882-a51f-f4eda0d690d1"
+      },
+      {
+        "task": "499",
+        "round": 1,
+        "lines": 1398,
+        "files": 12,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:de3f564b-0ddb-4ef0-aff0-70782d30ef8e"
+      },
+      {
+        "task": "500",
+        "round": 1,
+        "lines": 1258,
+        "files": 11,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:4135126c-a577-466a-85b5-312169eb2b5e"
+      },
+      {
+        "task": "490",
+        "round": 3,
+        "lines": 1153,
+        "files": 9,
+        "outcome": "suggestion-only",
+        "receipt_id": "review-receipt:53365e1d-df43-488c-9181-2cc210ab9929"
+      },
+      {
+        "task": "500",
+        "round": 2,
+        "lines": 1265,
+        "files": 11,
+        "outcome": "suggestion-only",
+        "receipt_id": "review-receipt:0dcf2711-fe1e-4acf-bd66-c1ea6ff328da"
+      },
+      {
+        "task": "499",
+        "round": 2,
+        "lines": 1564,
+        "files": 12,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:de814406-eb6f-48f8-9d4e-c1b9a78354ac"
+      },
+      {
+        "task": "500",
+        "round": 3,
+        "lines": 1265,
+        "files": 11,
+        "outcome": "suggestion-only",
+        "receipt_id": "review-receipt:3c69959c-6a3a-4f4b-9412-19678ee45de1"
+      },
+      {
+        "task": "490",
+        "round": 4,
+        "lines": 1153,
+        "files": 9,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:9ae74a57-3712-430f-ab27-ff921311a66b"
+      },
+      {
+        "task": "499",
+        "round": 3,
+        "lines": 1593,
+        "files": 12,
+        "outcome": "nothing",
+        "receipt_id": "review-receipt:1a85f75d-fc55-43c5-a895-d90ab8a68957"
+      },
+      {
+        "task": "490",
+        "round": 5,
+        "lines": 1153,
+        "files": 9,
+        "outcome": "nothing",
+        "receipt_id": "review-receipt:2c22dbb3-6bd6-4424-8e75-30623a04d5d1"
+      },
+      {
+        "task": "502",
+        "round": 1,
+        "lines": 43,
+        "files": 2,
+        "outcome": "blocking",
+        "receipt_id": "review-receipt:4e98ca5e-124e-42a5-b125-e47a36860715"
+      },
+      {
+        "task": "502",
+        "round": 2,
+        "lines": 48,
+        "files": 2,
+        "outcome": "nothing",
+        "receipt_id": "review-receipt:61b50285-8149-4e38-bdce-16dee2df286f"
+      }
+    ]
+  },
+  "round_three": {
+    "total": 18,
+    "outcomes": {
+      "nothing": 3,
+      "blocking": 11,
+      "suggestion-only": 3,
+      "unclassified": 1
+    },
+    "typed_implementation_outcomes": {
+      "blocking": 6,
+      "suggestion-only": 3,
+      "nothing": 1
+    },
+    "rows": [
+      {
+        "task": "429",
+        "mode": "review",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "nothing",
+        "verdict": "**APPROVED** — все prior findings закрыты, новый blocker отсутствует, порядок `#433 → #430 → отдельное одобрение Phase 3` сохранён. > “Implementation is not authorized; it starts only after #433 and #430 merge in that order and after a separate Phase-3 approval.” Теперь можно прекращать этот сериал: тестовая охрана действительно проверила второй список 🛂",
+        "receipt_id": "review-receipt:f23d1025-99f8-46eb-bc8c-0053b0c9a396"
+      },
+      {
+        "task": "90",
+        "mode": "review",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "nothing",
+        "verdict": "**APPROVED for Phase 1 prose/research scope; not high-risk approval.** Callable Luna review route был недоступен, поэтому Luna/high-risk approval не заявляю. Оставшиеся риски корректно вынесены в измерения Phase 2. Теперь документ хотя бы честно признаёт: ключи от системы описаны, но Windows всё ещё держит дверь закрытой.",
+        "receipt_id": "review-receipt:e6cc8ae3-2f14-4259-aa1d-ac7b87383c7a"
+      },
+      {
+        "task": "433",
+        "mode": "exec",
+        "reviewer_model": "gpt-5.6-sol",
+        "outcome": "blocking",
+        "verdict": "NEEDS WORK. Three Round 2 blockers are closed; receipt validation ordering leaves one correctness-critical migration hole. The seal is valid—the envelope just goes through another stamping machine afterward. 📬",
+        "receipt_id": "review-receipt:0a80ab2e-8da6-43d1-b104-cd558ef8ea05"
+      },
+      {
+        "task": "93",
+        "mode": "review",
+        "reviewer_model": "gpt-5.6-sol",
+        "outcome": "blocking",
+        "verdict": "**Overall Correctness:** ❌ Incorrect | **Confidence:** 0.98 Frozen evidence: ```text uv run --offline --with playwright==1.60.0 python oil-paint/tests/test_t88_exhibition.py ExhibitionOracleTests.test_t3_single_writer_order_and_idempotency_protocol Ran 1 test in 1.115s OK ``` ```text uv run --offline --with playwright==1.60.0 python oil-paint/tests/test_t88_independent_oracles.py IndependentOracleTests.test_t3_concurrent_lease_heartbeat_expiry_and_restart_tokens Ran 1 test in 3.574s OK ``` Concurrency and generation are fixed, but the selected palette remains false durable metadata. A museum label saying “all paints” still doesn’t identify which paint was used. 🖼️",
+        "receipt_id": "review-receipt:54a2a4ca-08ad-450d-971c-0a314c7cdea0"
+      },
+      {
+        "task": "453",
+        "mode": "exec",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "blocking",
+        "verdict": "❌ **Incorrect.** The client gate has multiple credential bypasses and several normal Git states that fail closed. Targeted probes confirmed the escaped PEM, fine-grained PAT, placeholder-token, false-positive, rename/type, submodule, and non-UTF8 behaviors. A public-repo gate that ignores commit messages is a bouncer inspecting only the jacket after the wallet already left.",
+        "receipt_id": "review-receipt:05a1173b-c4cf-4b86-b9a9-b4103ce61a1b"
+      },
+      {
+        "task": "462",
+        "mode": "exec",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "blocking",
+        "verdict": "**Overall Correctness:** ❌ Incorrect **Confidence:** 0.99 Round 2 fixes are accepted, but the plan is not clean until the production trigger and unavailable-admission contract have one authoritative wording. Exact plan quote: “Thus the activation boundary is the first execution-side check that sees the marker, not merely operation creation; no pre-activation queue needs a manual drain.” Гейт уже различает два кода отказа; теперь бы самому плану научиться различать `app` и `scripts`.",
+        "receipt_id": "review-receipt:27622e9e-767f-4b7b-a685-b2a60246c0d5"
+      },
+      {
+        "task": "465",
+        "mode": "exec",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "blocking",
+        "verdict": "**Overall Correctness:** ❌ Incorrect | **Confidence:** 0.97 Предыдущие четыре замечания закрыты, но rollback всё ещё имеет необработанный post-mutation crash path. Сейчас это чемодан, который уже вернули на место, но акт приёма решил уйти в HTTP 500.",
+        "receipt_id": "review-receipt:c8a331f3-ec9d-47b3-a702-47eafd943a05"
+      },
+      {
+        "task": "465",
+        "mode": "implementation",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "blocking",
+        "verdict": "**❌ Incorrect — blocking issue found.** The final manager fixture correction is test-only and introduces no additional finding. A promoted task without an owner is just a renamed parcel sitting in the warehouse.",
+        "receipt_id": "review-receipt:bf6b8590-7cc2-4900-af45-d04e983aa25e"
+      },
+      {
+        "task": "473",
+        "mode": "implementation",
+        "reviewer_model": "gpt-5.6-sol",
+        "outcome": "blocking",
+        "verdict": "❌ **Request changes.** F1, F3, F6, and the explicit NULL-overlay correction are complete, but ownership can still overlap or diverge between SQLite and the live worker. The locks now share a conductor, but several writers are still playing from different pages.",
+        "receipt_id": "review-receipt:eca3210d-4afe-4739-a17a-e73d82037fdb"
+      },
+      {
+        "task": "474",
+        "mode": "implementation",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "suggestion-only",
+        "verdict": "**Overall Correctness:** ✅ Correct — confidence: 0.96. The two round-2 blockers are closed. The tests are non-vacuous: they assert relevant preconditions and mutation outcomes. No blocking issue remains. `USAGE_ERROR_EXIT_CODE = 4 # pytest EXIT_USAGEERROR` Система почти закончила проверять билеты; теперь только старый билет с обратным слэшем требует отдельного кондуктора.",
+        "receipt_id": "review-receipt:d14b80b3-a318-4f63-ae2c-205d21618c7f"
+      },
+      {
+        "task": "102",
+        "mode": "review",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "unclassified",
+        "verdict": "",
+        "receipt_id": "review-receipt:754bc7ab-04d4-4dd0-9b89-7b292ac5f80d"
+      },
+      {
+        "task": "480",
+        "mode": "implementation",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "blocking",
+        "verdict": "❌ Needs work. The two Round 1 blockers are resolved, but this new legacy-delivery race can corrupt durable report selection while the fan waits for siblings. “Durable until the next envelope arrives” is a surprisingly accurate name for the current report file.",
+        "receipt_id": "review-receipt:e0383f51-79be-4e21-a6f5-5a7a5a67f637"
+      },
+      {
+        "task": "487",
+        "mode": "implementation",
+        "reviewer_model": "gpt-5.6-sol",
+        "outcome": "blocking",
+        "verdict": "**❌ Needs work — confidence 0.99.** The two requested regressions are fixed, but the same replay seam still permits budget under-accounting and durable reason corruption. The checkpoint now remembers the page number and occasionally forgets which book it was reading.",
+        "receipt_id": "review-receipt:53ab894b-ee9e-4c1f-84f3-5074e91c0fea"
+      },
+      {
+        "task": "493",
+        "mode": "implementation",
+        "reviewer_model": "gpt-5.6-sol",
+        "outcome": "blocking",
+        "verdict": "**Reject — unresolved at the round ceiling.** Full object identity and truthful attestation errors are fixed, but an older review can still supersede a newer round through completion-order inversion. Apparently “latest review” was outsourced to whichever stopwatch stops last. ⏱️",
+        "receipt_id": "review-receipt:3e282344-aa96-4afe-bb77-03a82da684c0"
+      },
+      {
+        "task": "494",
+        "mode": "implementation",
+        "reviewer_model": "gpt-5.6-sol",
+        "outcome": "blocking",
+        "verdict": "**❌ Needs work.** Both original seams are fixed for one cancellation but remain blocking under repeated cancellation, which can still leak worktrees and branches. This is the third and final executable review round. The janitor survives one fire alarm; the second one steals the mop. 🧹",
+        "receipt_id": "review-receipt:d7734490-3e65-49ee-9f3f-ca1d8c051d8b"
+      },
+      {
+        "task": "490",
+        "mode": "implementation",
+        "reviewer_model": "gpt-5.6-sol",
+        "outcome": "suggestion-only",
+        "verdict": "**APPROVED.** No blocking findings; the implementation preserves the fleet-wide prompt contract. Verbatim changed-artifact line: ```text - **A proven new path completely replaces the old path in our own code and interfaces.** ``` One stale audit label in an otherwise clean translation — finally a loose thread, not the whole wardrobe. 🧵",
+        "receipt_id": "review-receipt:53365e1d-df43-488c-9181-2cc210ab9929"
+      },
+      {
+        "task": "500",
+        "mode": "implementation",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "suggestion-only",
+        "verdict": "**Needs work — no blocking findings.** Evidence: - `python .orchestra/tasks/500/form_census.py \"$PWD\"` → `selected=30`, `marker_zero=0`, `distinct_forms=6` - `uv run pytest -q tests/test_review_authorship_493.py` → `33 passed in 5.03s` - No files edited. The census is no longer a lottery; it just has one Markdown door with a loose angle-bracket hinge.",
+        "receipt_id": "review-receipt:3c69959c-6a3a-4f4b-9412-19678ee45de1"
+      },
+      {
+        "task": "499",
+        "mode": "implementation",
+        "reviewer_model": "gpt-5.6-luna",
+        "outcome": "nothing",
+        "verdict": "**APPROVED** Verified with: ```text $ uv run pytest -q tests/test_lifecycle_quarantine_499.py ............... [100%] 15 passed in 2.39s ``` На этот раз дверь действительно закрыта, а папки просто лежат рядом — почти подозрительно нормально.",
+        "receipt_id": "review-receipt:1a85f75d-fc55-43c5-a895-d90ab8a68957"
+      }
+    ]
+  },
+  "resume": {
+    "identity_classified_followups": 46,
+    "counts": {
+      "resumed": 42,
+      "fresh": 4
+    },
+    "resumed_median_seconds": 133.23793799999999,
+    "resumed_p75_seconds": 181.57517675,
+    "fresh_median_seconds": 293.281431,
+    "fresh_p75_seconds": 365.53056649999996,
+    "rows": [
+      {
+        "task": "429",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 139.356718,
+        "thread": "01a0602f-7065-7983-a19f-48d8120cc81a",
+        "prior_thread": "01a0602f-7065-7983-a19f-48d8120cc81a"
+      },
+      {
+        "task": "429",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 50.630292,
+        "thread": "01a0602f-7065-7983-a19f-48d8120cc81a",
+        "prior_thread": "01a0602f-7065-7983-a19f-48d8120cc81a"
+      },
+      {
+        "task": "90",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 138.700055,
+        "thread": "01a06055-e12e-7403-98cc-f9a327f88eae",
+        "prior_thread": "01a06055-e12e-7403-98cc-f9a327f88eae"
+      },
+      {
+        "task": "433",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 306.703214,
+        "thread": "01a06078-98f8-7833-8023-18fe76188776",
+        "prior_thread": "01a06078-98f8-7833-8023-18fe76188776"
+      },
+      {
+        "task": "433",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 94.711503,
+        "thread": "01a06078-98f8-7833-8023-18fe76188776",
+        "prior_thread": "01a06078-98f8-7833-8023-18fe76188776"
+      },
+      {
+        "task": "90",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 307.865176,
+        "thread": "01a0607a-a58a-7102-b8df-6c401398ced3",
+        "prior_thread": "01a0607a-a58a-7102-b8df-6c401398ced3"
+      },
+      {
+        "task": "93",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 136.840501,
+        "thread": "01a060f9-5610-7103-a872-3a799c121cce",
+        "prior_thread": "01a060f9-5610-7103-a872-3a799c121cce"
+      },
+      {
+        "task": "454",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 121.157479,
+        "thread": "01a066ac-bf22-7d61-a891-92889f25e94f",
+        "prior_thread": "01a066ac-bf22-7d61-a891-92889f25e94f"
+      },
+      {
+        "task": "462",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 166.215739,
+        "thread": "01a06704-826e-7cb2-962a-8a61bf594e57",
+        "prior_thread": "01a06704-826e-7cb2-962a-8a61bf594e57"
+      },
+      {
+        "task": "462",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 90.094149,
+        "thread": "01a06704-826e-7cb2-962a-8a61bf594e57",
+        "prior_thread": "01a06704-826e-7cb2-962a-8a61bf594e57"
+      },
+      {
+        "task": "465",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 188.093248,
+        "thread": "01a0670d-8b25-7972-abff-4d18d3f1dc89",
+        "prior_thread": "01a0670d-8b25-7972-abff-4d18d3f1dc89"
+      },
+      {
+        "task": "465",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 159.825845,
+        "thread": "01a06724-cbe5-7992-8dfe-4365c04c23b8",
+        "prior_thread": "01a06724-cbe5-7992-8dfe-4365c04c23b8"
+      },
+      {
+        "task": "466",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 216.287659,
+        "thread": "01a06763-b5a7-7ea0-b13a-da9636425218",
+        "prior_thread": "01a06763-b5a7-7ea0-b13a-da9636425218"
+      },
+      {
+        "task": "465",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 114.631127,
+        "thread": "01a06764-93c8-7341-9949-44d62e09d57d",
+        "prior_thread": "01a06764-93c8-7341-9949-44d62e09d57d"
+      },
+      {
+        "task": "465",
+        "round": 4,
+        "kind": "resumed",
+        "duration_seconds": 41.912523,
+        "thread": "01a06764-93c8-7341-9949-44d62e09d57d",
+        "prior_thread": "01a06764-93c8-7341-9949-44d62e09d57d"
+      },
+      {
+        "task": "465",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 143.719928,
+        "thread": "01a0681e-dfb8-7000-8f4f-8e4915a2e2fa",
+        "prior_thread": "01a0681e-dfb8-7000-8f4f-8e4915a2e2fa"
+      },
+      {
+        "task": "465",
+        "round": 4,
+        "kind": "resumed",
+        "duration_seconds": 44.393291,
+        "thread": "01a0681e-dfb8-7000-8f4f-8e4915a2e2fa",
+        "prior_thread": "01a0681e-dfb8-7000-8f4f-8e4915a2e2fa"
+      },
+      {
+        "task": "466",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 69.626083,
+        "thread": "01a06829-e313-7c80-a7f1-529c317cd64d",
+        "prior_thread": "01a06829-e313-7c80-a7f1-529c317cd64d"
+      },
+      {
+        "task": "474",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 401.955855,
+        "thread": "01a06c1e-fa3d-7973-9f67-8821873c3bad",
+        "prior_thread": "01a06c1e-fa3d-7973-9f67-8821873c3bad"
+      },
+      {
+        "task": "474",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 215.537163,
+        "thread": "01a06c1e-fa3d-7973-9f67-8821873c3bad",
+        "prior_thread": "01a06c1e-fa3d-7973-9f67-8821873c3bad"
+      },
+      {
+        "task": "473",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 304.000971,
+        "thread": "01a06c29-9f07-7190-a701-134c95cafd14",
+        "prior_thread": "01a06c29-9f07-7190-a701-134c95cafd14"
+      },
+      {
+        "task": "473",
+        "round": 4,
+        "kind": "resumed",
+        "duration_seconds": 181.662583,
+        "thread": "01a06c29-9f07-7190-a701-134c95cafd14",
+        "prior_thread": "01a06c29-9f07-7190-a701-134c95cafd14"
+      },
+      {
+        "task": "480",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 169.338913,
+        "thread": "01a06c4d-968a-7de0-adad-ccce67a8969a",
+        "prior_thread": "01a06c4d-968a-7de0-adad-ccce67a8969a"
+      },
+      {
+        "task": "480",
+        "round": 4,
+        "kind": "resumed",
+        "duration_seconds": 60.794558,
+        "thread": "01a06c4d-968a-7de0-adad-ccce67a8969a",
+        "prior_thread": "01a06c4d-968a-7de0-adad-ccce67a8969a"
+      },
+      {
+        "task": "487",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 131.569934,
+        "thread": "01a06cfe-fb01-7e81-a026-4e4ec6ff57bf",
+        "prior_thread": "01a06cfe-fb01-7e81-a026-4e4ec6ff57bf"
+      },
+      {
+        "task": "487",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 110.093501,
+        "thread": "01a06cfe-fb01-7e81-a026-4e4ec6ff57bf",
+        "prior_thread": "01a06cfe-fb01-7e81-a026-4e4ec6ff57bf"
+      },
+      {
+        "task": "488",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 96.901749,
+        "thread": "01a06d00-8d7c-7ac0-8278-a6653ea73a70",
+        "prior_thread": "01a06d00-8d7c-7ac0-8278-a6653ea73a70"
+      },
+      {
+        "task": "490",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 47.739609,
+        "thread": "01a06d10-ecd3-7ee3-ab18-ffc4b17c477d",
+        "prior_thread": "01a06d10-ecd3-7ee3-ab18-ffc4b17c477d"
+      },
+      {
+        "task": "489",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 91.308244,
+        "thread": "01a06d14-6877-7632-9a0c-21a1f78815ca",
+        "prior_thread": "01a06d14-6877-7632-9a0c-21a1f78815ca"
+      },
+      {
+        "task": "105",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 60.119924,
+        "thread": "01a06d1c-758b-7e03-aab2-50f36d48adc7",
+        "prior_thread": "01a06d1c-758b-7e03-aab2-50f36d48adc7"
+      },
+      {
+        "task": "493",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 155.923531,
+        "thread": "01a06d24-f6f9-7893-bb44-0359799dd9c6",
+        "prior_thread": "01a06d24-f6f9-7893-bb44-0359799dd9c6"
+      },
+      {
+        "task": "493",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 187.50223,
+        "thread": "01a06d24-f6f9-7893-bb44-0359799dd9c6",
+        "prior_thread": "01a06d24-f6f9-7893-bb44-0359799dd9c6"
+      },
+      {
+        "task": "490",
+        "round": 4,
+        "kind": "resumed",
+        "duration_seconds": 71.17913,
+        "thread": "01a06d2a-211c-7651-a45d-e6fab31375c3",
+        "prior_thread": "01a06d2a-211c-7651-a45d-e6fab31375c3"
+      },
+      {
+        "task": "494",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 262.968926,
+        "thread": "01a06f8c-4514-7570-8876-4bf461eb9b21",
+        "prior_thread": "01a06f8c-4514-7570-8876-4bf461eb9b21"
+      },
+      {
+        "task": "494",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 73.996869,
+        "thread": "01a06f8c-4514-7570-8876-4bf461eb9b21",
+        "prior_thread": "01a06f8c-4514-7570-8876-4bf461eb9b21"
+      },
+      {
+        "task": "489",
+        "round": 2,
+        "kind": "fresh",
+        "duration_seconds": 300.583357,
+        "thread": "01a06f98-bc72-7a01-bc59-416b635649d3",
+        "prior_thread": "01a06f8d-28a7-7dd2-8138-b2109b0f84c6"
+      },
+      {
+        "task": "106",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 289.782581,
+        "thread": "01a06fca-7d3f-76f0-8bc3-2c617dcbc241",
+        "prior_thread": "01a06fca-7d3f-76f0-8bc3-2c617dcbc241"
+      },
+      {
+        "task": "497",
+        "round": 2,
+        "kind": "fresh",
+        "duration_seconds": 164.928759,
+        "thread": "01a06fee-1ca3-7123-b0b4-17635d8e15ad",
+        "prior_thread": "01a06fe6-1eec-73f0-8c72-b8a605728cd4"
+      },
+      {
+        "task": "499",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 181.312958,
+        "thread": "01a07007-2432-70e0-beb7-c2f2557d695a",
+        "prior_thread": "01a07007-2432-70e0-beb7-c2f2557d695a"
+      },
+      {
+        "task": "499",
+        "round": 3,
+        "kind": "resumed",
+        "duration_seconds": 54.381565,
+        "thread": "01a07007-2432-70e0-beb7-c2f2557d695a",
+        "prior_thread": "01a07007-2432-70e0-beb7-c2f2557d695a"
+      },
+      {
+        "task": "500",
+        "round": 2,
+        "kind": "fresh",
+        "duration_seconds": 560.372195,
+        "thread": "01a07011-a8ef-7e63-9d7e-3a461ef9d00c",
+        "prior_thread": "01a07009-fbdb-7d92-9819-2ccd13fbe4f4"
+      },
+      {
+        "task": "500",
+        "round": 3,
+        "kind": "fresh",
+        "duration_seconds": 285.979505,
+        "thread": "01a0701b-65b3-7b42-8bc5-33cd13785f20",
+        "prior_thread": "01a07011-a8ef-7e63-9d7e-3a461ef9d00c"
+      },
+      {
+        "task": "490",
+        "round": 4,
+        "kind": "resumed",
+        "duration_seconds": 134.905942,
+        "thread": "01a0700c-cf96-71e2-a7de-8590b9739f79",
+        "prior_thread": "01a0700c-cf96-71e2-a7de-8590b9739f79"
+      },
+      {
+        "task": "490",
+        "round": 5,
+        "kind": "resumed",
+        "duration_seconds": 64.646825,
+        "thread": "01a0700c-cf96-71e2-a7de-8590b9739f79",
+        "prior_thread": "01a0700c-cf96-71e2-a7de-8590b9739f79"
+      },
+      {
+        "task": "504",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 26.020266,
+        "thread": "01a0702d-1cb4-71f0-a83c-94bc1cf900da",
+        "prior_thread": "01a0702d-1cb4-71f0-a83c-94bc1cf900da"
+      },
+      {
+        "task": "502",
+        "round": 2,
+        "kind": "resumed",
+        "duration_seconds": 31.044806,
+        "thread": "01a07031-012c-7c51-9093-7b6192c3acee",
+        "prior_thread": "01a07031-012c-7c51-9093-7b6192c3acee"
+      }
+    ]
+  },
+  "usage": {
+    "exact_join_matches": 0,
+    "prefix_joined_completed_receipts": 103,
+    "prefix_joined_usage_rows": 103,
+    "prefix_joined_input_tokens": 147098696,
+    "prefix_joined_cache_read_tokens": 138053120,
+    "prefix_joined_output_tokens": 1388277,
+    "prefix_joined_cost_usd": 40.12794628,
+    "historical_rows": 309,
+    "historical_input_tokens": 419545795,
+    "historical_cache_read_tokens": 390334848,
+    "historical_output_tokens": 5000444,
+    "historical_cost_usd": 86.88146508,
+    "by_model": [
+      {
+        "model": "gpt-5.6-luna",
+        "runs": 253,
+        "input_tokens": 335643343,
+        "output_tokens": 4277467,
+        "cache_read_tokens": 311676544,
+        "cache_create_tokens": 0,
+        "cost_usd": 16.15985108
+      },
+      {
+        "model": "gpt-5.6-sol",
+        "runs": 56,
+        "input_tokens": 83902452,
+        "output_tokens": 722977,
+        "cache_read_tokens": 78658304,
+        "cache_create_tokens": 0,
+        "cost_usd": 70.721614
+      }
+    ]
+  },
+  "cross_model_value": {
+    "completed_luna_over_sol_or_opus": 65,
+    "completed_typed_implementation_luna_over_sol_or_opus": 24,
+    "pinned_code_change_blocker_rounds": 8,
+    "followup_supported_code_change_blocker_rounds": 1,
+    "typed_implementation_pinned_code_change_blocker_rounds": 8,
+    "pinned_code_change_tasks": [
+      "466",
+      "474",
+      "480",
+      "499",
+      "502"
+    ],
+    "pinned_receipt_ids": [
+      "review-receipt:0b736f75-7990-4991-b71c-2f8489b8ba1e",
+      "review-receipt:4e98ca5e-124e-42a5-b125-e47a36860715",
+      "review-receipt:7840f9c4-83e9-4c37-88ba-05d4ab27911a",
+      "review-receipt:98c74df6-931a-46e8-98ea-48453b6d92a4",
+      "review-receipt:da4af35a-4f4c-4d67-9115-09efba37f939",
+      "review-receipt:de3f564b-0ddb-4ef0-aff0-70782d30ef8e",
+      "review-receipt:de814406-eb6f-48f8-9d4e-c1b9a78354ac",
+      "review-receipt:e0383f51-79be-4e21-a6f5-5a7a5a67f637"
+    ],
+    "followup_supported_receipt_ids": [
+      "review-receipt:c67246bf-b1e0-41ef-bdfb-2b73b2c62df0"
+    ],
+    "evidence": {
+      "review-receipt:7840f9c4-83e9-4c37-88ba-05d4ab27911a": {
+        "task": "466",
+        "next_round": 2,
+        "numstat": [
+          "14\t0\tapp/merge_operations.py",
+          "7\t2\tapp/review_coverage.py"
+        ]
+      },
+      "review-receipt:0b736f75-7990-4991-b71c-2f8489b8ba1e": {
+        "task": "474",
+        "next_round": 2,
+        "numstat": [
+          "62\t23\tapp/merge_operations.py",
+          "6\t1\tapp/merge_test_gate.py",
+          "16\t6\tapp/review_coverage.py"
+        ]
+      },
+      "review-receipt:da4af35a-4f4c-4d67-9115-09efba37f939": {
+        "task": "474",
+        "next_round": 3,
+        "numstat": [
+          "7\t3\tapp/db.py",
+          "36\t1\tapp/merge_operations.py",
+          "7\t3\tapp/review_coverage.py"
+        ]
+      },
+      "review-receipt:98c74df6-931a-46e8-98ea-48453b6d92a4": {
+        "task": "480",
+        "next_round": 3,
+        "numstat": [
+          "30\t12\tapp/fan_barrier.py"
+        ]
+      },
+      "review-receipt:e0383f51-79be-4e21-a6f5-5a7a5a67f637": {
+        "task": "480",
+        "next_round": 4,
+        "numstat": [
+          "5\t1\tapp/fan_barrier.py"
+        ]
+      },
+      "review-receipt:de3f564b-0ddb-4ef0-aff0-70782d30ef8e": {
+        "task": "499",
+        "next_round": 2,
+        "numstat": [
+          "4\t4\tapp/ia/task_store.py",
+          "95\t45\tapp/routes/sessions.py",
+          "28\t0\tapp/tm.py"
+        ]
+      },
+      "review-receipt:de814406-eb6f-48f8-9d4e-c1b9a78354ac": {
+        "task": "499",
+        "next_round": 3,
+        "numstat": [
+          "1\t1\tapp/routes/sessions.py",
+          "31\t26\tapp/tm.py"
+        ]
+      },
+      "review-receipt:4e98ca5e-124e-42a5-b125-e47a36860715": {
+        "task": "502",
+        "next_round": 2,
+        "numstat": [
+          "6\t1\tapp/merge_operations.py"
+        ]
+      },
+      "review-receipt:c67246bf-b1e0-41ef-bdfb-2b73b2c62df0": {
+        "task": "105",
+        "next_round": 2,
+        "artifact_evidence": "next verdict says all six previous findings are fixed and quotes canonical REFERENCE_ROOT"
+      }
+    }
+  }
+}
