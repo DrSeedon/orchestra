@@ -77,7 +77,8 @@ KB index: 4875 bytes (previous: 11750). These are byte counts, not token estimat
 
 ## Limits / remaining external validation
 
-- No merge, restart or VPS deployment authorized in this task.
+- The initial work excluded merge/restart/VPS deployment. The user subsequently authorized
+  main merge only; restart and VPS deployment remain unauthorized.
 - No proof of quality for unseen questions or every rare historical instruction.
 - Autonomous retrieval usage/cost was not measured; only controlled supplied packets.
 - Four existing ownership tests require passwordless sudo and were skipped.
@@ -85,3 +86,12 @@ KB index: 4875 bytes (previous: 11750). These are byte counts, not token estimat
   for two Cyrillic paths. No encoding logic was changed; this separate issue was not fixed.
 - One accidental default-phase replay launch was stopped before its first result;
   no answer or token-usage receipt was produced and it is excluded from all numbers.
+
+## Merge validation
+
+Integrated main through 2101da4d, including #506 review-size gating. Its new pytest
+import rule was retained in AGENTS.md with the full explanation in test-oracles.md;
+CLAUDE.md remains an adapter, not a restored copy of the old guide.
+Merged-tree check: 556 passed, 4 ownership checks skipped, 1 pre-existing live-directory
+check deselected. Imports resolved under /mnt/data/Projects/Python/orchestra-knowledge-delivery/app/.
+README symbol anchors were refreshed for the new mcp_stdio.py lines.
