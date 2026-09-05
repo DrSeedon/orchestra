@@ -232,23 +232,43 @@ window.Connection = (() => {
         if (recovering) return;
         recovering = true;
         const reason = state.reason;
-        set('recovering', {reason});
-        restartPending = false;
-        const restartBtn = document.getElementById('restart-btn');
-        if (restartBtn) { restartBtn.disabled = false; restartBtn.textContent = '⟳'; }
-        resetChatTransientState();
-        const calls = [
-            selectedAgent && currentScope ? _showChatFor(selectedAgent, currentScope) : null,
-            refreshSessions(), loadOrchestrators(), loadModels(), refreshOpenFolders(),
-            fetchUsage(), window.QuotaPanel?.fetch?.(),
-        ].filter(Boolean);
         try {
-            await Promise.allSettled(calls);
+            set('recovering', {reason});
+            restartPending = false;
+            const restartBtn = document.getElementById('restart-btn');
+            if (restartBtn) { restartBtn.disabled = false; restartBtn.textContent = '⟳'; }
+            // Defer invocation as well as awaiting: one synchronous renderer error
+            // must not prevent the other surfaces from recovering.
+            const refreshes = [
+                ['chat', () => {
+                    resetChatTransientState();
+                    return selectedAgent && currentScope
+                        ? _showChatFor(selectedAgent, currentScope) : null;
+                }],
+                ['sessions', () => refreshSessions()],
+                ['orchestrators', () => loadOrchestrators()],
+                ['models', () => loadModels()],
+                ['files', () => refreshOpenFolders()],
+                ['usage', () => fetchUsage()],
+                ['quota', () => window.QuotaPanel?.fetch?.()],
+            ];
+            const results = await Promise.allSettled(
+                refreshes.map(([, refresh]) => Promise.resolve().then(refresh)),
+            );
+            const errors = [];
+            results.forEach((result, index) => {
+                const key = `recovery/${refreshes[index][0]}`;
+                if (result.status === 'rejected') {
+                    state.failures.set(key, {error: result.reason, at: Date.now()});
+                    errors.push(`${refreshes[index][0]}: ${String(result.reason)}`);
+                } else state.failures.delete(key);
+            });
             wasDown = false;
             if (state.failures.size || state.stale.size) {
                 set('degraded', {
                     reason: 'partial_recovery',
                     path: state.failures.keys().next().value || '',
+                    message: errors.length ? `Не удалось обновить: ${errors.join('; ')}` : '',
                 });
                 return;
             }

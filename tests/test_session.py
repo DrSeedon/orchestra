@@ -3134,6 +3134,100 @@ class TestRateLimitClassification:
         session._disconnect_backend.assert_not_awaited()
         session.send.assert_not_awaited()
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["server_error", "rate_limit"])
+    async def test_manual_stop_cancels_waiting_retry(self, session, monkeypatch, kind):
+        from app.session import AgentStatus
+
+        sleeping = asyncio.Event()
+        resume = asyncio.Event()
+
+        async def controlled_sleep(_delay):
+            sleeping.set()
+            await resume.wait()
+
+        monkeypatch.setattr("app.session.asyncio.sleep", controlled_sleep)
+        session.status = AgentStatus.IDLE
+        session._disconnect_backend = AsyncMock()
+        session.send = AsyncMock()
+        coroutine = (session._retry_after_server_error(5, session._turn_gen)
+                     if kind == "server_error" else session._rate_limit_retry(5, session._turn_gen))
+        retry = asyncio.create_task(coroutine)
+        try:
+            await sleeping.wait()
+            await session.interrupt()
+            resume.set()
+            await retry
+            session.send.assert_not_awaited()
+            session._disconnect_backend.assert_not_awaited()
+        finally:
+            resume.set()
+            retry.cancel()
+            await asyncio.gather(retry, return_exceptions=True)
+
+
+class TestRetryAdmissionRaces:
+    @pytest.mark.asyncio
+    async def test_alternating_retry_types_preserve_both_budgets(self, session):
+        from app.session import AgentStatus
+
+        backend = _MockBackend()
+        session._ensure_backend = AsyncMock(return_value=backend)
+        session._attach_pending_facts = lambda message: (message, ())
+        session._ack_pending_facts = lambda _keys: None
+        session.status = AgentStatus.RUNNING
+        session._rate_limit_retries = 2
+        session._server_error_retries = 3
+        for subtype in ("rate_limit_retry", "server_error_retry", "rate_limit_retry"):
+            await session.send("retry", provenance=MessageProvenance(
+                origin="system", senders=("system",), subtype=subtype,
+            ))
+            assert (session._rate_limit_retries, session._server_error_retries) == (2, 3)
+        assert backend.sent == ["retry"] * 3
+        await session.send("new user request", provenance=USER_PROVENANCE)
+        assert (session._rate_limit_retries, session._server_error_retries) == (0, 0)
+        assert backend.sent[-1] == "new user request"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["server_error", "rate_limit"])
+    @pytest.mark.parametrize("new_turn", [False, True])
+    async def test_stop_during_retry_admission_prevents_submission(
+        self, session, kind, new_turn,
+    ):
+        from app.session import AgentStatus
+
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def admission(_model):
+            entered.set()
+            await release.wait()
+            return _quota_decision()
+
+        session.status = AgentStatus.IDLE
+        session._worker_admission = admission
+        session._disconnect_backend = AsyncMock()
+        session._ensure_backend = AsyncMock()
+        retry = asyncio.create_task(
+            session._retry_after_server_error(0, session._turn_gen)
+            if kind == "server_error"
+            else session._rate_limit_retry(0, session._turn_gen)
+        )
+        try:
+            await entered.wait()
+            await session.interrupt()
+            if new_turn:
+                session._start_turn_state()
+                session._manually_interrupted = False
+            release.set()
+            await retry
+            session._ensure_backend.assert_not_awaited()
+            assert session.status == (AgentStatus.RUNNING if new_turn else AgentStatus.IDLE)
+        finally:
+            release.set()
+            retry.cancel()
+            await asyncio.gather(retry, return_exceptions=True)
+
 
 class TestCompactReArmsPromptInjection:
     """#126: a resumed CLI is never given system_prompt (backend_claude.py:165-168).
@@ -5201,7 +5295,7 @@ class TestWeeklyQuotaAdmission:
         session._ensure_backend = AsyncMock()
         monkeypatch.setattr("app.session.asyncio.sleep", AsyncMock())
 
-        await session._rate_limit_retry(0)
+        await session._rate_limit_retry(0, session._turn_gen)
         await session._auto_continue()
 
         assert session._admission_service.await_count == 2

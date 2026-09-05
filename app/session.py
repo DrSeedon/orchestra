@@ -1284,7 +1284,7 @@ class AgentSession:
 
     async def send(
         self, message: str | InjectedMessage, *, provenance: MessageProvenance,
-        delivery=None,
+        delivery=None, retry_generation: tuple[int, int] | None = None,
     ) -> None:
         if isinstance(message, InjectedMessage) and message.provenance != provenance:
             raise ValueError("injected message provenance mismatch")
@@ -1307,6 +1307,16 @@ class AgentSession:
 
         while True:
             await self._lifecycle_lock.acquire()
+            # Recheck after admission too: Stop or a newer turn can win while
+            # this sender is outside the lock waiting for quota data.
+            if retry_generation is not None and (
+                retry_generation != (self._turn_gen, self._turn_start_cancel_gen)
+                or self._manually_interrupted
+                or self.status != AgentStatus.IDLE
+                or self._compacting
+            ):
+                self._lifecycle_lock.release()
+                return
             if self._handoff_recovery_required:
                 self._lifecycle_lock.release()
                 raise RuntimeError(
@@ -1351,12 +1361,12 @@ class AgentSession:
                 and (self._compacting or self.status == AgentStatus.RUNNING)
             ):
                 raise RuntimeError("initial delivery requires an idle session")
-        # Retry budgets belong to one logical request. A real new message resets both;
-        # each internal retry preserves only its own failure class.
-            if provenance.subtype != "rate_limit_retry":
+            # Both failure classes share the logical request: alternating upstream
+            # errors must not replenish each other's retry budget.
+            if provenance.subtype not in {"rate_limit_retry", "server_error_retry"}:
                 self._rate_limit_retries = 0
-            if provenance.subtype != "server_error_retry":
                 self._server_error_retries = 0
+            if provenance.subtype != "server_error_retry":
                 self._session_limit_hit = False
             self._safeguard_refusal = ""
 
@@ -2530,7 +2540,7 @@ class AgentSession:
                     self._rate_limit_retries += 1
                     delay = self.RATE_LIMIT_DELAY * self._rate_limit_retries
                     self._log("status", f"⏳ rate limit (Anthropic сервер) — повтор через {delay}s ({self._rate_limit_retries}/{self.RATE_LIMIT_MAX_RETRIES})")
-                    self._spawn_bg(self._rate_limit_retry(delay))
+                    self._spawn_bg(self._rate_limit_retry(delay, self._turn_gen))
                 else:
                     self._log("error", f"rate limit — gave up after {self.RATE_LIMIT_MAX_RETRIES} retries")
             else:
@@ -3209,8 +3219,11 @@ class AgentSession:
         except Exception as e:
             logger.warning(f"[{self.name}] TG scope-running notify failed: {e}")
 
-    async def _rate_limit_retry(self, delay: int) -> None:
+    async def _rate_limit_retry(self, delay: int, expected_turn_gen: int) -> None:
+        generation = (expected_turn_gen, self._turn_start_cancel_gen)
         await asyncio.sleep(delay)
+        if self._manually_interrupted or self._turn_gen != expected_turn_gen:
+            return
         try:
             provenance = MessageProvenance(
                 origin="system", senders=("system",), subtype="rate_limit_retry",
@@ -3218,9 +3231,11 @@ class AgentSession:
             await self.send(
                 "[system] Retrying after rate limit. Continue where you left off.",
                 provenance=provenance,
+                retry_generation=generation,
             )
-            logger.info(f"[{self.name}] rate-limit retry after {delay}s")
         except DrainingRefused as refusal:
+            if generation != (self._turn_gen, self._turn_start_cancel_gen):
+                return
             self._log("status", f"drain: {refusal}")
             self.status = AgentStatus.IDLE
             self._persist()
@@ -3228,18 +3243,24 @@ class AgentSession:
             self._queue_drain_fact("rate-limit-retry", "повтор после rate limit срезан")
         except Exception as e:
             logger.warning(f"[{self.name}] rate-limit retry failed: {e}")
+            if generation != (self._turn_gen, self._turn_start_cancel_gen):
+                return
             self.status = AgentStatus.IDLE
             self._persist()
             self._turns.publish_turn_finished()
 
     async def _retry_after_server_error(self, delay: int, expected_turn_gen: int) -> None:
         """Resume through a fresh SDK transport after an upstream stream failure."""
+        generation = (expected_turn_gen, self._turn_start_cancel_gen)
         await asyncio.sleep(delay)
         try:
             async with self._lifecycle_lock:
                 # A real user message already started a newer turn; it supersedes this
                 # automatic retry and must not be duplicated.
-                if self._turn_gen != expected_turn_gen or self.status != AgentStatus.IDLE:
+                if (self._manually_interrupted
+                        or self._turn_gen != expected_turn_gen
+                        or self.status != AgentStatus.IDLE
+                        or self._compacting):
                     return
                 await self._disconnect_backend()
             provenance = MessageProvenance(
@@ -3250,9 +3271,11 @@ class AgentSession:
                 "left off. Do not repeat completed research; execute the pending "
                 "deliverable now.",
                 provenance=provenance,
+                retry_generation=generation,
             )
-            logger.info(f"[{self.name}] server-error retry after {delay}s")
         except DrainingRefused as refusal:
+            if generation != (self._turn_gen, self._turn_start_cancel_gen):
+                return
             self._log("status", f"drain: {refusal}")
             self.status = AgentStatus.IDLE
             self._persist()
@@ -3262,6 +3285,8 @@ class AgentSession:
             )
         except Exception as e:
             logger.warning(f"[{self.name}] server-error retry failed: {e}")
+            if generation != (self._turn_gen, self._turn_start_cancel_gen):
+                return
             self.status = AgentStatus.IDLE
             self._persist()
             self._turns.publish_turn_finished()
