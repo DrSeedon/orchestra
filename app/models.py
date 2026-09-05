@@ -96,6 +96,10 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="codex", provider="openai", context_length=258400,
     ),
     ModelSpec(
+        id="gpt-6-astra", name="GPT-6 Astra",
+        runtime="codex", provider="openai", context_length=258400,
+    ),
+    ModelSpec(
         id="gpt-5.6-terra", name="GPT-5.6 Terra",
         runtime="codex", provider="openai", context_length=258400,
     ),
@@ -183,6 +187,8 @@ ALIASES = {
     "gpt5.6": "gpt-5.6-sol",
     "gpt5.6sol": "gpt-5.6-sol",
     "sol": "gpt-5.6-sol",
+    "astra": "gpt-6-astra",
+    "gpt6astra": "gpt-6-astra",
     "luna": "gpt-5.6-luna",
     "gpt5.6terra": "gpt-5.6-terra",
     "gpt5.6luna": "gpt-5.6-luna",

@@ -16,7 +16,9 @@ from typing import Any, Callable, Iterable, Sequence
 CLAUDE_CLI_HISTORY_VERSION = "2.1.197"
 CLAUDE_SDK_HISTORY_VERSION = "0.2.114"
 CLAUDE_HISTORY_SOURCE = "logs:claude"
-CODEX_CLI_HISTORY_VERSION = "0.150.1"
+# Pin follows the installed codex-cli 0.153.4; #498's nine Astra effort probes and #503's
+# live ASTRA_OK validated the preceding 0.153.2 binary.
+CODEX_CLI_HISTORY_VERSION = "0.153.4"
 
 TOOL_CALL_LIMIT = 8_000
 TOOL_RESULT_LIMIT = 20_000

@@ -46,6 +46,7 @@ CODEX_BIN = shutil.which("codex") or os.environ.get("CODEX_BIN", "codex")
 CODEX_CONTEXT_LIMITS = {
     "gpt-5.3-codex-spark": 128000,
     "gpt-5.6-sol":   258400,
+    "gpt-6-astra":   258400,
     "gpt-5.6-terra": 258400,
     "gpt-5.6-luna":  258400,
     "gpt-5.5": 258400,
@@ -67,6 +68,7 @@ CODEX_TOKEN_PRICES = {
     # input −20%, output −33%. Verified in the source table, not from the announcement.
     # Rows already in `turn_usage` keep their own day's price, as with Terra/Luna below.
     "gpt-5.6-sol":   {"input": 4.0, "cached": 0.4, "write": 5.0, "output": 20.0},
+    "gpt-6-astra":   {"input": 10.0, "cached": 1.0, "write": 12.5, "output": 50.0},
     "gpt-5.6-terra": {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 12.0},
     "gpt-5.6-luna":  {"input": 0.2, "cached": 0.02, "write": 0.25, "output": 1.2},
     "gpt-5.5":      {"input": 5.0, "cached": 0.5, "output": 30.0},
@@ -76,10 +78,9 @@ CODEX_TOKEN_PRICES = {
 }
 
 
-# GPT-5.6 reasoning ladder (light→low→medium→high→xhigh→max→ultra). "minimal" kept for
-# 5.4/5.5 back-compat. "ultra" (parallel sub-agents) intentionally excluded — a special
-# mode, not a plain effort level, and risky to trigger from a generic worker effort field.
-CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh", "max"}
+# Codex server-side reasoning effort values. "ultra" (parallel sub-agents) is intentionally
+# excluded: it is a client-side mode, not a plain effort level for a generic worker field.
+CODEX_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 CODEX_SILENCE_HEARTBEAT_SECONDS = 30
 CODEX_COMPACT_TIMEOUT_SECONDS = 120
 CODEX_PROCESS_TIMEOUT_SECONDS = 5
