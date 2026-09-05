@@ -12,6 +12,8 @@ import json
 import os
 import re
 import shlex
+import shutil
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -32,6 +34,13 @@ UsageWriter = Callable[..., bool]
 ReadinessChecker = Callable[[str], Awaitable[dict]]
 _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 _SCHEMA_META = {"$schema", "$id", "title", "description", "default", "examples"}
+DEFAULT_WORKFLOW_MODULES: tuple[str, ...] = (
+    "communication-style",
+    "user-values",
+    "knowledge-and-context",
+    "memory-search",
+    "code-quality",
+)
 
 
 class Journal:
@@ -74,6 +83,7 @@ class WorkflowValue:
     data: Any
     value_id: str
     result_path: str
+    workspace_path: str = ""
     free_sources: frozenset[str] = field(default_factory=frozenset)
     verified_sources: frozenset[str] = field(default_factory=frozenset)
 
@@ -82,6 +92,7 @@ class WorkflowValue:
             "data": self.data,
             "value_id": self.value_id,
             "result_path": self.result_path,
+            "workspace_path": self.workspace_path,
             "free_sources": sorted(self.free_sources),
             "verified_sources": sorted(self.verified_sources),
         }
@@ -92,6 +103,7 @@ class WorkflowValue:
             data=row.get("data"),
             value_id=str(row["value_id"]),
             result_path=str(row["result_path"]),
+            workspace_path=str(row.get("workspace_path") or ""),
             free_sources=frozenset(str(item) for item in row.get("free_sources") or []),
             verified_sources=frozenset(
                 str(item) for item in row.get("verified_sources") or []
@@ -255,6 +267,18 @@ async def _readiness(model: str) -> dict:
     return await asyncio.to_thread(request)
 
 
+async def _await_despite_cancellation(task: asyncio.Task) -> tuple[Any, int]:
+    cancellations = 0
+    current = asyncio.current_task()
+    while True:
+        try:
+            return await asyncio.shield(task), cancellations
+        except asyncio.CancelledError:
+            cancellations += 1
+            if current is not None:
+                current.uncancel()
+
+
 def _mem_available_bytes() -> int | None:
     try:
         for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
@@ -263,6 +287,118 @@ def _mem_available_bytes() -> int | None:
     except (OSError, ValueError, IndexError):
         return None
     return None
+
+
+def _current_branch(repository: Path) -> str:
+    result = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=repository, capture_output=True, text=True,
+    )
+    branch = result.stdout.strip()
+    if result.returncode != 0 or not branch:
+        detail = result.stderr.strip() or result.stdout.strip() or "detached HEAD"
+        raise RuntimeError(f"cannot resolve workflow workspace base branch: {detail}")
+    return branch
+
+
+_WORKSPACE_PRIVATE_TOPLEVEL = frozenset({
+    ".git", ".env", ".mcp.json", ".claude", ".codex", ".wf-mcp.json",
+    ".pytest_cache", "__pycache__",
+})
+
+
+def _workspace_files(worktree: Path) -> set[str]:
+    files: set[str] = set()
+    for root, dirs, names in os.walk(worktree):
+        relative_root = Path(root).relative_to(worktree)
+        dirs[:] = [
+            name for name in dirs
+            if name not in _WORKSPACE_PRIVATE_TOPLEVEL
+        ]
+        for name in names:
+            relative = relative_root / name
+            if any(part in _WORKSPACE_PRIVATE_TOPLEVEL for part in relative.parts):
+                continue
+            files.add(str(relative))
+    return files
+
+
+def _snapshot_worktree(
+    worktree: Path, destination: Path, initial_head: str, baseline_files: set[str],
+) -> None:
+    changed = subprocess.run(
+        ["git", "diff", "--name-only", "-z", initial_head, "--"],
+        cwd=worktree, check=True, capture_output=True,
+    ).stdout.split(b"\0")
+    local = subprocess.run(
+        ["git", "ls-files", "-m", "-o", "--exclude-standard", "-z"],
+        cwd=worktree, check=True, capture_output=True,
+    ).stdout.split(b"\0")
+    after_files = _workspace_files(worktree)
+    names = sorted(
+        {os.fsdecode(item) for item in changed + local if item}
+        | (after_files - baseline_files)
+    )
+    copied: list[str] = []
+    deleted: list[str] = []
+    destination.mkdir(parents=True, exist_ok=True)
+    root = worktree.resolve()
+    for name in names:
+        source = (worktree / name).resolve()
+        if source != root and root not in source.parents:
+            raise ValueError(f"workspace output escapes worktree: {name}")
+        if not source.is_file():
+            deleted.append(name)
+            continue
+        target = destination / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        copied.append(name)
+    manifest = destination / "workspace.json"
+    manifest.write_text(json.dumps({"copied": copied, "deleted": deleted}, ensure_ascii=False))
+
+
+def _reset_prepared_worktree(repository: Path, prepared: Any) -> None:
+    from app.workspace import _reset_worktree_to_ref, repo_mutation_lock
+
+    with repo_mutation_lock(repository):
+        _reset_worktree_to_ref(
+            prepared.path, prepared.initial_head, str(repository)
+        )
+
+
+def _prepare_workspace_sync(
+    repository: Path, name: str, base_branch: str,
+) -> tuple[Any, set[str]]:
+    from app.workspace import create_worktree, discard_prepared_worktree
+
+    prepared = create_worktree(str(repository), name, "", base_branch)
+    try:
+        return prepared, _workspace_files(Path(prepared.path))
+    except BaseException:
+        discard_prepared_worktree(str(repository), prepared)
+        raise
+
+
+def _cleanup_workspace_sync(
+    repository: Path,
+    prepared: Any,
+    archive: Path,
+    baseline_files: set[str],
+) -> None:
+    from app.workspace import discard_prepared_worktree
+
+    snapshot_error = None
+    try:
+        _snapshot_worktree(
+            Path(prepared.path), archive, prepared.initial_head, baseline_files
+        )
+    except Exception as error:
+        snapshot_error = error
+    _reset_prepared_worktree(repository, prepared)
+    discard_prepared_worktree(str(repository), prepared)
+    if snapshot_error is not None:
+        raise snapshot_error
 
 
 class WorkflowEngine:
@@ -281,6 +417,10 @@ class WorkflowEngine:
         readiness_checker: ReadinessChecker | None = None,
         scope: str | None = None,
         task_id: str | None = None,
+        workspace_repo: Path | None = None,
+        workspace_base_branch: str = "",
+        pipeline_name: str = "default",
+        default_modules: Iterable[str] = DEFAULT_WORKFLOW_MODULES,
     ):
         if not _RUN_ID.fullmatch(run_id):
             raise ValueError("run_id must contain only letters, digits, dot, underscore, or dash")
@@ -304,6 +444,23 @@ class WorkflowEngine:
         self.budget = Budget(budget_usd, max_calls)
         self.scope = scope if scope is not None else os.environ.get("ORCHESTRA_SCOPE", "")
         self.task_id = task_id if task_id is not None else os.environ.get("ORCHESTRA_TASK_ID", "")
+        if workspace_repo is None and adapter is None:
+            from app.workspace import repo_root
+
+            self.workspace_repo = Path(repo_root(str(ROOT))).resolve()
+        else:
+            self.workspace_repo = (
+                Path(workspace_repo).resolve() if workspace_repo is not None else None
+            )
+        self.workspace_base_branch = workspace_base_branch or (
+            _current_branch(
+                ROOT if workspace_repo is None and adapter is None else self.workspace_repo
+            )
+            if self.workspace_repo is not None
+            else ""
+        )
+        self.pipeline_name = pipeline_name
+        self.default_modules = tuple(default_modules)
         self.session_id = f"wf:{run_id}"
         self.partial_reason = ""
         self._occurrences: dict[str, int] = {}
@@ -392,9 +549,26 @@ class WorkflowEngine:
         escalate: bool = False,
         hard: bool = False,
         label: str = "",
+        tools: str = "all",
+        network: bool = True,
+        mcp: bool = True,
+        modules: Iterable[str] | None = None,
+        capability_reason: str = "",
     ) -> WorkflowValue | None:
         if purpose not in {"work", "verify", "synthesis"}:
             raise ValueError("purpose must be work, verify, or synthesis")
+        if tools not in {"all", "read"}:
+            raise ValueError("tools must be 'all' or 'read'")
+        downgraded = tools != "all" or not network or not mcp
+        if downgraded and not capability_reason.strip():
+            raise ValueError("restricted capabilities require capability_reason")
+        module_names = tuple(self.default_modules if modules is None else modules)
+        if any(not isinstance(name, str) or not name for name in module_names):
+            raise ValueError("modules must contain non-empty names")
+        from app.pipeline import build_prompt_modules
+
+        system_prompt = build_prompt_modules(self.pipeline_name, module_names)
+        effective_mcp = bool(mcp and tools == "all" and network)
         input_values = list(inputs)
         if any(not isinstance(item, WorkflowValue) for item in input_values):
             raise TypeError("inputs must contain WorkflowValue objects")
@@ -426,6 +600,11 @@ class WorkflowEngine:
             "purpose": purpose,
             "loss_tolerant": loss_tolerant,
             "label": label,
+            "tools": tools,
+            "network": bool(network),
+            "mcp": effective_mcp,
+            "modules": module_names,
+            "capability_reason": capability_reason.strip(),
         })
         if call_key in self._completed:
             if self._completed[call_key] is None:
@@ -477,6 +656,7 @@ class WorkflowEngine:
         total_cost = 0.0
         final_data: Any = None
         result: AdapterResult | None = None
+        workspace_path = ""
         start_attempt, schema_error = self._retry_state.get(call_key, (0, ""))
         if schema_error and schema is not None:
             current_prompt = _schema_retry_prompt(rendered, schema_error, schema)
@@ -498,42 +678,44 @@ class WorkflowEngine:
                     })
                     break
                 self.budget.dispatched_calls += 1
-                self.journal.append({
-                    "event": "dispatched",
-                    "call_key": call_key,
-                    "attempt": attempt + 1,
-                    "model": selected,
-                    "runtime": runtime,
-                })
             semaphore = self._codex_semaphore if runtime == "codex" else self._semaphore
+            event_id = f"wf:{self.run_id}:{call_key}:{attempt + 1}"
             async with self._semaphore:
                 if semaphore is self._semaphore:
-                    result = await self.adapter(
-                        current_prompt, model=selected, cwd=scratch, timeout=timeout
+                    result, workspace_path = await self._run_attempt(
+                        current_prompt,
+                        model=selected,
+                        runtime=runtime,
+                        scratch=scratch,
+                        timeout=timeout,
+                        call_key=call_key,
+                        attempt=attempt + 1,
+                        event_id=event_id,
+                        tools=tools,
+                        network=bool(network),
+                        mcp=effective_mcp,
+                        system_prompt=system_prompt,
+                        modules=module_names,
+                        capability_reason=capability_reason.strip(),
                     )
                 else:
                     async with semaphore:
-                        result = await self.adapter(
-                            current_prompt, model=selected, cwd=scratch, timeout=timeout
+                        result, workspace_path = await self._run_attempt(
+                            current_prompt,
+                            model=selected,
+                            runtime=runtime,
+                            scratch=scratch,
+                            timeout=timeout,
+                            call_key=call_key,
+                            attempt=attempt + 1,
+                            event_id=event_id,
+                            tools=tools,
+                            network=bool(network),
+                            mcp=effective_mcp,
+                            system_prompt=system_prompt,
+                            modules=module_names,
+                            capability_reason=capability_reason.strip(),
                         )
-            event_id = f"wf:{self.run_id}:{call_key}:{attempt + 1}"
-            if self.usage_writer is not None:
-                try:
-                    self.usage_writer(
-                        result=result,
-                        event_id=event_id,
-                        session_id=self.session_id,
-                        scope=self.scope,
-                        task_id=self.task_id,
-                    )
-                except Exception as error:
-                    self.journal.append({
-                        "event": "accounting_failed",
-                        "call_key": call_key,
-                        "attempt": attempt + 1,
-                        "error": f"{type(error).__name__}: {error}",
-                    })
-                    raise RuntimeError(f"turn_usage accounting failed: {error}") from error
             realized = float(result.cost_usd or 0)
             total_cost += realized
             async with self._state_lock:
@@ -576,7 +758,13 @@ class WorkflowEngine:
                 self.partial_reason = "budget"
             else:
                 self.partial_reason = self.partial_reason or reason
-            self._finish(call_key, None, reason=reason, cost_usd=total_cost)
+            self._finish(
+                call_key,
+                None,
+                reason=reason,
+                cost_usd=total_cost,
+                error=result.error if result is not None else "",
+            )
             return None
 
         own_id = call_key
@@ -587,6 +775,7 @@ class WorkflowEngine:
             data=final_data,
             value_id=own_id,
             result_path=str(step_path),
+            workspace_path=workspace_path,
             free_sources=frozenset(output_free),
             verified_sources=frozenset(output_verified),
         )
@@ -601,6 +790,128 @@ class WorkflowEngine:
         )
         return value
 
+    async def _run_attempt(
+        self,
+        prompt: str,
+        *,
+        model: str,
+        runtime: str,
+        scratch: Path,
+        timeout: float,
+        call_key: str,
+        attempt: int,
+        event_id: str,
+        tools: str,
+        network: bool,
+        mcp: bool,
+        system_prompt: str,
+        modules: tuple[str, ...],
+        capability_reason: str,
+    ) -> tuple[AdapterResult, str]:
+        prepared = None
+        cwd = scratch
+        archive = ""
+        baseline_files: set[str] = set()
+        if tools == "all" and self.workspace_repo is not None:
+            name = f"wf-{self.run_id[:24]}-{call_key[:12]}-a{attempt}"
+            prepare_task = asyncio.create_task(asyncio.to_thread(
+                _prepare_workspace_sync,
+                self.workspace_repo,
+                name,
+                self.workspace_base_branch,
+            ))
+            try:
+                (prepared, baseline_files), cancellations = (
+                    await _await_despite_cancellation(prepare_task)
+                )
+            except BaseException:
+                async with self._state_lock:
+                    self.budget.dispatched_calls -= 1
+                    self.journal.append({
+                        "event": "prepare_failed",
+                        "call_key": call_key,
+                        "attempt": attempt,
+                    })
+                raise
+            if cancellations:
+                cleanup_task = asyncio.create_task(asyncio.to_thread(
+                    _cleanup_workspace_sync,
+                    self.workspace_repo,
+                    prepared,
+                    self.run_dir / "cancelled-workspaces" / name,
+                    baseline_files,
+                ))
+                await _await_despite_cancellation(cleanup_task)
+                async with self._state_lock:
+                    self.budget.dispatched_calls -= 1
+                    self.journal.append({
+                        "event": "prepare_cancelled",
+                        "call_key": call_key,
+                        "attempt": attempt,
+                    })
+                raise asyncio.CancelledError
+            cwd = Path(prepared.path)
+            archive_path = (
+                self.run_dir / "workspaces" / call_key.replace(":", "-") / f"attempt-{attempt}"
+            )
+            archive = str(archive_path)
+        async with self._state_lock:
+            self.journal.append({
+                "event": "dispatched",
+                "call_key": call_key,
+                "attempt": attempt,
+                "model": model,
+                "runtime": runtime,
+                "tools": tools,
+                "network": network,
+                "mcp": mcp,
+                "modules": list(modules),
+                "system_prompt_bytes": len(system_prompt.encode()),
+                "capability_reason": capability_reason,
+            })
+        try:
+            result = await self.adapter(
+                prompt,
+                model=model,
+                cwd=cwd,
+                timeout=timeout,
+                tools=tools,
+                network=network,
+                mcp=mcp,
+                system_prompt=system_prompt,
+                state_dir=scratch,
+            )
+            if self.usage_writer is not None:
+                try:
+                    self.usage_writer(
+                        result=result,
+                        event_id=event_id,
+                        session_id=self.session_id,
+                        scope=self.scope,
+                        task_id=self.task_id,
+                    )
+                except Exception as error:
+                    self.journal.append({
+                        "event": "accounting_failed",
+                        "call_key": call_key,
+                        "attempt": attempt,
+                        "error": f"{type(error).__name__}: {error}",
+                    })
+                    raise RuntimeError(f"turn_usage accounting failed: {error}") from error
+            return result, archive
+        finally:
+            if prepared is not None:
+                cleanup_task = asyncio.create_task(asyncio.to_thread(
+                    _cleanup_workspace_sync,
+                    self.workspace_repo,
+                    prepared,
+                    Path(archive),
+                    baseline_files,
+                ))
+                _, cancellations = await _await_despite_cancellation(cleanup_task)
+                if cancellations:
+                    raise asyncio.CancelledError
+
     def _finish(
         self,
         call_key: str,
@@ -610,6 +921,7 @@ class WorkflowEngine:
         cost_usd: float = 0,
         model: str = "",
         runtime: str = "",
+        error: str = "",
     ) -> None:
         row = {
             "event": "completed",
@@ -618,6 +930,7 @@ class WorkflowEngine:
             "cost_usd": cost_usd,
             "model": model,
             "runtime": runtime,
+            "error": error,
             "value": value.to_record() if value is not None else None,
         }
         self.journal.append(row)
@@ -686,8 +999,14 @@ class WorkflowEngine:
                 {
                     "call_key": key,
                     "reason": row.get("reason"),
+                    "error": row.get("error") or None,
                     "result_path": (
                         row.get("value", {}).get("result_path")
+                        if isinstance(row.get("value"), dict)
+                        else None
+                    ),
+                    "workspace_path": (
+                        row.get("value", {}).get("workspace_path")
                         if isinstance(row.get("value"), dict)
                         else None
                     ),

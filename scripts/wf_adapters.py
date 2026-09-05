@@ -7,9 +7,12 @@ import asyncio
 import json
 import os
 import signal
+import shutil
+import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 
 @dataclass(frozen=True)
@@ -160,7 +163,8 @@ def persist_turn_usage(
 
 
 async def _run_process(
-    argv: list[str], prompt: str, cwd: Path, timeout: float
+    argv: list[str], prompt: str, cwd: Path, timeout: float,
+    *, env: dict[str, str] | None = None,
 ) -> tuple[int, str, str]:
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -169,7 +173,7 @@ async def _run_process(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
-            env=os.environ.copy(),
+            env=env or os.environ.copy(),
             start_new_session=True,
         )
     except OSError as error:
@@ -214,25 +218,88 @@ def _failed(runtime: str, model: str, reason: str, *, stop_reason: str) -> Adapt
     )
 
 
-async def run_codex(prompt: str, *, model: str, cwd: Path, timeout: float) -> AdapterResult:
+def _prompt_with_rules(prompt: str, system_prompt: str) -> str:
+    if not system_prompt.strip():
+        return prompt
+    return f"<workflow_rules>\n{system_prompt.strip()}\n</workflow_rules>\n\n{prompt}"
+
+
+def _claude_tools(tools_level: str, network: bool) -> str:
+    if tools_level == "all" and network:
+        return "default"
+    if tools_level == "all":
+        return "Read,Write,Edit,Glob,Grep"
+    if tools_level == "read" and network:
+        return "Read,Glob,Grep,WebFetch,WebSearch"
+    return "Read,Glob,Grep"
+
+
+def _write_claude_mcp_config(cwd: Path, enabled: bool) -> Path:
+    from app.runtime_registry import _load_scope_mcp_servers
+
+    servers = _load_scope_mcp_servers(str(cwd)) if enabled else {}
+    path = cwd / ".wf-mcp.json"
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump({"mcpServers": servers}, fh, ensure_ascii=False)
+    if stat.S_IMODE(path.stat().st_mode) != 0o600:
+        raise PermissionError(f"unsafe MCP config permissions: {path}")
+    return path
+
+
+async def run_codex(
+    prompt: str, *, model: str, cwd: Path, timeout: float,
+    tools: str = "all", network: bool = True, mcp: bool = True,
+    system_prompt: str = "", state_dir: Path | None = None,
+) -> AdapterResult:
     binary = os.environ.get("WF_CODEX_BIN", "codex")
+    sandbox = "danger-full-access" if tools == "all" and network else (
+        "workspace-write" if tools == "all" else "read-only"
+    )
     argv = [
         binary,
         "-m",
         model,
         "-s",
-        "read-only",
+        sandbox,
         "-a",
         "never",
         "exec",
         "--ephemeral",
-        "--ignore-user-config",
         "--ignore-rules",
+        "-c",
+        f'web_search="{"live" if network else "disabled"}"',
         "--skip-git-repo-check",
         "--json",
         "-",
     ]
-    rc, stdout, stderr = await _run_process(argv, prompt, cwd, timeout)
+    run_env = os.environ.copy()
+    private_home = None
+    if mcp:
+        from app.backend_codex import CodexBackend, _write_private
+        from app.runtime_registry import _load_scope_mcp_servers
+
+        root = (state_dir or cwd).resolve()
+        root.mkdir(parents=True, exist_ok=True)
+        private_home = root / f".wf-codex-home-{uuid4().hex}"
+        private_home.mkdir(mode=0o700)
+        servers = _load_scope_mcp_servers(str(cwd))
+        backend = CodexBackend(model=model, cwd=str(cwd), mcp_servers=servers)
+        _write_private(private_home / "config.toml", backend._mcp_servers_toml() + "\n")
+        base_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
+        auth = base_home / "auth.json"
+        if auth.is_file():
+            (private_home / "auth.json").symlink_to(auth)
+        run_env["CODEX_HOME"] = str(private_home)
+    else:
+        argv.insert(argv.index("--ignore-rules"), "--ignore-user-config")
+    try:
+        rc, stdout, stderr = await _run_process(
+            argv, _prompt_with_rules(prompt, system_prompt), cwd, timeout, env=run_env
+        )
+    finally:
+        if private_home is not None:
+            shutil.rmtree(private_home)
     if rc != 0:
         return _failed("codex", model, stderr or stdout or f"exit code {rc}", stop_reason="timeout" if rc == 124 else "error")
     try:
@@ -241,8 +308,13 @@ async def run_codex(prompt: str, *, model: str, cwd: Path, timeout: float) -> Ad
         return _failed("codex", model, str(error), stop_reason="invalid_output")
 
 
-async def run_claude(prompt: str, *, model: str, cwd: Path, timeout: float) -> AdapterResult:
+async def run_claude(
+    prompt: str, *, model: str, cwd: Path, timeout: float,
+    tools: str = "all", network: bool = True, mcp: bool = True,
+    system_prompt: str = "", state_dir: Path | None = None,
+) -> AdapterResult:
     binary = os.environ.get("WF_CLAUDE_BIN", "claude")
+    mcp_config = _write_claude_mcp_config(cwd, mcp)
     argv = [
         binary,
         "-p",
@@ -254,11 +326,16 @@ async def run_claude(prompt: str, *, model: str, cwd: Path, timeout: float) -> A
         "",
         "--strict-mcp-config",
         "--mcp-config",
-        '{"mcpServers":{}}',
+        str(mcp_config),
         "--tools",
-        "",
+        _claude_tools(tools, network),
     ]
-    rc, stdout, stderr = await _run_process(argv, prompt, cwd, timeout)
+    if system_prompt.strip():
+        argv.extend(["--system-prompt", system_prompt.strip()])
+    try:
+        rc, stdout, stderr = await _run_process(argv, prompt, cwd, timeout)
+    finally:
+        mcp_config.unlink(missing_ok=True)
     if rc != 0:
         return _failed("claude", model, stderr or stdout or f"exit code {rc}", stop_reason="timeout" if rc == 124 else "error")
     try:
@@ -267,12 +344,20 @@ async def run_claude(prompt: str, *, model: str, cwd: Path, timeout: float) -> A
         return _failed("claude", model, str(error), stop_reason="invalid_output")
 
 
-async def run_harness(prompt: str, *, model: str, cwd: Path, timeout: float) -> AdapterResult:
+async def run_harness(
+    prompt: str, *, model: str, cwd: Path, timeout: float,
+    tools: str = "all", network: bool = True, mcp: bool = True,
+    system_prompt: str = "", state_dir: Path | None = None,
+) -> AdapterResult:
     from app.harness.oneshot import run_oneshot
 
     try:
         row = await asyncio.wait_for(
-            run_oneshot(prompt=prompt, model=model, cwd=cwd), timeout=max(1.0, timeout)
+            run_oneshot(
+                prompt=prompt, model=model, cwd=cwd, tools_level=tools,
+                network=network, mcp=mcp, system_prompt=system_prompt,
+            ),
+            timeout=max(1.0, timeout),
         )
     except asyncio.TimeoutError:
         return _failed("harness", model, f"timed out after {timeout:g}s", stop_reason="timeout")
@@ -295,15 +380,29 @@ async def run_harness(prompt: str, *, model: str, cwd: Path, timeout: float) -> 
 
 
 async def run_adapter(
-    prompt: str, *, model: str, cwd: Path, timeout: float
+    prompt: str, *, model: str, cwd: Path, timeout: float,
+    tools: str = "all", network: bool = True, mcp: bool = True,
+    system_prompt: str = "", state_dir: Path | None = None,
 ) -> AdapterResult:
     from app.models import backend_for_model
 
     runtime = backend_for_model(model)
     if runtime == "codex":
-        return await run_codex(prompt, model=model, cwd=cwd, timeout=timeout)
+        return await run_codex(
+            prompt, model=model, cwd=cwd, timeout=timeout, tools=tools,
+            network=network, mcp=mcp, system_prompt=system_prompt,
+            state_dir=state_dir,
+        )
     if runtime == "claude":
-        return await run_claude(prompt, model=model, cwd=cwd, timeout=timeout)
+        return await run_claude(
+            prompt, model=model, cwd=cwd, timeout=timeout, tools=tools,
+            network=network, mcp=mcp, system_prompt=system_prompt,
+            state_dir=state_dir,
+        )
     if runtime == "harness":
-        return await run_harness(prompt, model=model, cwd=cwd, timeout=timeout)
+        return await run_harness(
+            prompt, model=model, cwd=cwd, timeout=timeout, tools=tools,
+            network=network, mcp=mcp, system_prompt=system_prompt,
+            state_dir=state_dir,
+        )
     return _failed(runtime, model, f"runtime '{runtime}' has no wf_run one-shot adapter", stop_reason="unsupported")
