@@ -1,0 +1,37 @@
+### effort=none rc=1
+usage: <none>
+tail: {"type":"turn.failed","error":{"message":"{\n  \"type\": \"error\",\n  \"error\": {\n    \"type\": \"invalid_request_error\",\n    \"code\": \"unsupported_value\",\n    \"message\": \"Unsupported value: 'none' is not supported with the 'gpt-6-astra' model. Supported values are: 'low', 'medium', 'high', 'xhigh', and 'max'.\",\n    \"param\": \"reasoning.effort\"\n  },\n  \"status\": 400\n}"}}
+
+### effort=minimal rc=1
+usage: <none>
+tail: {"type":"turn.failed","error":{"message":"{\n  \"type\": \"error\",\n  \"error\": {\n    \"type\": \"invalid_request_error\",\n    \"code\": \"unsupported_value\",\n    \"message\": \"Unsupported value: 'minimal' is not supported with the 'gpt-6-astra' model. Supported values are: 'low', 'medium', 'high', 'xhigh', and 'max'.\",\n    \"param\": \"reasoning.effort\"\n  },\n  \"status\": 400\n}"}}
+
+### effort=low rc=0
+usage: "usage":{"input_tokens":20069,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":6,"reasoning_output_tokens":0}
+tail: {"type":"turn.completed","usage":{"input_tokens":20069,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":6,"reasoning_output_tokens":0}}
+
+### effort=medium rc=0
+usage: "usage":{"input_tokens":20069,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":6,"reasoning_output_tokens":0}
+tail: {"type":"turn.completed","usage":{"input_tokens":20069,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":6,"reasoning_output_tokens":0}}
+
+### effort=high rc=0
+usage: "usage":{"input_tokens":20069,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":6,"reasoning_output_tokens":0}
+tail: {"type":"turn.completed","usage":{"input_tokens":20069,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":6,"reasoning_output_tokens":0}}
+
+### effort=xhigh rc=0
+usage: "usage":{"input_tokens":20070,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":7,"reasoning_output_tokens":0}
+tail: {"type":"turn.completed","usage":{"input_tokens":20070,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":7,"reasoning_output_tokens":0}}
+
+### effort=max rc=0
+usage: "usage":{"input_tokens":20069,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":6,"reasoning_output_tokens":0}
+tail: {"type":"turn.completed","usage":{"input_tokens":20069,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":6,"reasoning_output_tokens":0}}
+
+### effort=ultra rc=0
+usage: "usage":{"input_tokens":20117,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":7,"reasoning_output_tokens":0}
+tail: {"type":"turn.completed","usage":{"input_tokens":20117,"cached_input_tokens":12160,"cache_write_input_tokens":0,"output_tokens":7,"reasoning_output_tokens":0}}
+
+### effort=bogus rc=1
+usage: <none>
+tail: {"type":"turn.failed","error":{"message":"{\n  \"type\": \"error\",\n  \"error\": {\n    \"type\": \"invalid_request_error\",\n    \"code\": null,\n    \"message\": \"[ReasoningEffortParam] [reasoning.effort] [invalid_enum_value] Invalid value: 'bogus'. Supported values are: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', and 'max'.\",\n    \"param\": null\n  },\n  \"status\": 400\n}"}}
+
+EFFORTS_DONE

@@ -1,0 +1,5 @@
+# codex_review writes a session sidecar next to its output file. Under .orchestra/ the
+# repository .gitignore negation (!.orchestra/**) beats $GIT_DIR/info/exclude, so the sidecar
+# would dirty the tree and block merge / mode="implementation" reviews (see CLAUDE.md, #466).
+# A deeper .gitignore wins over a shallower one, which is why this file works.
+codex_sessions.json
