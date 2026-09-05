@@ -61,9 +61,16 @@ Broad runs used a user systemd scope with MemoryMax=2G and nice=15; NOTIFY_SOCKE
 One browser harness attempt lacked a seeded selection and timed out; only that owned
 test scope was stopped. The seeded, fully intercepted harness subsequently passed.
 
-## Limits
+## Limits at branch completion
 
 No production failure injection, provider subscription calls, VPS deploy, merge into
 main or service restart. No claim of measured production latency/availability gain.
 Unknown provider acceptance cannot be converted into exactly-once delivery: it remains
 explicitly unreconciled after local teardown. Runtime observation is not a network probe.
+
+## Merge follow-up
+
+User authorized merge into main on 05.09 after branch completion, but not a restart or
+VPS deployment. Main's subsequent documentation commits were integrated without conflicts.
+The restart-ordering test's telemetry stub was moved to the async boundary: stubbing the
+synchronous function alone still exposed the 0.5-second test to thread-pool scheduling.
