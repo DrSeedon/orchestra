@@ -106,16 +106,13 @@ out = subprocess.run(["grep", "-c", "RECORD_REVIEW_THEN_NEW_OPERATION", "app/mer
 if out == "0":
     fail.append("README claims merge refuses without a review receipt; the marker is gone")
 
-# 6. the CLAUDE.md size claim must stay true in KIND, not to the byte:
-# the row asserts "the root guide is far too big to be an index", so the check is a floor
-# and the README says it in words. The previous version pinned the literal "about **190 KB**"
-# and so froze a number that had already drifted to 212 299 B by 2026-09-05 (#512) — the
-# floor was reading the right file and holding all along; the literal was the defect.
-size = (root / "CLAUDE.md").stat().st_size
-if size < 150_000:
-    fail.append(f"README claims CLAUDE.md is far past an index size; actual {size} bytes")
-if "hundreds of kilobytes" not in block:
-    fail.append("README no longer states the root guide is past index size")
+# 6. The bounded-startup claim counts both the owner and its native Claude adapter.
+# The pilot was about 10 KiB; 16 KiB allows edits while catching re-injection of the archive.
+size = sum((root / name).stat().st_size for name in ("AGENTS.md", "CLAUDE.md"))
+if size >= 16 * 1024:
+    fail.append(f"shared startup instructions exceed documented 16 KiB: {size} bytes")
+if "@AGENTS.md" not in (root / "CLAUDE.md").read_text().splitlines():
+    fail.append("CLAUDE.md no longer imports the shared instruction owner")
 
 # 7. the two versions must cite the SAME anchors — one showcase, not two.
 anchor_sets = {n: set(ANCHOR_RE.findall(comparison_block(n))) for n in VERSIONS}

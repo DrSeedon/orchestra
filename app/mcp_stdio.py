@@ -3494,7 +3494,7 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
         return "search_memory: no project scope (orchestrator context) — nothing to search."
     body = {"scope": SCOPE, "query": query, "limit": limit, "cross_project": cross_project}
     # Подсказка одна на все отказы: агент обязан уйти в grep, а не ждать и не повторять вызов.
-    grep = f'ищи grep\'ом: rg "{query}" docs/ CLAUDE.md BUGS.md'
+    grep = f"ищи точным якорем: rg -n -i -F -- {shlex.quote(query)} .orchestra/kb/"
     try:
         result = await _api("POST", "/api/memory/search", json=body,
                             timeout=SEARCH_DEADLINE_S)
