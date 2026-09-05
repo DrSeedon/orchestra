@@ -17,19 +17,41 @@ import app.quota_gate as quota_gate
 NOW = 2_000_000_000.0
 
 
+_QUOTA_ENV_NAMES = (
+    "QUOTA_TOLERANCE_START_PP",
+    "QUOTA_TOLERANCE_END_PP",
+    "QUOTA_HARD_STOP_PCT",
+    "QUOTA_GATED_LANES",
+    "QUOTA_CURVE_EXPONENT",
+    "QUOTA_CURVED_LANES",
+)
+
+
 def _reload_quota_gate_with_env(monkeypatch, **overrides: str | None):
-    for name in (
-        "QUOTA_TOLERANCE_START_PP",
-        "QUOTA_TOLERANCE_END_PP",
-        "QUOTA_HARD_STOP_PCT",
-        "QUOTA_GATED_LANES",
-    ):
+    for name in _QUOTA_ENV_NAMES:
         monkeypatch.delenv(name, raising=False)
     for name, value in overrides.items():
         if value is None:
             continue
         monkeypatch.setenv(name, value)
     return importlib.reload(quota_gate)
+
+
+@pytest.fixture
+def reloaded_quota_gate(monkeypatch):
+    """Перезагрузка `app.quota_gate` с откатом, который переживает ПАДЕНИЕ теста.
+
+    Раньше откат стоял последней строкой тела теста. Тест падал раньше неё, модуль
+    оставался с чужими константами, и следующие тесты файла краснели по чужой
+    причине: `test_line_point_is_computed_server_side_for_every_pool` в одиночку
+    зелёный, а после теста env-переопределений получал `tolerance_pp` 7.5 вместо
+    5.5 — то есть `13 + (2 - 13) * 0.5` от QUOTA_TOLERANCE_*, утёкших сюда.
+    Фикстура откатывает в teardown, поэтому утечка невозможна независимо от исхода.
+    """
+    yield lambda **overrides: _reload_quota_gate_with_env(monkeypatch, **overrides)
+    for name in _QUOTA_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    importlib.reload(quota_gate)
 
 
 def _window(minutes, utilization, *, window_id="w", label="w", progress=0.5):
@@ -141,20 +163,42 @@ def _expected_release_status(
     utilization: float,
     progress: float,
     resets_at: str,
+    lane: str = "sol",
 ) -> tuple[str, float | None]:
+    """Момент открытия полосы по спеке — считается здесь, а не берётся у гейта.
+
+    Константы продублированы намеренно (см. заголовок файла): тест обязан краснеть,
+    когда правило поменяют. У кривой полосы обратной функции в замкнутом виде нет,
+    поэтому корень ищется делением пополам — ровно как в `line_release_progress`.
+    """
     hard_stop = 99.0
     start = 10.0
     end = 1.0
+    exponent = 2.5
+    curved_lanes = ("sol",)
+
+    def limit_at(point: float) -> float:
+        norm = point
+        if lane in curved_lanes and point > 0.0:
+            norm = point ** (1.0 / exponent)
+        tolerance = start + (end - start) * point
+        return min(hard_stop, norm * 100.0 + tolerance)
+
     if utilization >= hard_stop:
         return "at_reset", (datetime.fromisoformat(resets_at).timestamp() - NOW)
 
-    line_denominator = 100.0 + end - start
-    p_release = (utilization - start) / line_denominator
-    if p_release <= progress:
+    if utilization <= limit_at(progress):
         return "open", None
-    if p_release <= 1.0:
-        return "opens_in", (p_release - progress) * 300 * 60.0
-    return "at_reset", datetime.fromisoformat(resets_at).timestamp() - NOW
+    if utilization > limit_at(1.0):
+        return "at_reset", datetime.fromisoformat(resets_at).timestamp() - NOW
+    low, high = progress, 1.0
+    for _ in range(60):
+        middle = (low + high) / 2.0
+        if limit_at(middle) < utilization:
+            low = middle
+        else:
+            high = middle
+    return "opens_in", (high - progress) * 300 * 60.0
 
 
 @pytest.mark.asyncio
@@ -168,14 +212,17 @@ async def test_rule_constants_travel_with_the_payload(mapped):
         "hard_stop_pct": 99.0,
         "tolerance_start_pp": 10.0,
         "tolerance_end_pp": 1.0,
+        # Кривизна — такая же часть правила, как допуск: панель рисует порог сама и
+        # без этих двух полей нарисует ПРЯМУЮ там, где гейт блокирует по параболе.
+        "curve_exponent": 2.5,
+        "curved_lanes": ["sol"],
     }
     assert payload["observation_max_age_seconds"] == 300.0
 
 
 @pytest.mark.asyncio
-async def test_rule_constants_reflect_environment_overrides(mapped, monkeypatch):
-    gate = _reload_quota_gate_with_env(
-        monkeypatch,
+async def test_rule_constants_reflect_environment_overrides(mapped, reloaded_quota_gate):
+    gate = reloaded_quota_gate(
         QUOTA_HARD_STOP_PCT="92",
         QUOTA_TOLERANCE_START_PP="13",
         QUOTA_TOLERANCE_END_PP="2",
@@ -189,10 +236,11 @@ async def test_rule_constants_reflect_environment_overrides(mapped, monkeypatch)
         "hard_stop_pct": gate.HARD_STOP_PCT,
         "tolerance_start_pp": gate.TOLERANCE_START_PP,
         "tolerance_end_pp": gate.TOLERANCE_END_PP,
+        "curve_exponent": gate.CURVE_EXPONENT,
+        "curved_lanes": sorted(gate.CURVED_LANES),
     }
     codex = _pool(payload, "codex")
     assert all(not lane["gated"] for lane in codex["lanes"] if lane["lane"] in ("sol", "luna"))
-    _reload_quota_gate_with_env(monkeypatch)
 
 
 @pytest.mark.asyncio
@@ -406,11 +454,15 @@ async def test_release_fields_arrive_for_each_gating_status(mapped):
     assert lane_open["release_status"] == "open"
     assert lane_open["release_in_seconds"] is None
 
+    # 60% при кривой полосе уже ОТКРЫТО (порог Sol в середине окна 81.3%), поэтому
+    # прежнее число перестало проверять статус `opens_in` вовсе. 90% лежит между
+    # порогом середины окна и жёстким стопом — то есть проверяет именно его.
     payload_opens_in = await mapped(_observation(
-        codex=[_window(300, 60.0, window_id="primary", label="5h", progress=progress)],
+        codex=[_window(300, 90.0, window_id="primary", label="5h", progress=progress)],
     ))
     lane_opens_in = _lane(_pool(payload_opens_in, "codex"), "sol")
-    expected_status, expected_seconds = _expected_release_status(60.0, progress, resets_at)
+    expected_status, expected_seconds = _expected_release_status(90.0, progress, resets_at)
+    assert expected_status == "opens_in", "фикстура обязана проверять именно статус opens_in"
     assert lane_opens_in["release_status"] == expected_status
     assert lane_opens_in["release_in_seconds"] == pytest.approx(expected_seconds)
 
