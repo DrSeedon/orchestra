@@ -1,0 +1,556 @@
+........................................................................ [ 11%]
+........................................................................ [ 23%]
+....................................................F................... [ 35%]
+.......FF............................................................... [ 47%]
+...........................sss....s............F.........FF...FFF....... [ 59%]
+........................................................................ [ 71%]
+....sssssss...................................~~~~~~~~~~~~~~~~~~~~~~~ Stack of db_3 (140696767694528) ~~~~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/lib/python3.12/threading.py", line 1030, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 89, in _worker
+    work_item = work_queue.get(block=True)
+~~~~~~~~~~~~~~~~~~~~~~~ Stack of db_2 (140696825665216) ~~~~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/lib/python3.12/threading.py", line 1030, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 89, in _worker
+    work_item = work_queue.get(block=True)
+~~~~~~~~~~~~~~~~~~~~~~~ Stack of db_1 (140696785528512) ~~~~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/lib/python3.12/threading.py", line 1030, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 89, in _worker
+    work_item = work_queue.get(block=True)
+~~~~~~~~~~~~~~~~~~~~~~~ Stack of db_0 (140696793921216) ~~~~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/lib/python3.12/threading.py", line 1030, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 89, in _worker
+    work_item = work_queue.get(block=True)
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+F.....FF................................................................ [ 91%]
+.....................................................                    [100%]
+=================================== FAILURES ===================================
+________________ test_resolved_binary_reaches_the_shell_command ________________
+
+mcp = <module 'app.mcp_stdio' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/mcp_stdio.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff684e82c30>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-8536/test_resolved_binary_reaches_t0')
+
+    def test_resolved_binary_reaches_the_shell_command(mcp, monkeypatch, tmp_path):
+        """Позитивный случай: в команду уходит именно разрешённый путь, а не константа."""
+        started = {}
+    
+        async def fake_api(method, path, **kwargs):
+            if method == "GET":
+                return {"id": "test-session", "worktree_path": str(tmp_path)}
+            assert method == "POST"
+            assert path == "/api/bg/jobs"
+            started["command"] = kwargs["json"]["config"]["command"]
+            return {"id": "bg-test"}
+    
+        monkeypatch.setattr(mcp.shutil, "which", lambda _: "/usr/bin/codex")
+        monkeypatch.setattr(mcp, "WORKER_NAME", "perf")
+        monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+        monkeypatch.setattr(mcp, "_api", fake_api)
+    
+>       result = asyncio.run(mcp.codex_review(
+            context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
+        ))
+
+tests/test_codex_bin_resolution.py:107: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+app/mcp_stdio.py:4087: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3719: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3617: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3613: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-kesha/pytest-8536/test_resolved_binary_reaches_t0'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-kesha/pytest-8536/test_resolved_binary_reaches_t0', 'rev-parse', '...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+detail = 'fatal: not a git repository (or any of the parent directories): .git'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+
+app/mcp_stdio.py:3608: ValueError
+______ test_explicit_send_message_keeps_child_text_reachable_via_manifest ______
+
+db = <module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/db.py'>
+spy = <tests.test_fan_report_delivery._SpyManager object at 0x7ff687bfc350>
+
+    def test_explicit_send_message_keeps_child_text_reachable_via_manifest(db, spy):
+        """Прод-роут send_message. Текст, который ребёнок передал, обязан быть
+        доступен родителю по пути из манифеста. Не вклейкой в пробуждение."""
+        fb = _open_fan(["c1", "c2"])
+        _send("c1", LONG_BODY)
+        _send("c2", "ok")
+    
+>       assert len(spy.sent) == 1, f"пробуждений {len(spy.sent)}, ждали одно"
+E       AssertionError: пробуждений 0, ждали одно
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <tests.test_fan_report_delivery._SpyManager object at 0x7ff687bfc350>.sent
+
+tests/test_fan_report_delivery.py:128: AssertionError
+_______ test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text ________
+
+db = <module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/db.py'>
+spy = <tests.test_fan_report_delivery._SpyManager object at 0x7ff687cca1b0>
+
+    def test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text(db, spy):
+        """Молчаливый путь не беднее и не богаче явного: те же поля, свой файл."""
+        fb = _open_fan(["c1", "c2"])
+        _send("c1", EXPLICIT_MARKER)
+        _silent("c2", [SILENT_MARKER])
+    
+        explicit = _member(fb, "c1")
+        silent = _member(fb, "c2")
+        assert set(explicit) == set(silent), (
+            f"разный набор полей манифеста: explicit={sorted(explicit)} "
+            f"silent={sorted(silent)}"
+        )
+>       assert explicit["report_path"], "явный путь оставил report_path пустым"
+E       AssertionError: явный путь оставил report_path пустым
+E       assert None
+
+tests/test_fan_report_delivery.py:156: AssertionError
+____________________ test_usage_visible_to_owner_with_login ____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff687996720>
+
+    @pytest.mark.asyncio
+    async def test_usage_visible_to_owner_with_login(monkeypatch):
+        _set_auth(monkeypatch)
+        monkeypatch.setenv("OWNER_MODE", "1")
+    
+        async def _fake_usage_data():
+            return {"anthropic": {"five_hour": {"utilization": 7}}}
+    
+        monkeypatch.setattr(system_routes, "_get_usage_data", _fake_usage_data)
+>       assert await system_routes.get_usage() == {
+            "anthropic": {"five_hour": {"utilization": 7}},
+        }
+E       AssertionError: assert {'anthropic':...adroom': None} == {'anthropic':...ization': 7}}}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'quota_headroom': None}
+E         Use -v to get more diff
+
+tests/test_owner_mode.py:74: AssertionError
+_________________ test_rule_constants_travel_with_the_payload __________________
+
+mapped = <function mapped.<locals>.run at 0x7ff6679e65c0>
+
+    @pytest.mark.asyncio
+    async def test_rule_constants_travel_with_the_payload(mapped):
+        """Панель не хардкодит числа правила — иначе она разойдётся с гейтом молча."""
+        payload = await mapped(_observation(
+            anthropic=[_window(10080, 4, window_id="seven_day", label="7d")],
+        ))
+    
+>       assert payload["rule"] == {
+            "hard_stop_pct": 99.0,
+            "tolerance_start_pp": 10.0,
+            "tolerance_end_pp": 1.0,
+        }
+E       AssertionError: assert {'curve_expon...pp': 1.0, ...} == {'hard_stop_p...art_pp': 10.0}
+E         
+E         Omitting 3 identical items, use -vv to show
+E         Left contains 2 more items:
+E         {'curve_exponent': 2.5, 'curved_lanes': ['sol']}
+E         Use -v to get more diff
+
+tests/test_quota_map_api.py:167: AssertionError
+______________ test_rule_constants_reflect_environment_overrides _______________
+
+mapped = <function mapped.<locals>.run at 0x7ff6679e6660>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ff687ba12b0>
+
+    @pytest.mark.asyncio
+    async def test_rule_constants_reflect_environment_overrides(mapped, monkeypatch):
+        gate = _reload_quota_gate_with_env(
+            monkeypatch,
+            QUOTA_HARD_STOP_PCT="92",
+            QUOTA_TOLERANCE_START_PP="13",
+            QUOTA_TOLERANCE_END_PP="2",
+            QUOTA_GATED_LANES="",
+        )
+        payload = await mapped(_observation(
+            codex=[_window(300, 98.0, window_id="primary", label="5h", progress=0.3)],
+        ))
+    
+>       assert payload["rule"] == {
+            "hard_stop_pct": gate.HARD_STOP_PCT,
+            "tolerance_start_pp": gate.TOLERANCE_START_PP,
+            "tolerance_end_pp": gate.TOLERANCE_END_PP,
+        }
+E       AssertionError: assert {'curve_expon...pp': 2.0, ...} == {'hard_stop_p...art_pp': 13.0}
+E         
+E         Omitting 3 identical items, use -vv to show
+E         Left contains 2 more items:
+E         {'curve_exponent': 2.5, 'curved_lanes': ['sol']}
+E         Use -v to get more diff
+
+tests/test_quota_map_api.py:188: AssertionError
+______________ test_release_fields_arrive_for_each_gating_status _______________
+
+mapped = <function mapped.<locals>.run at 0x7ff6679e72e0>
+
+    @pytest.mark.asyncio
+    async def test_release_fields_arrive_for_each_gating_status(mapped):
+        progress = 0.5
+        resets_at = _iso(NOW + 300 * 60 * (1.0 - progress))
+    
+        payload_open = await mapped(_observation(
+            codex=[_window(300, 55.5, window_id="primary", label="5h", progress=progress)],
+        ))
+        lane_open = _lane(_pool(payload_open, "codex"), "sol")
+        assert lane_open["release_status"] == "open"
+        assert lane_open["release_in_seconds"] is None
+    
+        payload_opens_in = await mapped(_observation(
+            codex=[_window(300, 60.0, window_id="primary", label="5h", progress=progress)],
+        ))
+        lane_opens_in = _lane(_pool(payload_opens_in, "codex"), "sol")
+        expected_status, expected_seconds = _expected_release_status(60.0, progress, resets_at)
+>       assert lane_opens_in["release_status"] == expected_status
+E       AssertionError: assert 'open' == 'opens_in'
+E         
+E         - opens_in
+E         + open
+
+tests/test_quota_map_api.py:414: AssertionError
+____________ test_line_point_is_computed_server_side_for_every_pool ____________
+
+mapped = <function mapped.<locals>.run at 0x7ff6877e82c0>
+
+    @pytest.mark.asyncio
+    async def test_line_point_is_computed_server_side_for_every_pool(mapped):
+        payload = await mapped(_observation(
+            anthropic=[_window(10080, 4, window_id="seven_day", label="7d", progress=0.5)],
+            codex=[_window(300, 4, window_id="primary", label="5h", progress=0.25)],
+        ))
+    
+        claude = _pool(payload, "anthropic")
+        assert claude["window"]["progress"] == pytest.approx(0.5)
+>       assert claude["tolerance_pp"] == pytest.approx(5.5)
+E       assert 7.5 == 5.5 ± 5.5e-06
+E         
+E         comparison failed
+E         Obtained: 7.5
+E         Expected: 5.5 ± 5.5e-06
+
+tests/test_quota_map_api.py:435: AssertionError
+______________ test_gated_and_free_lanes_split_on_the_same_number ______________
+
+mapped = <function mapped.<locals>.run at 0x7ff6877ead40>
+
+    @pytest.mark.asyncio
+    async def test_gated_and_free_lanes_split_on_the_same_number(mapped):
+        """90% в 10% окна: Sol и Claude стоят, Luna и Spark работают."""
+        payload = await mapped(_observation(
+            anthropic=[_window(10080, 90, window_id="seven_day", label="7d", progress=0.1)],
+            codex=[_window(300, 90, window_id="primary", label="5h", progress=0.1)],
+            codex_spark=[_window(300, 90, window_id="primary", label="5h", progress=0.1)],
+        ))
+    
+        claude = _pool(payload, "anthropic")
+>       assert _lane(claude, "claude")["gated"] is True
+E       assert False is True
+
+tests/test_quota_map_api.py:454: AssertionError
+__________ test_anthropic_refresh_is_target_isolated_and_singleflight __________
+
+item = <Coroutine test_anthropic_refresh_is_target_isolated_and_singleflight>
+
+    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    def pytest_runtest_call(item: Any) -> Generator[None, Any, None]:
+        if _soft_scope is None:
+            yield
+            return
+        hard_failure: Optional[BaseException] = None
+        with _soft_scope() as errors:
+            try:
+                yield
+            except BaseException as exc:
+                hard_failure = exc
+        if not errors:
+            if hard_failure is not None:
+>               raise hard_failure
+
+.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:112: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:107: in pytest_runtest_call
+    yield
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:569: in runtest
+    super().runtest()
+.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:905: in inner
+    runner.run(coro, context=context)
+/usr/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/base_events.py:674: in run_until_complete
+    self.run_forever()
+/usr/lib/python3.12/asyncio/base_events.py:641: in run_forever
+    self._run_once()
+/usr/lib/python3.12/asyncio/base_events.py:1949: in _run_once
+    event_list = self._selector.select(timeout)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <selectors.EpollSelector object at 0x7ff6679ee6f0>, timeout = 11.996
+
+    def select(self, timeout=None):
+        if timeout is None:
+            timeout = -1
+        elif timeout <= 0:
+            timeout = 0
+        else:
+            # epoll_wait() has a resolution of 1 millisecond, round away
+            # from zero to wait *at least* timeout seconds.
+            timeout = math.ceil(timeout * 1e3) * 1e-3
+    
+        # epoll_wait() expects `maxevents` to be greater than zero;
+        # we want to make sure that `select()` can be called when no
+        # FD is registered.
+        max_ev = max(len(self._fd_to_key), 1)
+    
+        ready = []
+        try:
+>           fd_event_list = self._selector.poll(timeout, max_ev)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: Timeout (>30.0s) from pytest-timeout.
+
+/usr/lib/python3.12/selectors.py:468: Failed
+----------------------------- Captured stdout call -----------------------------
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~ Stack of asyncio_2 (140696233154240) ~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/lib/python3.12/threading.py", line 1030, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 92, in _worker
+    work_item.run()
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/openrouter_activity.py", line 60, in fetch_day_sync
+    status, body = _http_get_json(f"{_ACTIVITY_URL}?date={day}", key)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/openrouter_activity.py", line 23, in _http_get_json
+    resp = httpx.get(url, headers={"Authorization": f"Bearer {key}"}, timeout=timeout)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_api.py", line 195, in get
+    return request(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_api.py", line 109, in request
+    return client.request(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 914, in send
+    response = self._send_handling_auth(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_sync/connection.py", line 78, in handle_request
+    stream = self._connect(request)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_sync/connection.py", line 124, in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_backends/sync.py", line 208, in connect_tcp
+    sock = socket.create_connection(
+  File "/usr/lib/python3.12/socket.py", line 837, in create_connection
+    sock.connect(sa)
+~~~~~~~~~~~~~~~~~~~~~ Stack of asyncio_1 (140695880857280) ~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/lib/python3.12/threading.py", line 1030, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 92, in _worker
+    work_item.run()
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/openrouter_activity.py", line 60, in fetch_day_sync
+    status, body = _http_get_json(f"{_ACTIVITY_URL}?date={day}", key)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/openrouter_activity.py", line 23, in _http_get_json
+    resp = httpx.get(url, headers={"Authorization": f"Bearer {key}"}, timeout=timeout)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_api.py", line 195, in get
+    return request(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_api.py", line 109, in request
+    return client.request(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 914, in send
+    response = self._send_handling_auth(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_sync/connection.py", line 78, in handle_request
+    stream = self._connect(request)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_sync/connection.py", line 124, in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_backends/sync.py", line 208, in connect_tcp
+    sock = socket.create_connection(
+  File "/usr/lib/python3.12/socket.py", line 837, in create_connection
+    sock.connect(sa)
+~~~~~~~~~~~~~~~~~~~~~ Stack of asyncio_0 (140696275117760) ~~~~~~~~~~~~~~~~~~~~~
+  File "/usr/lib/python3.12/threading.py", line 1030, in _bootstrap
+    self._bootstrap_inner()
+  File "/usr/lib/python3.12/threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.12/threading.py", line 1010, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 92, in _worker
+    work_item.run()
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/openrouter_activity.py", line 60, in fetch_day_sync
+    status, body = _http_get_json(f"{_ACTIVITY_URL}?date={day}", key)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/openrouter_activity.py", line 23, in _http_get_json
+    resp = httpx.get(url, headers={"Authorization": f"Bearer {key}"}, timeout=timeout)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_api.py", line 195, in get
+    return request(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_api.py", line 109, in request
+    return client.request(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 914, in send
+    response = self._send_handling_auth(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_sync/connection.py", line 78, in handle_request
+    stream = self._connect(request)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_sync/connection.py", line 124, in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/httpcore/_backends/sync.py", line 208, in connect_tcp
+    sock = socket.create_connection(
+  File "/usr/lib/python3.12/socket.py", line 837, in create_connection
+    sock.connect(sa)
+----------------------------- Captured stderr call -----------------------------
+quota observation refresh failed for anthropic: TimeoutError: TimeoutError
+quota observation refresh failed for anthropic: TimeoutError: TimeoutError
+------------------------------ Captured log call -------------------------------
+WARNING  orchestra.system:system.py:1321 quota observation refresh failed for anthropic: TimeoutError: TimeoutError
+WARNING  orchestra.system:system.py:1321 quota observation refresh failed for anthropic: TimeoutError: TimeoutError
+_________ test_readiness_endpoint_returns_the_execution_time_decision __________
+
+isolated_usage = None
+
+    @pytest.mark.asyncio
+    async def test_readiness_endpoint_returns_the_execution_time_decision(isolated_usage):
+        """95% без разбираемого `resets_at` — линию считать нечем, действует жёсткий стоп."""
+        system._usage_cache.update({"data": _anthropic(95), "ts": NOW})
+        result = await system.usage_readiness("claude-opus-5[1m]")
+        assert result["provider"] == "anthropic"
+>       assert result["lane"] == "claude" and result["gated"] is True
+E       AssertionError: assert ('claude' == 'claude'
+E         
+E           claude and False is True)
+
+tests/test_usage_readiness.py:197: AssertionError
+________________ test_readiness_endpoint_blocks_above_the_line _________________
+
+isolated_usage = None
+
+    @pytest.mark.asyncio
+    async def test_readiness_endpoint_blocks_above_the_line(isolated_usage):
+        data = _anthropic(95)
+        # Ровно середина недельного окна: линия 55.5%, факт 95% — выше неё.
+        data["seven_day"]["resets_at"] = datetime.fromtimestamp(
+            NOW + 10080 * 60 / 2, timezone.utc,
+        ).isoformat()
+        system._usage_cache.update({"data": data, "ts": NOW})
+        result = await system.usage_readiness("claude-opus-5[1m]")
+        assert result["state"] == "blocked" and result["allowed"] is False
+>       assert result["limit_pct"] == pytest.approx(55.5)
+E       assert None == 55.5 ± 5.6e-05
+E         
+E         comparison failed
+E         Obtained: None
+E         Expected: 55.5 ± 5.6e-05
+
+tests/test_usage_readiness.py:213: AssertionError
+=============================== warnings summary ===============================
+tests/test_auth.py::test_openapi_docs_require_auth_but_authenticated_cookie_can_read_schema
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:252: UserWarning: Duplicate Operation ID open_artifact_api_artifacts_open__locator__get for function open_artifact at /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/routes/artifacts.py
+    warnings.warn(message, stacklevel=1)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+===================== ПРОПУЩЕНЫ ПРОВЕРКИ ВЛАДЕНИЯ ФАЙЛАМИ ======================
+4 теста(ов) не выполнялись: нет беспарольного sudo. Владение файлами нельзя проверить заглушками — нужны два реальных владельца.
+  test_migrated_worker_can_actually_commit, test_nested_repo_worker_migrates_into_its_own_repo, test_no_permanent_safe_directory_is_written_on_the_host, test_nothing_is_left_behind_for_the_login_user
+=========================== short test summary info ============================
+FAILED tests/test_codex_bin_resolution.py::test_resolved_binary_reaches_the_shell_command
+FAILED tests/test_fan_report_delivery.py::test_explicit_send_message_keeps_child_text_reachable_via_manifest
+FAILED tests/test_fan_report_delivery.py::test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text
+FAILED tests/test_owner_mode.py::test_usage_visible_to_owner_with_login - Ass...
+FAILED tests/test_quota_map_api.py::test_rule_constants_travel_with_the_payload
+FAILED tests/test_quota_map_api.py::test_rule_constants_reflect_environment_overrides
+FAILED tests/test_quota_map_api.py::test_release_fields_arrive_for_each_gating_status
+FAILED tests/test_quota_map_api.py::test_line_point_is_computed_server_side_for_every_pool
+FAILED tests/test_quota_map_api.py::test_gated_and_free_lanes_split_on_the_same_number
+FAILED tests/test_usage_readiness.py::test_anthropic_refresh_is_target_isolated_and_singleflight
+FAILED tests/test_usage_readiness.py::test_readiness_endpoint_returns_the_execution_time_decision
+FAILED tests/test_usage_readiness.py::test_readiness_endpoint_blocks_above_the_line
+12 failed, 580 passed, 11 skipped, 4 deselected, 1 warning in 359.11s (0:05:59)

@@ -1,0 +1,56 @@
+ssssss...........................FF..................................... [ 10%]
+........................................................................ [ 21%]
+........................................................................ [ 31%]
+....................................................s................... [ 42%]
+........................................................................ [ 52%]
+........................................................................ [ 63%]
+........................................................................ [ 73%]
+........................................................................ [ 84%]
+........................................................................ [ 94%]
+...................................                                      [100%]
+=================================== FAILURES ===================================
+_________________ test_orchestrator_compacts_at_96_but_not_94 __________________
+
+    def test_orchestrator_compacts_at_96_but_not_94():
+        session = _orchestrator()
+        session._last_context = {"percentage": 96, "max_tokens": 1_000_000}
+        spawned = _capture_spawn(session)
+    
+        TurnManager(session).schedule_context_compaction(96)
+    
+>       assert len(spawned) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_compact_gate_438.py:86: AssertionError
+___________________ test_cli_threshold_lowers_our_threshold ____________________
+
+    def test_cli_threshold_lowers_our_threshold():
+        session = _orchestrator()
+        session._last_context = {
+            "percentage": 89,
+            "max_tokens": 1_000_000,
+            "auto_compact_threshold": 900_000,
+        }
+        spawned = _capture_spawn(session)
+    
+        assert _auto_compact_threshold_pct(session) == 89
+    
+        TurnManager(session).schedule_context_compaction(90)
+    
+>       assert len(spawned) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_compact_gate_438.py:109: AssertionError
+=============================== warnings summary ===============================
+tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/starlette/testclient.py:445: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_compact_gate_438.py::test_orchestrator_compacts_at_96_but_not_94
+FAILED tests/test_compact_gate_438.py::test_cli_threshold_lowers_our_threshold
+2 failed, 674 passed, 7 skipped, 2 warnings in 283.69s (0:04:43)

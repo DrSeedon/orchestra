@@ -1,0 +1,24 @@
+Command exited with non-zero status 1
+	Command being timed: "uv run pytest -q -rf --timeout=30 tests/test_antigravity_usage.py tests/test_audit0901_delivery.py tests/test_audit0901_tm.py tests/test_backend_grok.py tests/test_build_signal.py tests/test_claude_env_hook.py tests/test_codex_usage.py tests/test_db.py tests/test_enc_cli_dir.py tests/test_fan_enable.py tests/test_fdstore.py tests/test_harness_production.py tests/test_instant_restart.py tests/test_knowledge_resource_preservation_409.py tests/test_limit_wake.py tests/test_manager.py tests/test_mcp_stdio.py tests/test_merge_recovery_wedge.py tests/test_message_provenance_migration_433.py tests/test_model_gates.py tests/test_orchestra_layout_430.py tests/test_orphan_pid_identity.py tests/test_portfolio_agent_filter_472.py tests/test_process_guard.py tests/test_project_knowledge_distribution_412.py tests/test_quota_gate.py tests/test_reducer_role.py tests/test_review_authorship_493.py tests/test_review_receipt_start_436.py tests/test_runtime_handoff_recovery.py tests/test_search_deadline.py tests/test_session_hibernate.py tests/test_subagent_clock.py tests/test_tailwind_css.py tests/test_task_par_collision_406.py tests/test_task_tracker_integration.py tests/test_tg_bridge_instance_guard.py tests/test_tg_upload.py tests/test_turn_usage.py tests/test_usage_history_frontend.py tests/test_voice_input.py"
+	User time (seconds): 107.22
+	System time (seconds): 57.38
+	Percent of CPU this job got: 51%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 5:17.25
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 291440
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 604
+	Minor (reclaiming a frame) page faults: 1413552
+	Voluntary context switches: 201304
+	Involuntary context switches: 4854
+	Swaps: 0
+	File system inputs: 584040
+	File system outputs: 2294360
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1
