@@ -31,6 +31,7 @@ from app.deps import manager
 from app.errtext import err_text
 from app.events import MessageProvenance
 from app.models import ensure_dashboard_visible, ensure_spawn_allowed, resolve_model, MODELS
+from app.manager import LifecycleQuarantineError
 from app.quota_gate import QuotaGateError
 from app.routes.errors import keyed_auth_required
 from app.session import AgentStatus
@@ -788,25 +789,49 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     conflict, conflict_status = message_deliveries._conflict(delivery_id)
                     return JSONResponse(conflict, status_code=conflict_status)
                 if existing["state"] == "FAILED_BEFORE_SUBMIT":
-                    await manager.preflight_message_delivery(existing["target_session_id"])
-                resource, status_code = await message_deliveries.accept_message_delivery(
-                    delivery_id=delivery_id,
-                    source_session_id=source_id or None,
-                    source_principal=source_principal,
-                    source_name=source_name,
-                    source_scope=source_scope,
-                    source_task_id=source_task_id,
-                    target_session_id=existing["target_session_id"],
-                    target_name=existing["target_name"],
-                    target_scope=existing["target_scope"],
-                    target_task_id=existing["target_task_id"],
-                    target_generation=existing["target_generation"],
-                    message=req.message,
-                    rendered_message=rendered,
-                    message_kind=req.message_kind,
-                    wake=req.wake,
-                    provenance=provenance,
-                )
+                    async with manager.get_session_lock(existing["target_session_id"]):
+                        await manager.preflight_message_delivery(
+                            existing["target_session_id"],
+                        )
+                        resource, status_code = (
+                            await message_deliveries.accept_message_delivery(
+                                delivery_id=delivery_id,
+                                source_session_id=source_id or None,
+                                source_principal=source_principal,
+                                source_name=source_name,
+                                source_scope=source_scope,
+                                source_task_id=source_task_id,
+                                target_session_id=existing["target_session_id"],
+                                target_name=existing["target_name"],
+                                target_scope=existing["target_scope"],
+                                target_task_id=existing["target_task_id"],
+                                target_generation=existing["target_generation"],
+                                message=req.message,
+                                rendered_message=rendered,
+                                message_kind=req.message_kind,
+                                wake=req.wake,
+                                provenance=provenance,
+                            )
+                        )
+                else:
+                    resource, status_code = await message_deliveries.accept_message_delivery(
+                        delivery_id=delivery_id,
+                        source_session_id=source_id or None,
+                        source_principal=source_principal,
+                        source_name=source_name,
+                        source_scope=source_scope,
+                        source_task_id=source_task_id,
+                        target_session_id=existing["target_session_id"],
+                        target_name=existing["target_name"],
+                        target_scope=existing["target_scope"],
+                        target_task_id=existing["target_task_id"],
+                        target_generation=existing["target_generation"],
+                        message=req.message,
+                        rendered_message=rendered,
+                        message_kind=req.message_kind,
+                        wake=req.wake,
+                        provenance=provenance,
+                    )
                 return JSONResponse(resource, status_code=status_code)
 
             known_targets = get_all_sessions(include_archived=True)
@@ -869,30 +894,31 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     },
                     status_code=404,
                 )
-            await manager.preflight_message_delivery(target.id)
-            target_generation = (
-                f"session={target.id}|task={getattr(target, 'task_id', '')}|"
-                f"branch={getattr(target, 'branch', '')}|"
-                f"needs_switch={int(bool(getattr(target, 'needs_switch', False)))}"
-            )
-            resource, status_code = await message_deliveries.accept_message_delivery(
-                delivery_id=delivery_id,
-                source_session_id=source_id or None,
-                source_principal=source_principal,
-                source_name=source_name,
-                source_scope=source_scope,
-                source_task_id=source_task_id,
-                target_session_id=target.id,
-                target_name=target.name,
-                target_scope=target.scope,
-                target_task_id=getattr(target, "task_id", "") or "",
-                target_generation=target_generation,
-                message=req.message,
-                rendered_message=rendered,
-                message_kind=req.message_kind,
-                wake=req.wake,
-                provenance=provenance,
-            )
+            async with manager.get_session_lock(target.id):
+                await manager.preflight_message_delivery(target.id)
+                target_generation = (
+                    f"session={target.id}|task={getattr(target, 'task_id', '')}|"
+                    f"branch={getattr(target, 'branch', '')}|"
+                    f"needs_switch={int(bool(getattr(target, 'needs_switch', False)))}"
+                )
+                resource, status_code = await message_deliveries.accept_message_delivery(
+                    delivery_id=delivery_id,
+                    source_session_id=source_id or None,
+                    source_principal=source_principal,
+                    source_name=source_name,
+                    source_scope=source_scope,
+                    source_task_id=source_task_id,
+                    target_session_id=target.id,
+                    target_name=target.name,
+                    target_scope=target.scope,
+                    target_task_id=getattr(target, "task_id", "") or "",
+                    target_generation=target_generation,
+                    message=req.message,
+                    rendered_message=rendered,
+                    message_kind=req.message_kind,
+                    wake=req.wake,
+                    provenance=provenance,
+                )
             return JSONResponse(resource, status_code=status_code)
         if req.sender:
             provenance = MessageProvenance(
@@ -1120,6 +1146,8 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
         if task_state:
             result["task"] = task_state
         return result
+    except LifecycleQuarantineError as e:
+        return JSONResponse({"ok": False, "error": e.envelope()}, status_code=409)
     except QuotaGateError as e:
         return JSONResponse(e.envelope(), status_code=e.status_code)
     except sqlite3.DatabaseError:
@@ -1667,6 +1695,23 @@ def _merge_not_reached(
         "worker_head": worker_head,
         "conflicts": [],
         "_http_status": http_status,
+    }
+
+
+def _legacy_merge_continue_warning(
+    worker_name: str, task_id: str, base_branch: str,
+) -> dict:
+    call = (
+        f'switch_worker_branch(name="{worker_name}", task_id="{task_id}", '
+        f'from_ref="{base_branch}")'
+    )
+    return {
+        "code": "LEGACY_MERGE_CONTINUE",
+        "message": (
+            f"merge came from an operation-v1 client: task #{task_id} stays "
+            f"in_progress and bound. Repair the worker lifecycle with {call}. "
+            "The call is idempotent; reconnect the agent before its next turn."
+        ),
     }
 
 
@@ -2260,14 +2305,11 @@ async def execute_merge_session(
             # не тронут», но с сохранённой привязкой, чтобы работа не потеряла воркера.
             legacy_task_id = "" if next_task_id else str(row.get("task_id") or "")
             if legacy_task_id:
-                result.setdefault("warnings", []).append({
-                    "code": "LEGACY_MERGE_CONTINUE",
-                    "message": (
-                        f"merge came from an operation-v1 client: task #{legacy_task_id} "
-                        "stays in_progress and bound. Reconnect the agent to get "
-                        "task-lifecycle-v2 and merge with task_outcome='complete'."
-                    ),
-                })
+                result.setdefault("warnings", []).append(
+                    _legacy_merge_continue_warning(
+                        found.name, legacy_task_id, target,
+                    )
+                )
             lifecycle_status = await _persist_lifecycle_quarantine(
                 found,
                 branch=merged_branch,
@@ -2653,7 +2695,7 @@ async def _promote_current_work_for_task(
 
 @router.post("/api/sessions/{name}/switch-branch")
 async def switch_branch(name: str, req: dict):
-    from app.workspace import switch_worktree_branch
+    from app.workspace import inspect_worktree_identity, switch_worktree_branch
     from app import tm as _tm
     scope = req.get("scope", "")
     task_id = req.get("task_id", "")
@@ -2750,6 +2792,69 @@ async def switch_branch(name: str, req: dict):
                         previous_owned_dirs=previous_owned_dirs,
                         waited_seconds=waited_seconds,
                     )
+                if not new_task and previous_branch == new_branch:
+                    if not previous_needs_switch:
+                        return {
+                            "ok": True,
+                            "state": "already_current",
+                            "branch": previous_branch,
+                            "waited_seconds": round(waited_seconds, 2),
+                            "message": "task/branch binding is already healthy; no changes made",
+                        }
+                    try:
+                        actual_branch, actual_head = await asyncio.to_thread(
+                            inspect_worktree_identity, worktree_path,
+                        )
+                    except Exception as inspect_error:
+                        return JSONResponse(
+                            {
+                                "error": (
+                                    "lifecycle repair refused: actual Git identity is "
+                                    f"unavailable: {err_text(inspect_error)}"
+                                )
+                            },
+                            status_code=409,
+                        )
+                    if actual_branch != new_branch:
+                        return JSONResponse(
+                            {
+                                "error": (
+                                    f"lifecycle repair refused: durable branch {new_branch} "
+                                    f"does not match actual branch {actual_branch or '<detached>'} "
+                                    f"at {actual_head or '<unknown>'}"
+                                )
+                            },
+                            status_code=409,
+                        )
+                    try:
+                        binding = await asyncio.to_thread(
+                            _tm.validate_task_binding_repair, scope, session_id, par,
+                        )
+                        await manager.transition_lifecycle(
+                            found,
+                            branch=previous_branch,
+                            base_branch=previous_base_branch,
+                            task_id=par,
+                            needs_switch=False,
+                        )
+                    except Exception as repair_error:
+                        return JSONResponse(
+                            {
+                                "error": (
+                                    "lifecycle repair failed without changing the binding: "
+                                    f"{err_text(repair_error)}"
+                                )
+                            },
+                            status_code=409,
+                        )
+                    return {
+                        "ok": True,
+                        "state": "lifecycle_repaired",
+                        "branch": previous_branch,
+                        "task_status": binding,
+                        "waited_seconds": round(waited_seconds, 2),
+                        "message": "task/branch binding repaired",
+                    }
                 try:
                     verdict = await asyncio.to_thread(
                         _existing_branch_verdict, worktree_path, new_branch,
@@ -2918,6 +3023,10 @@ async def session_wip(name: str, scope: str = "", base_ref: str = ""):
         d = found.to_dict()
         result["context_pct"] = d.get("context_pct", 0)
         result["status"] = d.get("status", "unknown")
+        lifecycle = manager.lifecycle_quarantine(found)
+        if lifecycle:
+            result["status"] = "quarantined"
+            result["lifecycle_status"] = lifecycle
         return result
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
