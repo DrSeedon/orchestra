@@ -22,7 +22,7 @@
   <a href="https://github.com/DrSeedon/orchestra/commits/main"><img src="https://img.shields.io/github/last-commit/DrSeedon/orchestra" alt="Последний коммит"></a>
   <a href="https://github.com/DrSeedon/orchestra/graphs/commit-activity"><img src="https://img.shields.io/github/commit-activity/m/DrSeedon/orchestra" alt="Коммитов в месяц"></a>
   <a href="https://github.com/DrSeedon/orchestra/stargazers"><img src="https://img.shields.io/github/stars/DrSeedon/orchestra?style=social" alt="Звёзды"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="Лицензия: AGPL-3.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/DrSeedon/orchestra" alt="Лицензия: AGPL-3.0"></a>
   <img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python">
   <img src="https://img.shields.io/badge/built_by-itself-brightgreen" alt="Написана сама собой">
 </p>
