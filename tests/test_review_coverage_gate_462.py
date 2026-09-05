@@ -60,7 +60,10 @@ def _repo(tmp_path: Path, changed_path: str = "app/widget.py") -> tuple[Path, st
 def _expected_production_snapshot(repo: Path, target_sha: str, worker_head: str) -> str:
     raw = subprocess.run(
         [
-            "git", "diff", "--raw", "--full-index", "-z",
+            # #493: `--full-index` разворачивает object id только в ПАТЧЕ; в `--raw` без
+            # `--no-abbrev` их 7 символов, и личность предмета держалась на 28 битах.
+            # Рецепт здесь по-прежнему свой, независимый от `production_snapshot()`.
+            "git", "diff", "--raw", "--full-index", "--no-abbrev", "-z",
             f"{target_sha}...{worker_head}", "--", "app", "scripts",
         ],
         cwd=repo,

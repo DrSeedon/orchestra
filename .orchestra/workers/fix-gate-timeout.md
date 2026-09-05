@@ -31,6 +31,14 @@ worktree.**
   `def f(x = MODULE_CONST)`: значение связывается на `def`, и подмена константы не действует.
   Писать `x: float | None = None` и разрешать внутри — так уже сделано у `run_pytest(timeout=)`.
 
+## Снимок ревью: два владельца одного рецепта git (05.09, #493)
+Команда снимка написана ДВАЖДЫ: `app/review_coverage.py::production_snapshot` и
+`tests/test_review_coverage_gate_462.py::_expected_production_snapshot` (свой subprocess, своё
+хеширование — это намеренная независимость оракула). Любая правка команды = правка обоих, иначе
+шесть тестов #462 краснеют «receipt outcome/snapshot is not enforced exactly».
+- `git diff --raw --full-index` даёт СОКРАЩЁННЫЕ object id (7 симв.). `--full-index`
+  разворачивает их только в патче. Для `--raw` нужен `--no-abbrev`.
+
 ## `tmp_path` + git = свой репозиторий, всегда (04.09, #474)
 Тест брал пустой `tmp_path` и рассчитывал, что тот лежит вне git-репозитория. У меня руками
 `/tmp` — отдельный tmpfs, обход вверх упирается в границу mount → зелено. У merge-гейта база

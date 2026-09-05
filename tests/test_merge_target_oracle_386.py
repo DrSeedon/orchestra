@@ -1685,6 +1685,11 @@ async def test_t386_t1_terminal_result_records_complete_admission_evidence(
             "coverage_outcome": "reviewed",
             "author_outcome": "accepted",
             "outcome_evidence_ref": ".orchestra/tasks/483/report.md#coverage-precondition",
+            # #493: вердикт в свидетельстве — тот, что сервер вычитал из артефакта при
+            # закрытии квитанции (`verdict_value` предусловия), а не пересказ автора.
+            # Постревьюной дельты у этой фикстуры нет, поэтому аттестация пуста.
+            "verdict_value": "ACK",
+            "attestation": {},
         },
         "mapped_files": ["tests/test_widget.py"],
         "target_recheck": {
