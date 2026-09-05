@@ -39,6 +39,37 @@ def _codex_history(thread_id: str):
     )
 
 
+def _stub_ledger_packet():
+    """A prepared packet still carries the constraint bodies the ledger must keep."""
+    return {
+        "schema_version": 1,
+        "constraints": [{
+            "content": "current system policy",
+            "authority": {
+                "origin_kind": "current_system_prompt",
+                "verified_by": "orchestra_server",
+                "sha256": "d" * 64,
+            },
+        }],
+    }
+
+
+def _delivered_candidate_sha256(kwargs) -> str:
+    """Check the ack names the packet that actually left, with no duplicated bodies."""
+    from app.runtime_history import runtime_packet_sha256
+
+    sent = kwargs["packet"]
+    constraints = sent["constraints"]
+    assert constraints, "the delivered candidate lost its constraint authority"
+    assert not any(item.get("content") for item in constraints), (
+        "the target receives the constraint bodies twice"
+    )
+    assert all(item["authority"]["sha256"] for item in constraints)
+    sha256 = runtime_packet_sha256(sent)
+    assert kwargs["expected_packet_sha256"] == sha256
+    return sha256
+
+
 def _claude_history(session_id: str, model: str):
     from app.runtime_history import render_claude_history
 
@@ -683,7 +714,7 @@ async def test_t3_claude_target_commits_only_after_canary_and_capability_receipt
     config_sha = "b" * 64
     capability_sha = "c" * 64
     prepared = SimpleNamespace(
-        handoff_id="h1", packet={"schema_version": 1},
+        handoff_id="h1", packet=_stub_ledger_packet(),
         packet_sha256=packet_sha, expected_capability_sha256=capability_sha,
         pending_effects=0,
     )
@@ -715,10 +746,10 @@ async def test_t3_claude_target_commits_only_after_canary_and_capability_receipt
     session._ensure_backend = AsyncMock(side_effect=connect_target)
 
     async def ingress_canary(*_args, **_kwargs):
-        assert _kwargs["expected_packet_sha256"] == packet_sha
+        sent_sha = _delivered_candidate_sha256(_kwargs)
         order.append("ingress-canary")
         return {
-            "ok": True, "state_checksum": packet_sha, "tools_enabled": False,
+            "ok": True, "state_checksum": sent_sha, "tools_enabled": False,
             "configuration_sha256": config_sha,
         }
 
@@ -762,14 +793,16 @@ async def test_t3_claude_target_commits_only_after_canary_and_capability_receipt
             "handoff_ingress_rejected",
         ),
         (
-            {"ok": True, "state_checksum": "a" * 64, "tools_enabled": True,
+            # `state_checksum: None` means "echo the candidate that actually arrived",
+            # resolved below: a literal cannot name a hash the staging step computes.
+            {"ok": True, "state_checksum": None, "tools_enabled": True,
              "configuration_sha256": "b" * 64},
             {"ok": True, "fingerprint": "c" * 64,
              "configuration_sha256": "b" * 64},
             "handoff_ingress_rejected",
         ),
         (
-            {"ok": True, "state_checksum": "a" * 64, "tools_enabled": False,
+            {"ok": True, "state_checksum": None, "tools_enabled": False,
              "configuration_sha256": "b" * 64},
             {"ok": False, "fingerprint": "wrong",
              "configuration_sha256": "b" * 64},
@@ -792,11 +825,19 @@ async def test_t3_invalid_receipt_never_disconnects_or_confirms(
     session._log = MagicMock()
     session._activate_backend_tasks = MagicMock()
     session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
-        handoff_id="h1", packet={"schema_version": 1},
+        handoff_id="h1", packet=_stub_ledger_packet(),
         packet_sha256="a" * 64, expected_capability_sha256="c" * 64,
         pending_effects=0,
     ))
-    session._run_handoff_ingress_canary = AsyncMock(return_value=ingress)
+
+    async def ingress_receipt(*_args, **kwargs):
+        sent_sha = _delivered_candidate_sha256(kwargs)
+        receipt = dict(ingress)
+        if receipt["state_checksum"] is None:
+            receipt["state_checksum"] = sent_sha
+        return receipt
+
+    session._run_handoff_ingress_canary = AsyncMock(side_effect=ingress_receipt)
     session._verify_handoff_capabilities = AsyncMock(return_value=capability)
     session._confirm_runtime_handoff = AsyncMock()
 
@@ -893,11 +934,10 @@ async def test_t4_grok_target_never_commits_from_summary_without_validation(
     assert marker not in json.dumps(manifest.components)
 
     async def validate_ingress(*_args, **kwargs):
-        assert kwargs["packet"] == packet
-        assert kwargs["expected_packet_sha256"] == packet_sha
+        sent_sha = _delivered_candidate_sha256(kwargs)
         assert marker not in json.dumps(manifest.components)
         return {
-            "ok": True, "state_checksum": packet_sha, "tools_enabled": False,
+            "ok": True, "state_checksum": sent_sha, "tools_enabled": False,
             "configuration_sha256": "b" * 64,
         }
 
