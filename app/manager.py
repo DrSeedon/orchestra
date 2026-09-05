@@ -105,6 +105,26 @@ class LockBusy(RuntimeError):
         )
 
 
+class LifecycleQuarantineError(RuntimeError):
+    """A durable task/branch binding blocks delivery until an explicit repair."""
+
+    def __init__(self, lifecycle: dict):
+        self.lifecycle = lifecycle
+        super().__init__(str(lifecycle["message"]))
+
+    def envelope(self) -> dict:
+        return {
+            "code": self.lifecycle["code"],
+            "message": self.lifecycle["message"],
+            "retryable": False,
+            "outcome_unknown": False,
+            "details": {
+                "task_id": self.lifecycle["task_id"],
+                "repair": self.lifecycle["repair"],
+            },
+        }
+
+
 @asynccontextmanager
 async def wait_for_session_lock(lock, *, what: str, worker: str, limit: float | None = None):
     """Взять лок сессии так, чтобы ожидание было ВИДНО снаружи.
@@ -1025,20 +1045,9 @@ class SessionManager:
                 session.needs_switch = bool(durable.get("needs_switch") or 0)
         if not session.needs_switch:
             return
-        if str(session.task_id or ""):
-            from app.tm import task_binding_requires_quarantine
-
-            blocked = await asyncio.to_thread(
-                task_binding_requires_quarantine,
-                session.scope,
-                session.id,
-                str(session.task_id),
-            )
-            if blocked:
-                raise RuntimeError(
-                    f"worker lifecycle is quarantined for task #{session.task_id}; "
-                    "repair the task/branch binding before delivery"
-                )
+        lifecycle = await asyncio.to_thread(self.lifecycle_quarantine, session)
+        if lifecycle:
+            raise LifecycleQuarantineError(lifecycle)
         if session.status != AgentStatus.IDLE:
             raise RuntimeError(
                 f"worker is {session.status.value} — cannot auto-switch before delivery"
@@ -1247,7 +1256,47 @@ class SessionManager:
             session = self._hydrate_row(row) if row else None
         if session is None:
             raise KeyError(f"session not found: {session_id}")
+        await self._auto_switch_before_delivery(session)
         await session.preflight_delivery_admission()
+
+    @staticmethod
+    def lifecycle_quarantine(session) -> dict:
+        """Project the delivery gate's derived quarantine state for every reader."""
+        get = session.get if isinstance(session, dict) else lambda key, default="": getattr(
+            session, key, default,
+        )
+        task_id = str(get("task_id", "") or "")
+        if not bool(get("needs_switch", False)) or not task_id:
+            return {}
+        from app.tm import task_binding_requires_quarantine
+
+        scope = str(get("scope", "") or "")
+        session_id = str(get("id", "") or "")
+        if not task_binding_requires_quarantine(scope, session_id, task_id):
+            return {}
+        name = str(get("name", "") or "")
+        base_branch = str(get("base_branch", "") or "main")
+        call = (
+            f'switch_worker_branch(name="{name}", task_id="{task_id}", '
+            f'from_ref="{base_branch}")'
+        )
+        return {
+            "code": "LIFECYCLE_QUARANTINED",
+            "task_id": task_id,
+            "repair": {
+                "tool": "switch_worker_branch",
+                "arguments": {
+                    "name": name,
+                    "task_id": task_id,
+                    "from_ref": base_branch,
+                },
+                "call": call,
+            },
+            "message": (
+                f"worker lifecycle is quarantined for task #{task_id}; repair with "
+                f"{call}. The call is idempotent when the binding is already healthy."
+            ),
+        }
 
     async def interrupt(self, session_id: str) -> None:
         session = self.sessions.get(session_id)
@@ -2326,6 +2375,10 @@ class SessionManager:
         for r in result:
             r["last_turn_ts"] = turn_map.get(r["id"])
             r.update(cache_policy_for_runtime(runtime_for_record(r)))
+            lifecycle = self.lifecycle_quarantine(r)
+            if lifecycle:
+                r["status"] = "quarantined"
+                r["lifecycle_status"] = lifecycle
             for omit in self._LIST_OMIT:
                 r.pop(omit, None)
         return result

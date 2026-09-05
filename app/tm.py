@@ -176,12 +176,11 @@ def _task_project_scope(conn: sqlite3.Connection, project_id: str) -> str:
     return str(row[0] or "") if row else ""
 
 
-def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
-    row = conn.execute(
-        "SELECT COALESCE(MAX(par_number), 0) + 1 FROM tm_tasks WHERE project_id = ?",
-        (project_id,),
-    ).fetchone()
-    n = row[0]
+def _next_available_task_number(
+    conn: sqlite3.Connection, project_id: str, candidate: int,
+) -> int:
+    """Apply repository-owned number reservations to either store's candidate."""
+    n = candidate
     # .orchestra/tasks/<n>/ survives task deletion — never reissue a number that still has a dir
     scope = _task_project_scope(conn, project_id)
     if scope:
@@ -191,6 +190,39 @@ def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
         while (tasks_root / str(n)).is_dir():
             n += 1
     return n
+
+
+def _next_par_candidate(conn: sqlite3.Connection, project_id: str) -> int:
+    row = conn.execute(
+        "SELECT COALESCE(MAX(par_number), 0) + 1 FROM tm_tasks WHERE project_id = ?",
+        (project_id,),
+    ).fetchone()
+    return int(row[0])
+
+
+def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
+    return _next_available_task_number(
+        conn, project_id, _next_par_candidate(conn, project_id),
+    )
+
+
+def _agreed_next_task_number(conn: sqlite3.Connection, project_id: str, store) -> int:
+    """Reject store divergence before shared repository reservations are applied."""
+    legacy_candidate = _next_par_candidate(conn, project_id)
+    canonical_candidate = int(
+        store.task_list(project=project_id)["next_display_number"]
+    )
+    if (
+        _task_project_scope(conn, project_id) == "/home/kesha/orchestra"
+        and canonical_candidate < _VPS_TASK_PAR_FLOOR
+    ):
+        canonical_candidate = legacy_candidate
+    if canonical_candidate != legacy_candidate:
+        raise IdentityConflictError(
+            f"task display counter mismatch in {project_id}: "
+            f"canonical={canonical_candidate}, legacy={legacy_candidate}"
+        )
+    return _next_available_task_number(conn, project_id, canonical_candidate)
 
 
 # --- Projects ---
@@ -1905,6 +1937,34 @@ def task_binding_requires_quarantine(
         )
 
 
+def validate_task_binding_repair(
+    scope: str, session_id: str, task_ref: str,
+) -> dict:
+    """Validate the existing live binding without changing either owner."""
+    with _TASK_BINDING_LOCK, _conn() as conn:
+        session = conn.execute(
+            "SELECT task_id FROM sessions WHERE id=? AND status!='archived'",
+            (session_id,),
+        ).fetchone()
+        if not session or str(session["task_id"] or "") != str(task_ref):
+            raise ValueError(
+                f"session '{session_id}' is not bound to task #{task_ref}"
+            )
+        project = get_project_by_scope(conn, scope.rstrip("/"))
+        task = resolve_task_ref(conn, task_ref, project["id"]) if project else None
+        if not task:
+            raise ValueError(f"task '{task_ref}' is not available in scope '{scope}'")
+        if str(task.get("worker_session_id") or "") != session_id:
+            raise ValueError(
+                f"task #{task['par_number']} is not bound to session '{session_id}'"
+            )
+        if task["status"] != "in_progress":
+            raise ValueError(
+                f"task #{task['par_number']} is {task['status']}, not in_progress"
+            )
+        return task_dto(task)
+
+
 def api_update_task_if_current(
     identity: TaskIdentity,
     *,
@@ -2911,23 +2971,8 @@ def api_create_task(project_id: str, title: str, price: int = 0,
     if not durable_request:
         with _TASK_CREATE_LOCK:
             with _conn() as conn:
-                legacy_next = _next_par(conn, resolved_project_id)
-                vps_task_range = (
-                    _task_project_scope(conn, resolved_project_id)
-                    == "/home/kesha/orchestra"
-                )
-            canonical_next = int(
-                store.task_list(project=resolved_project_id)["next_display_number"]
-            )
-            if (
-                vps_task_range
-                and canonical_next < _VPS_TASK_PAR_FLOOR
-            ):
-                canonical_next = legacy_next
-            if canonical_next != legacy_next:
-                raise IdentityConflictError(
-                    f"task display counter mismatch in {resolved_project_id}: "
-                    f"canonical={canonical_next}, legacy={legacy_next}"
+                canonical_next = _agreed_next_task_number(
+                    conn, resolved_project_id, store,
                 )
             legacy = _legacy_api_create_task(
                 resolved_project_id, title, price, description, assignee, status,
@@ -2992,23 +3037,8 @@ def api_create_task(project_id: str, title: str, price: int = 0,
         if candidate is None:
             try:
                 with _conn() as conn:
-                    legacy_next = _next_par(conn, resolved_project_id)
-                    vps_task_range = (
-                        _task_project_scope(conn, resolved_project_id)
-                        == "/home/kesha/orchestra"
-                    )
-                canonical_next = int(
-                    store.task_list(project=resolved_project_id)["next_display_number"]
-                )
-                if (
-                    vps_task_range
-                    and canonical_next < _VPS_TASK_PAR_FLOOR
-                ):
-                    canonical_next = legacy_next
-                if canonical_next != legacy_next:
-                    raise IdentityConflictError(
-                        f"task display counter mismatch in {resolved_project_id}: "
-                        f"canonical={canonical_next}, legacy={legacy_next}"
+                    canonical_next = _agreed_next_task_number(
+                        conn, resolved_project_id, store,
                     )
                 legacy = _legacy_mirror_canonical_create(
                     project_id=resolved_project_id,

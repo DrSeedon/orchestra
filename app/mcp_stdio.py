@@ -1803,7 +1803,15 @@ async def list_agents() -> str:
         desc_str = f' | "{desc}"' if desc else ""
         owner = s.get('parent_name', '')
         owner_str = f" | owner: {owner}" if show_owner and owner else ""
-        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{desc_str}{owner_str}"
+        lifecycle = s.get("lifecycle_status")
+        lifecycle_str = ""
+        if isinstance(lifecycle, dict):
+            repair = lifecycle.get("repair") or {}
+            lifecycle_str = (
+                f" | {lifecycle.get('code', 'LIFECYCLE_BLOCKED')}: "
+                f"{repair.get('call', lifecycle.get('message', 'repair required'))}"
+            )
+        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{desc_str}{owner_str}{lifecycle_str}"
 
     is_worker = ROLE not in _ORCH_ROLES
     orchestrators, my_workers, other_workers = [], [], []
@@ -2817,6 +2825,20 @@ async def switch_worker_branch(
         and result.get("state") == "promoted_current_work"
     ):
         return f"Promoted current work to branch {result.get('branch', '?')}"
+    if (
+        isinstance(result, dict)
+        and result.get("ok")
+        and result.get("state") == "lifecycle_repaired"
+    ):
+        return f"Repaired lifecycle binding on branch {result.get('branch', '?')}"
+    if (
+        isinstance(result, dict)
+        and result.get("ok")
+        and result.get("state") == "already_current"
+    ):
+        return (
+            f"No-op: worker is already on healthy branch {result.get('branch', '?')}"
+        )
     if isinstance(result, dict) and result.get("ok"):
         return f"Switched to branch {result.get('branch', '?')}"
     if isinstance(result, dict) and result.get("conflicts"):
@@ -2855,11 +2877,20 @@ async def worker_wip(name: str, base_ref: str = "") -> str:
     changed_files = result.get("changed_files", [])
     ctx = result.get("context_pct", 0)
     status = result.get("status", "?")
+    lifecycle = result.get("lifecycle_status")
+    lifecycle_line = ""
+    if isinstance(lifecycle, dict):
+        repair = lifecycle.get("repair") or {}
+        lifecycle_line = (
+            f"QUARANTINED {lifecycle.get('code', 'LIFECYCLE_BLOCKED')}: "
+            f"{lifecycle.get('message', '')}\n"
+            f"Repair: {repair.get('call', '')}\n"
+        )
     effective_base = result.get("base_ref") or base_ref or "persisted base"
     ctx_str = f" | ctx:{ctx}% | {status}" if ctx else f" | {status}"
     if not uncommitted and not unmerged:
-        return f"'{name}'{ctx_str}: clean — no uncommitted changes, no unmerged commits (vs {effective_base})"
-    parts = [f"WIP for '{name}'{ctx_str} (vs {effective_base}):"]
+        return lifecycle_line + f"'{name}'{ctx_str}: clean — no uncommitted changes, no unmerged commits (vs {effective_base})"
+    parts = [lifecycle_line + f"WIP for '{name}'{ctx_str} (vs {effective_base}):"]
     if uncommitted:
         parts.append(f"  Uncommitted ({len(uncommitted)}): " + ", ".join(uncommitted[:20]))
     if unmerged:
