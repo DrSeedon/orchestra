@@ -169,9 +169,59 @@ evidence quotes the current fail-closed error
 `"canonical Git index is not clean before scoped commit: "` and cites the post-fix `32 passed`,
 RC=0. Artifact: `review-implementation-luna.md`.
 
-## Pending live acceptance
+## Live acceptance after deployment
 
-The supplied before values are POST `20.84 s` and PUT `19.60 / 18.12 s` at 47,834 evidence records
-and 2.32 GB `current.db`. After this branch is merged with `task_outcome="continue"` and the service
-is restarted, record the exact curl `time_total` values and positive canonical/legacy/joined
-storage checks here. Do not replace the numbers with a qualitative “faster”.
+Deployed commit `222602c` was running in PID `2623492` from `2026-09-03 06:26:14 CEST` when the
+probe started. The full joined-projection rebuild had already run from 06:02 to 06:15; `current.db`
+was `3,318,841,344` bytes with mtime `06:15:12`, and no `current.db-*` transaction file existed.
+Thus these requests did not overlap the full rebuild.
+
+The exact HTTP measurements were:
+
+```text
+POST code=200 time_total=1.403991
+PUT code=200 time_total=1.017341
+```
+
+The POST created task `#510`, stable id `453cdeb1-f5e2-5cd2-a205-d0f04867413a`; the PUT changed
+its title to `#426 live projection receipt applied`. A first attempted update copied the plan's curl
+snippet literally without `-X PUT`; curl therefore sent POST and received `405` in `0.007652 s`.
+The value above is the actual `-X PUT` measurement.
+
+The positive checks succeeded for two owners:
+
+- canonical GET returned HTTP 200 with the stable id, updated title, `sync_revision=1`, and task
+  head `sha256:33be999b4610e82024e3d97f05803ca22709e9e22a42f3a53e381a51315e2ee0`;
+- read-only `data/orchestra.db` returned legacy row `id=688`, `par_number=510`, scope and project id
+  `/home/kesha/orchestra`, the updated title, and `sync_revision=1`.
+
+The joined positive checks failed. `current_records` had no row for the stable id, therefore no
+corresponding `current_fts` binding existed. Both ordered receipts remained in
+`canonical/projection-outbox/`, with POST target `sha256:1796c052...` followed by PUT target
+`sha256:cc05cd60...`; there was no applied-marker directory. The drainer recorded blocking debt:
+
+```text
+projection outbox head mismatch: expected sha256:70f568550d5afea96998ed696f7573a7ccf31f127e7e2a949e12fd26ba7e4ddc,
+observed sha256:c820382b1491d86edcad7c85acfbbc3120dd994e715c1e9704da1688cc8c418a
+```
+
+The first value was `runtime-state.json.projection_head`; the second was
+`current.db:projection_meta.projection_head`. The rebuilt DB and durable runtime state already
+disagreed before the POST, so the new fail-closed chain correctly retained both receipts but could
+not provide eventual joined application. Live acceptance is therefore **failed**, not complete.
+
+On the same host before deployment, the supplied measurements were POST `20.84 s`, PUT
+`19.60 / 18.12 s`, `send_message`/`task_create`/`switch_worker_branch` longer than 30 seconds with
+`ReadTimeout`, and `/api/sessions/<name>/send` longer than two minutes. The live stack then placed
+`_record_task_head` and `task_update_if_current` behind `_repair_current_projection`. After this
+deployment the two task HTTP writes completed with the exact times above. However, two post-probe
+`send_message` attempts each exceeded 30 seconds and produced no `message_deliveries` row, so this
+probe does not claim that the broader non-HTTP symptoms are resolved.
+
+The post-restart full repair does **not** hold the task-write lock after #426. `_record_task_head`
+uses `_canonical_git_lock` at `app/ia/runtime.py:897-920`; incremental SQLite apply and
+`_repair_current_projection` use `_projection_writer_lock` at `:1601-1610` and `:1658-1661`.
+`_record_task_head` no longer acquires `_projection_writer_lock` or constructs the joined
+projection before returning. This source split proves removal of the old repair-versus-task-write
+lock contention. It does not fix the newly observed rebuild-to-runtime-state head handoff, and no
+production repair was attempted during this acceptance probe.

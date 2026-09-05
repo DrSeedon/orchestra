@@ -6,11 +6,21 @@ Exit 0 = all checks pass. Every failure prints the offending row.
 import pathlib, re, subprocess, sys
 
 root = pathlib.Path(__file__).resolve().parents[3]
-text = (root / "README.md").read_text()
 
+# Both showcase versions are checked. `README.ru.md` (#512) carries the same table with the
+# same anchors; a guard that only ever read the English file would let the Russian one rot
+# into a second, quietly disagreeing owner.
+VERSIONS = {"README.md": "## Features", "README.ru.md": "## Возможности"}
+
+text = (root / "README.md").read_text()
 block = text.split("<a id=\"comparison\"></a>")[1].split("## Features")[0]
 rows = [r for r in block.split("\n") if r.startswith("|") and not set(r) <= set("|- ")]
-status_rows = [r for r in rows if r.count("|") == 4][1:]  # drop header
+# The status table is the one before the first `###` subsection. Selecting it by column
+# count alone was wrong: the head-to-head table added in #512 also has three columns, so
+# every one of its rows was demanded to carry ✅/🚧/🚫 and the whole check went red.
+status_block = block.split("\n### ")[0]
+status_rows = [r for r in status_block.split("\n")
+               if r.startswith("|") and not set(r) <= set("|- ") and r.count("|") == 4][1:]
 
 fail = []
 
@@ -28,15 +38,62 @@ for banned in ("5 593", "5593", "ahead of Orca", "beats Orca", "better than Orca
     if banned in block:
         fail.append(f"banned string present: {banned!r}")
 
-# 3. every file:line anchor resolves and the file is non-empty at that line
-for path, line in set(re.findall(r"`(app/[\w/]+\.py):(\d+)`", block)):
-    f = root / path
-    if not f.exists():
-        fail.append(f"missing file {path}")
+# 3. every file:line anchor resolves AND the named symbol is really there.
+# A non-blank line proves nothing: code moves, and a stale anchor lands on some other
+# non-blank line while the README keeps citing it as proof. Measured 2026-09-05 (#512):
+# 8 of the 17 anchors in this section had drifted and this script passed on all of them.
+# So the rule is: the row must name at least one backticked symbol/literal, and that
+# token must appear within ±2 lines of the anchor. Known limit — one token of the row
+# satisfying one of the row's anchors is enough, so a row whose tokens are substrings of
+# each other is checked more weakly than a row with distinct ones.
+ANCHOR_RE = re.compile(r"`((?:app|scripts)/[\w/]+\.(?:py|js)):(\d+)`")
+
+
+def row_tokens(row: str) -> list[str]:
+    """Backticked pieces of a row that are candidates for a symbol, not paths."""
+    out = []
+    for tok in re.findall(r"`([^`]+)`", row):
+        if ANCHOR_RE.fullmatch(f"`{tok}`") or re.fullmatch(r"[\w/]+\.(py|js|md)", tok):
+            continue
+        out.append(tok)
+    return out
+
+
+def comparison_block(name: str) -> str:
+    body = (root / name).read_text()
+    return body.split("<a id=\"comparison\"></a>")[1].split(VERSIONS[name])[0]
+
+
+all_rows = []
+for name in VERSIONS:
+    for row in comparison_block(name).split("\n"):
+        if row.startswith("|") and not set(row) <= set("|- "):
+            all_rows.append((name, row))
+
+for name, row in all_rows:
+    anchors = ANCHOR_RE.findall(row)
+    if not anchors:
         continue
-    lines = f.read_text().split("\n")
-    if int(line) > len(lines) or not lines[int(line) - 1].strip():
-        fail.append(f"anchor {path}:{line} points at nothing")
+    tokens = row_tokens(row)
+    for path, line in anchors:
+        f = root / path
+        if not f.exists():
+            fail.append(f"{name}: missing file {path}")
+            continue
+        lines = f.read_text().split("\n")
+        n = int(line)
+        if n > len(lines) or not lines[n - 1].strip():
+            fail.append(f"{name}: anchor {path}:{line} points at nothing")
+            continue
+        if not tokens:
+            fail.append(f"{name}: anchor {path}:{line} cites a line but the row names no symbol")
+            continue
+        window = "\n".join(lines[max(0, n - 3):n + 2])
+        if not any(tok in window for tok in tokens):
+            fail.append(
+                f"{name}: anchor {path}:{line} supports none of the row's symbols {tokens}; "
+                f"line reads: {lines[n - 1].strip()[:70]!r}"
+            )
 
 # 4. bare file anchors exist
 for path in set(re.findall(r"`(app/[\w/]+\.py)`", block)):
@@ -50,13 +107,32 @@ if out == "0":
     fail.append("README claims merge refuses without a review receipt; the marker is gone")
 
 # 6. the CLAUDE.md size claim must stay true in KIND, not to the byte:
-# the row asserts "the root guide is far too big to be an index", so the check is a floor.
-# An exact byte count drifts on every edit and would make this script cry wolf.
+# the row asserts "the root guide is far too big to be an index", so the check is a floor
+# and the README says it in words. The previous version pinned the literal "about **190 KB**"
+# and so froze a number that had already drifted to 212 299 B by 2026-09-05 (#512) — the
+# floor was reading the right file and holding all along; the literal was the defect.
 size = (root / "CLAUDE.md").stat().st_size
-if size < 150_000 or "about **190 KB**" not in block:
-    fail.append(f"README claims CLAUDE.md is about 190 KB and far past an index; actual {size} bytes")
+if size < 150_000:
+    fail.append(f"README claims CLAUDE.md is far past an index size; actual {size} bytes")
+if "hundreds of kilobytes" not in block:
+    fail.append("README no longer states the root guide is past index size")
 
-print(f"rows checked: {len(status_rows)}")
+# 7. the two versions must cite the SAME anchors — one showcase, not two.
+anchor_sets = {n: set(ANCHOR_RE.findall(comparison_block(n))) for n in VERSIONS}
+en, ru = anchor_sets["README.md"], anchor_sets["README.ru.md"]
+for missing in sorted(en - ru):
+    fail.append(f"README.ru.md is missing anchor {missing[0]}:{missing[1]} that README.md cites")
+for extra in sorted(ru - en):
+    fail.append(f"README.ru.md cites anchor {extra[0]}:{extra[1]} that README.md does not")
+
+# 8. the language switch must work in both directions.
+if 'href="README.ru.md"' not in text:
+    fail.append("README.md has no link to the Russian version")
+if 'href="README.md"' not in (root / "README.ru.md").read_text():
+    fail.append("README.ru.md has no link back to the English version")
+
+print(f"rows checked: {len(status_rows)}; anchors checked: "
+      f"{sum(len(v) for v in anchor_sets.values())} across {len(VERSIONS)} versions")
 for f_ in fail:
     print("FAIL:", f_)
 sys.exit(1 if fail else 0)
