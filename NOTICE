@@ -1,0 +1,24 @@
+Orchestra — AI agent orchestrator
+
+Copyright (c) 2026 Seedon (ООО «Сидон») (seedon.ru)
+Author: Maxim Astrakhantsev
+
+LICENSE
+=======
+This software is distributed under the GNU Affero General Public License,
+version 3. The complete license text is in the LICENSE file of this
+repository; it is also published at https://www.gnu.org/licenses/agpl-3.0.html
+
+COMMERCIAL LICENSING
+====================
+For commercial licensing options (use without AGPL obligations),
+contact: maxim-as@bk.ru | seedon.ru
+
+SUMMARY (not a substitute for the full license text in LICENSE)
+==============================================================
+- You may use, modify, and distribute this software under AGPL-3.0
+- If you run a modified version as a network service, you MUST make
+  your source code available to users of that service
+- Any derivative work must also be licensed under AGPL-3.0
+- The copyright holder (Seedon (ООО «Сидон»)) may offer commercial licenses
+  that waive these requirements
