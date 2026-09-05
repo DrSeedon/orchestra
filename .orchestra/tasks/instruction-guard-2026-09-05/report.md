@@ -10,11 +10,13 @@ inside both files. This supersedes the earlier CLAUDE import adapter.
 - Existing CI runs pytest, including the repository-source test which calls the read-only
   checker. It rejects byte drift, an outdated directory, empty/oversized files and imports.
 - Size limit applies to EACH CLI's copy (<16 KiB), not the sum of duplicate files on disk.
-  The final size is about 15.5 KB each; a new topic cannot be silently omitted to fit.
+  The integrated size is 15,950 bytes each; a new topic cannot be silently omitted to fit.
 - Existing projects without a directory in their root rules retain the README fallback.
   No other project's instructions, runtime services or credentials were changed.
 
 162 focused tests passed; the expanded run including pipeline delivery passed 372 tests.
+Final integration with native-state compatibility and incoming main: 505 tests passed;
+the README checker validated 29 rows and 34 anchors across two versions.
 Negative cases include one-sided edits, equally oversized UTF-8 copies, missing
 topics, stale descriptions, broken references, duplicate entries and invalid markers.
 Failed sync does not mutate either root file during validation; an unchanged sync is a no-op.

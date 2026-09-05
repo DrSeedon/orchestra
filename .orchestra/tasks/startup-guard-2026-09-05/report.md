@@ -12,7 +12,9 @@ The pin was used for two different contracts: importing history and cloning nati
 ## Fix
 
 - The historical seed signature remains labelled 0.150.1, its actual provenance.
-- Other CLI versions use native startup/migrations without Orchestra inspecting or
+- The separately captured 0.153.4 signature (52 migrations, hotfix 3f8bffbf) is
+  retained under its literal version, independently of the history-import pin.
+- Unverified CLI versions use native startup/migrations without Orchestra inspecting or
   copying their state. Updating the history-import pin cannot relabel seed evidence.
 - Failure to probe the optional seed version, inspect a seed candidate or find a donor
   skips only the optimization. It does not veto a safe provider-owned startup path.
@@ -45,5 +47,6 @@ run with pipeline delivery after the prompt change passed 342 tests. The new cas
 an unknown future CLI, version-probe failure, and unsupported read-only seed inspection;
 each reaches native connect without modifying the target database.
 Existing tests retain WAL backup, corruption refusal, rollback and concurrent-home locks.
+Final integration with the root-instruction changes and current main passed 505 tests.
 No native DB was edited and no service restarted. Python changes need an owner-initiated
 restart after merge; VPS deployment is not authorized by this change.
